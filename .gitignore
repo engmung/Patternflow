@@ -27,6 +27,8 @@ out/
 .history/
 fp-info-cache
 _autosave-*
+*.lck
+~*.lck
 *.kicad_pcb-bak
 *.kicad_sch-bak
 *.bak
