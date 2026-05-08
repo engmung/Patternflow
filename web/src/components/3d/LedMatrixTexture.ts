@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { getKnobValueDelta, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/patternflowControls';
 
 export class LedMatrixTexture {
   public texture: THREE.DataTexture;
@@ -73,12 +74,9 @@ export class LedMatrixTexture {
     try {
       // Prepare input frame
       const input = {
-        knobDeltas: [
-          knobValues.c1 - prevKnobValues.c1,
-          knobValues.c2 - prevKnobValues.c2,
-          knobValues.c3 - prevKnobValues.c3,
-          knobValues.c4 - prevKnobValues.c4
-        ],
+        knobDeltas: LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) =>
+          toEncoderDelta(knobId, getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId]))
+        ),
         btnPressed: [false, false, false, false],
         btnHeld: [false, false, false, false]
       };

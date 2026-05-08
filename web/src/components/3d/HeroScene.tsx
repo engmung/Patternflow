@@ -9,6 +9,7 @@ import { patternVert } from './patterns/common';
 import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
+import { LOGICAL_KNOB_TO_WEB_KNOB } from '@/lib/patternflowControls';
 
 const customFragmentShader = `
 uniform sampler2D uTex;
@@ -30,14 +31,13 @@ void main() {
   float lodBlend = smoothstep(0.0, 0.29, fw); 
   float finalAlpha = mix(circle, 1.0, lodBlend);
   
-  // Boost color to > 2.0 to trigger Bloom post-processing
   vec3 col = texColor.rgb;
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
-  
-  if (luma > 0.3) {
-    col *= 3.0; // Bloom trigger!
-  } else if (luma > 0.01) {
-    col *= 1.5;
+
+  if (luma > 0.75) {
+    col *= 2.35;
+  } else {
+    col *= 0.8;
   }
   
   float unlit = 0.02;
@@ -112,10 +112,10 @@ function Model() {
   }, [activePatternId, ledMat, customMat]);
 
   useEffect(() => {
-    ledMat.uniforms.uParam1.value = knobValues.c1; // Hue
-    ledMat.uniforms.uSpeed.value = knobValues.c2;  // Speed
-    ledMat.uniforms.uParam3.value = knobValues.c3; // Mode
-    ledMat.uniforms.uParam4.value = knobValues.c4; // Freq
+    ledMat.uniforms.uParam1.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[0]]; // Hue
+    ledMat.uniforms.uSpeed.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[1]];  // Speed
+    ledMat.uniforms.uParam3.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[2]]; // Mode
+    ledMat.uniforms.uParam4.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[3]]; // Freq
   }, [knobValues, ledMat]);
 
   // --- Knob Interaction Logic ---

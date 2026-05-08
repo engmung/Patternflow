@@ -24,23 +24,43 @@ Install these via the Arduino Library Manager:
 
 ## Project layout
 
-- `patternflow_v1/patternflow_v1.ino` — Main sketch for v1.0 hardware
-- `patternflow_v1/config.h` — Hardware configuration (Pin mappings, display resolution, limits)
-- `examples/` — Minimal templates for adding new patterns
+- `patternflow_v1/patternflow_v1.ino` - Main sketch for v1.0 hardware
+- `patternflow_v1/pattern_registry.h` - Central pattern registry
+- `patternflow_v1/pattern_*.h` - Individual generative patterns
+- `patternflow_v1/config.h` - Hardware configuration (pin mappings, display resolution, limits)
+- `examples/` - Minimal templates for adding new patterns
+
+## Patterns
+
+Current registered patterns:
+- `Origin`
+- `Wave1_Saw`
+- `Vector Fluid`
+
+To add a new pattern, create a `pattern_new_name.h` file with the standard namespace interface:
+- `NAME`
+- `KNOB_LABELS`
+- `setup()`
+- `update(float dt, const InputFrame& input)`
+- `draw()`
+
+Then register it once in `patternflow_v1/pattern_registry.h` by adding the include and one `PATTERN_ENTRY(NewPatternNamespace)` line.
 
 ## Configuration (`config.h`)
 
-All hardware-specific pins and limits are centralized in `config.h`. 
+All hardware-specific pins and limits are centralized in `config.h`.
 - **Pin Mapping:** Adjust the `R1_PIN`, `ENC1_A` etc. if you are not using the official Patternflow PCB.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
 
 ## Controls
 
-The four rotary encoders control the following parameters:
-- **Encoder 1:** Hue (Press to reset to 0°)
-- **Encoder 2:** Speed (Press to stop)
-- **Encoder 3:** Mode/Preset (Press to reset to Mode 0)
-- **Encoder 4:** Frequency (Press to reset to 0)
+The four rotary encoders control pattern-specific parameters. Each pattern exposes its own labels through `KNOB_LABELS`.
+
+For the original defaults:
+- **Encoder 1:** Hue
+- **Encoder 2:** Speed
+- **Encoder 3:** Mode/Preset
+- **Encoder 4:** Frequency
 
 ## OTA Updates (For Developers)
 
@@ -53,4 +73,4 @@ The firmware includes `ArduinoOTA` for wireless updates.
 
 ## License
 
-MIT — see root `LICENSE-MIT` file.
+MIT - see root `LICENSE-MIT` file.
