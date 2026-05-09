@@ -9,7 +9,6 @@ import { patternVert } from './patterns/common';
 import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
-import { LOGICAL_KNOB_TO_WEB_KNOB } from '@/lib/patternflowControls';
 
 const customFragmentShader = `
 uniform sampler2D uTex;
@@ -112,10 +111,10 @@ function Model() {
   }, [activePatternId, ledMat, customMat]);
 
   useEffect(() => {
-    ledMat.uniforms.uParam1.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[0]]; // Hue
-    ledMat.uniforms.uSpeed.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[1]];  // Speed
-    ledMat.uniforms.uParam3.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[2]]; // Mode
-    ledMat.uniforms.uParam4.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[3]]; // Freq
+    ledMat.uniforms.uParam1.value = knobValues.c1; // Hue
+    ledMat.uniforms.uSpeed.value = knobValues.c2;  // Speed
+    ledMat.uniforms.uParam3.value = knobValues.c3; // Mode
+    ledMat.uniforms.uParam4.value = knobValues.c4; // Freq
   }, [knobValues, ledMat]);
 
   // --- Knob Interaction Logic ---
