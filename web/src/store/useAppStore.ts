@@ -52,38 +52,51 @@ export const useAppStore = create<AppState>((set) => ({
   setIsBloomEnabled: (enabled) => set({ isBloomEnabled: enabled }),
   activePatternId: 'patternFlowOriginal',
   setActivePatternId: (id) => set({ activePatternId: id }),
-  customJsCode: `// This code runs every frame in the web simulator.
-// It matches the ESP32 C++ structure so AI can easily convert it.
+  customJsCode: `// Patternflow live editor starter.
+// Knobs: hue, speed, spread, pulse.
 
 export function setup(params) {
   params.hue = 0;
   params.speed = 2.0;
+  params.spread = 1.0;
+  params.pulse = 1.0;
   params.time = 0;
 }
 
 export function update(dt, input, params) {
-  // input.knobDeltas: [hue, speed, mode, freq]
   if (input.knobDeltas[0] !== 0) {
-    params.hue = (params.hue + input.knobDeltas[0] * 10) % 360;
+    params.hue = (params.hue + input.knobDeltas[0] * 24) % 360;
     if (params.hue < 0) params.hue += 360;
   }
-  
+
   if (input.knobDeltas[1] !== 0) {
-    params.speed = Math.max(0, Math.min(5.0, params.speed + input.knobDeltas[1] * 0.1));
+    params.speed = Math.max(0.2, Math.min(8, params.speed + input.knobDeltas[1] * 0.35));
   }
-  
+
+  if (input.knobDeltas[2] !== 0) {
+    params.spread = Math.max(0.25, Math.min(4, params.spread + input.knobDeltas[2] * 0.2));
+  }
+
+  if (input.knobDeltas[3] !== 0) {
+    params.pulse = Math.max(0.2, Math.min(3, params.pulse + input.knobDeltas[3] * 0.18));
+  }
+
   params.time += dt * params.speed;
 }
 
 export function draw(display, params, globalTime) {
-  // display.width (128), display.height (64)
   for (let y = 0; y < display.height; y++) {
     for (let x = 0; x < display.width; x++) {
-      let r = (x / display.width) * 255;
-      let g = (y / display.height) * 255;
-      let b = (Math.sin(params.time + params.hue * 0.01) * 0.5 + 0.5) * 255;
-      
-      display.setPixel(x, y, r, g, b);
+      let h = params.hue * 0.017 + x * 0.045 * params.spread + y * 0.035 + params.time;
+      let wave = Math.sin(h * 2 + params.time * 1.5) * 0.5 + 0.5;
+      let bright = 0.35 + wave * 0.65 * params.pulse;
+
+      display.setPixel(
+        x, y,
+        (Math.sin(h) * 0.5 + 0.5) * 255 * bright,
+        (Math.sin(h + 2.1) * 0.5 + 0.5) * 255 * bright,
+        (Math.sin(h + 4.2) * 0.5 + 0.5) * 255 * bright
+      );
     }
   }
 }`,

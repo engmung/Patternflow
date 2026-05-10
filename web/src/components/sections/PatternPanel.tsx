@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import { SectionContent } from '@/lib/content';
-import PretextText from '../ui/PretextText';
 import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
@@ -125,8 +124,12 @@ Here is the JavaScript code to convert:
 ${code}`;
 
 
-// Type bypass for Web Component
-const EspWebInstallButton = 'esp-web-install-button' as any;
+type EspWebInstallButtonProps = {
+  children: React.ReactNode;
+  manifest: string;
+};
+
+const EspWebInstallButton = 'esp-web-install-button' as unknown as React.ElementType<EspWebInstallButtonProps>;
 
 interface PatternPanelProps {
   content: SectionContent;
@@ -167,13 +170,21 @@ const costClassByLevel = {
   HIGH: styles.costHigh,
 } as const;
 
+const EDITOR_LINE_HEIGHT = 20;
+const EDITOR_VERTICAL_CHROME = 24;
+const EDITOR_MIN_HEIGHT = 400;
+
 export default function PatternPanel({ content }: PatternPanelProps) {
-  const [isMobile, setIsMobile] = useState(false);
   const [mode, setMode] = useState<PatternMode>('flash');
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
   const esp32Cost = analyzeEsp32Cost(customJsCode);
+  const editorLineCount = Math.max(1, customJsCode.split('\n').length);
+  const editorHeight = Math.max(
+    EDITOR_MIN_HEIGHT,
+    editorLineCount * EDITOR_LINE_HEIGHT + EDITOR_VERTICAL_CHROME,
+  );
 
   const selectBuiltInPattern = (pattern: PresetPattern) => {
     const store = useAppStore.getState();
@@ -205,41 +216,21 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     alert('C++ Conversion Prompt copied to clipboard! Paste it in ChatGPT/Claude to get your ESP32 C++ code.');
   };
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 900);
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-
   return (
-    <div className="panel-content" id="pattern">
+    <div className="panel-content pf-section-panel" id="pattern">
       <div className="panel-header">
-        <h2>
-          <PretextText 
-            text={content.title} 
-            font={isMobile ? "500 42px Inter, ui-sans-serif, system-ui, sans-serif" : "500 64px Inter, ui-sans-serif, system-ui, sans-serif"} 
-            lineHeight={isMobile ? 42 : 64} 
-            letterSpacing={isMobile ? -1.5 : -2.24} 
-            delayOffset={0.2}
-          />
-        </h2>
-        <div className="sub">
-          <PretextText 
-            text={content.subtitle} 
-            font={isMobile ? "400 16px Inter, ui-sans-serif, system-ui, sans-serif" : "400 20px Inter, ui-sans-serif, system-ui, sans-serif"} 
-            lineHeight={isMobile ? 24 : 29} 
-            delayOffset={0.4}
-          />
-        </div>
+        <h2 className="pf-h2">{content.title}</h2>
+        <p className="pf-sub">{content.subtitle}</p>
       </div>
       <div className="panel-body">
         {content.meta && content.meta.length > 0 && (
-          <div className="meta-row" style={{ display: 'flex', gap: '2rem', marginBottom: '2rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>
+          <div className={`pf-block ${styles.metaRows}`}>
+            <span className="pf-kicker">Details</span>
             {content.meta.map((item, idx) => (
-              <div key={idx} className="meta-item">
-                <div style={{ fontSize: '12px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</div>
-                <div style={{ fontSize: '16px', fontWeight: 500 }}>{item.value}</div>
+              <div key={idx} className="pf-row">
+                <span className="pf-ghost">{String(idx + 1).padStart(2, '0')}</span>
+                <div className="pf-row-t">{item.value}</div>
+                <div className="pf-row-d">{item.label}</div>
               </div>
             ))}
           </div>
@@ -351,7 +342,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                 </div>
               </div>
               <Editor
-                height="400px"
+                height={editorHeight}
                 defaultLanguage="javascript"
                 theme="vs-dark"
                 value={customJsCode}
@@ -359,7 +350,16 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
+                  lineHeight: EDITOR_LINE_HEIGHT,
                   scrollBeyondLastLine: false,
+                  scrollbar: {
+                    vertical: 'hidden',
+                    horizontal: 'auto',
+                    handleMouseWheel: false,
+                  },
+                  overviewRulerLanes: 0,
+                  hideCursorInOverviewRuler: true,
+                  automaticLayout: true,
                 }}
               />
               <div className={styles.editorFootnote}>
@@ -397,17 +397,20 @@ export default function PatternPanel({ content }: PatternPanelProps) {
         </div>
 
         {content.cta && (
-          <div className="cta-row" style={{ display: 'flex', gap: '1rem', marginTop: '3rem', marginBottom: '10vh' }}>
+          <div className="pf-block">
+            <span className="pf-kicker">Links</span>
+            <div className={styles.ctaLinks}>
             {content.cta.primary && (
-              <a href={content.cta.primary.href} className="btn-primary" style={{ padding: '0.75rem 1.5rem', background: '#000', color: '#fff', borderRadius: '4px', textDecoration: 'none', fontWeight: 500 }}>
+              <a href={content.cta.primary.href} className="pf-link">
                 {content.cta.primary.label}
               </a>
             )}
             {content.cta.secondary && (
-              <a href={content.cta.secondary.href} className="btn-secondary" style={{ padding: '0.75rem 1.5rem', background: '#f5f5f5', color: '#000', borderRadius: '4px', textDecoration: 'none', fontWeight: 500 }}>
+              <a href={content.cta.secondary.href} className="pf-link">
                 {content.cta.secondary.label}
               </a>
             )}
+            </div>
           </div>
         )}
       </div>

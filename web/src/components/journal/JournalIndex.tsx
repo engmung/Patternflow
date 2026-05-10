@@ -18,11 +18,11 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   return (
     <main className="journal-index">
       <header className="journal-masthead">
-        <a className="journal-lockup" href="/">
+        <Link className="journal-lockup" href="/">
           <span>Patternflow</span>
           <span className="journal-slash">/</span>
           <span>Blog</span>
-        </a>
+        </Link>
       </header>
       <LanguageSwitch lang={lang} />
 
@@ -53,18 +53,16 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
           <ol className="journal-post-list">
             {archive.map((post, index) => (
               <li key={post.slug}>
-                <Link href={`/journal/${post.slug}${langQuery}`}>
-                  <span className="journal-list-number">
-                    /{String(index + 1).padStart(3, "0")}
-                  </span>
+                <Link className="pf-row" href={`/journal/${post.slug}${langQuery}`}>
+                  <span className="pf-ghost">{String(index + 1).padStart(2, "0")}</span>
                   <span className="journal-list-body">
-                    <strong>
+                    <strong className="pf-row-t">
                       {post.title}
                       {post.slug === newestSlug && post.slug !== hero?.slug && (
                         <span className="journal-new-badge">NEW</span>
                       )}
                     </strong>
-                    <span>{post.excerpt}</span>
+                    <span className="pf-row-d">{post.excerpt}</span>
                   </span>
                   <span className="journal-list-meta">
                     {formatJournalDate(post.date, lang)}

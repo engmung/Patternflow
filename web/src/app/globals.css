@@ -11,6 +11,34 @@
     --mono: 'JetBrains Mono', ui-monospace, monospace;
     --serif: 'Newsreader', Georgia, serif;
     --led-hex: #E8552E;
+    --pf-cream: #F4EFE6;
+    --pf-cream-2: #EDE7DB;
+    --pf-ink: #141414;
+    --pf-ink-muted: #6B655A;
+    --pf-ink-faint: #A69F90;
+    --pf-ink-ghost: #C9C2B0;
+    --pf-rule: #D9D1C0;
+    --pf-rule-soft: #E5DDC9;
+    --pf-led: #E8552E;
+    --pf-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --pf-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --pf-serif: 'Newsreader', Georgia, serif;
+    --pf-fs-h2: 34px;
+    --pf-fs-sub: 14px;
+    --pf-fs-body: 13.5px;
+    --pf-fs-row: 16px;
+    --pf-fs-row-d: 12.5px;
+    --pf-fs-mono: 11px;
+    --pf-fs-card: 15.5px;
+    --pf-fs-ghost: 96px;
+    --pf-fs-ghost-row: 64px;
+    --pf-track-mono: 0.14em;
+    --pf-track-tight: -0.025em;
+    --pf-rule-w: 1px;
+    --pf-section-pad: 48px 40px 56px;
+    --pf-block-pad-y: 24px;
+    --pf-row-pad-y: 18px;
+    --pf-marquee-dur: 80s;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -549,6 +577,212 @@
     .panel-content { padding: 40px 0; min-height: auto; }
   }
 
+  /* Patternflow editorial design system */
+  .pf-section-panel {
+    background: #ffffff;
+    border: 0;
+    color: var(--pf-ink);
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-body);
+    line-height: 1.55;
+    padding: var(--pf-section-pad);
+  }
+  .pf-section-panel .panel-header { margin: 0 0 36px; }
+  .pf-h2 {
+    margin: 0 0 12px;
+    color: var(--pf-ink);
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-h2);
+    font-weight: 500;
+    letter-spacing: var(--pf-track-tight);
+    line-height: 1.05;
+  }
+  .pf-sub {
+    max-width: 30ch;
+    margin: 0;
+    color: var(--pf-ink-muted);
+    font-size: var(--pf-fs-sub);
+    line-height: 1.45;
+  }
+  .pf-block {
+    padding: var(--pf-block-pad-y) 0;
+    border-top: var(--pf-rule-w) solid var(--pf-rule);
+  }
+  .pf-block:first-child { padding-top: 0; border-top: 0; }
+  .pf-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 30px;
+  }
+  .pf-kicker,
+  .pf-count,
+  .pf-mono {
+    font-family: var(--pf-mono);
+    font-size: var(--pf-fs-mono);
+    letter-spacing: var(--pf-track-mono);
+    text-transform: uppercase;
+    color: var(--pf-ink-muted);
+  }
+  .pf-kicker { display: block; margin-bottom: 16px; }
+  .pf-head .pf-kicker { margin-bottom: 0; }
+  .pf-prose {
+    display: grid;
+    gap: 14px;
+    max-width: 620px;
+  }
+  .pf-prose p {
+    margin: 0;
+    max-width: none;
+    color: var(--pf-ink-muted);
+    font-size: var(--pf-fs-body);
+    line-height: 1.65;
+  }
+  .pf-link {
+    width: fit-content;
+    color: var(--pf-ink);
+    border-bottom: var(--pf-rule-w) solid currentColor;
+    font-family: var(--pf-mono);
+    font-size: var(--pf-fs-mono);
+    letter-spacing: var(--pf-track-mono);
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+  .pf-link:hover { color: var(--pf-ink-muted); text-decoration: none; }
+  .pf-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    padding: var(--pf-row-pad-y) 0;
+    border: 0;
+    border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+    background: transparent;
+    color: var(--pf-ink-muted);
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+  .pf-row:first-of-type { border-top: var(--pf-rule-w) solid var(--pf-rule); }
+  .pf-row.on,
+  .pf-row:hover,
+  .pf-row:focus-visible { color: var(--pf-ink); }
+  .pf-row .pf-ghost {
+    position: absolute;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--pf-ink-ghost);
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-ghost-row);
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .pf-row.on .pf-ghost { color: var(--pf-ink); }
+  .pf-row-t,
+  .pf-row-d { position: relative; z-index: 1; }
+  .pf-row-t {
+    color: inherit;
+    font-size: var(--pf-fs-row);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .pf-row-d {
+    max-width: 28ch;
+    margin-top: 3px;
+    color: var(--pf-ink-muted);
+    font-size: var(--pf-fs-row-d);
+    line-height: 1.45;
+  }
+  .pf-marquee {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-block: var(--pf-rule-w) solid var(--pf-rule);
+  }
+  .pf-marquee.fade {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  }
+  .pf-track {
+    display: flex;
+    width: max-content;
+    align-items: stretch;
+    padding: 30px 0 28px;
+    animation: pf-slide var(--pf-marquee-dur) linear infinite;
+  }
+  .pf-marquee:hover .pf-track { animation-play-state: paused; }
+  .pf-track.pf-track-manual {
+    animation: none !important;
+  }
+  @keyframes pf-slide {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
+  }
+  .pf-comment {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 0 28px;
+    border-right: var(--pf-rule-w) solid var(--pf-rule);
+    color: var(--pf-ink);
+    overflow: hidden;
+    position: relative;
+  }
+  .pf-comment .pf-ghost {
+    position: absolute;
+    right: 14px;
+    bottom: -4px;
+    color: var(--pf-ink-ghost);
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-ghost);
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .pf-comment p {
+    display: -webkit-box;
+    margin: 0;
+    max-width: none;
+    overflow: hidden;
+    color: var(--pf-ink);
+    font-size: var(--pf-fs-card);
+    line-height: 1.45;
+    position: relative;
+    z-index: 1;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+  }
+  .pf-comment-meta {
+    display: flex;
+    gap: 10px;
+    color: var(--pf-ink-muted);
+    font-family: var(--pf-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 1;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pf-track { animation: none; }
+  }
+  @media (max-width: 760px) {
+    :root {
+      --pf-fs-h2: 28px;
+      --pf-fs-ghost: 72px;
+      --pf-fs-ghost-row: 52px;
+    }
+    .pf-section-panel { padding: 36px 22px 44px; }
+    .pf-comment { width: 280px; padding: 0 22px; }
+  }
+
   /* swipe dots removed — panels are stacked now */
   .swipe-indicator { display: none; }
 
@@ -757,22 +991,23 @@
     gap: 3px;
     min-width: 138px;
     padding: 8px 10px;
-    background: var(--inside-heading, #ffffff);
-    color: var(--inside-bg, #0a0a0a);
-    font-family: var(--mono);
+    border: 1px solid var(--pf-rule);
+    background: #ffffff;
+    color: var(--pf-ink);
+    font-family: var(--pf-mono);
     font-size: 10px;
     letter-spacing: 0;
     white-space: nowrap;
     pointer-events: none;
   }
   .inside-globe-tooltip strong {
-    font-family: var(--sans);
+    font-family: var(--pf-sans);
     font-size: 13px;
     font-weight: 500;
     letter-spacing: 0;
   }
   .inside-globe-tooltip span {
-    color: #555555;
+    color: var(--pf-ink-muted);
   }
   .inside-tagline {
     margin: 0 0 1.5rem;
@@ -1245,18 +1480,17 @@
   }
   .journal-post-list {
     list-style: none;
-    border-top: 1px solid var(--ink);
+    border-top: 0;
   }
   .journal-post-list li {
-    border-bottom: 1px solid var(--rule);
+    border-bottom: 0;
   }
   .journal-post-list a {
     display: grid;
-    grid-template-columns: 70px 1fr 120px 80px;
+    grid-template-columns: 1fr 120px 80px;
     gap: 24px;
     align-items: baseline;
-    padding: 24px 0;
-    color: var(--ink);
+    color: var(--pf-ink-muted);
     text-decoration: none;
   }
   .journal-list-number {
@@ -1265,13 +1499,10 @@
   .journal-list-body {
     display: grid;
     gap: 4px;
+    min-width: 0;
   }
   .journal-list-body strong {
-    font-family: var(--serif);
-    font-size: 22px;
-    font-weight: 400;
-    line-height: 1.25;
-    letter-spacing: -0.012em;
+    font-family: var(--pf-sans);
   }
   .journal-new-badge {
     display: inline-block;
@@ -1288,6 +1519,8 @@
   .journal-list-body span,
   .journal-list-meta {
     color: var(--ink-muted);
+    position: relative;
+    z-index: 1;
   }
   .journal-list-body .journal-new-badge {
     color: var(--ink);

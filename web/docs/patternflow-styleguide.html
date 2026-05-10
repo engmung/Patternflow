@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Patternflow — styleguide v2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="patternflow.css">
+<style>
+  /* page-only styleguide chrome */
+  .swatches{ display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:8px }
+  .sw{ display:flex;flex-direction:column;gap:8px }
+  .sw .chip{ height:64px;border:1px solid var(--pf-rule) }
+  .sw .lbl{ font-family:var(--pf-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--pf-ink-muted) }
+  .sw .hex{ font-family:var(--pf-mono);font-size:11px;color:var(--pf-ink) }
+  pre.code{
+    font-family:var(--pf-mono);font-size:11.5px;line-height:1.6;color:var(--pf-ink);
+    background:var(--pf-cream-2);border:1px solid var(--pf-rule);padding:14px 16px;overflow:auto;
+    margin:14px 0 0;
+  }
+  .type-row{ display:grid;grid-template-columns:160px 1fr;gap:24px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--pf-rule) }
+  .type-row:first-child{ border-top:1px solid var(--pf-rule) }
+  .type-row .name{ font-family:var(--pf-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--pf-ink-muted) }
+  .demo-frame{ border:1px solid var(--pf-rule);background:var(--pf-cream);margin-top:18px;overflow:hidden }
+  .demo-frame .pf-hero{ min-height:auto;padding:64px 56px }
+  .demo-frame .pf-panel{ min-height:auto;padding:56px 48px }
+  .demo-frame .pf-journal{ width:auto;padding:48px 56px }
+</style>
+</head>
+<body>
+
+<div class="pf-version-tag"><span class="pf-led-dot"></span>styleguide · v2</div>
+
+<div class="pf-doc">
+
+  <header class="pf-doc-head">
+    <h1>Patternflow — styleguide <span class="pf-mono" style="margin-left:8px">v2</span></h1>
+    <div class="pf-meta">hero + panel + journal + a4/c2</div>
+  </header>
+
+  <!-- TOKENS -->
+  <section class="pf-section" data-screen-label="01 Tokens">
+    <h2 class="pf-h2">Tokens.</h2>
+    <p class="pf-sub">Cream + ink + muted + ghost + one accent. Three type families by zone.</p>
+
+    <div class="pf-block">
+      <span class="pf-kicker">Color</span>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#F4EFE6"></div><div class="lbl">cream</div><div class="hex">#F4EFE6</div></div>
+        <div class="sw"><div class="chip" style="background:#EDE7DB"></div><div class="lbl">cream-2</div><div class="hex">#EDE7DB</div></div>
+        <div class="sw"><div class="chip" style="background:#141414"></div><div class="lbl">ink</div><div class="hex">#141414</div></div>
+        <div class="sw"><div class="chip" style="background:#6B655A"></div><div class="lbl">ink-muted</div><div class="hex">#6B655A</div></div>
+        <div class="sw"><div class="chip" style="background:#A69F90"></div><div class="lbl">ink-faint</div><div class="hex">#A69F90</div></div>
+        <div class="sw"><div class="chip" style="background:#C9C2B0"></div><div class="lbl">ink-ghost</div><div class="hex">#C9C2B0</div></div>
+        <div class="sw"><div class="chip" style="background:#D9D1C0"></div><div class="lbl">rule</div><div class="hex">#D9D1C0</div></div>
+        <div class="sw"><div class="chip" style="background:#E5DDC9"></div><div class="lbl">rule-soft</div><div class="hex">#E5DDC9</div></div>
+        <div class="sw"><div class="chip" style="background:#E8552E;box-shadow:0 0 0 1px #D9D1C0 inset"></div><div class="lbl">led · accent</div><div class="hex">#E8552E</div></div>
+      </div>
+    </div>
+
+    <div class="pf-block">
+      <span class="pf-kicker">Type by zone</span>
+      <div class="type-row"><div class="name">hero h1 / 88</div><div style="font-size:64px;font-weight:500;letter-spacing:-.035em;line-height:1;font-style:normal">Patternflow</div></div>
+      <div class="type-row"><div class="name">panel h2 / 64</div><div style="font-size:48px;font-weight:500;letter-spacing:-.035em;line-height:1">Build your own.</div></div>
+      <div class="type-row"><div class="name">compact h2 / 34</div><div style="font-size:34px;font-weight:500;letter-spacing:-.025em">Section headline.</div></div>
+      <div class="type-row"><div class="name">journal h1 / 58</div><div style="font-family:var(--pf-serif);font-size:42px;font-weight:400;letter-spacing:-.022em;line-height:1.02">Notes from the build.</div></div>
+      <div class="type-row"><div class="name">journal lede / 22</div><div style="font-family:var(--pf-serif);font-size:20px;font-style:italic;color:var(--pf-ink-muted)">An italic lede in serif sets the journal apart.</div></div>
+      <div class="type-row"><div class="name">body / 13.5</div><div>Body sans, Inter 400, 13.5/1.55.</div></div>
+      <div class="type-row"><div class="name">mono / 11</div><div class="pf-mono">KICKER · META · TAG</div></div>
+    </div>
+  </section>
+
+  <!-- HERO ZONE -->
+  <section class="pf-section" data-screen-label="02 Hero">
+    <h2 class="pf-h2">Hero.</h2>
+    <p class="pf-sub">Top-of-page lockup. Italic wordmark. The version tag and tooltip live here too.</p>
+
+    <div class="demo-frame">
+      <section class="pf-hero">
+        <div class="pf-hero-copy">
+          <h1><em class="pf-wordmark">Patternflow</em></h1>
+          <div class="pf-kicker-lg">An LED synthesizer.</div>
+          <p class="pf-lede">
+            Play light patterns with your fingertips.<br />
+            <a class="pf-has-tip" data-tip="Opens GitHub" href="#" style="border-bottom:1px solid var(--pf-ink);padding-bottom:1px">An open-source</a>
+            reinterpretation of <span style="font-weight:500">Nam June Paik</span>'s <em style="font-style:italic">Participation TV</em> (1963).
+          </p>
+          <a class="pf-hero-cta pf-has-tip" data-tip="Reserve a slot" href="#">Get notified when it ships</a>
+        </div>
+      </section>
+    </div>
+
+    <div class="pf-block">
+      <span class="pf-kicker">Markup</span>
+<pre class="code">&lt;section class="pf-hero"&gt;
+  &lt;div class="pf-hero-copy"&gt;
+    &lt;h1&gt;&lt;em class="pf-wordmark"&gt;Patternflow&lt;/em&gt;&lt;/h1&gt;
+    &lt;div class="pf-kicker-lg"&gt;An LED synthesizer.&lt;/div&gt;
+    &lt;p class="pf-lede"&gt;…&lt;/p&gt;
+    &lt;a class="pf-hero-cta pf-has-tip" data-tip="Reserve a slot" href="…"&gt;
+      Get notified when it ships
+    &lt;/a&gt;
+  &lt;/div&gt;
+&lt;/section&gt;</pre>
+    </div>
+  </section>
+
+  <!-- PANEL ZONE -->
+  <section class="pf-section" data-screen-label="03 Panel section">
+    <h2 class="pf-h2">Panel section.</h2>
+    <p class="pf-sub">Build / Pattern / Inside content panels. h2 = 64px. Houses ghost-numeral lists and comment marquees.</p>
+
+    <div class="demo-frame">
+      <section class="pf-panel">
+        <header class="pf-panel-header">
+          <h2>Build your own.</h2>
+          <p class="pf-sub-lg">Print the case. Order the parts. Flash the firmware.</p>
+        </header>
+
+        <div class="pf-block">
+          <span class="pf-kicker">Four steps</span>
+          <div class="pf-row on"><span class="pf-ghost">01</span><div class="pf-row-t">Print the case</div><div class="pf-row-d">Three plates, any FDM printer.</div></div>
+          <div class="pf-row"><span class="pf-ghost">02</span><div class="pf-row-t">Solder the PCB</div><div class="pf-row-d">Through-hole + a few SMD parts.</div></div>
+          <div class="pf-row"><span class="pf-ghost">03</span><div class="pf-row-t">Assemble</div><div class="pf-row-d">Encoders, matrix, screws.</div></div>
+          <div class="pf-row"><span class="pf-ghost">04</span><div class="pf-row-t">Flash and power on</div><div class="pf-row-d">Web flasher in the Pattern section.</div></div>
+        </div>
+
+        <div class="pf-block">
+          <div class="pf-head">
+            <span class="pf-kicker">Reddit response</span>
+            <span class="pf-count">8 of ~3,400</span>
+          </div>
+          <div class="pf-marquee fade"><div class="pf-track" id="track"></div></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- JOURNAL ZONE -->
+  <section class="pf-section" data-screen-label="04 Journal">
+    <h2 class="pf-h2">Journal.</h2>
+    <p class="pf-sub">The only zone where serif is allowed. Newsreader for body, italic for lede + blockquote.</p>
+
+    <div class="demo-frame">
+      <article class="pf-journal">
+        <h1>Notes from the build.</h1>
+        <p class="pf-jrn-lede">A field report from the first 100 units — what broke, what shipped, what got rewritten at 2 a.m.</p>
+        <div class="pf-journal-dateline"><span>Sangwoo Lee</span><span>2025-04-12 · 5 min read</span></div>
+        <div class="pf-journal-body" style="margin-top:32px">
+          <p>The cases came in from the printer with a 0.3 mm bow on the long axis — enough that the encoder shafts wouldn't seat. <a href="#">We rewrote the slicer profile</a> overnight and the second batch was within tolerance.</p>
+          <blockquote>Patternflow is not a product yet. It's a permission slip — to print, to solder, to mess it up.</blockquote>
+          <p>By the time the firmware was ready, the LED matrix had gone through three revisions. Each one was a lesson in voltage drop.</p>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- DON'TS -->
+  <section class="pf-section" data-screen-label="05 Don'ts">
+    <h2 class="pf-h2">Don'ts.</h2>
+    <p class="pf-sub">If you reach for one of these, you're off-system.</p>
+    <div class="pf-block">
+      <div class="pf-row"><span class="pf-ghost">01</span><div class="pf-row-t">No border-radius, ever</div><div class="pf-row-d">Sharp corners only.</div></div>
+      <div class="pf-row"><span class="pf-ghost">02</span><div class="pf-row-t">No box-shadow, no gradients</div><div class="pf-row-d">Hairlines do all the dividing.</div></div>
+      <div class="pf-row"><span class="pf-ghost">03</span><div class="pf-row-t">LED orange is reserved</div><div class="pf-row-d">Version dot · journal hover · "live" signals only.</div></div>
+      <div class="pf-row"><span class="pf-ghost">04</span><div class="pf-row-t">Serif is journal-only</div><div class="pf-row-d">Newsreader does not appear in panels or hero.</div></div>
+      <div class="pf-row"><span class="pf-ghost">05</span><div class="pf-row-t">Italic outside wordmark + journal</div><div class="pf-row-d">No.</div></div>
+      <div class="pf-row"><span class="pf-ghost">06</span><div class="pf-row-t">No emoji, no icons in rows</div><div class="pf-row-d">The ghost numeral is the icon.</div></div>
+      <div class="pf-row"><span class="pf-ghost">07</span><div class="pf-row-t">No filler stat strips</div><div class="pf-row-d">Don't pad the design with informational chrome.</div></div>
+    </div>
+  </section>
+
+  <section class="pf-section" data-screen-label="06 Files">
+    <h2 class="pf-h2">Files.</h2>
+    <p class="pf-sub">The whole system, ready to hand off.</p>
+    <div class="pf-block">
+      <div class="pf-row on"><span class="pf-ghost">01</span><div class="pf-row-t">patternflow.css</div><div class="pf-row-d">Drop-in stylesheet — every token + component.</div></div>
+      <div class="pf-row"><span class="pf-ghost">02</span><div class="pf-row-t">patternflow-spec.md</div><div class="pf-row-d">Prose spec — principles, tokens, patterns, don'ts.</div></div>
+      <div class="pf-row"><span class="pf-ghost">03</span><div class="pf-row-t">patternflow-styleguide.html</div><div class="pf-row-d">This file — live demos of every component.</div></div>
+      <div class="pf-row"><span class="pf-ghost">04</span><div class="pf-row-t">unified-sections-A-variations.html</div><div class="pf-row-d">A4 = canonical numbered-row reference.</div></div>
+      <div class="pf-row"><span class="pf-ghost">05</span><div class="pf-row-t">unified-sections-A4-comments.html</div><div class="pf-row-d">C2 = canonical comment-band reference.</div></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const QUOTES = [
+    {q:"Remember some years ago Teenage Engineering did a simple LED matrix music visualizer with IKEA and it was super lame. Your thing is much closer to what it should have been.", u:"u/frumperino", s:"r/arduino"},
+    {q:"That is the coolest most useless thing on the planet.", u:"u/NeedleworkerFew5205", s:"r/arduino"},
+    {q:"Out of hundreds of projects in a similar category, yours is the first that I must freaking have.", u:"u/LegendOfVlad", s:"r/arduino"},
+    {q:"This is one of those ultra-niche things I just love.", u:"u/zebadrabbit", s:"r/arduino"},
+    {q:"More love to this post please!!!", u:"u/ShamanOnTech", s:"r/arduino"},
+    {q:"So uh… so when are you selling this? Can't wait.", u:"u/C4TT4", s:"r/somethingimade"},
+    {q:"Another up is not enough. I'm gonna try to build one.", u:"u/Sandisbad", s:"r/arduino"},
+    {q:"Incredibly cool. I'd love to have this in my home.", u:"u/SawdustedPatios", s:"r/somethingimade"},
+  ];
+  const items = [...QUOTES, ...QUOTES];
+  document.getElementById('track').innerHTML = items.map((it,i)=>{
+    const n = String((i % QUOTES.length) + 1).padStart(2,'0');
+    const dup = i >= QUOTES.length ? 'aria-hidden="true"' : '';
+    return `<a class="pf-comment" href="#" ${dup}>
+      <span class="pf-ghost">${n}</span>
+      <p>${it.q}</p>
+      <div class="pf-comment-meta"><span>${it.u}</span><span>${it.s}</span></div>
+    </a>`;
+  }).join('');
+</script>
+
+</body>
+</html>

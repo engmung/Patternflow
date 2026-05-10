@@ -10,8 +10,8 @@ import type { Build } from './builds';
 import { builds, latLngToVec3 } from './builds';
 
 const COLORS = {
-  wireframe: '#9a9a9a',
-  pin: '#FFD466',
+  wireframe: '#6B655A',
+  pin: '#141414',
 };
 
 const GLOBE_RADIUS = 1.25;

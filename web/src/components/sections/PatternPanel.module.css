@@ -1,6 +1,6 @@
 .introCopy {
   margin: 0 0 24px;
-  color: var(--ink-muted);
+  color: var(--pf-ink-muted);
 }
 
 .workspace {
@@ -11,7 +11,7 @@
 .modeSwitch {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--pf-rule);
   margin-bottom: 24px;
 }
 
@@ -25,12 +25,12 @@
 .modeSwitch button {
   min-height: 54px;
   border: 0;
-  border-right: 1px solid var(--rule);
+  border-right: 1px solid var(--pf-rule);
   background: transparent;
-  color: var(--ink-muted);
-  font-family: var(--mono);
-  font-size: 13px;
-  letter-spacing: 0.08em;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
 }
 
@@ -39,12 +39,12 @@
 }
 
 .modeSwitch button.active {
-  background: var(--ink);
-  color: var(--cream);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
 }
 
 .block {
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--pf-rule);
   padding-top: 22px;
   margin-top: 22px;
 }
@@ -56,16 +56,16 @@
 .lead p {
   max-width: 640px;
   margin: 0 0 14px;
-  color: var(--ink);
-  font-size: 18px;
+  color: var(--pf-ink);
+  font-size: var(--pf-fs-body);
   line-height: 1.5;
 }
 
 .previewNote {
   margin: 0;
   max-width: 560px;
-  color: var(--ink-muted);
-  font-size: 14px;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
   line-height: 1.5;
 }
 
@@ -74,7 +74,8 @@
   flex-direction: column;
   gap: 0;
   margin-top: 28px;
-  border: 1px solid var(--rule);
+  border: 0;
+  border-top: 1px solid var(--pf-rule);
 }
 
 .presetItem {
@@ -84,11 +85,10 @@
   gap: 14px;
   padding: 14px 16px;
   border: 0;
-  border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--pf-rule);
   background: transparent;
-  color: var(--ink-muted);
+  color: var(--pf-ink-muted);
   text-align: left;
-  transition: background 0.15s, color 0.15s;
 }
 
 .presetItem:last-child {
@@ -96,26 +96,24 @@
 }
 
 .presetItem:hover {
-  background: color-mix(in oklab, var(--ink) 4%, transparent);
+  color: var(--pf-ink);
 }
 
 .presetItem.active {
-  background: color-mix(in oklab, var(--ink) 6%, transparent);
-  color: var(--ink);
-  box-shadow: inset 3px 0 0 var(--ink);
+  color: var(--pf-ink);
 }
 
 .presetIndex {
   flex-shrink: 0;
   width: 24px;
-  font-family: var(--mono);
+  font-family: var(--pf-mono);
   font-size: 13px;
-  color: var(--ink-muted);
+  color: var(--pf-ink-muted);
   text-align: center;
 }
 
 .presetItem.active .presetIndex {
-  color: var(--ink);
+  color: var(--pf-ink);
 }
 
 .presetName {
@@ -128,7 +126,7 @@
 .presetDesc {
   margin-left: auto;
   font-size: 13px;
-  color: var(--ink-muted);
+  color: var(--pf-ink-muted);
   line-height: 1.4;
   text-align: right;
 }
@@ -137,16 +135,15 @@
   display: inline;
   margin-left: 8px;
   font-size: 11px;
-  font-family: var(--mono);
-  color: var(--ink-muted);
+  font-family: var(--pf-mono);
+  color: var(--pf-ink-muted);
   text-decoration: none;
   opacity: 0.7;
-  transition: opacity 0.15s;
 }
 
 .presetLink:hover {
   opacity: 1;
-  color: var(--ink);
+  color: var(--pf-ink);
 }
 
 .flashAction {
@@ -159,31 +156,31 @@
 
 .primaryAction {
   min-height: 64px;
-  border: 0;
-  background: #e8552e;
-  color: #fff;
+  border: 1px solid var(--pf-ink);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
   padding: 0 30px;
-  font-size: 18px;
-  font-weight: 650;
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .secondaryLink {
-  color: var(--ink);
-  border-bottom: 1px solid var(--ink);
+  color: var(--pf-ink);
+  border-bottom: 1px solid var(--pf-ink);
   padding-bottom: 2px;
-  font-size: 14px;
+  font-size: var(--pf-fs-body);
   text-decoration: none;
 }
 
 .sourceRow {
   padding: 18px 14px;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--pf-rule);
 }
 
 .applyGuide h3 {
   margin: 0 0 10px;
-  font-size: 16px;
+  font-size: var(--pf-fs-row);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -191,8 +188,8 @@
 .applyGuide ol {
   margin: 0;
   padding-left: 18px;
-  color: var(--ink-muted);
-  font-size: 13px;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
   line-height: 1.65;
 }
 
@@ -201,16 +198,16 @@
 }
 
 .applyGuide code {
-  color: var(--ink);
-  font-family: var(--mono);
+  color: var(--pf-ink);
+  font-family: var(--pf-mono);
   font-size: 12px;
 }
 
 .applyGuide p {
   margin: 14px 0 0;
   max-width: 560px;
-  color: var(--ink-muted);
-  font-size: 13px;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
   line-height: 1.55;
 }
 
@@ -224,16 +221,16 @@
 .unsupported,
 .editorFootnote {
   margin-top: 10px;
-  color: var(--ink-muted);
-  font-family: var(--mono);
-  font-size: 11px;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
   line-height: 1.5;
 }
 
 .liveEditor {
   margin-top: 20px;
   margin-bottom: 2rem;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--pf-rule);
   overflow: hidden;
 }
 
@@ -244,32 +241,26 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--rule);
-  background: color-mix(in oklab, var(--cream-2) 70%, transparent);
+  border-bottom: 1px solid var(--pf-rule);
+  background: var(--pf-cream);
 }
 
 .editorTitle {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .costMeter {
   margin-top: 4px;
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
   line-height: 1.4;
 }
 
-.costLow {
-  color: #26733a;
-}
-
-.costMedium {
-  color: #8a5a00;
-}
-
+.costLow,
+.costMedium,
 .costHigh {
-  color: #b00020;
+  color: var(--pf-ink-muted);
 }
 
 .editorActions {
@@ -280,24 +271,37 @@
 
 .editorActions button {
   min-height: 34px;
-  border: 1px solid var(--rule);
-  background: var(--cream);
-  color: var(--ink);
+  border: 1px solid var(--pf-rule);
+  background: #ffffff;
+  color: var(--pf-ink);
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--pf-fs-mono);
+  font-family: var(--pf-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
 }
 
 .editorActions button.dark {
-  background: var(--ink);
-  color: var(--cream);
-  border-color: var(--ink);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  border-color: var(--pf-ink);
 }
 
 .editorFootnote {
   margin: 0;
   padding: 10px 14px;
-  border-top: 1px solid var(--rule);
-  background: color-mix(in oklab, var(--cream-2) 50%, transparent);
+  border-top: 1px solid var(--pf-rule);
+  background: var(--pf-cream);
+}
+
+.metaRows {
+  display: grid;
+}
+
+.ctaLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
 }
 
 @media (max-width: 720px) {

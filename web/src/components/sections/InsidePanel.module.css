@@ -1,219 +1,36 @@
-.panel {
-  --inside-bg: #0a0a0a;
-  --inside-text: #e5e5e5;
-  --inside-heading: #ffffff;
-  --inside-accent: #FFD466;
-  --inside-line: #2a2a2a;
-}
-
-.panel .panelHeader {
-  margin-bottom: 28px;
-}
-
 .body {
-  max-width: 620px;
+  max-width: 820px;
 }
 
-.intro {
-  display: grid;
-  gap: 0.45rem;
-  margin-bottom: 1.5rem;
-  color: var(--ink);
+.commentMarquee {
+  cursor: grab;
+  touch-action: pan-y;
+  user-select: none;
 }
 
-.intro p,
-.story p,
-.tagline {
-  max-width: none;
+.commentMarquee:active {
+  cursor: grabbing;
 }
 
-.intro p,
-.story p {
-  margin: 0;
-  font-size: 20px;
-  line-height: 1.5;
-}
-
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  width: min(100%, 620px);
-  margin-bottom: 1rem;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-}
-
-.stats span {
-  display: grid;
-  min-height: 74px;
-  place-items: center;
-  padding: 10px;
-  background: #ffffff;
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.15;
-  letter-spacing: 0;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.stats strong {
-  display: block;
-  margin-bottom: 5px;
-  font-family: var(--sans);
-  font-size: 22px;
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: 0;
-}
-
-.commentBand {
-  position: relative;
-  width: min(100%, 760px);
-  margin: 1.65rem 0 1.8rem;
-  overflow: hidden;
-  border-block: 1px solid var(--inside-line);
-  background: var(--inside-bg);
-  color: var(--inside-text);
-  isolation: isolate;
-  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-}
-
-.commentKicker {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 3;
-  padding: 6px 9px 5px;
-  background: var(--inside-accent);
-  color: var(--inside-bg);
-  font-family: var(--mono);
-  font-size: 9px;
-  line-height: 1;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.commentTrack {
-  display: flex;
-  width: max-content;
-  gap: 0;
-  padding: 24px 0 12px;
-  animation: commentMarquee 38s linear infinite;
+.manualTrack {
+  animation: none;
   will-change: transform;
 }
 
-.commentBand:hover .commentTrack {
-  animation-play-state: paused;
-}
-
-.commentCard {
-  position: relative;
-  width: clamp(280px, 31vw, 390px);
-  min-height: 118px;
-  display: grid;
-  align-content: space-between;
-  gap: 14px;
-  padding: 0 22px;
-  color: var(--inside-text);
-  text-decoration: none;
-}
-
-.commentCard::before {
-  content: "";
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 0;
-  width: 1px;
-  background: var(--inside-line);
-}
-
-.commentCard:hover {
-  color: var(--inside-heading);
-  text-decoration: none;
-}
-
-.commentCard:hover::before {
-  background: var(--inside-accent);
-}
-
-.commentCard p {
-  display: -webkit-box;
-  max-width: none;
-  margin: 0;
-  overflow: hidden;
-  color: inherit;
-  font-family: var(--serif);
-  font-size: 18px;
-  font-style: italic;
-  line-height: 1.25;
-  letter-spacing: 0;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-}
-
-.commentMeta {
+.sourceLinks {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.2;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  color: #8a8a8a;
-}
-
-.upvotes {
-  color: var(--inside-accent);
-}
-
-@keyframes commentMarquee {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.story {
-  display: grid;
-  gap: 1rem;
-  margin: 1.5rem 0;
-}
-
-.story p {
-  color: var(--ink);
-}
-
-.journalLink {
-  width: fit-content;
-  color: var(--ink);
-  border-bottom: 1px solid currentColor;
-  font-family: var(--mono);
-  font-size: 13px;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.journalLink:hover {
-  color: var(--inside-accent);
-  text-decoration: none;
+  gap: 18px;
 }
 
 .globeShell {
   width: clamp(340px, 85%, 580px);
   max-width: 100%;
   aspect-ratio: 1;
-  margin: 1.75rem 0;
+  margin: 0 0 18px;
   overflow: hidden;
-  border: 1px solid #1f1f1f;
-  background: var(--inside-bg);
+  border: 1px solid var(--pf-rule);
+  background: #ffffff;
 }
 
 .globeShell canvas {
@@ -221,38 +38,18 @@
   background: transparent;
 }
 
-.tagline {
-  margin: 0 0 1.5rem;
-  color: var(--ink);
-  font-size: 18px;
-  line-height: 1.5;
-}
-
-.shareCallout {
-  margin: 2rem 0 3rem;
-  padding: 1.5rem;
-  border: 1px dashed var(--rule);
-  background: color-mix(in oklab, var(--cream-2) 40%, transparent);
-}
-
-.shareCallout p {
+.body .tagline {
+  max-width: none;
   margin: 0;
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--ink-muted);
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.65;
 }
 
-.shareCallout a {
-  color: var(--ink);
-  border-bottom: 1px solid var(--ink);
-  text-decoration: none;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.shareCallout a:hover {
-  color: var(--inside-accent);
-  border-color: var(--inside-accent);
+.shareLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
 }
 
 @media (max-width: 900px) {
@@ -260,47 +57,7 @@
     max-width: none;
   }
 
-  .intro p,
-  .story p {
-    font-size: 17px;
-  }
-
-  .stats {
-    grid-template-columns: 1fr;
-  }
-
-  .stats span {
-    min-height: 44px;
-  }
-
-  .stats strong {
-    display: inline;
-    margin: 0 6px 0 0;
-    font-size: 16px;
-  }
-
-  .commentBand {
-    width: 100%;
-  }
-
-  .commentCard {
-    width: min(84vw, 330px);
-    padding-inline: 18px;
-  }
-
-  .commentTrack {
-    animation-duration: 34s;
-  }
-
-  .commentCard p {
-    font-size: 16px;
-  }
-
   .globeShell {
     width: min(100%, 460px);
-  }
-
-  .tagline {
-    font-size: 16px;
   }
 }
