@@ -6,133 +6,164 @@
 #include "core_display.h"
 #include "core_encoders.h"
 
-namespace FractalOrbitPattern {
+namespace LiquidPlasmaPattern {
 
-const char* NAME = "Fractal Orbit";
-const char* const KNOB_LABELS[4] = {"HUE", "SPEED", "SCALE", "DETAIL"};
+const char* NAME = "Liquid Plasma";
+const char* const KNOB_LABELS[4] = {"HUE", "SPEED", "SCALE", "CHAOS"};
 
-const float FRACTAL_ORBIT_HUE_STEP = 0.05f;
-const float FRACTAL_ORBIT_SPEED_STEP = 0.1f;
-const float FRACTAL_ORBIT_SCALE_STEP = 0.15f;
-const float FRACTAL_ORBIT_DETAIL_STEP = 0.1f;
+const float LIQUID_PLASMA_HUE_STEP = 0.05f;
+const float LIQUID_PLASMA_SPEED_STEP = 0.05f;
+const float LIQUID_PLASMA_SCALE_STEP = 0.01f;
+const float LIQUID_PLASMA_CHAOS_STEP = 0.1f;
 
 struct Params {
-    float hue;
+    float hueBase;
     float speed;
     float scale;
-    float detail;
-    float phase;
+    float chaos;
+    float timeAcc;
 };
 
 Params params;
 
-void hsvToRgb(float h, float s, float v, uint8_t& rOut, uint8_t& gOut, uint8_t& bOut) {
-    h = h - floorf(h);
+struct RGB {
+    uint8_t r, g, b;
+};
+
+RGB hsvToRgb(float h, float s, float v) {
+    h = fmodf(h, 1.0f);
     if (h < 0.0f) h += 1.0f;
+    
     int i = (int)floorf(h * 6.0f);
     float f = h * 6.0f - (float)i;
     float p = v * (1.0f - s);
     float q = v * (1.0f - f * s);
     float t = v * (1.0f - (1.0f - f) * s);
-    float r, g, b;
     
-    if (i == 0) { r = v; g = t; b = p; }
-    else if (i == 1) { r = q; g = v; b = p; }
-    else if (i == 2) { r = p; g = v; b = t; }
-    else if (i == 3) { r = p; g = q; b = v; }
-    else if (i == 4) { r = t; g = p; b = v; }
-    else { r = v; g = p; b = q; }
+    float r = 0, g = 0, b = 0;
+    switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        default: r = v; g = p; b = q; break;
+    }
     
-    rOut = (uint8_t)constrain(floorf(r * 255.0f), 0.0f, 255.0f);
-    gOut = (uint8_t)constrain(floorf(g * 255.0f), 0.0f, 255.0f);
-    bOut = (uint8_t)constrain(floorf(b * 255.0f), 0.0f, 255.0f);
+    return {
+        (uint8_t)roundf(r * 255.0f),
+        (uint8_t)roundf(g * 255.0f),
+        (uint8_t)roundf(b * 255.0f)
+    };
 }
 
 void setup() {
-    params.hue = 0.6f;
+    params.hueBase = 0.5f;
     params.speed = 1.0f;
-    params.scale = 1.0f;
-    params.detail = 0.5f;
-    params.phase = 0.0f;
+    params.scale = 0.1f;
+    params.chaos = 1.0f;
+    params.timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    params.hue += input.knobDeltas[0] * FRACTAL_ORBIT_HUE_STEP;
-    params.hue = fmodf(params.hue, 1.0f);
-    if (params.hue < 0.0f) params.hue += 1.0f;
-
-    params.speed += input.knobDeltas[1] * FRACTAL_ORBIT_SPEED_STEP;
-    params.speed = constrain(params.speed, 0.05f, 5.0f);
-
-    params.scale += input.knobDeltas[2] * FRACTAL_ORBIT_SCALE_STEP;
-    params.scale = constrain(params.scale, 0.2f, 5.0f);
-
-    params.detail += input.knobDeltas[3] * FRACTAL_ORBIT_DETAIL_STEP;
-    params.detail = constrain(params.detail, 0.0f, 2.0f);
-
-    params.phase += dt * params.speed;
+    params.hueBase = fmodf(params.hueBase + (float)input.knobDeltas[0] * LIQUID_PLASMA_HUE_STEP, 1.0f);
+    if (params.hueBase < 0.0f) params.hueBase += 1.0f;
+    
+    params.speed = params.speed + (float)input.knobDeltas[1] * LIQUID_PLASMA_SPEED_STEP;
+    if (params.speed < 0.0f) params.speed = 0.0f;
+    
+    params.scale = constrain(params.scale + (float)input.knobDeltas[2] * LIQUID_PLASMA_SCALE_STEP, 0.02f, 0.2f);
+    params.chaos = constrain(params.chaos + (float)input.knobDeltas[3] * LIQUID_PLASMA_CHAOS_STEP, 0.0f, 3.0f);
+    
+    params.timeAcc += dt * params.speed;
 }
 
 void draw() {
-    float cx = (float)PANEL_RES_W * 0.5f;
-    float cy = (float)PANEL_RES_H * 0.5f;
+    float t = params.timeAcc;
+    float s = params.scale;
+    float c = params.chaos;
 
-    float t = params.phase;
+    // ESP32 Optimization: Precompute row and column values to eliminate all 
+    // inner-loop trigonometric functions.
+    // Using angle addition identities: 
+    // sin(A + B) = sin(A)cos(B) + cos(A)sin(B)
+    // cos(C + D) = cos(C)cos(D) - sin(C)sin(D)
+    
+    float v1_arr[PANEL_RES_W];
+    float nx_arr[PANEL_RES_W];
+    float sinA_arr[PANEL_RES_W];
+    float cosA_arr[PANEL_RES_W];
+    float sinD_arr[PANEL_RES_W];
+    float cosD_arr[PANEL_RES_W];
 
-    float angle = t * 0.2f + params.detail * PI;
-    float sa = sinf(angle);
-    float ca = cosf(angle);
+    for (int x = 0; x < PANEL_RES_W; x++) {
+        float nx = (float)x * s;
+        nx_arr[x] = nx;
+        v1_arr[x] = sinf(nx + t);
+        
+        float warpY = cosf(nx * 2.0f - t * 1.2f) * c;
+        float A = nx * 1.5f + t * 1.5f;
+        sinA_arr[x] = sinf(A);
+        cosA_arr[x] = cosf(A);
+        
+        float D = warpY * 1.5f;
+        sinD_arr[x] = sinf(D);
+        cosD_arr[x] = cosf(D);
+    }
 
-    float zoom = 1.5f / params.scale;
-    float invCy = 1.0f / cy;
-    float zoomFactor = zoom * invCy;
-    float shift = 0.35f + sinf(t * 0.4f) * 0.15f;
+    float v2_arr[PANEL_RES_H];
+    float ny_arr[PANEL_RES_H];
+    float sinB_arr[PANEL_RES_H];
+    float cosB_arr[PANEL_RES_H];
+    float sinC_arr[PANEL_RES_H];
+    float cosC_arr[PANEL_RES_H];
 
     for (int y = 0; y < PANEL_RES_H; y++) {
-        float dy = ((float)y - cy) * zoomFactor;
+        float ny = (float)y * s;
+        ny_arr[y] = ny;
+        v2_arr[y] = cosf(ny - t * 0.8f);
+        
+        float warpX = sinf(ny * 2.0f + t) * c;
+        float B = warpX * 1.5f;
+        sinB_arr[y] = sinf(B);
+        cosB_arr[y] = cosf(B);
+        
+        float C = ny * 1.5f - t;
+        sinC_arr[y] = sinf(C);
+        cosC_arr[y] = cosf(C);
+    }
+
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        float v2 = v2_arr[y];
+        float sinB = sinB_arr[y];
+        float cosB = cosB_arr[y];
+        float sinC = sinC_arr[y];
+        float cosC = cosC_arr[y];
+        float ny = ny_arr[y];
+
         for (int x = 0; x < PANEL_RES_W; x++) {
-            float dx = ((float)x - cx) * zoomFactor;
-
-            float zx = dx;
-            float zy = dy;
-            float minDist = 1000.0f;
-            float orbitSq = 0.0f;
-
-            for (int i = 0; i < 5; i++) {
-                zx = fabsf(zx);
-                zy = fabsf(zy);
-
-                float m = zx < zy ? zx : zy;
-                if (m < minDist) minDist = m;
-
-                float nx = zx * ca - zy * sa;
-                float ny = zx * sa + zy * ca;
-
-                zx = nx * 1.35f - shift;
-                zy = ny * 1.35f - shift;
-
-                orbitSq += zx * zx + zy * zy;
-            }
-
-            float glow = 0.02f / (minDist * minDist + 0.005f);
+            float v1 = v1_arr[x];
             
-            float structure = 1.0f - orbitSq * 0.04f;
-            if (structure < 0.0f) structure = 0.0f;
+            // Reconstruct nested sine/cosine without inner-loop trig function calls
+            float v3 = sinA_arr[x] * cosB + cosA_arr[x] * sinB;
+            float v4 = cosC * cosD_arr[x] - sinC * sinD_arr[x];
+            
+            float field = fabsf(v1 + v2 + v3 + v4);
+            
+            float val = 1.0f - (field * 0.5f);
+            val = constrain(val, 0.0f, 1.0f);
+            
+            // Replace expensive pow(..., 3.0) with fast multiplication
+            val = val * val * val; 
+            
+            val = constrain(val * 2.5f, 0.0f, 1.0f);
 
-            float val = glow + structure * 0.15f;
-            if (val > 1.0f) val = 1.0f;
-
-            float sat = 1.2f - val * 0.5f;
-            if (sat < 0.0f) sat = 0.0f;
-            if (sat > 1.0f) sat = 1.0f;
-
-            float pColorHue = params.hue + orbitSq * 0.015f - t * 0.3f;
-
-            uint8_t r, g, b;
-            hsvToRgb(pColorHue, sat, val, r, g, b);
-            dma_display->drawPixelRGB888(x, y, r, g, b);
+            float hue = params.hueBase + nx_arr[x] * 0.1f + ny * 0.1f + field * 0.05f;
+            
+            RGB rgb = hsvToRgb(hue, 1.0f - val * 0.2f, val);
+            dma_display->drawPixelRGB888(x, y, rgb.r, rgb.g, rgb.b);
         }
     }
 }
 
-} // namespace FractalOrbitPattern
+} // namespace LiquidPlasmaPattern

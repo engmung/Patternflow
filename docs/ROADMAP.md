@@ -1,15 +1,5 @@
 # Roadmap
 
-## Now (v0)
-- Base hardware + firmware, open-sourced
-- Landing page live
+Patternflow is no longer maintained as a prediction-style roadmap.
 
-## Next
-- Web-based one-click firmware flasher
-- Assembly guide with video
-
-## Later
-- Pattern sharing platform
-- Hardware variants (wired power, speaker)
-
-_Details coming soon._
+For the current project trajectory, build history, and next visible directions, see the journal and trajectory map at [patternflow.work/journal](https://patternflow.work/journal).

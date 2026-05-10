@@ -2,8 +2,8 @@
 #include <math.h>
 #include "core_display.h"
 
-namespace Wave1 {
-  const char* NAME = "Wave1_Saw";
+namespace WaveSaw {
+  const char* NAME = "Wave Saw";
   const char* KNOB_LABELS[4] = {"angle", "scale", "dist", "dscale"};
 
   // --- Wave / 매핑 상수 ---
@@ -131,28 +131,28 @@ namespace Wave1 {
       if (angle > PI * 2) angle -= PI * 2;
       if (angle < 0) angle += PI * 2;
     }
-    if (input.btnPressed[0]) { angle = 0.0f; Serial.println("[Wave1] Angle -> 0"); }
+    if (input.btnPressed[0]) { angle = 0.0f; Serial.println("[WaveSaw] Angle -> 0"); }
 
     // Enc2: Scale (밀도)
     int d1 = input.knobDeltas[1];
     if (d1 != 0) {
       scale = constrain(scale + d1 * 0.2f, SCALE_MIN, SCALE_MAX);
     }
-    if (input.btnPressed[1]) { scale = 3.0f; Serial.println("[Wave1] Scale -> 3.0"); }
+    if (input.btnPressed[1]) { scale = 3.0f; Serial.println("[WaveSaw] Scale -> 3.0"); }
 
     // Enc3: Distortion (왜곡 정도)
     int d2 = input.knobDeltas[2];
     if (d2 != 0) {
       dist = constrain(dist + d2 * 0.1f, DIST_MIN, DIST_MAX);
     }
-    if (input.btnPressed[2]) { dist = 0.0f; Serial.println("[Wave1] Dist -> 0.0"); }
+    if (input.btnPressed[2]) { dist = 0.0f; Serial.println("[WaveSaw] Dist -> 0.0"); }
 
     // Enc4: Detail Scale (노이즈 디테일 크기)
     int d3 = input.knobDeltas[3];
     if (d3 != 0) {
       dScale = constrain(dScale + d3 * 0.2f, DSCALE_MIN, DSCALE_MAX);
     }
-    if (input.btnPressed[3]) { dScale = 1.0f; Serial.println("[Wave1] DScale -> 1.0"); }
+    if (input.btnPressed[3]) { dScale = 1.0f; Serial.println("[WaveSaw] DScale -> 1.0"); }
 
     // 애니메이션 페이즈 업데이트
     phase += dt * PHASE_PER_SEC;

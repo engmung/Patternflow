@@ -104,7 +104,7 @@ void main() {
 `;
 
 const patternWaveSaw: PatternDef = {
-  name: 'Wave1_Saw',
+  name: 'Wave Saw',
   defaults: {
     uSpeed: 3.0,
     uParam1: 0.0,  // angle
