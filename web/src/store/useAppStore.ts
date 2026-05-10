@@ -108,4 +108,6 @@ export function draw(display, params, globalTime) {
   setDebugX: (val) => set({ debugX: val }),
   debugY: 0.0,
   setDebugY: (val) => set({ debugY: val }),
+  debugRotY: 0.0,
+  setDebugRotY: (val) => set({ debugRotY: val }),
 }));
