@@ -595,6 +595,372 @@
     color: var(--ink);
   }
 
+  .inside-panel {
+    --inside-bg: #0a0a0a;
+    --inside-text: #e5e5e5;
+    --inside-heading: #ffffff;
+    --inside-accent: #FFD466;
+    --inside-wire: #444444;
+  }
+  .inside-panel .panel-header {
+    margin-bottom: 28px;
+  }
+  .inside-panel .panel-header h2 {
+    color: var(--ink);
+    letter-spacing: 0;
+  }
+  .inside-panel .panel-header .sub {
+    margin: 0;
+    color: var(--ink-muted);
+  }
+  .inside-body {
+    max-width: 620px;
+  }
+  .inside-intro {
+    display: grid;
+    gap: 0.45rem;
+    margin-bottom: 1.5rem;
+    color: var(--ink);
+  }
+  .inside-intro p,
+  .inside-story p,
+  .inside-tagline,
+  .inside-build-card p,
+  .reddit-comment-card p {
+    max-width: none;
+  }
+  .inside-intro p,
+  .inside-story p {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.5;
+  }
+  .inside-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0.65rem;
+  }
+  .inside-stats span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: #ffffff;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  .reddit-comment-band {
+    width: min(100%, 720px);
+    margin: 1.5rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    cursor: grab;
+    scrollbar-width: none;
+    touch-action: pan-y;
+    user-select: none;
+  }
+  .reddit-comment-band:active {
+    cursor: grabbing;
+  }
+  .reddit-comment-band::-webkit-scrollbar {
+    display: none;
+  }
+  .reddit-comment-track {
+    display: flex;
+    width: max-content;
+    gap: 12px;
+    padding: 2px 0;
+  }
+  .reddit-comment-card {
+    width: clamp(240px, 27vw, 320px);
+    min-height: 172px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid var(--rule);
+    background: #ffffff;
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color 0.16s ease, transform 0.16s ease;
+  }
+  .reddit-comment-card:hover {
+    border-color: var(--inside-accent);
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+  .reddit-comment-card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--ink);
+  }
+  .reddit-comment-card div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .reddit-comment-card .reddit-upvotes {
+    color: var(--inside-accent);
+  }
+  .inside-story {
+    display: grid;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .inside-story p {
+    color: var(--ink);
+  }
+  .inside-journal-link {
+    width: fit-content;
+    color: var(--ink);
+    border-bottom: 1px solid currentColor;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  .inside-journal-link:hover {
+    color: var(--inside-accent);
+    text-decoration: none;
+  }
+  .inside-globe-shell {
+    width: min(60%, 360px);
+    min-width: 260px;
+    aspect-ratio: 1;
+    margin: 1.5rem 0;
+    background: var(--inside-bg);
+    border: 1px solid #1f1f1f;
+    overflow: hidden;
+  }
+  .inside-globe-shell canvas {
+    display: block;
+    background: transparent;
+  }
+  .inside-globe-tooltip {
+    display: grid;
+    gap: 3px;
+    min-width: 138px;
+    padding: 8px 10px;
+    background: var(--inside-heading, #ffffff);
+    color: var(--inside-bg, #0a0a0a);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .inside-globe-tooltip strong {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .inside-globe-tooltip span {
+    color: #555555;
+  }
+  .inside-tagline {
+    margin: 0 0 1.5rem;
+    color: var(--ink);
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  .inside-build-card-wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.32s ease, opacity 0.24s ease;
+  }
+  .inside-build-card-wrap.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    margin-bottom: 1.5rem;
+  }
+  .inside-build-card {
+    position: relative;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+    background: #ffffff;
+    padding: 1rem;
+  }
+  .inside-card-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    background: rgba(10, 10, 10, 0.62);
+    color: #ffffff;
+    font-family: var(--mono);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .inside-carousel {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: var(--inside-bg);
+  }
+  .inside-carousel img {
+    object-fit: cover;
+  }
+  .inside-image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 8px;
+    background:
+      linear-gradient(90deg, rgba(255, 212, 102, 0.12) 1px, transparent 1px),
+      linear-gradient(0deg, rgba(255, 212, 102, 0.12) 1px, transparent 1px),
+      var(--inside-bg);
+    background-size: 24px 24px;
+    color: var(--inside-text);
+    text-align: center;
+  }
+  .inside-image-placeholder span,
+  .inside-image-placeholder small {
+    font-family: var(--mono);
+    letter-spacing: 0;
+  }
+  .inside-image-placeholder span {
+    font-size: 13px;
+    color: var(--inside-heading);
+  }
+  .inside-image-placeholder small {
+    font-size: 10px;
+    color: var(--inside-accent);
+  }
+  .inside-carousel-arrow {
+    position: absolute;
+    top: 50%;
+    width: 32px;
+    height: 32px;
+    transform: translateY(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(10, 10, 10, 0.58);
+    color: var(--inside-heading);
+    font-family: var(--mono);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+  }
+  .inside-carousel:hover .inside-carousel-arrow,
+  .inside-carousel-arrow:focus-visible {
+    opacity: 1;
+  }
+  .inside-carousel-arrow.is-prev {
+    left: 10px;
+  }
+  .inside-carousel-arrow.is-next {
+    right: 10px;
+  }
+  .inside-carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0 16px;
+  }
+  .inside-carousel-dots button {
+    width: 7px;
+    height: 7px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    cursor: pointer;
+  }
+  .inside-carousel-dots button.is-active {
+    background: var(--inside-accent);
+  }
+  .inside-build-card h3 {
+    margin: 0 0 6px;
+    font-size: 22px;
+    letter-spacing: 0;
+  }
+  .inside-build-meta {
+    margin: 0 0 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .inside-build-note {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    font-style: italic;
+    color: var(--ink-muted);
+  }
+  .inside-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin: 1.5rem 0 10vh;
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+  .inside-cta-row a {
+    color: var(--ink);
+    padding-bottom: 2px;
+    border-bottom: 1px solid currentColor;
+  }
+  .inside-cta-row a:hover {
+    color: var(--inside-accent);
+    text-decoration: none;
+  }
+
+  @media (max-width: 900px) {
+    .inside-body {
+      max-width: none;
+    }
+    .inside-intro p {
+      font-size: 17px;
+    }
+    .inside-story p {
+      font-size: 17px;
+    }
+    .inside-stats span {
+      font-size: 11px;
+    }
+    .reddit-comment-band {
+      width: 100%;
+    }
+    .reddit-comment-card {
+      width: min(78vw, 300px);
+    }
+    .inside-globe-shell {
+      width: min(100%, 340px);
+      min-width: 0;
+    }
+    .inside-tagline {
+      font-size: 16px;
+    }
+    .inside-carousel-arrow {
+      opacity: 1;
+    }
+  }
+
   /* ───── Footer ───── */
   footer {
     padding: 80px 80px 60px;
