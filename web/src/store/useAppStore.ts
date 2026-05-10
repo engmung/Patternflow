@@ -30,8 +30,8 @@ export const useAppStore = create<AppState>((set) => ({
   knobValues: {
     c1: 0.00, // Hue
     c2: 2.00, // Speed
-    c3: 0.00, // Mode
-    c4: 0.06, // Freq
+    c3: 0.06, // Freq/Offset
+    c4: 0.00, // Mode
   },
   setKnobValue: (knobId, value) =>
     set((state) => ({

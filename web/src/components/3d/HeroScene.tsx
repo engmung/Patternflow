@@ -9,6 +9,7 @@ import { patternVert } from './patterns/common';
 import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
+import { LOGICAL_KNOB_TO_WEB_KNOB, WEB_KNOB_UNITS_PER_TURN } from '@/lib/patternflowControls';
 
 const customFragmentShader = `
 uniform sampler2D uTex;
@@ -111,10 +112,10 @@ function Model() {
   }, [activePatternId, ledMat, customMat]);
 
   useEffect(() => {
-    ledMat.uniforms.uParam1.value = knobValues.c1; // Hue
-    ledMat.uniforms.uSpeed.value = knobValues.c2;  // Speed
-    ledMat.uniforms.uParam3.value = knobValues.c3; // Mode
-    ledMat.uniforms.uParam4.value = knobValues.c4; // Freq
+    ledMat.uniforms.uParam1.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[0]]; // Hue
+    ledMat.uniforms.uSpeed.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[1]];  // Speed
+    ledMat.uniforms.uParam3.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[2]]; // Mode
+    ledMat.uniforms.uParam4.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[3]]; // Freq/Offset
   }, [knobValues, ledMat]);
 
   // --- Knob Interaction Logic ---
@@ -151,16 +152,13 @@ function Model() {
       let deltaVal = 0;
       
       // 회전 민감도 (1바퀴(2*PI) 돌릴 때 변하는 값)
-      if (knobName === 'c1') deltaVal = deltaAngle / (2 * Math.PI); // Hue (0~1)
-      if (knobName === 'c2') deltaVal = deltaAngle * (10.0 / (2 * Math.PI));  // Speed (0~10)
-      if (knobName === 'c3') deltaVal = deltaAngle * (5.0 / (2 * Math.PI));  // Mode (0~5)
-      if (knobName === 'c4') deltaVal = deltaAngle / (2 * Math.PI); // Freq (0~1)
+      deltaVal = deltaAngle * (WEB_KNOB_UNITS_PER_TURN[knobName] / (2 * Math.PI));
       
       let newVal = currentVal + deltaVal;
-      if (knobName === 'c1') newVal = (newVal % 1.0 + 1.0) % 1.0; // Hue wraps around 0~1
-      if (knobName === 'c2') newVal = THREE.MathUtils.clamp(newVal, 0.1, 10.0);
-      if (knobName === 'c3') newVal = THREE.MathUtils.clamp(newVal, 0.0, 4.9);
-      if (knobName === 'c4') newVal = THREE.MathUtils.clamp(newVal, 0.0, 1.0);
+      if (knobName === 'c1') newVal = (newVal % 1.0 + 1.0) % 1.0; // Hue
+      if (knobName === 'c2') newVal = THREE.MathUtils.clamp(newVal, 0.1, 10.0); // Speed
+      if (knobName === 'c3') newVal = (newVal % 1.0 + 1.0) % 1.0; // Freq/Offset
+      if (knobName === 'c4') newVal = THREE.MathUtils.clamp(newVal, 0.0, 4.9); // Mode
       
       useAppStore.getState().setKnobValue(knobName, newVal);
     };

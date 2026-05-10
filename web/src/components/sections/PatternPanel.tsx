@@ -137,6 +137,18 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
   const esp32Cost = analyzeEsp32Cost(customJsCode);
+
+  const selectBuiltInPattern = (
+    patternId: 'patternFlowOriginal' | 'patternWaveSaw',
+    values: { c1: number; c2: number; c3: number; c4: number }
+  ) => {
+    const store = useAppStore.getState();
+    store.setActivePatternId(patternId);
+    store.setKnobValue('c1', values.c1);
+    store.setKnobValue('c2', values.c2);
+    store.setKnobValue('c3', values.c3);
+    store.setKnobValue('c4', values.c4);
+  };
   
   const handleCopyCreatePrompt = () => {
     navigator.clipboard.writeText(createPrompt);
@@ -206,13 +218,23 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
             <button 
-              onClick={() => useAppStore.getState().setActivePatternId('patternFlowOriginal')}
+              onClick={() => selectBuiltInPattern('patternFlowOriginal', {
+                c1: 0.00, // Hue
+                c2: 2.00, // Speed
+                c3: 0.06, // Freq/Offset
+                c4: 0.00, // Mode
+              })}
               style={{ padding: '0.5rem 1rem', background: activePatternId === 'patternFlowOriginal' ? '#000' : '#f0f0f0', color: activePatternId === 'patternFlowOriginal' ? '#fff' : '#000', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}
             >
               Preview: Origin
             </button>
             <button 
-              onClick={() => useAppStore.getState().setActivePatternId('patternWaveSaw')}
+              onClick={() => selectBuiltInPattern('patternWaveSaw', {
+                c1: 0.00, // Angle
+                c2: 3.00, // Scale
+                c3: 0.15, // Detail scale, maps to about 1.0
+                c4: 0.00, // Distortion
+              })}
               style={{ padding: '0.5rem 1rem', background: activePatternId === 'patternWaveSaw' ? '#000' : '#f0f0f0', color: activePatternId === 'patternWaveSaw' ? '#fff' : '#000', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}
             >
               Preview: Wave

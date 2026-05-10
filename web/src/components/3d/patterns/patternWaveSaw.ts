@@ -3,9 +3,8 @@ import { PatternDef } from './common';
 const fragmentShader = `
 precision highp float;
 uniform float uTime;
-uniform float uSpeed;
+uniform float uSpeed; // Scale, direct firmware value 0.5..6.0
 uniform float uParam1; // Angle (0..1 -> 0..2PI)
-uniform float uParam2; // Scale (0..1 -> 0.5..6.0)
 uniform float uParam3; // Dist (0..1 -> 0.0..4.0)
 uniform float uParam4; // dScale (0..1 -> 0.3..5.0)
 uniform float uAspect;
@@ -41,19 +40,22 @@ float fractalNoise(vec2 p) {
 }
 
 void main() {
-  // Quantize to 64x128 grid
-  const float COLS = 64.0;
-  const float ROWS = 128.0;
-  vec2 cell = floor(vUv * vec2(COLS, ROWS));
-  vec2 localUV = fract(vUv * vec2(COLS, ROWS));
+  vec2 rotatedUV = vec2(vUv.y, 1.0 - vUv.x);
+  vec2 gridUV = rotatedUV * vec2(128.0, 64.0);
+  vec2 px = floor(gridUV);
+  vec2 localUV = fract(gridUV);
 
-  // Coordinate mapping matching firmware (Swapped for vertical display):
-  float u = ( (cell.y + 0.5)/ROWS - 0.5 ) * 2.0;
-  float v = ( (cell.x + 0.5)/COLS - 0.5 ); 
+  float x = px.x;
+  float y = 63.0 - px.y;
+
+  // Firmware coordinates:
+  // u: -1..+1 across PANEL_RES_W, v: -0.5..+0.5 across PANEL_RES_H.
+  float u = (x - 64.0) / 64.0;
+  float v = (y - 32.0) / 64.0; 
 
   // Parameters from Knobs
   float angle = uParam1 * 6.28318;
-  float scale = mix(0.5, 6.0, uParam2);
+  float scale = clamp(uSpeed, 0.5, 6.0);
   float dist = uParam3 * 4.0;
   float dScale = mix(0.3, 5.0, uParam4);
   float phase = uTime * 2.4; 
@@ -78,14 +80,14 @@ void main() {
   float t = n / 6.28318;
   t -= floor(t);
 
-  // Color Ramp (Constant 3-step) with Emission for Bloom
+  // Color Ramp (Constant 3-step), matching firmware colors.
   vec3 col;
   if (t < 0.14) { 
-    col = vec3(3.5, 3.5, 3.5); // Glowy White
+    col = vec3(1.0, 1.0, 1.0);
   } else if (t < 0.40) { 
-    col = vec3(2.5, 0.0, 0.0); // Glowy Red
+    col = vec3(1.0, 0.0, 0.0);
   } else { 
-    col = vec3(0.0, 0.0, 3.0); // Glowy Blue
+    col = vec3(0.0, 0.0, 1.0);
   }
 
   // LED Circle Mask logic from original pattern for consistency
@@ -93,13 +95,9 @@ void main() {
   float circle = smoothstep(0.45, 0.35, distCircle);
   
   // LOD logic: fade gaps when far away
-  float fw = fwidth(vUv.y) * ROWS;
+  float fw = fwidth(vUv.x) * 128.0;
   float lodBlend = smoothstep(0.0, 0.29, fw); 
   float finalAlpha = mix(circle, 1.0, lodBlend);
-
-  // Dark base color for unlit LEDs
-  float unlit = 0.01;
-  col = mix(vec3(unlit), col, 1.0); // Apply brightness to lit parts
 
   gl_FragColor = vec4(col * finalAlpha, 1.0);
 }
@@ -108,9 +106,8 @@ void main() {
 const patternWaveSaw: PatternDef = {
   name: 'Wave1_Saw',
   defaults: {
-    uSpeed: 1.0,
+    uSpeed: 3.0,
     uParam1: 0.0,  // angle
-    uParam2: 0.45, // scale
     uParam3: 0.0,  // dist
     uParam4: 0.15  // dScale
   },
