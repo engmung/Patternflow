@@ -26,16 +26,6 @@ interface AppState {
   setBuildStep: (step: number) => void;
   isExploded: boolean;
   setIsExploded: (isExploded: boolean) => void;
-  
-  // Dev Debugging Tools
-  debugScale: number;
-  setDebugScale: (val: number) => void;
-  debugX: number;
-  setDebugX: (val: number) => void;
-  debugY: number;
-  setDebugY: (val: number) => void;
-  debugRotY: number;
-  setDebugRotY: (val: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -102,12 +92,4 @@ export function draw(display, params, globalTime) {
   setBuildStep: (step) => set({ buildStep: step }),
   isExploded: true,
   setIsExploded: (val) => set({ isExploded: val }),
-  debugScale: 0.14,
-  setDebugScale: (val) => set({ debugScale: val }),
-  debugX: -0.6,
-  setDebugX: (val) => set({ debugX: val }),
-  debugY: 0.0,
-  setDebugY: (val) => set({ debugY: val }),
-  debugRotY: 0.0,
-  setDebugRotY: (val) => set({ debugRotY: val }),
 }));

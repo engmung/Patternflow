@@ -514,10 +514,6 @@ export default function HeroScene() {
   const isDraggingKnob = useAppStore((state) => state.isDraggingKnob);
   const activeKnobId = useAppStore((state) => state.activeKnobId);
   const buildStep = useAppStore((state) => state.buildStep);
-  const debugScale = useAppStore((state) => state.debugScale);
-  const debugX = useAppStore((state) => state.debugX);
-  const debugY = useAppStore((state) => state.debugY);
-  const debugRotY = useAppStore((state) => state.debugRotY);
   const [hasInteracted, setHasInteracted] = useState(false);
   useEffect(() => {
     if (activeKnobId) {
