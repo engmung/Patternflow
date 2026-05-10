@@ -14,7 +14,7 @@ const COLORS = {
   pin: '#FFD466',
 };
 
-const GLOBE_RADIUS = 1.45;
+const GLOBE_RADIUS = 1.25;
 const PIN_RADIUS = GLOBE_RADIUS * 0.028;
 
 function GlobeWireframe() {
