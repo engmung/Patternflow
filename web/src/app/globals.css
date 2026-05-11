@@ -2012,10 +2012,12 @@
   .waitlist-thanks {
     min-height: 100vh;
     display: grid;
+    place-items: center;
     align-items: center;
     background: var(--cream);
     color: var(--ink);
     padding: 60px 36px;
+    text-align: center;
   }
   .waitlist-thanks > div {
     max-width: 620px;
@@ -2029,6 +2031,7 @@
   }
   .waitlist-thanks p:not(.mono) {
     max-width: 38ch;
+    margin-inline: auto;
     color: var(--ink-muted);
     font-size: 18px;
     line-height: 1.55;
