@@ -110,6 +110,7 @@ export default function BuildPanel({ content }: BuildPanelProps) {
           <span className="pf-kicker">Requirements</span>
           <p className={styles.note}>
             Requires 3D printing, basic soldering, PCB ordering, and component sourcing.
+            Kits are coming if you&apos;d rather skip the sourcing.
           </p>
         </div>
 

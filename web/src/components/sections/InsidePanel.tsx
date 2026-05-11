@@ -257,7 +257,7 @@ export default function InsidePanel({ content }: InsidePanelProps) {
           <div className="pf-prose">
             <p>
               If you build your own, share photos on Discord or open a GitHub issue.
-              We will add your build to the map.
+              Your build will be added to the map.
             </p>
             <div className={styles.shareLinks}>
               <a className="pf-link" href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noreferrer">Discord</a>

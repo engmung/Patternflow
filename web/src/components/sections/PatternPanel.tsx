@@ -60,7 +60,7 @@ Output rules:
 - Do not include nested triple backticks inside the code block.
 - Do not output explanations, registry edits, .ino edits, mock declarations, placeholder comments, or separate .cpp files.
 - Do not include stray HTML/XML-like tokens such as \`</Arduino.h>\`.
-- The file will be copied directly into \`firmware/patternflow_v1/\`.
+- The file will be copied directly into \`firmware/patternflow/\`.
 
 Required header structure:
 - Start with \`#pragma once\`.
@@ -372,7 +372,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   <h3>Use it on hardware</h3>
                   <ol>
                     <li>Download the firmware source and open it in Arduino IDE.</li>
-                    <li>Add your generated pattern header to <code>firmware/patternflow_v1</code>.</li>
+                    <li>Add your generated pattern header to <code>firmware/patternflow</code>.</li>
                     <li>Add the pattern namespace to <code>pattern_registry.h</code>.</li>
                     <li>Upload the sketch to your ESP32-S3.</li>
                   </ol>

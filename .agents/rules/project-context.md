@@ -1,4 +1,4 @@
-# Patternflow: Project Context
+﻿# Patternflow: Project Context
 
 This document provides deep project context for AI agents working on Patternflow.
 
@@ -20,7 +20,7 @@ The system is fully open source. It is designed to be built by intermediate hobb
 
 ### Firmware
 The firmware is built around the `ESP32-HUB75-MatrixPanel-DMA` library to drive the 128x64 HUB75 LED panel. 
-- **Pin Mapping:** Defined centrally in `firmware/patternflow_v1/config.h`. Uses specific I2S pins for DMA output.
+- **Pin Mapping:** Defined centrally in `firmware/patternflow/config.h`. Uses specific I2S pins for DMA output.
 - **Encoders:** Four EC11 encoders read via interrupt-based logic. 
 - **Pattern System:** Currently utilizes a `renderConcentric` function. Patterns operate on a phase variable progressed by time and the speed encoder.
 
@@ -56,7 +56,7 @@ For full details, reference `docs/BUILD.md` §8. Summary:
 
 ## Conventions
 
-- **File naming:** Strictly lowercase with underscores (e.g., `patternflow_v1.ino`, `01_plate_main.stl`).
+- **File naming:** Strictly lowercase with underscores (e.g., `patternflow.ino`, `01_plate_main.stl`).
 - **Brand naming layers:**
   - Body text: "Patternflow"
   - Physical engravings: "PATTERNFLOW"
@@ -68,3 +68,4 @@ For full details, reference `docs/BUILD.md` §8. Summary:
 - This is **not** a Eurorack module (it is standalone and powered by USB).
 - This is **not** a video synthesizer in the traditional analog sense.
 - This is **not** an audio synthesizer in v1.0 (though audio reactivity/sound is on the roadmap).
+

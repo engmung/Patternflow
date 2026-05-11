@@ -59,6 +59,7 @@ export default function Hero() {
           </em>{" "}
           (1963).
         </p>
+        <p className="hero-kit-note">Build it from the files, or wait for the kit.</p>
         <a
           className="hero-cta has-tip"
           data-tip="Reserve a slot"
@@ -66,7 +67,7 @@ export default function Hero() {
           target="_blank"
           rel="noopener"
         >
-          Get notified when it ships
+          Get notified when the kit ships
         </a>
       </div>
     </section>

@@ -1,12 +1,12 @@
-# Patternflow v1.1.0 — Build Guide
+# Patternflow v2.0.0 -- Build Guide
 
-This guide walks you through building a Patternflow v1.1.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
+This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
 
-**Estimated build time:** 4–6 hours of active work, plus ~11 hours of 3D printing.
+**Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
 **Skill level:** Intermediate. If you've assembled a mechanical keyboard or built an Arduino project with SMD components, you're ready.
 
-> **Versioning note.** The v1.1.0 bump applies to the **firmware** (now flashable from the browser via [patternflow.work](https://patternflow.work)) and to this build guide. The **PCB is still v1.0** — the known PCB-side issues listed at the bottom of this document are scheduled for the next hardware revision.
+> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, and firmware ships with a built-in custom-pattern template usable with any AI coding assistant. The Blender source, STL files, and most of the case geometry are unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
 ![All parts laid out before assembly](build-guide/images/all_parts.jpg)
 
@@ -23,7 +23,7 @@ This guide walks you through building a Patternflow v1.1.0 from scratch. It assu
 7. [Install the PCB and Close the Case](#7-install-the-pcb-and-close-the-case)
 8. [Firmware Upload](#8-firmware-upload)
 9. [First Boot](#9-first-boot)
-10. [Known Issues](#10-known-issues)
+10. [Known Issues & Design Notes](#10-known-issues--design-notes)
 
 ---
 
@@ -33,34 +33,36 @@ This guide walks you through building a Patternflow v1.1.0 from scratch. It assu
 
 | Ref | Item | Spec | Qty | Notes |
 | --- | --- | --- | --- | --- |
-| — | LED Matrix Panel | HUB75, 128×64 px, P2.5, 320×160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable — both used as-is. |
+| - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
-| SW1–4 | Rotary Encoder | EC11, 5-pin, 20mm shaft, with push-switch | 4 |  |
-| — | Female Pin Socket (1×22, 2.54mm) | For ESP32-S3 module | 2 |  |
-| J1 | Box Header (2×8, 2.54mm) | Horizontal, for HUB75 ribbon | 1 | LED matrix data |
+| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 20mm shaft, with push-switch | 4 |  |
+| - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
+| J1 | Box Header (2x8, 2.54mm) | Horizontal, for HUB75 ribbon | 1 | LED matrix data |
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
 | J3 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V output to LED matrix |
-| R1–R12 | Resistor 10kΩ 1% | 0805 SMD | 12 | Encoder pull-ups (3 per encoder × 4) |
-| C1–C10, C12–C15 | Capacitor 100nF X7R | 0805 SMD | 14 | 12 for encoders (3 per encoder × 4), 2 for ESP32 decoupling |
-| C11 | Electrolytic Cap 1000µF / 16V | Radial D10×L13 | 1 | Main bulk decoupling |
-| — | M4 Screws | ~10mm length | 6 | LED matrix mounting |
-| — | USB Cable (sacrificial) | Any USB cable, will be cut | 1 | For 5V power input |
-| — | Power Bank | Any standard USB power bank that physically fits | 1 | User-supplied |
+| R1-R12 | Resistor 10k 1% | 0805 SMD | 12 | Encoder pull-ups (3 per encoder x 4) |
+| R13 | Resistor 10k 1% | 0805 SMD | 1 | GPIO0 pull-up (boot strap stabilization) |
+| C1-C10, C12-C15 | Capacitor 100nF X7R | 0805 SMD | 14 | 12 for encoders (3 per encoder x 4), 2 for ESP32 decoupling |
+| C11 | Electrolytic Cap 1000uF / 16V | Radial D10xL13 | 1 | Main bulk decoupling |
+| - | M4 Screws | ~10mm length | 6 | LED matrix mounting |
+| - | USB Cable (sacrificial) | Any USB cable, will be cut | 1 | For 5V power input |
+| - | Power Bank | Any standard USB power bank that physically fits | 1 | User-supplied |
 
-### Sourcing — AliExpress (with affiliate links)
+### Sourcing -- AliExpress (with affiliate links)
 
 These are the exact links I used. **Purchasing through these affiliate links directly supports the ongoing development of Patternflow at no extra cost to you.**
 
 💡 **Found a better part?** If you discover cheaper, more reliable, or higher-quality alternative components, please let me know! I highly welcome PRs or GitHub Issues recommending better sourcing options for the community.
 
-AliExpress shipping to most regions takes ~7–14 days.
+AliExpress shipping to most regions takes ~7-14 days.
 
 - **Rotary Encoders (5-pack):** [EC11 20mm 5pcs — ~3,250 KRW](https://s.click.aliexpress.com/e/_c3dYYGob)
 - **ESP32-S3-N16R8:** [~10,300 KRW](https://s.click.aliexpress.com/e/_c3qxYiaP)
-  ⚠️ Make sure it's the **N16R8** variant. Other variants without PSRAM will not work reliably.
 - **LED Matrix:** [Full color 320×160mm P2.5 HUB75 — ~23,250 KRW](https://s.click.aliexpress.com/e/_c3SVdcQr)
 
 PCB: order from your preferred fab using the KiCad files in `hardware/pcb/`. I used PCBway (sponsored).
+
+> **A note on ESP32-S3 sourcing.** Both AliExpress modules and genuine Espressif modules work on v2.0 PCBs. During v1 development we found AliExpress modules were more likely to exhibit the cold-boot issue (now fixed by the GPIO0 pullup on v2). Genuine modules are slightly more expensive but generally more consistent; either is fine for v2.
 
 ### What you also need (not in BOM)
 
@@ -135,7 +137,9 @@ Allow ~5 minutes after every bond step for the glue to fully cure before handlin
 
 Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD goes before any tall through-hole component.
 
-### 4.1 SMD Pass (R1–R12, C1–C6, C11)
+<img src="build-guide/images/pcb_assembly_setup.jpg" width="70%">
+
+### 4.1 SMD Pass (R1-R13, C1-C10, C12-C15)
 
 > **Hand-solder vs. paste + hot air.** I hand-soldered with an iron because I didn't have solder paste or a hot air station. If you do, by all means use them — apply paste to the pads, place all parts, then reflow. The board is small enough that either approach is fine. The procedure below is for the iron-only path.
 
@@ -153,8 +157,11 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 **Keep parts flat and centered.** Slight tilt will not affect function but looks bad.
 
-> ⚠️ **Silkscreen note.** On v1.0 PCB, the silkscreen does not clearly mark which 0805 pad is a resistor vs a capacitor.
-> **Rule of thumb: the 0805 pad closest to each rotary encoder pad is a capacitor (C1–C4). The other 0805 pads are resistors.** When in doubt, refer to the schematic in `hardware/pcb/`. This will be fixed in the next PCB revision.
+> **Silkscreen.** On v2.0 PCB, R and C designators are clearly marked. Place each part according to its silkscreen designator. (On v1.0 boards, the 0805 closest to each encoder pad was a cap; this rule still works as a sanity check on v2.0.)
+
+SMD placement close-up, then the board after the non-encoder through-hole parts are installed:
+
+<img src="build-guide/images/smd_tweezers_closeup.jpg" width="45%"> <img src="build-guide/images/pcb_before_encoders.jpg" width="45%">
 
 ### 4.2 Through-Hole Pass
 
@@ -165,13 +172,15 @@ Solder, in order (small/short to tall):
 3. **C11 (1000µF electrolytic)** — watch polarity (long lead = positive).
 4. **Rotary encoders (SW1–SW4)** — see the critical warning below before soldering.
 
-> 🚨 **CRITICAL — Solder rotary encoders on the BACK of the PCB. Ignore the silkscreen.**
+> **CRITICAL -- Solder rotary encoders on the BACK of the PCB.**
 >
-> The v1.0 PCB silkscreen places the encoders on the wrong side. **Do not follow the silkscreen.** Insert each encoder from the **back of the PCB** so its body sits on the back and its leads come through to the front, then solder the leads on the front.
+> Insert each encoder from the **back of the PCB** so its body sits on the back and its leads come through to the front, then solder the leads on the front. The v2.0 silkscreen marks this clearly -- follow it.
 >
-> If you solder them on the wrong side, the shafts will not reach the case front panel and the build is non-functional. Desoldering through-hole rotary encoders from a populated PCB is extremely painful — I made this exact mistake on my own first build. **Stop and check the side twice before soldering each encoder.**
->
-> This will be fixed in the next PCB revision (correct silkscreen + correct footprint orientation, see Issues #2 and #3 below).
+> If you solder them on the wrong side, the shafts will not reach the case front panel and the build is non-functional. Desoldering through-hole rotary encoders from a populated PCB is extremely painful -- I made this exact mistake on my own first build. **Stop and check the side twice before soldering each encoder.**
+
+Wrong side (front) vs. correct side (back):
+
+<img src="build-guide/images/encoder_front_wrong.jpg" width="45%"> <img src="build-guide/images/encoder_back_correct.jpg" width="45%">
 
 Press all parts flush against the PCB and keep them perpendicular before soldering.
 
@@ -232,7 +241,7 @@ Numbering is top-to-bottom with the USB connector at the top.
 | 33 | IO37 | NC (PSRAM internal) |
 | 34 | IO36 | NC (PSRAM internal) |
 | 35 | IO35 | NC (PSRAM internal) |
-| 36 | IO0 | Not connected (NC) |
+| 36 | IO0 | GPIO0 boot strap pull-up via R13 |
 | 37 | IO45 | Not connected (NC) |
 | 38 | IO48 | HUB_C |
 | 39 | IO47 | HUB_LAT |
@@ -364,7 +373,7 @@ No installation required. Works on any desktop with Chrome or Edge.
 
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
 2. Connect your ESP32-S3 to your computer via a USB-C **data cable** — do not insert it into the PCB yet.
-3. Scroll to the **Patterns** section and click **"Flash Patternflow v1 (All Patterns)"**.
+3. Scroll to the **Patterns** section and click **"Flash Patternflow OS"**.
 4. Select the correct serial port when prompted and follow the on-screen steps.
 
 <img src="build-guide/images/web_flash.jpg" width="33%">
@@ -395,20 +404,20 @@ In Arduino IDE, **Tools** menu:
 
 #### Upload
 
-The firmware sketch lives in `firmware/patternflow_v1/`. The folder contains:
+The firmware sketch lives in `firmware/patternflow/`. The folder contains:
 
 | File | Role |
 | --- | --- |
-| `patternflow_v1.ino` | Main sketch — entry point, `setup()` / `loop()` |
+| `patternflow.ino` | Main sketch — entry point, `setup()` / `loop()` |
 | `config.h` | Pin mappings, brightness, pattern parameter limits — edit this for custom hardware |
 | `core_display.h` | HUB75 display driver and rendering pipeline |
 | `core_encoders.h` | Rotary encoder handling and parameter update logic |
 | `pattern_origin.h` | Built-in pattern: Origin |
-| `pattern_wave1.h` | Built-in pattern: Wave |
+| `pattern_wave_saw.h` | Built-in pattern: Wave Saw |
 
 1. Connect the ESP32-S3 module to your computer with a USB-C data cable.
 2. Select the correct port under **Tools → Port**.
-3. Open `firmware/patternflow_v1/patternflow_v1.ino`. Arduino IDE will load all the `.h` files in the same folder automatically.
+3. Open `firmware/patternflow/patternflow.ino`. Arduino IDE will load all the `.h` files in the same folder automatically.
 4. If you're building for custom hardware, edit `config.h` to adjust pin mappings, brightness, or pattern limits.
 5. Click **Upload**.
 
@@ -416,7 +425,7 @@ If the upload fails, hold **BOOT** on the ESP32-S3 while pressing **RESET**, the
 
 ### 8.3 OTA (Preview)
 
-OTA updates work via Arduino IDE's network port option once the device has been on the same Wi-Fi network at least once. **OTA in v1.1.0 is functional but not the recommended path.** Use the browser flasher or wired upload as the primary method.
+OTA updates work via Arduino IDE's network port option once the device has been on the same Wi-Fi network at least once. **OTA in v2.0.0 is functional but not the recommended path.** Use the browser flasher or wired upload as the primary method.
 
 ### 8.4 Insert the flashed ESP32 into the PCB
 
@@ -428,59 +437,44 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 ## 9. First Boot
 
-1. Slide the user's power bank into the battery compartment.
+1. Slide a power bank into the battery compartment.
 2. Slide the battery cover into place to hold it.
-
-<img src="build-guide/images/battery_slider.jpg" width="33%">
-
 3. Connect the power bank to the USB cable wired into J2.
-4. **Press the RESET button on the ESP32-S3 module once.**
-5. The LED matrix should illuminate with the default pattern.
-6. Turn the four knobs to confirm they all respond.
+4. The LED matrix should illuminate with the default pattern within a second or two.
+5. Turn the four knobs to confirm they all respond.
 
 <img src="build-guide/images/first_boot.jpg" width="33%">
 
-> The reset-button-on-first-boot step is a known PCB-level issue (see Issue #1 below). A fix is planned for the next PCB revision.
+> If your unit does not boot reliably, press RESET on the ESP32-S3 module once. On v2.0 boards this should not be necessary -- if it consistently is, [open an issue](https://github.com/engmung/PatternFlow/issues) with your module source (AliExpress / Espressif / other) and a photo of the GPIO0 area on your PCB.
 
 ---
 
-## 10. Known Issues
+## 10. Known Issues & Design Notes
 
-### Issue #1 — Reset button required on power-up
+### Fixed in v2.0
 
-**Why:** The 3.3V rail rises slowly enough that the EN pin's RC time constant misses the boot window. Common to ESP32-S3 boards without an explicit EN-GND cap.
-**Workaround (PCB v1.0):** Press RESET once after applying power.
-**Planned fix (next PCB revision):** Add a 0.1µF–1µF ceramic cap between EN and GND, either via PCB revision or a hand-soldered SMD cap on the module.
-🛠 **Open to PRs** — see the GitHub Issues tab.
+- **Cold-boot reliability** (was Issue #1). GPIO0 is a strapping pin on the ESP32-S3 and was left floating in v1.0. After extended power-off, residual charge could leak into an indeterminate state, sometimes registering LOW on power-on and sending the module into serial bootloader mode instead of normal boot -- looking exactly like "boot failure." v2.0 adds a 10k pullup from GPIO0 to 3.3V on the PCB. Full debugging story in [Issue #16](https://github.com/engmung/PatternFlow/issues/16). Two weeks of debugging compressed into one comment from u/Infrated on r/AskElectronics. Genuine Espressif modules tended not to exhibit the issue at all, but v2.0 covers both genuine and clone modules.
 
-### Issue #2 — Encoder direction reversed in firmware
+- **Silkscreen ambiguity** (was Issue #3). 0805 resistor vs. capacitor designators are now clearly marked, and the correct encoder solder side is on the silkscreen.
 
-**Why:** Encoder footprint in v1.0 PCB is rotated relative to the intended orientation.
-**Workaround (firmware v1.1.0):** Firmware inverts the sign — invisible to the user.
-**Planned fix (next PCB revision):** Correct PCB footprint orientation.
+### Still open
 
-### Issue #3 — SMD silkscreen ambiguity (R vs C) and encoder side wrong
+- **Issue #4 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. Current workaround: cut them off during assembly (see Section 5.1). They cut easily. A future case revision (planned to land with the LED diffuser variant) will add recesses to accommodate them.
 
-**Why:** Silkscreen on v1.0 doesn't clearly distinguish 0805 caps from 0805 resistors, and the encoder silkscreen indicates the wrong side of the board.
-**Workaround:** For SMDs, use the rule of thumb (cap = closest 0805 to each encoder) or refer to the schematic. For encoders, **solder them on the back** regardless of what the silkscreen says (see big warning in Section 4.2).
-**Planned fix (next PCB revision):** Updated silkscreen + corrected encoder footprint side.
+### Design notes (not bugs)
 
-### Issue #4 — LED matrix back has alignment bumps
+- **Encoder direction handled in firmware** (was Issue #2). The encoder PCB footprint is rotated relative to the natural CW=increment direction. Rather than re-spinning the PCB, the firmware inverts the sign. This is transparent to the user. If you fork the firmware or design a derivative PCB, mind this.
 
-**Why:** The matrix manufacturer leaves two small alignment bumps on the back.
-**Workaround (current case):** Cut them off during assembly.
-**Planned fix (next case revision):** Case recess to accommodate them.
+- **C11 (1000uF electrolytic) retained.** Issue #16 discussion noted that 1000uF is roughly 100x over the USB inrush spec for desktop-USB-powered devices -- and that is correct. Patternflow is powered by a power bank, not a desktop USB port, so the inrush argument does not apply. Without C11 the panel can flicker visibly during the boot transient, so it stays. If you are designing a derivative that connects to a host PC, drop C11 to <=50uF.
 
-### Issue #5 — Encoder shaft length
-
-**Note:** The encoders in the BOM use **20mm shafts**. Earlier notes mentioned 15mm as a possible alternative — **ignore this; 20mm is the correct and intended length.** The 3D-printed knobs and case are modeled for 20mm shafts and will fit correctly. Use the linked EC11 20mm part from the sourcing list.
+- **Encoder shaft length variants** (was Issue #5). The BOM uses 20mm shaft encoders, and the print-ready knob STL is sized for 20mm. If you have 15mm shafts on hand, a 15mm knob model is included in the Blender source at hardware/case/source/ -- open it, export the 15mm knob, and print that instead.
 
 ---
 
 ## Questions, contributions, fixes
 
-This is firmware v1.1.0 on PCB v1.0. It works. It also has known rough edges, all listed above.
+This is Patternflow v2.0.0. The cold-boot issue is fixed; the case still needs manual matrix-bump trimming. The remaining open item is listed above.
 
-If you build one — please open an issue on GitHub with photos and any notes. If something in this guide was unclear or wrong, send a PR. If you fix one of the Known Issues, you'll be credited as a contributor.
+If you build one -- please open an issue on GitHub with photos and any notes. If something in this guide was unclear or wrong, send a PR. If you fix one of the Known Issues, you will be credited as a contributor.
 
-— SeungHun
+-- SeungHun

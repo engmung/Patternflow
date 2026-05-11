@@ -125,8 +125,15 @@
     font-size: 21px;
     line-height: 1.5;
     max-width: 540px;
-    margin-bottom: 54px; /* 36px -> 54px (1.5x) */
+    margin-bottom: 34px;
     text-wrap: pretty;
+  }
+  .hero-kit-note {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+    margin: 0 0 10px;
+    max-width: 34ch;
   }
   .hero-tags {
     display: flex; gap: 8px; margin-bottom: 28px;
@@ -155,7 +162,8 @@
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
     .hero-copy h1 { font-size: 42px; margin-bottom: 12px; }
     .hero-copy .kicker { font-size: 18px; margin-bottom: 24px; }
-    .hero-copy p.lede { font-size: 16px; margin-bottom: 32px; }
+    .hero-copy p.lede { font-size: 16px; margin-bottom: 26px; }
+    .hero-kit-note { font-size: 13.5px; margin: 0 0 8px; }
   }
 
   /* ───── Vertical Navigation Layout ───── */

@@ -1,4 +1,4 @@
----
+﻿---
 name: add-pattern
 description: Use when adding a new generative pattern to the Patternflow firmware. Triggers on requests like "add a new pattern", "create a [name] pattern", or when the user describes a visual effect they want on the LED matrix.
 ---
@@ -7,7 +7,7 @@ description: Use when adding a new generative pattern to the Patternflow firmwar
 
 Follow these steps to implement a new visual pattern:
 
-1. **Read existing patterns** in `firmware/patternflow_v1/patternflow_v1.ino` (or future separate pattern files). Specifically, look at `renderConcentric(float phase)` to understand the rendering interface and parameters.
+1. **Read existing patterns** in `firmware/patternflow/patternflow.ino` (or future separate pattern files). Specifically, look at `renderConcentric(float phase)` to understand the rendering interface and parameters.
 2. **Identify integration points:**
    - How the pattern function is called from the main `loop()` or `renderCurrent()` multiplexer.
    - How `params` (hue, speed, mode, freq) are accessed.
@@ -21,3 +21,4 @@ Follow these steps to implement a new visual pattern:
 5. **Register the pattern** in the mode-switching logic (usually inside `renderCurrent()` or directly tied to `params.mode`).
 6. **Test compile** the firmware to ensure no syntax errors (do not attempt to run on hardware).
 7. **Update documentation:** Add the new pattern to any pattern list in `firmware/README.md`.
+
