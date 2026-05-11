@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+import { CAMPAIGN_ROUTES } from './campaignRoutes';
 
 type EventProperties = Record<string, string | number | boolean | null | undefined>;
 
@@ -10,10 +11,9 @@ const UTM_KEYS = [
   'utm_term',
 ] as const;
 
-export function getCampaignProperties() {
-  if (typeof window === 'undefined') return {};
+const CAMPAIGN_STORAGE_KEY = 'patternflow_campaign';
 
-  const params = new URLSearchParams(window.location.search);
+function getPropertiesFromSearch(params: URLSearchParams) {
   const properties: Record<string, string> = {};
 
   UTM_KEYS.forEach((key) => {
@@ -22,6 +22,44 @@ export function getCampaignProperties() {
   });
 
   return properties;
+}
+
+function getPropertiesFromPath(pathname: string) {
+  return CAMPAIGN_ROUTES.find((route) => route.path === pathname)?.properties ?? {};
+}
+
+function readStoredCampaign() {
+  try {
+    const value = window.sessionStorage.getItem(CAMPAIGN_STORAGE_KEY);
+    return value ? JSON.parse(value) as Record<string, string> : {};
+  } catch {
+    return {};
+  }
+}
+
+function storeCampaign(properties: Record<string, string>) {
+  try {
+    window.sessionStorage.setItem(CAMPAIGN_STORAGE_KEY, JSON.stringify(properties));
+  } catch {
+    // Ignore private browsing / storage-disabled sessions.
+  }
+}
+
+export function getCampaignProperties() {
+  if (typeof window === 'undefined') return {};
+
+  const params = new URLSearchParams(window.location.search);
+  const directProperties = {
+    ...getPropertiesFromPath(window.location.pathname),
+    ...getPropertiesFromSearch(params),
+  };
+
+  if (Object.keys(directProperties).length > 0) {
+    storeCampaign(directProperties);
+    return directProperties;
+  }
+
+  return readStoredCampaign();
 }
 
 export function captureEvent(eventName: string, properties: EventProperties = {}) {
