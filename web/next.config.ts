@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
+import { CAMPAIGN_ROUTES } from "./src/lib/campaignRoutes";
 
 const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
@@ -18,6 +19,12 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
     ];
+  },
+  async rewrites() {
+    return CAMPAIGN_ROUTES.map(({ path, destination }) => ({
+      source: path,
+      destination,
+    }));
   },
 };
 
