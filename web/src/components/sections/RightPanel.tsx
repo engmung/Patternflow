@@ -51,7 +51,7 @@ export default function RightPanel({ buildContent, patternContent, insideContent
 
     if (window.matchMedia('(max-width: 900px)').matches) {
       requestAnimationFrame(() => {
-        const stickyOffset = window.innerHeight * 0.4 + 50;
+        const stickyOffset = window.innerHeight * 0.3 + 94;
         const panelTop = panel.getBoundingClientRect().top + window.scrollY;
         window.scrollTo({
           top: Math.max(0, panelTop - stickyOffset),
@@ -69,7 +69,7 @@ export default function RightPanel({ buildContent, patternContent, insideContent
           onClick={() => handleTabClick('build')}
         >
           {activeTab === 'build' && <span className="close-icon">✕</span>}
-          <span className="tab-text">Build</span>
+          <span className="tab-text" data-mobile-label="1. Build">Build</span>
         </button>
 
         <button 
@@ -77,14 +77,14 @@ export default function RightPanel({ buildContent, patternContent, insideContent
           onClick={() => handleTabClick('pattern')}
         >
           {activeTab === 'pattern' && <span className="close-icon">✕</span>}
-          <span className="tab-text">Pattern</span>
+          <span className="tab-text" data-mobile-label="2. Pattern">Pattern</span>
         </button>
         <button 
           className={`v-tab-btn ${activeTab === 'inside' ? 'active' : ''}`}
           onClick={() => handleTabClick('inside')}
         >
           {activeTab === 'inside' && <span className="close-icon">✕</span>}
-          <span className="tab-text">Inside</span>
+          <span className="tab-text" data-mobile-label="3. Inside">Inside</span>
         </button>
       </div>
 

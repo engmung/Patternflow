@@ -526,9 +526,10 @@ export default function HeroScene() {
 
       {/* 조작 안내 문구 (최초 1회 조작 시 서서히 사라짐) */}
       <div
+        className="viewer-hint"
         style={{
           position: 'absolute',
-          top: '40px', left: '0', width: '100%', textAlign: 'center',
+          left: '0', width: '100%', textAlign: 'center',
           color: '#6B655A',
           fontFamily: 'var(--mono)',
           fontWeight: 500,

@@ -128,14 +128,6 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
       </div>
 
       <div className={`panel-body ${styles.buildPanel}`} ref={containerRef}>
-        <div className="pf-block">
-          <span className="pf-kicker">Requirements</span>
-          <p className={styles.note}>
-            Requires 3D printing, basic soldering, PCB ordering, and component sourcing.
-            Kits are coming if you&apos;d rather skip the sourcing.
-          </p>
-        </div>
-
         <div className="pf-block" onMouseLeave={handleStepLeave}>
           <span className="pf-kicker">Four steps</span>
           <div className={styles.stepList}>
@@ -190,6 +182,14 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
               );
             })}
           </div>
+        </div>
+
+        <div className="pf-block">
+          <span className="pf-kicker">Requirements</span>
+          <p className={styles.note}>
+            Requires 3D printing, basic soldering, PCB ordering, and component sourcing.
+            Kits are coming if you&apos;d rather skip the sourcing.
+          </p>
         </div>
 
         <div className="pf-block">

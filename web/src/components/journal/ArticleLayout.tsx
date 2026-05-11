@@ -28,42 +28,44 @@ export default function ArticleLayout({
   ].filter((item): item is { label: string; post: JournalPost } => Boolean(item));
 
   return (
-    <article className="journal-article">
-      <JournalLightbox />
-      <LanguageSwitch lang={lang} slug={post.slug} />
-      <div className="journal-back-link">
-        <Link href={indexHref}>All writing</Link>
-      </div>
-
-      <header className="journal-article-header">
-        <h1>{post.title}</h1>
-        <p>{post.excerpt}</p>
-        <div className="journal-dateline">
-          <span>{formatJournalDate(post.date, lang)}</span>
-          <span>{post.readingTime}</span>
+    <>
+      <article className="journal-article">
+        <JournalLightbox />
+        <LanguageSwitch lang={lang} slug={post.slug} />
+        <div className="journal-back-link">
+          <Link href={indexHref}>All writing</Link>
         </div>
-      </header>
 
-      {post.cover && (
-        <figure className="journal-hero-cover">
-          <div className="journal-cover-slot">
-            <JournalImage
-              src={post.cover}
-              alt=""
-              priority
-              sizes="(max-width: 720px) calc(100vw - 48px), 760px"
-            />
+        <header className="journal-article-header">
+          <h1>{post.title}</h1>
+          <p>{post.excerpt}</p>
+          <div className="journal-dateline">
+            <span>{formatJournalDate(post.date, lang)}</span>
+            <span>{post.readingTime}</span>
           </div>
-        </figure>
-      )}
+        </header>
 
-      <div className="journal-reading">{children}</div>
+        {post.cover && (
+          <figure className="journal-hero-cover">
+            <div className="journal-cover-slot">
+              <JournalImage
+                src={post.cover}
+                alt=""
+                priority
+                sizes="(max-width: 720px) calc(100vw - 48px), 760px"
+              />
+            </div>
+          </figure>
+        )}
 
-      <div className="journal-end-mark">
-        <span />
-        <span>End</span>
-        <span />
-      </div>
+        <div className="journal-reading">{children}</div>
+
+        <div className="journal-end-mark">
+          <span />
+          <span>End</span>
+          <span />
+        </div>
+      </article>
 
       <footer className="journal-article-footer">
         {adjacentPosts.length > 0 && (
@@ -85,6 +87,6 @@ export default function ArticleLayout({
           All writing
         </Link>
       </footer>
-    </article>
+    </>
   );
 }
