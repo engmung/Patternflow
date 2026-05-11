@@ -2109,11 +2109,49 @@
       font-size: 16px;
     }
     .journal-post-list a {
-      grid-template-columns: 52px 1fr;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 20px 0 58px;
+      min-height: 190px;
+    }
+    .journal-post-list a .pf-ghost {
+      right: -2px;
+      top: auto;
+      bottom: 18px;
+      transform: none;
+      font-size: 58px;
+      color: var(--ink-ghost);
+    }
+    .journal-list-body {
+      max-width: calc(100% - 58px);
+    }
+    .journal-list-body strong {
+      max-width: 16ch;
+      font-size: 19px;
+      line-height: 1.18;
+    }
+    .journal-list-body .pf-row-d {
+      max-width: 22ch;
+      margin-top: 10px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .journal-new-badge {
+      display: block;
+      margin: 8px 0 0;
+      font-size: 11px;
     }
     .journal-list-meta {
-      grid-column: 2;
+      grid-column: auto;
       text-align: left;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+    .journal-list-meta + .journal-list-meta {
+      position: absolute;
+      left: 0;
+      bottom: 20px;
     }
     .journal-figure-wide,
     .journal-figure-full {
