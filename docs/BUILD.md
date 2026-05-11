@@ -137,6 +137,8 @@ Allow ~5 minutes after every bond step for the glue to fully cure before handlin
 
 Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD goes before any tall through-hole component.
 
+<img src="build-guide/images/pcb_assembly_setup.jpg" width="70%">
+
 ### 4.1 SMD Pass (R1-R13, C1-C10, C12-C15)
 
 > **Hand-solder vs. paste + hot air.** I hand-soldered with an iron because I didn't have solder paste or a hot air station. If you do, by all means use them — apply paste to the pads, place all parts, then reflow. The board is small enough that either approach is fine. The procedure below is for the iron-only path.
@@ -157,6 +159,10 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 > **Silkscreen.** On v2.0 PCB, R and C designators are clearly marked. Place each part according to its silkscreen designator. (On v1.0 boards, the 0805 closest to each encoder pad was a cap; this rule still works as a sanity check on v2.0.)
 
+SMD placement close-up, then the board after the non-encoder through-hole parts are installed:
+
+<img src="build-guide/images/smd_tweezers_closeup.jpg" width="45%"> <img src="build-guide/images/pcb_before_encoders.jpg" width="45%">
+
 ### 4.2 Through-Hole Pass
 
 Solder, in order (small/short to tall):
@@ -171,6 +177,10 @@ Solder, in order (small/short to tall):
 > Insert each encoder from the **back of the PCB** so its body sits on the back and its leads come through to the front, then solder the leads on the front. The v2.0 silkscreen marks this clearly -- follow it.
 >
 > If you solder them on the wrong side, the shafts will not reach the case front panel and the build is non-functional. Desoldering through-hole rotary encoders from a populated PCB is extremely painful -- I made this exact mistake on my own first build. **Stop and check the side twice before soldering each encoder.**
+
+Wrong side (front) vs. correct side (back):
+
+<img src="build-guide/images/encoder_front_wrong.jpg" width="45%"> <img src="build-guide/images/encoder_back_correct.jpg" width="45%">
 
 Press all parts flush against the PCB and keep them perpendicular before soldering.
 
