@@ -61,6 +61,10 @@
   line-height: 1.5;
 }
 
+.flashMobileCopy {
+  display: none;
+}
+
 .previewNote {
   margin: 0;
   max-width: 560px;
@@ -307,6 +311,19 @@
 @media (max-width: 720px) {
   .workspace {
     margin-top: 18px;
+  }
+
+  .flashDesktopCopy,
+  .flashAction {
+    display: none;
+  }
+
+  .flashMobileCopy {
+    display: block;
+  }
+
+  .presetDesc {
+    display: none;
   }
 
   .editorHeader {

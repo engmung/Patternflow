@@ -1,6 +1,7 @@
 'use client';
 
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
+import { captureEvent } from "@/lib/posthogEvents";
 
 export default function Hero() {
   return (
@@ -14,20 +15,7 @@ export default function Hero() {
         <p className="lede">
           Play light patterns with your fingertips.
           <br />
-          <a
-            className="has-tip"
-            data-tip="Opens GitHub"
-            href="https://github.com/engmung/PatternFlow"
-            target="_blank"
-            rel="noopener"
-            style={{
-              borderBottom: "1px solid var(--ink)",
-              paddingBottom: "1px",
-            }}
-          >
-            An open-source
-          </a>{" "}
-          reinterpretation of{" "}
+          An open-source reinterpretation of{" "}
           <a
             className="has-tip"
             data-tip="View on MoMA"
@@ -59,16 +47,37 @@ export default function Hero() {
           </em>{" "}
           (1963).
         </p>
-        <p className="hero-kit-note">Build it from the files, or wait for the kit.</p>
-        <a
-          className="hero-cta has-tip"
-          data-tip="Reserve a slot"
-          href="https://tally.so/r/aQjEQy"
-          target="_blank"
-          rel="noopener"
-        >
-          Get notified when the kit ships
-        </a>
+        <p className="hero-kit-note">
+          All source files are on GitHub.
+          <br />
+          Build one now, or join the kit waitlist.
+        </p>
+        <div className="hero-cta-row" aria-label="Patternflow actions">
+          <a
+            className="hero-cta"
+            href="https://github.com/engmung/PatternFlow"
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('github_cta_clicked', {
+              surface: 'hero',
+              destination: 'github_repository',
+            })}
+          >
+            GitHub
+          </a>
+          <a
+            className="hero-cta hero-cta-waitlist"
+            href="https://tally.so/r/aQjEQy"
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('kit_waitlist_clicked', {
+              surface: 'hero',
+              destination: 'tally_waitlist',
+            })}
+          >
+            Waitlist
+          </a>
+        </div>
       </div>
     </section>
   );
