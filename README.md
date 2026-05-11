@@ -25,7 +25,7 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 </p>
 
 
-> 🚀 **v2.0.0 is live.** PCB-level cold-boot fix (10kΩ pullup on GPIO0), unified PatternFlow OS with runtime pattern selection, a substantially complete web platform (browser flasher, Live Editor, journal, build map), and an AI-assisted custom-pattern workflow.
+> **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
 
 ## Make your own patterns — no firmware build required
 
@@ -44,8 +44,6 @@ PatternFlow OS v2.0.0 includes:
 
 - **Origin** — concentric sine waves sampled by an emergent grid
 - **Wave Saw** — rotated sawtooth waves with fractal noise distortion
-
-Switch between patterns by long-pressing encoder 4 (1 second). Add your own via [the custom pattern workflow](firmware/CUSTOM_PATTERNS.md).
 
 ## Why open source?
 
@@ -66,10 +64,9 @@ For the full story — failed prints, broken potentiometers, two weeks of debugg
 
 ## Links
 
-- 🌐 [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
-- 📝 [Patternflow in 30 days](https://patternflow.work/journal/v1-30-days?lang=en) — build log from tangled wires to open source
-- 📦 [Releases](../../releases) — stable bundles (v2.0.0)
-- 💬 [Discord](https://discord.gg/Vr9QtsxeTk) — questions, builds, custom patterns
+- [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
+- [Releases](../../releases) — stable bundles
+- [Discord](https://discord.gg/Vr9QtsxeTk) — questions, builds, custom patterns
 
 ## Repository structure
 
@@ -80,10 +77,10 @@ For the full story — failed prints, broken potentiometers, two weeks of debugg
 
 ## Documentation
 
-- 📖 **[Build Guide](docs/BUILD.md)** — full assembly instructions
-- 🎛 **[Custom Patterns](firmware/CUSTOM_PATTERNS.md)** — make your own with AI assistance
-- 📋 **[Changelog](CHANGELOG.md)** — version history
-- ⚖️ **[License Summary](docs/LICENSE-SUMMARY.md)** — what's MIT, what's CC-BY-SA
+- [Build Guide](docs/BUILD.md)
+- [Custom Patterns](firmware/CUSTOM_PATTERNS.md)
+- [Changelog](CHANGELOG.md)
+- [License Summary](docs/LICENSE-SUMMARY.md)
 
 ## Migrating from v1
 
