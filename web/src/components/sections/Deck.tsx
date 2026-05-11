@@ -41,7 +41,7 @@ export default function Deck({ buildContent, patternContent, insideContent }: De
       </div>
 
       <div className="deck-content" id="deck">
-        {activeTab === 'build' && <BuildPanel content={buildContent} />}
+        {activeTab === 'build' && <BuildPanel content={buildContent} isActive />}
         {activeTab === 'inside' && <InsidePanel content={insideContent} />}
         {activeTab === 'pattern' && <PatternPanel content={patternContent} />}
       </div>

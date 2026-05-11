@@ -8,6 +8,7 @@ import PatternPanel from './PatternPanel';
 import Footer from '../layout/Footer';
 import { SectionContent } from '@/lib/content';
 import { useAppStore } from '@/store/useAppStore';
+import { captureEvent } from '@/lib/posthogEvents';
 
 type TabType = 'hero' | 'build' | 'inside' | 'pattern';
 
@@ -33,12 +34,30 @@ export default function RightPanel({ buildContent, patternContent, insideContent
     }
 
     setActiveTab(nextTab);
+
+    captureEvent('section_tab_opened', {
+      from_section: activeTab,
+      to_section: nextTab,
+      surface: 'right_panel_nav',
+    });
   };
 
   // Reset scroll to top on every tab change
   useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = 0;
+    const panel = contentRef.current;
+    if (!panel) return;
+
+    panel.scrollTop = 0;
+
+    if (window.matchMedia('(max-width: 900px)').matches) {
+      requestAnimationFrame(() => {
+        const stickyOffset = window.innerHeight * 0.4 + 50;
+        const panelTop = panel.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({
+          top: Math.max(0, panelTop - stickyOffset),
+          behavior: 'auto',
+        });
+      });
     }
   }, [activeTab]);
 
@@ -76,7 +95,7 @@ export default function RightPanel({ buildContent, patternContent, insideContent
             <Footer />
           </div>
           <div className={`panel-wrapper ${activeTab === 'build' ? 'active' : ''}`}>
-            <BuildPanel key={buildPanelKey} content={buildContent} />
+            <BuildPanel key={buildPanelKey} content={buildContent} isActive={activeTab === 'build'} />
           </div>
           <div className={`panel-wrapper ${activeTab === 'pattern' ? 'active' : ''}`}>
             <PatternPanel content={patternContent} />

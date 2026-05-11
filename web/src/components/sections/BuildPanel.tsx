@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppStore, SectionType } from '@/store/useAppStore';
 import { SectionContent } from '@/lib/content';
+import { captureEvent } from '@/lib/posthogEvents';
 import styles from './BuildPanel.module.css';
 
 interface BuildPanelProps {
   content: SectionContent;
+  isActive: boolean;
 }
 
 const STEPS = [
@@ -30,7 +32,7 @@ const STEPS = [
   },
 ];
 
-export default function BuildPanel({ content }: BuildPanelProps) {
+export default function BuildPanel({ content, isActive }: BuildPanelProps) {
   const setActiveSection = useAppStore((state) => state.setActiveSection);
   const buildStep = useAppStore((state) => state.buildStep);
   const setBuildStep = useAppStore((state) => state.setBuildStep);
@@ -47,6 +49,12 @@ export default function BuildPanel({ content }: BuildPanelProps) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  useEffect(() => {
+    if (!isActive || !isMobile || activeTouchStep !== null) return;
+    setActiveTouchStep(1);
+    setBuildStep(1);
+  }, [activeTouchStep, isActive, isMobile, setBuildStep]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -78,6 +86,8 @@ export default function BuildPanel({ content }: BuildPanelProps) {
   };
 
   const handleStepClick = (stepId: number) => {
+    const step = STEPS.find((item) => item.id === stepId);
+
     if (isMobile) {
       if (activeTouchStep === stepId) {
         setActiveTouchStep(null);
@@ -86,6 +96,12 @@ export default function BuildPanel({ content }: BuildPanelProps) {
       }
       setActiveTouchStep(stepId);
       setBuildStep(stepId);
+      captureEvent('build_step_selected', {
+        step_id: stepId,
+        step_title: step?.title,
+        interaction: 'tap',
+        surface: 'build_panel',
+      });
       return;
     }
 
@@ -96,6 +112,12 @@ export default function BuildPanel({ content }: BuildPanelProps) {
 
     setLockedStep(stepId);
     setBuildStep(stepId);
+    captureEvent('build_step_selected', {
+      step_id: stepId,
+      step_title: step?.title,
+      interaction: 'click',
+      surface: 'build_panel',
+    });
   };
 
   return (

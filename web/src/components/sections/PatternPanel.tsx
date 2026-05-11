@@ -6,6 +6,7 @@ import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
 import { analyzeEsp32Cost } from '@/lib/esp32CostAnalyzer';
+import { captureEvent } from '@/lib/posthogEvents';
 import styles from './PatternPanel.module.css';
 
 const createPrompt = `I am writing a custom LED pattern in JavaScript for Patternflow's 128x64 LED matrix web preview.
@@ -186,16 +187,30 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     editorLineCount * EDITOR_LINE_HEIGHT + EDITOR_VERTICAL_CHROME,
   );
 
-  const selectBuiltInPattern = (pattern: PresetPattern) => {
+  const selectBuiltInPattern = (pattern: PresetPattern, track = true) => {
     const store = useAppStore.getState();
     store.setActivePatternId(pattern.id);
     store.setKnobValue('c1', pattern.values.c1);
     store.setKnobValue('c2', pattern.values.c2);
     store.setKnobValue('c3', pattern.values.c3);
     store.setKnobValue('c4', pattern.values.c4);
+
+    if (track) {
+      captureEvent('pattern_preset_selected', {
+        pattern_id: pattern.id,
+        pattern_name: pattern.name,
+        surface: 'pattern_panel',
+      });
+    }
   };
 
   const handleModeChange = (nextMode: PatternMode) => {
+    if (nextMode === 'create' && mode !== 'create') {
+      captureEvent('live_editor_opened', {
+        surface: 'pattern_panel',
+      });
+    }
+
     setMode(nextMode);
     if (nextMode === 'create') {
       useAppStore.getState().setActivePatternId('custom');
@@ -203,16 +218,24 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     }
 
     const currentPreset = presetPatterns.find((pattern) => pattern.id === activePatternId);
-    selectBuiltInPattern(currentPreset ?? presetPatterns[0]);
+    selectBuiltInPattern(currentPreset ?? presetPatterns[0], false);
   };
   
   const handleCopyCreatePrompt = () => {
     navigator.clipboard.writeText(createPrompt);
+    captureEvent('copy_creation_prompt_clicked', {
+      surface: 'live_editor',
+    });
     alert('AI Prompt copied to clipboard! Paste it in ChatGPT/Claude to generate a pattern.');
   };
 
   const handleCopyConvertPrompt = () => {
     navigator.clipboard.writeText(getConvertPrompt(customJsCode));
+    captureEvent('copy_cpp_prompt_clicked', {
+      esp32_cost_level: esp32Cost.level,
+      esp32_cost_score: esp32Cost.score,
+      surface: 'live_editor',
+    });
     alert('C++ Conversion Prompt copied to clipboard! Paste it in ChatGPT/Claude to get your ESP32 C++ code.');
   };
 
@@ -270,14 +293,24 @@ export default function PatternPanel({ content }: PatternPanelProps) {
             <div>
               <div className={styles.block}>
                 <div className={styles.lead}>
-                  <p>
+                  <p className={styles.flashDesktopCopy}>
                     Connect Patternflow over USB, then click the button to flash the current firmware from the browser.
+                  </p>
+                  <p className={styles.flashMobileCopy}>
+                    Browser flashing is available on desktop Chrome or Edge. On mobile, preview the built-in patterns below.
                   </p>
                 </div>
 
                 <div className={styles.flashAction}>
                   <EspWebInstallButton manifest="/flash/manifest.json">
-                    <button slot="activate" className={styles.primaryAction}>
+                    <button
+                      slot="activate"
+                      className={styles.primaryAction}
+                      onClick={() => captureEvent('flash_patternflow_clicked', {
+                        manifest: '/flash/manifest.json',
+                        surface: 'pattern_panel',
+                      })}
+                    >
                       Flash Patternflow
                     </button>
                     <div slot="unsupported" className={styles.unsupported}>
