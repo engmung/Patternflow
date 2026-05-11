@@ -2,8 +2,9 @@ import Link from "next/link";
 
 export default function HeroJournalLink() {
   return (
-    <Link className="hero-journal-link" href="/journal">
-      Journal
-    </Link>
+    <nav className="hero-top-links" aria-label="Patternflow pages">
+      <Link href="/journal">Journal</Link>
+      <Link href="/contact">Contact</Link>
+    </nav>
   );
 }
