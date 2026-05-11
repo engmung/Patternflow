@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { formatJournalDate, type JournalLang, type JournalPost } from "@/lib/journal";
 import LanguageSwitch from "./LanguageSwitch";
 import JournalLightbox from "./JournalLightbox";
+import JournalImage from "./JournalImage";
 
 type ArticleLayoutProps = {
   post: JournalPost;
@@ -19,7 +20,8 @@ export default function ArticleLayout({
   next,
   children,
 }: ArticleLayoutProps) {
-  const langQuery = `?lang=${lang}`;
+  const indexHref = lang === "en" ? "/journal/en" : "/journal";
+  const getPostHref = (slug: string) => lang === "en" ? `/journal/${slug}/en` : `/journal/${slug}`;
   const adjacentPosts = [
     previous ? { label: "Previous", post: previous } : null,
     next ? { label: "Next", post: next } : null,
@@ -30,7 +32,7 @@ export default function ArticleLayout({
       <JournalLightbox />
       <LanguageSwitch lang={lang} slug={post.slug} />
       <div className="journal-back-link">
-        <Link href={`/journal${langQuery}`}>All writing</Link>
+        <Link href={indexHref}>All writing</Link>
       </div>
 
       <header className="journal-article-header">
@@ -45,7 +47,12 @@ export default function ArticleLayout({
       {post.cover && (
         <figure className="journal-hero-cover">
           <div className="journal-cover-slot">
-            <img src={post.cover} alt="" />
+            <JournalImage
+              src={post.cover}
+              alt=""
+              priority
+              sizes="(max-width: 720px) calc(100vw - 48px), 760px"
+            />
           </div>
         </figure>
       )}
@@ -64,7 +71,7 @@ export default function ArticleLayout({
             <ol>
               {adjacentPosts.map(({ label, post: adjacentPost }) => (
                 <li key={adjacentPost.slug}>
-                  <Link href={`/journal/${adjacentPost.slug}${langQuery}`}>
+                  <Link href={getPostHref(adjacentPost.slug)}>
                     <span className="journal-more-kicker">{label}</span>
                     <strong>{adjacentPost.title}</strong>
                     <time>{formatJournalDate(adjacentPost.date, lang)}</time>
@@ -74,7 +81,7 @@ export default function ArticleLayout({
             </ol>
           </section>
         )}
-        <Link className="journal-all-writing-link" href={`/journal${langQuery}`}>
+        <Link className="journal-all-writing-link" href={indexHref}>
           All writing
         </Link>
       </footer>

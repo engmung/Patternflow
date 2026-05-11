@@ -7,8 +7,8 @@ export const metadata: Metadata = {
   description: "Writing and notes from Patternflow.",
 };
 
-export default function JournalPage() {
-  const lang = "ko";
+export default function EnglishJournalPage() {
+  const lang = "en";
   const posts = getAllJournalPosts({ lang });
 
   return <JournalIndex posts={posts} lang={lang} />;

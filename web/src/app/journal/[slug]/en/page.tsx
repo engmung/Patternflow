@@ -9,7 +9,7 @@ import {
   getJournalSlugs,
 } from "@/lib/journal";
 
-type JournalPostPageProps = {
+type EnglishJournalPostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
@@ -19,9 +19,9 @@ export function generateStaticParams() {
 
 export async function generateMetadata({
   params,
-}: JournalPostPageProps): Promise<Metadata> {
+}: EnglishJournalPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = getAllJournalPosts({ includeDrafts: true }).find(
+  const post = getAllJournalPosts({ includeDrafts: true, lang: "en" }).find(
     (item) => item.slug === slug,
   );
 
@@ -37,17 +37,17 @@ export async function generateMetadata({
       description: post.excerpt,
       type: "article",
       publishedTime: post.date,
-      url: `/journal/${post.slug}`,
+      url: `/journal/${post.slug}/en`,
       images: [{ url: `/journal/${post.slug}/opengraph-image` }],
     },
   };
 }
 
-export default async function JournalPostPage({
+export default async function EnglishJournalPostPage({
   params,
-}: JournalPostPageProps) {
+}: EnglishJournalPostPageProps) {
   const { slug } = await params;
-  const lang = "ko";
+  const lang = "en";
   const post = getJournalPost(slug, lang);
 
   if (!post || post.draft) {

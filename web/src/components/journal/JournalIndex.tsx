@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatJournalDate, type JournalLang, type JournalPost } from "@/lib/journal";
 import LanguageSwitch from "./LanguageSwitch";
+import JournalImage from "./JournalImage";
 
 type JournalIndexProps = {
   posts: JournalPost[];
@@ -13,7 +14,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];
   const archive = posts;
   const newestSlug = posts[0]?.slug;
-  const langQuery = `?lang=${lang}`;
+  const getPostHref = (slug: string) => lang === "en" ? `/journal/${slug}/en` : `/journal/${slug}`;
 
   return (
     <main className="journal-index">
@@ -29,7 +30,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
       {hero && (
         <Link
           className={`journal-featured${hero.cover ? "" : " journal-featured-text-only"}`}
-          href={`/journal/${hero.slug}${langQuery}`}
+          href={getPostHref(hero.slug)}
         >
           <div className="journal-featured-copy">
             <h1>{hero.title}</h1>
@@ -41,7 +42,12 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
           </div>
           {hero.cover && (
             <div className="journal-index-thumb">
-              <img src={hero.cover} alt="" />
+              <JournalImage
+                src={hero.cover}
+                alt=""
+                priority
+                sizes="(max-width: 720px) 260px, 180px"
+              />
             </div>
           )}
         </Link>
@@ -53,7 +59,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
           <ol className="journal-post-list">
             {archive.map((post, index) => (
               <li key={post.slug}>
-                <Link className="pf-row" href={`/journal/${post.slug}${langQuery}`}>
+                <Link className="pf-row" href={getPostHref(post.slug)}>
                   <span className="pf-ghost">{String(index + 1).padStart(2, "0")}</span>
                   <span className="journal-list-body">
                     <strong className="pf-row-t">

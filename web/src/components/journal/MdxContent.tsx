@@ -1,9 +1,15 @@
 import { evaluate } from "@mdx-js/mdx";
-import { Fragment, type ComponentType } from "react";
+import { Fragment, type ComponentProps, type ComponentType } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
+import JournalImage from "./JournalImage";
 
 type MdxContentProps = {
   source: string;
+};
+
+type MdxComponents = {
+  img?: ComponentType<ComponentProps<"img">>;
+  video?: ComponentType<ComponentProps<"video">>;
 };
 
 export default async function MdxContent({ source }: MdxContentProps) {
@@ -12,7 +18,14 @@ export default async function MdxContent({ source }: MdxContentProps) {
     jsx,
     jsxs,
     baseUrl: import.meta.url,
-  })) as { default: ComponentType };
+  })) as { default: ComponentType<{ components?: MdxComponents }> };
 
-  return <Content />;
+  const components = {
+    img: JournalImage as ComponentType<ComponentProps<"img">>,
+    video: (props: ComponentProps<"video">) => (
+      <video {...props} preload={props.autoPlay ? "metadata" : props.preload ?? "metadata"} />
+    ),
+  };
+
+  return <Content components={components} />;
 }

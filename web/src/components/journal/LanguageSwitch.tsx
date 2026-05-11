@@ -7,19 +7,20 @@ type LanguageSwitchProps = {
 };
 
 export default function LanguageSwitch({ lang, slug }: LanguageSwitchProps) {
-  const basePath = slug ? `/journal/${slug}` : "/journal";
+  const koHref = slug ? `/journal/${slug}` : "/journal";
+  const enHref = slug ? `/journal/${slug}/en` : "/journal/en";
 
   return (
     <nav className="journal-lang-switch" aria-label="Journal language">
       <Link
         className={lang === "ko" ? "active" : ""}
-        href={`${basePath}?lang=ko`}
+        href={koHref}
       >
         ko
       </Link>
       <Link
         className={lang === "en" ? "active" : ""}
-        href={`${basePath}?lang=en`}
+        href={enHref}
       >
         en
       </Link>

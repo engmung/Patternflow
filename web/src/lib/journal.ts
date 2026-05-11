@@ -31,26 +31,6 @@ function isFrontmatter(value: Record<string, unknown>): value is JournalFrontmat
   );
 }
 
-export function normalizeJournalLang(lang?: string): JournalLang {
-  return lang === "en" ? "en" : "ko";
-}
-
-export function resolveJournalLang(
-  lang: string | undefined,
-  acceptLanguage: string | null,
-): JournalLang {
-  if (lang === "ko" || lang === "en") {
-    return lang;
-  }
-
-  const preferredLanguage = acceptLanguage
-    ?.split(",")
-    .map((item) => item.trim().split(";")[0]?.toLowerCase())
-    .filter(Boolean)[0];
-
-  return preferredLanguage?.startsWith("ko") ? "ko" : "en";
-}
-
 function getPostPath(slug: string, lang: JournalLang) {
   const localizedPath = path.join(journalDirectory, `${slug}.${lang}.mdx`);
   const defaultPath = path.join(journalDirectory, `${slug}.mdx`);

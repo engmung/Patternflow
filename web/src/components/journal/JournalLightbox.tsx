@@ -27,8 +27,12 @@ export default function JournalLightbox() {
         return;
       }
 
+      // Use the original src attribute (not currentSrc) so the lightbox
+      // always shows the full-resolution image, even on mobile where
+      // Next Image's srcset may have selected a smaller variant.
+      const originalSrc = target.getAttribute("src") || target.src;
       setImage({
-        src: target.currentSrc || target.src,
+        src: originalSrc,
         alt: target.alt,
         caption: figure.querySelector("figcaption")?.textContent ?? target.alt,
       });
