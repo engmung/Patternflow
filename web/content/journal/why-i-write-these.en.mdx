@@ -1,0 +1,62 @@
+---
+title: "Why I write these"
+date: "2026-05-12T22:08:00+09:00"
+excerpt: "Spilling thoughts."
+draft: false
+---
+
+When I'm only focused on running the project, my head fills up so fast it gets noisy. These posts are me dumping that out as-is. As I do, things start to settle a little. I hope they're useful to other people, too. Not for information so much as for some kind of drive.
+
+I hope someone reads this and, instead of looking at a polished finished work and thinking *"wow, that's cool… I'd love to make that, but I can't,"* sees the messy process and thinks *"oh, if that's the level, I could probably do it too."* I'm not sure I can pull that off. I'm not exactly a strong writer, and I'll probably get sick of this soon. But I write anyway.
+
+---
+
+## v2.0.0 — Filling out the website
+
+I just shipped v2.0.0. The cold-boot fix is in the previous post, so I won't repeat it here. I rewrote the website content. I tore out everything that had been there just to fill space.
+
+- **Build section**: The making process is now abstracted into four stages, and the 3D preview on the left changes depending on which stage you're on.
+- **Pattern section**: I cut the unnecessary explanations and made it more direct. I put a lot of work into the custom pattern part (more on that in a bit).
+- **Inside section**: I expanded the content and added a globe to invite participation. If you build one and send me a photo, I'll add it — please join in.
+
+---
+
+## Making patterns, and hitting the gacha wall
+
+The most important piece here is custom pattern generation. Because that's really the essence of Patternflow. **The hardware is fixed. An LED matrix and four knobs. That's it.** You could change the form factor or add other sensors, but the cost is too high relative to what you get back. The patterns and content running on the ESP32, though — those you can make infinitely. You can just keep printing them out.
+
+That's what I thought.
+
+With no infrastructure in place, making patterns turned out to be brutally hard. I ended up using AI to generate the pattern code, but writing the prompt every time was unbearable. It often didn't work either. I thought I was past the hard part and onto the fun part, but there was another wall.
+
+So I made the prompts into presets, easy to copy. One prompt for JavaScript code to test in the web preview, another for porting it to C++. Two presets. Using them was *so much* easier. So good. It felt like a tumor being removed.
+
+But there was a limit. **The patterns AI was producing were all basically the same.** If you kept pulling, a few good ones came out of the pile. Literally gacha. At first it was fun, but at some point the repetition of similar, mediocre patterns just got exhausting. I started not wanting to do it.
+
+So I'm thinking I'll approach this part like **harness engineering** — building the environment around it. *Harness engineering*. Whoever came up with that name, nice work. AI terms always sound impressively legit. Strip it down and it's just prompt engineering, isn't it? Or not? I get the sense harness is actually a bit different. Either way — I'm going to research pattern generation through AI properly. The goal: even a casual request should produce a decent pattern.
+
+---
+
+## Watching people react
+
+Right now I'm fully into making patterns. Or really, making content. The patterns get used once and tossed, so calling it "pattern research" feels off. I'm going to keep posting reels and pushing Patternflow. Build a small audience, line up some future customers. Connect it all to a business eventually.
+
+Doing art takes money. You need money to make the next piece. Kids who were born rich — I'm just envious of them, that's all. But the responses haven't been bad, and that helps. Sometimes patterns I don't even think are that pretty get the strongest reactions, which is funny. Even the worst posts get *something*. I feel like I've stumbled onto a goose laying golden eggs.
+
+I have zero concrete plan for the business side. Every day I weigh *should I try this, or that*, and I just go with whatever looks best in the moment. I don't deliberate long. The deliberation feels more wasteful than the action, so I just jump and see. Maybe that bias toward execution is the reason I got this far.
+
+These days I think: **no matter how hard something looks, if you just put your head down and start, it works out.** Failure doesn't kill you, and if you're going to do it eventually anyway, may as well do it now. I'm not sure if this is a healthy mindset. Sometimes it really does get hard. But it's fun.
+
+The most fun part lately, hands down, is watching how people respond. The attention is nice. The fact that people around the world are leaving comments, filling out surveys, looking at my site and my work — I love it. The DMs from people saying they want to make their own version are especially electric. Self-efficacy, is that what they call it? I'm physically feeling, for the first time, that I can have some kind of effect on the world. Of course it's not good to get swallowed up by this. I need to stay humble, keep thinking about the next step. Tiring, but what can I do — it's fun.
+
+---
+
+## Three strands of desire
+
+I see Patternflow right now as a mix of two approaches — a maker approach and a business approach. There's the desire to make it newer, cooler, more dazzling. And there's the desire to make a decent version, get it out fast and wide, secure customers and capital, and build something that sustains itself. Those two are pulling against each other in balance. I'm forcing myself not to forget the business side.
+
+I'd like a third one added. **An academic angle — for figuring out why Patternflow exists in the first place, and where it should go next.**
+
+Honestly? I want academic results too. Wouldn't hurt when I apply to MIT Media Lab someday. And I want to try everything at least once. The truth is, I want to stand in front of a big audience and introduce Patternflow and get applause. I want it recognized not as a mere product but as an artwork with philosophy behind it.
+
+Yeah. I think that's how it'll go. I hope so. I'll make it so.
