@@ -71,6 +71,16 @@ export const CAMPAIGN_ROUTES = [
     },
   },
   {
+    path: "/pcbway",
+    destination: "/",
+    properties: {
+      utm_source: "pcbway",
+      utm_medium: "opensource_project",
+      utm_campaign: "v2_launch",
+      utm_content: "shortlink_pcbway",
+    },
+  },
+  {
     path: "/x",
     destination: "/",
     properties: {
