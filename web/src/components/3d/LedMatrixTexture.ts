@@ -1,5 +1,26 @@
 import * as THREE from 'three';
 import { getKnobValueDelta, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/patternflowControls';
+import { compilePatternCode, type PatternModule, type PatternParams } from '@/lib/patternHarness';
+
+type WebKnobValues = Record<'c1' | 'c2' | 'c3' | 'c4', number>;
+
+const LOGICAL_KNOB_RANGES: Array<[number, number]> = [
+  [0, 1],
+  [0.1, 10],
+  [0, 4.9],
+  [0, 1],
+];
+
+function getLogicalKnobValues(knobValues: WebKnobValues) {
+  return LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) => knobValues[knobId]);
+}
+
+function getLogicalKnobNormalized(logicalKnobValues: number[]) {
+  return logicalKnobValues.map((value, index) => {
+    const [min, max] = LOGICAL_KNOB_RANGES[index];
+    return (value - min) / Math.max(0.0001, max - min);
+  });
+}
 
 export class LedMatrixTexture {
   public texture: THREE.DataTexture;
@@ -7,8 +28,8 @@ export class LedMatrixTexture {
   private height: number = 64;
   private data: Uint8Array;
   
-  private userModule: any = null;
-  private userParams: any = {};
+  private userModule: PatternModule | null = null;
+  private userParams: PatternParams = {};
   
   // Create a display wrapper to match ESP32 API structure
   private displayApi = {
@@ -38,26 +59,10 @@ export class LedMatrixTexture {
   // Evaluate the custom code and setup the module
   public loadCode(code: string) {
     try {
-      // Remove 'export ' so it becomes valid inside a function body
-      const cleanedCode = code.replace(/export\s+function/g, 'function');
-      
-      const wrapper = `
-        ${cleanedCode}
-        return {
-          setup: typeof setup !== 'undefined' ? setup : null,
-          update: typeof update !== 'undefined' ? update : null,
-          draw: typeof draw !== 'undefined' ? draw : null
-        };
-      `;
-      
-      const moduleObj = new Function(wrapper)();
-      
-      this.userModule = moduleObj;
+      this.userModule = compilePatternCode(code);
       this.userParams = {};
       
-      if (this.userModule.setup) {
-        this.userModule.setup(this.userParams);
-      }
+      this.userModule.setup?.(this.userParams);
       
       // Clear the screen
       this.data.fill(0);
@@ -68,15 +73,20 @@ export class LedMatrixTexture {
   }
 
   // Call this every frame
-  public render(dt: number, time: number, knobValues: any, prevKnobValues: any) {
+  public render(dt: number, time: number, knobValues: WebKnobValues, prevKnobValues: WebKnobValues) {
     if (!this.userModule || !this.userModule.draw) return;
 
     try {
+      const logicalKnobValues = getLogicalKnobValues(knobValues);
+
       // Prepare input frame
       const input = {
         knobDeltas: LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) =>
           toEncoderDelta(knobId, getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId]))
         ),
+        knobValues: logicalKnobValues,
+        knobNormalized: getLogicalKnobNormalized(logicalKnobValues),
+        knobRanges: LOGICAL_KNOB_RANGES,
         btnPressed: [false, false, false, false],
         btnHeld: [false, false, false, false]
       };

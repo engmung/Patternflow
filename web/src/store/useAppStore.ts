@@ -53,34 +53,18 @@ export const useAppStore = create<AppState>((set) => ({
   activePatternId: 'patternFlowOriginal',
   setActivePatternId: (id) => set({ activePatternId: id }),
   customJsCode: `// Patternflow live editor starter.
-// Knobs: hue, speed, spread, pulse.
+// input.knobValues contains the 4 absolute knob values from the preview.
 
 export function setup(params) {
-  params.hue = 0;
-  params.speed = 2.0;
-  params.spread = 1.0;
-  params.pulse = 1.0;
   params.time = 0;
 }
 
 export function update(dt, input, params) {
-  if (input.knobDeltas[0] !== 0) {
-    params.hue = (params.hue + input.knobDeltas[0] * 24) % 360;
-    if (params.hue < 0) params.hue += 360;
-  }
-
-  if (input.knobDeltas[1] !== 0) {
-    params.speed = Math.max(0.2, Math.min(8, params.speed + input.knobDeltas[1] * 0.35));
-  }
-
-  if (input.knobDeltas[2] !== 0) {
-    params.spread = Math.max(0.25, Math.min(4, params.spread + input.knobDeltas[2] * 0.2));
-  }
-
-  if (input.knobDeltas[3] !== 0) {
-    params.pulse = Math.max(0.2, Math.min(3, params.pulse + input.knobDeltas[3] * 0.18));
-  }
-
+  const knobs = input.knobValues || [0.5, 2.0, 1.0, 0.6];
+  params.hue = knobs[0] * 360;
+  params.speed = Math.max(0.05, knobs[1]);
+  params.spread = 0.5 + knobs[2] * 0.75;
+  params.pulse = 0.4 + knobs[3] * 1.8;
   params.time += dt * params.speed;
 }
 

@@ -19,19 +19,18 @@ Output rules:
 
 Required API:
 - \`export function setup(params) {}\`
-- \`export function update(dt, input, params) {}\` where \`input.knobDeltas\` is an array of 4 hardware-like rotary encoder click deltas (Hue, Speed, Mode, Freq). One physical knob detent is about 1.0. A full knob turn is about 20.0.
+- \`export function update(dt, input, params) {}\` where \`input.knobValues\` is the primary control API: an array of 4 absolute knob values supplied by the preview harness after its min/max ranges are applied. Use \`input.knobValues\` for every target parameter by default.
+- \`input.knobNormalized\` is also available when a 0.0-1.0 value is explicitly useful. \`input.knobDeltas\` is compatibility-only hardware-like rotary encoder click delta input; do not build the main parameter mapping around it unless the user specifically asks for incremental hardware behavior.
 - \`export function draw(display, params, time) {}\` where \`display.setPixel(x, y, r, g, b)\` draws a pixel.
 - Use \`display.width\` and \`display.height\` in loops. Do not hardcode 128 or 64 inside \`draw()\`.
 - Use only plain JavaScript and \`Math.*\`. Do not use browser APIs, DOM APIs, arrays that grow every frame, async code, imports, external libraries, or dynamic code evaluation.
 - Include small helper functions such as \`hsvToRgb()\` or \`clamp()\` if needed.
 
 Knob behavior:
-- Knob 1 should control hue or palette.
-- Knob 2 should control animation speed.
-- Knob 3 should control mode, shape, scale, or density.
-- Knob 4 should control frequency, phase, distortion, or detail.
-- Use gentle knob sensitivity so one detent makes a small, controllable change.
-- It should take at least 20 detents to sweep a major parameter across its expressive range.
+- Do not assume fixed meanings such as hue/speed/mode/frequency unless the user asks for them. Choose 4 meaningful controls for this specific pattern and keep their roles consistent.
+- In \`update()\`, read \`input.knobValues[0]\` through \`input.knobValues[3]\` as absolute target values. Do not clamp these values back to 0.0-1.0 unless you intentionally use \`input.knobNormalized\`.
+- Apply knob value changes immediately. Do not smooth, lerp, damp, or ease knob-controlled parameters unless the user explicitly asks for glide or inertia.
+- Keep \`input.knobDeltas\` only as a fallback for older runtimes. The web preview and Pattern Lab are knobValues-first.
 
 Brightness:
 - Use bright LED output by default. At least some pixels should regularly reach near-full intensity, around 230-255 per RGB channel after color conversion, while dark areas may remain dark for contrast.
@@ -92,7 +91,7 @@ Required namespace interface:
 - Choose a stable PascalCase namespace ending in \`Pattern\`.
 - Inside the namespace, define:
   \`const char* NAME = "Short Display Name";\`
-  \`const char* const KNOB_LABELS[4] = {"HUE", "SPEED", "MODE", "FREQ"};\`
+  \`const char* const KNOB_LABELS[4] = {"KNOB 1", "KNOB 2", "KNOB 3", "KNOB 4"};\`
   \`struct Params { ... };\`
   one global \`Params params;\`
   \`void setup();\`
@@ -102,16 +101,17 @@ Required namespace interface:
 
 Conversion fidelity:
 - Preserve the JavaScript pattern's setup defaults exactly unless a value would break Arduino compilation.
-- Preserve parameter ranges, knob step sizes, formulas, color logic, and animation timing from the JavaScript preview.
+- Preserve parameter ranges, formulas, color logic, and animation timing from the JavaScript preview.
+- If the JavaScript uses \`input.knobValues[i]\`, treat those as absolute target parameter values. In C++, maintain equivalent target params and update them from encoder deltas using the same expressive range, typically one full turn / 20 detents to cross that range unless the JavaScript clearly implies another scale.
+- Do not collapse absolute JavaScript knob ranges back to 0.0-1.0. Preserve ranges such as 0.2-8.0, 4-24, or -2.0-2.0 as named min/max constants.
 - Do not invent different defaults such as changing \`turbScale = 0.05\` to \`0.15\`.
 - Treat the JavaScript code as the source of truth. Make only the minimal changes needed for Arduino compatibility, safe brightness, and Patternflow's required namespace interface.
 
-Knob sensitivity:
-- Keep the same knob sensitivity as the JavaScript preview.
-- One \`input.knobDeltas[i]\` unit equals one physical encoder detent.
-- A full knob turn is about 20 detents.
-- Do not make one detent jump across a whole parameter range. It should take at least 20 detents to sweep a major parameter across its expressive range.
-- Put named step constants near the top of the namespace, for example \`const float VECTOR_FIELD_HUE_STEP = 0.02f;\`, and use them in \`update()\`.
+Knob mapping:
+- JavaScript preview code is knobValues-first, but firmware receives encoder deltas. Convert absolute \`input.knobValues\` mappings into firmware params by storing the current target value and adding \`input.knobDeltas[i] * STEP\`.
+- Derive each \`STEP\` from the JavaScript value range when possible: \`STEP = (MAX - MIN) / 20.0f\` is the default.
+- Put named min/max/step constants near the top of the namespace, for example \`const float VECTOR_FIELD_SCALE_MIN = 4.0f;\`, \`VECTOR_FIELD_SCALE_MAX = 24.0f;\`, and \`VECTOR_FIELD_SCALE_STEP = (VECTOR_FIELD_SCALE_MAX - VECTOR_FIELD_SCALE_MIN) / 20.0f;\`.
+- Do not make one detent jump across a whole parameter range.
 
 Brightness:
 - Generate bright output suitable for a real HUB75 LED matrix, not a dim screen-only preview.
