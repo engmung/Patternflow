@@ -1,14 +1,14 @@
 /**
- * Web Serial PFV Uploader
+ * Web Serial PFV uploader.
  *
- * Sends PFV data directly to ESP32 via browser's Web Serial API.
- * Protocol: "PFV:<filename>:<size>\n" + raw binary
+ * Sends PFV data directly to an ESP32 running the Patternflow firmware.
+ * Protocol: "PFV:<filename>:<size>\n" followed by raw PFV bytes.
  *
  * License: MIT
  */
 
 export function supportsWebSerial(): boolean {
-  return "serial" in navigator;
+  return typeof navigator !== "undefined" && "serial" in navigator;
 }
 
 export interface UploadProgress {
@@ -16,122 +16,6 @@ export interface UploadProgress {
   percent: number;
   message: string;
 }
-
-export async function uploadPfvToDevice(
-  pfvData: ArrayBuffer,
-  filename: string,
-  onProgress: (p: UploadProgress) => void,
-): Promise<void> {
-  if (!supportsWebSerial()) {
-    throw new Error("Web Serial not supported — use Chrome or Edge");
-  }
-
-  onProgress({ phase: "connecting", percent: 0, message: "Select COM port…" });
-
-  // User picks the port (browser shows native dialog)
-  let port: SerialPort;
-  try {
-    port = await navigator.serial.requestPort();
-  } catch {
-    throw new Error("No port selected");
-  }
-
-  await port.open({ baudRate: 115200 });
-
-  try {
-    const writer = port.writable!.getWriter();
-    const reader = port.readable!.getReader();
-
-    // Send upload command
-    const cmd = `PFV:${filename}:${pfvData.byteLength}\n`;
-    await writer.write(new TextEncoder().encode(cmd));
-
-    onProgress({ phase: "connecting", percent: 0, message: "Waiting for ESP32…" });
-
-    // Wait for READY response (with timeout)
-    const ready = await waitForLine(reader, "READY:", 5000);
-    if (!ready) {
-      reader.releaseLock();
-      writer.releaseLock();
-      throw new Error("ESP32 did not respond — is the firmware updated?");
-    }
-
-    // Send binary data in chunks
-    onProgress({ phase: "sending", percent: 0, message: "Uploading…" });
-
-    const CHUNK = 2048;
-    const data = new Uint8Array(pfvData);
-    let sent = 0;
-
-    while (sent < data.length) {
-      const end = Math.min(sent + CHUNK, data.length);
-      const chunk = data.subarray(sent, end);
-      await writer.write(chunk);
-      sent = end;
-
-      const pct = Math.round((sent / data.length) * 100);
-      onProgress({
-        phase: "sending",
-        percent: pct,
-        message: `${pct}% — ${(sent / 1024).toFixed(0)}/${(data.length / 1024).toFixed(0)} KB`,
-      });
-
-      // Small delay to avoid overwhelming the ESP32 serial buffer
-      await sleep(3);
-    }
-
-    // Wait for OK or ERR
-    const result = await waitForLine(reader, "OK:", 15000);
-    reader.releaseLock();
-    writer.releaseLock();
-
-    if (result) {
-      onProgress({ phase: "done", percent: 100, message: "Upload complete!" });
-    } else {
-      throw new Error("Upload timed out or failed");
-    }
-  } finally {
-    await port.close();
-  }
-}
-
-// ── Helpers ──────────────────────────────────────────────
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-async function waitForLine(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  prefix: string,
-  timeoutMs: number,
-): Promise<string | null> {
-  const decoder = new TextDecoder();
-  let buffer = "";
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const { value, done } = await Promise.race([
-      reader.read(),
-      sleep(100).then(() => ({ value: undefined, done: false })),
-    ]);
-
-    if (done) break;
-    if (value) buffer += decoder.decode(value, { stream: true });
-
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.startsWith(prefix)) return trimmed;
-      if (trimmed.startsWith("ERR:")) throw new Error(`ESP32: ${trimmed}`);
-    }
-  }
-  return null;
-}
-
-// ── Device management commands ───────────────────────────
 
 export interface DeviceFile {
   name: string;
@@ -143,45 +27,64 @@ export interface DeviceInfo {
   freeBytes: number;
 }
 
-async function sendSerialCommand(cmd: string, timeoutMs = 5000): Promise<string[]> {
-  const port = await navigator.serial.requestPort();
-  await port.open({ baudRate: 115200 });
+export async function uploadPfvToDevice(
+  pfvData: ArrayBuffer,
+  filename: string,
+  onProgress: (p: UploadProgress) => void,
+): Promise<void> {
+  if (!supportsWebSerial()) {
+    throw new Error("Web Serial is not supported. Use Chrome or Edge.");
+  }
+
+  onProgress({ phase: "connecting", percent: 0, message: "Select the ESP32 COM port." });
+
+  const port = await requestAndOpenPort();
+  let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 
   try {
-    const writer = port.writable!.getWriter();
-    const reader = port.readable!.getReader();
+    writer = port.writable!.getWriter();
+    reader = port.readable!.getReader();
 
-    await writer.write(new TextEncoder().encode(cmd + "\n"));
+    const cmd = `PFV:${filename}:${pfvData.byteLength}\n`;
+    await writer.write(new TextEncoder().encode(cmd));
 
-    const lines: string[] = [];
-    const decoder = new TextDecoder();
-    let buffer = "";
-    const deadline = Date.now() + timeoutMs;
+    onProgress({ phase: "connecting", percent: 0, message: "Waiting for ESP32..." });
 
-    while (Date.now() < deadline) {
-      const { value, done } = await Promise.race([
-        reader.read(),
-        sleep(100).then(() => ({ value: undefined, done: false })),
-      ]);
-      if (done) break;
-      if (value) buffer += decoder.decode(value, { stream: true });
-
-      const parts = buffer.split("\n");
-      buffer = parts.pop() || "";
-      for (const p of parts) {
-        const t = p.trim();
-        if (t) lines.push(t);
-      }
-
-      // Stop when we see FREE: (end marker for most commands)
-      if (lines.some((l) => l.startsWith("FREE:") || l.startsWith("OK:"))) break;
+    const ready = await waitForLine(reader, "READY:", 5000);
+    if (!ready) {
+      throw new Error("ESP32 did not respond. Flash the latest firmware, reset the board, and close other serial tools.");
     }
 
-    reader.releaseLock();
-    writer.releaseLock();
-    return lines;
+    onProgress({ phase: "sending", percent: 0, message: "Uploading..." });
+
+    const chunkSize = 2048;
+    const data = new Uint8Array(pfvData);
+    let sent = 0;
+
+    while (sent < data.length) {
+      const end = Math.min(sent + chunkSize, data.length);
+      await writer.write(data.subarray(sent, end));
+      sent = end;
+
+      const pct = Math.round((sent / data.length) * 100);
+      onProgress({
+        phase: "sending",
+        percent: pct,
+        message: `${pct}% - ${(sent / 1024).toFixed(0)}/${(data.length / 1024).toFixed(0)} KB`,
+      });
+
+      await sleep(3);
+    }
+
+    const result = await waitForLine(reader, "OK:", 15000);
+    if (!result) throw new Error("Upload timed out or failed.");
+
+    onProgress({ phase: "done", percent: 100, message: "Upload complete." });
   } finally {
-    await port.close();
+    reader?.releaseLock();
+    writer?.releaseLock();
+    await closePort(port);
   }
 }
 
@@ -210,4 +113,107 @@ export async function clearDeviceFiles(): Promise<number> {
 export async function deleteDeviceFile(filename: string): Promise<void> {
   const name = filename.startsWith("/") ? filename.substring(1) : filename;
   await sendSerialCommand(`PFV:DELETE:${name}`);
+}
+
+async function sendSerialCommand(cmd: string, timeoutMs = 5000): Promise<string[]> {
+  if (!supportsWebSerial()) {
+    throw new Error("Web Serial is not supported. Use Chrome or Edge.");
+  }
+
+  const port = await requestAndOpenPort();
+  let writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+  try {
+    writer = port.writable!.getWriter();
+    reader = port.readable!.getReader();
+
+    await writer.write(new TextEncoder().encode(cmd + "\n"));
+
+    const lines = await readLinesUntil(reader, timeoutMs, (line) =>
+      line.startsWith("FREE:") || line.startsWith("OK:"),
+    );
+
+    if (lines.length === 0) {
+      throw new Error("ESP32 did not respond. Flash the latest firmware, reset the board, and close other serial tools.");
+    }
+
+    return lines;
+  } finally {
+    reader?.releaseLock();
+    writer?.releaseLock();
+    await closePort(port);
+  }
+}
+
+async function requestAndOpenPort(): Promise<SerialPort> {
+  let port: SerialPort;
+  try {
+    port = await navigator.serial.requestPort();
+  } catch {
+    throw new Error("No port selected. Choose the ESP32 COM port in the browser dialog.");
+  }
+
+  try {
+    await port.open({ baudRate: 115200 });
+  } catch {
+    throw new Error("Could not open the serial port. Close Arduino Serial Monitor or any other app using it.");
+  }
+
+  return port;
+}
+
+async function closePort(port: SerialPort): Promise<void> {
+  try {
+    await port.close();
+  } catch {
+    // Ignore close errors after failed serial operations.
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForLine(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  prefix: string,
+  timeoutMs: number,
+): Promise<string | null> {
+  const lines = await readLinesUntil(reader, timeoutMs, (line) => line.startsWith(prefix));
+  return lines.find((line) => line.startsWith(prefix)) ?? null;
+}
+
+async function readLinesUntil(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs: number,
+  shouldStop: (line: string) => boolean,
+): Promise<string[]> {
+  const decoder = new TextDecoder();
+  const lines: string[] = [];
+  let buffer = "";
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const { value, done } = await Promise.race([
+      reader.read(),
+      sleep(100).then(() => ({ value: undefined, done: false })),
+    ]);
+
+    if (done) break;
+    if (value) buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split("\n");
+    buffer = parts.pop() || "";
+
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line) continue;
+      if (line.startsWith("ERR:")) throw new Error(`ESP32: ${line}`);
+      lines.push(line);
+      if (shouldStop(line)) return lines;
+    }
+  }
+
+  return lines;
 }

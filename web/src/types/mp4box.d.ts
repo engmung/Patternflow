@@ -1,5 +1,14 @@
 declare module "mp4box" {
-  interface MP4BoxFile {
+  export interface DataStreamInstance {
+    buffer: ArrayBuffer;
+  }
+
+  export interface DataStreamConstructor {
+    new (buffer: unknown, offset: number, endian: boolean): DataStreamInstance;
+    BIG_ENDIAN: boolean;
+  }
+
+  export interface MP4BoxFile {
     onReady: (info: MP4Info) => void;
     onSamples: (id: number, user: unknown, samples: MP4Sample[]) => void;
     onError: (e: Error) => void;
@@ -8,19 +17,15 @@ declare module "mp4box" {
     flush: () => void;
     setExtractionOptions: (trackId: number, user?: unknown, options?: { nbSamples?: number }) => void;
     getTrackById: (id: number) => unknown;
-    DataStream: {
-      new (buffer: unknown, offset: number, endian: boolean): { buffer: ArrayBuffer };
-      BIG_ENDIAN: boolean;
-    };
   }
 
-  interface MP4Info {
+  export interface MP4Info {
     tracks: MP4Track[];
     duration: number;
     timescale: number;
   }
 
-  interface MP4Track {
+  export interface MP4Track {
     type: string;
     id: number;
     codec: string;
@@ -31,7 +36,7 @@ declare module "mp4box" {
     audio?: { sample_rate: number; channel_count: number };
   }
 
-  interface MP4Sample {
+  export interface MP4Sample {
     data: ArrayBuffer;
     is_sync: boolean;
     cts: number;
@@ -41,8 +46,9 @@ declare module "mp4box" {
     size: number;
   }
 
-  function createFile(): MP4BoxFile;
+  export function createFile(): MP4BoxFile;
+  export const DataStream: DataStreamConstructor;
 
-  const MP4Box: { createFile: typeof createFile; DataStream: MP4BoxFile["DataStream"] };
+  const MP4Box: { createFile: typeof createFile; DataStream: typeof DataStream };
   export default MP4Box;
 }

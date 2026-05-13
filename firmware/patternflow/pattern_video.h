@@ -1,95 +1,194 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - Video Pattern (PFV1 Playback from FATFS)
+// Patternflow - Video Pattern (PFV1 playback from FATFS)
 //
-// Reads baked .pfv files from the ESP32 FATFS partition
-// and plays them back on the LED matrix as RGB565 frames.
+// Reads baked .pfv files from the ESP32 FATFS partition and plays them back
+// on the 128x64 LED matrix as RGB565 frames.
 //
-// Knobs:
-//   K1 — Brightness
-//   K2 — Playback speed (rotate), pause/resume (press)
-//   K3 — File select (rotate), next file + load (hold 1s)
-//   K4 — (pattern select — handled by OS)
+// PFV1 is authored by the web Video Baker:
+//   64-byte little-endian header
+//   RGB565_LE frame payload, row-major, 128x64
+//   fpsMilli means frames-per-second * 1000, not milliseconds per frame
 //
 // Serial upload:
-//   Send "PFV:<filename>:<size>\n" then raw binary data.
-//   ESP32 saves to FATFS and auto-loads the file.
+//   Host sends "PFV:<filename>:<size>\n" followed by raw PFV bytes.
 //
 // License: MIT
-// ═══════════════════════════════════════════════════════════
 #pragma once
 
+#include <Arduino.h>
 #include <FFat.h>
 #include "core_display.h"
+#include "core_encoders.h"
 
 namespace VideoPattern {
 
   const char* NAME = "Video";
   const char* KNOB_LABELS[4] = {"bright", "speed", "file", "---"};
 
-  // ── PFV1 Header (32 bytes, matches web encoder) ──────────
+  static const uint16_t PFV1_HEADER_SIZE = 64;
+  static const uint8_t PFV1_FORMAT_RGB565_LE = 0x01;
+  static const uint8_t PFV1_FLAG_LOOP = 0x01;
+  static const size_t MAX_UPLOAD_BYTES = 8UL * 1024UL * 1024UL;
 
-  struct PFV1Header {
-    char     magic[4];      // "PFV1"
+  struct __attribute__((packed)) PFV1Header {
+    char magic[4];          // "PFV1"
+    uint16_t headerSize;    // 64
     uint16_t width;         // 128
     uint16_t height;        // 64
-    uint16_t frameCount;
-    uint16_t fpsMilli;      // ms per frame (e.g. 83 = 12fps)
-    uint32_t flags;
+    uint16_t fpsMilli;      // fps * 1000
+    uint32_t frameCount;
+    uint8_t format;         // 0x01 = RGB565_LE
+    uint8_t flags;          // bit0 = loop
+    uint32_t loopStart;     // frame index
+    uint8_t reserved0[30];
     uint32_t dataCrc32;
-    uint8_t  reserved[12];
+    uint32_t headerCrc32;   // currently 0
+    uint8_t reserved1[4];
   };
 
-  // ── State ────────────────────────────────────────────────
+  static_assert(sizeof(PFV1Header) == PFV1_HEADER_SIZE, "PFV1 header must be 64 bytes");
 
-  static const int FRAME_PIXELS = PANEL_RES_W * PANEL_RES_H;  // 128 * 64 = 8192
-  static const int FRAME_BYTES  = FRAME_PIXELS * 2;            // 16384 bytes (RGB565)
-  static const int MAX_FILES    = 16;
+  static const size_t FRAME_PIXELS = PANEL_RES_W * PANEL_RES_H;
+  static const size_t FRAME_BYTES = FRAME_PIXELS * 2;
+  static const int MAX_FILES = 16;
   static const int MAX_PATH_LEN = 48;
 
-  // Frame buffer in PSRAM
-  uint16_t* frameBuf    = nullptr;
-  uint16_t  frameCount  = 0;
-  uint16_t  currentFrame = 0;
-  float     frameTimer  = 0.0f;
-  float     msPerFrame  = 83.33f;
-  float     speedMul    = 1.0f;
-  uint8_t   brightness  = 204;
-  bool      paused      = false;
+  uint16_t* frameBuf = nullptr;
+  uint32_t frameCount = 0;
+  uint32_t currentFrame = 0;
+  uint32_t loopStartFrame = 0;
+  bool loopEnabled = true;
 
-  // Info splash timer (shows file info briefly after load)
-  float     infoTimer   = 0.0f;
-  static const float INFO_DURATION = 2.5f;  // seconds
+  float frameTimer = 0.0f;
+  float msPerFrame = 83.33f;
+  float speedMul = 1.0f;
+  uint8_t brightness = DEFAULT_BRIGHTNESS;
+  bool paused = false;
 
-  // File list
-  char      fileList[MAX_FILES][MAX_PATH_LEN];
-  int       fileCount    = 0;
-  int       currentFile  = 0;
-  bool      loaded       = false;
-  bool      fatReady     = false;
+  float infoTimer = 0.0f;
+  static const float INFO_DURATION = 2.5f;
 
-  // ── File scanning ────────────────────────────────────────
+  char fileList[MAX_FILES][MAX_PATH_LEN];
+  int fileCount = 0;
+  int currentFile = 0;
+  bool loaded = false;
+  bool fatReady = false;
+  bool initialLoadAttempted = false;
+
+  bool hasPfvExtension(const char* name) {
+    size_t len = strlen(name);
+    if (len <= 4) return false;
+    const char* ext = name + len - 4;
+    return ext[0] == '.'
+      && (ext[1] == 'p' || ext[1] == 'P')
+      && (ext[2] == 'f' || ext[2] == 'F')
+      && (ext[3] == 'v' || ext[3] == 'V');
+  }
+
+  bool isSafeFilename(const String& filename) {
+    if (filename.length() == 0 || filename.length() >= MAX_PATH_LEN - 1) return false;
+    for (size_t i = 0; i < filename.length(); i++) {
+      char c = filename.charAt(i);
+      if (c == '/' || c == '\\' || c == ':' || c == '\r' || c == '\n') return false;
+    }
+    return true;
+  }
+
+  String toRootPath(String filename) {
+    filename.trim();
+    while (filename.startsWith("/")) filename.remove(0, 1);
+    return "/" + filename;
+  }
+
+  uint32_t crc32Update(uint32_t crc, const uint8_t* data, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+      crc ^= data[i];
+      for (uint8_t bit = 0; bit < 8; bit++) {
+        crc = (crc & 1) ? (0xedb88320UL ^ (crc >> 1)) : (crc >> 1);
+      }
+    }
+    return crc;
+  }
+
+  void clearLoadedFrame() {
+    if (frameBuf) {
+      free(frameBuf);
+      frameBuf = nullptr;
+    }
+    loaded = false;
+    frameCount = 0;
+    currentFrame = 0;
+    loopStartFrame = 0;
+  }
+
+  bool validateHeader(const PFV1Header& hdr, size_t fileSize, size_t& payloadBytes) {
+    if (memcmp(hdr.magic, "PFV1", 4) != 0) {
+      Serial.println("[Video] Invalid magic");
+      return false;
+    }
+    if (hdr.headerSize != PFV1_HEADER_SIZE) {
+      Serial.printf("[Video] Unsupported header size: %u\n", hdr.headerSize);
+      return false;
+    }
+    if (hdr.width != PANEL_RES_W || hdr.height != PANEL_RES_H) {
+      Serial.printf("[Video] Wrong resolution: %ux%u\n", hdr.width, hdr.height);
+      return false;
+    }
+    if (hdr.format != PFV1_FORMAT_RGB565_LE) {
+      Serial.printf("[Video] Unsupported format: 0x%02x\n", hdr.format);
+      return false;
+    }
+    if (hdr.frameCount == 0) {
+      Serial.println("[Video] Empty video");
+      return false;
+    }
+    if (hdr.fpsMilli == 0 || hdr.fpsMilli > 60000) {
+      Serial.printf("[Video] Unsupported fpsMilli: %u\n", hdr.fpsMilli);
+      return false;
+    }
+
+    uint64_t expectedPayload = (uint64_t)hdr.frameCount * FRAME_BYTES;
+    uint64_t expectedSize = (uint64_t)hdr.headerSize + expectedPayload;
+    if (expectedSize != (uint64_t)fileSize || expectedSize > MAX_UPLOAD_BYTES) {
+      Serial.printf(
+        "[Video] Size mismatch: expected %lu, file %lu\n",
+        (unsigned long)expectedSize,
+        (unsigned long)fileSize
+      );
+      return false;
+    }
+
+    payloadBytes = (size_t)expectedPayload;
+    return true;
+  }
 
   void scanFiles() {
     fileCount = 0;
+
     File root = FFat.open("/");
     if (!root || !root.isDirectory()) return;
 
-    File entry;
-    while ((entry = root.openNextFile()) && fileCount < MAX_FILES) {
+    while (fileCount < MAX_FILES) {
+      File entry = root.openNextFile();
+      if (!entry) break;
+
       const char* name = entry.name();
-      size_t len = strlen(name);
-      if (len > 4 && strcasecmp(name + len - 4, ".pfv") == 0) {
-        snprintf(fileList[fileCount], MAX_PATH_LEN, "/%s", name);
-        Serial.printf("[Video] Found: %s (%d bytes)\n", fileList[fileCount], entry.size());
+      if (hasPfvExtension(name)) {
+        const char* prefix = name[0] == '/' ? "" : "/";
+        snprintf(fileList[fileCount], MAX_PATH_LEN, "%s%s", prefix, name);
+        Serial.printf(
+          "[Video] Found: %s (%lu bytes)\n",
+          fileList[fileCount],
+          (unsigned long)entry.size()
+        );
         fileCount++;
       }
       entry.close();
     }
     root.close();
+
+    if (currentFile >= fileCount) currentFile = 0;
     Serial.printf("[Video] %d PFV file(s) found\n", fileCount);
   }
-
-  // ── Load a PFV file into PSRAM ───────────────────────────
 
   bool loadFile(int idx) {
     if (idx < 0 || idx >= fileCount) return false;
@@ -107,136 +206,196 @@ namespace VideoPattern {
       return false;
     }
 
-    if (memcmp(hdr.magic, "PFV1", 4) != 0) {
-      Serial.println("[Video] Invalid magic (not PFV1)");
+    size_t payloadBytes = 0;
+    if (!validateHeader(hdr, f.size(), payloadBytes)) {
       f.close();
       return false;
     }
 
-    if (hdr.width != PANEL_RES_W || hdr.height != PANEL_RES_H) {
-      Serial.printf("[Video] Wrong resolution: %dx%d\n", hdr.width, hdr.height);
-      f.close();
-      return false;
-    }
+    clearLoadedFrame();
 
-    Serial.printf("[Video] Loading %s: %d frames, %dms/frame\n",
-                  fileList[idx], hdr.frameCount, hdr.fpsMilli);
-
-    if (frameBuf) { free(frameBuf); frameBuf = nullptr; }
-
-    size_t totalBytes = (size_t)hdr.frameCount * FRAME_BYTES;
-    frameBuf = (uint16_t*)ps_malloc(totalBytes);
+    frameBuf = (uint16_t*)ps_malloc(payloadBytes);
+    if (!frameBuf) frameBuf = (uint16_t*)malloc(payloadBytes);
     if (!frameBuf) {
-      frameBuf = (uint16_t*)malloc(totalBytes);
-      if (!frameBuf) {
-        Serial.println("[Video] Alloc failed"); f.close(); return false;
-      }
+      Serial.printf("[Video] Alloc failed: %lu bytes\n", (unsigned long)payloadBytes);
+      f.close();
+      return false;
     }
 
-    size_t bytesRead = f.read((uint8_t*)frameBuf, totalBytes);
+    if (!f.seek(hdr.headerSize, SeekSet)) {
+      Serial.println("[Video] Seek failed");
+      f.close();
+      clearLoadedFrame();
+      return false;
+    }
+
+    uint8_t* dst = (uint8_t*)frameBuf;
+    size_t received = 0;
+    uint32_t crc = 0xffffffffUL;
+
+    while (received < payloadBytes) {
+      size_t toRead = min((size_t)4096, payloadBytes - received);
+      size_t got = f.read(dst + received, toRead);
+      if (got == 0) break;
+      crc = crc32Update(crc, dst + received, got);
+      received += got;
+    }
     f.close();
 
-    if (bytesRead != totalBytes) {
-      Serial.printf("[Video] Incomplete: %d/%d\n", bytesRead, totalBytes);
-      free(frameBuf); frameBuf = nullptr; return false;
+    if (received != payloadBytes) {
+      Serial.printf(
+        "[Video] Incomplete read: %lu/%lu\n",
+        (unsigned long)received,
+        (unsigned long)payloadBytes
+      );
+      clearLoadedFrame();
+      return false;
     }
 
-    frameCount   = hdr.frameCount;
-    msPerFrame   = (float)hdr.fpsMilli;
-    currentFrame = 0;
-    frameTimer   = 0.0f;
-    loaded       = true;
-    paused       = false;
-    infoTimer    = INFO_DURATION;  // trigger info splash
+    crc ^= 0xffffffffUL;
+    if (hdr.dataCrc32 != 0 && crc != hdr.dataCrc32) {
+      Serial.printf(
+        "[Video] CRC mismatch: expected 0x%08lx, got 0x%08lx\n",
+        (unsigned long)hdr.dataCrc32,
+        (unsigned long)crc
+      );
+      clearLoadedFrame();
+      return false;
+    }
 
-    Serial.printf("[Video] OK — %d frames, %.1f fps, %d KB\n",
-                  frameCount, 1000.0f / msPerFrame, totalBytes / 1024);
+    float fps = (float)hdr.fpsMilli / 1000.0f;
+    frameCount = hdr.frameCount;
+    loopEnabled = (hdr.flags & PFV1_FLAG_LOOP) != 0;
+    loopStartFrame = hdr.loopStart < hdr.frameCount ? hdr.loopStart : 0;
+    msPerFrame = 1000.0f / fps;
+    currentFrame = 0;
+    frameTimer = 0.0f;
+    loaded = true;
+    paused = false;
+    infoTimer = INFO_DURATION;
+
+    Serial.printf(
+      "[Video] Loaded %s: %lu frames, %.1f fps, %lu KB\n",
+      fileList[idx],
+      (unsigned long)frameCount,
+      fps,
+      (unsigned long)(payloadBytes / 1024)
+    );
     return true;
   }
 
-  // ── Serial PFV upload ────────────────────────────────────
-  // Protocol: host sends "PFV:<filename>:<size>\n"
-  //           then <size> bytes of raw PFV data.
+  void ensureInitialLoad() {
+    if (!fatReady || initialLoadAttempted) return;
+    initialLoadAttempted = true;
+    scanFiles();
+    if (fileCount > 0) {
+      loadFile(currentFile);
+    } else {
+      Serial.println("[Video] No .pfv files on FATFS");
+    }
+  }
 
   void checkSerialUpload() {
     if (!fatReady || !Serial.available()) return;
-
     if (Serial.peek() != 'P') return;
 
     String line = Serial.readStringUntil('\n');
     line.trim();
-
     if (!line.startsWith("PFV:")) return;
 
     String cmd = line.substring(4);
 
-    // ── PFV:LIST — list all files ──
     if (cmd == "LIST") {
+      scanFiles();
       Serial.printf("FILES:%d\n", fileCount);
       for (int i = 0; i < fileCount; i++) {
         File f = FFat.open(fileList[i], "r");
-        Serial.printf("FILE:%s:%d\n", fileList[i], f ? f.size() : 0);
+        Serial.printf("FILE:%s:%lu\n", fileList[i], (unsigned long)(f ? f.size() : 0));
         if (f) f.close();
       }
-      Serial.printf("FREE:%d\n", FFat.freeBytes());
+      Serial.printf("FREE:%lu\n", (unsigned long)FFat.freeBytes());
       return;
     }
 
-    // ── PFV:FREE — show free space ──
     if (cmd == "FREE") {
-      Serial.printf("FREE:%d\n", FFat.freeBytes());
+      Serial.printf("FREE:%lu\n", (unsigned long)FFat.freeBytes());
       return;
     }
 
-    // ── PFV:CLEAR — delete all PFV files ──
     if (cmd == "CLEAR") {
       for (int i = 0; i < fileCount; i++) {
         FFat.remove(fileList[i]);
         Serial.printf("DELETED:%s\n", fileList[i]);
       }
+      clearLoadedFrame();
       scanFiles();
-      if (frameBuf) { free(frameBuf); frameBuf = nullptr; }
-      loaded = false;
-      frameCount = 0;
-      Serial.printf("OK:CLEARED\nFREE:%d\n", FFat.freeBytes());
+      initialLoadAttempted = true;
+      currentFile = 0;
+      Serial.printf("OK:CLEARED\nFREE:%lu\n", (unsigned long)FFat.freeBytes());
       return;
     }
 
-    // ── PFV:DELETE:<filename> — delete one file ──
     if (cmd.startsWith("DELETE:")) {
-      String fname = "/" + cmd.substring(7);
+      String rawName = cmd.substring(7);
+      while (rawName.startsWith("/")) rawName.remove(0, 1);
+      if (!isSafeFilename(rawName)) {
+        Serial.println("ERR:BAD_NAME");
+        return;
+      }
+
+      String fname = toRootPath(rawName);
       if (FFat.remove(fname)) {
         Serial.printf("DELETED:%s\n", fname.c_str());
+        clearLoadedFrame();
         scanFiles();
-        // Reload if current file was deleted
-        if (fileCount > 0) { currentFile = 0; loadFile(0); }
-        else { loaded = false; frameCount = 0; if (frameBuf) { free(frameBuf); frameBuf = nullptr; } }
+        currentFile = 0;
+        if (fileCount > 0) loadFile(currentFile);
       } else {
         Serial.printf("ERR:NOT_FOUND:%s\n", fname.c_str());
       }
-      Serial.printf("FREE:%d\n", FFat.freeBytes());
+      Serial.printf("FREE:%lu\n", (unsigned long)FFat.freeBytes());
       return;
     }
 
-    // ── PFV:<filename>:<size> — upload file ──
     int sep1 = cmd.indexOf(':');
-    if (sep1 < 0) { Serial.println("ERR:BAD_FORMAT"); return; }
+    if (sep1 < 0) {
+      Serial.println("ERR:BAD_FORMAT");
+      return;
+    }
 
-    String fname = "/" + cmd.substring(0, sep1);
-    size_t fsize = cmd.substring(sep1 + 1).toInt();
+    String rawName = cmd.substring(0, sep1);
+    size_t fsize = (size_t)cmd.substring(sep1 + 1).toInt();
+    while (rawName.startsWith("/")) rawName.remove(0, 1);
 
-    if (fsize == 0 || fsize > 8 * 1024 * 1024) {
+    if (!isSafeFilename(rawName) || !hasPfvExtension(rawName.c_str())) {
+      Serial.println("ERR:BAD_NAME");
+      return;
+    }
+    if (fsize < PFV1_HEADER_SIZE || fsize > MAX_UPLOAD_BYTES) {
       Serial.println("ERR:BAD_SIZE");
       return;
     }
 
-    Serial.printf("READY:%d\n", fsize);
+    String fname = toRootPath(rawName);
+    size_t availableBytes = FFat.freeBytes();
+    File existing = FFat.open(fname, "r");
+    if (existing) {
+      availableBytes += existing.size();
+      existing.close();
+    }
+    if (fsize > availableBytes) {
+      Serial.println("ERR:NO_SPACE");
+      return;
+    }
 
-    // Receive and write to FATFS
+    Serial.printf("READY:%lu\n", (unsigned long)fsize);
+
     File f = FFat.open(fname, "w");
-    if (!f) { Serial.println("ERR:OPEN_FAIL"); return; }
+    if (!f) {
+      Serial.println("ERR:OPEN_FAIL");
+      return;
+    }
 
-    // Show upload progress on display
     dma_display->fillScreen(0);
     dma_display->setTextSize(1);
     dma_display->setTextColor(dma_display->color565(100, 100, 100));
@@ -253,69 +412,67 @@ namespace VideoPattern {
         size_t toRead = min((size_t)Serial.available(), sizeof(buf));
         toRead = min(toRead, fsize - received);
         size_t got = Serial.readBytes(buf, toRead);
-        f.write(buf, got);
+        size_t written = f.write(buf, got);
+        if (written != got) {
+          Serial.println("ERR:WRITE_FAIL");
+          f.close();
+          FFat.remove(fname);
+          return;
+        }
+
         received += got;
         lastActivity = millis();
 
-        // Progress bar on display
         int pct = (int)(received * 100 / fsize);
         int barW = (int)(received * 88 / fsize);
         dma_display->fillRect(20, 38, 88, 6, 0);
         dma_display->fillRect(20, 38, barW, 6, dma_display->color565(255, 255, 255));
         dma_display->fillRect(20, 48, 88, 8, 0);
         dma_display->setCursor(20, 48);
-        dma_display->printf("%d%%  %dK", pct, received / 1024);
+        dma_display->printf("%d%%  %luK", pct, (unsigned long)(received / 1024));
         dma_display->flipDMABuffer();
       }
 
-      // Timeout: 10 seconds of no data
       if (millis() - lastActivity > 10000) {
         Serial.println("ERR:TIMEOUT");
         f.close();
+        FFat.remove(fname);
         return;
       }
       yield();
     }
 
     f.close();
-    Serial.printf("OK:%d\n", received);
+    Serial.printf("OK:%lu\n", (unsigned long)received);
 
-    // Rescan and load the new file
     scanFiles();
     for (int i = 0; i < fileCount; i++) {
       if (strcmp(fileList[i], fname.c_str()) == 0) {
         currentFile = i;
+        initialLoadAttempted = true;
         loadFile(i);
         break;
       }
     }
   }
 
-  // ── Pattern interface ────────────────────────────────────
-
   void setup() {
     if (!FFat.begin(false)) {
-      Serial.println("[Video] FFat mount failed — formatting...");
-      if (!FFat.begin(true)) {
-        Serial.println("[Video] FFat format failed");
-        return;
-      }
+      fatReady = false;
+      Serial.println("[Video] FFat mount failed. Select a FATFS partition and upload data.");
+      return;
     }
-    fatReady = true;
-    Serial.printf("[Video] FFat: %d KB free\n", FFat.freeBytes() / 1024);
 
+    fatReady = true;
+    Serial.printf("[Video] FFat: %lu KB free\n", (unsigned long)(FFat.freeBytes() / 1024));
     scanFiles();
-    if (fileCount > 0) loadFile(0);
-    else Serial.println("[Video] No .pfv files on FATFS");
   }
 
   void update(float dt, const InputFrame& input) {
     if (!fatReady) return;
 
-    // Check for serial upload commands
-    checkSerialUpload();
+    ensureInitialLoad();
 
-    // K1: Brightness (rotate ±5, press = reset)
     int d0 = input.knobDeltas[0];
     if (d0 != 0) {
       int b = (int)brightness + d0 * 5;
@@ -327,7 +484,6 @@ namespace VideoPattern {
       dma_display->setBrightness8(brightness);
     }
 
-    // K2: Speed (rotate ±0.1x, press = pause/resume)
     int d1 = input.knobDeltas[1];
     if (d1 != 0) {
       speedMul = constrain(speedMul + d1 * 0.1f, 0.1f, 4.0f);
@@ -338,33 +494,29 @@ namespace VideoPattern {
       Serial.printf("[Video] %s\n", paused ? "Paused" : "Playing");
     }
 
-    // K3: File select (rotate = browse files, hold = load next)
     int d2 = input.knobDeltas[2];
     if (d2 != 0 && fileCount > 1) {
       int next = ((currentFile + d2) % fileCount + fileCount) % fileCount;
       if (next != currentFile) {
         currentFile = next;
         loadFile(currentFile);
-        Serial.printf("[Video] → %s\n", fileList[currentFile]);
       }
     }
 
-    // Countdown info splash
-    if (infoTimer > 0) {
-      infoTimer -= dt;
-    }
+    if (infoTimer > 0) infoTimer -= dt;
 
-    // Advance frame timer
     if (loaded && frameCount > 0 && !paused && speedMul > 0.0f) {
       frameTimer += dt * speedMul * 1000.0f;
       while (frameTimer >= msPerFrame) {
         frameTimer -= msPerFrame;
-        currentFrame = (currentFrame + 1) % frameCount;
+        if (currentFrame + 1 >= frameCount) {
+          currentFrame = loopEnabled ? loopStartFrame : frameCount - 1;
+        } else {
+          currentFrame++;
+        }
       }
     }
   }
-
-  // ── Draw helpers (vertical-aware, rotation=0 means 128w×64h) ──
 
   void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1) {
     int16_t x1, y1;
@@ -377,20 +529,18 @@ namespace VideoPattern {
   }
 
   void draw() {
-    // ── No video loaded ──
     if (!loaded || !frameBuf || frameCount == 0) {
       dma_display->fillScreen(0);
       uint16_t dim = dma_display->color565(50, 50, 50);
-      drawCenteredText("NO VIDEO", 24, dim);
+      drawCenteredText(fatReady ? "NO VIDEO" : "NO FATFS", 24, dim);
       if (fatReady) {
         char buf[24];
-        snprintf(buf, sizeof(buf), "%dKB FREE", FFat.freeBytes() / 1024);
+        snprintf(buf, sizeof(buf), "%luKB FREE", (unsigned long)(FFat.freeBytes() / 1024));
         drawCenteredText(buf, 40, dma_display->color565(30, 30, 30));
       }
       return;
     }
 
-    // ── Draw video frame ──
     const uint16_t* frame = frameBuf + (size_t)currentFrame * FRAME_PIXELS;
     for (int y = 0; y < PANEL_RES_H; y++) {
       for (int x = 0; x < PANEL_RES_W; x++) {
@@ -398,33 +548,32 @@ namespace VideoPattern {
       }
     }
 
-    // ── Info splash overlay (first 2.5s after load) ──
     if (infoTimer > 0) {
-      // Semi-transparent dark band at bottom
       for (int y = PANEL_RES_H - 20; y < PANEL_RES_H; y++) {
         for (int x = 0; x < PANEL_RES_W; x++) {
-          dma_display->drawPixel(x, y, 0);  // black overlay
+          dma_display->drawPixel(x, y, 0);
         }
       }
 
-      // File info text
       char info1[32], info2[32];
-      // Strip path prefix for display
       const char* fname = fileList[currentFile];
       if (fname[0] == '/') fname++;
       snprintf(info1, sizeof(info1), "%s", fname);
-      snprintf(info2, sizeof(info2), "%df  %.0ffps  x%.1f",
-               frameCount, 1000.0f / msPerFrame, speedMul);
-
-      uint16_t white = dma_display->color565(200, 200, 200);
-      uint16_t gray  = dma_display->color565(120, 120, 120);
+      snprintf(
+        info2,
+        sizeof(info2),
+        "%luf  %.0ffps  x%.1f",
+        (unsigned long)frameCount,
+        1000.0f / msPerFrame,
+        speedMul
+      );
 
       dma_display->setTextSize(1);
-      dma_display->setTextColor(white);
+      dma_display->setTextColor(dma_display->color565(200, 200, 200));
       dma_display->setCursor(2, PANEL_RES_H - 18);
       dma_display->print(info1);
 
-      dma_display->setTextColor(gray);
+      dma_display->setTextColor(dma_display->color565(120, 120, 120));
       dma_display->setCursor(2, PANEL_RES_H - 9);
       dma_display->print(info2);
     }

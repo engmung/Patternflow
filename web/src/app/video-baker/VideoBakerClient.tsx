@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import s from "./VideoBaker.module.css";
 import {
   encodePFV1,
@@ -103,8 +104,13 @@ export default function VideoBakerClient() {
   const [uploadStatus, setUploadStatus] = useState<UploadProgress | null>(null);
   const [deviceInfo, setDeviceInfo] = useState<DeviceInfo | null>(null);
   const [deviceLoading, setDeviceLoading] = useState(false);
+  const [canUseSerial, setCanUseSerial] = useState(false);
 
   // ── Canvas rendering ─────────────────────────────────
+
+  useEffect(() => {
+    setCanUseSerial(supportsWebSerial());
+  }, []);
 
   const drawFrame = useCallback((frameIdx: number, frames: ImageData[]) => {
     const canvas = canvasRef.current;
@@ -421,7 +427,7 @@ export default function VideoBakerClient() {
     <div className={s.shell}>
       {/* Header */}
       <div className={s.header}>
-        <a href="/" className={s.brand}>Patternflow</a>
+        <Link href="/" className={s.brand}>Patternflow</Link>
         <div className={s.headerMeta}>
           <span>Video Baker</span>
           <span>·</span>
@@ -666,6 +672,15 @@ export default function VideoBakerClient() {
         <div className={s.controlColumn}>
           <h3 className={s.sectionTitle}>Bake Settings</h3>
 
+          <div className={s.devNote}>
+            <strong>In development</strong>
+            <ul>
+              <li>Serial upload needs more hardware-side testing and recovery handling.</li>
+              <li>Some browser codecs and seek timing can still fail during bake.</li>
+              <li>Long clips should move from full PSRAM loading to streamed playback later.</li>
+            </ul>
+          </div>
+
           <div className={s.settingRow}>
             <label>FPS</label>
             <div className={s.toggleGroup}>
@@ -813,7 +828,7 @@ export default function VideoBakerClient() {
           </div>
 
           {/* Upload to Device */}
-          {hasBaked && supportsWebSerial() && (
+          {hasBaked && canUseSerial && (
             <button
               className={`${s.uploadBtn} ${uploadStatus?.phase === "sending" ? s.uploading : ""}`}
               disabled={uploadStatus?.phase === "sending"}
@@ -822,7 +837,7 @@ export default function VideoBakerClient() {
                   const buffer = encodePFV1(st.bakedFrames, st.targetFps);
                   const name = st.sourceFile?.name?.replace(/\.[^.]+$/, "") ?? "clip";
                   const fname = `${name}.pfv`;
-                  setUploadStatus({ phase: "connecting", percent: 0, message: "Select port…" });
+                  setUploadStatus({ phase: "connecting", percent: 0, message: "Select port." });
                   await uploadPfvToDevice(buffer, fname, setUploadStatus);
                 } catch (e) {
                   setUploadStatus({
@@ -867,7 +882,7 @@ export default function VideoBakerClient() {
           )}
 
           {/* Device Management */}
-          {supportsWebSerial() && (
+          {canUseSerial && (
             <>
               <h3 className={s.sectionTitle}>Device</h3>
               <div className={s.actions}>

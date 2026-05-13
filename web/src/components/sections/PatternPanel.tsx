@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
 import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
@@ -422,6 +423,15 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     <a href="https://github.com/engmung/PatternFlow/issues" className={styles.secondaryLink}>
                       GitHub issues
                     </a>
+                  </div>
+                  <div className={styles.toolLinks}>
+                    <span className={styles.toolLabel}>Pattern tools</span>
+                    <Link href="/pattern-lab" className={styles.toolLink}>
+                      Pattern Lab
+                    </Link>
+                    <Link href="/video-baker" className={styles.toolLink}>
+                      Video Baker
+                    </Link>
                   </div>
                 </div>
               </div>

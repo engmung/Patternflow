@@ -38,15 +38,45 @@ const fileData = fs.readFileSync(filePath);
 const fileName = path.basename(filePath);
 const fileSize = fileData.length;
 
-// Validate PFV header
-if (fileData.length < 32 || fileData.toString("ascii", 0, 4) !== "PFV1") {
+// Validate PFV1 header. The web baker writes the canonical 64-byte header:
+// magic, headerSize, width, height, fpsMilli (fps * 1000), frameCount, format.
+const PFV_HEADER_SIZE = 64;
+const PFV_WIDTH = 128;
+const PFV_HEIGHT = 64;
+const PFV_FORMAT_RGB565_LE = 0x01;
+const PFV_FRAME_BYTES = PFV_WIDTH * PFV_HEIGHT * 2;
+
+if (fileData.length < PFV_HEADER_SIZE || fileData.toString("ascii", 0, 4) !== "PFV1") {
   console.error("Not a valid PFV1 file");
   process.exit(1);
 }
 
-const frameCount = fileData.readUInt16LE(8);
+const headerSize = fileData.readUInt16LE(4);
+const width = fileData.readUInt16LE(6);
+const height = fileData.readUInt16LE(8);
 const fpsMilli = fileData.readUInt16LE(10);
-const fps = (1000 / fpsMilli).toFixed(1);
+const frameCount = fileData.readUInt32LE(12);
+const format = fileData[16];
+const expectedSize = headerSize + frameCount * PFV_FRAME_BYTES;
+
+if (
+  headerSize !== PFV_HEADER_SIZE ||
+  width !== PFV_WIDTH ||
+  height !== PFV_HEIGHT ||
+  format !== PFV_FORMAT_RGB565_LE
+) {
+  console.error(
+    `Unsupported PFV1 header: header=${headerSize}, size=${width}x${height}, format=0x${format.toString(16)}`
+  );
+  process.exit(1);
+}
+
+if (fileData.length !== expectedSize) {
+  console.error(`PFV1 size mismatch: expected ${expectedSize} bytes, got ${fileData.length}`);
+  process.exit(1);
+}
+
+const fps = (fpsMilli / 1000).toFixed(1);
 console.log(
   `File: ${fileName} (${(fileSize / 1024).toFixed(1)} KB, ${frameCount} frames, ${fps} fps)`
 );

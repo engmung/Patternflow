@@ -321,6 +321,35 @@
   margin-top: 22px;
 }
 
+.devNote {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgba(23, 21, 18, 0.16);
+  background: #f7f3ea;
+  color: rgba(23, 21, 18, 0.68);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.devNote strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.devNote ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.devNote li + li {
+  margin-top: 4px;
+}
+
 /* ── Setting rows ── */
 
 .settingRow {

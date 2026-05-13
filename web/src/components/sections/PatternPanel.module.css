@@ -222,6 +222,43 @@
   margin-top: 12px;
 }
 
+.toolLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pf-rule);
+}
+
+.toolLabel {
+  flex-basis: 100%;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+}
+
+.toolLink {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--pf-rule);
+  color: var(--pf-ink);
+  padding: 0 12px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.toolLink:hover {
+  border-color: var(--pf-ink);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
 .unsupported,
 .editorFootnote {
   margin-top: 10px;

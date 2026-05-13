@@ -3,18 +3,29 @@
 #include "core_display.h"
 #include "core_encoders.h"
 #include "pattern_registry.h"
+#include "pattern_video.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
 int currentPatternIdx = 0;
+
+enum ContentMode {
+  CONTENT_PATTERN,
+  CONTENT_VIDEO
+};
 
 enum AppMode {
   MODE_RUNNING,
   MODE_SELECTING
 };
 
+ContentMode currentContentMode = CONTENT_PATTERN;
 AppMode currentMode = MODE_RUNNING;
 unsigned long lastMs = 0;
+float contentNoticeTimer = 0.0f;
+
+const uint32_t MODE_HOLD_MS = 1000;
+const float CONTENT_NOTICE_SECONDS = 1.0f;
 
 // Front-panel logical order after left-right mirroring by original knob pairs:
 // K1 <-> K2 and K3 <-> K4.
@@ -40,9 +51,43 @@ void setup() {
   for (int i = 0; i < NUM_PATTERNS; i++) {
     patterns[i].setup();
   }
+  VideoPattern::setup();
 
   Serial.printf("Current Pattern: %s\n", patterns[currentPatternIdx].name);
   lastMs = millis();
+}
+
+const char* currentContentName() {
+  return currentContentMode == CONTENT_VIDEO ? VideoPattern::NAME : patterns[currentPatternIdx].name;
+}
+
+void toggleContentMode() {
+  currentContentMode = currentContentMode == CONTENT_PATTERN ? CONTENT_VIDEO : CONTENT_PATTERN;
+  currentMode = MODE_RUNNING;
+  contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+  dma_display->setRotation(0);
+  Serial.printf(">>> CONTENT MODE: %s\n", currentContentMode == CONTENT_VIDEO ? "VIDEO" : "PATTERN");
+}
+
+void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  dma_display->setTextSize(textSize);
+  dma_display->setTextColor(color);
+  dma_display->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  dma_display->setCursor((dma_display->width() - w) / 2, y);
+  dma_display->print(text);
+}
+
+void drawContentNotice() {
+  dma_display->fillRect(0, 18, dma_display->width(), 28, 0);
+  drawCenteredText(
+    currentContentMode == CONTENT_VIDEO ? "VIDEO MODE" : "PATTERN MODE",
+    24,
+    dma_display->color565(255, 255, 255),
+    1
+  );
+  drawCenteredText(currentContentName(), 36, dma_display->color565(120, 120, 120), 1);
 }
 
 void drawSelectingMode() {
@@ -70,11 +115,7 @@ void drawSelectingMode() {
   dma_display->print(name);
 
   const char* hint = "HOLD TO SELECT";
-  dma_display->setTextSize(1);
-  dma_display->setTextColor(dma_display->color565(150, 150, 150));
-  dma_display->getTextBounds(hint, 0, 0, &x1, &y1, &w, &h);
-  dma_display->setCursor((screenW - w) / 2, screenH - h - 15);
-  dma_display->print(hint);
+  drawCenteredText(hint, screenH - 22, dma_display->color565(150, 150, 150), 1);
 }
 
 void readInputFrame(InputFrame& input) {
@@ -106,9 +147,14 @@ void loop() {
   InputFrame input;
   readInputFrame(input);
 
-  if (logicalButton(3)->longPressed(1000)) {
+  if (logicalButton(2)->longPressed(MODE_HOLD_MS)) {
+    toggleContentMode();
+  }
+
+  if (currentContentMode == CONTENT_PATTERN && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
+      contentNoticeTimer = 0.0f;
       dma_display->setRotation(1);
       Serial.printf(">>> SELECT MODE ENTERED: %s\n", patterns[currentPatternIdx].name);
     } else {
@@ -118,9 +164,21 @@ void loop() {
     }
   }
 
+  VideoPattern::checkSerialUpload();
+
   if (currentMode == MODE_RUNNING) {
-    patterns[currentPatternIdx].update(dt, input);
-    patterns[currentPatternIdx].draw();
+    if (currentContentMode == CONTENT_VIDEO) {
+      VideoPattern::update(dt, input);
+      VideoPattern::draw();
+    } else {
+      patterns[currentPatternIdx].update(dt, input);
+      patterns[currentPatternIdx].draw();
+    }
+
+    if (contentNoticeTimer > 0.0f) {
+      drawContentNotice();
+      contentNoticeTimer -= dt;
+    }
   } else {
     if (input.knobDeltas[3] != 0) {
       currentPatternIdx += input.knobDeltas[3];
