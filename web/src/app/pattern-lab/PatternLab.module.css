@@ -203,6 +203,22 @@
   user-select: none;
 }
 
+.rangeInput {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid #171512;
+  background: #ffffff;
+  color: #171512;
+  padding: 0 7px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+}
+
+.rangeInput:focus {
+  outline: 1px solid #171512;
+  outline-offset: 1px;
+}
+
 .rangeDigit,
 .rangeStatic {
   display: inline-flex;

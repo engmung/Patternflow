@@ -20,7 +20,7 @@ Output rules:
 
 Required API:
 - \`export function setup(params) {}\`
-- \`export function update(dt, input, params) {}\` where \`input.knobValues\` is the primary control API: an array of 4 absolute knob values supplied by the preview harness after its min/max ranges are applied. Use \`input.knobValues\` for every target parameter by default.
+- \`export function update(dt, input, params) {}\` where \`input.knobValues\` is the primary control API: an array of 4 absolute, calibrated raw knob values in firmware logical order. Use \`input.knobValues\` for every target parameter by default.
 - \`input.knobNormalized\` is also available when a 0.0-1.0 value is explicitly useful. \`input.knobDeltas\` is compatibility-only hardware-like rotary encoder click delta input; do not build the main parameter mapping around it unless the user specifically asks for incremental hardware behavior.
 - \`export function draw(display, params, time) {}\` where \`display.setPixel(x, y, r, g, b)\` draws a pixel.
 - Use \`display.width\` and \`display.height\` in loops. Do not hardcode 128 or 64 inside \`draw()\`.
@@ -32,6 +32,9 @@ Knob behavior:
 - In \`update()\`, read \`input.knobValues[0]\` through \`input.knobValues[3]\` as absolute target values. Do not clamp these values back to 0.0-1.0 unless you intentionally use \`input.knobNormalized\`.
 - Apply knob value changes immediately. Do not smooth, lerp, damp, or ease knob-controlled parameters unless the user explicitly asks for glide or inertia.
 - Keep \`input.knobDeltas\` only as a fallback for older runtimes. The web preview and Pattern Lab are knobValues-first.
+- Preview raw knob ranges are: knob 1 = 0.0-1.0 wrap, knob 2 = 0.1-10.0 clamp, knob 3 = 0.0-4.9 clamp, knob 4 = 0.0-1.0 wrap.
+- One full web knob rotation equals one physical encoder turn, approximately 20 detents. Default raw step sizes are: knob 1 = 0.05 per detent, knob 2 = 0.10 per detent, knob 3 = 0.05 per detent, knob 4 = 0.05 per detent.
+- If you need a designer-friendly range such as 4-24, read \`input.knobNormalized[i]\` and map it inside the pattern, while keeping the raw knob calibration intact for ESP32 conversion.
 
 Brightness:
 - Use bright LED output by default. At least some pixels should regularly reach near-full intensity, around 230-255 per RGB channel after color conversion, while dark areas may remain dark for contrast.
@@ -103,15 +106,22 @@ Required namespace interface:
 Conversion fidelity:
 - Preserve the JavaScript pattern's setup defaults exactly unless a value would break Arduino compilation.
 - Preserve parameter ranges, formulas, color logic, and animation timing from the JavaScript preview.
-- If the JavaScript uses \`input.knobValues[i]\`, treat those as absolute target parameter values. In C++, maintain equivalent target params and update them from encoder deltas using the same expressive range, typically one full turn / 20 detents to cross that range unless the JavaScript clearly implies another scale.
+- If the JavaScript uses \`input.knobValues[i]\`, treat those as absolute target parameter values. In C++, maintain equivalent target params and update them from encoder deltas using Patternflow's calibrated hardware steps unless the JavaScript clearly defines another scale.
+- If the JavaScript uses \`input.knobNormalized[i]\`, do not store that normalized value directly as the firmware knob state. First maintain the same raw knob state as the web preview, then compute normalized values from that raw state.
 - Do not collapse absolute JavaScript knob ranges back to 0.0-1.0. Preserve ranges such as 0.2-8.0, 4-24, or -2.0-2.0 as named min/max constants.
 - Do not invent different defaults such as changing \`turbScale = 0.05\` to \`0.15\`.
 - Treat the JavaScript code as the source of truth. Make only the minimal changes needed for Arduino compatibility, safe brightness, and Patternflow's required namespace interface.
 
 Knob mapping:
 - JavaScript preview code is knobValues-first, but firmware receives encoder deltas. Convert absolute \`input.knobValues\` mappings into firmware params by storing the current target value and adding \`input.knobDeltas[i] * STEP\`.
-- Derive each \`STEP\` from the JavaScript value range when possible: \`STEP = (MAX - MIN) / 20.0f\` is the default.
-- Put named min/max/step constants near the top of the namespace, for example \`const float VECTOR_FIELD_SCALE_MIN = 4.0f;\`, \`VECTOR_FIELD_SCALE_MAX = 24.0f;\`, and \`VECTOR_FIELD_SCALE_STEP = (VECTOR_FIELD_SCALE_MAX - VECTOR_FIELD_SCALE_MIN) / 20.0f;\`.
+- Match the web preview's raw logical knob state exactly:
+  - knob 1 raw range \`0.0f..1.0f\`, wrap, \`STEP = 0.05f\`.
+  - knob 2 raw range \`0.1f..10.0f\`, clamp, \`STEP = 0.10f\`.
+  - knob 3 raw range \`0.0f..4.9f\`, clamp, \`STEP = 0.05f\`.
+  - knob 4 raw range \`0.0f..1.0f\`, wrap, \`STEP = 0.05f\`.
+- If the JavaScript reads \`input.knobNormalized[i]\`, compute it in C++ from the raw state above: \`(raw - min) / (max - min)\`, with wrap/clamp behavior matching the web.
+- Preserve named min/max constants as clamps and UI intent, but do not automatically use \`(MAX - MIN) / 20.0f\` unless the JavaScript clearly intends one turn to sweep the entire range.
+- Put named min/max/step constants near the top of the namespace, for example \`const float VECTOR_FIELD_SCALE_MIN = 4.0f;\`, \`VECTOR_FIELD_SCALE_MAX = 24.0f;\`, and \`VECTOR_FIELD_SCALE_STEP = 0.05f;\`.
 - Do not make one detent jump across a whole parameter range.
 
 Brightness:

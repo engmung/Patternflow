@@ -12,12 +12,18 @@ import {
   knobTargetToDelta,
   renderPatternStill,
 } from "@/lib/patternHarness";
+import {
+  LOGICAL_KNOB_DEFAULTS,
+  LOGICAL_KNOB_RANGES,
+  LOGICAL_KNOB_UNITS_PER_TURN,
+  LOGICAL_KNOB_WRAP,
+} from "@/lib/patternflowControls";
 import { sdfRunesPattern } from "@/lib/patternSamples";
 import styles from "./PatternLab.module.css";
 
 const knobLabels = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
-const initialKnobs = [0.5, 0.5, 0.5, 0.5];
-const defaultRanges: KnobRange[] = [[0, 1], [0, 1], [0, 1], [0, 1]];
+const initialKnobs = [...LOGICAL_KNOB_DEFAULTS];
+const defaultRanges: KnobRange[] = LOGICAL_KNOB_RANGES.map(([min, max]) => [min, max]);
 const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
 const pixelsPerDigitStep = 10;
@@ -37,6 +43,12 @@ type RangeDragState = {
   startX: number;
   startY: number;
   step: number;
+};
+
+type RangeEditState = {
+  index: number;
+  edge: "min" | "max";
+  value: string;
 };
 
 function paintCanvas(canvas: HTMLCanvasElement, data: Uint8ClampedArray) {
@@ -84,6 +96,10 @@ function getRangeMidpoint(range: KnobRange) {
   return range[0] + (range[1] - range[0]) * 0.5;
 }
 
+function clampToRange(value: number, range: KnobRange) {
+  return Math.max(range[0], Math.min(range[1], value));
+}
+
 function getNormalizedKnobs(knobs: number[], ranges: KnobRange[]) {
   return knobs.map((value, index) => {
     const range = ranges[index] ?? [0, 1];
@@ -118,7 +134,10 @@ export default function PatternLabClient() {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [activeSweepKnob, setActiveSweepKnob] = useState(2);
   const [copied, setCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [cppPromptCopied, setCppPromptCopied] = useState(false);
   const [activeRangeId, setActiveRangeId] = useState<string | null>(null);
+  const [editingRange, setEditingRange] = useState<RangeEditState | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const runtimeRef = useRef<PatternRuntime | null>(null);
@@ -187,7 +206,12 @@ export default function PatternLabClient() {
       const currentKnobs = knobsRef.current;
       const previousKnobs = previousKnobsRef.current;
       const knobDeltas = currentKnobs.map((value, index) =>
-        knobTargetToDelta(previousKnobs[index] ?? 0.5, value),
+        knobTargetToDelta(
+          previousKnobs[index] ?? initialKnobs[index] ?? 0.5,
+          value,
+          LOGICAL_KNOB_WRAP[index],
+          LOGICAL_KNOB_UNITS_PER_TURN[index],
+        ),
       );
       const currentRanges = rangesRef.current;
       const knobNormalized = getNormalizedKnobs(currentKnobs, currentRanges);
@@ -259,6 +283,16 @@ export default function PatternLabClient() {
     });
   }, []);
 
+  const commitRangeEdit = useCallback(() => {
+    if (!editingRange) return;
+
+    const nextValue = Number(editingRange.value);
+    if (Number.isFinite(nextValue)) {
+      updateRange(editingRange.index, editingRange.edge, roundRangeValue(nextValue));
+    }
+    setEditingRange(null);
+  }, [editingRange, updateRange]);
+
   const finishRangeDrag = useCallback(() => {
     if (!rangeDragRef.current) return;
     rangeDragRef.current = null;
@@ -298,6 +332,7 @@ export default function PatternLabClient() {
     if (event.button !== 0) return;
 
     event.preventDefault();
+    setEditingRange(null);
     rangeDragRef.current = {
       index,
       edge,
@@ -315,12 +350,42 @@ export default function PatternLabClient() {
     const decimalIndex = text.indexOf(".");
     const rangeId = `${index}-${edge}`;
 
+    if (editingRange?.index === index && editingRange.edge === edge) {
+      return (
+        <input
+          className={styles.rangeInput}
+          value={editingRange.value}
+          autoFocus
+          inputMode="decimal"
+          onChange={(event) =>
+            setEditingRange((current) => current ? { ...current, value: event.target.value } : current)
+          }
+          onBlur={commitRangeEdit}
+          onFocus={(event) => event.currentTarget.select()}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+            if (event.key === "Escape") {
+              setEditingRange(null);
+            }
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+        />
+      );
+    }
+
     return (
       <div
         className={`${styles.rangeValue}${activeRangeId ? ` ${styles.anyRangeDragging}` : ""}${activeRangeId === rangeId ? ` ${styles.rangeDragging}` : ""}`}
         role="spinbutton"
         aria-label={`${knobLabels[index]} ${edge}`}
         aria-valuenow={value}
+        onDoubleClick={(event) => {
+          event.preventDefault();
+          finishRangeDrag();
+          setEditingRange({ index, edge, value: formatRangeControlValue(value) });
+        }}
       >
         {[...text].map((char, charIndex) => {
           const step = getDigitStep(text, charIndex);
@@ -352,9 +417,9 @@ export default function PatternLabClient() {
   };
 
   const resetKnobs = () => {
-    const midpoints = ranges.map(getRangeMidpoint);
-    setKnobs(midpoints);
-    previousKnobsRef.current = midpoints;
+    const defaults = ranges.map((range, index) => clampToRange(initialKnobs[index] ?? getRangeMidpoint(range), range));
+    setKnobs(defaults);
+    previousKnobsRef.current = defaults;
   };
 
   const captureSnapshot = () => {
@@ -376,7 +441,13 @@ export default function PatternLabClient() {
       const targetValue = activeRange[0] + value * (activeRange[1] - activeRange[0]);
       const targets = knobs.map((knob, index) => index === activeSweepKnob ? targetValue : knob);
       const knobStart = ranges.map(getRangeMidpoint);
-      const result = renderPatternStill(code, { knobStart, knobTargets: targets, knobRanges: ranges });
+      const result = renderPatternStill(code, {
+        knobStart,
+        knobTargets: targets,
+        knobRanges: ranges,
+        knobWrap: LOGICAL_KNOB_WRAP,
+        knobUnitsPerTurn: LOGICAL_KNOB_UNITS_PER_TURN,
+      });
       const src = dataToUrl(result.data);
       return {
         id: `${Date.now()}-${activeSweepKnob}-${value}`,
@@ -401,6 +472,139 @@ export default function PatternLabClient() {
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1200);
+  };
+
+  const copyVariantPrompt = async () => {
+    const rangeLines = ranges
+      .map((range, index) => `- ${knobLabels[index]} range: ${range[0]} to ${range[1]}, current value: ${knobs[index]}`)
+      .join("\n");
+
+    const prompt = `I am writing custom LED patterns in JavaScript for Patternflow's 128x64 LED matrix web preview.
+
+I will give you one existing Patternflow pattern. Use it as a seed, not as a cage. Create exactly 5 distinct standalone variations that explore different visual directions.
+
+Very important output rules:
+- Return exactly 5 separate JavaScript code blocks.
+- Each code block must be a complete standalone Patternflow pattern.
+- Do not combine the 5 variations into one file.
+- Do not add a mode selector, preset array, switch statement, or any code that contains multiple patterns in one output.
+- Do not write wrapper text inside the code blocks.
+- Put a short variation name before each code block.
+- Do not include nested triple backticks inside any code block.
+
+Required API for every variation:
+- export function setup(params) {}
+- export function update(dt, input, params) {}
+- export function draw(display, params, time) {}
+- Use input.knobValues as the primary control API. input.knobValues is an array of 4 absolute knob values after the min/max ranges are applied.
+- input.knobNormalized is also available when a 0.0-1.0 value is useful.
+- Keep input.knobDeltas only as compatibility fallback if needed.
+- Use display.width and display.height in loops. Do not hardcode 128 or 64 inside draw().
+- Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.
+
+Creative control mapping:
+- It is okay to keep one knob as animation speed, preferably Knob 2, if that suits the variation.
+- Do not keep all four knobs as the same old hue/speed/mode/frequency template unless it is genuinely the best fit.
+- Redesign the other controls creatively for each variation. Examples: cell size, symmetry fold, glitch amount, palette split, trail length, scanline spacing, pulse width, inversion threshold, rotation, warp depth, density, edge thickness, phase offset, bloom-like gain, or motif selection.
+- Each of the 5 variations should have a slightly different control personality. The controls should reveal the unique idea of that variation.
+- Include a short comment near setup() or update() naming what the 4 knobs do for that specific variation.
+
+Color direction:
+- Make color part of the pattern logic, not just a global hue wash.
+- Avoid relying on a single full-frame gradient or a uniform hue shift across the whole image.
+- Prefer colors that respond to local pattern values: distance fields, cell seeds, stripe index, phase, brightness, threshold bands, motion direction, edge thickness, density, or mask state.
+- Good examples: large values become red while small values become blue; interior/exterior use different palettes; threshold bands step through 3-5 colors; cell IDs pick related colors; moving fronts leave warmer highlights; thin edges are white while filled regions are saturated.
+- Both smooth local gradients and stepped posterized color bands are welcome, as long as the color changes are tied to the geometry or signal of the pattern.
+- Keep at least some pixels near full LED brightness.
+
+Variation direction:
+- Keep the general intent and the four control roles understandable, but do not copy the original structure too literally.
+- At least 3 of the 5 variations must change the main drawing algorithm, not only constants, colors, thresholds, or speed.
+- Avoid making all 5 outputs feel like the same pattern with different parameter values.
+- Do not reuse the same grid, shape, distance formula, or composition in every variation.
+- Give each variation a different dominant idea. Use these five directions:
+  1. Structural remix: change the main geometry or repetition system.
+  2. Motion remix: change how time moves through the pattern.
+  3. Palette/material remix: change color logic, brightness rhythm, or foreground/background relationship.
+  4. Domain remix: warp, mirror, fold, scroll, rotate, or otherwise remap coordinates.
+  5. Contrast remix: make a clearly different sparse/dense, hard/soft, or organic/mechanical interpretation.
+- The variations can be bold. They should still feel related to the seed, but not trapped inside its exact look.
+- Keep the patterns bright enough for an LED matrix and reasonably ESP32-friendly.
+- Avoid smoothing/lerping knob-controlled values unless the visual idea specifically needs inertia.
+
+Current Pattern Lab controls:
+${rangeLines}
+
+Existing pattern:
+\`\`\`javascript
+${code}
+\`\`\``;
+
+    await navigator.clipboard.writeText(prompt);
+    setPromptCopied(true);
+    window.setTimeout(() => setPromptCopied(false), 1200);
+  };
+
+  const copyCppPrompt = async () => {
+    const rangeLines = ranges
+      .map((range, index) => {
+        const detentStep = LOGICAL_KNOB_UNITS_PER_TURN[index] / 20;
+        return `- ${knobLabels[index]}: min ${range[0]}, max ${range[1]}, current ${knobs[index]}, calibrated encoder step ${roundRangeValue(detentStep)} per detent`;
+      })
+      .join("\n");
+
+    const prompt = `Convert the following JavaScript LED pattern into one complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
+
+Output rules:
+- Put the complete header in one single code block labeled cpp.
+- Do not write any text before or after the code block.
+- The code block content itself must start with #pragma once.
+- The code block content itself must end with the namespace closing brace comment, for example } // namespace ExamplePattern.
+- Do not include nested triple backticks inside the code block.
+
+Firmware interface:
+- Include exactly these headers:
+  #include <Arduino.h>
+  #include "config.h"
+  #include "core_display.h"
+  #include "core_encoders.h"
+- Define one unique namespace.
+- Inside the namespace define:
+  const char* NAME = "Short Name";
+  const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};
+  void setup();
+  void update(float dt, const InputFrame& input);
+  void draw();
+- Use PANEL_RES_W and PANEL_RES_H. Do not hardcode 128 or 64.
+- Draw with dma_display->drawPixelRGB888(x, y, r, g, b) unless RGB565 is clearly better.
+
+Knob conversion:
+- The JavaScript preview uses input.knobValues as absolute values after Pattern Lab min/max ranges.
+- ESP32 firmware receives input.knobDeltas instead.
+- For each knob, create stored parameter state initialized to the Pattern Lab current value below.
+- In update(), add input.knobDeltas[i] * STEP[i] to each parameter and constrain it to the min/max range below.
+- Use the calibrated encoder step below as the default so firmware knob motion matches the live editor and physical rotary encoders. Custom min/max ranges may take more than one turn to sweep.
+- Keep the knob meanings from the JavaScript pattern. If the JS code contains comments naming the knobs, preserve those meanings in KNOB_LABELS.
+
+Pattern Lab knob ranges and current values:
+${rangeLines}
+
+Performance and hardware constraints:
+- Keep the inner pixel loop ESP32-friendly.
+- Avoid browser APIs, heap allocations per pixel, imports, async code, and dynamic evaluation.
+- Prefer multiplication and comparisons over expensive functions when possible.
+- Use sinf/cosf sparingly in the inner loop. If the JavaScript uses lots of trig, simplify or precompute.
+- Keep LED brightness strong enough; at least some pixels should regularly reach near-full RGB output.
+- Preserve local color logic from the JavaScript, especially value-based or banded colors.
+
+JavaScript source:
+\`\`\`javascript
+${code}
+\`\`\``;
+
+    await navigator.clipboard.writeText(prompt);
+    setCppPromptCopied(true);
+    window.setTimeout(() => setCppPromptCopied(false), 1200);
   };
 
   return (
@@ -508,6 +712,12 @@ export default function PatternLabClient() {
             <div>
               <span>JavaScript Pattern</span>
             </div>
+            <button type="button" onClick={copyVariantPrompt}>
+              {promptCopied ? "Copied" : "Copy 5 variants prompt"}
+            </button>
+            <button type="button" onClick={copyCppPrompt}>
+              {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
+            </button>
           </div>
           <div className={styles.editorPane}>
           <Editor

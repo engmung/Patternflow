@@ -1,15 +1,8 @@
 import * as THREE from 'three';
-import { getKnobValueDelta, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/patternflowControls';
+import { getKnobValueDelta, LOGICAL_KNOB_RANGES, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/patternflowControls';
 import { compilePatternCode, type PatternModule, type PatternParams } from '@/lib/patternHarness';
 
 type WebKnobValues = Record<'c1' | 'c2' | 'c3' | 'c4', number>;
-
-const LOGICAL_KNOB_RANGES: Array<[number, number]> = [
-  [0, 1],
-  [0.1, 10],
-  [0, 4.9],
-  [0, 1],
-];
 
 function getLogicalKnobValues(knobValues: WebKnobValues) {
   return LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) => knobValues[knobId]);

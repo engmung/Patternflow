@@ -1,156 +1,146 @@
 #pragma once
 
 #include <Arduino.h>
-#include <math.h>
-#include <stdint.h>
 #include "config.h"
 #include "core_display.h"
 #include "core_encoders.h"
 
-namespace GlitchMatrixPattern {
+namespace SymmetryFoldsWarp {
 
-const char* NAME = "Glitch Matrix";
-const char* const KNOB_LABELS[4] = {"HUE", "SPEED", "MODE", "FREQ"};
-
-const float GLITCH_MATRIX_HUE_STEP = 0.012f;
-const float GLITCH_MATRIX_SPEED_STEP = 0.018f;
-const float GLITCH_MATRIX_MODE_STEP = 0.018f;
-const float GLITCH_MATRIX_FREQ_STEP = 0.018f;
-
-struct Params {
-    float hue, speed, mode, freq;
-    float hueT, speedT, modeT, freqT;
-    float timeAcc;
+const char* NAME = "Symmetry Folds";
+const char* const KNOB_LABELS[4] = {
+    "Folds",
+    "Speed",
+    "Density",
+    "Rings"
 };
 
-Params params;
+float knob1 = 0.945f;
+float knob2 = -4.289f;
+float knob3 = 11.048f;
+float knob4 = 1.0f;
 
-static float wrap01(float v) {
-    v = v - floorf(v);
-    if (v < 0.0f) v += 1.0f;
-    return v;
+float angleOffset = 0.0f;
+float t_time = 0.0f;
+
+void setup() {
+    angleOffset = 0.0f;
+    t_time = 0.0f;
 }
 
-static float mix(float a, float b, float t) {
-    return a + (b - a) * t;
+void update(float dt, const InputFrame& input) {
+    t_time += dt;
+
+    knob1 += input.knobDeltas[0] * 0.05f;
+    if (knob1 < 0.0f) knob1 = 0.0f;
+    if (knob1 > 1.0f) knob1 = 1.0f;
+
+    knob2 += input.knobDeltas[1] * 0.5f;
+    if (knob2 < -5.001f) knob2 = -5.001f;
+    if (knob2 > 5.0f) knob2 = 5.0f;
+
+    knob3 += input.knobDeltas[2] * 0.6f;
+    if (knob3 < 0.0f) knob3 = 0.0f;
+    if (knob3 > 12.0f) knob3 = 12.0f;
+
+    knob4 += input.knobDeltas[3] * 0.05f;
+    if (knob4 < 0.0f) knob4 = 0.0f;
+    if (knob4 > 1.0f) knob4 = 1.0f;
+
+    // Map Knob 2 (-5 to 5) to the original JS speed range (-1 to 1) 
+    float speed = knob2 * 0.2f;
+    angleOffset += dt * speed;
 }
 
-static float mixHue(float a, float b, float t) {
-    float d = b - a;
-    if (d > 0.5f) d -= 1.0f;
-    if (d < -0.5f) d += 1.0f;
-    return wrap01(a + d * t);
-}
+inline void setHsv(int x, int y, float h, float s, float v) {
+    h = h - floorf(h);
+    if (h < 0.0f) h += 1.0f;
+    
+    if (s < 0.0f) s = 0.0f;
+    if (s > 1.0f) s = 1.0f;
+    if (v < 0.0f) v = 0.0f;
 
-static void hsvToRgb(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_t& b) {
-    h = wrap01(h);
+    float r = 0.0f, g = 0.0f, b = 0.0f;
     int i = (int)floorf(h * 6.0f);
     float f = h * 6.0f - (float)i;
     float p = v * (1.0f - s);
     float q = v * (1.0f - f * s);
-    float t_val = v * (1.0f - (1.0f - f) * s);
+    float t = v * (1.0f - (1.0f - f) * s);
 
-    float rf = 0.0f, gf = 0.0f, bf = 0.0f;
     switch (i % 6) {
-        case 0: rf = v; gf = t_val; bf = p; break;
-        case 1: rf = q; gf = v; bf = p; break;
-        case 2: rf = p; gf = v; bf = t_val; break;
-        case 3: rf = p; gf = q; bf = v; break;
-        case 4: rf = t_val; gf = p; bf = v; break;
-        default: rf = v; gf = p; bf = q; break;
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
     }
 
-    r = (uint8_t)constrain(rf * 255.0f, 0.0f, 255.0f);
-    g = (uint8_t)constrain(gf * 255.0f, 0.0f, 255.0f);
-    b = (uint8_t)constrain(bf * 255.0f, 0.0f, 255.0f);
-}
+    int R = r * 255.0f;
+    int G = g * 255.0f;
+    int B = b * 255.0f;
 
-void setup() {
-    params.hue = 0.56f;
-    params.speed = 0.42f;
-    params.mode = 0.35f;
-    params.freq = 0.45f;
+    if (R > 255) R = 255;
+    if (G > 255) G = 255;
+    if (B > 255) B = 255;
 
-    params.hueT = params.hue;
-    params.speedT = params.speed;
-    params.modeT = params.mode;
-    params.freqT = params.freq;
-
-    params.timeAcc = 0.0f;
-}
-
-void update(float dt, const InputFrame& input) {
-    float d0 = input.knobDeltas[0];
-    float d1 = input.knobDeltas[1];
-    float d2 = input.knobDeltas[2];
-    float d3 = input.knobDeltas[3];
-
-    params.hueT = wrap01(params.hueT + d0 * GLITCH_MATRIX_HUE_STEP);
-    params.speedT = constrain(params.speedT + d1 * GLITCH_MATRIX_SPEED_STEP, 0.0f, 1.0f);
-    params.modeT = constrain(params.modeT + d2 * GLITCH_MATRIX_MODE_STEP, 0.0f, 1.0f);
-    params.freqT = constrain(params.freqT + d3 * GLITCH_MATRIX_FREQ_STEP, 0.0f, 1.0f);
-
-    float s = constrain(dt * 7.5f, 0.0f, 1.0f);
-    params.hue = mixHue(params.hue, params.hueT, s);
-    params.speed = mix(params.speed, params.speedT, s);
-    params.mode = mix(params.mode, params.modeT, s);
-    params.freq = mix(params.freq, params.freqT, s);
-
-    params.timeAcc += dt * (0.18f + params.speed * 1.85f);
+    dma_display->drawPixelRGB888(x, y, R, G, B);
 }
 
 void draw() {
-    int w = PANEL_RES_W;
-    int h = PANEL_RES_H;
-    float t = params.timeAcc;
+    float t = t_time;
+    float cx = PANEL_RES_W * 0.5f;
+    float cy = PANEL_RES_H * 0.5f;
+    
+    float folds = 1.0f + floorf(knob1 * 7.0f);
+    float den = 0.05f + (knob3 / 12.0f) * 0.2f;
+    float rings = 1.0f + knob4 * 5.0f;
+    float slice = (PI * 2.0f) / folds;
+    float halfSlice = slice * 0.5f;
 
-    int cellSize = (int)floorf(mix(16.0f, 4.0f, params.freq));
-    if (cellSize < 1) cellSize = 1;
-    float invCell = 1.0f / (float)cellSize;
-
-    uint8_t c1_r, c1_g, c1_b;
-    hsvToRgb(params.hue, 0.9f, 1.0f, c1_r, c1_g, c1_b);
-
-    float shiftIntensity = mix(0.0f, 3.0f, params.mode);
-
-    for (int y = 0; y < h; y++) {
-        // Optimized outer loop precomputations
-        int gy = y / cellSize; // y is always positive
-        float ny = (float)(y % cellSize) * invCell - 0.5f;
-        float absNy = ny < 0.0f ? -ny : ny;
-
-        int shiftX = (int)floorf(sinf((float)gy * 0.5f + t * 2.0f) * (float)cellSize * shiftIntensity);
-
-        for (int x = 0; x < w; x++) {
-            int effX = x + shiftX;
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        float dy = (float)y - cy;
+        for (int x = 0; x < PANEL_RES_W; x++) {
+            float dx = (float)x - cx;
             
-            // Integer grid logic avoids floorf() inside the fast inner loop
-            int gx = effX / cellSize;
-            int modX = effX % cellSize;
-            if (modX < 0) {
-                modX += cellSize;
-                gx -= 1;
-            }
+            float r = sqrtf(dx * dx + dy * dy);
+            float theta = atan2f(dy, dx) + angleOffset;
             
-            float nx = (float)modX * invCell - 0.5f;
-            float absNx = nx < 0.0f ? -nx : nx;
+            // Apply symmetry folding
+            theta = theta - floorf(theta / slice) * slice;
+            if (theta < 0.0f) theta += slice;
+            if (theta > halfSlice) theta = slice - theta;
 
-            uint8_t r = 0, g = 0, b = 0;
-            bool mask = ((gx + gy) % 2) == 0;
+            // Map back to warped coordinates
+            float nx = r * cosf(theta) * den;
+            float ny = r * sinf(theta) * den;
+
+            float warpX = sinf(ny * 2.0f - t * 2.0f);
+            float warpY = cosf(nx * 2.0f + t * 1.5f);
             
-            if (mask) {
-                if (absNx < 0.3f && absNy < 0.3f) {
-                    r = c1_r; g = c1_g; b = c1_b;
-                }
-            } else {
-                if (absNx > 0.4f || absNy > 0.4f) {
-                    r = 255; g = 255; b = 255;
-                }
-            }
+            float v1 = sinf((nx + warpX) + t);
+            float v2 = cosf((ny + warpY) - t);
+            
+            float field = fabsf(v1 + v2);
+            
+            // Add radial rings
+            float ringFactor = sinf(r * rings * 0.1f - t * 4.0f);
+            field += ringFactor * 0.5f;
 
-            dma_display->drawPixelRGB888(x, y, r, g, b);
+            float val = 1.0f - (fabsf(field) * 0.6f);
+            if (val < 0.0f) val = 0.0f;
+            val = val * val;
+            
+            // Color shifts from center outwards and pulses
+            float hue = t * 0.1f + r * 0.02f + theta * 0.5f;
+            hue = hue - floorf(hue);
+            if (hue < 0.0f) hue += 1.0f;
+
+            float sat = 1.0f - (val * 0.3f);
+            
+            setHsv(x, y, hue, sat, val * 1.5f);
         }
     }
 }
 
-} // namespace GlitchMatrixPattern
+} // namespace SymmetryFoldsWarp

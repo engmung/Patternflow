@@ -39,6 +39,8 @@ export type PatternStillOptions = {
   knobStart?: number[];
   knobTargets?: number[];
   knobRanges?: Array<[number, number]>;
+  knobWrap?: boolean[];
+  knobUnitsPerTurn?: number[];
 };
 
 function clampByte(value: number) {
@@ -159,13 +161,13 @@ export function createIdleInput(
   };
 }
 
-export function knobTargetToDelta(previous: number, next: number, wrap = false) {
+export function knobTargetToDelta(previous: number, next: number, wrap = false, unitsPerTurn = 1) {
   let delta = next - previous;
   if (wrap) {
     if (delta > 0.5) delta -= 1;
     if (delta < -0.5) delta += 1;
   }
-  return delta * PATTERN_DETENTS_PER_TURN;
+  return delta * (PATTERN_DETENTS_PER_TURN / unitsPerTurn);
 }
 
 export function renderPatternStill(
@@ -178,6 +180,8 @@ export function renderPatternStill(
     knobStart = [0.5, 0.5, 0.5, 0.5],
     knobTargets = [0.5, 0.5, 0.5, 0.5],
     knobRanges,
+    knobWrap,
+    knobUnitsPerTurn,
   }: PatternStillOptions = {},
 ) {
   const runtime = new PatternRuntime(width, height);
@@ -188,7 +192,12 @@ export function renderPatternStill(
 
   const frameCount = Math.max(1, Math.floor(seconds * fps));
   const firstDeltas = knobTargets.map((target, index) =>
-    knobTargetToDelta(knobStart[index] ?? 0.5, target, false),
+    knobTargetToDelta(
+      knobStart[index] ?? 0.5,
+      target,
+      knobWrap?.[index] ?? false,
+      knobUnitsPerTurn?.[index] ?? 1,
+    ),
   );
   const knobNormalized = knobTargets.map((target, index) => {
     const range = knobRanges?.[index];
