@@ -8,7 +8,7 @@ type JournalIndexProps = {
   lang: JournalLang;
 };
 
-const featuredSlug = "v1-30-days";
+const featuredSlug = "me-and-patternflow";
 
 export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];
@@ -47,7 +47,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
                   src={hero.cover}
                   alt=""
                   priority
-                  sizes="(max-width: 720px) 260px, 180px"
+                  sizes="(max-width: 720px) calc(100vw - 48px), 380px"
                 />
               </div>
             )}

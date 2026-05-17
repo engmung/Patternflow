@@ -1593,7 +1593,7 @@
   }
   .journal-featured {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 180px;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 42%);
     gap: 32px;
     align-items: start;
     margin-bottom: 64px;
@@ -1637,7 +1637,7 @@
   }
   .journal-index-thumb {
     position: relative;
-    aspect-ratio: 3 / 4;
+    aspect-ratio: 1.303 / 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2351,7 +2351,7 @@
       gap: 24px;
     }
     .journal-index-thumb {
-      width: min(100%, 260px);
+      width: 100%;
     }
     .journal-article-header h1 {
       font-size: 42px;
