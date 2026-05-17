@@ -7,8 +7,8 @@ type LanguageSwitchProps = {
 };
 
 export default function LanguageSwitch({ lang, slug }: LanguageSwitchProps) {
-  const koHref = slug ? `/journal/${slug}` : "/journal";
-  const enHref = slug ? `/journal/${slug}/en` : "/journal/en";
+  const koHref = slug ? `/journal/${slug}?lang=ko` : "/journal?lang=ko";
+  const enHref = slug ? `/journal/${slug}/en?lang=en` : "/journal/en?lang=en";
 
   return (
     <nav className="journal-lang-switch" aria-label="Journal language">
