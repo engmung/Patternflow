@@ -1,0 +1,182 @@
+---
+title: "Me and Patternflow"
+date: "2026-05-17T14:30:00+09:00"
+excerpt: "How far have you come?"
+cover: "/journal/me-and-patternflow/instagram-grid.png"
+draft: false
+---
+
+## 1. Hello
+
+Hello, I'm Seunghun Lee. It's been almost two months since I made Patternflow.
+
+This one is long, like the first post. I tried writing it as if I were actually meeting you and talking. I wrote it while imagining that kind of scene, so it might be easier to think of this less as something to read and more as something to listen to.
+
+About twenty days ago, I decided to make Patternflow open source. I want to tell you as vividly as I can what has happened since then, and what kinds of thoughts I've been having.
+
+---
+
+## 2. Why I'm Writing This
+
+I don't know whether this will help anyone, but I'm moving my mouth and fingers hoping it helps somebody. I've always been curious about stories from people who made, grew, and sold something original and new. But there weren't many. They were too hard to find. Almost all I could find were polished, result-oriented posts by successful people, proudly explaining why they succeeded. Literally refined writing. Nice writing.
+
+Maybe that's why I wanted something else. Stories that felt more raw and alive. The kind of thing full of the countless worries and thoughts that disappear if you don't write them down right then. Patternflow was lucky enough to receive a lot of support, and it feels like I might be able to do this, so I'll try. That's why I'm writing. All the worry, thought, anxiety, and excitement is in here.
+
+---
+
+## 3. Who I Am
+
+Before that, I want to briefly say who I am.
+
+I'm Seunghun Lee, living in Korea, currently a third-year student in Visual Communication Design at Hongik University. I went to the Air Force Academy because it looked special and cool, then immediately ran away because it fit me so badly. Thanks to that, I wanted to become the exact opposite, an artist. When I left, I had promised my mom something, so I came back to a university I didn't even want to attend. So I barely have any thought of learning something from school. I'll learn alone anyway, do it alone, and I have been doing it. Classes that only explain in words how something should be done are unbearably boring to me. So regardless of schoolwork, I always work on my own projects, and if possible I connect them to school classes and coast through assignments that way.
+
+That doesn't mean every class was meaningless. There were definitely parts where I learned and grew. Actually, a lot. There is one class that became one of the most important turning points in my life. I took it in the second semester of 2023, Professor Kichul Park's class called "3D Prototyping." It was a class where we made moving lights and even participated in a fairly large design exhibition. It was a team project, with students from different years and majors, and somehow I became the leader. It was incredibly fun. We kept pulling out ideas, simulating them, making small tests, and if we needed materials, we would leave the classroom during class and wander around hardware stores. Once we went into a workshop deep in some alley where someone was sawing things, and that was a little scary. Anyway, that's how I learned the attitude of making quickly and experimenting quickly. I think it was possible because it wasn't theory. It was really done with hands and feet.
+
+<figure className="journal-md-figure">
+  <iframe width="100%" height="405" src="https://www.youtube.com/embed/M7j2G82x-5Y" title="3D Prototyping class video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />
+  <figcaption>The 3D Prototyping class where I first learned to make and test quickly, with my hands and feet.</figcaption>
+</figure>
+
+Originally I did a lot of 3D, especially Blender Geometry Nodes, to the point of exhaustion. Every day I would find tutorials on YouTube, follow along, try without watching, struggle, watch again, try again without watching... I repeated it until I could remember. Then, while organizing it again in order to teach it, I was able to learn a kind of systems thinking through procedural modeling. Then GPT appeared, and I started vibe coding. It was fun enough that I kept going, and I ended up going pretty deep. At first I wanted to make my own online exhibition space. Then I ended up building web interfaces for senior students' graduation exhibitions and larger exhibition experience zones. I also made AI services and went around Hongdae doing sales myself, saying I would sell them. I sold a few, but it was exhausting. Becoming an artist right away seemed difficult, so I wanted to make money through business first and do art without worrying about money. But after trying it, art and business both seemed equally hard.
+
+If both are hard anyway, then let's do what I really want to do. Let's do art. That's where I ended up. So this year's goal is to become an artist. I want to have a solo exhibition too. So I chose all my classes around becoming an artist: "Authorial Design Studio," "Modern and Contemporary Artist Studies," things like that. I think I chose strategically well. Actually, it's not like I had a plan. I failed course registration and picked whatever looked interesting among the leftover seats, but I like them. It's nice because I can use Patternflow to coast through assignments.
+
+---
+
+## 4. This Is Business
+
+Now the main subject. To be honest, there haven't been big changes on the hardware side. As a maker, I want to try adding an LED diffuser, adding a speaker, changing the size, using a better board or a mini computer instead of an ESP32. But because this is not just a simple making project, I had to think in business terms. Someone from Art Korea Lab VC said the same thing. If I define the customer properly and build evidence, capital can be brought in fairly easily, and then everything can be solved with that. Honestly, I still want to make everything myself instead of solving things with money, but what can I do. It's more miserable to be unable to make things because I don't even have material costs.
+
+I had already decided who would buy Patternflow when I chose to make it open source. I don't think Patternflow is a mainstream pick. It's very niche, and for makers it's the kind of product that feels desirable. In the waitlist survey, about half of the respondents said they wanted to make and share their own patterns instead of just using patterns made by others. In the additional comments, some people said it would be nice if MIDI or OSC could be connected. So I feel like the target has become more specific, expanding from makers to performance artists too.
+
+Anyway, I keep collecting surveys, gathering potential customers, and building evidence. The method is this. First, the center of everything is the website. I think I made it pretty killer. I created a path there for people to join the waitlist. Then I make content on Instagram and other communities and pull people into the website. Honestly, Instagram is most of it. Writing takes too much energy, and frankly, I'm not good at writing.
+
+The website was made with a lot of AI help. This time especially, I used "Claude Design" and "Codex" a lot. Codex seems really cost-effective. I built it, deployed it on Vercel, used the domain I had bought before on Cloudflare, and this time I also set up PostHog for analytics. Explaining just these things in detail could become a whole post, but that would make this too long, so I'll write it separately later if I have room. The survey was done with Tally.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/posthog-session-replay.png" alt="PostHog session replay screen" />
+  <figcaption>PostHog session replay. I could see exactly where people got lost on the website.</figcaption>
+</figure>
+
+PostHog is really something. It has a feature called session recording, and it records videos of how other people behave on the website. Watching it was a little scary, because it means everything I do on other websites could also be recorded. Leaving that aside, it helped a lot with analyzing and improving the user experience. I'm the person who made the site, so of course I know where every feature is, right? Things I thought would be obvious were not obvious to other people. Watching the recordings and trying to think as if I had become that person, I could see so many unfriendly parts. Simply adding numbers to show order, or removing some content on mobile, made things much better. There are still many parts to improve, but they're a bit minor, so I'm putting them off.
+
+From the very beginning until May 17, 14:30 Korea time, while writing this, I received 57 survey responses in total. Among them, 32 people responded after I added pricing questions. Except for two people, everyone said it was good. Fourteen people said they would still buy it even if it were more expensive. But 129 dollars is absolutely not expensive... The material cost alone is 50 dollars, so it does make me a little sad. Maybe I didn't persuade them well enough. And honestly, the original intention was to let people make it themselves, so maybe it doesn't matter.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/tally-dashboard.png" alt="Tally dashboard screenshot" />
+  <figcaption>The Tally waitlist dashboard.</figcaption>
+</figure>
+
+---
+
+## 5. What If I Lose Money?
+
+Let me talk a bit more about price. This is one of the parts that makes me anxious... 129 dollars is not expensive at all. No, it's extremely cheap. The parts alone are 50 dollars, and that doesn't include soldering time, effort, global shipping, or anything like that. If I add all of that together, almost nothing will be left for me. I have a lot of anxiety like, what if I actually lose money while selling this? If I had money overflowing, fine, but I'm in a situation where I eat cheap school cafeteria meals every day because I don't have money. I hope it's a useless worry. Well, if I actually sell at scale, material costs could go down, and making it as cheap as possible is my role anyway, so what can I do. I'll know once I try.
+
+You might wonder why I chose 129 dollars. There really isn't much of a reason. From the beginning, I didn't have the thought of making money by selling Patternflow devices or kits. Since it's open source, I wanted to gather as many people as possible, so I wanted to distribute it as cheaply as possible. Then someone asked "Price?" in an Instagram comment. For the dozens of earlier comments asking whether they could buy it, I could just say it was in preparation and that they could join the waitlist. But when someone asked that directly, I had to answer. So without thinking much, I said I was thinking around 100 dollars, and they said that was great, so I had to keep it somewhere around there. It looks a little foolish now.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/price-comment.png" alt="Instagram comment asking about price" />
+  <figcaption>A comment asking about price. Without thinking much, I answered somewhere around 100 dollars.</figcaption>
+</figure>
+
+I want to make money somewhere else. Raise awareness through Patternflow, then do larger B2B installations in corporate spaces, or hold a solo exhibition and sell my own limited-edition patterns. I want to earn money by selling fewer expensive things. Then it's win-win for everyone, isn't it? Makers can buy and make it cheaply, companies or people with money can get a cool artwork and some kind of pride, and I can earn money and do more experiments. In practice I'm looking very far into the future. TMI, but in the counseling I'm receiving now, they said something like this: you seem to be in the future, and you don't seem to exist here at all. I think that's right. I want to fix it, but it's hard.
+
+In a further future, I often imagine things like this. I want to make Patternflow into a stable ecosystem that can run without me, step out of it, and do other projects. Almost like art-tech? Just playing around with technology in fun ways. One thing I have my eye on is modifying an unused telescope at home, attaching AI to it, and taking extremely precise city photos automatically. It would be connected to a website too, so people could see them there. I heard that using a telescope automatically creates circular bokeh, and I really want to see night cityscapes with that effect.
+
+I also want to go to the MIT Media Lab. If I keep this pace well and study English, I think it's fully possible. I want to talk with people from many backgrounds there, get ideas, and do fun experiments. I want to try doing things with others, not alone. But I don't know if I'll be good at it. There have been many cases where relationships were good as human relationships, but as soon as we worked together, we grew apart. They say my personality is impatient, and when I feel that the things I've done are not being acknowledged, my desire for recognition comes out in unhealthy ways. That's true. And I'm also bad at asking for help. I should work hard to fix that. It would be nice to become a good person. I want to become someone people contact first and invite.
+
+Even further later, I want to become some kind of educator. I think I have more teaching experience than most friends my age. I was lucky enough to get paid to teach, too. My name in Chinese characters is Seung, to rise, and Hun, to teach. This is also TMI, but both my parents are elementary school teachers. So when I was young, I disliked my name a little. More than anything, educators didn't seem to make much money. There were many times I held back even when there was something I wanted to buy. It's not that I hated that... I did hate it at the time, of course, but now I think maybe thanks to that I can live without much luxury. Even if I make money, I feel like I'll just spend it on healthy food and exercise? Though maybe I'll change once I actually earn it.
+
+After trying it, teaching was really fun. I also learned a lot while doing it. In preparing to teach, I found the parts I only thought I understood, and knowledge imprinted that way doesn't seem to disappear. I also think teaching is one of the few things where you can feel, dramatically and right in front of you, that you are helping someone. I liked that. If I make a lot of money, instead of becoming a professor, I want to create a separate curriculum and environment suited to this era and try a special kind of education. A place where people freely make things, play around, break things, cause trouble, and join in when someone else's thing looks fun?
+
+---
+
+## 6. Making Patterns With AI
+
+Enough dream talk. Back to Patternflow. You remember that the most important thing now is promotion and marketing, right? The strategy is this. Actually, calling it a strategy feels a bit much. It just happened as I went, and I just keep doing it. The first was Reddit. Korea barely has a maker culture. So I wanted to go global no matter what, and naturally Reddit was the first thing that came to mind. Especially the Arduino subreddit. Luckily, the response was good, and I received a lot of encouragement, which let me build this far. I'm the type who doesn't just dance when praised, I fly, so I ran without resting. And I'll write on Reddit again soon. It feels like the root has already been imprinted there.
+
+Second, I'm using Instagram. Whenever I made something before, I always posted reels. I did the same this time, the response was good, so I keep posting. I have TikTok and YouTube Shorts accounts, but using them is annoying. So I'm just doing Instagram. X and Threads are the same, annoying. Above all, Patternflow needs to be shown through video, so Instagram was optimal. Add this blog on top, and it's three channels total. Honestly, the blog is less marketing and more self-satisfaction, more of a record.
+
+I'm posting on Instagram every day. Roughly one pattern a day? One of them, for reasons I don't know, got a really good response and reached 72,000 views. I think it'll keep going up, and I hope it hits 100,000. Most stop somewhere between 1,000 and 3,000.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/instagram-grid.png" alt="Patternflow Instagram grid" />
+  <figcaption>The Patternflow Instagram grid, filling up one daily pattern at a time.</figcaption>
+</figure>
+
+These reel patterns are not things I make with a lot of care. The intention is less to make artworks and more to communicate the message that "Patternflow can contain many different patterns." I mass-produce content with as many patterns as possible to show the possibilities. So each individual pattern doesn't have much meaning. Except the very first Origin pattern. That one had a different root from the beginning. Anyway, because of that, I don't know if this is right. I don't like pulling patterns out with AI, and I don't understand people's reactions either. Things I thought were pretty don't do much, and things that felt just okay receive huge attention.
+
+As I said, later I want to make and sell my own original patterns. Those patterns will probably contain meaning, and I'll study and experiment a lot to express that. So making patterns with AI, in the current way where I just enter a prompt once and pick the pretty ones among the countless outputs, doesn't sit well with me. Still, I think there's no choice. The purpose is different, and there is an order to things. My own ability is also far from enough. Especially making them in JS or Blender Geometry Nodes and porting them to C++... yeah. Even later, I'll probably do that with AI.
+
+I think other people will feel the same. If someone works hard to build Patternflow or pays money to buy it, but then has to study coding intensely just to make their own pattern? That's the worst. I have to make it as easy as possible. If they become interested after that, then they can study and do it directly. First it has to be easy and fun! That's really important. I felt that a lot when teaching too. Ah, what I want to give and what they want to receive are different. Most people hate difficult things. Maybe I'm the same.
+
+So I'm continuing to research prompts. There is a clear limit to doing everything with a single prompt, so I need to split the problem into multiple areas and study them. For example, divide patterns into form and color. Form can be divided again by technique, and color can be divided by combination method. Then find which effects and combinations go well together, bundle them, and let AI choose the most appropriate combination for a person's abstract expression. If I add automation and make an AI system that studies by itself, that becomes harness engineering. It sounds fun.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/pattern-lab.png" alt="Pattern Lab screen for mass-producing patterns" />
+  <figcaption>Pattern Lab, made to quickly preview and edit patterns.</figcaption>
+</figure>
+
+But it's very difficult. I've been randomly pulling out patterns for about five days, and I can see many limits. Above all, the hardware's computing performance is lacking. Since it has to calculate 128 * 64 pixels dozens of times per second, even a slightly heavy pattern causes lag immediately. I'm scared to use noise patterns. When I worked in Blender, I would stack dozens of noise patterns without thinking. To solve this, I tried remote rendering too. But it didn't work well. I wrote about that in the earlier blog post [〈Wins and losses — the next step〉](/journal/wins-and-losses-next-step/en).
+
+---
+
+## 8. Academic Things
+
+I said this year's goal is to become an artist, and that I'm taking classes around that, right? Let me talk a bit more about that. First, the class called "Authorial Design Studio" is about making one exhibition over the semester. You choose a senior artist, analyze them, and make an exhibition that reinterprets them through your own work. "Modern and Contemporary Artist Studies" is a class that teaches various ways to analyze artists. Right before midterms, something fun happened for the first time: the professor changed. The final assignment is to write one analysis report on a modern or contemporary artist.
+
+From the start, I decided to do both around Nam June Paik. I wrote this in the first blog post too, but on January 28 I first visited the Nam June Paik Art Center. By chance, I also saw the 20th anniversary event, and it was really fun. That's probably why I chose Paik. I haven't analyzed him very deeply. I watched many documentaries and read books, but beyond the sense that he was lucky and playful, I couldn't really grasp more. Analysis sounds like something grand and impressive, so I don't really know. For now, I'm just focusing on making Patternflow.
+
+<figure className="journal-md-figure">
+  <img src="/journal/me-and-patternflow/robot-k456.jpg" alt="Nam June Paik's Robot K-456" />
+  <figcaption>Robot K-456, which I saw at the Nam June Paik Art Center on January 28.</figcaption>
+</figure>
+
+Recently, after class, I asked the professor of Modern and Contemporary Artist Studies something. I said I had a personal project in progress, framed as a reinterpretation of Nam June Paik's work, and asked whether writing about that could also count as an analysis report. He said of course it could. Actually, it felt like he encouraged it even more. Unlike a theorist like himself, for someone like me who wants to be an artist, isn't the purpose ultimately to make my own thing? So that's good. I loved that. I also told the people taking the class with me. They are technically competitors, and I had no reason to tell them, but I'm confident I can get an A+ anyway. Honestly, a big part of it was that I wanted to hear them say thanks.
+
+Later, I want to submit Patternflow to some kind of academic conference too. I think its value as a product has been acknowledged enough. But ultimately I want to do art, so I also need recognition from that side. Something very special happened, so I do feel a bit recognized, but it's not certain yet, so I won't write it here. That doesn't mean I'll investigate and study existing papers or cases. I know it's necessary, but it's annoying. Anyway, the writing I'll submit will probably be something like this post, honestly spilling everything out. There aren't many things like this, so maybe they'll accept it? I hope so.
+
+I think it's my disposition. My counselor said it too, that I'm too honest. I don't really know about honest. Honesty feels like it has to be morally good. I don't think I'm a good person. So I prefer the word frank. Being frank can be good sometimes and bad sometimes. The reason is simple: lying feels uncomfortable. After doing it, I feel like a lump forms somewhere in my heart, wondering if it will be exposed someday. Anxiety appears. From there, countless extreme imaginations branch out, and I waste energy and time.
+
+I have no idea how I should write for a conference. I know that the lab of a professor I personally respect and am very close to has produced good results. The Kichul professor I mentioned earlier. It would be nice if I could comfortably ask him and get help. I think he would help. But for some reason, I don't want to. It feels like asking for help for no reason, and since I'll have to do it myself in the end anyway, I think, let's just do it alone. I'm also anxious that Patternflow might start feeling like it isn't mine. It's funny for a guy who says he'll make it open source to worry about that.
+
+---
+
+## 9. Funding
+
+I have to sell it. I want to sell it to as many people as possible. I want to scatter Patternflow all over the world. But I have no experience selling globally, and it looks extremely difficult. So I want to launch on Crowd Supply. As far as I know, they handle fulfillment management. But I've heard it's hard to get in. If Patternflow's value is properly communicated, I don't think it's impossible, but I'm not confident that I've expressed it well enough. If that fails, I'll try Kickstarter. For selling a global niche product, I can't think of another way.
+
+If I start preparing funding seriously, I probably won't design the funding page or packaging myself. I'm really bad at that. No, I just don't want to do it. It feels too dull? I like making things that move. So I want to ask a designer senior I'm close to. If possible, I'd like to do it as a team, like a design studio. But money has to come first. If it's only dreams, we'll obviously fight.
+
+I'm making a lot of effort to secure capital. I'm writing those annoying business plans whose purpose I don't even understand. Whenever I see an opportunity, I apply. But I don't know about final selection. On paper, I feel like I should obviously pass, but I'm not confident about the presentation. It's not that I'm afraid of presenting. I actually love it. It's thrilling. But only when it's something I really want to say. So I think it will be very different from a normal business plan PT. A little arrogant, provocative, and fun. If I don't get selected, I'll fume and say things like, of course the existing system is stale. Then I'll apply again.
+
+---
+
+## 10. Attitude in the AI Era
+
+People say this is the age of great acceleration, the AI era, all that. Everything is changing. But when I look at friends and seniors around me, there are many things that feel sad. How should I put it, everyone is only trying to get a job. From my point of view, they have enough ability and could do well on their own, so I don't know why they're so scared. Maybe I was like that too, and maybe I still am. But after trying to live as much as possible in the direction I want, this has become incredibly fun. Most worries were useless. It felt like I might die, but I didn't die.
+
+In the end, I think education is the problem. I hate the stale system called school. It makes everyone do the same things and compares them, and if someone is even a little different, it says they've fallen behind. The environment where you have to forcibly endure people you dislike is also the worst. To put it strongly, it's a place that makes obedient slaves who listen well and work hard at assigned tasks. Of course, it is necessary too. You need to develop social skills and have basic common sense.
+
+Maybe because of that, I feel like the better someone's academic background is, the lower their potential becomes. I feel like there are many people who are satisfied with name-brand schooling alone and live roughly. From their point of view, they probably think and express that they're working hard, but the standard has become absurdly low. They say they want to do something, then immediately line up ridiculous excuses and don't do it. Getting into a good school means you have the will and endurance to put in that much effort, and it feels so sad to see them waste that themselves.
+
+If I become a big person and end up teaching, I will teach attitude. I would tell people to forget everything they've learned so far, and if there is something they want to do, stop overthinking and try it immediately. Even if you think you'll regret it, isn't it better to try and regret it? Don't you have many things you want to do? If you want to do them all, you have to be diligent. No, just try it as soon as it comes to mind. That kind of attitude. I don't think knowledge or wisdom comes first. Attitude comes first. AI will handle knowledge now, and wisdom will arise from experience.
+
+There is an older friend I really respect. Hojun hyung has that attitude, and on top of that, he is a wonderful person with a human side too. He does his best at everything, walks his own path, and seems like someone the people around him always call. In a way, he is like Bill Campbell to me. At one point, because of my impatience and anxiety, the relationship almost broke, but he handled it skillfully, and now it has become a relationship I trust more. Anyway, this hyung always talks about one goal. He says, "I want to build a community where people with basic attitude gather, share thoughts and flesh, and do fun projects." I want to make something like that too. I hope I can be helpful when that gets made.
+
+---
+
+## 11. Keep Telling People
+
+For the time being, I'm going to focus on making content and promoting Patternflow. At the same time, I'll research an AI system that can easily generate decent patterns. It would obviously be nice if Instagram followers or GitHub stars go up, but there is something I want more than that. I want many people to actually make, contribute, and share. There are already a few, you know? Especially someone who made and sent me a pattern. I'm so grateful. Every time one of those people appears, I feel genuinely proud and happy. So I'll keep telling people.
+
+I'm getting various messages through Instagram. It's fascinating. There aren't many negative comments yet, but I should prepare my heart for them too. The fact that people who dislike it appear means it's going well, so I hope I can avoid getting hurt and instead think of it positively. And I should keep organizing the things that happen and the emotions I feel into writing like this. Anyway, I'm going to keep doing this.
+
+---
+
+## 12. Closing
+
+I want to close with a slightly different story. Yesterday, after a long time, I opened Netflix and watched a drama called "Everyone is Fighting Against Their Own Worthlessness." I had no expectations and meant to watch it briefly just to kill time, but I kept crying. I watched for seven hours straight and kept crying, so my eyes hurt a lot now. It's far from finished, and because I didn't want to stop at a frustrating point, I stopped at a happy scene. When it's complete, I think I'll continue watching and watch it repeatedly. I really recommend everyone watch it.
+
+This post is probably very scattered. I spent about five hours over yesterday and today writing and checking it, but I'm not someone who speaks or writes particularly well. And doing more is hard. For those reading in English, this was translated by AI, so it might feel a little more awkward. Still, I hope the sincerity comes through. If anyone has read this from beginning to end, I want to applaud you. And if you want to make Patternflow, or if something comes up that you want to share, please contact me without hesitation. It doesn't have to be Patternflow. Making something of your own is good too. If you simply say that you got courage from this and started, I could live happily for a week on that feeling. Thank you for reading this long post.
