@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const LANGUAGE_COOKIE = "pf-journal-lang";
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+const JOURNAL_ASSET_EXTENSION_PATTERN = /\.[a-z0-9]+$/i;
 
 function preferredJournalLang(request: NextRequest) {
   const cookieLang = request.cookies.get(LANGUAGE_COOKIE)?.value;
@@ -20,7 +21,13 @@ function preferredJournalLang(request: NextRequest) {
     .filter(({ tag }) => tag.length > 0)
     .sort((a, b) => b.quality - a.quality);
 
-  return languages.some(({ tag }) => tag === "ko" || tag.startsWith("ko-")) ? "ko" : "en";
+  const primaryLanguage = languages[0]?.tag;
+
+  if (primaryLanguage === "en" || primaryLanguage?.startsWith("en-")) {
+    return "en";
+  }
+
+  return "ko";
 }
 
 function cleanLangQuery(request: NextRequest, responsePathname: string, lang: "ko" | "en") {
@@ -78,6 +85,10 @@ export function proxy(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const pathname = normalizeJournalPath(request.nextUrl.pathname);
   const explicitLang = searchParams.get("lang");
+
+  if (JOURNAL_ASSET_EXTENSION_PATTERN.test(pathname)) {
+    return NextResponse.next();
+  }
 
   if (explicitLang === "ko") {
     return cleanLangQuery(request, koPathFromEnglish(pathname), "ko");
