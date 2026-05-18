@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const contactEmail = "contact@patternflow.work";
+const instagramUrl = "https://www.instagram.com/patternflow.work/";
 
 const partnershipRows = [
   {
@@ -119,9 +120,14 @@ export default function ContactPage() {
             Patternflow is based in Hongdae, Seoul. Korean and English both
             welcome.
           </p>
-          <a className="business-email" href={`mailto:${contactEmail}`}>
-            {contactEmail}
-          </a>
+          <div className="business-contact-links">
+            <a className="business-email" href={`mailto:${contactEmail}`}>
+              {contactEmail}
+            </a>
+            <a className="business-email" href={instagramUrl} target="_blank" rel="noopener noreferrer">
+              Instagram
+            </a>
+          </div>
           <div className="pf-mono">Usually answered within a few days</div>
         </section>
       </section>

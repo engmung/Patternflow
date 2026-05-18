@@ -9,6 +9,9 @@ export default function Footer() {
           <em className="wordmark">Patternflow</em> is a trademark of SeungHun Lee.
         </div>
         <div className="mono">
+          <a href="https://www.instagram.com/patternflow.work/" target="_blank" rel="noopener noreferrer">
+            Instagram
+          </a>
         </div>
       </div>
       <div className="series">

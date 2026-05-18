@@ -185,6 +185,7 @@ const costClassByLevel = {
 const EDITOR_LINE_HEIGHT = 20;
 const EDITOR_VERTICAL_CHROME = 24;
 const EDITOR_MIN_HEIGHT = 400;
+const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 
 export default function PatternPanel({ content }: PatternPanelProps) {
   const [mode, setMode] = useState<PatternMode>('flash');
@@ -421,7 +422,11 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     <li>Upload the sketch to your ESP32-S3.</li>
                   </ol>
                   <p>
-                    Want to share a pattern? Send it through Discord, GitHub, or Instagram DM.
+                    Want to share a pattern? Send it through Discord, GitHub, or{' '}
+                    <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+                      Instagram DM
+                    </a>
+                    .
                   </p>
                   <div className={styles.applyLinks}>
                     <a href="https://github.com/engmung/PatternFlow/tree/main/firmware" className={styles.secondaryLink}>
