@@ -4,15 +4,16 @@
 
 ## Print plates
 
-The case is organized into three print plates. Print each plate once.
+The case is organized into three print plate groups. Print the main body, dividers, and one knob plate that matches your encoder shaft length.
 
 | File | Contents | Color | Print time |
 |---|---|---|---|
 | `print-ready/01_plate_main.stl` | Body (upper + lower) and back panel (upper + lower) | White PLA | ~7h |
 | `print-ready/02_plate_dividers.stl` | Center divider, battery slider, board slider | White PLA | ~2h |
-| `print-ready/03_plate_knobs.stl` | 4× knobs | Black PLA | ~30min |
+| `print-ready/03_plate_knobs_15mm.stl` | 4× knobs for 15mm encoder shafts | Black PLA | ~30min |
+| `print-ready/03_plate_knobs.stl` | 4× knobs for 20mm encoder shafts | Black PLA | ~30min |
 
-Total: **~10 hours** on a Bambu P1S with default settings.
+Total with one knob plate: **~10 hours** on a Bambu P1S with default settings. The 15mm knob plate is recommended for new builds.
 
 ## Print settings
 

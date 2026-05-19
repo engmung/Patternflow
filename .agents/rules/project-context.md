@@ -31,10 +31,11 @@ The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 
 - **Power Structure:** +5V from a user-supplied power bank enters at `J2`, and is internally routed on the PCB to `J3` which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the power delivery.
 
 ### Hardware (Case)
-The enclosure is modeled in Blender and sliced into three main 3D-printing plates located in `hardware/case/print-ready/`:
+The enclosure is modeled in Blender and sliced into print-ready plates located in `hardware/case/print-ready/`:
 1. `01_plate_main.stl`: White PLA body and back panel.
 2. `02_plate_dividers.stl`: White PLA internal dividers.
-3. `03_plate_knobs.stl`: Black PLA knobs.
+3. `03_plate_knobs_15mm.stl`: Black PLA knobs for recommended 15mm encoder shafts.
+4. `03_plate_knobs.stl`: Black PLA knobs for older/alternate 20mm encoder shafts.
 
 ### Web
 A Next.js application residing in `web/`. It serves as the landing page and documentation hub. A future roadmap item includes a Web Serial-based one-click firmware flasher.
@@ -52,7 +53,7 @@ For full details, reference `docs/BUILD.md` §8. Summary:
 2. **Encoder direction reversed:** PCB footprint orientation issue (compensated in firmware).
 3. **SMD silkscreen ambiguity:** Resistors and capacitors (0805) are not distinctly marked on the v1.0 PCB.
 4. **LED matrix alignment bumps:** Must be physically trimmed off the matrix during assembly.
-5. **Encoder shaft length:** Ships with 20mm, which is slightly longer than optimal.
+5. **Encoder shaft length:** New builds should use 15mm EC11 shafts. 20mm shafts still work with the matching legacy knob STL.
 
 ## Conventions
 

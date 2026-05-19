@@ -6,7 +6,7 @@ This guide walks you through building a Patternflow v2.0.0 from scratch. It assu
 
 **Skill level:** Intermediate. If you've assembled a mechanical keyboard or built an Arduino project with SMD components, you're ready.
 
-> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, and firmware ships with a built-in custom-pattern template usable with any AI coding assistant. The Blender source, STL files, and most of the case geometry are unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
+> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case source/print-ready files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
 ![All parts laid out before assembly](build-guide/images/all_parts.jpg)
 
@@ -35,7 +35,7 @@ This guide walks you through building a Patternflow v2.0.0 from scratch. It assu
 | --- | --- | --- | --- | --- |
 | - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
-| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 20mm shaft, with push-switch | 4 |  |
+| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm shaft, with push-switch | 4 | Recommended shaft length. 20mm shafts also work with the matching knob STL. |
 | - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
 | J1 | Box Header (2x8, 2.54mm) | Horizontal, for HUB75 ribbon | 1 | LED matrix data |
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
@@ -56,7 +56,7 @@ These are the exact links I used. **Purchasing through these affiliate links dir
 
 AliExpress shipping to most regions takes ~7-14 days.
 
-- **Rotary Encoders (5-pack):** [EC11 20mm 5pcs — ~3,250 KRW](https://s.click.aliexpress.com/e/_c3dYYGob)
+- **Rotary Encoders (5-pack):** [EC11 15mm recommended / same style as 20mm listing photo — ~3,250 KRW](https://s.click.aliexpress.com/e/_c3dYYGob)
 - **ESP32-S3-N16R8:** [~10,300 KRW](https://s.click.aliexpress.com/e/_c3qxYiaP)
 - **LED Matrix:** [Full color 320×160mm P2.5 HUB75 — ~23,250 KRW](https://s.click.aliexpress.com/e/_c3SVdcQr)
 
@@ -89,9 +89,10 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 | --- | --- | --- | --- |
 | `01_plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
 | `02_plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
-| `03_plate_knobs.stl` | All 4 knobs (one file) | Black | Standard |
+| `03_plate_knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
+| `03_plate_knobs.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
 
-**Print all three files. Each is one print job.** Knobs are bundled in a single STL — printing `03_plate_knobs.stl` once gives you all four.
+**Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `03_plate_knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `03_plate_knobs.stl` instead. Each file is one print job; each knob STL contains all four knobs.
 
 ### Print Settings
 
@@ -185,6 +186,8 @@ Solder, in order (small/short to tall):
 Wrong side (front) vs. correct side (back):
 
 <img src="build-guide/images/encoder_front_wrong.jpg" width="45%"> <img src="build-guide/images/encoder_back_correct.jpg" width="45%">
+
+The photos in this guide show the earlier 20mm-shaft encoders. The 15mm EC11 encoders install the same way; only the matching knob STL changes.
 
 Press all parts flush against the PCB and keep them perpendicular before soldering.
 
@@ -359,7 +362,7 @@ Slide the PCB compartment cover panel into its slot to close off the electronics
 
 ### 7.5 Attach the knobs
 
-Press-fit the four black knobs onto the encoder shafts.
+Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `03_plate_knobs_15mm.stl` for the recommended 15mm encoders, or `03_plate_knobs.stl` for 20mm encoders.
 
 <img src="build-guide/images/knobs.jpg" width="33%">
 
@@ -471,7 +474,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 - **C11 (1000uF electrolytic) retained.** Issue #16 discussion noted that 1000uF is roughly 100x over the USB inrush spec for desktop-USB-powered devices -- and that is correct. Patternflow is powered by a power bank, not a desktop USB port, so the inrush argument does not apply. Without C11 the panel can flicker visibly during the boot transient, so it stays. If you are designing a derivative that connects to a host PC, drop C11 to <=50uF.
 
-- **Encoder shaft length variants** (was Issue #5). The BOM uses 20mm shaft encoders, and the print-ready knob STL is sized for 20mm. If you have 15mm shafts on hand, a 15mm knob model is included in the Blender source at hardware/case/source/ -- open it, export the 15mm knob, and print that instead.
+- **Encoder shaft length variants** (was Issue #5). The BOM now recommends 15mm shaft encoders because they sit better in the current case. Both 15mm and 20mm knob STLs are included in `hardware/case/print-ready/`; print the one that matches the encoders you bought. The guide photos still show 20mm shafts, but the 15mm parts assemble the same way.
 
 ---
 
