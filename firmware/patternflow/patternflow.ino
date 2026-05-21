@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Preferences.h>
 #include "config.h"
 #include "core_display.h"
 #include "core_encoders.h"
@@ -25,8 +26,19 @@ AppMode currentMode = MODE_RUNNING;
 unsigned long lastMs = 0;
 float contentNoticeTimer = 0.0f;
 
+// Global brightness: K1 longpress enters brightness mode, K1 rotation
+// adjusts. Exits on second longpress or 5s idle. Value persists in NVS.
+Preferences prefs;
+uint8_t currentBrightness = DEFAULT_BRIGHTNESS;
+bool brightnessAdjusting = false;
+uint32_t brightnessIdleAtMs = 0;
+bool brightnessDirty = false;
+float brightnessNoticeTimer = 0.0f;
+
 const uint32_t MODE_HOLD_MS = 1000;
+const uint32_t BRIGHTNESS_IDLE_MS = 5000;
 const float CONTENT_NOTICE_SECONDS = 1.0f;
+const float BRIGHTNESS_NOTICE_SECONDS = 1.2f;
 
 // Front-panel logical order after left-right mirroring by original knob pairs:
 // K1 <-> K2 and K3 <-> K4.
@@ -48,6 +60,11 @@ void setup() {
 
   initEncoders();
   initDisplay();
+
+  prefs.begin("patternflow", false);
+  currentBrightness = prefs.getUChar("brightness", DEFAULT_BRIGHTNESS);
+  dma_display->setBrightness8(currentBrightness);
+
   PatternflowOsc::begin();
 
 #if PF_OSC_ENABLED
@@ -110,6 +127,14 @@ void drawContentNotice() {
   drawCenteredText(currentContentName(), 36, dma_display->color565(120, 120, 120), 1);
 }
 
+void drawBrightnessNotice() {
+  dma_display->fillRect(0, dma_display->height() - 14, dma_display->width(), 14, 0);
+  char buf[24];
+  int pct = (int)((currentBrightness * 100 + 127) / 255);
+  snprintf(buf, sizeof(buf), "BRIGHTNESS  %d%%", pct);
+  drawCenteredText(buf, dma_display->height() - 10, dma_display->color565(255, 255, 255), 1);
+}
+
 void drawSelectingMode() {
   dma_display->fillScreen(0);
 
@@ -140,6 +165,7 @@ void drawSelectingMode() {
 
 void readInputFrame(InputFrame& input) {
   static long prevKnobs[4] = {0, 0, 0, 0};
+  static uint32_t lastDeltaMs[4] = {0, 0, 0, 0};
 
   input.now = (uint32_t)millis();
 
@@ -147,8 +173,22 @@ void readInputFrame(InputFrame& input) {
     input.knobs[i] = getClicks(LOGICAL_TO_PHYSICAL_KNOB[i]);
   }
 
+  // Encoder acceleration: short interval since last detent → multiply delta.
+  // Lets one encoder sweep a large range quickly without losing fine control
+  // when turned slowly. Pattern step constants stay the same.
   for (int i = 0; i < 4; i++) {
-    input.knobDeltas[i] = (int)(input.knobs[i] - prevKnobs[i]);
+    int raw = (int)(input.knobs[i] - prevKnobs[i]);
+    if (raw != 0) {
+      uint32_t gap = input.now - lastDeltaMs[i];
+      int mult = 1;
+      if (gap < 40)       mult = 5;
+      else if (gap < 90)  mult = 3;
+      else if (gap < 180) mult = 2;
+      input.knobDeltas[i] = raw * mult;
+      lastDeltaMs[i] = input.now;
+    } else {
+      input.knobDeltas[i] = 0;
+    }
     prevKnobs[i] = input.knobs[i];
   }
 
@@ -166,6 +206,45 @@ void loop() {
 
   InputFrame input;
   readInputFrame(input);
+
+  if (logicalButton(0)->longPressed(MODE_HOLD_MS)) {
+    brightnessAdjusting = !brightnessAdjusting;
+    brightnessIdleAtMs = now;
+    brightnessNoticeTimer = BRIGHTNESS_NOTICE_SECONDS;
+    Serial.printf(">>> BRIGHTNESS MODE: %s (%u%%)\n",
+                  brightnessAdjusting ? "ON" : "OFF",
+                  (currentBrightness * 100 + 127) / 255);
+  }
+
+  if (brightnessAdjusting) {
+    int d = input.knobDeltas[0];
+    if (d != 0) {
+      int b = constrain((int)currentBrightness + d * 5, 5, 255);
+      if (b != (int)currentBrightness) {
+        currentBrightness = (uint8_t)b;
+        dma_display->setBrightness8(currentBrightness);
+        brightnessIdleAtMs = now;
+        brightnessNoticeTimer = BRIGHTNESS_NOTICE_SECONDS;
+        brightnessDirty = true;
+      }
+    }
+    // Consume K1 input so the active pattern doesn't also react to it.
+    input.knobDeltas[0] = 0;
+    input.btnPressed[0] = false;
+
+    if ((now - brightnessIdleAtMs) > BRIGHTNESS_IDLE_MS) {
+      brightnessAdjusting = false;
+      Serial.println(">>> BRIGHTNESS MODE: OFF (idle)");
+    }
+  }
+
+  // Persist brightness once the adjustment session ends — avoids hammering
+  // NVS on every knob detent.
+  if (brightnessDirty && !brightnessAdjusting) {
+    prefs.putUChar("brightness", currentBrightness);
+    brightnessDirty = false;
+    Serial.printf("[NVS] brightness saved: %u\n", currentBrightness);
+  }
 
   if (logicalButton(2)->longPressed(MODE_HOLD_MS)) {
     toggleContentMode();
@@ -208,6 +287,11 @@ void loop() {
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();
       contentNoticeTimer -= dt;
+    }
+
+    if (brightnessNoticeTimer > 0.0f) {
+      drawBrightnessNotice();
+      brightnessNoticeTimer -= dt;
     }
   } else {
     if (input.knobDeltas[3] != 0) {
