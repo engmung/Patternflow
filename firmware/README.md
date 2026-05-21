@@ -137,11 +137,19 @@ For the original defaults:
 ### Encoder acceleration
 Knob deltas are scaled by how quickly the encoder is turning. Fast spins multiply each detent ×2 to ×5 so one encoder can sweep a wide range quickly; slow turns stay at ×1 for fine control. Pattern step constants do not need to change — the acceleration is applied once in `readInputFrame()` before patterns receive their deltas.
 
+### Short press (per-pattern, opt-in)
+There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. Patterns that do not handle `btnPressed` (currently `pattern_dev1/2/3.h` and `pattern_video.h`) simply ignore short presses.
+
+When you generate a new pattern from the Live Editor, the conversion prompt does not force a particular short-press convention — if you want one, either ask for it in the prompt ("K1 short press resets hue") or add the line by hand in `update()`.
+
 ## Experimental OSC Output
 
 Patternflow can send lightweight OSC control messages over Wi-Fi for performance setups such as Ableton Live Suite with Max for Live. This is meant for knobs, buttons, pattern status, and heartbeat messages, not for streaming rendered pixels.
 
-OSC is disabled by default. To test it, copy `patternflow/src/osc_secrets.example.h` to `patternflow/src/osc_secrets.h` and edit the local copy:
+OSC has two switches: **compile-time** (whether OSC code is linked into the firmware at all) and **runtime** (whether the linked-in code is currently sending/receiving). The K2 longpress info screen only controls the runtime switch — if the compile-time switch is off, the runtime toggle is inert.
+
+### Compile-time: enable the build flag and provide Wi-Fi credentials
+Copy `patternflow/src/osc_secrets.example.h` to `patternflow/src/osc_secrets.h` and edit the local copy:
 
 ```cpp
 #define PF_OSC_ENABLED 1
@@ -152,6 +160,11 @@ OSC is disabled by default. To test it, copy `patternflow/src/osc_secrets.exampl
 ```
 
 `src/osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
+
+Without an `src/osc_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
+
+### Runtime: toggle from the device (no rebuild)
+Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
 
 Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously in every content mode (Pattern or Video). It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
 
