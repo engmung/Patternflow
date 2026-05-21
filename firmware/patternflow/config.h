@@ -54,6 +54,21 @@
 #define INVERT_ENCODER 1
 #define DEFAULT_BRIGHTNESS 204  // 80% (0-255)
 
+// --- Experimental OSC over Wi-Fi ---
+// Enable this only for local performance/control experiments. Keep credentials
+// out of commits if you change these values for a real network.
+#define PF_OSC_ENABLED 0
+#define PF_WIFI_SSID "YOUR_WIFI_SSID"
+#define PF_WIFI_PASS "YOUR_WIFI_PASSWORD"
+#define PF_OSC_REMOTE_HOST "192.168.0.10"
+#define PF_OSC_REMOTE_PORT 9000
+#define PF_OSC_LOCAL_PORT 9001
+#define PF_WIFI_CONNECT_TIMEOUT_MS 8000
+
+#if __has_include("osc_secrets.h")
+#include "osc_secrets.h"
+#endif
+
 // --- Pattern Parameters Limits ---
 #define MAX_HUE 360
 #define MAX_SPEED 5.0f
