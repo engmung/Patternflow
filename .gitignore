@@ -20,6 +20,7 @@ out/
 *.hex
 *.elf
 *.bin
+firmware/patternflow/osc_secrets.h
 
 # KiCad 자동 생성/백업
 *.kicad_prl

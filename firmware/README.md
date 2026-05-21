@@ -22,6 +22,8 @@ Install these via the Arduino Library Manager:
 - `ESP32-HUB75-MatrixPanel-DMA` (for driving the matrix)
 - `Adafruit GFX Library` (dependency)
 
+The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `WiFiUdp` libraries, so it does not require an extra OSC library.
+
 ## Project layout
 
 - `patternflow/patternflow.ino` - Main sketch for Patternflow hardware
@@ -61,6 +63,38 @@ For the original defaults:
 - **Encoder 2:** Speed
 - **Encoder 3:** Mode/Preset
 - **Encoder 4:** Frequency
+
+## Experimental OSC Output
+
+Patternflow can send lightweight OSC control messages over Wi-Fi for performance setups such as Ableton Live Suite with Max for Live. This is meant for knobs, buttons, pattern status, and heartbeat messages, not for streaming rendered pixels.
+
+OSC is disabled by default. To test it, copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and edit the local copy:
+
+```cpp
+#define PF_OSC_ENABLED 1
+#define PF_WIFI_SSID "your-wifi-name"
+#define PF_WIFI_PASS "your-wifi-password"
+#define PF_OSC_REMOTE_HOST "192.168.0.10"  // laptop IP
+#define PF_OSC_REMOTE_PORT 9000
+```
+
+`osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
+
+Then put the laptop and Patternflow on the same Wi-Fi network. Long-press encoder 3 to cycle content modes until `OSC EXP` appears; OSC messages are sent while that experimental mode is active. In Max for Live, receive UDP on the same port and route these OSC addresses:
+
+```text
+/patternflow/knob/1/delta
+/patternflow/knob/1/clicks
+/patternflow/button/1/press
+/patternflow/button/1/held
+/patternflow/pattern/index
+/patternflow/pattern/name
+/patternflow/content/mode
+/patternflow/app/mode
+/patternflow/heartbeat
+```
+
+In a Max patch, the receiving side is typically `udpreceive 9000` followed by `oscparse`, then route the address parts and map values to Live parameters with Max for Live devices such as `live.remote~`, `live.object`, or your own mapping patch.
 
 ## OTA Updates (For Developers)
 

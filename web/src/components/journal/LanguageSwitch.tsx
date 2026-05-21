@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { JournalLang } from "@/lib/journal";
 
 type LanguageSwitchProps = {
@@ -14,20 +13,20 @@ export default function LanguageSwitch({ lang, slug }: LanguageSwitchProps) {
 
   return (
     <nav className="journal-lang-switch" aria-label="Journal language">
-      <Link
+      <a
         className={lang === "ko" ? "active" : ""}
         href={koHref}
         aria-current={lang === "ko" ? "page" : undefined}
       >
         ko
-      </Link>
-      <Link
+      </a>
+      <a
         className={lang === "en" ? "active" : ""}
         href={enHref}
         aria-current={lang === "en" ? "page" : undefined}
       >
         en
-      </Link>
+      </a>
     </nav>
   );
 }
