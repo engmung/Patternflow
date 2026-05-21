@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core_encoders.h"
+#include "src/core_encoders.h"
 #include "pattern_origin.h"
 #include "pattern_wave_saw.h"
 #include "pattern_dev1.h"

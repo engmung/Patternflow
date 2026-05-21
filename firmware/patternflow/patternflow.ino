@@ -1,9 +1,9 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "config.h"
-#include "core_display.h"
-#include "core_encoders.h"
-#include "core_osc.h"
+#include "src/core_display.h"
+#include "src/core_encoders.h"
+#include "src/core_osc.h"
 #include "pattern_registry.h"
 #include "pattern_video.h"
 

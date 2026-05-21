@@ -73,13 +73,13 @@ Required header structure:
   \`#include <math.h>\`
   \`#include <stdint.h>\`
   \`#include "config.h"\`
-  \`#include "core_display.h"\`
-  \`#include "core_encoders.h"\`
-  \`#include "core_canvas.h"\`  // required: draw via PFCanvas, not dma_display
+  \`#include "src/core_display.h"\`
+  \`#include "src/core_encoders.h"\`
+  \`#include "src/core_canvas.h"\`  // required: draw via PFCanvas, not dma_display
 - Optionally include any of these shared helpers when you actually use them. Do not include what you do not use.
-  \`#include "core_math.h"\`   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-  \`#include "core_color.h"\`  // PFColor:: hsvToRgb, ColorStop, sampleRamp
-  \`#include "core_noise.h"\`  // PFNoise:: perlin2D, fractal2D
+  \`#include "src/core_math.h"\`   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
+  \`#include "src/core_color.h"\`  // PFColor:: hsvToRgb, ColorStop, sampleRamp
+  \`#include "src/core_noise.h"\`  // PFNoise:: perlin2D, fractal2D
 - Do not use \`<algorithm>\`, \`<cmath>\`, \`<cstdint>\`, \`std::clamp\`, \`std::round\`, \`std::vector\`, \`std::string\`, dynamic allocation, exceptions, file IO, external libraries, or placeholder declarations like \`extern Display*\` or mock \`InputFrame\`.
 - Use Arduino/math functions: \`constrain()\`, \`roundf()\`, \`floorf()\`, \`fmodf()\`, \`powf()\`. Prefer \`PFMath::fastSin()\` / \`PFMath::fastCos()\` over \`sinf()\` / \`cosf()\` inside the pixel loop.
 - Use \`PANEL_RES_W\` and \`PANEL_RES_H\`; never hardcode 128 or 64.

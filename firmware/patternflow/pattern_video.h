@@ -16,8 +16,8 @@
 
 #include <Arduino.h>
 #include <FFat.h>
-#include "core_display.h"
-#include "core_encoders.h"
+#include "src/core_display.h"
+#include "src/core_encoders.h"
 
 namespace VideoPattern {
 

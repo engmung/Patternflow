@@ -566,13 +566,13 @@ Firmware interface:
 - Include these headers (the first five are always required):
   #include <Arduino.h>
   #include "config.h"
-  #include "core_display.h"
-  #include "core_encoders.h"
-  #include "core_canvas.h"
+  #include "src/core_display.h"
+  #include "src/core_encoders.h"
+  #include "src/core_canvas.h"
 - Optionally include any of these shared helpers when you actually use them. Do not include what you do not use.
-  #include "core_math.h"    // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-  #include "core_color.h"   // PFColor:: hsvToRgb, ColorStop, sampleRamp
-  #include "core_noise.h"   // PFNoise:: perlin2D, fractal2D
+  #include "src/core_math.h"    // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
+  #include "src/core_color.h"   // PFColor:: hsvToRgb, ColorStop, sampleRamp
+  #include "src/core_noise.h"   // PFNoise:: perlin2D, fractal2D
 - Define one unique namespace.
 - Inside the namespace define:
   const char* NAME = "Short Name";

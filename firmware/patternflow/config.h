@@ -65,8 +65,8 @@
 #define PF_OSC_LOCAL_PORT 9001
 #define PF_WIFI_CONNECT_TIMEOUT_MS 8000
 
-#if __has_include("osc_secrets.h")
-#include "osc_secrets.h"
+#if __has_include("src/osc_secrets.h")
+#include "src/osc_secrets.h"
 #endif
 
 // --- Pattern Parameters Limits ---

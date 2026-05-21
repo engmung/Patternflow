@@ -81,22 +81,24 @@ Drop the generated header file into the firmware folder:
 firmware/patternflow/
 ├── patternflow.ino
 ├── config.h
-├── core_display.h
-├── core_encoders.h
-├── core_canvas.h              ← every new pattern draws through this
-├── core_math.h                ← shared sin LUT + fast trig
-├── core_color.h               ← shared HSV/ramp helpers
-├── core_noise.h               ← shared Perlin/fractal noise
 ├── pattern_registry.h         ← edit this
 ├── pattern_origin.h
 ├── pattern_wave_saw.h
 ├── pattern_dev1.h
 ├── pattern_dev2.h
 ├── pattern_dev3.h
-└── pattern_yourname.h         ← drop your file here
+├── pattern_yourname.h         ← drop your file here
+└── src/                       ← Arduino IDE doesn't show these as tabs
+    ├── core_display.h
+    ├── core_encoders.h
+    ├── core_canvas.h          ← every new pattern draws through this
+    ├── core_math.h            ← shared sin LUT + fast trig
+    ├── core_color.h           ← shared HSV/ramp helpers
+    ├── core_noise.h           ← shared Perlin/fractal noise
+    └── core_osc.h             ← OSC sidechannel
 ```
 
-The `core_*.h` files are the foundation: generated patterns include the ones they need and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
+The `src/` folder holds the foundation: generated patterns include the ones they need (`#include "src/core_canvas.h"`, etc.) and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
 
 Open `pattern_registry.h` and add two things:
 

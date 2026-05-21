@@ -30,27 +30,27 @@ The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `W
 firmware/patternflow/
 ├── patternflow.ino          # Main sketch: input routing, mode dispatch
 ├── config.h                 # Hardware configuration (pin mappings, limits)
-│
-├── core_display.h           # HUB75 driver init
-├── core_encoders.h          # Encoder ISRs + InputFrame contract
-├── core_osc.h               # OSC sidechannel (UDP send when PF_OSC_ENABLED)
-├── osc_secrets.example.h    # Template for local Wi-Fi credentials
-│
-├── core_canvas.h            # 128×64 RGB888 framebuffer, single LED output point
-├── core_math.h              # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
-├── core_color.h             # PFColor:: hsvToRgb, ColorStop, sampleRamp
-├── core_noise.h             # PFNoise:: perlin2D, fractal2D
-│
 ├── pattern_registry.h       # Function-pointer table — register patterns here
 ├── pattern_origin.h         # Built-in pattern: radial sine grids
 ├── pattern_wave_saw.h       # Built-in pattern: directional saw bands
+├── pattern_video.h          # Built-in: PFV1 video playback from FATFS
 ├── pattern_dev1.h           # Development pattern slot
 ├── pattern_dev2.h           # Development pattern slot
 ├── pattern_dev3.h           # Development pattern slot
-└── pattern_video.h          # Built-in: PFV1 video playback from FATFS
+└── src/                     # Foundation — not shown in the Arduino IDE tab bar
+    ├── core_display.h       # HUB75 driver init
+    ├── core_encoders.h      # Encoder ISRs + InputFrame contract
+    ├── core_canvas.h        # 128×64 RGB888 framebuffer + gamma, single LED output point
+    ├── core_math.h          # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
+    ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
+    ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
+    ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
+    └── osc_secrets.example.h # Template for local Wi-Fi credentials
 ```
 
-The `core_*.h` files are the foundation that patterns build on. They are stateless utilities — no global state to coordinate, safe to include from any pattern.
+The `src/` subfolder holds the foundation that patterns build on. Arduino IDE compiles everything underneath the sketch folder, but `.h` files inside subfolders **do not appear as tabs** — so the IDE stays focused on the files you actually edit (the sketch, config, registry, and patterns) while the foundation stays out of the way. Patterns and the main sketch reference these helpers via `#include "src/core_*.h"`.
+
+The foundation files are stateless utilities — no global state to coordinate, safe to include from any pattern.
 
 ## Foundation modules
 
@@ -100,7 +100,6 @@ The 512-byte permutation table is shared. Do not duplicate it.
 Current registered patterns:
 - `Origin`
 - `Wave Saw`
-- `Vector Fluid`
 
 To add a new pattern, start with [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md), then create a `pattern_new_name.h` with the standard namespace interface:
 - `NAME`
@@ -141,7 +140,7 @@ Knob deltas are scaled by how quickly the encoder is turning. Fast spins multipl
 
 Patternflow can send lightweight OSC control messages over Wi-Fi for performance setups such as Ableton Live Suite with Max for Live. This is meant for knobs, buttons, pattern status, and heartbeat messages, not for streaming rendered pixels.
 
-OSC is disabled by default. To test it, copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and edit the local copy:
+OSC is disabled by default. To test it, copy `patternflow/src/osc_secrets.example.h` to `patternflow/src/osc_secrets.h` and edit the local copy:
 
 ```cpp
 #define PF_OSC_ENABLED 1
@@ -151,7 +150,7 @@ OSC is disabled by default. To test it, copy `patternflow/osc_secrets.example.h`
 #define PF_OSC_REMOTE_PORT 9000
 ```
 
-`osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
+`src/osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
 
 Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously in every content mode (Pattern or Video). It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
 

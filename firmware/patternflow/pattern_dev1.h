@@ -4,11 +4,11 @@
 #include <math.h>
 #include <stdint.h>
 #include "config.h"
-#include "core_display.h"
-#include "core_encoders.h"
-#include "core_canvas.h"
-#include "core_math.h"
-#include "core_color.h"
+#include "src/core_display.h"
+#include "src/core_encoders.h"
+#include "src/core_canvas.h"
+#include "src/core_math.h"
+#include "src/core_color.h"
 
 namespace ElectricNebulaAuroraPattern {
 
