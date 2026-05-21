@@ -168,6 +168,32 @@ The firmware includes `ArduinoOTA` for wireless updates.
 
 *Note: Future production releases will migrate to `esp_https_ota` with a local Web UI for parameter control.*
 
+## Possible next steps
+
+Things that fit cleanly on top of the current foundation. Not promises — just a record of what becomes easy once `PFCanvas`, `PFMath`, `PFColor`, `PFNoise`, and the OSC sidechannel are in place. Roughly ordered by value-per-effort.
+
+### A. Gamma correction in `PFCanvas::present()`
+The HUB75 panel is PWM-driven, so without gamma correction dark RGB values (e.g. `r=20`) almost disappear. Add a 256-entry gamma LUT to `core_canvas.h` and apply it inside `present()`. Every migrated pattern picks up better shadows and color balance for free, with zero pattern-code changes. ~20 lines, 256 bytes of RAM. This is the first real payoff of the canvas indirection.
+
+### B. Global brightness control
+`DEFAULT_BRIGHTNESS` is fixed at compile time. A stage looks very different from a desk. Options:
+- A dedicated "brightness mode" entered via a longpress, where the four knobs temporarily become brightness/contrast UI.
+- A new `ContentMode` like `BRIGHTNESS` similar to PATTERN/VIDEO.
+
+Persist the last value to NVS so it survives reboot.
+
+### C. Two-way OSC
+Today OSC is ESP→host only. Adding `udp.parsePacket()` lets Ableton/Max send knob and pattern-change messages back to the device. Opens up automation lanes and external sequencer sync. ~30 lines of receive logic; the addresses are already defined.
+
+### D. NVS preset save / restore
+Each pattern's last knob values are lost on reboot. Save them to NVS on change (debounced), load them in each pattern's `setup()`. Patterns wake up where they left off.
+
+### E. Merge `patternflow_stream` into the main firmware
+`patternflow_stream/` is a separate sketch that receives pixels over WebSocket. With the new `ContentMode` shape it could be a third mode (`CONTENT_STREAM`) inside the main sketch, so one firmware build serves patterns, video, and live streaming. Larger change; worth it once a use case actually wants both.
+
+### F. Encoder acceleration
+Fast rotation = larger step, slow rotation = smaller step. Lets one encoder cover both fine tuning and full-range sweeps. Lives entirely in `core_encoders.h`.
+
 ## License
 
 MIT - see root `LICENSE-MIT` file.
