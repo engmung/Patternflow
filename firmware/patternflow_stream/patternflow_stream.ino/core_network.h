@@ -9,12 +9,23 @@
 #define PF_WIFI_STA  1
 #define PF_WIFI_AP   0
 
+// Default placeholders. Override per-device via stream_secrets.h
+// (gitignored). Copy stream_secrets.example.h to stream_secrets.h.
+#define PF_STREAM_WIFI_SSID "YOUR_WIFI_SSID"
+#define PF_STREAM_WIFI_PASS "YOUR_WIFI_PASSWORD"
+#define PF_STREAM_AP_SSID   "PatternFlow"
+#define PF_STREAM_AP_PASS   "patternflow"
+
+#if __has_include("stream_secrets.h")
+#include "stream_secrets.h"
+#endif
+
 #if PF_WIFI_STA
-  static const char* WIFI_SSID = "wifiiii";
-  static const char* WIFI_PASS = "lsh678902";
+  static const char* WIFI_SSID = PF_STREAM_WIFI_SSID;
+  static const char* WIFI_PASS = PF_STREAM_WIFI_PASS;
 #elif PF_WIFI_AP
-  static const char* AP_SSID = "PatternFlow";
-  static const char* AP_PASS = "patternflow";
+  static const char* AP_SSID = PF_STREAM_AP_SSID;
+  static const char* AP_PASS = PF_STREAM_AP_PASS;
 #endif
 
 static const char* MDNS_NAME = "patternflow";
