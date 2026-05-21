@@ -26,11 +26,70 @@ The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `W
 
 ## Project layout
 
-- `patternflow/patternflow.ino` - Main sketch for Patternflow hardware
-- `patternflow/pattern_registry.h` - Central pattern registry
-- `patternflow/pattern_*.h` - Individual generative patterns
-- `patternflow/config.h` - Hardware configuration (pin mappings, display resolution, limits)
-- `CUSTOM_PATTERNS.md` - Prompt template and workflow for adding new patterns with AI assistance
+```
+firmware/patternflow/
+├── patternflow.ino          # Main sketch: input routing, mode dispatch
+├── config.h                 # Hardware configuration (pin mappings, limits)
+│
+├── core_display.h           # HUB75 driver init
+├── core_encoders.h          # Encoder ISRs + InputFrame contract
+├── core_osc.h               # OSC sidechannel (UDP send when PF_OSC_ENABLED)
+├── osc_secrets.example.h    # Template for local Wi-Fi credentials
+│
+├── core_canvas.h            # 128×64 RGB888 framebuffer, single LED output point
+├── core_math.h              # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
+├── core_color.h             # PFColor:: hsvToRgb, ColorStop, sampleRamp
+├── core_noise.h             # PFNoise:: perlin2D, fractal2D
+│
+├── pattern_registry.h       # Function-pointer table — register patterns here
+├── pattern_origin.h         # Built-in pattern: radial sine grids
+├── pattern_wave_saw.h       # Built-in pattern: directional saw bands
+├── pattern_vector_fluid.h   # Built-in pattern: symmetry folds warp
+└── pattern_video.h          # Built-in: PFV1 video playback from FATFS
+```
+
+The `core_*.h` files are the foundation that patterns build on. They are stateless utilities — no global state to coordinate, safe to include from any pattern.
+
+## Foundation modules
+
+Patterns should not duplicate trig tables, color converters, or noise functions. The foundation modules provide them once, shared across every pattern.
+
+### `core_canvas.h` — PFCanvas
+The single point of contact with the LED driver. Patterns write pixels into the canvas; the canvas pushes the frame to the HUB75 panel.
+
+```cpp
+PFCanvas::setPixel(x, y, r, g, b);   // inside the pixel loop
+PFCanvas::present();                  // last line of draw()
+```
+
+Patterns must not call `dma_display->drawPixelRGB888()` directly. Global brightness, gamma, and any future post-processing live in `present()` — patterns that bypass the canvas miss those.
+
+### `core_math.h` — PFMath
+```cpp
+PFMath::buildSinLUT();                       // call from setup() — idempotent
+PFMath::fastSin(angle);                      // ~5x faster than sinf in pixel loops
+PFMath::fastCos(angle);
+PFMath::fract(x);                            // x - floor(x)
+PFMath::lerp(a, b, t);
+PFMath::approxLength(x, y);                  // ~5% accurate sqrt(x*x + y*y)
+```
+
+The sin LUT is 1 KB and shared. Do not build your own.
+
+### `core_color.h` — PFColor
+```cpp
+PFColor::hsvToRgb(h, s, v, r, g, b);                // h is 0..1 (not degrees)
+PFColor::ColorStop ramp[] = { {0.0f, 0,0,0}, ... };
+PFColor::sampleRamp(ramp, count, t, r, g, b);
+```
+
+### `core_noise.h` — PFNoise
+```cpp
+PFNoise::perlin2D(x, y);
+PFNoise::fractal2D(x, y, octaves, roughness);
+```
+
+The 512-byte permutation table is shared. Do not duplicate it.
 
 ## Patterns
 
@@ -39,14 +98,16 @@ Current registered patterns:
 - `Wave Saw`
 - `Vector Fluid`
 
-To add a new pattern, start with [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md), then create a `pattern_new_name.h` file with the standard namespace interface:
+To add a new pattern, start with [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md), then create a `pattern_new_name.h` with the standard namespace interface:
 - `NAME`
 - `KNOB_LABELS`
 - `setup()`
 - `update(float dt, const InputFrame& input)`
-- `draw()`
+- `draw()` — draws via `PFCanvas::setPixel(...)` and ends with `PFCanvas::present();`
 
 Then register it once in `patternflow/pattern_registry.h` by adding the include and one `PATTERN_ENTRY(NewPatternNamespace)` line.
+
+The Live Editor at [patternflow.work](https://patternflow.work) has a "Copy C++ prompt" button that bundles your JavaScript pattern with a conversion prompt — the prompt already teaches the LLM these foundation conventions, so the generated C++ should use `PFCanvas`/`PFMath`/`PFColor`/`PFNoise` without any extra instruction.
 
 ## Configuration (`config.h`)
 

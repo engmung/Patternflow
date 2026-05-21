@@ -83,11 +83,18 @@ firmware/patternflow/
 ├── config.h
 ├── core_display.h
 ├── core_encoders.h
+├── core_canvas.h              ← every new pattern draws through this
+├── core_math.h                ← shared sin LUT + fast trig
+├── core_color.h               ← shared HSV/ramp helpers
+├── core_noise.h               ← shared Perlin/fractal noise
 ├── pattern_registry.h         ← edit this
 ├── pattern_origin.h
 ├── pattern_wave_saw.h
+├── pattern_vector_fluid.h
 └── pattern_yourname.h         ← drop your file here
 ```
+
+The `core_*.h` files are the foundation: generated patterns include the ones they need and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
 
 Open `pattern_registry.h` and add two things:
 
