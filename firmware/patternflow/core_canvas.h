@@ -37,6 +37,21 @@ constexpr size_t BUFFER_BYTES = (size_t)W * H * 3;
 
 inline uint8_t buffer[BUFFER_BYTES];
 
+// Gamma LUT applied in present(). HUB75 panels are PWM-driven, so a
+// linear 0–255 range crushes dark values into invisibility — gamma
+// reshapes input so low values get more PWM time and the bottom of the
+// curve actually shows up. Patterns write linear values; the panel
+// receives gamma-corrected values. One place, every pattern inherits it.
+inline uint8_t gammaLUT[256];
+inline bool gammaLUTReady = false;
+
+inline void buildGammaLUT(float gamma = 2.4f) {
+  for (int i = 0; i < 256; i++) {
+    gammaLUT[i] = (uint8_t)(powf(i / 255.0f, gamma) * 255.0f + 0.5f);
+  }
+  gammaLUTReady = true;
+}
+
 inline void clear() {
   memset(buffer, 0, BUFFER_BYTES);
 }
@@ -52,10 +67,14 @@ inline void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
 // Push the canvas to the LED matrix. The single point of contact
 // between the rendering pipeline and dma_display.
 inline void present() {
+  if (!gammaLUTReady) buildGammaLUT();
   for (int y = 0; y < H; y++) {
     const uint8_t* row = buffer + (size_t)y * W * 3;
     for (int x = 0; x < W; x++) {
-      dma_display->drawPixelRGB888(x, y, row[x * 3], row[x * 3 + 1], row[x * 3 + 2]);
+      dma_display->drawPixelRGB888(x, y,
+        gammaLUT[row[x * 3]],
+        gammaLUT[row[x * 3 + 1]],
+        gammaLUT[row[x * 3 + 2]]);
     }
   }
 }
