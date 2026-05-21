@@ -3,6 +3,7 @@
 #include "core_display.h"
 #include "core_math.h"
 #include "core_noise.h"
+#include "core_canvas.h"
 
 namespace WaveSaw {
   const char* NAME = "Wave Saw";
@@ -110,8 +111,10 @@ namespace WaveSaw {
 
         uint8_t r, g, b;
         colorRampConstant(t, r, g, b);
-        dma_display->drawPixelRGB888(x, y, r, g, b);
+        PFCanvas::setPixel(x, y, r, g, b);
       }
     }
+
+    PFCanvas::present();
   }
 }

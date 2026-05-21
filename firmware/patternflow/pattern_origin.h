@@ -3,6 +3,7 @@
 #include "core_display.h"
 #include "core_math.h"
 #include "core_color.h"
+#include "core_canvas.h"
 
 namespace Origin {
   const char* NAME = "Origin";
@@ -138,7 +139,7 @@ namespace Origin {
         int tj = (ly - p.gap) / cellH;
 
         if (ti < 0 || ti >= p.cols || tj < 0 || tj >= p.rows) {
-          dma_display->drawPixelRGB888(x, y, 0, 0, 0);
+          PFCanvas::setPixel(x, y, 0, 0, 0);
           continue;
         }
 
@@ -146,7 +147,7 @@ namespace Origin {
         int localY = ly - (p.gap + tj * cellH);
 
         if (localX < 0 || localX >= p.tileSize || localY < 0 || localY >= p.tileSize) {
-          dma_display->drawPixelRGB888(x, y, 0, 0, 0);
+          PFCanvas::setPixel(x, y, 0, 0, 0);
           continue;
         }
 
@@ -161,8 +162,10 @@ namespace Origin {
 
         uint8_t r, g, b;
         sampleColorRamp(wave * br, r, g, b);
-        dma_display->drawPixelRGB888(x, y, r, g, b);
+        PFCanvas::setPixel(x, y, r, g, b);
       }
     }
+
+    PFCanvas::present();
   }
 }

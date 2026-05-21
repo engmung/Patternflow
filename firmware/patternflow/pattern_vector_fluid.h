@@ -4,6 +4,7 @@
 #include "config.h"
 #include "core_display.h"
 #include "core_encoders.h"
+#include "core_canvas.h"
 
 namespace SymmetryFoldsWarp {
 
@@ -84,7 +85,7 @@ inline void setHsv(int x, int y, float h, float s, float v) {
     if (G > 255) G = 255;
     if (B > 255) B = 255;
 
-    dma_display->drawPixelRGB888(x, y, R, G, B);
+    PFCanvas::setPixel(x, y, R, G, B);
 }
 
 void draw() {
@@ -141,6 +142,8 @@ void draw() {
             setHsv(x, y, hue, sat, val * 1.5f);
         }
     }
+
+    PFCanvas::present();
 }
 
 } // namespace SymmetryFoldsWarp
