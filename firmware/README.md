@@ -80,7 +80,7 @@ OSC is disabled by default. To test it, copy `patternflow/osc_secrets.example.h`
 
 `osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
 
-Then put the laptop and Patternflow on the same Wi-Fi network. Long-press encoder 3 to cycle content modes until `OSC EXP` appears; OSC messages are sent while that experimental mode is active. In Max for Live, receive UDP on the same port and route these OSC addresses:
+Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously in every content mode (Pattern or Video). It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
 
 ```text
 /patternflow/knob/1/delta

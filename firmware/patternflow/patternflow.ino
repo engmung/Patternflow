@@ -12,8 +12,7 @@ int currentPatternIdx = 0;
 
 enum ContentMode {
   CONTENT_PATTERN,
-  CONTENT_VIDEO,
-  CONTENT_OSC
+  CONTENT_VIDEO
 };
 
 enum AppMode {
@@ -73,33 +72,17 @@ void setup() {
 }
 
 const char* currentContentName() {
-  switch (currentContentMode) {
-    case CONTENT_VIDEO: return VideoPattern::NAME;
-    case CONTENT_OSC: return "OSC EXP";
-    default: return patterns[currentPatternIdx].name;
-  }
+  return currentContentMode == CONTENT_VIDEO
+    ? VideoPattern::NAME
+    : patterns[currentPatternIdx].name;
 }
 
 const char* currentContentModeLabel() {
-  switch (currentContentMode) {
-    case CONTENT_VIDEO: return "VIDEO MODE";
-    case CONTENT_OSC: return "OSC EXP MODE";
-    default: return "PATTERN MODE";
-  }
+  return currentContentMode == CONTENT_VIDEO ? "VIDEO MODE" : "PATTERN MODE";
 }
 
-void cycleContentMode() {
-  switch (currentContentMode) {
-    case CONTENT_PATTERN:
-      currentContentMode = CONTENT_VIDEO;
-      break;
-    case CONTENT_VIDEO:
-      currentContentMode = CONTENT_OSC;
-      break;
-    default:
-      currentContentMode = CONTENT_PATTERN;
-      break;
-  }
+void toggleContentMode() {
+  currentContentMode = currentContentMode == CONTENT_PATTERN ? CONTENT_VIDEO : CONTENT_PATTERN;
   currentMode = MODE_RUNNING;
   contentNoticeTimer = CONTENT_NOTICE_SECONDS;
   dma_display->setRotation(0);
@@ -125,37 +108,6 @@ void drawContentNotice() {
     1
   );
   drawCenteredText(currentContentName(), 36, dma_display->color565(120, 120, 120), 1);
-}
-
-void drawOscMode(const InputFrame& input) {
-  dma_display->fillScreen(0);
-
-  drawCenteredText("OSC EXP", 4, dma_display->color565(255, 255, 255), 1);
-  drawCenteredText(PatternflowOsc::statusText(), 16, dma_display->color565(120, 180, 255), 1);
-
-  dma_display->setTextSize(1);
-  dma_display->setTextColor(dma_display->color565(120, 120, 120));
-  dma_display->setCursor(2, 30);
-  dma_display->print(PF_OSC_REMOTE_HOST);
-  dma_display->print(":");
-  dma_display->print(PF_OSC_REMOTE_PORT);
-
-  dma_display->setTextColor(dma_display->color565(180, 180, 180));
-  dma_display->setCursor(2, 43);
-  dma_display->printf("D %d %d %d %d",
-    input.knobDeltas[0],
-    input.knobDeltas[1],
-    input.knobDeltas[2],
-    input.knobDeltas[3]
-  );
-
-  dma_display->setCursor(2, 55);
-  dma_display->printf("B %d %d %d %d",
-    input.btnHeld[0] ? 1 : 0,
-    input.btnHeld[1] ? 1 : 0,
-    input.btnHeld[2] ? 1 : 0,
-    input.btnHeld[3] ? 1 : 0
-  );
 }
 
 void drawSelectingMode() {
@@ -216,7 +168,7 @@ void loop() {
   readInputFrame(input);
 
   if (logicalButton(2)->longPressed(MODE_HOLD_MS)) {
-    cycleContentMode();
+    toggleContentMode();
   }
 
   if (currentContentMode == CONTENT_PATTERN && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
@@ -232,15 +184,15 @@ void loop() {
     }
   }
 
-  if (currentContentMode == CONTENT_OSC) {
-    PatternflowOsc::update(
-      input,
-      currentContentName(),
-      currentPatternIdx,
-      (int)currentContentMode,
-      (int)currentMode
-    );
-  }
+  // OSC is a sidechannel: runs in every mode when PF_OSC_ENABLED.
+  // It only sends input/state to a remote host; it does not draw to the LED.
+  PatternflowOsc::update(
+    input,
+    currentContentName(),
+    currentPatternIdx,
+    (int)currentContentMode,
+    (int)currentMode
+  );
 
   VideoPattern::checkSerialUpload();
 
@@ -248,8 +200,6 @@ void loop() {
     if (currentContentMode == CONTENT_VIDEO) {
       VideoPattern::update(dt, input);
       VideoPattern::draw();
-    } else if (currentContentMode == CONTENT_OSC) {
-      drawOscMode(input);
     } else {
       patterns[currentPatternIdx].update(dt, input);
       patterns[currentPatternIdx].draw();
