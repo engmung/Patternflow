@@ -168,6 +168,18 @@ Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechan
 
 In a Max patch, the receiving side is typically `udpreceive 9000` followed by `oscparse`, then route the address parts and map values to Live parameters with Max for Live devices such as `live.remote~`, `live.object`, or your own mapping patch.
 
+### Receiving OSC (host → device)
+
+The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external host can drive it back. Send any of these addresses from Ableton/Max:
+
+```text
+/patternflow/knob/N/delta      (int)   — virtual rotation on logical knob N (1..4)
+/patternflow/pattern/index     (int)   — switch to pattern at this registry index
+/patternflow/content/toggle    (—)     — toggle PATTERN ↔ VIDEO
+```
+
+Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses are ignored silently. Receive buffer is 256 bytes per packet.
+
 ## OTA Updates (For Developers)
 
 The firmware includes `ArduinoOTA` for wireless updates.
@@ -180,9 +192,6 @@ The firmware includes `ArduinoOTA` for wireless updates.
 ## Possible next steps
 
 Things that fit cleanly on top of the current foundation. Not promises — just a record of what becomes easy once `PFCanvas`, `PFMath`, `PFColor`, `PFNoise`, and the OSC sidechannel are in place. Roughly ordered by value-per-effort.
-
-### C. Two-way OSC
-Today OSC is ESP→host only. Adding `udp.parsePacket()` lets Ableton/Max send knob and pattern-change messages back to the device. Opens up automation lanes and external sequencer sync. ~30 lines of receive logic; the addresses are already defined.
 
 ### D. NVS preset save / restore (per pattern)
 Each pattern's last knob values are lost on reboot. Save them to NVS on change (debounced), load them in each pattern's `setup()`. Patterns wake up where they left off. The brightness slot already proves the NVS plumbing.

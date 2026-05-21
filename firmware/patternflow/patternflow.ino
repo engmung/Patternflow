@@ -197,6 +197,13 @@ void readInputFrame(InputFrame& input) {
     input.btnPressed[i] = button->pressed();
     input.btnHeld[i] = button->isDown();
   }
+
+  // OSC-driven virtual knob motion (no-op when PF_OSC_ENABLED is 0).
+  // Added after acceleration so external automation moves at the raw
+  // 1×-per-detent rate, not amplified by the fast-spin curve.
+  for (int i = 0; i < 4; i++) {
+    input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
+  }
 }
 
 void loop() {
@@ -264,7 +271,9 @@ void loop() {
   }
 
   // OSC is a sidechannel: runs in every mode when PF_OSC_ENABLED.
-  // It only sends input/state to a remote host; it does not draw to the LED.
+  // It sends input/state to a remote host and (since C) accepts knob,
+  // pattern-index, and content-toggle commands back. Drawing is still
+  // done by patterns, not by OSC.
   PatternflowOsc::update(
     input,
     currentContentName(),
@@ -272,6 +281,22 @@ void loop() {
     (int)currentContentMode,
     (int)currentMode
   );
+
+  // Apply OSC-driven pattern / content changes from the most recent
+  // received packet. Knob deltas were already merged into the input
+  // frame inside readInputFrame().
+  int oscPatternIdx;
+  if (PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
+      oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS) {
+    currentPatternIdx = oscPatternIdx;
+    currentMode = MODE_RUNNING;
+    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+    Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
+  }
+  if (PatternflowOsc::consumeContentToggle()) {
+    toggleContentMode();
+    Serial.println(">>> OSC content toggle");
+  }
 
   VideoPattern::checkSerialUpload();
 
