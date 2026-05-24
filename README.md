@@ -13,6 +13,8 @@ An open-source reinterpretation of Nam June Paik's *Participation TV* (1963).
 
 Build it from the files, or wait for the kit.
 
+👉 **Ready to build?** Follow the **[Current Full Build Guide (docs/BUILD.md)](docs/BUILD.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
+
 ## What is this?
 
 Patternflow is an open-source hardware instrument: four rotary encoders controlling generative light patterns on a 128×64 LED matrix, powered by ESP32-S3.
