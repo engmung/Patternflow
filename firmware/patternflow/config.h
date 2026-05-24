@@ -54,6 +54,42 @@
 #define INVERT_ENCODER 1
 #define DEFAULT_BRIGHTNESS 204  // 80% (0-255)
 
+// --- LED Panel Color Calibration ---
+// Override these per panel; the defaults are a mild correction tuned for
+// a typical HUB75 (red LED brighter than blue, slight green dominance in
+// cyans). Steeper R gamma curbs red dominance; gentler B gamma keeps the
+// blues from collapsing into black. WB gain trims R and G a touch so
+// pure-white whites land closer to D65 instead of warm pink.
+//
+// To revert to the previous behavior, set all three gammas to 2.4,
+// all three WB gains to 1.0, and saturation boost to 1.0.
+#ifndef LED_GAMMA_R
+#define LED_GAMMA_R 2.5f
+#endif
+#ifndef LED_GAMMA_G
+#define LED_GAMMA_G 2.4f
+#endif
+#ifndef LED_GAMMA_B
+#define LED_GAMMA_B 2.2f
+#endif
+
+#ifndef LED_WB_R
+#define LED_WB_R 0.92f
+#endif
+#ifndef LED_WB_G
+#define LED_WB_G 0.92f
+#endif
+#ifndef LED_WB_B
+#define LED_WB_B 1.00f
+#endif
+
+// Saturation boost is applied before gamma in present(). Gray stays gray
+// (mathematically a no-op when r==g==b), saturated colors get pulled
+// further away from gray. 1.10 = +10%; 1.0 disables.
+#ifndef LED_SAT_BOOST
+#define LED_SAT_BOOST 1.10f
+#endif
+
 // --- Experimental OSC over Wi-Fi ---
 // Enable this only for local performance/control experiments. Keep credentials
 // out of commits if you change these values for a real network.

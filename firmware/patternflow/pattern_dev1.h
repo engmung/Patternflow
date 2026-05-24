@@ -1,5 +1,4 @@
 #pragma once
-
 #include <Arduino.h>
 #include <math.h>
 #include <stdint.h>
@@ -10,109 +9,133 @@
 #include "src/core_math.h"
 #include "src/core_color.h"
 
-namespace ElectricNebulaAuroraPattern {
+namespace LiquidRipplePattern {
 
-const char* NAME = "Electric Nebula Aurora";
-const char* const KNOB_LABELS[4] = {"Aurora Span", "Particle Speed", "Plasma Density", "Palette Interp"};
+const char* NAME = "Liquid Ripple";
+const char* const KNOB_LABELS[4] = {"WARP DEPTH", "RIPPLE SPEED", "WAVE COUNT", "SPECULAR ANG"};
 
-const float AURORA_SPAN_MIN = 0.0f;
-const float AURORA_SPAN_MAX = 1.0f;
-const float AURORA_SPAN_STEP = 0.05f;
+const float LIQUID_RIPPLE_WARP_MIN = 0.0f;
+const float LIQUID_RIPPLE_WARP_MAX = 1.0f;
+const float LIQUID_RIPPLE_WARP_STEP = 0.05f;
 
-const float AURORA_SPEED_MIN = 0.1f;
-const float AURORA_SPEED_MAX = 10.0f;
-const float AURORA_SPEED_STEP = 0.10f;
+const float LIQUID_RIPPLE_SPEED_MIN = 0.1f;
+const float LIQUID_RIPPLE_SPEED_MAX = 10.0f;
+const float LIQUID_RIPPLE_SPEED_STEP = 0.10f;
 
-const float AURORA_DENSITY_MIN = 0.0f;
-const float AURORA_DENSITY_MAX = 4.9f;
-const float AURORA_DENSITY_STEP = 0.05f;
+const float LIQUID_RIPPLE_WAVES_MIN = 0.0f;
+const float LIQUID_RIPPLE_WAVES_MAX = 4.9f;
+const float LIQUID_RIPPLE_WAVES_STEP = 0.05f;
 
-const float AURORA_PALETTE_MIN = 0.0f;
-const float AURORA_PALETTE_MAX = 1.0f;
-const float AURORA_PALETTE_STEP = 0.05f;
+const float LIQUID_RIPPLE_SPECULAR_MIN = 0.0f;
+const float LIQUID_RIPPLE_SPECULAR_MAX = 1.0f;
+const float LIQUID_RIPPLE_SPECULAR_STEP = 0.05f;
 
 struct Params {
-    float span;
+    float warp;
     float speed;
-    float density;
-    float palette;
+    float waves;
+    float specular;
     float timeAcc;
 };
 
 Params params;
 
+// Fast coordinate look-up cache to minimize inner loop division operations
+float nx_cached[PANEL_RES_W];
+float ny_cached[PANEL_RES_H];
+
 void setup() {
     PFMath::buildSinLUT();
-    params.span = 0.5f;
-    params.speed = 1.0f;
-    params.density = 0.5f;
-    params.palette = 0.5f;
+
+    params.warp = 0.4f;
+    params.speed = 2.0f;
+    params.waves = 2.5f;
+    params.specular = 0.2f;
     params.timeAcc = 0.0f;
+
+    // Precompute invariant rendering aspect ratios and grids
+    float aspect = (float)PANEL_RES_W / (float)PANEL_RES_H;
+    for (int x = 0; x < PANEL_RES_W; x++) {
+        nx_cached[x] = (((float)x / (float)PANEL_RES_W) * 2.0f - 1.0f) * aspect;
+    }
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        ny_cached[y] = ((float)y / (float)PANEL_RES_H) * 2.0f - 1.0f;
+    }
 }
 
 void update(float dt, const InputFrame& input) {
-    params.span += input.knobDeltas[0] * AURORA_SPAN_STEP;
-    if (params.span > AURORA_SPAN_MAX) params.span -= (AURORA_SPAN_MAX - AURORA_SPAN_MIN);
-    if (params.span < AURORA_SPAN_MIN) params.span += (AURORA_SPAN_MAX - AURORA_SPAN_MIN);
+    // Process rotational encoder steps and apply parameter constraints
+    params.warp += input.knobDeltas[0] * LIQUID_RIPPLE_WARP_STEP;
+    if (params.warp < LIQUID_RIPPLE_WARP_MIN) params.warp += 1.0f;
+    if (params.warp > LIQUID_RIPPLE_WARP_MAX) params.warp -= 1.0f;
 
-    params.speed = constrain(params.speed + input.knobDeltas[1] * AURORA_SPEED_STEP, AURORA_SPEED_MIN, AURORA_SPEED_MAX);
-    params.density = constrain(params.density + input.knobDeltas[2] * AURORA_DENSITY_STEP, AURORA_DENSITY_MIN, AURORA_DENSITY_MAX);
+    params.speed = constrain(params.speed + input.knobDeltas[1] * LIQUID_RIPPLE_SPEED_STEP, LIQUID_RIPPLE_SPEED_MIN, LIQUID_RIPPLE_SPEED_MAX);
+    params.waves = constrain(params.waves + input.knobDeltas[2] * LIQUID_RIPPLE_WAVES_STEP, LIQUID_RIPPLE_WAVES_MIN, LIQUID_RIPPLE_WAVES_MAX);
 
-    params.palette += input.knobDeltas[3] * AURORA_PALETTE_STEP;
-    if (params.palette > AURORA_PALETTE_MAX) params.palette -= (AURORA_PALETTE_MAX - AURORA_PALETTE_MIN);
-    if (params.palette < AURORA_PALETTE_MIN) params.palette += (AURORA_PALETTE_MAX - AURORA_PALETTE_MIN);
+    params.specular += input.knobDeltas[3] * LIQUID_RIPPLE_SPECULAR_STEP;
+    if (params.specular < LIQUID_RIPPLE_SPECULAR_MIN) params.specular += 1.0f;
+    if (params.specular > LIQUID_RIPPLE_SPECULAR_MAX) params.specular -= 1.0f;
 
-    params.timeAcc += dt * params.speed;
+    params.timeAcc += dt * params.speed * 1.5f;
 }
 
 void draw() {
     float t = params.timeAcc;
-    uint16_t w = PANEL_RES_W;
-    uint16_t h = PANEL_RES_H;
+    float waveFreq = 4.0f + params.waves * 4.0f;
+    float warpFactor = params.warp * 0.3f;
 
-    float xFreq = 0.02f + params.span * 0.06f;
-    float dScale = 0.5f + params.density * 2.5f;
+    // Precompute temporal trigonometric terms outside the nested loop matrices
+    float specAngleRad = params.specular * 2.0f * M_PI;
+    float specCos = PFMath::fastCos(specAngleRad);
+    float specSin = PFMath::fastSin(specAngleRad);
+    float d1_x_offset = 0.3f * PFMath::fastSin(t * 0.4f);
 
-    float driftX_by_y[PANEL_RES_H];
-    for (uint16_t y = 0; y < h; y++) {
-        float ny = y * 0.05f;
-        driftX_by_y[y] = PFMath::fastSin(ny + t * 0.3f) * dScale;
-    }
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        float ny = ny_cached[y];
+        float dy2 = ny - 0.2f;
 
-    float driftY_by_x[PANEL_RES_W];
-    for (uint16_t x = 0; x < w; x++) {
-        float nx = x * xFreq;
-        driftY_by_x[x] = PFMath::fastCos(nx - t * 0.5f) * dScale;
-    }
+        for (int x = 0; x < PANEL_RES_W; x++) {
+            float nx = nx_cached[x];
 
-    for (uint16_t y = 0; y < h; y++) {
-        float ny = y * 0.05f;
-        float driftX = driftX_by_y[y];
+            // Real sqrt here — ripple isodistance lines are the visual signal,
+            // and approxLength's octagonal contour shows up as polygonal rings.
+            // ESP32-S3 FPU sqrtf is cheap enough for 2 calls per pixel.
+            float dx1 = nx - d1_x_offset;
+            float d1 = sqrtf(dx1 * dx1 + ny * ny);
 
-        for (uint16_t x = 0; x < w; x++) {
-            float nx = x * xFreq;
-            float driftY = driftY_by_x[x];
+            float dx2 = nx + 0.4f;
+            float d2 = sqrtf(dx2 * dx2 + dy2 * dy2);
 
-            float noiseField = PFMath::fastSin((nx + driftX) * 1.5f + t) * PFMath::fastCos((ny + driftY) * 1.2f - t);
+            float rippleField = PFMath::fastSin(d1 * waveFreq - t) * 0.6f + PFMath::fastSin(d2 * (waveFreq * 0.7f) - t * 1.3f) * 0.4f;
 
-            float intensity = 1.0f - fabsf(noiseField);
-            intensity = constrain(intensity, 0.0f, 1.0f);
+            // Apply spatial lensing transformations
+            float wx = nx + rippleField * warpFactor;
+            float wy = ny + rippleField * warpFactor;
 
-            float intensitySq = intensity * intensity;
-            intensity = intensitySq * intensitySq;
+            float liquidBase = PFMath::fastSin(wx * 3.0f + t * 0.5f) * PFMath::fastCos(wy * 3.0f - t * 0.4f);
+            float nLiquid = (liquidBase + 1.0f) * 0.5f;
 
-            float val = intensity * 1.5f + (noiseField * 0.5f + 0.5f) * 0.2f;
-            val = constrain(val, 0.0f, 1.0f);
+            // Map orientation reflections 
+            float specularAngle = (wx * specCos + wy * specSin);
+            float specTrigger = PFMath::fastSin(specularAngle * 8.0f + rippleField * 4.0f);
 
-            float baseHue = params.palette * 0.5f + (driftY * 0.05f);
-            float hue = fmodf(baseHue + intensity * 0.15f, 1.0f);
-            if (hue < 0.0f) hue += 1.0f;
+            float hue = 0.5f + nLiquid * 0.25f + rippleField * 0.1f;
+            float sat = 0.95f - (specTrigger > 0.0f ? specTrigger * 0.3f : 0.0f);
+            float val = 0.2f + nLiquid * 0.6f + (rippleField > 0.0f ? rippleField * 0.2f : 0.0f);
 
-            float sat = constrain(1.0f - intensity * 0.7f, 0.1f, 1.0f);
-            float bright = constrain(val * 2.5f, 0.0f, 1.0f);
+            // Apply balanced boost modifier to output values
+            val = constrain(0.05f + val * 1.15f, 0.0f, 1.0f);
 
             uint8_t r, g, b;
-            PFColor::hsvToRgb(hue, sat, bright, r, g, b);
+            PFColor::hsvToRgb(hue, sat, val, r, g, b);
+
+            // Overlay specular glistening highlights over ridges
+            if (specTrigger > 0.88f && rippleField > 0.2f) {
+                r = constrain(r + 180, 0, 255);
+                g = constrain(g + 180, 0, 255);
+                b = 255;
+            }
+
             PFCanvas::setPixel(x, y, r, g, b);
         }
     }
@@ -120,4 +143,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace ElectricNebulaAuroraPattern
+} // namespace LiquidRipplePattern

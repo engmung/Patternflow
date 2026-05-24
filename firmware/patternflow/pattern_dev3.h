@@ -9,137 +9,154 @@
 #include "src/core_canvas.h"
 #include "src/core_math.h"
 
-namespace CrimsonTargetLockoutPattern {
+namespace SpectralCausticWebsPattern {
 
-const char* NAME = "Crimson Target Lockout";
-const char* const KNOB_LABELS[4] = {"Radar Swath", "Sweep Speed", "Target Cell Block", "Thermal Mask"};
+const char* NAME = "Spectral Caustics";
+const char* const KNOB_LABELS[4] = {"DISPERSION", "KINETIC FREQ", "DENSITY", "GLOW SAT"};
 
-const float CRIMSON_SWATH_MIN = 0.0f;
-const float CRIMSON_SWATH_MAX = 1.0f;
-const float CRIMSON_SWATH_STEP = 0.05f;
+const float SPECTRAL_CAUSTIC_K1_MIN = 0.0f;
+const float SPECTRAL_CAUSTIC_K1_MAX = 1.0f;
+const float SPECTRAL_CAUSTIC_K1_STEP = 0.05f;
 
-const float CRIMSON_SWEEP_MIN = 0.1f;
-const float CRIMSON_SWEEP_MAX = 10.0f;
-const float CRIMSON_SWEEP_STEP = 0.10f;
+const float SPECTRAL_CAUSTIC_K2_MIN = 0.1f;
+const float SPECTRAL_CAUSTIC_K2_MAX = 10.0f;
+const float SPECTRAL_CAUSTIC_K2_STEP = 0.10f;
 
-const float CRIMSON_CELL_BLOCK_MIN = 0.0f;
-const float CRIMSON_CELL_BLOCK_MAX = 4.9f;
-const float CRIMSON_CELL_BLOCK_STEP = 0.05f;
+const float SPECTRAL_CAUSTIC_K3_MIN = 0.0f;
+const float SPECTRAL_CAUSTIC_K3_MAX = 4.9f;
+const float SPECTRAL_CAUSTIC_K3_STEP = 0.05f;
 
-const float CRIMSON_INTERF_MIN = 0.0f;
-const float CRIMSON_INTERF_MAX = 1.0f;
-const float CRIMSON_INTERF_STEP = 0.05f;
+const float SPECTRAL_CAUSTIC_K4_MIN = 0.0f;
+const float SPECTRAL_CAUSTIC_K4_MAX = 1.0f;
+const float SPECTRAL_CAUSTIC_K4_STEP = 0.05f;
 
 struct Params {
-    float swath;
-    float sweep;
-    float cellBlock;
-    float interf;
-    float timeAcc;
+  float disperse = 0.4f;
+  float speed = 2.2f;
+  float density = 0.5f;
+  float glow = 0.7f;
+  float timeAcc = 0.0f;
 };
 
 Params params;
 
 void setup() {
-    PFMath::buildSinLUT();
-    params.swath = 0.5f;
-    params.sweep = 2.0f;
-    params.cellBlock = 2.5f;
-    params.interf = 0.06f;
-    params.timeAcc = 0.0f;
+  PFMath::buildSinLUT();
+  params.disperse = 0.4f;
+  params.speed = 2.2f;
+  params.density = 0.5f;
+  params.glow = 0.7f;
+  params.timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    params.swath += input.knobDeltas[0] * CRIMSON_SWATH_STEP;
-    if (params.swath > CRIMSON_SWATH_MAX) params.swath -= (CRIMSON_SWATH_MAX - CRIMSON_SWATH_MIN);
-    if (params.swath < CRIMSON_SWATH_MIN) params.swath += (CRIMSON_SWATH_MAX - CRIMSON_SWATH_MIN);
+  // Knob 1: Wrap configuration
+  params.disperse += input.knobDeltas[0] * SPECTRAL_CAUSTIC_K1_STEP;
+  if (params.disperse < SPECTRAL_CAUSTIC_K1_MIN) params.disperse += (SPECTRAL_CAUSTIC_K1_MAX - SPECTRAL_CAUSTIC_K1_MIN);
+  if (params.disperse > SPECTRAL_CAUSTIC_K1_MAX) params.disperse -= (SPECTRAL_CAUSTIC_K1_MAX - SPECTRAL_CAUSTIC_K1_MIN);
 
-    params.sweep = constrain(params.sweep + input.knobDeltas[1] * CRIMSON_SWEEP_STEP, CRIMSON_SWEEP_MIN, CRIMSON_SWEEP_MAX);
-    params.cellBlock = constrain(params.cellBlock + input.knobDeltas[2] * CRIMSON_CELL_BLOCK_STEP, CRIMSON_CELL_BLOCK_MIN, CRIMSON_CELL_BLOCK_MAX);
+  // Knob 2: Clamp configuration
+  params.speed = constrain(params.speed + input.knobDeltas[1] * SPECTRAL_CAUSTIC_K2_STEP, SPECTRAL_CAUSTIC_K2_MIN, SPECTRAL_CAUSTIC_K2_MAX);
 
-    params.interf += input.knobDeltas[3] * CRIMSON_INTERF_STEP;
-    if (params.interf > CRIMSON_INTERF_MAX) params.interf -= (CRIMSON_INTERF_MAX - CRIMSON_INTERF_MIN);
-    if (params.interf < CRIMSON_INTERF_MIN) params.interf += (CRIMSON_INTERF_MAX - CRIMSON_INTERF_MIN);
+  // Knob 3: Clamp configuration
+  params.density = constrain(params.density + input.knobDeltas[2] * SPECTRAL_CAUSTIC_K3_STEP, SPECTRAL_CAUSTIC_K3_MIN, SPECTRAL_CAUSTIC_K3_MAX);
 
-    params.timeAcc += dt * params.sweep * 1.4f;
+  // Knob 4: Wrap configuration
+  params.glow += input.knobDeltas[3] * SPECTRAL_CAUSTIC_K4_STEP;
+  if (params.glow < SPECTRAL_CAUSTIC_K4_MIN) params.glow += (SPECTRAL_CAUSTIC_K4_MAX - SPECTRAL_CAUSTIC_K4_MIN);
+  if (params.glow > SPECTRAL_CAUSTIC_K4_MAX) params.glow -= (SPECTRAL_CAUSTIC_K4_MAX - SPECTRAL_CAUSTIC_K4_MIN);
+
+  params.timeAcc += dt * params.speed;
 }
 
 void draw() {
-    uint16_t w = PANEL_RES_W;
-    uint16_t h = PANEL_RES_H;
-    float t = params.timeAcc;
+  uint16_t w = PANEL_RES_W;
+  uint16_t h = PANEL_RES_H;
+  float t = params.timeAcc;
 
-    const float dotMatrix[16] = {
-        0.9f, 0.2f, 0.7f, 0.4f,
-        0.4f, 0.6f, 0.1f, 0.8f,
-        0.7f, 0.1f, 0.8f, 0.3f,
-        0.3f, 0.9f, 0.2f, 0.6f
-    };
+  float disp = params.disperse * 15.0f;
+  float freq = 0.03f + params.density * 0.05f;
+  float satGain = 1.2f + params.glow * 2.0f;
+  // 2 iterations instead of JS reference's 3 — third iter contributes
+  // a 0.6×0.6 = 0.36-attenuated detail layer that is visually marginal
+  // on a 128×64 panel but costs another 9 trig ops per pixel.
+  float iterInv = 0.5f;
 
-    int pSize = (int)(1.0f + params.cellBlock * 4.0f);
-    if (pSize < 1) pSize = 1;
+  for (uint16_t y = 0; y < h; y++) {
+    float y_float = (float)y;
+    for (uint16_t x = 0; x < w; x++) {
+      float x_float = (float)x;
 
-    int bitMask = (int)(params.interf * 31.0f);
-    float pulseThresh = 0.6f - params.swath * 0.5f;
-    float swathAmt = params.swath * 20.0f;
-    float centerW = w * 0.5f;
-    float centerH = h * 0.5f;
+      float rSum = 0.0f;
+      float gSum = 0.0f;
+      float bSum = 0.0f;
 
-    float radarPulseY[PANEL_RES_H];
-    int swathShiftY[PANEL_RES_H];
-    for (uint16_t y = 0; y < h; y++) {
-        radarPulseY[y] = PFMath::fastSin((y - t * 14.0f) * 0.1f) * PFMath::fastCos(y * 0.05f + t);
-        swathShiftY[y] = 0;
-        if (radarPulseY[y] > pulseThresh) {
-            swathShiftY[y] = (int)(floorf(PFMath::fastSin(y * 0.4f + t * 4.0f) * swathAmt));
-        }
+      // Red Channel: Top-Left offset distortion
+      float rx = (x_float - disp) * freq;
+      float ry = (y_float - disp) * freq;
+      for (int i = 0; i < 2; i++) {
+        float nX = rx + PFMath::fastCos(ry + t) * 3.5f;
+        float nY = ry + PFMath::fastSin(rx - t) * 3.5f;
+        rSum += 1.0f - fabsf(PFMath::fastSin(nX + nY));
+        rx = nX * 0.6f;
+        ry = nY * 0.6f;
+      }
+
+      // Green Channel: Standard position distortion
+      float gx = x_float * freq;
+      float gy = y_float * freq;
+      for (int i = 0; i < 2; i++) {
+        float nX = gx + PFMath::fastCos(gy + t + 0.5f) * 3.5f;
+        float nY = gy + PFMath::fastSin(gx - t + 0.5f) * 3.5f;
+        gSum += 1.0f - fabsf(PFMath::fastSin(nX + nY));
+        gx = nX * 0.6f;
+        gy = nY * 0.6f;
+      }
+
+      // Blue Channel: Bottom-Right offset distortion
+      float bx = (x_float + disp) * freq;
+      float by = (y_float + disp) * freq;
+      for (int i = 0; i < 2; i++) {
+        float nX = bx + PFMath::fastCos(by + t + 1.0f) * 3.5f;
+        float nY = by + PFMath::fastSin(bx - t + 1.0f) * 3.5f;
+        bSum += 1.0f - fabsf(PFMath::fastSin(nX + nY));
+        bx = nX * 0.6f;
+        by = nY * 0.6f;
+      }
+
+      float rRatio = rSum * iterInv;
+      float gRatio = gSum * iterInv;
+      float bRatio = bSum * iterInv;
+
+      if (rRatio < 0.0f) rRatio = 0.0f;
+      if (gRatio < 0.0f) gRatio = 0.0f;
+      if (bRatio < 0.0f) bRatio = 0.0f;
+
+      // Optimizing math.pow(v, 2.5) into v * v * sqrt(v) for ESP32 hardware FPU performance
+      float rSig = (rRatio * rRatio * sqrtf(rRatio)) * satGain;
+      float gSig = (gRatio * gRatio * sqrtf(gRatio)) * satGain;
+      float bSig = (bRatio * bRatio * sqrtf(bRatio)) * satGain;
+
+      int16_t r = (int16_t)(rSig * 255.0f + 40.0f);
+      int16_t g = (int16_t)(gSig * 255.0f);
+      int16_t b = (int16_t)(bSig * 255.0f + 80.0f);
+
+      // White hot core alignment rule
+      if (rSig > 0.5f && gSig > 0.5f && bSig > 0.5f) {
+        r = 255;
+        g = 255;
+        b = 255;
+      }
+
+      uint8_t finalR = (uint8_t)constrain(r, 0, 255);
+      uint8_t finalG = (uint8_t)constrain(g, 0, 255);
+      uint8_t finalB = (uint8_t)constrain(b, 0, 255);
+
+      PFCanvas::setPixel(x, y, finalR, finalG, finalB);
     }
+  }
 
-    for (uint16_t y = 0; y < h; y++) {
-        int swathShift = swathShiftY[y];
-        int sy = (y / pSize) * pSize;
-        float cy = (float)sy - centerH;
-
-        for (uint16_t x = 0; x < w; x++) {
-            int shiftedX = (int)x + swathShift;
-            int remX = shiftedX % (int)w;
-            if (remX < 0) remX += w;
-            int sx = (remX / pSize) * pSize;
-
-            float radarSeed = PFMath::fastSin((float)(sx / 12) * 54.32f) * 0.5f + 0.5f;
-            int echoDrop = ((sy / 4) - (int)(floorf(t * (0.6f + radarSeed * 0.4f)))) % 16;
-            if (echoDrop < 0) echoDrop += 16;
-            float radarMass = (echoDrop < 6) ? 1.0f : 0.0f;
-
-            float bitField = (((sx / pSize) & (sy / pSize)) ^ bitMask) == 0 ? 0.55f : 0.0f;
-
-            float totalSignal = radarMass * 0.5f + bitField;
-
-            float cx = (float)sx - centerW;
-            float targetCenterDist = PFMath::approxLength(cx, cy);
-            totalSignal += PFMath::fastSin(targetCenterDist * 0.16f - t) * 0.25f;
-
-            uint16_t mx = x % 4;
-            uint16_t my = y % 4;
-            float ditherThresh = dotMatrix[my * 4 + mx];
-
-            uint8_t r = 0, g = 0, b = 0;
-
-            if (radarMass > 0.0f && echoDrop == 0 && targetCenterDist > 14.0f && targetCenterDist < 24.0f) {
-                r = 255; g = 0; b = 0;
-            } else if (totalSignal > ditherThresh) {
-                if (radarMass > 0.0f && echoDrop == 1 && targetCenterDist > 13.0f && targetCenterDist < 25.0f) {
-                    r = 0; g = 0; b = 0;
-                } else {
-                    r = 255; g = 255; b = 255;
-                }
-            }
-
-            PFCanvas::setPixel(x, y, r, g, b);
-        }
-    }
-
-    PFCanvas::present();
+  PFCanvas::present();
 }
 
-} // namespace CrimsonTargetLockoutPattern
+} // namespace SpectralCausticWebsPattern

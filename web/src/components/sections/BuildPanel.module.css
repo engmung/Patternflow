@@ -239,3 +239,47 @@
     font-size: 15px;
   }
 }
+
+
+@media (max-width: 600px) {
+  .buildMatrix {
+    grid-template-columns: minmax(78px, 0.75fr) repeat(2, minmax(0, 1fr));
+  }
+
+  .matrixCell {
+    min-height: 64px;
+    padding: 8px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .cornerElectronics,
+  .cornerEnclosure {
+    font-size: 7px;
+    letter-spacing: 0.05em;
+  }
+
+  .cornerElectronics {
+    top: 6px;
+    right: 6px;
+  }
+
+  .cornerEnclosure {
+    left: 6px;
+    bottom: 6px;
+  }
+
+  .matrixColumnHeader,
+  .matrixRowHeader {
+    font-size: 13px;
+  }
+
+  .matrixOption strong {
+    font-size: 12px;
+  }
+
+  .matrixOption span {
+    font-size: 9px;
+    line-height: 1.15;
+  }
+}

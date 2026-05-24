@@ -602,7 +602,7 @@ Performance and hardware constraints:
 - Avoid browser APIs, heap allocations per pixel, imports, async code, and dynamic evaluation.
 - Prefer multiplication and comparisons over expensive functions when possible.
 - Use sinf/cosf sparingly in the inner loop. Prefer PFMath::fastSin / PFMath::fastCos. If the JavaScript uses lots of trig, simplify or precompute.
-- Replace sqrt(x*x + y*y) with PFMath::approxLength(x, y) when exact distance is not visually essential (~5% error, no sqrtf in the pixel loop).
+- Replace sqrt(x*x + y*y) with PFMath::approxLength(x, y) ONLY when the distance is a secondary signal. Keep real sqrtf when distance is the primary visual structure of the pattern: radial ripples, concentric rings, swirl/vortex centers, anything that uses 1/dist for amplification, or any place where the visible isodistance lines define the pattern. approxLength has ~5% error and its contour is an octagon, not a circle — in distance-critical patterns it shows up as visible polygonal artifacts. When in doubt, use sqrtf.
 - Keep LED brightness strong enough; at least some pixels should regularly reach near-full RGB output.
 - Preserve local color logic from the JavaScript, especially value-based or banded colors.
 
