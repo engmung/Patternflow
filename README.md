@@ -27,16 +27,21 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 
 > **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
 
-## Make your own patterns — no firmware build required
+## Make your own patterns
 
 Patternflow ships with a prompt template designed for AI coding assistants (Claude, ChatGPT, etc.). To make a new pattern:
 
-1. Copy the template from [`firmware/CUSTOM_PATTERNS.md`](firmware/CUSTOM_PATTERNS.md).
-2. Paste it into your AI assistant along with a description of the look you want.
-3. Save the output as a new `pattern_*.h` file in the firmware folder.
-4. Flash via the browser flasher at [patternflow.work](https://patternflow.work).
+1. Go to the **Live Editor** in the **Pattern** section on [patternflow.work](https://patternflow.work) and click **Copy creation prompt**.
+2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
+3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
+4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
+5. Save the C++ output as a new `pattern_*.h` file in the `firmware/patternflow/` folder.
+6. Register the namespace in `pattern_registry.h`.
+7. Open `firmware/patternflow/patternflow.ino` in Arduino IDE and upload your custom build.
 
-No GLSL, no rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
+No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
+
+Custom patterns require a local Arduino IDE compile/upload step for now.
 
 ## Patterns
 
@@ -73,14 +78,16 @@ For the full story — failed prints, broken potentiometers, two weeks of debugg
 ## Repository structure
 
 - `firmware/` — Arduino code for ESP32-S3, plus the custom pattern template
-- `hardware/` — case (3D models + Blender source) and PCB (KiCad, Gerber, schematic PDF)
+- `hardware/` — enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF)
 - `web/` — Next.js site (landing, browser flasher, Live Editor, journal)
-- `docs/` — build guide, media, license summary
+- `docs/` — build paths, build guide, media, license summary
 
 ## Documentation
 
-- [Build Guide](docs/BUILD.md)
+- [Assembly Map](docs/assembly/README.md)
+- [Current Full Build Guide](docs/BUILD.md)
 - [Custom Patterns](firmware/CUSTOM_PATTERNS.md)
+- [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [License Summary](docs/LICENSE-SUMMARY.md)
 
@@ -92,7 +99,7 @@ Firmware v2 is backward compatible with v1 hardware. Flash freely.
 
 ## Contributing
 
-PRs and issues welcome. The `.agents/` folder contains the project context, conventions, and skills that any AI coding assistant (Claude Code, Cursor, etc.) will pick up automatically when you fork the repo — so contributions stay consistent without you having to learn the codebase from scratch first.
+Guidelines for contributing to the repository are currently under preparation. In the meantime, please refer to the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information.
 
 ## License
 

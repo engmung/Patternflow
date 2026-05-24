@@ -1,6 +1,6 @@
-# Patternflow v1.0 — Case
+# Patternflow Case
 
-3D-printable enclosure for the Patternflow v1.0 LED synthesizer.
+3D-printable enclosure for the Patternflow LED synthesizer.
 
 ## Print plates
 

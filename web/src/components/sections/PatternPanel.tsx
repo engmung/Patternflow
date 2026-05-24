@@ -313,7 +313,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
               <div className={styles.block}>
                 <div className={styles.lead}>
                   <p className={styles.flashDesktopCopy}>
-                    Connect Patternflow over USB, then click the button to flash the current firmware from the browser.
+                    Connect Patternflow over USB, then flash the official release firmware from the browser.
                   </p>
                   <p className={styles.flashMobileCopy}>
                     Browser flashing is available on desktop Chrome or Edge. On mobile, preview the built-in patterns below.
@@ -341,7 +341,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
 
               <div className={styles.block}>
                 <p className={styles.previewNote}>
-                  Pick a preset below to change the 3D preview.
+                  Pick a preset below to change the 3D preview. Custom patterns require an Arduino IDE build.
                 </p>
 
                 <div className={styles.presetList} aria-label="Preset patterns">
@@ -423,17 +423,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                 <div className={styles.applyGuide}>
                   <h3>Use it on hardware</h3>
                   <ol>
-                    <li>Download the firmware source and open it in Arduino IDE.</li>
+                    <li>Download the firmware source and open <code>patternflow.ino</code> in Arduino IDE.</li>
                     <li>Add your generated pattern header to <code>firmware/patternflow</code>.</li>
                     <li>Add the pattern namespace to <code>pattern_registry.h</code>.</li>
                     <li>Upload the sketch to your ESP32-S3.</li>
                   </ol>
                   <p>
-                    Want to share a pattern? Send it through Discord, GitHub, or{' '}
+                    Custom patterns are separate from release firmware for now. Pattern studies are posted on Instagram, and good community work can be shared there as a collab post. Send yours through Discord, GitHub issues, or{' '}
                     <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
                       Instagram DM
                     </a>
-                    .
+                    ; selected patterns may be bundled later.
                   </p>
                   <div className={styles.applyLinks}>
                     <a href="https://github.com/engmung/PatternFlow/tree/main/firmware" className={styles.secondaryLink}>

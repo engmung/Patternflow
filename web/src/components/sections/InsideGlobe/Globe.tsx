@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Html, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Mesh } from 'three';
 import { BufferGeometry, Float32BufferAttribute } from 'three';
@@ -12,6 +12,7 @@ import { builds, latLngToVec3 } from './builds';
 const COLORS = {
   wireframe: '#6B655A',
   pin: '#141414',
+  activePin: '#E8552E',
 };
 
 const GLOBE_RADIUS = 1.25;
@@ -60,22 +61,35 @@ function GlobeWireframe() {
   );
 }
 
-function BuildPin({ build }: { build: Build }) {
+export interface GlobeProps {
+  selectedBuildId?: string | null;
+  onSelectBuild?: (buildId: string | null) => void;
+}
+
+function BuildPin({
+  build,
+  isSelected,
+  onSelect,
+}: {
+  build: Build;
+  isSelected: boolean;
+  onSelect: (buildId: string | null) => void;
+}) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const position = latLngToVec3(build.location.lat, build.location.lng, GLOBE_RADIUS);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (!meshRef.current) return;
-    const pulse = 1 + Math.sin(clock.elapsedTime * 2) * 0.15;
-    const targetScale = hovered ? 1.4 : pulse;
+    // No idle pulse! Constant base scale of 1.0, grows to 1.3x on hover, and 1.45x when selected.
+    const targetScale = isSelected ? 1.45 : hovered ? 1.3 : 1.0;
     meshRef.current.scale.setScalar(targetScale);
   });
 
   return (
     <group position={position}>
+      {/* Large invisible hit-box for both easy hover and click (3.6x sensitivity) */}
       <mesh
-        ref={meshRef}
         onPointerOver={(event) => {
           event.stopPropagation();
           setHovered(true);
@@ -85,22 +99,29 @@ function BuildPin({ build }: { build: Build }) {
           setHovered(false);
           document.body.style.cursor = '';
         }}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (isSelected) {
+            onSelect(null);
+          } else {
+            onSelect(build.id);
+          }
+        }}
       >
-        <sphereGeometry args={[PIN_RADIUS, 16, 16]} />
-        <meshBasicMaterial color={COLORS.pin} />
+        <sphereGeometry args={[PIN_RADIUS * 3.6, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
-      {hovered && (
-        <Html center distanceFactor={4} className="inside-globe-tooltip">
-          <span>{build.sequenceLabel}</span>
-          <strong>Made by {build.maker} in {build.country}</strong>
-          <span>{build.location.label} · {build.date}</span>
-        </Html>
-      )}
+
+      {/* Small, precise visible pin */}
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[PIN_RADIUS, 16, 16]} />
+        <meshBasicMaterial color={isSelected ? COLORS.activePin : COLORS.pin} />
+      </mesh>
     </group>
   );
 }
 
-function GlobeScene() {
+function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -117,7 +138,15 @@ function GlobeScene() {
     <>
       <GlobeWireframe />
       {builds.map((build) => (
-        <BuildPin key={build.id} build={build} />
+        <BuildPin
+          key={build.id}
+          build={build}
+          isSelected={selectedBuildId === build.id}
+          onSelect={(buildId) => {
+            pauseRotation();
+            onSelectBuild?.(buildId);
+          }}
+        />
       ))}
       <OrbitControls
         ref={controlsRef}
@@ -133,14 +162,15 @@ function GlobeScene() {
   );
 }
 
-export default function Globe() {
+export default function Globe(props: GlobeProps) {
   return (
     <Canvas
       camera={{ position: [0, 0, 4.2], fov: 42 }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
+      onPointerMissed={() => props.onSelectBuild?.(null)}
     >
-      <GlobeScene />
+      <GlobeScene {...props} />
     </Canvas>
   );
 }
