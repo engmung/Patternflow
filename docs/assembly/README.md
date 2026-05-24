@@ -11,9 +11,9 @@ Once you build these two components, you simply flash the firmware to bring your
 
 | Enclosure | Electronics | Firmware | Status |
 | --- | --- | --- | --- |
-| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Flash release firmware](firmware/flash-release.md) | Supported now |
+| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Arduino IDE / Custom patterns](firmware/custom-patterns.md) | Supported now |
 
-This is the same path as the original build guide: PLA parts printed on a Bambu P1S or similar FDM printer, a hand-soldered Patternflow PCB, and the release firmware flashed from the browser.
+This is the same path as the original build guide: PLA parts printed on a Bambu P1S or similar FDM printer, a hand-soldered Patternflow PCB, and firmware compiled/uploaded via Arduino IDE to support custom generative patterns.
 
 ## Build Combinations
 
@@ -30,10 +30,9 @@ The custom PCB path is stable. PCBA may become a later electronics path for peop
 
 ## Firmware & Custom Patterns
 
-To bring your Patternflow hardware to life, you will need to flash the firmware. While you can quickly boot the official software, **most builders will want to create and run their own generative patterns using AI coding assistants**.
+To bring your Patternflow hardware to life, you will compile and upload the firmware using the Arduino IDE. This setup allows you to **create and run your own generative patterns using AI coding assistants**.
 
 - **[Create Custom Patterns (Recommended)](firmware/custom-patterns.md)** — Use our interactive web Live Editor and an AI assistant (Claude, ChatGPT, etc.) to generate, preview, and install your own visual patterns using the Arduino IDE.
-- **[Flash Official Release](firmware/flash-release.md)** — Upload the stable, pre-compiled official Patternflow OS directly from your browser in one click.
 
 ## Legacy Guide
 
