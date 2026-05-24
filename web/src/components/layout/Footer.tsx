@@ -8,11 +8,7 @@ export default function Footer() {
           <br />
           <em className="wordmark">Patternflow</em> is a trademark of SeungHun Lee.
         </div>
-        <div className="mono">
-          <a href="https://www.instagram.com/patternflow.work/" target="_blank" rel="noopener noreferrer">
-            Instagram
-          </a>
-        </div>
+
       </div>
       <div className="series">
         The Patternflow series: LED Synthesizer (2026) · Origin (2026)
