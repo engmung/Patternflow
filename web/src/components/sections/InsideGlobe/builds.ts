@@ -1,22 +1,28 @@
 export type Build = {
   id: string;
   location: { lat: number; lng: number; label: string };
-  sequenceLabel: string;
   maker: string;
   country: string;
-  title: string;
   date: string;
+  description: string;
 };
 
 export const builds: Build[] = [
   {
     id: 'seoul-v1',
     location: { lat: 37.5665, lng: 126.978, label: 'Seoul, Korea' },
-    sequenceLabel: 'First build',
-    maker: 'LEE',
+    maker: 'Seunghun LEE',
     country: 'Korea',
-    title: 'Patternflow v1.0',
     date: 'April 2026',
+    description: 'The very first edition. One of five 001 units from the first PCB order.',
+  },
+  {
+    id: 'paris-v1',
+    location: { lat: 48.8566, lng: 2.3522, label: 'Paris, France' },
+    maker: 'Seunghun LEE',
+    country: 'France',
+    date: 'May 2026',
+    description: 'A gift sent to the first collaborator, and the second physical build. One of five 001 units from the first PCB order.',
   },
 ];
 

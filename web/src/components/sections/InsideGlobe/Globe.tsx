@@ -62,8 +62,8 @@ function GlobeWireframe() {
 }
 
 export interface GlobeProps {
-  selectedBuildId?: string;
-  onSelectBuild?: (buildId: string) => void;
+  selectedBuildId?: string | null;
+  onSelectBuild?: (buildId: string | null) => void;
 }
 
 function BuildPin({
@@ -73,23 +73,23 @@ function BuildPin({
 }: {
   build: Build;
   isSelected: boolean;
-  onSelect: (buildId: string) => void;
+  onSelect: (buildId: string | null) => void;
 }) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const position = latLngToVec3(build.location.lat, build.location.lng, GLOBE_RADIUS);
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (!meshRef.current) return;
-    const pulse = 1 + Math.sin(clock.elapsedTime * 2) * 0.15;
-    const targetScale = isSelected ? 1.55 : hovered ? 1.35 : pulse;
+    // No idle pulse! Constant base scale of 1.0, grows to 1.3x on hover, and 1.45x when selected.
+    const targetScale = isSelected ? 1.45 : hovered ? 1.3 : 1.0;
     meshRef.current.scale.setScalar(targetScale);
   });
 
   return (
     <group position={position}>
+      {/* Large invisible hit-box for both easy hover and click (3.6x sensitivity) */}
       <mesh
-        ref={meshRef}
         onPointerOver={(event) => {
           event.stopPropagation();
           setHovered(true);
@@ -101,9 +101,19 @@ function BuildPin({
         }}
         onClick={(event) => {
           event.stopPropagation();
-          onSelect(build.id);
+          if (isSelected) {
+            onSelect(null);
+          } else {
+            onSelect(build.id);
+          }
         }}
       >
+        <sphereGeometry args={[PIN_RADIUS * 3.6, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      {/* Small, precise visible pin */}
+      <mesh ref={meshRef}>
         <sphereGeometry args={[PIN_RADIUS, 16, 16]} />
         <meshBasicMaterial color={isSelected ? COLORS.activePin : COLORS.pin} />
       </mesh>
@@ -158,6 +168,7 @@ export default function Globe(props: GlobeProps) {
       camera={{ position: [0, 0, 4.2], fov: 42 }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
+      onPointerMissed={() => props.onSelectBuild?.(null)}
     >
       <GlobeScene {...props} />
     </Canvas>

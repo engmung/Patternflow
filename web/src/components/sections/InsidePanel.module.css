@@ -6,7 +6,7 @@
   display: grid;
   grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
   gap: 28px;
-  align-items: center;
+  align-items: stretch;
   max-width: 760px;
   margin: 0 0 22px;
 }
@@ -37,11 +37,50 @@
 .buildCard {
   display: grid;
   gap: 14px;
-  min-height: 220px;
   align-content: center;
   padding: 18px 0;
   border-top: 1px solid var(--pf-rule);
   border-bottom: 1px solid var(--pf-rule);
+  animation: cardFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.buildCardPlaceholder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 18px 24px;
+  border-top: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
+  text-align: center;
+  gap: 16px;
+}
+
+.buildCardPlaceholder p {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.65;
+}
+
+.buildCardPlaceholder span {
+  color: var(--pf-ink-faint);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .buildCard > span {

@@ -42,9 +42,9 @@ function GitHubIcon() {
 }
 
 export default function InsidePanel({ content }: InsidePanelProps) {
-  const [selectedBuildId, setSelectedBuildId] = useState(builds[0]?.id ?? '');
+  const [selectedBuildId, setSelectedBuildId] = useState<string | null>(null);
   const selectedBuild = useMemo(
-    () => builds.find((build) => build.id === selectedBuildId) ?? builds[0],
+    () => builds.find((build) => build.id === selectedBuildId) ?? null,
     [selectedBuildId],
   );
 
@@ -73,12 +73,10 @@ export default function InsidePanel({ content }: InsidePanelProps) {
           <span className="pf-kicker">Build map</span>
           <div className={styles.mapLayout}>
             <div className={styles.globeShell}>
-              <Globe selectedBuildId={selectedBuildId} onSelectBuild={setSelectedBuildId} />
+              <Globe selectedBuildId={selectedBuildId ?? undefined} onSelectBuild={setSelectedBuildId} />
             </div>
-            {selectedBuild && (
-              <div className={styles.buildCard} aria-live="polite">
-                <span>{selectedBuild.sequenceLabel}</span>
-                <h3>{selectedBuild.title}</h3>
+            {selectedBuild ? (
+              <div className={styles.buildCard} key={selectedBuild.id} aria-live="polite">
                 <dl>
                   <div>
                     <dt>Location</dt>
@@ -93,18 +91,14 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                     <dd>{selectedBuild.date}</dd>
                   </div>
                 </dl>
-                <p>
-                  The first point is Seoul. Send your build with location, name or nickname,
-                  and a photo in Discord, and it can become the next point.
-                </p>
+                <p>{selectedBuild.description}</p>
+              </div>
+            ) : (
+              <div className={styles.buildCardPlaceholder}>
+                <p>The goal is simple: cover this globe with Patternflow.</p>
+                <span>Select a point on the globe to explore build details</span>
               </div>
             )}
-          </div>
-          <div className="pf-prose">
-            <p>
-              The goal is simple: cover this globe with points made by people who built
-              Patternflow in their own place.
-            </p>
           </div>
         </div>
 
