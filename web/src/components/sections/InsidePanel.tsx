@@ -187,8 +187,9 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <li className={styles.storyCurrent}>
               <time>26.5</time>
               <span>
-                Patternflow reached <strong>100 GitHub stars</strong>, and the
-                <strong> first collaborator</strong> joined.
+                Patternflow reached <strong>100 GitHub stars</strong>, and the{' '}
+                <strong>first collaborator</strong> joined. Preparing for small-run sales, we initiated a precise{' '}
+                <strong>BOM cost calculation</strong>, estimating roughly <strong>$120</strong> in the worst-case scenario.
               </span>
             </li>
             <li>
