@@ -23,6 +23,142 @@
   gap: 3px;
 }
 
+.pathIntro {
+  max-width: 640px;
+  margin-bottom: 24px;
+}
+
+.pathIntro p {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
+.buildMatrix {
+  display: grid;
+  grid-template-columns: minmax(142px, 0.85fr) repeat(2, minmax(0, 1fr));
+  max-width: 620px;
+  border-top: 1px solid var(--pf-rule);
+  border-left: 1px solid var(--pf-rule);
+}
+
+.matrixCell {
+  min-height: 86px;
+  padding: 18px;
+  border-right: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
+  color: var(--pf-ink);
+  text-decoration: none;
+}
+
+.matrixHeader,
+.matrixCorner {
+  color: var(--pf-ink);
+}
+
+.matrixHeader {
+  background: var(--pf-cream-2);
+}
+
+.matrixCorner {
+  position: relative;
+  overflow: hidden;
+  background: var(--pf-cream-2);
+  color: var(--pf-ink-faint);
+}
+
+.matrixCorner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom left,
+    transparent calc(50% - 0.5px),
+    var(--pf-rule) calc(50% - 0.5px),
+    var(--pf-rule) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  pointer-events: none;
+}
+
+.cornerElectronics,
+.cornerEnclosure {
+  position: absolute;
+  z-index: 1;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.cornerElectronics {
+  top: 15px;
+  right: 14px;
+  text-align: right;
+}
+
+.cornerEnclosure {
+  left: 14px;
+  bottom: 14px;
+}
+
+.matrixColumnHeader,
+.matrixRowHeader {
+  display: flex;
+  align-items: center;
+  font-size: clamp(18px, 2vw, 24px);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.matrixColumnHeader {
+  align-items: center;
+}
+
+.matrixOption {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.matrixOption strong {
+  color: var(--pf-ink-muted);
+  font-size: clamp(16px, 1.55vw, 19px);
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.matrixOption span {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.35;
+}
+
+.matrixCurrent strong {
+  color: var(--pf-ink);
+}
+
+.matrixCurrent span {
+  color: var(--pf-ink-muted);
+}
+
+.matrixCurrent:hover,
+.matrixCurrent:focus-visible {
+  outline: 0;
+  background: var(--pf-cream-2);
+}
+
+.pathLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 22px;
+}
+
 .stepHead {
   min-height: 21px;
   display: block;
@@ -67,5 +203,39 @@
 
   .inlineAction {
     right: 62px;
+  }
+
+  .buildMatrix {
+    grid-template-columns: minmax(104px, 0.8fr) repeat(2, minmax(0, 1fr));
+  }
+
+  .matrixCell {
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .cornerElectronics,
+  .cornerEnclosure {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+
+  .cornerElectronics {
+    top: 11px;
+    right: 10px;
+  }
+
+  .cornerEnclosure {
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .matrixColumnHeader,
+  .matrixRowHeader {
+    font-size: 17px;
+  }
+
+  .matrixOption strong {
+    font-size: 15px;
   }
 }

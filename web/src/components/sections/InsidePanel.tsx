@@ -1,269 +1,222 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { SectionContent } from '@/lib/content';
+import { builds } from './InsideGlobe/builds';
+import type { GlobeProps } from './InsideGlobe/Globe';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
   content: SectionContent;
 }
 
-const Globe = dynamic(() => import('./InsideGlobe/Globe'), { ssr: false });
+const Globe = dynamic<GlobeProps>(() => import('./InsideGlobe/Globe'), { ssr: false });
+const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
+const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
+const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md';
 
-const redditQuotes = [
-  {
-    quote: "Remember some years ago Teenage Engineering did a simple LED matrix music visualizer thing with IKEA and it was super lame. Your thing is much closer to what it should have been.",
-    user: 'u/frumperino',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: 'That is the coolest most useless thing on the planet.',
-    user: 'u/NeedleworkerFew5205',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: "Out of 100's of projects in a similar category, yours is the first that I must freaking have.",
-    user: 'u/LegendOfVlad',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: 'This is one of those ultra-niche things I just love.',
-    user: 'u/zebadrabbit',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: 'More love to this post please!!!',
-    user: 'u/ShamanOnTech',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: "So uh... so when are you selling this? Can't wait.",
-    user: 'u/C4TT4',
-    subreddit: 'r/somethingimade',
-  },
-  {
-    quote: "Another up is not enough. I'm gonna try to build one.",
-    user: 'u/Sandisbad',
-    subreddit: 'r/arduino',
-  },
-  {
-    quote: "Incredibly cool. I'd love to have this in my home!",
-    user: 'u/SawdustedPatios',
-    subreddit: 'r/somethingimade',
-  },
-];
-
-function RedditCommentBand() {
-  const items = [...redditQuotes, ...redditQuotes];
-  const marqueeRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<number | null>(null);
-  const previousTimeRef = useRef(0);
-  const offsetRef = useRef(0);
-  const pausedRef = useRef(false);
-  const draggingRef = useRef(false);
-  const dragStartXRef = useRef(0);
-  const dragStartOffsetRef = useRef(0);
-
-  const applyOffset = () => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const loopWidth = track.scrollWidth / 2;
-    if (loopWidth <= 0) return;
-
-    offsetRef.current = ((offsetRef.current % loopWidth) + loopWidth) % loopWidth;
-    track.style.transform = `translate3d(${-offsetRef.current}px, 0, 0)`;
-  };
-
-  useEffect(() => {
-    const animate = (time: number) => {
-      const track = trackRef.current;
-      if (track && !pausedRef.current && !draggingRef.current) {
-        const loopWidth = track.scrollWidth / 2;
-        const delta = previousTimeRef.current ? time - previousTimeRef.current : 0;
-
-        if (loopWidth > 0) {
-          offsetRef.current += (loopWidth / 80000) * delta;
-          applyOffset();
-        }
-      }
-
-      previousTimeRef.current = time;
-      frameRef.current = requestAnimationFrame(animate);
-    };
-
-    frameRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
-      }
-    };
-  }, []);
-
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    draggingRef.current = true;
-    pausedRef.current = true;
-    dragStartXRef.current = event.clientX;
-    dragStartOffsetRef.current = offsetRef.current;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    event.preventDefault();
-    offsetRef.current = dragStartOffsetRef.current - (event.clientX - dragStartXRef.current);
-    applyOffset();
-  };
-
-  const handlePointerEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
-    draggingRef.current = false;
-    pausedRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
+function DiscordIcon() {
   return (
-    <div className="pf-block">
-      <div
-        ref={marqueeRef}
-        className={`pf-marquee fade ${styles.commentMarquee}`}
-        aria-label="Reddit comments"
-        onMouseEnter={() => {
-          pausedRef.current = true;
-        }}
-        onMouseLeave={() => {
-          if (!draggingRef.current) pausedRef.current = false;
-        }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-      >
-        <div ref={trackRef} className={`pf-track pf-track-manual ${styles.manualTrack}`}>
-          {items.map((item, index) => {
-            const quoteNumber = String((index % redditQuotes.length) + 1).padStart(2, '0');
-            const isDuplicate = index >= redditQuotes.length;
+    <svg viewBox="0 0 24 24">
+      <path d="M20.3 4.7A16.7 16.7 0 0 0 16.2 3l-.2.4c-.2.4-.4.8-.5 1.2a15.6 15.6 0 0 0-7 0c-.2-.4-.3-.8-.5-1.2L7.8 3a16.7 16.7 0 0 0-4.1 1.7C1.1 8.6.4 12.4.8 16.2A16.9 16.9 0 0 0 5.9 19l.6-.8.5-.9c-.9-.3-1.7-.7-2.4-1.2l.6-.5c4.6 2.1 9.5 2.1 14.1 0l.6.5c-.8.5-1.6.9-2.4 1.2l.5.9.6.8a16.9 16.9 0 0 0 5.1-2.8c.5-4.3-.7-8-3.4-11.5ZM8.3 14.1c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z" />
+    </svg>
+  );
+}
 
-            return (
-              <div
-                key={`${item.user}-${index}`}
-                className="pf-comment"
-                aria-hidden={isDuplicate ? 'true' : undefined}
-              >
-                <span className="pf-ghost">{quoteNumber}</span>
-                <p>{item.quote}</p>
-                <div className="pf-comment-meta">
-                  <span>{item.user}</span>
-                  <span>{item.subreddit}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M7.6 2h8.8A5.6 5.6 0 0 1 22 7.6v8.8a5.6 5.6 0 0 1-5.6 5.6H7.6A5.6 5.6 0 0 1 2 16.4V7.6A5.6 5.6 0 0 1 7.6 2Zm0 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm8.9 2.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+    </svg>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.6.1.8-.3.8-.6v-2c-3.4.7-4.1-1.5-4.1-1.5-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.4-5.5-6a4.6 4.6 0 0 1 1.3-3.3c-.1-.3-.6-1.6.1-3.3 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6.2 0C18 3.7 19 4 19 4c.7 1.7.2 3 .1 3.3a4.7 4.7 0 0 1 1.3 3.3c0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2V22c0 .3.2.7.8.6A11.2 11.2 0 0 0 12 .8Z" />
+    </svg>
   );
 }
 
 export default function InsidePanel({ content }: InsidePanelProps) {
+  const [selectedBuildId, setSelectedBuildId] = useState(builds[0]?.id ?? '');
+  const selectedBuild = useMemo(
+    () => builds.find((build) => build.id === selectedBuildId) ?? builds[0],
+    [selectedBuildId],
+  );
+
   return (
     <div className="panel-content pf-section-panel" id="inside" aria-label={content.title}>
       <div className="panel-header">
-        <h2 className="pf-h2">Origin &amp; Open</h2>
-        <p className="pf-sub">Everything about Patternflow</p>
+        <h2 className="pf-h2">{content.title || 'Inside the work.'}</h2>
+        <p className="pf-sub">{content.subtitle || 'The build map and how to get involved.'}</p>
       </div>
 
       <div className={`panel-body ${styles.body}`}>
         <div className="pf-block">
-          <span className="pf-kicker">Origin</span>
+          <span className="pf-kicker">Start anywhere</span>
           <div className="pf-prose">
             <p>
-              Two posts on r/arduino brought Patternflow to 150K combined views and 3.5K upvotes.
+              Patternflow is a way to play light with your fingertips. You do not have to be
+              special to make one, and you do not have to start with the most polished version.
             </p>
             <p>
-              Hundreds of comments asked when it would be available, where to find the files,
-              and how to build their own.
+              Start with what you have, ask when you get stuck, and pass help on when you can.
             </p>
-            <div className={styles.sourceLinks}>
-              <a className="pf-link" href="https://www.reddit.com/r/arduino/comments/1so9er5/" target="_blank" rel="noreferrer">
-                First r/arduino post
-              </a>
-              <a className="pf-link" href="https://www.reddit.com/r/arduino/comments/1szettd/" target="_blank" rel="noreferrer">
-                Second r/arduino post
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <RedditCommentBand />
-
-        <div className="pf-block">
-          <span className="pf-kicker">Open source</span>
-          <div className="pf-prose">
-            <p>
-              PCBway reached out right after the first post. Their timing made the first PCB
-              possible just when Patternflow needed one.
-            </p>
-            <p>
-              The community was not asking for a product. They were asking for the files.
-              So Patternflow was opened: schematics, firmware, case, build guide, all of it
-              in the repository. Hardware designs are shared under CC-BY-SA 4.0; firmware
-              and web code are MIT.
-            </p>
-            <p>
-              The encouragement in the comments is the reason it stays open. Not a finished
-              object but a starting point: build, modify, fork, share.
-            </p>
-          </div>
-        </div>
-
-        <div className="pf-block">
-          <span className="pf-kicker">Participation TV</span>
-          <div className="pf-prose">
-            <p>
-              A reinterpretation of Nam June Paik&apos;s Participation TV (1963). Paik brought
-              participation into art. Patternflow tries to carry that gesture further, from
-              participation into creation.
-            </p>
-            <p>
-              More of the story, from failed prints and broken potentiometers to the first PCB
-              and the 30-day build process, is documented in the journal.
-            </p>
-            <Link className="pf-link" href="/journal">
-              Read the journal
-            </Link>
           </div>
         </div>
 
         <div className="pf-block">
           <span className="pf-kicker">Build map</span>
-          <div className={styles.globeShell}>
-            <Globe />
+          <div className={styles.mapLayout}>
+            <div className={styles.globeShell}>
+              <Globe selectedBuildId={selectedBuildId} onSelectBuild={setSelectedBuildId} />
+            </div>
+            {selectedBuild && (
+              <div className={styles.buildCard} aria-live="polite">
+                <span>{selectedBuild.sequenceLabel}</span>
+                <h3>{selectedBuild.title}</h3>
+                <dl>
+                  <div>
+                    <dt>Location</dt>
+                    <dd>{selectedBuild.location.label}</dd>
+                  </div>
+                  <div>
+                    <dt>Maker</dt>
+                    <dd>{selectedBuild.maker}</dd>
+                  </div>
+                  <div>
+                    <dt>Date</dt>
+                    <dd>{selectedBuild.date}</dd>
+                  </div>
+                </dl>
+                <p>
+                  The first point is Seoul. Send your build with location, name or nickname,
+                  and a photo in Discord, and it can become the next point.
+                </p>
+              </div>
+            )}
           </div>
-          <p className={styles.tagline}>
-            The first one was made in Seoul, April 2026.
-            <br />
-            The next one could be anywhere.
-          </p>
+          <div className="pf-prose">
+            <p>
+              The goal is simple: cover this globe with points made by people who built
+              Patternflow in their own place.
+            </p>
+          </div>
         </div>
 
         <div className="pf-block">
-          <span className="pf-kicker">Share a build</span>
+          <span className="pf-kicker">Join in</span>
           <div className="pf-prose">
             <p>
-              If you build your own, share photos on Discord or open a GitHub issue.
-              Your build will be added to the map.
+              Most of the day-to-day help happens in Discord. Instagram is for showing patterns
+              in motion. GitHub is where the files, issues, and contribution notes live.
             </p>
-            <div className={styles.shareLinks}>
-              <a className="pf-link" href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noreferrer">Discord</a>
-              <a className="pf-link" href="https://github.com/engmung/PatternFlow/issues" target="_blank" rel="noreferrer">GitHub issues</a>
-            </div>
           </div>
+          <div className={styles.actionList} aria-label="Ways to join Patternflow">
+            <a className={styles.actionRow} href={DISCORD_URL} target="_blank" rel="noreferrer">
+              <span className={styles.actionIcon} aria-hidden="true">
+                <DiscordIcon />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>Discord</strong>
+                <span>
+                  Ask build questions, show finished builds, share custom patterns, and find the
+                  pattern code from the Instagram posts.
+                </span>
+              </span>
+            </a>
+            <a className={styles.actionRow} href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
+              <span className={styles.actionIcon} aria-hidden="true">
+                <InstagramIcon />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>Instagram</strong>
+                <span>
+                  Send a clean video of your pattern. If it fits Patternflow, I&apos;ll usually
+                  share it as a collaboration post.
+                </span>
+              </span>
+            </a>
+            <a className={styles.actionRow} href={GITHUB_CONTRIBUTING_URL} target="_blank" rel="noreferrer">
+              <span className={styles.actionIcon} aria-hidden="true">
+                <GitHubIcon />
+              </span>
+              <span className={styles.actionCopy}>
+                <strong>GitHub</strong>
+                <span>
+                  Start with the contributing notes, then open an issue or pull request for docs,
+                  firmware, hardware, or web changes.
+                </span>
+              </span>
+            </a>
+          </div>
+        </div>
+
+        <div className="pf-block">
+          <span className="pf-kicker">Story</span>
+          <ol className={styles.storyList}>
+            <li>
+              <time>26.1</time>
+              <span>
+                <a href="https://origin.patternflow.work/" target="_blank" rel="noreferrer">
+                  Patternflow: Origin
+                </a>{' '}
+                began as my first work as a <strong>new media artist</strong>, built around
+                <strong> 3D-printed forms</strong> and the seed of what became Patternflow.
+              </span>
+            </li>
+            <li>
+              <time>26.3</time>
+              <span>
+                The Origin pattern was tested on a <strong>physical LED matrix</strong> with
+                <strong> four knobs</strong>.
+              </span>
+            </li>
+            <li>
+              <time>26.4</time>
+              <span>
+                Instagram and Reddit responded strongly, so Patternflow turned into an
+                <strong> open-source project</strong>. The first PCB was made with
+                <strong> PCBWay sponsorship</strong>.
+              </span>
+            </li>
+            <li className={styles.storyCurrent}>
+              <time>26.5</time>
+              <span>
+                Patternflow reached <strong>100 GitHub stars</strong>, and the
+                <strong> first collaborator</strong> joined.
+              </span>
+            </li>
+            <li>
+              <time>26.6</time>
+              <span>
+                Order the first <strong>PCBA batch</strong> and test whether Patternflow can be
+                sold in a small, practical run.
+              </span>
+            </li>
+            <li>
+              <time>~</time>
+              <span>
+                Launch properly at the lowest sustainable price, send Patternflow further out
+                into the world, collaborate with <strong>more artists</strong>, and earn
+                <strong> academic recognition</strong>.
+              </span>
+            </li>
+            <li>
+              <time>28</time>
+              <span>
+                Before I leave for military service, make Patternflow into a
+                <strong> community and ecosystem</strong> that can keep growing on its own.
+              </span>
+            </li>
+          </ol>
+          <Link className={styles.journalLink} href="/journal">
+            Read the journal for the fuller story, including the thoughts and feelings along the way.
+          </Link>
         </div>
       </div>
     </div>

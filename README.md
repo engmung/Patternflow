@@ -27,16 +27,19 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 
 > **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
 
-## Make your own patterns — no firmware build required
+## Make your own patterns
 
 Patternflow ships with a prompt template designed for AI coding assistants (Claude, ChatGPT, etc.). To make a new pattern:
 
 1. Copy the template from [`firmware/CUSTOM_PATTERNS.md`](firmware/CUSTOM_PATTERNS.md).
 2. Paste it into your AI assistant along with a description of the look you want.
 3. Save the output as a new `pattern_*.h` file in the firmware folder.
-4. Flash via the browser flasher at [patternflow.work](https://patternflow.work).
+4. Register it in `pattern_registry.h`.
+5. Open `firmware/patternflow/patternflow.ino` in Arduino IDE and upload your custom build.
 
-No GLSL, no rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
+No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
+
+The browser flasher at [patternflow.work](https://patternflow.work) installs the official release firmware. Custom patterns require a local Arduino IDE compile/upload step for now.
 
 ## Patterns
 
@@ -73,14 +76,16 @@ For the full story — failed prints, broken potentiometers, two weeks of debugg
 ## Repository structure
 
 - `firmware/` — Arduino code for ESP32-S3, plus the custom pattern template
-- `hardware/` — case (3D models + Blender source) and PCB (KiCad, Gerber, schematic PDF)
+- `hardware/` — enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF)
 - `web/` — Next.js site (landing, browser flasher, Live Editor, journal)
-- `docs/` — build guide, media, license summary
+- `docs/` — build paths, build guide, media, license summary
 
 ## Documentation
 
-- [Build Guide](docs/BUILD.md)
+- [Build Map](docs/build/README.md)
+- [Current Full Build Guide](docs/BUILD.md)
 - [Custom Patterns](firmware/CUSTOM_PATTERNS.md)
+- [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [License Summary](docs/LICENSE-SUMMARY.md)
 

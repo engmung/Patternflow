@@ -1,10 +1,10 @@
 # Patternflow Hardware
 
-Open hardware files for Patternflow v1.0.
+Open hardware files for Patternflow.
 
 ## Structure
 
-- `case/` — 3D-printable case
+- `case/` — 3D-printable enclosure
   - `source/` — original Blender files (editable)
   - `print-ready/` — STL/3MF files ready for slicing
   - `parts/` — individual component files (if applicable)
@@ -15,8 +15,10 @@ Open hardware files for Patternflow v1.0.
 
 ## Build instructions
 
-See [docs/BUILD.md](../docs/BUILD.md) for full assembly walkthrough.
+Start with the build map in [docs/build/README.md](../docs/build/README.md).
+
+The current full walkthrough for the 3D printed enclosure plus official hand-soldered PCB path is [docs/BUILD.md](../docs/BUILD.md).
 
 ## License
 
-CC-BY-SA 4.0 — see root LICENSE-HARDWARE file.
+CC-BY-SA 4.0 — see the root [LICENSE-CC-BY-SA](../LICENSE-CC-BY-SA) file.

@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Html, OrbitControls } from '@react-three/drei';
+import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Mesh } from 'three';
 import { BufferGeometry, Float32BufferAttribute } from 'three';
@@ -12,6 +12,7 @@ import { builds, latLngToVec3 } from './builds';
 const COLORS = {
   wireframe: '#6B655A',
   pin: '#141414',
+  activePin: '#E8552E',
 };
 
 const GLOBE_RADIUS = 1.25;
@@ -60,7 +61,20 @@ function GlobeWireframe() {
   );
 }
 
-function BuildPin({ build }: { build: Build }) {
+export interface GlobeProps {
+  selectedBuildId?: string;
+  onSelectBuild?: (buildId: string) => void;
+}
+
+function BuildPin({
+  build,
+  isSelected,
+  onSelect,
+}: {
+  build: Build;
+  isSelected: boolean;
+  onSelect: (buildId: string) => void;
+}) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
   const position = latLngToVec3(build.location.lat, build.location.lng, GLOBE_RADIUS);
@@ -68,7 +82,7 @@ function BuildPin({ build }: { build: Build }) {
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
     const pulse = 1 + Math.sin(clock.elapsedTime * 2) * 0.15;
-    const targetScale = hovered ? 1.4 : pulse;
+    const targetScale = isSelected ? 1.55 : hovered ? 1.35 : pulse;
     meshRef.current.scale.setScalar(targetScale);
   });
 
@@ -85,22 +99,19 @@ function BuildPin({ build }: { build: Build }) {
           setHovered(false);
           document.body.style.cursor = '';
         }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect(build.id);
+        }}
       >
         <sphereGeometry args={[PIN_RADIUS, 16, 16]} />
-        <meshBasicMaterial color={COLORS.pin} />
+        <meshBasicMaterial color={isSelected ? COLORS.activePin : COLORS.pin} />
       </mesh>
-      {hovered && (
-        <Html center distanceFactor={4} className="inside-globe-tooltip">
-          <span>{build.sequenceLabel}</span>
-          <strong>Made by {build.maker} in {build.country}</strong>
-          <span>{build.location.label} · {build.date}</span>
-        </Html>
-      )}
     </group>
   );
 }
 
-function GlobeScene() {
+function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoRotate, setAutoRotate] = useState(true);
@@ -117,7 +128,15 @@ function GlobeScene() {
     <>
       <GlobeWireframe />
       {builds.map((build) => (
-        <BuildPin key={build.id} build={build} />
+        <BuildPin
+          key={build.id}
+          build={build}
+          isSelected={selectedBuildId === build.id}
+          onSelect={(buildId) => {
+            pauseRotation();
+            onSelectBuild?.(buildId);
+          }}
+        />
       ))}
       <OrbitControls
         ref={controlsRef}
@@ -133,14 +152,14 @@ function GlobeScene() {
   );
 }
 
-export default function Globe() {
+export default function Globe(props: GlobeProps) {
   return (
     <Canvas
       camera={{ position: [0, 0, 4.2], fov: 42 }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
     >
-      <GlobeScene />
+      <GlobeScene {...props} />
     </Canvas>
   );
 }

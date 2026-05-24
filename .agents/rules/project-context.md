@@ -6,7 +6,7 @@ This document provides deep project context for AI agents working on Patternflow
 
 Patternflow is a physical LED synthesizer designed to make generative light patterns accessible and tactile. It uses four rotary encoders to allow users to interact physically with digital algorithms displayed on a high-resolution LED matrix. Inspired by Nam June Paik's pioneering work in video art (*Participation TV*, 1963), the project bridges the gap between hardware tinkering, artistic expression, and open-source collaboration.
 
-The system is fully open source. It is designed to be built by intermediate hobbyists, requiring basic soldering skills and access to a 3D printer. The project is split into three main domains: Arduino-based firmware, physical hardware (PCB and 3D-printed enclosure), and a web-based ecosystem for documentation and future firmware management.
+The system is fully open source. It is designed to support multiple build paths over time: the current 3D printed enclosure + hand-soldered PCB path, plus planned laser-cut enclosure and breadboard / jumper-wire electronics paths. The project is split into firmware, hardware, web, and documentation domains.
 
 ## Tech stack
 
@@ -22,7 +22,7 @@ The system is fully open source. It is designed to be built by intermediate hobb
 The firmware is built around the `ESP32-HUB75-MatrixPanel-DMA` library to drive the 128x64 HUB75 LED panel. 
 - **Pin Mapping:** Defined centrally in `firmware/patternflow/config.h`. Uses specific I2S pins for DMA output.
 - **Encoders:** Four EC11 encoders read via interrupt-based logic. 
-- **Pattern System:** Currently utilizes a `renderConcentric` function. Patterns operate on a phase variable progressed by time and the speed encoder.
+- **Pattern System:** Patterns live in `firmware/patternflow/pattern_*.h` and are registered in `pattern_registry.h`. Each pattern exposes `NAME`, `KNOB_LABELS`, `setup()`, `update()`, and `draw()`.
 
 ### Hardware (PCB)
 The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 box header (`J1`).
@@ -31,14 +31,21 @@ The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 
 - **Power Structure:** +5V from a user-supplied power bank enters at `J2`, and is internally routed on the PCB to `J3` which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the power delivery.
 
 ### Hardware (Case)
-The enclosure is modeled in Blender and sliced into print-ready plates located in `hardware/case/print-ready/`:
+The current enclosure is modeled in Blender and sliced into print-ready plates located in `hardware/case/print-ready/`:
 1. `01_plate_main.stl`: White PLA body and back panel.
 2. `02_plate_dividers.stl`: White PLA internal dividers.
 3. `03_plate_knobs_15mm.stl`: Black PLA knobs for recommended 15mm encoder shafts.
 4. `03_plate_knobs.stl`: Black PLA knobs for older/alternate 20mm encoder shafts.
 
 ### Web
-A Next.js application residing in `web/`. It serves as the landing page and documentation hub. A future roadmap item includes a Web Serial-based one-click firmware flasher.
+A Next.js application residing in `web/`. It serves the landing page, browser firmware flasher, Pattern Lab / Live Editor, Video Baker, journal, and build map.
+
+### Build Documentation
+Build entry points now live under `docs/build/`:
+- `docs/build/README.md` is the build map.
+- `docs/BUILD.md` remains the detailed guide for the current 3D print + official PCB path.
+- `docs/build/firmware/flash-release.md` explains browser flashing.
+- `docs/build/firmware/custom-patterns.md` explains the Arduino IDE path for custom patterns.
 
 ## License structure
 
@@ -46,13 +53,13 @@ The project maintains a strict dual-license approach to accommodate the differin
 - **MIT License:** Covers all firmware (`firmware/`) and web source code (`web/`). The legal text is at `LICENSE-MIT`.
 - **CC-BY-SA 4.0:** Covers all hardware source files, including KiCad PCB designs and Blender/STL case files (`hardware/`). The legal text header is at `LICENSE-CC-BY-SA`.
 
-## Known issues (v1.0)
+## Known issues and design notes
 
-For full details, reference `docs/BUILD.md` §8. Summary:
-1. **Reset button required on power-up:** Due to slow 3.3V rail rise time.
-2. **Encoder direction reversed:** PCB footprint orientation issue (compensated in firmware).
-3. **SMD silkscreen ambiguity:** Resistors and capacitors (0805) are not distinctly marked on the v1.0 PCB.
-4. **LED matrix alignment bumps:** Must be physically trimmed off the matrix during assembly.
+For full details, reference `docs/BUILD.md` §10. Summary:
+1. **Cold boot reliability:** fixed in v2.0 with a 10k GPIO0 pullup.
+2. **SMD silkscreen ambiguity:** fixed in v2.0.
+3. **LED matrix alignment bumps:** still open; current workaround is trimming during assembly.
+4. **Encoder direction:** handled in firmware.
 5. **Encoder shaft length:** New builds should use 15mm EC11 shafts. 20mm shafts still work with the matching legacy knob STL.
 
 ## Conventions

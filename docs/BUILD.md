@@ -2,6 +2,8 @@
 
 This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
 
+This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader build map, including planned laser-cut and breadboard paths, see [docs/build/README.md](build/README.md).
+
 **Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
 **Skill level:** Intermediate. If you've assembled a mechanical keyboard or built an Arduino project with SMD components, you're ready.
@@ -372,11 +374,16 @@ At this point the **Patternflow body is mechanically complete.** The only thing 
 
 ## 8. Firmware Upload
 
-There are two ways to flash firmware: the browser-based flasher (recommended, no toolchain needed) or Arduino IDE for manual/custom builds. The ESP32-S3 module is flashed *separately*, with the module **outside** the PCB, and only plugged in afterwards.
+There are two firmware paths:
+
+- **Release firmware:** flash the official Patternflow OS from the browser. This is the recommended path for this build guide.
+- **Custom firmware:** use Arduino IDE when you are adding your own pattern or changing firmware source.
+
+The ESP32-S3 module is flashed *separately*, with the module **outside** the PCB, and only plugged in afterwards.
 
 ### 8.1 Browser Flash (Recommended)
 
-No installation required. Works on any desktop with Chrome or Edge.
+No installation required. Works on any desktop with Chrome or Edge. The standalone firmware guide is in [docs/build/firmware/flash-release.md](build/firmware/flash-release.md).
 
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
 2. Connect your ESP32-S3 to your computer via a USB-C **data cable** — do not insert it into the PCB yet.
@@ -391,7 +398,7 @@ No installation required. Works on any desktop with Chrome or Edge.
 
 ### 8.2 Arduino IDE (Manual / Custom Builds)
 
-Use this method if you want to modify the firmware source, or if the browser flasher doesn't work for your setup.
+Use this method if you want to modify the firmware source, add custom patterns, or if the browser flasher doesn't work for your setup. Custom patterns are not added to the release flasher automatically; you compile and upload your own firmware build. See [docs/build/firmware/custom-patterns.md](build/firmware/custom-patterns.md) and [firmware/CUSTOM_PATTERNS.md](../firmware/CUSTOM_PATTERNS.md).
 
 #### Prerequisites
 

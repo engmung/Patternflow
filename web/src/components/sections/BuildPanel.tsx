@@ -13,22 +13,22 @@ const STEPS = [
   {
     id: 1,
     title: 'Print the case',
-    desc: 'Three plates, any FDM printer.',
+    desc: '3D print the current PLA enclosure.',
   },
   {
     id: 2,
     title: 'Solder the PCB',
-    desc: 'Through-hole and a few SMD parts.',
+    desc: 'Hand-solder the custom Patternflow PCB.',
   },
   {
     id: 3,
     title: 'Assemble',
-    desc: 'Encoders, matrix, screws.',
+    desc: 'Encoders, matrix, power wiring, and case fit.',
   },
   {
     id: 4,
     title: 'Flash and power on',
-    desc: 'Web flasher in the Pattern section.',
+    desc: 'Browser flash the release firmware, then insert the ESP32-S3.',
   },
 ];
 
@@ -52,8 +52,11 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
 
   useEffect(() => {
     if (!isActive || !isMobile || activeTouchStep !== null) return;
-    setActiveTouchStep(1);
-    setBuildStep(1);
+    const frame = window.requestAnimationFrame(() => {
+      setActiveTouchStep(1);
+      setBuildStep(1);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [activeTouchStep, isActive, isMobile, setBuildStep]);
 
   useEffect(() => {
@@ -129,7 +132,7 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
 
       <div className={`panel-body ${styles.buildPanel}`} ref={containerRef}>
         <div className="pf-block" onMouseLeave={handleStepLeave}>
-          <span className="pf-kicker">Four steps</span>
+          <span className="pf-kicker">Step preview</span>
           <div className={styles.stepList}>
             {STEPS.map((step) => {
               const isActive = isMobile ? activeTouchStep === step.id : buildStep === step.id;
@@ -185,22 +188,46 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
         </div>
 
         <div className="pf-block">
-          <span className="pf-kicker">Requirements</span>
-          <p className={styles.note}>
-            Requires 3D printing, basic soldering, PCB ordering, and component sourcing.
-            Kits are coming if you&apos;d rather skip the sourcing.
-          </p>
-        </div>
-
-        <div className="pf-block">
-          <span className="pf-kicker">Guide</span>
-          <div className="pf-prose">
+          <span className="pf-kicker">Choose your build</span>
+          <div className={`pf-prose ${styles.pathIntro}`}>
             <p>
-              The build guide includes all 3D models, PCB schematics, artworks, and Gerber files.
-              Need help? Ask on Discord. Video guide coming soon.
+              Pick one enclosure path and one electronics path. The current guide is the complete
+              route today; the other combinations are being prepared so you can start with the
+              tools, budget, and space you actually have. The custom PCB is stable; PCBA may
+              come later as an easier assembly option.
             </p>
-            <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/BUILD.md" target="_blank" rel="noreferrer">
-              Open the build guide
+          </div>
+          <div className={styles.buildMatrix} role="table" aria-label="Build combinations">
+            <div className={`${styles.matrixCell} ${styles.matrixCorner}`} role="columnheader">
+              <span className={styles.cornerElectronics}>Electronics</span>
+              <span className={styles.cornerEnclosure}>Enclosure</span>
+            </div>
+            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Custom PCB</div>
+            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Breadboard</div>
+
+            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">3D print</div>
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent}`} href="https://github.com/engmung/PatternFlow/blob/main/docs/BUILD.md" target="_blank" rel="noreferrer" role="cell">
+              <strong>PLA print</strong>
+              <strong>Hand solder</strong>
+            </a>
+            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
+              <strong>Preparing</strong>
+              <span>PCB-free wiring</span>
+            </div>
+
+            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">Laser cut</div>
+            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
+              <strong>Preparing</strong>
+              <span>Flat enclosure</span>
+            </div>
+            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
+              <strong>Preparing</strong>
+              <span>Lowest fabrication path</span>
+            </div>
+          </div>
+          <div className={styles.pathLinks}>
+            <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/build/README.md" target="_blank" rel="noreferrer">
+              Open the build map
             </a>
           </div>
         </div>
