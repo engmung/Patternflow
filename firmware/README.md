@@ -38,9 +38,9 @@ firmware/patternflow/
 ├── pattern_dev2.h           # Development pattern slot
 ├── pattern_dev3.h           # Development pattern slot
 └── src/                     # Foundation — not shown in the Arduino IDE tab bar
-    ├── core_display.h       # HUB75 driver init
+    ├── core_display.h       # HUB75 driver init + refresh-rate config
     ├── core_encoders.h      # Encoder ISRs + InputFrame contract
-    ├── core_canvas.h        # 128×64 RGB888 framebuffer + gamma, single LED output point
+    ├── core_canvas.h        # 128×64 RGB888 framebuffer + per-channel gamma/WB/sat
     ├── core_math.h          # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
     ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
     ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
@@ -64,9 +64,14 @@ PFCanvas::setPixel(x, y, r, g, b);   // inside the pixel loop
 PFCanvas::present();                  // last line of draw()
 ```
 
-Patterns must not call `dma_display->drawPixelRGB888()` directly. Global brightness, gamma, and any future post-processing live in `present()` — patterns that bypass the canvas miss those.
+Patterns must not call `dma_display->drawPixelRGB888()` directly. Global brightness, gamma, white balance, saturation, and any future post-processing live in `present()` — patterns that bypass the canvas miss those.
 
-`present()` applies a 256-entry gamma LUT (γ ≈ 2.4) before pushing pixels. HUB75 panels are PWM-driven, so a linear 0–255 range crushes dark values; gamma correction lifts the shadow end into visibility. Patterns write linear RGB; the panel receives gamma-corrected RGB. Built once at first call, ~256 bytes RAM.
+`present()` runs three post-processing steps before pushing pixels:
+1. **Saturation boost** — pulls each pixel away from its Rec.601 luma in 8.8 fixed-point. Gray pixels are mathematically unchanged; saturated colors land closer to where the JS preview puts them. LED panels look washed out vs. a calibrated monitor, so a mild boost (default 1.10×) compensates.
+2. **Per-channel gamma + white balance** — three 256-entry LUTs (one per channel) with the WB gain pre-multiplied into the gamma curve. HUB75 panels are linear PWM with unbalanced LED primaries (red is brighter per duty, blue is dimmer), so a single global gamma can't cover both correction needs. The pre-folded LUT means the inner loop pays the same cost as a single lookup.
+3. **DMA push** — pixels are written to the HUB75 panel via `dma_display->drawPixelRGB888()`.
+
+All five calibration values are tunable from `config.h` — see "LED panel calibration" below.
 
 ### `core_math.h` — PFMath
 ```cpp
@@ -78,7 +83,9 @@ PFMath::lerp(a, b, t);
 PFMath::approxLength(x, y);                  // ~5% accurate sqrt(x*x + y*y)
 ```
 
-The sin LUT is 1 KB and shared. Do not build your own.
+The sin LUT is 4 KB (1024 entries, ~0.35° resolution) and shared. Do not build your own.
+
+`approxLength` is an octagonal sqrt approximation — ~5% error, no `sqrtf` in the pixel loop. Use it only when distance is a **secondary** signal. If distance IS the visual structure of the pattern (radial ripples, concentric rings, vortex centers, anything that uses `1/dist` for amplification), use real `sqrtf` instead — the octagonal contour shows up as visible polygonal artifacts in those cases.
 
 ### `core_color.h` — PFColor
 ```cpp
@@ -98,8 +105,13 @@ The 512-byte permutation table is shared. Do not duplicate it.
 ## Patterns
 
 Current registered patterns:
-- `Origin`
-- `Wave Saw`
+- `Origin` — base pattern, radial sine grids
+- `Wave Saw` — base pattern, directional saw bands
+- `Liquid Ripple` (in `pattern_dev1.h`) — refraction-style ripple field
+- `Layered Vorticity Field` (in `pattern_dev2.h`) — fluid vortex simulation
+- `Spectral Caustics` (in `pattern_dev3.h`) — three-channel offset caustic web
+
+The two base patterns (`Origin`, `Wave Saw`) are meant to stay. The `pattern_dev*.h` slots are intentionally mutable — generate new patterns from the [Live Editor](https://patternflow.work/pattern-lab) and swap them into the dev slots as you iterate.
 
 To add a new pattern, start with [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md), then create a `pattern_new_name.h` with the standard namespace interface:
 - `NAME`
@@ -117,6 +129,32 @@ The Live Editor at [patternflow.work](https://patternflow.work) has a "Copy C++ 
 All hardware-specific pins and limits are centralized in `config.h`.
 - **Pin Mapping:** Adjust the `R1_PIN`, `ENC1_A` etc. if you are not using the official Patternflow PCB.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
+
+### LED panel calibration
+LED panels render the same RGB triplets differently than a calibrated monitor — the LED primaries are at different wavelengths than sRGB phosphors, red LEDs are brighter per PWM duty than blue, and linear PWM doesn't match perceptual brightness. The defaults below are a mild correction tuned for typical HUB75 panels; every value can be overridden per panel:
+
+```cpp
+#define LED_GAMMA_R   2.5f   // steeper than baseline — curbs red dominance
+#define LED_GAMMA_G   2.4f   // baseline
+#define LED_GAMMA_B   2.2f   // gentler — keeps blues from collapsing
+#define LED_WB_R      0.92f  // trim red gain
+#define LED_WB_G      0.92f  // trim green gain
+#define LED_WB_B      1.00f  // keep blue
+#define LED_SAT_BOOST 1.10f  // pull saturated colors away from gray
+```
+
+To revert to the previous single-gamma behavior, set all three gammas to 2.4, all WB gains to 1.0, and `LED_SAT_BOOST` to 1.0.
+
+### Refresh rate (anti-flicker for video)
+`core_display.h` configures the panel for ~240Hz refresh:
+
+```cpp
+mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;  // pixel clock 15 MHz
+mxconfig.min_refresh_rate = 240;                      // target refresh
+mxconfig.latch_blanking   = 2;                        // brightness uniformity
+```
+
+HUB75's BCM (binary code modulation) cycles bit planes at the library default ~120Hz, which aliases against phone-camera rolling shutter and shows up as visible flicker bands on video. Pushing refresh past 240Hz means a 60fps camera averages 4+ cycles per exposure and the bands disappear. I2S/DMA refresh runs on the ESP32-S3's hardware peripherals in parallel with the CPU, so this costs zero rendering FPS — the only trade-off is that the library may quietly reduce effective color depth (8-bit → 6–7 bit) to fit the higher refresh into the same clock budget. If you see banding on long color gradients, dial `min_refresh_rate` down to ~180 or drop `i2sspeed` to `HZ_10M`.
 
 ## Controls
 
