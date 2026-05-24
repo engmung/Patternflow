@@ -11,10 +11,6 @@
 An LED synthesizer. Play light patterns with your fingertips.
 An open-source reinterpretation of Nam June Paik's *Participation TV* (1963).
 
-Build it from the files, or wait for the kit.
-
-👉 **Ready to build?** Follow the **[Current Full Build Guide (docs/BUILD.md)](docs/BUILD.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
-
 ## What is this?
 
 Patternflow is an open-source hardware instrument: four rotary encoders controlling generative light patterns on a 128×64 LED matrix, powered by ESP32-S3.
@@ -25,6 +21,10 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
   <img src="./docs/media/demo_part1_v2.webp" height="500" />
   <img src="./docs/media/demo_part2.webp" height="500" />
 </p>
+
+Build it from the files, or wait for the kit.
+
+👉 **Ready to build?** Follow the **[Current Full Build Guide (docs/BUILD.md)](docs/BUILD.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
 
 
 > **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
