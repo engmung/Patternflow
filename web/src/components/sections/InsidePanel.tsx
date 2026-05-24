@@ -167,17 +167,17 @@ export default function InsidePanel({ content }: InsidePanelProps) {
               <time>26.3</time>
               <span>
                 The Origin pattern was tested on a <strong>physical LED matrix</strong> with{' '}
-                <strong>four knobs</strong> using{' '}
-                <a href="https://www.reddit.com/r/arduino/comments/1so9er5/built_a_4knob_generative_pattern_controller_with/" target="_blank" rel="noreferrer">
-                  <strong>Arduino</strong>
-                </a>
-                .
+                <strong>four knobs</strong>.
               </span>
             </li>
             <li>
               <time>26.4</time>
               <span>
-                Instagram and Reddit responded strongly, so Patternflow turned into an{' '}
+                Instagram and{' '}
+                <a href="https://www.reddit.com/r/arduino/comments/1so9er5/built_a_4knob_generative_pattern_controller_with/" target="_blank" rel="noreferrer">
+                  <strong>Reddit</strong>
+                </a>{' '}
+                responded strongly, so Patternflow turned into an{' '}
                 <a href="https://www.reddit.com/r/arduino/comments/1szettd/12_days_later_pcb_done_rotary_encoders_done_fully/" target="_blank" rel="noreferrer">
                   <strong>open-source project</strong>
                 </a>
