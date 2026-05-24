@@ -1,12 +1,11 @@
 # Build Patternflow
 
-Patternflow is not one fixed kit. It is a 2 x 2 build system: choose one enclosure path, choose one electronics path, then flash firmware.
+Patternflow is not a single, rigid kit. It is a modular system divided into two core parts:
 
-Every build has three parts:
+1. **Enclosure** — Choose how you house the device (3D printed, etc.).
+2. **Electronics** — Choose how you wire the hardware (Custom PCB, etc.).
 
-1. Choose an enclosure.
-2. Choose an electronics path.
-3. Flash firmware.
+Once you build these two components, you simply flash the firmware to bring your Patternflow to life.
 
 ## Current Supported Path
 

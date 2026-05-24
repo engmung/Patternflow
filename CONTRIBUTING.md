@@ -19,14 +19,11 @@ Custom patterns are welcome as community work, but official bundled firmware pat
 
 ## Project Rules
 
-- Do not commit founders board artifacts. Public PCB files must use the public PATTERNFLOW v1.0 silkscreen.
-- Keep the BOM in `docs/BUILD.md` aligned with the schematic when electronics change.
-- Keep the license split: firmware and web are MIT; hardware and docs are CC-BY-SA 4.0.
-- Use "Patternflow" in body text, "PATTERNFLOW" for physical engravings, and lowercase "patternflow" for filenames.
+Project rules and guidelines are currently under consideration and will be finalized in the future.
 
 ## Where to Start
 
-- Build map: [docs/build/README.md](docs/build/README.md)
+- Assembly map: [docs/assembly/README.md](docs/assembly/README.md)
 - Current full build guide: [docs/BUILD.md](docs/BUILD.md)
 - Custom patterns: [firmware/CUSTOM_PATTERNS.md](firmware/CUSTOM_PATTERNS.md)
 - Discord: [discord.gg/Vr9QtsxeTk](https://discord.gg/Vr9QtsxeTk)

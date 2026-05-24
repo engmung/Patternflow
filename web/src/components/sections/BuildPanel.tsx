@@ -226,8 +226,8 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             </div>
           </div>
           <div className={styles.pathLinks}>
-            <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/build/README.md" target="_blank" rel="noreferrer">
-              Open the build map
+            <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">
+              Open the assembly map
             </a>
           </div>
         </div>

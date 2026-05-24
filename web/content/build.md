@@ -10,8 +10,8 @@ meta:
     value: "Browser flash or Arduino IDE"
 cta:
   primary:
-    label: "Open the build map ->"
-    href: "https://github.com/engmung/PatternFlow/blob/main/docs/build/README.md"
+    label: "Open the assembly map ->"
+    href: "https://github.com/engmung/PatternFlow/blob/main/docs/assembly/README.md"
   secondary:
     label: "Current full guide"
     href: "https://github.com/engmung/PatternFlow/blob/main/docs/BUILD.md"
