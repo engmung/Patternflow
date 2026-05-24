@@ -14,6 +14,18 @@ inline void initDisplay() {
   mxconfig.clkphase    = false;
   mxconfig.double_buff = true;
 
+  // Push panel refresh to ~240 Hz so phone-camera rolling shutter
+  // averages multiple cycles per exposure and the BCM bit-plane flicker
+  // stops showing up as visible bands on video. I2S/DMA refresh runs on
+  // hardware peripherals in parallel with the CPU, so this costs zero
+  // rendering FPS — the only trade is that the library may reduce
+  // effective color depth (8-bit → 6–7 bit) to hit the target rate,
+  // which can introduce mild banding in long smooth gradients. Dial
+  // min_refresh_rate down to ~180 if banding is noticeable.
+  mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;
+  mxconfig.min_refresh_rate = 240;
+  mxconfig.latch_blanking   = 2;
+
   dma_display = new MatrixPanel_I2S_DMA(mxconfig);
   if (!dma_display->begin()) {
     Serial.println("Matrix begin FAILED");
