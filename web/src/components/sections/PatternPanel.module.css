@@ -259,8 +259,7 @@
   color: var(--pf-cream);
 }
 
-.unsupported,
-.editorFootnote {
+.unsupported {
   margin-top: 10px;
   color: var(--pf-ink-muted);
   font-family: var(--pf-mono);
@@ -291,19 +290,6 @@
   font-weight: 500;
 }
 
-.costMeter {
-  margin-top: 4px;
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  line-height: 1.4;
-}
-
-.costLow,
-.costMedium,
-.costHigh {
-  color: var(--pf-ink-muted);
-}
-
 .editorActions {
   display: flex;
   flex-wrap: wrap;
@@ -328,11 +314,42 @@
   border-color: var(--pf-ink);
 }
 
-.editorFootnote {
-  margin: 0;
+.presetChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   padding: 10px 14px;
   border-top: 1px solid var(--pf-rule);
   background: var(--pf-cream);
+}
+
+.presetChipsLabel {
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ghost);
+  margin-right: 4px;
+}
+
+.presetChip {
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--pf-rule);
+  background: #ffffff;
+  color: var(--pf-ink);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.presetChip:hover {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  border-color: var(--pf-ink);
 }
 
 .metaRows {

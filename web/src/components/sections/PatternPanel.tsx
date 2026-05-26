@@ -6,7 +6,7 @@ import { SectionContent } from '@/lib/content';
 import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
-import { analyzeEsp32Cost } from '@/lib/esp32CostAnalyzer';
+import { livePresets } from '@/lib/patternSamples';
 import { captureEvent } from '@/lib/posthogEvents';
 import styles from './PatternPanel.module.css';
 
@@ -247,15 +247,12 @@ const presetPatterns: PresetPattern[] = [
 
 
 
-const costClassByLevel = {
-  LOW: styles.costLow,
-  MEDIUM: styles.costMedium,
-  HIGH: styles.costHigh,
-} as const;
-
 const EDITOR_LINE_HEIGHT = 20;
-const EDITOR_VERTICAL_CHROME = 24;
-const EDITOR_MIN_HEIGHT = 400;
+// Fixed editor height — most visitors only paste AI-generated code and
+// rarely scroll the source themselves, so growing the page with line
+// count just pushed the rest of the section out of view. The editor
+// now scrolls internally instead.
+const EDITOR_HEIGHT = 480;
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 
 export default function PatternPanel({ content }: PatternPanelProps) {
@@ -263,12 +260,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
-  const esp32Cost = analyzeEsp32Cost(customJsCode);
-  const editorLineCount = Math.max(1, customJsCode.split('\n').length);
-  const editorHeight = Math.max(
-    EDITOR_MIN_HEIGHT,
-    editorLineCount * EDITOR_LINE_HEIGHT + EDITOR_VERTICAL_CHROME,
-  );
 
   const selectBuiltInPattern = (pattern: PresetPattern, track = true) => {
     const store = useAppStore.getState();
@@ -312,6 +303,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     alert('AI Prompt copied to clipboard! Paste it in ChatGPT/Claude to generate a pattern.');
   };
 
+  const handleLoadPreset = (presetId: string) => {
+    const preset = livePresets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setCustomJsCode(preset.code);
+    captureEvent('live_preset_loaded', {
+      preset_id: preset.id,
+      preset_name: preset.name,
+      surface: 'live_editor',
+    });
+  };
+
   const handleCopyVariantPrompt = () => {
     navigator.clipboard.writeText(getVariantPrompt(customJsCode));
     captureEvent('copy_variants_prompt_clicked', {
@@ -323,8 +325,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const handleCopyConvertPrompt = () => {
     navigator.clipboard.writeText(getConvertPrompt(customJsCode));
     captureEvent('copy_cpp_prompt_clicked', {
-      esp32_cost_level: esp32Cost.level,
-      esp32_cost_score: esp32Cost.score,
       surface: 'live_editor',
     });
     alert('C++ Conversion Prompt copied to clipboard! Paste it in ChatGPT/Claude to get your ESP32 C++ code.');
@@ -452,9 +452,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
               <div className={styles.editorHeader}>
                 <div>
                   <span className={styles.editorTitle}>JavaScript Pattern Editor</span>
-                  <div className={`${styles.costMeter} ${costClassByLevel[esp32Cost.level]}`}>
-                    ESP32 cost: {esp32Cost.level} · score {esp32Cost.score} · per pixel: trig {esp32Cost.perPixel.trig}, pow {esp32Cost.perPixel.pow}, sqrt {esp32Cost.perPixel.sqrt}, atan2 {esp32Cost.perPixel.atan2}
-                  </div>
                 </div>
                 <div className={styles.editorActions}>
                   <button type="button" onClick={handleCopyCreatePrompt}>
@@ -469,7 +466,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                 </div>
               </div>
               <Editor
-                height={editorHeight}
+                height={EDITOR_HEIGHT}
                 defaultLanguage="javascript"
                 theme="vs-dark"
                 value={customJsCode}
@@ -480,19 +477,28 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   lineHeight: EDITOR_LINE_HEIGHT,
                   scrollBeyondLastLine: false,
                   scrollbar: {
-                    vertical: 'hidden',
+                    vertical: 'auto',
                     horizontal: 'auto',
-                    handleMouseWheel: false,
+                    handleMouseWheel: true,
                   },
                   overviewRulerLanes: 0,
                   hideCursorInOverviewRuler: true,
                   automaticLayout: true,
                 }}
               />
-              <div className={styles.editorFootnote}>
-                <strong>Estimate:</strong>{' '}
-                per frame: trig {esp32Cost.perFrame.trig.toLocaleString()}, pow {esp32Cost.perFrame.pow.toLocaleString()}, sqrt {esp32Cost.perFrame.sqrt.toLocaleString()}, atan2 {esp32Cost.perFrame.atan2.toLocaleString()}.{' '}
-                {esp32Cost.notes.join(' ')}
+              <div className={styles.presetChips} aria-label="Live editor presets">
+                <span className={styles.presetChipsLabel}>Try a preset</span>
+                {livePresets.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={styles.presetChip}
+                    onClick={() => handleLoadPreset(preset.id)}
+                    title={preset.desc}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
               </div>
               <div className={styles.sourceRow}>
                 <div className={styles.applyGuide}>
