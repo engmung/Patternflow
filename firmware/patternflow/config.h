@@ -101,8 +101,21 @@
 #define PF_OSC_LOCAL_PORT 9001
 #define PF_WIFI_CONNECT_TIMEOUT_MS 8000
 
-#if __has_include("src/osc_secrets.h")
-#include "src/osc_secrets.h"
+// --- ArduinoOTA over Wi-Fi ---
+// Wireless flashing from Arduino IDE. Defaults to enabled — the loop cost
+// is essentially zero when idle (one UDP poll per frame). Shares
+// PF_WIFI_SSID/PASS above; if OSC is also enabled, the WiFi connection is
+// reused. Override to 0 in osc_secrets.h to disable on a per-checkout
+// basis without touching this file.
+#ifndef PF_OTA_ENABLED
+#define PF_OTA_ENABLED 1
+#endif
+#ifndef PF_OTA_HOSTNAME
+#define PF_OTA_HOSTNAME "patternflow"
+#endif
+
+#if __has_include("osc_secrets.h")
+#include "osc_secrets.h"
 #endif
 
 // --- Pattern Parameters Limits ---

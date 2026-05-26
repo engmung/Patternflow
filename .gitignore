@@ -20,7 +20,7 @@ out/
 *.hex
 *.elf
 *.bin
-firmware/patternflow/src/osc_secrets.h
+firmware/patternflow/osc_secrets.h
 firmware/patternflow_stream/patternflow_stream.ino/stream_secrets.h
 
 # KiCad 자동 생성/백업

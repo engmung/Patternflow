@@ -4,6 +4,7 @@
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_osc.h"
+#include "src/core_ota.h"
 #include "pattern_registry.h"
 #include "pattern_video.h"
 
@@ -77,6 +78,11 @@ void setup() {
   // here so the device boots into the same state.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
   PatternflowOsc::begin();
+
+  // ArduinoOTA reuses the Wi-Fi connection PatternflowOsc::begin() just
+  // brought up; if OSC is disabled at compile time, OTA brings Wi-Fi up
+  // itself. Either module can be enabled independently via config.h.
+  PatternflowOta::begin();
 
 #if PF_OSC_ENABLED
   dma_display->fillScreen(0);
@@ -266,6 +272,10 @@ void readInputFrame(InputFrame& input) {
 }
 
 void loop() {
+  // OTA must run early in the loop so a long pattern render doesn't
+  // starve the upload handler. Cheap when no upload is in flight.
+  PatternflowOta::handle();
+
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;

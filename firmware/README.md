@@ -37,6 +37,7 @@ firmware/patternflow/
 ├── pattern_dev1.h           # Development pattern slot
 ├── pattern_dev2.h           # Development pattern slot
 ├── pattern_dev3.h           # Development pattern slot
+├── osc_secrets.example.h    # Template for Wi-Fi credentials (copy to osc_secrets.h)
 └── src/                     # Foundation — not shown in the Arduino IDE tab bar
     ├── core_display.h       # HUB75 driver init + refresh-rate config
     ├── core_encoders.h      # Encoder ISRs + InputFrame contract
@@ -45,7 +46,7 @@ firmware/patternflow/
     ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
     ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
-    └── osc_secrets.example.h # Template for local Wi-Fi credentials
+    └── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
 ```
 
 The `src/` subfolder holds the foundation that patterns build on. Arduino IDE compiles everything underneath the sketch folder, but `.h` files inside subfolders **do not appear as tabs** — so the IDE stays focused on the files you actually edit (the sketch, config, registry, and patterns) while the foundation stays out of the way. Patterns and the main sketch reference these helpers via `#include "src/core_*.h"`.
@@ -101,6 +102,16 @@ PFNoise::fractal2D(x, y, octaves, roughness);
 ```
 
 The 512-byte permutation table is shared. Do not duplicate it.
+
+### `core_ota.h` — PatternflowOta
+ArduinoOTA wrapper for wireless flashing. The main sketch only needs:
+
+```cpp
+PatternflowOta::begin();   // in setup() — connects Wi-Fi if not already up
+PatternflowOta::handle();  // first line of loop() — UDP poll, ~free when idle
+```
+
+Shares Wi-Fi credentials and connection with OSC (if both are enabled, the connection is reused). When `PF_OTA_ENABLED` is 0 everything compiles to a no-op. See the [OTA Updates](#ota-updates-for-developers) section below for the user-facing workflow.
 
 ## Patterns
 
@@ -187,7 +198,7 @@ Patternflow can send lightweight OSC control messages over Wi-Fi for performance
 OSC has two switches: **compile-time** (whether OSC code is linked into the firmware at all) and **runtime** (whether the linked-in code is currently sending/receiving). The K2 longpress info screen only controls the runtime switch — if the compile-time switch is off, the runtime toggle is inert.
 
 ### Compile-time: enable the build flag and provide Wi-Fi credentials
-Copy `patternflow/src/osc_secrets.example.h` to `patternflow/src/osc_secrets.h` and edit the local copy:
+Copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and edit the local copy:
 
 ```cpp
 #define PF_OSC_ENABLED 1
@@ -197,9 +208,9 @@ Copy `patternflow/src/osc_secrets.example.h` to `patternflow/src/osc_secrets.h` 
 #define PF_OSC_REMOTE_PORT 9000
 ```
 
-`src/osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
+`osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
 
-Without an `src/osc_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
+Without an `osc_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
 
 ### Runtime: toggle from the device (no rebuild)
 Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
@@ -234,12 +245,32 @@ Knob deltas are applied on top of any physical encoder motion in the same frame,
 
 ## OTA Updates (For Developers)
 
-The firmware includes `ArduinoOTA` for wireless updates.
-1. Connect the ESP32 to Wi-Fi by setting `WIFI_SSID` and `WIFI_PASS` in the `.ino` file.
-2. The device will expose itself on the network as `patternflow.local`.
-3. In Arduino IDE, select the network port (e.g., `patternflow at 192.168...`) and upload.
+The firmware includes `ArduinoOTA` for wireless flashing from the Arduino IDE — no USB cable, no port juggling.
 
-*Note: Future production releases will migrate to `esp_https_ota` with a local Web UI for parameter control.*
+### One-time setup
+1. Copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and fill in your local Wi-Fi credentials:
+   ```cpp
+   #define PF_WIFI_SSID "your-wifi-name"
+   #define PF_WIFI_PASS "your-wifi-password"
+   ```
+   (You don't need to enable `PF_OSC_ENABLED` — OTA brings up Wi-Fi on its own. Reusing the same secrets file just keeps credentials in one place.)
+2. Flash once over USB as normal. On boot, the serial console should print:
+   ```
+   [OTA] Ready — hostname "patternflow.local", IP 192.168.x.x
+   ```
+
+### Subsequent uploads
+1. In Arduino IDE, open **Tools → Port** — you should see `patternflow at 192.168.x.x (ESP32)` alongside the USB ports.
+2. Select that network port and hit Upload. The IDE compiles, pushes over Wi-Fi, the device reboots into the new firmware.
+3. Progress prints to serial as `[OTA] 47%` etc.
+
+If the network port doesn't appear, make sure your computer and the device are on the same Wi-Fi subnet, and that no firewall is blocking mDNS (UDP port 5353) or the OTA port (3232).
+
+### Disabling / customizing
+- Set `#define PF_OTA_ENABLED 0` in `osc_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC is also enabled).
+- Set `#define PF_OTA_HOSTNAME "yourname"` to advertise as `yourname.local` instead of `patternflow.local` — useful if multiple devices are on the same network.
+
+OTA has no upload password by default; this is fine on a trusted LAN. If you need to lock it down, add `ArduinoOTA.setPassword("...")` inside `PatternflowOta::begin()` in `src/core_ota.h`.
 
 ## Possible next steps
 
