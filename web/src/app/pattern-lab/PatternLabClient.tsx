@@ -553,60 +553,93 @@ ${code}
       })
       .join("\n");
 
-    const prompt = `Convert the following JavaScript LED pattern into one complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
+    const prompt = `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
 
-Output rules:
-- Put the complete header in one single code block labeled cpp.
-- Do not write any text before or after the code block.
-- The code block content itself must start with #pragma once.
-- The code block content itself must end with the namespace closing brace comment, for example } // namespace ExamplePattern.
-- Do not include nested triple backticks inside the code block.
+## Output format
+- One single code block labeled cpp. No prose before or after the block.
+- The block must start with #pragma once and end with } // namespace YourPatternName.
+- No nested triple backticks inside the block.
 
-Firmware interface:
-- Include these headers (the first five are always required):
-  #include <Arduino.h>
-  #include "config.h"
-  #include "src/core_display.h"
-  #include "src/core_encoders.h"
-  #include "src/core_canvas.h"
-- Optionally include any of these shared helpers when you actually use them. Do not include what you do not use.
-  #include "src/core_math.h"    // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-  #include "src/core_color.h"   // PFColor:: hsvToRgb, ColorStop, sampleRamp
-  #include "src/core_noise.h"   // PFNoise:: perlin2D, fractal2D
-- Define one unique namespace.
-- Inside the namespace define:
-  const char* NAME = "Short Name";
-  const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};
-  void setup();
-  void update(float dt, const InputFrame& input);
-  void draw();
-- Use PANEL_RES_W and PANEL_RES_H. Do not hardcode 128 or 64.
-- Draw with PFCanvas::setPixel(x, y, r, g, b), never with dma_display->drawPixelRGB888() directly. The canvas owns the LED driver; patterns must not touch it.
-- The final line of draw() must be PFCanvas::present(); — this is what pushes the rendered frame to the matrix. Without it, nothing shows up.
-- Do not write your own sin LUT, HSV-to-RGB converter, or Perlin noise. Use PFMath, PFColor, PFNoise instead. They are already optimized and shared across patterns.
-- For repeated sine/cosine in the pixel loop, call PFMath::fastSin() / PFMath::fastCos() and call PFMath::buildSinLUT() once from setup() (idempotent, safe to call from any pattern).
+## Required interface
+Define one unique namespace. Inside it expose exactly these symbols:
 
-Knob conversion:
-- The JavaScript preview uses input.knobValues as absolute values after Pattern Lab min/max ranges.
-- ESP32 firmware receives input.knobDeltas instead.
-- For each knob, create stored parameter state initialized to the Pattern Lab current value below.
-- In update(), add input.knobDeltas[i] * STEP[i] to each parameter and constrain it to the min/max range below.
-- Use the calibrated encoder step below as the default so firmware knob motion matches the live editor and physical rotary encoders. Custom min/max ranges may take more than one turn to sweep.
-- Keep the knob meanings from the JavaScript pattern. If the JS code contains comments naming the knobs, preserve those meanings in KNOB_LABELS.
+    const char* NAME = "Short Name";
+    const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};
+    void setup();
+    void update(float dt, const InputFrame& input);
+    void draw();
+
+Always-required includes:
+
+    #include <Arduino.h>
+    #include "config.h"
+    #include "src/core_display.h"
+    #include "src/core_encoders.h"
+    #include "src/core_canvas.h"
+
+Conditional includes — only when actually used in your code:
+
+    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
+    #include "src/core_color.h"  // PFColor:: hsvToRgb, ColorStop, sampleRamp
+    #include "src/core_noise.h"  // PFNoise:: perlin2D, fractal2D
+
+Other interface rules:
+- Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
+- All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
+- The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
+
+## DO NOT reimplement existing helpers
+The firmware ships tested, optimized versions of these. Using your own breaks shared optimizations (color calibration, sin LUT sharing) and wastes ROM. If the JavaScript source contains an inline hsvToRgb or sin LUT, strip it and call the firmware helper instead.
+
+- DO NOT write your own HSV → RGB converter. Not as a separate function, not inline with a switch statement, not as a chain of fmodf + conditionals. Call PFColor::hsvToRgb(h, s, v, r, g, b). h is normalized 0..1, not degrees.
+- DO NOT write your own sin LUT or fast-sin approximation. Call PFMath::buildSinLUT() once in setup(); use PFMath::fastSin / fastCos in draw().
+- DO NOT write your own Perlin or fractal noise. Use PFNoise::perlin2D / fractal2D.
+
+## Distance and sqrt — default to sqrtf
+Use sqrtf(dx*dx + dy*dy) by default for distance calculations. The ESP32-S3 has a hardware FPU and sqrtf is cheap. Two sqrtf calls per pixel cost under 1 ms per frame on a 128×64 panel.
+
+PFMath::approxLength is an octagonal approximation (~5% error; the isodistance contour is an octagon, not a circle). It is a niche micro-optimization, NOT a default. Using it where distance shapes the visible pattern produces clearly polygonal artifacts on the panel.
+
+DO NOT use approxLength when ANY of the following applies:
+- The variable is named radius / dist / r / length and feeds rotation, hue, brightness, or ring placement.
+- The expression uses 1/dist or amplification by inverse distance (vortex cores, ripple centers).
+- The pattern has visible concentric rings, swirls, ripples, kaleidoscope sectors, or radial gradients.
+- The distance is compared to a threshold to draw a shape: if (dist < r) { ... }.
+- Multiple distance fields are composed (caustics, wavefronts, beat patterns).
+- The output has visible circular structure of any kind.
+
+approxLength is only acceptable when the distance is a purely scalar input to a noise lookup or a non-visual weighting term — i.e. you could not draw the contour even if you tried.
+
+When in doubt, use sqrtf.
+
+## Knob conversion
+- The JS preview uses input.knobValues as absolute values (after the Pattern Lab min/max ranges are applied).
+- The firmware receives input.knobDeltas — the per-frame change in detents.
+- For each knob, store the parameter as state initialized to its current Pattern Lab value below.
+- In update(): param += input.knobDeltas[i] * STEP[i]; then constrain to the min/max range.
+- Use the calibrated encoder step below as STEP so physical encoders match the live editor and one detent feels the same on both.
+- Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
 
-Performance and hardware constraints:
-- Keep the inner pixel loop ESP32-friendly.
-- Avoid browser APIs, heap allocations per pixel, imports, async code, and dynamic evaluation.
-- Prefer multiplication and comparisons over expensive functions when possible.
-- Use sinf/cosf sparingly in the inner loop. Prefer PFMath::fastSin / PFMath::fastCos. If the JavaScript uses lots of trig, simplify or precompute.
-- Replace sqrt(x*x + y*y) with PFMath::approxLength(x, y) ONLY when the distance is a secondary signal. Keep real sqrtf when distance is the primary visual structure of the pattern: radial ripples, concentric rings, swirl/vortex centers, anything that uses 1/dist for amplification, or any place where the visible isodistance lines define the pattern. approxLength has ~5% error and its contour is an octagon, not a circle — in distance-critical patterns it shows up as visible polygonal artifacts. When in doubt, use sqrtf.
-- Keep LED brightness strong enough; at least some pixels should regularly reach near-full RGB output.
-- Preserve local color logic from the JavaScript, especially value-based or banded colors.
+## Performance
+- Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
+- Prefer multiplication and comparison over expensive functions and branches.
+- Use PFMath::fastSin / fastCos inside the pixel loop; restrict sinf/cosf to one-shot computations outside the loop.
+- Keep some pixels near full RGB output so LED brightness stays strong.
+- Preserve local color logic from the JS — value-based bands, distance-driven hue, threshold steps, etc. The visual character lives in those rules.
 
-JavaScript source:
+## Self-check before output
+Before finalizing your code block, verify each of these. If any answer is wrong, fix it.
+
+1. Did I use approxLength anywhere? If yes, is the distance truly invisible to the viewer (no rings, no rotation driver, no 1/dist amplification)? If not certain, change to sqrtf.
+2. Did I write my own hsvToRgb, sin LUT, or noise function? If yes, replace with PFColor / PFMath / PFNoise.
+3. Does draw() end with PFCanvas::present();?
+4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
+5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
+
+## JavaScript source
 \`\`\`javascript
 ${code}
 \`\`\``;
