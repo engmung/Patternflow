@@ -267,6 +267,25 @@ The firmware includes `ArduinoOTA` for wireless flashing from the Arduino IDE �
 
 If the network port doesn't appear, make sure your computer and the device are on the same Wi-Fi subnet, and that no firewall is blocking mDNS (UDP port 5353) or the OTA port (3232).
 
+### Known issue: `invalid int value: '{upload.port.properties.port}'`
+Arduino IDE 2.x's mDNS discovery for ESP32 core 3.3.8 doesn't populate the `{upload.port.properties.port}` placeholder, so espota receives the literal string and fails:
+```
+espota.exe: error: argument -p/--port: invalid int value: '{upload.port.properties.port}'
+```
+
+One-time fix — create a `platform.local.txt` next to the ESP32 core's `platform.txt` (the IDE auto-merges local overrides, so this survives ESP32 core updates):
+
+- Path on Windows: `%LOCALAPPDATA%\Arduino15\packages\esp32\hardware\esp32\3.3.8\platform.local.txt`
+- Path on macOS: `~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.8/platform.local.txt`
+- Path on Linux: `~/.arduino15/packages/esp32/hardware/esp32/3.3.8/platform.local.txt`
+
+Contents (one line):
+```
+tools.esp_ota.upload.pattern={cmd} -i {upload.port.address} -p 3232 "--auth={upload.field.password}" -f "{build.path}/{build.project_name}.bin"
+```
+
+This hardcodes the OTA port to 3232 (which is what ArduinoOTA always listens on anyway). Restart the Arduino IDE after creating the file.
+
 ### Disabling / customizing
 - Set `#define PF_OTA_ENABLED 0` in `osc_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC is also enabled).
 - Set `#define PF_OTA_HOSTNAME "yourname"` to advertise as `yourname.local` instead of `patternflow.local` — useful if multiple devices are on the same network.
