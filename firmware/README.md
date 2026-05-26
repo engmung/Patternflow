@@ -261,16 +261,16 @@ The firmware includes `ArduinoOTA` for wireless flashing from the Arduino IDE �
 
 ### Subsequent uploads
 1. In Arduino IDE, open **Tools → Port** — you should see `patternflow at 192.168.x.x (ESP32)` alongside the USB ports.
-2. Select that network port and hit Upload. The IDE compiles, pushes over Wi-Fi, the device reboots into the new firmware.
-3. Progress prints to serial as `[OTA] 47%` etc.
+2. Select that network port and hit Upload. The IDE will prompt for an upload password.
+3. **Default password: `patternflow`** — type it in the prompt and click OK. The IDE compiles, pushes over Wi-Fi, the device reboots into the new firmware.
+4. Progress prints to serial as `[OTA] 47%` etc.
 
 If the network port doesn't appear, make sure your computer and the device are on the same Wi-Fi subnet, and that no firewall is blocking mDNS (UDP port 5353) or the OTA port (3232).
 
 ### Disabling / customizing
 - Set `#define PF_OTA_ENABLED 0` in `osc_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC is also enabled).
 - Set `#define PF_OTA_HOSTNAME "yourname"` to advertise as `yourname.local` instead of `patternflow.local` — useful if multiple devices are on the same network.
-
-OTA has no upload password by default; this is fine on a trusted LAN. If you need to lock it down, add `ArduinoOTA.setPassword("...")` inside `PatternflowOta::begin()` in `src/core_ota.h`.
+- Set `#define PF_OTA_PASSWORD "your-secret"` in `osc_secrets.h` to change the upload password. Setting it to `""` disables authentication entirely — works with the `espota.py` CLI but not with Arduino IDE 2.x's upload dialog (which insists on a non-empty field).
 
 ## Possible next steps
 

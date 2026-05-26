@@ -90,6 +90,13 @@ inline void begin() {
 
   ArduinoOTA.setHostname(PF_OTA_HOSTNAME);
 
+  // Empty string = no authentication. setPassword with an empty string
+  // would still set an MD5 hash internally and confuse the handshake,
+  // so we guard.
+  if (PF_OTA_PASSWORD[0] != '\0') {
+    ArduinoOTA.setPassword(PF_OTA_PASSWORD);
+  }
+
   ArduinoOTA.onStart([]() {
     inProgress = true;
     progressPct = 0;
@@ -129,8 +136,10 @@ inline void begin() {
   ArduinoOTA.begin();
   initialized = true;
 
-  Serial.printf("[OTA] Ready — hostname \"%s.local\", IP %s\n",
-                PF_OTA_HOSTNAME, WiFi.localIP().toString().c_str());
+  bool authed = (PF_OTA_PASSWORD[0] != '\0');
+  Serial.printf("[OTA] Ready — hostname \"%s.local\", IP %s, auth %s\n",
+                PF_OTA_HOSTNAME, WiFi.localIP().toString().c_str(),
+                authed ? "ON (see PF_OTA_PASSWORD)" : "OFF");
 #endif
 }
 

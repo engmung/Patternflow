@@ -114,6 +114,15 @@
 #define PF_OTA_HOSTNAME "patternflow"
 #endif
 
+// Arduino IDE 2.x's upload dialog refuses to proceed with an empty
+// password field, so we ship a known default rather than leaving the
+// device unauthenticated. Override in osc_secrets.h to lock down a
+// device on a shared network, or set to "" to disable authentication
+// entirely (works with the espota.py CLI but not the IDE 2.x prompt).
+#ifndef PF_OTA_PASSWORD
+#define PF_OTA_PASSWORD "patternflow"
+#endif
+
 #if __has_include("osc_secrets.h")
 #include "osc_secrets.h"
 #endif

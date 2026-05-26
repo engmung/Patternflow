@@ -23,6 +23,12 @@
 // #undef PF_OTA_HOSTNAME
 // #define PF_OTA_HOSTNAME "patternflow-studio"
 
+// Optional: change the OTA upload password. Default is "patternflow".
+// Set to "" to disable auth — works with the espota.py CLI but Arduino
+// IDE 2.x will refuse to upload with an empty password field.
+// #undef PF_OTA_PASSWORD
+// #define PF_OTA_PASSWORD "your-secret-here"
+
 // --- OSC (Ableton/Max sidechannel) ---
 // Off by default. Set to 1 if you want OSC traffic.
 #undef PF_OSC_ENABLED
