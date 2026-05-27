@@ -24,6 +24,10 @@ Install these via the Arduino Library Manager:
 
 The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `WiFiUdp` libraries, so it does not require an extra OSC library.
 
+The experimental audio-react WebSocket control uses:
+- `WebServer` from the ESP32 Arduino core
+- `WebSockets` by Markus Sattler / Links2004
+
 ## Project layout
 
 ```
@@ -46,6 +50,8 @@ firmware/patternflow/
     ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
     ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
+    ├── core_audio_ws.h      # Browser audio-react HTTP/WebSocket server
+    ├── audio_index.h        # Built-in patternflow.local audio UI bundle
     └── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
 ```
 
@@ -190,6 +196,55 @@ Knob deltas are scaled by how quickly the encoder is turning. Fast spins multipl
 There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. Patterns that do not handle `btnPressed` (currently `pattern_dev1/2/3.h` and `pattern_video.h`) simply ignore short presses.
 
 When you generate a new pattern from the Live Editor, the conversion prompt does not force a particular short-press convention — if you want one, either ask for it in the prompt ("K1 short press resets hue") or add the line by hand in `update()`.
+
+## Audio-react WebSocket Control
+
+Patternflow can receive four normalized audio bands over WebSocket on port `81`. The browser or extension sends text frames such as:
+
+```text
+k=0,v=0.735
+off=0
+off
+```
+
+The firmware does not require each pattern to opt in. `readInputFrame()` records the incoming audio state, then the main loop converts active audio values into virtual `knobDeltas`. From a pattern's point of view, audio looks like the user is turning the four encoders. This keeps pattern code independent from the audio transport and lets any encoder-driven pattern react.
+
+The conversion is tuned in `config.h`:
+
+```cpp
+#define PF_AUDIO_ENABLED 1
+#define PF_AUDIO_HTTP_PORT 80
+#define PF_AUDIO_WS_PORT 81
+#define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
+#define PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA 4
+```
+
+`PF_AUDIO_VIRTUAL_KNOB_SCALE` controls how strongly a 0..1 audio change becomes knob motion. `PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA` caps per-frame jumps so a noisy FFT band does not slam a parameter across its full range.
+
+### Recommended: Chrome/Edge extension
+
+Use [`tools/patternflow-audio-extension`](../tools/patternflow-audio-extension) for tab audio. It captures the active browser tab, runs FFT analysis in the browser, and sends only four lightweight knob values to Patternflow. It also includes **WS Test** sliders for debugging the device connection without audio capture.
+
+Install for local testing:
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select `tools/patternflow-audio-extension`.
+5. Open a tab that is playing audio.
+6. Click the Patternflow Audio extension button and press **Start**.
+
+Set the device host to `patternflow.local` or the board IP address.
+
+### Built-in device page
+
+When Wi-Fi is configured and audio is enabled, the device also serves a small page at:
+
+```text
+http://patternflow.local/
+```
+
+Keep this page for file playback, microphone input, and local experiments. Browser tab/system capture from this page is limited by browser secure-context rules because the ESP32 serves normal HTTP. For YouTube/Spotify tab audio, the extension is the better path.
 
 ## Experimental OSC Output
 

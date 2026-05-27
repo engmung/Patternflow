@@ -3,6 +3,9 @@
 Captures audio from the currently active Chrome/Edge tab, analyzes four FFT
 bands, and sends normalized knob values to Patternflow over WebSocket.
 
+The extension uses the same Patternflow mark as the web app for its toolbar
+icon and popup header.
+
 ## Install for local testing
 
 1. Open `chrome://extensions`.
@@ -13,6 +16,11 @@ bands, and sends normalized knob values to Patternflow over WebSocket.
 6. Click the Patternflow Audio extension button.
 7. Set the device host to `patternflow.local` or the board IP address.
 8. Press **Start**.
+
+Use the extension for YouTube, Spotify Web, browser games, or any other tab
+or system audio. The built-in `http://patternflow.local/` page remains useful
+for microphone input and audio-file experiments, but browser tab/system capture
+is often blocked there because the ESP32 serves normal HTTP.
 
 For WebSocket-only debugging, press **WS Test** instead of **Start** and move
 the K1-K4 sliders. This bypasses tab capture and audio analysis completely.

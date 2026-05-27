@@ -284,6 +284,41 @@ void readInputFrame(InputFrame& input) {
   }
 }
 
+void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
+  static bool wasActive[4] = {false, false, false, false};
+  static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  static float residual[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  for (int i = 0; i < 4; i++) {
+    if (!enabled || !input.knobAudioActive[i]) {
+      wasActive[i] = false;
+      residual[i] = 0.0f;
+      input.knobAudioActive[i] = false;
+      continue;
+    }
+
+    float value = constrain(input.knobAudioValue[i], 0.0f, 1.0f);
+    input.knobDeltas[i] = 0;
+    input.knobAudioActive[i] = false;
+
+    if (!wasActive[i]) {
+      prevValue[i] = 0.5f;
+      residual[i] = 0.0f;
+      wasActive[i] = true;
+    }
+
+    float movement = (value - prevValue[i]) * PF_AUDIO_VIRTUAL_KNOB_SCALE + residual[i];
+    int delta = (int)roundf(movement);
+    delta = constrain(delta, -PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA, PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA);
+
+    residual[i] = movement - (float)delta;
+    if (fabsf(residual[i]) < 0.001f) residual[i] = 0.0f;
+    prevValue[i] = value;
+
+    input.knobDeltas[i] = delta;
+  }
+}
+
 void loop() {
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
@@ -377,6 +412,11 @@ void loop() {
       Serial.printf(">>> RUNNING MODE: %s\n", patterns[currentPatternIdx].name);
     }
   }
+
+  applyAudioVirtualKnobs(
+    input,
+    currentMode == MODE_RUNNING && !brightnessAdjusting && !oscInfoShowing
+  );
 
   // OSC is a sidechannel: runs in every mode when PF_OSC_ENABLED.
   // It sends input/state to a remote host and (since C) accepts knob,

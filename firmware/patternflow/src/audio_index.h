@@ -2,7 +2,7 @@
 // PatternFlow - Audio-react browser UI (PROGMEM HTML bundle)
 //
 // Served at http://patternflow.local/ by core_audio_ws.h. The UI:
-//   - audio source: file upload, browser-tab/system capture, or mic
+//   - audio source: file upload or mic
 //   - four frequency bands, each routed to a target knob (1..4)
 //   - per band: Hz min/max sliders, base value, ±range modulation
 //   - live energy meters + WebSocket throttled to ~30 Hz
@@ -11,9 +11,8 @@
 // in dB → normalized 0..1 → EMA smoothing → output = base + audio×range
 // (clamped 0..1) → WebSocket frame "k=N,v=F".
 //
-// Tab capture uses getDisplayMedia({audio:true, video:true}). Most
-// browsers refuse to expose audio without video, so we request both
-// and discard the video track.
+// Tab/system capture is better handled by the Patternflow Audio Chrome
+// extension because the ESP32 serves this page over normal HTTP.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -94,8 +93,8 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <button class="release" id="release-all">Release all knobs · return to encoder control</button>
 
 <div class="note">
-Tab capture uses the browser's screen-share dialog with "share audio" enabled — pick a tab (YouTube, Spotify Web, anything) and only its audio is captured. The video track is discarded.<br><br>
-Patterns that opt in use the band values directly; patterns that don't ignore audio entirely. As of phase 2, only <code>Origin</code> is audio-aware — long-press encoder 4 to select it.
+Use this built-in page for audio files, microphone input, and local experiments. For YouTube, Spotify Web, or other tab/system audio, use the <code>tools/patternflow-audio-extension</code> Chrome/Edge extension instead; browser capture APIs are usually blocked on this normal HTTP device page.<br><br>
+Incoming audio is converted into virtual encoder motion in firmware, so all encoder-driven patterns can react without pattern-specific audio code.
 </div>
 
 <script>
@@ -169,7 +168,7 @@ async function loadFile(file) {
 
 async function captureTab() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-    document.getElementById('source-info').textContent = 'Tab capture is blocked on this HTTP device page. Use the Patternflow Audio Chrome extension, or mark this device origin as secure in Chrome flags for local testing.';
+    document.getElementById('source-info').textContent = 'Tab/system capture is blocked on this HTTP device page. Use the Patternflow Audio Chrome/Edge extension instead.';
     return;
   }
   ensureAudio();
@@ -178,7 +177,7 @@ async function captureTab() {
     const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
     const audioTracks = stream.getAudioTracks();
     if (!audioTracks.length) {
-      document.getElementById('source-info').textContent = 'No audio in selected tab. Make sure "Share audio" is checked.';
+      document.getElementById('source-info').textContent = 'No audio in selected tab. For tab/system audio, the Patternflow Audio extension is recommended.';
       stream.getTracks().forEach(t => t.stop());
       return;
     }
@@ -190,9 +189,9 @@ async function captureTab() {
     sourceNode.connect(analyser);
     // Note: tab audio already plays through the tab itself — do NOT connect
     // analyser to destination or you'll get a double + echo loop.
-    document.getElementById('source-info').textContent = 'Tab audio captured.';
+    document.getElementById('source-info').textContent = 'Tab audio captured. If this is unreliable, use the Patternflow Audio extension.';
   } catch (err) {
-    document.getElementById('source-info').textContent = 'Tab capture cancelled or unavailable.';
+    document.getElementById('source-info').textContent = 'Tab/system capture cancelled or unavailable. Use the Patternflow Audio extension for this source.';
   }
 }
 

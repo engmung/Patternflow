@@ -81,12 +81,9 @@ struct InputFrame {
   bool btnHeld[4];         // 현재 눌려있음 (level)
   uint32_t now;            // millis() 값
 
-  // Audio-react override (set by core_audio_ws when a browser FFT client
-  // is actively driving a band). When knobAudioActive[i] is true, the
-  // corresponding knob's pattern parameter should be driven from
-  // knobAudioValue[i] (a normalized 0..1 band energy) in place of
-  // integrating knobDeltas[i]. Patterns opt in by checking the flag;
-  // patterns that ignore these fields keep their encoder-only behavior.
+  // Audio-react source state. The main loop turns these normalized
+  // 0..1 values into virtual knobDeltas, so ordinary patterns do not
+  // need audio-specific code.
   bool knobAudioActive[4];
   float knobAudioValue[4];
 };

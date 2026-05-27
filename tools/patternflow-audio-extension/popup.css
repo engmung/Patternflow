@@ -35,6 +35,19 @@ header {
   margin-bottom: 10px;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.brand img {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
 h1 {
   margin: 0;
   font-size: 13px;

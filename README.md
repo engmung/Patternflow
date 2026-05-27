@@ -64,6 +64,12 @@ PatternFlow OS v2.0.0 ships with two base patterns:
 
 Ongoing pattern studies are posted on [Instagram](https://www.instagram.com/patternflow.work). Every pattern shown there is mirrored on the [Discord](https://discord.gg/Vr9QtsxeTk) patterns channel with full JavaScript source, hardware-tested C++ header, and the design notes behind it — join Discord to grab a pattern from any post you liked.
 
+## Audio-react control
+
+Patternflow can react to browser audio over Wi-Fi. The recommended workflow is the experimental Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension): it captures the current tab's audio, analyzes four FFT bands, and sends lightweight WebSocket knob values to the device. The firmware converts those values into virtual encoder motion, so every encoder-driven pattern can respond without adding audio code to each pattern.
+
+The device still serves a built-in page at `http://patternflow.local/` when Wi-Fi is configured. Keep it around for file playback, microphone input, and local experiments; browser tab/system audio capture is more reliable through the extension because normal `http://patternflow.local` pages are limited by browser capture permissions.
+
 ## Why open source?
 
 Everything about Patternflow began with **Origin**.
@@ -84,6 +90,7 @@ For the full story — failed prints, broken potentiometers, two weeks of debugg
 - [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
 - [Releases](../../releases) — stable bundles
 - [Discord](https://discord.gg/Vr9QtsxeTk) — questions, builds, custom patterns
+- [Audio Extension](tools/patternflow-audio-extension) — experimental Chrome/Edge tab-audio controller
 
 ## How it's built
 
@@ -95,6 +102,7 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 - `hardware/` — enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF)
 - `web/` — Next.js site (landing, browser flasher, Live Editor, journal)
 - `docs/` — build paths, build guide, media, license summary
+- `tools/` — desktop-side helpers, including the experimental audio-react browser extension
 
 ## Documentation
 
