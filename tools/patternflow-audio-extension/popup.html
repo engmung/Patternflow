@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patternflow Audio</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img src="icons/icon-32.png" alt="">
+    <h1>Patternflow Audio</h1>
+  </div>
+  <div id="status" class="status bad">Idle</div>
+</header>
+
+<section>
+  <label class="label" for="host">Device</label>
+  <div class="device">
+    <input id="host" type="text" spellcheck="false" value="patternflow.local">
+    <button id="connect">Start</button>
+  </div>
+  <div id="detail" class="detail">Open the tab you want to hear, then press Start.</div>
+  <div class="actions">
+    <button id="manualConnect">WS Test</button>
+    <button id="stop">Stop</button>
+    <button id="release">Release</button>
+  </div>
+</section>
+
+<section>
+  <div class="label">Manual test</div>
+  <div class="manual-grid">
+    <label>K1 <input class="manual" data-knob="0" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K2 <input class="manual" data-knob="1" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K3 <input class="manual" data-knob="2" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K4 <input class="manual" data-knob="3" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+  </div>
+</section>
+
+<section>
+  <div class="global">
+    <label>
+      <span>Smoothing</span>
+      <input id="smoothing" type="range" min="0.05" max="0.9" step="0.01">
+    </label>
+    <span id="smoothingValue" class="value"></span>
+  </div>
+</section>
+
+<main id="bands"></main>
+
+<template id="band-template">
+  <section class="band">
+    <div class="band-head">
+      <strong class="band-title"></strong>
+      <label class="target">Knob
+        <select class="knob">
+          <option value="0">1</option>
+          <option value="1">2</option>
+          <option value="2">3</option>
+          <option value="3">4</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <span>Hz min</span>
+      <input class="hzMin" type="range" min="20" max="20000" step="10">
+      <output class="hzMinOut"></output>
+    </div>
+    <div class="row">
+      <span>Hz max</span>
+      <input class="hzMax" type="range" min="20" max="20000" step="10">
+      <output class="hzMaxOut"></output>
+    </div>
+    <div class="row">
+      <span>Offset</span>
+      <input class="base" type="range" min="0" max="1" step="0.01">
+      <output class="baseOut"></output>
+    </div>
+    <div class="row">
+      <span>Range</span>
+      <input class="range" type="range" min="-1" max="1" step="0.01">
+      <output class="rangeOut"></output>
+    </div>
+    <div class="row">
+      <span>Gain</span>
+      <input class="gain" type="range" min="0.2" max="4" step="0.05">
+      <output class="gainOut"></output>
+    </div>
+    <div class="meter"><div class="level"></div></div>
+    <div class="meter out"><div class="output"></div></div>
+  </section>
+</template>
+
+<script src="popup.js"></script>
+</body>
+</html>

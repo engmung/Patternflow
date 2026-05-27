@@ -5,6 +5,7 @@
 #include "src/core_encoders.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
+#include "src/core_audio_ws.h"
 #include "pattern_registry.h"
 #include "pattern_video.h"
 
@@ -83,6 +84,10 @@ void setup() {
   // brought up; if OSC is disabled at compile time, OTA brings Wi-Fi up
   // itself. Either module can be enabled independently via config.h.
   PatternflowOta::begin();
+
+  // Audio-react WS server shares the same Wi-Fi connection. Once
+  // running, browsers can drive knob values via http://<device>/.
+  PatternflowAudio::begin();
 
 #if PF_OSC_ENABLED
   dma_display->fillScreen(0);
@@ -269,6 +274,49 @@ void readInputFrame(InputFrame& input) {
   for (int i = 0; i < 4; i++) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
   }
+
+  // Browser audio-react override. Patterns can read knobAudioActive[i]
+  // and use knobAudioValue[i] (normalized 0..1) in place of integrating
+  // knobDeltas. When inactive, the encoder/OSC path runs unchanged.
+  for (int i = 0; i < 4; i++) {
+    input.knobAudioActive[i] = PatternflowAudio::isActive(i);
+    input.knobAudioValue[i]  = PatternflowAudio::value(i);
+  }
+}
+
+void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
+  static bool wasActive[4] = {false, false, false, false};
+  static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  static float residual[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+  for (int i = 0; i < 4; i++) {
+    if (!enabled || !input.knobAudioActive[i]) {
+      wasActive[i] = false;
+      residual[i] = 0.0f;
+      input.knobAudioActive[i] = false;
+      continue;
+    }
+
+    float value = constrain(input.knobAudioValue[i], 0.0f, 1.0f);
+    input.knobDeltas[i] = 0;
+    input.knobAudioActive[i] = false;
+
+    if (!wasActive[i]) {
+      prevValue[i] = 0.5f;
+      residual[i] = 0.0f;
+      wasActive[i] = true;
+    }
+
+    float movement = (value - prevValue[i]) * PF_AUDIO_VIRTUAL_KNOB_SCALE + residual[i];
+    int delta = (int)roundf(movement);
+    delta = constrain(delta, -PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA, PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA);
+
+    residual[i] = movement - (float)delta;
+    if (fabsf(residual[i]) < 0.001f) residual[i] = 0.0f;
+    prevValue[i] = value;
+
+    input.knobDeltas[i] = delta;
+  }
 }
 
 void loop() {
@@ -364,6 +412,11 @@ void loop() {
       Serial.printf(">>> RUNNING MODE: %s\n", patterns[currentPatternIdx].name);
     }
   }
+
+  applyAudioVirtualKnobs(
+    input,
+    currentMode == MODE_RUNNING && !brightnessAdjusting && !oscInfoShowing
+  );
 
   // OSC is a sidechannel: runs in every mode when PF_OSC_ENABLED.
   // It sends input/state to a remote host and (since C) accepts knob,

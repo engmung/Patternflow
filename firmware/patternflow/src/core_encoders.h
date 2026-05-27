@@ -80,6 +80,12 @@ struct InputFrame {
   bool btnPressed[4];      // 이번 프레임에 새로 눌림 (edge trigger)
   bool btnHeld[4];         // 현재 눌려있음 (level)
   uint32_t now;            // millis() 값
+
+  // Audio-react source state. The main loop turns these normalized
+  // 0..1 values into virtual knobDeltas, so ordinary patterns do not
+  // need audio-specific code.
+  bool knobAudioActive[4];
+  float knobAudioValue[4];
 };
 
 Button btn1, btn2, btn3, btn4;

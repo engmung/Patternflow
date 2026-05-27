@@ -84,34 +84,58 @@ namespace Origin {
   }
 
   void update(float dt, const InputFrame& input) {
-    // Enc1: Hue
-    int d0 = input.knobDeltas[0];
-    if (d0 != 0) {
-      params.hueDeg = (params.hueDeg + (int)(d0 * 10)) % 360; 
-      if (params.hueDeg < 0) params.hueDeg += 360;
-    }
-    if (input.btnPressed[0]) { params.hueDeg = 0; Serial.println("[Origin] Hue → 0°"); }
+    // Each knob: audio override (when active) takes priority. Audio
+    // value is 0..1 normalized — map to the same parameter range the
+    // encoder integrates toward, so toggling between encoder and audio
+    // doesn't jump.
 
-    // Enc2: Speed
-    int d1 = input.knobDeltas[1];
-    if (d1 != 0) {
-      params.speed = constrain(params.speed + d1 * 0.1f, 0.0f, 5.0f);
+    // Enc1: Hue (0..360°)
+    if (input.knobAudioActive[0]) {
+      params.hueDeg = (int)(input.knobAudioValue[0] * 360.0f) % 360;
+    } else {
+      int d0 = input.knobDeltas[0];
+      if (d0 != 0) {
+        params.hueDeg = (params.hueDeg + (int)(d0 * 10)) % 360;
+        if (params.hueDeg < 0) params.hueDeg += 360;
+      }
+      if (input.btnPressed[0]) { params.hueDeg = 0; Serial.println("[Origin] Hue → 0°"); }
     }
-    if (input.btnPressed[1]) { params.speed = 0.0f; Serial.println("[Origin] Speed → 0"); }
 
-    // Enc3: Mode
-    int d2 = input.knobDeltas[2];
-    if (d2 != 0) {
-      params.mode = ((params.mode + (int)d2) % NUM_PRESETS + NUM_PRESETS) % NUM_PRESETS;
+    // Enc2: Speed (0..5)
+    if (input.knobAudioActive[1]) {
+      params.speed = input.knobAudioValue[1] * 5.0f;
+    } else {
+      int d1 = input.knobDeltas[1];
+      if (d1 != 0) {
+        params.speed = constrain(params.speed + d1 * 0.1f, 0.0f, 5.0f);
+      }
+      if (input.btnPressed[1]) { params.speed = 0.0f; Serial.println("[Origin] Speed → 0"); }
     }
-    if (input.btnPressed[2]) { params.mode = 0; Serial.println("[Origin] Mode → 0"); }
 
-    // Enc4: Freq
-    int d3 = input.knobDeltas[3];
-    if (d3 != 0) {
-      params.freq = constrain(params.freq + (d3 * 10.0f), 0.1f, 1000.0f);
+    // Enc3: Mode (preset index, 0..NUM_PRESETS-1). Audio mapped by
+    // dividing the 0..1 range into NUM_PRESETS buckets.
+    if (input.knobAudioActive[2]) {
+      int idx = (int)(input.knobAudioValue[2] * (float)NUM_PRESETS);
+      if (idx >= NUM_PRESETS) idx = NUM_PRESETS - 1;
+      params.mode = idx;
+    } else {
+      int d2 = input.knobDeltas[2];
+      if (d2 != 0) {
+        params.mode = ((params.mode + (int)d2) % NUM_PRESETS + NUM_PRESETS) % NUM_PRESETS;
+      }
+      if (input.btnPressed[2]) { params.mode = 0; Serial.println("[Origin] Mode → 0"); }
     }
-    if (input.btnPressed[3]) { params.freq = 0.1f; Serial.println("[Origin] Freq → 0.1"); }
+
+    // Enc4: Freq (0.1..1000)
+    if (input.knobAudioActive[3]) {
+      params.freq = 0.1f + input.knobAudioValue[3] * (1000.0f - 0.1f);
+    } else {
+      int d3 = input.knobDeltas[3];
+      if (d3 != 0) {
+        params.freq = constrain(params.freq + (d3 * 10.0f), 0.1f, 1000.0f);
+      }
+      if (input.btnPressed[3]) { params.freq = 0.1f; Serial.println("[Origin] Freq → 0.1"); }
+    }
 
     // Apply Mode Change
     if (params.mode != curMode) {
