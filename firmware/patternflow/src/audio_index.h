@@ -168,6 +168,10 @@ async function loadFile(file) {
 }
 
 async function captureTab() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    document.getElementById('source-info').textContent = 'Tab capture is blocked on this HTTP device page. Use the Patternflow Audio Chrome extension, or mark this device origin as secure in Chrome flags for local testing.';
+    return;
+  }
   ensureAudio();
   await audioCtx.resume();
   try {

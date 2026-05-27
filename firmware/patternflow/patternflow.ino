@@ -289,10 +289,6 @@ void loop() {
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
 
-  // Audio-react WS server. Also event-driven; handle() polls for new
-  // packets and refreshes knob auto-release timeouts.
-  PatternflowAudio::handle();
-
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Patternflow Audio",
+  "description": "Capture the current tab audio, analyze FFT bands, and send knob values to Patternflow.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Patternflow Audio",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "activeTab",
+    "offscreen",
+    "storage",
+    "tabCapture"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "ws://*/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src ws://*:* http://*:*"
+  }
+}
