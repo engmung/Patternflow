@@ -123,6 +123,26 @@
 #define PF_OTA_PASSWORD "patternflow"
 #endif
 
+// --- Audio-react WebSocket ---
+// Hosts a tiny audio analysis UI on the device itself. Browser loads
+// http://patternflow.local, captures audio (file / tab / mic), runs an
+// FFT on configured frequency bands, and pushes each band's energy as a
+// normalized 0..1 value over WebSocket. Patterns opt in by checking the
+// new knobAudioActive / knobAudioValue fields in InputFrame; patterns
+// that don't opt in behave exactly as before.
+//
+// Shares Wi-Fi with OSC and OTA — if any of the three brought the
+// connection up, the others reuse it.
+#ifndef PF_AUDIO_ENABLED
+#define PF_AUDIO_ENABLED 1
+#endif
+#ifndef PF_AUDIO_HTTP_PORT
+#define PF_AUDIO_HTTP_PORT 80
+#endif
+#ifndef PF_AUDIO_WS_PORT
+#define PF_AUDIO_WS_PORT 81
+#endif
+
 #if __has_include("osc_secrets.h")
 #include "osc_secrets.h"
 #endif

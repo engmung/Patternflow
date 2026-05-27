@@ -5,6 +5,7 @@
 #include "src/core_encoders.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
+#include "src/core_audio_ws.h"
 #include "pattern_registry.h"
 #include "pattern_video.h"
 
@@ -83,6 +84,10 @@ void setup() {
   // brought up; if OSC is disabled at compile time, OTA brings Wi-Fi up
   // itself. Either module can be enabled independently via config.h.
   PatternflowOta::begin();
+
+  // Audio-react WS server shares the same Wi-Fi connection. Once
+  // running, browsers can drive knob values via http://<device>/.
+  PatternflowAudio::begin();
 
 #if PF_OSC_ENABLED
   dma_display->fillScreen(0);
@@ -269,12 +274,24 @@ void readInputFrame(InputFrame& input) {
   for (int i = 0; i < 4; i++) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
   }
+
+  // Browser audio-react override. Patterns can read knobAudioActive[i]
+  // and use knobAudioValue[i] (normalized 0..1) in place of integrating
+  // knobDeltas. When inactive, the encoder/OSC path runs unchanged.
+  for (int i = 0; i < 4; i++) {
+    input.knobAudioActive[i] = PatternflowAudio::isActive(i);
+    input.knobAudioValue[i]  = PatternflowAudio::value(i);
+  }
 }
 
 void loop() {
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
+
+  // Audio-react WS server. Also event-driven; handle() polls for new
+  // packets and refreshes knob auto-release timeouts.
+  PatternflowAudio::handle();
 
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
