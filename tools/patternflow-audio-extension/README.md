@@ -36,3 +36,15 @@ the K1-K4 sliders. This bypasses tab capture and audio analysis completely.
 - `WS Test`: connect to the device and send manual K1-K4 values.
 
 The extension sends messages like `k=0,v=0.735` to `ws://<device>:81`.
+
+## Next: Audio Console
+
+Future direction: expand the popup into a larger controller page for live
+performance and mapping.
+
+- Real-time spectrum and waveform visualizers.
+- Drag-to-select frequency bands on the spectrum.
+- Per-band mapping curves, invert, gate, attack, release, and smoothing.
+- Pattern-specific presets saved in Chrome storage.
+- Larger K1-K4 output meters and connection diagnostics.
+- Beat/transient helpers for kick-style triggers or preset stepping.
