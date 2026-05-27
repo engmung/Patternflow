@@ -1,19 +1,22 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - Audio-react browser UI (PROGMEM HTML bundle)
 //
-// Served at http://patternflow.local/ by core_audio_ws.h. The UI:
-//   - audio source: file upload, browser-tab/system capture, or mic
-//   - four frequency bands, each routed to a target knob (1..4)
-//   - per band: Hz min/max sliders, base value, ±range modulation
-//   - live energy meters + WebSocket throttled to ~30 Hz
+// Served at http://<device>/ by core_audio_ws.h. The WebSocket endpoint
+// is /ws on the same port. Audio path:
+//   source → AnalyserNode (FFT 2048) → per-band bin average (dB) →
+//   normalized 0..1 → EMA smoothing → out = base + audio×range →
+//   WebSocket frame "k=N,v=F" at ~30 Hz.
 //
-// Audio path: source → AnalyserNode (FFT 2048) → per-band bin average
-// in dB → normalized 0..1 → EMA smoothing → output = base + audio×range
-// (clamped 0..1) → WebSocket frame "k=N,v=F".
+// Visual style is aligned with the patternflow web design system
+// (cream surface, ink text, mono labels, rule borders) so the device-
+// hosted page reads as part of the same product family rather than
+// a generic admin panel.
 //
-// Tab capture uses getDisplayMedia({audio:true, video:true}). Most
-// browsers refuse to expose audio without video, so we request both
-// and discard the video track.
+// Browser secure-context limitation: getDisplayMedia (tab capture) and
+// getUserMedia (microphone) only work over https or http://localhost.
+// http://patternflow.local does NOT qualify, so when those buttons are
+// clicked on an insecure origin we surface a clear "run locally" hint
+// rather than failing silently. File source works on any origin.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -26,80 +29,140 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow Audio</title>
 <style>
-  :root{--bg:#0a0a0a;--card:#0d0d0d;--fg:#e8e8e8;--mut:#666;--ln:#1f1f1f;--accent:#5fdb89;--bad:#ff5d5d;--bar:#3a3a3a;--bar-on:#7adb9a}
+  :root{
+    --cream:#F4EFE6;
+    --cream-2:#EDE7DB;
+    --ink:#141414;
+    --ink-muted:#6B655A;
+    --ink-faint:#A69F90;
+    --ink-ghost:#C9C2B0;
+    --rule:#D9D1C0;
+    --rule-soft:#E5DDC9;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --track:.16em;
+  }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px;max-width:720px;margin:0 auto}
-  h1{font-size:11px;letter-spacing:.4em;opacity:.5;font-weight:normal;margin:0 0 4px}
-  .sub{font-size:11px;color:var(--mut);margin-bottom:20px}
-  #status{position:fixed;top:14px;right:14px;font-size:10px;padding:7px 11px;border:1px solid var(--ln);background:var(--card);letter-spacing:.15em;z-index:10}
-  .ok{color:var(--accent)} .bad{color:var(--bad)}
+  html,body{margin:0;background:var(--cream);color:var(--ink);font:13px/1.55 var(--mono)}
+  body{padding:24px 20px 60px;max-width:760px;margin:0 auto}
+  ::selection{background:var(--ink);color:var(--cream)}
 
-  .section{margin:14px 0;padding:14px;border:1px solid var(--ln);background:var(--card)}
-  .section h2{font-size:10px;letter-spacing:.25em;color:var(--mut);font-weight:normal;text-transform:uppercase;margin:0 0 12px}
+  .hdr{margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--rule)}
+  .hdr h1{margin:0;font-size:11px;letter-spacing:.45em;color:var(--ink);text-transform:uppercase;font-weight:500}
+  .hdr p{margin:6px 0 0;font-size:11px;color:var(--ink-muted);letter-spacing:.05em}
 
-  .sources{display:flex;gap:8px;flex-wrap:wrap}
-  .sources button{flex:1;min-width:120px;padding:10px;background:#1a1a1a;color:var(--fg);border:1px solid #333;font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
-  .sources button:hover{background:#222}
-  .sources button.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-  .source-info{margin-top:10px;font-size:11px;color:var(--mut);min-height:18px}
+  #status{position:fixed;top:18px;right:18px;font-size:10px;padding:7px 11px;border:1px solid var(--rule);background:var(--cream);letter-spacing:var(--track);text-transform:uppercase;z-index:10}
+  #status.ok{border-color:var(--ink);color:var(--ink)}
+  #status.bad{color:var(--ink-faint)}
 
-  audio{width:100%;margin-top:10px}
+  .section{margin:18px 0;border:1px solid var(--rule);background:var(--cream)}
+  .section-hd{padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--cream-2)}
+  .section-hd span{font-size:10px;letter-spacing:var(--track);color:var(--ink-muted);text-transform:uppercase}
+  .section-bd{padding:14px}
 
-  .band{margin:12px 0;padding:12px;border:1px solid var(--ln);background:#0c0c0c}
-  .band-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
-  .band-title{font-size:11px;letter-spacing:.2em;color:var(--fg);text-transform:uppercase}
-  .band-target{font-size:11px;color:var(--mut)}
-  .band-target select{background:#1a1a1a;color:var(--fg);border:1px solid #333;padding:4px 8px;font-family:inherit;font-size:11px}
+  .sources{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .source-btn{padding:11px 8px;background:var(--cream);color:var(--ink);border:1px solid var(--rule);font:inherit;font-size:11px;letter-spacing:var(--track);text-transform:uppercase;cursor:pointer;transition:.08s}
+  .source-btn:hover{background:var(--cream-2);border-color:var(--ink-faint)}
+  .source-btn.active{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+  .source-info{margin-top:12px;padding:10px 12px;font-size:11px;color:var(--ink-muted);background:var(--cream-2);border:1px dashed var(--rule);min-height:14px;letter-spacing:.02em}
+  .source-info.warn{border-style:solid;border-color:var(--ink);background:var(--cream);color:var(--ink)}
+  .file-controls{margin-top:12px}
+  .file-controls input[type=file]{font:inherit;font-size:11px;color:var(--ink);width:100%}
+  .file-controls audio{width:100%;margin-top:10px}
 
-  .row{display:grid;grid-template-columns:60px 1fr 70px;align-items:center;gap:10px;margin:6px 0;font-size:11px}
-  .row .lbl{color:var(--mut);letter-spacing:.1em;text-transform:uppercase}
-  .row .v{text-align:right;color:var(--fg);font-variant-numeric:tabular-nums}
-  .row input[type=range]{width:100%;accent-color:#888}
-  .hz-presets{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;grid-column:1 / -1}
-  .hz-presets button{padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--ln);font-family:inherit;font-size:10px;letter-spacing:.05em;cursor:pointer}
-  .hz-presets button:hover{background:#1a1a1a;color:var(--fg)}
+  .band-list{display:flex;flex-direction:column;gap:0}
+  .band{padding:14px;border-top:1px solid var(--rule)}
+  .band:first-child{border-top:0}
+  .band-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap}
+  .band-title{font-size:11px;letter-spacing:var(--track);text-transform:uppercase;color:var(--ink)}
+  .band-target{font-size:10px;color:var(--ink-muted);letter-spacing:.1em;text-transform:uppercase}
+  .band-target select{background:var(--cream);color:var(--ink);border:1px solid var(--rule);padding:4px 8px;font:inherit;font-size:11px;margin-left:6px}
 
-  .meter{height:6px;background:var(--bar);overflow:hidden;margin-top:8px;position:relative}
-  .meter-fill{height:100%;background:var(--bar-on);transition:width 0.05s linear;width:0%}
-  .meter-out{height:3px;background:var(--bar);margin-top:2px;position:relative}
-  .meter-out-fill{height:100%;background:var(--accent);width:0%;transition:width 0.05s linear}
+  .row{display:grid;grid-template-columns:80px 1fr 64px;align-items:center;gap:10px;margin:6px 0;font-size:11px}
+  .row .lbl{color:var(--ink-muted);letter-spacing:.12em;text-transform:uppercase;font-size:10px}
+  .row .v{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+  .row input[type=range]{
+    width:100%;height:2px;background:var(--rule);
+    -webkit-appearance:none;appearance:none;outline:none;cursor:pointer
+  }
+  .row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:14px;height:14px;
+    background:var(--ink);border-radius:0;cursor:pointer
+  }
+  .row input[type=range]::-moz-range-thumb{
+    width:14px;height:14px;background:var(--ink);border:0;border-radius:0;cursor:pointer
+  }
 
-  .release{width:100%;padding:11px;background:#1a1a1a;color:var(--fg);border:1px solid #333;font-family:inherit;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;margin-top:16px}
-  .release:hover{background:#222}
+  .hz-presets{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 0;grid-column:2 / 3}
+  .hz-presets button{
+    padding:3px 7px;background:transparent;color:var(--ink-muted);
+    border:1px solid var(--rule);font:inherit;font-size:10px;
+    letter-spacing:.05em;cursor:pointer;text-transform:none
+  }
+  .hz-presets button:hover{background:var(--cream-2);color:var(--ink);border-color:var(--ink-faint)}
 
-  .note{margin-top:18px;font-size:11px;color:var(--mut);line-height:1.6}
-  .note code{background:#1a1a1a;padding:1px 5px;color:var(--fg)}
+  .meters{margin-top:10px}
+  .meter-lbl{font-size:9px;letter-spacing:.15em;color:var(--ink-faint);text-transform:uppercase;margin-bottom:4px;display:flex;justify-content:space-between}
+  .meter{height:4px;background:var(--rule-soft);position:relative;margin-bottom:6px}
+  .meter-fill{height:100%;background:var(--ink-muted);width:0%;transition:width .05s linear}
+  .meter-out .meter-fill{background:var(--ink)}
+
+  .release{
+    width:100%;padding:13px;background:var(--cream);color:var(--ink);
+    border:1px solid var(--rule);font:inherit;font-size:11px;
+    letter-spacing:var(--track);text-transform:uppercase;cursor:pointer;
+    margin-top:18px;transition:.08s
+  }
+  .release:hover{background:var(--ink);color:var(--cream);border-color:var(--ink)}
+
+  .note{margin-top:24px;padding:14px;font-size:11px;color:var(--ink-muted);line-height:1.7;border:1px solid var(--rule);background:var(--cream-2)}
+  .note strong{color:var(--ink);font-weight:500}
+  .note code{background:var(--cream);padding:1px 5px;border:1px solid var(--rule-soft);color:var(--ink)}
+
+  @media (max-width:520px){
+    .sources{grid-template-columns:1fr}
+    .row{grid-template-columns:64px 1fr 56px}
+  }
 </style></head>
 <body>
-<h1>PATTERNFLOW · AUDIO</h1>
-<div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
+<div class="hdr">
+  <h1>PATTERNFLOW · AUDIO</h1>
+  <p>Stream music into the device. Map four FFT bands onto the four knobs.</p>
+</div>
+
 <div id="status" class="bad">DISCONNECTED</div>
 
 <div class="section">
-  <h2>Audio source</h2>
-  <div class="sources">
-    <button id="src-file" class="active">File</button>
-    <button id="src-tab">Tab / System</button>
-    <button id="src-mic">Microphone</button>
+  <div class="section-hd"><span>Audio source</span></div>
+  <div class="section-bd">
+    <div class="sources">
+      <button class="source-btn active" id="src-file">File</button>
+      <button class="source-btn" id="src-tab">Tab / System</button>
+      <button class="source-btn" id="src-mic">Microphone</button>
+    </div>
+    <div id="file-controls" class="file-controls">
+      <input type="file" id="file-input" accept="audio/*">
+      <audio id="audio-elem" controls></audio>
+    </div>
+    <div id="source-info" class="source-info">Pick an audio file to start.</div>
   </div>
-  <div id="file-controls" style="margin-top:10px">
-    <input type="file" id="file-input" accept="audio/*" style="font-size:11px">
-    <audio id="audio-elem" controls></audio>
-  </div>
-  <div id="source-info" class="source-info"></div>
 </div>
 
-<div id="bands"></div>
+<div class="section">
+  <div class="section-hd"><span>Bands</span></div>
+  <div class="section-bd" style="padding:0">
+    <div id="bands" class="band-list"></div>
+  </div>
+</div>
 
 <button class="release" id="release-all">Release all knobs · return to encoder control</button>
 
 <div class="note">
-Tab capture uses the browser's screen-share dialog with "share audio" enabled — pick a tab (YouTube, Spotify Web, anything) and only its audio is captured. The video track is discarded.<br><br>
-Patterns that opt in use the band values directly; patterns that don't ignore audio entirely. As of phase 2, only <code>Origin</code> is audio-aware — long-press encoder 4 to select it.
+<strong>Tab capture & Microphone require a secure context.</strong> Browsers only allow these on <code>https</code> or <code>http://localhost</code>; the device URL <code>http://patternflow.local</code> doesn&apos;t qualify. To enable them, clone the repo and run <code>npm&nbsp;run&nbsp;dev</code> from the <code>web/</code> folder, then open <code>http://localhost:3000/audio</code>. The <strong>File</strong> source works on this device page directly.
 </div>
 
 <script>
-// ═══ Bands config ═══
+"use strict";
+
 const PRESETS = [
   { name: 'Sub',     min: 20,   max: 60    },
   { name: 'Bass',    min: 60,   max: 250   },
@@ -117,101 +180,115 @@ const bands = [
 ];
 
 const smoothing = [0, 0, 0, 0];
-const SMOOTH_ALPHA = 0.35;       // 0..1, higher = snappier
-const SEND_INTERVAL_MS = 33;     // ~30 Hz WS update
+const SMOOTH_ALPHA = 0.35;
+const SEND_INTERVAL_MS = 33;
 let lastSendMs = 0;
 
-// ═══ Audio context ═══
+const CAN_CAPTURE = window.isSecureContext === true;
+
 let audioCtx = null, analyser = null, sourceNode = null, freqBuf = null;
 let mediaElem = null, mediaStream = null;
-let currentSource = 'file';
 
 function ensureAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.3;  // some smoothing already in the analyser
+  analyser.smoothingTimeConstant = 0.3;
   freqBuf = new Float32Array(analyser.frequencyBinCount);
 }
 
 function disconnectAll() {
   try { if (sourceNode) sourceNode.disconnect(); } catch (e) {}
   sourceNode = null;
-  if (mediaElem) { mediaElem.pause(); mediaElem.removeAttribute('src'); mediaElem.load(); mediaElem = null; }
-  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  try { if (analyser) analyser.disconnect(); } catch (e) {}
+  if (mediaElem) {
+    mediaElem.pause();
+    mediaElem.removeAttribute('src');
+    mediaElem.load();
+    mediaElem = null;
+  }
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
 }
 
-async function setSource(kind) {
-  ensureAudio();
-  await audioCtx.resume();
-  disconnectAll();
-  currentSource = kind;
-  document.querySelectorAll('.sources button').forEach(b => b.classList.remove('active'));
-  document.getElementById('src-' + kind).classList.add('active');
-  document.getElementById('file-controls').style.display = kind === 'file' ? 'block' : 'none';
-  document.getElementById('source-info').textContent = '';
+function setActiveBtn(id) {
+  document.querySelectorAll('.source-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setInfo(text, warn) {
+  const el = document.getElementById('source-info');
+  el.textContent = text;
+  el.classList.toggle('warn', !!warn);
 }
 
 async function loadFile(file) {
   ensureAudio();
   await audioCtx.resume();
+  disconnectAll();
   const audio = document.getElementById('audio-elem');
   audio.src = URL.createObjectURL(file);
   audio.load();
   mediaElem = audio;
   sourceNode = audioCtx.createMediaElementSource(audio);
   sourceNode.connect(analyser);
-  analyser.connect(audioCtx.destination); // file path: play to speakers too
-  audio.play().catch(() => {});
-  document.getElementById('source-info').textContent = `Loaded: ${file.name}`;
+  analyser.connect(audioCtx.destination);
+  try { await audio.play(); } catch (e) {}
+  setInfo('Loaded: ' + file.name);
 }
 
 async function captureTab() {
+  if (!CAN_CAPTURE) {
+    setInfo('Tab capture needs a secure context — see the note below. File source still works here.', true);
+    return;
+  }
   ensureAudio();
   await audioCtx.resume();
+  disconnectAll();
   try {
     const stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true });
     const audioTracks = stream.getAudioTracks();
     if (!audioTracks.length) {
-      document.getElementById('source-info').textContent = 'No audio in selected tab. Make sure "Share audio" is checked.';
+      setInfo('No audio in selected source. Make sure "Share tab audio" is checked.', true);
       stream.getTracks().forEach(t => t.stop());
       return;
     }
-    // We don't need the video; stop it.
     stream.getVideoTracks().forEach(t => t.stop());
     const audioStream = new MediaStream([audioTracks[0]]);
     mediaStream = stream;
     sourceNode = audioCtx.createMediaStreamSource(audioStream);
     sourceNode.connect(analyser);
-    // Note: tab audio already plays through the tab itself — do NOT connect
-    // analyser to destination or you'll get a double + echo loop.
-    document.getElementById('source-info').textContent = 'Tab audio captured.';
+    setInfo('Tab audio captured.');
   } catch (err) {
-    document.getElementById('source-info').textContent = 'Tab capture cancelled or unavailable.';
+    setInfo('Tab capture cancelled.');
   }
 }
 
 async function captureMic() {
+  if (!CAN_CAPTURE) {
+    setInfo('Microphone needs a secure context — see the note below. File source still works here.', true);
+    return;
+  }
   ensureAudio();
   await audioCtx.resume();
+  disconnectAll();
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     mediaStream = stream;
     sourceNode = audioCtx.createMediaStreamSource(stream);
     sourceNode.connect(analyser);
-    // Do NOT connect analyser to destination — would cause feedback.
-    document.getElementById('source-info').textContent = 'Microphone live.';
+    setInfo('Microphone live.');
   } catch (err) {
-    document.getElementById('source-info').textContent = 'Microphone denied or unavailable.';
+    setInfo('Microphone denied or unavailable.', true);
   }
 }
 
-// ═══ FFT → band energy ═══
 function hzToBin(hz) {
   return Math.round(hz * analyser.fftSize / audioCtx.sampleRate);
 }
-
 function bandEnergy(band) {
   const minBin = Math.max(0, hzToBin(band.hzMin));
   const maxBin = Math.min(freqBuf.length - 1, hzToBin(band.hzMax));
@@ -219,26 +296,34 @@ function bandEnergy(band) {
   let sum = 0;
   for (let i = minBin; i <= maxBin; i++) sum += freqBuf[i];
   const avgDb = sum / (maxBin - minBin + 1);
-  // Map -80..-10 dB → 0..1 (typical perceptual range)
   return Math.max(0, Math.min(1, (avgDb + 80) / 70));
 }
 
-// ═══ WebSocket ═══
-const wsUrl = `ws://${location.hostname}:81`;
+// WebSocket on the same origin / port at /ws
+const wsUrl = `ws://${location.host}/ws`;
 let ws = null, reconnectT = null;
 function connect() {
   ws = new WebSocket(wsUrl);
-  ws.onopen = () => { document.getElementById('status').className = 'ok'; document.getElementById('status').textContent = 'CONNECTED'; };
-  ws.onclose = () => { document.getElementById('status').className = 'bad'; document.getElementById('status').textContent = 'DISCONNECTED'; if (reconnectT) clearTimeout(reconnectT); reconnectT = setTimeout(connect, 1200); };
-  ws.onerror = () => { document.getElementById('status').className = 'bad'; document.getElementById('status').textContent = 'ERROR'; };
+  ws.onopen = () => {
+    const s = document.getElementById('status');
+    s.className = 'ok'; s.textContent = 'CONNECTED';
+  };
+  ws.onclose = () => {
+    const s = document.getElementById('status');
+    s.className = 'bad'; s.textContent = 'DISCONNECTED';
+    if (reconnectT) clearTimeout(reconnectT);
+    reconnectT = setTimeout(connect, 1200);
+  };
+  ws.onerror = () => {
+    const s = document.getElementById('status');
+    s.className = 'bad'; s.textContent = 'ERROR';
+  };
 }
 connect();
-
 function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
 }
 
-// ═══ Band UI ═══
 function buildBandUI() {
   const root = document.getElementById('bands');
   root.innerHTML = '';
@@ -249,7 +334,7 @@ function buildBandUI() {
       <div class="band-head">
         <span class="band-title">Band ${i + 1}</span>
         <span class="band-target">→ Knob
-          <select data-i="${i}" class="target">
+          <select class="target">
             <option value="0">1</option><option value="1">2</option>
             <option value="2">3</option><option value="3">4</option>
           </select>
@@ -257,57 +342,89 @@ function buildBandUI() {
       </div>
       <div class="row">
         <span class="lbl">Hz min</span>
-        <input type="range" min="20" max="20000" step="10" value="${band.hzMin}" data-i="${i}" class="hzMin">
+        <input type="range" min="20" max="20000" step="10" value="${band.hzMin}" class="hzMin">
         <span class="v hz-min-v">${band.hzMin}</span>
       </div>
       <div class="row">
         <span class="lbl">Hz max</span>
-        <input type="range" min="20" max="20000" step="10" value="${band.hzMax}" data-i="${i}" class="hzMax">
+        <input type="range" min="20" max="20000" step="10" value="${band.hzMax}" class="hzMax">
         <span class="v hz-max-v">${band.hzMax}</span>
       </div>
       <div class="row">
-        <div></div>
+        <span></span>
         <div class="hz-presets">
-          ${PRESETS.map(p => `<button data-i="${i}" data-min="${p.min}" data-max="${p.max}">${p.name} ${p.min}–${p.max}</button>`).join('')}
+          ${PRESETS.map(p => `<button data-min="${p.min}" data-max="${p.max}">${p.name} ${p.min}–${p.max}</button>`).join('')}
         </div>
+        <span></span>
       </div>
       <div class="row">
         <span class="lbl">Base</span>
-        <input type="range" min="0" max="1" step="0.01" value="${band.base}" data-i="${i}" class="base">
+        <input type="range" min="0" max="1" step="0.01" value="${band.base}" class="base">
         <span class="v base-v">${band.base.toFixed(2)}</span>
       </div>
       <div class="row">
         <span class="lbl">± Range</span>
-        <input type="range" min="-1" max="1" step="0.01" value="${band.range}" data-i="${i}" class="range">
-        <span class="v range-v">${band.range >= 0 ? '+' : ''}${band.range.toFixed(2)}</span>
+        <input type="range" min="-1" max="1" step="0.01" value="${band.range}" class="range">
+        <span class="v range-v">${(band.range >= 0 ? '+' : '') + band.range.toFixed(2)}</span>
       </div>
-      <div class="meter"><div class="meter-fill" id="meter-in-${i}"></div></div>
-      <div class="meter-out"><div class="meter-out-fill" id="meter-out-${i}"></div></div>
+      <div class="meters">
+        <div class="meter-lbl"><span>Input</span><span class="in-v">0.00</span></div>
+        <div class="meter"><div class="meter-fill" id="meter-in-${i}"></div></div>
+        <div class="meter-lbl"><span>Output → Knob</span><span class="out-v">0.00</span></div>
+        <div class="meter meter-out"><div class="meter-fill" id="meter-out-${i}"></div></div>
+      </div>
     `;
     root.appendChild(div);
 
-    div.querySelector('.target').value = band.knob;
-    div.querySelector('.target').addEventListener('change', e => { band.knob = parseInt(e.target.value, 10); });
-    div.querySelector('.hzMin').addEventListener('input', e => { band.hzMin = parseInt(e.target.value, 10); div.querySelector('.hz-min-v').textContent = band.hzMin; });
-    div.querySelector('.hzMax').addEventListener('input', e => { band.hzMax = parseInt(e.target.value, 10); div.querySelector('.hz-max-v').textContent = band.hzMax; });
-    div.querySelector('.base').addEventListener('input', e => { band.base = parseFloat(e.target.value); div.querySelector('.base-v').textContent = band.base.toFixed(2); });
-    div.querySelector('.range').addEventListener('input', e => { band.range = parseFloat(e.target.value); div.querySelector('.range-v').textContent = (band.range >= 0 ? '+' : '') + band.range.toFixed(2); });
+    const sel = div.querySelector('.target');
+    sel.value = String(band.knob);
+    sel.addEventListener('change', e => { band.knob = parseInt(e.target.value, 10); });
+    div.querySelector('.hzMin').addEventListener('input', e => {
+      band.hzMin = parseInt(e.target.value, 10);
+      div.querySelector('.hz-min-v').textContent = band.hzMin;
+    });
+    div.querySelector('.hzMax').addEventListener('input', e => {
+      band.hzMax = parseInt(e.target.value, 10);
+      div.querySelector('.hz-max-v').textContent = band.hzMax;
+    });
+    div.querySelector('.base').addEventListener('input', e => {
+      band.base = parseFloat(e.target.value);
+      div.querySelector('.base-v').textContent = band.base.toFixed(2);
+    });
+    div.querySelector('.range').addEventListener('input', e => {
+      band.range = parseFloat(e.target.value);
+      div.querySelector('.range-v').textContent = (band.range >= 0 ? '+' : '') + band.range.toFixed(2);
+    });
     div.querySelectorAll('.hz-presets button').forEach(btn => {
       btn.addEventListener('click', () => {
         const mn = parseInt(btn.dataset.min, 10), mx = parseInt(btn.dataset.max, 10);
         band.hzMin = mn; band.hzMax = mx;
-        div.querySelector('.hzMin').value = mn; div.querySelector('.hz-min-v').textContent = mn;
-        div.querySelector('.hzMax').value = mx; div.querySelector('.hz-max-v').textContent = mx;
+        div.querySelector('.hzMin').value = mn;
+        div.querySelector('.hz-min-v').textContent = mn;
+        div.querySelector('.hzMax').value = mx;
+        div.querySelector('.hz-max-v').textContent = mx;
       });
     });
   });
 }
 buildBandUI();
 
-// ═══ Source buttons ═══
-document.getElementById('src-file').addEventListener('click', () => setSource('file'));
-document.getElementById('src-tab').addEventListener('click', () => { setSource('tab').then(captureTab); });
-document.getElementById('src-mic').addEventListener('click', () => { setSource('mic').then(captureMic); });
+document.getElementById('src-file').addEventListener('click', () => {
+  setActiveBtn('src-file');
+  document.getElementById('file-controls').style.display = 'block';
+  if (mediaElem || mediaStream) disconnectAll();
+  setInfo('Pick an audio file to start.');
+});
+document.getElementById('src-tab').addEventListener('click', () => {
+  setActiveBtn('src-tab');
+  document.getElementById('file-controls').style.display = 'none';
+  captureTab();
+});
+document.getElementById('src-mic').addEventListener('click', () => {
+  setActiveBtn('src-mic');
+  document.getElementById('file-controls').style.display = 'none';
+  captureMic();
+});
 document.getElementById('file-input').addEventListener('change', e => {
   if (e.target.files && e.target.files[0]) loadFile(e.target.files[0]);
 });
@@ -317,7 +434,6 @@ document.getElementById('release-all').addEventListener('click', () => {
   smoothing.fill(0);
 });
 
-// ═══ Tick loop ═══
 function tick() {
   requestAnimationFrame(tick);
   if (!analyser || !freqBuf) return;
@@ -337,6 +453,14 @@ function tick() {
     const m2 = document.getElementById('meter-out-' + i);
     if (m1) m1.style.width = (smoothing[i] * 100).toFixed(1) + '%';
     if (m2) m2.style.width = (mapped * 100).toFixed(1) + '%';
+
+    const bandEl = document.querySelectorAll('.band')[i];
+    if (bandEl) {
+      const inV = bandEl.querySelector('.in-v');
+      const outV = bandEl.querySelector('.out-v');
+      if (inV) inV.textContent = smoothing[i].toFixed(2);
+      if (outV) outV.textContent = mapped.toFixed(2);
+    }
 
     if (shouldSend) wsSend(`k=${band.knob},v=${mapped.toFixed(3)}`);
   }
