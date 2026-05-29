@@ -80,10 +80,13 @@ Drop the generated header file into the firmware folder:
 ```
 firmware/patternflow/
 ├── patternflow.ino
-├── config.h
+├── config.h                   ← hardware pins / display / limits
+├── net_config.h               ← Wi-Fi / OTA / OSC / audio-react config
+├── patternflow_secrets.example.h  ← copy to patternflow_secrets.h for credentials
 ├── pattern_registry.h         ← edit this
 ├── pattern_origin.h
 ├── pattern_wave_saw.h
+├── pattern_video.h
 ├── pattern_dev1.h
 ├── pattern_dev2.h
 ├── pattern_dev3.h
@@ -95,7 +98,11 @@ firmware/patternflow/
     ├── core_math.h            ← shared sin LUT + fast trig
     ├── core_color.h           ← shared HSV/ramp helpers
     ├── core_noise.h           ← shared Perlin/fractal noise
-    └── core_osc.h             ← OSC sidechannel
+    ├── core_wifi.h            ← shared Wi-Fi bring-up
+    ├── core_osc.h             ← OSC sidechannel
+    ├── core_audio_ws.h        ← browser audio-react server
+    ├── audio_index.h          ← bundled audio UI
+    └── core_ota.h             ← wireless flashing
 ```
 
 The `src/` folder holds the foundation: generated patterns include the ones they need (`#include "src/core_canvas.h"`, etc.) and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
