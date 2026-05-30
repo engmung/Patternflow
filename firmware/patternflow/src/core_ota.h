@@ -23,6 +23,7 @@
 
 #include <Arduino.h>
 #include "config.h"
+#include "core_wifi.h"
 
 #if PF_OTA_ENABLED
 #include <WiFi.h>
@@ -67,23 +68,14 @@ inline const char* hostname() {
 
 inline void begin() {
 #if PF_OTA_ENABLED
-  // Reuse the OSC Wi-Fi if it's already up; otherwise bring it up here.
-  // Idempotent — calling WiFi.begin twice with the same creds is a
-  // no-op when already connected.
+  // Reuse the shared connection: if OSC already brought Wi-Fi up, this
+  // returns immediately; otherwise it starts the one-and-only connect
+  // attempt. Never issues a second WiFi.begin() while one is in flight.
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[OTA] Connecting Wi-Fi...");
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false);
-    WiFi.begin(PF_WIFI_SSID, PF_WIFI_PASS);
-
-    uint32_t startMs = millis();
-    while (WiFi.status() != WL_CONNECTED &&
-           (millis() - startMs) < PF_WIFI_CONNECT_TIMEOUT_MS) {
-      delay(100);
-    }
   }
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!PatternflowWifi::ensure()) {
     Serial.println("[OTA] Wi-Fi unavailable; OTA disabled this boot");
     return;
   }

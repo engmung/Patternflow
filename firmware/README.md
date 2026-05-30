@@ -34,6 +34,7 @@ The experimental audio-react WebSocket control uses:
 firmware/patternflow/
 ├── patternflow.ino          # Main sketch: input routing, mode dispatch
 ├── config.h                 # Hardware configuration (pin mappings, limits)
+├── net_config.h             # Wi-Fi / OTA / OSC / audio-react config + defaults
 ├── pattern_registry.h       # Function-pointer table — register patterns here
 ├── pattern_origin.h         # Built-in pattern: radial sine grids
 ├── pattern_wave_saw.h       # Built-in pattern: directional saw bands
@@ -41,7 +42,7 @@ firmware/patternflow/
 ├── pattern_dev1.h           # Development pattern slot
 ├── pattern_dev2.h           # Development pattern slot
 ├── pattern_dev3.h           # Development pattern slot
-├── osc_secrets.example.h    # Template for Wi-Fi credentials (copy to osc_secrets.h)
+├── patternflow_secrets.example.h  # Template for secrets (copy to patternflow_secrets.h)
 └── src/                     # Foundation — not shown in the Arduino IDE tab bar
     ├── core_display.h       # HUB75 driver init + refresh-rate config
     ├── core_encoders.h      # Encoder ISRs + InputFrame contract
@@ -49,6 +50,7 @@ firmware/patternflow/
     ├── core_math.h          # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
     ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
     ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
+    ├── core_wifi.h          # Shared Wi-Fi bring-up (single WiFi.begin for all features)
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
     ├── core_audio_ws.h      # Browser audio-react HTTP/WebSocket server
     ├── audio_index.h        # Built-in patternflow.local audio UI bundle
@@ -253,7 +255,7 @@ Patternflow can send lightweight OSC control messages over Wi-Fi for performance
 OSC has two switches: **compile-time** (whether OSC code is linked into the firmware at all) and **runtime** (whether the linked-in code is currently sending/receiving). The K2 longpress info screen only controls the runtime switch — if the compile-time switch is off, the runtime toggle is inert.
 
 ### Compile-time: enable the build flag and provide Wi-Fi credentials
-Copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and edit the local copy:
+Copy `patternflow/patternflow_secrets.example.h` to `patternflow/patternflow_secrets.h` and edit the local copy:
 
 ```cpp
 #define PF_OSC_ENABLED 1
@@ -263,9 +265,9 @@ Copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and edit
 #define PF_OSC_REMOTE_PORT 9000
 ```
 
-`osc_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed.
+`patternflow_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed. The defaults for everything you leave unset live in `net_config.h`.
 
-Without an `osc_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
+Without a `patternflow_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `net_config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
 
 ### Runtime: toggle from the device (no rebuild)
 Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
@@ -303,12 +305,12 @@ Knob deltas are applied on top of any physical encoder motion in the same frame,
 The firmware includes `ArduinoOTA` for wireless flashing from the Arduino IDE — no USB cable, no port juggling.
 
 ### One-time setup
-1. Copy `patternflow/osc_secrets.example.h` to `patternflow/osc_secrets.h` and fill in your local Wi-Fi credentials:
+1. Copy `patternflow/patternflow_secrets.example.h` to `patternflow/patternflow_secrets.h` and fill in your local Wi-Fi credentials:
    ```cpp
    #define PF_WIFI_SSID "your-wifi-name"
    #define PF_WIFI_PASS "your-wifi-password"
    ```
-   (You don't need to enable `PF_OSC_ENABLED` — OTA brings up Wi-Fi on its own. Reusing the same secrets file just keeps credentials in one place.)
+   (You don't need to enable `PF_OSC_ENABLED` — OTA brings up Wi-Fi on its own. One secrets file now covers Wi-Fi, OTA, OSC, and audio-react.)
 2. Flash once over USB as normal. On boot, the serial console should print:
    ```
    [OTA] Ready — hostname "patternflow.local", IP 192.168.x.x
@@ -316,11 +318,22 @@ The firmware includes `ArduinoOTA` for wireless flashing from the Arduino IDE �
 
 ### Subsequent uploads
 1. In Arduino IDE, open **Tools → Port** — you should see `patternflow at 192.168.x.x (ESP32)` alongside the USB ports.
-2. Select that network port and hit Upload. The IDE will prompt for an upload password.
-3. **Default password: `patternflow`** — type it in the prompt and click OK. The IDE compiles, pushes over Wi-Fi, the device reboots into the new firmware.
-4. Progress prints to serial as `[OTA] 47%` etc.
+2. Select that network port and hit Upload. The IDE compiles, pushes over Wi-Fi, and the device reboots into the new firmware.
+3. Progress prints to serial as `[OTA] 47%` etc.
 
 If the network port doesn't appear, make sure your computer and the device are on the same Wi-Fi subnet, and that no firewall is blocking mDNS (UDP port 5353) or the OTA port (3232).
+
+### The upload-password prompt (and how to avoid it)
+The firmware ships with **no OTA password** (`PF_OTA_PASSWORD ""`), so the device never challenges for one. But **Arduino IDE 2.x always pops a password dialog for network ports and refuses an empty field** — that's an IDE limitation, not the firmware. Two ways around it:
+
+- **Stay in the IDE:** type any dummy character in the prompt. With no-auth firmware the device ignores it, so the upload still succeeds.
+- **Skip the prompt entirely (recommended for no-password):** upload from the command line, which never asks. With the ESP32 core's bundled `espota.py`:
+  ```bash
+  python espota.py -i patternflow.local -p 3232 -f /path/to/patternflow.ino.bin
+  ```
+  (no `-a` flag = no password). Or `arduino-cli upload -p patternflow.local -b esp32:esp32:<board> patternflow/`.
+
+To require a password instead, set `#define PF_OTA_PASSWORD "your-secret"` in `patternflow_secrets.h`.
 
 ### Known issue: `invalid int value: '{upload.port.properties.port}'`
 Arduino IDE 2.x's mDNS discovery for ESP32 core 3.3.8 doesn't populate the `{upload.port.properties.port}` placeholder, so espota receives the literal string and fails:
@@ -342,9 +355,9 @@ tools.esp_ota.upload.pattern={cmd} -i {upload.port.address} -p 3232 "--auth={upl
 This hardcodes the OTA port to 3232 (which is what ArduinoOTA always listens on anyway). Restart the Arduino IDE after creating the file.
 
 ### Disabling / customizing
-- Set `#define PF_OTA_ENABLED 0` in `osc_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC is also enabled).
+- Set `#define PF_OTA_ENABLED 0` in `patternflow_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC or audio-react is also enabled).
 - Set `#define PF_OTA_HOSTNAME "yourname"` to advertise as `yourname.local` instead of `patternflow.local` — useful if multiple devices are on the same network.
-- Set `#define PF_OTA_PASSWORD "your-secret"` in `osc_secrets.h` to change the upload password. Setting it to `""` disables authentication entirely — works with the `espota.py` CLI but not with Arduino IDE 2.x's upload dialog (which insists on a non-empty field).
+- OTA ships with no password by default (`PF_OTA_PASSWORD ""`). Set `#define PF_OTA_PASSWORD "your-secret"` in `patternflow_secrets.h` to require one on a shared network. See "The upload-password prompt" above for the Arduino IDE 2.x quirk.
 
 ## Possible next steps
 

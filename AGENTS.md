@@ -7,7 +7,7 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 
 ## Repository map
 - `docs/` — Hardware build guide (`BUILD.md`), roadmap, license summary, and media.
-- `firmware/` — Arduino code for the ESP32-S3. Main sketch: `firmware/patternflow/patternflow.ino`. Source files: `config.h` (pin mappings, brightness, limits), `core_display.h` (HUB75 driver), `core_encoders.h` (encoder logic), `pattern_origin.h`, `pattern_wave_saw.h` (built-in patterns).
+- `firmware/` — Arduino code for the ESP32-S3. Main sketch: `firmware/patternflow/patternflow.ino`. Source files: `config.h` (pin mappings, brightness, limits), `net_config.h` (Wi-Fi / OTA / OSC / audio-react config + defaults; per-device secrets in gitignored `patternflow_secrets.h`), `core_display.h` (HUB75 driver), `core_encoders.h` (encoder logic), `pattern_origin.h`, `pattern_wave_saw.h` (built-in patterns).
 - `hardware/` — Hardware designs. Contains `case/` (Blender source, STLs in `case/print-ready/`) and `pcb/` (KiCad 10.0 source, Gerbers, schematic PDF).
 - `web/` — Next.js site (landing page, deployed at patternflow.work, and future web tools).
 - `.agents/` — AI harness configuration (skills, workflows, rules).

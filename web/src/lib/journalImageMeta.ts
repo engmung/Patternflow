@@ -13,6 +13,7 @@ export const journalImageMeta = {
   "/journal/v1-30-days/robot-k456.jpg": { width: 4032, height: 3024 },
   "/journal/v1-30-days/tangled-wires-led-panel.jpg": { width: 1080, height: 1456 },
   "/journal/v1-30-days/warped-3d-print.jpg": { width: 2268, height: 3085 },
+  "/journal/today-is-my-birthday/diffuser-discord.png": { width: 1160, height: 471 },
   "/journal/wins-and-losses-next-step/io0-pullup-resistor.jpg": { width: 1600, height: 2134 },
 } as const;
 

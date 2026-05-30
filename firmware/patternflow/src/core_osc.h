@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "core_encoders.h"
+#include "core_wifi.h"
 
 #if PF_OSC_ENABLED
 #include <WiFi.h>
@@ -280,16 +281,8 @@ inline void begin() {
 #if PF_OSC_ENABLED
   Serial.println("[OSC] Connecting Wi-Fi...");
   status = STATUS_WIFI_CONNECTING;
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.begin(PF_WIFI_SSID, PF_WIFI_PASS);
 
-  uint32_t startMs = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - startMs) < PF_WIFI_CONNECT_TIMEOUT_MS) {
-    delay(100);
-  }
-
-  if (WiFi.status() != WL_CONNECTED) {
+  if (!PatternflowWifi::ensure()) {
     Serial.println("[OSC] Wi-Fi connect timeout; OSC disabled for this boot");
     status = STATUS_WIFI_TIMEOUT;
     return;

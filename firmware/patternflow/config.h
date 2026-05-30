@@ -90,68 +90,10 @@
 #define LED_SAT_BOOST 1.10f
 #endif
 
-// --- Experimental OSC over Wi-Fi ---
-// Enable this only for local performance/control experiments. Keep credentials
-// out of commits if you change these values for a real network.
-#define PF_OSC_ENABLED 0
-#define PF_WIFI_SSID "YOUR_WIFI_SSID"
-#define PF_WIFI_PASS "YOUR_WIFI_PASSWORD"
-#define PF_OSC_REMOTE_HOST "192.168.0.10"
-#define PF_OSC_REMOTE_PORT 9000
-#define PF_OSC_LOCAL_PORT 9001
-#define PF_WIFI_CONNECT_TIMEOUT_MS 8000
-
-// --- ArduinoOTA over Wi-Fi ---
-// Wireless flashing from Arduino IDE. Defaults to enabled — the loop cost
-// is essentially zero when idle (one UDP poll per frame). Shares
-// PF_WIFI_SSID/PASS above; if OSC is also enabled, the WiFi connection is
-// reused. Override to 0 in osc_secrets.h to disable on a per-checkout
-// basis without touching this file.
-#ifndef PF_OTA_ENABLED
-#define PF_OTA_ENABLED 1
-#endif
-#ifndef PF_OTA_HOSTNAME
-#define PF_OTA_HOSTNAME "patternflow"
-#endif
-
-// Arduino IDE 2.x's upload dialog refuses to proceed with an empty
-// password field, so we ship a known default rather than leaving the
-// device unauthenticated. Override in osc_secrets.h to lock down a
-// device on a shared network, or set to "" to disable authentication
-// entirely (works with the espota.py CLI but not the IDE 2.x prompt).
-#ifndef PF_OTA_PASSWORD
-#define PF_OTA_PASSWORD "patternflow"
-#endif
-
-// --- Audio-react WebSocket ---
-// Hosts a tiny audio analysis UI on the device itself. Browser loads
-// http://patternflow.local, captures audio (file / tab / mic), runs an
-// FFT on configured frequency bands, and pushes each band's energy as a
-// normalized 0..1 value over WebSocket. The input layer converts those
-// values into virtual knob deltas, so every encoder-driven pattern can
-// respond to audio without pattern-specific code.
-//
-// Shares Wi-Fi with OSC and OTA — if any of the three brought the
-// connection up, the others reuse it.
-#ifndef PF_AUDIO_ENABLED
-#define PF_AUDIO_ENABLED 1
-#endif
-#ifndef PF_AUDIO_HTTP_PORT
-#define PF_AUDIO_HTTP_PORT 80
-#endif
-#ifndef PF_AUDIO_WS_PORT
-#define PF_AUDIO_WS_PORT 81
-#endif
-#ifndef PF_AUDIO_VIRTUAL_KNOB_SCALE
-#define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
-#endif
-#ifndef PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA
-#define PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA 4
-#endif
-
-#if __has_include("osc_secrets.h")
-#include "osc_secrets.h"
-#endif
+// --- Network features (Wi-Fi, OTA, OSC, audio-react) ---
+// All connectivity config and per-device secrets live in net_config.h /
+// patternflow_secrets.h, not here. config.h stays focused on hardware.
+#include "net_config.h"
 
 // --- Pattern Parameters Limits ---
 #define MAX_HUE 360
