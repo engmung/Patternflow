@@ -6,10 +6,10 @@
 // in loop(). When PF_OTA_ENABLED is 0 every entry point compiles to a
 // no-op and no Wi-Fi stack is pulled in for OTA.
 //
-// Wi-Fi connection is shared with OSC: if PatternflowOsc::begin() has
-// already connected, OTA reuses that connection; otherwise OTA brings
-// the Wi-Fi up itself with the same PF_WIFI_SSID/PASS macros. Either
-// module can be enabled independently.
+// Wi-Fi is owned by PatternflowWifi (non-blocking connect + auto-reconnect);
+// begin() runs on the connect edge from loop() and just attaches the OTA
+// listener to the already-up connection. The listener binds once and
+// survives reconnects.
 //
 // Cost when idle: one non-blocking UDP poll per loop iteration on
 // port 3232. Negligible compared to pattern render time. Cost during
@@ -66,19 +66,13 @@ inline const char* hostname() {
   return PF_OTA_HOSTNAME;
 }
 
+// Start the OTA listener. Wi-Fi is owned by PatternflowWifi; this runs on
+// the connect edge from loop(). The listener binds once and keeps working
+// across reconnects, so the initialized guard makes repeat calls no-ops.
 inline void begin() {
 #if PF_OTA_ENABLED
-  // Reuse the shared connection: if OSC already brought Wi-Fi up, this
-  // returns immediately; otherwise it starts the one-and-only connect
-  // attempt. Never issues a second WiFi.begin() while one is in flight.
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[OTA] Connecting Wi-Fi...");
-  }
-
-  if (!PatternflowWifi::ensure()) {
-    Serial.println("[OTA] Wi-Fi unavailable; OTA disabled this boot");
-    return;
-  }
+  if (initialized) return;
+  if (WiFi.status() != WL_CONNECTED) return;
 
   ArduinoOTA.setHostname(PF_OTA_HOSTNAME);
 

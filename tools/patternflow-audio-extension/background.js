@@ -7,8 +7,9 @@ let state = {
   tabTitle: '',
   host: 'patternflow.local',
   error: '',
-  levels: [0, 0, 0, 0],
-  outputs: [0, 0, 0, 0]
+  levels: [],
+  outputs: [],
+  spectrum: []
 };
 
 async function ensureOffscreen() {

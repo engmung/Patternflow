@@ -3,6 +3,7 @@
 #include "config.h"
 #include "src/core_display.h"
 #include "src/core_encoders.h"
+#include "src/core_wifi.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
@@ -37,9 +38,11 @@ uint32_t brightnessIdleAtMs = 0;
 bool brightnessDirty = false;
 float brightnessNoticeTimer = 0.0f;
 
-// OSC info / runtime toggle: K2 longpress enters a full-screen status
-// view; K2 short press inside it toggles OSC send/receive on or off
-// (persists in NVS). Second longpress or idle exits.
+// NETWORK screen: K2 longpress enters a status view (Wi-Fi / OSC / audio).
+// Inside, TURNING K2 toggles OSC and TURNING K3 toggles audio-react (right
+// = on, left = off; both persist in NVS). Rotation, not clicks, so the K2
+// longpress used to exit can't flip anything. Second K2 longpress or idle
+// exits.
 bool oscInfoShowing = false;
 uint32_t oscInfoIdleAtMs = 0;
 
@@ -74,32 +77,16 @@ void setup() {
   currentBrightness = prefs.getUChar("brightness", DEFAULT_BRIGHTNESS);
   dma_display->setBrightness8(currentBrightness);
 
-  // OSC runtime flag — defaults to ON when OSC is compiled in.
-  // If the user toggled it off via K2 longpress, that choice is restored
-  // here so the device boots into the same state.
+  // OSC + audio-react runtime flags, restored from NVS so the device boots
+  // into whatever the K2 info screen was last set to.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
-  PatternflowOsc::begin();
+  PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
 
-  // ArduinoOTA reuses the Wi-Fi connection PatternflowOsc::begin() just
-  // brought up; if OSC is disabled at compile time, OTA brings Wi-Fi up
-  // itself. Either module can be enabled independently via config.h.
-  PatternflowOta::begin();
-
-  // Audio-react WS server shares the same Wi-Fi connection. Once
-  // running, browsers can drive knob values via http://<device>/.
-  PatternflowAudio::begin();
-
-#if PF_OSC_ENABLED
-  dma_display->fillScreen(0);
-  dma_display->setTextSize(1);
-  dma_display->setTextColor(dma_display->color565(180, 180, 180));
-  dma_display->setCursor(2, 18);
-  dma_display->print(PatternflowOsc::statusText());
-  dma_display->setCursor(2, 30);
-  dma_display->print(PF_OSC_REMOTE_HOST);
-  dma_display->flipDMABuffer();
-  delay(1200);
-#endif
+  // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
+  // and the audio-react server are started from the connect edge in loop()
+  // (and re-announced on reconnect), so patterns render immediately whether
+  // or not Wi-Fi is up yet.
+  PatternflowWifi::begin();
 
   for (int i = 0; i < NUM_PATTERNS; i++) {
     patterns[i].setup();
@@ -157,52 +144,43 @@ void drawBrightnessNotice() {
   drawCenteredText(buf, dma_display->height() - 10, dma_display->color565(255, 255, 255), 1);
 }
 
-void drawOscInfo() {
+// NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi / OSC / audio
+// state. TURN K2 to toggle OSC, TURN K3 to toggle audio-react (rotation,
+// not a click — so the K2 longpress used to exit can't flip anything).
+void drawNetworkInfo() {
   dma_display->fillScreen(0);
-  uint16_t w = dma_display->width();
 
-  uint16_t white  = dma_display->color565(255, 255, 255);
-  uint16_t blue   = dma_display->color565(120, 180, 255);
-  uint16_t gray   = dma_display->color565(140, 140, 140);
-  uint16_t green  = dma_display->color565(80, 220, 130);
-  uint16_t red    = dma_display->color565(255, 80, 80);
-  uint16_t dim    = dma_display->color565(90, 90, 90);
+  uint16_t white = dma_display->color565(255, 255, 255);
+  uint16_t blue  = dma_display->color565(120, 180, 255);
+  uint16_t gray  = dma_display->color565(140, 140, 140);
+  uint16_t green = dma_display->color565(80, 220, 130);
+  uint16_t red   = dma_display->color565(255, 80, 80);
+  uint16_t dim   = dma_display->color565(90, 90, 90);
 
-  drawCenteredText("OSC", 2, white, 1);
-
-  bool compiled = PatternflowOsc::isCompiledIn();
-  bool runtimeOn = PatternflowOsc::isRuntimeEnabled();
-  const char* onOff = (compiled && runtimeOn) ? "ON" : "OFF";
-  uint16_t onOffColor = (compiled && runtimeOn) ? green : red;
-  drawCenteredText(onOff, 12, onOffColor, 1);
-
-  // Status line — WiFi state, ready, etc.
-  drawCenteredText(PatternflowOsc::statusText(), 22, blue, 1);
-
-  // IP and remote target (only meaningful when OSC is compiled in).
   dma_display->setTextSize(1);
-  dma_display->setTextColor(gray);
-  dma_display->setCursor(2, 33);
-  dma_display->print("IP ");
-  dma_display->print(PatternflowOsc::localIpString());
+  drawCenteredText("NETWORK", 2, white, 1);
 
-  if (compiled) {
-    char hostLine[40];
-    snprintf(hostLine, sizeof(hostLine), "TX %s:%d",
-             PatternflowOsc::remoteHost(), PatternflowOsc::remotePort());
-    dma_display->setCursor(2, 43);
-    dma_display->print(hostLine);
-  }
+  // OSC / AUDIO state row.
+  bool oscC = PatternflowOsc::isCompiledIn();
+  bool oscOn = oscC && PatternflowOsc::isRuntimeEnabled();
+  dma_display->setTextColor(white);  dma_display->setCursor(6, 14);  dma_display->print("OSC");
+  dma_display->setTextColor(oscC ? (oscOn ? green : red) : dim);
+  dma_display->setCursor(30, 14);    dma_display->print(oscC ? (oscOn ? "ON" : "OFF") : "N/A");
 
-  // Footer hint.
-  if (compiled) {
-    drawCenteredText("K2 = TOGGLE", dma_display->height() - 18, dim, 1);
-    drawCenteredText("LONG = EXIT", dma_display->height() - 9, dim, 1);
-  } else {
-    drawCenteredText("REBUILD WITH", dma_display->height() - 18, dim, 1);
-    drawCenteredText("PF_OSC_ENABLED=1", dma_display->height() - 9, dim, 1);
-  }
-  (void)w;
+  bool audC = PatternflowAudio::isCompiledIn();
+  bool audOn = audC && PatternflowAudio::isRuntimeEnabled();
+  dma_display->setTextColor(white);  dma_display->setCursor(72, 14);  dma_display->print("AUD");
+  dma_display->setTextColor(audC ? (audOn ? green : red) : dim);
+  dma_display->setCursor(98, 14);    dma_display->print(audC ? (audOn ? "ON" : "OFF") : "N/A");
+
+  // Wi-Fi status + IP.
+  bool wifiUp = PatternflowWifi::isConnected();
+  drawCenteredText(PatternflowWifi::statusText(), 26, wifiUp ? green : blue, 1);
+  drawCenteredText(PatternflowWifi::ipString().c_str(), 36, gray, 1);
+
+  // Hints — turn the knob (not click).
+  drawCenteredText("TURN K2:OSC  K3:AUD", 50, dim, 1);
+  drawCenteredText("HOLD K2 = EXIT", 57, dim, 1);
 }
 
 void drawSelectingMode() {
@@ -275,6 +253,14 @@ void readInputFrame(InputFrame& input) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
   }
 
+  // Audio-react direct delta messages. New browser/extension clients send
+  // normalized deltas here so base/default values do not overwrite pattern
+  // state; patterns still see only ordinary knobDeltas.
+  for (int i = 0; i < 4; i++) {
+    int audioDelta = PatternflowAudio::consumeKnobDelta(i);
+    if (input.knobDeltas[i] == 0) input.knobDeltas[i] = audioDelta;
+  }
+
   // Browser audio-react override. Patterns can read knobAudioActive[i]
   // and use knobAudioValue[i] (normalized 0..1) in place of integrating
   // knobDeltas. When inactive, the encoder/OSC path runs unchanged.
@@ -284,13 +270,16 @@ void readInputFrame(InputFrame& input) {
   }
 }
 
+// Legacy absolute audio-react path for older clients that still send k=N,v=F.
+// New clients send d=N,v=F and are merged into knobDeltas in readInputFrame().
+// "Physical wins": turning a knob this frame suppresses legacy audio on that knob.
 void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
   static bool wasActive[4] = {false, false, false, false};
   static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   static float residual[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
   for (int i = 0; i < 4; i++) {
-    if (!enabled || !input.knobAudioActive[i]) {
+    if (!enabled || !input.knobAudioActive[i] || input.knobDeltas[i] != 0) {
       wasActive[i] = false;
       residual[i] = 0.0f;
       input.knobAudioActive[i] = false;
@@ -298,7 +287,6 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
     }
 
     float value = constrain(input.knobAudioValue[i], 0.0f, 1.0f);
-    input.knobDeltas[i] = 0;
     input.knobAudioActive[i] = false;
 
     if (!wasActive[i]) {
@@ -307,10 +295,11 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
       wasActive[i] = true;
     }
 
+    // Full-rate: no MAX_DELTA clamp, so a fast audio swing lands this frame
+    // instead of crawling at a few clicks per frame. Residual carries the
+    // sub-click remainder so slow swings still move the knob.
     float movement = (value - prevValue[i]) * PF_AUDIO_VIRTUAL_KNOB_SCALE + residual[i];
     int delta = (int)roundf(movement);
-    delta = constrain(delta, -PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA, PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA);
-
     residual[i] = movement - (float)delta;
     if (fabsf(residual[i]) < 0.001f) residual[i] = 0.0f;
     prevValue[i] = value;
@@ -320,9 +309,23 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
 }
 
 void loop() {
+  // Maintain Wi-Fi (non-blocking): retries while down, and on each fresh
+  // (re)connection starts the network services. begin() is idempotent.
+  PatternflowWifi::tick();
+  if (PatternflowWifi::consumeJustConnected()) {
+    PatternflowOsc::begin();
+    PatternflowOta::begin();
+    PatternflowAudio::begin();
+    Serial.println("[NET] services started");
+  }
+
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
+
+  // Service the audio-react HTTP/WebSocket servers in the main loop
+  // (single-threaded — no separate core-0 task). Cheap when idle.
+  PatternflowAudio::handle();
 
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
@@ -331,7 +334,7 @@ void loop() {
   InputFrame input;
   readInputFrame(input);
 
-  if (logicalButton(0)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
     brightnessAdjusting = !brightnessAdjusting;
     brightnessIdleAtMs = now;
     brightnessNoticeTimer = BRIGHTNESS_NOTICE_SECONDS;
@@ -370,37 +373,53 @@ void loop() {
     Serial.printf("[NVS] brightness saved: %u\n", currentBrightness);
   }
 
-  // K2 longpress → toggle OSC info screen (full-screen status view).
+  // K2 longpress → enter/exit the NETWORK status + toggle screen.
   if (logicalButton(1)->longPressed(MODE_HOLD_MS)) {
     oscInfoShowing = !oscInfoShowing;
     oscInfoIdleAtMs = now;
-    Serial.printf(">>> OSC INFO: %s\n", oscInfoShowing ? "ON" : "OFF");
+    Serial.printf(">>> NETWORK SCREEN: %s\n", oscInfoShowing ? "ON" : "OFF");
   }
 
   if (oscInfoShowing) {
-    // K2 short press inside info screen → toggle OSC runtime + save.
-    if (input.btnPressed[1]) {
-      bool next = !PatternflowOsc::isRuntimeEnabled();
-      PatternflowOsc::setRuntimeEnabled(next);
-      prefs.putBool("osc_runtime", next);
+    // Toggles use knob ROTATION, not clicks — so holding K2 to exit can't
+    // accidentally flip a setting. Turn right = ON, left = OFF.
+    if (input.knobDeltas[1] != 0) {                  // K2 turn → OSC
+      bool next = input.knobDeltas[1] > 0;
+      if (next != PatternflowOsc::isRuntimeEnabled()) {
+        PatternflowOsc::setRuntimeEnabled(next);
+        prefs.putBool("osc_runtime", next);
+        Serial.printf("[NVS] osc_runtime saved: %s\n", next ? "true" : "false");
+      }
       oscInfoIdleAtMs = now;
-      Serial.printf("[NVS] osc_runtime saved: %s\n", next ? "true" : "false");
     }
-    // Consume K2 input so the pattern below doesn't also see it.
-    input.knobDeltas[1] = 0;
-    input.btnPressed[1] = false;
+    if (input.knobDeltas[2] != 0) {                  // K3 turn → audio-react
+      bool next = input.knobDeltas[2] > 0;
+      if (next != PatternflowAudio::isRuntimeEnabled()) {
+        PatternflowAudio::setRuntimeEnabled(next);
+        prefs.putBool("audio_runtime", next);
+        Serial.printf("[NVS] audio_runtime saved: %s\n", next ? "true" : "false");
+      }
+      oscInfoIdleAtMs = now;
+    }
+
+    // Swallow all knob input so the pattern underneath doesn't react.
+    for (int i = 0; i < 4; i++) {
+      input.knobDeltas[i] = 0;
+      input.btnPressed[i] = false;
+    }
 
     if ((now - oscInfoIdleAtMs) > OSC_INFO_IDLE_MS) {
       oscInfoShowing = false;
-      Serial.println(">>> OSC INFO: OFF (idle)");
+      Serial.println(">>> NETWORK SCREEN: OFF (idle)");
     }
   }
 
-  if (logicalButton(2)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && logicalButton(2)->longPressed(MODE_HOLD_MS)) {
     toggleContentMode();
   }
 
-  if (currentContentMode == CONTENT_PATTERN && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && currentContentMode == CONTENT_PATTERN &&
+      logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
@@ -449,7 +468,7 @@ void loop() {
   VideoPattern::checkSerialUpload();
 
   if (oscInfoShowing) {
-    drawOscInfo();
+    drawNetworkInfo();
   } else if (currentMode == MODE_RUNNING) {
     if (currentContentMode == CONTENT_VIDEO) {
       VideoPattern::update(dt, input);

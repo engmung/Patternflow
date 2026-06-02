@@ -201,15 +201,15 @@ When you generate a new pattern from the Live Editor, the conversion prompt does
 
 ## Audio-react WebSocket Control
 
-Patternflow can receive four normalized audio bands over WebSocket on port `81`. The browser or extension sends text frames such as:
+Patternflow can receive four normalized audio-control streams over WebSocket on port `81`. Current browser clients send normalized deltas so audio, WS Test, OSC, and physical encoders all arrive at patterns as `knobDeltas`:
 
 ```text
-k=0,v=0.735
+d=0,v=0.125
 off=0
 off
 ```
 
-The firmware does not require each pattern to opt in. `readInputFrame()` records the incoming audio state, then the main loop converts active audio values into virtual `knobDeltas`. From a pattern's point of view, audio looks like the user is turning the four encoders. This keeps pattern code independent from the audio transport and lets any encoder-driven pattern react.
+The older absolute message shape, `k=0,v=0.735`, is still accepted for compatibility. The firmware does not require each pattern to opt in. From a pattern's point of view, audio looks like the user is turning the four encoders. This keeps pattern code independent from the audio transport and lets any encoder-driven pattern react.
 
 The conversion is tuned in `config.h`:
 
@@ -218,10 +218,9 @@ The conversion is tuned in `config.h`:
 #define PF_AUDIO_HTTP_PORT 80
 #define PF_AUDIO_WS_PORT 81
 #define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
-#define PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA 4
 ```
 
-`PF_AUDIO_VIRTUAL_KNOB_SCALE` controls how strongly a 0..1 audio change becomes knob motion. `PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA` caps per-frame jumps so a noisy FFT band does not slam a parameter across its full range.
+`PF_AUDIO_VIRTUAL_KNOB_SCALE` controls how strongly a normalized 0..1 audio change becomes knob motion.
 
 ### Recommended: Chrome/Edge extension
 

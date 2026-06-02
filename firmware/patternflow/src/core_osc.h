@@ -205,14 +205,10 @@ inline void sendStatus(const char* contentName, int patternIdx, int contentMode,
 inline const char* statusText() {
 #if PF_OSC_ENABLED
   if (!runtimeEnabled) return "OFF (runtime)";
-  switch (status) {
-    case STATUS_WIFI_CONNECTING: return "WIFI CONNECTING";
-    case STATUS_WIFI_TIMEOUT:    return "WIFI TIMEOUT";
-    case STATUS_BAD_HOST:        return "BAD HOST";
-    case STATUS_READY:           return "READY";
-    case STATUS_WIFI_LOST:       return "WIFI LOST";
-    default:                     return "OFF";
-  }
+  if (status == STATUS_BAD_HOST) return "BAD HOST";
+  if (WiFi.status() != WL_CONNECTED) return PatternflowWifi::statusText();
+  if (!ready) return "WIFI OK";
+  return "READY";
 #else
   return "OFF (compile-time)";
 #endif
@@ -277,16 +273,12 @@ inline int remotePort() {
 #endif
 }
 
+// Start the OSC UDP service. Wi-Fi is owned by PatternflowWifi, so this is
+// called from the connect edge in loop() (and again on every reconnect —
+// safe, it just re-announces). Returns quietly if Wi-Fi isn't up yet.
 inline void begin() {
 #if PF_OSC_ENABLED
-  Serial.println("[OSC] Connecting Wi-Fi...");
-  status = STATUS_WIFI_CONNECTING;
-
-  if (!PatternflowWifi::ensure()) {
-    Serial.println("[OSC] Wi-Fi connect timeout; OSC disabled for this boot");
-    status = STATUS_WIFI_TIMEOUT;
-    return;
-  }
+  if (WiFi.status() != WL_CONNECTED) return;
 
   if (!remoteIp.fromString(PF_OSC_REMOTE_HOST)) {
     Serial.println("[OSC] Invalid PF_OSC_REMOTE_HOST; OSC disabled");
