@@ -1,0 +1,34 @@
+---
+title: "Make It Easy to Build"
+date: "2026-06-02T10:00:00+09:00"
+excerpt: "Breaking Patternflow down revealed the direction."
+draft: false
+---
+
+I've been doing a huge amount of writing lately — material to submit to all kinds of competitions and grant programs. In the process, I wrote and rewrote what Patternflow even is. The artistic explanation, the technical one, the business one, the design one — I looked at it again from every angle. And alongside the core idea, an open-source LED synthesizer, one direction kept showing up without fail. It's this: make it easy to build.
+
+Even without much skill, even without money, you should be able to easily build a Patternflow device and make the patterns that run on it. For that, I need to offer guides for a range of combinations. Right now there's only the 3D-printing-plus-PCB guide, but next I need a laser-cut enclosure version, and a version that runs on a breadboard alone, with no custom PCB. The point is to let people build Patternflow within whatever resources they have. It might come out a little janky and unstable, but the idea is to build something easy first, and if the interest catches, move on to the next step.
+
+### Breaking it down
+
+Let me break Patternflow into pieces. First, it splits into the device and the community. In the community, pattern code gets made; you load it onto a Patternflow and enjoy it. The device splits again into hardware and software. Hardware splits into the case — the enclosure — and the PCB. Software splits into the firmware that runs on the ESP32, and the web side, which holds the tools for easily making the patterns that go onto it. Here's what each area needs.
+
+### The enclosure
+
+First, the enclosure. I need to try building it in different ways and materials. As I said, not just 3D printing — acrylic, MDF, stainless, and so on. I tested acrylic recently, and it seemed pretty decent. Make a few of those, and if they're good enough, write a guide for them too. Honestly, I wonder if it needs to go that far. Isn't the drawing file alone enough? But making it easy is the direction, so I guess I have to. Hm. 3D printing needs an upgrade too. I have to change two things: the way the current slide panel doesn't stay fixed in place, and the method of printing the top and bottom separately and gluing them. An expert offered to take it on, but I can't exactly nag him to hurry, so I should try some improvements myself. Even just adding a small raised lip at the glue seam would make bonding much easier.
+
+### The PCB
+
+There's a lot to fix on the PCB too. Two power-related things are urgent. First, the current method — feeding the USB power line into a 2-pin screw terminal — maybe I should switch it to adding a separate power module. Crowd Supply said selling it as a finished product would be much better, and if so, this seems like the cheaper route — cheaper than tacking on one more assembly step. I think I should add a switch, too. Where, and what kind, I don't know. Probably a toggle, for the retro feel — but then the face and orientation it mounts on really matter. Put it on the side and you can't stand the unit a certain way; put it under the front face where the knobs are and I worry it gets a little ugly. I'll only know once I try.
+
+### The firmware
+
+Software is less urgent than hardware, because it can be changed anytime. The firmware structure feels pretty solid. The existing features just need some tidying. There's OSC, audio-reactive, patterns, and a video mode. I plan to just cut the video mode. It doesn't fit the concept. I don't want Patternflow becoming a one-way, plain LED object. Of course I won't say anything if someone uses it that way — but I don't want it in as an official feature. I need to lay out clearly how to change each feature, and the categories they fall under, so it's easy to understand.
+
+### Patterns
+
+Patterns are where I'm most torn — because it's the easiest area to work in, and for that same reason the one with the most room to vary. For now I plan to keep the existing AI-based shader-graphics generation as the core. It'll probably stay the core. On top of that, I think I'll let people customize with add-ons others have built — image add-ons, text add-ons, that kind of thing. The main site keeps only the AI-based pattern generator; separate URLs point out to each add-on developer's own site, where you can grab them easily. Otherwise it'd get too hard to keep any handle on it. Patterns are the most fun part of Patternflow, so this is where the most people will want to build their own version — which is exactly why it seems worth setting this layering up early.
+
+### The community
+
+The community needs work too. I have to create an environment where people share things on their own. How, honestly, I don't know. And as an open-source project, I need to lay out a proper contribution guide. Open to anyone, but signposted well enough that it doesn't drift the wrong way. But really, I have no idea how. I've been turning it over ever since I decided to go open source, and I just can't get a feel for it — so I'll have to figure it out as I go. Maybe I should draw the whole thing out visually and organize the issues on GitHub.
