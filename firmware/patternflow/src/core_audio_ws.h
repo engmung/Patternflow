@@ -1,15 +1,20 @@
-// Patternflow - Audio-react WebSocket server
+// Patternflow - Audio-react WebSocket server (single-threaded)
 //
 // Hosts a small browser UI on port 80 (audio_index.h) and a WebSocket
-// endpoint on port 81. Browsers connect, send normalized 0..1 knob
-// values per frame, and patterns can read those values through
-// InputFrame::knobAudioActive / knobAudioValue.
+// endpoint on port 81. Browsers connect, send normalized 0..1 knob values
+// per frame, and patterns read those through InputFrame::knobAudioActive /
+// knobAudioValue.
 //
-// The HTTP/WebSocket polling loop runs in a pinned FreeRTOS task on core 0.
-// The main Arduino loop stays focused on pattern rendering.
+// Threading: everything runs in the main Arduino loop via handle(). An
+// earlier version pushed this into a pinned core-0 FreeRTOS task guarded by
+// a portMUX spinlock; that shared the WiFi/lwIP core and could wedge the
+// render loop (interrupt watchdog) the moment a client connected. Serving
+// inline is simpler and robust — the messages are tiny, so the per-frame
+// cost is negligible.
 //
 // Message protocol:
 //   k=N,v=F   set knob N (0..3) to value F (clamped to 0..1)
+//   d=N,v=F   add normalized delta F to knob N (-1..1)
 //   off=N     release knob N back to encoder control
 //   off       release all four knobs
 //
@@ -33,40 +38,43 @@ namespace PatternflowAudio {
 
 #if PF_AUDIO_ENABLED
 
+// Quiet window: if no update arrives for a knob within this many ms, it
+// deactivates so the physical encoder regains control (covers a browser
+// tab closing mid-track).
 constexpr uint32_t AUDIO_TIMEOUT_MS = 500;
-constexpr uint32_t AUDIO_TASK_DELAY_MS = 5;
-constexpr uint32_t AUDIO_TASK_STACK_BYTES = 4096;
-constexpr BaseType_t AUDIO_TASK_CORE = 0;
 
 inline WebServer httpServer(PF_AUDIO_HTTP_PORT);
 inline WebSocketsServer wsServer(PF_AUDIO_WS_PORT);
 
 inline bool initialized = false;
-inline TaskHandle_t audioTaskHandle = nullptr;
-inline portMUX_TYPE audioMux = portMUX_INITIALIZER_UNLOCKED;
-inline volatile bool active[4]  = { false, false, false, false };
-inline volatile float values[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+inline bool runtimeEnabled = true;
+// Plain (not volatile / no spinlock): only ever touched from the main loop.
+inline bool active[4]  = { false, false, false, false };
+inline float values[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+inline float pendingDeltas[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+inline float deltaResidual[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 inline uint32_t lastUpdateMs[4] = { 0, 0, 0, 0 };
 inline uint32_t connectedClients = 0;
 
 inline void setKnobValue(int idx, float value, uint32_t nowMs) {
-  portENTER_CRITICAL(&audioMux);
   values[idx] = value;
   active[idx] = true;
   lastUpdateMs[idx] = nowMs;
-  portEXIT_CRITICAL(&audioMux);
+}
+
+inline void addKnobDelta(int idx, float delta, uint32_t nowMs) {
+  pendingDeltas[idx] += delta;
+  lastUpdateMs[idx] = nowMs;
 }
 
 inline void releaseKnob(int idx) {
-  portENTER_CRITICAL(&audioMux);
   active[idx] = false;
-  portEXIT_CRITICAL(&audioMux);
+  pendingDeltas[idx] = 0.0f;
+  deltaResidual[idx] = 0.0f;
 }
 
 inline void releaseAllKnobs() {
-  portENTER_CRITICAL(&audioMux);
-  for (int i = 0; i < 4; i++) active[i] = false;
-  portEXIT_CRITICAL(&audioMux);
+  for (int i = 0; i < 4; i++) releaseKnob(i);
 }
 
 inline void parseMessage(uint8_t* payload, size_t length) {
@@ -76,50 +84,49 @@ inline void parseMessage(uint8_t* payload, size_t length) {
   memcpy(buf, payload, length);
   buf[length] = '\0';
 
-  if (strncmp(buf, "k=", 2) == 0) {
-    int k = -1;
-    float v = 0.0f;
-    if (sscanf(buf, "k=%d,v=%f", &k, &v) == 2 && k >= 0 && k < 4) {
-      if (v < 0.0f) v = 0.0f;
-      else if (v > 1.0f) v = 1.0f;
-      setKnobValue(k, v, millis());
+  // "k=N,v=F" — parsed by hand (no sscanf: its %f path is needlessly
+  // heavy and this runs on every inbound frame).
+  if ((buf[0] == 'k' || buf[0] == 'd') && buf[1] == '=') {
+    char* end = nullptr;
+    long k = strtol(buf + 2, &end, 10);
+    if (end && *end == ',' && end[1] == 'v' && end[2] == '=' && k >= 0 && k < 4) {
+      float v = strtof(end + 3, nullptr);
+      if (buf[0] == 'k') {
+        if (v < 0.0f) v = 0.0f;
+        else if (v > 1.0f) v = 1.0f;
+        setKnobValue((int)k, v, millis());
+      } else {
+        if (v < -1.0f) v = -1.0f;
+        else if (v > 1.0f) v = 1.0f;
+        addKnobDelta((int)k, v, millis());
+      }
     }
-  } else if (strncmp(buf, "off=", 4) == 0) {
-    int k = -1;
-    if (sscanf(buf, "off=%d", &k) == 1 && k >= 0 && k < 4) {
-      releaseKnob(k);
-    }
-  } else if (strcmp(buf, "off") == 0) {
-    releaseAllKnobs();
+    return;
   }
+  // "off=N" — release knob N.
+  if (strncmp(buf, "off=", 4) == 0) {
+    long k = strtol(buf + 4, nullptr, 10);
+    if (k >= 0 && k < 4) releaseKnob((int)k);
+    return;
+  }
+  // "off" — release all four.
+  if (strcmp(buf, "off") == 0) releaseAllKnobs();
 }
 
 inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED: {
-      uint32_t count = 0;
-      portENTER_CRITICAL(&audioMux);
       connectedClients++;
-      count = connectedClients;
-      portEXIT_CRITICAL(&audioMux);
-
       IPAddress ip = wsServer.remoteIP(num);
       Serial.printf("[AUDIO] client %u from %s (%u connected)\n",
-                    num, ip.toString().c_str(), count);
+                    num, ip.toString().c_str(), connectedClients);
       break;
     }
     case WStype_DISCONNECTED: {
-      uint32_t count = 0;
-      portENTER_CRITICAL(&audioMux);
       if (connectedClients > 0) connectedClients--;
-      count = connectedClients;
-      if (connectedClients == 0) {
-        for (int i = 0; i < 4; i++) active[i] = false;
-      }
-      portEXIT_CRITICAL(&audioMux);
-
+      if (connectedClients == 0) releaseAllKnobs();
       Serial.printf("[AUDIO] client %u disconnected (%u connected)\n",
-                    num, count);
+                    num, connectedClients);
       break;
     }
     case WStype_TEXT:
@@ -132,29 +139,6 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 
 inline void handleRoot() {
   httpServer.send_P(200, "text/html", AUDIO_INDEX_HTML);
-}
-
-inline void service() {
-  if (!initialized) return;
-
-  httpServer.handleClient();
-  wsServer.loop();
-
-  uint32_t now = millis();
-  portENTER_CRITICAL(&audioMux);
-  for (int i = 0; i < 4; i++) {
-    if (active[i] && (now - lastUpdateMs[i]) > AUDIO_TIMEOUT_MS) {
-      active[i] = false;
-    }
-  }
-  portEXIT_CRITICAL(&audioMux);
-}
-
-inline void audioTask(void*) {
-  for (;;) {
-    service();
-    vTaskDelay(pdMS_TO_TICKS(AUDIO_TASK_DELAY_MS));
-  }
 }
 
 #endif  // PF_AUDIO_ENABLED
@@ -170,12 +154,8 @@ inline bool isCompiledIn() {
 inline bool isActive(int idx) {
 #if PF_AUDIO_ENABLED
   if (idx < 0 || idx >= 4) return false;
-
-  bool result = false;
-  portENTER_CRITICAL(&audioMux);
-  result = active[idx];
-  portEXIT_CRITICAL(&audioMux);
-  return result;
+  if (!runtimeEnabled) return false;
+  return active[idx];
 #else
   (void)idx;
   return false;
@@ -185,36 +165,60 @@ inline bool isActive(int idx) {
 inline float value(int idx) {
 #if PF_AUDIO_ENABLED
   if (idx < 0 || idx >= 4) return 0.0f;
-
-  float result = 0.0f;
-  portENTER_CRITICAL(&audioMux);
-  result = values[idx];
-  portEXIT_CRITICAL(&audioMux);
-  return result;
+  return values[idx];
 #else
   (void)idx;
   return 0.0f;
 #endif
 }
 
+inline int consumeKnobDelta(int idx) {
+#if PF_AUDIO_ENABLED
+  if (idx < 0 || idx >= 4 || !runtimeEnabled) return 0;
+  float movement = pendingDeltas[idx] * PF_AUDIO_VIRTUAL_KNOB_SCALE + deltaResidual[idx];
+  pendingDeltas[idx] = 0.0f;
+  int delta = (int)roundf(movement);
+  deltaResidual[idx] = movement - (float)delta;
+  if (fabsf(deltaResidual[idx]) < 0.001f) deltaResidual[idx] = 0.0f;
+  return delta;
+#else
+  (void)idx;
+  return 0;
+#endif
+}
+
 inline uint32_t clientCount() {
 #if PF_AUDIO_ENABLED
-  uint32_t result = 0;
-  portENTER_CRITICAL(&audioMux);
-  result = connectedClients;
-  portEXIT_CRITICAL(&audioMux);
-  return result;
+  return connectedClients;
 #else
   return 0;
 #endif
 }
 
+inline bool isRuntimeEnabled() {
+#if PF_AUDIO_ENABLED
+  return runtimeEnabled;
+#else
+  return false;
+#endif
+}
+
+inline void setRuntimeEnabled(bool on) {
+#if PF_AUDIO_ENABLED
+  runtimeEnabled = on;
+  if (!on) releaseAllKnobs();
+#else
+  (void)on;
+#endif
+}
+
+// Start the HTTP/WebSocket servers. Wi-Fi is owned by PatternflowWifi; this
+// runs on the connect edge. Idempotent — repeat calls (on reconnect) are
+// no-ops once the servers are up.
 inline void begin() {
 #if PF_AUDIO_ENABLED
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("[AUDIO] Wi-Fi not connected; audio-react disabled this boot");
-    return;
-  }
+  if (initialized) return;
+  if (WiFi.status() != WL_CONNECTED) return;
 
   httpServer.on("/", handleRoot);
   httpServer.onNotFound([]() {
@@ -226,33 +230,31 @@ inline void begin() {
   wsServer.onEvent(onEvent);
 
   initialized = true;
-  BaseType_t taskOk = xTaskCreatePinnedToCore(
-    audioTask,
-    "pf_audio_ws",
-    AUDIO_TASK_STACK_BYTES,
-    nullptr,
-    1,
-    &audioTaskHandle,
-    AUDIO_TASK_CORE
-  );
-
-  if (taskOk != pdPASS) {
-    initialized = false;
-    Serial.println("[AUDIO] Failed to start core 0 audio task");
-    return;
-  }
 
   String ip = WiFi.localIP().toString();
-  Serial.printf("[AUDIO] Ready on core %d - UI http://%s:%d  WS ws://%s:%d\n",
-                AUDIO_TASK_CORE,
-                ip.c_str(), PF_AUDIO_HTTP_PORT,
-                ip.c_str(), PF_AUDIO_WS_PORT);
+  Serial.printf("[AUDIO] Ready — UI http://%s:%d  WS ws://%s:%d\n",
+                ip.c_str(), PF_AUDIO_HTTP_PORT, ip.c_str(), PF_AUDIO_WS_PORT);
 #endif
 }
 
+// Service the servers + auto-release stale knobs. Called every main loop.
 inline void handle() {
 #if PF_AUDIO_ENABLED
-  // HTTP/WebSocket polling now runs in audioTask on core 0.
+  if (!initialized) return;
+
+  httpServer.handleClient();
+  wsServer.loop();
+
+  uint32_t now = millis();
+  for (int i = 0; i < 4; i++) {
+    if (active[i] && (now - lastUpdateMs[i]) > AUDIO_TIMEOUT_MS) {
+      active[i] = false;
+    }
+    if (pendingDeltas[i] != 0.0f && (now - lastUpdateMs[i]) > AUDIO_TIMEOUT_MS) {
+      pendingDeltas[i] = 0.0f;
+      deltaResidual[i] = 0.0f;
+    }
+  }
 #endif
 }
 

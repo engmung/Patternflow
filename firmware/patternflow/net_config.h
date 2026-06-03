@@ -31,10 +31,11 @@
 #ifndef PF_WIFI_PASS
 #define PF_WIFI_PASS "YOUR_WIFI_PASSWORD"
 #endif
-// How long any single module blocks waiting for the join before giving up.
-// Shared by core_wifi.h; the first module to call ensure() owns the attempt.
-#ifndef PF_WIFI_CONNECT_TIMEOUT_MS
-#define PF_WIFI_CONNECT_TIMEOUT_MS 8000
+// Wi-Fi is non-blocking (see core_wifi.h): boot never waits for the join.
+// While disconnected, core_wifi.h re-issues WiFi.begin() at this interval
+// until it links up.
+#ifndef PF_WIFI_RETRY_INTERVAL_MS
+#define PF_WIFI_RETRY_INTERVAL_MS 5000
 #endif
 
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
@@ -77,8 +78,9 @@
 // ── Audio-react WebSocket server ─────────────────────────────
 // Hosts a tiny UI on the device. A browser captures audio (file / tab /
 // mic), runs an FFT, and pushes each band's energy as a normalized 0..1
-// value over WebSocket. The input layer turns those into virtual knob
-// deltas, so every encoder-driven pattern can react to audio for free.
+// value over WebSocket. The input layer turns that into virtual knob
+// deltas (applyAudioVirtualKnobs), so EVERY encoder-driven pattern reacts
+// to audio with no per-pattern code.
 #ifndef PF_AUDIO_ENABLED
 #define PF_AUDIO_ENABLED 1
 #endif
@@ -88,9 +90,8 @@
 #ifndef PF_AUDIO_WS_PORT
 #define PF_AUDIO_WS_PORT 81
 #endif
+// How many knob clicks a full 0..1 audio swing maps to. Higher = stronger
+// audio response. No per-frame clamp, so the value tracks without lag.
 #ifndef PF_AUDIO_VIRTUAL_KNOB_SCALE
 #define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
-#endif
-#ifndef PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA
-#define PF_AUDIO_VIRTUAL_KNOB_MAX_DELTA 4
 #endif

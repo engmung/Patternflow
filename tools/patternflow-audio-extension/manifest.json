@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Patternflow Audio",
-  "description": "Capture the current tab audio, analyze FFT bands, and send knob values to Patternflow.",
+  "description": "Capture tab audio, map spectrum bands, and send knob deltas to Patternflow.",
   "version": "0.1.0",
   "icons": {
     "16": "icons/icon-16.png",

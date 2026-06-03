@@ -9,6 +9,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="patternflow.css">
 <style>
+  /* Pretendard — wordmark (Bold) + LED synthesizer kicker (400) */
+  @font-face{
+    font-family:'Pretendard';font-weight:400;font-style:normal;font-display:swap;
+    src:url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2') format('woff2');
+  }
+  @font-face{
+    font-family:'Pretendard';font-weight:700;font-style:normal;font-display:swap;
+    src:url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2');
+  }
+  .pf-wordmark{ font-family:'Pretendard',ui-sans-serif,system-ui,sans-serif;font-style:normal;font-weight:700 }
+  .pf-kicker-lg{ font-family:'Pretendard',ui-sans-serif,system-ui,sans-serif;font-weight:400 }
+
   /* page-only styleguide chrome */
   .swatches{ display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:8px }
   .sw{ display:flex;flex-direction:column;gap:8px }
@@ -62,7 +74,8 @@
 
     <div class="pf-block">
       <span class="pf-kicker">Type by zone</span>
-      <div class="type-row"><div class="name">hero h1 / 88</div><div style="font-size:64px;font-weight:500;letter-spacing:-.035em;line-height:1;font-style:normal">Patternflow</div></div>
+      <div class="type-row"><div class="name">hero h1 / 88</div><div style="font-family:'Pretendard',sans-serif;font-size:64px;font-weight:700;letter-spacing:-.035em;line-height:1;font-style:normal">Patternflow</div></div>
+      <div class="type-row"><div class="name">hero kicker / 28</div><div style="font-family:'Pretendard',sans-serif;font-size:28px;font-weight:400;letter-spacing:-.015em">An LED synthesizer.</div></div>
       <div class="type-row"><div class="name">panel h2 / 64</div><div style="font-size:48px;font-weight:500;letter-spacing:-.035em;line-height:1">Build your own.</div></div>
       <div class="type-row"><div class="name">compact h2 / 34</div><div style="font-size:34px;font-weight:500;letter-spacing:-.025em">Section headline.</div></div>
       <div class="type-row"><div class="name">journal h1 / 58</div><div style="font-family:var(--pf-serif);font-size:42px;font-weight:400;letter-spacing:-.022em;line-height:1.02">Notes from the build.</div></div>
@@ -75,7 +88,7 @@
   <!-- HERO ZONE -->
   <section class="pf-section" data-screen-label="02 Hero">
     <h2 class="pf-h2">Hero.</h2>
-    <p class="pf-sub">Top-of-page lockup. Italic wordmark. The version tag and tooltip live here too.</p>
+    <p class="pf-sub">Top-of-page lockup. Wordmark in Pretendard Bold, kicker in Pretendard 400. The version tag and tooltip live here too.</p>
 
     <div class="demo-frame">
       <section class="pf-hero">
@@ -168,7 +181,7 @@
       <div class="pf-row"><span class="pf-ghost">02</span><div class="pf-row-t">No box-shadow, no gradients</div><div class="pf-row-d">Hairlines do all the dividing.</div></div>
       <div class="pf-row"><span class="pf-ghost">03</span><div class="pf-row-t">LED orange is reserved</div><div class="pf-row-d">Version dot · journal hover · "live" signals only.</div></div>
       <div class="pf-row"><span class="pf-ghost">04</span><div class="pf-row-t">Serif is journal-only</div><div class="pf-row-d">Newsreader does not appear in panels or hero.</div></div>
-      <div class="pf-row"><span class="pf-ghost">05</span><div class="pf-row-t">Italic outside wordmark + journal</div><div class="pf-row-d">No.</div></div>
+      <div class="pf-row"><span class="pf-ghost">05</span><div class="pf-row-t">Italic outside journal</div><div class="pf-row-d">Wordmark is Pretendard Bold, not italic. No.</div></div>
       <div class="pf-row"><span class="pf-ghost">06</span><div class="pf-row-t">No emoji, no icons in rows</div><div class="pf-row-d">The ghost numeral is the icon.</div></div>
       <div class="pf-row"><span class="pf-ghost">07</span><div class="pf-row-t">No filler stat strips</div><div class="pf-row-d">Don't pad the design with informational chrome.</div></div>
     </div>

@@ -116,6 +116,7 @@ const bands = [
 ];
 
 const smoothing = [0, 0, 0, 0];
+let lastSentValues = bands.map(b => b.base);
 const SMOOTH_ALPHA = 0.35;       // 0..1, higher = snappier
 const SEND_INTERVAL_MS = 33;     // ~30 Hz WS update
 let lastSendMs = 0;
@@ -238,7 +239,23 @@ function connect() {
 connect();
 
 function wsSend(msg) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  if (ws.bufferedAmount > 0) return false;
+  ws.send(msg);
+  return true;
+}
+
+function wsSendControl(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+}
+
+function sendOutputValue(knob, value) {
+  const idx = Math.max(0, Math.min(3, Number(knob) || 0));
+  const normalized = Math.max(0, Math.min(1, Number(value) || 0));
+  const prev = Number.isFinite(lastSentValues[idx]) ? lastSentValues[idx] : 0.5;
+  const delta = normalized - prev;
+  if (Math.abs(delta) < 0.001) return;
+  if (wsSend(`d=${idx},v=${delta.toFixed(3)}`)) lastSentValues[idx] = normalized;
 }
 
 // ═══ Band UI ═══
@@ -316,8 +333,9 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 document.getElementById('release-all').addEventListener('click', () => {
-  wsSend('off');
+  wsSendControl('off');
   smoothing.fill(0);
+  lastSentValues = bands.map(b => b.base);
 });
 
 // ═══ Tick loop ═══
@@ -341,7 +359,7 @@ function tick() {
     if (m1) m1.style.width = (smoothing[i] * 100).toFixed(1) + '%';
     if (m2) m2.style.width = (mapped * 100).toFixed(1) + '%';
 
-    if (shouldSend) wsSend(`k=${band.knob},v=${mapped.toFixed(3)}`);
+    if (shouldSend) sendOutputValue(band.knob, mapped);
   }
 }
 requestAnimationFrame(tick);

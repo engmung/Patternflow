@@ -70,7 +70,10 @@ export default function InsidePanel({ content }: InsidePanelProps) {
         </div>
 
         <div className="pf-block">
-          <span className="pf-kicker">Build map</span>
+          <div className="pf-head">
+            <span className="pf-kicker">Build map</span>
+            <span className="pf-count">Total: {builds.length}+</span>
+          </div>
           <div className={styles.mapLayout}>
             <div className={styles.globeShell}>
               <Globe selectedBuildId={selectedBuildId ?? undefined} onSelectBuild={setSelectedBuildId} />

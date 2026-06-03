@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
+  @font-face {
+    font-family: 'Pretendard';
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/Pretendard-Regular.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'Pretendard';
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url('/fonts/Pretendard-Bold.woff2') format('woff2');
+  }
+
   :root {
+    --pretendard: 'Pretendard', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --cream: #F4EFE6;
     --cream-2: #EDE7DB;
     --ink: #141414;
@@ -54,7 +70,7 @@
   a { color: inherit; text-decoration: none; }
   a:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
   .mono { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
-  em.wordmark { font-style: italic; font-weight: 400; }
+  em.wordmark { font-family: var(--pretendard); font-style: normal; font-weight: 700; }
 
   /* header removed */
 
@@ -139,8 +155,13 @@
     letter-spacing: -0.035em;
     margin-bottom: 20px;
   }
-  .hero-copy h1 em { font-style: normal; font-weight: 500; }
+  .hero-copy h1 em {
+    font-family: var(--pretendard);
+    font-style: normal;
+    font-weight: 700;
+  }
   .hero-copy .kicker {
+    font-family: var(--pretendard);
     font-size: 28px;
     font-weight: 400;
     color: var(--ink);

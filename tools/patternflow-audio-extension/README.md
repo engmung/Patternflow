@@ -1,7 +1,8 @@
 # Patternflow Audio Chrome Extension
 
-Captures audio from the currently active Chrome/Edge tab, analyzes four FFT
-bands, and sends normalized knob values to Patternflow over WebSocket.
+Captures audio from the currently active Chrome/Edge tab, shows a live
+spectrum, maps editable frequency bands to Patternflow knobs, and sends
+normalized knob deltas over WebSocket.
 
 The extension uses the same Patternflow mark as the web app for its toolbar
 icon and popup header.
@@ -27,15 +28,15 @@ the K1-K4 sliders. This bypasses tab capture and audio analysis completely.
 
 ## Controls
 
-- `Hz min` / `Hz max`: frequency range analyzed for the band.
-- `Offset`: base knob value when the band is quiet.
-- `Range`: amount and direction of audio modulation.
-- `Gain`: sensitivity before smoothing.
-- `Knob`: target Patternflow knob index.
+- `Spectrum`: live frequency strength display. Drag across it to set the active band's range.
+- `Add Band`: starts with one band, then adds more bands as needed.
+- `Output`: min/max Patternflow knob output from 0.0 to 1.0.
+- `Clamp / gain`: optional input low/high clamp and sensitivity.
+- `K`: target Patternflow knob index.
 - `Smoothing`: global response smoothing.
-- `WS Test`: connect to the device and send manual K1-K4 values.
+- `WS Test`: connect to the device and send manual K1-K4 movements.
 
-The extension sends messages like `k=0,v=0.735` to `ws://<device>:81`.
+The extension sends delta messages like `d=0,v=0.125` to `ws://<device>:81`.
 
 ## Next: Audio Console
 

@@ -46,6 +46,13 @@ export default function Hero() {
             </a>
           </em>{" "}
           (1963).
+          <br />
+          <br />
+          Making interactive media art something anyone can make.
+          <br />
+          If Nam June Paik brought participation into art,
+          <br />
+          Patternflow puts creation in everyone&apos;s hands.
         </p>
         <p className="hero-kit-note">
           All source files are on GitHub.

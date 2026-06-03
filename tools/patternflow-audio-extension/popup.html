@@ -15,7 +15,7 @@
   <div id="status" class="status bad">Idle</div>
 </header>
 
-<section>
+<section class="device-section">
   <label class="label" for="host">Device</label>
   <div class="device">
     <input id="host" type="text" spellcheck="false" value="patternflow.local">
@@ -29,13 +29,21 @@
   </div>
 </section>
 
-<section>
-  <div class="label">Manual test</div>
-  <div class="manual-grid">
-    <label>K1 <input class="manual" data-knob="0" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
-    <label>K2 <input class="manual" data-knob="1" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
-    <label>K3 <input class="manual" data-knob="2" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
-    <label>K4 <input class="manual" data-knob="3" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+<section class="spectrum-section">
+  <div class="section-head">
+    <span class="label">Spectrum</span>
+    <button id="addBand" type="button" class="small-button">Add Band</button>
+  </div>
+  <div class="spectrum-wrap">
+    <canvas id="spectrum" width="760" height="220"></canvas>
+    <div id="spectrumBands" class="spectrum-bands"></div>
+  </div>
+  <div class="spectrum-scale">
+    <span>20</span>
+    <span>100</span>
+    <span>1k</span>
+    <span>10k</span>
+    <span>20k</span>
   </div>
 </section>
 
@@ -51,44 +59,75 @@
 
 <main id="bands"></main>
 
+<section>
+  <div class="label">Manual test</div>
+  <div class="manual-grid">
+    <label>K1 <input class="manual" data-knob="0" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K2 <input class="manual" data-knob="1" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K3 <input class="manual" data-knob="2" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+    <label>K4 <input class="manual" data-knob="3" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
+  </div>
+</section>
+
 <template id="band-template">
   <section class="band">
     <div class="band-head">
       <strong class="band-title"></strong>
-      <label class="target">Knob
-        <select class="knob">
-          <option value="0">1</option>
-          <option value="1">2</option>
-          <option value="2">3</option>
-          <option value="3">4</option>
-        </select>
-      </label>
+      <div class="band-actions">
+        <label class="target">K
+          <select class="knob">
+            <option value="0">1</option>
+            <option value="1">2</option>
+            <option value="2">3</option>
+            <option value="3">4</option>
+          </select>
+        </label>
+        <button type="button" class="remove-band" title="Remove band">Remove</button>
+      </div>
     </div>
-    <div class="row">
-      <span>Hz min</span>
+
+    <div class="band-strip">
       <input class="hzMin" type="range" min="20" max="20000" step="10">
-      <output class="hzMinOut"></output>
-    </div>
-    <div class="row">
-      <span>Hz max</span>
       <input class="hzMax" type="range" min="20" max="20000" step="10">
-      <output class="hzMaxOut"></output>
+      <div class="band-readout">
+        <output class="hzMinOut"></output>
+        <span>-</span>
+        <output class="hzMaxOut"></output>
+      </div>
     </div>
-    <div class="row">
-      <span>Offset</span>
-      <input class="base" type="range" min="0" max="1" step="0.01">
-      <output class="baseOut"></output>
+
+    <div class="map-row">
+      <span>Output</span>
+      <div class="map-sliders">
+        <input class="outMin" type="range" min="0" max="1" step="0.01">
+        <input class="outMax" type="range" min="0" max="1" step="0.01">
+      </div>
+      <div class="band-readout">
+        <output class="outMinOut"></output>
+        <span>-</span>
+        <output class="outMaxOut"></output>
+      </div>
     </div>
-    <div class="row">
-      <span>Range</span>
-      <input class="range" type="range" min="-1" max="1" step="0.01">
-      <output class="rangeOut"></output>
-    </div>
-    <div class="row">
-      <span>Gain</span>
-      <input class="gain" type="range" min="0.2" max="4" step="0.05">
-      <output class="gainOut"></output>
-    </div>
+
+    <details class="advanced">
+      <summary>Clamp / gain</summary>
+      <div class="row">
+        <span>In low</span>
+        <input class="inMin" type="range" min="0" max="1" step="0.01">
+        <output class="inMinOut"></output>
+      </div>
+      <div class="row">
+        <span>In high</span>
+        <input class="inMax" type="range" min="0" max="1" step="0.01">
+        <output class="inMaxOut"></output>
+      </div>
+      <div class="row">
+        <span>Gain</span>
+        <input class="gain" type="range" min="0.2" max="4" step="0.05">
+        <output class="gainOut"></output>
+      </div>
+    </details>
+
     <div class="meter"><div class="level"></div></div>
     <div class="meter out"><div class="output"></div></div>
   </section>

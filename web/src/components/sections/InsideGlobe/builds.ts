@@ -24,6 +24,14 @@ export const builds: Build[] = [
     date: 'May 2026',
     description: 'A gift sent to the first collaborator, and the second physical build. One of five 001 units from the first PCB order.',
   },
+  {
+    id: 'uk-nath',
+    location: { lat: 51.5072, lng: -0.1276, label: 'United Kingdom' },
+    maker: 'Nath',
+    country: 'UK',
+    date: 'June 2026',
+    description: 'The first case of someone sharing their own Patternflow build through Discord.',
+  },
 ];
 
 export function latLngToVec3(lat: number, lng: number, radius: number): [number, number, number] {
