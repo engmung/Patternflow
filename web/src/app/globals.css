@@ -1294,6 +1294,43 @@
     }
   }
 
+  /* ───── Sponsor ───── */
+  .sponsor {
+    background: var(--cream);
+    padding: 44px 80px 32px;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    text-align: left;
+  }
+  .sponsor-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .sponsor-logos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 32px 56px;
+  }
+  .sponsor-logo {
+    display: inline-flex;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+  }
+  .sponsor-logo:hover { opacity: 1; }
+  .sponsor-logo img { display: block; width: auto; height: 34px; }
+  @media (max-width: 640px) {
+    .sponsor { padding: 36px 24px 28px; }
+    .sponsor-logos { gap: 24px 40px; }
+  }
+
   /* ───── Footer ───── */
   footer {
     padding: 80px 80px 60px;
