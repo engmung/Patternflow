@@ -1,3 +1,8 @@
+export type BuildImage = {
+  src: string;
+  alt: string;
+};
+
 export type Build = {
   id: string;
   location: { lat: number; lng: number; label: string };
@@ -5,6 +10,7 @@ export type Build = {
   country: string;
   date: string;
   description: string;
+  images?: BuildImage[];
 };
 
 export const builds: Build[] = [
@@ -31,6 +37,13 @@ export const builds: Build[] = [
     country: 'UK',
     date: 'June 2026',
     description: 'The first case of someone sharing their own Patternflow build through Discord.',
+    images: [
+      { src: '/builds/nath/front.jpg', alt: "Nath's Patternflow build, front view" },
+      { src: '/builds/nath/front-angle.jpg', alt: "Nath's Patternflow build, front angle" },
+      { src: '/builds/nath/angle.jpg', alt: "Nath's Patternflow build, side angle" },
+      { src: '/builds/nath/back.jpg', alt: "Nath's Patternflow build, back view" },
+      { src: '/builds/nath/custom-pattern.jpg', alt: "A custom pattern running on Nath's build" },
+    ],
   },
 ];
 
