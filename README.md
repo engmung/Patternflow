@@ -70,21 +70,6 @@ Patternflow can react to browser audio over Wi-Fi. The recommended workflow is t
 
 The device still serves a built-in page at `http://patternflow.local/` when Wi-Fi is configured. Keep it around for file playback, microphone input, and local experiments; browser tab/system audio capture is more reliable through the extension because normal `http://patternflow.local` pages are limited by browser capture permissions.
 
-## Why open source?
-
-Everything about Patternflow began with **Origin**.
-
-Two posts on r/arduino brought Patternflow to 150K combined views and 3.5K upvotes.
-
-Hundreds of comments asked when it would be available, where to find the files, and how to build their own. **The community was not asking for a product. They were asking for the files.**
-
-- [First r/arduino post](https://www.reddit.com/r/arduino/comments/1so9er5/)
-- [Second r/arduino post](https://www.reddit.com/r/arduino/comments/1szettd/)
-
-So Patternflow was opened — schematics, firmware, case, build guide, all of it in this repository. Hardware designs under CC-BY-SA 4.0; firmware and web code under MIT.
-
-For the full story — failed prints, broken potentiometers, two weeks of debugging a strapping pin, the first PCB — see **[the 30-day journal](https://patternflow.work/journal/v1-30-days?lang=en)**.
-
 ## Links
 
 - [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
@@ -113,15 +98,32 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 - [Changelog](CHANGELOG.md)
 - [License Summary](docs/LICENSE-SUMMARY.md)
 
-## Migrating from v1
-
-If you already built a v1 unit, it still works as-is. v2.0.0's only PCB-side change is a 10kΩ pullup on GPIO0 that resolves the v1 cold-boot issue (pressing RESET on power-up was the v1 workaround). If your v1 boots reliably — especially likely with a genuine Espressif module — you don't need to change anything. To bodge the fix onto a v1 board, see [Issue #16](https://github.com/engmung/PatternFlow/issues/16).
-
-Firmware v2 is backward compatible with v1 hardware. Flash freely.
-
 ## Contributing
 
 Guidelines for contributing to the repository are currently under preparation. In the meantime, please refer to the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information.
+
+## Timeline
+
+| When | Milestone |
+| :--- | :--- |
+| **Jan 2026** | Built Patternflow *Origin*, the first pattern · visited the Nam June Paik Art Center |
+| **Mar 2026** | First experiments with LEDs and potentiometers |
+| **Apr 2026** | First prototype · strong response on Reddit and Instagram — the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
+| **May 2026** | Continuous pattern development · Crowd Supply agreement · Discord community growing · a Paris-based creative technologist joins as the first collaborator |
+| **Jun 2026** | First community-made pattern shared · 3D-printed enclosure in production *(sponsored by PCBWay)* |
+| **Next** | Contribution guide & issue cleanup · Crowd Supply campaign · growing a sustainable business · wider outreach · continued development |
+
+📖 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**.
+
+### Sponsor
+
+<a href="https://www.pcbway.com/"><img src="./docs/media/pcbway-logo.png" width="150" alt="PCBWay" /></a>
+
+Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWay](https://www.pcbway.com/)**. The first PCB came back clean and on-spec, ordering was straightforward, and the team has been genuinely responsive throughout — the support that made these milestones possible. The 3D-printed enclosure parts are in production now; this section will be updated with photos once they arrive.
+
+<img src="./web/public/journal/v1-30-days/first-pcb.jpg" width="160" alt="First Patternflow PCB fabricated by PCBWay" />
+
+<sub><i>The first Patternflow PCB, fabricated by PCBWay.</i></sub>
 
 ## License
 
