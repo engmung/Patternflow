@@ -1701,10 +1701,7 @@
   }
   .journal-index-thumb {
     position: relative;
-    aspect-ratio: 1.303 / 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block;
     overflow: hidden;
     border: 1px solid var(--rule);
     background: var(--cream-2);
@@ -1733,10 +1730,8 @@
     position: relative;
     z-index: 1;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
+    height: auto;
     display: block;
-    background: var(--cream-2);
   }
   .journal-cover-slot {
     position: relative;
