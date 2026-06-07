@@ -8,7 +8,7 @@ type JournalIndexProps = {
   lang: JournalLang;
 };
 
-const featuredSlug = "me-and-patternflow";
+const featuredSlug = "nam-june-paik-me-patternflow";
 
 export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];
@@ -20,7 +20,10 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   );
   const newestSlug = posts[0]?.slug;
   const getPostHref = (slug: string) => lang === "en" ? `/journal/${slug}/en` : `/journal/${slug}`;
-  const isAnchorPost = (slug: string) => slug === "v1-30-days" || slug === "me-and-patternflow";
+  const isAnchorPost = (slug: string) =>
+    slug === "v1-30-days" ||
+    slug === "me-and-patternflow" ||
+    slug === "nam-june-paik-me-patternflow";
 
   return (
     <main className="journal-index">

@@ -15,6 +15,7 @@ export const journalImageMeta = {
   "/journal/v1-30-days/warped-3d-print.jpg": { width: 2268, height: 3085 },
   "/journal/today-is-my-birthday/diffuser-discord.png": { width: 1160, height: 471 },
   "/journal/wins-and-losses-next-step/io0-pullup-resistor.jpg": { width: 1600, height: 2134 },
+  "/journal/nam-june-paik-me-patternflow/pattern-30.png": { width: 1920, height: 1280 },
 } as const;
 
 export function getJournalImageMeta(src?: string) {
