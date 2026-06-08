@@ -543,7 +543,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                       Pattern Lab
                     </Link>
                     <Link href="/video-baker" className={styles.toolLink}>
-                      Video Baker
+                      Video Baker (to be deprecated)
                     </Link>
                   </div>
                 </div>
