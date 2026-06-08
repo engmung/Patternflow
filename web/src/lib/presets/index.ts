@@ -5,6 +5,8 @@ import type { LivePreset } from "./types";
 // Sorted by pattern number automatically.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { preset as pattern_origin } from "./pattern-origin";
+import { preset as pattern_wave_saw } from "./pattern-wave-saw";
 import { preset as pattern_0510 } from "./pattern-0510";
 import { preset as pattern_0511 } from "./pattern-0511";
 import { preset as pattern_0512 } from "./pattern-0512";
@@ -34,6 +36,8 @@ import { preset as pattern_0602 } from "./pattern-0602";
 import { preset as pattern_a_big_hit } from "./pattern-a-big-hit";
 
 const presets: LivePreset[] = [
+  pattern_origin,
+  pattern_wave_saw,
   pattern_0510,
   pattern_0511,
   pattern_0512,
