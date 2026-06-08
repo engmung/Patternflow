@@ -37,6 +37,19 @@ Build it from the files, or wait for the kit.
 
 > **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
 
+## Patterns
+
+The **[Live Editor](https://patternflow.work)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
+
+On the device, PatternFlow OS v2.0.0 ships with two base patterns:
+
+- **Origin** — concentric sine waves sampled by an emergent grid
+- **Wave Saw** — rotated sawtooth waves with fractal noise distortion
+
+**Long-press encoder 4 to switch between patterns on the device** — all bundled in a single firmware image, no reflashing needed.
+
+New pattern studies go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel goes further — it mirrors every post *and* collects the community's own creations, each with full JavaScript source, a hardware-tested C++ header, and the design notes behind it. **Come for a pattern you saw on a post, stay to share your own.**
+
 ## Make your own patterns
 
 Patternflow ships with a prompt template designed for AI coding assistants (Claude, ChatGPT, etc.). To make a new pattern:
@@ -52,19 +65,6 @@ Patternflow ships with a prompt template designed for AI coding assistants (Clau
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
 Custom patterns require a local Arduino IDE compile/upload step for now.
-
-## Patterns
-
-The **[Live Editor](https://patternflow.work)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
-
-On the device, PatternFlow OS v2.0.0 ships with two base patterns:
-
-- **Origin** — concentric sine waves sampled by an emergent grid
-- **Wave Saw** — rotated sawtooth waves with fractal noise distortion
-
-**Long-press encoder 4 to switch between patterns on the device** — all bundled in a single firmware image, no reflashing needed.
-
-New pattern studies go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel goes further — it mirrors every post *and* collects the community's own creations, each with full JavaScript source, a hardware-tested C++ header, and the design notes behind it. **Come for a pattern you saw on a post, stay to share your own.**
 
 ## Audio-react control
 
