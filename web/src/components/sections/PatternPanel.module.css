@@ -333,6 +333,13 @@
   margin-right: 4px;
 }
 
+.presetChipsSeparator {
+  color: var(--pf-rule);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  margin: 0 4px;
+}
+
 .presetChip {
   min-height: 30px;
   padding: 0 12px;

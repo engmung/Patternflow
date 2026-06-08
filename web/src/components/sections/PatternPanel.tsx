@@ -6,7 +6,7 @@ import { SectionContent } from '@/lib/content';
 import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
-import { livePresets } from '@/lib/patternSamples';
+import { livePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
 import styles from './PatternPanel.module.css';
 
@@ -499,6 +499,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     {preset.name}
                   </button>
                 ))}
+                <span className={styles.presetChipsSeparator}>|</span>
+                <span className={styles.presetChipsLabel}>More community patterns:</span>
+                <a
+                  href="https://discord.gg/Vr9QtsxeTk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.presetChip}
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  Discord
+                </a>
               </div>
               <div className={styles.sourceRow}>
                 <div className={styles.applyGuide}>
@@ -521,9 +532,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   <div className={styles.applyLinks}>
                     <a href="https://github.com/engmung/PatternFlow/tree/main/firmware" className={styles.secondaryLink}>
                       Firmware source
-                    </a>
-                    <a href="https://discord.gg/Vr9QtsxeTk" className={styles.secondaryLink}>
-                      Discord
                     </a>
                     <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={styles.secondaryLink}>
                       Instagram
