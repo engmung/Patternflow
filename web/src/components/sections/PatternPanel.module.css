@@ -359,6 +359,12 @@
   border-color: var(--pf-ink);
 }
 
+.presetChip.active {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  border-color: var(--pf-ink);
+}
+
 .metaRows {
   display: grid;
 }

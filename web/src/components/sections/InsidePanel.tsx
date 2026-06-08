@@ -240,23 +240,24 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <li>
               <time>26.6</time>
               <span>
-                Order the first <strong>PCBA batch</strong> and test whether Patternflow can be
-                sold in a small, practical run.
+                With the <strong>Crowd Supply contract</strong> signed, prepare the{' '}
+                <strong>crowdfunding campaign</strong> — order the first <strong>PCBA batch</strong>{' '}
+                and get Patternflow ready to sell in a small, practical run.
               </span>
             </li>
             <li>
               <time>~</time>
               <span>
-                Launch properly at the lowest sustainable price, send Patternflow further out
-                into the world, collaborate with <strong>more artists</strong>, and earn
-                <strong> academic recognition</strong>.
+                Run the <strong>Crowd Supply campaign</strong> at the lowest sustainable price,
+                send Patternflow further out into the world, collaborate with{' '}
+                <strong>more artists</strong>, and earn <strong>academic recognition</strong>.
               </span>
             </li>
             <li>
               <time>28</time>
               <span>
-                Before I leave for military service, make Patternflow into a
-                <strong> community and ecosystem</strong> that can keep growing on its own.
+                Grow Patternflow into a <strong>self-sustaining community and ecosystem</strong>,
+                then move on to the <strong>next project</strong>.
               </span>
             </li>
           </ol>

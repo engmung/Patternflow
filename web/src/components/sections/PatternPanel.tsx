@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import Link from 'next/link';
@@ -256,10 +256,30 @@ const EDITOR_HEIGHT = 480;
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 
 export default function PatternPanel({ content }: PatternPanelProps) {
-  const [mode, setMode] = useState<PatternMode>('flash');
+  const [mode, setMode] = useState<PatternMode>('create');
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
+
+  // The Live Editor renders through the 'custom' pattern, so the 3D preview only
+  // reflects the editor (and loaded presets) while it is the active pattern.
+  // Sync on mount and whenever the Live Editor is the active workflow.
+  useEffect(() => {
+    if (mode === 'create') {
+      useAppStore.getState().setActivePatternId('custom');
+    }
+  }, [mode]);
+
+  // Start with Origin selected and loaded into the editor.
+  useEffect(() => {
+    const origin = livePresets.find((p) => p.id === 'origin');
+    if (origin) {
+      setCustomJsCode(origin.code);
+      setActivePresetId('origin');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectBuiltInPattern = (pattern: PresetPattern, track = true) => {
     const store = useAppStore.getState();
@@ -307,6 +327,9 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     const preset = livePresets.find((p) => p.id === presetId);
     if (!preset) return;
     setCustomJsCode(preset.code);
+    setActivePresetId(preset.id);
+    // Make sure the 3D preview is showing the editor output, not a flash preset.
+    useAppStore.getState().setActivePatternId('custom');
     captureEvent('live_preset_loaded', {
       preset_id: preset.id,
       preset_name: preset.name,
@@ -366,17 +389,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           <div className={styles.modeSwitch} role="tablist" aria-label="Pattern workflows">
             <button
               type="button"
-              className={mode === 'flash' ? styles.active : ''}
-              onClick={() => handleModeChange('flash')}
-            >
-              Flash presets
-            </button>
-            <button
-              type="button"
               className={mode === 'create' ? styles.active : ''}
               onClick={() => handleModeChange('create')}
             >
               Live Editor
+            </button>
+            <button
+              type="button"
+              className={mode === 'flash' ? styles.active : ''}
+              onClick={() => handleModeChange('flash')}
+            >
+              Flash presets
             </button>
           </div>
 
@@ -470,7 +493,15 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                 defaultLanguage="javascript"
                 theme="vs-dark"
                 value={customJsCode}
-                onChange={(val) => setCustomJsCode(val || '')}
+                onChange={(val) => {
+                  const next = val || '';
+                  setCustomJsCode(next);
+                  // Deselect the chip once the code is edited away from the preset.
+                  if (activePresetId) {
+                    const preset = livePresets.find((p) => p.id === activePresetId);
+                    if (!preset || preset.code !== next) setActivePresetId(null);
+                  }
+                }}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
@@ -492,7 +523,8 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   <button
                     key={preset.id}
                     type="button"
-                    className={styles.presetChip}
+                    className={activePresetId === preset.id ? `${styles.presetChip} ${styles.active}` : styles.presetChip}
+                    aria-pressed={activePresetId === preset.id}
                     onClick={() => handleLoadPreset(preset.id)}
                     title={preset.desc}
                   >
