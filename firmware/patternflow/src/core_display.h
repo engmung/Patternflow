@@ -14,6 +14,9 @@ inline void initDisplay() {
   mxconfig.clkphase    = false;
   mxconfig.double_buff = true;
 
+  // Panel driver IC — see PANEL_PROFILE / HUB75_DRIVER in config.h.
+  mxconfig.driver = HUB75_DRIVER;
+
   // Push panel refresh to ~240 Hz so phone-camera rolling shutter
   // averages multiple cycles per exposure and the BCM bit-plane flicker
   // stops showing up as visible bands on video. I2S/DMA refresh runs on

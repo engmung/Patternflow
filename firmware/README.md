@@ -4,6 +4,8 @@ Arduino-based firmware for the ESP32-S3 powering Patternflow v2.0.0.
 
 The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads four rotary encoders to control generative patterns, and supports Arduino OTA for wireless updates.
 
+> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: **74HC595**, **FM6126A**, or **FM6124**. GCLK PWM "video wall" panels (**FM6363C / FM6373C**, sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. Check this **before buying** — see [docs/BUILD.md → Panel compatibility](../docs/BUILD.md#1-bill-of-materials-bom). Select your panel's driver below via `PANEL_PROFILE`.
+
 ## Setup
 
 ### Required board package
@@ -146,6 +148,7 @@ The Live Editor at [patternflow.work](https://patternflow.work) has a "Copy C++ 
 ## Configuration (`config.h`)
 
 All hardware-specific pins and limits are centralized in `config.h`.
+- **Panel Selection:** `PANEL_PROFILE` selects the panel's driver IC — `PANEL_STANDARD` (74HC595, the default) or `PANEL_HIGHREFRESH` (FM6126A/FM6124). This is the only line to change when switching between supported panels; it expands to the `HUB75_DRIVER` value `core_display.h` passes to the library. See the panel-compatibility note at the top of this README before buying a panel.
 - **Pin Mapping:** Adjust the `R1_PIN`, `ENC1_A` etc. if you are not using the official Patternflow PCB.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
 

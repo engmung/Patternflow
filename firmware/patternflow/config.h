@@ -13,6 +13,38 @@
 #define PANEL_RES_H 64
 #define PANEL_CHAIN 1
 
+// --- Panel Selection ---
+// This firmware runs on standard HUB75 / HUB75E panels driven directly by the
+// ESP32-S3 (no external sending/receiving card). Pick your panel's driver IC
+// below, then build & upload. PANEL_PROFILE is the ONLY line you change.
+//
+//   PANEL_STANDARD     Plain 74HC595 shift-register panel.
+//                      Default — matches the firmware's previous behavior.
+//   PANEL_HIGHREFRESH  Panels whose driver IC needs a register init sequence
+//                      before they light up: FM6126A / FM6124. The I2S-DMA
+//                      library sends that init directly, so no video card is
+//                      needed. (If dark/distorted, try swapping FM6126A↔FM6124
+//                      in the block below — they share an init family.)
+//
+// NOT SUPPORTED — do not expect these to work with this firmware:
+//   GCLK PWM panels (FM6363C / FM6373C, sold as "1920/3840Hz" high-refresh
+//   modules). They need a separate GCLK signal and a proprietary addressing
+//   scheme the ESP32-HUB75-MatrixPanel-DMA library cannot generate — the panel
+//   stays completely dark regardless of the driver value. These are designed
+//   to be driven by a Nova/Linsn/Colorlight/Huidu receiving card fed from a
+//   video source, not by direct ESP32 HUB75 output. Use a plain shift-register
+//   or genuine FM6126A panel instead. (Upstream: issue #642, closed wontfix.)
+#define PANEL_STANDARD     0
+#define PANEL_HIGHREFRESH  1
+
+#define PANEL_PROFILE  PANEL_STANDARD   // ← set to PANEL_HIGHREFRESH for an FM6126A/FM6124 panel
+
+#if PANEL_PROFILE == PANEL_HIGHREFRESH
+  #define HUB75_DRIVER HUB75_I2S_CFG::FM6126A   // swap to FM6124 if dark/distorted
+#else
+  #define HUB75_DRIVER HUB75_I2S_CFG::SHIFTREG  // plain shift-register panel
+#endif
+
 // --- HUB75 Pin Mapping (ESP32-S3) ---
 #define R1_PIN  42
 #define G1_PIN  41

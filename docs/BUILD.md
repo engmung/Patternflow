@@ -35,7 +35,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 | Ref | Item | Spec | Qty | Notes |
 | --- | --- | --- | --- | --- |
-| - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. |
+| - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. **Driver IC must be 74HC595, FM6126A, or FM6124 — see the panel compatibility warning below.** |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
 | SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm shaft, with push-switch | 4 | Recommended shaft length. 20mm shafts also work with the matching knob STL. |
 | - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
@@ -61,6 +61,15 @@ AliExpress shipping to most regions takes ~7-14 days.
 - **Rotary Encoders (5-pack):** [EC11 15mm recommended / same style as 20mm listing photo — ~3,250 KRW](https://s.click.aliexpress.com/e/_c3dYYGob)
 - **ESP32-S3-N16R8:** [~10,300 KRW](https://s.click.aliexpress.com/e/_c3qxYiaP)
 - **LED Matrix:** [Full color 320×160mm P2.5 HUB75 — ~23,250 KRW](https://s.click.aliexpress.com/e/_c3SVdcQr)
+
+> ⚠️ **Panel compatibility — check the driver IC before you buy.**
+>
+> Patternflow drives the panel **directly from the ESP32-S3** — there is no sending/receiving card. So the panel's **driver IC** matters more than its size or pitch. Not every "HUB75 P2.5 128×64" panel works:
+>
+> - ✅ **Works:** driver IC is **74HC595** (plain shift register), **FM6126A**, or **FM6124**. These are the common, cheap indoor panels. Set `PANEL_PROFILE` in [`firmware/patternflow/config.h`](../firmware/patternflow/config.h) — `PANEL_STANDARD` for 74HC595, `PANEL_HIGHREFRESH` for FM6126A/FM6124.
+> - ❌ **Does NOT work:** **GCLK PWM "video wall" panels** — driver IC **FM6363C / FM6373C** and similar, usually sold by advertising a **very high refresh rate (1920/3840Hz)** and/or that they **require a Nova/Linsn/Colorlight/Huidu sending+receiving card**. These need a separate GCLK signal and a proprietary addressing scheme the `ESP32-HUB75-MatrixPanel-DMA` library cannot produce, so the panel stays **completely dark** no matter what you configure ([upstream issue #642](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA/issues/642), closed *wontfix*).
+>
+> **The safe move:** before buying, ask the seller which driver IC the panel uses. If they say *FM6363C/FM6373C*, *3840Hz*, or *"needs a receiving card"*, pick a different panel — ideally one explicitly advertised as *"hzeller / ESP32-HUB75-MatrixPanel-DMA compatible."* The linked panel above is a known-good one.
 
 PCB: order from your preferred fab using the KiCad files in `hardware/pcb/`. I used PCBway (sponsored).
 
