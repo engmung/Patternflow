@@ -8,6 +8,10 @@
 > ⚠️ **Photosensitivity Warning**
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
 
+<p align="center">
+  <img src="./docs/media/product_v2.jpg" width="100%" />
+</p>
+
 ## Patternflow is an open-source LED synthesizer played with the fingertips.
 
 Turning four physical knobs reshapes patterns from creative coding on an LED matrix in real time. The light is no longer a visual effect to be watched but a multisensory experience connected directly to the motion of the hand.
