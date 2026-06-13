@@ -8,136 +8,132 @@
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_color.h"
 
-namespace LayeredVorticityFieldPattern {
+namespace MoltenMagmaPattern {
+    const char* NAME = "Molten Magma";
+    const char* const KNOB_LABELS[4] = {"Viscosity", "Flow Speed", "Expansion", "Crust Fracture"};
 
-const float LAYERED_VORTICITY_FIELD_RADIUS_MIN = 0.0f;
-const float LAYERED_VORTICITY_FIELD_RADIUS_MAX = 1.0f;
-const float LAYERED_VORTICITY_FIELD_RADIUS_STEP = 0.05f;
+    const float MOLTEN_MAGMA_VISCOSITY_MIN = 0.0f;
+    const float MOLTEN_MAGMA_VISCOSITY_MAX = 1.0f;
+    const float MOLTEN_MAGMA_VISCOSITY_STEP = 0.05f;
 
-const float LAYERED_VORTICITY_FIELD_SPEED_MIN = 0.1f;
-const float LAYERED_VORTICITY_FIELD_SPEED_MAX = 10.0f;
-const float LAYERED_VORTICITY_FIELD_SPEED_STEP = 0.10f;
+    const float MOLTEN_MAGMA_SPEED_MIN = 0.1f;
+    const float MOLTEN_MAGMA_SPEED_MAX = 10.0f;
+    const float MOLTEN_MAGMA_SPEED_STEP = 0.10f;
 
-const float LAYERED_VORTICITY_FIELD_VORTICES_MIN = 0.0f;
-const float LAYERED_VORTICITY_FIELD_VORTICES_MAX = 4.9f;
-const float LAYERED_VORTICITY_FIELD_VORTICES_STEP = 0.05f;
+    const float MOLTEN_MAGMA_EXPANSION_MIN = 0.0f;
+    const float MOLTEN_MAGMA_EXPANSION_MAX = 4.9f;
+    const float MOLTEN_MAGMA_EXPANSION_STEP = 0.05f;
 
-const float LAYERED_VORTICITY_FIELD_SPREAD_MIN = 0.0f;
-const float LAYERED_VORTICITY_FIELD_SPREAD_MAX = 1.0f;
-const float LAYERED_VORTICITY_FIELD_SPREAD_STEP = 0.05f;
+    const float MOLTEN_MAGMA_CRUST_MIN = 0.0f;
+    const float MOLTEN_MAGMA_CRUST_MAX = 1.0f;
+    const float MOLTEN_MAGMA_CRUST_STEP = 0.05f;
 
-const char* NAME = "Layered Vorticity Field";
-const char* const KNOB_LABELS[4] = {"Swirl Radius", "Flow Speed", "Vortex Count", "Color Phase Spread"};
+    struct Params {
+        float viscosity;
+        float speed;
+        float expansion;
+        float crust;
+        float timeAcc;
+    };
 
-struct Params {
-    float radius;
-    float speed;
-    float vortices;
-    float colorSpread;
-    float timeAcc;
-};
+    Params params;
 
-Params params;
-
-void setup() {
-    params.radius = 0.5f;
-    params.speed = 1.0f;
-    params.vortices = 2.0f;
-    params.colorSpread = 0.5f;
-    params.timeAcc = 0.0f;
-    PFMath::buildSinLUT();
-}
-
-void update(float dt, const InputFrame& input) {
-    params.radius += input.knobDeltas[0] * LAYERED_VORTICITY_FIELD_RADIUS_STEP;
-    while (params.radius < LAYERED_VORTICITY_FIELD_RADIUS_MIN) params.radius += 1.0f;
-    while (params.radius > LAYERED_VORTICITY_FIELD_RADIUS_MAX) params.radius -= 1.0f;
-
-    params.speed = constrain(params.speed + input.knobDeltas[1] * LAYERED_VORTICITY_FIELD_SPEED_STEP, LAYERED_VORTICITY_FIELD_SPEED_MIN, LAYERED_VORTICITY_FIELD_SPEED_MAX);
-
-    params.vortices = constrain(params.vortices + input.knobDeltas[2] * LAYERED_VORTICITY_FIELD_VORTICES_STEP, LAYERED_VORTICITY_FIELD_VORTICES_MIN, LAYERED_VORTICITY_FIELD_VORTICES_MAX);
-
-    params.colorSpread += input.knobDeltas[3] * LAYERED_VORTICITY_FIELD_SPREAD_STEP;
-    while (params.colorSpread < LAYERED_VORTICITY_FIELD_SPREAD_MIN) params.colorSpread += 1.0f;
-    while (params.colorSpread > LAYERED_VORTICITY_FIELD_SPREAD_MAX) params.colorSpread -= 1.0f;
-
-    params.timeAcc += dt * params.speed * 0.5f;
-}
-
-void draw() {
-    float t = params.timeAcc;
-    
-    // Cap at 4 vortices on ESP32: each vortex adds ~7 trig ops per pixel,
-    // and 5–6 vortices push this pattern past the 60 FPS budget. Visually
-    // adjacent vortices overlap and obscure each other past 4 anyway.
-    int maxV = (int)(1.0f + floorf(params.vortices));
-    if (maxV > 4) maxV = 4;
-    if (maxV < 1) maxV = 1;
-
-    float cx[4];
-    float cy[4];
-    for (int i = 0; i < maxV; i++) {
-        float arg1 = t * (0.8f + i * 0.3f) + i * 1.5f;
-        float arg2 = t * (0.6f + i * 0.4f) + i * 2.0f;
-        cx[i] = 0.5f * PFMath::fastSin(arg1);
-        cy[i] = 0.3f * PFMath::fastCos(arg2);
+    void setup() {
+        PFMath::buildSinLUT();
+        params.viscosity = 0.5f;
+        params.speed = 2.0f;
+        params.expansion = 2.0f;
+        params.crust = 0.4f;
+        params.timeAcc = 0.0f;
     }
 
-    float invW = 1.0f / (float)PANEL_RES_W;
-    float invH = 1.0f / (float)PANEL_RES_H;
-    float aspect = (float)PANEL_RES_W / (float)PANEL_RES_H;
+    void update(float dt, const InputFrame& input) {
+        // Knob 1: Thermal Fluid Viscosity (Wrap)
+        params.viscosity += input.knobDeltas[0] * MOLTEN_MAGMA_VISCOSITY_STEP;
+        while (params.viscosity < MOLTEN_MAGMA_VISCOSITY_MIN) params.viscosity += 1.0f;
+        while (params.viscosity > MOLTEN_MAGMA_VISCOSITY_MAX) params.viscosity -= 1.0f;
 
-    for (int y = 0; y < PANEL_RES_H; y++) {
-        float ny = (y * invH) * 2.0f - 1.0f;
-        for (int x = 0; x < PANEL_RES_W; x++) {
-            float nx = ((x * invW) * 2.0f - 1.0f) * aspect;
+        // Knob 2: Boiling Flow Speed (Clamp)
+        params.speed = constrain(params.speed + input.knobDeltas[1] * MOLTEN_MAGMA_SPEED_STEP, MOLTEN_MAGMA_SPEED_MIN, MOLTEN_MAGMA_SPEED_MAX);
 
-            float wx = nx;
-            float wy = ny;
+        // Knob 3: Hotspot Core Expansion (Clamp)
+        params.expansion = constrain(params.expansion + input.knobDeltas[2] * MOLTEN_MAGMA_EXPANSION_STEP, MOLTEN_MAGMA_EXPANSION_MIN, MOLTEN_MAGMA_EXPANSION_MAX);
 
-            for (int i = 0; i < maxV; i++) {
-                float dx = wx - cx[i];
-                float dy = wy - cy[i];
-                // Real sqrt: swirl uses 1/dist, so approxLength's octagonal
-                // contour gets amplified near vortex cores into visible facets.
-                float dist = sqrtf(dx * dx + dy * dy) + 0.1f;
+        // Knob 4: Cool Crust Fracturing (Wrap)
+        params.crust += input.knobDeltas[3] * MOLTEN_MAGMA_CRUST_STEP;
+        while (params.crust < MOLTEN_MAGMA_CRUST_MIN) params.crust += 1.0f;
+        while (params.crust > MOLTEN_MAGMA_CRUST_MAX) params.crust -= 1.0f;
 
-                float swirlArg = dist * 3.0f - t;
-                float swirl = PFMath::fastSin(swirlArg) * params.radius / dist;
-                float cosS = PFMath::fastCos(swirl);
-                float sinS = PFMath::fastSin(swirl);
+        params.timeAcc += dt * params.speed;
+    }
 
-                wx = dx * cosS - dy * sinS + cx[i];
-                wy = dx * sinS + dy * cosS + cy[i];
-            }
+    void draw() {
+        int w = PANEL_RES_W;
+        int h = PANEL_RES_H;
+        float t = params.timeAcc;
 
-            float fluidSignal = PFMath::fastSin(wx * 4.0f) * PFMath::fastCos(wy * 4.0f) + PFMath::fastSin(wx * 2.0f + t);
-            float normalized = (fluidSignal + 2.0f) / 4.0f;
+        float visc = 0.02f + params.viscosity * 0.08f;
+        float coreShift = params.expansion - 2.5f;
 
-            uint8_t r = 0, g = 0, b = 0;
+        float hw = (float)w / 2.0f;
+        float hh = (float)h / 2.0f;
 
-            if (normalized > 0.1f) {
-                float localHue = 0.6f + normalized * 0.3f + params.colorSpread * PFMath::fastSin(wx * wy + t);
-                float brightness = (normalized * 1.5f > 1.0f) ? 1.0f : normalized * 1.5f;
-                float saturation = 0.9f - (1.0f - brightness) * 0.4f;
+        for (int y = 0; y < h; y++) {
+            float dy = (float)y - hh;
+            
+            // Precompute row-only wave and warp components
+            float cos_y_n1 = PFMath::fastCos((float)y * visc - t);
+            float sin_y_n2 = PFMath::fastSin(dy * 0.05f + t * 0.6f);
+            float cos_y_crack = PFMath::fastCos((float)y * 1.5f);
 
-                PFColor::hsvToRgb(localHue, saturation, brightness, r, g, b);
+            for (int x = 0; x < w; x++) {
+                float dx = (float)x - hw;
 
-                if (normalized > 0.75f) {
-                    int newR = r + 150;
-                    int newG = g + 150;
-                    r = (newR > 255) ? 255 : newR;
-                    g = (newG > 255) ? 255 : newG;
-                    b = 255;
+                // Combine wave layers utilizing fast math helpers
+                float n1 = PFMath::fastSin((float)x * visc + t) * cos_y_n1;
+                float n2 = PFMath::fastSin(dx * 0.05f - t * 0.4f) * sin_y_n2;
+                float n3 = PFMath::fastCos(PFMath::approxLength(dx, dy) * 0.1f - t * 1.5f);
+
+                float heatSum = (n1 + n2 * 0.7f + n3 * 0.5f) / 2.2f;
+                heatSum = heatSum + coreShift * 0.3f;
+                
+                float temp = constrain((heatSum + 1.0f) * 0.5f, 0.0f, 1.0f);
+
+                int r = 0, g = 0, b = 0;
+
+                // Color mapping execution
+                if (temp > 0.85f) {
+                    r = 255; g = 255; b = 230;
+                } else if (temp > 0.65f) {
+                    r = 255; 
+                    g = constrain(180 + (int)((temp - 0.65f) * 375.0f), 0, 255); 
+                    b = 20;
+                } else if (temp > 0.4f) {
+                    r = 220; 
+                    g = constrain((int)((temp - 0.4f) * 700.0f), 0, 255); 
+                    b = 5;
+                } else if (temp > 0.18f) {
+                    r = constrain(40 + (int)((temp - 0.18f) * 800.0f), 0, 255); 
+                    g = 0; b = 0;
+                } else {
+                    r = 10; g = 5; b = 15;
                 }
+
+                // Cool surface fractures simulation
+                if (params.crust > 0.05f) {
+                    float crackPattern = PFMath::fastSin((float)x * 1.5f) * cos_y_crack;
+                    if (crackPattern > (1.0f - params.crust) && temp < 0.6f) {
+                        r = (int)((float)r * 0.15f);
+                        g = 0;
+                        b = (int)((float)b * 0.1f);
+                    }
+                }
+
+                PFCanvas::setPixel(x, y, (uint8_t)r, (uint8_t)g, (uint8_t)b);
             }
-
-            PFCanvas::setPixel(x, y, r, g, b);
         }
-    }
-    PFCanvas::present();
-}
 
-} // namespace LayeredVorticityFieldPattern
+        PFCanvas::present();
+    }
+} // namespace MoltenMagmaPattern
