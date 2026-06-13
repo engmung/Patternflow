@@ -229,7 +229,7 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 . The first PCB was made with <strong>PCBWay sponsorship</strong>.
               </span>
             </li>
-            <li className={styles.storyCurrent}>
+            <li>
               <time>26.5</time>
               <span>
                 Patternflow reached <strong>100 GitHub stars</strong>, and the{' '}
@@ -237,7 +237,7 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <strong>BOM cost calculation</strong>, estimating roughly <strong>$120</strong> in pure material cost for the worst-case scenario.
               </span>
             </li>
-            <li>
+            <li className={styles.storyCurrent}>
               <time>26.6</time>
               <span>
                 With the <strong>Crowd Supply contract</strong> signed, prepare the{' '}
