@@ -157,6 +157,14 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 ### 4.1 SMD Pass (R1-R13, C1-C10, C12-C15)
 
+> **⚠️ Temporary note — you can skip the SMD 0805 passives (verified working).** In bench testing, a board runs fine **without** the 0805 SMD resistors and capacitors populated — the encoder pull-ups (R1–R12), encoder filter caps (C1–C10, C12–C13), and the ESP32 decoupling caps (C14–C15) are not required to get a working unit. The ESP32-S3's internal pull-ups and firmware debouncing cover the encoders. If you'd rather not deal with the SMD pass at all, you can skip this whole section and still end up with a functioning board.
+>
+> **R13 (GPIO0 pull-up) — conditional, not always needed.** R13 only matters for the cold-boot strapping issue, and that mostly affects clone/AliExpress ESP32-S3 modules. **Genuine Espressif modules generally boot fine without it.** If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), fix it whichever way is more convenient:
+> - populate R13 on the PCB, **or**
+> - solder a 10kΩ leaded (through-hole) resistor directly on the ESP32 dev board, between **GPIO0 and 3.3V** — no extra board parts to buy if you already have a 10kΩ on hand.
+>
+> This is a temporary note pending a PCB revision; the full SMD build below is kept intact for anyone who wants to populate everything. See Section 10 / the GPIO0 root-cause notes for background.
+
 > **Hand-solder vs. paste + hot air.** I hand-soldered with an iron because I didn't have solder paste or a hot air station. If you do, by all means use them — apply paste to the pads, place all parts, then reflow. The board is small enough that either approach is fine. The procedure below is for the iron-only path.
 
 **Order: by component type.** Do all capacitors first, then all resistors (or vice versa). Mixing types makes it easier to mis-place parts.
