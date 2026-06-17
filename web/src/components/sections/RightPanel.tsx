@@ -14,34 +14,81 @@ import { captureEvent } from '@/lib/posthogEvents';
 type TabType = 'hero' | 'build' | 'inside' | 'pattern';
 
 interface RightPanelProps {
+  initialTab?: TabType;
   buildContent: SectionContent;
   patternContent: SectionContent;
   insideContent: SectionContent;
 }
 
-export default function RightPanel({ buildContent, patternContent, insideContent }: RightPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('hero');
+const TAB_PATHS: Record<TabType, string> = {
+  hero: '/',
+  build: '/build',
+  pattern: '/pattern',
+  inside: '/inside',
+};
+
+function tabFromPath(pathname: string): TabType {
+  switch (pathname) {
+    case '/build':
+      return 'build';
+    case '/pattern':
+      return 'pattern';
+    case '/inside':
+      return 'inside';
+    default:
+      return 'hero';
+  }
+}
+
+export default function RightPanel({ initialTab = 'hero', buildContent, patternContent, insideContent }: RightPanelProps) {
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [buildPanelKey, setBuildPanelKey] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
+  const activeTabRef = useRef<TabType>(initialTab);
 
-  const handleTabClick = (tab: TabType) => {
-    const nextTab: TabType = activeTab === tab ? 'hero' : tab;
+  // Apply a tab change to local + global state (no URL update).
+  const applyTab = (nextTab: TabType) => {
+    const prevTab = activeTabRef.current;
+    if (prevTab === nextTab) return;
 
-    if (activeTab === 'build' && nextTab !== 'build') {
+    if (prevTab === 'build' && nextTab !== 'build') {
       const store = useAppStore.getState();
       store.setBuildStep(0);
       store.setIsExploded(true);
       setBuildPanelKey((key) => key + 1);
     }
-
+    activeTabRef.current = nextTab;
     setActiveTab(nextTab);
+  };
+
+  const handleTabClick = (tab: TabType) => {
+    const prevTab = activeTab;
+    const nextTab: TabType = activeTab === tab ? 'hero' : tab;
+
+    applyTab(nextTab);
+
+    // Reflect the active tab in the URL without a full navigation, so the
+    // viewer/3D scene never remounts but the link stays shareable.
+    if (typeof window !== 'undefined' && window.location.pathname !== TAB_PATHS[nextTab]) {
+      window.history.pushState(null, '', TAB_PATHS[nextTab]);
+    }
 
     captureEvent('section_tab_opened', {
-      from_section: activeTab,
+      from_section: prevTab,
       to_section: nextTab,
       surface: 'right_panel_nav',
     });
   };
+
+  // Keep the active tab in sync with browser back/forward navigation.
+  useEffect(() => {
+    const handlePopState = () => {
+      applyTab(tabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Reset scroll to top on every tab change
   useEffect(() => {

@@ -487,6 +487,9 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     Copy C++ prompt
                   </button>
                 </div>
+                <p className={styles.editorHint}>
+                  Copy a prompt, then paste it into ChatGPT, Claude, Grok, or Gemini.
+                </p>
               </div>
               <Editor
                 height={EDITOR_HEIGHT}

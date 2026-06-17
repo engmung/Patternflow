@@ -290,6 +290,14 @@
   font-weight: 500;
 }
 
+.editorHeader .editorHint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
 .editorActions {
   display: flex;
   flex-wrap: wrap;
