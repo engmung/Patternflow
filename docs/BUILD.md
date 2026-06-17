@@ -159,11 +159,9 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 > **⚠️ Temporary note — you can skip the SMD 0805 passives (verified working).** In bench testing, a board runs fine **without** the 0805 SMD resistors and capacitors populated — the encoder pull-ups (R1–R12), encoder filter caps (C1–C10, C12–C13), and the ESP32 decoupling caps (C14–C15) are not required to get a working unit. The ESP32-S3's internal pull-ups and firmware debouncing cover the encoders. If you'd rather not deal with the SMD pass at all, you can skip this whole section and still end up with a functioning board.
 >
-> **R13 (GPIO0 pull-up) — conditional, not always needed.** R13 only matters for the cold-boot strapping issue, and that mostly affects clone/AliExpress ESP32-S3 modules. **Genuine Espressif modules generally boot fine without it.** If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), fix it whichever way is more convenient:
-> - populate R13 on the PCB, **or**
-> - solder a 10kΩ leaded (through-hole) resistor directly on the ESP32 dev board, between **GPIO0 and 3.3V** — no extra board parts to buy if you already have a 10kΩ on hand.
+> **R13 (GPIO0 pull-up) — leave it off, fix on the module only if needed.** R13 only matters for the cold-boot strapping issue, which mostly affects clone/AliExpress ESP32-S3 modules; **genuine Espressif modules boot fine without it.** The intended direction is to drop R13 entirely and **not** populate it on the board. If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), the simplest fix is to solder a 10kΩ leaded (through-hole) resistor **directly on the ESP32 module, between GPIO0 and 3.3V** — no board rework, no extra part to source if you have a 10kΩ on hand. (The PCB still has R13 pads for now, so you *could* populate it there instead, but the on-module fix is easier and is the recommended path.)
 >
-> This is a temporary note pending a PCB revision; the full SMD build below is kept intact for anyone who wants to populate everything. See Section 10 / the GPIO0 root-cause notes for background.
+> This is a temporary note pending a PCB revision that removes these SMD parts. The full SMD build below is kept intact for anyone who wants to populate everything. See Section 10 / the GPIO0 root-cause notes for background.
 
 > **Hand-solder vs. paste + hot air.** I hand-soldered with an iron because I didn't have solder paste or a hot air station. If you do, by all means use them — apply paste to the pads, place all parts, then reflow. The board is small enough that either approach is fine. The procedure below is for the iron-only path.
 
