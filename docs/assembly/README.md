@@ -36,4 +36,4 @@ To bring your Patternflow hardware to life, you will compile and upload the firm
 
 ## Legacy Guide
 
-The full original walkthrough still lives at [docs/BUILD.md](../BUILD.md). It currently documents the supported PCB + 3D print path in detail.
+The full original walkthrough still lives at [BUILD_GUIDE.md](../../BUILD_GUIDE.md). It currently documents the supported PCB + 3D print path in detail.

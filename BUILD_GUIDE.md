@@ -2,7 +2,7 @@
 
 This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
 
-This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including planned laser-cut and breadboard paths, see [docs/assembly/README.md](assembly/README.md).
+This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including planned laser-cut and breadboard paths, see [docs/assembly/README.md](docs/assembly/README.md).
 
 **Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
@@ -10,7 +10,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 > **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case source/print-ready files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
-![All parts laid out before assembly](build-guide/images/all_parts.jpg)
+![All parts laid out before assembly](docs/build-guide/images/all_parts.jpg)
 
 ---
 
@@ -66,7 +66,7 @@ AliExpress shipping to most regions takes ~7-14 days.
 >
 > Patternflow drives the panel **directly from the ESP32-S3** — there is no sending/receiving card. So the panel's **driver IC** matters more than its size or pitch. Not every "HUB75 P2.5 128×64" panel works:
 >
-> - ✅ **Works:** driver IC is **74HC595** (plain shift register), **FM6126A**, or **FM6124**. These are the common, cheap indoor panels. Set `PANEL_PROFILE` in [`firmware/patternflow/config.h`](../firmware/patternflow/config.h) — `PANEL_STANDARD` for 74HC595, `PANEL_HIGHREFRESH` for FM6126A/FM6124.
+> - ✅ **Works:** driver IC is **74HC595** (plain shift register), **FM6126A**, or **FM6124**. These are the common, cheap indoor panels. Set `PANEL_PROFILE` in [`firmware/patternflow/config.h`](firmware/patternflow/config.h) — `PANEL_STANDARD` for 74HC595, `PANEL_HIGHREFRESH` for FM6126A/FM6124.
 > - ❌ **Does NOT work:** **GCLK PWM "video wall" panels** — driver IC **FM6363C / FM6373C** and similar, usually sold by advertising a **very high refresh rate (1920/3840Hz)** and/or that they **require a Nova/Linsn/Colorlight/Huidu sending+receiving card**. These need a separate GCLK signal and a proprietary addressing scheme the `ESP32-HUB75-MatrixPanel-DMA` library cannot produce, so the panel stays **completely dark** no matter what you configure ([upstream issue #642](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA/issues/642), closed *wontfix*).
 >
 > **The safe move:** before buying, ask the seller which driver IC the panel uses. If they say *FM6363C/FM6373C*, *3840Hz*, or *"needs a receiving card"*, pick a different panel — ideally one explicitly advertised as *"hzeller / ESP32-HUB75-MatrixPanel-DMA compatible."* The linked panel above is a known-good one.
@@ -135,7 +135,7 @@ Apply super glue along the seam between the upper and lower halves of the main b
 
 Same procedure — bond the upper and lower halves of the back panel together.
 
-<img src="build-guide/images/case_bond.jpg" width="33%">
+<img src="docs/build-guide/images/case_bond.jpg" width="33%">
 
 ### 3.3 Bond the internal divider
 
@@ -143,7 +143,7 @@ Inside the case, there's an internal divider that separates the LED matrix volum
 
 **Insert the divider from the front side (the power bank / lower side), sliding it up into position.** Apply super glue along the divider edges to bond it to the case interior. Do **not** insert it from the back.
 
-<img src="build-guide/images/divider_bond.jpg" width="33%">
+<img src="docs/build-guide/images/divider_bond.jpg" width="33%">
 
 Allow ~5 minutes after every bond step for the glue to fully cure before handling.
 
@@ -153,7 +153,7 @@ Allow ~5 minutes after every bond step for the glue to fully cure before handlin
 
 Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD goes before any tall through-hole component.
 
-<img src="build-guide/images/pcb_assembly_setup.jpg" width="70%">
+<img src="docs/build-guide/images/pcb_assembly_setup.jpg" width="70%">
 
 ### 4.1 SMD Pass (R1-R13, C1-C10, C12-C15)
 
@@ -183,7 +183,7 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 SMD placement close-up, then the board after the non-encoder through-hole parts are installed:
 
-<img src="build-guide/images/smd_tweezers_closeup.jpg" width="45%"> <img src="build-guide/images/pcb_before_encoders.jpg" width="45%">
+<img src="docs/build-guide/images/smd_tweezers_closeup.jpg" width="45%"> <img src="docs/build-guide/images/pcb_before_encoders.jpg" width="45%">
 
 ### 4.2 Through-Hole Pass
 
@@ -202,7 +202,7 @@ Solder, in order (small/short to tall):
 
 Wrong side (front) vs. correct side (back):
 
-<img src="build-guide/images/encoder_front_wrong.jpg" width="45%"> <img src="build-guide/images/encoder_back_correct.jpg" width="45%">
+<img src="docs/build-guide/images/encoder_front_wrong.jpg" width="45%"> <img src="docs/build-guide/images/encoder_back_correct.jpg" width="45%">
 
 The photos in this guide show the earlier 20mm-shaft encoders. The 15mm EC11 encoders install the same way; only the matching knob STL changes.
 
@@ -291,7 +291,7 @@ The LED matrix has two small alignment bumps on its back, diagonally opposite ea
 
 > A future case revision will include recesses for these bumps so trimming isn't needed.
 
-<img src="build-guide/images/matrix_bump_cut1.jpg" width="33%"> <img src="build-guide/images/matrix_bump_cut2.jpg" width="33%">
+<img src="docs/build-guide/images/matrix_bump_cut1.jpg" width="33%"> <img src="docs/build-guide/images/matrix_bump_cut2.jpg" width="33%">
 
 ### 5.2 Screw the matrix into the case
 
@@ -301,7 +301,7 @@ The LED matrix has two small alignment bumps on its back, diagonally opposite ea
 
 > The screws thread directly into the LED matrix's mounting holes. Don't over-tighten.
 
-<img src="build-guide/images/matrix_screw.jpg" width="33%">
+<img src="docs/build-guide/images/matrix_screw.jpg" width="33%">
 
 ---
 
@@ -309,13 +309,13 @@ The LED matrix has two small alignment bumps on its back, diagonally opposite ea
 
 At this point the matrix is in the case but the PCB is **not** yet installed. You'll do all the wire-side work first — connecting the USB power input, the matrix power, and the HUB75 ribbon to the PCB while it's still loose and easy to handle. Then in Section 7 the whole PCB-with-cables-attached assembly drops into the case.
 
-<img src="build-guide/images/parts_layout.jpg" width="33%">
+<img src="docs/build-guide/images/parts_layout.jpg" width="33%">
 
 ### 6.1 Wire the USB power input to J2
 
 Cut the sacrificial USB cable short — trim it to a length that routes from the power bank compartment, through the divider hole, to the PCB position without excessive slack. Strip the +5V (red) and GND (black) wires.
 
-<img src="build-guide/images/usb_wire_cut.jpg" width="33%">
+<img src="docs/build-guide/images/usb_wire_cut.jpg" width="33%">
 
 Pass the cable through the divider hole. Connect to **J2** (with the PCB-side facing you):
 
@@ -324,13 +324,13 @@ Pass the cable through the divider hole. Connect to **J2** (with the PCB-side fa
 
 Tighten with a small flathead.
 
-<img src="build-guide/images/pcb_left_screw.jpg" width="33%">
+<img src="docs/build-guide/images/pcb_left_screw.jpg" width="33%">
 
 ### 6.2 Wire the LED matrix power to J3
 
 The LED matrix ships with a power cable (red/black) that has two red (+) and two black (−) wires. Hold it up to estimate reach to **J3** before cutting — give it just enough length to route cleanly without strain. Then cut, strip, and bundle each pair (the two reds together, the two blacks together) before inserting.
 
-<img src="build-guide/images/power_wire_measure.jpg" width="33%">
+<img src="docs/build-guide/images/power_wire_measure.jpg" width="33%">
 
 Polarity matches J2: **inner = +5V (red pair)**, **outer = GND (black pair)**.
 
@@ -357,31 +357,31 @@ The PCB sits in the dedicated PCB slot, with the rotary encoders facing through 
 3. While tilting the PCB toward flat, guide the upper encoders into their slots simultaneously.
 4. Push the PCB flat against the case interior.
 
-<video src="build-guide/images/pcb_insert.webm" autoplay loop muted playsinline width="45%"></video> <img src="build-guide/images/pcb_inserted.jpg" width="45%">
+<video src="docs/build-guide/images/pcb_insert.webm" autoplay loop muted playsinline width="45%"></video> <img src="docs/build-guide/images/pcb_inserted.jpg" width="45%">
 
 ### 7.2 Secure the encoders from the front
 
 From the **front** of the case, attach each rotary encoder's nut and tighten with a wrench or pliers. This both secures the encoder shafts to the front face and locks the PCB in place.
 
-<img src="build-guide/images/encoder_nut.jpg" width="33%">
+<img src="docs/build-guide/images/encoder_nut.jpg" width="33%">
 
 ### 7.3 Attach the back cover
 
 Slide the back cover panel into place along the rear of the case.
 
-<img src="build-guide/images/back_cover.jpg" width="33%">
+<img src="docs/build-guide/images/back_cover.jpg" width="33%">
 
 ### 7.4 Close the PCB compartment slider
 
 Slide the PCB compartment cover panel into its slot to close off the electronics section.
 
-<img src="build-guide/images/pcb_slider.jpg" width="33%">
+<img src="docs/build-guide/images/pcb_slider.jpg" width="33%">
 
 ### 7.5 Attach the knobs
 
 Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `03_plate_knobs_15mm.stl` for the recommended 15mm encoders, or `03_plate_knobs.stl` for 20mm encoders.
 
-<img src="build-guide/images/knobs.jpg" width="33%">
+<img src="docs/build-guide/images/knobs.jpg" width="33%">
 
 At this point the **Patternflow body is mechanically complete.** The only thing left is the brain.
 
@@ -398,14 +398,14 @@ The ESP32-S3 module is flashed *separately*, with the module **outside** the PCB
 
 ### 8.1 Browser Flash (Recommended)
 
-No installation required. Works on any desktop with Chrome or Edge. The standalone firmware guide is in [docs/assembly/firmware/flash-release.md](assembly/firmware/flash-release.md).
+No installation required. Works on any desktop with Chrome or Edge. The standalone firmware guide is in [docs/assembly/firmware/flash-release.md](docs/assembly/firmware/flash-release.md).
 
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
 2. Connect your ESP32-S3 to your computer via a USB-C **data cable** — do not insert it into the PCB yet.
 3. Scroll to the **Patterns** section and click **"Flash Patternflow OS"**.
 4. Select the correct serial port when prompted and follow the on-screen steps.
 
-<img src="build-guide/images/web_flash.jpg" width="33%">
+<img src="docs/build-guide/images/web_flash.jpg" width="33%">
 
 5. Once flashing is complete, disconnect the USB-C cable.
 
@@ -413,7 +413,7 @@ No installation required. Works on any desktop with Chrome or Edge. The standalo
 
 ### 8.2 Arduino IDE (Manual / Custom Builds)
 
-Use this method if you want to modify the firmware source, add custom patterns, or if the browser flasher doesn't work for your setup. Custom patterns are not added to the release flasher automatically; you compile and upload your own firmware build. See [docs/assembly/firmware/custom-patterns.md](assembly/firmware/custom-patterns.md) and [firmware/CUSTOM_PATTERNS.md](../firmware/CUSTOM_PATTERNS.md).
+Use this method if you want to modify the firmware source, add custom patterns, or if the browser flasher doesn't work for your setup. Custom patterns are not added to the release flasher automatically; you compile and upload your own firmware build. See [docs/assembly/firmware/custom-patterns.md](docs/assembly/firmware/custom-patterns.md) and [firmware/CUSTOM_PATTERNS.md](firmware/CUSTOM_PATTERNS.md).
 
 #### Prerequisites
 
@@ -460,7 +460,7 @@ OTA updates work via Arduino IDE's network port option once the device has been 
 
 With flashing complete and the USB cable disconnected, plug the ESP32-S3 module into the female pin sockets on the Patternflow PCB.
 
-<img src="build-guide/images/esp32_insert.jpg" width="33%">
+<img src="docs/build-guide/images/esp32_insert.jpg" width="33%">
 
 ---
 
@@ -472,7 +472,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 4. The LED matrix should illuminate with the default pattern within a second or two.
 5. Turn the four knobs to confirm they all respond.
 
-<img src="build-guide/images/first_boot.jpg" width="33%">
+<img src="docs/build-guide/images/first_boot.jpg" width="33%">
 
 > If your unit does not boot reliably, press RESET on the ESP32-S3 module once. On v2.0 boards this should not be necessary -- if it consistently is, [open an issue](https://github.com/engmung/PatternFlow/issues) with your module source (AliExpress / Espressif / other) and a photo of the GPIO0 area on your PCB.
 

@@ -15,7 +15,7 @@ This path uses the current PLA enclosure files in `hardware/case/print-ready/`. 
 
 For full print settings, bonding steps, and assembly photos, follow the current detailed guide:
 
-[Open the 3D print build steps](../../BUILD.md#2-3d-printing)
+[Open the 3D print build steps](../../../BUILD_GUIDE.md#2-3d-printing)
 
 ## Planned Alternative
 

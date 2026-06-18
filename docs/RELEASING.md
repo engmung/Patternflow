@@ -14,7 +14,7 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
 
 1. Make sure all intended changes are committed.
 2. Update `CHANGELOG.md` with the new version at the top.
-3. Update version references in `README.md`, `docs/BUILD.md`, web copy, and firmware docs.
+3. Update version references in `README.md`, `BUILD_GUIDE.md`, web copy, and firmware docs.
 4. Confirm the build guide matches the current PCB schematic and BOM.
 5. Run the web production build from `web/`:
 

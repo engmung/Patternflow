@@ -15,7 +15,7 @@ Follow these steps to finalize and tag a new release:
 3. **Reference** closed GitHub issues, if any.
 4. **Bump version references** across the repository:
    - `README.md` (if a specific v-string is mentioned).
-   - `docs/BUILD.md` (if the version is mentioned in the header or text).
+   - `BUILD_GUIDE.md` (if the version is mentioned in the header or text).
    - `firmware/patternflow/` directory name (ONLY if the update introduces major, hardware-incompatible changes).
 5. **Commit** the changes with the message: `release: v1.x.0` (replace `x` with target version).
 6. **Tag** the release: `git tag -a v1.x.0 -m "Release v1.x.0"`.

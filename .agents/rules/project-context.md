@@ -43,7 +43,7 @@ A Next.js application residing in `web/`. It serves the landing page, browser fi
 ### Build Documentation
 Build entry points now live under `docs/build/`:
 - `docs/build/README.md` is the build map.
-- `docs/BUILD.md` remains the detailed guide for the current 3D print + official PCB path.
+- `BUILD_GUIDE.md` remains the detailed guide for the current 3D print + official PCB path.
 - `docs/build/firmware/flash-release.md` explains browser flashing.
 - `docs/build/firmware/custom-patterns.md` explains the Arduino IDE path for custom patterns.
 
@@ -55,7 +55,7 @@ The project maintains a strict dual-license approach to accommodate the differin
 
 ## Known issues and design notes
 
-For full details, reference `docs/BUILD.md` §10. Summary:
+For full details, reference `BUILD_GUIDE.md` §10. Summary:
 1. **Cold boot reliability:** fixed in v2.0 with a 10k GPIO0 pullup.
 2. **SMD silkscreen ambiguity:** fixed in v2.0.
 3. **LED matrix alignment bumps:** still open; current workaround is trimming during assembly.

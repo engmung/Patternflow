@@ -17,7 +17,7 @@ Open hardware files for Patternflow.
 
 Start with the assembly map in [docs/assembly/README.md](../docs/assembly/README.md).
 
-The current full walkthrough for the 3D printed enclosure plus official hand-soldered PCB path is [docs/BUILD.md](../docs/BUILD.md).
+The current full walkthrough for the 3D printed enclosure plus official hand-soldered PCB path is [BUILD_GUIDE.md](../BUILD_GUIDE.md).
 
 ## License
 

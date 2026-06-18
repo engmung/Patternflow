@@ -206,7 +206,7 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Breadboard</div>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">3D print</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent}`} href="https://github.com/engmung/PatternFlow/blob/main/docs/BUILD.md" target="_blank" rel="noreferrer" role="cell">
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent}`} href="https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
               <strong>PLA print</strong>
               <strong>Hand solder</strong>
             </a>

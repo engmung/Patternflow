@@ -73,7 +73,7 @@ The first publicly buildable version of Patternflow.
 - "Patternflow" is a trademark of SeungHun Lee
 
 ### Known Issues
-See [docs/BUILD.md](docs/BUILD.md) -- Known Issues section for full details.
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) -- Known Issues section for full details.
 - Reset button must be pressed once after power-up
 - Rotary encoder direction reversed in PCB (compensated in firmware)
 - Silkscreen ambiguity between 0805 caps and resistors

@@ -40,7 +40,7 @@ Each plate is organized as its own collection inside the `.blend` for one-click 
 
 ## Assembly
 
-See [docs/BUILD.md](../../docs/BUILD.md) for the full assembly walkthrough — bonding the case halves, mounting the LED matrix, installing the PCB, and wiring the power input.
+See [BUILD_GUIDE.md](../../BUILD_GUIDE.md) for the full assembly walkthrough — bonding the case halves, mounting the LED matrix, installing the PCB, and wiring the power input.
 
 ## License
 

@@ -23,7 +23,7 @@ The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3
 
 For the exact BOM, soldering order, wiring, and first boot checks, follow the current detailed guide:
 
-[Open the PCB assembly guide](../../BUILD.md#4-pcb-assembly)
+[Open the PCB assembly guide](../../../BUILD_GUIDE.md#4-pcb-assembly)
 
 ## Planned Alternative
 

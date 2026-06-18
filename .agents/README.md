@@ -12,7 +12,7 @@ Patternflow extends Nam June Paik's *Participation TV* by opening up not just th
 
 - `rules/project-context.md` — Detailed project context loaded when agents need deep understanding of the codebase. Architecture, tech stack, conventions, license structure.
 - `skills/` — Specialized capabilities the agent loads on demand based on your request:
-  - `update-bom/` — Sync the BOM in `docs/BUILD.md` against the schematic
+  - `update-bom/` — Sync the BOM in `BUILD_GUIDE.md` against the schematic
   - `release-version/` — Tag and document a new release
   - `add-pattern/` — Add a new generative pattern to the firmware
   - `firmware-cleanup/` — Prepare firmware code for public release

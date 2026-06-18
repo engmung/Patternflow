@@ -4,7 +4,7 @@ Arduino-based firmware for the ESP32-S3 powering Patternflow v2.0.0.
 
 The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads four rotary encoders to control generative patterns, and supports Arduino OTA for wireless updates.
 
-> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: **74HC595**, **FM6126A**, or **FM6124**. GCLK PWM "video wall" panels (**FM6363C / FM6373C**, sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. Check this **before buying** — see [docs/BUILD.md → Panel compatibility](../docs/BUILD.md#1-bill-of-materials-bom). Select your panel's driver below via `PANEL_PROFILE`.
+> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: **74HC595**, **FM6126A**, or **FM6124**. GCLK PWM "video wall" panels (**FM6363C / FM6373C**, sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. Check this **before buying** — see [BUILD_GUIDE.md → Panel compatibility](../BUILD_GUIDE.md#1-bill-of-materials-bom). Select your panel's driver below via `PANEL_PROFILE`.
 
 ## Setup
 

@@ -24,6 +24,6 @@ Project rules and guidelines are currently under consideration and will be final
 ## Where to Start
 
 - Assembly map: [docs/assembly/README.md](docs/assembly/README.md)
-- Current full build guide: [docs/BUILD.md](docs/BUILD.md)
+- Current full build guide: [BUILD_GUIDE.md](BUILD_GUIDE.md)
 - Custom patterns: [firmware/CUSTOM_PATTERNS.md](firmware/CUSTOM_PATTERNS.md)
 - Discord: [discord.gg/Vr9QtsxeTk](https://discord.gg/Vr9QtsxeTk)

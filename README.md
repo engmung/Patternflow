@@ -37,7 +37,7 @@ It is a living system in which a physical experience extends outward into open-s
 
 Build it from the files, or wait for the kit.
 
-👉 **Ready to build?** Follow the **[Current Full Build Guide (docs/BUILD.md)](docs/BUILD.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
+👉 **Ready to build?** Follow the **[Current Full Build Guide (BUILD_GUIDE.md)](BUILD_GUIDE.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
 
 > **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
 
@@ -98,7 +98,7 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 ## Documentation
 
 - [Assembly Map](docs/assembly/README.md)
-- [Current Full Build Guide](docs/BUILD.md)
+- [Current Full Build Guide](BUILD_GUIDE.md)
 - [Custom Patterns](firmware/CUSTOM_PATTERNS.md)
 - [Contributing](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
