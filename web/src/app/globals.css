@@ -1828,6 +1828,12 @@
   .journal-list-meta {
     text-align: right;
   }
+  .journal-list-body .pf-row-d {
+    max-width: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .journal-post-list a.journal-anchor-post .pf-ghost,
   .journal-post-list a.journal-anchor-post .journal-list-meta:last-child {
     color: var(--pf-led);
@@ -2464,6 +2470,7 @@
       margin-top: 10px;
       font-size: 13px;
       line-height: 1.45;
+      white-space: normal;
     }
     .journal-new-badge {
       display: block;

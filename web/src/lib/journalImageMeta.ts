@@ -16,6 +16,12 @@ export const journalImageMeta = {
   "/journal/today-is-my-birthday/diffuser-discord.png": { width: 1160, height: 471 },
   "/journal/wins-and-losses-next-step/io0-pullup-resistor.jpg": { width: 1600, height: 2134 },
   "/journal/nam-june-paik-me-patternflow/pattern-30.png": { width: 1920, height: 1280 },
+  "/journal/refocus/exhibition-process.jpg": { width: 4032, height: 2268 },
+  "/journal/refocus/clean-3d-print.jpg": { width: 4032, height: 2268 },
+  "/journal/refocus/pcbway-delivery-1.jpg": { width: 4032, height: 2268 },
+  "/journal/refocus/pcbway-delivery-2.jpg": { width: 4032, height: 2268 },
+  "/journal/refocus/blender-3d-modeling.png": { width: 1268, height: 867 },
+  "/journal/refocus/pcb-discord-feedback.png": { width: 834, height: 429 },
 } as const;
 
 export function getJournalImageMeta(src?: string) {

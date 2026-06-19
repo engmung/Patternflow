@@ -1,0 +1,69 @@
+---
+title: "Refocus"
+date: "2026-06-19T16:30:00+09:00"
+excerpt: "Gathering my scattered attention back"
+cover: "/journal/refocus/clean-3d-print.jpg"
+draft: false
+---
+
+There's no time for blaming myself.
+
+It's been a while since I wrote. Two weeks? It was exam season, and other things scattered my attention a lot. Even now my head isn't cleanly sorted. I can't put it off any longer, so I'll just write within what I know and push through. So this entry will be results over process. I'll lay out the Patternflow-related things first, and leave a brief note on the side events too.
+
+First, I'm running an exhibition. It's for the class where I got to grow Patternflow into a project tied to my coursework, the Authorial Design Studio (1). Whether I put a ton of work in is debatable. The presentable result has existed for a while now, and what I wanted to show at the exhibition is the dirty process behind it. So I gathered all the writing and process I'd recorded while working. And except for the things I absolutely couldn't show, I stuck almost all of it on the back wall. Wrapping up the class, I also organized the work into a portfolio. This coming Monday I have to tear the exhibition down. What a pain.
+
+<figure className="journal-md-figure">
+  <img src="/journal/refocus/exhibition-process.jpg" alt="Exhibition overview and materials" />
+  <figcaption>Overview of the Authorial Design Studio (1) exhibition and process notes posted on the back wall.</figcaption>
+</figure>
+
+I became a resident company at the Seoul Design Startup Center. I haven't registered as a business yet, and I plan to put that off as long as I possibly can, but for now I passed all the way through the final resident screening. I took the mentoring the center runs for first-round passers and improved my business plan and pitch strategy. They tell me it leans too artistic, that it reads like I'm just listing the reasons I want to do it rather than reasons the center should pick me, and that I should set my ego down a bit. They say I need a lot of numbers. This part bothered me a lot. The direction of the business isn't even decided yet, I'm keeping everything open, and even if I dig up specific numbers there's no guarantee they'll apply the same way. Still, being told to dig some up and put them in sounded like being told to lie. But they said that's just how business is. Anyway, I reflected it and fixed it. In a follow-up mentoring with another VC they told me to improve it more, so I fixed it more.
+
+And I prepared hard for the presentation. Not that I did anything special. I just memorized hard, over and over, until a tap would make the sentence come out. I did a five-minute pitch and seven minutes of Q&A. The talk itself I did with momentum, confidently. The Q&A wasn't easy. They ask aggressive questions: what exactly this is as a business, how I'll handle IP, and so on. At the end I backed down, saying it had only been about two months and I'd keep improving as I go. So I thought I'd be rejected. But fortunately, it turned out I got in.
+
+A student getting into the Seoul Design Startup Center solo is probably a rare case. I haven't gotten the guidance on what comes next yet, but it seems to have gone well enough. My one-room is my studio, so I don't think I'll use the shared office much, but let me throw myself into the mentoring and support programs.
+
+To keep the Crowd Supply funding going, I'm improving the 3D model and the PCB. I had PCBway print a 3D model in one piece, too. For testing. The result that came out was pretty underwhelming, but a lot of that is the modeling itself needing work, and part of it is that I didn't read the instructions properly, so it can't be helped. On the upside, the shipping was very fast and safe. Fast enough that I could accept the steep shipping cost. Of course I ran it on PCBway's sponsorship, so it didn't cost me anything. But I can't lie and write only the good parts, so I'm leaving it down honestly.
+
+<div className="journal-figure-row">
+  <figure className="journal-md-figure">
+    <img src="/journal/refocus/pcbway-delivery-1.jpg" alt="PCBway package box" />
+    <figcaption>Safely packed package delivered from PCBway.</figcaption>
+  </figure>
+  <figure className="journal-md-figure">
+    <img src="/journal/refocus/pcbway-delivery-2.jpg" alt="PCBway 3D printed output" />
+    <figcaption>The resulting prints, looking decent and clean.</figcaption>
+  </figure>
+</div>
+
+I keep improving the 3D model. In the end I plan to have PCBway handle the printing, the PCBA, and even the packaging, but testing is plenty doable locally. I'm getting help from the Hongik makerspace and a professor. At first the nuance was that he'd handle everything himself, from reverse engineering to more complex optimization, but in the end it's going the way where I redo all the modeling and he just runs the print tests. Everything goes like this. In the end I have to do it myself. Unless I hire someone, the other person gets work they need to focus on more, the situation shifts, and it doesn't go as originally planned. Even so, the goodwill and the real help they show don't disappear, so instead of being let down, I focus on how much I learn doing it myself, and keep going.
+
+I revised the model a lot. I put especially heavy work into how the parts covering the interior join together. I agonized and experimented for a very long time. And I have to keep at it. Looking back, this is the most fun part. My head fills up entirely with thoughts of solving the problem. Think of this approach, think of that one. The feeling of concentrating while my head aches like crazy is one I love. Anyway, for now the front battery section is a sliding form that opens easily, and the back I made fairly complex so it locks down solid while still coming apart easily. Of course I have to actually print it and check whether it works as expected. The proper way, really, is to keep prototyping with small versions, but that takes far too much energy. Please let it go well. Let me wait until he prints it.
+
+<figure className="journal-md-figure">
+  <img src="/journal/refocus/blender-3d-modeling.png" alt="3D modeling design in Blender" />
+  <figcaption>Improving the structural design in Blender 3D.</figcaption>
+</figure>
+
+Something happened to the PCB that was deflating and good at once. While I was running the exhibition, a Patternflow broke within a day and went dead. It was a unit I'd handled pretty roughly, so I figured a lot of solder problems had cropped up. Then I remembered something someone in the Discord community had said: that you can remove the encoder's caps and resistors and it's fine. Thinking it over carefully, they're right. The only reason I'd put those in was that, back when I was making my first PCB, the AI said they had to be there, and I took it at face value. Sure, it's not bad to have them, but no, it's bad in terms of production cost. At the very least I should have tested a version without them, and I never did, not even once. Analyzing it all, here's why. In a field I don't know well, I over-relied on the AI, and then the time and effort that went in piled up into a kind of faith. Because I genuinely struggled so much while soldering, the thought that it might not be needed never even occurred to me. And? When I took them off and ran it, there was truly no problem at all. So I removed every SMD on the PCB.
+
+It's good for production cost, and even better, it means I can leave soldering in when I sell it as an educational kit or run a workshop. Before, with the 0805 SMDs, the difficulty was so high I'd been thinking of dropping the hardware side entirely, but once those are gone the other big solder joints aren't really hard, and become a fun element instead. Or are they? I don't know. Anyway, I'm going to re-quote with the SMD-free version and try a test order.
+
+<figure className="journal-md-figure">
+  <img src="/journal/refocus/pcb-discord-feedback.png" alt="Discord post screenshot" />
+  <figcaption>Discord post and image sharing the mixed feelings of deflation and relief after confirming successful operation with encoder caps and resistors removed.</figcaption>
+</figure>
+
+If I optimize the 3D printing and the PCB, I think I can hold the original price of 129 dollars. Before, the unit cost was so much higher than expected that I figured I'd have no choice but to raise it, so this is a relief. Well, I still don't know. Have to keep going.
+
+I'm sorting out the GitHub issues, too. In keeping with open source, I want to make it something people can take part in. And rather than saving the process only to my personal Notion, I want to put it somewhere like a GitHub Project so others can see it easily. I don't know if it'll work out. Doing it properly takes a lot of attention, and I'm not sure the payoff is worth that cost, so… for now, let me keep at it.
+
+Patterns are good because people just go and make them, too. It makes me happy. And a pattern I made recently went viral and got a great response. Which is good, but I honestly can't tell what makes the difference, why the others don't take off. Do I just keep making them? Lately, though, I'm easing off pattern-making a bit. Making about thirty of them already served the original purpose.
+
+Now for a side event. I left the XR joint club, where I'd been the dev team lead since early this year. I didn't leave cleanly; it was impulsive and negative. With exam season, Patternflow (pitch prep), the loss of a sense of safety in the community, and the departure of a dev teammate I'd trusted all overlapping, I couldn't bear the discomfort. After saying I'd leave, I couldn't sleep at all, so I flip-flopped and said I'd just stay. But the trust was already broken, so they didn't take me back. That's how it ended.
+
+I'm not going to make the dev guide I'd agreed to, either. Doing it now that I'm out would be odd, and the rights issues that get complicated if I do it bother me. There are also opinions of mine that made it into the planning through rounds of feedback, but I'm going to cleanly let those go. I can't give it any more attention. I want to focus only on my own work. Well, it isn't a pretty look, but I've already blamed myself plenty. To those people I've probably already become a bad person, and there's nothing more I could do that would make it better. I learned that from the similar situations I've had until now. Instead of spinning up some pointless wishful thinking that I can fix it once it's done, I should forget it and focus on what's in front of me.
+
+My therapist seemed to take this fairly seriously. And she said the three or so sessions left wouldn't be enough to fix it. So I plan to go only until next week and then stop. For now let me focus on what I have to do, and when there's room, do it properly again.
+
+My therapist says I can't hold an emotion. That it's so uncomfortable I have to spit it out right away, and that this way of doing things causes problems for the person I want to be. The read that I "only try to do what I want" is wrong too, she says. It's that I can't endure the discomfort, so I throw it away and do something else, and then, because I pull off results there easily, I justify it as "doing what I want." Maybe that's it, I thought. Looking back, when I left the Air Force Academy, the discomfort inside, especially the discomfort between people, was big, and in the recent issue too the discomfort between people was very big. So she says I have to learn to see my own emotions well. That it's the way to know what I really want. I still don't quite know. For now, I'll wrap this entry up here.
