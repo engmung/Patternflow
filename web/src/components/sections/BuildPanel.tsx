@@ -192,9 +192,9 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
           <div className={`pf-prose ${styles.pathIntro}`}>
             <p>
               Pick one enclosure path and one electronics path. The current guide is the complete
-              route today; the other combinations are being prepared so you can start with the
-              tools, budget, and space you actually have. The custom PCB is stable; PCBA may
-              come later as an easier assembly option.
+              route today; the other combinations are in active testing — follow the linked issues
+              to track progress — so you can start with the tools, budget, and space you actually
+              have. The custom PCB is stable; PCBA may come later as an easier assembly option.
             </p>
           </div>
           <div className={styles.buildMatrix} role="table" aria-label="Build combinations">
@@ -206,24 +206,24 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Breadboard</div>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">3D print</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent}`} href="https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
-              <strong>PLA print</strong>
-              <strong>Hand solder</strong>
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
+              <strong>Build guide</strong>
+              <span>PLA print · hand solder</span>
             </a>
-            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
-              <strong>Preparing</strong>
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/121" target="_blank" rel="noreferrer" role="cell">
+              <strong>In testing</strong>
               <span>PCB-free wiring</span>
-            </div>
+            </a>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">Laser cut</div>
-            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
-              <strong>Preparing</strong>
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/123" target="_blank" rel="noreferrer" role="cell">
+              <strong>In testing</strong>
               <span>Flat enclosure</span>
-            </div>
-            <div className={`${styles.matrixCell} ${styles.matrixOption}`} role="cell">
-              <strong>Preparing</strong>
+            </a>
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/123" target="_blank" rel="noreferrer" role="cell">
+              <strong>In testing</strong>
               <span>Lowest fabrication path</span>
-            </div>
+            </a>
           </div>
           <div className={styles.pathLinks}>
             <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">

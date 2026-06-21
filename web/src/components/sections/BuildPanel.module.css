@@ -152,6 +152,18 @@
   background: var(--pf-cream-2);
 }
 
+.matrixLink strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.matrixLink:hover,
+.matrixLink:focus-visible {
+  outline: 0;
+  background: var(--pf-cream-2);
+}
+
 .pathLinks {
   display: flex;
   flex-wrap: wrap;
