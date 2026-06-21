@@ -1,0 +1,51 @@
+name: Bug report
+description: Something is broken or not working as expected.
+labels: ["type:bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report. The more concrete the steps, the faster it gets fixed.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project does this affect?
+      options:
+        - firmware
+        - web
+        - pcb
+        - enclosure
+        - pattern
+        - docs
+        - not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps so someone else can hit the same bug.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version / commit
+      description: Release tag or git commit, if relevant (firmware/web bugs).
+      placeholder: e.g. v1.0.0 or commit abc1234
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else?
+      description: Photos, logs, board variant, browser — whatever helps.

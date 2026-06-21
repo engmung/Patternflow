@@ -1,0 +1,46 @@
+name: Pattern submission
+description: Share a custom pattern you made for Patternflow.
+labels: ["area:pattern"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Custom patterns are separate from the official release firmware, but good ones
+        get shared with the community. You can develop and test patterns in the
+        [Pattern Lab](https://patternflow.work/pattern-lab).
+  - type: input
+    id: name
+    attributes:
+      label: Pattern name
+    validations:
+      required: true
+  - type: input
+    id: video
+    attributes:
+      label: Video / Instagram link
+      description: A short clip of it running, if you have one.
+  - type: textarea
+    id: code
+    attributes:
+      label: Pattern code or Pattern Lab JSON
+      description: Paste the JavaScript pattern, or the "Copy JSON" output from Pattern Lab.
+      render: javascript
+    validations:
+      required: true
+  - type: textarea
+    id: knobs
+    attributes:
+      label: Knob mapping
+      description: What does each of the four knobs (and buttons) do?
+      placeholder: |
+        Knob 1: ...
+        Knob 2: ...
+        Knob 3: ...
+        Knob 4: ...
+  - type: checkboxes
+    id: license
+    attributes:
+      label: License
+      options:
+        - label: I'm okay with this pattern being shared with the Patternflow community under the project license.
+          required: true
