@@ -425,15 +425,63 @@
   font-weight: 500;
 }
 
-.journalLink {
-  display: inline-block;
-  max-width: 58ch;
+.storyLinks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 24px;
+  border-top: 1px solid var(--pf-rule);
+}
+
+.storyLinkCell {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 18px 0;
   color: var(--pf-ink);
-  font-size: var(--pf-fs-body);
-  line-height: 1.65;
+  text-decoration: none;
+}
+
+.storyLinkCell:first-child {
+  padding-right: 28px;
+  border-right: 1px solid var(--pf-rule);
+}
+
+.storyLinkCell:last-child {
+  padding-left: 28px;
+}
+
+.storyLinkCell:hover .storyLinkText {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
+}
+
+.storyLinkLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--pf-ink);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+.storyLinkText {
+  max-width: 42ch;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.55;
+}
+
+.wipTag {
+  padding: 1px 7px;
+  border: 1px solid var(--pf-rule);
+  border-radius: 999px;
+  color: var(--pf-ink-muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 900px) {
@@ -466,5 +514,22 @@
 
   .storyList li::before {
     left: 54px;
+  }
+}
+
+@media (max-width: 720px) {
+  .storyLinks {
+    grid-template-columns: 1fr;
+  }
+
+  .storyLinkCell:first-child {
+    padding-right: 0;
+    padding-bottom: 18px;
+    border-right: 0;
+    border-bottom: 1px solid var(--pf-rule);
+  }
+
+  .storyLinkCell:last-child {
+    padding-left: 0;
   }
 }

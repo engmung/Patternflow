@@ -261,9 +261,23 @@ export default function InsidePanel({ content }: InsidePanelProps) {
               </span>
             </li>
           </ol>
-          <Link className={styles.journalLink} href="/journal">
-            Read the journal for the fuller story, including the thoughts and feelings along the way.
-          </Link>
+          <div className={styles.storyLinks}>
+            <Link className={styles.storyLinkCell} href="/journal">
+              <span className={styles.storyLinkLabel}>Journal</span>
+              <span className={styles.storyLinkText}>
+                Read the fuller story, including the thoughts and feelings along the way.
+              </span>
+            </Link>
+            <Link className={styles.storyLinkCell} href="/roadmap">
+              <span className={styles.storyLinkLabel}>
+                Project status
+                <span className={styles.wipTag}>Work in progress</span>
+              </span>
+              <span className={styles.storyLinkText}>
+                A live view of what is being worked on right now, pulled from GitHub.
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
 
