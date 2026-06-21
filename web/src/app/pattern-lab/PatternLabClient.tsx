@@ -1,7 +1,6 @@
 "use client";
 
 import Editor from "@monaco-editor/react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeEsp32Cost } from "@/lib/esp32CostAnalyzer";
 import {
@@ -18,7 +17,7 @@ import {
   LOGICAL_KNOB_UNITS_PER_TURN,
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
-import { sdfRunesPattern } from "@/lib/patternSamples";
+import { preset as originPreset } from "@/lib/presets/pattern-origin";
 import styles from "./PatternLab.module.css";
 
 const knobLabels = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
@@ -125,7 +124,7 @@ function updateRangeValue(range: KnobRange, edge: "min" | "max", nextValue: numb
 }
 
 export default function PatternLabClient() {
-  const [code, setCode] = useState(sdfRunesPattern);
+  const [code, setCode] = useState(originPreset.code);
   const [knobs, setKnobs] = useState(initialKnobs);
   const [ranges, setRanges] = useState<KnobRange[]>(defaultRanges);
   const [running, setRunning] = useState(true);
@@ -136,6 +135,7 @@ export default function PatternLabClient() {
   const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [cppPromptCopied, setCppPromptCopied] = useState(false);
+  const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
   const [activeRangeId, setActiveRangeId] = useState<string | null>(null);
   const [editingRange, setEditingRange] = useState<RangeEditState | null>(null);
 
@@ -148,6 +148,8 @@ export default function PatternLabClient() {
   const runtimeErrorRef = useRef<string | null>(null);
   const rangesRef = useRef(ranges);
   const rangeDragRef = useRef<RangeDragState | null>(null);
+  const btnHeldRef = useRef([false, false, false, false]);
+  const btnPressPendingRef = useRef([false, false, false, false]);
 
   const cost = useMemo(() => analyzeEsp32Cost(code), [code]);
 
@@ -217,6 +219,10 @@ export default function PatternLabClient() {
       const knobNormalized = getNormalizedKnobs(currentKnobs, currentRanges);
       previousKnobsRef.current = [...currentKnobs];
 
+      const btnHeld = [...btnHeldRef.current];
+      const btnPressed = [...btnPressPendingRef.current];
+      btnPressPendingRef.current = [false, false, false, false];
+
       const runtime = runtimeRef.current;
       const canvas = canvasRef.current;
       if (runtime && canvas) {
@@ -228,6 +234,8 @@ export default function PatternLabClient() {
             knobValues: currentKnobs,
             knobNormalized,
             knobRanges: currentRanges,
+            btnPressed,
+            btnHeld,
           }),
         );
         lastRenderMs = performance.now() - startedAt;
@@ -260,6 +268,30 @@ export default function PatternLabClient() {
   const updateKnob = (index: number, value: number) => {
     setKnobs((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
   };
+
+  const pressButton = (index: number) => {
+    if (btnHeldRef.current[index]) return;
+    btnHeldRef.current[index] = true;
+    btnPressPendingRef.current[index] = true;
+  };
+
+  const releaseButton = (index: number) => {
+    btnHeldRef.current[index] = false;
+  };
+
+  useEffect(() => {
+    const releaseAll = () => {
+      btnHeldRef.current = [false, false, false, false];
+    };
+    window.addEventListener("pointerup", releaseAll);
+    window.addEventListener("pointercancel", releaseAll);
+    window.addEventListener("blur", releaseAll);
+    return () => {
+      window.removeEventListener("pointerup", releaseAll);
+      window.removeEventListener("pointercancel", releaseAll);
+      window.removeEventListener("blur", releaseAll);
+    };
+  }, []);
 
   const updateRange = useCallback((index: number, edge: "min" | "max", value: number) => {
     if (!Number.isFinite(value)) return;
@@ -499,6 +531,7 @@ Required API for every variation:
 - Use input.knobValues as the primary control API. input.knobValues is an array of 4 absolute knob values after the min/max ranges are applied.
 - input.knobNormalized is also available when a 0.0-1.0 value is useful.
 - Keep input.knobDeltas only as compatibility fallback if needed.
+- Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.
 - Use display.width and display.height in loops. Do not hardcode 128 or 64 inside draw().
 - Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.
 
@@ -619,6 +652,7 @@ When in doubt, use sqrtf.
 - In update(): param += input.knobDeltas[i] * STEP[i]; then constrain to the min/max range.
 - Use the calibrated encoder step below as STEP so physical encoders match the live editor and one detent feels the same on both.
 - Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS.
+- Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that. Never consume long-press; that gesture is reserved for the firmware mode switcher.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
@@ -651,21 +685,9 @@ ${code}
 
   return (
     <main className={`${styles.shell}${activeRangeId ? ` ${styles.shellDragging}` : ""}`}>
-      <header className={styles.header}>
-        <Link className={styles.brand} href="/">Patternflow</Link>
-        <div className={styles.headerMeta}>
-          <span>Pattern Lab</span>
-          <span>128 x 64</span>
-          <span>{running ? "Running" : "Paused"}</span>
-        </div>
-      </header>
-
       <section className={styles.workspace}>
         <div className={styles.previewColumn}>
           <div className={styles.previewHeader}>
-            <div>
-              <h1>Preview</h1>
-            </div>
             <div className={styles.stats}>
               <span>{renderStats.fps.toFixed(0)} fps</span>
               <span>{renderStats.ms.toFixed(2)} ms</span>
@@ -693,7 +715,34 @@ ${code}
               <div key={knobLabels[index]} className={styles.knobControl}>
                 <div className={styles.knobHeader}>
                   <span>{knobLabels[index]}</span>
-                  <strong>{formatKnob(value)}</strong>
+                  <div className={styles.knobHeaderMeta}>
+                    <strong>{formatKnob(value)}</strong>
+                    <button
+                      type="button"
+                      className={styles.knobButton}
+                      aria-label={`${knobLabels[index]} button`}
+                      title="Encoder button (short press)"
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        pressButton(index);
+                      }}
+                      onPointerUp={() => releaseButton(index)}
+                      onPointerLeave={() => releaseButton(index)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          pressButton(index);
+                        }
+                      }}
+                      onKeyUp={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          releaseButton(index);
+                        }
+                      }}
+                    >
+                      Push
+                    </button>
+                  </div>
                 </div>
                 <div className={styles.knobRow}>
                   <label className={styles.rangeEndpoint}>
@@ -751,15 +800,21 @@ ${code}
 
         <div className={styles.editorColumn}>
           <div className={styles.editorHeader}>
-            <div>
-              <span>JavaScript Pattern</span>
+            <button
+              type="button"
+              className={styles.guideButton}
+              onClick={() => setButtonHelpOpen(true)}
+            >
+              Code guide
+            </button>
+            <div className={styles.editorActions}>
+              <button type="button" onClick={copyVariantPrompt}>
+                {promptCopied ? "Copied" : "Copy 5 variants prompt"}
+              </button>
+              <button type="button" onClick={copyCppPrompt}>
+                {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
+              </button>
             </div>
-            <button type="button" onClick={copyVariantPrompt}>
-              {promptCopied ? "Copied" : "Copy 5 variants prompt"}
-            </button>
-            <button type="button" onClick={copyCppPrompt}>
-              {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
-            </button>
           </div>
           <div className={styles.editorPane}>
           <Editor
@@ -802,6 +857,98 @@ ${code}
           <p className={styles.emptyState}>No snapshots yet.</p>
         )}
       </section>
+
+      {buttonHelpOpen && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Code guide"
+          onClick={() => setButtonHelpOpen(false)}
+        >
+          <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <span>Code guide — encoder buttons</span>
+              <button type="button" onClick={() => setButtonHelpOpen(false)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p>
+                A pattern is plain JavaScript that exports three functions. Only{" "}
+                <code>draw</code> is required.
+              </p>
+              <pre>{`export function setup(params) {}              // runs once on load
+export function update(dt, input, params) {}  // runs each frame, before draw
+export function draw(display, params, time) {} // runs each frame`}</pre>
+              <p>
+                Store your state on the <code>params</code> object — it persists between frames.{" "}
+                <code>dt</code> is the seconds elapsed since the last frame, <code>time</code> the
+                seconds since load.
+              </p>
+
+              <h4>Controls — the input object</h4>
+              <ul>
+                <li>
+                  <code>input.knobValues[i]</code> — the knob&apos;s absolute value after its
+                  min/max range is applied. This is the primary control API.
+                </li>
+                <li>
+                  <code>input.knobNormalized[i]</code> — the same knob remapped to{" "}
+                  <code>0.0–1.0</code>, handy for blends.
+                </li>
+                <li>
+                  <code>input.knobRanges[i]</code> — the <code>[min, max]</code> pair set by the
+                  range fields under each knob.
+                </li>
+                <li>
+                  <code>input.knobDeltas[i]</code> — per-frame change in encoder detents
+                  (hardware-style); keep only as a fallback.
+                </li>
+                <li>
+                  <code>input.btnPressed[i]</code> — true only on the frame button <code>i</code> is
+                  pressed (edge). Use for one-shot actions: reset, cycle, snapshot, trigger.
+                </li>
+                <li>
+                  <code>input.btnHeld[i]</code> — true while button <code>i</code> is held down
+                  (level). Use for momentary holds: freeze, boost, reveal.
+                </li>
+              </ul>
+              <p className={styles.modalNote}>
+                <code>i</code> is <code>0–3</code>, matching Knob 1–4. Press a knob&apos;s{" "}
+                <code>Push</code> button in the controls panel to fire its button flags.
+              </p>
+
+              <h4>Encoder buttons</h4>
+              <pre>{`export function update(dt, input, params) {
+  if (input.btnPressed[0]) params.hue = 0;     // reset on tap
+  if (input.btnHeld[1]) params.frozen = true;   // act while held
+}`}</pre>
+              <p className={styles.modalNote}>
+                Long-press is reserved for the firmware mode switcher — don&apos;t build
+                mode-switching on the buttons. The Origin preset taps each knob to reset that value.
+              </p>
+
+              <h4>Drawing</h4>
+              <ul>
+                <li>
+                  <code>display.width</code> / <code>display.height</code> — loop with these, never
+                  hardcode 128 or 64.
+                </li>
+                <li>
+                  <code>display.setPixel(x, y, r, g, b)</code> — write one pixel; <code>r/g/b</code>{" "}
+                  are <code>0–255</code>.
+                </li>
+              </ul>
+              <p className={styles.modalNote}>
+                Use only plain JavaScript and <code>Math.*</code> — no DOM, imports, async, or
+                per-pixel allocations. The two prompt buttons generate AI variations of the current
+                pattern, or convert it into ESP32 firmware.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -86,6 +86,10 @@
   letter-spacing: 0;
 }
 
+.previewHeader {
+  justify-content: flex-end;
+}
+
 .stats {
   justify-content: flex-end;
   text-align: right;
@@ -161,6 +165,37 @@
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   font-weight: 500;
+}
+
+.knobHeaderMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.knobButton {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.knobButton:hover {
+  border-color: #171512;
+}
+
+.knobButton:active {
+  background: #171512;
+  color: #f7f3ea;
+  border-color: #171512;
 }
 
 .knobRow {
@@ -293,6 +328,23 @@
   border-color: #171512 !important;
 }
 
+.editorActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.editorHeader .guideButton {
+  background: #e8dcc2 !important;
+  color: #171512 !important;
+  border-color: #171512 !important;
+}
+
+.editorHeader .guideButton:hover {
+  background: #d9c8a4 !important;
+}
+
 .sweepBar {
   margin-top: 12px;
   padding-top: 12px;
@@ -371,6 +423,106 @@
 .emptyState {
   margin: 0;
   padding: 18px 14px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(23, 21, 18, 0.55);
+}
+
+.modalCard {
+  width: min(560px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  border: 1px solid #171512;
+  background: #fffdf8;
+  color: #171512;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.modalHeader span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.modalHeader button {
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modalHeader button:hover {
+  border-color: #171512;
+}
+
+.modalBody {
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.modalBody p {
+  margin: 0 0 12px;
+}
+
+.modalBody h4 {
+  margin: 20px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(23, 21, 18, 0.14);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.modalBody ul {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.modalBody code {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  background: rgba(23, 21, 18, 0.07);
+  padding: 1px 4px;
+}
+
+.modalBody pre {
+  margin: 0 0 12px;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid rgba(23, 21, 18, 0.18);
+  background: #171512;
+  color: #f7f3ea;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.modalNote {
+  color: rgba(23, 21, 18, 0.62);
+  font-size: 12px;
 }
 
 @media (max-width: 980px) {

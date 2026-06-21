@@ -149,6 +149,8 @@ export function createIdleInput(
     knobValues?: number[];
     knobNormalized?: number[];
     knobRanges?: Array<[number, number]>;
+    btnPressed?: boolean[];
+    btnHeld?: boolean[];
   } = {},
 ): PatternInput {
   return {
@@ -156,8 +158,8 @@ export function createIdleInput(
     knobValues: options.knobValues,
     knobNormalized: options.knobNormalized,
     knobRanges: options.knobRanges,
-    btnPressed: [false, false, false, false],
-    btnHeld: [false, false, false, false],
+    btnPressed: Array.from({ length: PATTERN_KNOB_COUNT }, (_, index) => options.btnPressed?.[index] ?? false),
+    btnHeld: Array.from({ length: PATTERN_KNOB_COUNT }, (_, index) => options.btnHeld?.[index] ?? false),
   };
 }
 

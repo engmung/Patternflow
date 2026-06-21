@@ -7,6 +7,7 @@ export const preset: LivePreset = {
   desc: "Concentric sine waves sampled by an emergent grid",
   code: `// Origin — concentric sine waves sampled by an emergent tile grid.
 // Knob 1: Hue (0..1) · Knob 2: Speed · Knob 3: Mode/tiling (0..4) · Knob 4: Frequency
+// Encoder button (short press): resets that knob to its origin value.
 function hsvToRgb(h, s, v) {
     let r, g, b;
     let i = Math.floor(h * 6);
@@ -36,12 +37,27 @@ export function setup(params) {
 }
 
 export function update(dt, input, params) {
+    // Knobs set absolute values, but only follow a slider while it is
+    // actually moving — that way a button reset persists until the knob
+    // is touched again, just like the hardware encoders.
     if (input && input.knobValues) {
-        params.hue = input.knobValues[0];
-        params.speed = input.knobValues[1];
-        params.mode = input.knobValues[2];
-        params.freq = input.knobValues[3];
+        let v = input.knobValues;
+        if (!params.lastKnob) params.lastKnob = [v[0], v[1], v[2], v[3]];
+        if (Math.abs(v[0] - params.lastKnob[0]) > 1e-6) params.hue = v[0];
+        if (Math.abs(v[1] - params.lastKnob[1]) > 1e-6) params.speed = v[1];
+        if (Math.abs(v[2] - params.lastKnob[2]) > 1e-6) params.mode = v[2];
+        if (Math.abs(v[3] - params.lastKnob[3]) > 1e-6) params.freq = v[3];
+        params.lastKnob = [v[0], v[1], v[2], v[3]];
     }
+
+    // Encoder button (short press): reset that knob to its origin value.
+    if (input && input.btnPressed) {
+        if (input.btnPressed[0]) params.hue = 0.0;
+        if (input.btnPressed[1]) params.speed = 0.0;
+        if (input.btnPressed[2]) params.mode = 0.0;
+        if (input.btnPressed[3]) params.freq = 0.0;
+    }
+
     params.timeAcc += dt * params.speed;
 }
 
