@@ -1,0 +1,39 @@
+name: Build / hardware help
+description: Stuck while building or flashing your own Patternflow.
+labels: ["type:question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For quick back-and-forth, the [Discord](https://discord.gg/Vr9QtsxeTk) is often faster.
+        Open an issue here when it is worth keeping a written record (e.g. an unclear step).
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Which path / stage?
+      options:
+        - Custom PCB
+        - Breadboard wiring
+        - 3D printed enclosure
+        - Laser-cut enclosure
+        - Flashing firmware
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: stuck
+    attributes:
+      label: Where are you stuck?
+      description: What you are trying to do and what is going wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you tried?
+      description: Steps already attempted, error messages, measurements.
+  - type: textarea
+    id: photos
+    attributes:
+      label: Photos / parts
+      description: Drag in photos of the build, and list any parts or sources that differ from the BOM.

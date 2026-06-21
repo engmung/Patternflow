@@ -1,0 +1,9 @@
+# Turn off blank issues so everything starts from a template.
+blank_issues_enabled: false
+contact_links:
+  - name: Discord community
+    url: https://discord.gg/Vr9QtsxeTk
+    about: Build questions and general chat are usually fastest here.
+  - name: Contributing guide
+    url: https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md
+    about: How to contribute docs, firmware, hardware, or web changes.

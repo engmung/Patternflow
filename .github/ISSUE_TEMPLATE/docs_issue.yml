@@ -1,0 +1,24 @@
+name: Documentation issue
+description: Something in the guides, README, or site is wrong, unclear, or missing.
+labels: ["area:docs"]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Which doc or page?
+      description: File path or URL.
+      placeholder: e.g. BUILD_GUIDE.md, or https://patternflow.work/build
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: The unclear, outdated, or absent part.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+      description: How would you word or structure it? Optional.
