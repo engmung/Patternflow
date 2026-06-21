@@ -38,12 +38,6 @@ body:
         3. ...
     validations:
       required: true
-  - type: input
-    id: version
-    attributes:
-      label: Firmware version / commit
-      description: Release tag or git commit, if relevant (firmware/web bugs).
-      placeholder: e.g. v1.0.0 or commit abc1234
   - type: textarea
     id: context
     attributes:

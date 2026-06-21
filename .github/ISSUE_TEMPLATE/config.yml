@@ -1,9 +1,17 @@
 # Turn off blank issues so everything starts from a template.
+# GitHub issues are for things that change the repo (bugs, features, docs).
+# Community support and sharing happen on Discord — linked below.
 blank_issues_enabled: false
 contact_links:
+  - name: Build / hardware help
+    url: https://discord.com/channels/1497757947827327067/1499907910707187833
+    about: Stuck building or flashing? Ask in the hardware-help channel — photos and quick back-and-forth.
+  - name: Share a pattern
+    url: https://discord.com/channels/1497757947827327067/1499908302962819236
+    about: Show a custom pattern you made. Develop and test it first in the Pattern Lab.
   - name: Discord community
     url: https://discord.gg/Vr9QtsxeTk
-    about: Build questions and general chat are usually fastest here.
+    about: New here? Join the server, then jump into the channels above.
   - name: Contributing guide
     url: https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md
     about: How to contribute docs, firmware, hardware, or web changes.
