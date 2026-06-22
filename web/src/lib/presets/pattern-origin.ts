@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 1,
   name: "Origin",
   desc: "Concentric sine waves sampled by an emergent grid",
-  code: `// Origin — concentric sine waves sampled by an emergent tile grid.
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026",
+  lineage: "Created in Blender3D, converted to JS via AI",
+  code: `// Pattern: Origin
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026
+// Lineage: Created in Blender3D, converted to JS via AI
+//
+// Origin — concentric sine waves sampled by an emergent tile grid.
 // Knob 1: Hue (0..1) · Knob 2: Speed · Knob 3: Mode/tiling (0..4) · Knob 4: Frequency
 // Encoder button (short press): resets that knob to its origin value.
 function hsvToRgb(h, s, v) {

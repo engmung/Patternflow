@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 526,
   name: "0526",
   desc: "Kaleidoscopic coordinate vortex mapping",
-  code: `// Kaleidoscopic Vortex Vortex
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-26",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0526
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-26
+// Lineage: AI generated and curated
+//
+// Kaleidoscopic Vortex Vortex
 // Change: Imposes a multi-axis radial reflection fold onto coordinate spaces prior to applying fluid warp matrices.
 // Knob 1: Reflection Segment Symmetry Fold Count
 // Knob 2: System Animation Speed

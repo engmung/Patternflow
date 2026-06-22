@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 2,
   name: "Wave Saw",
   desc: "Rotated sawtooth waves with fractal noise distortion",
-  code: `// Wave Saw — rotated sawtooth bands with a 3-step constant color ramp.
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026",
+  lineage: "Created in Blender3D, converted to JS via AI",
+  code: `// Pattern: Wave Saw
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026
+// Lineage: Created in Blender3D, converted to JS via AI
+//
+// Wave Saw — rotated sawtooth bands with a 3-step constant color ramp.
 // Knob 1: Angle (0..1 -> 0..2PI) · Knob 2: Scale (band density) · Knob 3: Distortion · Knob 4: Distortion scale
 function hash(x, y) {
     let n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;

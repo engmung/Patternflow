@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 513,
   name: "0513",
   desc: "Sine/cosine wave interference pattern",
-  code: `
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-13",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0513
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-13
+// Lineage: AI generated and curated
+//
+
 
 function hsvToRgb(h, s, v) {
     let r, g, b;

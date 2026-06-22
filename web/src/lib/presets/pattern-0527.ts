@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 527,
   name: "0527",
   desc: "3D vector normal-mapped line grid",
-  code: `// Palette/Material Remix: 3D Vector Normal Matrix
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-27",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0527
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-27
+// Lineage: AI generated and curated
+//
+// Palette/Material Remix: 3D Vector Normal Matrix
 // Knob 1: Cluster Weight (number of constellation nodes, splits from 4 to 10)
 // Knob 2: Rotation Rate (time-acceleration vector operation speed)
 // Knob 3: Maximum Distance (maximum cutoff threshold for connecting lines)

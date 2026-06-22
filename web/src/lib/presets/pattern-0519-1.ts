@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 519.01,
   name: "0519-1",
   desc: "Organic isocontours with dynamic feedback",
-  code: `// Knobs for Organic Isocontours:
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-19",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0519-1
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-19
+// Lineage: AI generated and curated
+//
+// Knobs for Organic Isocontours:
 // Knob 1: Surface Tension (Blob expansion/contraction)
 // Knob 2: Undulation Speed
 // Knob 3: Map Zoom Level

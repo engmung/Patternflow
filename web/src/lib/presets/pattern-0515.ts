@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 515,
   name: "0515",
   desc: "Horizontal bands with layer shifting",
-  code: `// Knobs: 1=Band Speed, 2=Band Width, 3=Layer Shift, 4=Color Phase
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-15",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0515
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-15
+// Lineage: AI generated and curated
+//
+// Knobs: 1=Band Speed, 2=Band Width, 3=Layer Shift, 4=Color Phase
 function hsvToRgb(h, s, v) {
   h = h - Math.floor(h);
   let i = Math.floor(h * 6);

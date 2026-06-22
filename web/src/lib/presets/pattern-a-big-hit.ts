@@ -5,7 +5,18 @@ export const preset: LivePreset = {
   num: 9999,
   name: "a big hit",
   desc: "Liquid plasma with chaos-warped neon ridges",
-  code: `function hsvToRgb(h, s, v) {
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-11",
+  lineage: "AI generated and curated",
+  code: `// Pattern: a big hit
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-11
+// Lineage: AI generated and curated
+//
+// Liquid plasma with chaos-warped neon ridges
+function hsvToRgb(h, s, v) {
     let r, g, b;
     let i = Math.floor(h * 6);
     let f = h * 6 - i;

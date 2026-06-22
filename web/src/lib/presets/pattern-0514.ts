@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 514,
   name: "0514",
   desc: "Warped wave patterns with variable speed",
-  code: `function hsvToRgb(h, s, v) {
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-14",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0514
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-14
+// Lineage: AI generated and curated
+//
+function hsvToRgb(h, s, v) {
   h = h - Math.floor(h);
   let i = Math.floor(h * 6);
   let f = h * 6 - i;

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 530,
   name: "0530",
   desc: "Psychedelic liquid water surface",
-  code: `// Variation 5: Psychedelic Liquid Phase
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-30",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0530
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-30
+// Lineage: AI generated and curated
+//
+// Variation 5: Psychedelic Liquid Phase
 // Over time, the color wheel rotates as a whole, creating a psychedelic liquid water surface.
 // Knob 1: Multi-Wave Distortion (0.0 to 1.0) -> complexity of multi-wave distortion for flowing lines
 // Knob 2: Spectrum Rotation Velocity (0.1 to 10.0) -> speed of spectrum cycling and rotation

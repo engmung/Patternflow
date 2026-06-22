@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 522,
   name: "0522",
   desc: "Quad-fold coordinates domain warp symmetry",
-  code: `// Quad-Fold Warp Gate (Domain Remix)
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-22",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0522
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-22
+// Lineage: AI generated and curated
+//
+// Quad-Fold Warp Gate (Domain Remix)
 // Knob 1: Warp Amplitude (sine wave distortion strength of quad-fold mirror symmetry planes)
 // Knob 2: Whirlpool Velocity (scroll speed frequency of distorted coordinates)
 // Knob 3: Sub-Grid Block Size (macro resolution scale of bit substrate after domain warp)

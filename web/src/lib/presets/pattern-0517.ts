@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 517,
   name: "0517",
   desc: "Sweeping scan beams",
-  code: `// Knob 1: Beam Thickness (Width of the sweeping scan)
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-17",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0517
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-17
+// Lineage: AI generated and curated
+//
+// Knob 1: Beam Thickness (Width of the sweeping scan)
 // Knob 2: Rotation Speed (How fast the radar sweeps)
 // Knob 3: Noise Turbulence (How much the sweep is distorted)
 // Knob 4: Highlight Color (Hue of the leading edge)

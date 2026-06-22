@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 524,
   name: "0524",
   desc: "Layered fluid dynamic vorticity field",
-  code: `// Layered Vorticity Field
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-24",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0524
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-24
+// Lineage: AI generated and curated
+//
+// Layered Vorticity Field
 // Break the fixed grid completely, simulating multiple fluid vortex center points 
 // pushing and pulling space non-linearly to simulate mixed paint structure.
 //
