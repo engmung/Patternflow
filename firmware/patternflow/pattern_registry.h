@@ -1,11 +1,15 @@
 #pragma once
 
 #include "src/core_encoders.h"
-#include "pattern_origin.h"
-#include "pattern_wave_saw.h"
-#include "pattern_dev1.h"
-#include "pattern_dev2.h"
-#include "pattern_dev3.h"
+
+// ── PRESETS (curated showcase, in presets/) ──
+#include "presets/preset_origin.h"
+#include "presets/preset_wave_saw.h"
+
+// ── CUSTOM (community / user patterns, in root for Arduino IDE editing) ──
+#include "custom_spark_matrix.h"
+#include "custom_hyperbolic_grid.h"
+#include "custom_cellular_interference.h"
 
 struct PatternEntry {
   const char* name;
@@ -18,18 +22,25 @@ struct PatternEntry {
 #define PATTERN_ENTRY(ns) { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw }
 
 // To add a pattern:
-// 1. Create pattern_new_name.h with namespace NewName and NAME, KNOB_LABELS,
-//    setup(), update(float, const InputFrame&), draw().
-// 2. Include the header above.
-// 3. Add PATTERN_ENTRY(NewName) below.
+// 1. Copy _TEMPLATE.h to:
+//      custom_<name>.h        in the root        (user patterns, editable in the Arduino IDE)
+//      presets/preset_<name>.h in presets/       (curated; use "../src/..." includes)
+// 2. Include it under the matching section above.
+// 3. Add PATTERN_ENTRY(Namespace) under the matching section below.
+//    Keep presets first and bump NUM_PRESETS if you add a preset.
+// See README.md for the full convention.
 PatternEntry patterns[] = {
+  // ── PRESETS ──
   PATTERN_ENTRY(Origin),
   PATTERN_ENTRY(WaveSaw),
-  PATTERN_ENTRY(FluidFlowPattern),
-  PATTERN_ENTRY(ConcentricVelvetRingsPattern),
-  PATTERN_ENTRY(FoldedCrossMatrixPattern),
+  // ── CUSTOM ──
+  PATTERN_ENTRY(SparkMatrixPattern),
+  PATTERN_ENTRY(HyperbolicGridPattern),
+  PATTERN_ENTRY(CellularInterferencePattern),
 };
 
 const int NUM_PATTERNS = sizeof(patterns) / sizeof(patterns[0]);
+// Presets occupy the first NUM_PRESETS slots; the rest are custom patterns.
+const int NUM_PRESETS = 2;
 
 #undef PATTERN_ENTRY

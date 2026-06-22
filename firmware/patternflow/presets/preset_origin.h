@@ -1,9 +1,9 @@
 #pragma once
 #include <math.h>
-#include "src/core_display.h"
-#include "src/core_math.h"
-#include "src/core_color.h"
-#include "src/core_canvas.h"
+#include "../src/core_display.h"
+#include "../src/core_math.h"
+#include "../src/core_color.h"
+#include "../src/core_canvas.h"
 
 namespace Origin {
   const char* NAME = "Origin";

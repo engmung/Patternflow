@@ -1,9 +1,9 @@
 #pragma once
 #include <math.h>
-#include "src/core_display.h"
-#include "src/core_math.h"
-#include "src/core_noise.h"
-#include "src/core_canvas.h"
+#include "../src/core_display.h"
+#include "../src/core_math.h"
+#include "../src/core_noise.h"
+#include "../src/core_canvas.h"
 
 namespace WaveSaw {
   const char* NAME = "Wave Saw";
