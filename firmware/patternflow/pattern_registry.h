@@ -4,7 +4,9 @@
 
 // ── CUSTOM (your own patterns; root files, editable as Arduino IDE tabs) ──
 // custom1..customN are reusable slots — overwrite a slot's body (and its NAME)
-// to try a new pattern without renaming files or touching this list.
+// to try a new pattern without renaming files or touching this list. Included
+// near the top for easy editing; in the pattern list below they come LAST so
+// pattern 1 stays Origin.
 #include "custom1.h"
 #include "custom2.h"
 #include "custom3.h"
@@ -43,16 +45,24 @@ struct PatternEntry {
 #define PATTERN_ENTRY(ns) { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw }
 
 // To add a pattern:
-// - Custom (your own): overwrite a custom<N>.h slot in the root, or add custom<N+1>.h.
-// - Preset (curated): copy _TEMPLATE.h to presets/preset_<name>.h ("../src/..." includes).
-// Then #include it in the matching section above and add PATTERN_ENTRY(Namespace)
-// in the matching section below — custom first. See README.md for the convention.
-PatternEntry patterns[] = {
-  // ── CUSTOM ──
+// - Custom (your own): overwrite a custom<N>.h slot (or add custom<N+1>.h) and a
+//   PATTERN_ENTRY in customPatterns[] below.
+// - Preset (curated): copy _TEMPLATE.h to presets/preset_<name>.h ("../src/..."
+//   includes) and add a PATTERN_ENTRY in presetPatterns[].
+// Custom is listed FIRST here so it's quick to edit; buildPatternList() combines
+// the two at runtime as presets-then-custom, so pattern 1 = Origin and the custom
+// slots come last (turn back from pattern 1 to reach them). See README.md.
+
+// ── CUSTOM (your own — edit these) ──
+PatternEntry customPatterns[] = {
   PATTERN_ENTRY(Custom1),
   PATTERN_ENTRY(Custom2),
   PATTERN_ENTRY(Custom3),
-  // ── PRESETS ──
+};
+const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
+
+// ── PRESETS (curated showcase) ──
+PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
   PATTERN_ENTRY(WaveSaw),
   PATTERN_ENTRY(Pattern0510),
@@ -75,10 +85,17 @@ PatternEntry patterns[] = {
   PATTERN_ENTRY(Pattern0602),
   PATTERN_ENTRY(PatternABigHit),
 };
+const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 
-const int NUM_PATTERNS = sizeof(patterns) / sizeof(patterns[0]);
-// Custom patterns are the first NUM_CUSTOM entries; presets follow.
-const int NUM_CUSTOM = 3;
-const int NUM_PRESETS = NUM_PATTERNS - NUM_CUSTOM;
+// Runtime list the device cycles through: presets first (pattern 1 = Origin),
+// custom appended last. Call buildPatternList() once in setup() before using it.
+const int NUM_PATTERNS = NUM_PRESETS + NUM_CUSTOM;
+PatternEntry patterns[NUM_PATTERNS];
+
+inline void buildPatternList() {
+  int n = 0;
+  for (int i = 0; i < NUM_PRESETS; i++) patterns[n++] = presetPatterns[i];
+  for (int i = 0; i < NUM_CUSTOM; i++) patterns[n++] = customPatterns[i];
+}
 
 #undef PATTERN_ENTRY

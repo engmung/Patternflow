@@ -43,23 +43,27 @@ Each file starts with a metadata header kept in sync with the JS source:
 
 ## Registry
 
-`pattern_registry.h` registers patterns in two clearly separated sections, with
-**custom first** (so the slots you actually edit are at the top, and the device
-boots into slot 0 = your first custom pattern):
+`pattern_registry.h` keeps `customPatterns[]` and `presetPatterns[]` as two
+separate arrays. **Custom is listed first** so it's quick to edit, but
+`buildPatternList()` combines them at runtime as **presets-then-custom** — so on
+the device **pattern 1 = Origin** (the boot default) and the custom slots come
+**last** (turn back from pattern 1 to reach them):
 
 ```cpp
-// -- CUSTOM (your own) --
-PATTERN_ENTRY(Custom1),
-PATTERN_ENTRY(Custom2),
-PATTERN_ENTRY(Custom3),
-// -- PRESETS (curated showcase) --
-PATTERN_ENTRY(Origin),
-PATTERN_ENTRY(WaveSaw),
-...
+// edit these — listed first for convenience
+PatternEntry customPatterns[] = {
+  PATTERN_ENTRY(Custom1), PATTERN_ENTRY(Custom2), PATTERN_ENTRY(Custom3),
+};
+
+PatternEntry presetPatterns[] = {
+  PATTERN_ENTRY(Origin), PATTERN_ENTRY(WaveSaw), ...
+};
+
+// runtime list: presets first, custom last — call once in setup()
+void buildPatternList() { /* copy presets, then custom, into patterns[] */ }
 ```
 
-`NUM_CUSTOM` (the first slots) and `NUM_PRESETS` are exposed alongside
-`NUM_PATTERNS` so code can split the list.
+`NUM_CUSTOM` and `NUM_PRESETS` are exposed alongside `NUM_PATTERNS`.
 
 ## Currently Registered Patterns (v2.0.0)
 
