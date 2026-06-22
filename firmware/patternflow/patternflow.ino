@@ -81,6 +81,7 @@ void setup() {
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
 
+  buildPatternList();   // presets first (pattern 1 = Origin), custom appended last
   for (int i = 0; i < NUM_PATTERNS; i++) {
     patterns[i].setup();
   }

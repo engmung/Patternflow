@@ -408,10 +408,10 @@ export default function PatternPanel({ content }: PatternPanelProps) {
               <div className={styles.block}>
                 <div className={styles.lead}>
                   <p className={styles.flashDesktopCopy}>
-                    Connect Patternflow over USB, then flash the official release firmware from the browser.
+                    Try it instantly — connect Patternflow over USB and flash the official firmware right from the browser. No toolchain, no setup.
                   </p>
                   <p className={styles.flashMobileCopy}>
-                    Browser flashing is available on desktop Chrome or Edge. On mobile, preview the built-in patterns below.
+                    Browser flashing needs desktop Chrome or Edge.
                   </p>
                 </div>
 
@@ -436,36 +436,9 @@ export default function PatternPanel({ content }: PatternPanelProps) {
 
               <div className={styles.block}>
                 <p className={styles.previewNote}>
-                  Pick a preset below to change the 3D preview. Custom patterns require an Arduino IDE build.
+                  This is the quick way to try Patternflow in the browser. A guide to
+                  creating and applying your own patterns is coming soon.
                 </p>
-
-                <div className={styles.presetList} aria-label="Preset patterns">
-                  {presetPatterns.map((pattern, idx) => (
-                    <button
-                      key={pattern.id}
-                      type="button"
-                      className={activePatternId === pattern.id ? `${styles.presetItem} ${styles.active}` : styles.presetItem}
-                      onClick={() => selectBuiltInPattern(pattern)}
-                    >
-                      <span className={styles.presetIndex}>{idx + 1}</span>
-                      <span className={styles.presetName}>
-                        {pattern.name}
-                        {pattern.link && (
-                          <a
-                            className={styles.presetLink}
-                            href={pattern.link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {pattern.link.label} ↗
-                          </a>
-                        )}
-                      </span>
-                      <span className={styles.presetDesc}>{pattern.desc}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
           )}
