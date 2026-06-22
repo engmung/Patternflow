@@ -135,6 +135,7 @@ Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWa
 
 - Firmware & web — **MIT** ([LICENSE-MIT](./LICENSE-MIT))
 - Hardware & designs — **CC-BY-SA 4.0** ([LICENSE-CC-BY-SA](./LICENSE-CC-BY-SA))
+- Patterns — **CC-BY-SA 4.0**. Community submissions are inbound = outbound: by sharing a pattern you license it under CC-BY-SA 4.0 with attribution kept in the code header (no CLA). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 "Patternflow" is a trademark of SeungHun Lee.
 
