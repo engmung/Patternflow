@@ -436,15 +436,8 @@ export default function PatternPanel({ content }: PatternPanelProps) {
 
               <div className={styles.block}>
                 <p className={styles.previewNote}>
-                  This is the quick way to try Patternflow. For the full build — case,
-                  wiring, and writing your own patterns — see the{' '}
-                  <a
-                    href="https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    build guide
-                  </a>.
+                  This is the quick way to try Patternflow in the browser. A guide to
+                  creating and applying your own patterns is coming soon.
                 </p>
               </div>
             </div>
