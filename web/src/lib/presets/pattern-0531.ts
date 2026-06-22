@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 531,
   name: "0531",
   desc: "Posterized thermal gradient effect",
-  code: `// Posterized Thermal Gradient
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-31",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0531
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-31
+// Lineage: AI generated and curated
+//
+// Posterized Thermal Gradient
 // Knob 1: Thermal Core Offset (Base shift of threshold indices)
 // Knob 2: Animation Speed
 // Knob 3: Material Density Scale (Frequency of spatial noise bands)

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 601,
   name: "0601",
   desc: "Cellular wave matrix with noise",
-  code: `// Cellular Wave Matrix
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-06-01",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0601
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-06-01
+// Lineage: AI generated and curated
+//
+// Cellular Wave Matrix
 // Knob 1: Grid Density (Cell Size Selector)
 // Knob 2: Animation Speed
 // Knob 3: Cell Inversion Threshold (Hardness of square blocks)

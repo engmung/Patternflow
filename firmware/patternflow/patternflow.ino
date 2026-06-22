@@ -8,23 +8,16 @@
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
 #include "pattern_registry.h"
-#include "pattern_video.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
 int currentPatternIdx = 0;
-
-enum ContentMode {
-  CONTENT_PATTERN,
-  CONTENT_VIDEO
-};
 
 enum AppMode {
   MODE_RUNNING,
   MODE_SELECTING
 };
 
-ContentMode currentContentMode = CONTENT_PATTERN;
 AppMode currentMode = MODE_RUNNING;
 unsigned long lastMs = 0;
 float contentNoticeTimer = 0.0f;
@@ -91,28 +84,13 @@ void setup() {
   for (int i = 0; i < NUM_PATTERNS; i++) {
     patterns[i].setup();
   }
-  VideoPattern::setup();
 
   Serial.printf("Current Pattern: %s\n", patterns[currentPatternIdx].name);
   lastMs = millis();
 }
 
 const char* currentContentName() {
-  return currentContentMode == CONTENT_VIDEO
-    ? VideoPattern::NAME
-    : patterns[currentPatternIdx].name;
-}
-
-const char* currentContentModeLabel() {
-  return currentContentMode == CONTENT_VIDEO ? "VIDEO MODE" : "PATTERN MODE";
-}
-
-void toggleContentMode() {
-  currentContentMode = currentContentMode == CONTENT_PATTERN ? CONTENT_VIDEO : CONTENT_PATTERN;
-  currentMode = MODE_RUNNING;
-  contentNoticeTimer = CONTENT_NOTICE_SECONDS;
-  dma_display->setRotation(0);
-  Serial.printf(">>> CONTENT MODE: %s\n", currentContentName());
+  return patterns[currentPatternIdx].name;
 }
 
 void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1) {
@@ -127,13 +105,7 @@ void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1)
 
 void drawContentNotice() {
   dma_display->fillRect(0, 18, dma_display->width(), 28, 0);
-  drawCenteredText(
-    currentContentModeLabel(),
-    24,
-    dma_display->color565(255, 255, 255),
-    1
-  );
-  drawCenteredText(currentContentName(), 36, dma_display->color565(120, 120, 120), 1);
+  drawCenteredText(currentContentName(), 30, dma_display->color565(255, 255, 255), 1);
 }
 
 void drawBrightnessNotice() {
@@ -414,12 +386,7 @@ void loop() {
     }
   }
 
-  if (!oscInfoShowing && logicalButton(2)->longPressed(MODE_HOLD_MS)) {
-    toggleContentMode();
-  }
-
-  if (!oscInfoShowing && currentContentMode == CONTENT_PATTERN &&
-      logicalButton(3)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
@@ -445,7 +412,7 @@ void loop() {
     input,
     currentContentName(),
     currentPatternIdx,
-    (int)currentContentMode,
+    0, // content mode removed (always pattern)
     (int)currentMode
   );
 
@@ -460,23 +427,11 @@ void loop() {
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
-  if (PatternflowOsc::consumeContentToggle()) {
-    toggleContentMode();
-    Serial.println(">>> OSC content toggle");
-  }
-
-  VideoPattern::checkSerialUpload();
-
   if (oscInfoShowing) {
     drawNetworkInfo();
   } else if (currentMode == MODE_RUNNING) {
-    if (currentContentMode == CONTENT_VIDEO) {
-      VideoPattern::update(dt, input);
-      VideoPattern::draw();
-    } else {
-      patterns[currentPatternIdx].update(dt, input);
-      patterns[currentPatternIdx].draw();
-    }
+    patterns[currentPatternIdx].update(dt, input);
+    patterns[currentPatternIdx].draw();
 
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();

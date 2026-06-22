@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 515.04,
   name: "0515-4",
   desc: "Grid complexity and cell patterns",
-  code: `// Knob 1 (0-1): Grid complexity (size of cells)
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-15",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0515-4
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-15
+// Lineage: AI generated and curated
+//
+// Knob 1 (0-1): Grid complexity (size of cells)
 // Knob 2 (0.1-10): Mechanical oscillation speed
 // Knob 3 (0-4.9): Joint thickness (gear tooth size)
 // Knob 4 (0-1): Sharpness vs inner fill brightness

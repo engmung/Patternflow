@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 528,
   name: "0528",
   desc: "Mechanical grid blocks with contrast variations",
-  code: `// Contrast Remix: Mechanical Grid Blocks
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-28",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0528
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-28
+// Lineage: AI generated and curated
+//
+// Contrast Remix: Mechanical Grid Blocks
 // Knob 1: Grid Block Size [0.0 to 1.0]
 // Knob 2: Animation Speed [0.1 to 10.0]
 // Knob 3: Sparsity Threshold Limit [0.0 to 4.9]

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 516,
   name: "0516",
   desc: "Color bands pattern",
-  code: `// Controls:
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-16",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0516
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-16
+// Lineage: AI generated and curated
+//
+// Controls:
 // Knob 1 (Normalized): Ribbon Base Hue
 // Knob 2 (Value): Oscillation Speed
 // Knob 3 (Normalized): Number of Ribbons (Density)

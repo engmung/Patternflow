@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 529,
   name: "0529",
   desc: "Topographic contour lines on near-black",
-  code: `// Contrast Remix: sparse, hard-edged topographic contour lines on near-black — inverse of the dense soft seed.
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-29",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0529
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-29
+// Lineage: AI generated and curated
+//
+// Contrast Remix: sparse, hard-edged topographic contour lines on near-black — inverse of the dense soft seed.
 // (Only level-set lines of a morphing field glow; everything between stays dark and mechanical.)
 // Knob 1: Field flow rotation (wraps, 0..2PI)
 // Knob 2: Morph speed (0.1 - 10.0)

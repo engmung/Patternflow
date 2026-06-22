@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 519.02,
   name: "0519-2",
   desc: "Glitch typography on matrix grid",
-  code: `// Knobs for Glitch Typography:
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-19",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0519-2
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-19
+// Lineage: AI generated and curated
+//
+// Knobs for Glitch Typography:
 // Knob 1: Glitch Preset (10 distinct modes: 0.0=Clean to 1.0=Meltdown)
 // Knob 2: Overall Pattern Speed (Animation speed of background, 0.1 - 10.0)
 // Knob 3: Motif Density (Scale of the underlying shapes, 0.0 - 4.9)

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 515.03,
   name: "0515-3",
   desc: "Grid interference variation",
-  code: `// Variation 2: Grid Interference
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-15",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0515-3
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-15
+// Lineage: AI generated and curated
+//
+// Variation 2: Grid Interference
 function hsvToRgb(h, s, v) {
   h = h - Math.floor(h);
   let i = Math.floor(h * 6);

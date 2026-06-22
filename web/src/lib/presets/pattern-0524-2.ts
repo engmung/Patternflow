@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 524.02,
   name: "0524-2",
   desc: "Liquid water droplet ripple refraction",
-  code: `// Liquid Ripple Refraction
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-24",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0524-2
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-24
+// Lineage: AI generated and curated
+//
+// Liquid Ripple Refraction
 // Using virtual aspherical water droplet waves falling on the center and edges of the screen, 
 // refracts the entire 2D plane like a lens and creates ripples.
 //

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 520,
   name: "0520",
   desc: "Bio-luminescent tendrils with fluid motion",
-  code: `// Bio-Luminescent Tendrils
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-20",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0520
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-20
+// Lineage: AI generated and curated
+//
+// Bio-Luminescent Tendrils
 // Knob 1: Wave Density (spatial frequency density)
 // Knob 2: Fluid Speed (animation speed)
 // Knob 3: Tendril Thicken (tendril thickness and cohesion)

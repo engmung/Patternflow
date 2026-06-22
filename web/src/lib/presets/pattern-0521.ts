@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 521,
   name: "0521",
   desc: "Asymmetric bitwise glitch cascade waterfall",
-  code: `// Asymmetric Bitwise Glitch Cascade (Point Color)
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-21",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0521
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-21
+// Lineage: AI generated and curated
+//
+// Asymmetric Bitwise Glitch Cascade (Point Color)
 // Knob 1: Tear Severity (horizontal crack intensity from fault tearing)
 // Knob 2: Cascade Velocity (waterfall frequency of vertically falling bit chunks)
 // Knob 3: Pixel Block Size (macro resolution unit of bitwise fragment chunks)

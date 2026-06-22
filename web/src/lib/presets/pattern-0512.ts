@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 512,
   name: "0512",
   desc: "Symmetric flower/petal-like polar coordinates pattern",
-  code: `function hsvToRgb(h, s, v) {
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-12",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0512
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-12
+// Lineage: AI generated and curated
+//
+function hsvToRgb(h, s, v) {
     let r, g, b;
     let i = Math.floor(h * 6);
     let f = h * 6 - i;

@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 518,
   name: "0518",
   desc: "Vertical/horizontal cross glitch patterns",
-  code: `// Controls:
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-18",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0518
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-18
+// Lineage: AI generated and curated
+//
+// Controls:
 // Knob 1: Palette Split (distance between band colors)
 // Knob 2: Animation Speed
 // Knob 3: Shear Amplitude (horizontal stretching)

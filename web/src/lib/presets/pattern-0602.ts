@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 602,
   name: "0602",
   desc: "Oil core melt glitch with color separation",
-  code: `// Knob 1: Oil Core Shift (0-1)
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-06-02",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0602
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-06-02
+// Lineage: AI generated and curated
+//
+// Knob 1: Oil Core Shift (0-1)
 // Knob 2: Melt Speed (0.1-10)
 // Knob 3: Glitch Intensity/Slicing (0-4.9)
 // Knob 4: Color Separation Tearing (0-1)

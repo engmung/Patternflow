@@ -5,7 +5,17 @@ export const preset: LivePreset = {
   num: 510,
   name: "0510",
   desc: "Deformed sine waves with distortion and color mapping",
-  code: `function hsvToRgb(h, s, v) {
+  author: "Seunghun LEE",
+  license: "CC-BY-SA-4.0",
+  date: "2026-05-10",
+  lineage: "AI generated and curated",
+  code: `// Pattern: 0510
+// Author: Seunghun LEE
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Date: 2026-05-10
+// Lineage: AI generated and curated
+//
+function hsvToRgb(h, s, v) {
     let r, g, b;
     let i = Math.floor(h * 6);
     let f = h * 6 - i;
