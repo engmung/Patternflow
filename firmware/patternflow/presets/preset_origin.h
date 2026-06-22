@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Pattern: Origin
+// Author:  Seunghun LEE
+// Lineage: Created in Blender3D, converted to JS via AI
+// Generated from web/src/lib/presets/pattern-origin.ts
+//
+
 #pragma once
 #include <math.h>
 #include "../src/core_display.h"

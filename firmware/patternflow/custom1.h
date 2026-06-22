@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Pattern: Spark Matrix
+// Author:  Seunghun LEE
+// Lineage: AI generated and curated
+//
+
 #pragma once
 
 #include <Arduino.h>
@@ -9,7 +15,7 @@
 #include "src/core_canvas.h"
 #include "src/core_math.h"
 
-namespace SparkMatrixPattern {
+namespace Custom1 {
 
 const char* NAME = "Spark Matrix";
 const char* const KNOB_LABELS[4] = {"Seed Density", "Speed", "Warp Depth", "Thermal Pick"};
@@ -137,4 +143,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace SparkMatrixPattern
+} // namespace Custom1

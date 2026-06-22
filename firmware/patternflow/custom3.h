@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Pattern: Cellular Interference
+// Author:  Seunghun LEE
+// Lineage: AI generated and curated
+//
+
 #pragma once
 
 #include <Arduino.h>
@@ -10,7 +16,7 @@
 #include "src/core_math.h"
 #include "src/core_color.h"
 
-namespace CellularInterferencePattern {
+namespace Custom3 {
 
 const char* NAME = "Cellular Interference";
 const char* const KNOB_LABELS[4] = {"Lattice Scale", "Speed", "Interfere Mode", "Pulse Width"};
@@ -142,4 +148,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace CellularInterferencePattern
+} // namespace Custom3

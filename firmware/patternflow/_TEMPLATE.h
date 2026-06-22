@@ -7,7 +7,7 @@
 //
 // To make a new pattern, copy this file, rename the namespace, and register it
 // in pattern_registry.h:
-//   custom_<name>.h          -> sketch ROOT (user patterns; editable as Arduino IDE tabs)
+//   custom<N>.h              -> sketch ROOT (your patterns; reusable slots, editable as IDE tabs)
 //   presets/preset_<name>.h  -> presets/ subfolder (curated; change includes to "../src/...")
 // The includes below are the ROOT form (for custom patterns).
 

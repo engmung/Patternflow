@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: CC-BY-SA-4.0
+// Pattern: Hyperbolic Grid
+// Author:  Seunghun LEE
+// Lineage: AI generated and curated
+// Generated from _temp/Pattern.js
+//
+
 #pragma once
 
 #include <Arduino.h>
@@ -9,7 +16,7 @@
 #include "src/core_canvas.h"
 #include "src/core_math.h"
 
-namespace HyperbolicGridPattern {
+namespace Custom2 {
 
 const char* NAME = "Hyperbolic Grid";
 const char* const KNOB_LABELS[4] = {"Boundary Scale", "Speed", "Grid Subdiv", "Color Domain"};
@@ -116,4 +123,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace HyperbolicGridPattern
+} // namespace Custom2
