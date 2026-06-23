@@ -38,6 +38,22 @@
 #define PF_WIFI_RETRY_INTERVAL_MS 5000
 #endif
 
+// ── Improv-Serial Wi-Fi provisioning ─────────────────────────
+// Lets the browser flasher (ESP Web Tools, behind the website's "Flash"
+// button) set Wi-Fi over USB serial right after flashing, instead of baking
+// credentials into the binary. The SSID/password are stored in NVS and used
+// in preference to the placeholders above on the next boot. See
+// src/core_improv.h. On by default; only compiled in when Wi-Fi is actually
+// used (i.e. at least one of OTA/OSC/audio is enabled).
+#ifndef PF_IMPROV_ENABLED
+#define PF_IMPROV_ENABLED 1
+#endif
+// Firmware version string reported to the flasher (Improv device-info RPC).
+// Keep in sync with web/public/flash/manifest.json.
+#ifndef PF_IMPROV_FW_VERSION
+#define PF_IMPROV_FW_VERSION "2.0.0"
+#endif
+
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
 // On by default. Loop cost is one UDP poll per frame when idle.
 #ifndef PF_OTA_ENABLED

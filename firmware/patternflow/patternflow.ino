@@ -4,6 +4,7 @@
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_wifi.h"
+#include "src/core_improv.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
@@ -81,6 +82,10 @@ void setup() {
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
 
+  // Improv-Serial: lets the browser flasher set Wi-Fi over USB after a web
+  // flash. Just listens on Serial; no Wi-Fi required to be up yet.
+  PatternflowImprov::begin();
+
   buildPatternList();   // presets first (pattern 1 = Origin), custom appended last
   for (int i = 0; i < NUM_PATTERNS; i++) {
     patterns[i].setup();
@@ -101,6 +106,23 @@ void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1)
   dma_display->setTextColor(color);
   dma_display->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
   dma_display->setCursor((dma_display->width() - w) / 2, y);
+  dma_display->print(text);
+}
+
+// Centered text on a small dark scrim band, so it stays legible drawn on top
+// of the live pattern the SELECT screen now previews behind the overlay.
+// One fillRect + one text draw per label — cheap enough not to slow the frame
+// (a per-glyph outline tripled the per-frame pixel writes and tore the
+// double-buffered panel).
+void drawCenteredTextScrim(const char* text, int y, uint16_t color, int textSize = 1) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  dma_display->setTextSize(textSize);
+  dma_display->getTextBounds(text, 0, 0, &x1, &y1, &w, &h);
+  int x = (dma_display->width() - w) / 2;
+  dma_display->fillRect(x - 2, y - 2, w + 4, h + 4, 0);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x, y);
   dma_display->print(text);
 }
 
@@ -156,32 +178,27 @@ void drawNetworkInfo() {
   drawCenteredText("HOLD K2 = EXIT", 57, dim, 1);
 }
 
+// Draws the SELECT overlay ON TOP of the live pattern preview the loop has
+// already rendered into the buffer (so no fillScreen here). Each label sits on
+// a small dark scrim so it stays readable over whatever pattern is behind it.
 void drawSelectingMode() {
-  dma_display->fillScreen(0);
-
-  uint16_t screenW = dma_display->width();
   uint16_t screenH = dma_display->height();
 
   char pageStr[16];
   snprintf(pageStr, sizeof(pageStr), "%d / %d", currentPatternIdx + 1, NUM_PATTERNS);
-
-  int16_t x1, y1;
-  uint16_t w, h;
-  dma_display->setTextSize(1);
-  dma_display->setTextColor(dma_display->color565(100, 100, 100));
-  dma_display->getTextBounds(pageStr, 0, 0, &x1, &y1, &w, &h);
-  dma_display->setCursor((screenW - w) / 2, 10);
-  dma_display->print(pageStr);
+  drawCenteredTextScrim(pageStr, 10, dma_display->color565(190, 190, 190), 1);
 
   const char* name = patterns[currentPatternIdx].name;
-  dma_display->setTextSize(strlen(name) > 8 ? 1 : 2);
-  dma_display->setTextColor(dma_display->color565(255, 255, 255));
+  int nameSize = strlen(name) > 8 ? 1 : 2;
+  int16_t x1, y1;
+  uint16_t w, h;
+  dma_display->setTextSize(nameSize);
   dma_display->getTextBounds(name, 0, 0, &x1, &y1, &w, &h);
-  dma_display->setCursor((screenW - w) / 2, (screenH / 2) - (h / 2));
-  dma_display->print(name);
+  drawCenteredTextScrim(name, (screenH / 2) - (h / 2),
+                        dma_display->color565(255, 255, 255), nameSize);
 
-  const char* hint = "HOLD TO SELECT";
-  drawCenteredText(hint, screenH - 22, dma_display->color565(150, 150, 150), 1);
+  drawCenteredTextScrim("HOLD TO SELECT", screenH - 22,
+                        dma_display->color565(200, 200, 200), 1);
 }
 
 void readInputFrame(InputFrame& input) {
@@ -292,6 +309,11 @@ void loop() {
     Serial.println("[NET] services started");
   }
 
+  // Improv-Serial provisioning: drains any browser-flasher Wi-Fi setup
+  // traffic on Serial and reports connect success/failure back. Cheap when
+  // idle (one Serial.available() check).
+  PatternflowImprov::handle();
+
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
@@ -391,7 +413,6 @@ void loop() {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
-      dma_display->setRotation(1);
       Serial.printf(">>> SELECT MODE ENTERED: %s\n", patterns[currentPatternIdx].name);
     } else {
       currentMode = MODE_RUNNING;
@@ -451,7 +472,23 @@ void loop() {
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
     }
 
+    // Live preview behind the overlay so you can see what you're choosing.
+    // Render the pattern in the native landscape orientation (rotation 0, same
+    // as running mode) so present() fills the whole panel — then switch to the
+    // device's portrait orientation (rotation 1) for the SELECT text so it
+    // reads upright, exactly as before. Feed a neutral input frame (no knob
+    // deltas / buttons) so browsing with K4 doesn't drive the pattern's own
+    // parameters — it just animates over time.
+    dma_display->setRotation(0);
+    InputFrame preview = {};
+    preview.now = input.now;
+    for (int i = 0; i < 4; i++) preview.knobs[i] = input.knobs[i];
+    patterns[currentPatternIdx].update(dt, preview);
+    patterns[currentPatternIdx].draw();
+
+    dma_display->setRotation(1);
     drawSelectingMode();
+    dma_display->setRotation(0);  // back to landscape for the next frame
   }
 
   dma_display->flipDMABuffer();

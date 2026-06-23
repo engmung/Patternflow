@@ -25,6 +25,7 @@
 #if PF_OSC_ENABLED || PF_OTA_ENABLED || PF_AUDIO_ENABLED
 #define PF_WIFI_NEEDED 1
 #include <WiFi.h>
+#include <Preferences.h>
 #endif
 
 namespace PatternflowWifi {
@@ -40,18 +41,80 @@ inline bool connectedNow = false;
 inline bool justConnectedEdge = false;
 inline uint32_t lastBeginMs = 0;
 
+// Active credentials in use. Loaded from NVS (where Improv-Serial provisioning
+// writes them, see core_improv.h) when present, otherwise the compile-time
+// placeholders from net_config.h. Held in String so they outlive begin().
+inline String activeSsid;
+inline String activePass;
+inline bool credsFromNvs = false;
+
+// NVS namespace dedicated to provisioned Wi-Fi, kept separate from the app's
+// "patternflow" prefs so the two handles never collide. Opened only for the
+// duration of each read/write below.
+constexpr const char* WIFI_NVS_NS = "pf_wifi";
+
+// Pull stored credentials out of NVS, falling back to the compile-time
+// placeholders when nothing has been provisioned yet.
+inline void loadCredentials() {
+  String ssid, pass;
+  Preferences p;
+  if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
+    ssid = p.getString("ssid", "");
+    pass = p.getString("pass", "");
+    p.end();
+  }
+  if (ssid.length() > 0) {
+    activeSsid = ssid;
+    activePass = pass;
+    credsFromNvs = true;
+  } else {
+    activeSsid = PF_WIFI_SSID;
+    activePass = PF_WIFI_PASS;
+    credsFromNvs = false;
+  }
+}
+
 // Kick off the connection and return immediately.
 inline void begin() {
   if (started) return;
   started = true;
+  loadCredentials();
   WiFi.persistent(false);       // don't thrash NVS with creds every boot
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);         // lower latency for OSC/OTA/WS
   WiFi.setAutoReconnect(true);  // let the IDF re-join on transient drops
-  WiFi.begin(PF_WIFI_SSID, PF_WIFI_PASS);
+  WiFi.begin(activeSsid.c_str(), activePass.c_str());
   lastBeginMs = millis();
-  Serial.println("[WiFi] connecting (non-blocking)...");
+  Serial.printf("[WiFi] connecting to \"%s\" (%s creds, non-blocking)...\n",
+                activeSsid.c_str(), credsFromNvs ? "provisioned" : "built-in");
 }
+
+// Store new credentials (handed over by Improv-Serial) and restart the join
+// immediately so the next tick() reflects the new network. Persisted to NVS
+// so they survive reboot and win over the built-in placeholders.
+inline void applyCredentials(const String& ssid, const String& pass) {
+  Preferences p;
+  if (p.begin(WIFI_NVS_NS, /*readOnly=*/false)) {
+    p.putString("ssid", ssid);
+    p.putString("pass", pass);
+    p.end();
+  }
+  activeSsid = ssid;
+  activePass = pass;
+  credsFromNvs = true;
+  started = true;
+
+  // Force a clean reconnect with the new creds (mirrors the retry path).
+  connectedNow = false;
+  justConnectedEdge = false;
+  WiFi.disconnect();
+  WiFi.begin(activeSsid.c_str(), activePass.c_str());
+  lastBeginMs = millis();
+  Serial.printf("[WiFi] applying provisioned creds for \"%s\"\n", ssid.c_str());
+}
+
+inline bool hasStoredCredentials() { return credsFromNvs; }
+inline const String& currentSsid() { return activeSsid; }
 
 // Call once per loop. Maintains the connection and exposes a one-shot
 // "just connected" edge via consumeJustConnected().
@@ -80,7 +143,7 @@ inline void tick() {
     lastBeginMs = now;
     WiFi.disconnect();  // clear any half-finished attempt (avoids the
                         // "sta is connecting, cannot set config" error)
-    WiFi.begin(PF_WIFI_SSID, PF_WIFI_PASS);
+    WiFi.begin(activeSsid.c_str(), activePass.c_str());
     Serial.println("[WiFi] retry connect...");
   }
 }
@@ -116,6 +179,9 @@ inline String ipString() {
 
 inline void begin() {}
 inline void tick() {}
+inline void applyCredentials(const String&, const String&) {}
+inline bool hasStoredCredentials() { return false; }
+inline const String& currentSsid() { static String s; return s; }
 inline bool isConnected() { return false; }
 inline bool consumeJustConnected() { return false; }
 inline const char* statusText() { return "OFF"; }
