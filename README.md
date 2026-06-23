@@ -45,12 +45,10 @@ Build it from the files, or wait for the kit.
 
 The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
 
-On the device, PatternFlow OS v2.0.0 ships with two base patterns:
+On the device, the firmware bundles a **curated preset library** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing.
 
-- **Origin** — concentric sine waves sampled by an emergent grid
-- **Wave Saw** — rotated sawtooth waves with fractal noise distortion
-
-**Long-press encoder 4 to switch between patterns on the device** — all bundled in a single firmware image, no reflashing needed.
+- It boots into **Origin** — concentric sine waves sampled by an emergent grid.
+- **Long-press encoder 4** to cycle through the patterns on the device.
 
 New pattern studies go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel goes further — it mirrors every post *and* collects the community's own creations, each with full JavaScript source, a hardware-tested C++ header, and the design notes behind it. **Come for a pattern you saw on a post, stay to share your own.**
 
@@ -62,9 +60,8 @@ Patternflow ships with a prompt template designed for AI coding assistants (Clau
 2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
 3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
 4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
-5. Save the C++ output as a new `pattern_*.h` file in the `firmware/patternflow/` folder.
-6. Register the namespace in `pattern_registry.h`.
-7. Open `firmware/patternflow/patternflow.ino` in Arduino IDE and upload your custom build.
+5. Save the C++ output into a **custom slot** — overwrite `custom1.h` (or `custom2.h` / `custom3.h`) in `firmware/patternflow/`, keeping its `namespace CustomN` and updating `NAME`. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+6. Open `firmware/patternflow/patternflow.ino` in the Arduino IDE and upload your custom build.
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
