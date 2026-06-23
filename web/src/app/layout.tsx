@@ -97,6 +97,67 @@ export const metadata: Metadata = {
   },
 };
 
+const siteUrl = "https://patternflow.work";
+
+// Structured data (schema.org / JSON-LD) so search engines and AI crawlers can
+// resolve Patternflow as an entity: who makes it, what category it belongs to,
+// and how the project, person, and product relate.
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      name: "Patternflow",
+      url: siteUrl,
+      logo: `${siteUrl}/apple-touch-icon.png`,
+      description:
+        "Open-source LED synthesizer played with the fingertips — a modern reinterpretation of Nam June Paik's Participation TV (1963).",
+      founder: { "@id": `${siteUrl}/#person` },
+      sameAs: [
+        "https://github.com/engmung/PatternFlow",
+        "https://www.instagram.com/patternflow.work",
+        "https://discord.gg/Vr9QtsxeTk",
+      ],
+    },
+    {
+      "@type": "Person",
+      "@id": `${siteUrl}/#person`,
+      name: "Seung Hun Lee",
+      url: siteUrl,
+      jobTitle: "Artist",
+      worksFor: { "@id": `${siteUrl}/#organization` },
+      sameAs: ["https://www.instagram.com/patternflow.work"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${siteUrl}/#website`,
+      url: siteUrl,
+      name: "Patternflow",
+      description:
+        "Play light patterns with your fingertips. An open-source LED synthesizer built with ESP32-S3 and a HUB75 LED matrix.",
+      publisher: { "@id": `${siteUrl}/#organization` },
+      inLanguage: "en",
+    },
+    {
+      "@type": ["Product", "CreativeWork"],
+      "@id": `${siteUrl}/#product`,
+      name: "Patternflow — LED Synthesizer",
+      url: siteUrl,
+      image: `${siteUrl}/og-image.png`,
+      description:
+        "An open-source LED synthesizer played with four rotary encoders. Reshape generative patterns on an ESP32-S3 driven HUB75 RGB LED matrix in real time.",
+      brand: { "@id": `${siteUrl}/#organization` },
+      creator: { "@id": `${siteUrl}/#person` },
+      category: "Open-source hardware",
+      keywords:
+        "LED synthesizer, generative art, creative coding, ESP32, ESP32-S3, HUB75 LED matrix, open-source hardware, interactive media art, reactive light, Nam June Paik",
+      license: "https://creativecommons.org/licenses/by-sa/4.0/",
+      isAccessibleForFree: true,
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -106,6 +167,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
       </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${dmSans.variable} ${silkscreen.variable} ${newsreader.variable} antialiased`}

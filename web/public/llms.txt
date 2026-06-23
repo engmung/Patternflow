@@ -1,0 +1,37 @@
+# Patternflow
+
+> Patternflow is an open-source LED synthesizer played with the fingertips. Interactive media art has long felt expensive and exclusive; Patternflow's mission is to make it something anyone can build, code, and share. It is a modern reinterpretation of Nam June Paik's *Participation TV* (1963): where Paik brought participation into art, Patternflow puts creation in everyone's hands.
+
+Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix at low resolution, where each pixel reads as a discrete point of light. Four rotary encoders let you reshape generative patterns — created with creative coding — in real time. The light is not a visual effect to be watched but a multisensory experience connected directly to the motion of the hand.
+
+It is not a single luminous object but an open system. The hardware files, firmware, 3D models, web preview, and AI prompts are all publicly released, so anyone can build their own Patternflow, generate their own patterns in the browser, test them, and upload them to the device.
+
+## Key facts
+
+- **What it is:** An open-source LED synthesizer / interactive media-art instrument.
+- **Mission:** Democratizing interactive media art — making something that felt expensive and exclusive into something anyone can make.
+- **Creator:** Seung Hun Lee (artist).
+- **Lineage:** A reinterpretation of Nam June Paik's *Participation TV* (1963), extending participation into creation.
+- **Hardware:** ESP32-S3 microcontroller, HUB75 RGB LED matrix, four rotary encoders, artist-designed PCB, 3D-printed enclosure (steel, acrylic, and laser-cut variants in progress).
+- **Software:** Arduino-compatible C++ firmware with a modular pattern architecture; browser-based Live Editor and flasher built with Next.js and Three.js.
+- **Make your own patterns:** A prompt template lets AI coding assistants (Claude, ChatGPT, etc.) generate new patterns from a plain-language description — no GLSL or rendering-pipeline knowledge required.
+- **Licensing:** Firmware and web are MIT; hardware, designs, and patterns are CC-BY-SA 4.0. Community pattern submissions are inbound = outbound (no CLA).
+
+## Site
+
+- [Home](https://patternflow.work/): Overview, hero, and entry point.
+- [Patterns & Live Editor](https://patternflow.work/pattern): Preset library of LED-matrix patterns, remixable in the browser, with AI-assisted custom pattern creation and a flow to flash patterns to the device.
+- [Build your own](https://patternflow.work/build): Build the device from scratch — firmware, PCB, 3D-printed enclosure, browser flasher, and the full build guide.
+- [Inside](https://patternflow.work/inside): How Patternflow works — the electronics, encoders, and pattern architecture.
+- [Journal](https://patternflow.work/journal): Long-form notes and the story behind each step (English and Korean).
+
+## Project & community
+
+- [GitHub repository](https://github.com/engmung/PatternFlow): Open-source hardware files, firmware, web source, and build guides.
+- [Instagram (@patternflow.work)](https://www.instagram.com/patternflow.work): Near-daily new pattern studies.
+- [Discord](https://discord.gg/Vr9QtsxeTk): Questions, builds, and community-created patterns with full source.
+- [RSS feed](https://patternflow.work/feed.xml): Journal updates.
+
+## Keywords
+
+LED synthesizer, interactive media art, generative art, creative coding, open-source hardware, ESP32, ESP32-S3, HUB75 LED matrix, reactive light, Nam June Paik, Participation TV, DIY electronics, light art.
