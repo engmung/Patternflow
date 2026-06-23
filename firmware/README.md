@@ -53,6 +53,7 @@ firmware/patternflow/
     ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
     ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
     ├── core_wifi.h          # Shared Wi-Fi bring-up (single WiFi.begin for all features)
+    ├── core_improv.h        # Improv-Serial Wi-Fi provisioning from the browser flasher
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
     ├── core_audio_ws.h      # Browser audio-react HTTP/WebSocket server
     ├── audio_index.h        # Built-in patternflow.local audio UI bundle
@@ -122,6 +123,16 @@ PatternflowOta::handle();  // first line of loop() — UDP poll, ~free when idle
 ```
 
 Shares Wi-Fi credentials and connection with OSC (if both are enabled, the connection is reused). When `PF_OTA_ENABLED` is 0 everything compiles to a no-op. See the [OTA Updates](#ota-updates-for-developers) section below for the user-facing workflow.
+
+### `core_improv.h` — PatternflowImprov
+Self-contained [Improv-Serial](https://www.improv-wifi.com/serial/) implementation so the **browser flasher** (ESP Web Tools, behind the website's "Flash" button) can set Wi-Fi over USB right after flashing — no rebuild, no `patternflow_secrets.h`. The main sketch only needs:
+
+```cpp
+PatternflowImprov::begin();   // in setup() — announces it speaks Improv
+PatternflowImprov::handle();  // in loop()  — drains Serial, drives provisioning
+```
+
+The flasher sends the SSID/password over serial; `core_wifi.h` stores them in NVS (separate `pf_wifi` namespace) and uses them in preference to the built-in `PF_WIFI_SSID/PASS` placeholders on every boot. Shares the debug USB Serial — the host parser scans for the `IMPROV` header and ignores `println()` noise. Compiled in only when Wi-Fi is actually used (one of OTA/OSC/audio enabled) and `PF_IMPROV_ENABLED` is 1; otherwise a no-op. Set `#define PF_IMPROV_ENABLED 0` in `patternflow_secrets.h` to drop it.
 
 ## Patterns
 

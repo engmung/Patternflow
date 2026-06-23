@@ -4,6 +4,7 @@
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_wifi.h"
+#include "src/core_improv.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
@@ -80,6 +81,10 @@ void setup() {
   // (and re-announced on reconnect), so patterns render immediately whether
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
+
+  // Improv-Serial: lets the browser flasher set Wi-Fi over USB after a web
+  // flash. Just listens on Serial; no Wi-Fi required to be up yet.
+  PatternflowImprov::begin();
 
   buildPatternList();   // presets first (pattern 1 = Origin), custom appended last
   for (int i = 0; i < NUM_PATTERNS; i++) {
@@ -291,6 +296,11 @@ void loop() {
     PatternflowAudio::begin();
     Serial.println("[NET] services started");
   }
+
+  // Improv-Serial provisioning: drains any browser-flasher Wi-Fi setup
+  // traffic on Serial and reports connect success/failure back. Cheap when
+  // idle (one Serial.available() check).
+  PatternflowImprov::handle();
 
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
