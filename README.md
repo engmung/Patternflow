@@ -43,7 +43,7 @@ Build it from the files, or wait for the kit.
 
 ## Patterns
 
-The **[Live Editor](https://patternflow.work)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
+The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
 
 On the device, PatternFlow OS v2.0.0 ships with two base patterns:
 
