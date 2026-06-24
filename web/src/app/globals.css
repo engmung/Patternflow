@@ -181,7 +181,7 @@
     line-height: 1.55;
     color: var(--ink-muted);
     margin: 0 0 12px;
-    max-width: 34ch;
+    max-width: 44ch;
   }
   .hero-cta-row {
     display: flex;

@@ -13,11 +13,6 @@ export default function Hero() {
         </h1>
         <div className="kicker">An open-source LED synthesizer played with the fingertips.</div>
         <p className="lede">
-          Interactive media art has felt expensive and exclusive.
-          <br />
-          Patternflow makes it something anyone can make.
-          <br />
-          <br />
           A reinterpretation of{" "}
           <a
             className="has-tip"
@@ -55,14 +50,12 @@ export default function Hero() {
           Patternflow puts creation in everyone&apos;s hands.
           <br />
           <br />
-          So it&apos;s not a single device, but an open system
-          <br />
-          to build, code, and share your own light.
+          <span style={{ fontWeight: 500 }}>Create and share your own light.</span>
         </p>
         <p className="hero-kit-note">
-          All source files are on GitHub.
+          All source files and guides are on GitHub.
           <br />
-          Build one now, or join the kit waitlist.
+          Build one now, or join the waitlist.
         </p>
         <div className="hero-cta-row" aria-label="Patternflow actions">
           <a
