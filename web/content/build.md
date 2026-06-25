@@ -1,6 +1,6 @@
 ---
 title: Build your own.
-subtitle: Two enclosure paths, two electronics paths, one firmware.
+subtitle: Follow the guides to build your own Patternflow.
 meta:
   - label: Current guide
     value: "3D print + custom PCB"
