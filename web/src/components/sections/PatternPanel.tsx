@@ -258,6 +258,7 @@ const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 export default function PatternPanel({ content }: PatternPanelProps) {
   const [mode, setMode] = useState<PatternMode>('create');
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [showAllPresets, setShowAllPresets] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
@@ -335,6 +336,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
       preset_name: preset.name,
       surface: 'live_editor',
     });
+  };
+
+  const handleRandomPreset = () => {
+    if (livePresets.length === 0) return;
+    let nextPreset = livePresets[Math.floor(Math.random() * livePresets.length)];
+    if (activePresetId && livePresets.length > 1) {
+      while (nextPreset.id === activePresetId) {
+        nextPreset = livePresets[Math.floor(Math.random() * livePresets.length)];
+      }
+    }
+    handleLoadPreset(nextPreset.id);
   };
 
   const handleCopyVariantPrompt = () => {
@@ -495,18 +507,57 @@ export default function PatternPanel({ content }: PatternPanelProps) {
               />
               <div className={styles.presetChips} aria-label="Live editor presets">
                 <span className={styles.presetChipsLabel}>Try a preset</span>
-                {livePresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className={activePresetId === preset.id ? `${styles.presetChip} ${styles.active}` : styles.presetChip}
-                    aria-pressed={activePresetId === preset.id}
-                    onClick={() => handleLoadPreset(preset.id)}
-                    title={preset.desc}
-                  >
-                    {preset.name}
-                  </button>
-                ))}
+                {!showAllPresets ? (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.presetChip}
+                      onClick={handleRandomPreset}
+                      title="Select a random pattern preset"
+                    >
+                      🎲 Shuffle
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.presetChip}
+                      onClick={() => setShowAllPresets(true)}
+                      title="Show all available presets"
+                    >
+                      Show All ({livePresets.length})
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className={styles.presetChip}
+                      onClick={handleRandomPreset}
+                      title="Select a random pattern preset"
+                    >
+                      🎲 Shuffle
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.presetChip}
+                      onClick={() => setShowAllPresets(false)}
+                      title="Hide preset list"
+                    >
+                      Collapse
+                    </button>
+                    {livePresets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={activePresetId === preset.id ? `${styles.presetChip} ${styles.active}` : styles.presetChip}
+                        aria-pressed={activePresetId === preset.id}
+                        onClick={() => handleLoadPreset(preset.id)}
+                        title={preset.desc}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </>
+                )}
                 <span className={styles.presetChipsSeparator}>|</span>
                 <span className={styles.presetChipsLabel}>More community patterns:</span>
                 <a

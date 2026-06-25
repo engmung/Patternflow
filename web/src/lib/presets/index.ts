@@ -33,6 +33,12 @@ import { preset as pattern_0530 } from "./pattern-0530";
 import { preset as pattern_0531 } from "./pattern-0531";
 import { preset as pattern_0601 } from "./pattern-0601";
 import { preset as pattern_0602 } from "./pattern-0602";
+import { preset as pattern_0609 } from "./pattern-0609";
+import { preset as pattern_0614 } from "./pattern-0614";
+import { preset as pattern_0614_2 } from "./pattern-0614-2";
+import { preset as pattern_0619 } from "./pattern-0619";
+import { preset as pattern_0622 } from "./pattern-0622";
+import { preset as pattern_0624 } from "./pattern-0624";
 import { preset as pattern_a_big_hit } from "./pattern-a-big-hit";
 
 const presets: LivePreset[] = [
@@ -64,6 +70,12 @@ const presets: LivePreset[] = [
   pattern_0531,
   pattern_0601,
   pattern_0602,
+  pattern_0609,
+  pattern_0614,
+  pattern_0614_2,
+  pattern_0619,
+  pattern_0622,
+  pattern_0624,
   pattern_a_big_hit
 ];
 
