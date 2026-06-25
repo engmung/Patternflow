@@ -36,6 +36,30 @@ Common areas: `web`, `firmware`, `pcb`, `enclosure`, `docs`, `pattern`. Use
 tooling enforces it, it just keeps the history (and the Discord dev-log)
 readable.
 
+## Development workflow
+
+Work happens on `dev`, then lands on `main` through a pull request.
+
+```
+work on dev  →  commit early and often  →  open a PR into main  →  merge
+```
+
+- **Commit freely on `dev`.** Commits are cheap save points; small and frequent
+  is good. Keep throwaway `wip:` commits here rather than on `main`.
+- **Code changes go through a PR** (anything under `web/` or `firmware/`). A PR
+  runs CI (`web/` PRs must pass `next build`) and groups the change into one
+  clean Discord dev-log post. Trivial doc/typo fixes can be committed directly.
+- **Bigger or riskier work** gets its own branch (`feat/…`, `fix/…`) off `dev`.
+- **After a PR merges**, pull `main` back into `dev` so the branches don't
+  drift apart over time:
+
+  ```
+  git checkout dev && git merge origin/main && git push origin dev
+  ```
+
+Releases are published from `main` (GitHub → Releases → *Generate release
+notes*), which posts an announcement to Discord.
+
 ## Project Rules
 
 Project rules and guidelines are currently under consideration and will be finalized in the future.
