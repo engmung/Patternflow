@@ -1,0 +1,48 @@
+name: Web CI
+
+# Lint + build the Next.js site so broken code can't reach main.
+# Only runs when something under web/ (or this workflow) changes.
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - ".github/workflows/web-ci.yml"
+
+# Cancel an in-progress run if newer commits are pushed to the same ref.
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Lint is reported but does not block the merge yet — the repo still has
+      # pre-existing lint errors. Drop continue-on-error once those are cleaned
+      # up to make lint a hard gate too.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
+
+      # Build is the hard gate: broken code can't reach main.
+      - name: Build
+        run: npm run build

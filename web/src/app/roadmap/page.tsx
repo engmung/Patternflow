@@ -24,8 +24,12 @@ export default function RoadmapPage() {
 
   useEffect(() => {
     let active = true;
-    fetch('/api/roadmap')
-      .then((res) => res.json())
+    // Prefer the static snapshot committed by the roadmap-snapshot Action
+    // (no runtime token, no rate limit). Fall back to the live API route if
+    // the snapshot hasn't been generated yet.
+    fetch('/roadmap.json', { cache: 'no-cache' })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error('no snapshot'))))
+      .catch(() => fetch('/api/roadmap').then((res) => res.json()))
       .then((payload: RoadmapData) => {
         if (active) setData(payload);
       })

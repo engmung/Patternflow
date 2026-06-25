@@ -1,0 +1,22 @@
+# Groups merged PRs into sections when you click "Generate release notes"
+# on a new GitHub release. Categories match by PR label, top to bottom.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: 🚀 New features
+      labels:
+        - "type:feature"
+    - title: ✨ Improvements
+      labels:
+        - "type:improvement"
+    - title: 🐛 Fixes
+      labels:
+        - "type:bug"
+    - title: 📖 Docs
+      labels:
+        - "area:docs"
+    - title: 🧩 Other changes
+      labels:
+        - "*"

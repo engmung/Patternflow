@@ -1,0 +1,212 @@
+{
+  "repo": "engmung/PatternFlow",
+  "fetchedAt": "2026-06-25T04:14:21.843Z",
+  "issues": [
+    {
+      "number": 140,
+      "title": "Pattern Lab: proper AI agent integration (multi-model)",
+      "url": "https://github.com/engmung/PatternFlow/issues/140",
+      "state": "open",
+      "updatedAt": "2026-06-24T23:24:45Z",
+      "comments": 1,
+      "labels": [
+        {
+          "name": "area:web",
+          "color": "868e5f"
+        },
+        {
+          "name": "type:feature",
+          "color": "5b6776"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 113,
+      "title": "Enclosure for mass production",
+      "url": "https://github.com/engmung/PatternFlow/issues/113",
+      "state": "open",
+      "updatedAt": "2026-06-24T14:45:01Z",
+      "comments": 4,
+      "labels": [
+        {
+          "name": "area:enclosure",
+          "color": "15ac9f"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 123,
+      "title": "Laser-cut enclosure version + guide (post-launch)",
+      "url": "https://github.com/engmung/PatternFlow/issues/123",
+      "state": "open",
+      "updatedAt": "2026-06-24T05:50:57Z",
+      "comments": 1,
+      "labels": [
+        {
+          "name": "area:enclosure",
+          "color": "15ac9f"
+        },
+        {
+          "name": "type:feature",
+          "color": "5b6776"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 139,
+      "title": "Community engagement & retention mechanics (Discord gamification + activity pressure)",
+      "url": "https://github.com/engmung/PatternFlow/issues/139",
+      "state": "open",
+      "updatedAt": "2026-06-23T13:40:24Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:community",
+          "color": "32b3ca"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        },
+        {
+          "name": "type:question",
+          "color": "97a1ae"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 131,
+      "title": "Guide: creating and applying your own patterns",
+      "url": "https://github.com/engmung/PatternFlow/issues/131",
+      "state": "open",
+      "updatedAt": "2026-06-22T13:38:36Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:docs",
+          "color": "d522b4"
+        },
+        {
+          "name": "type:feature",
+          "color": "5b6776"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 127,
+      "title": "Set up GitHub Actions automation",
+      "url": "https://github.com/engmung/PatternFlow/issues/127",
+      "state": "open",
+      "updatedAt": "2026-06-22T13:38:22Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:web",
+          "color": "868e5f"
+        },
+        {
+          "name": "type:feature",
+          "color": "5b6776"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 118,
+      "title": "Build guides (\"easy to build\")",
+      "url": "https://github.com/engmung/PatternFlow/issues/118",
+      "state": "open",
+      "updatedAt": "2026-06-21T09:55:07Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:docs",
+          "color": "d522b4"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        },
+        {
+          "name": "type:epic",
+          "color": "0d1117"
+        }
+      ],
+      "subIssues": {
+        "total": 2,
+        "completed": 0,
+        "percent": 0
+      }
+    },
+    {
+      "number": 121,
+      "title": "Breadboard-only version (no custom PCB) + guide (post-launch)",
+      "url": "https://github.com/engmung/PatternFlow/issues/121",
+      "state": "open",
+      "updatedAt": "2026-06-21T07:47:44Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:pcb",
+          "color": "8f1463"
+        },
+        {
+          "name": "area:docs",
+          "color": "d522b4"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 114,
+      "title": "PCB reliability + production",
+      "url": "https://github.com/engmung/PatternFlow/issues/114",
+      "state": "open",
+      "updatedAt": "2026-06-18T02:35:24Z",
+      "comments": 1,
+      "labels": [
+        {
+          "name": "area:pcb",
+          "color": "8f1463"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        }
+      ],
+      "subIssues": null
+    },
+    {
+      "number": 117,
+      "title": "Community + contribution",
+      "url": "https://github.com/engmung/PatternFlow/issues/117",
+      "state": "open",
+      "updatedAt": "2026-06-17T13:35:19Z",
+      "comments": 0,
+      "labels": [
+        {
+          "name": "area:community",
+          "color": "32b3ca"
+        },
+        {
+          "name": "type:improvement",
+          "color": "6e7a89"
+        }
+      ],
+      "subIssues": null
+    }
+  ]
+}
