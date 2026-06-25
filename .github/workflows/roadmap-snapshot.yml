@@ -1,0 +1,45 @@
+name: Roadmap snapshot
+
+# Regenerates web/public/roadmap.json from open issues so the /roadmap page
+# reads a static file (no runtime GitHub token, no rate limit). Runs every few
+# hours, whenever issues change, and on manual dispatch.
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every 6 hours
+  issues:
+    types: [opened, closed, reopened, edited, labeled, unlabeled]
+  workflow_dispatch:
+
+# Only one snapshot at a time; let the newest win.
+concurrency:
+  group: roadmap-snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build roadmap.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/build-roadmap.mjs
+
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- web/public/roadmap.json; then
+            echo "No changes to roadmap.json."
+            exit 0
+          fi
+          git add web/public/roadmap.json
+          git commit -m "chore(roadmap): refresh snapshot [skip ci]"
+          git push

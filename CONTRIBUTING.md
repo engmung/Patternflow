@@ -19,6 +19,23 @@ Custom patterns are welcome as community work, but official bundled firmware pat
 
 **Licensing — inbound = outbound.** By sharing a pattern (Discord, issue, or PR) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
 
+## Commit messages
+
+Keep it simple: start with the area, then a short summary in plain present tense.
+
+```
+area: short summary
+
+web: collapse the preset list on mobile
+firmware: fix reversed encoder direction
+docs: clarify the breadboard wiring step
+```
+
+Common areas: `web`, `firmware`, `pcb`, `enclosure`, `docs`, `pattern`. Use
+`wip(area): …` for work that isn't finished yet. That's the whole rule — no
+tooling enforces it, it just keeps the history (and the Discord dev-log)
+readable.
+
 ## Project Rules
 
 Project rules and guidelines are currently under consideration and will be finalized in the future.

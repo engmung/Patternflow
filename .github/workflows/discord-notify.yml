@@ -1,0 +1,90 @@
+name: Discord notify
+
+# Posts to Discord via webhooks when:
+#   - new commits land on main   → #dev-log   (DISCORD_WEBHOOK_DEV)
+#   - a GitHub release published  → #announcements (DISCORD_WEBHOOK_ANNOUNCE)
+# Set both secrets under Settings → Secrets and variables → Actions.
+# If a secret is missing, that job no-ops instead of failing.
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  commits:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post commits to #dev-log
+        uses: actions/github-script@v7
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_DEV }}
+        with:
+          script: |
+            const webhook = process.env.DISCORD_WEBHOOK;
+            if (!webhook) { core.info("DISCORD_WEBHOOK not set — skipping."); return; }
+
+            const commits = context.payload.commits || [];
+            if (commits.length === 0) { core.info("No commits in payload — skipping."); return; }
+
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const lines = commits.map((c) => {
+              const sha = c.id.slice(0, 7);
+              const msg = c.message.split("\n")[0].slice(0, 120);
+              return `[\`${sha}\`](${c.url}) ${msg} — ${c.author.name}`;
+            });
+
+            const payload = {
+              embeds: [{
+                title: `📦 ${commits.length} new commit${commits.length > 1 ? "s" : ""} on main`,
+                description: lines.join("\n").slice(0, 4000),
+                url: context.payload.compare,
+                color: 0x5865f2,
+                footer: { text: repo },
+                timestamp: new Date().toISOString(),
+              }],
+            };
+
+            const res = await fetch(webhook, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) core.setFailed(`Discord responded ${res.status}: ${await res.text()}`);
+
+  release:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post release to #announcements
+        uses: actions/github-script@v7
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_ANNOUNCE }}
+        with:
+          script: |
+            const webhook = process.env.DISCORD_WEBHOOK;
+            if (!webhook) { core.info("DISCORD_WEBHOOK not set — skipping."); return; }
+
+            const r = context.payload.release;
+            const repo = `${context.repo.owner}/${context.repo.repo}`;
+            const body = (r.body || "").trim().slice(0, 3500) || "_No release notes._";
+
+            const payload = {
+              content: "@here",
+              embeds: [{
+                title: `🚀 ${r.name || r.tag_name}`,
+                description: body,
+                url: r.html_url,
+                color: 0x57f287,
+                footer: { text: repo },
+                timestamp: r.published_at,
+              }],
+            };
+
+            const res = await fetch(webhook, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) core.setFailed(`Discord responded ${res.status}: ${await res.text()}`);
