@@ -35,7 +35,7 @@
 #define ENC4_B 18
 #define ENC4_SW 1
 
-#define INVERT_ENCODER 1   // matches main firmware; flip if direction is wrong
+#define INVERT_ENCODER 0   // matches main firmware; flip if direction is wrong
 
 const int ENC_A[4]  = { ENC1_A, ENC2_A, ENC3_A, ENC4_A };
 const int ENC_B[4]  = { ENC1_B, ENC2_B, ENC3_B, ENC4_B };

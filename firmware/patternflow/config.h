@@ -83,7 +83,10 @@
 #define ENC4_SW  1
 
 // --- Hardware Settings ---
-#define INVERT_ENCODER 1
+// 0 for the official Bourns PEC11R-4220F-S0024 (used on the simplified
+// revision board); set to 1 if rotation reads reversed (e.g. AliExpress
+// clones, or encoders mounted on the back of the PCB).
+#define INVERT_ENCODER 0
 #define DEFAULT_BRIGHTNESS 204  // 80% (0-255)
 
 // --- LED Panel Color Calibration ---
