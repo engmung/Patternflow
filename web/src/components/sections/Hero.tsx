@@ -11,7 +11,14 @@ export default function Hero() {
         <h1>
           <em className="wordmark">Patternflow</em>
         </h1>
-        <div className="kicker">An open-source LED synthesizer played with the fingertips.</div>
+        <div className="kicker" style={{ marginBottom: '24px' }}>An open-source LED synthesizer played with the fingertips.</div>
+        <div style={{ marginBottom: '24px', overflow: 'hidden', border: '1px solid var(--pf-rule)' }}>
+          <img 
+            src="/product_v2.jpg" 
+            alt="Patternflow physical device" 
+            style={{ width: '100%', height: 'auto', display: 'block' }} 
+          />
+        </div>
         <p className="lede">
           A reinterpretation of{" "}
           <a
