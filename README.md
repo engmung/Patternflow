@@ -17,12 +17,8 @@
 Turning four physical knobs reshapes patterns from creative coding on an LED matrix in real time. The light is no longer a visual effect to be watched but a multisensory experience connected directly to the motion of the hand.
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=OXt-yg_7qdk">
-    <img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="100%" alt="Watch the Patternflow demo on YouTube" />
-  </a>
-</p>
-<p align="center">
-  ▶ <a href="https://www.youtube.com/watch?v=OXt-yg_7qdk"><b>Watch Patternflow in action</b></a>
+  <img src="./docs/media/demo_part1_v2.webp" height="500" />
+  <img src="./docs/media/demo_part2.webp" height="500" />
 </p>
 
 ## At its core, this work is about **making things easy and sharing them.**
