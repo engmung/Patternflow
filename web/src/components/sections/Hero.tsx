@@ -116,7 +116,7 @@ export default function Hero() {
         <p className="hero-kit-note">
           All source files and guides are on GitHub.
           <br />
-          Build one now, or join the waitlist.
+          Build one yourself, or get one.
         </p>
         <div className="hero-cta-row" aria-label="Patternflow actions">
           <a
@@ -133,15 +133,15 @@ export default function Hero() {
           </a>
           <a
             className="hero-cta hero-cta-waitlist"
-            href="https://tally.so/r/aQjEQy"
+            href="https://www.crowdsupply.com/engmung/patternflow"
             target="_blank"
             rel="noopener"
-            onClick={() => captureEvent('kit_waitlist_clicked', {
+            onClick={() => captureEvent('crowd_supply_clicked', {
               surface: 'hero',
-              destination: 'tally_waitlist',
+              destination: 'crowd_supply',
             })}
           >
-            Waitlist
+            Get One
           </a>
         </div>
       </div>
