@@ -1,9 +1,19 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 
 export default function Hero() {
+  const [isVideoVisible, setIsVideoVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVideoVisible(true);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <section className="hero">
       <HeroJournalLink />
@@ -12,11 +22,45 @@ export default function Hero() {
           <em className="wordmark">Patternflow</em>
         </h1>
         <div className="kicker" style={{ marginBottom: '24px' }}>An open-source LED synthesizer played with the fingertips.</div>
-        <div style={{ marginBottom: '24px', overflow: 'hidden', border: '1px solid var(--pf-rule)' }}>
+        <div style={{ 
+          marginBottom: '24px', 
+          overflow: 'hidden', 
+          border: '1px solid var(--pf-rule)',
+          position: 'relative',
+          paddingBottom: '56.25%',
+          height: 0
+        }}>
+          {/* Static fallback and loading placeholder */}
           <img 
             src="/product_v2.jpg" 
             alt="Patternflow physical device" 
-            style={{ width: '100%', height: 'auto', display: 'block' }} 
+            style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block' 
+            }} 
+          />
+          <iframe 
+            src="https://www.youtube.com/embed/OXt-yg_7qdk?autoplay=1&mute=1&loop=1&playlist=OXt-yg_7qdk&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0" 
+            title="Patternflow Demo Video"
+            frameBorder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+            allowFullScreen
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              display: 'block',
+              pointerEvents: 'none',
+              opacity: isVideoVisible ? 1 : 0,
+              transition: 'opacity 0.6s ease-in-out',
+            }}
           />
         </div>
         <p className="lede">
