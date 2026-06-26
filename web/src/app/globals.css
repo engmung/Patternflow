@@ -212,7 +212,17 @@
   }
 
   @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; padding: 32px 24px 60px; gap: 24px; min-height: auto; }
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 32px 24px 60px;
+      gap: 24px;
+      min-height: auto;
+    }
+    .hero-top-links {
+      display: none;
+    }
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
     .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
     .hero-copy .kicker { font-size: 20px; margin-bottom: 28px; }
@@ -2524,10 +2534,5 @@
       color: var(--ink);
       text-decoration: underline;
       text-underline-offset: 3px;
-    }
-
-    /* Hide hero-top-links Contact on mobile (it's in the desktop nav only) */
-    .hero-top-links .contact-link {
-      display: none;
     }
   }
