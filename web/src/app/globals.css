@@ -2492,16 +2492,9 @@
   @media (max-width: 900px) {
     .mobile-hero-nav {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       padding: 0 0 20px;
-    }
-    .mobile-hero-nav .mobile-wordmark {
-      font-family: var(--pretendard);
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: -0.02em;
-      color: var(--ink);
     }
     .mobile-hero-nav .mobile-journal-link {
       font-family: var(--mono);
