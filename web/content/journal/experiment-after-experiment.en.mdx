@@ -1,0 +1,40 @@
+---
+title: "Experiment After Experiment"
+date: "2026-06-26T10:10:00+09:00"
+excerpt: "Improving little by little"
+draft: false
+---
+
+This entry, too, is just to share where things stand. The parts that come to mind right away are the enclosure 3D model, the PCB, and the pattern-generation system. Oh! I also shot a new demo video yesterday for the Crowd Supply pre-launch page. I set up a system for organizing progress into GitHub issues, too. I tidied up the Discord channels a bit and wired them to GitHub. Looking at it laid out like this, I really did do a lot this week. I wonder if it's possible because I'm pouring all day into Patternflow lately.
+
+## What I improved
+
+I knocked out, one by one, the things I'd only said I *would* do in the last entry.
+
+### The 3D model
+
+You can see the images at [GitHub Issue #113](https://github.com/engmung/Patternflow/issues/113). I keep revising and experimenting to get a clean, efficient print. I added snap-fits, and tried adding ribs too. Now I just have to solve the warping. With help from the Hongik makerspace, I'm printing it over and over on the H2S. It made me feel all over again how much having this kind of infrastructure nearby helps with prototyping.
+
+### The PCB
+
+In progress at [GitHub Issue #114](https://github.com/engmung/Patternflow/issues/114). I removed every SMD element from the PCB and left only THT. I ordered a small batch from JLCPCB, got it yesterday, and tested it. As expected, no problems. It really is clearly easier to build this way.
+
+### The pattern-generation system
+
+Usable at [Pattern Lab](https://patternflow.work/pattern-lab). Before, the flow was: go into a chat window like Gemini, drop in the pattern-generation prompt, copy the answer, and paste it into the Patternflow web. A very tedious process, with a lot of unnecessary, automatable steps. So I ran a simple PoC using the Gemini API. It's something I'd been thinking I should do for a long time. Now you put in an API key, hit generate, and several pattern drafts come out right away. Much more convenient. That said, even with Flash 3.5, doing it a few times burns through about 4,000 won in a single day. So I think I have to go the route of using free models as much as possible.
+
+The quality isn't that great, either. It clearly compares unfavorably to doing it in the Gemini chat window. That's probably largely because I handed the LLM too many tasks at once. From my experience having various AIs do this, it doesn't need high intelligence. A lighter model often makes them better, in fact, which is why I'd kept making them on Flash 3.5 at the standard setting. I think a multi-agent system would solve this. The key is to build an environment where the model doing the creative work can focus purely on the creative work, with no constraints. Well, let me do that slowly, later.
+
+### Everything else
+
+I added emoji to the Discord channel names. I built a system for the GitHub issues and made a project. I made a GitHub Action and wired it to a Discord bot so the dev log gets generated automatically. Yesterday I shot a horizontal-format video at a photo studio for Crowd Supply. It came out pretty, which felt good. I also experimented with building a Patternflow using only a breadboard and jumper wires, no PCB, and it worked, which felt good. I need to make the materials and documentation so people can build it more easily.
+
+## What failed
+
+A lot. For one, the fact that I'm still improving and experimenting on the enclosure means everything along the way is a failure. When you find out that the mechanisms you agonized over for a long time actually have no effect, the letdown of it not matching what you hoped is pretty big. With laser cutting, too, I'd prepped the file in the past and only got around to testing it some two weeks later, and it failed because I mistakenly used different dimensions. What I learned here is: don't put things off. If you're going to put it off, put it off completely; when something half-finished gets interrupted mid-way, you make mistakes.
+
+And I consider the community, as a whole right now, a failure too. Among the people who joined the Discord, the number who are active is strikingly small. I really hate seeing it. I want to make it lively. I plan to add mechanisms for that later. Like, to see others' patterns you have to post your own every few days and react to other people's. That kind of minimal mechanism is needed. I won't charge money, though.
+
+The last one is less a failure than a question I haven't answered yet. For this PCB test I ordered from a company other than PCBway, and the price difference was large. As for shipping and quality, honestly, I can't tell the difference. The Patternflow PCB isn't a form that needs difficult technology to begin with. For that reason, my certainty that I'd hand PCB, 3D printing, and packaging all to PCBway has started to crack. For now I'll get every quote. I'm not planning to make much money off the funding anyway, but lowering the unit cost is the only way to lower the product price, so that seems right.
+
+No, honestly, I don't know. PCBway gave me sponsorship first and helped a lot, so I wonder if it isn't the decent thing to do. And I like PCBway's maker-friendly image. A bit expensive, but it feels like a company that's maker-friendly and leads that kind of culture. Maybe it fits Patternflow really well. Ah, I don't know. Let me take it slow going forward. This one I'll just have to talk through directly.
