@@ -8,7 +8,7 @@ type JournalIndexProps = {
   lang: JournalLang;
 };
 
-const featuredSlug = "experiment-after-experiment";
+const featuredSlug = "who-we-are";
 
 export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];
