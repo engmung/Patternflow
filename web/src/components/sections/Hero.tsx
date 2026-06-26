@@ -8,10 +8,20 @@ export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Show the video after 3 seconds (allowing it to initialize and hide controls)
+    const showTimer = setTimeout(() => {
       setIsVideoVisible(true);
-    }, 6000);
-    return () => clearTimeout(timer);
+    }, 3000);
+
+    // Hide the video and return to static image after the video ends (3s delay + 89s video duration = 92s)
+    const hideTimer = setTimeout(() => {
+      setIsVideoVisible(false);
+    }, 92000);
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
   }, []);
 
   return (
@@ -45,7 +55,7 @@ export default function Hero() {
             }} 
           />
           <iframe 
-            src="https://www.youtube.com/embed/OXt-yg_7qdk?autoplay=1&mute=1&loop=1&playlist=OXt-yg_7qdk&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0" 
+            src="https://www.youtube.com/embed/OXt-yg_7qdk?autoplay=1&mute=1&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0" 
             title="Patternflow Demo Video"
             frameBorder="0" 
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
