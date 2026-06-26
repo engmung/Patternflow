@@ -141,6 +141,9 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
           <div className={`panel-wrapper ${activeTab === 'hero' ? 'active' : ''}`}>
             <Hero />
             <Sponsor />
+            <div className="mobile-desktop-note">
+              For the full experience — build guide, interactive patterns, and 3D preview — visit <a href="https://patternflow.work">patternflow.work</a> on desktop.
+            </div>
             <Footer />
           </div>
           <div className={`panel-wrapper ${activeTab === 'build' ? 'active' : ''}`}>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 
@@ -26,6 +27,10 @@ export default function Hero() {
 
   return (
     <section className="hero">
+      <div className="mobile-hero-nav">
+        <span className="mobile-wordmark">Patternflow</span>
+        <Link href="/journal" className="mobile-journal-link">Journal</Link>
+      </div>
       <HeroJournalLink />
       <div className="hero-copy">
         <h1>

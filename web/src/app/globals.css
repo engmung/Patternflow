@@ -102,36 +102,10 @@
 
   @media (max-width: 900px) {
     .app-layout { flex-direction: column; }
-    .mobile-page-links {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      min-height: 44px;
-      padding: 14px 18px 10px;
-      background: var(--cream);
-      position: sticky;
-      top: 0;
-      z-index: 40;
-    }
-    .mobile-page-links .hero-top-links {
-      position: static;
-      display: flex;
-      gap: 16px;
-      font-size: 10px;
-      color: var(--ink-muted);
-    }
-    .viewer-panel {
-      position: sticky;
-      top: 44px;
-      width: 100%;
-      height: 30vh;
-      z-index: 10;
-      background: var(--cream);
-    }
+    .mobile-page-links { display: none; }
+    .viewer-panel { display: none; }
     .content-panel { width: 100%; }
-    .viewer-hint {
-      top: 20px;
-    }
+    .viewer-hint { display: none; }
   }
 
   /* ───── Hero ───── */
@@ -330,43 +304,10 @@
     .right-panel-layout {
       flex-direction: column;
       height: auto;
-      min-height: 60vh;
+      min-height: auto;
     }
     .vertical-nav {
-      width: 100%;
-      height: 50px;
-      flex-direction: row;
-      border-bottom: 1px solid var(--rule);
-      border-right: none;
-      border-left: none;
-      position: sticky;
-      top: calc(30vh + 44px);
-      z-index: 20;
-    }
-    .v-tab-btn {
-      flex-direction: row;
-      border-bottom: none;
-      border-right: 1px solid var(--rule);
-      font-size: 13px; /* Smaller text for mobile tabs */
-      letter-spacing: 0.05em;
-    }
-    .v-tab-btn:last-child {
-      border-right: none;
-    }
-    .tab-text {
-      writing-mode: horizontal-tb;
-      transform: none;
-      font-size: 0;
-    }
-    .tab-text::before {
-      content: attr(data-mobile-label);
-      font-size: 13px;
-    }
-    .close-icon {
       display: none;
-    }
-    .v-tab-btn::before {
-      right: 0; top: -1px; width: 100%; height: 2px;
     }
   }
 
@@ -2530,3 +2471,63 @@
     }
   }
 
+  /* ───── Mobile-only: Hero nav & desktop note ───── */
+  .mobile-hero-nav {
+    display: none;
+  }
+  .mobile-desktop-note {
+    display: none;
+  }
+
+  @media (max-width: 900px) {
+    .mobile-hero-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 0 20px;
+    }
+    .mobile-hero-nav .mobile-wordmark {
+      font-family: var(--pretendard);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+    .mobile-hero-nav .mobile-journal-link {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-decoration: none;
+      padding: 8px 14px;
+      border: 1px solid var(--ink);
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .mobile-hero-nav .mobile-journal-link:hover {
+      background: var(--ink);
+      color: var(--cream);
+    }
+    .mobile-desktop-note {
+      display: block;
+      text-align: center;
+      padding: 32px 24px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--ink-muted);
+      line-height: 1.6;
+      border-top: 1px solid var(--pf-rule);
+    }
+    .mobile-desktop-note a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    /* Hide hero-top-links Contact on mobile (it's in the desktop nav only) */
+    .hero-top-links .contact-link {
+      display: none;
+    }
+  }
