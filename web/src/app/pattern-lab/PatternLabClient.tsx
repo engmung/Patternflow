@@ -31,6 +31,7 @@ import {
   type ThinkingLevelKey,
 } from "@/lib/gemini";
 import { captureEvent } from "@/lib/posthogEvents";
+import SharePatternModal from "@/components/share/SharePatternModal";
 import { preset as originPreset } from "@/lib/presets/pattern-origin";
 import { livePresets } from "@/lib/presets";
 import styles from "./PatternLab.module.css";
@@ -325,6 +326,7 @@ export default function PatternLabClient() {
   const [promptCopied, setPromptCopied] = useState(false);
   const [cppPromptCopied, setCppPromptCopied] = useState(false);
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [activeRangeId, setActiveRangeId] = useState<string | null>(null);
   const [editingRange, setEditingRange] = useState<RangeEditState | null>(null);
   const [geminiKey, setGeminiKey] = useState(loadGeminiKey);
@@ -865,7 +867,7 @@ export default function PatternLabClient() {
     });
   };
 
-  const copyCppPrompt = async () => {
+  const buildCppPrompt = () => {
     const rangeLines = ranges
       .map((range, index) => {
         const detentStep = LOGICAL_KNOB_UNITS_PER_TURN[index] / 20;
@@ -873,7 +875,7 @@ export default function PatternLabClient() {
       })
       .join("\n");
 
-    const prompt = `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
+    return `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
 
 ## Output format
 - One single code block labeled cpp. No prose before or after the block.
@@ -965,7 +967,10 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 ${code}
 \`\`\``;
 
-    await navigator.clipboard.writeText(prompt);
+  };
+
+  const copyCppPrompt = async () => {
+    await navigator.clipboard.writeText(buildCppPrompt());
     setCppPromptCopied(true);
     window.setTimeout(() => setCppPromptCopied(false), 1200);
   };
@@ -1066,6 +1071,9 @@ ${code}
             </button>
             <button type="button" className={styles.darkButton} onClick={copyManifest}>
               {copied ? "Copied" : "Copy JSON"}
+            </button>
+            <button type="button" className={styles.darkButton} onClick={() => setShareOpen(true)}>
+              Share to Discord
             </button>
           </div>
 
@@ -1471,6 +1479,14 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
             </div>
           </div>
         </div>
+      )}
+
+      {shareOpen && (
+        <SharePatternModal
+          code={code}
+          cppConvertPrompt={buildCppPrompt()}
+          onClose={() => setShareOpen(false)}
+        />
       )}
 
       {keyModalOpen && (
