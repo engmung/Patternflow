@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
 import { livePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
+import SharePatternModal from '@/components/share/SharePatternModal';
 import styles from './PatternPanel.module.css';
 
 const createPrompt = `I am writing a custom LED pattern in JavaScript for Patternflow's 128x64 LED matrix web preview.
@@ -259,6 +260,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const [mode, setMode] = useState<PatternMode>('create');
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [showAllPresets, setShowAllPresets] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
@@ -471,6 +473,9 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   <button type="button" className={styles.dark} onClick={handleCopyConvertPrompt}>
                     Copy C++ prompt
                   </button>
+                  <button type="button" className={styles.dark} onClick={() => setShareOpen(true)}>
+                    Share to Discord
+                  </button>
                 </div>
                 <p className={styles.editorHint}>
                   Copy a prompt, then paste it into ChatGPT, Claude, Grok, or Gemini.
@@ -629,6 +634,14 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           </div>
         )}
       </div>
+
+      {shareOpen && (
+        <SharePatternModal
+          code={customJsCode}
+          cppConvertPrompt={getConvertPrompt(customJsCode)}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   );
 }
