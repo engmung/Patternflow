@@ -52,6 +52,9 @@ _autosave-*
 .agents/cache/
 *.local.md
 
+# Claude Code local config (launch.json, settings.local.json)
+.claude/
+
 # Personal scratchpads (use external tool like Notion)
 NOTES.md
 TODO-personal.md
