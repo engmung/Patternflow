@@ -102,36 +102,10 @@
 
   @media (max-width: 900px) {
     .app-layout { flex-direction: column; }
-    .mobile-page-links {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      min-height: 44px;
-      padding: 14px 18px 10px;
-      background: var(--cream);
-      position: sticky;
-      top: 0;
-      z-index: 40;
-    }
-    .mobile-page-links .hero-top-links {
-      position: static;
-      display: flex;
-      gap: 16px;
-      font-size: 10px;
-      color: var(--ink-muted);
-    }
-    .viewer-panel {
-      position: sticky;
-      top: 44px;
-      width: 100%;
-      height: 30vh;
-      z-index: 10;
-      background: var(--cream);
-    }
+    .mobile-page-links { display: none; }
+    .viewer-panel { display: none; }
     .content-panel { width: 100%; }
-    .viewer-hint {
-      top: 20px;
-    }
+    .viewer-hint { display: none; }
   }
 
   /* ───── Hero ───── */
@@ -238,7 +212,17 @@
   }
 
   @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; padding: 32px 24px 60px; gap: 24px; min-height: auto; }
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 32px 24px 60px;
+      gap: 24px;
+      min-height: auto;
+    }
+    .hero-top-links {
+      display: none;
+    }
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
     .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
     .hero-copy .kicker { font-size: 20px; margin-bottom: 28px; }
@@ -330,43 +314,10 @@
     .right-panel-layout {
       flex-direction: column;
       height: auto;
-      min-height: 60vh;
+      min-height: auto;
     }
     .vertical-nav {
-      width: 100%;
-      height: 50px;
-      flex-direction: row;
-      border-bottom: 1px solid var(--rule);
-      border-right: none;
-      border-left: none;
-      position: sticky;
-      top: calc(30vh + 44px);
-      z-index: 20;
-    }
-    .v-tab-btn {
-      flex-direction: row;
-      border-bottom: none;
-      border-right: 1px solid var(--rule);
-      font-size: 13px; /* Smaller text for mobile tabs */
-      letter-spacing: 0.05em;
-    }
-    .v-tab-btn:last-child {
-      border-right: none;
-    }
-    .tab-text {
-      writing-mode: horizontal-tb;
-      transform: none;
-      font-size: 0;
-    }
-    .tab-text::before {
-      content: attr(data-mobile-label);
-      font-size: 13px;
-    }
-    .close-icon {
       display: none;
-    }
-    .v-tab-btn::before {
-      right: 0; top: -1px; width: 100%; height: 2px;
     }
   }
 
@@ -2530,3 +2481,53 @@
     }
   }
 
+  /* ───── Mobile-only: Desktop note ───── */
+  .mobile-desktop-note {
+    display: none;
+  }
+
+  @media (max-width: 900px) {
+    .mobile-desktop-note {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 40px 24px;
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--ink-muted);
+      line-height: 1.6;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      background: var(--cream);
+    }
+    .mobile-desktop-note a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      font-weight: 500;
+    }
+    .mobile-desktop-note .mobile-note-journal-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 24px 13px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--ink);
+      color: var(--cream);
+      border: 1px solid var(--ink);
+      text-decoration: none;
+      transition: background-color 0.15s ease, color 0.15s ease;
+      width: 100%;
+      max-width: 280px;
+      margin-top: 8px;
+    }
+    .mobile-desktop-note .mobile-note-journal-btn:hover {
+      background: transparent;
+      color: var(--ink);
+    }
+  }

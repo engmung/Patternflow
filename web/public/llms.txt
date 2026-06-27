@@ -27,7 +27,7 @@ It is not a single luminous object but an open system. The hardware files, firmw
 
 ## Project & community
 
-- [GitHub repository](https://github.com/engmung/PatternFlow): Open-source hardware files, firmware, web source, and build guides.
+- [GitHub repository](https://github.com/engmung/Patternflow): Open-source hardware files, firmware, web source, and build guides.
 - [Instagram (@patternflow.work)](https://www.instagram.com/patternflow.work): Near-daily new pattern studies.
 - [Discord](https://discord.gg/Vr9QtsxeTk): Questions, builds, and community-created patterns with full source.
 - [RSS feed](https://patternflow.work/feed.xml): Journal updates.

@@ -11,10 +11,10 @@ meta:
 cta:
   primary:
     label: "Open the assembly map ->"
-    href: "https://github.com/engmung/PatternFlow/blob/main/docs/assembly/README.md"
+    href: "https://github.com/engmung/Patternflow/blob/main/docs/assembly/README.md"
   secondary:
     label: "Current full guide"
-    href: "https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md"
+    href: "https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md"
 ---
 
 Patternflow is becoming a build system you can choose your way through: pick an enclosure path, pick an electronics path, then flash firmware.

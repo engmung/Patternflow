@@ -17,7 +17,7 @@ interface InsidePanelProps {
 const Globe = dynamic<GlobeProps>(() => import('./InsideGlobe/Globe'), { ssr: false });
 const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
-const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md';
+const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
 
 function DiscordIcon() {
   return (

@@ -4,7 +4,7 @@ subtitle: How to get involved.
 cta:
   primary:
     label: "Contributing"
-    href: "https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md"
+    href: "https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md"
   secondary:
     label: "Join Discord"
     href: "https://discord.gg/Vr9QtsxeTk"

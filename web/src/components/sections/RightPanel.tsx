@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Link from 'next/link';
 import Hero from './Hero';
 import Sponsor from './Sponsor';
 import BuildPanel from './BuildPanel';
@@ -141,6 +142,14 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
           <div className={`panel-wrapper ${activeTab === 'hero' ? 'active' : ''}`}>
             <Hero />
             <Sponsor />
+            <div className="mobile-desktop-note">
+              <p style={{ marginBottom: '16px' }}>
+                For the full experience — build guide, interactive patterns, and 3D preview — visit <a href="https://patternflow.work">patternflow.work</a> on desktop.
+              </p>
+              <Link href="/journal" className="mobile-note-journal-btn">
+                Read Journal
+              </Link>
+            </div>
             <Footer />
           </div>
           <div className={`panel-wrapper ${activeTab === 'build' ? 'active' : ''}`}>

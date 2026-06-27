@@ -206,27 +206,27 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Breadboard</div>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">3D print</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
               <strong>Build guide</strong>
               <span>PLA print · hand solder</span>
             </a>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/121" target="_blank" rel="noreferrer" role="cell">
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/121" target="_blank" rel="noreferrer" role="cell">
               <strong>In testing</strong>
               <span>PCB-free wiring</span>
             </a>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">Laser cut</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/123" target="_blank" rel="noreferrer" role="cell">
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/123" target="_blank" rel="noreferrer" role="cell">
               <strong>In testing</strong>
               <span>Flat enclosure</span>
             </a>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/PatternFlow/issues/123" target="_blank" rel="noreferrer" role="cell">
+            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/123" target="_blank" rel="noreferrer" role="cell">
               <strong>In testing</strong>
               <span>Lowest fabrication path</span>
             </a>
           </div>
           <div className={styles.pathLinks}>
-            <a className="pf-link" href="https://github.com/engmung/PatternFlow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">
+            <a className="pf-link" href="https://github.com/engmung/Patternflow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">
               Open the assembly map
             </a>
           </div>

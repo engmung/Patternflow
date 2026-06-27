@@ -16,7 +16,7 @@ All notable changes to Patternflow will be documented in this file.
 - **Build guide reorganized.** Known Issues section split into "Fixed in v2.0," "Still open," and "Design notes."
 
 ### Fixed
-- **Cold-boot unreliability** after extended power-off. Root cause: GPIO0 strapping pin floating. Full story: [Issue #16](https://github.com/engmung/PatternFlow/issues/16). Credit to @idranoutof1d and u/Infrated on r/AskElectronics.
+- **Cold-boot unreliability** after extended power-off. Root cause: GPIO0 strapping pin floating. Full story: [Issue #16](https://github.com/engmung/Patternflow/issues/16). Credit to @idranoutof1d and u/Infrated on r/AskElectronics.
 
 ### Still open
 - **Issue #4** -- LED matrix alignment bumps require manual trimming. Will be addressed when the LED diffuser variant ships.

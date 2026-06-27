@@ -20,7 +20,7 @@ That was it. **GPIO0 is a strapping pin on the ESP32 — it determines the boot 
   <figcaption>Adding a pull-up resistor on IO0 solved the cold boot problem.</figcaption>
 </figure>
 
-I also decided to remove the 1000μF capacitor I'd added for stable power delivery. Knowing nothing about electronics, I'd trusted AI completely and assumed it had to be there. I was over-trusting AI. But while trying out the Reddit suggestions, I removed it entirely — and nothing went wrong. **Hardware and low-level work seems hard for AI to fully replace.** The full details are on [GitHub Issue #16](https://github.com/engmung/PatternFlow/issues/16) and the linked Reddit post.
+I also decided to remove the 1000μF capacitor I'd added for stable power delivery. Knowing nothing about electronics, I'd trusted AI completely and assumed it had to be there. I was over-trusting AI. But while trying out the Reddit suggestions, I removed it entirely — and nothing went wrong. **Hardware and low-level work seems hard for AI to fully replace.** The full details are on [GitHub Issue #16](https://github.com/engmung/Patternflow/issues/16) and the linked Reddit post.
 
 ---
 
@@ -35,4 +35,4 @@ Patternflow's full roadmap included a **remote rendering feature**. For patterns
   <figcaption>Remote rendering test</figcaption>
 </figure>
 
-I'm putting it on hold for now. It's a nice-to-have, not essential, so I'll come back to it when there's room. I'll probably end up studying computing fundamentals from the ground up. Or — switch from ESP32 to Raspberry Pi. That would mean changing the PCB and the code completely, so honestly, I don't know. I'll deal with it if I need to. Tired of this one for now. Details are logged in [GitHub Issue #45](https://github.com/engmung/PatternFlow/issues/45).
+I'm putting it on hold for now. It's a nice-to-have, not essential, so I'll come back to it when there's room. I'll probably end up studying computing fundamentals from the ground up. Or — switch from ESP32 to Raspberry Pi. That would mean changing the PCB and the code completely, so honestly, I don't know. I'll deal with it if I need to. Tired of this one for now. Details are logged in [GitHub Issue #45](https://github.com/engmung/Patternflow/issues/45).

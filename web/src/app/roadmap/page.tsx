@@ -17,7 +17,7 @@ type RoadmapIssue = {
 
 type RoadmapData = { repo?: string; fetchedAt?: string; issues: RoadmapIssue[]; error?: string };
 
-const GITHUB_ISSUES_URL = 'https://github.com/engmung/PatternFlow/issues';
+const GITHUB_ISSUES_URL = 'https://github.com/engmung/Patternflow/issues';
 
 export default function RoadmapPage() {
   const [data, setData] = useState<RoadmapData | null>(null);

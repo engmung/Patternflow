@@ -159,7 +159,7 @@ Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD
 
 > **⚠️ Temporary note — you can skip the SMD 0805 passives (verified working).** In bench testing, a board runs fine **without** the 0805 SMD resistors and capacitors populated — the encoder pull-ups (R1–R12), encoder filter caps (C1–C10, C12–C13), and the ESP32 decoupling caps (C14–C15) are not required to get a working unit. The ESP32-S3's internal pull-ups and firmware debouncing cover the encoders. If you'd rather not deal with the SMD pass at all, you can skip this whole section and still end up with a functioning board.
 >
-> **R13 (GPIO0 pull-up) — leave it off, fix on the module only if needed.** R13 only matters for the cold-boot strapping issue, which mostly affects clone/AliExpress ESP32-S3 modules; **genuine Espressif modules boot fine without it.** The intended direction is to drop R13 entirely and **not** populate it on the board. If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), the simplest fix is to solder a 10kΩ leaded (through-hole) resistor **directly on the ESP32 module, between GPIO0 and 3.3V** — no board rework, no extra part to source if you have a 10kΩ on hand. For reference photos of this on-module fix and the full root-cause write-up, see [issue #16 (GPIO0 strapping pin resolution)](https://github.com/engmung/PatternFlow/issues/16#issuecomment-4379612470). (The PCB still has R13 pads for now, so you *could* populate it there instead, but the on-module fix is easier and is the recommended path.)
+> **R13 (GPIO0 pull-up) — leave it off, fix on the module only if needed.** R13 only matters for the cold-boot strapping issue, which mostly affects clone/AliExpress ESP32-S3 modules; **genuine Espressif modules boot fine without it.** The intended direction is to drop R13 entirely and **not** populate it on the board. If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), the simplest fix is to solder a 10kΩ leaded (through-hole) resistor **directly on the ESP32 module, between GPIO0 and 3.3V** — no board rework, no extra part to source if you have a 10kΩ on hand. For reference photos of this on-module fix and the full root-cause write-up, see [issue #16 (GPIO0 strapping pin resolution)](https://github.com/engmung/Patternflow/issues/16#issuecomment-4379612470). (The PCB still has R13 pads for now, so you *could* populate it there instead, but the on-module fix is easier and is the recommended path.)
 >
 > This is a temporary note pending a PCB revision that removes these SMD parts. The full SMD build below is kept intact for anyone who wants to populate everything. See Section 10 / the GPIO0 root-cause notes for background.
 
@@ -474,7 +474,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 <img src="docs/build-guide/images/first_boot.jpg" width="33%">
 
-> If your unit does not boot reliably, press RESET on the ESP32-S3 module once. On v2.0 boards this should not be necessary -- if it consistently is, [open an issue](https://github.com/engmung/PatternFlow/issues) with your module source (AliExpress / Espressif / other) and a photo of the GPIO0 area on your PCB.
+> If your unit does not boot reliably, press RESET on the ESP32-S3 module once. On v2.0 boards this should not be necessary -- if it consistently is, [open an issue](https://github.com/engmung/Patternflow/issues) with your module source (AliExpress / Espressif / other) and a photo of the GPIO0 area on your PCB.
 
 ---
 
@@ -482,7 +482,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 ### Fixed in v2.0
 
-- **Cold-boot reliability** (was Issue #1). GPIO0 is a strapping pin on the ESP32-S3 and was left floating in v1.0. After extended power-off, residual charge could leak into an indeterminate state, sometimes registering LOW on power-on and sending the module into serial bootloader mode instead of normal boot -- looking exactly like "boot failure." v2.0 adds a 10k pullup from GPIO0 to 3.3V on the PCB. Full debugging story in [Issue #16](https://github.com/engmung/PatternFlow/issues/16). Two weeks of debugging compressed into one comment from u/Infrated on r/AskElectronics. Genuine Espressif modules tended not to exhibit the issue at all, but v2.0 covers both genuine and clone modules.
+- **Cold-boot reliability** (was Issue #1). GPIO0 is a strapping pin on the ESP32-S3 and was left floating in v1.0. After extended power-off, residual charge could leak into an indeterminate state, sometimes registering LOW on power-on and sending the module into serial bootloader mode instead of normal boot -- looking exactly like "boot failure." v2.0 adds a 10k pullup from GPIO0 to 3.3V on the PCB. Full debugging story in [Issue #16](https://github.com/engmung/Patternflow/issues/16). Two weeks of debugging compressed into one comment from u/Infrated on r/AskElectronics. Genuine Espressif modules tended not to exhibit the issue at all, but v2.0 covers both genuine and clone modules.
 
 - **Silkscreen ambiguity** (was Issue #3). 0805 resistor vs. capacitor designators are now clearly marked, and the correct encoder solder side is on the silkscreen.
 

@@ -115,7 +115,7 @@ const structuredData = {
         "Open-source LED synthesizer played with the fingertips — a modern reinterpretation of Nam June Paik's Participation TV (1963).",
       founder: { "@id": `${siteUrl}/#person` },
       sameAs: [
-        "https://github.com/engmung/PatternFlow",
+        "https://github.com/engmung/Patternflow",
         "https://www.instagram.com/patternflow.work",
         "https://discord.gg/Vr9QtsxeTk",
       ],

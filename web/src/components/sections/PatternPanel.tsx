@@ -588,13 +588,13 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     <strong>Every pattern from Patternflow&apos;s <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">Instagram</a> is also shared on <a href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noopener noreferrer">Discord</a>.</strong> The Discord patterns channel mirrors the Instagram feed with the full JavaScript source, the hardware-tested C++ header, and the design notes behind each one. Join the Discord to grab any pattern you saw on a post, or share yours back — selected community patterns may be bundled into future releases.
                   </p>
                   <p>
-                    Want more detail than the four steps above? Read the <a href="https://github.com/engmung/PatternFlow/blob/main/firmware/README.md" target="_blank" rel="noopener noreferrer">firmware README</a> — it covers wiring, OTA wireless flashing, panel color calibration, and the most common upload errors.
+                    Want more detail than the four steps above? Read the <a href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md" target="_blank" rel="noopener noreferrer">firmware README</a> — it covers wiring, OTA wireless flashing, panel color calibration, and the most common upload errors.
                   </p>
                   <p>
                     Newer to Arduino or embedded work? Copy the entire firmware README into ChatGPT or Claude and ask it to walk you through your specific setup. The README is written densely enough that an AI assistant can guide a beginner through it step by step.
                   </p>
                   <div className={styles.applyLinks}>
-                    <a href="https://github.com/engmung/PatternFlow/tree/main/firmware" className={styles.secondaryLink}>
+                    <a href="https://github.com/engmung/Patternflow/tree/main/firmware" className={styles.secondaryLink}>
                       Firmware source
                     </a>
                     <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={styles.secondaryLink}>
