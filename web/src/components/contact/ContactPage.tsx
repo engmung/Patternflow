@@ -28,9 +28,9 @@ const partnershipRows = [
 const statusRows = [
   {
     index: "01",
-    title: "Kit release in preparation",
+    title: "Now in pre-launch on Crowd Supply",
     description:
-      "The open-source files are live. The first kit run and store listing are being prepared.",
+      "The open-source files are live, and the fully assembled product is in pre-launch on Crowd Supply. Subscribe there to be notified when the campaign opens.",
     active: true,
   },
   {
