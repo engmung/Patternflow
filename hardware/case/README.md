@@ -25,6 +25,8 @@ Optional drop-in replacements live in `print-ready/variants/`. Print a variant *
 
 Naming: a variant keeps its base plate's name plus a descriptive suffix (e.g. `01_plate_main` + `_easyfit`), so each variant sorts next to the part it replaces.
 
+> **⚠️ Known issue — `01_plate_main_easyfit.stl`.** This variant is missing the internal slot that the LED matrix divider wall slides into, so the divider does not seat properly. A fixed STL will be uploaded later. Until then, use the standard `01_plate_main.stl` if you need the divider to fit correctly.
+
 ## Print settings
 
 - **Printer:** Bambu P1S (default profile works as-is)
