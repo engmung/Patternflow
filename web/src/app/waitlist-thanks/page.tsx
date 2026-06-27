@@ -17,7 +17,7 @@ export default function WaitlistThanksPage() {
         <p className="mono">Waitlist</p>
         <h1>You&apos;re on the list.</h1>
         <p>
-          Thanks for following Patternflow. The kit path will open after the next build round is ready.
+          Thanks for following Patternflow. The finished product is now in pre-launch on Crowd Supply — we&apos;ll let you know when the campaign opens.
         </p>
         <Link href="/">Back to Patternflow</Link>
       </div>

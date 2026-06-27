@@ -105,6 +105,8 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 **Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `03_plate_knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `03_plate_knobs.stl` instead. Each file is one print job; each knob STL contains all four knobs.
 
+> **Optional — easier-bonding main body.** `print-ready/variants/01_plate_main_easyfit.stl` is a drop-in replacement for `01_plate_main.stl` with small alignment tabs along the bond seam. The halves self-locate and glue together easily without taping or clamping. The tradeoff is a thin visible seam between the halves. Print this instead of `01_plate_main.stl` if you'd rather not clamp; see Section 3.1 for the bonding difference.
+
 ### Print Settings
 
 I used a **Bambu P1S** with default settings, with one tweak:
@@ -130,6 +132,8 @@ The case prints in halves because it's too tall for most printers in one piece. 
 ### 3.1 Bond the main body halves
 
 Apply super glue along the seam between the upper and lower halves of the main body. Press firmly and hold until set.
+
+> **Standard vs. easyfit main body.** With the standard `01_plate_main.stl`, tape the halves together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If you printed `variants/01_plate_main_easyfit.stl`, the alignment tabs locate the halves for you: just glue and press, no taping. It bonds reliably but leaves a thin seam between the halves — to hide it, sprinkle a little baking soda into the wet glue line and the seam fills in.
 
 ### 3.2 Bond the back panel halves
 

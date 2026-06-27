@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/Code-MIT-green?style=flat-square)](./LICENSE-MIT)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/Hardware-CC_BY--SA_4.0-orange?style=flat-square)](./LICENSE-CC-BY-SA)
 [![Release](https://img.shields.io/badge/Release-v2.0.0-purple?style=flat-square)](../../releases)
+[![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Pre--launch-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
 
 > ⚠️ **Photosensitivity Warning**
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
@@ -35,7 +36,9 @@ It is a living system in which a physical experience extends outward into open-s
 
 ---
 
-Build it from the files, or wait for the kit.
+Build it from the files, or get the finished product.
+
+🔔 **Want a ready-made one instead of building it yourself?** Patternflow is now in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)** — a fully assembled, ready-to-play unit. Subscribe there to be notified the moment the campaign goes live.
 
 👉 **Ready to build?** Follow the **[Current Full Build Guide (BUILD_GUIDE.md)](BUILD_GUIDE.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
 
@@ -76,6 +79,7 @@ The device still serves a built-in page at `http://patternflow.local/` when Wi-F
 ## Links
 
 - [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
+- [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) — pre-launch page; subscribe to get the finished product
 - [Releases](../../releases) — stable bundles
 - [Discord](https://discord.gg/Vr9QtsxeTk) — questions, builds, custom patterns
 - [Audio Extension](tools/patternflow-audio-extension) — experimental Chrome/Edge tab-audio controller
@@ -113,7 +117,7 @@ Guidelines for contributing to the repository are currently under preparation. I
 | **Mar 2026** | First experiments with LEDs and potentiometers |
 | **Apr 2026** | First prototype · strong response on Reddit and Instagram — the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
 | **May 2026** | Continuous pattern development · Crowd Supply agreement · Discord community growing · a Paris-based creative technologist joins as the first collaborator |
-| **Jun 2026** | First community-made pattern shared · 3D-printed enclosure in production *(sponsored by PCBWay)* |
+| **Jun 2026** | First community-made pattern shared · 3D-printed enclosure in production *(sponsored by PCBWay)* · [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live |
 | **Next** | Contribution guide & issue cleanup · Crowd Supply campaign · growing a sustainable business · wider outreach · continued development |
 
 📖 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**.

@@ -15,6 +15,16 @@ The case is organized into three print plate groups. Print the main body, divide
 
 Total with one knob plate: **~10 hours** on a Bambu P1S with default settings. The 15mm knob plate is recommended for new builds.
 
+## Variants
+
+Optional drop-in replacements live in `print-ready/variants/`. Print a variant *instead of* the matching standard plate — same fit, different tradeoff.
+
+| File | Replaces | Tradeoff |
+|---|---|---|
+| `print-ready/variants/01_plate_main_easyfit.stl` | `01_plate_main.stl` | Adds small alignment tabs along the bond seam so the two halves self-locate and glue easily — no taping or clamping. The tradeoff is a thin visible seam between the halves (hide it by sprinkling baking soda into the wet glue line). Use the standard `01_plate_main.stl` for the cleanest seam if you're comfortable clamping while it cures. |
+
+Naming: a variant keeps its base plate's name plus a descriptive suffix (e.g. `01_plate_main` + `_easyfit`), so each variant sorts next to the part it replaces.
+
 ## Print settings
 
 - **Printer:** Bambu P1S (default profile works as-is)
