@@ -160,7 +160,7 @@
         "min_text_thickness": 0.08,
         "min_through_hole_diameter": 0.3,
         "min_track_width": 0.2,
-        "min_via_annular_width": 0.1,
+        "min_via_annular_width": 0.07,
         "min_via_diameter": 0.5,
         "solder_mask_to_copper_clearance": 0.0,
         "use_height_for_length_calcs": true
@@ -520,7 +520,7 @@
     "classes": [
       {
         "bus_width": 12,
-        "clearance": 0.2,
+        "clearance": 0.08,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -693,7 +693,7 @@
         "uuid": "7829ca74-397b-4e20-b2ed-d34479de16a0"
       }
     ],
-    "used_designators": "C11",
+    "used_designators": "USB1",
     "variants": []
   },
   "sheets": [
