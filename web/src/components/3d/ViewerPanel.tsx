@@ -1,7 +1,14 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import HeroScene from './HeroScene';
 import { useAppStore } from '@/store/useAppStore';
+
+// The Inside section swaps the product preview for the interactive build globe.
+const GlobeViewer = dynamic(
+  () => import('@/components/sections/InsideGlobe/GlobeViewer'),
+  { ssr: false },
+);
 
 // Wraps the 3D scene so it can react to the active home tab.
 // On desktop the panel is always shown (sticky left column). On mobile it stays
@@ -13,7 +20,7 @@ export default function ViewerPanel() {
 
   return (
     <div className={`viewer-panel ${isOpen ? 'is-open' : ''}`}>
-      <HeroScene />
+      {homeTab === 'inside' ? <GlobeViewer /> : <HeroScene />}
     </div>
   );
 }

@@ -245,8 +245,8 @@
 }
 
 .galleryMain {
-  max-width: min(76vw, 560px);
-  max-height: 72vh;
+  max-width: min(92vw, 1200px);
+  max-height: 82vh;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -288,7 +288,7 @@
 
 @media (max-width: 640px) {
   .galleryThumb { width: 36px; }
-  .galleryMain { max-width: 66vw; max-height: 64vh; }
+  .galleryMain { max-width: 94vw; max-height: 72vh; }
   .galleryFrame { gap: 8px; }
   .galleryNav { width: 36px; height: 36px; font-size: 20px; }
 }

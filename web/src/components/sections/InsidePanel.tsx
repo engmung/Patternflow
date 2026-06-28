@@ -1,20 +1,13 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { SectionContent } from '@/lib/content';
-import { builds } from './InsideGlobe/builds';
-import type { GlobeProps } from './InsideGlobe/Globe';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
   content: SectionContent;
 }
 
-const Globe = dynamic<GlobeProps>(() => import('./InsideGlobe/Globe'), { ssr: false });
 const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
@@ -44,37 +37,6 @@ function GitHubIcon() {
 }
 
 export default function InsidePanel({ content }: InsidePanelProps) {
-  const [selectedBuildId, setSelectedBuildId] = useState<string | null>(null);
-  const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
-  const selectedBuild = useMemo(
-    () => builds.find((build) => build.id === selectedBuildId) ?? null,
-    [selectedBuildId],
-  );
-  const galleryImages = selectedBuild?.images;
-  const galleryOpen = galleryIndex !== null && !!galleryImages?.length;
-
-  // Selecting a different pin also closes any open gallery.
-  const handleSelectBuild = (id: string | null) => {
-    setSelectedBuildId(id);
-    setGalleryIndex(null);
-  };
-
-  useEffect(() => {
-    if (!galleryOpen || !galleryImages) return;
-    const count = galleryImages.length;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setGalleryIndex(null);
-      else if (event.key === 'ArrowRight') setGalleryIndex((i) => (i === null ? i : (i + 1) % count));
-      else if (event.key === 'ArrowLeft') setGalleryIndex((i) => (i === null ? i : (i - 1 + count) % count));
-    };
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [galleryOpen, galleryImages]);
-
   return (
     <div className="panel-content pf-section-panel" id="inside" aria-label={content.title}>
       <div className="panel-header">
@@ -97,53 +59,12 @@ export default function InsidePanel({ content }: InsidePanelProps) {
         </div>
 
         <div className="pf-block">
-          <div className="pf-head">
-            <span className="pf-kicker">Build map</span>
-            <span className="pf-count">Total: {builds.length}+</span>
-          </div>
-          <div className={styles.mapLayout}>
-            <div className={styles.globeShell}>
-              <Globe selectedBuildId={selectedBuildId ?? undefined} onSelectBuild={handleSelectBuild} />
-            </div>
-            {selectedBuild ? (
-              <div className={styles.buildCard} key={selectedBuild.id} aria-live="polite">
-                <div className={styles.cardTop}>
-                  <dl>
-                    <div>
-                      <dt>Location</dt>
-                      <dd>{selectedBuild.location.label}</dd>
-                    </div>
-                    <div>
-                      <dt>Maker</dt>
-                      <dd>{selectedBuild.maker}</dd>
-                    </div>
-                    <div>
-                      <dt>Date</dt>
-                      <dd>{selectedBuild.date}</dd>
-                    </div>
-                  </dl>
-                  {galleryImages && galleryImages.length > 0 && (
-                    <button
-                      type="button"
-                      className={styles.cardThumb}
-                      onClick={() => setGalleryIndex(0)}
-                      aria-label={`View ${selectedBuild.maker}'s build photos`}
-                    >
-                      <Image src={galleryImages[0].src} alt={galleryImages[0].alt} fill sizes="82px" />
-                      {galleryImages.length > 1 && (
-                        <span className={styles.cardThumbBadge}>{galleryImages.length}</span>
-                      )}
-                    </button>
-                  )}
-                </div>
-                <p>{selectedBuild.description}</p>
-              </div>
-            ) : (
-              <div className={styles.buildCardPlaceholder}>
-                <p>The goal is simple: cover this globe with Patternflow.</p>
-                <span>Select a point on the globe to explore build details</span>
-              </div>
-            )}
+          <span className="pf-kicker">On the map</span>
+          <div className="pf-prose">
+            <p>
+              The goal is simple: cover the whole globe with Patternflow. If you have made
+              one yourself, come share it in Discord and I&apos;ll add your pin to the map.
+            </p>
           </div>
         </div>
 
@@ -287,77 +208,6 @@ export default function InsidePanel({ content }: InsidePanelProps) {
           </div>
         </div>
       </div>
-
-      {galleryIndex !== null && galleryImages && galleryImages.length > 0 && typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className={styles.gallery}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Build photos"
-            onClick={() => setGalleryIndex(null)}
-          >
-            <button
-              className={styles.galleryClose}
-              type="button"
-              aria-label="Close gallery"
-              onClick={() => setGalleryIndex(null)}
-            >
-              close
-            </button>
-            <div className={styles.galleryStage} onClick={(event) => event.stopPropagation()}>
-              <div className={styles.galleryFrame}>
-                {galleryImages.length > 1 && (
-                  <button
-                    type="button"
-                    className={styles.galleryNav}
-                    aria-label="Previous photo"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === null ? i : (i - 1 + galleryImages.length) % galleryImages.length))
-                    }
-                  >
-                    ‹
-                  </button>
-                )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={styles.galleryMain}
-                  src={galleryImages[galleryIndex].src}
-                  alt={galleryImages[galleryIndex].alt}
-                />
-                {galleryImages.length > 1 && (
-                  <button
-                    type="button"
-                    className={styles.galleryNav}
-                    aria-label="Next photo"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === null ? i : (i + 1) % galleryImages.length))
-                    }
-                  >
-                    ›
-                  </button>
-                )}
-              </div>
-              {galleryImages.length > 1 && (
-                <div className={styles.galleryThumbs}>
-                  {galleryImages.map((image, index) => (
-                    <button
-                      key={image.src}
-                      type="button"
-                      className={`${styles.galleryThumb} ${index === galleryIndex ? styles.galleryThumbActive : ''}`}
-                      onClick={() => setGalleryIndex(index)}
-                      aria-label={image.alt}
-                      aria-current={index === galleryIndex}
-                    >
-                      <Image src={image.src} alt="" fill sizes="42px" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
     </div>
   );
 }

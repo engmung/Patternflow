@@ -2,10 +2,9 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import type { Mesh } from 'three';
-import { BufferGeometry, Float32BufferAttribute, Vector3, CanvasTexture } from 'three';
+import type { ThreeEvent } from '@react-three/fiber';
+import type { Group, Mesh } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Vector3, CanvasTexture, Quaternion } from 'three';
 import type { Build } from './builds';
 import { builds, latLngToVec3 } from './builds';
 import landData from './land.json';
@@ -228,6 +227,7 @@ function BuildPin({
     <group position={position}>
       {/* Large invisible hit-box for both easy hover and click (3.6x sensitivity) */}
       <mesh
+        onPointerDown={(event) => event.stopPropagation()}
         onPointerOver={(event) => {
           event.stopPropagation();
           setHovered(true);
@@ -259,21 +259,94 @@ function BuildPin({
   );
 }
 
-function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
-  const controlsRef = useRef<OrbitControlsImpl>(null);
-  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [autoRotate, setAutoRotate] = useState(true);
+const FRONT_DIR = new Vector3(0, 0, 1);
+const AXIS_Y = new Vector3(0, 1, 0);
+const AXIS_X = new Vector3(1, 0, 0);
 
-  const pauseRotation = () => {
-    setAutoRotate(false);
-    if (resumeTimeoutRef.current) {
-      clearTimeout(resumeTimeoutRef.current);
+// Camera fit: keep the globe at roughly 70% of the smaller viewport dimension.
+const VFOV_DEG = 42;
+const TAN_HALF_VFOV = Math.tan((VFOV_DEG * Math.PI) / 180 / 2);
+const FIT_RADIUS = 1.35;       // globe radius including markers
+const FIT_FRACTION = 0.7;      // share of the limiting dimension to occupy
+const FOCUS_DOLLY = 0.62;      // zoom-in factor when a build is selected
+const DRAG_SPEED = 0.006;      // radians per pixel of drag
+
+// Reusable scratch objects (module-scoped — a single globe instance).
+const _yawQ = new Quaternion();
+const _pitchQ = new Quaternion();
+const _faceQ = new Quaternion();
+const _dir = new Vector3();
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
+  const worldRef = useRef<Group>(null);
+  const orientation = useRef(new Quaternion().setFromAxisAngle(AXIS_X, 0.32));
+  const dragging = useRef(false);
+  const moved = useRef(0);
+  const distRef = useRef(5);
+
+  const selected = selectedBuildId
+    ? builds.find((build) => build.id === selectedBuildId) ?? null
+    : null;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
+  useFrame((state, delta) => {
+    const world = worldRef.current;
+    if (!world) return;
+
+    if (selected) {
+      // Ease the picked location around to face the camera.
+      const [x, y, z] = latLngToVec3(selected.location.lat, selected.location.lng, 1);
+      _dir.set(x, y, z);
+      _faceQ.setFromUnitVectors(_dir, FRONT_DIR);
+      orientation.current.slerp(_faceQ, 0.08);
+    } else if (!dragging.current) {
+      // Idle auto-spin around the vertical axis (preserving the gentle tilt).
+      _yawQ.setFromAxisAngle(AXIS_Y, delta * 0.18);
+      orientation.current.premultiply(_yawQ);
     }
-    resumeTimeoutRef.current = setTimeout(() => setAutoRotate(true), 3000);
+    world.quaternion.copy(orientation.current);
+
+    // Responsive distance so the globe fills ~70% of the smaller dimension.
+    const aspect = state.size.width / Math.max(1, state.size.height);
+    const limit = Math.min(1, aspect);
+    const desired = clamp(FIT_RADIUS / (FIT_FRACTION * TAN_HALF_VFOV * limit), 3.4, 8.5);
+    const targetDist = selected ? desired * FOCUS_DOLLY : desired;
+    distRef.current += (targetDist - distRef.current) * 0.08;
+    state.camera.position.set(0, 0, distRef.current);
+    state.camera.lookAt(0, 0, 0);
+  });
+
+  // Drag to rotate (disabled while a build is focused). A near-still press is
+  // treated as a click on empty globe and clears the current selection.
+  const startDrag = (event: ThreeEvent<PointerEvent>) => {
+    if (selectedRef.current) return;
+    event.stopPropagation();
+    dragging.current = true;
+    moved.current = 0;
+
+    const onMove = (move: PointerEvent) => {
+      const dx = move.movementX || 0;
+      const dy = move.movementY || 0;
+      moved.current += Math.abs(dx) + Math.abs(dy);
+      _yawQ.setFromAxisAngle(AXIS_Y, dx * DRAG_SPEED);
+      _pitchQ.setFromAxisAngle(AXIS_X, dy * DRAG_SPEED);
+      orientation.current.premultiply(_yawQ).premultiply(_pitchQ);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      dragging.current = false;
+      if (moved.current < 6) onSelectBuild?.(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
   };
 
   return (
-    <>
+    <group ref={worldRef}>
       <ContinentShell />
       <ContinentOutlines />
       <GlobeWireframe />
@@ -283,30 +356,24 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
           key={build.id}
           build={build}
           isSelected={selectedBuildId === build.id}
-          onSelect={(buildId) => {
-            pauseRotation();
-            onSelectBuild?.(buildId);
-          }}
+          onSelect={(buildId) => onSelectBuild?.(buildId)}
         />
       ))}
-      <OrbitControls
-        ref={controlsRef}
-        enableZoom={false}
-        enablePan={false}
-        autoRotate={autoRotate}
-        autoRotateSpeed={0.3}
-        minPolarAngle={Math.PI * 0.1}
-        maxPolarAngle={Math.PI * 0.9}
-        onStart={pauseRotation}
-      />
-    </>
+
+      {/* Invisible drag handle behind the markers. */}
+      <mesh onPointerDown={startDrag}>
+        <sphereGeometry args={[1.22, 24, 24]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+    </group>
   );
 }
 
 export default function Globe(props: GlobeProps) {
   return (
     <Canvas
-      camera={{ position: [0, 0, 4.2], fov: 42 }}
+      flat
+      camera={{ position: [0, 0, 5], fov: VFOV_DEG }}
       gl={{ alpha: true, antialias: true }}
       dpr={[1, 2]}
       onPointerMissed={() => props.onSelectBuild?.(null)}

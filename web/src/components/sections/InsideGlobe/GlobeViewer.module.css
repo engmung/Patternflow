@@ -1,0 +1,206 @@
+.viewer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* When open, the whole viewer becomes a click-to-close surface. */
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.overlayOpen {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Top-center prompt, matching the product preview's hint style. */
+.hint {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  width: 100%;
+  z-index: 3;
+  text-align: center;
+  pointer-events: none;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: opacity 1.2s ease;
+}
+.hintHidden {
+  opacity: 0;
+}
+
+/* Bare glyph arrows to flip between builds. */
+.arrow {
+  position: absolute;
+  top: 44%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pf-led);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 1;
+  transition: transform 0.18s ease;
+}
+.arrow svg {
+  width: 84px;
+  height: 84px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.arrow:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+.arrowPrev {
+  left: 12px;
+}
+.arrowNext {
+  right: 12px;
+}
+
+/* Layout-only container; text rows carry their own highlight backgrounds. */
+.card {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: min(100%, 600px);
+  display: grid;
+  justify-items: start;
+  gap: 9px;
+  padding: 0 30px 32px;
+  pointer-events: none;
+  transform: translateY(14px);
+  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.overlayOpen .card {
+  transform: translateY(0);
+}
+
+/* Highlight backgrounds that hug the text itself, line by line. */
+.kicker,
+.maker,
+.meta,
+.desc {
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background: rgba(13, 13, 13, 0.85);
+  color: var(--cream);
+}
+
+.kicker {
+  padding: 3px 9px;
+  font-family: var(--pf-mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pf-led);
+}
+
+.maker {
+  padding: 3px 11px;
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.28;
+}
+
+.meta {
+  padding: 4px 10px;
+  font-family: var(--pf-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+
+.desc {
+  padding: 4px 10px;
+  max-width: 60ch;
+  font-size: 19px;
+  line-height: 1.75;
+}
+
+.thumbs {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  pointer-events: auto;
+}
+.thumb {
+  position: relative;
+  width: 150px;
+  height: 112px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgba(244, 239, 230, 0.45);
+  background: #000;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.thumb:hover {
+  border-color: var(--cream);
+}
+.thumb img {
+  object-fit: cover;
+}
+/* Only ever preview the first three; the rest live in the lightbox. */
+.thumb:nth-child(n + 4) {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .card {
+    width: 100%;
+    padding: 0 16px 14px;
+    gap: 5px;
+  }
+  .maker {
+    padding: 2px 7px;
+    font-size: 21px;
+    line-height: 1.24;
+  }
+  .meta {
+    padding: 2px 7px;
+    font-size: 10.5px;
+  }
+  .desc {
+    padding: 3px 7px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    max-width: none;
+  }
+  .thumbs {
+    gap: 7px;
+    margin-top: 4px;
+    flex-wrap: nowrap;
+  }
+  .thumb {
+    width: 76px;
+    height: 57px;
+  }
+  /* Keep the strip to a single row — show only the first three. */
+  .thumb:nth-child(n + 4) {
+    display: none;
+  }
+  .arrow svg {
+    width: 52px;
+    height: 52px;
+  }
+}

@@ -43,11 +43,11 @@ export const builds: Build[] = [
     date: 'June 2026',
     description: 'The first case of someone sharing their own Patternflow build through Discord.',
     images: [
+      { src: '/builds/nath/custom-pattern.jpg', alt: "A custom pattern running on Nath's build" },
       { src: '/builds/nath/front.jpg', alt: "Nath's Patternflow build, front view" },
       { src: '/builds/nath/front-angle.jpg', alt: "Nath's Patternflow build, front angle" },
       { src: '/builds/nath/angle.jpg', alt: "Nath's Patternflow build, side angle" },
       { src: '/builds/nath/back.jpg', alt: "Nath's Patternflow build, back view" },
-      { src: '/builds/nath/custom-pattern.jpg', alt: "A custom pattern running on Nath's build" },
     ],
   },
   {
