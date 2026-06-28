@@ -5,18 +5,59 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { Mesh } from 'three';
-import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Vector3, CanvasTexture } from 'three';
 import type { Build } from './builds';
 import { builds, latLngToVec3 } from './builds';
+import landData from './land.json';
 
 const COLORS = {
-  wireframe: '#6B655A',
-  pin: '#141414',
-  activePin: '#E8552E',
+  graticule: '#CFC7B4',     // faint lat/long grid — the see-through ocean
+  land: '#ffffff',          // pure-white filled continents
+  outline: '#141414',       // bold black coastlines
+  pin: '#E8552E',           // build markers (LED orange)
+  activePin: '#141414',     // selected marker
+  web: '#E8552E',           // links between builds
 };
 
 const GLOBE_RADIUS = 1.25;
 const PIN_RADIUS = GLOBE_RADIUS * 0.028;
+// Stacked just-above radii so each layer cleanly occludes the one beneath.
+const GRID_RADIUS = GLOBE_RADIUS;
+const LAND_RADIUS = GLOBE_RADIUS * 1.004;
+const OUTLINE_RADIUS = GLOBE_RADIUS * 1.0055;
+const PIN_LAYER_RADIUS = GLOBE_RADIUS * 1.008;
+const WEB_RADIUS = GLOBE_RADIUS * 1.01;
+
+// Natural Earth 110m land outlines: array of rings, each a flat [lng, lat, …].
+const LAND_RINGS = landData as number[][];
+
+// Slerp the direction along the great circle, but bow the radius outward so the
+// link lifts off the globe in a parabolic arc (peaking at the midpoint) rather
+// than hugging the surface. The further apart the points, the higher the bow.
+function linkArc(
+  aLat: number, aLng: number,
+  bLat: number, bLng: number,
+  baseRadius: number, segments = 56,
+): number[] {
+  const a = new Vector3(...latLngToVec3(aLat, aLng, 1));
+  const b = new Vector3(...latLngToVec3(bLat, bLng, 1));
+  const omega = a.angleTo(b);
+  const sinOmega = Math.sin(omega);
+  const lift = baseRadius * 0.65 * Math.sin(omega / 2);
+  const points: number[] = [];
+
+  for (let i = 0; i <= segments; i += 1) {
+    const t = i / segments;
+    const dir =
+      sinOmega < 1e-6
+        ? a.clone()
+        : a.clone().multiplyScalar(Math.sin((1 - t) * omega) / sinOmega)
+            .add(b.clone().multiplyScalar(Math.sin(t * omega) / sinOmega));
+    dir.normalize().multiplyScalar(baseRadius + lift * Math.sin(Math.PI * t));
+    points.push(dir.x, dir.y, dir.z);
+  }
+  return points;
+}
 
 function GlobeWireframe() {
   const geometry = useMemo(() => {
@@ -26,7 +67,7 @@ function GlobeWireframe() {
     const ringSegments = 96;
 
     const pushPoint = (lat: number, lng: number) => {
-      points.push(...latLngToVec3(lat, lng, GLOBE_RADIUS));
+      points.push(...latLngToVec3(lat, lng, GRID_RADIUS));
     };
 
     for (let latIndex = 1; latIndex < latitudeCount; latIndex += 1) {
@@ -56,7 +97,104 @@ function GlobeWireframe() {
 
   return (
     <lineSegments geometry={geometry}>
-      <lineBasicMaterial color={COLORS.wireframe} transparent opacity={0.82} />
+      <lineBasicMaterial color={COLORS.graticule} transparent opacity={0.7} />
+    </lineSegments>
+  );
+}
+
+// White continents as a cut-out shell: the ocean texels are transparent
+// (so the grid shows through, as before), while the land texels are opaque
+// white and write depth — hiding the grid/markers behind them. Back-facing
+// land is culled, so the far continents never tangle the view.
+function ContinentShell() {
+  const texture = useMemo(() => {
+    const W = 2048;
+    const H = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+
+    // Transparent ocean.
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = COLORS.land;
+    for (const ring of LAND_RINGS) {
+      ctx.beginPath();
+      for (let i = 0; i < ring.length; i += 2) {
+        const x = ((ring[i] + 180) / 360) * W;
+        const y = ((90 - ring[i + 1]) / 180) * H;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    const tex = new CanvasTexture(canvas);
+    tex.anisotropy = 8;
+    return tex;
+  }, []);
+
+  return (
+    <mesh>
+      <sphereGeometry args={[LAND_RADIUS, 96, 64]} />
+      <meshBasicMaterial map={texture} transparent={false} alphaTest={0.5} />
+    </mesh>
+  );
+}
+
+// Bold coastlines drawn just above the white land for crisp continent edges.
+function ContinentOutlines() {
+  const geometry = useMemo(() => {
+    const points: number[] = [];
+    for (const ring of LAND_RINGS) {
+      const count = ring.length / 2;
+      for (let i = 0; i < count; i += 1) {
+        const next = (i + 1) % count;
+        points.push(...latLngToVec3(ring[i * 2 + 1], ring[i * 2], OUTLINE_RADIUS));
+        points.push(...latLngToVec3(ring[next * 2 + 1], ring[next * 2], OUTLINE_RADIUS));
+      }
+    }
+    const nextGeometry = new BufferGeometry();
+    nextGeometry.setAttribute('position', new Float32BufferAttribute(points, 3));
+    return nextGeometry;
+  }, []);
+
+  return (
+    <lineSegments geometry={geometry}>
+      <lineBasicMaterial color={COLORS.outline} transparent opacity={0.9} />
+    </lineSegments>
+  );
+}
+
+// Spiderweb of great-circle links between every pair of builds.
+function ConnectionWeb() {
+  const geometry = useMemo(() => {
+    const radius = WEB_RADIUS;
+    const points: number[] = [];
+
+    for (let i = 0; i < builds.length; i += 1) {
+      for (let j = i + 1; j < builds.length; j += 1) {
+        const a = builds[i].location;
+        const b = builds[j].location;
+        const arc = linkArc(a.lat, a.lng, b.lat, b.lng, radius);
+        // Emit as discrete segments so a single lineSegments draws them all.
+        for (let k = 0; k < arc.length - 3; k += 3) {
+          points.push(arc[k], arc[k + 1], arc[k + 2]);
+          points.push(arc[k + 3], arc[k + 4], arc[k + 5]);
+        }
+      }
+    }
+
+    const nextGeometry = new BufferGeometry();
+    nextGeometry.setAttribute('position', new Float32BufferAttribute(points, 3));
+    return nextGeometry;
+  }, []);
+
+  return (
+    <lineSegments geometry={geometry}>
+      <lineBasicMaterial color={COLORS.web} transparent opacity={0.45} />
     </lineSegments>
   );
 }
@@ -77,7 +215,7 @@ function BuildPin({
 }) {
   const meshRef = useRef<Mesh>(null);
   const [hovered, setHovered] = useState(false);
-  const position = latLngToVec3(build.location.lat, build.location.lng, GLOBE_RADIUS);
+  const position = latLngToVec3(build.location.lat, build.location.lng, PIN_LAYER_RADIUS);
 
   useFrame(() => {
     if (!meshRef.current) return;
@@ -136,7 +274,10 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
 
   return (
     <>
+      <ContinentShell />
+      <ContinentOutlines />
       <GlobeWireframe />
+      <ConnectionWeb />
       {builds.map((build) => (
         <BuildPin
           key={build.id}
