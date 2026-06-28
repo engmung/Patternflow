@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useAppStore, SectionType } from '@/store/useAppStore';
 import { SectionContent } from '@/lib/content';
 import { captureEvent } from '@/lib/posthogEvents';
@@ -210,10 +211,10 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
               <strong>Build guide</strong>
               <span>PLA print · hand solder</span>
             </a>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/121" target="_blank" rel="noreferrer" role="cell">
-              <strong>In testing</strong>
+            <Link className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="/build/breadboard" role="cell">
+              <strong>Build guide</strong>
               <span>PCB-free wiring</span>
-            </a>
+            </Link>
 
             <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">Laser cut</div>
             <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/123" target="_blank" rel="noreferrer" role="cell">
