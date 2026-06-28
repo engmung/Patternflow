@@ -55,6 +55,9 @@
     --pf-block-pad-y: 24px;
     --pf-row-pad-y: 18px;
     --pf-marquee-dur: 80s;
+    /* Mobile section view: 3D preview height + divider/nav bar height */
+    --mb-viewer-h: 44vh;
+    --mb-nav-h: 52px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body {
@@ -102,10 +105,49 @@
 
   @media (max-width: 900px) {
     .app-layout { flex-direction: column; }
-    .mobile-page-links { display: none; }
     .viewer-panel { display: none; }
     .content-panel { width: 100%; }
     .viewer-hint { display: none; }
+
+    /* Page links (Journal / Contact) live as a fixed, layered header in the
+       top-right — independent of the 3D preview, sitting above everything. */
+    .mobile-page-links {
+      display: block;
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 60;
+      padding: 16px 20px;
+      pointer-events: none;
+    }
+    .mobile-page-links .hero-top-links {
+      display: flex;
+      position: static;
+      pointer-events: auto;
+    }
+
+    /* The 3D preview is hidden while the hero is full-screen, then "drops down"
+       and pins to the top once a section tab is opened from the bottom nav.
+       The nav bar (below) rises up to sit just under it as the divider. */
+    .viewer-panel.is-open {
+      display: block;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: var(--mb-viewer-h);
+      z-index: 5;
+      background: var(--cream);
+      animation: viewer-drop 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+    .viewer-panel.is-open .viewer-hint {
+      display: block;
+    }
+  }
+
+  @keyframes viewer-drop {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
   }
 
   /* ───── Hero ───── */
@@ -220,7 +262,7 @@
       gap: 24px;
       min-height: auto;
     }
-    .hero-top-links {
+    .hero > .hero-top-links {
       display: none;
     }
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
@@ -343,8 +385,8 @@
     overflow: hidden;
     opacity: 0;
     pointer-events: none;
-    transform: translateX(20px);
-    transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(16px);
+    transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .panel-wrapper.active {
     position: relative;
@@ -352,7 +394,7 @@
     overflow: visible;
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0);
+    transform: translateY(0);
   }
   .deck-content::before {
     content: '';
@@ -362,14 +404,13 @@
     right: 0;
     bottom: 0;
     background-color: #ffffff;
-    transform-origin: left;
-    transform: scaleX(0);
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: -1;
     pointer-events: none;
   }
   .content-panel.bg-white .deck-content::before {
-    transform: scaleX(1);
+    opacity: 1;
   }
 
   @keyframes fadeIn {
@@ -1427,7 +1468,7 @@
     border-bottom: 1px solid var(--pf-rule);
   }
   .business-hero h1 {
-    margin: 0 0 14px;
+    margin: 0 0 36px;
     color: var(--pf-ink);
     font-size: 64px;
     font-weight: 500;
@@ -1435,11 +1476,12 @@
     line-height: 0.98;
   }
   .business-hero p {
-    max-width: 46ch;
+    max-width: 26ch;
     margin: 0;
-    color: var(--pf-ink-muted);
-    font-size: 18px;
-    line-height: 1.5;
+    color: var(--pf-ink);
+    font-size: clamp(22px, 2.5vw, 32px);
+    line-height: 1.28;
+    letter-spacing: -0.02em;
   }
   .business-contact-link,
   .business-email {
@@ -1492,9 +1534,7 @@
     max-width: 34ch;
   }
   .business-contact-block {
-    margin-top: 56px;
-    padding-top: 34px;
-    border-top: 1px solid var(--pf-rule);
+    margin-top: 44px;
   }
   .business-contact-block .pf-kicker {
     margin-bottom: 22px;
@@ -2309,7 +2349,9 @@
     .business-hero h1 {
       font-size: 42px;
     }
-    .business-hero p,
+    .business-hero p {
+      font-size: 21px;
+    }
     .business-intro-grid p {
       font-size: 15.5px;
     }
@@ -2334,8 +2376,8 @@
       line-height: 1.4;
     }
     .business-email {
-      font-size: 24px;
-      line-height: 1.25;
+      font-size: 17px;
+      line-height: 1.3;
     }
     .journal-lang-switch {
       top: 18px;
@@ -2481,53 +2523,65 @@
     }
   }
 
-  /* ───── Mobile-only: Desktop note ───── */
-  .mobile-desktop-note {
+  /* ───── Mobile-only: Section nav / divider bar ─────
+     Sits at the screen bottom over the full-screen hero. When a section opens,
+     it rides up to pin just below the 3D preview, acting as the partition
+     between the preview scene (above) and the page content (below). */
+  .mobile-bottom-nav {
     display: none;
   }
 
   @media (max-width: 900px) {
-    .mobile-desktop-note {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 40px 24px;
-      font-family: var(--sans);
-      font-size: 14px;
-      color: var(--ink-muted);
-      line-height: 1.6;
+    .mobile-bottom-nav {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: var(--mb-nav-h);
+      z-index: 50;
+      background: var(--cream);
       border-top: 1px solid var(--rule);
       border-bottom: 1px solid var(--rule);
-      background: var(--cream);
+      /* Parked at the bottom of the viewport while the hero is full-screen. */
+      transform: translateY(calc(100dvh - var(--mb-nav-h) - env(safe-area-inset-bottom, 0px)));
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .mobile-desktop-note a {
-      color: var(--ink);
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      font-weight: 500;
+    /* Risen up to become the divider directly beneath the 3D preview. */
+    .mobile-bottom-nav.is-open {
+      transform: translateY(var(--mb-viewer-h));
     }
-    .mobile-desktop-note .mobile-note-journal-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 14px 24px 13px;
+    .mobile-bottom-nav .mb-tab {
+      appearance: none;
+      -webkit-appearance: none;
+      background: none;
+      border: 0;
+      border-right: 1px solid var(--rule);
       font-family: var(--mono);
       font-size: 12px;
       font-weight: 500;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      background: var(--ink);
-      color: var(--cream);
-      border: 1px solid var(--ink);
-      text-decoration: none;
-      transition: background-color 0.15s ease, color 0.15s ease;
-      width: 100%;
-      max-width: 280px;
-      margin-top: 8px;
+      color: var(--ink-muted);
+      cursor: pointer;
+      transition: color 0.2s ease, background-color 0.2s ease;
     }
-    .mobile-desktop-note .mobile-note-journal-btn:hover {
-      background: transparent;
-      color: var(--ink);
+    .mobile-bottom-nav .mb-tab:last-child {
+      border-right: 0;
+    }
+    .mobile-bottom-nav .mb-tab.active {
+      color: var(--cream);
+      background: var(--ink);
+    }
+    /* Hero (closed): keep the footer clear of the parked nav at the bottom. */
+    .content-panel {
+      padding-bottom: calc(var(--mb-nav-h) + env(safe-area-inset-bottom, 0px));
+    }
+    /* Section open: make room for the fixed preview + divider stacked on top. */
+    .content-panel.viewer-open {
+      padding-top: calc(var(--mb-viewer-h) + var(--mb-nav-h));
+      padding-bottom: 40px;
     }
   }
+

@@ -237,12 +237,19 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <strong>BOM cost calculation</strong>, estimating roughly <strong>$120</strong> in pure material cost for the worst-case scenario.
               </span>
             </li>
-            <li className={styles.storyCurrent}>
+            <li>
               <time>26.6</time>
               <span>
-                With the <strong>Crowd Supply contract</strong> signed, prepare the{' '}
-                <strong>crowdfunding campaign</strong> — order the first <strong>PCBA batch</strong>{' '}
-                and get Patternflow ready to sell in a small, practical run.
+                The <strong>Crowd Supply pre-launch page</strong> went live, backed by{' '}
+                <strong>countless refinements toward mass production</strong>. Instagram also passed{' '}
+                <strong>1,000 followers</strong>.
+              </span>
+            </li>
+            <li className={styles.storyCurrent}>
+              <time>26.7</time>
+              <span>
+                Keep <strong>refining the design for mass production</strong>, grow an active{' '}
+                <strong>community</strong>, and push <strong>outreach and promotion</strong>.
               </span>
             </li>
             <li>
