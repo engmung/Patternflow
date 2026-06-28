@@ -56,7 +56,7 @@ struct PatternEntry {
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
   PATTERN_ENTRY(IsometricPillars),
-  PATTERN_ENTRY(Custom2),
+  PATTERN_ENTRY(RetroDigitalTapestry),
   PATTERN_ENTRY(Custom3),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);

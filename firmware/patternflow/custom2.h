@@ -1,120 +1,99 @@
-// SPDX-License-Identifier: CC-BY-SA-4.0
-// Pattern: Hyperbolic Grid
-// Author:  Seunghun LEE
-// Lineage: AI generated and curated
-// Generated from _temp/Pattern.js
-//
-
 #pragma once
 
 #include <Arduino.h>
-#include <math.h>
-#include <stdint.h>
 #include "config.h"
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
+#include "src/core_color.h"
 
-namespace Custom2 {
+namespace RetroDigitalTapestry {
 
-const char* NAME = "Hyperbolic Grid";
-const char* const KNOB_LABELS[4] = {"Boundary Scale", "Speed", "Grid Subdiv", "Color Domain"};
+const char* NAME = "Retro Digital Tapestry";
+const char* const KNOB_LABELS[4] = {"Cell Scale", "Speed", "Logic Mode", "Wave Mod"};
 
-const float HYPERBOLIC_GRID_BOUND_MIN = 0.0f;
-const float HYPERBOLIC_GRID_BOUND_MAX = 1.0f;
-const float HYPERBOLIC_GRID_BOUND_STEP = 0.05f;
-
-const float HYPERBOLIC_GRID_SPEED_MIN = 0.1f;
-const float HYPERBOLIC_GRID_SPEED_MAX = 10.0f;
-const float HYPERBOLIC_GRID_SPEED_STEP = 0.10f;
-
-const float HYPERBOLIC_GRID_SUBDIV_MIN = 0.0f;
-const float HYPERBOLIC_GRID_SUBDIV_MAX = 4.9f;
-const float HYPERBOLIC_GRID_SUBDIV_STEP = 0.05f;
-
-const float HYPERBOLIC_GRID_COLOR_MIN = 0.0f;
-const float HYPERBOLIC_GRID_COLOR_MAX = 1.0f;
-const float HYPERBOLIC_GRID_COLOR_STEP = 0.05f;
-
-struct Params {
-    float boundary;
-    float speed;
-    float subdiv;
-    float colorMap;
-    float timeAcc;
-};
-
-Params params;
+float cellScale = -0.101f;
+float speed = 1.99f;
+float logicMode = 1.001f;
+float waveMod = 1.346f;
+float timeAcc = 0.0f;
 
 void setup() {
     PFMath::buildSinLUT();
-    params.boundary = 0.3f;
-    params.speed = 1.5f;
-    params.subdiv = 2.0f;
-    params.colorMap = 0.6f;
-    params.timeAcc = 0.0f;
+    cellScale = -0.101f;
+    speed = 1.99f;
+    logicMode = 1.001f;
+    waveMod = 1.346f;
+    timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    params.boundary += input.knobDeltas[0] * HYPERBOLIC_GRID_BOUND_STEP;
-    if (params.boundary < HYPERBOLIC_GRID_BOUND_MIN) params.boundary += (HYPERBOLIC_GRID_BOUND_MAX - HYPERBOLIC_GRID_BOUND_MIN);
-    if (params.boundary > HYPERBOLIC_GRID_BOUND_MAX) params.boundary -= (HYPERBOLIC_GRID_BOUND_MAX - HYPERBOLIC_GRID_BOUND_MIN);
+    cellScale += input.knobDeltas[0] * 0.05f;
+    if (cellScale < -0.101f) cellScale = -0.101f;
+    if (cellScale > 0.5f) cellScale = 0.5f;
 
-    params.speed += input.knobDeltas[1] * HYPERBOLIC_GRID_SPEED_STEP;
-    params.speed = constrain(params.speed, HYPERBOLIC_GRID_SPEED_MIN, HYPERBOLIC_GRID_SPEED_MAX);
+    speed += input.knobDeltas[1] * 0.1f;
+    if (speed < 0.1f) speed = 0.1f;
+    if (speed > 5.0f) speed = 5.0f;
 
-    params.subdiv += input.knobDeltas[2] * HYPERBOLIC_GRID_SUBDIV_STEP;
-    params.subdiv = constrain(params.subdiv, HYPERBOLIC_GRID_SUBDIV_MIN, HYPERBOLIC_GRID_SUBDIV_MAX);
+    logicMode += input.knobDeltas[2] * 0.05f;
+    if (logicMode < 0.0f) logicMode = 0.0f;
+    if (logicMode > 1.001f) logicMode = 1.001f;
 
-    params.colorMap += input.knobDeltas[3] * HYPERBOLIC_GRID_COLOR_STEP;
-    if (params.colorMap < HYPERBOLIC_GRID_COLOR_MIN) params.colorMap += (HYPERBOLIC_GRID_COLOR_MAX - HYPERBOLIC_GRID_COLOR_MIN);
-    if (params.colorMap > HYPERBOLIC_GRID_COLOR_MAX) params.colorMap -= (HYPERBOLIC_GRID_COLOR_MAX - HYPERBOLIC_GRID_COLOR_MIN);
+    waveMod += input.knobDeltas[3] * 0.05f;
+    if (waveMod < 0.0f) waveMod = 0.0f;
+    if (waveMod > 3.0f) waveMod = 3.0f;
 
-    params.timeAcc += dt * params.speed;
+    timeAcc += dt * speed * 2.0f;
 }
 
 void draw() {
-    const int w = PANEL_RES_W;
-    const int h = PANEL_RES_H;
-    const float t = params.timeAcc;
-    const float divFactor = 1.0f + params.subdiv * 2.0f;
+    int scale = (int)(4.0f + cellScale * 24.0f);
+    if (scale < 1) scale = 1;
+    int mode = (int)(logicMode * 5.0f);
+    float waveF = 0.02f + waveMod * 0.08f;
+    float t = timeAcc;
+    
+    int floorT = (int)floorf(t);
+    int floorT15 = (int)floorf(t * 1.5f);
+    int floorT08 = (int)floorf(t * 0.8f);
 
-    const float h2 = h / 2.0f;
-    const float w2 = w / 2.0f;
+    float minVal = floorf(50.0f * (PFMath::fastSin(t * 2.0f) * 0.5f + 0.5f));
+    float hsv_v = 220.0f / 255.0f;
+    float hsv_s = (220.0f - minVal) / 220.0f;
 
-    for (int y = 0; y < h; y++) {
-        float ny = (y - h2) / h2;
-        float abs_ny = ny < 0.0f ? -ny : ny;
-        float wy = ny / (1.001f - abs_ny * params.boundary * 0.9f);
-        int gridY = (int)floorf((wy + 2.0f) * divFactor);
-        float yTerm = gridY * 1.2f + t;
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        int sy = y / scale;
+        float cosY = PFMath::fastCos(y * waveF - t);
 
-        for (int x = 0; x < w; x++) {
-            float nx = (x - w2) / w2;
-            float abs_nx = nx < 0.0f ? -nx : nx;
-            float wx = nx / (1.001f - abs_nx * params.boundary * 0.9f);
-            int gridX = (int)floorf((wx + 2.0f) * divFactor);
+        for (int x = 0; x < PANEL_RES_W; x++) {
+            int sx = x / scale;
+            int patternVal = 0;
 
-            float wave = PFMath::fastSin(gridX * 1.5f + yTerm);
-            float sig = (wave + 1.0f) * 0.5f;
+            switch (mode) {
+                case 0:  patternVal = (sx ^ sy) + floorT; break;
+                case 1:  patternVal = (sx & sy) * 3 + floorT15; break;
+                case 2:  patternVal = (sx * 7 + sy * 3) ^ floorT; break;
+                case 3:  patternVal = (sx ^ (sy + floorT)) & 15; break;
+                default: patternVal = ((sx * sx + sy * sy) >> 2) + floorT08; break;
+            }
 
-            uint8_t r = 0;
-            uint8_t g = 0;
-            uint8_t b = 0;
+            float smoothS = PFMath::fastSin(x * waveF + t) * cosY;
+            bool bitActive = (patternVal & 8) != 0;
 
-            if (sig > 0.7f) {
-                r = 255;
-                g = 255;
-                b = 255;
-            } else if (((gridX + gridY) % 2 == 0) && sig > 0.3f) {
-                r = (uint8_t)constrain(floorf(40.0f + params.colorMap * 180.0f), 0.0f, 255.0f);
-                g = (uint8_t)constrain(floorf(200.0f * sig), 0.0f, 255.0f);
-                b = (uint8_t)constrain(floorf(20.0f + (1.0f - params.colorMap) * 200.0f), 0.0f, 255.0f);
-            } else if (sig > 0.45f) {
-                r = 30;
-                g = 40;
-                b = 100;
+            uint8_t r = 0, g = 0, b = 0;
+
+            if (bitActive) {
+                float hu = smoothS * 0.3f + 0.5f + (float)(patternVal % 16) / 32.0f;
+                hu = fmodf(hu, 1.0f);
+                if (hu < 0.0f) hu += 1.0f;
+
+                PFColor::hsvToRgb(hu, hsv_s, hsv_v, r, g, b);
+            } else {
+                if ((x % scale == 0) || (y % scale == 0)) {
+                    r = 20; g = 10; b = 40;
+                }
             }
 
             PFCanvas::setPixel(x, y, r, g, b);
@@ -123,4 +102,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace Custom2
+} // namespace RetroDigitalTapestry
