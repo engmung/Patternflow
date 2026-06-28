@@ -2,10 +2,10 @@
 title: Build your own.
 subtitle: Follow the guides to build your own Patternflow.
 meta:
-  - label: Current guide
-    value: "3D print + custom PCB"
+  - label: Available now
+    value: "3D print + PCB · breadboard"
   - label: Preparing
-    value: "Laser cut / breadboard"
+    value: "Laser cut"
   - label: Firmware
     value: "Browser flash or Arduino IDE"
 cta:
@@ -21,4 +21,4 @@ Patternflow is becoming a build system you can choose your way through: pick an 
 
 The current supported combination is the original polished build: PLA 3D printed enclosure, hand-soldered custom PCB, and browser-flashed release firmware.
 
-Laser-cut enclosure files and breadboard electronics guides are being prepared so you can start with the tools you have, then upgrade when you want a more finished object.
+The breadboard electronics path is now available — wire the same parts with jumpers and a breadboard power rail, no custom PCB or soldering iron. Laser-cut enclosure files are still being prepared, so you can start with the tools you have, then upgrade when you want a more finished object.

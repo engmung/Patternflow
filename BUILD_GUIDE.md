@@ -2,7 +2,9 @@
 
 This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
 
-This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including planned laser-cut and breadboard paths, see [docs/assembly/README.md](docs/assembly/README.md).
+This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including the laser-cut path still in preparation, see [docs/assembly/README.md](docs/assembly/README.md).
+
+> **No PCB? Try the breadboard build.** If you don't want to order or solder a custom PCB, there's a complete **PCB-free path** that wires the same parts together with a snapped-off breadboard power rail and jumper wires — no soldering iron required. See the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. You can always move up to this PCB build later.
 
 **Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
