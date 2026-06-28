@@ -20,8 +20,8 @@ This is the same path as the original build guide: PLA parts printed on a Bambu 
 | Enclosure | Electronics | Status |
 | --- | --- | --- |
 | 3D printed enclosure | Custom PCB | Supported now |
+| 3D printed enclosure | Breadboard / jumper-wire electronics | [Available — Breadboard Build Guide](https://patternflow.work/build/breadboard) |
 | Laser-cut enclosure | Custom PCB | Preparing |
-| 3D printed enclosure | Breadboard / jumper-wire electronics | Preparing |
 | Laser-cut enclosure | Breadboard / jumper-wire electronics | Preparing |
 
 The preparing paths are meant to make Patternflow easier and cheaper to start. A breadboard build is not only a temporary prototype. If that form is enough for you, it is a valid Patternflow build. If you want a more polished object later, you can move to the PCB and enclosure paths.

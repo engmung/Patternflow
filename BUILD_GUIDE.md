@@ -2,7 +2,9 @@
 
 This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
 
-This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including planned laser-cut and breadboard paths, see [docs/assembly/README.md](docs/assembly/README.md).
+This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including the laser-cut path still in preparation, see [docs/assembly/README.md](docs/assembly/README.md).
+
+> **No PCB? Try the breadboard build.** If you don't want to order or solder a custom PCB, there's a complete **PCB-free path** that wires the same parts together with a snapped-off breadboard power rail and jumper wires — no soldering iron required. See the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. You can always move up to this PCB build later.
 
 **Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
@@ -50,17 +52,11 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 | - | USB Cable (sacrificial) | Any USB cable, will be cut | 1 | For 5V power input |
 | - | Power Bank | Any standard USB power bank that physically fits | 1 | User-supplied |
 
-### Sourcing -- AliExpress (with affiliate links)
-
-These are the exact links I used. **Purchasing through these affiliate links directly supports the ongoing development of Patternflow at no extra cost to you.**
+### Sourcing
 
 💡 **Found a better part?** If you discover cheaper, more reliable, or higher-quality alternative components, please let me know! I highly welcome PRs or GitHub Issues recommending better sourcing options for the community.
 
-AliExpress shipping to most regions takes ~7-14 days.
-
-- **Rotary Encoders (5-pack):** [EC11 15mm recommended / same style as 20mm listing photo — ~3,250 KRW](https://s.click.aliexpress.com/e/_c3dYYGob)
-- **ESP32-S3-N16R8:** [~10,300 KRW](https://s.click.aliexpress.com/e/_c3qxYiaP)
-- **LED Matrix:** [Full color 320×160mm P2.5 HUB75 — ~23,250 KRW](https://s.click.aliexpress.com/e/_c3SVdcQr)
+- **LED Matrix:** [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr) (affiliate link — purchasing through this link directly supports ongoing Patternflow development at no extra cost to you. Even if you buy a different item through this link, the commission helps. Thank you!)
 
 > ⚠️ **Panel compatibility — check the driver IC before you buy.**
 >
@@ -77,7 +73,9 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 <a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
 
-> **A note on ESP32-S3 sourcing.** Both AliExpress modules and genuine Espressif modules work on v2.0 PCBs. During v1 development we found AliExpress modules were more likely to exhibit the cold-boot issue (now fixed by the GPIO0 pullup on v2). Genuine modules are slightly more expensive but generally more consistent; either is fine for v2.
+> ⚠️ **ESP32-S3 — buy genuine Espressif.** AliExpress clone modules are significantly more likely to exhibit [cold-boot issues (Issue #16)](https://github.com/engmung/Patternflow/issues/16). Genuine Espressif modules are slightly more expensive but far more reliable. We no longer recommend AliExpress ESP32-S3 modules.
+
+> ⚠️ **Rotary encoders — avoid cheap AliExpress packs.** The budget 5-packs fail frequently. We recommend sourcing **PEC11R-4220F-S0024** or equivalent quality EC11 encoders from **Mouser** or **DigiKey**. Any 5-pin EC11 with a click-switch will work.
 
 ### What you also need (not in BOM)
 
