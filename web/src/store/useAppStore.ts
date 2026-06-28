@@ -2,9 +2,15 @@ import { create } from 'zustand';
 
 export type SectionType = 'hero' | 'case' | 'pcb' | 'assembly' | 'firmware' | 'inside';
 
+// Which top-level home tab is open. Mirrored from RightPanel so sibling
+// components (e.g. the 3D viewer panel) can react without prop drilling.
+export type HomeTabType = 'hero' | 'build' | 'pattern' | 'inside';
+
 interface AppState {
   activeSection: SectionType;
   setActiveSection: (section: SectionType) => void;
+  homeTab: HomeTabType;
+  setHomeTab: (tab: HomeTabType) => void;
   knobValues: {
     c1: number;
     c2: number;
@@ -31,6 +37,8 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   activeSection: 'hero',
   setActiveSection: (section) => set({ activeSection: section }),
+  homeTab: 'hero',
+  setHomeTab: (tab) => set({ homeTab: tab }),
   knobValues: {
     c1: 0.00, // Hue
     c2: 2.00, // Speed

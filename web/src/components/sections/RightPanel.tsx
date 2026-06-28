@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import Hero from './Hero';
 import Sponsor from './Sponsor';
 import BuildPanel from './BuildPanel';
@@ -91,7 +90,14 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reset scroll to top on every tab change
+  // Mirror the active tab into the store so the sibling 3D viewer panel knows
+  // whether it should be visible (it "drops down" on mobile when a tab opens).
+  useEffect(() => {
+    useAppStore.getState().setHomeTab(activeTab);
+  }, [activeTab]);
+
+  // Reset scroll to top on every tab change. On mobile the viewer drops in from
+  // the top, so jump the page to the top to reveal it alongside the panel.
   useEffect(() => {
     const panel = contentRef.current;
     if (!panel) return;
@@ -99,14 +105,7 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
     panel.scrollTop = 0;
 
     if (window.matchMedia('(max-width: 900px)').matches) {
-      requestAnimationFrame(() => {
-        const stickyOffset = window.innerHeight * 0.3 + 94;
-        const panelTop = panel.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({
-          top: Math.max(0, panelTop - stickyOffset),
-          behavior: 'auto',
-        });
-      });
+      window.scrollTo({ top: 0, behavior: 'auto' });
     }
   }, [activeTab]);
 
@@ -137,19 +136,11 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
         </button>
       </div>
 
-      <div className={`content-panel ${activeTab !== 'hero' ? 'bg-white' : ''}`} ref={contentRef}>
+      <div className={`content-panel ${activeTab !== 'hero' ? 'bg-white viewer-open' : ''}`} ref={contentRef}>
         <div className="deck-content">
           <div className={`panel-wrapper ${activeTab === 'hero' ? 'active' : ''}`}>
             <Hero />
             <Sponsor />
-            <div className="mobile-desktop-note">
-              <p style={{ marginBottom: '16px' }}>
-                For the full experience — build guide, interactive patterns, and 3D preview — visit <a href="https://patternflow.work">patternflow.work</a> on desktop.
-              </p>
-              <Link href="/journal" className="mobile-note-journal-btn">
-                Read Journal
-              </Link>
-            </div>
             <Footer />
           </div>
           <div className={`panel-wrapper ${activeTab === 'build' ? 'active' : ''}`}>
@@ -163,6 +154,21 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
           </div>
         </div>
       </div>
+
+      {/* Mobile-only bottom nav. Tapping a section drops the 3D viewer down from
+          the top; tapping the active one again returns to the full-screen hero. */}
+      <nav className={`mobile-bottom-nav ${activeTab !== 'hero' ? 'is-open' : ''}`} aria-label="Sections">
+        {(['build', 'pattern', 'inside'] as const).map((tab) => (
+          <button
+            key={tab}
+            className={`mb-tab ${activeTab === tab ? 'active' : ''}`}
+            aria-pressed={activeTab === tab}
+            onClick={() => handleTabClick(tab)}
+          >
+            {tab === 'build' ? 'Build' : tab === 'pattern' ? 'Pattern' : 'Inside'}
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

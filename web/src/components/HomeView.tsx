@@ -1,5 +1,5 @@
 import RightPanel from "@/components/sections/RightPanel";
-import HeroScene from "@/components/3d/HeroScene";
+import ViewerPanel from "@/components/3d/ViewerPanel";
 import { getSectionContent } from "@/lib/content";
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 
@@ -15,9 +15,7 @@ export default function HomeView({ initialTab = 'hero' }: { initialTab?: HomeTab
       <div className="mobile-page-links">
         <HeroJournalLink />
       </div>
-      <div className="viewer-panel">
-        <HeroScene />
-      </div>
+      <ViewerPanel />
       <RightPanel
         initialTab={initialTab}
         buildContent={buildContent}
