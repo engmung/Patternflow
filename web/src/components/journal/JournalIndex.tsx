@@ -8,7 +8,7 @@ type JournalIndexProps = {
   lang: JournalLang;
 };
 
-const featuredSlug = "who-we-are";
+const featuredSlug = "what-is-patternflow";
 
 export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];

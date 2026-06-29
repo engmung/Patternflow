@@ -50,11 +50,14 @@ export default function ArticleLayout({
             <div className="journal-cover-slot">
               <JournalImage
                 src={post.cover}
-                alt=""
+                alt={post.coverCaption || ""}
                 priority
                 sizes="(max-width: 720px) calc(100vw - 48px), 760px"
               />
             </div>
+            {post.coverCaption && (
+              <figcaption>{post.coverCaption}</figcaption>
+            )}
           </figure>
         )}
 

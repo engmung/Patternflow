@@ -12,6 +12,7 @@ export type JournalFrontmatter = {
   date: string;
   excerpt: string;
   cover?: string;
+  coverCaption?: string;
   series?: string;
   draft?: boolean;
 };
@@ -75,6 +76,7 @@ function readPost(slug: string, lang: JournalLang): JournalPost {
     date: data.date,
     excerpt: data.excerpt,
     cover: data.cover,
+    coverCaption: data.coverCaption,
     series: data.series,
     draft: data.draft,
     content,
