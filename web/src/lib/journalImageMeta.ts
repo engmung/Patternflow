@@ -22,6 +22,8 @@ export const journalImageMeta = {
   "/journal/refocus/pcbway-delivery-2.jpg": { width: 4032, height: 2268 },
   "/journal/refocus/blender-3d-modeling.png": { width: 1268, height: 867 },
   "/journal/refocus/pcb-discord-feedback.png": { width: 834, height: 429 },
+  "/journal/what-is-patternflow/crowd-supply-pre-launch.png": { width: 1325, height: 693 },
+  "/journal/what-is-patternflow/viral-x-post.png": { width: 596, height: 740 },
 } as const;
 
 export function getJournalImageMeta(src?: string) {
