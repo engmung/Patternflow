@@ -2017,7 +2017,6 @@
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--ink-muted);
     text-align: center;
   }
@@ -2141,7 +2140,6 @@
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
     color: var(--cream);
     text-align: center;
   }
@@ -2163,7 +2161,6 @@
     font-family: var(--mono);
     font-size: 11px;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
     color: var(--ink-muted);
   }
   .journal-end-mark {
