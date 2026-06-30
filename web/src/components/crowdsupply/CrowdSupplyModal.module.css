@@ -1,0 +1,184 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(23, 21, 18, 0.6);
+}
+
+.card {
+  position: relative;
+  width: min(620px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  border: 1px solid #171512;
+  background: #fffdf8;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+}
+
+.close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  border-color: #171512;
+}
+
+.inner {
+  padding: 44px 44px 40px;
+}
+
+.title {
+  margin: 0 0 20px;
+  padding-right: 44px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.lead {
+  margin: 0 0 24px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.lead strong {
+  font-weight: 700;
+}
+
+.subhead {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.7;
+}
+
+.reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reasons li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.reasons li b {
+  font-weight: 700;
+}
+
+.reasons li em {
+  font-style: italic;
+}
+
+.mark {
+  flex: 0 0 auto;
+  opacity: 0.45;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.primary {
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid #171512;
+  background: #e8552e;
+  color: #171512;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.primary:hover {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.secondary {
+  width: 100%;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  color: #171512;
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.secondary:hover {
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .overlay {
+    padding: 0;
+  }
+  .card {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border: none;
+  }
+  .inner {
+    padding: 60px 24px 40px;
+  }
+  .title {
+    font-size: 23px;
+    margin-bottom: 28px;
+  }
+  /* Tight lines within each block … */
+  .lead {
+    line-height: 1.45;
+    margin-bottom: 32px;
+  }
+  .lead,
+  .reasons li {
+    font-size: 15px;
+  }
+  /* … but generous gaps between blocks so each reads as one unit. */
+  .subhead {
+    margin: 0 0 10px;
+  }
+  .reasons li {
+    padding: 5px 0;
+    line-height: 1.45;
+  }
+  .actions {
+    margin-top: 36px;
+  }
+}

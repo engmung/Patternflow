@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
+import CrowdSupplyModal from "@/components/crowdsupply/CrowdSupplyModal";
 import { captureEvent } from "@/lib/posthogEvents";
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
+  const [isCrowdSupplyOpen, setIsCrowdSupplyOpen] = useState(false);
 
   useEffect(() => {
     // Show the video after 3 seconds (allowing it to initialize and hide controls)
@@ -132,20 +134,26 @@ export default function Hero() {
           >
             GitHub
           </a>
-          <a
+          <button
+            type="button"
             className="hero-cta hero-cta-waitlist"
-            href="https://www.crowdsupply.com/engmung/patternflow"
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('crowd_supply_clicked', {
-              surface: 'hero',
-              destination: 'crowd_supply',
-            })}
+            onClick={() => {
+              setIsCrowdSupplyOpen(true);
+              captureEvent('crowd_supply_modal_opened', {
+                surface: 'hero',
+              });
+            }}
           >
             Get One
-          </a>
+          </button>
         </div>
+        <p className="hero-cs-note">
+          Reserve on Crowd Supply — Mouser&apos;s platform for open hardware.
+        </p>
       </div>
+      {isCrowdSupplyOpen && (
+        <CrowdSupplyModal onClose={() => setIsCrowdSupplyOpen(false)} />
+      )}
     </section>
   );
 }

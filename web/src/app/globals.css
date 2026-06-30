@@ -233,6 +233,7 @@
     justify-content: center;
     min-height: 48px;
     text-decoration: none;
+    cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   .hero-cta-waitlist {
@@ -251,6 +252,14 @@
     color: var(--cream);
     border-color: var(--ink);
     text-decoration: none;
+  }
+  .hero-cs-note {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    color: var(--ink-muted);
+    margin: 12px 0 0;
   }
 
   @media (max-width: 900px) {
