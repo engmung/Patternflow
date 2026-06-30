@@ -9,7 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         // Search engines and AI crawlers are welcome on public pages.
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/", "/pattern-lab", "/video-baker", "/waitlist-thanks"],
+        disallow: ["/api/", "/pattern-lab", "/video-baker"],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

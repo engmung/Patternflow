@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "./CrowdSupplyModal.module.css";
@@ -12,10 +12,20 @@ type Props = {
 };
 
 export default function CrowdSupplyModal({ onClose }: Props) {
+  // Closing without continuing = funnel drop-off; tag how they bailed so the
+  // PostHog funnel can break down where opened-but-didn't-click users leave.
+  const handleDismiss = useCallback(
+    (reason: "escape" | "overlay" | "close_button" | "maybe_later") => {
+      captureEvent("crowd_supply_modal_dismissed", { surface: "hero", reason });
+      onClose();
+    },
+    [onClose],
+  );
+
   // Close on Escape and lock background scroll while open.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") handleDismiss("escape");
     };
     window.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
@@ -24,7 +34,7 @@ export default function CrowdSupplyModal({ onClose }: Props) {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [onClose]);
+  }, [handleDismiss]);
 
   const handleContinue = () => {
     captureEvent("crowd_supply_clicked", {
@@ -44,10 +54,15 @@ export default function CrowdSupplyModal({ onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="About Crowd Supply"
-      onClick={onClose}
+      onClick={() => handleDismiss("overlay")}
     >
       <div className={styles.card} onClick={(event) => event.stopPropagation()}>
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close">
+        <button
+          type="button"
+          className={styles.close}
+          onClick={() => handleDismiss("close_button")}
+          aria-label="Close"
+        >
           ×
         </button>
 
@@ -88,7 +103,11 @@ export default function CrowdSupplyModal({ onClose }: Props) {
             >
               Continue to Crowd Supply →
             </a>
-            <button type="button" className={styles.secondary} onClick={onClose}>
+            <button
+              type="button"
+              className={styles.secondary}
+              onClick={() => handleDismiss("maybe_later")}
+            >
               Maybe later
             </button>
           </div>
