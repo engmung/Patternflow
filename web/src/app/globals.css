@@ -259,7 +259,7 @@
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      padding: 54px 0 60px;
+      padding: 36px 0 60px;
       gap: 24px;
       min-height: auto;
     }
@@ -1620,15 +1620,13 @@
   }
   .journal-masthead {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 28px;
+    flex-direction: column;
+    gap: 0;
     margin-bottom: 56px;
     padding-bottom: 18px;
     border-bottom: 1px solid var(--pf-rule);
   }
   .journal-lockup,
-  .journal-entry-count,
   .journal-featured-meta,
   .journal-archive-label,
   .journal-list-number,
@@ -1645,10 +1643,11 @@
   .journal-lockup {
     display: inline-block;
     text-decoration: none;
-    font-family: var(--sans);
-    font-size: 18px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
+    font-family: var(--pretendard);
+    font-size: 88px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
     text-transform: none;
     color: var(--ink);
   }
@@ -1656,9 +1655,13 @@
     color: var(--pf-ink-muted);
     text-decoration: none;
   }
-  .journal-entry-count {
+  .journal-section-label {
+    font-family: var(--pretendard);
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
     color: var(--pf-ink-muted);
-    letter-spacing: var(--pf-track-mono);
   }
   .journal-featured {
     display: grid;
@@ -2344,7 +2347,7 @@
       right: 22px;
     }
     .journal-shell {
-      padding: 48px 18px 96px;
+      padding: 36px 24px 96px;
     }
     .journal-index {
       width: 100%;
@@ -2358,12 +2361,17 @@
       position: static;
       margin-bottom: 40px;
     }
-    .journal-masthead,
     .journal-dateline,
     .journal-index-footer {
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
+    }
+    .journal-lockup {
+      font-size: 50px;
+    }
+    .journal-section-label {
+      font-size: 25px;
     }
     .journal-featured h1 {
       font-size: 36px;
@@ -2396,50 +2404,60 @@
       font-size: 16px;
     }
     .journal-post-list a {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      align-items: start;
-      padding: 20px 70px 58px 0;
-      min-height: 190px;
+      display: block;
+      position: relative;
+      padding: 14px 54px 14px 0;
+      min-height: auto;
     }
     .journal-post-list a .pf-ghost {
-      right: -2px;
-      top: auto;
-      bottom: 18px;
-      transform: none;
-      font-size: 58px;
+      position: absolute;
+      right: 0;
+      top: 50%;
+      bottom: auto;
+      transform: translateY(-50%);
+      font-size: 42px;
+      line-height: 1;
       color: var(--pf-ink-ghost);
     }
     .journal-list-body {
-      max-width: calc(100% - 58px);
+      max-width: calc(100% - 10px);
     }
     .journal-list-body strong {
-      max-width: 16ch;
-      font-size: 19px;
-      line-height: 1.18;
+      display: block;
+      max-width: 100%;
+      font-size: 18px;
+      line-height: 1.25;
     }
     .journal-list-body .pf-row-d {
-      max-width: 22ch;
-      margin-top: 10px;
-      font-size: var(--pf-fs-mono);
-      line-height: 1.45;
+      display: block;
+      max-width: 100%;
+      margin-top: 6px;
+      font-size: var(--pf-fs-row-d);
+      line-height: 1.4;
       white-space: normal;
     }
     .journal-new-badge {
-      display: block;
-      margin: 8px 0 0;
-      font-size: var(--pf-fs-mono);
+      display: inline-block;
+      margin: 0 0 0 8px;
+      font-size: 11px;
+      vertical-align: middle;
     }
     .journal-list-meta {
-      grid-column: auto;
-      text-align: left;
-      font-size: 10px;
-      line-height: 1.4;
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 10.5px;
+      line-height: 1;
+      text-transform: uppercase;
+      color: var(--ink-muted);
     }
     .journal-list-meta + .journal-list-meta {
-      position: absolute;
-      left: 0;
-      bottom: 20px;
+      position: static;
+      margin-left: 12px;
+    }
+    .journal-list-meta + .journal-list-meta::before {
+      content: "·";
+      margin-right: 12px;
+      color: var(--pf-ink-muted);
     }
     .journal-figure-wide,
     .journal-figure-full {
