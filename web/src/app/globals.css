@@ -2204,54 +2204,62 @@
     gap: 18px;
     color: var(--ink-muted);
   }
-  .journal-more-writing {
-    border-top: 1px solid var(--pf-rule);
-  }
-  .journal-more-writing ol {
+  .journal-context-list {
     list-style: none;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 42px;
+    border-top: 1px solid var(--pf-rule);
+    /* Undo the footer's mono/uppercase label styling so titles and dates
+       render like the journal index list. */
+    font-family: var(--pf-sans);
+    letter-spacing: normal;
+    text-transform: none;
   }
-  .journal-more-writing a {
+  .journal-context-list .pf-row {
     display: grid;
-    grid-template-columns: 86px minmax(0, 1fr);
-    gap: 8px 18px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
     align-items: baseline;
-    min-height: 92px;
-    padding: 18px 0;
-    border-bottom: 1px solid var(--pf-rule);
+    padding-right: 56px;
+    border-top: 0;
     color: var(--ink-muted);
     text-decoration: none;
   }
-  .journal-more-writing a:hover strong,
-  .journal-more-writing a:focus-visible strong,
+  /* Title + date inherit uppercase/mono from .journal-article-footer; reset
+     them directly so they read like the journal index list. */
+  .journal-context-list .pf-row-t {
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-row);
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+  .journal-context-list .pf-ghost {
+    right: 0;
+  }
+  .journal-context-list a.pf-row:hover,
+  .journal-context-list a.pf-row:focus-visible {
+    color: var(--pf-ink);
+  }
+  .journal-context-list a.pf-row:hover .pf-row-t,
+  .journal-context-list a.pf-row:focus-visible .pf-row-t,
   .journal-all-writing-link:hover,
   .journal-all-writing-link:focus-visible {
     text-decoration: underline;
     text-underline-offset: 4px;
     text-decoration-thickness: 1px;
   }
-  .journal-more-kicker,
-  .journal-more-writing time {
-    font-family: var(--mono);
-    font-size: var(--pf-fs-mono);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-  }
-  .journal-more-writing time {
-    white-space: nowrap;
-    grid-column: 2;
-  }
-  .journal-more-writing strong {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.35;
-    letter-spacing: 0.08em;
+  .journal-context-list .is-current-row {
     color: var(--ink);
-    text-transform: uppercase;
+    cursor: default;
+  }
+  .journal-context-list .is-current .pf-ghost {
+    color: var(--ink);
+  }
+  .journal-context-list .journal-list-meta {
+    text-align: right;
+    white-space: nowrap;
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-row-d);
+    letter-spacing: normal;
+    text-transform: none;
   }
   .journal-all-writing-link {
     width: fit-content;
@@ -2487,16 +2495,12 @@
     .journal-md-figure:has(+ .journal-md-figure) + .journal-md-figure img {
       max-height: min(70vh, 544px);
     }
-    .journal-more-writing ol {
-      grid-template-columns: 1fr;
+    .journal-context-list .pf-row {
+      display: block;
+      padding: 14px 54px 14px 0;
     }
-    .journal-more-writing a {
-      grid-template-columns: 1fr;
-      min-height: 0;
-      gap: 8px;
-    }
-    .journal-more-writing time {
-      grid-column: auto;
+    .journal-context-list .journal-list-meta {
+      text-align: left;
     }
   }
 

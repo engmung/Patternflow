@@ -10,22 +10,39 @@ type ArticleLayoutProps = {
   lang: JournalLang;
   previous: JournalPost | null;
   next: JournalPost | null;
+  allPosts: JournalPost[];
   children: ReactNode;
 };
 
 export default function ArticleLayout({
   post,
   lang,
-  previous,
-  next,
+  allPosts,
   children,
 }: ArticleLayoutProps) {
   const indexHref = lang === "en" ? "/journal/en" : "/journal";
   const getPostHref = (slug: string) => lang === "en" ? `/journal/${slug}/en` : `/journal/${slug}`;
-  const adjacentPosts = [
-    previous ? { label: "Previous", post: previous } : null,
-    next ? { label: "Next", post: next } : null,
-  ].filter((item): item is { label: string; post: JournalPost } => Boolean(item));
+
+  // Stable post numbers, oldest = 01, matching the journal index page.
+  const postNumbers = new Map(
+    [...allPosts]
+      .sort((a, b) => Date.parse(a.date) - Date.parse(b.date))
+      .map((p, index) => [p.slug, String(index + 1).padStart(2, "0")]),
+  );
+
+  // Build a 5-item window centered on the current post
+  const currentIndex = allPosts.findIndex((p) => p.slug === post.slug);
+  const totalPosts = allPosts.length;
+
+  let windowStart: number;
+  if (currentIndex <= 1) {
+    windowStart = 0;
+  } else if (currentIndex >= totalPosts - 2) {
+    windowStart = Math.max(0, totalPosts - 5);
+  } else {
+    windowStart = currentIndex - 2;
+  }
+  const windowPosts = allPosts.slice(windowStart, windowStart + 5);
 
   return (
     <>
@@ -71,21 +88,37 @@ export default function ArticleLayout({
       </article>
 
       <footer className="journal-article-footer">
-        {adjacentPosts.length > 0 && (
-          <section className="journal-more-writing" aria-label="More writing">
-            <ol>
-              {adjacentPosts.map(({ label, post: adjacentPost }) => (
-                <li key={adjacentPost.slug}>
-                  <Link href={getPostHref(adjacentPost.slug)}>
-                    <span className="journal-more-kicker">{label}</span>
-                    <strong>{adjacentPost.title}</strong>
-                    <time>{formatJournalDate(adjacentPost.date, lang)}</time>
+        <ol className="journal-context-list">
+          {windowPosts.map((p) => {
+            const globalNum = postNumbers.get(p.slug);
+            const isCurrent = p.slug === post.slug;
+            return (
+              <li key={p.slug} className={isCurrent ? "is-current" : ""}>
+                {isCurrent ? (
+                  <span className="pf-row is-current-row">
+                    <span className="pf-ghost">{globalNum}</span>
+                    <span className="journal-list-body">
+                      <strong className="pf-row-t">{p.title}</strong>
+                    </span>
+                    <span className="journal-list-meta">
+                      {formatJournalDate(p.date, lang)}
+                    </span>
+                  </span>
+                ) : (
+                  <Link className="pf-row" href={getPostHref(p.slug)}>
+                    <span className="pf-ghost">{globalNum}</span>
+                    <span className="journal-list-body">
+                      <strong className="pf-row-t">{p.title}</strong>
+                    </span>
+                    <span className="journal-list-meta">
+                      {formatJournalDate(p.date, lang)}
+                    </span>
                   </Link>
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
+                )}
+              </li>
+            );
+          })}
+        </ol>
         <Link className="journal-all-writing-link" href={indexHref}>
           All writing
         </Link>
@@ -93,3 +126,4 @@ export default function ArticleLayout({
     </>
   );
 }
+
