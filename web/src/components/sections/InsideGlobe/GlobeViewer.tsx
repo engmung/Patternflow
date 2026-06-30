@@ -20,6 +20,9 @@ export default function GlobeViewer() {
     () => builds.find((build) => build.id === selectedId) ?? null,
     [selectedId],
   );
+
+  // Every build photo across all pins — warmed up front (see preloader below).
+  const allImages = useMemo(() => builds.flatMap((build) => build.images ?? []), []);
   const images = selected?.images;
   const galleryOpen = galleryIndex !== null && !!images?.length;
 
@@ -55,6 +58,17 @@ export default function GlobeViewer() {
 
   return (
     <div className={styles.viewer}>
+      {/* Offscreen preloader: fetch every pin's thumbnail (the same 160px
+          optimized variant the card uses) eagerly the moment the globe mounts,
+          so opening a pin shows its photos instantly instead of lazy-loading. */}
+      <div className={styles.preload} aria-hidden>
+        {allImages.map((image) => (
+          <span key={image.src} className={styles.preloadBox}>
+            <Image src={image.src} alt="" fill sizes="160px" loading="eager" />
+          </span>
+        ))}
+      </div>
+
       <Globe selectedBuildId={selectedId ?? undefined} onSelectBuild={select} />
 
       <div className={`${styles.hint} ${hasSelected ? styles.hintHidden : ''}`}>

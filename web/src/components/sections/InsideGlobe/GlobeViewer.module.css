@@ -4,6 +4,24 @@
   height: 100%;
 }
 
+/* Offscreen image preloader — rendered (so eager <Image> actually fetches the
+   thumbnail variants) but kept out of view and out of the layout/interaction. */
+.preload {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.preloadBox {
+  position: relative;
+  display: block;
+  width: 160px;
+  height: 120px;
+}
+
 /* When open, the whole viewer becomes a click-to-close surface. */
 .overlay {
   position: absolute;
