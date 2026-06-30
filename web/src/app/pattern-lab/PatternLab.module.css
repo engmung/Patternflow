@@ -181,7 +181,7 @@
   padding: 0 10px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   cursor: pointer;
   user-select: none;
@@ -461,7 +461,7 @@
   color: rgba(23, 21, 18, 0.62) !important;
   border-color: rgba(23, 21, 18, 0.22) !important;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
 }
 
 .editorHeader .keyButton:hover {
@@ -480,7 +480,7 @@
   gap: 6px;
   color: rgba(23, 21, 18, 0.62);
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
 }
 
@@ -531,7 +531,7 @@
   padding: 0 10px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -613,7 +613,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #b42318;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
 }
 
 .jobTime {
@@ -639,7 +639,7 @@
   padding: 0 10px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   cursor: pointer;
 }
@@ -663,7 +663,7 @@
   margin-left: auto;
   color: rgba(23, 21, 18, 0.55);
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
 }
 
@@ -716,7 +716,7 @@
   height: 18px;
   background: #171512;
   color: #f7f3ea;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   line-height: 1;
 }
 
@@ -819,7 +819,7 @@
   color: #171512;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   cursor: pointer;
 }

@@ -38,7 +38,7 @@ export default function TweaksPanel() {
         style={{
           position: 'fixed', bottom: '20px', right: '20px', zIndex: 99,
           padding: '8px 12px', background: 'var(--ink)', color: 'var(--cream)',
-          fontFamily: 'var(--mono)', fontSize: '11px', border: 'none', cursor: 'pointer',
+          fontFamily: 'var(--mono)', fontSize: 'var(--pf-fs-mono)', border: 'none', cursor: 'pointer',
           textTransform: 'uppercase'
         }}
         className={isOpen ? 'hidden' : ''}

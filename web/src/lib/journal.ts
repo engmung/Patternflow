@@ -57,7 +57,8 @@ function getReadingTime(content: string, lang: JournalLang) {
     return `${minutes} min`;
   }
 
-  return readingTime(content).text;
+  const minutes = Math.max(1, Math.ceil(readingTime(content).minutes));
+  return `${minutes} min`;
 }
 
 function readPost(slug: string, lang: JournalLang): JournalPost {

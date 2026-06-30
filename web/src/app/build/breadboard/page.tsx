@@ -90,7 +90,7 @@ export default function BreadboardBuildPage() {
             gap: '10px',
             marginTop: '8px',
             fontFamily: 'var(--pf-mono)',
-            fontSize: '11px'
+            fontSize: 'var(--pf-fs-mono)'
           }}>
             <span style={{
               background: 'var(--pf-cream-2)',
@@ -281,7 +281,7 @@ export default function BreadboardBuildPage() {
             </div>
           </div>
 
-          <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+          <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
             * No soldering required if your encoders accept Dupont leads. You will strip two power leads (USB + panel power) — a hot-glue joint is enough.
           </p>
         </section>
@@ -346,7 +346,7 @@ export default function BreadboardBuildPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '11px'
+                  fontSize: 'var(--pf-fs-mono)'
                 }}>{step.id}</span>
                 <span style={{ borderBottom: '1px solid transparent' }} className="hover:border-current">{step.text}</span>
               </a>
@@ -383,7 +383,7 @@ export default function BreadboardBuildPage() {
           <div style={{ border: '1px solid var(--pf-rule)', borderRadius: '10px', padding: '6px', background: '#fbfaf7' }}>
             <BreadboardDiagram mode="encoders_gnd" />
           </div>
-          <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+          <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
             ↑ Ground (GND) pins on both sides of all four rotary encoders land on the Ground (<strong>−</strong>) rail of the breadboard.
           </p>
           <div className="w-full mt-4 step-photo-right flex flex-col gap-2">
@@ -392,7 +392,7 @@ export default function BreadboardBuildPage() {
               alt="Encoders mounted with GND wires connected to the breadboard rail"
               style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--pf-rule)' }}
             />
-            <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
               ↑ Encoders fixed, GND wires on the − rail.
             </p>
           </div>
@@ -424,7 +424,7 @@ export default function BreadboardBuildPage() {
           <div style={{ border: '1px solid var(--pf-rule)', borderRadius: '10px', padding: '6px', background: '#fbfaf7' }}>
             <BreadboardDiagram mode="hub_esp" />
           </div>
-          <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+          <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
             ↑ U1 (ESP32-S3) on the left, and J1 (HUB75E) on the right. Wire the pins that share the same color-coded labels (e.g. R1, B1, A, B...).
           </p>
           <div className="w-full mt-4 step-photo-left flex flex-col gap-2">
@@ -433,7 +433,7 @@ export default function BreadboardBuildPage() {
               alt="ESP32-S3 connected to the HUB75E LED matrix via ribbon cable"
               style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--pf-rule)' }}
             />
-            <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
               ↑ ESP32-S3 with HUB75E jumpers connected.
             </p>
           </div>
@@ -465,7 +465,7 @@ export default function BreadboardBuildPage() {
           <div style={{ border: '1px solid var(--pf-rule)', borderRadius: '10px', padding: '6px', background: '#fbfaf7' }}>
             <BreadboardDiagram mode="encoders_esp" />
           </div>
-          <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+          <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
             ↑ Four rotary encoders on the left, and ESP32 on the right. Wire the signal channels (A, B, SW) to their matching colored tags (e.g. 1A, 2A...).
           </p>
           <div className="w-full mt-4 step-photo-right flex flex-col gap-2">
@@ -474,7 +474,7 @@ export default function BreadboardBuildPage() {
               alt="All encoder signal wires routed routed into the case alongside the LED panel"
               style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--pf-rule)' }}
             />
-            <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
               ↑ Encoder A, B, SW wires all connected.
             </p>
           </div>
@@ -512,7 +512,7 @@ export default function BreadboardBuildPage() {
               alt="Stripped USB and LED panel power wires being twisted onto jumpers"
               style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--pf-rule)' }}
             />
-            <p style={{ fontSize: '11px', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
+            <p style={{ fontSize: 'var(--pf-fs-mono)', color: 'var(--pf-ink-faint)', fontFamily: 'var(--pf-mono)', margin: 0 }}>
               ↑ Power leads stripped and twisted onto jumpers.
             </p>
           </div>
@@ -588,7 +588,7 @@ export default function BreadboardBuildPage() {
           flexDirection: 'column',
           gap: '12px',
           fontFamily: 'var(--pf-mono)',
-          fontSize: '11px',
+          fontSize: 'var(--pf-fs-mono)',
           color: 'var(--pf-ink-muted)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>

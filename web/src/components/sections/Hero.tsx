@@ -147,9 +147,6 @@ export default function Hero() {
             Get One
           </button>
         </div>
-        <p className="hero-cs-note">
-          Reserve on Crowd Supply — Mouser&apos;s platform for open hardware.
-        </p>
       </div>
       {isCrowdSupplyOpen && (
         <CrowdSupplyModal onClose={() => setIsCrowdSupplyOpen(false)} />

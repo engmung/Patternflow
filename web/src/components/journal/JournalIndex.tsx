@@ -31,7 +31,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
         <Link className="journal-lockup" href="/">
           Patternflow
         </Link>
-        <div className="journal-entry-count">Blog</div>
+        <div className="journal-section-label">Journal</div>
       </header>
 
       <div className="journal-panel">

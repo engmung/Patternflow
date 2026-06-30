@@ -83,7 +83,7 @@
 .label {
   display: block;
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.7;
@@ -132,7 +132,7 @@
   background: #ffffff;
   color: #171512;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;

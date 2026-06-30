@@ -533,7 +533,7 @@ export default function HeroScene() {
           color: '#6B655A',
           fontFamily: 'var(--mono)',
           fontWeight: 500,
-          fontSize: '11px',
+          fontSize: 'var(--pf-fs-mono)',
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
           pointerEvents: 'none',

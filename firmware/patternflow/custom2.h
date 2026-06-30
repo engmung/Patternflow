@@ -1,99 +1,119 @@
 #pragma once
 
 #include <Arduino.h>
+#include <math.h>
+#include <stdint.h>
 #include "config.h"
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
-#include "src/core_math.h"
-#include "src/core_color.h"
 
-namespace RetroDigitalTapestry {
+namespace CyberpunkCyberGridPattern {
 
-const char* NAME = "Retro Digital Tapestry";
-const char* const KNOB_LABELS[4] = {"Cell Scale", "Speed", "Logic Mode", "Wave Mod"};
+const char* NAME = "Cyber Grid";
+const char* const KNOB_LABELS[4] = {"Grid Spacing", "Velocity", "Pulse Width", "Color Split"};
 
-float cellScale = -0.101f;
-float speed = 1.99f;
-float logicMode = 1.001f;
-float waveMod = 1.346f;
-float timeAcc = 0.0f;
+const float CYBER_GRID_GRIDW_MIN = 0.0f;
+const float CYBER_GRID_GRIDW_MAX = 1.0f;
+const float CYBER_GRID_GRIDW_STEP = 0.05f;
+
+const float CYBER_GRID_SPEED_MIN = 0.1f;
+const float CYBER_GRID_SPEED_MAX = 10.0f;
+const float CYBER_GRID_SPEED_STEP = 0.10f;
+
+const float CYBER_GRID_PULSE_MIN = 0.0f;
+const float CYBER_GRID_PULSE_MAX = 4.9f;
+const float CYBER_GRID_PULSE_STEP = 0.05f;
+
+const float CYBER_GRID_SPLIT_MIN = 0.0f;
+const float CYBER_GRID_SPLIT_MAX = 1.0f;
+const float CYBER_GRID_SPLIT_STEP = 0.05f;
+
+struct Params {
+    float gridW;
+    float speed;
+    float pulse;
+    float split;
+    float timeAcc;
+};
+
+Params params;
 
 void setup() {
-    PFMath::buildSinLUT();
-    cellScale = -0.101f;
-    speed = 1.99f;
-    logicMode = 1.001f;
-    waveMod = 1.346f;
-    timeAcc = 0.0f;
+    params.gridW = 0.4f;
+    params.speed = 2.5f;
+    params.pulse = 1.5f;
+    params.split = 0.5f;
+    params.timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    cellScale += input.knobDeltas[0] * 0.05f;
-    if (cellScale < -0.101f) cellScale = -0.101f;
-    if (cellScale > 0.5f) cellScale = 0.5f;
+    // Knob 1: Grid Spacing (Wrap)
+    params.gridW += input.knobDeltas[0] * CYBER_GRID_GRIDW_STEP;
+    while (params.gridW < CYBER_GRID_GRIDW_MIN) params.gridW += (CYBER_GRID_GRIDW_MAX - CYBER_GRID_GRIDW_MIN);
+    while (params.gridW > CYBER_GRID_GRIDW_MAX) params.gridW -= (CYBER_GRID_GRIDW_MAX - CYBER_GRID_GRIDW_MIN);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < 0.1f) speed = 0.1f;
-    if (speed > 5.0f) speed = 5.0f;
+    // Knob 2: Horizon Scroll Velocity (Clamp)
+    params.speed += input.knobDeltas[1] * CYBER_GRID_SPEED_STEP;
+    params.speed = constrain(params.speed, CYBER_GRID_SPEED_MIN, CYBER_GRID_SPEED_MAX);
 
-    logicMode += input.knobDeltas[2] * 0.05f;
-    if (logicMode < 0.0f) logicMode = 0.0f;
-    if (logicMode > 1.001f) logicMode = 1.001f;
+    // Knob 3: Neon Pulse Width Threshold (Clamp)
+    params.pulse += input.knobDeltas[2] * CYBER_GRID_PULSE_STEP;
+    params.pulse = constrain(params.pulse, CYBER_GRID_PULSE_MIN, CYBER_GRID_PULSE_MAX);
 
-    waveMod += input.knobDeltas[3] * 0.05f;
-    if (waveMod < 0.0f) waveMod = 0.0f;
-    if (waveMod > 3.0f) waveMod = 3.0f;
+    // Knob 4: Pink-Cyan Complementary Split (Wrap)
+    params.split += input.knobDeltas[3] * CYBER_GRID_SPLIT_STEP;
+    while (params.split < CYBER_GRID_SPLIT_MIN) params.split += (CYBER_GRID_SPLIT_MAX - CYBER_GRID_SPLIT_MIN);
+    while (params.split > CYBER_GRID_SPLIT_MAX) params.split -= (CYBER_GRID_SPLIT_MAX - CYBER_GRID_SPLIT_MIN);
 
-    timeAcc += dt * speed * 2.0f;
+    params.timeAcc += dt * params.speed * 15.0f;
 }
 
 void draw() {
-    int scale = (int)(4.0f + cellScale * 24.0f);
-    if (scale < 1) scale = 1;
-    int mode = (int)(logicMode * 5.0f);
-    float waveF = 0.02f + waveMod * 0.08f;
-    float t = timeAcc;
+    int w = PANEL_RES_W;
+    int h = PANEL_RES_H;
+    float t = params.timeAcc;
+
+    int spacing = (int)floorf(params.gridW * 14.0f) + 6;
+    if (spacing <= 0) spacing = 1;
     
-    int floorT = (int)floorf(t);
-    int floorT15 = (int)floorf(t * 1.5f);
-    int floorT08 = (int)floorf(t * 0.8f);
+    float pWidth = params.pulse * 0.3f + 0.1f;
+    float spacing_pWidth = (float)spacing * pWidth;
+    int horizon_y = (int)floorf((float)h * 0.4f);
 
-    float minVal = floorf(50.0f * (PFMath::fastSin(t * 2.0f) * 0.5f + 0.5f));
-    float hsv_v = 220.0f / 255.0f;
-    float hsv_s = (220.0f - minVal) / 220.0f;
+    float w_div_2 = (float)w / 2.0f;
+    float t_05 = t * 0.5f;
 
-    for (int y = 0; y < PANEL_RES_H; y++) {
-        int sy = y / scale;
-        float cosY = PFMath::fastCos(y * waveF - t);
+    uint8_t vertical_r = 0;
+    uint8_t vertical_g = (uint8_t)constrain(floorf(200.0f + params.split * 55.0f), 0.0f, 255.0f);
+    uint8_t vertical_b = 255;
 
-        for (int x = 0; x < PANEL_RES_W; x++) {
-            int sx = x / scale;
-            int patternVal = 0;
+    uint8_t horizontal_r = 255;
+    uint8_t horizontal_g = 20;
+    uint8_t horizontal_b = (uint8_t)constrain(floorf(150.0f + (1.0f - params.split) * 105.0f), 0.0f, 255.0f);
 
-            switch (mode) {
-                case 0:  patternVal = (sx ^ sy) + floorT; break;
-                case 1:  patternVal = (sx & sy) * 3 + floorT15; break;
-                case 2:  patternVal = (sx * 7 + sy * 3) ^ floorT; break;
-                case 3:  patternVal = (sx ^ (sy + floorT)) & 15; break;
-                default: patternVal = ((sx * sx + sy * sy) >> 2) + floorT08; break;
-            }
+    for (int y = 0; y < h; y++) {
+        float perspectiveScale = ((float)y / (float)h) * 3.0f + 0.2f;
+        float invPerspectiveScale = 1.0f / perspectiveScale;
+        
+        float y_term = (float)y - t * 0.2f;
+        bool gridY = fabsf(fmodf(y_term, (float)spacing)) < spacing_pWidth;
 
-            float smoothS = PFMath::fastSin(x * waveF + t) * cosY;
-            bool bitActive = (patternVal & 8) != 0;
+        for (int x = 0; x < w; x++) {
+            float skewX = ((float)x - w_div_2) * invPerspectiveScale + w_div_2;
+            float x_term = skewX + t_05;
+            bool gridX = fabsf(fmodf(x_term, (float)spacing)) < spacing_pWidth;
 
             uint8_t r = 0, g = 0, b = 0;
 
-            if (bitActive) {
-                float hu = smoothS * 0.3f + 0.5f + (float)(patternVal % 16) / 32.0f;
-                hu = fmodf(hu, 1.0f);
-                if (hu < 0.0f) hu += 1.0f;
-
-                PFColor::hsvToRgb(hu, hsv_s, hsv_v, r, g, b);
-            } else {
-                if ((x % scale == 0) || (y % scale == 0)) {
-                    r = 20; g = 10; b = 40;
-                }
+            if (gridX && gridY) {
+                r = 255; g = 255; b = 255;
+            } else if (gridX) {
+                r = vertical_r; g = vertical_g; b = vertical_b;
+            } else if (gridY) {
+                r = horizontal_r; g = horizontal_g; b = horizontal_b;
+            } else if (y == horizon_y) {
+                r = 255; g = 255; b = 0;
             }
 
             PFCanvas::setPixel(x, y, r, g, b);
@@ -102,4 +122,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace RetroDigitalTapestry
+} // namespace CyberpunkCyberGridPattern

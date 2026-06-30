@@ -1,9 +1,3 @@
-// SPDX-License-Identifier: CC-BY-SA-4.0
-// Pattern: Cellular Interference
-// Author:  Seunghun LEE
-// Lineage: AI generated and curated
-//
-
 #pragma once
 
 #include <Arduino.h>
@@ -14,34 +8,33 @@
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_color.h"
 
-namespace Custom3 {
+namespace ChromaticAberrationVortexPattern {
 
-const char* NAME = "Cellular Interference";
-const char* const KNOB_LABELS[4] = {"Lattice Scale", "Speed", "Interfere Mode", "Pulse Width"};
+const char* NAME = "Chromatic Vortex";
+const char* const KNOB_LABELS[4] = {"Split Dist", "Swirl Speed", "Wave Density", "Color Shift"};
 
-const float CELL_INTERFERENCE_SCALE_MIN = 0.0f;
-const float CELL_INTERFERENCE_SCALE_MAX = 1.0f;
-const float CELL_INTERFERENCE_SCALE_STEP = 0.05f;
+const float CHROMATIC_VORTEX_SPLIT_MIN = 0.0f;
+const float CHROMATIC_VORTEX_SPLIT_MAX = 1.0f;
+const float CHROMATIC_VORTEX_SPLIT_STEP = 0.05f;
 
-const float CELL_INTERFERENCE_SPEED_MIN = 0.1f;
-const float CELL_INTERFERENCE_SPEED_MAX = 10.0f;
-const float CELL_INTERFERENCE_SPEED_STEP = 0.10f;
+const float CHROMATIC_VORTEX_SPEED_MIN = 0.1f;
+const float CHROMATIC_VORTEX_SPEED_MAX = 10.0f;
+const float CHROMATIC_VORTEX_SPEED_STEP = 0.10f;
 
-const float CELL_INTERFERENCE_MODE_MIN = 0.0f;
-const float CELL_INTERFERENCE_MODE_MAX = 4.9f;
-const float CELL_INTERFERENCE_MODE_STEP = 0.05f;
+const float CHROMATIC_VORTEX_DENSITY_MIN = 0.0f;
+const float CHROMATIC_VORTEX_DENSITY_MAX = 4.9f;
+const float CHROMATIC_VORTEX_DENSITY_STEP = 0.05f;
 
-const float CELL_INTERFERENCE_PULSE_MIN = 0.0f;
-const float CELL_INTERFERENCE_PULSE_MAX = 1.0f;
-const float CELL_INTERFERENCE_PULSE_STEP = 0.05f;
+const float CHROMATIC_VORTEX_COLOR_BIAS_MIN = 0.0f;
+const float CHROMATIC_VORTEX_COLOR_BIAS_MAX = 1.0f;
+const float CHROMATIC_VORTEX_COLOR_BIAS_STEP = 0.05f;
 
 struct Params {
-    float scale;
+    float split;
     float speed;
-    float interfereMode;
-    float pulseWidth;
+    float density;
+    float colorBias;
     float timeAcc;
 };
 
@@ -49,97 +42,87 @@ Params params;
 
 void setup() {
     PFMath::buildSinLUT();
-    params.scale = 0.5f;
-    params.speed = 2.0f;
-    params.interfereMode = 1.0f;
-    params.pulseWidth = 0.5f;
+    params.split = 0.4f;
+    params.speed = 1.5f;
+    params.density = 2.0f;
+    params.colorBias = 0.5f;
     params.timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    params.scale += input.knobDeltas[0] * CELL_INTERFERENCE_SCALE_STEP;
-    if (params.scale < CELL_INTERFERENCE_SCALE_MIN) params.scale += (CELL_INTERFERENCE_SCALE_MAX - CELL_INTERFERENCE_SCALE_MIN);
-    if (params.scale > CELL_INTERFERENCE_SCALE_MAX) params.scale -= (CELL_INTERFERENCE_SCALE_MAX - CELL_INTERFERENCE_SCALE_MIN);
+    params.split += input.knobDeltas[0] * CHROMATIC_VORTEX_SPLIT_STEP;
+    params.split = fmodf(params.split, 1.0f);
+    if (params.split < 0.0f) params.split += 1.0f;
 
-    params.speed += input.knobDeltas[1] * CELL_INTERFERENCE_SPEED_STEP;
-    params.speed = constrain(params.speed, CELL_INTERFERENCE_SPEED_MIN, CELL_INTERFERENCE_SPEED_MAX);
+    params.speed += input.knobDeltas[1] * CHROMATIC_VORTEX_SPEED_STEP;
+    params.speed = constrain(params.speed, CHROMATIC_VORTEX_SPEED_MIN, CHROMATIC_VORTEX_SPEED_MAX);
 
-    params.interfereMode += input.knobDeltas[2] * CELL_INTERFERENCE_MODE_STEP;
-    params.interfereMode = constrain(params.interfereMode, CELL_INTERFERENCE_MODE_MIN, CELL_INTERFERENCE_MODE_MAX);
+    params.density += input.knobDeltas[2] * CHROMATIC_VORTEX_DENSITY_STEP;
+    params.density = constrain(params.density, CHROMATIC_VORTEX_DENSITY_MIN, CHROMATIC_VORTEX_DENSITY_MAX);
 
-    params.pulseWidth += input.knobDeltas[3] * CELL_INTERFERENCE_PULSE_STEP;
-    if (params.pulseWidth < CELL_INTERFERENCE_PULSE_MIN) params.pulseWidth += (CELL_INTERFERENCE_PULSE_MAX - CELL_INTERFERENCE_PULSE_MIN);
-    if (params.pulseWidth > CELL_INTERFERENCE_PULSE_MAX) params.pulseWidth -= (CELL_INTERFERENCE_PULSE_MAX - CELL_INTERFERENCE_PULSE_MIN);
+    params.colorBias += input.knobDeltas[3] * CHROMATIC_VORTEX_COLOR_BIAS_STEP;
+    params.colorBias = fmodf(params.colorBias, 1.0f);
+    if (params.colorBias < 0.0f) params.colorBias += 1.0f;
 
     params.timeAcc += dt * params.speed;
 }
 
 void draw() {
-    const int w = PANEL_RES_W;
-    const int h = PANEL_RES_H;
-    const float t = params.timeAcc;
+    int w = PANEL_RES_W;
+    int h = PANEL_RES_H;
+    float t = params.timeAcc;
 
-    float cellSize = 8.0f + (1.0f - params.scale) * 24.0f;
-    if (cellSize < 1.0f) cellSize = 1.0f;
-    const int iCellSize = (int)cellSize;
-    const float halfCell = cellSize * 0.5f;
-    
-    const int mode = (int)floorf(params.interfereMode);
-    const float pw = 0.1f + params.pulseWidth * 0.8f;
-    const float invPw = 1.0f / pw;
+    float cx = w / 2.0f;
+    float cy = h / 2.0f;
+    float maxShift = params.split * 8.0f;
+    float densityCalc = params.density * 0.1f + 0.05f;
 
     for (int y = 0; y < h; y++) {
-        const int cellY = y / iCellSize;
-        const float ly = (float)(y % iCellSize) - halfCell;
-        const float absLy = ly < 0.0f ? -ly : ly;
-
+        float dy = (float)y - cy;
         for (int x = 0; x < w; x++) {
-            const int cellX = x / iCellSize;
-            const float lx = (float)(x % iCellSize) - halfCell;
-            const float absLx = lx < 0.0f ? -lx : lx;
-            
-            const float dist = PFMath::approxLength(lx, ly);
+            float dx = (float)x - cx;
 
-            const float phaseA = dist * 0.4f - t;
-            float phaseB = 0.0f;
+            // 완벽한 원형을 위해 실제 sqrtf 사용 (ESP32-S3 FPU 하드웨어 연산 활용)
+            float dist = sqrtf(dx * dx + dy * dy);
+            float angle = atan2f(dy, dx);
 
-            if (mode == 0) {
-                phaseB = (cellX + cellY) * 0.5f + t * 0.5f;
-            } else if (mode == 1) {
-                phaseB = PFMath::fastSin(cellX * 0.3f + t) * 3.0f + PFMath::fastCos(cellY * 0.3f + t);
-            } else if (mode == 2) {
-                const float cx = (float)(cellX - 4);
-                const float cy = (float)(cellY - 2);
-                phaseB = PFMath::approxLength(cx, cy) * 0.8f - t * 0.5f;
-            } else {
-                phaseB = ((cellX ^ cellY) & 7) * 0.6f;
-            }
+            float dist005 = dist * 0.05f;
+            float shiftR = PFMath::fastSin(dist005 - t) * maxShift;
+            float shiftG = PFMath::fastSin(dist005 - t + 1.0f) * maxShift * 0.5f;
+            float shiftB = PFMath::fastSin(dist005 - t + 2.0f) * maxShift * -0.5f;
 
-            const float wave = PFMath::fastSin(phaseA + phaseB);
-            const float signal = (wave + 1.0f) * 0.5f;
+            // Red Channel Matrix
+            float rDist = dist + shiftR;
+            float rWave = PFMath::fastSin(rDist * densityCalc - t * 2.0f + angle);
+            float rInt = rWave * 0.5f + 0.5f;
+            if (rInt < 0.0f) rInt = 0.0f;
 
-            uint8_t r = 0, g = 0, b = 0;
+            // Green Channel Matrix
+            float gDist = dist + shiftG;
+            float gWave = PFMath::fastSin(gDist * densityCalc - t * 2.0f + angle + 1.0f);
+            float gInt = gWave * 0.5f + 0.5f;
+            if (gInt < 0.0f) gInt = 0.0f;
 
-            if (signal > 1.0f - pw) {
-                const int cellHueInt = (cellX * 13 + cellY * 37) % 100;
-                const float cellHue = (float)cellHueInt * 0.01f;
-                float localHue = cellHue + wave * 0.15f + 1.0f;
-                localHue = localHue - floorf(localHue);
-                
-                const float intensity = (signal - (1.0f - pw)) * invPw;
-                if (intensity > 0.75f) {
-                    r = 255; g = 255; b = 255;
-                } else {
-                    uint8_t cr, cg, cb;
-                    PFColor::hsvToRgb(localHue, 0.9f, 1.0f, cr, cg, cb);
-                    r = (uint8_t)(cr * intensity);
-                    g = (uint8_t)(cg * intensity);
-                    b = (uint8_t)(cb * intensity);
-                }
-            } else if (signal > 0.05f) {
-                if (absLx < 0.8f || absLy < 0.8f) {
-                    r = 20; g = 10; b = 35;
-                }
+            // Blue Channel Matrix
+            float bDist = dist + shiftB;
+            float bWave = PFMath::fastSin(bDist * densityCalc - t * 2.0f + angle + 2.0f);
+            float bInt = bWave * 0.5f + 0.5f;
+            if (bInt < 0.0f) bInt = 0.0f;
+
+            // Color Bias Processing
+            float rFloat = rInt * 255.0f * (params.colorBias * 0.5f + 0.5f);
+            float gFloat = gInt * 255.0f * (1.0f - params.colorBias * 0.3f);
+            float bFloat = bInt * 255.0f * (0.3f + params.colorBias * 0.7f);
+
+            uint8_t r = (uint8_t)constrain(floorf(rFloat), 0.0f, 255.0f);
+            uint8_t g = (uint8_t)constrain(floorf(gFloat), 0.0f, 255.0f);
+            uint8_t b = (uint8_t)constrain(floorf(bFloat), 0.0f, 255.0f);
+
+            // White Overlap Peak Correction
+            if (rInt > 0.85f && gInt > 0.85f && bInt > 0.85f) {
+                r = 255;
+                g = 255;
+                b = 255;
             }
 
             PFCanvas::setPixel(x, y, r, g, b);
@@ -148,4 +131,4 @@ void draw() {
     PFCanvas::present();
 }
 
-} // namespace Custom3
+} // namespace ChromaticAberrationVortexPattern

@@ -40,11 +40,11 @@
     --pf-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --pf-serif: 'Newsreader', Georgia, serif;
     --pf-fs-h2: 34px;
-    --pf-fs-sub: 14px;
-    --pf-fs-body: 13.5px;
-    --pf-fs-row: 16px;
-    --pf-fs-row-d: 12.5px;
-    --pf-fs-mono: 11px;
+    --pf-fs-sub: 16px;
+    --pf-fs-body: 15px;
+    --pf-fs-row: 18px;
+    --pf-fs-row-d: 14px;
+    --pf-fs-mono: 13px;
     --pf-fs-card: 15.5px;
     --pf-fs-ghost: 96px;
     --pf-fs-ghost-row: 64px;
@@ -72,7 +72,7 @@
   }
   a { color: inherit; text-decoration: none; }
   a:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
-  .mono { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
+  .mono { font-family: var(--mono); font-size: var(--pf-fs-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
   em.wordmark { font-family: var(--pretendard); font-style: normal; font-weight: 700; }
 
   /* header removed */
@@ -122,18 +122,7 @@
     /* Page links (Journal / Contact) live as a fixed, layered header in the
        top-right — independent of the 3D preview, sitting above everything. */
     .mobile-page-links {
-      display: block;
-      position: fixed;
-      top: 0;
-      right: 0;
-      z-index: 60;
-      padding: 16px 20px;
-      pointer-events: none;
-    }
-    .mobile-page-links .hero-top-links {
-      display: flex;
-      position: static;
-      pointer-events: auto;
+      display: none;
     }
 
     /* The 3D preview is hidden while the hero is full-screen, then "drops down"
@@ -263,27 +252,18 @@
     border-color: var(--ink);
     text-decoration: none;
   }
-  .hero-cs-note {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    letter-spacing: 0.02em;
-    line-height: 1.5;
-    color: var(--ink-muted);
-    margin: 12px 0 0;
-  }
+
 
   @media (max-width: 900px) {
     .hero {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      padding: 32px 24px 60px;
+      padding: 36px 0 60px;
       gap: 24px;
       min-height: auto;
     }
-    .hero > .hero-top-links {
-      display: none;
-    }
+
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
     .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
     .hero-copy .kicker { font-size: 20px; margin-bottom: 28px; }
@@ -523,7 +503,7 @@
     max-width: 560px;
     border-top: 1px solid var(--rule);
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.01em;
   }
   .spec-row {
@@ -548,7 +528,7 @@
   .stack {
     margin-top: 18px;
     max-width: 560px;
-    font-family: var(--mono); font-size: 13px;
+    font-family: var(--mono); font-size: var(--pf-fs-mono);
   }
   .stack-layer {
     display: grid;
@@ -593,7 +573,7 @@
   }
   .track-dot.is-now::before { background: var(--ink); }
   .track-dot .v {
-    font-size: 13px; color: var(--ink); font-weight: 500;
+    font-size: var(--pf-fs-mono); color: var(--ink); font-weight: 500;
     letter-spacing: -0.005em; margin-bottom: 4px;
   }
   .track-dot .when {
@@ -921,7 +901,7 @@
     margin-top: 3px;
     text-transform: none;
     letter-spacing: 0.02em;
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
   }
   @media (max-width: 540px) {
     .steps { grid-template-columns: repeat(2, 1fr); gap: 24px; }
@@ -931,7 +911,7 @@
   .inside-list {
     display: flex; gap: 32px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-top: 60px;
@@ -1070,7 +1050,7 @@
     color: var(--ink);
     border-bottom: 1px solid currentColor;
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0;
     text-transform: uppercase;
   }
@@ -1107,7 +1087,7 @@
   }
   .inside-globe-tooltip strong {
     font-family: var(--pf-sans);
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     font-weight: 500;
     letter-spacing: 0;
   }
@@ -1186,7 +1166,7 @@
     letter-spacing: 0;
   }
   .inside-image-placeholder span {
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     color: var(--inside-heading);
   }
   .inside-image-placeholder small {
@@ -1260,7 +1240,7 @@
     gap: 1rem;
     margin: 1.5rem 0 10vh;
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0;
     text-transform: uppercase;
   }
@@ -1285,7 +1265,7 @@
       font-size: 17px;
     }
     .inside-stats span {
-      font-size: 11px;
+      font-size: var(--pf-fs-mono);
     }
     .reddit-comment-band {
       width: 100%;
@@ -1318,7 +1298,7 @@
   }
   .sponsor-label {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
@@ -1358,7 +1338,7 @@
   }
   footer .series {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-top: 60px;
@@ -1377,7 +1357,7 @@
     border: 1px solid var(--ink);
     padding: 14px 16px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     display: none;
@@ -1408,13 +1388,14 @@
   }
   .hero-top-links {
     position: absolute;
-    top: 32px;
+    top: 24px;
     right: 42px;
     z-index: 3;
     display: flex;
+    align-items: flex-end;
     gap: 18px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
@@ -1427,6 +1408,20 @@
   .hero-top-links a:hover {
     color: var(--ink);
     text-decoration: underline;
+  }
+  .hero-top-links .instagram-link {
+    display: inline-flex;
+    align-items: center;
+    padding-bottom: 0;
+  }
+  .hero-top-links .instagram-link:hover {
+    text-decoration: none;
+  }
+  .hero-top-links .instagram-link svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+    display: block;
   }
 
   /* Business */
@@ -1585,7 +1580,7 @@
     display: flex;
     gap: 10px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-faint);
@@ -1625,15 +1620,13 @@
   }
   .journal-masthead {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 28px;
-    margin-bottom: 56px;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 24px;
     padding-bottom: 18px;
     border-bottom: 1px solid var(--pf-rule);
   }
   .journal-lockup,
-  .journal-entry-count,
   .journal-featured-meta,
   .journal-archive-label,
   .journal-list-number,
@@ -1643,17 +1636,18 @@
   .journal-dateline,
   .journal-article-footer {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .journal-lockup {
     display: inline-block;
     text-decoration: none;
-    font-family: var(--sans);
-    font-size: 18px;
-    font-weight: 500;
-    letter-spacing: -0.01em;
+    font-family: var(--pretendard);
+    font-size: 88px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.035em;
     text-transform: none;
     color: var(--ink);
   }
@@ -1661,9 +1655,13 @@
     color: var(--pf-ink-muted);
     text-decoration: none;
   }
-  .journal-entry-count {
+  .journal-section-label {
+    font-family: var(--pretendard);
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.035em;
     color: var(--pf-ink-muted);
-    letter-spacing: var(--pf-track-mono);
   }
   .journal-featured {
     display: grid;
@@ -1880,7 +1878,7 @@
     background: #ffffff;
   }
   .journal-back-link {
-    margin-bottom: 56px;
+    margin-bottom: 32px;
     color: var(--ink-muted);
   }
   .journal-back-link a::before {
@@ -1889,7 +1887,7 @@
   }
   .journal-article-header {
     width: 100%;
-    margin-bottom: 64px;
+    margin-bottom: 36px;
   }
   .journal-article-header h1 {
     font-family: var(--serif);
@@ -1902,7 +1900,7 @@
   }
   .journal-article-header > p {
     max-width: 691px;
-    margin: 0 0 64px;
+    margin: 0 0 32px;
     font-family: var(--serif);
     font-size: 22px;
     font-style: italic;
@@ -1919,7 +1917,7 @@
   }
   .journal-hero-cover {
     width: min(100%, 608px);
-    margin: 0 auto 64px;
+    margin: 0 auto 40px;
     text-align: center;
   }
   .journal-hero-cover .journal-cover-slot {
@@ -1948,7 +1946,7 @@
     display: block;
     margin-top: 10px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.06em;
     color: var(--ink-muted);
     text-align: center;
@@ -2011,7 +2009,7 @@
     background: var(--ink);
     color: var(--cream);
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: var(--pf-fs-mono);
     line-height: 1.55;
   }
   .journal-md-figure {
@@ -2033,7 +2031,7 @@
   .journal-md-figure figcaption {
     margin-top: 10px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.06em;
     color: var(--ink-muted);
     text-align: center;
@@ -2085,7 +2083,7 @@
     border-top: 1px solid var(--rule);
     border-bottom: 1px solid var(--rule);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.04em;
   }
   .journal-reading th,
@@ -2156,7 +2154,7 @@
   }
   .journal-lightbox figcaption {
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     color: var(--cream);
     text-align: center;
@@ -2169,7 +2167,7 @@
     background: transparent;
     color: var(--cream);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
@@ -2177,7 +2175,7 @@
   .journal-figure figcaption {
     margin-top: 10px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.06em;
     color: var(--ink-muted);
   }
@@ -2188,7 +2186,7 @@
     align-items: center;
     gap: 12px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
@@ -2206,59 +2204,67 @@
     gap: 18px;
     color: var(--ink-muted);
   }
-  .journal-more-writing {
-    border-top: 1px solid var(--pf-rule);
-  }
-  .journal-more-writing ol {
+  .journal-context-list {
     list-style: none;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0 42px;
+    border-top: 1px solid var(--pf-rule);
+    /* Undo the footer's mono/uppercase label styling so titles and dates
+       render like the journal index list. */
+    font-family: var(--pf-sans);
+    letter-spacing: normal;
+    text-transform: none;
   }
-  .journal-more-writing a {
+  .journal-context-list .pf-row {
     display: grid;
-    grid-template-columns: 86px minmax(0, 1fr);
-    gap: 8px 18px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 24px;
     align-items: baseline;
-    min-height: 92px;
-    padding: 18px 0;
-    border-bottom: 1px solid var(--pf-rule);
+    padding-right: 56px;
+    border-top: 0;
     color: var(--ink-muted);
     text-decoration: none;
   }
-  .journal-more-writing a:hover strong,
-  .journal-more-writing a:focus-visible strong,
+  /* Title + date inherit uppercase/mono from .journal-article-footer; reset
+     them directly so they read like the journal index list. */
+  .journal-context-list .pf-row-t {
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-row);
+    letter-spacing: -0.01em;
+    text-transform: none;
+  }
+  .journal-context-list .pf-ghost {
+    right: 0;
+  }
+  .journal-context-list a.pf-row:hover,
+  .journal-context-list a.pf-row:focus-visible {
+    color: var(--pf-ink);
+  }
+  .journal-context-list a.pf-row:hover .pf-row-t,
+  .journal-context-list a.pf-row:focus-visible .pf-row-t,
   .journal-all-writing-link:hover,
   .journal-all-writing-link:focus-visible {
     text-decoration: underline;
     text-underline-offset: 4px;
     text-decoration-thickness: 1px;
   }
-  .journal-more-kicker,
-  .journal-more-writing time {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-  }
-  .journal-more-writing time {
-    white-space: nowrap;
-    grid-column: 2;
-  }
-  .journal-more-writing strong {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.35;
-    letter-spacing: 0.08em;
+  .journal-context-list .is-current-row {
     color: var(--ink);
-    text-transform: uppercase;
+    cursor: default;
+  }
+  .journal-context-list .is-current .pf-ghost {
+    color: var(--ink);
+  }
+  .journal-context-list .journal-list-meta {
+    text-align: right;
+    white-space: nowrap;
+    font-family: var(--pf-sans);
+    font-size: var(--pf-fs-row-d);
+    letter-spacing: normal;
+    text-transform: none;
   }
   .journal-all-writing-link {
     width: fit-content;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
@@ -2285,16 +2291,13 @@
     left: 50%;
     transform: translateX(-50%);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--ink-muted);
   }
 
   @media (max-width: 720px) {
-    .hero > .hero-top-links {
-      display: none;
-    }
     .business-page { padding: 48px 18px 96px; }
     .business-head {
       margin-bottom: 32px;
@@ -2352,7 +2355,7 @@
       right: 22px;
     }
     .journal-shell {
-      padding: 48px 18px 96px;
+      padding: 36px 24px 96px;
     }
     .journal-index {
       width: 100%;
@@ -2360,18 +2363,22 @@
     .journal-panel,
     .journal-article {
       width: 100%;
-      padding: 40px 24px 72px;
+      padding: 24px 24px 72px;
     }
     .journal-panel .journal-lang-switch {
       position: static;
-      margin-bottom: 40px;
+      margin-bottom: 20px;
     }
-    .journal-masthead,
-    .journal-dateline,
     .journal-index-footer {
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
+    }
+    .journal-lockup {
+      font-size: 50px;
+    }
+    .journal-section-label {
+      font-size: 25px;
     }
     .journal-featured h1 {
       font-size: 36px;
@@ -2404,50 +2411,60 @@
       font-size: 16px;
     }
     .journal-post-list a {
-      grid-template-columns: 1fr;
-      gap: 10px;
-      align-items: start;
-      padding: 20px 70px 58px 0;
-      min-height: 190px;
+      display: block;
+      position: relative;
+      padding: 14px 54px 14px 0;
+      min-height: auto;
     }
     .journal-post-list a .pf-ghost {
-      right: -2px;
-      top: auto;
-      bottom: 18px;
-      transform: none;
-      font-size: 58px;
+      position: absolute;
+      right: 0;
+      top: 50%;
+      bottom: auto;
+      transform: translateY(-50%);
+      font-size: 42px;
+      line-height: 1;
       color: var(--pf-ink-ghost);
     }
     .journal-list-body {
-      max-width: calc(100% - 58px);
+      max-width: calc(100% - 10px);
     }
     .journal-list-body strong {
-      max-width: 16ch;
-      font-size: 19px;
-      line-height: 1.18;
+      display: block;
+      max-width: 100%;
+      font-size: 18px;
+      line-height: 1.25;
     }
     .journal-list-body .pf-row-d {
-      max-width: 22ch;
-      margin-top: 10px;
-      font-size: 13px;
-      line-height: 1.45;
+      display: block;
+      max-width: 100%;
+      margin-top: 6px;
+      font-size: var(--pf-fs-row-d);
+      line-height: 1.4;
       white-space: normal;
     }
     .journal-new-badge {
-      display: block;
-      margin: 8px 0 0;
+      display: inline-block;
+      margin: 0 0 0 8px;
       font-size: 11px;
+      vertical-align: middle;
     }
     .journal-list-meta {
-      grid-column: auto;
-      text-align: left;
-      font-size: 10px;
-      line-height: 1.4;
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 10.5px;
+      line-height: 1;
+      text-transform: uppercase;
+      color: var(--ink-muted);
     }
     .journal-list-meta + .journal-list-meta {
-      position: absolute;
-      left: 0;
-      bottom: 20px;
+      position: static;
+      margin-left: 12px;
+    }
+    .journal-list-meta + .journal-list-meta::before {
+      content: "·";
+      margin-right: 12px;
+      color: var(--pf-ink-muted);
     }
     .journal-figure-wide,
     .journal-figure-full {
@@ -2478,16 +2495,12 @@
     .journal-md-figure:has(+ .journal-md-figure) + .journal-md-figure img {
       max-height: min(70vh, 544px);
     }
-    .journal-more-writing ol {
-      grid-template-columns: 1fr;
+    .journal-context-list .pf-row {
+      display: block;
+      padding: 14px 54px 14px 0;
     }
-    .journal-more-writing a {
-      grid-template-columns: 1fr;
-      min-height: 0;
-      gap: 8px;
-    }
-    .journal-more-writing time {
-      grid-column: auto;
+    .journal-context-list .journal-list-meta {
+      text-align: left;
     }
   }
 
@@ -2550,6 +2563,19 @@
     .content-panel.viewer-open {
       padding-top: calc(var(--mb-viewer-h) + var(--mb-nav-h));
       padding-bottom: 40px;
+    }
+
+    /* Force mobile override for top header links by placing it at the end of the file */
+    .hero-top-links {
+      position: absolute !important;
+      top: 14px !important;
+      right: -8px !important;
+      font-size: 11px !important;
+      gap: 12px !important;
+    }
+    .hero-top-links .instagram-link svg {
+      width: 20px !important;
+      height: 20px !important;
     }
   }
 

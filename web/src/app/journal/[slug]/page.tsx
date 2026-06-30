@@ -55,10 +55,11 @@ export default async function JournalPostPage({
     notFound();
   }
 
+  const allPosts = getAllJournalPosts({ lang });
   const { previous, next } = getAdjacentJournalPosts(slug, lang);
 
   return (
-    <ArticleLayout post={post} lang={lang} previous={previous} next={next}>
+    <ArticleLayout post={post} lang={lang} previous={previous} next={next} allPosts={allPosts}>
       <MdxContent source={post.content} />
     </ArticleLayout>
   );

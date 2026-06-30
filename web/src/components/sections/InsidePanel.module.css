@@ -201,7 +201,7 @@
   background: transparent;
   color: var(--cream);
   font-family: var(--pf-mono);
-  font-size: 11px;
+  font-size: var(--pf-fs-mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
