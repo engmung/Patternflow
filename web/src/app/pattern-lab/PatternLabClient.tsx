@@ -37,6 +37,16 @@ import {
   type PatternVariant,
   type ThinkingLevelKey,
 } from "@/lib/gemini";
+import {
+  DEFAULT_PATCH,
+  MAX_PATCH_LAYERS,
+  PATCH_BLENDS,
+  PATCH_GENERATORS,
+  buildPatchCode,
+  createPatchLayer,
+  type PatchLayer,
+  type PatchState,
+} from "@/lib/patternPatch";
 import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
 import { preset as originPreset } from "@/lib/presets/pattern-origin";
@@ -196,6 +206,21 @@ function hexToRgb(hex: string): [number, number, number] {
 function rgbToHex(r: number, g: number, b: number): string {
   const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
   return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
+}
+
+const PATCH_STORAGE = "patternflow_patch_v1";
+
+function loadStoredPatch(): PatchState {
+  if (typeof window === "undefined") return DEFAULT_PATCH;
+  try {
+    const raw = window.localStorage.getItem(PATCH_STORAGE);
+    if (!raw) return DEFAULT_PATCH;
+    const parsed = JSON.parse(raw) as PatchState;
+    if (!Array.isArray(parsed.layers) || parsed.layers.length === 0) return DEFAULT_PATCH;
+    return parsed;
+  } catch {
+    return DEFAULT_PATCH;
+  }
 }
 
 // Demo pattern for the value-field workflow: pure 0..1 field via setValue,
@@ -455,7 +480,8 @@ export default function PatternLabClient() {
   const [rampState, setRampState] = useState<RampState>(loadStoredRamp);
   const [recolor, setRecolor] = useState(false);
   const [selectedStopIndex, setSelectedStopIndex] = useState(0);
-  const [editorView, setEditorView] = useState<"code" | "gallery">("code");
+  const [editorView, setEditorView] = useState<"code" | "gallery" | "experiment">("code");
+  const [patch, setPatch] = useState<PatchState>(loadStoredPatch);
   const [now, setNow] = useState(0);
   const removedJobsRef = useRef<Set<string>>(new Set());
 
@@ -471,7 +497,55 @@ export default function PatternLabClient() {
   const btnHeldRef = useRef([false, false, false, false]);
   const btnPressPendingRef = useRef([false, false, false, false]);
 
-  const cost = useMemo(() => analyzeEsp32Cost(code), [code]);
+  // The Experiment tab renders its layer patch by compiling it to ordinary
+  // pattern code and feeding the same runtime; everything downstream (ramp,
+  // cost, prompts) just sees code.
+  const patchCode = useMemo(() => buildPatchCode(patch), [patch]);
+  const activeCode = editorView === "experiment" ? patchCode : code;
+
+  const cost = useMemo(() => analyzeEsp32Cost(activeCode), [activeCode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PATCH_STORAGE, JSON.stringify(patch));
+    } catch {
+      // Ignore private-mode / storage-disabled sessions.
+    }
+  }, [patch]);
+
+  const updatePatch = (patchUpdate: Partial<PatchState>) => {
+    setPatch((current) => ({ ...current, ...patchUpdate }));
+  };
+
+  const updatePatchLayer = (index: number, layerUpdate: Partial<PatchLayer>) => {
+    setPatch((current) => ({
+      ...current,
+      layers: current.layers.map((layer, layerIndex) =>
+        layerIndex === index ? { ...layer, ...layerUpdate } : layer,
+      ),
+    }));
+  };
+
+  const addPatchLayer = () => {
+    setPatch((current) =>
+      current.layers.length >= MAX_PATCH_LAYERS
+        ? current
+        : { ...current, layers: [...current.layers, createPatchLayer(current.layers.length)] },
+    );
+  };
+
+  const removePatchLayer = (index: number) => {
+    setPatch((current) =>
+      current.layers.length <= 1
+        ? current
+        : { ...current, layers: current.layers.filter((_, layerIndex) => layerIndex !== index) },
+    );
+  };
+
+  const sendPatchToEditor = () => {
+    setCode(patchCode);
+    setEditorView("code");
+  };
 
   // Derived harness ramp — referentially stable so per-frame identity checks
   // in the render loops only trigger a LUT rebuild when the ramp truly changed.
@@ -630,9 +704,9 @@ export default function PatternLabClient() {
   );
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => loadCode(code), 180);
+    const timeout = window.setTimeout(() => loadCode(activeCode), 180);
     return () => window.clearTimeout(timeout);
-  }, [code, loadCode]);
+  }, [activeCode, loadCode]);
 
   useEffect(() => {
     knobsRef.current = knobs;
@@ -936,7 +1010,7 @@ export default function PatternLabClient() {
       const targetValue = activeRange[0] + value * (activeRange[1] - activeRange[0]);
       const targets = knobs.map((knob, index) => index === activeSweepKnob ? targetValue : knob);
       const knobStart = ranges.map(getRangeMidpoint);
-      const result = renderPatternStill(code, {
+      const result = renderPatternStill(activeCode, {
         knobStart,
         knobTargets: targets,
         knobRanges: ranges,
@@ -964,7 +1038,7 @@ export default function PatternLabClient() {
         getNormalizedKnobs(knobs, ranges).map((value, index) => [`knob${index + 1}`, value]),
       ),
       esp32Cost: cost,
-      code,
+      code: activeCode,
     };
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
@@ -972,7 +1046,7 @@ export default function PatternLabClient() {
   };
 
   const copyVariantPrompt = async () => {
-    await navigator.clipboard.writeText(buildVariantCopyPrompt(code, knobs, ranges, genColorMode));
+    await navigator.clipboard.writeText(buildVariantCopyPrompt(activeCode, knobs, ranges, genColorMode));
     setPromptCopied(true);
     window.setTimeout(() => setPromptCopied(false), 1200);
   };
@@ -1019,10 +1093,10 @@ export default function PatternLabClient() {
 
     const seedKnobs = [...knobs];
     const seedRanges = ranges.map((range): KnobRange => [...range]);
-    const examples = sampleExamples(code, genRefs);
+    const examples = sampleExamples(activeCode, genRefs);
     const seedWithCurrent = genRefs > 0;
 
-    generatePatternVariants({ apiKey: geminiKey, code, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent, colorMode: genColorMode })
+    generatePatternVariants({ apiKey: geminiKey, code: activeCode, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent, colorMode: genColorMode })
       .then((items) => {
         if (removedJobsRef.current.has(jobId)) return;
         const stamped: GalleryItem[] = items.map((item, index) => ({ ...item, id: `${jobId}-${index}` }));
@@ -1131,7 +1205,7 @@ export default function PatternLabClient() {
 
     // Value-field patterns carry no color of their own — bake the user's ramp
     // into the generated C++ so the device matches the web preview exactly.
-    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(code);
+    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(activeCode);
     const rampModeNotes: Record<RampMode, string> = {
       linear: "straight sRGB lerp between neighboring stops",
       smooth: "sRGB lerp with smoothstep easing (t*t*(3-2*t)) applied per segment",
@@ -1262,7 +1336,7 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 
 ## JavaScript source
 \`\`\`javascript
-${code}
+${activeCode}
 \`\`\``;
 
   };
@@ -1495,6 +1569,14 @@ ${code}
               >
                 Gallery{gallery.length > 0 ? ` (${gallery.length})` : ""}
               </button>
+              <button
+                type="button"
+                data-active={editorView === "experiment"}
+                onClick={() => setEditorView("experiment")}
+                title="Layer-stack experiment: build a value field by stacking generators, no code"
+              >
+                Experiment
+              </button>
             </div>
             <div className={styles.editorActions}>
               {editorView === "gallery" ? (
@@ -1595,6 +1677,27 @@ ${code}
                     {geminiKey ? "Key ✓" : "Key"}
                   </button>
                 </>
+              ) : editorView === "experiment" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={sendPatchToEditor}
+                    title="Copy the generated pattern code into the Code tab for hand-editing"
+                  >
+                    Send to editor
+                  </button>
+                  <button type="button" onClick={copyCppPrompt}>
+                    {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.guideButton}
+                    onClick={() => setPatch(DEFAULT_PATCH)}
+                    title="Reset the layer stack to the default patch"
+                  >
+                    Reset
+                  </button>
+                </>
               ) : (
                 <>
                   <button type="button" onClick={copyVariantPrompt}>
@@ -1631,6 +1734,185 @@ ${code}
                   overviewRulerLanes: 0,
                 }}
               />
+            ) : editorView === "experiment" ? (
+              <div className={styles.patchPane}>
+                <p className={styles.patchIntro}>
+                  Stack field generators into one 0–1 value field; the Color Ramp does the
+                  coloring. The stack compiles to ordinary pattern code — check the ESP32 cost
+                  live, then &quot;Send to editor&quot; to refine it as code.
+                </p>
+                {patch.layers.map((layer, index) => (
+                  <div
+                    key={index}
+                    className={styles.patchLayer}
+                    data-disabled={!layer.enabled}
+                  >
+                    <div className={styles.patchLayerHead}>
+                      <label className={styles.patchEnable}>
+                        <input
+                          type="checkbox"
+                          checked={layer.enabled}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { enabled: event.target.checked })
+                          }
+                        />
+                        <span>{index + 1}</span>
+                      </label>
+                      <select
+                        value={layer.gen}
+                        aria-label={`Layer ${index + 1} generator`}
+                        onChange={(event) =>
+                          updatePatchLayer(index, { gen: event.target.value as PatchLayer["gen"] })
+                        }
+                      >
+                        {PATCH_GENERATORS.map((gen) => (
+                          <option key={gen} value={gen}>
+                            {gen}
+                          </option>
+                        ))}
+                      </select>
+                      {index > 0 ? (
+                        <select
+                          value={layer.blend}
+                          aria-label={`Layer ${index + 1} blend`}
+                          title="How this layer combines with the layers above it"
+                          onChange={(event) =>
+                            updatePatchLayer(index, {
+                              blend: event.target.value as PatchLayer["blend"],
+                            })
+                          }
+                        >
+                          {PATCH_BLENDS.map((blend) => (
+                            <option key={blend} value={blend}>
+                              {blend}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={styles.patchBase}>base</span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.patchRemove}
+                        disabled={patch.layers.length <= 1}
+                        aria-label={`Remove layer ${index + 1}`}
+                        onClick={() => removePatchLayer(index)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className={styles.patchSliders}>
+                      <label>
+                        <span>scale</span>
+                        <input
+                          type="range"
+                          min={1}
+                          max={30}
+                          step={0.5}
+                          value={layer.scale}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { scale: Number(event.target.value) })
+                          }
+                        />
+                        <em>{layer.scale.toFixed(1)}</em>
+                      </label>
+                      <label>
+                        <span>speed</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={3}
+                          step={0.05}
+                          value={layer.speed}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { speed: Number(event.target.value) })
+                          }
+                        />
+                        <em>{layer.speed.toFixed(2)}</em>
+                      </label>
+                      <label>
+                        <span>angle</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={180}
+                          step={1}
+                          value={layer.angle}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { angle: Number(event.target.value) })
+                          }
+                        />
+                        <em>{layer.angle.toFixed(0)}°</em>
+                      </label>
+                      <label>
+                        <span>amount</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={layer.amount}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { amount: Number(event.target.value) })
+                          }
+                        />
+                        <em>{layer.amount.toFixed(2)}</em>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                {patch.layers.length < MAX_PATCH_LAYERS && (
+                  <button type="button" className={styles.patchAdd} onClick={addPatchLayer}>
+                    + Add layer
+                  </button>
+                )}
+                <div className={styles.patchPost}>
+                  <label>
+                    <span>master speed</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={0.05}
+                      value={patch.masterSpeed}
+                      onChange={(event) => updatePatch({ masterSpeed: Number(event.target.value) })}
+                    />
+                    <em>{patch.masterSpeed.toFixed(2)}</em>
+                  </label>
+                  <label>
+                    <span>contrast</span>
+                    <input
+                      type="range"
+                      min={0.25}
+                      max={2}
+                      step={0.05}
+                      value={patch.contrast}
+                      onChange={(event) => updatePatch({ contrast: Number(event.target.value) })}
+                    />
+                    <em>{patch.contrast.toFixed(2)}</em>
+                  </label>
+                  <label>
+                    <span>posterize</span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={8}
+                      step={1}
+                      value={patch.posterize}
+                      onChange={(event) => updatePatch({ posterize: Number(event.target.value) })}
+                    />
+                    <em>{patch.posterize <= 1 ? "off" : patch.posterize}</em>
+                  </label>
+                  <label className={styles.patchInvert}>
+                    <input
+                      type="checkbox"
+                      checked={patch.invert}
+                      onChange={(event) => updatePatch({ invert: event.target.checked })}
+                    />
+                    <span>invert</span>
+                  </label>
+                </div>
+              </div>
             ) : (
               <div className={styles.galleryPane}>
                 {jobs.length > 0 && (
@@ -1888,7 +2170,7 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
 
       {shareOpen && (
         <SharePatternModal
-          code={code}
+          code={activeCode}
           cppConvertPrompt={buildCppPrompt()}
           onClose={() => setShareOpen(false)}
         />
