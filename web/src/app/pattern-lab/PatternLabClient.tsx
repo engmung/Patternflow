@@ -12,6 +12,7 @@ import {
   createIdleInput,
   knobTargetToDelta,
   renderPatternStill,
+  sampleRamp,
   type ColorRamp,
   type RampMode,
 } from "@/lib/patternHarness";
@@ -163,6 +164,7 @@ const DEFAULT_RAMP: RampState = {
 };
 
 const RAMP_STORAGE = "patternflow_ramp_v1";
+const MAX_RAMP_STOPS = 8;
 
 function loadStoredRamp(): RampState {
   if (typeof window === "undefined") return DEFAULT_RAMP;
@@ -173,7 +175,7 @@ function loadStoredRamp(): RampState {
     if (!Array.isArray(parsed.stops) || parsed.stops.length === 0) return DEFAULT_RAMP;
     return {
       stops: parsed.stops
-        .slice(0, 3)
+        .slice(0, MAX_RAMP_STOPS)
         .map((stop) => ({
           position: Math.max(0, Math.min(1, Number(stop?.position) || 0)),
           color: /^#[0-9a-fA-F]{6}$/.test(String(stop?.color)) ? String(stop.color) : "#ffffff",
@@ -189,6 +191,11 @@ function loadStoredRamp(): RampState {
 function hexToRgb(hex: string): [number, number, number] {
   const value = parseInt(hex.slice(1), 16);
   return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+  return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
 }
 
 // Demo pattern for the value-field workflow: pure 0..1 field via setValue,
@@ -447,6 +454,7 @@ export default function PatternLabClient() {
   const [genColorMode, setGenColorMode] = useState<ColorMode>("vfield");
   const [rampState, setRampState] = useState<RampState>(loadStoredRamp);
   const [recolor, setRecolor] = useState(false);
+  const [selectedStopIndex, setSelectedStopIndex] = useState(0);
   const [editorView, setEditorView] = useState<"code" | "gallery">("code");
   const [now, setNow] = useState(0);
   const removedJobsRef = useRef<Set<string>>(new Set());
@@ -515,14 +523,89 @@ export default function PatternLabClient() {
     context.putImageData(imageData, 0, 0);
   }, [ramp]);
 
-  const updateRampStop = (index: number, patch: Partial<RampStopState>) => {
+  const updateRampStop = useCallback((index: number, patch: Partial<RampStopState>) => {
     setRampState((current) => ({
       ...current,
       stops: current.stops.map((stop, stopIndex) =>
         stopIndex === index ? { ...stop, ...patch } : stop,
       ),
     }));
+  }, []);
+
+  // ── Gradient-editor interactions: click bar = add stop, drag line = move,
+  // click line = select, Delete = remove. ──
+  const rampTrackRef = useRef<HTMLDivElement | null>(null);
+  const stopDragRef = useRef<{ index: number } | null>(null);
+
+  const rampPositionFromClientX = useCallback((clientX: number) => {
+    const track = rampTrackRef.current;
+    if (!track) return 0;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const raw = (clientX - rect.left) / rect.width;
+    return Math.round(Math.max(0, Math.min(1, raw)) * 1000) / 1000;
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const drag = stopDragRef.current;
+      if (!drag) return;
+      event.preventDefault();
+      updateRampStop(drag.index, { position: rampPositionFromClientX(event.clientX) });
+    };
+    const endDrag = () => {
+      stopDragRef.current = null;
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+    window.addEventListener("blur", endDrag);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("blur", endDrag);
+    };
+  }, [rampPositionFromClientX, updateRampStop]);
+
+  const addRampStop = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (rampState.stops.length >= MAX_RAMP_STOPS) return;
+    event.preventDefault();
+    const position = rampPositionFromClientX(event.clientX);
+    // New stop inherits the ramp's current color at that spot, so adding a
+    // stop never visibly changes the gradient until the user recolors it.
+    const [r, g, b] = sampleRamp(ramp, position);
+    const newIndex = rampState.stops.length;
+    setRampState((current) => ({
+      ...current,
+      stops: [...current.stops, { position, color: rgbToHex(r, g, b) }],
+    }));
+    setSelectedStopIndex(newIndex);
+    stopDragRef.current = { index: newIndex };
   };
+
+  const startStopDrag = (event: React.PointerEvent<HTMLButtonElement>, index: number) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedStopIndex(index);
+    stopDragRef.current = { index };
+  };
+
+  const deleteRampStop = (index: number) => {
+    setRampState((current) => {
+      if (current.stops.length <= 1) return current;
+      return { ...current, stops: current.stops.filter((_, stopIndex) => stopIndex !== index) };
+    });
+    setSelectedStopIndex((current) => {
+      if (current === index) return 0;
+      return current > index ? current - 1 : current;
+    });
+  };
+
+  const activeStopIndex = Math.min(selectedStopIndex, rampState.stops.length - 1);
+  const activeStop = rampState.stops[activeStopIndex];
 
   const setRuntimeErrorSafe = useCallback((message: string | null) => {
     if (runtimeErrorRef.current === message) return;
@@ -1321,29 +1404,56 @@ ${code}
                 V demo
               </button>
             </div>
-            <canvas ref={rampBarRef} className={styles.rampBar} width={256} height={1} aria-label="Ramp gradient preview" />
-            <div className={styles.rampStops}>
+            <div
+              ref={rampTrackRef}
+              className={styles.rampTrack}
+              title="Click to add a stop · drag a line to move it"
+              onPointerDown={addRampStop}
+            >
+              <canvas ref={rampBarRef} className={styles.rampBar} width={256} height={1} aria-label="Ramp gradient preview" />
               {rampState.stops.map((stop, index) => (
-                <div key={index} className={styles.rampStopRow}>
-                  <input
-                    type="color"
-                    value={stop.color}
-                    aria-label={`Ramp stop ${index + 1} color`}
-                    onChange={(event) => updateRampStop(index, { color: event.target.value })}
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={stop.position}
-                    aria-label={`Ramp stop ${index + 1} position`}
-                    onChange={(event) => updateRampStop(index, { position: Number(event.target.value) })}
-                  />
-                  <span>{stop.position.toFixed(2)}</span>
-                </div>
+                <button
+                  key={index}
+                  type="button"
+                  className={`${styles.rampHandle}${index === activeStopIndex ? ` ${styles.rampHandleActive}` : ""}`}
+                  style={{ left: `${stop.position * 100}%` }}
+                  aria-label={`Ramp stop at ${stop.position.toFixed(2)}`}
+                  title={`${stop.color} @ ${stop.position.toFixed(2)} — drag to move, Delete to remove`}
+                  onPointerDown={(event) => startStopDrag(event, index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Delete" || event.key === "Backspace") {
+                      event.preventDefault();
+                      deleteRampStop(index);
+                    }
+                  }}
+                >
+                  <span style={{ background: stop.color }} />
+                </button>
               ))}
             </div>
+            {activeStop && (
+              <div className={styles.rampStopEdit}>
+                <input
+                  type="color"
+                  value={activeStop.color}
+                  aria-label="Selected stop color"
+                  onChange={(event) => updateRampStop(activeStopIndex, { color: event.target.value })}
+                />
+                <span className={styles.rampStopPos}>@ {activeStop.position.toFixed(2)}</span>
+                <button
+                  type="button"
+                  className={styles.rampStopDelete}
+                  disabled={rampState.stops.length <= 1}
+                  title={rampState.stops.length <= 1 ? "The ramp needs at least one stop" : "Remove this stop"}
+                  onClick={() => deleteRampStop(activeStopIndex)}
+                >
+                  Delete
+                </button>
+                <span className={styles.rampHint}>
+                  click bar = add · drag line = move
+                </span>
+              </div>
+            )}
           </div>
 
           <div className={styles.actionRow}>

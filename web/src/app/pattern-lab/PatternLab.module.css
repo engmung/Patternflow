@@ -357,26 +357,65 @@
   border-color: #171512;
 }
 
+.rampTrack {
+  position: relative;
+  height: 34px;
+  cursor: copy;
+  touch-action: none;
+  user-select: none;
+}
+
 .rampBar {
   display: block;
   width: 100%;
-  height: 22px;
+  height: 100%;
   border: 1px solid rgba(23, 21, 18, 0.22);
+  pointer-events: none;
 }
 
-.rampStops {
-  display: grid;
-  gap: 6px;
+.rampHandle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 14px;
+  margin-left: -7px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
 }
 
-.rampStopRow {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 44px;
+.rampHandle span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  margin-left: -2px;
+  border: 1px solid #171512;
+  box-shadow: 0 0 0 1px #f7f3ea;
+  pointer-events: none;
+}
+
+.rampHandle:focus-visible {
+  outline: 1px dashed #171512;
+  outline-offset: 2px;
+}
+
+.rampHandleActive span {
+  width: 8px;
+  margin-left: -4px;
+  border-width: 2px;
+}
+
+.rampStopEdit {
+  display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.rampStopRow input[type="color"] {
+.rampStopEdit input[type="color"] {
   width: 38px;
   height: 26px;
   padding: 0;
@@ -385,15 +424,40 @@
   cursor: pointer;
 }
 
-.rampStopRow input[type="range"] {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.rampStopRow span {
+.rampStopPos {
   font-family: var(--font-jetbrains), monospace;
   font-size: 11px;
-  text-align: right;
+}
+
+.rampStopDelete {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampStopDelete:hover:not(:disabled) {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.rampStopDelete:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rampHint {
+  margin-left: auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: rgba(23, 21, 18, 0.5);
+  text-transform: uppercase;
 }
 
 .actionRow {
