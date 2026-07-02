@@ -3,50 +3,49 @@
 [![Open Source Hardware](https://img.shields.io/badge/Open_Source-Hardware-blue?style=flat-square&logo=opensourceinitiative)](https://github.com/engmung/Patternflow)
 [![License: MIT](https://img.shields.io/badge/Code-MIT-green?style=flat-square)](./LICENSE-MIT)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/Hardware-CC_BY--SA_4.0-orange?style=flat-square)](./LICENSE-CC-BY-SA)
-[![Release](https://img.shields.io/badge/Release-v2.0.0-purple?style=flat-square)](../../releases)
+[![Release](https://img.shields.io/github/v/release/engmung/Patternflow?style=flat-square&color=purple&label=Release)](../../releases)
 [![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Pre--launch-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
 
 > ⚠️ **Photosensitivity Warning**
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
 
 <p align="center">
-  <img src="./docs/media/product_v2.jpg" width="100%" />
+  <a href="https://youtu.be/OXt-yg_7qdk">
+    <img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="100%" alt="Patternflow demo video" />
+  </a>
 </p>
-
-## Patternflow is an open-source LED synthesizer played with the fingertips.
-
-Turning four physical knobs reshapes patterns from creative coding on an LED matrix in real time. The light is no longer a visual effect to be watched but a multisensory experience connected directly to the motion of the hand.
-
 <p align="center">
-  <img src="./docs/media/demo_part1_v2.webp" height="500" />
-  <img src="./docs/media/demo_part2.webp" height="500" />
+  <a href="https://youtu.be/OXt-yg_7qdk"><b>▶ Watch the demo on YouTube</b></a>
 </p>
 
-## At its core, this work is about **making things easy and sharing them.**
+**Patternflow is an open-source LED synthesizer played with the fingertips.** Turning four physical knobs reshapes generative light patterns on an LED matrix in real time — a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik invited audiences to experience art; Patternflow invites you to create it.
 
-Audiences do not stop at appreciating a finished piece. Through the publicly released hardware files, firmware, 3D models, web preview, and AI prompts, anyone can build their own Patternflow, generate their own patterns, test them in the browser, and upload them to the device.
+### Three ways in
 
-## Patternflow returns to Nam June Paik's *Participation TV* in the technological conditions of the present.
+- 🔨 **Build it** — follow the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or go solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** — no PCB, no soldering iron, same Patternflow. More paths in the **[Assembly Map](docs/assembly/README.md)**.
+- 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
+- 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware.
 
-Where *Participation TV* showed that the audience could intervene in an electronic image, Patternflow proposes the step that comes after participation. The audience can move from operating the work to making, modifying, and sharing it as creators.
+> **Moving fast.** The repo improves almost daily and release tags lag behind — v2.0.0 brought the cold-boot fix, runtime pattern switching, the browser flasher, and the Live Editor, and work since then includes an SMD-free PCB revision. Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
-## **Patternflow** is therefore not a single luminous object.
+## Quick facts
 
-It is a living system in which a physical experience extends outward into open-source making and community creation.
-
----
-
-Build it from the files, or get the finished product.
-
-🔔 **Want a ready-made one instead of building it yourself?** Patternflow is now in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)** — a fully assembled, ready-to-play unit. Subscribe there to be notified the moment the campaign goes live.
-
-👉 **Ready to build?** Follow the **[Current Full Build Guide (BUILD_GUIDE.md)](BUILD_GUIDE.md)** to assemble your own Patternflow from scratch! You can also explore the modular **[Assembly Map (docs/assembly/README.md)](docs/assembly/README.md)** for alternative enclosure and electronics paths.
-
-> **v2.0.0 is live.** Cold-boot fix, runtime pattern switching, browser flasher, Live Editor, journal, build map, and AI-assisted custom patterns.
+| | |
+| :--- | :--- |
+| **Display** | 128 × 64 HUB75 RGB LED matrix, P2.5 (320 × 160 mm) |
+| **Brain** | ESP32-S3-WROOM-1 **N16R8** (16 MB flash, 8 MB PSRAM) — standalone, no sending card |
+| **Input** | 4× EC11 rotary encoders with push-switch; long-press encoder 4 to switch patterns |
+| **Power** | 5 V over USB from a standard power bank |
+| **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
+| **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
+| **Flashing** | Stock firmware from the browser (Chrome/Edge), no IDE needed; custom patterns via Arduino IDE |
+| **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
+| **Build** | 4–6 h active work + ~11 h 3D printing · intermediate skill · around US$80 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
+| **License** | MIT (firmware & web) · CC-BY-SA 4.0 (hardware & patterns) |
 
 ## Patterns
 
-The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. It's the fastest way to see the range of what the system makes, and every preset is a starting point you can edit, preview, and reflash.
+The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
 
 On the device, the firmware bundles a **curated preset library** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing.
 
@@ -63,62 +62,76 @@ Patternflow ships with a prompt template designed for AI coding assistants (Clau
 2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
 3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
 4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
-5. Save the C++ output into a **custom slot** — overwrite `custom1.h` (or `custom2.h` / `custom3.h`) in `firmware/patternflow/`. Each pattern defines its own namespace, so update the slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h` to match the new namespace. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
-6. Open `firmware/patternflow/patternflow.ino` in the Arduino IDE and upload your custom build.
+5. Open `firmware/patternflow/patternflow.ino` in the Arduino IDE — the custom slots and the registry open right alongside it as editor tabs, so everything happens in one window.
+6. In the `custom1.h` (or `custom2.h` / `custom3.h`) tab, paste the C++ output **as-is**. Grab the pattern's namespace name from the bottom of the file (`} // namespace YourPatternName`), paste it into that slot's `PATTERN_ENTRY(...)` line in the `pattern_registry.h` tab, and hit flash. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
 Custom patterns require a local Arduino IDE compile/upload step for now.
 
-## Audio-react control
+## The website
 
-Patternflow can react to browser audio over Wi-Fi. The recommended workflow is the experimental Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension): it captures the current tab's audio, analyzes four FFT bands, and sends lightweight WebSocket knob values to the device. The firmware converts those values into virtual encoder motion, so every encoder-driven pattern can respond without adding audio code to each pattern.
+[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. Everything below runs in the browser, no account, no install.
 
-The device still serves a built-in page at `http://patternflow.local/` when Wi-Fi is configured. Keep it around for file playback, microphone input, and local experiments; browser tab/system audio capture is more reliable through the extension because normal `http://patternflow.local` pages are limited by browser capture permissions.
+<p align="center">
+  <img src="./docs/media/web-live-editor.png" width="49%" alt="Live Editor — a full Patternflow simulator in the browser" />
+  <img src="./docs/media/web-build-map.png" width="49%" alt="Build map — a globe of Patternflows built around the world" />
+</p>
 
-## Links
+**[Live Editor](https://patternflow.work/pattern)** — a full Patternflow simulator. You don't need the hardware to start: turn the virtual knobs and the on-screen device behaves exactly like the real one, down to the encoder detents. Browse the presets, copy the AI prompts, test your pattern live, and flash the stock firmware over USB — all from the same page.
 
-- [patternflow.work](https://patternflow.work) — browser flasher, Live Editor, journal, build map
-- [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) — pre-launch page; subscribe to get the finished product
-- [Releases](../../releases) — stable bundles
-- [Discord](https://discord.gg/Vr9QtsxeTk) — questions, builds, custom patterns
-- [Audio Extension](tools/patternflow-audio-extension) — experimental Chrome/Edge tab-audio controller
+**[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, and the goal is simple: cover it with pins. If you've made one — any material, any variation — share it in Discord and your build gets added to the map.
+
+**[Journal](https://patternflow.work/journal)** — Patternflow is treated as art, so the whole process is documented transparently: the events, the emotions, and the thinking behind every step, written up at least once a week since the beginning. If you want to know why this project exists — and what it costs to keep it alive — start there.
+
+## OSC & audio-react
+
+**Bidirectional OSC.** Over Wi-Fi, Patternflow speaks OSC in both directions: knob turns, button presses, and pattern switches stream out to a remote host (Ableton Live, Max/MSP, TouchDesigner — anything that speaks OSC), and incoming OSC messages drive the device exactly like physical encoder motion. Play Patternflow as a controller for your set, let your set drive the light, or both at once. If you play MIDI instruments, this will feel like home.
+
+**Audio-react.** Patternflow can also react to browser audio: the experimental Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension) captures the current tab's audio, analyzes four FFT bands, and sends lightweight WebSocket knob values to the device. The firmware converts those into virtual encoder motion, so every encoder-driven pattern responds — no audio code needed in the patterns themselves.
 
 ## How it's built
 
 Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix at low resolution — each pixel reads as a discrete point of light, with its own brightness and color. Four rotary encoders feed firmware written in Arduino-compatible C++ around a modular pattern architecture: each pattern is a self-contained module with its own setup, update, and draw routines, while the shared framework handles input, LED rendering, mode transitions, and color calibration. The PCB was designed by the artist; the enclosure is 3D-printed by default, with stainless steel, transparent acrylic, and laser-cut variations in progress.
 
-## Repository structure
+## The idea
 
-- `firmware/` — Arduino code for ESP32-S3, plus the custom pattern template
-- `hardware/` — enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF)
-- `web/` — Next.js site (landing, browser flasher, Live Editor, journal)
-- `docs/` — build paths, build guide, media, license summary
-- `tools/` — desktop-side helpers, including the experimental audio-react browser extension
+At its core, this work is about **making things easy and sharing them.** Interactive media art has a gatekeeping problem — installations can require serious capital, custom engineering, and years of specialized skill. Patternflow flips that: through the publicly released hardware files, firmware, 3D models, web preview, and AI prompts, anyone can build their own Patternflow, generate their own patterns, test them in the browser, and upload them to the device.
 
-## Documentation
+Where Nam June Paik's *Participation TV* showed that the audience could intervene in an electronic image, Patternflow proposes the step that comes after participation: the audience moves from operating the work to making, modifying, and sharing it as creators.
 
-- [Assembly Map](docs/assembly/README.md)
-- [Current Full Build Guide](BUILD_GUIDE.md)
-- [Custom Patterns](firmware/CUSTOM_PATTERNS.md)
-- [Contributing](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-- [License Summary](docs/LICENSE-SUMMARY.md)
+Patternflow is therefore not a single luminous object. It is a living system in which a physical experience extends outward into open-source making and community creation. The longer version lives in the [manifesto](docs/manifesto.md) and the [journal](https://patternflow.work/journal).
+
+## Repository & documentation
+
+| Folder | Contents |
+| :--- | :--- |
+| `firmware/` | Arduino code for ESP32-S3, plus the custom pattern template |
+| `hardware/` | Enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF) |
+| `web/` | Next.js site (landing, browser flasher, Live Editor, journal) |
+| `docs/` | Assembly map, build-guide media, manifesto, license summary |
+| `tools/` | Desktop-side helpers, including the audio-react browser extension |
+
+**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+
+**Links:** [patternflow.work](https://patternflow.work) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
 ## Contributing
 
-Guidelines for contributing to the repository are currently under preparation. In the meantime, please refer to the [`CONTRIBUTING.md`](CONTRIBUTING.md) file for more information.
+Builds, documentation fixes, part sourcing tips, and custom patterns are all welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how contributions flow (including the inbound = outbound pattern licensing). The [Discord](https://discord.gg/Vr9QtsxeTk) is the fastest place to ask questions, show a build in progress, or share a pattern — and to get your build pinned on the [build map](https://patternflow.work/inside).
 
-## Timeline
+## Story so far
 
 | When | Milestone |
 | :--- | :--- |
-| **Jan 2026** | Built Patternflow *Origin*, the first pattern · visited the Nam June Paik Art Center |
-| **Mar 2026** | First experiments with LEDs and potentiometers |
-| **Apr 2026** | First prototype · strong response on Reddit and Instagram — the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
-| **May 2026** | Continuous pattern development · Crowd Supply agreement · Discord community growing · a Paris-based creative technologist joins as the first collaborator |
-| **Jun 2026** | First community-made pattern shared · 3D-printed enclosure in production *(sponsored by PCBWay)* · [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live |
-| **Next** | Contribution guide & issue cleanup · Crowd Supply campaign · growing a sustainable business · wider outreach · continued development |
+| **Jan 2026** | *Patternflow: Origin* — the first work as a new media artist, built around 3D-printed forms and the seed of what became Patternflow · visited the Nam June Paik Art Center |
+| **Mar 2026** | The Origin pattern ran on a physical LED matrix with four knobs for the first time |
+| **Apr 2026** | Instagram and the Arduino subreddit responded strongly — **150,000+ views and 3,700 upvotes** — and the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
+| **May 2026** | Reached **100 GitHub stars** · the first collaborator joined · Crowd Supply agreement · Discord community growing |
+| **Jun 2026** | [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live, backed by countless refinements toward mass production · Instagram passed **1,000 followers** · first community-made pattern shared |
+| **Jul 2026** | Refining the design for mass production · growing an active community · outreach and promotion |
+| **Next** | Run the Crowd Supply campaign at the lowest sustainable price · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
+| **2028** | Grow Patternflow into a self-sustaining community and ecosystem — then move on to the next project |
 
 📖 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**.
 
@@ -126,7 +139,7 @@ Guidelines for contributing to the repository are currently under preparation. I
 
 <a href="https://www.pcbway.com/"><img src="./docs/media/pcbway-logo.png" width="150" alt="PCBWay" /></a>
 
-Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWay](https://www.pcbway.com/)**. The first PCB came back clean and on-spec, ordering was straightforward, and the team has been genuinely responsive throughout — the support that made these milestones possible. The 3D-printed enclosure parts are in production now; this section will be updated with photos once they arrive.
+Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWay](https://www.pcbway.com/)**. The first PCB came back clean and on-spec, ordering was straightforward, and the team has been genuinely responsive throughout — the support that made these milestones possible.
 
 <img src="./web/public/journal/v1-30-days/first-pcb.jpg" width="160" alt="First Patternflow PCB fabricated by PCBWay" />
 
