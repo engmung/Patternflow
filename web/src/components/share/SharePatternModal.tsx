@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { captureEvent } from "@/lib/posthogEvents";
 import {
   DEFAULT_LICENSE_ID,
@@ -42,7 +42,9 @@ function downloadFile(filename: string, text: string, mime: string) {
 
 export default function SharePatternModal({ onClose, code, cppConvertPrompt }: Props) {
   const [title, setTitle] = useState("");
-  const [author, setAuthor] = useState("");
+  // Remembered author name. The modal only mounts client-side (behind a click),
+  // so reading localStorage in the initializer can't cause a hydration mismatch.
+  const [author, setAuthor] = useState(() => loadShareAuthor());
   const [licenseId, setLicenseId] = useState(DEFAULT_LICENSE_ID);
   const [hasVideo, setHasVideo] = useState(false);
   const [videoUrl, setVideoUrl] = useState("");
@@ -52,11 +54,6 @@ export default function SharePatternModal({ onClose, code, cppConvertPrompt }: P
   const [captionDone, setCaptionDone] = useState(false);
   const [cppCopied, setCppCopied] = useState(false);
   const [hDone, setHDone] = useState(false);
-
-  // Remembered author name (filled after mount to avoid hydration mismatch).
-  useEffect(() => {
-    setAuthor(loadShareAuthor());
-  }, []);
 
   const meta: ShareMeta = {
     title: title.trim(),

@@ -8,13 +8,37 @@ interface BreadboardDiagramProps {
   mode: DiagramMode;
 }
 
+type LineCap = 'round' | 'butt' | 'square';
+type TextAnchor = 'start' | 'middle' | 'end';
+
+interface RectShape {
+  x: number; y: number; w: number; h: number;
+  rx: number; fill: string; stroke: string; sw: number; op: number;
+}
+interface PathShape {
+  d: string; fill: string; stroke: string; sw: number; op: number; cap: LineCap;
+}
+interface CircleShape {
+  cx: number; cy: number; r: number;
+  fill: string; stroke: string; sw: number; op: number;
+}
+interface TextShape {
+  x: number; y: number; t: string;
+  size: number; fill: string; anchor: TextAnchor; weight: string; op: number; family: string;
+}
+interface ShapeOpts {
+  rx?: number; fill?: string; stroke?: string; sw?: number; op?: number; cap?: LineCap;
+}
+interface TextOpts {
+  size?: number; fill?: string; anchor?: TextAnchor; weight?: string; op?: number; family?: string;
+}
+
 export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
-  const wires: any[] = [];
-  const bodies: any[] = [];
-  const circles: any[] = [];
-  const detail: any[] = [];
-  const chips: any[] = [];
-  const texts: any[] = [];
+  const wires: PathShape[] = [];
+  const bodies: RectShape[] = [];
+  const circles: CircleShape[] = [];
+  const detail: PathShape[] = [];
+  const texts: TextShape[] = [];
 
   const P = {
     fill: '#fbfbcf',
@@ -33,7 +57,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
 
   const SANS = "'Helvetica Neue', Arial, sans-serif";
 
-  const RC = (x: number, y: number, w: number, h: number, o: any = {}) => ({
+  const RC = (x: number, y: number, w: number, h: number, o: ShapeOpts = {}): RectShape => ({
     x,
     y,
     w,
@@ -45,15 +69,11 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     op: o.op == null ? 1 : o.op
   });
 
-  const body = (x: number, y: number, w: number, h: number, o: any = {}) => {
+  const body = (x: number, y: number, w: number, h: number, o: ShapeOpts = {}) => {
     bodies.push(RC(x, y, w, h, o));
   };
 
-  const chip = (x: number, y: number, w: number, h: number, o: any = {}) => {
-    chips.push(RC(x, y, w, h, o));
-  };
-
-  const W = (d: string, o: any = {}) => {
+  const W = (d: string, o: ShapeOpts = {}) => {
     wires.push({
       d,
       fill: 'none',
@@ -64,7 +84,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     });
   };
 
-  const D = (d: string, o: any = {}) => {
+  const D = (d: string, o: ShapeOpts = {}) => {
     detail.push({
       d,
       fill: o.fill || 'none',
@@ -75,7 +95,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     });
   };
 
-  const CI = (cx: number, cy: number, r: number, o: any = {}) => {
+  const CI = (cx: number, cy: number, r: number, o: ShapeOpts = {}) => {
     circles.push({
       cx,
       cy,
@@ -87,7 +107,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     });
   };
 
-  const T = (x: number, y: number, t: string | number, o: any = {}) => {
+  const T = (x: number, y: number, t: string | number, o: TextOpts = {}) => {
     texts.push({
       x,
       y,
@@ -116,17 +136,6 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     D(d, { fill: '#fffdf2', stroke: P.line, sw: 1.3 });
     T(tx, y + 3.4, text, { anchor: 'middle', size: 10, fill: P.txt });
     return w;
-  };
-
-  const xmark = (x: number, y: number) => {
-    // Left empty as in original
-  };
-
-  const colorChip = (cx: number, cy: number, txt: string, c: string) => {
-    const w = 22;
-    const h = 15;
-    chip(cx - w / 2, cy - h / 2, w, h, { rx: 3, fill: c });
-    T(cx, cy + 3.4, txt, { anchor: 'middle', size: 9.5, fill: '#fff', weight: '700' });
   };
 
   const arrow = (x1: number, y1: number, x2: number, y2: number, c: string, sw?: number) => {
@@ -366,7 +375,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
     });
     T(rx + rw / 2, ry + rh + 20, 'BREADBOARD', { anchor: 'middle', size: 15, fill: P.txt, weight: '700' });
 
-    HUB.forEach(([pn, net, side, k]) => {
+    HUB.forEach(([, net, side, k]) => {
       const isOdd = side === 'L';
       const y = isOdd ? hy + 18 : hy + 52;
       const x = hx + 24 + (7 - Number(k)) * hpitch;
@@ -415,8 +424,6 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
         color = P.red;
         labelText = '5V';
         isLargeLabel = true;
-      } else if (kind === 'nc') {
-        xmark(x, y);
       }
 
       if (isLargeLabel) {
@@ -488,8 +495,6 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
         color = P.red;
         labelText = '3V3';
         isLargeLabel = true;
-      } else if (kind === 'nc') {
-        xmark(x, y);
       }
 
       if (isLargeLabel) {
@@ -515,7 +520,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
       const yA = cy - 24;
       const yC = cy;
       const yB = cy + 24;
-      const Lp = [
+      const Lp: [number, string, string, string][] = [
         [yA, 'A', `${id}A`, sigColors.A],
         [yC, 'C', 'GND', P.black],
         [yB, 'B', `${id}B`, sigColors.B]
@@ -529,7 +534,7 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
 
       const yS1 = cy - 16;
       const yS2 = cy + 16;
-      const Rp = [
+      const Rp: [number, string, string, string][] = [
         [yS1, 'S1', `${id}S`, sigColors.S],
         [yS2, 'S2', 'GND', P.black]
       ];
@@ -727,21 +732,6 @@ export default function BreadboardDiagram({ mode }: BreadboardDiagramProps) {
             strokeWidth={d.sw}
             strokeLinecap={d.cap}
             opacity={d.op}
-          />
-        ))}
-        {/* Draw chips */}
-        {chips.map((ch, idx) => (
-          <rect
-            key={`ch-${idx}`}
-            x={ch.x}
-            y={ch.y}
-            width={ch.w}
-            height={ch.h}
-            rx={ch.rx}
-            fill={ch.fill}
-            stroke={ch.stroke}
-            strokeWidth={ch.sw}
-            opacity={ch.op}
           />
         ))}
         {/* Draw texts */}

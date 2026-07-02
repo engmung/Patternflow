@@ -258,7 +258,10 @@ const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 
 export default function PatternPanel({ content }: PatternPanelProps) {
   const [mode, setMode] = useState<PatternMode>('create');
-  const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  // Start with Origin selected; the effect below loads it into the editor.
+  const [activePresetId, setActivePresetId] = useState<string | null>(() =>
+    livePresets.some((p) => p.id === 'origin') ? 'origin' : null,
+  );
   const [showAllPresets, setShowAllPresets] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
@@ -274,12 +277,11 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     }
   }, [mode]);
 
-  // Start with Origin selected and loaded into the editor.
+  // Load Origin into the editor (zustand store) once on mount.
   useEffect(() => {
     const origin = livePresets.find((p) => p.id === 'origin');
     if (origin) {
       setCustomJsCode(origin.code);
-      setActivePresetId('origin');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Patternflow Web
 
-## Getting Started
+The Next.js app behind [patternflow.work](https://patternflow.work) — landing page, Live Editor, browser flasher, journal, and roadmap.
 
-First, run the development server:
+For how the app is put together (routes, pattern system, content pipeline), see **[ARCHITECTURE.md](./ARCHITECTURE.md)**.
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Other scripts:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build   # production build — must pass before merging (CI hard gate)
+npm run lint    # eslint
+npm start       # serve the production build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Requires Node 20+ (matches CI).
 
-## Learn More
+## Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+None are required — the site runs fully without them.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Var | Purpose |
+| :--- | :--- |
+| `NEXT_PUBLIC_POSTHOG_KEY` / `NEXT_PUBLIC_POSTHOG_HOST` | PostHog analytics (no-op when absent) |
+| `GITHUB_TOKEN` | Higher GitHub rate limit for `/api/roadmap` (optional) |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Where things live
 
-## Deploy on Vercel
+- `src/app/` — routes (App Router). `/pattern-lab` and `/video-baker` are internal noindex tools.
+- `src/components/` — 3D viewer, landing sections, journal renderer.
+- `src/lib/presets/` — JS pattern library; **source of truth** for the firmware preset headers.
+- `content/` — markdown/MDX site copy and journal articles. Editing copy means editing these files.
+- `public/flash/` — esp-web-tools manifest + firmware binaries for the browser flasher.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contributing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See the repo-level [CONTRIBUTING.md](../CONTRIBUTING.md). Web changes go through a PR into `main`; CI runs lint and `next build` on anything under `web/`.
+
+Code in `web/` is MIT licensed ([LICENSE-MIT](../LICENSE-MIT)).

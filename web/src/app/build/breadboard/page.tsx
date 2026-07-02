@@ -138,7 +138,7 @@ export default function BreadboardBuildPage() {
             </div>
             <p style={{ margin: '8px 0 0 0', fontSize: '13.5px', lineHeight: 1.55, color: 'var(--pf-ink-muted)' }}>
               Flashing is fiddly once everything is wired into a tangle of jumpers. Connect the bare ESP32-S3 to your computer via USB-C, visit{' '}
-              <Link href="/" style={{ color: 'var(--pf-led)', fontWeight: 600, textDecoration: 'underline' }}>patternflow.work</Link>, and click <strong>"Flash Patternflow OS"</strong> in the Patterns section (Chrome / Edge desktop). Confirm it boots — <strong>then</strong> start the build.
+              <Link href="/" style={{ color: 'var(--pf-led)', fontWeight: 600, textDecoration: 'underline' }}>patternflow.work</Link>, and click <strong>“Flash Patternflow OS”</strong> in the Patterns section (Chrome / Edge desktop). Confirm it boots — <strong>then</strong> start the build.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '12px', lineHeight: 1.5, color: 'var(--pf-ink-faint)' }}>
               Prefer Arduino IDE? See{' '}
@@ -242,7 +242,7 @@ export default function BreadboardBuildPage() {
             lineHeight: 1.55,
             color: 'var(--pf-ink-muted)'
           }}>
-            <strong style={{ color: 'var(--pf-ink)' }}>⚠️ Panel compatibility:</strong> Panels with <strong>FM6363C / FM6373C</strong> driver ICs ("3840 Hz" / "needs a receiving card") will <strong>not work</strong>. Stick with 74HC595 / FM6126A / FM6124 panels.{' '}
+            <strong style={{ color: 'var(--pf-ink)' }}>⚠️ Panel compatibility:</strong> Panels with <strong>FM6363C / FM6373C</strong> driver ICs (“3840 Hz” / “needs a receiving card”) will <strong>not work</strong>. Stick with 74HC595 / FM6126A / FM6124 panels.{' '}
             <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#1-bill-of-materials-bom" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>Full compatibility details →</a>
           </div>
 
@@ -375,7 +375,7 @@ export default function BreadboardBuildPage() {
             </h2>
           </div>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--pf-ink-muted)', margin: 0 }}>
-            Plug a short jumper onto every pin of all four encoders first — any length you have on hand is fine. Fix the encoders into the enclosure so they can't twist while you work, placing them in a square: <strong>ENC1</strong> top-left, <strong>ENC2</strong> top-right, <strong>ENC3</strong> bottom-left, <strong>ENC4</strong> bottom-right (holding each with the 3-pin side on the left, 2-pin side on the right).
+            Plug a short jumper onto every pin of all four encoders first — any length you have on hand is fine. Fix the encoders into the enclosure so they can’t twist while you work, placing them in a square: <strong>ENC1</strong> top-left, <strong>ENC2</strong> top-right, <strong>ENC3</strong> bottom-left, <strong>ENC4</strong> bottom-right (holding each with the 3-pin side on the left, 2-pin side on the right).
           </p>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--pf-ink-muted)', margin: 0 }}>
             Next, snap the +/− rail off the side of a breadboard — that little strip is the only breadboard you need. Pull just the ground wires out from the encoders (labeled <strong>GND</strong> on the left and right sides of each encoder) and land them all on the ground (<strong>−</strong>) rail of the breadboard. Leave the signal legs hanging; they go straight to the ESP32 later.
@@ -460,7 +460,7 @@ export default function BreadboardBuildPage() {
             </h2>
           </div>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--pf-ink-muted)', margin: 0 }}>
-            Now land the signal legs you left hanging. Work by <strong>signal type, not by encoder</strong> — all four <strong>A</strong>'s, then all four <strong>B</strong>'s, then all four <strong>SW</strong>'s. The pins sit together on the board that way, so the wiring stays orderly. (Bonus: the four A's land on consecutive pins 4·5·6·7.)
+            Now land the signal legs you left hanging. Work by <strong>signal type, not by encoder</strong> — all four <strong>A</strong>’s, then all four <strong>B</strong>’s, then all four <strong>SW</strong>’s. The pins sit together on the board that way, so the wiring stays orderly. (Bonus: the four A’s land on consecutive pins 4·5·6·7.)
           </p>
           <div style={{ border: '1px solid var(--pf-rule)', borderRadius: '10px', padding: '6px', background: '#fbfaf7' }}>
             <BreadboardDiagram mode="encoders_esp" />
@@ -501,7 +501,7 @@ export default function BreadboardBuildPage() {
             </h2>
           </div>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--pf-ink-muted)', margin: 0 }}>
-            Strip the LED panel's thick power leads and strip any spare USB cable. Twist each onto a jumper — red to <strong>+</strong>, black to <strong>−</strong> — and push them into the rail. The ESP32's own <strong>5V</strong> and <strong>GND</strong> pins tie into the same two rails, so one 5 V supply feeds everything. A dab of hot glue keeps the bare joints from slipping.
+            Strip the LED panel’s thick power leads and strip any spare USB cable. Twist each onto a jumper — red to <strong>+</strong>, black to <strong>−</strong> — and push them into the rail. The ESP32’s own <strong>5V</strong> and <strong>GND</strong> pins tie into the same two rails, so one 5 V supply feeds everything. A dab of hot glue keeps the bare joints from slipping.
           </p>
           <div style={{ border: '1px solid var(--pf-rule)', borderRadius: '10px', padding: '6px', background: '#fbfaf7' }}>
             <BreadboardDiagram mode="rail" />
@@ -539,7 +539,7 @@ export default function BreadboardBuildPage() {
             </h2>
           </div>
           <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--pf-ink-muted)', margin: 0 }}>
-            Tuck the rail and the wire bundles down, seat the LED panel against the front window, and put the lid on. Plug in the supply — the matrix should light up and the encoders should respond. That's a full Patternflow with zero custom hardware.
+            Tuck the rail and the wire bundles down, seat the LED panel against the front window, and put the lid on. Plug in the supply — the matrix should light up and the encoders should respond. That’s a full Patternflow with zero custom hardware.
           </p>
           <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
             {[

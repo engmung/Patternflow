@@ -67,7 +67,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
           <>
             <div className="journal-archive-label">Archive</div>
             <ol className="journal-post-list">
-              {archive.map((post, index) => (
+              {archive.map((post) => (
                 <li key={post.slug}>
                   <Link
                     className={`pf-row${isAnchorPost(post.slug) ? " journal-anchor-post" : ""}`}

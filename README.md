@@ -63,7 +63,7 @@ Patternflow ships with a prompt template designed for AI coding assistants (Clau
 2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
 3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
 4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
-5. Save the C++ output into a **custom slot** — overwrite `custom1.h` (or `custom2.h` / `custom3.h`) in `firmware/patternflow/`, keeping its `namespace CustomN` and updating `NAME`. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+5. Save the C++ output into a **custom slot** — overwrite `custom1.h` (or `custom2.h` / `custom3.h`) in `firmware/patternflow/`. Each pattern defines its own namespace, so update the slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h` to match the new namespace. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 6. Open `firmware/patternflow/patternflow.ino` in the Arduino IDE and upload your custom build.
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
