@@ -535,13 +535,36 @@
 .patchSliders label,
 .patchPost label {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) 40px;
+  grid-template-columns: 66px minmax(0, 1fr) 38px 44px;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: var(--font-jetbrains), monospace;
   font-size: 10px;
   text-transform: uppercase;
   color: rgba(23, 21, 18, 0.62);
+}
+
+.patchBind {
+  min-height: 22px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: rgba(23, 21, 18, 0.62);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Highlight active bindings so it's obvious which params the knobs own. */
+.patchBind:has(option:checked:not([value="-1"])) {
+  border-color: #171512;
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.patchSliders input[type="range"]:disabled,
+.patchPost input[type="range"]:disabled {
+  opacity: 0.45;
 }
 
 .patchSliders input[type="range"],

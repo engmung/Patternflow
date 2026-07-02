@@ -42,8 +42,10 @@ import {
   MAX_PATCH_LAYERS,
   PATCH_BLENDS,
   PATCH_GENERATORS,
+  PATCH_RANGES,
   buildPatchCode,
   createPatchLayer,
+  type PatchKnob,
   type PatchLayer,
   type PatchState,
 } from "@/lib/patternPatch";
@@ -546,6 +548,40 @@ export default function PatternLabClient() {
     setCode(patchCode);
     setEditorView("code");
   };
+
+  // ── Patch knob bindings ──
+  // A bound slider is driven by the knob (normalized onto the slider's range);
+  // the select next to each slider picks the knob. -1 = unbound.
+  const knLive = getNormalizedKnobs(knobs, ranges);
+
+  const isKnobBound = (knob: PatchKnob | undefined): knob is number =>
+    typeof knob === "number" && knob >= 0 && knob <= 3;
+
+  const patchParamValue = (
+    knob: PatchKnob | undefined,
+    value: number,
+    range: readonly [number, number],
+  ) => (isKnobBound(knob) ? range[0] + knLive[knob] * (range[1] - range[0]) : value);
+
+  const renderBindSelect = (
+    knob: PatchKnob | undefined,
+    onChange: (knob: number) => void,
+    label: string,
+  ) => (
+    <select
+      className={styles.patchBind}
+      value={isKnobBound(knob) ? knob : -1}
+      aria-label={`${label} knob binding`}
+      title="Drive this slider with a knob (K1–K4). Bound sliders follow the knob and become the pattern's knobs in C++."
+      onChange={(event) => onChange(Number(event.target.value))}
+    >
+      <option value={-1}>–</option>
+      <option value={0}>K1</option>
+      <option value={1}>K2</option>
+      <option value={2}>K3</option>
+      <option value={3}>K4</option>
+    </select>
+  );
 
   // Derived harness ramp — referentially stable so per-frame identity checks
   // in the render loops only trigger a LUT rebuild when the ramp truly changed.
@@ -1739,7 +1775,9 @@ ${activeCode}
                 <p className={styles.patchIntro}>
                   Stack field generators into one 0–1 value field; the Color Ramp does the
                   coloring. The stack compiles to ordinary pattern code — check the ESP32 cost
-                  live, then &quot;Send to editor&quot; to refine it as code.
+                  live, then &quot;Send to editor&quot; to refine it as code. Bind any slider to
+                  K1–K4 to drive it with the knobs on the left; bound sliders become the
+                  pattern&apos;s knobs when converted to C++.
                 </p>
                 {patch.layers.map((layer, index) => (
                   <div
@@ -1806,57 +1844,81 @@ ${activeCode}
                         <span>scale</span>
                         <input
                           type="range"
-                          min={1}
-                          max={30}
+                          min={PATCH_RANGES.scale[0]}
+                          max={PATCH_RANGES.scale[1]}
                           step={0.5}
-                          value={layer.scale}
+                          value={patchParamValue(layer.scaleK, layer.scale, PATCH_RANGES.scale)}
+                          disabled={isKnobBound(layer.scaleK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { scale: Number(event.target.value) })
                           }
                         />
-                        <em>{layer.scale.toFixed(1)}</em>
+                        <em>{patchParamValue(layer.scaleK, layer.scale, PATCH_RANGES.scale).toFixed(1)}</em>
+                        {renderBindSelect(
+                          layer.scaleK,
+                          (knob) => updatePatchLayer(index, { scaleK: knob }),
+                          `Layer ${index + 1} scale`,
+                        )}
                       </label>
                       <label>
                         <span>speed</span>
                         <input
                           type="range"
-                          min={0}
-                          max={3}
+                          min={PATCH_RANGES.speed[0]}
+                          max={PATCH_RANGES.speed[1]}
                           step={0.05}
-                          value={layer.speed}
+                          value={patchParamValue(layer.speedK, layer.speed, PATCH_RANGES.speed)}
+                          disabled={isKnobBound(layer.speedK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { speed: Number(event.target.value) })
                           }
                         />
-                        <em>{layer.speed.toFixed(2)}</em>
+                        <em>{patchParamValue(layer.speedK, layer.speed, PATCH_RANGES.speed).toFixed(2)}</em>
+                        {renderBindSelect(
+                          layer.speedK,
+                          (knob) => updatePatchLayer(index, { speedK: knob }),
+                          `Layer ${index + 1} speed`,
+                        )}
                       </label>
                       <label>
                         <span>angle</span>
                         <input
                           type="range"
-                          min={0}
-                          max={180}
+                          min={PATCH_RANGES.angle[0]}
+                          max={PATCH_RANGES.angle[1]}
                           step={1}
-                          value={layer.angle}
+                          value={patchParamValue(layer.angleK, layer.angle, PATCH_RANGES.angle)}
+                          disabled={isKnobBound(layer.angleK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { angle: Number(event.target.value) })
                           }
                         />
-                        <em>{layer.angle.toFixed(0)}°</em>
+                        <em>{patchParamValue(layer.angleK, layer.angle, PATCH_RANGES.angle).toFixed(0)}°</em>
+                        {renderBindSelect(
+                          layer.angleK,
+                          (knob) => updatePatchLayer(index, { angleK: knob }),
+                          `Layer ${index + 1} angle`,
+                        )}
                       </label>
                       <label>
                         <span>amount</span>
                         <input
                           type="range"
-                          min={0}
-                          max={1}
+                          min={PATCH_RANGES.amount[0]}
+                          max={PATCH_RANGES.amount[1]}
                           step={0.01}
-                          value={layer.amount}
+                          value={patchParamValue(layer.amountK, layer.amount, PATCH_RANGES.amount)}
+                          disabled={isKnobBound(layer.amountK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { amount: Number(event.target.value) })
                           }
                         />
-                        <em>{layer.amount.toFixed(2)}</em>
+                        <em>{patchParamValue(layer.amountK, layer.amount, PATCH_RANGES.amount).toFixed(2)}</em>
+                        {renderBindSelect(
+                          layer.amountK,
+                          (knob) => updatePatchLayer(index, { amountK: knob }),
+                          `Layer ${index + 1} amount`,
+                        )}
                       </label>
                     </div>
                   </div>
@@ -1871,37 +1933,62 @@ ${activeCode}
                     <span>master speed</span>
                     <input
                       type="range"
-                      min={0}
-                      max={3}
+                      min={PATCH_RANGES.masterSpeed[0]}
+                      max={PATCH_RANGES.masterSpeed[1]}
                       step={0.05}
-                      value={patch.masterSpeed}
+                      value={patchParamValue(patch.masterSpeedK, patch.masterSpeed, PATCH_RANGES.masterSpeed)}
+                      disabled={isKnobBound(patch.masterSpeedK)}
                       onChange={(event) => updatePatch({ masterSpeed: Number(event.target.value) })}
                     />
-                    <em>{patch.masterSpeed.toFixed(2)}</em>
+                    <em>{patchParamValue(patch.masterSpeedK, patch.masterSpeed, PATCH_RANGES.masterSpeed).toFixed(2)}</em>
+                    {renderBindSelect(
+                      patch.masterSpeedK,
+                      (knob) => updatePatch({ masterSpeedK: knob }),
+                      "Master speed",
+                    )}
                   </label>
                   <label>
                     <span>contrast</span>
                     <input
                       type="range"
-                      min={0.25}
-                      max={2}
+                      min={PATCH_RANGES.contrast[0]}
+                      max={PATCH_RANGES.contrast[1]}
                       step={0.05}
-                      value={patch.contrast}
+                      value={patchParamValue(patch.contrastK, patch.contrast, PATCH_RANGES.contrast)}
+                      disabled={isKnobBound(patch.contrastK)}
                       onChange={(event) => updatePatch({ contrast: Number(event.target.value) })}
                     />
-                    <em>{patch.contrast.toFixed(2)}</em>
+                    <em>{patchParamValue(patch.contrastK, patch.contrast, PATCH_RANGES.contrast).toFixed(2)}</em>
+                    {renderBindSelect(
+                      patch.contrastK,
+                      (knob) => updatePatch({ contrastK: knob }),
+                      "Contrast",
+                    )}
                   </label>
                   <label>
                     <span>posterize</span>
                     <input
                       type="range"
-                      min={1}
-                      max={8}
+                      min={PATCH_RANGES.posterize[0]}
+                      max={PATCH_RANGES.posterize[1]}
                       step={1}
-                      value={patch.posterize}
+                      value={patchParamValue(patch.posterizeK, patch.posterize, PATCH_RANGES.posterize)}
+                      disabled={isKnobBound(patch.posterizeK)}
                       onChange={(event) => updatePatch({ posterize: Number(event.target.value) })}
                     />
-                    <em>{patch.posterize <= 1 ? "off" : patch.posterize}</em>
+                    <em>
+                      {(() => {
+                        const bands = Math.round(
+                          patchParamValue(patch.posterizeK, patch.posterize, PATCH_RANGES.posterize),
+                        );
+                        return bands <= 1 ? "off" : bands;
+                      })()}
+                    </em>
+                    {renderBindSelect(
+                      patch.posterizeK,
+                      (knob) => updatePatch({ posterizeK: knob }),
+                      "Posterize",
+                    )}
                   </label>
                   <label className={styles.patchInvert}>
                     <input

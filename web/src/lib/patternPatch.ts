@@ -3,6 +3,11 @@
 // this module turns it into JavaScript source, so the existing runtime,
 // ramp, cost analyzer, and C++ prompt all work on the result unchanged.
 //
+// Knob bindings: any slider can be bound to knob 1–4 (index 0–3). Bound
+// parameters read input.knobNormalized mapped onto the slider's range and are
+// hoisted per frame; unbound parameters are baked in as constants. The C++
+// conversion picks the bindings up as the pattern's knobs.
+//
 // Deliberately dependency-free so it can be unit-tested standalone.
 
 export type PatchGenerator =
@@ -28,6 +33,9 @@ export type PatchBlend = "mix" | "add" | "multiply" | "min" | "max" | "differenc
 
 export const PATCH_BLENDS: PatchBlend[] = ["mix", "add", "multiply", "min", "max", "difference"];
 
+/** Knob binding: 0–3 = knob index, -1/undefined = not bound. */
+export type PatchKnob = number;
+
 export type PatchLayer = {
   enabled: boolean;
   gen: PatchGenerator;
@@ -41,6 +49,10 @@ export type PatchLayer = {
   amount: number;
   /** How this layer combines with the stack (ignored on the base layer). */
   blend: PatchBlend;
+  scaleK?: PatchKnob;
+  speedK?: PatchKnob;
+  angleK?: PatchKnob;
+  amountK?: PatchKnob;
 };
 
 export type PatchState = {
@@ -52,9 +64,24 @@ export type PatchState = {
   /** Quantize the value field into N bands; 1 = off. 1..8 */
   posterize: number;
   invert: boolean;
+  masterSpeedK?: PatchKnob;
+  contrastK?: PatchKnob;
+  posterizeK?: PatchKnob;
 };
 
 export const MAX_PATCH_LAYERS = 4;
+
+// Slider ranges — the same ranges the UI uses, and the span a bound knob
+// sweeps across. Keep the two in sync via these constants.
+export const PATCH_RANGES = {
+  scale: [1, 30] as const,
+  speed: [0, 3] as const,
+  angle: [0, 180] as const,
+  amount: [0, 1] as const,
+  masterSpeed: [0, 3] as const,
+  contrast: [0.25, 2] as const,
+  posterize: [1, 8] as const,
+};
 
 export const DEFAULT_PATCH: PatchState = {
   layers: [
@@ -81,36 +108,47 @@ export function createPatchLayer(index: number): PatchLayer {
 
 const fmt = (value: number) => String(Math.round(value * 10000) / 10000);
 
+const isBound = (knob: PatchKnob | undefined): knob is number =>
+  typeof knob === "number" && knob >= 0 && knob <= 3;
+
+// Expression for a parameter: a literal when unbound, a knob mapping when bound.
+function paramExpr(value: number, knob: PatchKnob | undefined, range: readonly [number, number]) {
+  if (!isBound(knob)) return fmt(value);
+  const span = range[1] - range[0];
+  return range[0] === 0 ? `kn[${knob}] * ${fmt(span)}` : `(${fmt(range[0])} + kn[${knob}] * ${fmt(span)})`;
+}
+
 // Statements that compute `const <v> = <0..1>` from rx/ry (rotated, centered,
-// height-normalized coords) and the layer's hoisted phase variable.
-function generatorLines(gen: PatchGenerator, index: number, v: string, scale: number, ph: string): string[] {
-  const S = fmt(scale);
-  const half = fmt(scale * 0.5);
+// height-normalized coords), the hoisted scale vars s<i>/sh<i>, and phase ph<i>.
+function generatorLines(gen: PatchGenerator, index: number, v: string): string[] {
+  const s = `s${index}`;
+  const sh = `sh${index}`;
+  const ph = `ph${index}`;
   switch (gen) {
     case "waves":
-      return [`const ${v} = 0.5 + 0.5 * Math.sin(rx * ${S} + ${ph});`];
+      return [`const ${v} = 0.5 + 0.5 * Math.sin(rx * ${s} + ${ph});`];
     case "rings":
-      return [`const ${v} = 0.5 + 0.5 * Math.sin(Math.sqrt(rx * rx + ry * ry) * ${S} - ${ph});`];
+      return [`const ${v} = 0.5 + 0.5 * Math.sin(Math.sqrt(rx * rx + ry * ry) * ${s} - ${ph});`];
     case "stripes":
-      return [`const ${v} = fract(rx * ${half} + ${ph} * 0.25);`];
+      return [`const ${v} = fract(rx * ${sh} + ${ph} * 0.25);`];
     case "checker":
       return [
-        `const ${v} = ((Math.floor(rx * ${half} + ${ph} * 0.15) + Math.floor(ry * ${half})) & 1);`,
+        `const ${v} = ((Math.floor(rx * ${sh} + ${ph} * 0.15) + Math.floor(ry * ${sh})) & 1);`,
       ];
     case "cells":
       return [
-        `const gx${index} = Math.floor(rx * ${half});`,
-        `const gy${index} = Math.floor(ry * ${half});`,
+        `const gx${index} = Math.floor(rx * ${sh});`,
+        `const gy${index} = Math.floor(ry * ${sh});`,
         `const ${v} = 0.5 + 0.5 * Math.sin(hash2(gx${index}, gy${index}) * 6.2832 + ${ph});`,
       ];
     case "spiral":
       return [
-        `const ${v} = 0.5 + 0.5 * Math.sin(Math.atan2(ry, rx) * 3 + Math.sqrt(rx * rx + ry * ry) * ${S} - ${ph});`,
+        `const ${v} = 0.5 + 0.5 * Math.sin(Math.atan2(ry, rx) * 3 + Math.sqrt(rx * rx + ry * ry) * ${s} - ${ph});`,
       ];
     case "noise":
       return [
-        `const sx${index} = rx * ${half} + ${ph} * 0.3;`,
-        `const sy${index} = ry * ${half};`,
+        `const sx${index} = rx * ${sh} + ${ph} * 0.3;`,
+        `const sy${index} = ry * ${sh};`,
         `const x0${index} = Math.floor(sx${index});`,
         `const y0${index} = Math.floor(sy${index});`,
         `const fx${index} = sx${index} - x0${index};`,
@@ -122,26 +160,56 @@ function generatorLines(gen: PatchGenerator, index: number, v: string, scale: nu
   }
 }
 
-function blendLine(blend: PatchBlend, lv: string, amount: number): string {
-  const A = fmt(amount);
+function blendLine(blend: PatchBlend, lv: string, a: string): string {
   switch (blend) {
     case "mix":
-      return `v = v + (${lv} - v) * ${A};`;
+      return `v = v + (${lv} - v) * ${a};`;
     case "add":
-      return `v = Math.min(1, v + ${lv} * ${A});`;
+      return `v = Math.min(1, v + ${lv} * ${a});`;
     case "multiply":
-      return `v = v * (1 - ${A} + ${lv} * ${A});`;
+      return `v = v * (1 - ${a} + ${lv} * ${a});`;
     case "min":
-      return `v = v + (Math.min(v, ${lv}) - v) * ${A};`;
+      return `v = v + (Math.min(v, ${lv}) - v) * ${a};`;
     case "max":
-      return `v = v + (Math.max(v, ${lv}) - v) * ${A};`;
+      return `v = v + (Math.max(v, ${lv}) - v) * ${a};`;
     case "difference":
-      return `v = v + (Math.abs(v - ${lv}) - v) * ${A};`;
+      return `v = v + (Math.abs(v - ${lv}) - v) * ${a};`;
   }
+}
+
+/** Human-readable knob roles from the patch bindings, e.g. { 0: ["layer 2 amount"] }. */
+export function describePatchKnobs(patch: PatchState): string[] {
+  const roles: string[][] = [[], [], [], []];
+  const note = (knob: PatchKnob | undefined, label: string) => {
+    if (isBound(knob)) roles[knob].push(label);
+  };
+  patch.layers.forEach((layer, index) => {
+    if (!layer.enabled) return;
+    const name = `layer ${index + 1}`;
+    note(layer.scaleK, `${name} scale`);
+    note(layer.speedK, `${name} speed`);
+    note(layer.angleK, `${name} angle`);
+    note(layer.amountK, `${name} amount`);
+  });
+  note(patch.masterSpeedK, "master speed");
+  note(patch.contrastK, "contrast");
+  note(patch.posterizeK, "posterize");
+  return roles.map((entries, index) =>
+    entries.length ? `Knob ${index + 1} = ${entries.join(" + ")}` : `Knob ${index + 1} = (unused)`,
+  );
 }
 
 export function buildPatchCode(patch: PatchState): string {
   const layers = patch.layers.filter((layer) => layer.enabled);
+
+  const anyBinding =
+    layers.some(
+      (layer) =>
+        isBound(layer.scaleK) || isBound(layer.speedK) || isBound(layer.angleK) || isBound(layer.amountK),
+    ) ||
+    isBound(patch.masterSpeedK) ||
+    isBound(patch.contrastK) ||
+    isBound(patch.posterizeK);
 
   const summary = layers.length
     ? layers
@@ -153,6 +221,10 @@ export function buildPatchCode(patch: PatchState): string {
         )
         .join("\n")
     : "//   (no layers enabled)";
+
+  const knobComment = anyBinding
+    ? `// ${describePatchKnobs(patch).join(" · ")}\n// Bound knobs read input.knobNormalized (0..1) mapped onto each slider's range.`
+    : "// Knobs: none bound — bind sliders to K1–K4 in the Experiment tab to control them live.";
 
   const needsHash = layers.some((layer) => layer.gen === "cells" || layer.gen === "noise");
   const needsFract = layers.some((layer) => layer.gen === "stripes") || needsHash;
@@ -166,52 +238,92 @@ export function buildPatchCode(patch: PatchState): string {
     );
   if (needsLerp) helpers.push("function lerp(a, b, u) { return a + (b - a) * u; }");
 
-  // Hoisted per-layer phase (and rotation constants baked at codegen time).
-  const phaseLines = layers.map((layer, index) => `  const ph${index} = t * ${fmt(layer.speed)};`);
+  const knPreamble = anyBinding
+    ? "  const kn = params.knobNormalized || [0.5, 0.5, 0.5, 0.5];\n"
+    : "";
+
+  // Per-layer hoisted values: scale, half-scale, phase, amount, rotation.
+  const hoisted: string[] = [];
+  layers.forEach((layer, index) => {
+    hoisted.push(`  const s${index} = ${paramExpr(layer.scale, layer.scaleK, PATCH_RANGES.scale)};`);
+    hoisted.push(`  const sh${index} = s${index} * 0.5;`);
+    hoisted.push(
+      `  const ph${index} = t * ${paramExpr(layer.speed, layer.speedK, PATCH_RANGES.speed)};`,
+    );
+    hoisted.push(`  const a${index} = ${paramExpr(layer.amount, layer.amountK, PATCH_RANGES.amount)};`);
+    if (isBound(layer.angleK)) {
+      hoisted.push(
+        `  const an${index} = ${paramExpr(layer.angle, layer.angleK, PATCH_RANGES.angle)} * 0.0174533;`,
+      );
+      hoisted.push(`  const ca${index} = Math.cos(an${index});`);
+      hoisted.push(`  const sa${index} = Math.sin(an${index});`);
+    } else if (layer.angle !== 0) {
+      const radians = (layer.angle * Math.PI) / 180;
+      hoisted.push(`  const ca${index} = ${fmt(Math.cos(radians))};`);
+      hoisted.push(`  const sa${index} = ${fmt(Math.sin(radians))};`);
+    }
+  });
 
   const layerBlocks = layers.map((layer, index) => {
     const v = `lv${index}`;
+    const rotated = isBound(layer.angleK) || layer.angle !== 0;
     const lines: string[] = [];
     lines.push(`      // layer ${index + 1}: ${layer.gen}${index > 0 ? ` (${layer.blend})` : ""}`);
     lines.push("      {");
-    if (layer.angle !== 0) {
-      const radians = (layer.angle * Math.PI) / 180;
-      lines.push(`        const rx = nx * ${fmt(Math.cos(radians))} - ny * ${fmt(Math.sin(radians))};`);
-      lines.push(`        const ry = nx * ${fmt(Math.sin(radians))} + ny * ${fmt(Math.cos(radians))};`);
+    if (rotated) {
+      lines.push(`        const rx = nx * ca${index} - ny * sa${index};`);
+      lines.push(`        const ry = nx * sa${index} + ny * ca${index};`);
     } else {
       lines.push("        const rx = nx;");
       lines.push("        const ry = ny;");
     }
-    for (const line of generatorLines(layer.gen, index, v, layer.scale, `ph${index}`)) {
+    for (const line of generatorLines(layer.gen, index, v)) {
       lines.push(`        ${line}`);
     }
     if (index === 0) {
-      lines.push(`        v = ${v} * ${fmt(layer.amount)};`);
+      lines.push(`        v = ${v} * a0;`);
     } else {
-      lines.push(`        ${blendLine(layer.blend, v, layer.amount)}`);
+      lines.push(`        ${blendLine(layer.blend, v, `a${index}`)}`);
     }
     lines.push("      }");
     return lines.join("\n");
   });
 
+  // Post ops: hoisted expressions + per-pixel lines.
+  const postHoisted: string[] = [];
   const postLines: string[] = [];
-  if (patch.contrast !== 1) {
-    postLines.push(`      v = (v - 0.5) * ${fmt(patch.contrast)} + 0.5;`);
-  }
-  if (patch.posterize > 1) {
-    const bands = Math.round(patch.posterize);
-    postLines.push(`      v = v < 0 ? 0 : v > 1 ? 1 : v;`);
-    postLines.push(
-      `      v = Math.min(${bands - 1}, Math.floor(v * ${bands})) / ${bands - 1};`,
+  if (isBound(patch.contrastK) || patch.contrast !== 1) {
+    postHoisted.push(
+      `  const contrastV = ${paramExpr(patch.contrast, patch.contrastK, PATCH_RANGES.contrast)};`,
     );
+    postLines.push("      v = (v - 0.5) * contrastV + 0.5;");
+  }
+  if (isBound(patch.posterizeK)) {
+    postHoisted.push(
+      `  const bands = Math.max(1, Math.round(${paramExpr(patch.posterize, patch.posterizeK, PATCH_RANGES.posterize)}));`,
+    );
+    postLines.push("      v = v < 0 ? 0 : v > 1 ? 1 : v;");
+    postLines.push(
+      "      if (bands > 1) { v = Math.min(bands - 1, Math.floor(v * bands)) / (bands - 1); }",
+    );
+  } else if (patch.posterize > 1) {
+    const bands = Math.round(patch.posterize);
+    postLines.push("      v = v < 0 ? 0 : v > 1 ? 1 : v;");
+    postLines.push(`      v = Math.min(${bands - 1}, Math.floor(v * ${bands})) / ${bands - 1};`);
   }
   if (patch.invert) {
     postLines.push("      v = 1 - v;");
   }
 
+  const masterSpeedExpr = paramExpr(patch.masterSpeed, patch.masterSpeedK, PATCH_RANGES.masterSpeed);
+  const updateBody = isBound(patch.masterSpeedK)
+    ? `  const kn = input.knobNormalized || [0.5, 0.5, 0.5, 0.5];\n  params.t += dt * ${masterSpeedExpr};`
+    : `  params.t += dt * ${masterSpeedExpr};`;
+
   return `// Generated by Pattern Lab — Experiment (layer stack)
 // Layers:
 ${summary}
+${knobComment}
 // Value field only: color comes from the Color Ramp panel.
 // This is ordinary pattern code — send it to the Code tab and edit freely.
 ${helpers.length ? `\n${helpers.join("\n")}\n` : ""}
@@ -220,15 +332,15 @@ export function setup(params) {
 }
 
 export function update(dt, input, params) {
-  params.t += dt * ${fmt(patch.masterSpeed)};
+${updateBody}
 }
 
 export function draw(display, params, time) {
   const w = display.width;
   const h = display.height;
   const t = params.t;
-${phaseLines.join("\n")}
-
+${knPreamble}${hoisted.join("\n")}
+${postHoisted.length ? `${postHoisted.join("\n")}\n` : ""}
   for (let y = 0; y < h; y++) {
     const ny = (y - h * 0.5) / h;
     for (let x = 0; x < w; x++) {
