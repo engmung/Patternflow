@@ -1302,57 +1302,45 @@ ${code}
 
           <div className={styles.controls}>
             {knobs.map((value, index) => (
-              <div key={knobLabels[index]} className={styles.knobControl}>
-                <div className={styles.knobHeader}>
-                  <span>{knobLabels[index]}</span>
-                  <div className={styles.knobHeaderMeta}>
-                    <strong>{formatKnob(value)}</strong>
-                    <button
-                      type="button"
-                      className={styles.knobButton}
-                      aria-label={`${knobLabels[index]} button`}
-                      title="Encoder button (short press)"
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        pressButton(index);
-                      }}
-                      onPointerUp={() => releaseButton(index)}
-                      onPointerLeave={() => releaseButton(index)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          pressButton(index);
-                        }
-                      }}
-                      onKeyUp={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          releaseButton(index);
-                        }
-                      }}
-                    >
-                      Push
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.knobRow}>
-                  <label className={styles.rangeEndpoint}>
-                    <span>min</span>
-                    {renderRangeValue(index, "min")}
-                  </label>
-                  <input
-                    type="range"
-                    min={ranges[index][0]}
-                    max={ranges[index][1]}
-                    step="0.001"
-                    value={value}
-                    aria-label={`${knobLabels[index]} value`}
-                    onChange={(event) => updateKnob(index, Number(event.target.value))}
-                  />
-                  <label className={styles.rangeEndpoint}>
-                    <span>max</span>
-                    {renderRangeValue(index, "max")}
-                  </label>
-                </div>
+              <div key={knobLabels[index]} className={styles.knobLine}>
+                <span className={styles.knobName}>{knobLabels[index]}</span>
+                {renderRangeValue(index, "min")}
+                <input
+                  type="range"
+                  min={ranges[index][0]}
+                  max={ranges[index][1]}
+                  step="0.001"
+                  value={value}
+                  aria-label={`${knobLabels[index]} value`}
+                  onChange={(event) => updateKnob(index, Number(event.target.value))}
+                />
+                {renderRangeValue(index, "max")}
+                <strong className={styles.knobValue}>{formatKnob(value)}</strong>
+                <button
+                  type="button"
+                  className={styles.knobButton}
+                  aria-label={`${knobLabels[index]} button`}
+                  title="Encoder button (short press)"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    pressButton(index);
+                  }}
+                  onPointerUp={() => releaseButton(index)}
+                  onPointerLeave={() => releaseButton(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      pressButton(index);
+                    }
+                  }}
+                  onKeyUp={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      releaseButton(index);
+                    }
+                  }}
+                >
+                  Push
+                </button>
               </div>
             ))}
           </div>

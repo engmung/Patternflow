@@ -143,42 +143,42 @@
 
 .controls {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 6px;
+  margin-top: 14px;
 }
 
-.knobControl {
+/* One compact line per knob: name · min · slider · max · value · push */
+.knobLine {
   display: grid;
+  grid-template-columns: 50px 60px minmax(0, 1fr) 60px 54px auto;
+  align-items: center;
   gap: 8px;
 }
 
-.knobHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 14px;
+.knobName {
+  font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.knobHeader strong {
+.knobLine > input[type="range"] {
+  width: 100%;
+  accent-color: #171512;
+}
+
+.knobValue {
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   font-weight: 500;
-}
-
-.knobHeaderMeta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  text-align: right;
 }
 
 .knobButton {
-  min-height: 26px;
+  min-height: 24px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
-  padding: 0 10px;
+  padding: 0 8px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
   font-size: var(--pf-fs-mono);
@@ -198,55 +198,29 @@
   border-color: #171512;
 }
 
-.knobRow {
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) 82px;
-  align-items: center;
-  gap: 12px;
-}
-
-.knobRow > input {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.rangeEndpoint {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
-}
-
-.rangeEndpoint span {
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .rangeValue {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 32px;
+  min-height: 24px;
   border: 1px solid rgba(23, 21, 18, 0.2);
   background: #ffffff;
   color: #171512;
-  padding: 0 7px;
+  padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
+  font-size: 11px;
   user-select: none;
 }
 
 .rangeInput {
   width: 100%;
-  min-height: 32px;
+  min-height: 24px;
   border: 1px solid #171512;
   background: #ffffff;
   color: #171512;
-  padding: 0 7px;
+  padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .rangeInput:focus {
@@ -258,8 +232,8 @@
 .rangeStatic {
   display: inline-flex;
   align-items: center;
-  min-width: 7px;
-  min-height: 30px;
+  min-width: 6px;
+  min-height: 22px;
 }
 
 .rangeExtra {
@@ -294,10 +268,10 @@
 }
 
 .rampPanel {
-  margin-top: 18px;
-  padding: 12px;
+  margin-top: 12px;
+  padding: 10px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
 }
@@ -461,7 +435,7 @@
 }
 
 .actionRow {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .actionRow button,
@@ -1133,8 +1107,9 @@
     text-align: left;
   }
 
-  .knobRow {
-    grid-template-columns: 1fr;
+  .knobLine {
+    grid-template-columns: 40px 52px minmax(0, 1fr) 52px 48px auto;
+    gap: 6px;
   }
 
   .editorPane {
