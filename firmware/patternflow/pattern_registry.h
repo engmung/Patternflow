@@ -55,9 +55,9 @@ struct PatternEntry {
 
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(VectorFieldParticleFlowPattern),
-  PATTERN_ENTRY(CyberpunkCyberGridPattern),
-  PATTERN_ENTRY(ChromaticAberrationVortexPattern),
+  PATTERN_ENTRY(VoronoiCrystalsPattern),
+  PATTERN_ENTRY(FluidFlowPattern),
+  PATTERN_ENTRY(CellsDifferencePattern),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
 
