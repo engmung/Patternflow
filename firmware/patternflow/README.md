@@ -15,10 +15,11 @@ patternflow/
 
 - **`custom<N>.h` lives in the sketch ROOT** and is a **reusable slot**. The
   Arduino IDE only shows root-folder files as editable tabs, and the whole point
-  is that people write and tweak their own pattern right there. Overwrite a
-  slot's body (and its `NAME`) to try a new pattern — no file renaming, and the
-  registry line stays `PATTERN_ENTRY(CustomN)`. Add `customN+1.h` for more.
-  Includes use `"src/..."`.
+  is that people write and tweak their own pattern right there. Overwrite the
+  slot's contents to try a new pattern — no file renaming. Each pattern defines
+  its own descriptive namespace, so update the slot's `PATTERN_ENTRY(...)` line
+  in `pattern_registry.h` to match. Add `custom<N+1>.h` for more. Includes use
+  `"src/..."`.
 - **`presets/preset_<name>.h` lives in the `presets/` subfolder.** Presets are
   curated and not hand-edited in the IDE, so they're tucked away. Because they
   sit one level down, their includes use `"../src/..."` (and `"../config.h"`).
@@ -50,9 +51,12 @@ the device **pattern 1 = Origin** (the boot default) and the custom slots come
 **last** (turn back from pattern 1 to reach them):
 
 ```cpp
-// edit these — listed first for convenience
+// edit these — listed first for convenience; each entry names the
+// namespace of whatever pattern currently occupies the slot file
 PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(Custom1), PATTERN_ENTRY(Custom2), PATTERN_ENTRY(Custom3),
+  PATTERN_ENTRY(ReactionDiffusionPattern),   // custom1.h
+  PATTERN_ENTRY(LissajousWeave),             // custom2.h
+  PATTERN_ENTRY(ChromaticAberrationVortexPattern), // custom3.h
 };
 
 PatternEntry presetPatterns[] = {
@@ -95,9 +99,10 @@ The following patterns are currently compiled into the firmware and registered i
 *(Note: Presets 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529, and 0530 were excluded due to performance lag or rendering issues on the physical ESP32 hardware. Additionally, patterns posted on Instagram after 0602 are not included in this repository by default; you can find them on Discord and convert them yourself to use them.)*
 
 ### Custom Patterns (3)
-1. **Spark Matrix** (`custom1.h`)
-2. **Hyperbolic Grid** (`custom2.h`)
-3. **Cellular Interference** (`custom3.h`)
+
+The three `custom<N>.h` slots ship with rotating example patterns and are meant
+to be overwritten with your own. `customPatterns[]` in `pattern_registry.h` is
+the source of truth for what's currently loaded.
 
 ## Licensing (read before submitting)
 

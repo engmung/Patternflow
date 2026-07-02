@@ -22,7 +22,7 @@ The system is fully open source. It is designed to support multiple build paths 
 The firmware is built around the `ESP32-HUB75-MatrixPanel-DMA` library to drive the 128x64 HUB75 LED panel. 
 - **Pin Mapping:** Defined centrally in `firmware/patternflow/config.h`. Uses specific I2S pins for DMA output.
 - **Encoders:** Four EC11 encoders read via interrupt-based logic. 
-- **Pattern System:** Patterns live in `firmware/patternflow/pattern_*.h` and are registered in `pattern_registry.h`. Each pattern exposes `NAME`, `KNOB_LABELS`, `setup()`, `update()`, and `draw()`.
+- **Pattern System:** Curated patterns live in `firmware/patternflow/presets/preset_*.h`; user patterns occupy the `custom1.h`–`custom3.h` slots at the sketch root, each with its own pattern namespace. All are registered in `pattern_registry.h` (`presetPatterns[]` / `customPatterns[]`). Each pattern exposes `NAME`, `KNOB_LABELS`, `setup()`, `update()`, and `draw()`. Shared engine code (display, encoders, canvas, color, math, noise, network) lives in `firmware/patternflow/src/`.
 
 ### Hardware (PCB)
 The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 box header (`J1`).
@@ -41,11 +41,11 @@ The current enclosure is modeled in Blender and sliced into print-ready plates l
 A Next.js application residing in `web/`. It serves the landing page, browser firmware flasher, Pattern Lab / Live Editor, Video Baker, journal, and build map.
 
 ### Build Documentation
-Build entry points now live under `docs/build/`:
-- `docs/build/README.md` is the build map.
-- `BUILD_GUIDE.md` remains the detailed guide for the current 3D print + official PCB path.
-- `docs/build/firmware/flash-release.md` explains browser flashing.
-- `docs/build/firmware/custom-patterns.md` explains the Arduino IDE path for custom patterns.
+Build entry points live under `docs/assembly/`:
+- `docs/assembly/README.md` is the assembly map.
+- `BUILD_GUIDE.md` (repo root) remains the detailed guide for the current 3D print + official PCB path.
+- `docs/assembly/electronics/pcb.md` and `docs/assembly/enclosure/3d-print.md` cover the modular paths.
+- `docs/assembly/firmware/custom-patterns.md` explains the Arduino IDE path for custom patterns (full guide: `firmware/CUSTOM_PATTERNS.md`).
 
 ## License structure
 
