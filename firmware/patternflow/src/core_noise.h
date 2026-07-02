@@ -81,4 +81,36 @@ inline float fractal2D(float x, float y, int octaves, float roughness) {
   return sum / maxAmp;
 }
 
+// O(1) integer-cell hash → 0..1, for "random value per grid cell" (voronoi
+// seeds, cell colors/phases, glitch cells). Use this INSTEAD of the classic
+// fract(sin(gx * 127.1 + gy * 311.7) * 43758.5453) formula: that one needs a
+// full-precision sinf — feeding it PFMath::fastSin amplifies the sin LUT's
+// tiny error ~44,000× and destroys the hash (visible banding/correlation) —
+// while this is two table reads with no trig at all.
+inline float cellHash(int gx, int gy) {
+  return (float)perm[(perm[gx & 255] + (gy & 255)) & 255] * (1.0f / 255.0f);
+}
+
+// Seeded variant so multiple layers/uses in one pattern decorrelate.
+inline float cellHash(int gx, int gy, int seed) {
+  return (float)perm[(perm[(gx + seed) & 255] + (gy & 255)) & 255] * (1.0f / 255.0f);
+}
+
+// Smooth value noise: smoothstep-blended cellHash lattice, output 0..1.
+// Cheaper than perlin2D (no gradient dot products) — a good default for soft
+// organic fields; reach for perlin2D/fractal2D when you need richer structure.
+inline float valueNoise2D(float x, float y) {
+  int X = (int)floorf(x);
+  int Y = (int)floorf(y);
+  float fx = x - (float)X;
+  float fy = y - (float)Y;
+  float ux = fx * fx * (3.0f - 2.0f * fx);
+  float uy = fy * fy * (3.0f - 2.0f * fy);
+  float n00 = cellHash(X, Y);
+  float n10 = cellHash(X + 1, Y);
+  float n01 = cellHash(X, Y + 1);
+  float n11 = cellHash(X + 1, Y + 1);
+  return lerpF(lerpF(n00, n10, ux), lerpF(n01, n11, ux), uy);
+}
+
 } // namespace PFNoise

@@ -71,6 +71,8 @@ The rough shape from experience: scores under 20 are reliably smooth. Patterns w
 
 If your score climbs higher than you'd like, the most common fix is moving expensive math *out* of the pixel loop — a `sin` that depends only on time (not on x or y) can be computed once per frame and reused for all 8,192 pixels. You can also tell the AI directly: *"Keep cost score under 30. No `atan2`."* Models follow these constraints if you state them in the prompt.
 
+Note that the score measures the *JavaScript* as written — the C++ conversion prompt ships a decision table of firmware fast paths (precomputed per-pixel radius/angle tables for fixed-center patterns, `PFMath::fastAtan2`, cell-hash and pow LUTs), so a HIGH-scoring radial pattern often converts to cheap C++ anyway. Treat the score as pressure, not a wall.
+
 ---
 
 ## Installing your pattern
@@ -95,9 +97,10 @@ firmware/patternflow/
     ├── core_display.h
     ├── core_encoders.h
     ├── core_canvas.h          ← every new pattern draws through this
-    ├── core_math.h            ← shared sin LUT + fast trig
-    ├── core_color.h           ← shared HSV/ramp helpers
-    ├── core_noise.h           ← shared Perlin/fractal noise
+    ├── core_math.h            ← shared sin LUT + fast trig + fastAtan2
+    ├── core_color.h           ← shared HSV/ramp/pow-LUT helpers
+    ├── core_noise.h           ← shared Perlin/value noise + cell hash
+    ├── core_tables.h          ← precomputed per-pixel radius/angle tables
     ├── core_wifi.h            ← shared Wi-Fi bring-up
     ├── core_osc.h             ← OSC sidechannel
     ├── core_audio_ws.h        ← browser audio-react server
