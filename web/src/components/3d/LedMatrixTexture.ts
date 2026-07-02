@@ -55,6 +55,19 @@ export class LedMatrixTexture {
       this.data[idx + 1] = cg;
       this.data[idx + 2] = cb;
       this.data[idx + 3] = 255;
+    },
+    // Value-field patterns (Pattern Lab's setValue API). The landing preview
+    // has no color ramp, so render the field as grayscale.
+    setValue: (x: number, y: number, v: number) => {
+      if (x < 0 || x >= this.width || y < 0 || y >= this.height) return;
+      const value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+      const byte = Math.round(value * 255);
+      const texY = this.height - 1 - Math.floor(y);
+      const idx = (texY * this.width + Math.floor(x)) * 4;
+      this.data[idx] = byte;
+      this.data[idx + 1] = byte;
+      this.data[idx + 2] = byte;
+      this.data[idx + 3] = 255;
     }
   };
 

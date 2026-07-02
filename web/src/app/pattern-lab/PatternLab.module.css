@@ -293,6 +293,109 @@
   color: #f7f3ea;
 }
 
+.rampPanel {
+  margin-top: 18px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+}
+
+.rampHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.rampHeader > span {
+  font-weight: 600;
+}
+
+.rampHeader select {
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.rampToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: rgba(23, 21, 18, 0.75);
+  user-select: none;
+}
+
+.rampToggle input {
+  accent-color: #171512;
+}
+
+.rampDemo {
+  margin-left: auto;
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampDemo:hover {
+  border-color: #171512;
+}
+
+.rampBar {
+  display: block;
+  width: 100%;
+  height: 22px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+}
+
+.rampStops {
+  display: grid;
+  gap: 6px;
+}
+
+.rampStopRow {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.rampStopRow input[type="color"] {
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.rampStopRow input[type="range"] {
+  width: 100%;
+  accent-color: #171512;
+}
+
+.rampStopRow span {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-align: right;
+}
+
 .actionRow {
   margin-top: 18px;
 }

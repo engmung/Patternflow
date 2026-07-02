@@ -7,9 +7,13 @@ import {
   PATTERN_MATRIX_HEIGHT,
   PATTERN_MATRIX_WIDTH,
   PatternRuntime,
+  RAMP_MODES,
+  buildRampLUT,
   createIdleInput,
   knobTargetToDelta,
   renderPatternStill,
+  type ColorRamp,
+  type RampMode,
 } from "@/lib/patternHarness";
 import {
   LOGICAL_KNOB_DEFAULTS,
@@ -18,6 +22,7 @@ import {
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import {
+  COLOR_MODES,
   GEMINI_MODEL,
   GEMINI_THINKING_LEVEL,
   ORIENTATIONS,
@@ -26,6 +31,7 @@ import {
   generatePatternVariants,
   loadGeminiKey,
   saveGeminiKey,
+  type ColorMode,
   type Orientation,
   type PatternVariant,
   type ThinkingLevelKey,
@@ -139,6 +145,96 @@ function updateRangeValue(range: KnobRange, edge: "min" | "max", nextValue: numb
   return next;
 }
 
+// ── Color ramp (value-field coloring) ──────────────────────────────────────
+// UI state keeps hex strings for <input type="color">; the harness ColorRamp
+// (RGB tuples) is derived via useMemo.
+
+type RampStopState = { position: number; color: string };
+type RampState = { stops: RampStopState[]; mode: RampMode; wrap: boolean };
+
+const DEFAULT_RAMP: RampState = {
+  stops: [
+    { position: 0, color: "#081840" },
+    { position: 0.55, color: "#ff4d00" },
+    { position: 1, color: "#ffe89a" },
+  ],
+  mode: "linear",
+  wrap: false,
+};
+
+const RAMP_STORAGE = "patternflow_ramp_v1";
+
+function loadStoredRamp(): RampState {
+  if (typeof window === "undefined") return DEFAULT_RAMP;
+  try {
+    const raw = window.localStorage.getItem(RAMP_STORAGE);
+    if (!raw) return DEFAULT_RAMP;
+    const parsed = JSON.parse(raw) as Partial<RampState>;
+    if (!Array.isArray(parsed.stops) || parsed.stops.length === 0) return DEFAULT_RAMP;
+    return {
+      stops: parsed.stops
+        .slice(0, 3)
+        .map((stop) => ({
+          position: Math.max(0, Math.min(1, Number(stop?.position) || 0)),
+          color: /^#[0-9a-fA-F]{6}$/.test(String(stop?.color)) ? String(stop.color) : "#ffffff",
+        })),
+      mode: RAMP_MODES.includes(parsed.mode as RampMode) ? (parsed.mode as RampMode) : "linear",
+      wrap: Boolean(parsed.wrap),
+    };
+  } catch {
+    return DEFAULT_RAMP;
+  }
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const value = parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+// Demo pattern for the value-field workflow: pure 0..1 field via setValue,
+// color comes entirely from the Color Ramp panel.
+const VFIELD_DEMO_CODE = `// V-field demo — this pattern outputs only a 0..1 value field.
+// Color comes from the Color Ramp panel, not from this code.
+// Knobs: 1 = warp, 2 = speed, 3 = zoom, 4 = bands (0 = smooth)
+
+export function setup(params) {
+  params.t = 0;
+}
+
+export function update(dt, input, params) {
+  const kn = input.knobNormalized || [0.5, 0.5, 0.5, 0.5];
+  params.warp = kn[0] * 2.2;
+  params.speed = input.knobValues ? input.knobValues[1] : 1.0;
+  params.zoom = 0.6 + kn[2] * 2.4;
+  params.bands = Math.round(kn[3] * 8);
+  params.t += dt * params.speed * 0.6;
+}
+
+export function draw(display, params, time) {
+  const w = display.width;
+  const h = display.height;
+  const t = params.t;
+  const zoom = params.zoom;
+  const cx = 0.5 + 0.22 * Math.sin(t * 0.7);
+  const cy = 0.5 + 0.22 * Math.cos(t * 0.9);
+
+  for (let y = 0; y < h; y++) {
+    const ny = (y / h - 0.5);
+    for (let x = 0; x < w; x++) {
+      const nx = (x / h - w / h * 0.5);
+      const dx = x / h - cx * (w / h);
+      const dy = y / h - cy;
+      const ring = Math.sin((dx * dx + dy * dy) * 14 * zoom - t * 2.0);
+      const wave = Math.sin(nx * 6 * zoom + t + params.warp * Math.sin(ny * 5 * zoom - t * 0.8));
+      let v = 0.5 + 0.25 * ring + 0.25 * wave;
+      if (params.bands > 1) {
+        v = Math.floor(v * params.bands) / (params.bands - 1);
+      }
+      display.setValue(x, y, v);
+    }
+  }
+}`;
+
 type GalleryItem = PatternVariant & { id: string; pinned?: boolean };
 
 // Cap the gallery without ever dropping pinned (kept) items.
@@ -210,6 +306,8 @@ function VariantPreview({
   pinned,
   knobsRef,
   rangesRef,
+  rampRef,
+  recolorRef,
   onSelect,
 }: {
   code: string;
@@ -220,6 +318,8 @@ function VariantPreview({
   pinned: boolean;
   knobsRef: React.MutableRefObject<number[]>;
   rangesRef: React.MutableRefObject<KnobRange[]>;
+  rampRef: React.MutableRefObject<ColorRamp>;
+  recolorRef: React.MutableRefObject<boolean>;
   onSelect: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -258,6 +358,10 @@ function VariantPreview({
       const knobNormalized = getNormalizedKnobs(currentKnobs, currentRanges);
       previousKnobs = [...currentKnobs];
 
+      // Ramp is shared with the main preview; identity check keeps this free.
+      if (runtime.ramp !== rampRef.current) runtime.setRamp(rampRef.current);
+      runtime.recolor = recolorRef.current;
+
       const result = runtime.renderFrame(
         dt,
         simTime,
@@ -277,7 +381,7 @@ function VariantPreview({
 
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [code, knobsRef, rangesRef]);
+  }, [code, knobsRef, rangesRef, rampRef, recolorRef]);
 
   return (
     <button
@@ -340,6 +444,9 @@ export default function PatternLabClient() {
   const [genThinking, setGenThinking] = useState<ThinkingLevelKey>(GEMINI_THINKING_LEVEL);
   const [genOrientation, setGenOrientation] = useState<Orientation>("landscape");
   const [genRefs, setGenRefs] = useState(DEFAULT_REF_COUNT);
+  const [genColorMode, setGenColorMode] = useState<ColorMode>("vfield");
+  const [rampState, setRampState] = useState<RampState>(loadStoredRamp);
+  const [recolor, setRecolor] = useState(false);
   const [editorView, setEditorView] = useState<"code" | "gallery">("code");
   const [now, setNow] = useState(0);
   const removedJobsRef = useRef<Set<string>>(new Set());
@@ -357,6 +464,65 @@ export default function PatternLabClient() {
   const btnPressPendingRef = useRef([false, false, false, false]);
 
   const cost = useMemo(() => analyzeEsp32Cost(code), [code]);
+
+  // Derived harness ramp — referentially stable so per-frame identity checks
+  // in the render loops only trigger a LUT rebuild when the ramp truly changed.
+  const ramp = useMemo<ColorRamp>(
+    () => ({
+      stops: rampState.stops.map((stop) => ({
+        position: stop.position,
+        color: hexToRgb(stop.color),
+      })),
+      mode: rampState.mode,
+      wrap: rampState.wrap,
+    }),
+    [rampState],
+  );
+  const rampRef = useRef(ramp);
+  const recolorRef = useRef(recolor);
+  const rampBarRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    rampRef.current = ramp;
+  }, [ramp]);
+
+  useEffect(() => {
+    recolorRef.current = recolor;
+  }, [recolor]);
+
+  // Persist the ramp across sessions (best effort).
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RAMP_STORAGE, JSON.stringify(rampState));
+    } catch {
+      // Ignore private-mode / storage-disabled sessions.
+    }
+  }, [rampState]);
+
+  // Paint the gradient preview bar whenever the ramp changes.
+  useEffect(() => {
+    const canvas = rampBarRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const lut = buildRampLUT(ramp);
+    const imageData = context.createImageData(256, 1);
+    for (let i = 0; i < 256; i++) {
+      imageData.data[i * 4] = lut[i * 3];
+      imageData.data[i * 4 + 1] = lut[i * 3 + 1];
+      imageData.data[i * 4 + 2] = lut[i * 3 + 2];
+      imageData.data[i * 4 + 3] = 255;
+    }
+    context.putImageData(imageData, 0, 0);
+  }, [ramp]);
+
+  const updateRampStop = (index: number, patch: Partial<RampStopState>) => {
+    setRampState((current) => ({
+      ...current,
+      stops: current.stops.map((stop, stopIndex) =>
+        stopIndex === index ? { ...stop, ...patch } : stop,
+      ),
+    }));
+  };
 
   const setRuntimeErrorSafe = useCallback((message: string | null) => {
     if (runtimeErrorRef.current === message) return;
@@ -438,6 +604,8 @@ export default function PatternLabClient() {
       const runtime = runtimeRef.current;
       const canvas = canvasRef.current;
       if (runtime && canvas) {
+        if (runtime.ramp !== rampRef.current) runtime.setRamp(rampRef.current);
+        runtime.recolor = recolorRef.current;
         const startedAt = performance.now();
         const result = runtime.renderFrame(
           dt,
@@ -691,6 +859,8 @@ export default function PatternLabClient() {
         knobRanges: ranges,
         knobWrap: LOGICAL_KNOB_WRAP,
         knobUnitsPerTurn: LOGICAL_KNOB_UNITS_PER_TURN,
+        ramp,
+        recolor,
       });
       const src = dataToUrl(result.data);
       return {
@@ -719,7 +889,7 @@ export default function PatternLabClient() {
   };
 
   const copyVariantPrompt = async () => {
-    await navigator.clipboard.writeText(buildVariantCopyPrompt(code, knobs, ranges));
+    await navigator.clipboard.writeText(buildVariantCopyPrompt(code, knobs, ranges, genColorMode));
     setPromptCopied(true);
     window.setTimeout(() => setPromptCopied(false), 1200);
   };
@@ -769,7 +939,7 @@ export default function PatternLabClient() {
     const examples = sampleExamples(code, genRefs);
     const seedWithCurrent = genRefs > 0;
 
-    generatePatternVariants({ apiKey: geminiKey, code, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent })
+    generatePatternVariants({ apiKey: geminiKey, code, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent, colorMode: genColorMode })
       .then((items) => {
         if (removedJobsRef.current.has(jobId)) return;
         const stamped: GalleryItem[] = items.map((item, index) => ({ ...item, id: `${jobId}-${index}` }));
@@ -786,6 +956,7 @@ export default function PatternLabClient() {
           requested: count,
           count: items.length,
           thinking: thinkingLevel,
+          color_mode: genColorMode,
           ms: Date.now() - job.startedAt,
         });
       })
@@ -875,7 +1046,47 @@ export default function PatternLabClient() {
       })
       .join("\n");
 
+    // Value-field patterns carry no color of their own — bake the user's ramp
+    // into the generated C++ so the device matches the web preview exactly.
+    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(code);
+    const rampModeNotes: Record<RampMode, string> = {
+      linear: "straight sRGB lerp between neighboring stops",
+      smooth: "sRGB lerp with smoothstep easing (t*t*(3-2*t)) applied per segment",
+      step: "hard bands — each stop's color holds until the next stop position",
+      hsvShort: "interpolate in HSV space taking the SHORTEST hue path (use PFColor::hsvToRgb)",
+      hsvLong: "interpolate in HSV space taking the LONGEST hue path around the wheel (use PFColor::hsvToRgb)",
+    };
+    const rampSection = usesValueField
+      ? `
+## Color ramp (value-field pattern)
+This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user designed this exact color ramp in Pattern Lab — bake it in verbatim, do not restyle it:
+
+Ramp stops (position -> sRGB):
+${rampState.stops
+  .map((stop) => {
+    const [r, g, b] = hexToRgb(stop.color);
+    return `- ${stop.position.toFixed(3)} -> rgb(${r}, ${g}, ${b})`;
+  })
+  .join("\n")}
+Interpolation: ${rampState.mode} (${rampModeNotes[rampState.mode]}).
+Wrap: ${rampState.wrap ? "yes — the ramp is cyclic; past the last stop blend back into the first across the 1->0 seam" : "no — clamp to the first/last stop color outside the stop range"}.
+
+Implementation rules:
+- In setup(), build a 256-entry lookup table once: static uint8_t RAMP_LUT[256][3]; fill it by interpolating the stops above with the interpolation mode described.
+- In draw(), compute the same v the JavaScript computes, clamp to 0..1, then read the LUT: const uint8_t* c = RAMP_LUT[(int)(v * 255.0f + 0.5f)]; and pass c[0], c[1], c[2] to PFCanvas::setPixel.
+- Do NOT interpolate colors per pixel with float math in draw() — the LUT replaces all per-pixel color work.
+- PFColor::sampleRamp in core_color.h is step-only. Use it directly only if the mode above is "step"; otherwise fill the LUT with your own interpolation in setup().
+`
+      : "";
+
     return `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
+${
+  usesValueField
+    ? `
+NOTE: the JS pattern draws with display.setValue(x, y, v) — a 0..1 value field colored by a lookup ramp (see "Color ramp" section below). There is no setPixel in the source; your C++ maps v through the baked ramp LUT and writes the resulting RGB with PFCanvas::setPixel.
+`
+    : ""
+}
 
 ## Output format
 - One single code block labeled cpp. No prose before or after the block.
@@ -945,7 +1156,7 @@ When in doubt, use sqrtf.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
-
+${rampSection}
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
 - Prefer multiplication and comparison over expensive functions and branches.
@@ -960,7 +1171,11 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 2. Did I write my own hsvToRgb, sin LUT, or noise function? If yes, replace with PFColor / PFMath / PFNoise.
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
-5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
+5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?${
+      usesValueField
+        ? "\n6. Does setup() build RAMP_LUT from the exact stops and interpolation mode in the Color ramp section, and does draw() get every color exclusively from that LUT?"
+        : ""
+    }
 
 ## JavaScript source
 \`\`\`javascript
@@ -1057,6 +1272,78 @@ ${code}
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className={styles.rampPanel}>
+            <div className={styles.rampHeader}>
+              <span>Color ramp</span>
+              <select
+                value={rampState.mode}
+                aria-label="Ramp interpolation mode"
+                title="How colors blend between stops"
+                onChange={(event) =>
+                  setRampState((current) => ({ ...current, mode: event.target.value as RampMode }))
+                }
+              >
+                {RAMP_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode === "hsvShort" ? "hsv short" : mode === "hsvLong" ? "hsv long" : mode}
+                  </option>
+                ))}
+              </select>
+              <label className={styles.rampToggle} title="Cyclic ramp — blends past the last stop back into the first">
+                <input
+                  type="checkbox"
+                  checked={rampState.wrap}
+                  onChange={(event) =>
+                    setRampState((current) => ({ ...current, wrap: event.target.checked }))
+                  }
+                />
+                wrap
+              </label>
+              <label
+                className={styles.rampToggle}
+                title="Recolor any pattern: map each pixel's luminance through the ramp (works on RGB patterns too)"
+              >
+                <input
+                  type="checkbox"
+                  checked={recolor}
+                  onChange={(event) => setRecolor(event.target.checked)}
+                />
+                recolor
+              </label>
+              <button
+                type="button"
+                className={styles.rampDemo}
+                title="Load a demo pattern that draws a 0..1 value field via display.setValue"
+                onClick={() => setCode(VFIELD_DEMO_CODE)}
+              >
+                V demo
+              </button>
+            </div>
+            <canvas ref={rampBarRef} className={styles.rampBar} width={256} height={1} aria-label="Ramp gradient preview" />
+            <div className={styles.rampStops}>
+              {rampState.stops.map((stop, index) => (
+                <div key={index} className={styles.rampStopRow}>
+                  <input
+                    type="color"
+                    value={stop.color}
+                    aria-label={`Ramp stop ${index + 1} color`}
+                    onChange={(event) => updateRampStop(index, { color: event.target.value })}
+                  />
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={stop.position}
+                    aria-label={`Ramp stop ${index + 1} position`}
+                    onChange={(event) => updateRampStop(index, { position: Number(event.target.value) })}
+                  />
+                  <span>{stop.position.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className={styles.actionRow}>
@@ -1172,6 +1459,19 @@ ${code}
                     {REF_OPTIONS.map((option) => (
                       <option key={option} value={option}>
                         {option === 0 ? "no refs" : `${option} refs`}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={styles.genThinking}
+                    value={genColorMode}
+                    aria-label="Color mode"
+                    title="v-field: the model outputs a 0..1 value field and your Color Ramp does the coloring. rgb: the model colors pixels itself."
+                    onChange={(event) => setGenColorMode(event.target.value as ColorMode)}
+                  >
+                    {COLOR_MODES.map((option) => (
+                      <option key={option} value={option}>
+                        {option === "vfield" ? "v-field" : "rgb"}
                       </option>
                     ))}
                   </select>
@@ -1355,6 +1655,8 @@ ${code}
                             pinned={Boolean(item.pinned)}
                             knobsRef={knobsRef}
                             rangesRef={rangesRef}
+                            rampRef={rampRef}
+                            recolorRef={recolorRef}
                             onSelect={() => onCardActivate(item)}
                           />
                         </li>
@@ -1469,6 +1771,11 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
                 <li>
                   <code>display.setPixel(x, y, r, g, b)</code> — write one pixel; <code>r/g/b</code>{" "}
                   are <code>0–255</code>.
+                </li>
+                <li>
+                  <code>display.setValue(x, y, v)</code> — value-field mode: write a{" "}
+                  <code>0–1</code> scalar and the Color Ramp panel does the coloring. Don&apos;t mix
+                  with <code>setPixel</code> in one pattern.
                 </li>
               </ul>
               <p className={styles.modalNote}>
