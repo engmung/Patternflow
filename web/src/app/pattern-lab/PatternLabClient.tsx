@@ -1344,7 +1344,8 @@ When in doubt, use sqrtf.
 - For each knob, store the parameter as state initialized to its current Pattern Lab value below.
 - In update(): param += input.knobDeltas[i] * STEP[i]; then constrain to the min/max range.
 - Use the calibrated encoder step below as STEP so physical encoders match the live editor and one detent feels the same on both.
-- Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS.
+- If the JS reads input.knobNormalized[i] (e.g. generated layer-stack patterns), keep the raw knob state exactly as above and compute the normalized value from it each frame: (raw - min) / (max - min). Do NOT store the normalized value as the knob state itself.
+- Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS. Knobs the comments mark as unused get the label "-" and no update logic.
 - Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that. Never consume long-press; that gesture is reserved for the firmware mode switcher.
 
 Pattern Lab knob ranges and current values:
