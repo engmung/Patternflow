@@ -1332,9 +1332,10 @@ Always-required includes:
 
 Conditional includes — only when actually used in your code:
 
-    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-    #include "src/core_color.h"  // PFColor:: hsvToRgb, ColorStop, sampleRamp
-    #include "src/core_noise.h"  // PFNoise:: perlin2D, fractal2D
+    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fract, lerp, approxLength, sin LUT
+    #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT/buildPowLUTf, ColorStop, sampleRamp
+    #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
+    #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
 
 Other interface rules:
 - Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
@@ -1348,23 +1349,25 @@ The firmware ships tested, optimized versions of these. Using your own breaks sh
 - DO NOT write your own HSV → RGB converter. Not as a separate function, not inline with a switch statement, not as a chain of fmodf + conditionals. Call PFColor::hsvToRgb(h, s, v, r, g, b). h is normalized 0..1, not degrees.
 - DO NOT write your own sin LUT or fast-sin approximation. Call PFMath::buildSinLUT() once in setup(); use PFMath::fastSin / fastCos in draw().
 - DO NOT write your own Perlin or fractal noise. Use PFNoise::perlin2D / fractal2D.
+- DO NOT write your own atan/atan2 approximation or angle LUT. Use PFMath::fastAtan2 or the precomputed PFTables::thetaT (see the decision table).
+- DO NOT translate sin-based hash formulas literally. If the JS contains fract(sin(x * 127.1 + y * 311.7) * 43758.5453) or similar, replace it with PFNoise::cellHash(gx, gy) (add a seed argument to decorrelate multiple uses). NEVER build a hash from PFMath::fastSin — the sin LUT's tiny error is amplified ~44,000× by the big multiplier and destroys the hash with visible banding.
 
-## Distance and sqrt — default to sqrtf
-Use sqrtf(dx*dx + dy*dy) by default for distance calculations. The ESP32-S3 has a hardware FPU and sqrtf is cheap. Two sqrtf calls per pixel cost under 1 ms per frame on a 128×64 panel.
+## Expensive math — pick the tool by situation
+The board has abundant flash and PSRAM, so the firmware trades memory for per-pixel math. Choose per this table; it overrides any literal translation of the JS:
 
-PFMath::approxLength is an octagonal approximation (~5% error; the isodistance contour is an octagon, not a circle). It is a niche micro-optimization, NOT a default. Using it where distance shapes the visible pattern produces clearly polygonal artifacts on the panel.
+| Situation in the pattern | Use this |
+|---|---|
+| Radius and/or angle from the FIXED panel center (rings, spirals, vortex, kaleidoscope) | PFTables::init() once in setup(); then PFTables::rT[i] / PFTables::thetaT[i] in draw() with i = y * PANEL_RES_W + x. Zero per-pixel cost — never call sqrtf or atan2f for a fixed center. rT is in screen-height units (0 center, 0.5 top/bottom edge); thetaT is -π..π. |
+| Angle from a MOVING center | PFMath::fastAtan2(dy, dx) (~0.01° max error). Never call atan2f inside the pixel loop. |
+| Distance from a MOVING center | sqrtf(dx*dx + dy*dy) — the S3 FPU makes sqrtf cheap; two per pixel cost under 1 ms per frame. |
+| Random value per grid cell (voronoi seeds, cell colors/phases) | PFNoise::cellHash(gx, gy) or cellHash(gx, gy, seed). |
+| Smooth organic field | PFNoise::valueNoise2D (cheapest) or perlin2D / fractal2D (richer). |
+| powf(v, CONSTANT) | v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT (byte out) / buildPowLUTf (float out) and index it in draw(). |
+| sin/cos inside the pixel loop | PFMath::fastSin / fastCos (call buildSinLUT() in setup()). Full-precision sinf/cosf only for one-shot computations outside the loop — and for hash inputs, use cellHash instead entirely. |
 
-DO NOT use approxLength when ANY of the following applies:
-- The variable is named radius / dist / r / length and feeds rotation, hue, brightness, or ring placement.
-- The expression uses 1/dist or amplification by inverse distance (vortex cores, ripple centers).
-- The pattern has visible concentric rings, swirls, ripples, kaleidoscope sectors, or radial gradients.
-- The distance is compared to a threshold to draw a shape: if (dist < r) { ... }.
-- Multiple distance fields are composed (caustics, wavefronts, beat patterns).
-- The output has visible circular structure of any kind.
+approxLength caveat: PFMath::approxLength is an octagonal approximation (~5% error — the isodistance contour is a visible octagon). With PFTables::rT and cheap sqrtf available it is almost never the right choice; only use it for non-visual weighting terms where the contour can never be seen. When in doubt, use PFTables::rT (fixed center) or sqrtf (moving center).
 
-approxLength is only acceptable when the distance is a purely scalar input to a noise lookup or a non-visual weighting term — i.e. you could not draw the contour even if you tried.
-
-When in doubt, use sqrtf.
+Last resort — half-resolution rendering: if the pattern is genuinely smooth/low-frequency and still too slow after the table above, compute the value on a 64×32 grid inside draw() and write each result to a 2×2 pixel block. Only for soft gradients; never for patterns with single-pixel details.
 
 ## Knob conversion
 - The JS preview uses input.knobValues as absolute values (after the Pattern Lab min/max ranges are applied).
@@ -1396,15 +1399,15 @@ ${describePatchKnobs(patch)
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
 - Prefer multiplication and comparison over expensive functions and branches.
-- Use PFMath::fastSin / fastCos inside the pixel loop; restrict sinf/cosf to one-shot computations outside the loop.
+- Route every expensive call through the "Expensive math" decision table above — the fast path exists for each common case; a literal translation of the JS math is almost always the slow answer.
 - Keep some pixels near full RGB output so LED brightness stays strong.
 - Preserve local color logic from the JS — value-based bands, distance-driven hue, threshold steps, etc. The visual character lives in those rules.
 
 ## Self-check before output
 Before finalizing your code block, verify each of these. If any answer is wrong, fix it.
 
-1. Did I use approxLength anywhere? If yes, is the distance truly invisible to the viewer (no rings, no rotation driver, no 1/dist amplification)? If not certain, change to sqrtf.
-2. Did I write my own hsvToRgb, sin LUT, or noise function? If yes, replace with PFColor / PFMath / PFNoise.
+1. Does the pattern use radius or angle from the FIXED panel center while calling sqrtf/atan2f per pixel? If yes, switch to PFTables::rT / PFTables::thetaT. Is atan2f called anywhere inside the pixel loop? If yes, switch to PFMath::fastAtan2. If I used approxLength, is its octagonal contour truly invisible? If not certain, use rT/sqrtf.
+2. Did I write my own hsvToRgb, sin LUT, atan2 approximation, noise function, or a sin-based hash — or build a hash from PFMath::fastSin? If yes, replace with the PFColor / PFMath / PFNoise helpers.
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
 5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
