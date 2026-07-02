@@ -8,6 +8,40 @@
 
 #include <Arduino.h>
 
+// --- Arduino macro detox ---
+// Arduino.h defines PI / TWO_PI / HALF_PI / DEG_TO_RAD / RAD_TO_DEG / EULER as
+// bare object-like macros, so a pattern that declares its own constant with
+// one of those names ("static constexpr float PI = ...") gets preprocessor-
+// mangled into a compile error — AI-generated patterns do this all the time.
+// Replace the macros with typed constants: every existing use of PI keeps
+// working, and a pattern namespace may now legally shadow them with its own
+// definitions. (Function-like macros such as min/max/abs/constrain are left
+// alone — patterns rely on them and they only expand before a parenthesis.)
+#ifdef PI
+#undef PI
+#endif
+#ifdef TWO_PI
+#undef TWO_PI
+#endif
+#ifdef HALF_PI
+#undef HALF_PI
+#endif
+#ifdef DEG_TO_RAD
+#undef DEG_TO_RAD
+#endif
+#ifdef RAD_TO_DEG
+#undef RAD_TO_DEG
+#endif
+#ifdef EULER
+#undef EULER
+#endif
+constexpr double PI         = 3.1415926535897932384626433832795;
+constexpr double TWO_PI     = 6.283185307179586476925286766559;
+constexpr double HALF_PI    = 1.5707963267948966192313216916398;
+constexpr double DEG_TO_RAD = 0.017453292519943295769236907684886;
+constexpr double RAD_TO_DEG = 57.295779513082320876798154814105;
+constexpr double EULER      = 2.718281828459045235360287471352;
+
 // --- Display Specifications ---
 #define PANEL_RES_W 128
 #define PANEL_RES_H 64
