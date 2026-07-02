@@ -1258,38 +1258,46 @@ export default function PatternLabClient() {
       })
       .join("\n");
 
-    // Value-field patterns carry no color of their own — bake the user's ramp
-    // into the generated C++ so the device matches the web preview exactly.
+    // Value-field patterns carry no color of their own. The ramp LUT is
+    // precomputed HERE (same buildRampLUT as the live preview) and emitted as
+    // a finished C array — models must not write sorting/interpolation code,
+    // which is exactly where weaker models broke (unsorted stops → all-black
+    // LUT, hallucinated tokens in hand-rolled lerp loops).
     const usesValueField = /display\s*\.\s*setValue\s*\(/.test(activeCode);
-    const rampModeNotes: Record<RampMode, string> = {
-      linear: "straight sRGB lerp between neighboring stops",
-      smooth: "sRGB lerp with smoothstep easing (t*t*(3-2*t)) applied per segment",
-      step: "hard bands — each stop's color holds until the next stop position",
-      hsvShort: "interpolate in HSV space taking the SHORTEST hue path (use PFColor::hsvToRgb)",
-      hsvLong: "interpolate in HSV space taking the LONGEST hue path around the wheel (use PFColor::hsvToRgb)",
-    };
-    const rampSection = usesValueField
-      ? `
-## Color ramp (value-field pattern)
-This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user designed this exact color ramp in Pattern Lab — bake it in verbatim, do not restyle it:
+    let rampSection = "";
+    if (usesValueField) {
+      const lut = buildRampLUT(ramp);
+      const lutRows: string[] = [];
+      for (let i = 0; i < 256; i += 8) {
+        const entries: string[] = [];
+        for (let j = i; j < i + 8; j++) {
+          entries.push(`{${lut[j * 3]},${lut[j * 3 + 1]},${lut[j * 3 + 2]}}`);
+        }
+        lutRows.push(`  ${entries.join(",")},`);
+      }
+      const sortedStops = [...rampState.stops].sort((a, b) => a.position - b.position);
+      const stopSummary = sortedStops
+        .map((stop) => `${stop.position.toFixed(3)}:${stop.color}`)
+        .join(", ");
+      rampSection = `
+## Color ramp (value-field pattern) — PRE-BAKED, copy verbatim
+This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user's color ramp has already been baked into the 256-entry RGB lookup table below (it encodes the stops, interpolation mode, and wrap exactly as the web preview renders them).
 
-Ramp stops (position -> sRGB):
-${rampState.stops
-  .map((stop) => {
-    const [r, g, b] = hexToRgb(stop.color);
-    return `- ${stop.position.toFixed(3)} -> rgb(${r}, ${g}, ${b})`;
-  })
-  .join("\n")}
-Interpolation: ${rampState.mode} (${rampModeNotes[rampState.mode]}).
-Wrap: ${rampState.wrap ? "yes — the ramp is cyclic; past the last stop blend back into the first across the 1->0 seam" : "no — clamp to the first/last stop color outside the stop range"}.
+Embed this table in the namespace EXACTLY as given:
 
-Implementation rules:
-- In setup(), build a 256-entry lookup table once: static uint8_t RAMP_LUT[256][3]; fill it by interpolating the stops above with the interpolation mode described.
-- In draw(), compute the same v the JavaScript computes, clamp to 0..1, then read the LUT: const uint8_t* c = RAMP_LUT[(int)(v * 255.0f + 0.5f)]; and pass c[0], c[1], c[2] to PFCanvas::setPixel.
-- Do NOT interpolate colors per pixel with float math in draw() — the LUT replaces all per-pixel color work.
-- PFColor::sampleRamp in core_color.h is step-only. Use it directly only if the mode above is "step"; otherwise fill the LUT with your own interpolation in setup().
-`
-      : "";
+static const uint8_t RAMP_LUT[256][3] = {
+${lutRows.join("\n")}
+};
+
+Rules:
+- Copy the table verbatim — do NOT recompute, resample, reorder, shorten, or "optimize" it, and do NOT write any stop/interpolation/sorting code. The table IS the ramp.
+- In draw(): clamp v to 0..1, then
+    int li = (int)(v * 255.0f + 0.5f);
+    PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
+- Do NOT use PFColor:: functions for this pattern's colors; the LUT replaces all color work.
+- (Reference only, for the header comment: stops ${stopSummary}; mode ${rampState.mode}; wrap ${rampState.wrap ? "on" : "off"}.)
+`;
+    }
 
     return `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
 ${
@@ -1398,9 +1406,10 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 2. Did I write my own hsvToRgb, sin LUT, or noise function? If yes, replace with PFColor / PFMath / PFNoise.
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
-5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?${
+5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
+6. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.${
       usesValueField
-        ? "\n6. Does setup() build RAMP_LUT from the exact stops and interpolation mode in the Color ramp section, and does draw() get every color exclusively from that LUT?"
+        ? "\n7. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
         : ""
     }
 
