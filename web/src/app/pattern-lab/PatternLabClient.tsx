@@ -1340,6 +1340,7 @@ Other interface rules:
 - Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
 - All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
 - The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
+- Macro collisions: Arduino.h and config.h define macros that will preprocessor-mangle same-named declarations into compile errors. Do NOT define your own variables, constants, or functions named PI, TWO_PI, HALF_PI, DEG_TO_RAD, RAD_TO_DEG, EULER, min, max, abs, sq, round, radians, degrees, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, or FREQ_STEP. Use the existing PI / TWO_PI constants directly, use fminf/fmaxf/fabsf for your own helpers, and prefix pattern constants with the pattern name (e.g. CELLS_TWO_PI, CELLS_SPEED_STEP).
 
 ## DO NOT reimplement existing helpers
 The firmware ships tested, optimized versions of these. Using your own breaks shared optimizations (color calibration, sin LUT sharing) and wastes ROM. If the JavaScript source contains an inline hsvToRgb or sin LUT, strip it and call the firmware helper instead.
