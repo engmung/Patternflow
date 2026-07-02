@@ -551,18 +551,36 @@ export default function PatternLabClient() {
   };
 
   // ── Patch knob bindings ──
-  // A bound slider is driven by the knob (normalized onto the slider's range);
-  // the select next to each slider picks the knob. -1 = unbound.
-  const knLive = getNormalizedKnobs(knobs, ranges);
-
+  // Binding a slider to a knob syncs the knob's min/max to the parameter's
+  // range and sets the knob to the current value, so knob value = parameter
+  // value 1:1. The select next to each slider picks the knob. -1 = unbound.
   const isKnobBound = (knob: PatchKnob | undefined): knob is number =>
     typeof knob === "number" && knob >= 0 && knob <= 3;
 
-  const patchParamValue = (
-    knob: PatchKnob | undefined,
-    value: number,
+  // Bound params show/take the knob's raw value — the knob's own min/max is
+  // the range authority (widening the knob range extends the parameter).
+  const patchParamValue = (knob: PatchKnob | undefined, value: number) =>
+    isKnobBound(knob) ? knobs[knob] ?? value : value;
+
+  // Apply the binding to patch state, then retune the chosen knob to the
+  // parameter: range = parameter range, value = current parameter value, so
+  // nothing visibly jumps at the moment of binding.
+  const bindPatchKnob = (
+    knob: number,
     range: readonly [number, number],
-  ) => (isKnobBound(knob) ? range[0] + knLive[knob] * (range[1] - range[0]) : value);
+    value: number,
+    apply: () => void,
+  ) => {
+    apply();
+    if (knob < 0 || knob > 3) return;
+    // Retune as a starting point only — the user can widen the knob's min/max
+    // afterwards and the parameter follows it (no clamp in the generated code).
+    const clamped = Math.max(range[0], Math.min(range[1], value));
+    setRanges((current) =>
+      current.map((entry, index): KnobRange => (index === knob ? [range[0], range[1]] : entry)),
+    );
+    setKnobs((current) => current.map((entry, index) => (index === knob ? clamped : entry)));
+  };
 
   const renderBindSelect = (
     knob: PatchKnob | undefined,
@@ -1354,14 +1372,14 @@ ${rangeLines}
 ${
       editorView === "experiment"
         ? `
-## Layer-patch knob mappings (authoritative)
-This pattern was built in the Experiment layer stack. Each bound parameter reads input.knobNormalized[i] and maps it onto the parameter range listed here:
+## Layer-patch knob mappings
+This pattern was built in the Experiment layer stack. Each bound parameter reads input.knobValues[i] as an ABSOLUTE value with no extra clamp — knob value = parameter value. The AUTHORITATIVE min/max for each knob is the "Pattern Lab knob ranges and current values" list above (the user may have retuned it); ranges in the roles below are only bind-time defaults:
 ${describePatchKnobs(patch)
   .map((role) => `- ${role}`)
   .join("\n")}
 
-- In C++, compute each bound parameter as PARAM_MIN + normalized * (PARAM_MAX - PARAM_MIN), where normalized = (rawKnob - RAW_MIN) / (RAW_MAX - RAW_MIN) from the raw knob state above. One full sweep of the raw knob range must cover the parameter's full range, exactly like the web preview.
-- Name the min/max as constants (e.g. PATCH_SCALE1_MIN 1.0f / PATCH_SCALE1_MAX 30.0f) — do not collapse them to 0..1.
+- In C++, each bound parameter is knob state: initialize to that knob's current value above, update with param += input.knobDeltas[i] * STEP, clamp to that knob's authoritative min/max. Use STEP = (MAX - MIN) / 20 so one full encoder turn (~20 detents) sweeps the range.
+- Name the min/max as constants (e.g. PATCH_SCALE1_MIN 1.0f / PATCH_SCALE1_MAX 100.0f) — do not collapse them to 0..1.
 - Knobs marked (unused) get KNOB_LABELS entry "-" and no update logic.
 `
         : ""
@@ -1863,16 +1881,19 @@ ${activeCode}
                           min={PATCH_RANGES.scale[0]}
                           max={PATCH_RANGES.scale[1]}
                           step={0.5}
-                          value={patchParamValue(layer.scaleK, layer.scale, PATCH_RANGES.scale)}
+                          value={patchParamValue(layer.scaleK, layer.scale)}
                           disabled={isKnobBound(layer.scaleK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { scale: Number(event.target.value) })
                           }
                         />
-                        <em>{patchParamValue(layer.scaleK, layer.scale, PATCH_RANGES.scale).toFixed(1)}</em>
+                        <em>{patchParamValue(layer.scaleK, layer.scale).toFixed(1)}</em>
                         {renderBindSelect(
                           layer.scaleK,
-                          (knob) => updatePatchLayer(index, { scaleK: knob }),
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.scale, layer.scale, () =>
+                              updatePatchLayer(index, { scaleK: knob }),
+                            ),
                           `Layer ${index + 1} scale`,
                         )}
                       </label>
@@ -1883,16 +1904,19 @@ ${activeCode}
                           min={PATCH_RANGES.speed[0]}
                           max={PATCH_RANGES.speed[1]}
                           step={0.05}
-                          value={patchParamValue(layer.speedK, layer.speed, PATCH_RANGES.speed)}
+                          value={patchParamValue(layer.speedK, layer.speed)}
                           disabled={isKnobBound(layer.speedK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { speed: Number(event.target.value) })
                           }
                         />
-                        <em>{patchParamValue(layer.speedK, layer.speed, PATCH_RANGES.speed).toFixed(2)}</em>
+                        <em>{patchParamValue(layer.speedK, layer.speed).toFixed(2)}</em>
                         {renderBindSelect(
                           layer.speedK,
-                          (knob) => updatePatchLayer(index, { speedK: knob }),
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.speed, layer.speed, () =>
+                              updatePatchLayer(index, { speedK: knob }),
+                            ),
                           `Layer ${index + 1} speed`,
                         )}
                       </label>
@@ -1903,16 +1927,19 @@ ${activeCode}
                           min={PATCH_RANGES.angle[0]}
                           max={PATCH_RANGES.angle[1]}
                           step={1}
-                          value={patchParamValue(layer.angleK, layer.angle, PATCH_RANGES.angle)}
+                          value={patchParamValue(layer.angleK, layer.angle)}
                           disabled={isKnobBound(layer.angleK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { angle: Number(event.target.value) })
                           }
                         />
-                        <em>{patchParamValue(layer.angleK, layer.angle, PATCH_RANGES.angle).toFixed(0)}°</em>
+                        <em>{patchParamValue(layer.angleK, layer.angle).toFixed(0)}°</em>
                         {renderBindSelect(
                           layer.angleK,
-                          (knob) => updatePatchLayer(index, { angleK: knob }),
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.angle, layer.angle, () =>
+                              updatePatchLayer(index, { angleK: knob }),
+                            ),
                           `Layer ${index + 1} angle`,
                         )}
                       </label>
@@ -1923,16 +1950,19 @@ ${activeCode}
                           min={PATCH_RANGES.amount[0]}
                           max={PATCH_RANGES.amount[1]}
                           step={0.01}
-                          value={patchParamValue(layer.amountK, layer.amount, PATCH_RANGES.amount)}
+                          value={patchParamValue(layer.amountK, layer.amount)}
                           disabled={isKnobBound(layer.amountK)}
                           onChange={(event) =>
                             updatePatchLayer(index, { amount: Number(event.target.value) })
                           }
                         />
-                        <em>{patchParamValue(layer.amountK, layer.amount, PATCH_RANGES.amount).toFixed(2)}</em>
+                        <em>{patchParamValue(layer.amountK, layer.amount).toFixed(2)}</em>
                         {renderBindSelect(
                           layer.amountK,
-                          (knob) => updatePatchLayer(index, { amountK: knob }),
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.amount, layer.amount, () =>
+                              updatePatchLayer(index, { amountK: knob }),
+                            ),
                           `Layer ${index + 1} amount`,
                         )}
                       </label>
@@ -1952,14 +1982,17 @@ ${activeCode}
                       min={PATCH_RANGES.masterSpeed[0]}
                       max={PATCH_RANGES.masterSpeed[1]}
                       step={0.05}
-                      value={patchParamValue(patch.masterSpeedK, patch.masterSpeed, PATCH_RANGES.masterSpeed)}
+                      value={patchParamValue(patch.masterSpeedK, patch.masterSpeed)}
                       disabled={isKnobBound(patch.masterSpeedK)}
                       onChange={(event) => updatePatch({ masterSpeed: Number(event.target.value) })}
                     />
-                    <em>{patchParamValue(patch.masterSpeedK, patch.masterSpeed, PATCH_RANGES.masterSpeed).toFixed(2)}</em>
+                    <em>{patchParamValue(patch.masterSpeedK, patch.masterSpeed).toFixed(2)}</em>
                     {renderBindSelect(
                       patch.masterSpeedK,
-                      (knob) => updatePatch({ masterSpeedK: knob }),
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.masterSpeed, patch.masterSpeed, () =>
+                          updatePatch({ masterSpeedK: knob }),
+                        ),
                       "Master speed",
                     )}
                   </label>
@@ -1970,14 +2003,17 @@ ${activeCode}
                       min={PATCH_RANGES.contrast[0]}
                       max={PATCH_RANGES.contrast[1]}
                       step={0.05}
-                      value={patchParamValue(patch.contrastK, patch.contrast, PATCH_RANGES.contrast)}
+                      value={patchParamValue(patch.contrastK, patch.contrast)}
                       disabled={isKnobBound(patch.contrastK)}
                       onChange={(event) => updatePatch({ contrast: Number(event.target.value) })}
                     />
-                    <em>{patchParamValue(patch.contrastK, patch.contrast, PATCH_RANGES.contrast).toFixed(2)}</em>
+                    <em>{patchParamValue(patch.contrastK, patch.contrast).toFixed(2)}</em>
                     {renderBindSelect(
                       patch.contrastK,
-                      (knob) => updatePatch({ contrastK: knob }),
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.contrast, patch.contrast, () =>
+                          updatePatch({ contrastK: knob }),
+                        ),
                       "Contrast",
                     )}
                   </label>
@@ -1988,21 +2024,24 @@ ${activeCode}
                       min={PATCH_RANGES.posterize[0]}
                       max={PATCH_RANGES.posterize[1]}
                       step={1}
-                      value={patchParamValue(patch.posterizeK, patch.posterize, PATCH_RANGES.posterize)}
+                      value={patchParamValue(patch.posterizeK, patch.posterize)}
                       disabled={isKnobBound(patch.posterizeK)}
                       onChange={(event) => updatePatch({ posterize: Number(event.target.value) })}
                     />
                     <em>
                       {(() => {
                         const bands = Math.round(
-                          patchParamValue(patch.posterizeK, patch.posterize, PATCH_RANGES.posterize),
+                          patchParamValue(patch.posterizeK, patch.posterize),
                         );
                         return bands <= 1 ? "off" : bands;
                       })()}
                     </em>
                     {renderBindSelect(
                       patch.posterizeK,
-                      (knob) => updatePatch({ posterizeK: knob }),
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.posterize, patch.posterize, () =>
+                          updatePatch({ posterizeK: knob }),
+                        ),
                       "Posterize",
                     )}
                   </label>

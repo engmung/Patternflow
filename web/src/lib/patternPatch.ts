@@ -3,10 +3,13 @@
 // this module turns it into JavaScript source, so the existing runtime,
 // ramp, cost analyzer, and C++ prompt all work on the result unchanged.
 //
-// Knob bindings: any slider can be bound to knob 1–4 (index 0–3). Bound
-// parameters read input.knobNormalized mapped onto the slider's range and are
-// hoisted per frame; unbound parameters are baked in as constants. The C++
-// conversion picks the bindings up as the pattern's knobs.
+// Knob bindings: any slider can be bound to knob 1–4 (index 0–3). Binding sets
+// the knob's min/max to the parameter's default range as a starting point, and
+// the generated code reads input.knobValues[i] directly with NO extra clamp —
+// the knob's own min/max is the only authority, so widening the knob range in
+// Pattern Lab extends the parameter past its slider range. Unbound parameters
+// are baked in as constants. The C++ conversion picks the bindings up as the
+// pattern's knobs.
 //
 // Deliberately dependency-free so it can be unit-tested standalone.
 
@@ -111,11 +114,14 @@ const fmt = (value: number) => String(Math.round(value * 10000) / 10000);
 const isBound = (knob: PatchKnob | undefined): knob is number =>
   typeof knob === "number" && knob >= 0 && knob <= 3;
 
-// Expression for a parameter: a literal when unbound, a knob mapping when bound.
-function paramExpr(value: number, knob: PatchKnob | undefined, range: readonly [number, number]) {
+// Expression for a parameter: a literal when unbound; when bound, the knob's
+// absolute value as-is — the knob's own min/max (retuned at bind time, then
+// user-adjustable) is the only range authority, so no clamp here. `kv` is
+// hoisted in the surrounding scope; the literal fallback covers missing or
+// non-finite knob input.
+function paramExpr(value: number, knob: PatchKnob | undefined) {
   if (!isBound(knob)) return fmt(value);
-  const span = range[1] - range[0];
-  return range[0] === 0 ? `kn[${knob}] * ${fmt(span)}` : `(${fmt(range[0])} + kn[${knob}] * ${fmt(span)})`;
+  return `(kv && Number.isFinite(kv[${knob}]) ? kv[${knob}] : ${fmt(value)})`;
 }
 
 // Statements that compute `const <v> = <0..1>` from rx/ry (rotated, centered,
@@ -178,14 +184,15 @@ function blendLine(blend: PatchBlend, lv: string, a: string): string {
 }
 
 /**
- * Human-readable knob roles from the patch bindings, ranges included so the
- * C++ conversion can preserve the exact normalized→value mapping, e.g.
- * "Knob 1 = layer 2 amount (0 to 1)".
+ * Human-readable knob roles from the patch bindings, e.g.
+ * "Knob 1 = layer 2 amount (default 0 to 1)". The ranges are bind-time
+ * defaults — the knob's actual min/max in Pattern Lab is the authority, since
+ * the user can retune it after binding.
  */
 export function describePatchKnobs(patch: PatchState): string[] {
   const roles: string[][] = [[], [], [], []];
   const note = (knob: PatchKnob | undefined, label: string, range: readonly [number, number]) => {
-    if (isBound(knob)) roles[knob].push(`${label} (${fmt(range[0])} to ${fmt(range[1])})`);
+    if (isBound(knob)) roles[knob].push(`${label} (default ${fmt(range[0])} to ${fmt(range[1])})`);
   };
   patch.layers.forEach((layer, index) => {
     if (!layer.enabled) return;
@@ -227,7 +234,7 @@ export function buildPatchCode(patch: PatchState): string {
     : "//   (no layers enabled)";
 
   const knobComment = anyBinding
-    ? `// ${describePatchKnobs(patch).join(" · ")}\n// Bound knobs read input.knobNormalized (0..1) mapped onto each slider's range.`
+    ? `// ${describePatchKnobs(patch).join(" · ")}\n// Bound knobs read input.knobValues as ABSOLUTE values, no clamp — the knob's own min/max range is the authority (listed ranges are bind-time defaults).`
     : "// Knobs: none bound — bind sliders to K1–K4 in the Experiment tab to control them live.";
 
   const needsHash = layers.some((layer) => layer.gen === "cells" || layer.gen === "noise");
@@ -242,22 +249,20 @@ export function buildPatchCode(patch: PatchState): string {
     );
   if (needsLerp) helpers.push("function lerp(a, b, u) { return a + (b - a) * u; }");
 
-  const knPreamble = anyBinding
-    ? "  const kn = params.knobNormalized || [0.5, 0.5, 0.5, 0.5];\n"
-    : "";
+  const knPreamble = anyBinding ? "  const kv = params.knobValues;\n" : "";
 
   // Per-layer hoisted values: scale, half-scale, phase, amount, rotation.
   const hoisted: string[] = [];
   layers.forEach((layer, index) => {
-    hoisted.push(`  const s${index} = ${paramExpr(layer.scale, layer.scaleK, PATCH_RANGES.scale)};`);
+    hoisted.push(`  const s${index} = ${paramExpr(layer.scale, layer.scaleK)};`);
     hoisted.push(`  const sh${index} = s${index} * 0.5;`);
     hoisted.push(
-      `  const ph${index} = t * ${paramExpr(layer.speed, layer.speedK, PATCH_RANGES.speed)};`,
+      `  const ph${index} = t * ${paramExpr(layer.speed, layer.speedK)};`,
     );
-    hoisted.push(`  const a${index} = ${paramExpr(layer.amount, layer.amountK, PATCH_RANGES.amount)};`);
+    hoisted.push(`  const a${index} = ${paramExpr(layer.amount, layer.amountK)};`);
     if (isBound(layer.angleK)) {
       hoisted.push(
-        `  const an${index} = ${paramExpr(layer.angle, layer.angleK, PATCH_RANGES.angle)} * 0.0174533;`,
+        `  const an${index} = ${paramExpr(layer.angle, layer.angleK)} * 0.0174533;`,
       );
       hoisted.push(`  const ca${index} = Math.cos(an${index});`);
       hoisted.push(`  const sa${index} = Math.sin(an${index});`);
@@ -298,13 +303,13 @@ export function buildPatchCode(patch: PatchState): string {
   const postLines: string[] = [];
   if (isBound(patch.contrastK) || patch.contrast !== 1) {
     postHoisted.push(
-      `  const contrastV = ${paramExpr(patch.contrast, patch.contrastK, PATCH_RANGES.contrast)};`,
+      `  const contrastV = ${paramExpr(patch.contrast, patch.contrastK)};`,
     );
     postLines.push("      v = (v - 0.5) * contrastV + 0.5;");
   }
   if (isBound(patch.posterizeK)) {
     postHoisted.push(
-      `  const bands = Math.max(1, Math.round(${paramExpr(patch.posterize, patch.posterizeK, PATCH_RANGES.posterize)}));`,
+      `  const bands = Math.max(1, Math.round(${paramExpr(patch.posterize, patch.posterizeK)}));`,
     );
     postLines.push("      v = v < 0 ? 0 : v > 1 ? 1 : v;");
     postLines.push(
@@ -319,9 +324,9 @@ export function buildPatchCode(patch: PatchState): string {
     postLines.push("      v = 1 - v;");
   }
 
-  const masterSpeedExpr = paramExpr(patch.masterSpeed, patch.masterSpeedK, PATCH_RANGES.masterSpeed);
+  const masterSpeedExpr = paramExpr(patch.masterSpeed, patch.masterSpeedK);
   const updateBody = isBound(patch.masterSpeedK)
-    ? `  const kn = input.knobNormalized || [0.5, 0.5, 0.5, 0.5];\n  params.t += dt * ${masterSpeedExpr};`
+    ? `  const kv = input.knobValues;\n  params.t += dt * ${masterSpeedExpr};`
     : `  params.t += dt * ${masterSpeedExpr};`;
 
   return `// Generated by Pattern Lab — Experiment (layer stack)
