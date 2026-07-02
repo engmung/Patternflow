@@ -124,12 +124,14 @@ Builds, documentation fixes, part sourcing tips, and custom patterns are all wel
 
 | When | Milestone |
 | :--- | :--- |
-| **Jan 2026** | Built Patternflow *Origin*, the first pattern · visited the Nam June Paik Art Center |
-| **Mar 2026** | First experiments with LEDs and potentiometers |
-| **Apr 2026** | First prototype · posted to Reddit — **150,000+ views and 3,700 upvotes**, and the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
-| **May 2026** | Continuous pattern development · Crowd Supply agreement · Discord community growing · a Paris-based creative technologist joins as the first collaborator |
-| **Jun 2026** | First community-made pattern shared · 3D-printed enclosure in production *(sponsored by PCBWay)* · [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live |
-| **Next** | Crowd Supply campaign · growing a sustainable business · wider outreach · continued development |
+| **Jan 2026** | *Patternflow: Origin* — the first work as a new media artist, built around 3D-printed forms and the seed of what became Patternflow · visited the Nam June Paik Art Center |
+| **Mar 2026** | The Origin pattern ran on a physical LED matrix with four knobs for the first time |
+| **Apr 2026** | Instagram and the Arduino subreddit responded strongly — **150,000+ views and 3,700 upvotes** — and the community asked for the files, not a product, so Patternflow went open source · first PCB fabricated *(sponsored by PCBWay)* · website live |
+| **May 2026** | Reached **100 GitHub stars** · the first collaborator joined · Crowd Supply agreement · Discord community growing |
+| **Jun 2026** | [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live, backed by countless refinements toward mass production · Instagram passed **1,000 followers** · first community-made pattern shared |
+| **Jul 2026** | Refining the design for mass production · growing an active community · outreach and promotion |
+| **Next** | Run the Crowd Supply campaign at the lowest sustainable price · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
+| **2028** | Grow Patternflow into a self-sustaining community and ecosystem — then move on to the next project |
 
 📖 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**.
 
