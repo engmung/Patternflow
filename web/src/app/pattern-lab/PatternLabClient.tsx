@@ -1337,6 +1337,23 @@ Conditional includes — only when actually used in your code:
     #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
     #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
 
+Helper signatures — these are the FULL argument lists. Call them exactly like this; do not add size arguments, reorder parameters, or invent overloads:
+
+    PFMath::buildSinLUT();                               // in setup(); idempotent
+    float s  = PFMath::fastSin(angleRadians);
+    float c  = PFMath::fastCos(angleRadians);
+    float a  = PFMath::fastAtan2(dy, dx);                // returns (-π, π], like atan2f(y, x)
+    PFTables::init();                                    // in setup(); idempotent
+    float r  = PFTables::rT[y * PANEL_RES_W + x];        // fixed-center radius, screen-height units
+    float th = PFTables::thetaT[y * PANEL_RES_W + x];    // fixed-center angle, -π..π
+    float h  = PFNoise::cellHash(gx, gy);                // int cell coords → 0..1; optional 3rd int seed
+    float n  = PFNoise::valueNoise2D(x, y);              // floats → 0..1
+    float p  = PFNoise::perlin2D(x, y);                  // floats → ≈ -1..1
+    float f  = PFNoise::fractal2D(x, y, octaves, roughness);
+    PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8);        // h/s/v floats 0..1; r8/g8/b8 are uint8_t& outputs
+    static uint8_t plut[256];  PFColor::buildPowLUT(exponent, plut);   // fills (i/255)^exp scaled to 0..255
+    static float  plutf[256];  PFColor::buildPowLUTf(exponent, plutf); // fills (i/255)^exp as 0..1 floats
+
 Other interface rules:
 - Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
 - All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
