@@ -26,17 +26,17 @@ export default function ViewerPanel() {
   // canvas, so no transition there — we only fade when the scene itself changes.
   const targetScene = homeTab === 'inside' ? 'globe' : 'product';
   const [shownScene, setShownScene] = useState(targetScene);
-  const [fading, setFading] = useState(false);
+  // Fading whenever the shown scene lags behind the target; the timeout below
+  // swaps the scene, which ends the fade without extra state.
+  const fading = targetScene !== shownScene;
 
   // Fade the current scene out, swap while invisible, then fade the new one in.
   // Keeping a single scene mounted at a time preserves the original (cheap)
   // memory profile — this is a fade-through, not a true overlapping crossfade.
   useEffect(() => {
     if (targetScene === shownScene) return;
-    setFading(true);
     const timer = setTimeout(() => {
       setShownScene(targetScene);
-      setFading(false);
     }, FADE_MS);
     return () => clearTimeout(timer);
   }, [targetScene, shownScene]);

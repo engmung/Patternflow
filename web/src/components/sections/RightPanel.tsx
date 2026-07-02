@@ -87,7 +87,7 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Mirror the active tab into the store so the sibling 3D viewer panel knows

@@ -36,12 +36,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint is reported but does not block the merge yet — the repo still has
-      # pre-existing lint errors. Drop continue-on-error once those are cleaned
-      # up to make lint a hard gate too.
+      # Lint is a hard gate: lint errors can't reach main (warnings still pass).
       - name: Lint
         run: npm run lint
-        continue-on-error: true
 
       # Build is the hard gate: broken code can't reach main.
       - name: Build

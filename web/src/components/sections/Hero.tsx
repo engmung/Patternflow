@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import CrowdSupplyModal from "@/components/crowdsupply/CrowdSupplyModal";
 import { captureEvent } from "@/lib/posthogEvents";

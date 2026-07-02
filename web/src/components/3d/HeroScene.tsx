@@ -1,5 +1,10 @@
 'use client';
 
+/* eslint-disable react-hooks/immutability --
+   Three.js materials and the LED matrix texture are imperative objects;
+   mutating shader uniforms per-frame (and in effects) is their intended API
+   and never feeds back into React rendering. */
+
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { useRef, useMemo, useEffect, useState } from 'react';
 import * as THREE from 'three';
@@ -54,7 +59,6 @@ useGLTF.preload('/3dforweb.glb');
 function Model() {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/3dforweb.glb', 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
-  const activeSection = useAppStore((state) => state.activeSection);
   const knobValues = useAppStore((state) => state.knobValues);
   const buildStep = useAppStore((state) => state.buildStep);
   const isExploded = useAppStore((state) => state.isExploded);
@@ -74,7 +78,7 @@ function Model() {
   const activePatternId = useAppStore((state) => state.activePatternId);
   const customJsCode = useAppStore((state) => state.customJsCode);
   const pattern = patterns[activePatternId] || patterns['patternFlowOriginal'];
-  const defaults = pattern.defaults || {};
+  const defaults = useMemo(() => pattern.defaults || {}, [pattern]);
 
   const ledMatrix = useMemo(() => new LedMatrixTexture(), []);
   
@@ -153,7 +157,7 @@ function Model() {
       // 노브 시각적 회전 (시계방향 마우스 회전 시 3D 모델도 시계방향 회전)
       activeKnobRef.current.rotation.y -= deltaAngle; 
       
-      let currentVal = useAppStore.getState().knobValues[knobName];
+      const currentVal = useAppStore.getState().knobValues[knobName];
       let deltaVal = 0;
       
       // 회전 민감도 (1바퀴(2*PI) 돌릴 때 변하는 값)
@@ -403,7 +407,7 @@ function Model() {
     partsRef.current.top.forEach(m => {
       let targetZ = m.userData.originalZ + offsetTopZ;
       let targetY = m.userData.originalY;
-      let targetX = m.userData.originalX;
+      const targetX = m.userData.originalX;
 
       if (buildStep === 3 && isExploded) {
         if (m.name === 't_rb') {
@@ -513,13 +517,12 @@ function Model() {
 export default function HeroScene() {
   const isDraggingKnob = useAppStore((state) => state.isDraggingKnob);
   const activeKnobId = useAppStore((state) => state.activeKnobId);
-  const buildStep = useAppStore((state) => state.buildStep);
   const [hasInteracted, setHasInteracted] = useState(false);
-  useEffect(() => {
-    if (activeKnobId) {
-      setHasInteracted(true);
-    }
-  }, [activeKnobId]);
+  // Latch on first knob interaction — adjusting state during render (guarded)
+  // avoids an extra effect-driven render pass.
+  if (activeKnobId && !hasInteracted) {
+    setHasInteracted(true);
+  }
 
   return (
     <div id="three-canvas" style={{ width: '100%', height: '100%', position: 'relative' }}>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
-// @ts-ignore
 import { prepareWithSegments, layoutWithLines } from '@chenglou/pretext';
 
 interface PretextTextProps {
@@ -19,18 +18,21 @@ export default function PretextText({ text, font, lineHeight, className = '', de
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    if (document.fonts.status === 'loaded') {
-      setFontsLoaded(true);
-    } else {
-      document.fonts.ready.then(() => setFontsLoaded(true));
-    }
+    // document.fonts.ready resolves immediately when fonts are already loaded.
+    let cancelled = false;
+    document.fonts.ready.then(() => {
+      if (!cancelled) setFontsLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useLayoutEffect(() => {
     if (!fontsLoaded || !containerRef.current || !text) return;
 
     const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
+      for (const entry of entries) {
         const width = entry.contentRect.width;
         if (width > 0) {
           try {
@@ -46,7 +48,7 @@ export default function PretextText({ text, font, lineHeight, className = '', de
     
     observer.observe(containerRef.current);
     return () => observer.disconnect();
-  }, [text, font, lineHeight, fontsLoaded]);
+  }, [text, font, lineHeight, letterSpacing, fontsLoaded]);
 
   return (
     <div 

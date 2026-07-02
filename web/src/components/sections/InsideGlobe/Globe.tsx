@@ -289,8 +289,6 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
   const selected = selectedBuildId
     ? builds.find((build) => build.id === selectedBuildId) ?? null
     : null;
-  const selectedRef = useRef(selected);
-  selectedRef.current = selected;
 
   useFrame((state, delta) => {
     const world = worldRef.current;
@@ -322,7 +320,7 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
   // Drag to rotate (disabled while a build is focused). A near-still press is
   // treated as a click on empty globe and clears the current selection.
   const startDrag = (event: ThreeEvent<PointerEvent>) => {
-    if (selectedRef.current) return;
+    if (selected) return;
     event.stopPropagation();
     dragging.current = true;
     moved.current = 0;
