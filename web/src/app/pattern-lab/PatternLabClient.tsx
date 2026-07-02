@@ -45,6 +45,7 @@ import {
   PATCH_RANGES,
   buildPatchCode,
   createPatchLayer,
+  describePatchKnobs,
   type PatchKnob,
   type PatchLayer,
   type PatchState,
@@ -1350,7 +1351,21 @@ When in doubt, use sqrtf.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
-${rampSection}
+${
+      editorView === "experiment"
+        ? `
+## Layer-patch knob mappings (authoritative)
+This pattern was built in the Experiment layer stack. Each bound parameter reads input.knobNormalized[i] and maps it onto the parameter range listed here:
+${describePatchKnobs(patch)
+  .map((role) => `- ${role}`)
+  .join("\n")}
+
+- In C++, compute each bound parameter as PARAM_MIN + normalized * (PARAM_MAX - PARAM_MIN), where normalized = (rawKnob - RAW_MIN) / (RAW_MAX - RAW_MIN) from the raw knob state above. One full sweep of the raw knob range must cover the parameter's full range, exactly like the web preview.
+- Name the min/max as constants (e.g. PATCH_SCALE1_MIN 1.0f / PATCH_SCALE1_MAX 30.0f) — do not collapse them to 0..1.
+- Knobs marked (unused) get KNOB_LABELS entry "-" and no update logic.
+`
+        : ""
+    }${rampSection}
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
 - Prefer multiplication and comparison over expensive functions and branches.

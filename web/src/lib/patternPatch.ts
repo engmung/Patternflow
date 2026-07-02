@@ -177,23 +177,27 @@ function blendLine(blend: PatchBlend, lv: string, a: string): string {
   }
 }
 
-/** Human-readable knob roles from the patch bindings, e.g. { 0: ["layer 2 amount"] }. */
+/**
+ * Human-readable knob roles from the patch bindings, ranges included so the
+ * C++ conversion can preserve the exact normalized→value mapping, e.g.
+ * "Knob 1 = layer 2 amount (0 to 1)".
+ */
 export function describePatchKnobs(patch: PatchState): string[] {
   const roles: string[][] = [[], [], [], []];
-  const note = (knob: PatchKnob | undefined, label: string) => {
-    if (isBound(knob)) roles[knob].push(label);
+  const note = (knob: PatchKnob | undefined, label: string, range: readonly [number, number]) => {
+    if (isBound(knob)) roles[knob].push(`${label} (${fmt(range[0])} to ${fmt(range[1])})`);
   };
   patch.layers.forEach((layer, index) => {
     if (!layer.enabled) return;
     const name = `layer ${index + 1}`;
-    note(layer.scaleK, `${name} scale`);
-    note(layer.speedK, `${name} speed`);
-    note(layer.angleK, `${name} angle`);
-    note(layer.amountK, `${name} amount`);
+    note(layer.scaleK, `${name} scale`, PATCH_RANGES.scale);
+    note(layer.speedK, `${name} speed`, PATCH_RANGES.speed);
+    note(layer.angleK, `${name} angle`, PATCH_RANGES.angle);
+    note(layer.amountK, `${name} amount`, PATCH_RANGES.amount);
   });
-  note(patch.masterSpeedK, "master speed");
-  note(patch.contrastK, "contrast");
-  note(patch.posterizeK, "posterize");
+  note(patch.masterSpeedK, "master speed", PATCH_RANGES.masterSpeed);
+  note(patch.contrastK, "contrast", PATCH_RANGES.contrast);
+  note(patch.posterizeK, "posterize", PATCH_RANGES.posterize);
   return roles.map((entries, index) =>
     entries.length ? `Knob ${index + 1} = ${entries.join(" + ")}` : `Knob ${index + 1} = (unused)`,
   );
