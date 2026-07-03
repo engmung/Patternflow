@@ -44,7 +44,7 @@ export const LICENSE_HEADER_TEMPLATE = `// Pattern: {{name}}
 // Made with Patternflow Pattern Lab — https://patternflow.work/pattern-lab`;
 
 export const LICENSE_FOOTER_TEMPLATE = `// ---
-// Generated at https://patternflow.work/pattern-lab — https://patternflow.work
+// Made with Patternflow Pattern Lab — https://patternflow.work/pattern-lab
 // Licensed CC-BY-SA-4.0. Keep this notice if you share or remix.`;
 
 function stampLicense(code: string, name: string): string {

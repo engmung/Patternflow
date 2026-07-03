@@ -17,6 +17,16 @@ export const DEFAULT_LICENSE_ID = "cc-by-sa-4.0";
 export const DISCORD_PATTERNS_URL = "https://discord.gg/Vr9QtsxeTk";
 export const DISCORD_PATTERNS_CHANNEL = "🌀│patterns";
 
+// Which tool the share came from. Drives the caption link and the "Made with"
+// attribution so each surface points people back to the right place. URLs must
+// include the scheme — Discord only linkifies full https:// URLs.
+export type ShareSource = "pattern-lab" | "live-editor";
+
+export const SHARE_TOOLS: Record<ShareSource, { label: string; url: string }> = {
+  "pattern-lab": { label: "Patternflow Pattern Lab", url: "https://patternflow.work/pattern-lab" },
+  "live-editor": { label: "Patternflow Live Editor", url: "https://patternflow.work/pattern" },
+};
+
 export function licenseById(id: string): LicenseOption {
   return LICENSE_OPTIONS.find((option) => option.id === id) ?? LICENSE_OPTIONS[0];
 }
@@ -60,6 +70,7 @@ export type ShareMeta = {
   author: string;
   license: LicenseOption;
   date: string;
+  source: ShareSource;
 };
 
 // Top-of-file licence header. SPDX line is kept machine-readable.
@@ -75,9 +86,12 @@ export function buildLicenseHeader(meta: ShareMeta): string {
 }
 
 // Bottom-of-file attribution. Worded so people know it is not optional.
+// "Made with" (not "generated") — Pattern Lab covers AI generation, the
+// Experiment layer stack, and hand-written code alike.
 export function buildAttributionFooter(meta: ShareMeta): string {
+  const tool = SHARE_TOOLS[meta.source];
   return [
-    "// ── Made with Patternflow · https://patternflow.work ──",
+    `// ── Made with ${tool.label} · ${tool.url} ──`,
     `// Shared under ${meta.license.spdx}. Attribution is part of this licence —`,
     "// please keep this notice and the author credit above when you reuse,",
     "// remix, or redistribute this pattern. Do not delete it.",
@@ -85,11 +99,15 @@ export function buildAttributionFooter(meta: ShareMeta): string {
 }
 
 // Remove a header/footer we previously injected, so re-sharing an already
-// exported file does not stack duplicate blocks.
+// exported file does not stack duplicate blocks. Also strips the header/footer
+// the in-app Gemini generation stamps onto patterns (see gemini.ts), so shared
+// files carry ONE licence block — the user-titled one from this flow.
 export function stripShareWrapping(code: string): string {
   return code
     .replace(/\/\/ ===== Patternflow pattern =====[\s\S]*?\/\/ =+\n?/, "")
     .replace(/\/\/ ── Made with Patternflow[\s\S]*$/, "")
+    .replace(/^\s*\/\/ Pattern:[\s\S]*?\/\/ Made with Patternflow Pattern Lab[^\n]*\n?/, "")
+    .replace(/\/\/ ---\s*\n\/\/ (Generated at|Made with) [^\n]*patternflow\.work[\s\S]*$/, "")
     .trim();
 }
 
@@ -98,13 +116,16 @@ export function buildSharedPatternFile(code: string, meta: ShareMeta): string {
   return `${buildLicenseHeader(meta)}\n\n${body}\n\n${buildAttributionFooter(meta)}\n`;
 }
 
-// Minimal Discord caption. Licence/credit live in the file, so this stays light
-// and is identical on both pages (no live knob values).
+// Minimal Discord caption. Licence/credit live in the file, so this stays
+// light. The try-it link must be a full https:// URL — Discord does not
+// linkify bare domains — and points at the tool the share came from.
 export function buildShareCaption(meta: {
   title: string;
   author: string;
   videoUrl: string;
+  source: ShareSource;
 }): string {
+  const tool = SHARE_TOOLS[meta.source];
   const parts = [`🎛️ ${meta.title || "New Patternflow pattern"}`];
   if (meta.author) parts.push(`by ${meta.author}`);
   parts.push("");
@@ -112,7 +133,7 @@ export function buildShareCaption(meta: {
     parts.push(`🎬 ${meta.videoUrl}`);
     parts.push("");
   }
-  parts.push("Code attached (.js) — load it in the Live Editor at patternflow.work/pattern to try it.");
+  parts.push(`Code attached (.js) — try it: ${tool.url}`);
   parts.push("Licence & credit are in the file header. #patternflow");
   return parts.join("\n");
 }

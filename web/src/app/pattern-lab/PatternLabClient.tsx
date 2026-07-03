@@ -2415,6 +2415,7 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
         <SharePatternModal
           code={activeCode}
           cppConvertPrompt={buildCppPrompt()}
+          source="pattern-lab"
           onClose={() => setShareOpen(false)}
         />
       )}

@@ -17,6 +17,7 @@ import {
   slugifyName,
   todayIso,
   type ShareMeta,
+  type ShareSource,
 } from "@/lib/sharePattern";
 import styles from "./SharePatternModal.module.css";
 
@@ -26,6 +27,8 @@ type Props = {
   code: string;
   // The page's existing JS→C++ conversion prompt for the current code.
   cppConvertPrompt: string;
+  // Which tool the share came from — drives the caption link and attribution.
+  source: ShareSource;
 };
 
 function downloadFile(filename: string, text: string, mime: string) {
@@ -40,7 +43,7 @@ function downloadFile(filename: string, text: string, mime: string) {
   URL.revokeObjectURL(url);
 }
 
-export default function SharePatternModal({ onClose, code, cppConvertPrompt }: Props) {
+export default function SharePatternModal({ onClose, code, cppConvertPrompt, source }: Props) {
   const [title, setTitle] = useState("");
   // Remembered author name. The modal only mounts client-side (behind a click),
   // so reading localStorage in the initializer can't cause a hydration mismatch.
@@ -60,6 +63,7 @@ export default function SharePatternModal({ onClose, code, cppConvertPrompt }: P
     author: author.trim(),
     license: licenseById(licenseId),
     date: todayIso(),
+    source,
   };
 
   const flash = (setter: (value: boolean) => void) => {
@@ -85,6 +89,7 @@ export default function SharePatternModal({ onClose, code, cppConvertPrompt }: P
           title: meta.title,
           author: meta.author,
           videoUrl: hasVideo ? videoUrl.trim() : "",
+          source,
         }),
       );
       flash(setCaptionDone);

@@ -641,6 +641,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
         <SharePatternModal
           code={customJsCode}
           cppConvertPrompt={getConvertPrompt(customJsCode)}
+          source="live-editor"
           onClose={() => setShareOpen(false)}
         />
       )}
