@@ -1396,7 +1396,7 @@ Always-required includes:
 
 Conditional includes — only when actually used in your code:
 
-    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fract, lerp, approxLength, sin LUT
+    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fastPow, fract, lerp, approxLength, sin LUT
     #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT/buildPowLUTf, ColorStop, sampleRamp
     #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
     #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
@@ -1407,6 +1407,7 @@ Helper signatures — these are the FULL argument lists. Call them exactly like 
     float s  = PFMath::fastSin(angleRadians);
     float c  = PFMath::fastCos(angleRadians);
     float a  = PFMath::fastAtan2(dy, dx);                // returns (-π, π], like atan2f(y, x)
+    float w  = PFMath::fastPow(base, exponent);          // base > 0 (returns 0 for base <= 0, even with a negative exponent); ~0.1% error
     PFTables::init();                                    // in setup(); idempotent
     float r  = PFTables::rT[y * PANEL_RES_W + x];        // fixed-center radius, screen-height units
     float th = PFTables::thetaT[y * PANEL_RES_W + x];    // fixed-center angle, -π..π
@@ -1444,6 +1445,7 @@ The board has abundant flash and PSRAM, so the firmware trades memory for per-pi
 | Random value per grid cell (voronoi seeds, cell colors/phases) | PFNoise::cellHash(gx, gy) or cellHash(gx, gy, seed). |
 | Smooth organic field | PFNoise::valueNoise2D (cheapest) or perlin2D / fractal2D (richer). |
 | powf(v, CONSTANT) | v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT (byte out) / buildPowLUTf (float out) and index it in draw(). |
+| powf(v, e) where e VARIES per pixel or per frame | PFMath::fastPow(v, e) — never call libm powf inside the pixel loop. fastPow returns 0 for v <= 0; if the JS relied on Math.pow(0, negative) → Infinity → clamp-to-max, branch on v <= 0 explicitly and output that clamped value. |
 | sin/cos inside the pixel loop | PFMath::fastSin / fastCos (call buildSinLUT() in setup()). Full-precision sinf/cosf only for one-shot computations outside the loop — and for hash inputs, use cellHash instead entirely. |
 
 approxLength caveat: PFMath::approxLength is an octagonal approximation (~5% error — the isodistance contour is a visible octagon). With PFTables::rT and cheap sqrtf available it is almost never the right choice; only use it for non-visual weighting terms where the contour can never be seen. When in doubt, use PFTables::rT (fixed center) or sqrtf (moving center).
@@ -1479,6 +1481,7 @@ ${describePatchKnobs(patch)
     }${rampSection}
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
+- Wrap every time accumulator at its period — the device runs for days, and an unbounded t += dt * speed loses float precision until sin-driven motion visibly stutters (hours at high speed). If t only ever feeds fastSin/fastCos through INTEGER multipliers (t, t*2.0f, t*3.0f...), wrap with if (t > TWO_PI) t -= TWO_PI;. For non-integer multipliers, wrap at a common period instead (e.g. multipliers 0.1 and 1.2 → period 20π wraps both seamlessly). A drift that is fract()ed anyway (hue cycling) should be its own accumulator wrapped with PFMath::fract. Never leave a time accumulator unbounded.
 - Prefer multiplication and comparison over expensive functions and branches.
 - Route every expensive call through the "Expensive math" decision table above — the fast path exists for each common case; a literal translation of the JS math is almost always the slow answer.
 - Keep some pixels near full RGB output so LED brightness stays strong.
@@ -1492,9 +1495,10 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
 5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
-6. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.${
+6. Does every time accumulator wrap at its period (TWO_PI or a common multiple — see Performance)? An unbounded accumulator is a bug even if the preview looks fine.
+7. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.${
       usesValueField
-        ? "\n7. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
+        ? "\n8. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
         : ""
     }
 

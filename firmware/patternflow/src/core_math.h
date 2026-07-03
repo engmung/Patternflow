@@ -63,6 +63,41 @@ inline float approxLength(float x, float y) {
   return mx + mn * 0.375f;
 }
 
+// Fast powf replacement for exponents that VARY per pixel — a FIXED exponent
+// should be a 256-entry LUT instead (PFColor::buildPowLUT/buildPowLUTf).
+// exp2(p·log2(x)) with float bit-trick approximations (fastapprox-style):
+// ~0.1% typical error, invisible on an 8-bit panel, roughly an order of
+// magnitude cheaper than libm powf on the S3.
+//
+// Domain: x > 0. x <= 0 returns 0 — note powf(0, negative) would be +inf,
+// so a caller relying on that (value clamps to full white) must branch on
+// x <= 0 itself.
+inline float fastLog2(float x) {
+  union { float f; uint32_t i; } vx = { x };
+  union { uint32_t i; float f; } mx = { (vx.i & 0x007FFFFFu) | 0x3f000000u };
+  float y = (float)vx.i * 1.1920928955078125e-7f;  // vx.i / 2^23
+  return y - 124.22551499f
+           - 1.498030302f * mx.f
+           - 1.72587999f / (0.3520887068f + mx.f);
+}
+
+inline float fastExp2(float p) {
+  if (p < -126.0f) p = -126.0f;        // below float denormal range → 0-ish
+  else if (p > 126.0f) p = 126.0f;     // keep the bit cast from overflowing
+  float offset = (p < 0.0f) ? 1.0f : 0.0f;
+  int w = (int)p;
+  float z = p - (float)w + offset;
+  union { uint32_t i; float f; } v;
+  v.i = (uint32_t)((float)(1 << 23) *
+        (p + 121.2740575f + 27.7280233f / (4.84252568f - z) - 1.49012907f * z));
+  return v.f;
+}
+
+inline float fastPow(float x, float p) {
+  if (x <= 0.0f) return 0.0f;
+  return fastExp2(p * fastLog2(x));
+}
+
 // Fast atan2 replacement — polynomial approximation, max error ~0.0015 rad
 // (≈0.09°), no LUT, one divide for range reduction. Same quadrant behavior
 // and (-π, π] range as atan2f, at a fraction of the cost. atan2f is the most

@@ -40,9 +40,13 @@ struct Button {
   uint32_t lastChangeMs = 0;
   uint32_t pressStartMs = 0;
   bool longPressFired = false;
+  bool clickedFlag = false;
 
   void begin(int p) { pin = p; pinMode(pin, INPUT_PULLUP); }
-  
+
+  // Single edge scanner — call once per frame (readInputFrame does). All
+  // press-state transitions live here, so clicked() / longPressed() can't
+  // race each other on a release that lands between their calls.
   bool pressed() {
     bool cur = digitalRead(pin);
     uint32_t now = millis();
@@ -54,17 +58,26 @@ struct Button {
         longPressFired = false;
         return true;
       }
+      // Release edge. A hold that never crossed the long-press threshold is
+      // a click; if longPressed() fired during the hold, this release is the
+      // tail of that gesture, not a click.
+      if (!longPressFired) clickedFlag = true;
     }
     return false;
   }
-  
+
   bool isDown() { return digitalRead(pin) == LOW; }
 
+  // One-shot: true once after a short press-and-release. Consume every
+  // frame — an unread click stays latched until the next clicked() call.
+  bool clicked() {
+    bool c = clickedFlag;
+    clickedFlag = false;
+    return c;
+  }
+
   bool longPressed(uint32_t threshold = 1000) {
-    if (!isDown()) {
-      longPressFired = false;
-      return false;
-    }
+    if (!isDown()) return false;
     uint32_t now = millis();
     if (!longPressFired && (now - pressStartMs) > threshold) {
       longPressFired = true;
