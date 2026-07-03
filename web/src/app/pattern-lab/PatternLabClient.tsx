@@ -7,9 +7,14 @@ import {
   PATTERN_MATRIX_HEIGHT,
   PATTERN_MATRIX_WIDTH,
   PatternRuntime,
+  RAMP_MODES,
+  buildRampLUT,
   createIdleInput,
   knobTargetToDelta,
   renderPatternStill,
+  sampleRamp,
+  type ColorRamp,
+  type RampMode,
 } from "@/lib/patternHarness";
 import {
   LOGICAL_KNOB_DEFAULTS,
@@ -18,6 +23,7 @@ import {
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import {
+  COLOR_MODES,
   GEMINI_MODEL,
   GEMINI_THINKING_LEVEL,
   ORIENTATIONS,
@@ -26,18 +32,62 @@ import {
   generatePatternVariants,
   loadGeminiKey,
   saveGeminiKey,
+  type ColorMode,
   type Orientation,
   type PatternVariant,
   type ThinkingLevelKey,
 } from "@/lib/gemini";
+import {
+  DEFAULT_PATCH,
+  MAX_PATCH_LAYERS,
+  PATCH_BLENDS,
+  PATCH_GENERATORS,
+  PATCH_RANGES,
+  buildPatchCode,
+  createPatchLayer,
+  describePatchKnobs,
+  type PatchKnob,
+  type PatchLayer,
+  type PatchState,
+} from "@/lib/patternPatch";
 import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
 import { preset as originPreset } from "@/lib/presets/pattern-origin";
 import { livePresets } from "@/lib/presets";
 import styles from "./PatternLab.module.css";
 
-const knobLabels = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
+const DEFAULT_KNOB_LABELS = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
 const initialKnobs = [...LOGICAL_KNOB_DEFAULTS];
+
+// ── @knobs annotation ──
+// Patterns declare knob names + ranges with one comment line:
+//   // @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1
+// Loading code with this line renames the on-screen knobs and applies the
+// ranges ("-" skips a slot). The pattern reads input.knobValues directly, so
+// the user can still retune any range afterwards and the pattern follows.
+const KNOBS_ANNOTATION_RE = /^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m;
+
+type KnobAnnotationEntry = { name: string; min: number; max: number } | null;
+
+function parseKnobsAnnotation(code: string): KnobAnnotationEntry[] | null {
+  const match = code.match(KNOBS_ANNOTATION_RE);
+  if (!match) return null;
+  const result: KnobAnnotationEntry[] = [null, null, null, null];
+  match[1]
+    .split(",")
+    .slice(0, 4)
+    .forEach((part, index) => {
+      const entry = part.trim();
+      if (!entry || entry === "-") return;
+      const m = entry.match(/^(.+?)\s*=\s*(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/);
+      if (!m) return;
+      const min = Number(m[2]);
+      const max = Number(m[3]);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
+      result[index] = { name: m[1].trim().slice(0, 14), min, max };
+    });
+  return result.some(Boolean) ? result : null;
+}
 const defaultRanges: KnobRange[] = LOGICAL_KNOB_RANGES.map(([min, max]) => [min, max]);
 const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
@@ -139,6 +189,117 @@ function updateRangeValue(range: KnobRange, edge: "min" | "max", nextValue: numb
   return next;
 }
 
+// ── Color ramp (value-field coloring) ──────────────────────────────────────
+// UI state keeps hex strings for <input type="color">; the harness ColorRamp
+// (RGB tuples) is derived via useMemo.
+
+type RampStopState = { position: number; color: string };
+type RampState = { stops: RampStopState[]; mode: RampMode; wrap: boolean };
+
+const DEFAULT_RAMP: RampState = {
+  stops: [
+    { position: 0, color: "#081840" },
+    { position: 0.55, color: "#ff4d00" },
+    { position: 1, color: "#ffe89a" },
+  ],
+  mode: "linear",
+  wrap: false,
+};
+
+const RAMP_STORAGE = "patternflow_ramp_v1";
+const MAX_RAMP_STOPS = 8;
+
+function loadStoredRamp(): RampState {
+  if (typeof window === "undefined") return DEFAULT_RAMP;
+  try {
+    const raw = window.localStorage.getItem(RAMP_STORAGE);
+    if (!raw) return DEFAULT_RAMP;
+    const parsed = JSON.parse(raw) as Partial<RampState>;
+    if (!Array.isArray(parsed.stops) || parsed.stops.length === 0) return DEFAULT_RAMP;
+    return {
+      stops: parsed.stops
+        .slice(0, MAX_RAMP_STOPS)
+        .map((stop) => ({
+          position: Math.max(0, Math.min(1, Number(stop?.position) || 0)),
+          color: /^#[0-9a-fA-F]{6}$/.test(String(stop?.color)) ? String(stop.color) : "#ffffff",
+        })),
+      mode: RAMP_MODES.includes(parsed.mode as RampMode) ? (parsed.mode as RampMode) : "linear",
+      wrap: Boolean(parsed.wrap),
+    };
+  } catch {
+    return DEFAULT_RAMP;
+  }
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const value = parseInt(hex.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+  return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
+}
+
+const PATCH_STORAGE = "patternflow_patch_v1";
+
+function loadStoredPatch(): PatchState {
+  if (typeof window === "undefined") return DEFAULT_PATCH;
+  try {
+    const raw = window.localStorage.getItem(PATCH_STORAGE);
+    if (!raw) return DEFAULT_PATCH;
+    const parsed = JSON.parse(raw) as PatchState;
+    if (!Array.isArray(parsed.layers) || parsed.layers.length === 0) return DEFAULT_PATCH;
+    return parsed;
+  } catch {
+    return DEFAULT_PATCH;
+  }
+}
+
+// Demo pattern for the value-field workflow: pure 0..1 field via setValue,
+// color comes entirely from the Color Ramp panel.
+const VFIELD_DEMO_CODE = `// V-field demo — this pattern outputs only a 0..1 value field.
+// Color comes from the Color Ramp panel, not from this code.
+// @knobs Warp=0..2.2, Speed=0.1..10, Zoom=0.6..3, Bands=0..8
+
+export function setup(params) {
+  params.t = 0;
+}
+
+export function update(dt, input, params) {
+  const kv = input.knobValues || [1.1, 2.0, 1.5, 0];
+  params.warp = kv[0];
+  params.speed = kv[1];
+  params.zoom = kv[2];
+  params.bands = Math.round(kv[3]);
+  params.t += dt * params.speed * 0.3;
+}
+
+export function draw(display, params, time) {
+  const w = display.width;
+  const h = display.height;
+  const t = params.t;
+  const zoom = params.zoom;
+  const cx = 0.5 + 0.22 * Math.sin(t * 0.7);
+  const cy = 0.5 + 0.22 * Math.cos(t * 0.9);
+
+  for (let y = 0; y < h; y++) {
+    const ny = (y / h - 0.5);
+    for (let x = 0; x < w; x++) {
+      const nx = (x / h - w / h * 0.5);
+      const dx = x / h - cx * (w / h);
+      const dy = y / h - cy;
+      const ring = Math.sin((dx * dx + dy * dy) * 14 * zoom - t * 2.0);
+      const wave = Math.sin(nx * 6 * zoom + t + params.warp * Math.sin(ny * 5 * zoom - t * 0.8));
+      let v = 0.5 + 0.25 * ring + 0.25 * wave;
+      if (params.bands > 1) {
+        v = Math.floor(v * params.bands) / (params.bands - 1);
+      }
+      display.setValue(x, y, v);
+    }
+  }
+}`;
+
 type GalleryItem = PatternVariant & { id: string; pinned?: boolean };
 
 // Cap the gallery without ever dropping pinned (kept) items.
@@ -210,6 +371,8 @@ function VariantPreview({
   pinned,
   knobsRef,
   rangesRef,
+  rampRef,
+  recolorRef,
   onSelect,
 }: {
   code: string;
@@ -220,6 +383,8 @@ function VariantPreview({
   pinned: boolean;
   knobsRef: React.MutableRefObject<number[]>;
   rangesRef: React.MutableRefObject<KnobRange[]>;
+  rampRef: React.MutableRefObject<ColorRamp>;
+  recolorRef: React.MutableRefObject<boolean>;
   onSelect: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -258,6 +423,10 @@ function VariantPreview({
       const knobNormalized = getNormalizedKnobs(currentKnobs, currentRanges);
       previousKnobs = [...currentKnobs];
 
+      // Ramp is shared with the main preview; identity check keeps this free.
+      if (runtime.ramp !== rampRef.current) runtime.setRamp(rampRef.current);
+      runtime.recolor = recolorRef.current;
+
       const result = runtime.renderFrame(
         dt,
         simTime,
@@ -277,7 +446,7 @@ function VariantPreview({
 
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [code, knobsRef, rangesRef]);
+  }, [code, knobsRef, rangesRef, rampRef, recolorRef]);
 
   return (
     <button
@@ -317,6 +486,7 @@ export default function PatternLabClient() {
   const [code, setCode] = useState(originPreset.code);
   const [knobs, setKnobs] = useState(initialKnobs);
   const [ranges, setRanges] = useState<KnobRange[]>(defaultRanges);
+  const [knobLabels, setKnobLabels] = useState<string[]>(DEFAULT_KNOB_LABELS);
   const [running, setRunning] = useState(true);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [renderStats, setRenderStats] = useState({ fps: 0, ms: 0 });
@@ -340,7 +510,12 @@ export default function PatternLabClient() {
   const [genThinking, setGenThinking] = useState<ThinkingLevelKey>(GEMINI_THINKING_LEVEL);
   const [genOrientation, setGenOrientation] = useState<Orientation>("landscape");
   const [genRefs, setGenRefs] = useState(DEFAULT_REF_COUNT);
-  const [editorView, setEditorView] = useState<"code" | "gallery">("code");
+  const [genColorMode, setGenColorMode] = useState<ColorMode>("vfield");
+  const [rampState, setRampState] = useState<RampState>(loadStoredRamp);
+  const [recolor, setRecolor] = useState(false);
+  const [selectedStopIndex, setSelectedStopIndex] = useState(0);
+  const [editorView, setEditorView] = useState<"code" | "gallery" | "experiment">("code");
+  const [patch, setPatch] = useState<PatchState>(loadStoredPatch);
   const [now, setNow] = useState(0);
   const removedJobsRef = useRef<Set<string>>(new Set());
 
@@ -356,7 +531,241 @@ export default function PatternLabClient() {
   const btnHeldRef = useRef([false, false, false, false]);
   const btnPressPendingRef = useRef([false, false, false, false]);
 
-  const cost = useMemo(() => analyzeEsp32Cost(code), [code]);
+  // The Experiment tab renders its layer patch by compiling it to ordinary
+  // pattern code and feeding the same runtime; everything downstream (ramp,
+  // cost, prompts) just sees code.
+  const patchCode = useMemo(() => buildPatchCode(patch), [patch]);
+  const activeCode = editorView === "experiment" ? patchCode : code;
+
+  const cost = useMemo(() => analyzeEsp32Cost(activeCode), [activeCode]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PATCH_STORAGE, JSON.stringify(patch));
+    } catch {
+      // Ignore private-mode / storage-disabled sessions.
+    }
+  }, [patch]);
+
+  const updatePatch = (patchUpdate: Partial<PatchState>) => {
+    setPatch((current) => ({ ...current, ...patchUpdate }));
+  };
+
+  const updatePatchLayer = (index: number, layerUpdate: Partial<PatchLayer>) => {
+    setPatch((current) => ({
+      ...current,
+      layers: current.layers.map((layer, layerIndex) =>
+        layerIndex === index ? { ...layer, ...layerUpdate } : layer,
+      ),
+    }));
+  };
+
+  const addPatchLayer = () => {
+    setPatch((current) =>
+      current.layers.length >= MAX_PATCH_LAYERS
+        ? current
+        : { ...current, layers: [...current.layers, createPatchLayer(current.layers.length)] },
+    );
+  };
+
+  const removePatchLayer = (index: number) => {
+    setPatch((current) =>
+      current.layers.length <= 1
+        ? current
+        : { ...current, layers: current.layers.filter((_, layerIndex) => layerIndex !== index) },
+    );
+  };
+
+  const sendPatchToEditor = () => {
+    updateCode(patchCode);
+    setEditorView("code");
+  };
+
+  // ── Patch knob bindings ──
+  // Binding a slider to a knob syncs the knob's min/max to the parameter's
+  // range and sets the knob to the current value, so knob value = parameter
+  // value 1:1. The select next to each slider picks the knob. -1 = unbound.
+  const isKnobBound = (knob: PatchKnob | undefined): knob is number =>
+    typeof knob === "number" && knob >= 0 && knob <= 3;
+
+  // Bound params show/take the knob's raw value — the knob's own min/max is
+  // the range authority (widening the knob range extends the parameter).
+  const patchParamValue = (knob: PatchKnob | undefined, value: number) =>
+    isKnobBound(knob) ? knobs[knob] ?? value : value;
+
+  // Apply the binding to patch state, then retune the chosen knob to the
+  // parameter: range = parameter range, value = current parameter value, so
+  // nothing visibly jumps at the moment of binding.
+  const bindPatchKnob = (
+    knob: number,
+    range: readonly [number, number],
+    value: number,
+    apply: () => void,
+  ) => {
+    apply();
+    if (knob < 0 || knob > 3) return;
+    // Retune as a starting point only — the user can widen the knob's min/max
+    // afterwards and the parameter follows it (no clamp in the generated code).
+    const clamped = Math.max(range[0], Math.min(range[1], value));
+    setRanges((current) =>
+      current.map((entry, index): KnobRange => (index === knob ? [range[0], range[1]] : entry)),
+    );
+    setKnobs((current) => current.map((entry, index) => (index === knob ? clamped : entry)));
+  };
+
+  const renderBindSelect = (
+    knob: PatchKnob | undefined,
+    onChange: (knob: number) => void,
+    label: string,
+  ) => (
+    <select
+      className={styles.patchBind}
+      value={isKnobBound(knob) ? knob : -1}
+      aria-label={`${label} knob binding`}
+      title="Drive this slider with a knob (K1–K4). Bound sliders follow the knob and become the pattern's knobs in C++."
+      onChange={(event) => onChange(Number(event.target.value))}
+    >
+      <option value={-1}>–</option>
+      <option value={0}>K1</option>
+      <option value={1}>K2</option>
+      <option value={2}>K3</option>
+      <option value={3}>K4</option>
+    </select>
+  );
+
+  // Derived harness ramp — referentially stable so per-frame identity checks
+  // in the render loops only trigger a LUT rebuild when the ramp truly changed.
+  const ramp = useMemo<ColorRamp>(
+    () => ({
+      stops: rampState.stops.map((stop) => ({
+        position: stop.position,
+        color: hexToRgb(stop.color),
+      })),
+      mode: rampState.mode,
+      wrap: rampState.wrap,
+    }),
+    [rampState],
+  );
+  const rampRef = useRef(ramp);
+  const recolorRef = useRef(recolor);
+  const rampBarRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    rampRef.current = ramp;
+  }, [ramp]);
+
+  useEffect(() => {
+    recolorRef.current = recolor;
+  }, [recolor]);
+
+  // Persist the ramp across sessions (best effort).
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RAMP_STORAGE, JSON.stringify(rampState));
+    } catch {
+      // Ignore private-mode / storage-disabled sessions.
+    }
+  }, [rampState]);
+
+  // Paint the gradient preview bar whenever the ramp changes.
+  useEffect(() => {
+    const canvas = rampBarRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    const lut = buildRampLUT(ramp);
+    const imageData = context.createImageData(256, 1);
+    for (let i = 0; i < 256; i++) {
+      imageData.data[i * 4] = lut[i * 3];
+      imageData.data[i * 4 + 1] = lut[i * 3 + 1];
+      imageData.data[i * 4 + 2] = lut[i * 3 + 2];
+      imageData.data[i * 4 + 3] = 255;
+    }
+    context.putImageData(imageData, 0, 0);
+  }, [ramp]);
+
+  const updateRampStop = useCallback((index: number, patch: Partial<RampStopState>) => {
+    setRampState((current) => ({
+      ...current,
+      stops: current.stops.map((stop, stopIndex) =>
+        stopIndex === index ? { ...stop, ...patch } : stop,
+      ),
+    }));
+  }, []);
+
+  // ── Gradient-editor interactions: click bar = add stop, drag line = move,
+  // click line = select, Delete = remove. ──
+  const rampTrackRef = useRef<HTMLDivElement | null>(null);
+  const stopDragRef = useRef<{ index: number } | null>(null);
+
+  const rampPositionFromClientX = useCallback((clientX: number) => {
+    const track = rampTrackRef.current;
+    if (!track) return 0;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const raw = (clientX - rect.left) / rect.width;
+    return Math.round(Math.max(0, Math.min(1, raw)) * 1000) / 1000;
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const drag = stopDragRef.current;
+      if (!drag) return;
+      event.preventDefault();
+      updateRampStop(drag.index, { position: rampPositionFromClientX(event.clientX) });
+    };
+    const endDrag = () => {
+      stopDragRef.current = null;
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
+    window.addEventListener("blur", endDrag);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("blur", endDrag);
+    };
+  }, [rampPositionFromClientX, updateRampStop]);
+
+  const addRampStop = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    if (rampState.stops.length >= MAX_RAMP_STOPS) return;
+    event.preventDefault();
+    const position = rampPositionFromClientX(event.clientX);
+    // New stop inherits the ramp's current color at that spot, so adding a
+    // stop never visibly changes the gradient until the user recolors it.
+    const [r, g, b] = sampleRamp(ramp, position);
+    const newIndex = rampState.stops.length;
+    setRampState((current) => ({
+      ...current,
+      stops: [...current.stops, { position, color: rgbToHex(r, g, b) }],
+    }));
+    setSelectedStopIndex(newIndex);
+    stopDragRef.current = { index: newIndex };
+  };
+
+  const startStopDrag = (event: React.PointerEvent<HTMLButtonElement>, index: number) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedStopIndex(index);
+    stopDragRef.current = { index };
+  };
+
+  const deleteRampStop = (index: number) => {
+    setRampState((current) => {
+      if (current.stops.length <= 1) return current;
+      return { ...current, stops: current.stops.filter((_, stopIndex) => stopIndex !== index) };
+    });
+    setSelectedStopIndex((current) => {
+      if (current === index) return 0;
+      return current > index ? current - 1 : current;
+    });
+  };
+
+  const activeStopIndex = Math.min(selectedStopIndex, rampState.stops.length - 1);
+  const activeStop = rampState.stops[activeStopIndex];
 
   const setRuntimeErrorSafe = useCallback((message: string | null) => {
     if (runtimeErrorRef.current === message) return;
@@ -381,9 +790,42 @@ export default function PatternLabClient() {
   );
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => loadCode(code), 180);
+    const timeout = window.setTimeout(() => loadCode(activeCode), 180);
     return () => window.clearTimeout(timeout);
-  }, [code, loadCode]);
+  }, [activeCode, loadCode]);
+
+  // Apply a pattern's @knobs annotation only when the annotation text itself
+  // changes — manual label/range edits persist until different code arrives.
+  const lastKnobsAnnotationRef = useRef<string | null>(null);
+
+  const applyKnobsAnnotation = (nextCode: string) => {
+    const raw = nextCode.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
+    if (raw === lastKnobsAnnotationRef.current) return;
+    lastKnobsAnnotationRef.current = raw;
+    const parsed = raw ? parseKnobsAnnotation(nextCode) : null;
+    if (!parsed) return;
+    setKnobLabels((current) => current.map((label, index) => parsed[index]?.name ?? label));
+    setRanges((current) =>
+      current.map((range, index): KnobRange => {
+        const entry = parsed[index];
+        return entry ? [entry.min, entry.max] : range;
+      }),
+    );
+    setKnobs((current) =>
+      current.map((value, index) => {
+        const entry = parsed[index];
+        if (!entry) return value;
+        return Math.max(entry.min, Math.min(entry.max, value));
+      }),
+    );
+  };
+
+  // Single entry point for replacing the editor code so annotations apply on
+  // every path (typing/pasting, gallery load, demo, patch send).
+  const updateCode = (nextCode: string) => {
+    applyKnobsAnnotation(nextCode);
+    setCode(nextCode);
+  };
 
   useEffect(() => {
     knobsRef.current = knobs;
@@ -438,6 +880,8 @@ export default function PatternLabClient() {
       const runtime = runtimeRef.current;
       const canvas = canvasRef.current;
       if (runtime && canvas) {
+        if (runtime.ramp !== rampRef.current) runtime.setRamp(rampRef.current);
+        runtime.recolor = recolorRef.current;
         const startedAt = performance.now();
         const result = runtime.renderFrame(
           dt,
@@ -685,12 +1129,14 @@ export default function PatternLabClient() {
       const targetValue = activeRange[0] + value * (activeRange[1] - activeRange[0]);
       const targets = knobs.map((knob, index) => index === activeSweepKnob ? targetValue : knob);
       const knobStart = ranges.map(getRangeMidpoint);
-      const result = renderPatternStill(code, {
+      const result = renderPatternStill(activeCode, {
         knobStart,
         knobTargets: targets,
         knobRanges: ranges,
         knobWrap: LOGICAL_KNOB_WRAP,
         knobUnitsPerTurn: LOGICAL_KNOB_UNITS_PER_TURN,
+        ramp,
+        recolor,
       });
       const src = dataToUrl(result.data);
       return {
@@ -711,7 +1157,7 @@ export default function PatternLabClient() {
         getNormalizedKnobs(knobs, ranges).map((value, index) => [`knob${index + 1}`, value]),
       ),
       esp32Cost: cost,
-      code,
+      code: activeCode,
     };
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
@@ -719,7 +1165,7 @@ export default function PatternLabClient() {
   };
 
   const copyVariantPrompt = async () => {
-    await navigator.clipboard.writeText(buildVariantCopyPrompt(code, knobs, ranges));
+    await navigator.clipboard.writeText(buildVariantCopyPrompt(activeCode, knobs, ranges, genColorMode));
     setPromptCopied(true);
     window.setTimeout(() => setPromptCopied(false), 1200);
   };
@@ -766,10 +1212,10 @@ export default function PatternLabClient() {
 
     const seedKnobs = [...knobs];
     const seedRanges = ranges.map((range): KnobRange => [...range]);
-    const examples = sampleExamples(code, genRefs);
+    const examples = sampleExamples(activeCode, genRefs);
     const seedWithCurrent = genRefs > 0;
 
-    generatePatternVariants({ apiKey: geminiKey, code, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent })
+    generatePatternVariants({ apiKey: geminiKey, code: activeCode, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent, colorMode: genColorMode })
       .then((items) => {
         if (removedJobsRef.current.has(jobId)) return;
         const stamped: GalleryItem[] = items.map((item, index) => ({ ...item, id: `${jobId}-${index}` }));
@@ -786,6 +1232,7 @@ export default function PatternLabClient() {
           requested: count,
           count: items.length,
           thinking: thinkingLevel,
+          color_mode: genColorMode,
           ms: Date.now() - job.startedAt,
         });
       })
@@ -826,7 +1273,7 @@ export default function PatternLabClient() {
 
   const onCardActivate = (item: GalleryItem) => {
     if (selectMode) toggleSelected(item.id);
-    else setCode(item.code);
+    else updateCode(item.code);
   };
 
   const deleteSelected = () => {
@@ -875,7 +1322,55 @@ export default function PatternLabClient() {
       })
       .join("\n");
 
+    // Value-field patterns carry no color of their own. The ramp LUT is
+    // precomputed HERE (same buildRampLUT as the live preview) and emitted as
+    // a finished C array — models must not write sorting/interpolation code,
+    // which is exactly where weaker models broke (unsorted stops → all-black
+    // LUT, hallucinated tokens in hand-rolled lerp loops).
+    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(activeCode);
+    let rampSection = "";
+    if (usesValueField) {
+      const lut = buildRampLUT(ramp);
+      const lutRows: string[] = [];
+      for (let i = 0; i < 256; i += 8) {
+        const entries: string[] = [];
+        for (let j = i; j < i + 8; j++) {
+          entries.push(`{${lut[j * 3]},${lut[j * 3 + 1]},${lut[j * 3 + 2]}}`);
+        }
+        lutRows.push(`  ${entries.join(",")},`);
+      }
+      const sortedStops = [...rampState.stops].sort((a, b) => a.position - b.position);
+      const stopSummary = sortedStops
+        .map((stop) => `${stop.position.toFixed(3)}:${stop.color}`)
+        .join(", ");
+      rampSection = `
+## Color ramp (value-field pattern) — PRE-BAKED, copy verbatim
+This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user's color ramp has already been baked into the 256-entry RGB lookup table below (it encodes the stops, interpolation mode, and wrap exactly as the web preview renders them).
+
+Embed this table in the namespace EXACTLY as given:
+
+static const uint8_t RAMP_LUT[256][3] = {
+${lutRows.join("\n")}
+};
+
+Rules:
+- Copy the table verbatim — do NOT recompute, resample, reorder, shorten, or "optimize" it, and do NOT write any stop/interpolation/sorting code. The table IS the ramp.
+- In draw(): clamp v to 0..1, then
+    int li = (int)(v * 255.0f + 0.5f);
+    PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
+- Do NOT use PFColor:: functions for this pattern's colors; the LUT replaces all color work.
+- (Reference only, for the header comment: stops ${stopSummary}; mode ${rampState.mode}; wrap ${rampState.wrap ? "on" : "off"}.)
+`;
+    }
+
     return `Convert the JavaScript LED pattern below into a single complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
+${
+  usesValueField
+    ? `
+NOTE: the JS pattern draws with display.setValue(x, y, v) — a 0..1 value field colored by a lookup ramp (see "Color ramp" section below). There is no setPixel in the source; your C++ maps v through the baked ramp LUT and writes the resulting RGB with PFCanvas::setPixel.
+`
+    : ""
+}
 
 ## Output format
 - One single code block labeled cpp. No prose before or after the block.
@@ -901,14 +1396,33 @@ Always-required includes:
 
 Conditional includes — only when actually used in your code:
 
-    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-    #include "src/core_color.h"  // PFColor:: hsvToRgb, ColorStop, sampleRamp
-    #include "src/core_noise.h"  // PFNoise:: perlin2D, fractal2D
+    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fract, lerp, approxLength, sin LUT
+    #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT/buildPowLUTf, ColorStop, sampleRamp
+    #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
+    #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
+
+Helper signatures — these are the FULL argument lists. Call them exactly like this; do not add size arguments, reorder parameters, or invent overloads:
+
+    PFMath::buildSinLUT();                               // in setup(); idempotent
+    float s  = PFMath::fastSin(angleRadians);
+    float c  = PFMath::fastCos(angleRadians);
+    float a  = PFMath::fastAtan2(dy, dx);                // returns (-π, π], like atan2f(y, x)
+    PFTables::init();                                    // in setup(); idempotent
+    float r  = PFTables::rT[y * PANEL_RES_W + x];        // fixed-center radius, screen-height units
+    float th = PFTables::thetaT[y * PANEL_RES_W + x];    // fixed-center angle, -π..π
+    float h  = PFNoise::cellHash(gx, gy);                // int cell coords → 0..1; optional 3rd int seed
+    float n  = PFNoise::valueNoise2D(x, y);              // floats → 0..1
+    float p  = PFNoise::perlin2D(x, y);                  // floats → ≈ -1..1
+    float f  = PFNoise::fractal2D(x, y, octaves, roughness);
+    PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8);        // h/s/v floats 0..1; r8/g8/b8 are uint8_t& outputs
+    static uint8_t plut[256];  PFColor::buildPowLUT(exponent, plut);   // fills (i/255)^exp scaled to 0..255
+    static float  plutf[256];  PFColor::buildPowLUTf(exponent, plutf); // fills (i/255)^exp as 0..1 floats
 
 Other interface rules:
 - Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
 - All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
 - The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
+- Macro collisions: Arduino.h and config.h define macros that will preprocessor-mangle same-named declarations into compile errors. Do NOT define your own variables, constants, or functions named PI, TWO_PI, HALF_PI, DEG_TO_RAD, RAD_TO_DEG, EULER, min, max, abs, sq, round, radians, degrees, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, or FREQ_STEP. Use the existing PI / TWO_PI constants directly, use fminf/fmaxf/fabsf for your own helpers, and prefix pattern constants with the pattern name (e.g. CELLS_TWO_PI, CELLS_SPEED_STEP).
 
 ## DO NOT reimplement existing helpers
 The firmware ships tested, optimized versions of these. Using your own breaks shared optimizations (color calibration, sin LUT sharing) and wastes ROM. If the JavaScript source contains an inline hsvToRgb or sin LUT, strip it and call the firmware helper instead.
@@ -916,23 +1430,25 @@ The firmware ships tested, optimized versions of these. Using your own breaks sh
 - DO NOT write your own HSV → RGB converter. Not as a separate function, not inline with a switch statement, not as a chain of fmodf + conditionals. Call PFColor::hsvToRgb(h, s, v, r, g, b). h is normalized 0..1, not degrees.
 - DO NOT write your own sin LUT or fast-sin approximation. Call PFMath::buildSinLUT() once in setup(); use PFMath::fastSin / fastCos in draw().
 - DO NOT write your own Perlin or fractal noise. Use PFNoise::perlin2D / fractal2D.
+- DO NOT write your own atan/atan2 approximation or angle LUT. Use PFMath::fastAtan2 or the precomputed PFTables::thetaT (see the decision table).
+- DO NOT translate sin-based hash formulas literally. If the JS contains fract(sin(x * 127.1 + y * 311.7) * 43758.5453) or similar, replace it with PFNoise::cellHash(gx, gy) (add a seed argument to decorrelate multiple uses). NEVER build a hash from PFMath::fastSin — the sin LUT's tiny error is amplified ~44,000× by the big multiplier and destroys the hash with visible banding.
 
-## Distance and sqrt — default to sqrtf
-Use sqrtf(dx*dx + dy*dy) by default for distance calculations. The ESP32-S3 has a hardware FPU and sqrtf is cheap. Two sqrtf calls per pixel cost under 1 ms per frame on a 128×64 panel.
+## Expensive math — pick the tool by situation
+The board has abundant flash and PSRAM, so the firmware trades memory for per-pixel math. Choose per this table; it overrides any literal translation of the JS:
 
-PFMath::approxLength is an octagonal approximation (~5% error; the isodistance contour is an octagon, not a circle). It is a niche micro-optimization, NOT a default. Using it where distance shapes the visible pattern produces clearly polygonal artifacts on the panel.
+| Situation in the pattern | Use this |
+|---|---|
+| Radius and/or angle from the FIXED panel center (rings, spirals, vortex, kaleidoscope) | PFTables::init() once in setup(); then PFTables::rT[i] / PFTables::thetaT[i] in draw() with i = y * PANEL_RES_W + x. Zero per-pixel cost — never call sqrtf or atan2f for a fixed center. rT is in screen-height units (0 center, 0.5 top/bottom edge); thetaT is -π..π. |
+| Angle from a MOVING center | PFMath::fastAtan2(dy, dx) (~0.01° max error). Never call atan2f inside the pixel loop. |
+| Distance from a MOVING center | sqrtf(dx*dx + dy*dy) — the S3 FPU makes sqrtf cheap; two per pixel cost under 1 ms per frame. |
+| Random value per grid cell (voronoi seeds, cell colors/phases) | PFNoise::cellHash(gx, gy) or cellHash(gx, gy, seed). |
+| Smooth organic field | PFNoise::valueNoise2D (cheapest) or perlin2D / fractal2D (richer). |
+| powf(v, CONSTANT) | v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT (byte out) / buildPowLUTf (float out) and index it in draw(). |
+| sin/cos inside the pixel loop | PFMath::fastSin / fastCos (call buildSinLUT() in setup()). Full-precision sinf/cosf only for one-shot computations outside the loop — and for hash inputs, use cellHash instead entirely. |
 
-DO NOT use approxLength when ANY of the following applies:
-- The variable is named radius / dist / r / length and feeds rotation, hue, brightness, or ring placement.
-- The expression uses 1/dist or amplification by inverse distance (vortex cores, ripple centers).
-- The pattern has visible concentric rings, swirls, ripples, kaleidoscope sectors, or radial gradients.
-- The distance is compared to a threshold to draw a shape: if (dist < r) { ... }.
-- Multiple distance fields are composed (caustics, wavefronts, beat patterns).
-- The output has visible circular structure of any kind.
+approxLength caveat: PFMath::approxLength is an octagonal approximation (~5% error — the isodistance contour is a visible octagon). With PFTables::rT and cheap sqrtf available it is almost never the right choice; only use it for non-visual weighting terms where the contour can never be seen. When in doubt, use PFTables::rT (fixed center) or sqrtf (moving center).
 
-approxLength is only acceptable when the distance is a purely scalar input to a noise lookup or a non-visual weighting term — i.e. you could not draw the contour even if you tried.
-
-When in doubt, use sqrtf.
+Last resort — half-resolution rendering: if the pattern is genuinely smooth/low-frequency and still too slow after the table above, compute the value on a 64×32 grid inside draw() and write each result to a 2×2 pixel block. Only for soft gradients; never for patterns with single-pixel details.
 
 ## Knob conversion
 - The JS preview uses input.knobValues as absolute values (after the Pattern Lab min/max ranges are applied).
@@ -940,31 +1456,51 @@ When in doubt, use sqrtf.
 - For each knob, store the parameter as state initialized to its current Pattern Lab value below.
 - In update(): param += input.knobDeltas[i] * STEP[i]; then constrain to the min/max range.
 - Use the calibrated encoder step below as STEP so physical encoders match the live editor and one detent feels the same on both.
-- Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS.
+- If the JS reads input.knobNormalized[i] (e.g. generated layer-stack patterns), keep the raw knob state exactly as above and compute the normalized value from it each frame: (raw - min) / (max - min). Do NOT store the normalized value as the knob state itself.
+- Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS. Knobs the comments mark as unused get the label "-" and no update logic.
 - Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that. Never consume long-press; that gesture is reserved for the firmware mode switcher.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
+${
+      editorView === "experiment"
+        ? `
+## Layer-patch knob mappings
+This pattern was built in the Experiment layer stack. Each bound parameter reads input.knobValues[i] as an ABSOLUTE value with no extra clamp — knob value = parameter value. The AUTHORITATIVE min/max for each knob is the "Pattern Lab knob ranges and current values" list above (the user may have retuned it); ranges in the roles below are only bind-time defaults:
+${describePatchKnobs(patch)
+  .map((role) => `- ${role}`)
+  .join("\n")}
 
+- In C++, each bound parameter is knob state: initialize to that knob's current value above, update with param += input.knobDeltas[i] * STEP, clamp to that knob's authoritative min/max. Use STEP = (MAX - MIN) / 20 so one full encoder turn (~20 detents) sweeps the range.
+- Name the min/max as constants (e.g. PATCH_SCALE1_MIN 1.0f / PATCH_SCALE1_MAX 100.0f) — do not collapse them to 0..1.
+- Knobs marked (unused) get KNOB_LABELS entry "-" and no update logic.
+`
+        : ""
+    }${rampSection}
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
 - Prefer multiplication and comparison over expensive functions and branches.
-- Use PFMath::fastSin / fastCos inside the pixel loop; restrict sinf/cosf to one-shot computations outside the loop.
+- Route every expensive call through the "Expensive math" decision table above — the fast path exists for each common case; a literal translation of the JS math is almost always the slow answer.
 - Keep some pixels near full RGB output so LED brightness stays strong.
 - Preserve local color logic from the JS — value-based bands, distance-driven hue, threshold steps, etc. The visual character lives in those rules.
 
 ## Self-check before output
 Before finalizing your code block, verify each of these. If any answer is wrong, fix it.
 
-1. Did I use approxLength anywhere? If yes, is the distance truly invisible to the viewer (no rings, no rotation driver, no 1/dist amplification)? If not certain, change to sqrtf.
-2. Did I write my own hsvToRgb, sin LUT, or noise function? If yes, replace with PFColor / PFMath / PFNoise.
+1. Does the pattern use radius or angle from the FIXED panel center while calling sqrtf/atan2f per pixel? If yes, switch to PFTables::rT / PFTables::thetaT. Is atan2f called anywhere inside the pixel loop? If yes, switch to PFMath::fastAtan2. If I used approxLength, is its octagonal contour truly invisible? If not certain, use rT/sqrtf.
+2. Did I write my own hsvToRgb, sin LUT, atan2 approximation, noise function, or a sin-based hash — or build a hash from PFMath::fastSin? If yes, replace with the PFColor / PFMath / PFNoise helpers.
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
 5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
+6. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.${
+      usesValueField
+        ? "\n7. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
+        : ""
+    }
 
 ## JavaScript source
 \`\`\`javascript
-${code}
+${activeCode}
 \`\`\``;
 
   };
@@ -1004,59 +1540,146 @@ ${code}
 
           <div className={styles.controls}>
             {knobs.map((value, index) => (
-              <div key={knobLabels[index]} className={styles.knobControl}>
-                <div className={styles.knobHeader}>
-                  <span>{knobLabels[index]}</span>
-                  <div className={styles.knobHeaderMeta}>
-                    <strong>{formatKnob(value)}</strong>
-                    <button
-                      type="button"
-                      className={styles.knobButton}
-                      aria-label={`${knobLabels[index]} button`}
-                      title="Encoder button (short press)"
-                      onPointerDown={(event) => {
-                        event.preventDefault();
-                        pressButton(index);
-                      }}
-                      onPointerUp={() => releaseButton(index)}
-                      onPointerLeave={() => releaseButton(index)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          pressButton(index);
-                        }
-                      }}
-                      onKeyUp={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          releaseButton(index);
-                        }
-                      }}
-                    >
-                      Push
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.knobRow}>
-                  <label className={styles.rangeEndpoint}>
-                    <span>min</span>
-                    {renderRangeValue(index, "min")}
-                  </label>
-                  <input
-                    type="range"
-                    min={ranges[index][0]}
-                    max={ranges[index][1]}
-                    step="0.001"
-                    value={value}
-                    aria-label={`${knobLabels[index]} value`}
-                    onChange={(event) => updateKnob(index, Number(event.target.value))}
-                  />
-                  <label className={styles.rangeEndpoint}>
-                    <span>max</span>
-                    {renderRangeValue(index, "max")}
-                  </label>
-                </div>
+              <div key={knobLabels[index]} className={styles.knobLine}>
+                <span className={styles.knobName}>{knobLabels[index]}</span>
+                {renderRangeValue(index, "min")}
+                <input
+                  type="range"
+                  min={ranges[index][0]}
+                  max={ranges[index][1]}
+                  step="0.001"
+                  value={value}
+                  aria-label={`${knobLabels[index]} value`}
+                  onChange={(event) => updateKnob(index, Number(event.target.value))}
+                />
+                {renderRangeValue(index, "max")}
+                <strong className={styles.knobValue}>{formatKnob(value)}</strong>
+                <button
+                  type="button"
+                  className={styles.knobButton}
+                  aria-label={`${knobLabels[index]} button`}
+                  title="Encoder button (short press)"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    pressButton(index);
+                  }}
+                  onPointerUp={() => releaseButton(index)}
+                  onPointerLeave={() => releaseButton(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      pressButton(index);
+                    }
+                  }}
+                  onKeyUp={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      releaseButton(index);
+                    }
+                  }}
+                >
+                  Push
+                </button>
               </div>
             ))}
+          </div>
+
+          <div className={styles.rampPanel}>
+            <div className={styles.rampHeader}>
+              <span>Color ramp</span>
+              <select
+                value={rampState.mode}
+                aria-label="Ramp interpolation mode"
+                title="How colors blend between stops"
+                onChange={(event) =>
+                  setRampState((current) => ({ ...current, mode: event.target.value as RampMode }))
+                }
+              >
+                {RAMP_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode === "hsvShort" ? "hsv short" : mode === "hsvLong" ? "hsv long" : mode}
+                  </option>
+                ))}
+              </select>
+              <label className={styles.rampToggle} title="Cyclic ramp — blends past the last stop back into the first">
+                <input
+                  type="checkbox"
+                  checked={rampState.wrap}
+                  onChange={(event) =>
+                    setRampState((current) => ({ ...current, wrap: event.target.checked }))
+                  }
+                />
+                wrap
+              </label>
+              <label
+                className={styles.rampToggle}
+                title="Recolor any pattern: map each pixel's luminance through the ramp (works on RGB patterns too)"
+              >
+                <input
+                  type="checkbox"
+                  checked={recolor}
+                  onChange={(event) => setRecolor(event.target.checked)}
+                />
+                recolor
+              </label>
+              <button
+                type="button"
+                className={styles.rampDemo}
+                title="Load a demo pattern that draws a 0..1 value field via display.setValue"
+                onClick={() => updateCode(VFIELD_DEMO_CODE)}
+              >
+                V demo
+              </button>
+            </div>
+            <div
+              ref={rampTrackRef}
+              className={styles.rampTrack}
+              title="Click to add a stop · drag a line to move it"
+              onPointerDown={addRampStop}
+            >
+              <canvas ref={rampBarRef} className={styles.rampBar} width={256} height={1} aria-label="Ramp gradient preview" />
+              {rampState.stops.map((stop, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  className={`${styles.rampHandle}${index === activeStopIndex ? ` ${styles.rampHandleActive}` : ""}`}
+                  style={{ left: `${stop.position * 100}%` }}
+                  aria-label={`Ramp stop at ${stop.position.toFixed(2)}`}
+                  title={`${stop.color} @ ${stop.position.toFixed(2)} — drag to move, Delete to remove`}
+                  onPointerDown={(event) => startStopDrag(event, index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Delete" || event.key === "Backspace") {
+                      event.preventDefault();
+                      deleteRampStop(index);
+                    }
+                  }}
+                >
+                  <span style={{ background: stop.color }} />
+                </button>
+              ))}
+            </div>
+            {activeStop && (
+              <div className={styles.rampStopEdit}>
+                <input
+                  type="color"
+                  value={activeStop.color}
+                  aria-label="Selected stop color"
+                  onChange={(event) => updateRampStop(activeStopIndex, { color: event.target.value })}
+                />
+                <span className={styles.rampStopPos}>@ {activeStop.position.toFixed(2)}</span>
+                <button
+                  type="button"
+                  className={styles.rampStopDelete}
+                  disabled={rampState.stops.length <= 1}
+                  title={rampState.stops.length <= 1 ? "The ramp needs at least one stop" : "Remove this stop"}
+                  onClick={() => deleteRampStop(activeStopIndex)}
+                >
+                  Delete
+                </button>
+                <span className={styles.rampHint}>
+                  click bar = add · drag line = move
+                </span>
+              </div>
+            )}
           </div>
 
           <div className={styles.actionRow}>
@@ -1109,6 +1732,14 @@ ${code}
                 onClick={() => setEditorView("gallery")}
               >
                 Gallery{gallery.length > 0 ? ` (${gallery.length})` : ""}
+              </button>
+              <button
+                type="button"
+                data-active={editorView === "experiment"}
+                onClick={() => setEditorView("experiment")}
+                title="Layer-stack experiment: build a value field by stacking generators, no code"
+              >
+                Experiment
               </button>
             </div>
             <div className={styles.editorActions}>
@@ -1175,6 +1806,19 @@ ${code}
                       </option>
                     ))}
                   </select>
+                  <select
+                    className={styles.genThinking}
+                    value={genColorMode}
+                    aria-label="Color mode"
+                    title="v-field: the model outputs a 0..1 value field and your Color Ramp does the coloring. rgb: the model colors pixels itself."
+                    onChange={(event) => setGenColorMode(event.target.value as ColorMode)}
+                  >
+                    {COLOR_MODES.map((option) => (
+                      <option key={option} value={option}>
+                        {option === "vfield" ? "v-field" : "rgb"}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={fireGeneration}
@@ -1195,6 +1839,27 @@ ${code}
                     aria-label="Gemini API key"
                   >
                     {geminiKey ? "Key ✓" : "Key"}
+                  </button>
+                </>
+              ) : editorView === "experiment" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={sendPatchToEditor}
+                    title="Copy the generated pattern code into the Code tab for hand-editing"
+                  >
+                    Send to editor
+                  </button>
+                  <button type="button" onClick={copyCppPrompt}>
+                    {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.guideButton}
+                    onClick={() => setPatch(DEFAULT_PATCH)}
+                    title="Reset the layer stack to the default patch"
+                  >
+                    Reset
                   </button>
                 </>
               ) : (
@@ -1223,7 +1888,7 @@ ${code}
                 defaultLanguage="javascript"
                 theme="vs-dark"
                 value={code}
-                onChange={(value) => setCode(value ?? "")}
+                onChange={(value) => updateCode(value ?? "")}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,
@@ -1233,6 +1898,257 @@ ${code}
                   overviewRulerLanes: 0,
                 }}
               />
+            ) : editorView === "experiment" ? (
+              <div className={styles.patchPane}>
+                <p className={styles.patchIntro}>
+                  Stack field generators into one 0–1 value field; the Color Ramp does the
+                  coloring. The stack compiles to ordinary pattern code — check the ESP32 cost
+                  live, then &quot;Send to editor&quot; to refine it as code. Bind any slider to
+                  K1–K4 to drive it with the knobs on the left; bound sliders become the
+                  pattern&apos;s knobs when converted to C++.
+                </p>
+                {patch.layers.map((layer, index) => (
+                  <div
+                    key={index}
+                    className={styles.patchLayer}
+                    data-disabled={!layer.enabled}
+                  >
+                    <div className={styles.patchLayerHead}>
+                      <label className={styles.patchEnable}>
+                        <input
+                          type="checkbox"
+                          checked={layer.enabled}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { enabled: event.target.checked })
+                          }
+                        />
+                        <span>{index + 1}</span>
+                      </label>
+                      <select
+                        value={layer.gen}
+                        aria-label={`Layer ${index + 1} generator`}
+                        onChange={(event) =>
+                          updatePatchLayer(index, { gen: event.target.value as PatchLayer["gen"] })
+                        }
+                      >
+                        {PATCH_GENERATORS.map((gen) => (
+                          <option key={gen} value={gen}>
+                            {gen}
+                          </option>
+                        ))}
+                      </select>
+                      {index > 0 ? (
+                        <select
+                          value={layer.blend}
+                          aria-label={`Layer ${index + 1} blend`}
+                          title="How this layer combines with the layers above it"
+                          onChange={(event) =>
+                            updatePatchLayer(index, {
+                              blend: event.target.value as PatchLayer["blend"],
+                            })
+                          }
+                        >
+                          {PATCH_BLENDS.map((blend) => (
+                            <option key={blend} value={blend}>
+                              {blend}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={styles.patchBase}>base</span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.patchRemove}
+                        disabled={patch.layers.length <= 1}
+                        aria-label={`Remove layer ${index + 1}`}
+                        onClick={() => removePatchLayer(index)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className={styles.patchSliders}>
+                      <label>
+                        <span>scale</span>
+                        <input
+                          type="range"
+                          min={PATCH_RANGES.scale[0]}
+                          max={PATCH_RANGES.scale[1]}
+                          step={0.5}
+                          value={patchParamValue(layer.scaleK, layer.scale)}
+                          disabled={isKnobBound(layer.scaleK)}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { scale: Number(event.target.value) })
+                          }
+                        />
+                        <em>{patchParamValue(layer.scaleK, layer.scale).toFixed(1)}</em>
+                        {renderBindSelect(
+                          layer.scaleK,
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.scale, layer.scale, () =>
+                              updatePatchLayer(index, { scaleK: knob }),
+                            ),
+                          `Layer ${index + 1} scale`,
+                        )}
+                      </label>
+                      <label>
+                        <span>speed</span>
+                        <input
+                          type="range"
+                          min={PATCH_RANGES.speed[0]}
+                          max={PATCH_RANGES.speed[1]}
+                          step={0.05}
+                          value={patchParamValue(layer.speedK, layer.speed)}
+                          disabled={isKnobBound(layer.speedK)}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { speed: Number(event.target.value) })
+                          }
+                        />
+                        <em>{patchParamValue(layer.speedK, layer.speed).toFixed(2)}</em>
+                        {renderBindSelect(
+                          layer.speedK,
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.speed, layer.speed, () =>
+                              updatePatchLayer(index, { speedK: knob }),
+                            ),
+                          `Layer ${index + 1} speed`,
+                        )}
+                      </label>
+                      <label>
+                        <span>angle</span>
+                        <input
+                          type="range"
+                          min={PATCH_RANGES.angle[0]}
+                          max={PATCH_RANGES.angle[1]}
+                          step={1}
+                          value={patchParamValue(layer.angleK, layer.angle)}
+                          disabled={isKnobBound(layer.angleK)}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { angle: Number(event.target.value) })
+                          }
+                        />
+                        <em>{patchParamValue(layer.angleK, layer.angle).toFixed(0)}°</em>
+                        {renderBindSelect(
+                          layer.angleK,
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.angle, layer.angle, () =>
+                              updatePatchLayer(index, { angleK: knob }),
+                            ),
+                          `Layer ${index + 1} angle`,
+                        )}
+                      </label>
+                      <label>
+                        <span>amount</span>
+                        <input
+                          type="range"
+                          min={PATCH_RANGES.amount[0]}
+                          max={PATCH_RANGES.amount[1]}
+                          step={0.01}
+                          value={patchParamValue(layer.amountK, layer.amount)}
+                          disabled={isKnobBound(layer.amountK)}
+                          onChange={(event) =>
+                            updatePatchLayer(index, { amount: Number(event.target.value) })
+                          }
+                        />
+                        <em>{patchParamValue(layer.amountK, layer.amount).toFixed(2)}</em>
+                        {renderBindSelect(
+                          layer.amountK,
+                          (knob) =>
+                            bindPatchKnob(knob, PATCH_RANGES.amount, layer.amount, () =>
+                              updatePatchLayer(index, { amountK: knob }),
+                            ),
+                          `Layer ${index + 1} amount`,
+                        )}
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                {patch.layers.length < MAX_PATCH_LAYERS && (
+                  <button type="button" className={styles.patchAdd} onClick={addPatchLayer}>
+                    + Add layer
+                  </button>
+                )}
+                <div className={styles.patchPost}>
+                  <label>
+                    <span>master speed</span>
+                    <input
+                      type="range"
+                      min={PATCH_RANGES.masterSpeed[0]}
+                      max={PATCH_RANGES.masterSpeed[1]}
+                      step={0.05}
+                      value={patchParamValue(patch.masterSpeedK, patch.masterSpeed)}
+                      disabled={isKnobBound(patch.masterSpeedK)}
+                      onChange={(event) => updatePatch({ masterSpeed: Number(event.target.value) })}
+                    />
+                    <em>{patchParamValue(patch.masterSpeedK, patch.masterSpeed).toFixed(2)}</em>
+                    {renderBindSelect(
+                      patch.masterSpeedK,
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.masterSpeed, patch.masterSpeed, () =>
+                          updatePatch({ masterSpeedK: knob }),
+                        ),
+                      "Master speed",
+                    )}
+                  </label>
+                  <label>
+                    <span>contrast</span>
+                    <input
+                      type="range"
+                      min={PATCH_RANGES.contrast[0]}
+                      max={PATCH_RANGES.contrast[1]}
+                      step={0.05}
+                      value={patchParamValue(patch.contrastK, patch.contrast)}
+                      disabled={isKnobBound(patch.contrastK)}
+                      onChange={(event) => updatePatch({ contrast: Number(event.target.value) })}
+                    />
+                    <em>{patchParamValue(patch.contrastK, patch.contrast).toFixed(2)}</em>
+                    {renderBindSelect(
+                      patch.contrastK,
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.contrast, patch.contrast, () =>
+                          updatePatch({ contrastK: knob }),
+                        ),
+                      "Contrast",
+                    )}
+                  </label>
+                  <label>
+                    <span>posterize</span>
+                    <input
+                      type="range"
+                      min={PATCH_RANGES.posterize[0]}
+                      max={PATCH_RANGES.posterize[1]}
+                      step={1}
+                      value={patchParamValue(patch.posterizeK, patch.posterize)}
+                      disabled={isKnobBound(patch.posterizeK)}
+                      onChange={(event) => updatePatch({ posterize: Number(event.target.value) })}
+                    />
+                    <em>
+                      {(() => {
+                        const bands = Math.round(
+                          patchParamValue(patch.posterizeK, patch.posterize),
+                        );
+                        return bands <= 1 ? "off" : bands;
+                      })()}
+                    </em>
+                    {renderBindSelect(
+                      patch.posterizeK,
+                      (knob) =>
+                        bindPatchKnob(knob, PATCH_RANGES.posterize, patch.posterize, () =>
+                          updatePatch({ posterizeK: knob }),
+                        ),
+                      "Posterize",
+                    )}
+                  </label>
+                  <label className={styles.patchInvert}>
+                    <input
+                      type="checkbox"
+                      checked={patch.invert}
+                      onChange={(event) => updatePatch({ invert: event.target.checked })}
+                    />
+                    <span>invert</span>
+                  </label>
+                </div>
+              </div>
             ) : (
               <div className={styles.galleryPane}>
                 {jobs.length > 0 && (
@@ -1355,6 +2271,8 @@ ${code}
                             pinned={Boolean(item.pinned)}
                             knobsRef={knobsRef}
                             rangesRef={rangesRef}
+                            rampRef={rampRef}
+                            recolorRef={recolorRef}
                             onSelect={() => onCardActivate(item)}
                           />
                         </li>
@@ -1425,6 +2343,13 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
                   min/max range is applied. This is the primary control API.
                 </li>
                 <li>
+                  <code>{"// @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1"}</code>{" "}
+                  — one comment line declaring knob names and ranges. Loading code with this line
+                  renames the knobs and applies the ranges automatically (<code>-</code> skips a
+                  slot); read the values back via <code>knobValues</code>, not{" "}
+                  <code>knobNormalized</code>, so range edits keep working.
+                </li>
+                <li>
                   <code>input.knobNormalized[i]</code> — the same knob remapped to{" "}
                   <code>0.0–1.0</code>, handy for blends.
                 </li>
@@ -1470,6 +2395,11 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
                   <code>display.setPixel(x, y, r, g, b)</code> — write one pixel; <code>r/g/b</code>{" "}
                   are <code>0–255</code>.
                 </li>
+                <li>
+                  <code>display.setValue(x, y, v)</code> — value-field mode: write a{" "}
+                  <code>0–1</code> scalar and the Color Ramp panel does the coloring. Don&apos;t mix
+                  with <code>setPixel</code> in one pattern.
+                </li>
               </ul>
               <p className={styles.modalNote}>
                 Use only plain JavaScript and <code>Math.*</code> — no DOM, imports, async, or
@@ -1483,8 +2413,9 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
 
       {shareOpen && (
         <SharePatternModal
-          code={code}
+          code={activeCode}
           cppConvertPrompt={buildCppPrompt()}
+          source="pattern-lab"
           onClose={() => setShareOpen(false)}
         />
       )}

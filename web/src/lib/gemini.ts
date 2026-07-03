@@ -23,6 +23,15 @@ export const GEMINI_THINKING_LEVEL: ThinkingLevelKey = "LOW";
 export type Orientation = "any" | "landscape" | "portrait";
 export const ORIENTATIONS: Orientation[] = ["any", "landscape", "portrait"];
 
+// How generated patterns handle color:
+// - "rgb": the model colors every pixel itself via setPixel (classic mode).
+// - "vfield": the model outputs a pure 0..1 value field via setValue; color is
+//   applied by the user-controlled Color Ramp in Pattern Lab. Keeps the model
+//   focused on geometry/motion — the part it's good at — and leaves color to
+//   the human.
+export type ColorMode = "rgb" | "vfield";
+export const COLOR_MODES: ColorMode[] = ["vfield", "rgb"];
+
 // ---------------------------------------------------------------------------
 // License / attribution stamped onto every generated pattern.
 // Edit these two templates to change the notice. `{{name}}` and `{{year}}` are
@@ -35,7 +44,7 @@ export const LICENSE_HEADER_TEMPLATE = `// Pattern: {{name}}
 // Made with Patternflow Pattern Lab — https://patternflow.work/pattern-lab`;
 
 export const LICENSE_FOOTER_TEMPLATE = `// ---
-// Generated at https://patternflow.work/pattern-lab — https://patternflow.work
+// Made with Patternflow Pattern Lab — https://patternflow.work/pattern-lab
 // Licensed CC-BY-SA-4.0. Keep this notice if you share or remix.`;
 
 function stampLicense(code: string, name: string): string {
@@ -107,33 +116,58 @@ const VARIANT_INTRO = `I am writing custom LED patterns in JavaScript for Patter
 I will give you one existing Patternflow pattern. Use it as a seed, not as a cage. Create exactly 5 distinct standalone variations that explore different visual directions.`;
 
 // Technical + quality spec shared by every path (API rules, controls, color).
-const VARIANT_TECH_GUIDE = `Required API for every pattern:
+// Split into pieces so the pixel-write rule and the color section can swap
+// depending on ColorMode.
+const TECH_API_COMMON = `Required API for every pattern:
 - export function setup(params) {}
 - export function update(dt, input, params) {}
 - export function draw(display, params, time) {}
 - Use input.knobValues as the primary control API. input.knobValues is an array of 4 absolute knob values after the min/max ranges are applied.
-- input.knobNormalized is also available when a 0.0-1.0 value is useful.
+- Declare the ranges your 4 knobs want with ONE comment line near the top of the file, exactly this format:
+  // @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1
+  (exactly 4 comma-separated entries, Name=min..max, short names). Pattern Lab parses this line, renames the on-screen knobs, and sets their min/max automatically — the user can then retune any range and your pattern follows, because you read the values back through input.knobValues.
+- Read input.knobValues[i] directly as the parameter value (matching your @knobs ranges). Do NOT read input.knobNormalized and remap it with baked constants such as 3 + kn[0] * 9 — that disconnects Pattern Lab's range editor (the user's min/max edits stop doing anything). input.knobNormalized is acceptable only for a truly unitless 0..1 blend where any range would mean the same thing.
 - Keep input.knobDeltas only as compatibility fallback if needed.
 - Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.
 - IMPORTANT: input is passed ONLY to update(dt, input, params). draw's signature is draw(display, params, time) with NO input argument — params.input does not exist. To read knob or button values inside draw, use params.knobValues / params.knobNormalized / params.knobDeltas / params.btnPressed / params.btnHeld (the harness mirrors the latest input onto params every frame), or stash whatever you need on params during update. Never read input.* or params.input.* inside draw.
-- Use display.width and display.height in loops. Do not hardcode 128 or 64 inside draw().
-- Write each pixel with display.setPixel(x, y, r, g, b) — EXACTLY five arguments, where r, g, b are three SEPARATE integer arguments in the range 0–255. Never pass a color array such as display.setPixel(x, y, [r, g, b]); never pass a packed color or a 4th alpha argument. The array form renders pure black.
-- Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.
+- Use display.width and display.height in loops. Do not hardcode 128 or 64 inside draw().`;
 
-Creative control mapping:
+const TECH_PIXEL_RGB = `- Write each pixel with display.setPixel(x, y, r, g, b) — EXACTLY five arguments, where r, g, b are three SEPARATE integer arguments in the range 0–255. Never pass a color array such as display.setPixel(x, y, [r, g, b]); never pass a packed color or a 4th alpha argument. The array form renders pure black.
+- Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.`;
+
+const TECH_PIXEL_VFIELD = `- Write each pixel with display.setValue(x, y, v) — EXACTLY three arguments, where v is a single number from 0.0 to 1.0. Do NOT call display.setPixel anywhere.
+- Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.`;
+
+const TECH_CONTROLS = `Creative control mapping:
 - It is okay to keep one knob as animation speed, preferably Knob 2, if that suits the pattern.
 - Do not keep all four knobs as the same old hue/speed/mode/frequency template unless it is genuinely the best fit.
 - Redesign the controls creatively for each pattern. Examples: cell size, symmetry fold, glitch amount, palette split, trail length, scanline spacing, pulse width, inversion threshold, rotation, warp depth, density, edge thickness, phase offset, bloom-like gain, or motif selection.
 - Each pattern should have a slightly different control personality. The controls should reveal the unique idea of that pattern.
-- Include a short comment near setup() or update() naming what the 4 knobs do for that specific pattern.
+- Include a short comment near setup() or update() naming what the 4 knobs do for that specific pattern.`;
 
-Color direction:
+const TECH_COLOR_RGB = `Color direction:
 - Make color part of the pattern logic, not just a global hue wash.
 - Avoid relying on a single full-frame gradient or a uniform hue shift across the whole image.
 - Prefer colors that respond to local pattern values: distance fields, cell seeds, stripe index, phase, brightness, threshold bands, motion direction, edge thickness, density, or mask state.
 - Good examples: large values become red while small values become blue; interior/exterior use different palettes; threshold bands step through 3-5 colors; cell IDs pick related colors; moving fronts leave warmer highlights; thin edges are white while filled regions are saturated.
 - Both smooth local gradients and stepped posterized color bands are welcome, as long as the color changes are tied to the geometry or signal of the pattern.
 - Keep at least some pixels near full LED brightness.`;
+
+const TECH_COLOR_VFIELD = `Value-field direction (IMPORTANT — there is NO color in this pattern):
+- The pattern outputs only a scalar value field via display.setValue(x, y, v). Color is applied OUTSIDE the pattern by a user-controlled color ramp that maps v = 0..1 to colors.
+- Do NOT compute any colors, palettes, hues, RGB values, or hsvToRgb helpers anywhere. No color logic at all — pour all effort into geometry, structure, and motion.
+- Treat v as the pattern's tonal value and design the field so it reads well under ANY ramp:
+  - Use the full 0..1 range every frame: some pixels near 0, some near 1.
+  - Build deliberate tonal structure tied to the geometry: edges, bands, plateaus, gradients driven by distance, phase, cell id, density, or masks.
+  - Value contrast is your only material — sharp boundaries, layered levels, and clear figure/ground separation matter more than in RGB mode.
+  - Avoid uniform mid-grey mush (everything hovering near 0.5) and avoid pure binary output unless the idea is intentionally hard-edged.
+- Knobs must control geometry/motion/structure, never color (no hue knobs — color belongs to the ramp).`;
+
+function buildTechGuide(colorMode: ColorMode) {
+  const pixelRule = colorMode === "vfield" ? TECH_PIXEL_VFIELD : TECH_PIXEL_RGB;
+  const colorSection = colorMode === "vfield" ? TECH_COLOR_VFIELD : TECH_COLOR_RGB;
+  return `${TECH_API_COMMON}\n${pixelRule}\n\n${TECH_CONTROLS}\n\n${colorSection}`;
+}
 
 // Seed-based direction for the clipboard prompt (remix one existing pattern).
 const VARIANT_SEED_DIRECTION = `Variation direction:
@@ -162,14 +196,14 @@ const VARIANT_DIVERGE_DIRECTION = `Direction — maximize variety:
 - Keep the patterns bright enough for an LED matrix and reasonably ESP32-friendly.
 - Avoid smoothing/lerping knob-controlled values unless the visual idea specifically needs inertia.`;
 
-// Shared creative + API spec for the clipboard prompt (kept as before).
-const VARIANT_GUIDE = `${VARIANT_TECH_GUIDE}\n\n${VARIANT_SEED_DIRECTION}`;
-
 // Prompt for the clipboard fallback: the model returns 5 markdown code blocks.
+// Follows the same ColorMode as the in-app call so v-field users get v-field
+// output from external chatbots too.
 export function buildVariantCopyPrompt(
   code: string,
   knobs: number[],
   ranges: Array<[number, number]>,
+  colorMode: ColorMode = "rgb",
 ) {
   return `${VARIANT_INTRO}
 
@@ -182,12 +216,18 @@ Very important output rules:
 - Put a short variation name before each code block.
 - Do not include nested triple backticks inside any code block.
 
-${VARIANT_GUIDE}
+${buildTechGuide(colorMode)}
+
+${VARIANT_SEED_DIRECTION}
 
 Current Pattern Lab controls:
 ${controlLines(knobs, ranges)}
 
-Existing pattern:
+Existing pattern${
+    colorMode === "vfield"
+      ? " (NOTE: if this seed calls display.setPixel and computes colors, it is an older RGB-mode pattern — take only its geometry/motion ideas; every variation you output must use display.setValue(x, y, v) with NO color logic)"
+      : ""
+  }:
 \`\`\`javascript
 ${code}
 \`\`\``;
@@ -205,6 +245,7 @@ function buildVariantApiInstruction(
   examples: Array<{ name: string; code: string }>,
   orientation: Orientation,
   seedWithCurrent: boolean,
+  colorMode: ColorMode,
 ) {
   const phrase = count === 1 ? "1 standalone pattern" : `${count} distinct standalone patterns`;
 
@@ -223,8 +264,15 @@ function buildVariantApiInstruction(
         ? "Orientation — organize the pattern so its main features, bands, and motion run along the 128-pixel (x / width) axis of the 128×64 frame: vary primarily with the x coordinate. Avoid making everything vary along the 64-tall y axis.\n\n"
         : "";
 
+  // Existing presets are RGB-mode; when generating value fields, make sure the
+  // model doesn't imitate their setPixel/color code.
+  const vfieldReferenceCaveat =
+    colorMode === "vfield"
+      ? " NOTE: the references are older RGB-mode patterns that call display.setPixel and compute colors — your output must instead call display.setValue(x, y, v) with NO color logic. Use the references only for geometry, structure, and motion ideas."
+      : "";
+
   const referenceBlock = examples.length
-    ? `Reference patterns — these show the RANGE of styles that work on Patternflow. Use them ONLY as inspiration for what is possible. Do NOT copy, port, or closely reproduce any single one:
+    ? `Reference patterns — these show the RANGE of styles that work on Patternflow. Use them ONLY as inspiration for what is possible. Do NOT copy, port, or closely reproduce any single one.${vfieldReferenceCaveat}
 
 ${examples.map((example) => `===== ${example.name} =====\n${example.code}`).join("\n\n")}
 
@@ -242,7 +290,7 @@ ${creativityLine}${orientationLine}Return the patterns as structured JSON matchi
 - Format the code as normal, readable multi-line JavaScript using real line breaks and indentation. Do NOT put the whole pattern on a single line and do NOT minify it.
 - Do NOT add any license header, copyright line, author/date comment, or attribution footer — those are added automatically. Start directly with the pattern code.
 
-${VARIANT_TECH_GUIDE}
+${buildTechGuide(colorMode)}
 
 ${VARIANT_DIVERGE_DIRECTION}
 
@@ -318,6 +366,7 @@ export async function generatePatternVariants({
   examples = [],
   orientation = "any",
   seedWithCurrent = true,
+  colorMode = "rgb",
 }: {
   apiKey: string;
   code: string;
@@ -328,6 +377,7 @@ export async function generatePatternVariants({
   examples?: Array<{ name: string; code: string }>;
   orientation?: Orientation;
   seedWithCurrent?: boolean;
+  colorMode?: ColorMode;
 }): Promise<PatternVariant[]> {
   // Dynamic import keeps the SDK out of the initial page bundle — it only loads
   // when the user actually clicks Generate.
@@ -349,6 +399,7 @@ export async function generatePatternVariants({
           examples,
           orientation,
           seedWithCurrent,
+          colorMode,
         ),
         config: {
           temperature: 1,

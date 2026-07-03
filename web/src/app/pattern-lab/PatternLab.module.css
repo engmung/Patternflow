@@ -143,42 +143,42 @@
 
 .controls {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 6px;
+  margin-top: 14px;
 }
 
-.knobControl {
+/* One compact line per knob: name · min · slider · max · value · push */
+.knobLine {
   display: grid;
+  grid-template-columns: 50px 60px minmax(0, 1fr) 60px 54px auto;
+  align-items: center;
   gap: 8px;
 }
 
-.knobHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 14px;
+.knobName {
+  font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
-.knobHeader strong {
+.knobLine > input[type="range"] {
+  width: 100%;
+  accent-color: #171512;
+}
+
+.knobValue {
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   font-weight: 500;
-}
-
-.knobHeaderMeta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  text-align: right;
 }
 
 .knobButton {
-  min-height: 26px;
+  min-height: 24px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
-  padding: 0 10px;
+  padding: 0 8px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
   font-size: var(--pf-fs-mono);
@@ -198,55 +198,29 @@
   border-color: #171512;
 }
 
-.knobRow {
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) 82px;
-  align-items: center;
-  gap: 12px;
-}
-
-.knobRow > input {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.rangeEndpoint {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
-}
-
-.rangeEndpoint span {
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .rangeValue {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 32px;
+  min-height: 24px;
   border: 1px solid rgba(23, 21, 18, 0.2);
   background: #ffffff;
   color: #171512;
-  padding: 0 7px;
+  padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
+  font-size: 11px;
   user-select: none;
 }
 
 .rangeInput {
   width: 100%;
-  min-height: 32px;
+  min-height: 24px;
   border: 1px solid #171512;
   background: #ffffff;
   color: #171512;
-  padding: 0 7px;
+  padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .rangeInput:focus {
@@ -258,8 +232,8 @@
 .rangeStatic {
   display: inline-flex;
   align-items: center;
-  min-width: 7px;
-  min-height: 30px;
+  min-width: 6px;
+  min-height: 22px;
 }
 
 .rangeExtra {
@@ -293,8 +267,353 @@
   color: #f7f3ea;
 }
 
+.rampPanel {
+  margin-top: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+}
+
+.rampHeader {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.rampHeader > span {
+  font-weight: 600;
+}
+
+.rampHeader select {
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.rampToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: rgba(23, 21, 18, 0.75);
+  user-select: none;
+}
+
+.rampToggle input {
+  accent-color: #171512;
+}
+
+.rampDemo {
+  margin-left: auto;
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampDemo:hover {
+  border-color: #171512;
+}
+
+.rampTrack {
+  position: relative;
+  height: 34px;
+  cursor: copy;
+  touch-action: none;
+  user-select: none;
+}
+
+.rampBar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  pointer-events: none;
+}
+
+.rampHandle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 14px;
+  margin-left: -7px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.rampHandle span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  margin-left: -2px;
+  border: 1px solid #171512;
+  box-shadow: 0 0 0 1px #f7f3ea;
+  pointer-events: none;
+}
+
+.rampHandle:focus-visible {
+  outline: 1px dashed #171512;
+  outline-offset: 2px;
+}
+
+.rampHandleActive span {
+  width: 8px;
+  margin-left: -4px;
+  border-width: 2px;
+}
+
+.rampStopEdit {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rampStopEdit input[type="color"] {
+  width: 38px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.rampStopPos {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}
+
+.rampStopDelete {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampStopDelete:hover:not(:disabled) {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.rampStopDelete:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rampHint {
+  margin-left: auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: rgba(23, 21, 18, 0.5);
+  text-transform: uppercase;
+}
+
+/* ── Experiment (layer stack) ── */
+
+.patchPane {
+  height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  background: #ffffff;
+  border: 1px solid rgba(23, 21, 18, 0.14);
+}
+
+.patchIntro {
+  margin: 0;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(23, 21, 18, 0.62);
+}
+
+.patchLayer {
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.patchLayer[data-disabled="true"] .patchSliders {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.patchLayerHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.patchEnable {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.patchEnable input {
+  accent-color: #171512;
+}
+
+.patchLayerHead select {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.patchBase {
+  color: rgba(23, 21, 18, 0.5);
+}
+
+.patchRemove {
+  margin-left: auto;
+  min-width: 26px;
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.patchRemove:hover:not(:disabled) {
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.patchRemove:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.patchSliders,
+.patchPost {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+}
+
+.patchSliders label,
+.patchPost label {
+  display: grid;
+  grid-template-columns: 66px minmax(0, 1fr) 38px 44px;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: rgba(23, 21, 18, 0.62);
+}
+
+.patchBind {
+  min-height: 22px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: rgba(23, 21, 18, 0.62);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Highlight active bindings so it's obvious which params the knobs own. */
+.patchBind:has(option:checked:not([value="-1"])) {
+  border-color: #171512;
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.patchSliders input[type="range"]:disabled,
+.patchPost input[type="range"]:disabled {
+  opacity: 0.45;
+}
+
+.patchSliders input[type="range"],
+.patchPost input[type="range"] {
+  width: 100%;
+  accent-color: #171512;
+}
+
+.patchSliders em,
+.patchPost em {
+  font-style: normal;
+  font-size: 11px;
+  color: #171512;
+  text-align: right;
+}
+
+.patchAdd {
+  min-height: 30px;
+  border: 1px dashed rgba(23, 21, 18, 0.35);
+  background: #ffffff;
+  color: #171512;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.patchAdd:hover {
+  border-color: #171512;
+}
+
+.patchPost {
+  border-top: 1px solid rgba(23, 21, 18, 0.14);
+  padding-top: 10px;
+}
+
+.patchInvert {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.patchInvert input {
+  accent-color: #171512;
+}
+
 .actionRow {
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .actionRow button,
@@ -966,8 +1285,9 @@
     text-align: left;
   }
 
-  .knobRow {
-    grid-template-columns: 1fr;
+  .knobLine {
+    grid-template-columns: 40px 52px minmax(0, 1fr) 52px 48px auto;
+    gap: 6px;
   }
 
   .editorPane {

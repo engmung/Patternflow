@@ -63,4 +63,26 @@ inline float approxLength(float x, float y) {
   return mx + mn * 0.375f;
 }
 
+// Fast atan2 replacement — polynomial approximation, max error ~0.0015 rad
+// (≈0.09°), no LUT, one divide for range reduction. Same quadrant behavior
+// and (-π, π] range as atan2f, at a fraction of the cost. atan2f is the most
+// expensive common per-pixel call; use this for angle-driven patterns whose
+// center MOVES. For a fixed panel-center angle, prefer the precomputed
+// PFTables::thetaT (core_tables.h) — that one is free.
+inline float fastAtan2(float y, float x) {
+  float ax = fabsf(x);
+  float ay = fabsf(y);
+  float mx = ax > ay ? ax : ay;
+  if (mx == 0.0f) return 0.0f;  // atan2(0, 0) is undefined; return 0 like most libms
+  float mn = ax > ay ? ay : ax;
+  float a = mn / mx;  // [0, 1]
+  // atan(a) on [0, 1] — minimax cubic-in-a² polynomial.
+  float s = a * a;
+  float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
+  if (ay > ax) r = 1.57079637f - r;
+  if (x < 0.0f) r = 3.14159274f - r;
+  if (y < 0.0f) r = -r;
+  return r;
+}
+
 } // namespace PFMath

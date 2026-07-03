@@ -20,6 +20,9 @@ export type PatternDisplay = {
   // Canonical form is setPixel(x, y, r, g, b). The array form setPixel(x, y, [r, g, b])
   // is also accepted, since AI-generated patterns frequently emit it.
   setPixel: (x: number, y: number, r: number | number[], g?: number, b?: number) => void;
+  // Value-field mode: write a 0..1 scalar; the runtime colors it through the
+  // active ColorRamp (grayscale when no ramp is set).
+  setValue: (x: number, y: number, v: number) => void;
 };
 
 export type PatternModule = {
@@ -43,11 +46,162 @@ export type PatternStillOptions = {
   knobRanges?: Array<[number, number]>;
   knobWrap?: boolean[];
   knobUnitsPerTurn?: number[];
+  ramp?: ColorRamp | null;
+  recolor?: boolean;
 };
 
 function clampByte(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+// ── Color ramp ──────────────────────────────────────────────────────────────
+// A ramp maps a 0..1 value to a color through up to a few stops. Patterns that
+// draw with display.setValue() produce a pure value field; the ramp is the
+// user's color decision, applied by the runtime (and baked in on C++ export).
+
+export type RampMode = "linear" | "smooth" | "step" | "hsvShort" | "hsvLong";
+export const RAMP_MODES: RampMode[] = ["linear", "smooth", "step", "hsvShort", "hsvLong"];
+
+export type RampStop = {
+  position: number; // 0..1
+  color: [number, number, number]; // sRGB 0..255
+};
+
+export type ColorRamp = {
+  stops: RampStop[];
+  mode: RampMode;
+  // When true the ramp is cyclic: past the last stop it blends back into the
+  // first, so value fields that wrap (phase, hue-like signals) have no seam.
+  wrap: boolean;
+};
+
+function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  const rf = r / 255;
+  const gf = g / 255;
+  const bf = b / 255;
+  const max = Math.max(rf, gf, bf);
+  const min = Math.min(rf, gf, bf);
+  const delta = max - min;
+  let h = 0;
+  if (delta > 0) {
+    if (max === rf) h = ((gf - bf) / delta) % 6;
+    else if (max === gf) h = (bf - rf) / delta + 2;
+    else h = (rf - gf) / delta + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+  const s = max === 0 ? 0 : delta / max;
+  return [h, s, max];
+}
+
+function hsvToRgbTuple(h: number, s: number, v: number): [number, number, number] {
+  h = h - Math.floor(h);
+  const i = Math.floor(h * 6);
+  const f = h * 6 - i;
+  const p = v * (1 - s);
+  const q = v * (1 - f * s);
+  const t = v * (1 - (1 - f) * s);
+  let r: number;
+  let g: number;
+  let b: number;
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    default: r = v; g = p; b = q; break;
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function mixRampColors(
+  a: [number, number, number],
+  b: [number, number, number],
+  t: number,
+  mode: RampMode,
+): [number, number, number] {
+  if (mode === "smooth") t = t * t * (3 - 2 * t);
+  if (mode === "hsvShort" || mode === "hsvLong") {
+    const ha = rgbToHsv(a[0], a[1], a[2]);
+    const hb = rgbToHsv(b[0], b[1], b[2]);
+    // Grey endpoints have no meaningful hue — borrow the other side's so the
+    // blend doesn't sweep through arbitrary colors.
+    const h1 = ha[1] === 0 ? hb[0] : ha[0];
+    const h2 = hb[1] === 0 ? h1 : hb[0];
+    let dh = h2 - h1;
+    if (mode === "hsvShort") {
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+    } else {
+      if (dh > 0 && dh < 0.5) dh -= 1;
+      else if (dh <= 0 && dh > -0.5) dh += 1;
+    }
+    return hsvToRgbTuple(h1 + dh * t, ha[1] + (hb[1] - ha[1]) * t, ha[2] + (hb[2] - ha[2]) * t);
+  }
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
+}
+
+function sampleSortedRamp(
+  stops: RampStop[],
+  mode: RampMode,
+  wrap: boolean,
+  t: number,
+): [number, number, number] {
+  if (stops.length === 0) return [255, 255, 255];
+  if (stops.length === 1) return stops[0].color;
+  t = Math.max(0, Math.min(1, t));
+
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+
+  if (t <= first.position || t >= last.position) {
+    if (!wrap) {
+      return t <= first.position ? first.color : last.color;
+    }
+    // Cyclic segment last → first crossing the 1→0 seam.
+    const span = 1 - last.position + first.position;
+    const local = span <= 0
+      ? 0
+      : ((t >= last.position ? t - last.position : t + 1 - last.position) / span);
+    if (mode === "step") return last.color;
+    return mixRampColors(last.color, first.color, local, mode);
+  }
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i];
+    const b = stops[i + 1];
+    if (t > b.position) continue;
+    if (mode === "step") return a.color;
+    const span = b.position - a.position;
+    const local = span <= 0 ? 0 : (t - a.position) / span;
+    return mixRampColors(a.color, b.color, local, mode);
+  }
+  return last.color;
+}
+
+export function sampleRamp(ramp: ColorRamp, t: number): [number, number, number] {
+  const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
+  return sampleSortedRamp(sorted, ramp.mode, ramp.wrap, t);
+}
+
+// 256-entry RGB lookup table so per-pixel value→color is a plain array read.
+// Rebuilt only when the ramp object changes.
+export function buildRampLUT(ramp: ColorRamp): Uint8Array {
+  const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
+  const lut = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const [r, g, b] = sampleSortedRamp(sorted, ramp.mode, ramp.wrap, i / 255);
+    lut[i * 3] = clampByte(r);
+    lut[i * 3 + 1] = clampByte(g);
+    lut[i * 3 + 2] = clampByte(b);
+  }
+  return lut;
 }
 
 function normalizePatternCode(code: string) {
@@ -81,6 +235,14 @@ export class PatternRuntime {
   public readonly height: number;
   public readonly data: Uint8ClampedArray;
 
+  // Active color ramp for setValue() and recolor. Exposed so callers can cheaply
+  // check identity each frame and only call setRamp when the object changed.
+  public ramp: ColorRamp | null = null;
+  // When true, the whole frame is recolored after draw(): each pixel's luminance
+  // is mapped through the ramp. Lets the ramp restyle ordinary RGB patterns.
+  public recolor = false;
+
+  private rampLUT: Uint8Array | null = null;
   private module: PatternModule | null = null;
   private params: PatternParams = {};
   private display: PatternDisplay;
@@ -118,7 +280,33 @@ export class PatternRuntime {
         this.data[index + 2] = clampByte(cb);
         this.data[index + 3] = 255;
       },
+      setValue: (x, y, v) => {
+        const xi = Math.floor(x);
+        const yi = Math.floor(y);
+        if (xi < 0 || xi >= this.width || yi < 0 || yi >= this.height) return;
+
+        const value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+        const index = (yi * this.width + xi) * 4;
+        const lut = this.rampLUT;
+        if (lut) {
+          const li = Math.round(value * 255) * 3;
+          this.data[index] = lut[li];
+          this.data[index + 1] = lut[li + 1];
+          this.data[index + 2] = lut[li + 2];
+        } else {
+          const byte = Math.round(value * 255);
+          this.data[index] = byte;
+          this.data[index + 1] = byte;
+          this.data[index + 2] = byte;
+        }
+        this.data[index + 3] = 255;
+      },
     };
+  }
+
+  public setRamp(ramp: ColorRamp | null) {
+    this.ramp = ramp;
+    this.rampLUT = ramp && ramp.stops.length > 0 ? buildRampLUT(ramp) : null;
   }
 
   public loadCode(code: string): PatternRenderResult {
@@ -156,6 +344,19 @@ export class PatternRuntime {
       this.module.update?.(dt, input, this.params);
       this.data.fill(0);
       this.module.draw(this.display, this.params, time);
+      if (this.recolor && this.rampLUT) {
+        const lut = this.rampLUT;
+        const data = this.data;
+        for (let index = 0; index < data.length; index += 4) {
+          const luminance = Math.round(
+            0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2],
+          );
+          const li = luminance * 3;
+          data[index] = lut[li];
+          data[index + 1] = lut[li + 1];
+          data[index + 2] = lut[li + 2];
+        }
+      }
       return { ok: true };
     } catch (error) {
       return {
@@ -211,9 +412,13 @@ export function renderPatternStill(
     knobRanges,
     knobWrap,
     knobUnitsPerTurn,
+    ramp,
+    recolor,
   }: PatternStillOptions = {},
 ) {
   const runtime = new PatternRuntime(width, height);
+  if (ramp) runtime.setRamp(ramp);
+  runtime.recolor = Boolean(recolor && ramp);
   const loadResult = runtime.loadCode(code);
   if (!loadResult.ok) {
     return { ...loadResult, data: runtime.data };

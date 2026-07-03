@@ -18,9 +18,10 @@
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 // Conditional — include only when actually used:
-// #include "src/core_math.h"   // PFMath:: fastSin/fastCos, buildSinLUT, lerp, fract
-// #include "src/core_color.h"  // PFColor:: hsvToRgb, ColorStop, sampleRamp
-// #include "src/core_noise.h"  // PFNoise:: perlin2D, fractal2D
+// #include "src/core_math.h"   // PFMath:: fastSin/fastCos, fastAtan2, buildSinLUT, lerp, fract
+// #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT, ColorStop, sampleRamp
+// #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
+// #include "src/core_tables.h" // PFTables:: init, rT[]/thetaT[] — per-pixel radius/angle from center
 
 namespace TemplatePattern {
   const char* NAME = "Template";

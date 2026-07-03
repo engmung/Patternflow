@@ -7,119 +7,147 @@
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
+#include "src/core_math.h"
+#include "src/core_color.h"
 
-namespace CyberpunkCyberGridPattern {
+namespace FluidFlowPattern {
 
-const char* NAME = "Cyber Grid";
-const char* const KNOB_LABELS[4] = {"Grid Spacing", "Velocity", "Pulse Width", "Color Split"};
+const char* NAME = "Fluid Flow";
+const char* const KNOB_LABELS[4] = {"Color", "Speed", "Turb", "Density"};
 
-const float CYBER_GRID_GRIDW_MIN = 0.0f;
-const float CYBER_GRID_GRIDW_MAX = 1.0f;
-const float CYBER_GRID_GRIDW_STEP = 0.05f;
+// Knob ranges and steps
+const float COLOR_SHIFT_MIN = 0.0f;
+const float COLOR_SHIFT_MAX = 1.0f;
+const float COLOR_SHIFT_STEP = 0.05f;
 
-const float CYBER_GRID_SPEED_MIN = 0.1f;
-const float CYBER_GRID_SPEED_MAX = 10.0f;
-const float CYBER_GRID_SPEED_STEP = 0.10f;
+const float SPEED_MIN = 0.1f;
+const float SPEED_MAX = 10.0f;
+const float CUSTOM2_SPEED_STEP = 0.10f;
 
-const float CYBER_GRID_PULSE_MIN = 0.0f;
-const float CYBER_GRID_PULSE_MAX = 4.9f;
-const float CYBER_GRID_PULSE_STEP = 0.05f;
+const float TURBULENCE_MIN = 0.0f;
+const float TURBULENCE_MAX = 4.9f;
+const float TURBULENCE_STEP = 0.05f;
 
-const float CYBER_GRID_SPLIT_MIN = 0.0f;
-const float CYBER_GRID_SPLIT_MAX = 1.0f;
-const float CYBER_GRID_SPLIT_STEP = 0.05f;
+const float DENSITY_MIN = 0.0f;
+const float DENSITY_MAX = 1.0f;
+const float DENSITY_STEP = 0.05f;
 
 struct Params {
-    float gridW;
-    float speed;
-    float pulse;
-    float split;
-    float timeAcc;
+    float colorShift = 0.0f;
+    float speed = 1.5f;
+    float turbulence = 2.0f;
+    float density = 0.5f;
+    float timeAcc = 0.0f;
 };
 
 Params params;
 
 void setup() {
-    params.gridW = 0.4f;
-    params.speed = 2.5f;
-    params.pulse = 1.5f;
-    params.split = 0.5f;
+    PFMath::buildSinLUT();
+    // Initialize parameters to defaults
+    params.colorShift = 0.0f;
+    params.speed = 1.5f;
+    params.turbulence = 2.0f;
+    params.density = 0.5f;
     params.timeAcc = 0.0f;
 }
 
 void update(float dt, const InputFrame& input) {
-    // Knob 1: Grid Spacing (Wrap)
-    params.gridW += input.knobDeltas[0] * CYBER_GRID_GRIDW_STEP;
-    while (params.gridW < CYBER_GRID_GRIDW_MIN) params.gridW += (CYBER_GRID_GRIDW_MAX - CYBER_GRID_GRIDW_MIN);
-    while (params.gridW > CYBER_GRID_GRIDW_MAX) params.gridW -= (CYBER_GRID_GRIDW_MAX - CYBER_GRID_GRIDW_MIN);
+    // Knob 1: color shift (wrap)
+    params.colorShift += input.knobDeltas[0] * COLOR_SHIFT_STEP;
+    if (params.colorShift > COLOR_SHIFT_MAX) {
+        params.colorShift -= (COLOR_SHIFT_MAX - COLOR_SHIFT_MIN);
+    } else if (params.colorShift < COLOR_SHIFT_MIN) {
+        params.colorShift += (COLOR_SHIFT_MAX - COLOR_SHIFT_MIN);
+    }
 
-    // Knob 2: Horizon Scroll Velocity (Clamp)
-    params.speed += input.knobDeltas[1] * CYBER_GRID_SPEED_STEP;
-    params.speed = constrain(params.speed, CYBER_GRID_SPEED_MIN, CYBER_GRID_SPEED_MAX);
+    // Knob 2: speed (clamp)
+    params.speed += input.knobDeltas[1] * CUSTOM2_SPEED_STEP;
+    params.speed = constrain(params.speed, SPEED_MIN, SPEED_MAX);
 
-    // Knob 3: Neon Pulse Width Threshold (Clamp)
-    params.pulse += input.knobDeltas[2] * CYBER_GRID_PULSE_STEP;
-    params.pulse = constrain(params.pulse, CYBER_GRID_PULSE_MIN, CYBER_GRID_PULSE_MAX);
+    // Knob 3: turbulence (clamp)
+    params.turbulence += input.knobDeltas[2] * TURBULENCE_STEP;
+    params.turbulence = constrain(params.turbulence, TURBULENCE_MIN, TURBULENCE_MAX);
 
-    // Knob 4: Pink-Cyan Complementary Split (Wrap)
-    params.split += input.knobDeltas[3] * CYBER_GRID_SPLIT_STEP;
-    while (params.split < CYBER_GRID_SPLIT_MIN) params.split += (CYBER_GRID_SPLIT_MAX - CYBER_GRID_SPLIT_MIN);
-    while (params.split > CYBER_GRID_SPLIT_MAX) params.split -= (CYBER_GRID_SPLIT_MAX - CYBER_GRID_SPLIT_MIN);
+    // Knob 4: density (wrap)
+    params.density += input.knobDeltas[3] * DENSITY_STEP;
+    if (params.density > DENSITY_MAX) {
+        params.density -= (DENSITY_MAX - DENSITY_MIN);
+    } else if (params.density < DENSITY_MIN) {
+        params.density += (DENSITY_MAX - DENSITY_MIN);
+    }
 
-    params.timeAcc += dt * params.speed * 15.0f;
+    // Button presses reset to defaults
+    if (input.btnPressed[0]) params.colorShift = 0.0f;
+    if (input.btnPressed[1]) params.speed = 1.5f;
+    if (input.btnPressed[2]) params.turbulence = 2.0f;
+    if (input.btnPressed[3]) params.density = 0.5f;
+
+    params.timeAcc += dt * params.speed;
 }
 
 void draw() {
     int w = PANEL_RES_W;
     int h = PANEL_RES_H;
+
     float t = params.timeAcc;
+    float turb = params.turbulence * 0.3f + 0.5f;
+    float density = params.density * 2.0f + 0.5f;
+    float colorShift = params.colorShift;
 
-    int spacing = (int)floorf(params.gridW * 14.0f) + 6;
-    if (spacing <= 0) spacing = 1;
-    
-    float pWidth = params.pulse * 0.3f + 0.1f;
-    float spacing_pWidth = (float)spacing * pWidth;
-    int horizon_y = (int)floorf((float)h * 0.4f);
-
-    float w_div_2 = (float)w / 2.0f;
-    float t_05 = t * 0.5f;
-
-    uint8_t vertical_r = 0;
-    uint8_t vertical_g = (uint8_t)constrain(floorf(200.0f + params.split * 55.0f), 0.0f, 255.0f);
-    uint8_t vertical_b = 255;
-
-    uint8_t horizontal_r = 255;
-    uint8_t horizontal_g = 20;
-    uint8_t horizontal_b = (uint8_t)constrain(floorf(150.0f + (1.0f - params.split) * 105.0f), 0.0f, 255.0f);
+    // Precompute row/column dependent terms
+    float rowSinY[h];
+    float baseY[h];
+    float colCosX[w];
+    float baseX[w];
 
     for (int y = 0; y < h; y++) {
-        float perspectiveScale = ((float)y / (float)h) * 3.0f + 0.2f;
-        float invPerspectiveScale = 1.0f / perspectiveScale;
-        
-        float y_term = (float)y - t * 0.2f;
-        bool gridY = fabsf(fmodf(y_term, (float)spacing)) < spacing_pWidth;
+        float ny = (float)y / h;
+        rowSinY[y] = PFMath::fastSin(ny * 8.0f + t * 0.6f);
+        baseY[y] = ny * 10.0f + t * 0.7f;
+    }
+    for (int x = 0; x < w; x++) {
+        float nx = (float)x / w;
+        colCosX[x] = PFMath::fastCos(nx * 6.0f + t * 0.5f);
+        baseX[x] = nx * 12.0f + t * 0.8f;
+    }
 
+    for (int y = 0; y < h; y++) {
+        float ny = (float)y / h;
+        float dy = ny - 0.5f;
         for (int x = 0; x < w; x++) {
-            float skewX = ((float)x - w_div_2) * invPerspectiveScale + w_div_2;
-            float x_term = skewX + t_05;
-            bool gridX = fabsf(fmodf(x_term, (float)spacing)) < spacing_pWidth;
+            float nx = (float)x / w;
+            float dx = nx - 0.5f;
 
-            uint8_t r = 0, g = 0, b = 0;
+            float phase1 = PFMath::fastSin(baseX[x] + turb * rowSinY[y]);
+            float phase2 = PFMath::fastCos(baseY[y] + turb * colCosX[x]);
+            float flow = (phase1 + phase2) * 0.5f;
 
-            if (gridX && gridY) {
-                r = 255; g = 255; b = 255;
-            } else if (gridX) {
-                r = vertical_r; g = vertical_g; b = vertical_b;
-            } else if (gridY) {
-                r = horizontal_r; g = horizontal_g; b = horizontal_b;
-            } else if (y == horizon_y) {
-                r = 255; g = 255; b = 0;
+            float dist = PFMath::approxLength(dx, dy);
+            float spiral = PFMath::fastSin(dist * 20.0f - t * 0.3f + turb * 0.5f);
+
+            float value = (flow * 0.7f + spiral * 0.3f) * density;
+            value = constrain(value, 0.0f, 1.0f);
+
+            float hue = colorShift + value * 0.6f + dist * 0.3f + t * 0.02f;
+            hue = hue - floorf(hue); // fractional part in [0,1)
+            float sat = 0.6f + 0.4f * (1.0f - dist);
+            float bright = 0.3f + 0.7f * (value * value);
+
+            uint8_t r, g, b;
+            PFColor::hsvToRgb(hue, sat, bright, r, g, b);
+
+            if (value > 0.85f) {
+                r = constrain(r + 50, 0, 255);
+                g = constrain(g + 25, 0, 255);
+                b = constrain(b + 15, 0, 255);
             }
 
             PFCanvas::setPixel(x, y, r, g, b);
         }
     }
+
     PFCanvas::present();
 }
 
-} // namespace CyberpunkCyberGridPattern
+} // namespace FluidFlowPattern

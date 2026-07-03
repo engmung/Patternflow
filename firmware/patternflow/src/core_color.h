@@ -54,4 +54,21 @@ inline void sampleRamp(const ColorStop* ramp, int count, float t,
   }
 }
 
+// Bake powf(v, exponent) into a 256-entry LUT — replaces per-pixel powf for
+// FIXED exponents (gamma shaping, brightness curves, falloff sharpening).
+// Fill once in setup(), then index with a 0..255 value in draw().
+inline void buildPowLUT(float exponent, uint8_t lut[256]) {
+  for (int i = 0; i < 256; i++) {
+    lut[i] = (uint8_t)(powf((float)i * (1.0f / 255.0f), exponent) * 255.0f + 0.5f);
+  }
+}
+
+// Float variant (0..1 in, 0..1 out) for when the shaped value feeds further
+// math instead of going straight to a color channel.
+inline void buildPowLUTf(float exponent, float lut[256]) {
+  for (int i = 0; i < 256; i++) {
+    lut[i] = powf((float)i * (1.0f / 255.0f), exponent);
+  }
+}
+
 } // namespace PFColor

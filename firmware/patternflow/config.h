@@ -8,6 +8,46 @@
 
 #include <Arduino.h>
 
+// --- Arduino macro detox ---
+// Arduino.h defines PI / TWO_PI / HALF_PI / DEG_TO_RAD / RAD_TO_DEG / EULER as
+// bare object-like macros, so a pattern that declares its own constant with
+// one of those names ("static constexpr float PI = ...") gets preprocessor-
+// mangled into a compile error — AI-generated patterns do this all the time.
+// Replace the macros with typed constants: every existing use of PI keeps
+// working, and a pattern namespace may now legally shadow them with its own
+// definitions. (Function-like macros such as min/max/abs/constrain are left
+// alone — patterns rely on them and they only expand before a parenthesis.)
+//
+// float, not double: Arduino's macros are double literals, which silently
+// promotes float expressions like `hash * TWO_PI` to SOFTWARE-emulated double
+// math on the S3 (its FPU is single-precision only). Patterns are float math
+// throughout, so float constants keep the pixel loop on the hardware FPU;
+// the precision difference is in the 8th significant digit — invisible.
+#ifdef PI
+#undef PI
+#endif
+#ifdef TWO_PI
+#undef TWO_PI
+#endif
+#ifdef HALF_PI
+#undef HALF_PI
+#endif
+#ifdef DEG_TO_RAD
+#undef DEG_TO_RAD
+#endif
+#ifdef RAD_TO_DEG
+#undef RAD_TO_DEG
+#endif
+#ifdef EULER
+#undef EULER
+#endif
+constexpr float PI         = 3.14159265358979323846f;
+constexpr float TWO_PI     = 6.28318530717958647693f;
+constexpr float HALF_PI    = 1.57079632679489661923f;
+constexpr float DEG_TO_RAD = 0.01745329251994329577f;
+constexpr float RAD_TO_DEG = 57.29577951308232087680f;
+constexpr float EULER      = 2.71828182845904523536f;
+
 // --- Display Specifications ---
 #define PANEL_RES_W 128
 #define PANEL_RES_H 64
