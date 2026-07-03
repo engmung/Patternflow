@@ -17,6 +17,12 @@
 // working, and a pattern namespace may now legally shadow them with its own
 // definitions. (Function-like macros such as min/max/abs/constrain are left
 // alone — patterns rely on them and they only expand before a parenthesis.)
+//
+// float, not double: Arduino's macros are double literals, which silently
+// promotes float expressions like `hash * TWO_PI` to SOFTWARE-emulated double
+// math on the S3 (its FPU is single-precision only). Patterns are float math
+// throughout, so float constants keep the pixel loop on the hardware FPU;
+// the precision difference is in the 8th significant digit — invisible.
 #ifdef PI
 #undef PI
 #endif
@@ -35,12 +41,12 @@
 #ifdef EULER
 #undef EULER
 #endif
-constexpr double PI         = 3.1415926535897932384626433832795;
-constexpr double TWO_PI     = 6.283185307179586476925286766559;
-constexpr double HALF_PI    = 1.5707963267948966192313216916398;
-constexpr double DEG_TO_RAD = 0.017453292519943295769236907684886;
-constexpr double RAD_TO_DEG = 57.295779513082320876798154814105;
-constexpr double EULER      = 2.718281828459045235360287471352;
+constexpr float PI         = 3.14159265358979323846f;
+constexpr float TWO_PI     = 6.28318530717958647693f;
+constexpr float HALF_PI    = 1.57079632679489661923f;
+constexpr float DEG_TO_RAD = 0.01745329251994329577f;
+constexpr float RAD_TO_DEG = 57.29577951308232087680f;
+constexpr float EULER      = 2.71828182845904523536f;
 
 // --- Display Specifications ---
 #define PANEL_RES_W 128
