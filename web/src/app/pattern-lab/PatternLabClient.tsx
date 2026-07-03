@@ -56,8 +56,38 @@ import { preset as originPreset } from "@/lib/presets/pattern-origin";
 import { livePresets } from "@/lib/presets";
 import styles from "./PatternLab.module.css";
 
-const knobLabels = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
+const DEFAULT_KNOB_LABELS = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
 const initialKnobs = [...LOGICAL_KNOB_DEFAULTS];
+
+// ── @knobs annotation ──
+// Patterns declare knob names + ranges with one comment line:
+//   // @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1
+// Loading code with this line renames the on-screen knobs and applies the
+// ranges ("-" skips a slot). The pattern reads input.knobValues directly, so
+// the user can still retune any range afterwards and the pattern follows.
+const KNOBS_ANNOTATION_RE = /^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m;
+
+type KnobAnnotationEntry = { name: string; min: number; max: number } | null;
+
+function parseKnobsAnnotation(code: string): KnobAnnotationEntry[] | null {
+  const match = code.match(KNOBS_ANNOTATION_RE);
+  if (!match) return null;
+  const result: KnobAnnotationEntry[] = [null, null, null, null];
+  match[1]
+    .split(",")
+    .slice(0, 4)
+    .forEach((part, index) => {
+      const entry = part.trim();
+      if (!entry || entry === "-") return;
+      const m = entry.match(/^(.+?)\s*=\s*(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/);
+      if (!m) return;
+      const min = Number(m[2]);
+      const max = Number(m[3]);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
+      result[index] = { name: m[1].trim().slice(0, 14), min, max };
+    });
+  return result.some(Boolean) ? result : null;
+}
 const defaultRanges: KnobRange[] = LOGICAL_KNOB_RANGES.map(([min, max]) => [min, max]);
 const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
@@ -230,19 +260,19 @@ function loadStoredPatch(): PatchState {
 // color comes entirely from the Color Ramp panel.
 const VFIELD_DEMO_CODE = `// V-field demo — this pattern outputs only a 0..1 value field.
 // Color comes from the Color Ramp panel, not from this code.
-// Knobs: 1 = warp, 2 = speed, 3 = zoom, 4 = bands (0 = smooth)
+// @knobs Warp=0..2.2, Speed=0.1..10, Zoom=0.6..3, Bands=0..8
 
 export function setup(params) {
   params.t = 0;
 }
 
 export function update(dt, input, params) {
-  const kn = input.knobNormalized || [0.5, 0.5, 0.5, 0.5];
-  params.warp = kn[0] * 2.2;
-  params.speed = input.knobValues ? input.knobValues[1] : 1.0;
-  params.zoom = 0.6 + kn[2] * 2.4;
-  params.bands = Math.round(kn[3] * 8);
-  params.t += dt * params.speed * 0.6;
+  const kv = input.knobValues || [1.1, 2.0, 1.5, 0];
+  params.warp = kv[0];
+  params.speed = kv[1];
+  params.zoom = kv[2];
+  params.bands = Math.round(kv[3]);
+  params.t += dt * params.speed * 0.3;
 }
 
 export function draw(display, params, time) {
@@ -456,6 +486,7 @@ export default function PatternLabClient() {
   const [code, setCode] = useState(originPreset.code);
   const [knobs, setKnobs] = useState(initialKnobs);
   const [ranges, setRanges] = useState<KnobRange[]>(defaultRanges);
+  const [knobLabels, setKnobLabels] = useState<string[]>(DEFAULT_KNOB_LABELS);
   const [running, setRunning] = useState(true);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [renderStats, setRenderStats] = useState({ fps: 0, ms: 0 });
@@ -546,7 +577,7 @@ export default function PatternLabClient() {
   };
 
   const sendPatchToEditor = () => {
-    setCode(patchCode);
+    updateCode(patchCode);
     setEditorView("code");
   };
 
@@ -762,6 +793,39 @@ export default function PatternLabClient() {
     const timeout = window.setTimeout(() => loadCode(activeCode), 180);
     return () => window.clearTimeout(timeout);
   }, [activeCode, loadCode]);
+
+  // Apply a pattern's @knobs annotation only when the annotation text itself
+  // changes — manual label/range edits persist until different code arrives.
+  const lastKnobsAnnotationRef = useRef<string | null>(null);
+
+  const applyKnobsAnnotation = (nextCode: string) => {
+    const raw = nextCode.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
+    if (raw === lastKnobsAnnotationRef.current) return;
+    lastKnobsAnnotationRef.current = raw;
+    const parsed = raw ? parseKnobsAnnotation(nextCode) : null;
+    if (!parsed) return;
+    setKnobLabels((current) => current.map((label, index) => parsed[index]?.name ?? label));
+    setRanges((current) =>
+      current.map((range, index): KnobRange => {
+        const entry = parsed[index];
+        return entry ? [entry.min, entry.max] : range;
+      }),
+    );
+    setKnobs((current) =>
+      current.map((value, index) => {
+        const entry = parsed[index];
+        if (!entry) return value;
+        return Math.max(entry.min, Math.min(entry.max, value));
+      }),
+    );
+  };
+
+  // Single entry point for replacing the editor code so annotations apply on
+  // every path (typing/pasting, gallery load, demo, patch send).
+  const updateCode = (nextCode: string) => {
+    applyKnobsAnnotation(nextCode);
+    setCode(nextCode);
+  };
 
   useEffect(() => {
     knobsRef.current = knobs;
@@ -1209,7 +1273,7 @@ export default function PatternLabClient() {
 
   const onCardActivate = (item: GalleryItem) => {
     if (selectMode) toggleSelected(item.id);
-    else setCode(item.code);
+    else updateCode(item.code);
   };
 
   const deleteSelected = () => {
@@ -1561,7 +1625,7 @@ ${activeCode}
                 type="button"
                 className={styles.rampDemo}
                 title="Load a demo pattern that draws a 0..1 value field via display.setValue"
-                onClick={() => setCode(VFIELD_DEMO_CODE)}
+                onClick={() => updateCode(VFIELD_DEMO_CODE)}
               >
                 V demo
               </button>
@@ -1824,7 +1888,7 @@ ${activeCode}
                 defaultLanguage="javascript"
                 theme="vs-dark"
                 value={code}
-                onChange={(value) => setCode(value ?? "")}
+                onChange={(value) => updateCode(value ?? "")}
                 options={{
                   minimap: { enabled: false },
                   fontSize: 13,
@@ -2277,6 +2341,13 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
                 <li>
                   <code>input.knobValues[i]</code> — the knob&apos;s absolute value after its
                   min/max range is applied. This is the primary control API.
+                </li>
+                <li>
+                  <code>{"// @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1"}</code>{" "}
+                  — one comment line declaring knob names and ranges. Loading code with this line
+                  renames the knobs and applies the ranges automatically (<code>-</code> skips a
+                  slot); read the values back via <code>knobValues</code>, not{" "}
+                  <code>knobNormalized</code>, so range edits keep working.
                 </li>
                 <li>
                   <code>input.knobNormalized[i]</code> — the same knob remapped to{" "}

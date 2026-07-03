@@ -233,8 +233,41 @@ export function buildPatchCode(patch: PatchState): string {
         .join("\n")
     : "//   (no layers enabled)";
 
+  // @knobs annotation so Pattern Lab re-applies knob names + ranges when this
+  // code is loaded back into the editor ("-" = slot not bound, left alone).
+  const knobNames: (string | null)[] = [null, null, null, null];
+  const knobRanges: (readonly [number, number] | null)[] = [null, null, null, null];
+  const claimKnob = (
+    knob: PatchKnob | undefined,
+    name: string,
+    range: readonly [number, number],
+  ) => {
+    if (isBound(knob) && knobNames[knob] === null) {
+      knobNames[knob] = name;
+      knobRanges[knob] = range;
+    }
+  };
+  layers.forEach((layer, index) => {
+    claimKnob(layer.scaleK, `L${index + 1} scale`, PATCH_RANGES.scale);
+    claimKnob(layer.speedK, `L${index + 1} speed`, PATCH_RANGES.speed);
+    claimKnob(layer.angleK, `L${index + 1} angle`, PATCH_RANGES.angle);
+    claimKnob(layer.amountK, `L${index + 1} amount`, PATCH_RANGES.amount);
+  });
+  claimKnob(patch.masterSpeedK, "speed", PATCH_RANGES.masterSpeed);
+  claimKnob(patch.contrastK, "contrast", PATCH_RANGES.contrast);
+  claimKnob(patch.posterizeK, "poster", PATCH_RANGES.posterize);
+  const knobsAnnotation = anyBinding
+    ? `\n// @knobs ${[0, 1, 2, 3]
+        .map((knob) => {
+          const name = knobNames[knob];
+          const range = knobRanges[knob];
+          return name && range ? `${name}=${fmt(range[0])}..${fmt(range[1])}` : "-";
+        })
+        .join(", ")}`
+    : "";
+
   const knobComment = anyBinding
-    ? `// ${describePatchKnobs(patch).join(" · ")}\n// Bound knobs read input.knobValues as ABSOLUTE values, no clamp — the knob's own min/max range is the authority (listed ranges are bind-time defaults).`
+    ? `// ${describePatchKnobs(patch).join(" · ")}${knobsAnnotation}\n// Bound knobs read input.knobValues as ABSOLUTE values, no clamp — the knob's own min/max range is the authority (listed ranges are bind-time defaults).`
     : "// Knobs: none bound — bind sliders to K1–K4 in the Experiment tab to control them live.";
 
   const needsHash = layers.some((layer) => layer.gen === "cells" || layer.gen === "noise");
