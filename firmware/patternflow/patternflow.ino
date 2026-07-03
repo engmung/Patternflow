@@ -24,13 +24,16 @@ unsigned long lastMs = 0;
 float contentNoticeTimer = 0.0f;
 
 // Global brightness: K1 longpress enters brightness mode, K1 rotation
-// adjusts. Exits on second longpress or 5s idle. Value persists in NVS.
+// adjusts. Exits on a K1 click (instant), a second longpress, or 5s idle.
+// The BRIGHTNESS notice stays on screen for the whole time the mode is
+// active — the moment it disappears you're out. (It used to flash for
+// 1.2s while the mode silently lived on for 5s, so you could never tell
+// which state you were in.) Value persists in NVS.
 Preferences prefs;
 uint8_t currentBrightness = DEFAULT_BRIGHTNESS;
 bool brightnessAdjusting = false;
 uint32_t brightnessIdleAtMs = 0;
 bool brightnessDirty = false;
-float brightnessNoticeTimer = 0.0f;
 
 // NETWORK screen: K2 longpress enters a status view (Wi-Fi / OSC / audio).
 // Inside, TURNING K2 toggles OSC and TURNING K3 toggles audio-react (right
@@ -40,11 +43,18 @@ float brightnessNoticeTimer = 0.0f;
 bool oscInfoShowing = false;
 uint32_t oscInfoIdleAtMs = 0;
 
+// NETWORK screen redraw pacing. The screen is static text: redrawing and
+// flipping it every loop iteration (hundreds of Hz — no pattern renders in
+// this mode) races the panel scanout and the text visibly flickers. Redraw
+// only on entry, on a toggle, or at a slow poll so status changes still show.
+uint32_t netInfoDrawnAtMs = 0;
+bool netInfoDirty = false;
+
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
 const uint32_t OSC_INFO_IDLE_MS = 8000;
+const uint32_t NET_INFO_REDRAW_MS = 250;
 const float CONTENT_NOTICE_SECONDS = 1.0f;
-const float BRIGHTNESS_NOTICE_SECONDS = 1.2f;
 
 // Front-panel logical order after left-right mirroring by original knob pairs:
 // K1 <-> K2 and K3 <-> K4.
@@ -126,23 +136,28 @@ void drawCenteredTextScrim(const char* text, int y, uint16_t color, int textSize
   dma_display->print(text);
 }
 
+// Notices sit on the same tight scrim the SELECT overlay uses (text bounds
+// + 2px) instead of a full-width black band — less of the live pattern is
+// blotted out and every overlay text now shares one look.
 void drawContentNotice() {
-  dma_display->fillRect(0, 18, dma_display->width(), 28, 0);
-  drawCenteredText(currentContentName(), 30, dma_display->color565(255, 255, 255), 1);
+  drawCenteredTextScrim(currentContentName(), 30, dma_display->color565(255, 255, 255), 1);
 }
 
 void drawBrightnessNotice() {
-  dma_display->fillRect(0, dma_display->height() - 14, dma_display->width(), 14, 0);
   char buf[24];
   int pct = (int)((currentBrightness * 100 + 127) / 255);
-  snprintf(buf, sizeof(buf), "BRIGHTNESS  %d%%", pct);
-  drawCenteredText(buf, dma_display->height() - 10, dma_display->color565(255, 255, 255), 1);
+  snprintf(buf, sizeof(buf), "BRIGHTNESS %d%%", pct);
+  drawCenteredTextScrim(buf, dma_display->height() - 10, dma_display->color565(255, 255, 255), 1);
 }
 
 // NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi / OSC / audio
 // state. TURN K2 to toggle OSC, TURN K3 to toggle audio-react (rotation,
-// not a click — so the K2 longpress used to exit can't flip anything).
+// not a click — a K2 click exits). Drawn PORTRAIT (rotation 1, 64×128):
+// vertical is the device's primary mounting, so this screen reads upright
+// like the SELECT overlay. The 64px line width fits ~10 chars at text
+// size 1, hence the stacked layout and the IP split across two lines.
 void drawNetworkInfo() {
+  dma_display->setRotation(1);
   dma_display->fillScreen(0);
 
   uint16_t white = dma_display->color565(255, 255, 255);
@@ -153,29 +168,40 @@ void drawNetworkInfo() {
   uint16_t dim   = dma_display->color565(90, 90, 90);
 
   dma_display->setTextSize(1);
-  drawCenteredText("NETWORK", 2, white, 1);
+  drawCenteredText("NETWORK", 4, white, 1);
 
-  // OSC / AUDIO state row.
+  // OSC / AUDIO state rows.
   bool oscC = PatternflowOsc::isCompiledIn();
   bool oscOn = oscC && PatternflowOsc::isRuntimeEnabled();
-  dma_display->setTextColor(white);  dma_display->setCursor(6, 14);  dma_display->print("OSC");
+  dma_display->setTextColor(white);  dma_display->setCursor(8, 20);  dma_display->print("OSC");
   dma_display->setTextColor(oscC ? (oscOn ? green : red) : dim);
-  dma_display->setCursor(30, 14);    dma_display->print(oscC ? (oscOn ? "ON" : "OFF") : "N/A");
+  dma_display->setCursor(38, 20);    dma_display->print(oscC ? (oscOn ? "ON" : "OFF") : "N/A");
 
   bool audC = PatternflowAudio::isCompiledIn();
   bool audOn = audC && PatternflowAudio::isRuntimeEnabled();
-  dma_display->setTextColor(white);  dma_display->setCursor(72, 14);  dma_display->print("AUD");
+  dma_display->setTextColor(white);  dma_display->setCursor(8, 30);  dma_display->print("AUD");
   dma_display->setTextColor(audC ? (audOn ? green : red) : dim);
-  dma_display->setCursor(98, 14);    dma_display->print(audC ? (audOn ? "ON" : "OFF") : "N/A");
+  dma_display->setCursor(38, 30);    dma_display->print(audC ? (audOn ? "ON" : "OFF") : "N/A");
 
-  // Wi-Fi status + IP.
+  // Wi-Fi status + IP. A full IPv4 (up to 15 chars) doesn't fit one
+  // portrait line — split after the second octet's dot.
   bool wifiUp = PatternflowWifi::isConnected();
-  drawCenteredText(PatternflowWifi::statusText(), 26, wifiUp ? green : blue, 1);
-  drawCenteredText(PatternflowWifi::ipString().c_str(), 36, gray, 1);
+  drawCenteredText(PatternflowWifi::statusText(), 48, wifiUp ? green : blue, 1);
+  String ip = PatternflowWifi::ipString();
+  if (ip.length() <= 10) {
+    drawCenteredText(ip.c_str(), 60, gray, 1);
+  } else {
+    int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
+    drawCenteredText(ip.substring(0, cut).c_str(), 60, gray, 1);
+    drawCenteredText(ip.substring(cut).c_str(), 70, gray, 1);
+  }
 
-  // Hints — turn the knob (not click).
-  drawCenteredText("TURN K2:OSC  K3:AUD", 50, dim, 1);
-  drawCenteredText("HOLD K2 = EXIT", 57, dim, 1);
+  // Hints — turn to toggle, click (or hold) K2 to leave.
+  drawCenteredText("TURN K2/K3", 96, dim, 1);
+  drawCenteredText("OSC / AUD", 106, dim, 1);
+  drawCenteredText("K2 = EXIT", 118, dim, 1);
+
+  dma_display->setRotation(0);
 }
 
 // Draws the SELECT overlay ON TOP of the live pattern preview the loop has
@@ -329,13 +355,23 @@ void loop() {
   InputFrame input;
   readInputFrame(input);
 
+  // One-shot click events for the mode buttons, consumed every frame so a
+  // click that lands outside its mode can't stay latched and fire later.
+  bool k1Clicked = logicalButton(0)->clicked();
+  bool k2Clicked = logicalButton(1)->clicked();
+
   if (!oscInfoShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
     brightnessAdjusting = !brightnessAdjusting;
     brightnessIdleAtMs = now;
-    brightnessNoticeTimer = BRIGHTNESS_NOTICE_SECONDS;
     Serial.printf(">>> BRIGHTNESS MODE: %s (%u%%)\n",
                   brightnessAdjusting ? "ON" : "OFF",
                   (currentBrightness * 100 + 127) / 255);
+  }
+
+  // Click = instant exit; no need to sit through the 1s hold.
+  if (brightnessAdjusting && k1Clicked) {
+    brightnessAdjusting = false;
+    Serial.println(">>> BRIGHTNESS MODE: OFF (click)");
   }
 
   if (brightnessAdjusting) {
@@ -346,7 +382,6 @@ void loop() {
         currentBrightness = (uint8_t)b;
         dma_display->setBrightness8(currentBrightness);
         brightnessIdleAtMs = now;
-        brightnessNoticeTimer = BRIGHTNESS_NOTICE_SECONDS;
         brightnessDirty = true;
       }
     }
@@ -369,10 +404,15 @@ void loop() {
   }
 
   // K2 longpress → enter/exit the NETWORK status + toggle screen.
+  // A K2 click while inside also exits, instantly (mirrors brightness mode).
   if (logicalButton(1)->longPressed(MODE_HOLD_MS)) {
     oscInfoShowing = !oscInfoShowing;
     oscInfoIdleAtMs = now;
+    netInfoDirty = true;
     Serial.printf(">>> NETWORK SCREEN: %s\n", oscInfoShowing ? "ON" : "OFF");
+  } else if (oscInfoShowing && k2Clicked) {
+    oscInfoShowing = false;
+    Serial.println(">>> NETWORK SCREEN: OFF (click)");
   }
 
   if (oscInfoShowing) {
@@ -383,6 +423,7 @@ void loop() {
       if (next != PatternflowOsc::isRuntimeEnabled()) {
         PatternflowOsc::setRuntimeEnabled(next);
         prefs.putBool("osc_runtime", next);
+        netInfoDirty = true;
         Serial.printf("[NVS] osc_runtime saved: %s\n", next ? "true" : "false");
       }
       oscInfoIdleAtMs = now;
@@ -392,6 +433,7 @@ void loop() {
       if (next != PatternflowAudio::isRuntimeEnabled()) {
         PatternflowAudio::setRuntimeEnabled(next);
         prefs.putBool("audio_runtime", next);
+        netInfoDirty = true;
         Serial.printf("[NVS] audio_runtime saved: %s\n", next ? "true" : "false");
       }
       oscInfoIdleAtMs = now;
@@ -449,8 +491,17 @@ void loop() {
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
+  bool frameDrawn = true;
   if (oscInfoShowing) {
-    drawNetworkInfo();
+    if (netInfoDirty || (now - netInfoDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      drawNetworkInfo();
+      netInfoDrawnAtMs = now;
+      netInfoDirty = false;
+    } else {
+      // Nothing redrawn — skip the flip below so the displayed buffer
+      // stays untouched (flipping to a stale back buffer flickers).
+      frameDrawn = false;
+    }
   } else if (currentMode == MODE_RUNNING) {
     patterns[currentPatternIdx].update(dt, input);
     patterns[currentPatternIdx].draw();
@@ -460,15 +511,18 @@ void loop() {
       contentNoticeTimer -= dt;
     }
 
-    if (brightnessNoticeTimer > 0.0f) {
+    // Shown for the whole time the mode is active — this IS the mode
+    // indicator; when it disappears you're back to normal knob control.
+    if (brightnessAdjusting) {
       drawBrightnessNotice();
-      brightnessNoticeTimer -= dt;
     }
   } else {
     if (input.knobDeltas[3] != 0) {
       currentPatternIdx += input.knobDeltas[3];
-      if (currentPatternIdx < 0) currentPatternIdx += NUM_PATTERNS;
-      currentPatternIdx %= NUM_PATTERNS;
+      // Floored modulo: OSC /knob/4/delta can deliver a delta more negative
+      // than -NUM_PATTERNS in one frame, and C++'s % keeps the sign — a plain
+      // "+= NUM_PATTERNS once" would leave a negative index into patterns[].
+      currentPatternIdx = ((currentPatternIdx % NUM_PATTERNS) + NUM_PATTERNS) % NUM_PATTERNS;
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
     }
 
@@ -488,8 +542,11 @@ void loop() {
 
     dma_display->setRotation(1);
     drawSelectingMode();
+    if (brightnessAdjusting) {
+      drawBrightnessNotice();  // mode indicator, same as in RUNNING
+    }
     dma_display->setRotation(0);  // back to landscape for the next frame
   }
 
-  dma_display->flipDMABuffer();
+  if (frameDrawn) dma_display->flipDMABuffer();
 }

@@ -35,13 +35,25 @@
 | **Display** | 128 × 64 HUB75 RGB LED matrix, P2.5 (320 × 160 mm) |
 | **Brain** | ESP32-S3-WROOM-1 **N16R8** (16 MB flash, 8 MB PSRAM) — standalone, no sending card |
 | **Input** | 4× EC11 rotary encoders with push-switch; long-press encoder 4 to switch patterns |
-| **Power** | 5 V over USB from a standard power bank |
+| **Power** | 5 V over USB from any power bank — about **4 h per 10,000 mAh** at max brightness (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Stock firmware from the browser (Chrome/Edge), no IDE needed; custom patterns via Arduino IDE |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
 | **Build** | 4–6 h active work + ~11 h 3D printing · intermediate skill · around US$80 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web) · CC-BY-SA 4.0 (hardware & patterns) |
+
+### Power & runtime
+
+Patternflow runs off any standard USB power bank that can supply a couple of amps at 5 V — no wall adapter needed, so it stays portable. In testing, a 40,000 mAh bank dropped about 13% over 2 hours at **full brightness**, which is roughly **15 hours on a full charge**, or about **4 hours per 10,000 mAh**:
+
+| Power bank | Approx. runtime (max brightness) |
+| :--- | :--- |
+| 10,000 mAh | ~4 hours |
+| 20,000 mAh | ~8 hours |
+| 40,000 mAh | ~15 hours |
+
+These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 2) extends runtime well beyond these figures.
 
 ## Patterns
 

@@ -41,6 +41,12 @@ inline bool connectedNow = false;
 inline bool justConnectedEdge = false;
 inline uint32_t lastBeginMs = 0;
 
+// Last definitive failure (NO_SSID / AUTH_FAIL), latched for statusText().
+// The retry loop bounces the raw WiFi.status() between a failure code and
+// "idle/disconnected" every cycle, which reads as flickering text on the
+// panel — latching keeps the label steady until the state truly changes.
+inline wl_status_t latchedFailure = WL_IDLE_STATUS;
+
 // Active credentials in use. Loaded from NVS (where Improv-Serial provisioning
 // writes them, see core_improv.h) when present, otherwise the compile-time
 // placeholders from net_config.h. Held in String so they outlive begin().
@@ -107,6 +113,7 @@ inline void applyCredentials(const String& ssid, const String& pass) {
   // Force a clean reconnect with the new creds (mirrors the retry path).
   connectedNow = false;
   justConnectedEdge = false;
+  latchedFailure = WL_IDLE_STATUS;  // stale failure was for the old creds
   WiFi.disconnect();
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
   lastBeginMs = millis();
@@ -160,19 +167,27 @@ inline bool consumeJustConnected() {
   return e;
 }
 
-// Short status word for the on-device info screen.
+// Short status word for the on-device info screen. Failure labels stay
+// latched across retry cycles (see latchedFailure above).
 inline const char* statusText() {
-  switch (WiFi.status()) {
-    case WL_CONNECTED:      return "CONNECTED";
+  wl_status_t s = WiFi.status();
+  if (s == WL_CONNECTED) {
+    latchedFailure = WL_IDLE_STATUS;
+    return "CONNECTED";
+  }
+  if (s == WL_NO_SSID_AVAIL || s == WL_CONNECT_FAILED) latchedFailure = s;
+  switch (latchedFailure) {
     case WL_NO_SSID_AVAIL:  return "NO SSID";
     case WL_CONNECT_FAILED: return "AUTH FAIL";
     default:                return "CONNECTING";
   }
 }
 
+// ASCII only: the GFX default font renders each byte of a multi-byte
+// UTF-8 char (like an em dash) as its own garbage glyph.
 inline String ipString() {
   if (WiFi.status() == WL_CONNECTED) return WiFi.localIP().toString();
-  return String("—");
+  return String("-");
 }
 
 #else  // !PF_WIFI_NEEDED — all network features compiled out
@@ -185,7 +200,7 @@ inline const String& currentSsid() { static String s; return s; }
 inline bool isConnected() { return false; }
 inline bool consumeJustConnected() { return false; }
 inline const char* statusText() { return "OFF"; }
-inline String ipString() { return String("—"); }
+inline String ipString() { return String("-"); }
 
 #endif
 
