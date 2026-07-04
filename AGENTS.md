@@ -11,6 +11,7 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 - `hardware/` — Hardware designs. Contains `case/` (Blender source, STLs in `case/print-ready/`) and `pcb/` (KiCad 10.0 source, Gerbers, schematic PDF).
 - `web/` — Next.js site at patternflow.work: landing page, Live Editor, browser flasher, journal, roadmap, and internal tools (`/pattern-lab`, `/video-baker`). Architecture doc: `web/ARCHITECTURE.md`. The JS presets in `web/src/lib/presets/` are the source of truth for firmware preset headers.
 - `tools/` — desktop-side helpers, including the experimental audio-react browser extension (`tools/patternflow-audio-extension`).
+- `integrations/` — host-software integrations. `integrations/ableton/` is the Max for Live bridge (knobs → Live parameters over OSC) with its own README and guides; the OSC wire protocol lives in `docs/osc-spec.md` and is the contract for all integrations.
 - `.agents/` — AI harness configuration (skills, workflows, rules).
 
 ## Hard rules (do not violate)

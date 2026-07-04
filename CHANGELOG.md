@@ -2,6 +2,18 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Ableton Live integration** (`integrations/ableton/`). A Max for Live bridge device maps the four hardware knobs to any Live parameters over OSC (relative encoder deltas, per-slot sweep sensitivity, mappings saved with the Live set), plus guides for M4L/OSC pitfalls and a filming-with-synced-sound workflow.
+- **OSC spec** (`docs/osc-spec.md`): the wire protocol as a versioned contract for third-party integrations.
+- **OSC `/patternflow/ping`**: any host can request a full announce (hello/version/ip + current pattern/state) — hosts that start after the device no longer miss the current state.
+- **OSC auto-learned remote host.** The device now replies to whichever host sent the last valid OSC packet; `PF_OSC_REMOTE_HOST` is optional (default empty) and only needed for send-only setups.
+- **OSC `/patternflow/version`** sent alongside `hello`.
+
+### Changed
+- **OSC receive robustness**: up to 8 datagrams drained per frame (was 1 — fast Live automation used to build up seconds of queue lag), and numeric arguments are accepted as int *or* float (Max patches commonly send floats; they were silently dropped before).
+
 ## [2.0.0] - 2026-05
 
 ### Added
