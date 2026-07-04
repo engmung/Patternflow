@@ -265,6 +265,8 @@ Keep this page for file playback, microphone input, and local experiments. Brows
 
 Patternflow can send lightweight OSC control messages over Wi-Fi for performance setups such as Ableton Live Suite with Max for Live. This is meant for knobs, buttons, pattern status, and heartbeat messages, not for streaming rendered pixels.
 
+The full wire protocol is specified in [`docs/osc-spec.md`](../docs/osc-spec.md). A ready-made Max for Live bridge device (knobs → any Live parameters) lives in [`integrations/ableton/`](../integrations/ableton/).
+
 OSC has two switches: **compile-time** (whether OSC code is linked into the firmware at all) and **runtime** (whether the linked-in code is currently sending/receiving). The K2 longpress info screen only controls the runtime switch — if the compile-time switch is off, the runtime toggle is inert.
 
 ### Compile-time: enable the build flag and provide Wi-Fi credentials
@@ -274,6 +276,12 @@ Copy `patternflow/patternflow_secrets.example.h` to `patternflow/patternflow_sec
 #define PF_OSC_ENABLED 1
 #define PF_WIFI_SSID "your-wifi-name"
 #define PF_WIFI_PASS "your-wifi-password"
+```
+
+You normally do **not** need to configure the laptop's IP: the device learns the remote host from the first valid OSC packet it receives (send `/patternflow/ping` — the M4L bridge's Connect button does this). Until then the K2 info screen shows `WAIT HOST`. For send-only setups where the host never sends anything, a static target can still be set:
+
+```cpp
+// optional, send-only setups
 #define PF_OSC_REMOTE_HOST "192.168.0.10"  // laptop IP
 #define PF_OSC_REMOTE_PORT 9000
 ```
@@ -297,6 +305,9 @@ Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechan
 /patternflow/content/mode
 /patternflow/app/mode
 /patternflow/heartbeat
+/patternflow/hello          (on connect / announce)
+/patternflow/version        (on connect / announce)
+/patternflow/ip             (on connect / announce)
 ```
 
 In a Max patch, the receiving side is typically `udpreceive 9000` followed by `oscparse`, then route the address parts and map values to Live parameters with Max for Live devices such as `live.remote~`, `live.object`, or your own mapping patch.
@@ -306,12 +317,13 @@ In a Max patch, the receiving side is typically `udpreceive 9000` followed by `o
 The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external host can drive it back. Send any of these addresses from Ableton/Max:
 
 ```text
-/patternflow/knob/N/delta      (int)   — virtual rotation on logical knob N (1..4)
-/patternflow/pattern/index     (int)   — switch to pattern at this registry index
-/patternflow/content/toggle    (—)     — toggle PATTERN ↔ VIDEO
+/patternflow/ping              (—)             — learn sender as remote host + reply with full announce
+/patternflow/knob/N/delta      (int or float)  — virtual rotation on logical knob N (1..4)
+/patternflow/pattern/index     (int or float)  — switch to pattern at this registry index
+/patternflow/content/toggle    (—)             — toggle PATTERN ↔ VIDEO
 ```
 
-Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses are ignored silently. Receive buffer is 256 bytes per packet.
+Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
 
 ## OTA Updates (For Developers)
 

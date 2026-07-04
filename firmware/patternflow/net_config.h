@@ -81,8 +81,12 @@
 #ifndef PF_OSC_ENABLED
 #define PF_OSC_ENABLED 0
 #endif
+// Where outgoing OSC goes. Leave EMPTY (the default) to auto-learn: the
+// device locks onto whoever sends it the first valid OSC packet — the M4L
+// bridge's Connect button (/patternflow/ping) does exactly that. Set a
+// static IP here only if the host side can't send ("send-only" setups).
 #ifndef PF_OSC_REMOTE_HOST
-#define PF_OSC_REMOTE_HOST "192.168.0.10"
+#define PF_OSC_REMOTE_HOST ""
 #endif
 #ifndef PF_OSC_REMOTE_PORT
 #define PF_OSC_REMOTE_PORT 9000
