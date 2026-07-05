@@ -50,15 +50,30 @@ uint32_t oscInfoIdleAtMs = 0;
 uint32_t netInfoDrawnAtMs = 0;
 bool netInfoDirty = false;
 
+// KNOB MAP screen: K3 longpress shows which physical knob is which number
+// (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left).
+// Turning any knob lights its digit up green, so each knob can be verified
+// without leaving the screen. K3 click, a second K3 longpress, or idle exits.
+bool knobMapShowing = false;
+uint32_t knobMapIdleAtMs = 0;
+uint32_t knobMapDrawnAtMs = 0;
+bool knobMapDirty = false;
+uint32_t knobMapActiveAtMs[4] = {0, 0, 0, 0};
+
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
 const uint32_t OSC_INFO_IDLE_MS = 8000;
 const uint32_t NET_INFO_REDRAW_MS = 250;
+const uint32_t KNOB_MAP_IDLE_MS = 8000;
+const uint32_t KNOB_MAP_HILITE_MS = 600;
 const float CONTENT_NOTICE_SECONDS = 1.0f;
 
-// Front-panel logical order after left-right mirroring by original knob pairs:
-// K1 <-> K2 and K3 <-> K4.
-const int LOGICAL_TO_PHYSICAL_KNOB[4] = {1, 0, 2, 3};
+// Logical knob N = front-panel KN = physical encoder N. The PCB routes ENCn
+// straight to the Kn position (verified on the board) — an earlier build
+// mirrored K1<->K2 here, which put every K1/K2 feature on the wrong physical
+// knob. Keep this an identity unless a future enclosure actually flips the
+// panel.
+const int LOGICAL_TO_PHYSICAL_KNOB[4] = {0, 1, 2, 3};
 
 Button* logicalButton(int logicalIdx) {
   switch (LOGICAL_TO_PHYSICAL_KNOB[logicalIdx]) {
@@ -200,6 +215,46 @@ void drawNetworkInfo() {
   drawCenteredText("TURN K2/K3", 96, dim, 1);
   drawCenteredText("OSC / AUD", 106, dim, 1);
   drawCenteredText("K2 = EXIT", 118, dim, 1);
+
+  dma_display->setRotation(0);
+}
+
+// KNOB MAP screen (K3 longpress). Drawn PORTRAIT like the NETWORK screen.
+// One numbered circle per knob at its front-view corner; a digit turns green
+// for a moment while its knob is being turned. Same throttled-redraw scheme
+// as the NETWORK screen (see netInfoDrawnAtMs).
+void drawKnobMap() {
+  dma_display->setRotation(1);
+  dma_display->fillScreen(0);
+
+  uint16_t white = dma_display->color565(255, 255, 255);
+  uint16_t green = dma_display->color565(80, 220, 130);
+  uint16_t dim   = dma_display->color565(90, 90, 90);
+
+  int w = dma_display->width();   // 64 in portrait
+  int h = dma_display->height();  // 128 in portrait
+
+  drawCenteredText("KNOB MAP", (h / 2) - 10, white, 1);
+  drawCenteredText("TURN = SHOW", (h / 2) + 2, dim, 1);
+  drawCenteredText("K3 = EXIT", (h / 2) + 12, dim, 1);
+
+  // Front-view corners: K1 top-right, K2 top-left, K3 bottom-right,
+  // K4 bottom-left (indices are logical = physical after the identity map).
+  const int cx[4] = { w - 13, 13, w - 13, 13 };
+  const int cy[4] = { 14, 14, h - 14, h - 14 };
+
+  uint32_t now = millis();
+  for (int i = 0; i < 4; i++) {
+    bool active = knobMapActiveAtMs[i] != 0 &&
+                  (now - knobMapActiveAtMs[i]) < KNOB_MAP_HILITE_MS;
+    uint16_t col = active ? green : white;
+    if (active) dma_display->fillCircle(cx[i], cy[i], 10, dma_display->color565(15, 55, 30));
+    dma_display->drawCircle(cx[i], cy[i], 10, col);
+    dma_display->setTextSize(1);
+    dma_display->setTextColor(col);
+    dma_display->setCursor(cx[i] - 2, cy[i] - 3);
+    dma_display->print((char)('1' + i));
+  }
 
   dma_display->setRotation(0);
 }
@@ -359,8 +414,9 @@ void loop() {
   // click that lands outside its mode can't stay latched and fire later.
   bool k1Clicked = logicalButton(0)->clicked();
   bool k2Clicked = logicalButton(1)->clicked();
+  bool k3Clicked = logicalButton(2)->clicked();
 
-  if (!oscInfoShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && !knobMapShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
     brightnessAdjusting = !brightnessAdjusting;
     brightnessIdleAtMs = now;
     Serial.printf(">>> BRIGHTNESS MODE: %s (%u%%)\n",
@@ -405,7 +461,7 @@ void loop() {
 
   // K2 longpress → enter/exit the NETWORK status + toggle screen.
   // A K2 click while inside also exits, instantly (mirrors brightness mode).
-  if (logicalButton(1)->longPressed(MODE_HOLD_MS)) {
+  if (!knobMapShowing && logicalButton(1)->longPressed(MODE_HOLD_MS)) {
     oscInfoShowing = !oscInfoShowing;
     oscInfoIdleAtMs = now;
     netInfoDirty = true;
@@ -451,7 +507,36 @@ void loop() {
     }
   }
 
-  if (!oscInfoShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
+  // K3 longpress → enter/exit the KNOB MAP screen. A K3 click inside exits.
+  if (!oscInfoShowing && logicalButton(2)->longPressed(MODE_HOLD_MS)) {
+    knobMapShowing = !knobMapShowing;
+    knobMapIdleAtMs = now;
+    knobMapDirty = true;
+    Serial.printf(">>> KNOB MAP: %s\n", knobMapShowing ? "ON" : "OFF");
+  } else if (knobMapShowing && k3Clicked) {
+    knobMapShowing = false;
+    Serial.println(">>> KNOB MAP: OFF (click)");
+  }
+
+  if (knobMapShowing) {
+    // Light the digit of any knob being turned, then swallow the input so
+    // the pattern underneath (and OSC) don't see it.
+    for (int i = 0; i < 4; i++) {
+      if (input.knobDeltas[i] != 0) {
+        knobMapActiveAtMs[i] = now;
+        knobMapIdleAtMs = now;
+        knobMapDirty = true;
+      }
+      input.knobDeltas[i] = 0;
+      input.btnPressed[i] = false;
+    }
+    if ((now - knobMapIdleAtMs) > KNOB_MAP_IDLE_MS) {
+      knobMapShowing = false;
+      Serial.println(">>> KNOB MAP: OFF (idle)");
+    }
+  }
+
+  if (!oscInfoShowing && !knobMapShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
@@ -500,6 +585,16 @@ void loop() {
     } else {
       // Nothing redrawn — skip the flip below so the displayed buffer
       // stays untouched (flipping to a stale back buffer flickers).
+      frameDrawn = false;
+    }
+  } else if (knobMapShowing) {
+    // Redraw on activity or at the slow poll (so highlights also fade out);
+    // same anti-flicker scheme as the NETWORK screen above.
+    if (knobMapDirty || (now - knobMapDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      drawKnobMap();
+      knobMapDrawnAtMs = now;
+      knobMapDirty = false;
+    } else {
       frameDrawn = false;
     }
   } else if (currentMode == MODE_RUNNING) {

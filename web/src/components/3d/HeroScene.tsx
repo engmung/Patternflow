@@ -54,6 +54,17 @@ void main() {
 
 useGLTF.preload('/3dforweb.glb');
 
+// The GLB knob meshes are named after the PCB encoder nets, and K1/K2 are
+// cross-routed on the official board (see firmware config.h): the mesh at the
+// physical K1 position is named "c2" and vice versa. Remap mesh name → knob id
+// so the on-screen knobs behave like the physical ones.
+const MESH_TO_KNOB: Record<string, 'c1' | 'c2' | 'c3' | 'c4'> = {
+  c1: 'c2',
+  c2: 'c1',
+  c3: 'c3',
+  c4: 'c4',
+};
+
 // Removed hardcoded ACTIVE_PATTERN
 
 function Model() {
@@ -152,7 +163,8 @@ function Model() {
       
       lastMouseAngle.current = currentAngle;
       
-      const knobName = activeKnobRef.current.name as 'c1' | 'c2' | 'c3' | 'c4';
+      const knobName = MESH_TO_KNOB[activeKnobRef.current.name];
+      if (!knobName) return;
       
       // 노브 시각적 회전 (시계방향 마우스 회전 시 3D 모델도 시계방향 회전)
       activeKnobRef.current.rotation.y -= deltaAngle; 
