@@ -27,6 +27,24 @@ Naming: a variant keeps its base plate's name plus a descriptive suffix (e.g. `0
 
 > **⚠️ Known issue — `01_plate_main_easyfit.stl`.** This variant is missing the internal slot that the LED matrix divider wall slides into, so the divider does not seat properly. A fixed STL will be uploaded later. Until then, use the standard `01_plate_main.stl` if you need the divider to fit correctly.
 
+## One-piece enclosure (large-format printers)
+
+`print-ready/oneshot/` is an alternative to the standard split-and-glue body: the enclosure prints as a **single-piece body plus a snap-fit closing part** — no bonding step at all. This is the mass-production-oriented design from [Issue #113](https://github.com/engmung/Patternflow/issues/113).
+
+| File | Contents | Color |
+|---|---|---|
+| `print-ready/oneshot/oneshot_1.stl` + `oneshot_2.stl` | Full enclosure as two snap-fit parts | White PLA |
+
+- **Bed requirement: ~330 mm+ (Bambu H2S-class or similar large-format).** It does **not** fit a 256 mm bed (P1S/X1C/A1 class) — for those printers, use the standard plates above, or watch the divided variant below.
+- Knobs are printed separately as usual (`03_plate_knobs*.stl`).
+- Status: core design complete and printing reliably. Minor refinements (vent holes, anti-warp ribs) are planned for the v3.0 revision.
+
+## Experiments
+
+`print-ready/experiment/` holds unvalidated work-in-progress. Currently:
+
+- `divided_test_1.stl` … `divided_test_5.stl` — the one-piece enclosure split into **5 parts that fit a 256 mm bed** (P1S-class), so community printers can build the snap-fit design too. Modeled but **not yet print-tested** — do not build from these yet. Once validated, they will be promoted next to the one-piece files.
+
 ## Print settings
 
 - **Printer:** Bambu P1S (default profile works as-is)
