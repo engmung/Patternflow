@@ -28,9 +28,13 @@
 
 // ── OSC (Ableton/Max sidechannel) ──
 // Off by default. Set to 1 to send/receive OSC.
-#define PF_OSC_ENABLED 0
-#define PF_OSC_REMOTE_HOST "192.168.0.10"
-#define PF_OSC_REMOTE_PORT 9000
+#define PF_OSC_ENABLED 1
+// Remote host is normally LEARNED automatically: leave this line commented
+// out and let the M4L bridge (or any host) send /patternflow/ping — the
+// device replies to wherever the ping came from. Only set a static IP for
+// send-only setups where the host never sends anything back.
+// #define PF_OSC_REMOTE_HOST "192.168.0.10"
+// #define PF_OSC_REMOTE_PORT 9000
 // #define PF_OSC_LOCAL_PORT 9001
 
 // ── Audio-react WebSocket ──
