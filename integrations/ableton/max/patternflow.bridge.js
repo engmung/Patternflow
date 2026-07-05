@@ -67,6 +67,7 @@ function refreshStatus() {
 // Bang from [live.thisdevice]: the Live API is only usable from here on.
 function init() {
   initialized = true;
+  watchSelection();
   for (var i = 0; i < NUM_SLOTS; i++) {
     bindSlot(i);
     outlet(6 + i, "set", sweeps[i]);
@@ -152,20 +153,77 @@ function markAlive() {
 
 // ── mapping ──────────────────────────────────────────────────
 
-// UX: click the target parameter in Live first (it becomes the "selected
-// parameter"), then click Map N here.
+// Mapping — both orders work:
+//   click-first: click the target parameter in Live, then click Map N.
+//     Reading selected_parameter at Map-click time is unreliable (the Map
+//     click itself clears the selection on some Live/OS combos), so we
+//     observe selection changes continuously and remember the last real
+//     one for SEL_FRESH_MS.
+//   arm-then-click (stock-LFO style): click Map N, then click the parameter.
+// Clicking the same armed Map again cancels.
+var SEL_FRESH_MS = 10000;
+var armSlot = -1;
+var selWatcher = null;
+var lastSelId = 0;
+var lastSelMs = 0;
+
+function watchSelection() {
+  if (!selWatcher) {
+    selWatcher = new LiveAPI(onSelChange, "live_set view");
+    selWatcher.property = "selected_parameter";
+  }
+}
+
 function map(slot) {
   var i = slot - 1;
   if (i < 0 || i >= NUM_SLOTS) return;
   if (!initialized) return;
-  var view = new LiveAPI("live_set view");
-  var sel = view.get("selected_parameter");
-  var selId = (sel && sel.length >= 2) ? sel[1] : 0;
-  if (!selId) {
-    setStatus("click a Live parameter first, then Map " + slot);
+  if (armSlot === i) { // second click on the same Map cancels
+    armSlot = -1;
+    refreshStatus();
     return;
   }
-  var param = new LiveAPI("id " + selId);
+  armSlot = i;
+  // click-first flow: a parameter selected moments ago maps right away
+  // (direct call is fine here — a UI click, not a notification)
+  if (lastSelId && (Date.now() - lastSelMs) <= SEL_FRESH_MS) {
+    applySelected(lastSelId);
+  }
+  if (armSlot >= 0) setStatus("Map " + slot + ": now click a parameter in Live");
+}
+
+// The observer callback runs in Live's notification context, from which
+// live.remote~ refuses id changes ("Setting the id cannot be triggered by
+// notifications"). Stash the id and hop to the scheduler via a Task before
+// touching the outlets.
+var pendingSelId = 0;
+var applyTask = new Task(function () {
+  var id = pendingSelId;
+  pendingSelId = 0;
+  applySelected(id);
+});
+
+function onSelChange(args) {
+  var id = 0;
+  for (var k = 0; k < args.length - 1; k++) {
+    if (String(args[k]) === "id") { id = parseInt(args[k + 1], 10); break; }
+  }
+  if (!id) return; // selection cleared — keep remembering the last real one
+  lastSelId = id;
+  lastSelMs = Date.now();
+  if (armSlot < 0) return;
+  pendingSelId = id;
+  applyTask.schedule(0);
+}
+
+function applySelected(id) {
+  if (armSlot < 0 || !id || isNaN(id)) return;
+  var i = armSlot;
+  var param = new LiveAPI("id " + id);
+  if (!param || param.id == 0) return;
+  if (String(param.type) !== "DeviceParameter") return; // clip/track/etc — keep waiting
+  armSlot = -1;
+  lastSelId = 0; // consumed — the next Map needs a fresh parameter click
   paths[i] = String(param.unquotedpath).split(" ").join(".");
   notifyclients();
   bindSlot(i);
