@@ -1,6 +1,6 @@
 # Patternflow v2.0.0 -- Build Guide
 
-This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with soldering (through-hole + simple SMD) and 3D printing.
+This guide walks you through building a Patternflow v2.0.0 from scratch. It assumes basic familiarity with through-hole soldering and 3D printing.
 
 This is the current detailed path for a hand-soldered official PCB plus a PLA 3D printed enclosure. For the broader assembly map, including the laser-cut path still in preparation, see [docs/assembly/README.md](docs/assembly/README.md).
 
@@ -8,7 +8,9 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 **Estimated build time:** 4-6 hours of active work, plus ~11 hours of 3D printing.
 
-**Skill level:** Intermediate. If you've assembled a mechanical keyboard or built an Arduino project with SMD components, you're ready.
+**Skill level:** Beginner-to-intermediate. If you've assembled a mechanical keyboard or built a basic Arduino project, you're ready — this is an all through-hole build.
+
+> **Heads-up — photos may differ slightly, and a v3.0 refresh is coming.** The images throughout this guide were shot on an early build, so small cosmetic details may not match the current files exactly. Where a photo looks slightly off, follow the written steps. A full **v3.0** revision is in progress — improved 3D-printed enclosure (snap-fit + minor refinements), a USB-C power adapter, and a fully cleaned-up BOM. This guide will be reorganized around v3.0 once it lands.
 
 > **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case source/print-ready files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
@@ -44,9 +46,6 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 | J1 | Box Header (2x8, 2.54mm) | Vertical, for HUB75 ribbon | 1 | LED matrix data |
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
 | J3 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V output to LED matrix |
-| R1-R12 | Resistor 10k 1% | 0805 SMD | 12 | Encoder pull-ups (3 per encoder x 4) |
-| R13 | Resistor 10k 1% | 0805 SMD | 1 | GPIO0 pull-up (boot strap stabilization) |
-| C1-C10, C12-C15 | Capacitor 100nF X7R | 0805 SMD | 14 | 12 for encoders (3 per encoder x 4), 2 for ESP32 decoupling |
 | C11 | Electrolytic Cap 1000uF / 16V | Radial D10xL13 | 1 | Main bulk decoupling |
 | - | M4 Screws | ~10mm length | 6 | LED matrix mounting |
 | - | USB Cable (sacrificial) | Any USB cable, will be cut | 1 | For 5V power input |
@@ -67,7 +66,9 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 >
 > **The safe move:** before buying, ask the seller which driver IC the panel uses. If they say *FM6363C/FM6373C*, *3840Hz*, or *"needs a receiving card"*, pick a different panel — ideally one explicitly advertised as *"hzeller / ESP32-HUB75-MatrixPanel-DMA compatible."* The linked panel above is a known-good one.
 
-PCB: order from your preferred fab using the KiCad files in `hardware/pcb/`. I used PCBway (sponsored).
+PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
+
+> ⚠️ **Use v2.1 — not v2.2.** `patternflow_v2.2_test_gerber.zip` is an unverified test revision and should **not** be ordered. `patternflow_v2.1_gerber.zip` is the current recommended board.
 
 If you want to order the PCB without manually uploading Gerbers, the Patternflow PCB is also listed as a PCBWay open-source project:
 
@@ -82,7 +83,6 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 - 3D printer (I used Bambu P1S)
 - White and black PLA filament
 - Soldering iron, solder, flux, tweezers
-- (Optional) solder paste + hot air rework station — see SMD section
 - Wire cutters or strong nippers (for trimming the LED matrix back)
 - Cyanoacrylate glue (super glue)
 - Phillips screwdriver, small flathead for screw terminals
@@ -153,41 +153,13 @@ Allow ~5 minutes after every bond step for the glue to fully cure before handlin
 
 ## 4. PCB Assembly
 
-Solder SMD parts first, then through-hole. Work small-to-tall — that's why SMD goes before any tall through-hole component.
+This is an all through-hole build. Work small-to-tall — shortest parts first, tallest last.
+
+> **No SMD required.** The PCB has footprints for optional 0805 passives (encoder pull-ups, filter caps, ESP32 decoupling caps) and an R13 GPIO0 pull-up, but they are **not populated** — a unit runs fine without any of them. See the design note in Section 10 for the rationale and the on-module cold-boot fix if you ever need it.
 
 <img src="docs/build-guide/images/pcb_assembly_setup.jpg" width="70%">
 
-### 4.1 SMD Pass (R1-R13, C1-C10, C12-C15)
-
-> **⚠️ Temporary note — you can skip the SMD 0805 passives (verified working).** In bench testing, a board runs fine **without** the 0805 SMD resistors and capacitors populated — the encoder pull-ups (R1–R12), encoder filter caps (C1–C10, C12–C13), and the ESP32 decoupling caps (C14–C15) are not required to get a working unit. The ESP32-S3's internal pull-ups and firmware debouncing cover the encoders. If you'd rather not deal with the SMD pass at all, you can skip this whole section and still end up with a functioning board.
->
-> **R13 (GPIO0 pull-up) — leave it off, fix on the module only if needed.** R13 only matters for the cold-boot strapping issue, which mostly affects clone/AliExpress ESP32-S3 modules; **genuine Espressif modules boot fine without it.** The intended direction is to drop R13 entirely and **not** populate it on the board. If you *do* hit the cold-boot symptom (board fails to start after being unplugged for a few minutes), the simplest fix is to solder a 10kΩ leaded (through-hole) resistor **directly on the ESP32 module, between GPIO0 and 3.3V** — no board rework, no extra part to source if you have a 10kΩ on hand. For reference photos of this on-module fix and the full root-cause write-up, see [issue #16 (GPIO0 strapping pin resolution)](https://github.com/engmung/Patternflow/issues/16#issuecomment-4379612470). (The PCB still has R13 pads for now, so you *could* populate it there instead, but the on-module fix is easier and is the recommended path.)
->
-> This is a temporary note pending a PCB revision that removes these SMD parts. The full SMD build below is kept intact for anyone who wants to populate everything. See Section 10 / the GPIO0 root-cause notes for background.
-
-> **Hand-solder vs. paste + hot air.** I hand-soldered with an iron because I didn't have solder paste or a hot air station. If you do, by all means use them — apply paste to the pads, place all parts, then reflow. The board is small enough that either approach is fine. The procedure below is for the iron-only path.
-
-**Order: by component type.** Do all capacitors first, then all resistors (or vice versa). Mixing types makes it easier to mis-place parts.
-
-**Hand-solder technique (batched):**
-
-1. Pre-tin **one pad** at every SMD position you're about to populate in this pass — i.e. dab a small amount of solder onto the same side of every cap location, all at once.
-2. Pick up the first capacitor with tweezers. Slide it onto its pre-tinned pad while reflowing that pad with the iron. Release. Move to the next capacitor.
-3. Repeat for every capacitor. At this point all caps are tacked down on one side.
-4. Go back and solder the **opposite** pad of every capacitor to lock them in.
-5. Switch to resistors and repeat steps 1–4.
-
-**Iron temperature:** ~350°C. Default works fine.
-
-**Keep parts flat and centered.** Slight tilt will not affect function but looks bad.
-
-> **Silkscreen.** On v2.0 PCB, R and C designators are clearly marked. Place each part according to its silkscreen designator. (On v1.0 boards, the 0805 closest to each encoder pad was a cap; this rule still works as a sanity check on v2.0.)
-
-SMD placement close-up, then the board after the non-encoder through-hole parts are installed:
-
-<img src="docs/build-guide/images/smd_tweezers_closeup.jpg" width="45%"> <img src="docs/build-guide/images/pcb_before_encoders.jpg" width="45%">
-
-### 4.2 Through-Hole Pass
+### Through-Hole Pass
 
 Solder, in order (small/short to tall):
 
@@ -267,7 +239,7 @@ Numbering is top-to-bottom with the USB connector at the top.
 | 33 | IO37 | NC (PSRAM internal) |
 | 34 | IO36 | NC (PSRAM internal) |
 | 35 | IO35 | NC (PSRAM internal) |
-| 36 | IO0 | GPIO0 boot strap pull-up via R13 |
+| 36 | IO0 | GPIO0 boot strap (R13 pad unpopulated — see Section 10) |
 | 37 | IO45 | Not connected (NC) |
 | 38 | IO48 | HUB_C |
 | 39 | IO47 | HUB_LAT |
@@ -493,6 +465,10 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 - **Issue #4 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. Current workaround: cut them off during assembly (see Section 5.1). They cut easily. A future case revision (planned to land with the LED diffuser variant) will add recesses to accommodate them.
 
 ### Design notes (not bugs)
+
+- **0805 passives left unpopulated.** The board carries footprints for encoder pull-ups (R1–R12), encoder filter caps (C1–C10, C12–C13), and ESP32 decoupling caps (C14–C15), but bench testing confirmed a unit runs fine with none of them populated — the ESP32-S3's internal pull-ups plus firmware debouncing cover the encoders. They're dropped from the BOM and build steps to keep this an all through-hole build. The pads are still there if you're spinning a derivative and want the belt-and-suspenders version.
+
+- **R13 (GPIO0 pull-up) not populated — on-module fix if needed.** R13 addressed the cold-boot strapping issue, which mostly affects clone/AliExpress ESP32-S3 modules; genuine Espressif modules boot fine without it. If you do hit the symptom (board fails to start after being unplugged for a few minutes), solder a 10kΩ leaded resistor directly on the ESP32 module between GPIO0 and 3.3V — no board rework, no extra part to source if you have a 10kΩ on hand. Root-cause write-up and reference photos in [Issue #16](https://github.com/engmung/Patternflow/issues/16#issuecomment-4379612470).
 
 - **Encoder direction handled in firmware** (was Issue #2). The encoder PCB footprint is rotated relative to the natural CW=increment direction. Rather than re-spinning the PCB, the firmware inverts the sign. This is transparent to the user. If you fork the firmware or design a derivative PCB, mind this.
 
