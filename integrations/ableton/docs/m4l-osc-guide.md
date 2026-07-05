@@ -26,7 +26,7 @@ Things that go wrong:
 
 `live.remote~` is the only object that can move a Live parameter continuously without creating undo history and without automation-lane fighting. The gotchas:
 
-- **Bind by id**: send it `id 42` where 42 is a `LiveAPI` object id for a parameter (`DeviceParameter`). Send `id 0` to unbind.
+- **Bind by id**: send it `id 42` where 42 is a `LiveAPI` object id for a parameter (`DeviceParameter`). Send `id 0` to unbind. The `id` message goes into the **right inlet** — the left inlet only takes values, and an `id` sent there is rejected (red error in the Max window) so the parameter never locks. This one cost us an evening.
 - **The parameter locks.** While bound, the parameter is greyed out in Live's UI, shows "Mapped", and the mouse can't move it. This scares people into thinking something broke. Unbind to release it.
 - **Values are in the parameter's native range**, not 0–1. Read `min` and `max` from the parameter via `LiveAPI` and scale yourself: `out = min + v * (max - min)`. (This is what the M4L LFO does internally.)
 - **Zipper noise**: `live.remote~` accepts both signals and floats. Float messages at encoder-event rate are fine for filter sweeps; for very zipper-sensitive targets (gain on a sustained pad), interpolate with `line~ → live.remote~` at signal rate.
@@ -35,7 +35,8 @@ Things that go wrong:
 
 - **You cannot touch `LiveAPI` in global code or `loadbang`.** The API isn't ready; calls fail or return id 0. Wait for the `[live.thisdevice]` bang — that is the "Live is ready" signal.
 - **Ids are session-local; paths are not stable either.** A parameter's numeric id changes between Live sessions, and its canonical path (`live_set tracks 0 devices 1 parameters 3`) changes when tracks/devices are reordered. Persist the *path*, re-resolve to an id on load, and accept that reordering tracks may require re-mapping. (Robust tracking needs id-remap observers — v2 territory.)
-- **`selected_parameter`** (`live_set view`) is how "click a param, then click Map" works. Clicking controls *inside* an M4L device does not change Live's selected parameter, so your own Map button won't steal the selection.
+- **`selected_parameter`** (`live_set view`): don't *read* it when your Map button is clicked — on some Live/OS combos (seen on Live 12 / Windows) it reads as `id 0` by then. Instead *observe* the property and remember the last non-zero id (with a freshness window); then both orders work: param-then-Map uses the remembered id, Map-then-param arms and waits for the next selection change. Same underlying flow as Live's stock LFO.
+- **Observer callbacks run in Live's notification context**, and `live.remote~` refuses id changes from there: `Setting the id cannot be triggered by notifications. You will need to defer your response`. In `[js]`, stash the id and `Task.schedule(0)` the bind; in a patch, put `[deferlow]` before the id inlet.
 - **Getting values**: `api.get("value")` returns an array — take `[0]`. Same for `min`, `max`, `name`.
 
 ## Persistence (mappings that survive save/reload)

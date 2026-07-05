@@ -45,7 +45,7 @@ The device ships as a `.maxpat` (plain text, diff-able) rather than a binary `.a
 ## 3. Connect and map
 
 1. The bridge pings `patternflow.local` automatically on load. Status shows **connected · P0 …** when the device answers. If not, type the device's IP (shown on the K2 info screen) into the host field and press Enter, or click **Connect**.
-2. Click any parameter in your Live set (a synth macro, a filter cutoff…), then click **Map 1**. Knob K1 on Patternflow now drives it.
+2. Click any parameter in your Live set (a synth macro, a filter cutoff…), then click **Map 1** — or click **Map 1** first and then the parameter; both orders work. Knob K1 on Patternflow now drives it. Clicking the same Map again cancels an armed mapping.
 3. **Sweep** = how many encoder clicks cover the parameter's full range. 24 clicks = one physical turn; default 48 = two turns. Lower is more sensitive.
 4. Mappings, sweep values, and the host name are saved with your Live set.
 

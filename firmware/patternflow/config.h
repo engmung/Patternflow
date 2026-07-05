@@ -102,6 +102,8 @@ constexpr float EULER      = 2.71828182845904523536f;
 #define CLK_PIN 2
 
 // --- Encoder Pin Mapping ---
+// ENCn is the encoder at the front-panel Kn position (verified on the
+// board) — no cross-routing; keep LOGICAL_TO_PHYSICAL_KNOB an identity.
 // Encoder 1: Hue Control
 #define ENC1_A   4
 #define ENC1_B   8
