@@ -66,3 +66,13 @@ temp/
 tmp/
 .temp/
 .tmp/
+
+# Ableton Live
+**/Backup/
+**/Ableton Project Info/
+
+# Ableton bridge — the .amxd is built locally from the .maxpat (see
+# integrations/ableton/README.md); Live sets stay local too
+integrations/ableton/max/*.amxd
+integrations/ableton/projects/
+
