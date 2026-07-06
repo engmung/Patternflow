@@ -257,17 +257,23 @@ export default function RoadmapMap() {
       : [];
 
   // Popup lives outside the zoomed layer (so its text never scales) and is
-  // positioned in screen space next to the node.
-  let popupPos: { left: number; top: number } | null = null;
+  // positioned in screen space next to the node. maxHeight is computed in
+  // real pixels from the actual viewport size — a percentage-based CSS
+  // max-height doesn't reliably resolve inside this flex layout, and the
+  // popup would silently get clipped by an ancestor's overflow:hidden
+  // instead of scrolling.
+  let popupPos: { left: number; top: number; maxHeight: number } | null = null;
   if (selected) {
     const cw = canvasSize.w;
     const ch = canvasSize.h;
+    const margin = 14;
     const rightEdge = (selected.x + selected.w) * zoom + pan.x;
     const leftEdge = selected.x * zoom + pan.x;
     const left =
       rightEdge + 18 + POPUP_W > cw ? leftEdge - POPUP_W - 18 : rightEdge + 18;
-    const top = Math.min(Math.max(selected.y * zoom + pan.y - 90, 14), ch - 300);
-    popupPos = { left, top };
+    const top = Math.min(Math.max(selected.y * zoom + pan.y - 90, margin), ch - 160 - margin);
+    const maxHeight = Math.max(160, ch - top - margin);
+    popupPos = { left, top, maxHeight };
   }
 
   return (
@@ -329,19 +335,20 @@ export default function RoadmapMap() {
         </div>
       </div>
 
-      <div
-        ref={canvasRef}
-        className={styles.canvas}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+      <div className={styles.viewport}>
         <div
-          className={styles.layer}
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          ref={canvasRef}
+          className={styles.canvas}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
-          <svg
+          <div
+            className={styles.layer}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            <svg
             className={styles.mapSvg}
             viewBox={`0 0 ${width} ${HEIGHT}`}
             width={width}
@@ -472,16 +479,27 @@ export default function RoadmapMap() {
 
             {nodes.map((n) => {
               const isSelected = n.id === selectedId;
+              // Level 2 nodes only exist in the detailed view — give them a
+              // visibly secondary color so overview-level nodes keep priority.
+              const secondary = n.level === 2 && !isSelected;
               const boxClass = isSelected
                 ? styles.nodeSelected
                 : n.status === 'planned'
-                  ? styles.nodePlanned
-                  : styles.nodeDone;
+                  ? secondary
+                    ? styles.nodePlannedSecondary
+                    : styles.nodePlanned
+                  : secondary
+                    ? styles.nodeDoneSecondary
+                    : styles.nodeDone;
               const textClass = isSelected
                 ? styles.nodeTextSelected
                 : n.status === 'planned'
-                  ? styles.nodeTextPlanned
-                  : styles.nodeText;
+                  ? secondary
+                    ? styles.nodeTextPlannedSecondary
+                    : styles.nodeTextPlanned
+                  : secondary
+                    ? styles.nodeTextSecondary
+                    : styles.nodeText;
               return (
                 <g
                   key={n.id}
@@ -517,12 +535,18 @@ export default function RoadmapMap() {
               );
             })}
           </svg>
+          </div>
         </div>
 
         {selected && popupPos && (
           <div
             className={styles.popup}
-            style={{ left: popupPos.left, top: popupPos.top, width: POPUP_W }}
+            style={{
+              left: popupPos.left,
+              top: popupPos.top,
+              width: POPUP_W,
+              maxHeight: popupPos.maxHeight,
+            }}
             onPointerDown={(event) => event.stopPropagation()}
           >
               <div className={styles.popupHead}>

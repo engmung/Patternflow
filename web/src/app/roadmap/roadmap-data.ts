@@ -76,7 +76,7 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 1,
     detail:
-      'Test board that moves power input to USB-C and goes fully SMD-free. Once verified, this board gets promoted to v3. Moving the power connector also breaks the current enclosure, which was designed around v2.1 — so the case follows.',
+      'Test board that moves power input to USB-C and goes fully SMD-free. Ordered on 2026-06-30 through a PCBWay gerber sponsorship. Once verified, this board gets promoted to v3. Moving the power connector also breaks the current enclosure, which was designed around v2.1 — so the case follows.',
   },
   {
     id: 'pcb-v3',
@@ -120,7 +120,7 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 2,
     detail:
-      'A long run of 3D-printing experiments through June: flat plates, easybond, big-oneshot, easyfit with alignment tabs, one-shot print ribs, a wall-mount hanger — searching for a case that prints reliably without support pain.',
+      'A long run of 3D-printing experiments through June, kicked off by a PCBWay 3D-printing sponsorship that funded test prints: flat plates, easybond, big-oneshot, easyfit with alignment tabs, one-shot print ribs, a wall-mount hanger — searching for a case that prints reliably without support pain.',
   },
   {
     id: 'case-snapfit',
@@ -297,6 +297,26 @@ export const NODES: RoadmapNode[] = [
     links: [{ label: 'origin.patternflow.work', href: 'https://origin.patternflow.work/' }],
   },
   {
+    id: 'tools-paik',
+    lane: 'tools',
+    date: '2026-01-28',
+    title: 'Nam June Paik Art Center',
+    status: 'done',
+    level: 1,
+    detail:
+      'The project’s second root. The trip was originally to see a different artist’s exhibition — Paik’s own permanent works, Participation TV and Robot K-456, and a 20th-anniversary memorial performance were all chance encounters the same day. Months later, an assignment in an "Authorial Design Studio" class asking students to reinterpret a senior artist gave that chance visit a name: Patternflow as a contemporary Participation TV, where the audience becomes the creator instead of just the viewer.',
+    links: [
+      {
+        label: 'Patternflow in 30 days (journal)',
+        href: 'https://patternflow.work/journal/v1-30-days/en',
+      },
+      {
+        label: 'Nam June Paik, Me, Patternflow (journal)',
+        href: 'https://patternflow.work/journal/nam-june-paik-me-patternflow/en',
+      },
+    ],
+  },
+  {
     id: 'tools-editor',
     lane: 'tools',
     date: '2026-05-04',
@@ -349,6 +369,16 @@ export const NODES: RoadmapNode[] = [
 
   // Community & business
   {
+    id: 'biz-pcbway-order',
+    lane: 'community',
+    date: '2026-04-21',
+    title: 'First PCBWay order',
+    status: 'done',
+    level: 1,
+    detail:
+      'Serene from PCBWay sent a DM on 04-20, having seen the Reddit post, offering to sponsor a PCB order — the very first PCB, ordered free the next day, before the repo was even public. PCBWay has kept sponsoring since, through the 3D-printing experiments and the v2.2 gerber order.',
+  },
+  {
     id: 'biz-reddit',
     lane: 'community',
     date: '2026-04-23',
@@ -371,7 +401,7 @@ export const NODES: RoadmapNode[] = [
   {
     id: 'biz-cs',
     lane: 'community',
-    date: '2026-05-30',
+    date: '2026-05-29',
     title: 'Crowd Supply contract',
     status: 'done',
     level: 1,
@@ -379,14 +409,14 @@ export const NODES: RoadmapNode[] = [
       'The Crowd Supply contract was signed — the commitment that Patternflow becomes a product you can order, not just a repo you can build from.',
   },
   {
-    id: 'biz-pcbway',
+    id: 'biz-nath-build',
     lane: 'community',
     date: '2026-06-05',
-    title: 'PCBWay + first build',
+    title: 'First community build',
     status: 'done',
     level: 2,
     detail:
-      'PCBWay sponsorship landed, and the first fully independent community build (Nath) went up on the build map.',
+      'The first fully independent community build (Nath) went up on the build map — proof the guide worked for someone who wasn’t the author.',
   },
   {
     id: 'biz-prelaunch',
