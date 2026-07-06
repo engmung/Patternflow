@@ -297,6 +297,26 @@ export const NODES: RoadmapNode[] = [
     links: [{ label: 'origin.patternflow.work', href: 'https://origin.patternflow.work/' }],
   },
   {
+    id: 'tools-paik',
+    lane: 'tools',
+    date: '2026-01-28',
+    title: 'Nam June Paik Art Center',
+    status: 'done',
+    level: 2,
+    detail:
+      'The project’s second root. The trip was originally to see a different artist’s exhibition — Paik’s own permanent works, Participation TV and Robot K-456, and a 20th-anniversary memorial performance were all chance encounters the same day. Months later, an assignment in an "Authorial Design Studio" class asking students to reinterpret a senior artist gave that chance visit a name: Patternflow as a contemporary Participation TV, where the audience becomes the creator instead of just the viewer.',
+    links: [
+      {
+        label: 'Patternflow in 30 days (journal)',
+        href: 'https://patternflow.work/journal/v1-30-days/en',
+      },
+      {
+        label: 'Nam June Paik, Me, Patternflow (journal)',
+        href: 'https://patternflow.work/journal/nam-june-paik-me-patternflow/en',
+      },
+    ],
+  },
+  {
     id: 'tools-editor',
     lane: 'tools',
     date: '2026-05-04',
@@ -356,7 +376,7 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 2,
     detail:
-      'The very first PCB order placed with PCBWay, right after finishing the first board design — before the repo was even public. That relationship grew into a formal sponsorship two months later.',
+      'Serene from PCBWay sent a DM on 04-20, having seen the Reddit post, offering to sponsor a PCB order — the very first PCB, ordered free the next day, before the repo was even public. The relationship went public as a sponsor section on the website two months later.',
   },
   {
     id: 'biz-reddit',
