@@ -137,11 +137,18 @@
   border-top: 2px dashed var(--pf-ink-faint);
 }
 
-.canvas {
+/* .viewport does NOT clip, so the popup can never be cut off by the
+   pannable canvas underneath it — only the canvas itself clips. */
+.viewport {
   position: relative;
-  overflow: hidden;
   flex: 1;
   min-height: 0;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   border-top: 1px solid var(--pf-rule);
   background: #fbf8f2;
   cursor: grab;
@@ -344,11 +351,13 @@
 .popup {
   position: absolute;
   z-index: 10;
+  max-height: calc(100% - 24px);
   padding: 18px 20px 20px;
   background: #fff;
   border: 1px solid var(--pf-ink);
   border-radius: 12px;
   box-shadow: 6px 6px 0 rgba(20, 20, 20, 0.08);
+  overflow-y: auto;
   cursor: auto;
 }
 

@@ -302,7 +302,7 @@ export const NODES: RoadmapNode[] = [
     date: '2026-01-28',
     title: 'Nam June Paik Art Center',
     status: 'done',
-    level: 2,
+    level: 1,
     detail:
       'The project’s second root. The trip was originally to see a different artist’s exhibition — Paik’s own permanent works, Participation TV and Robot K-456, and a 20th-anniversary memorial performance were all chance encounters the same day. Months later, an assignment in an "Authorial Design Studio" class asking students to reinterpret a senior artist gave that chance visit a name: Patternflow as a contemporary Participation TV, where the audience becomes the creator instead of just the viewer.',
     links: [

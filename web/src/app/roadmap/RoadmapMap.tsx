@@ -329,19 +329,20 @@ export default function RoadmapMap() {
         </div>
       </div>
 
-      <div
-        ref={canvasRef}
-        className={styles.canvas}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+      <div className={styles.viewport}>
         <div
-          className={styles.layer}
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          ref={canvasRef}
+          className={styles.canvas}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
-          <svg
+          <div
+            className={styles.layer}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            <svg
             className={styles.mapSvg}
             viewBox={`0 0 ${width} ${HEIGHT}`}
             width={width}
@@ -517,6 +518,7 @@ export default function RoadmapMap() {
               );
             })}
           </svg>
+          </div>
         </div>
 
         {selected && popupPos && (
