@@ -374,9 +374,9 @@ export const NODES: RoadmapNode[] = [
     date: '2026-04-21',
     title: 'First PCBWay order',
     status: 'done',
-    level: 2,
+    level: 1,
     detail:
-      'Serene from PCBWay sent a DM on 04-20, having seen the Reddit post, offering to sponsor a PCB order — the very first PCB, ordered free the next day, before the repo was even public. The relationship went public as a sponsor section on the website two months later.',
+      'Serene from PCBWay sent a DM on 04-20, having seen the Reddit post, offering to sponsor a PCB order — the very first PCB, ordered free the next day, before the repo was even public. PCBWay has kept sponsoring since, through the 3D-printing experiments and the v2.2 gerber order.',
   },
   {
     id: 'biz-reddit',
@@ -409,14 +409,14 @@ export const NODES: RoadmapNode[] = [
       'The Crowd Supply contract was signed — the commitment that Patternflow becomes a product you can order, not just a repo you can build from.',
   },
   {
-    id: 'biz-pcbway-sponsor',
+    id: 'biz-nath-build',
     lane: 'community',
     date: '2026-06-05',
-    title: 'PCBWay sponsorship',
+    title: 'First community build',
     status: 'done',
     level: 2,
     detail:
-      'The PCBWay relationship became a public sponsorship — a section on the website, and around the same time the first fully independent community build (Nath) went up on the build map.',
+      'The first fully independent community build (Nath) went up on the build map — proof the guide worked for someone who wasn’t the author.',
   },
   {
     id: 'biz-prelaunch',
