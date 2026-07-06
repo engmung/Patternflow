@@ -321,6 +321,30 @@
   stroke: var(--pf-ink-muted);
 }
 
+/* Secondary = level-2 nodes, only ever visible in the detailed view —
+   lighter fill and a muted, thinner border keeps overview nodes dominant. */
+.nodeDoneSecondary {
+  fill: var(--pf-cream-2);
+  stroke: var(--pf-ink-faint);
+  stroke-width: 1.1;
+}
+
+.nodeGroup:hover .nodeDoneSecondary {
+  fill: #fff;
+  stroke: var(--pf-ink-muted);
+}
+
+.nodePlannedSecondary {
+  fill: transparent;
+  stroke: var(--pf-ink-ghost);
+  stroke-width: 1.1;
+  stroke-dasharray: 4 3;
+}
+
+.nodeGroup:hover .nodePlannedSecondary {
+  stroke: var(--pf-ink-faint);
+}
+
 .nodeSelected {
   fill: var(--pf-ink);
   stroke: var(--pf-ink);
@@ -329,6 +353,8 @@
 
 .nodeText,
 .nodeTextPlanned,
+.nodeTextSecondary,
+.nodeTextPlannedSecondary,
 .nodeTextSelected {
   font-family: var(--pf-mono);
   font-size: 15px;
@@ -342,6 +368,14 @@
 
 .nodeTextPlanned {
   fill: var(--pf-ink-muted);
+}
+
+.nodeTextSecondary {
+  fill: var(--pf-ink-muted);
+}
+
+.nodeTextPlannedSecondary {
+  fill: var(--pf-ink-faint);
 }
 
 .nodeTextSelected {

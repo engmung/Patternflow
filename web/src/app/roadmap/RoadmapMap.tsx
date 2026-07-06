@@ -479,16 +479,27 @@ export default function RoadmapMap() {
 
             {nodes.map((n) => {
               const isSelected = n.id === selectedId;
+              // Level 2 nodes only exist in the detailed view — give them a
+              // visibly secondary color so overview-level nodes keep priority.
+              const secondary = n.level === 2 && !isSelected;
               const boxClass = isSelected
                 ? styles.nodeSelected
                 : n.status === 'planned'
-                  ? styles.nodePlanned
-                  : styles.nodeDone;
+                  ? secondary
+                    ? styles.nodePlannedSecondary
+                    : styles.nodePlanned
+                  : secondary
+                    ? styles.nodeDoneSecondary
+                    : styles.nodeDone;
               const textClass = isSelected
                 ? styles.nodeTextSelected
                 : n.status === 'planned'
-                  ? styles.nodeTextPlanned
-                  : styles.nodeText;
+                  ? secondary
+                    ? styles.nodeTextPlannedSecondary
+                    : styles.nodeTextPlanned
+                  : secondary
+                    ? styles.nodeTextSecondary
+                    : styles.nodeText;
               return (
                 <g
                   key={n.id}
