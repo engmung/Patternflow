@@ -198,11 +198,11 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             </Link>
             <Link className={styles.storyLinkCell} href="/roadmap">
               <span className={styles.storyLinkLabel}>
-                Project status
+                Project map
                 <span className={styles.wipTag}>Work in progress</span>
               </span>
               <span className={styles.storyLinkText}>
-                A live view of what is being worked on right now, pulled from GitHub.
+                Every thread on one timeline — what shipped, what is planned, and how it connects.
               </span>
             </Link>
           </div>
