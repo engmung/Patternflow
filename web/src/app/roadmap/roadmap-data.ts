@@ -76,7 +76,7 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 1,
     detail:
-      'Test board that moves power input to USB-C and goes fully SMD-free. Once verified, this board gets promoted to v3. Moving the power connector also breaks the current enclosure, which was designed around v2.1 — so the case follows.',
+      'Test board that moves power input to USB-C and goes fully SMD-free. Ordered on 2026-06-30 through a PCBWay gerber sponsorship. Once verified, this board gets promoted to v3. Moving the power connector also breaks the current enclosure, which was designed around v2.1 — so the case follows.',
   },
   {
     id: 'pcb-v3',
@@ -120,7 +120,7 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 2,
     detail:
-      'A long run of 3D-printing experiments through June: flat plates, easybond, big-oneshot, easyfit with alignment tabs, one-shot print ribs, a wall-mount hanger — searching for a case that prints reliably without support pain.',
+      'A long run of 3D-printing experiments through June, kicked off by a PCBWay 3D-printing sponsorship that funded test prints: flat plates, easybond, big-oneshot, easyfit with alignment tabs, one-shot print ribs, a wall-mount hanger — searching for a case that prints reliably without support pain.',
   },
   {
     id: 'case-snapfit',
