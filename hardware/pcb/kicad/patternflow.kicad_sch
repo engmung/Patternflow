@@ -5,9 +5,9 @@
 	(uuid "7829ca74-397b-4e20-b2ed-d34479de16a0")
 	(paper "A4")
 	(title_block
-		(title "PatternFlow")
-		(date "2026-04-20")
-		(rev "1.0")
+		(title "Patternflow")
+		(date "2026-07-07")
+		(rev "3.0")
 	)
 	(lib_symbols
 		(symbol "Connector:Screw_Terminal_01x02"
@@ -3667,6 +3667,16 @@
 	)
 	(wire
 		(pts
+			(xy 132.08 139.7) (xy 134.62 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "38229f7f-e9bd-427f-b756-693a62096949")
+	)
+	(wire
+		(pts
 			(xy 198.12 49.53) (xy 194.31 49.53)
 		)
 		(stroke
@@ -4034,6 +4044,16 @@
 			(type default)
 		)
 		(uuid "82d56e36-1957-489e-b761-fcda4b5f5391")
+	)
+	(wire
+		(pts
+			(xy 139.7 139.7) (xy 137.16 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "84033912-ae58-4667-b7a9-5483e95bc728")
 	)
 	(wire
 		(pts
@@ -6698,6 +6718,84 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+5V")
+		(at 132.08 139.7 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8375dd98-4dee-40a0-93be-1faa85fc0927")
+		(property "Reference" "#PWR041"
+			(at 132.08 143.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 132.08 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 132.08 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 132.08 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+5V\""
+			(at 132.08 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7cc4e433-e87a-4a9e-a6b9-0a00806abd32")
+		)
+		(instances
+			(project "patternflow"
+				(path "/7829ca74-397b-4e20-b2ed-d34479de16a0"
+					(reference "#PWR041")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "power:GND")
 		(at 262.255 71.755 90)
 		(unit 1)
@@ -6927,6 +7025,88 @@
 			(project "patternflow"
 				(path "/7829ca74-397b-4e20-b2ed-d34479de16a0"
 					(reference "#PWR021")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Connector:Screw_Terminal_01x02")
+		(at 137.16 147.32 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9da3eba3-824c-4546-ad39-7342afc3d80b")
+		(property "Reference" "J4"
+			(at 139.7 146.0499 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "Screw_Terminal_01x02"
+			(at 139.7 148.5899 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
+			(at 137.16 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 137.16 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 137.16 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4defa5d9-bf19-42a7-be27-bf9261213b49")
+		)
+		(pin "2"
+			(uuid "913ed3fa-576f-449d-b087-f555397c6c78")
+		)
+		(instances
+			(project "patternflow"
+				(path "/7829ca74-397b-4e20-b2ed-d34479de16a0"
+					(reference "J4")
 					(unit 1)
 				)
 			)
@@ -7242,6 +7422,84 @@
 			(project "patternflow"
 				(path "/7829ca74-397b-4e20-b2ed-d34479de16a0"
 					(reference "R2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 139.7 139.7 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b541593c-1788-450f-ae27-6204ccc96d35")
+		(property "Reference" "#PWR042"
+			(at 139.7 133.35 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 139.7 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 139.7 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 139.7 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 139.7 139.7 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "76ec28fb-396e-4c02-bc6a-995d7d981cc6")
+		)
+		(instances
+			(project "patternflow"
+				(path "/7829ca74-397b-4e20-b2ed-d34479de16a0"
+					(reference "#PWR042")
 					(unit 1)
 				)
 			)
