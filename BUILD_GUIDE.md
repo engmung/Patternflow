@@ -68,7 +68,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
 
-> ⚠️ **Use v2.1 — not v2.2.** `patternflow_v2.2_test_gerber.zip` is an unverified test revision and should **not** be ordered. `patternflow_v2.1_gerber.zip` is the current recommended board.
+> ⚠️ **Order v2.1 only.** `patternflow_v2.1_gerber.zip` is the current recommended board. Unverified in-development revisions live in `hardware/pcb/gerber/experiment/` (currently the v3.0 test board) — do **not** order those.
 
 If you want to order the PCB without manually uploading Gerbers, the Patternflow PCB is also listed as a PCBWay open-source project:
 

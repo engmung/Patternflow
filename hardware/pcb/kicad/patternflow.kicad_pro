@@ -264,7 +264,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": "1.0"
+      "sch_revision": "3.0"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -693,7 +693,7 @@
         "uuid": "7829ca74-397b-4e20-b2ed-d34479de16a0"
       }
     ],
-    "used_designators": "USB1",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
