@@ -43,7 +43,7 @@ _autosave-*
 
 # Large binaries
 *.zip
-!hardware/pcb/gerber/*.zip
+!hardware/pcb/gerber/**/*.zip
 *.rar
 *.7z
 
