@@ -70,6 +70,8 @@ Replaces `01_plate_main.stl`, adding small alignment tabs along the bond seam so
 
 `source/patternflow_v1.blend` — Blender 4.x source file.
 
+> **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~45 MB file. To get the actual file, download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) or open it on GitHub and use the download button. The STL files are regular files and download fine either way.
+
 To re-export STLs after editing:
 
 1. Open the `.blend` in Blender.
