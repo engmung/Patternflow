@@ -2,9 +2,21 @@
 
 3D-printable enclosure for the Patternflow LED synthesizer.
 
-## Print plates
+## Which files do I print?
 
-The case is organized into three print plate groups. Print the main body, dividers, and one knob plate that matches your encoder shaft length.
+| Option | Printer bed | PCB | Status |
+|---|---|---|---|
+| [Standard plates](#standard-plates) (split body, glued) | 256 mm (P1S-class) | v2.x | ✅ Recommended |
+| [One-piece snap-fit](#one-piece-enclosure-large-format-printers) (`oneshot_v2`) | ~330 mm+ (H2S-class) | v2.x | ✅ Supported |
+| [`easyfit` main plate variant](#variants) | 256 mm | v2.x | ⚠️ Known issue — fix before printing ([#154](https://github.com/engmung/Patternflow/issues/154)) |
+| [`oneshot_v3-wip`](#one-piece-enclosure-large-format-printers) | ~330 mm+ | **v3.0 only** | 🚧 Do not print with a v2.x PCB |
+| [5-part divided snap-fit](#experiments) | 256 mm | v2.x | 🚧 Untested — do not print yet |
+
+Whichever body you choose, **knobs are always printed separately, in black**, from the knob plate matching your encoder shaft length (see below).
+
+## Standard plates
+
+The standard build: body halves print on a 256 mm bed and are glued together. Print the main body, dividers, and one knob plate.
 
 | File | Contents | Color | Print time |
 |---|---|---|---|
@@ -15,29 +27,28 @@ The case is organized into three print plate groups. Print the main body, divide
 
 Total with one knob plate: **~10 hours** on a Bambu P1S with default settings. The 15mm knob plate is recommended for new builds.
 
-## Variants
-
-Optional drop-in replacements live in `print-ready/variants/`. Print a variant *instead of* the matching standard plate — same fit, different tradeoff.
-
-| File | Replaces | Tradeoff |
-|---|---|---|
-| `print-ready/variants/01_plate_main_easyfit.stl` | `01_plate_main.stl` | Adds small alignment tabs along the bond seam so the two halves self-locate and glue easily — no taping or clamping. The tradeoff is a thin visible seam between the halves (hide it by sprinkling baking soda into the wet glue line). Use the standard `01_plate_main.stl` for the cleanest seam if you're comfortable clamping while it cures. |
-
-Naming: a variant keeps its base plate's name plus a descriptive suffix (e.g. `01_plate_main` + `_easyfit`), so each variant sorts next to the part it replaces.
-
-> **⚠️ Known issue — `01_plate_main_easyfit.stl`.** This variant is missing the internal slot that the LED matrix divider wall slides into, so the divider does not seat properly. A fixed STL will be uploaded later. Until then, use the standard `01_plate_main.stl` if you need the divider to fit correctly.
-
 ## One-piece enclosure (large-format printers)
 
-`print-ready/oneshot/` is an alternative to the standard split-and-glue body: the enclosure prints as a **single-piece body plus a snap-fit closing part** — no bonding step at all. This is the mass-production-oriented design from [Issue #113](https://github.com/engmung/Patternflow/issues/113).
+An alternative to the standard split-and-glue body: the enclosure prints as a **single-piece body plus a snap-fit closing part** — no bonding step at all. This is the mass-production-oriented design from [Issue #113](https://github.com/engmung/Patternflow/issues/113).
 
-| File | Contents | Color |
+**Bed requirement: ~330 mm+ (Bambu H2S-class or similar large-format).** It does **not** fit a 256 mm bed (P1S/X1C/A1 class) — for those printers, use the standard plates above, or watch the 5-part divided version in [Experiments](#experiments).
+
+| File | For | Status |
 |---|---|---|
-| `print-ready/oneshot/oneshot_1.stl` + `oneshot_2.stl` | Full enclosure as two snap-fit parts | White PLA |
+| `print-ready/variants/oneshot_v2_1.stl` + `oneshot_v2_2.stl` | **Current (v2.x) PCB** | ✅ Print this one |
+| `print-ready/oneshot_v3-wip/oneshot_1.stl` + `oneshot_2.stl` | Upcoming **v3.0** board only | 🚧 Work-in-progress — **not compatible with v2.x**: cutouts and standoffs will not line up. Vent holes and anti-warp ribs are also planned before release. |
 
-- **Bed requirement: ~330 mm+ (Bambu H2S-class or similar large-format).** It does **not** fit a 256 mm bed (P1S/X1C/A1 class) — for those printers, use the standard plates above, or watch the divided variant below.
-- Knobs are printed separately as usual (`03_plate_knobs*.stl`).
-- Status: core design complete and printing reliably. Minor refinements (vent holes, anti-warp ribs) are planned for the v3.0 revision.
+Both print in **white PLA**. Knob caps are **not** part of the one-piece case — print them separately from the standalone knob plate (`03_plate_knobs.stl` for 20mm shafts, `03_plate_knobs_15mm.stl` for 15mm), **in black**, and press-fit them last.
+
+## Variants
+
+Optional drop-in replacements live in `print-ready/variants/`. Print a variant *instead of* the matching standard plate — same fit, different tradeoff. A variant keeps its base plate's name plus a descriptive suffix (e.g. `01_plate_main` + `_easyfit`), so it sorts next to the part it replaces. (The `oneshot_v2` files also live here; they're covered in the one-piece section above.)
+
+### `01_plate_main_easyfit.stl` — ⚠️ do not print as-is
+
+Replaces `01_plate_main.stl`, adding small alignment tabs along the bond seam so the two halves self-locate and glue easily — no taping or clamping. The tradeoff is a thin visible seam between the halves (hide it by sprinkling baking soda into the wet glue line).
+
+**Known issue ([#154](https://github.com/engmung/Patternflow/issues/154)):** the current STL is missing the internal slot that the LED matrix divider wall slides into, so the divider does not seat. Until a fixed STL is uploaded, either **use the standard `01_plate_main.stl`**, or add the missing slot yourself (from the Blender source, matching the standard plate's slot) as described in the issue.
 
 ## Experiments
 

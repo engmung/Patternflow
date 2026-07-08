@@ -103,7 +103,7 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 **Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `03_plate_knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `03_plate_knobs.stl` instead. Each file is one print job; each knob STL contains all four knobs.
 
-> **Optional — easier-bonding main body.** `print-ready/variants/01_plate_main_easyfit.stl` is a drop-in replacement for `01_plate_main.stl` with small alignment tabs along the bond seam. The halves self-locate and glue together easily without taping or clamping. The tradeoff is a thin visible seam between the halves. Print this instead of `01_plate_main.stl` if you'd rather not clamp; see Section 3.1 for the bonding difference.
+> **Optional — easier-bonding main body (currently not recommended).** `print-ready/variants/01_plate_main_easyfit.stl` is a drop-in replacement for `01_plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `01_plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
 
 ### Print Settings
 
