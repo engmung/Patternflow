@@ -19,7 +19,12 @@ For full print settings, bonding steps, and assembly photos, follow the current 
 
 ## One-Piece Option (Large Bed)
 
-If you have a large-format printer (~330 mm+ bed, e.g. Bambu H2S-class), `hardware/case/print-ready/oneshot/` contains a single-piece snap-fit version of the enclosure — no bonding step. A 5-part split for 256 mm beds is in testing. See [hardware/case/README.md](../../../hardware/case/README.md) for details.
+If you have a large-format printer (~330 mm+ bed, e.g. Bambu H2S-class), a single-piece snap-fit version of the enclosure is available — no bonding step.
+
+- **Current (v2.x) PCB:** print `hardware/case/print-ready/variants/oneshot_v2_1.stl` + `oneshot_v2_2.stl`.
+- **v3.0 board (work-in-progress):** `hardware/case/print-ready/oneshot_v3-wip/` is dimensioned for the upcoming v3.0 board and will **not** fit a v2.x PCB — don't print it if you have a current board.
+
+Knob caps are printed separately (not part of the one-piece case) from the standalone knob STL matching your encoder shaft, in black. A 5-part split for 256 mm beds is in testing. See [hardware/case/README.md](../../../hardware/case/README.md) for details.
 
 ## Planned Alternative
 
