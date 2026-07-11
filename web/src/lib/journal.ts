@@ -15,6 +15,7 @@ export type JournalFrontmatter = {
   coverCaption?: string;
   series?: string;
   draft?: boolean;
+  hideCover?: boolean;
 };
 
 export type JournalPost = JournalFrontmatter & {
@@ -80,6 +81,7 @@ function readPost(slug: string, lang: JournalLang): JournalPost {
     coverCaption: data.coverCaption,
     series: data.series,
     draft: data.draft,
+    hideCover: data.hideCover,
     content,
     readingTime: getReadingTime(content, lang),
   };

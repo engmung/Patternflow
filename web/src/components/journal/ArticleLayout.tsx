@@ -62,7 +62,7 @@ export default function ArticleLayout({
           </div>
         </header>
 
-        {post.cover && (
+        {post.cover && !post.hideCover && (
           <figure className="journal-hero-cover">
             <div className="journal-cover-slot">
               <JournalImage

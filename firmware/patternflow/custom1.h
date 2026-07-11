@@ -1,193 +1,139 @@
 #pragma once
 
 #include <Arduino.h>
-#include <math.h>
-#include <stdint.h>
 #include "config.h"
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_color.h"
+#include "src/core_tables.h"
 
-namespace VoronoiCrystalsPattern {
+namespace UntitledPattern {
 
-const char* NAME = "Voronoi Crystals";
-const char* const KNOB_LABELS[4] = {"Hue", "Speed", "Density", "Sharp"};
+const char* NAME = "Untitled pattern";
+const char* const KNOB_LABELS[4] = {"Glitch", "Speed", "Freq", "Quantize"};
 
-// Knob ranges and steps - prefixed with pattern name to avoid macro collisions
-const float VORONOI_CRYSTALS_CRYSTAL_HUE_MIN = 0.0f;
-const float VORONOI_CRYSTALS_CRYSTAL_HUE_MAX = 1.0f;
-const float VORONOI_CRYSTALS_CRYSTAL_HUE_STEP = 0.05f;
-
-const float VORONOI_CRYSTALS_SPEED_MIN = 0.1f;
-const float VORONOI_CRYSTALS_SPEED_MAX = 10.0f;
-const float VORONOI_CRYSTALS_SPEED_STEP = 0.10f;
-
-const float VORONOI_CRYSTALS_DENSITY_MIN = 0.0f;
-const float VORONOI_CRYSTALS_DENSITY_MAX = 4.9f;
-const float VORONOI_CRYSTALS_DENSITY_STEP = 0.05f;
-
-const float VORONOI_CRYSTALS_SHARPNESS_MIN = 0.0f;
-const float VORONOI_CRYSTALS_SHARPNESS_MAX = 1.0f;
-const float VORONOI_CRYSTALS_SHARPNESS_STEP = 0.05f;
-
-struct Params {
-    float crystalHue = 0.0f;
-    float speed = 1.0f;
-    float density = 2.0f;
-    float sharpness = 0.5f;
-    float timeAcc = 0.0f;
+static const uint8_t RAMP_LUT[256][3] = {
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},{43,0,255},
+  {43,0,255},{43,0,255},{43,0,255},{43,0,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},
+  {0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},
+  {0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},
+  {0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},
+  {0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},
+  {0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{0,157,255},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
 };
 
-Params params;
+static float glitch = 0.597f;
+static float speed = 2.0f;
+static float freq = 7.631555555555555f;
+static float quantize = 10.0f;
+static float timeAcc = 0.0f;
 
-// Seed structure and storage
-struct Seed {
-    float x, y;
-    float size;
-    float hue;
-    float phase;
-};
-
-static const int MAX_SEEDS = 100;
-static Seed seeds[MAX_SEEDS];
-static int seedCount = 0;
-static bool seedsReady = false;
-
-// Simple PRNG for random values
-static uint32_t rngState = 2463534242u;
-
-static float frand() {
-    rngState ^= rngState << 13;
-    rngState ^= rngState >> 17;
-    rngState ^= rngState << 5;
-    return (float)(rngState & 0x7FFFFFFFu) / 0x7FFFFFFFu;
-}
-
-static void generateSeeds(int numSeeds, int w, int h) {
-    seedCount = numSeeds;
-    for (int i = 0; i < numSeeds; i++) {
-        float seedVal = i * 273.14f;
-        seeds[i].x = (sinf(seedVal * 1.7f) * 0.5f + 0.5f) * w;
-        seeds[i].y = (cosf(seedVal * 2.3f) * 0.5f + 0.5f) * h;
-        seeds[i].size = 0.5f + frand() * 0.5f;
-        seeds[i].hue = sinf(seedVal) * 0.3f + 0.5f;
-        seeds[i].phase = frand() * 2.0f * 3.1415926535f;
-    }
-    seedsReady = true;
-}
+static const float UNTITLED_GLITCH_STEP = 0.05f;
+static const float UNTITLED_SPEED_STEP = 0.1f;
+static const float UNTITLED_FREQ_STEP = 0.05f;
+static const float UNTITLED_QUANTIZE_STEP = 0.05f;
 
 void setup() {
     PFMath::buildSinLUT();
-    // Seeds will be generated on first draw with default density
+    PFTables::init();
 }
 
 void update(float dt, const InputFrame& input) {
-    // Knob 1: crystal hue (wrap)
-    params.crystalHue += input.knobDeltas[0] * VORONOI_CRYSTALS_CRYSTAL_HUE_STEP;
-    if (params.crystalHue > VORONOI_CRYSTALS_CRYSTAL_HUE_MAX) {
-        params.crystalHue -= (VORONOI_CRYSTALS_CRYSTAL_HUE_MAX - VORONOI_CRYSTALS_CRYSTAL_HUE_MIN);
-    } else if (params.crystalHue < VORONOI_CRYSTALS_CRYSTAL_HUE_MIN) {
-        params.crystalHue += (VORONOI_CRYSTALS_CRYSTAL_HUE_MAX - VORONOI_CRYSTALS_CRYSTAL_HUE_MIN);
+    if (input.knobDeltas[0] != 0) {
+        glitch += input.knobDeltas[0] * UNTITLED_GLITCH_STEP;
+        if (glitch < 0.0f) glitch = 0.0f;
+        if (glitch > 2.0f) glitch = 2.0f;
+    }
+    if (input.knobDeltas[1] != 0) {
+        speed += input.knobDeltas[1] * UNTITLED_SPEED_STEP;
+        if (speed < 0.05f) speed = 0.05f;
+        if (speed > 2.0f) speed = 2.0f;
+    }
+    if (input.knobDeltas[2] != 0) {
+        freq += input.knobDeltas[2] * UNTITLED_FREQ_STEP;
+        if (freq < 2.0f) freq = 2.0f;
+        if (freq > 10.0f) freq = 10.0f;
+    }
+    if (input.knobDeltas[3] != 0) {
+        quantize += input.knobDeltas[3] * UNTITLED_QUANTIZE_STEP;
+        if (quantize < 2.0f) quantize = 2.0f;
+        if (quantize > 10.0f) quantize = 10.0f;
     }
 
-    // Knob 2: speed (clamp)
-    params.speed += input.knobDeltas[1] * VORONOI_CRYSTALS_SPEED_STEP;
-    params.speed = constrain(params.speed, VORONOI_CRYSTALS_SPEED_MIN, VORONOI_CRYSTALS_SPEED_MAX);
-
-    // Knob 3: density (clamp)
-    params.density += input.knobDeltas[2] * VORONOI_CRYSTALS_DENSITY_STEP;
-    params.density = constrain(params.density, VORONOI_CRYSTALS_DENSITY_MIN, VORONOI_CRYSTALS_DENSITY_MAX);
-
-    // Knob 4: sharpness (wrap)
-    params.sharpness += input.knobDeltas[3] * VORONOI_CRYSTALS_SHARPNESS_STEP;
-    if (params.sharpness > VORONOI_CRYSTALS_SHARPNESS_MAX) {
-        params.sharpness -= (VORONOI_CRYSTALS_SHARPNESS_MAX - VORONOI_CRYSTALS_SHARPNESS_MIN);
-    } else if (params.sharpness < VORONOI_CRYSTALS_SHARPNESS_MIN) {
-        params.sharpness += (VORONOI_CRYSTALS_SHARPNESS_MAX - VORONOI_CRYSTALS_SHARPNESS_MIN);
-    }
-
-    // Button presses reset to defaults
-    if (input.btnPressed[0]) params.crystalHue = 0.0f;
-    if (input.btnPressed[1]) params.speed = 1.0f;
-    if (input.btnPressed[2]) params.density = 2.0f;
-    if (input.btnPressed[3]) params.sharpness = 0.5f;
-
-    params.timeAcc += dt * params.speed;
+    timeAcc += dt * speed;
+    if (timeAcc > TWO_PI) timeAcc -= TWO_PI;
 }
 
 void draw() {
-    int w = PANEL_RES_W;
-    int h = PANEL_RES_H;
+    const int w = PANEL_RES_W;
+    const int h = PANEL_RES_H;
+    const float t = timeAcc;
 
-    float t = params.timeAcc;
-    int numSeeds = (int)(params.density * 15.0f + 10.0f);
-    if (numSeeds < 1) numSeeds = 1;
-    if (numSeeds > MAX_SEEDS) numSeeds = MAX_SEEDS;
+    const float halfW = w * 0.5f;
+    const float halfH = h * 0.5f;
+    const float invHalfW = 1.0f / halfW;
+    const float invHalfH = 1.0f / halfH;
 
-    // Regenerate seeds if count changed or not ready
-    if (!seedsReady || seedCount != numSeeds) {
-        generateSeeds(numSeeds, w, h);
-    }
-
-    float sharpness = params.sharpness * 2.0f + 1.0f;
+    const float freqParam = freq;
+    const float glitchParam = glitch;
+    const int steps = (int)quantize;
+    const float stepsMinusOne = (float)(steps - 1);
 
     for (int y = 0; y < h; y++) {
+        float rowShift = 0.0f;
+        if (glitchParam > 0.02f) {
+            float ny0 = y * 0.5f;
+            float ny1 = y * 0.1f;
+            float noise = PFMath::fastSin(ny0 + t * 10.0f) * PFMath::fastCos(ny1 - t * 4.0f);
+            if (noise > 1.0f - glitchParam) {
+                rowShift = PFMath::fastSin(t * 30.0f) * glitchParam * 30.0f;
+            }
+        }
+
         for (int x = 0; x < w; x++) {
-            float minDistSq = INFINITY;
-            int minIdx = 0;
-            float secondDistSq = INFINITY;
+            float nx = (x + rowShift - halfW) * invHalfW;
+            float ny = (y - halfH) * invHalfH;
+            float d = sqrtf(nx * nx + ny * ny);
 
-            // Find nearest and second nearest seed
-            for (int i = 0; i < seedCount; i++) {
-                float dx = (float)x - seeds[i].x;
-                float dy = (float)y - seeds[i].y;
-                float dSq = dx * dx + dy * dy;
-                if (dSq < minDistSq) {
-                    secondDistSq = minDistSq;
-                    minDistSq = dSq;
-                    minIdx = i;
-                } else if (dSq < secondDistSq) {
-                    secondDistSq = dSq;
-                }
-            }
+            float waveValue = PFMath::fastSin(d * freqParam - t * 4.0f + PFMath::fastSin(nx * 4.0f + t) * glitchParam * 5.0f);
+            float rawV = (waveValue + 1.0f) * 0.5f;
 
-            const Seed& s = seeds[minIdx];
-            float dist = sqrtf(minDistSq);
-            float edge = sqrtf(secondDistSq) - dist;
+            float v = floorf(rawV * steps) / stepsMinusOne;
+            if (v < 0.0f) v = 0.0f;
+            if (v > 1.0f) v = 1.0f;
 
-            float growth = PFMath::fastSin(s.phase + t * s.size * 0.5f);
-            float brightness = (dist / (w * 0.2f) + growth * 0.3f);
-            brightness = constrain(brightness, 0.0f, 1.0f);
-
-            float exponent = -edge * sharpness * 0.2f;
-            float expVal = expf(exponent);
-            float facet = 1.0f - expVal;
-            // facet = pow(facet, 1.5f) - compute as x^1.5 = x * sqrt(x)
-            facet = facet * facet * sqrtf(facet);
-
-            float hue = params.crystalHue + s.hue * 0.2f + edge * 0.02f + t * 0.01f;
-            hue = hue - floorf(hue); // fractional part
-            float sat = 0.3f + 0.7f * (1.0f - brightness * 0.5f);
-            float val = 0.1f + 0.9f * (1.0f - brightness * 0.7f) + facet * 0.3f;
-            val = constrain(val, 0.0f, 1.0f);
-
-            uint8_t r, g, b;
-            PFColor::hsvToRgb(hue, sat, val, r, g, b);
-
-            if (facet > 0.6f) {
-                int highlight = (int)((facet - 0.6f) * 200.0f);
-                r = constrain(r + highlight, 0, 255);
-                g = constrain(g + highlight, 0, 255);
-                b = constrain(b + highlight, 0, 255);
-            }
-
-            PFCanvas::setPixel(x, y, r, g, b);
+            int li = (int)(v * 255.0f + 0.5f);
+            PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
         }
     }
 
     PFCanvas::present();
 }
 
-} // namespace VoronoiCrystalsPattern
+} // namespace UntitledPattern
