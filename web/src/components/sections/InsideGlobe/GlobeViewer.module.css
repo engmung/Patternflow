@@ -154,6 +154,23 @@
   line-height: 1.75;
 }
 
+.link {
+  display: inline;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background: rgba(13, 13, 13, 0.85);
+  color: var(--pf-led);
+  padding: 4px 10px;
+  font-family: var(--pf-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  pointer-events: auto;
+}
+.link:hover {
+  text-decoration: underline;
+}
+
 .thumbs {
   display: flex;
   gap: 12px;
@@ -195,6 +212,10 @@
     line-height: 1.24;
   }
   .meta {
+    padding: 2px 7px;
+    font-size: 10.5px;
+  }
+  .link {
     padding: 2px 7px;
     font-size: 10.5px;
   }
