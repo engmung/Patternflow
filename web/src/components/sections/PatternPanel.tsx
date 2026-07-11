@@ -11,50 +11,6 @@ import { captureEvent } from '@/lib/posthogEvents';
 import SharePatternModal from '@/components/share/SharePatternModal';
 import styles from './PatternPanel.module.css';
 
-const createPrompt = `I am writing a custom LED pattern in JavaScript for Patternflow's 128x64 LED matrix web preview.
-
-Output rules:
-- Put the complete JavaScript pattern in one single code block labeled \`javascript\`.
-- Do not write any text before or after the code block.
-- Do not include nested triple backticks inside the code block.
-- The code block must contain only executable JavaScript for the Patternflow live editor.
-
-Required API:
-- \`export function setup(params) {}\`
-- \`export function update(dt, input, params) {}\` where \`input.knobValues\` is the primary control API: an array of 4 absolute, calibrated raw knob values in firmware logical order. Use \`input.knobValues\` for every target parameter by default.
-- \`input.knobNormalized\` is also available when a 0.0-1.0 value is explicitly useful. \`input.knobDeltas\` is compatibility-only hardware-like rotary encoder click delta input; do not build the main parameter mapping around it unless the user specifically asks for incremental hardware behavior.
-- \`export function draw(display, params, time) {}\` where \`display.setPixel(x, y, r, g, b)\` draws a pixel.
-- Use \`display.width\` and \`display.height\` in loops. Do not hardcode 128 or 64 inside \`draw()\`.
-- Use only plain JavaScript and \`Math.*\`. Do not use browser APIs, DOM APIs, arrays that grow every frame, async code, imports, external libraries, or dynamic code evaluation.
-- Include small helper functions such as \`hsvToRgb()\` or \`clamp()\` if needed.
-
-Knob behavior:
-- Do not assume fixed meanings such as hue/speed/mode/frequency unless the user asks for them. Choose 4 meaningful controls for this specific pattern and keep their roles consistent.
-- In \`update()\`, read \`input.knobValues[0]\` through \`input.knobValues[3]\` as absolute target values. Do not clamp these values back to 0.0-1.0 unless you intentionally use \`input.knobNormalized\`.
-- Apply knob value changes immediately. Do not smooth, lerp, damp, or ease knob-controlled parameters unless the user explicitly asks for glide or inertia.
-- Keep \`input.knobDeltas\` only as a fallback for older runtimes. The web preview and Pattern Lab are knobValues-first.
-- Preview raw knob ranges are: knob 1 = 0.0-1.0 wrap, knob 2 = 0.1-10.0 clamp, knob 3 = 0.0-4.9 clamp, knob 4 = 0.0-1.0 wrap.
-- One full web knob rotation equals one physical encoder turn, approximately 20 detents. Default raw step sizes are: knob 1 = 0.05 per detent, knob 2 = 0.10 per detent, knob 3 = 0.05 per detent, knob 4 = 0.05 per detent.
-- If you need a designer-friendly range such as 4-24, read \`input.knobNormalized[i]\` and map it inside the pattern, while keeping the raw knob calibration intact for ESP32 conversion.
-
-Brightness:
-- Use bright LED output by default. At least some pixels should regularly reach near-full intensity, around 230-255 per RGB channel after color conversion, while dark areas may remain dark for contrast.
-- The web preview does not artificially boost custom pattern brightness, so make the actual pixel values bright enough in the JavaScript code itself.
-- Avoid formulas that make everything dim, such as \`Math.pow(v, 2.5)\` followed by no gain. If you sharpen a signal with \`Math.pow()\`, compensate with a small base brightness and gain, for example \`let val = clamp(0.10 + shaped * 1.25, 0, 1);\`.
-
-ESP32-friendly math balance:
-- The pattern will later be converted to ESP32 C++, so keep the inner pixel loop reasonably light.
-- Good and cheap inside the pixel loop: addition, subtraction, multiplication, comparisons, \`Math.abs()\`, \`Math.floor()\`, \`Math.min()\`, \`Math.max()\`, simple \`if\` branches, and helper functions made from those operations.
-- Use with care inside the pixel loop: \`Math.sin()\` and \`Math.cos()\`. Aim for about 2-3 trig calls per pixel when possible. More can be beautiful, but it may need lookup-table optimization later.
-- Avoid or minimize inside the pixel loop: \`Math.pow()\`, \`Math.sqrt()\`, \`Math.atan2()\`, division-heavy formulas, nested loops, random/noise functions with multiple octaves, and allocations such as creating arrays per pixel.
-- Prefer cheap alternatives: use \`v * v\` instead of \`Math.pow(v, 2)\`; compare squared distances instead of using \`Math.sqrt()\`; use approximate distance like \`max(abs(x), abs(y)) + min(abs(x), abs(y)) * 0.375\` when exact radius is not essential.
-- Precompute values outside the pixel loop when possible, especially time constants, scale factors, center coordinates, and row/column-only terms.
-- A good target is LOW or MEDIUM in the ESP32 cost display. HIGH is allowed for exploration, but expect the C++ conversion to need optimization.
-
-Visual direction:
-- Prefer refining the user's existing pattern idea over inventing a completely different visual style. Preserve the core composition, motion, and parameter meanings unless the user explicitly asks for a new direction.
-- Create a pattern that will still read clearly on a real 128x64 HUB75 LED matrix, not only on a high-resolution screen.`;
-
 const getConvertPrompt = (code: string) => `Convert the following JavaScript LED pattern into one complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
 
 Output rules:
@@ -262,7 +218,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const [activePresetId, setActivePresetId] = useState<string | null>(() =>
     livePresets.some((p) => p.id === 'origin') ? 'origin' : null,
   );
-  const [showAllPresets, setShowAllPresets] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
@@ -320,14 +275,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     selectBuiltInPattern(currentPreset ?? presetPatterns[0], false);
   };
   
-  const handleCopyCreatePrompt = () => {
-    navigator.clipboard.writeText(createPrompt);
-    captureEvent('copy_creation_prompt_clicked', {
-      surface: 'live_editor',
-    });
-    alert('AI Prompt copied to clipboard! Paste it in ChatGPT/Claude to generate a pattern.');
-  };
-
   const handleLoadPreset = (presetId: string) => {
     const preset = livePresets.find((p) => p.id === presetId);
     if (!preset) return;
@@ -340,6 +287,15 @@ export default function PatternPanel({ content }: PatternPanelProps) {
       preset_name: preset.name,
       surface: 'live_editor',
     });
+  };
+
+  const activePresetIndex = livePresets.findIndex((p) => p.id === activePresetId);
+
+  const handleStepPreset = (dir: number) => {
+    if (livePresets.length === 0) return;
+    const base = activePresetIndex >= 0 ? activePresetIndex : dir > 0 ? -1 : 0;
+    const next = (base + dir + livePresets.length) % livePresets.length;
+    handleLoadPreset(livePresets[next].id);
   };
 
   const handleRandomPreset = () => {
@@ -358,7 +314,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     captureEvent('copy_variants_prompt_clicked', {
       surface: 'live_editor',
     });
-    alert('5 Variants Prompt copied to clipboard! Paste it in ChatGPT/Claude with your current pattern to get 5 distinct variations.');
+    alert('Creation prompt copied to clipboard! Paste it in ChatGPT/Claude to get 5 pattern variations.');
   };
 
   const handleCopyConvertPrompt = () => {
@@ -462,26 +418,32 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           {mode === 'create' && (
             <div className={styles.liveEditor}>
               <div className={styles.editorHeader}>
-                <div>
-                  <span className={styles.editorTitle}>JavaScript Pattern Editor</span>
-                </div>
-                <div className={styles.editorActions}>
-                  <button type="button" onClick={handleCopyCreatePrompt}>
-                    Copy creation prompt
-                  </button>
-                  <button type="button" onClick={handleCopyVariantPrompt}>
-                    Copy 5 variants prompt
-                  </button>
-                  <button type="button" className={styles.dark} onClick={handleCopyConvertPrompt}>
-                    Copy C++ prompt
-                  </button>
-                  <button type="button" className={styles.dark} onClick={() => setShareOpen(true)}>
-                    Share to Discord
-                  </button>
-                </div>
-                <p className={styles.editorHint}>
-                  Copy a prompt, then paste it into ChatGPT, Claude, Grok, or Gemini.
-                </p>
+                <ol className={styles.editorSteps}>
+                  <li>
+                    <span className={styles.stepText}>Copy the prompt into your AI chatbot, then paste the result below.</span>
+                    <div className={styles.editorActions}>
+                      <button type="button" onClick={handleCopyVariantPrompt}>
+                        Copy creation prompt
+                      </button>
+                    </div>
+                  </li>
+                  <li>
+                    <span className={styles.stepText}>Play with it on the preview — when you like it, copy the C++ prompt.</span>
+                    <div className={styles.editorActions}>
+                      <button type="button" onClick={handleCopyConvertPrompt}>
+                        Copy C++ prompt
+                      </button>
+                    </div>
+                  </li>
+                  <li>
+                    <span className={styles.stepText}>Flash it to the firmware and share to Discord.</span>
+                    <div className={styles.editorActions}>
+                      <button type="button" onClick={() => setShareOpen(true)}>
+                        Share to Discord
+                      </button>
+                    </div>
+                  </li>
+                </ol>
               </div>
               <Editor
                 height={EDITOR_HEIGHT}
@@ -512,69 +474,21 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   automaticLayout: true,
                 }}
               />
-              <div className={styles.presetChips} aria-label="Live editor presets">
-                <span className={styles.presetChipsLabel}>Try a preset</span>
-                {!showAllPresets ? (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.presetChip}
-                      onClick={handleRandomPreset}
-                      title="Select a random pattern preset"
-                    >
-                      🎲 Shuffle
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.presetChip}
-                      onClick={() => setShowAllPresets(true)}
-                      title="Show all available presets"
-                    >
-                      Show All ({livePresets.length})
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.presetChip}
-                      onClick={handleRandomPreset}
-                      title="Select a random pattern preset"
-                    >
-                      🎲 Shuffle
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.presetChip}
-                      onClick={() => setShowAllPresets(false)}
-                      title="Hide preset list"
-                    >
-                      Collapse
-                    </button>
-                    {livePresets.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        className={activePresetId === preset.id ? `${styles.presetChip} ${styles.active}` : styles.presetChip}
-                        aria-pressed={activePresetId === preset.id}
-                        onClick={() => handleLoadPreset(preset.id)}
-                        title={preset.desc}
-                      >
-                        {preset.name}
-                      </button>
-                    ))}
-                  </>
-                )}
-                <span className={styles.presetChipsSeparator}>|</span>
-                <span className={styles.presetChipsLabel}>More community patterns:</span>
-                <a
-                  href="https://discord.gg/Vr9QtsxeTk"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.presetChip}
-                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  Discord
+              <div className={styles.presetBar} aria-label="Live editor presets">
+                <button type="button" onClick={() => handleStepPreset(-1)} aria-label="Previous preset">
+                  ‹
+                </button>
+                <span className={styles.presetCount}>
+                  {activePresetIndex >= 0 ? activePresetIndex + 1 : '–'}/{livePresets.length}
+                </span>
+                <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
+                  ›
+                </button>
+                <button type="button" onClick={handleRandomPreset} aria-label="Random preset" title="Random preset">
+                  🎲
+                </button>
+                <a href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noopener noreferrer">
+                  More patterns on Discord
                 </a>
               </div>
               <div className={styles.sourceRow}>
@@ -587,13 +501,16 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     <li>Upload the sketch to your ESP32-S3.</li>
                   </ol>
                   <p>
-                    <strong>Every pattern from Patternflow&apos;s <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">Instagram</a> is also shared on <a href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noopener noreferrer">Discord</a>.</strong> The Discord patterns channel mirrors the Instagram feed with the full JavaScript source, the hardware-tested C++ header, and the design notes behind each one. Join the Discord to grab any pattern you saw on a post, or share yours back — selected community patterns may be bundled into future releases.
+                    <strong>Every pattern from Patternflow&apos;s Instagram is also shared on Discord.</strong>
                   </p>
-                  <p>
-                    Want more detail than the four steps above? Read the <a href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md" target="_blank" rel="noopener noreferrer">firmware README</a> — it covers wiring, OTA wireless flashing, panel color calibration, and the most common upload errors.
+                  <p className={styles.applyNote}>
+                    The Discord patterns channel mirrors the Instagram feed with the full JavaScript source, the hardware-tested C++ header, and the design notes behind each one. Join the Discord to grab any pattern you saw on a post, or share yours back — selected community patterns may be bundled into future releases.
                   </p>
-                  <p>
-                    Newer to Arduino or embedded work? Copy the entire firmware README into ChatGPT or Claude and ask it to walk you through your specific setup. The README is written densely enough that an AI assistant can guide a beginner through it step by step.
+                  <p className={styles.applyNote}>
+                    <strong>Want more detail than the four steps above?</strong> Read the <a href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md" target="_blank" rel="noopener noreferrer">firmware README</a> — it covers wiring, OTA wireless flashing, panel color calibration, and the most common upload errors.
+                  </p>
+                  <p className={styles.applyNote}>
+                    <strong>Newer to Arduino or embedded work?</strong> Copy the entire firmware README into ChatGPT or Claude and ask it to walk you through your specific setup. The README is written densely enough that an AI assistant can guide a beginner through it step by step.
                   </p>
                   <div className={styles.applyLinks}>
                     <a href="https://github.com/engmung/Patternflow/tree/main/firmware" className={styles.secondaryLink}>
