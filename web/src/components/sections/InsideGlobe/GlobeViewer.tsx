@@ -124,6 +124,19 @@ export default function GlobeViewer() {
               <div>
                 <span className={styles.desc}>{selected.description}</span>
               </div>
+              {selected.link && (
+                <div>
+                  <a
+                    className={styles.link}
+                    href={selected.link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {selected.link.label} ↗
+                  </a>
+                </div>
+              )}
               {images && images.length > 0 && (
                 <div className={styles.thumbs} onClick={(event) => event.stopPropagation()}>
                   {images.map((image, index) => (

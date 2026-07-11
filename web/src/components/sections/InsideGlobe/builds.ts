@@ -10,6 +10,7 @@ export type Build = {
   country: string;
   date: string;
   description: string;
+  link?: { href: string; label: string };
   images?: BuildImage[];
 };
 
@@ -60,6 +61,22 @@ export const builds: Build[] = [
     images: [
       { src: '/builds/shooter/main.jpg', alt: "shooter's Patternflow build with a paper-and-acrylic LED diffuser" },
       { src: '/builds/shooter/detail.jpg', alt: "Detail of shooter's layered paper-and-acrylic LED diffuser" },
+    ],
+  },
+  {
+    id: 'france-day',
+    location: { lat: 46.6034, lng: 1.8883, label: 'France' },
+    maker: 'day',
+    country: 'France',
+    date: 'July 2026',
+    description:
+      'The first port to a new platform — Patternflow reworked for a Raspberry Pi and a 64×32 LED matrix, in an enclosure adapted from another open-source design.',
+    link: { href: 'https://github.com/dayeggpi/pi-dashboard', label: 'github.com/dayeggpi/pi-dashboard' },
+    images: [
+      { src: '/builds/day/ring.jpg', alt: "A blue ring pattern on day's Raspberry Pi Patternflow build in a white enclosure" },
+      { src: '/builds/day/waves.jpg', alt: "Red and blue crossing waves on day's LED matrix build" },
+      { src: '/builds/day/tiles.jpg', alt: "A colorful tiled pattern on day's LED matrix build" },
+      { src: '/builds/day/noise.jpg', alt: "A red-and-white noise gradient on day's LED matrix build" },
     ],
   },
 ];

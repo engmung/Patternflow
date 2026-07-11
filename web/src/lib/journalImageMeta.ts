@@ -24,6 +24,8 @@ export const journalImageMeta = {
   "/journal/refocus/pcb-discord-feedback.png": { width: 834, height: 429 },
   "/journal/what-is-patternflow/crowd-supply-pre-launch.png": { width: 1325, height: 693 },
   "/journal/what-is-patternflow/viral-x-post.png": { width: 596, height: 740 },
+  "/journal/worn-out/c-type-patternflow.jpg": { width: 4032, height: 2268 },
+  "/journal/worn-out/studying-sound.jpg": { width: 4032, height: 2268 },
 } as const;
 
 export function getJournalImageMeta(src?: string) {

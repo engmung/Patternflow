@@ -5,160 +5,202 @@
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
-#include "src/core_math.h"   // PFMath::fastSin, PFMath::fract
+#include "src/core_math.h"
+#include "src/core_tables.h"
 
-namespace CellsDifferencePattern {
+namespace TileWaves {
 
-const char* NAME = "Cells Diff";
-const char* const KNOB_LABELS[4] = {"Scale1", "Speed", "Contrast", "Scale2"};
+const char* NAME = "TileWaves";
+const char* const KNOB_LABELS[4] = {"Quantize", "Speed", "PhaseShift", "Sharpness"};
 
-// ---- knob ranges and step ----
-static constexpr float KNOB1_MIN = 0.0f;
-static constexpr float KNOB1_MAX = 20.0f;
-static constexpr float KNOB1_STEP = 0.05f;
-static constexpr float KNOB2_MIN = 0.1f;
-static constexpr float KNOB2_MAX = 10.0f;
-static constexpr float KNOB2_STEP = 0.1f;
-static constexpr float KNOB3_MIN = 0.0f;
-static constexpr float KNOB3_MAX = 4.9f;
-static constexpr float KNOB3_STEP = 0.05f;
-static constexpr float KNOB4_MIN = 1.0f;
-static constexpr float KNOB4_MAX = 30.0f;
-static constexpr float KNOB4_STEP = 0.05f;
-
-// ---- state ----
-float knob1 = 11.906f;
-float knob2 = 1.589f;
-float knob3 = 0.89f;
-float knob4 = 11.964f;
-float t = 0.0f;
-
-// ---- constants for rotation ----
-static constexpr float PI = 3.141592653589793f;
-static constexpr float TWO_PI = 6.283185307179586f;
-static constexpr float DEG_58 = 58.0f * PI / 180.0f;
-float ca0, sa0;
-
-// ---- hash2 ----
-static inline float hash2(float x, float y) {
-    return PFMath::fract(PFMath::fastSin(x * 127.1f + y * 311.7f) * 43758.5453f);
-}
-
-// ---- baked color ramp ----
 static const uint8_t RAMP_LUT[256][3] = {
-  {255,255,255},{221,221,221},{186,186,186},{152,152,152},{117,117,117},{83,83,83},{48,48,48},{14,14,14},
-  {1,0,2},{2,0,6},{3,0,10},{4,0,14},{5,0,18},{6,0,22},{7,0,26},{8,0,30},
-  {9,0,34},{10,0,38},{11,0,42},{12,0,46},{13,0,49},{14,0,53},{15,0,57},{16,0,61},
-  {17,0,65},{18,0,69},{19,0,73},{21,0,77},{22,0,81},{23,0,85},{24,0,89},{25,0,93},
-  {26,0,96},{27,0,100},{28,0,104},{29,0,108},{30,0,112},{31,0,116},{32,0,120},{33,0,124},
-  {34,0,128},{35,0,132},{36,0,136},{37,0,140},{38,0,144},{39,0,147},{40,0,151},{41,0,155},
-  {42,0,159},{44,0,163},{45,0,167},{46,0,171},{47,0,175},{48,0,179},{49,0,183},{50,0,187},
-  {51,0,191},{52,0,195},{53,0,198},{54,0,202},{55,0,206},{56,0,210},{57,0,214},{58,0,218},
-  {59,0,222},{60,0,226},{61,0,230},{62,0,234},{63,0,238},{64,0,242},{65,0,246},{67,0,249},
-  {68,0,253},{71,1,252},{75,2,247},{79,3,242},{84,4,237},{88,5,232},{93,6,227},{97,7,222},
-  {101,8,217},{106,9,212},{110,10,207},{114,10,202},{119,11,197},{123,12,192},{128,13,187},{132,14,182},
-  {136,15,177},{141,16,172},{145,17,167},{150,18,162},{154,19,156},{158,20,151},{163,21,146},{167,22,141},
-  {172,23,136},{176,24,131},{180,25,126},{185,26,121},{189,27,116},{194,28,111},{198,29,106},{202,30,101},
-  {207,31,96},{211,32,91},{216,33,86},{220,34,81},{224,35,76},{229,36,71},{233,37,66},{238,38,61},
-  {242,39,56},{246,40,51},{251,41,46},{254,43,43},{254,48,45},{254,52,48},{254,57,51},{254,61,53},
-  {254,66,56},{254,70,59},{254,75,61},{254,79,64},{254,84,66},{254,88,69},{254,92,72},{254,97,74},
-  {254,101,77},{254,106,80},{254,110,82},{254,115,85},{254,119,88},{254,124,90},{254,128,93},{254,133,96},
-  {254,137,98},{250,135,96},{246,133,95},{242,131,93},{238,129,92},{235,127,91},{231,124,89},{227,122,88},
-  {223,120,86},{219,118,85},{216,116,83},{212,114,82},{208,112,80},{204,110,79},{200,108,77},{196,106,76},
-  {193,104,74},{189,102,73},{185,100,71},{181,98,70},{177,96,68},{174,94,67},{170,92,65},{166,89,64},
-  {162,87,63},{158,85,61},{154,83,60},{151,81,58},{147,79,57},{143,77,55},{139,75,54},{135,73,52},
-  {132,71,51},{128,69,49},{124,67,48},{120,65,46},{116,63,45},{112,61,43},{109,59,42},{105,57,40},
-  {101,54,39},{97,52,38},{93,50,36},{90,48,35},{86,46,33},{82,44,32},{78,42,30},{74,40,29},
-  {70,38,27},{67,36,26},{63,34,24},{59,32,23},{55,30,21},{51,28,20},{48,26,18},{44,24,17},
-  {40,22,15},{36,19,14},{32,17,12},{29,15,11},{25,13,10},{21,11,8},{17,9,7},{13,7,5},
-  {9,5,4},{6,3,2},{2,1,1},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {1,0,8},{3,0,17},{4,0,25},{6,0,34},{7,0,42},{9,0,50},{10,0,59},{11,0,67},
+  {13,0,76},{14,0,84},{16,0,93},{17,0,101},{19,0,110},{20,0,118},{21,0,127},{23,0,135},
+  {24,0,144},{26,0,152},{27,0,161},{29,0,169},{30,0,178},{31,0,186},{33,0,195},{34,0,203},
+  {36,0,211},{37,0,220},{39,0,228},{40,0,237},{41,0,245},{43,0,254},{42,2,255},{42,4,255},
+  {41,7,255},{41,9,255},{40,11,255},{39,13,255},{39,16,255},{38,18,255},{37,20,255},{37,22,255},
+  {36,25,255},{36,27,255},{35,29,255},{34,32,255},{34,34,255},{33,36,255},{32,38,255},{32,41,255},
+  {31,43,255},{31,45,255},{30,48,255},{29,50,255},{29,52,255},{28,54,255},{27,57,255},{27,59,255},
+  {26,61,255},{26,64,255},{25,66,255},{24,68,255},{24,70,255},{23,73,255},{22,75,255},{22,77,255},
+  {21,80,255},{21,82,255},{20,84,255},{19,86,255},{19,89,255},{18,91,255},{17,93,255},{17,95,255},
+  {16,98,255},{16,100,255},{15,102,255},{14,105,255},{14,107,255},{13,109,255},{12,111,255},{12,114,255},
+  {11,116,255},{11,118,255},{10,121,255},{9,123,255},{9,125,255},{8,127,255},{7,130,255},{7,132,255},
+  {6,134,255},{6,137,255},{5,139,255},{4,141,255},{4,143,255},{3,146,255},{2,148,255},{2,150,255},
+  {1,152,255},{1,155,255},{0,157,255},{7,153,248},{14,148,241},{21,144,234},{28,140,227},{35,135,220},
+  {42,131,213},{49,127,206},{56,122,199},{63,118,192},{70,114,185},{77,110,178},{84,105,171},{91,101,164},
+  {98,97,157},{105,92,150},{112,88,143},{119,84,136},{126,79,129},{133,75,122},{140,71,115},{147,67,108},
+  {154,62,101},{161,58,94},{168,54,87},{175,49,80},{182,45,73},{189,41,66},{196,36,59},{203,32,52},
+  {210,28,45},{217,23,38},{224,19,31},{231,15,24},{238,11,17},{245,6,10},{252,2,3},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
 };
 
-// ---- interface ----
+// Knob state initialized to Pattern Lab current values
+static float quantizeState = 6.533f;
+static float speedState = 7.048f;
+static float phaseShiftState = 3.0f;
+static float sharpnessState = 1.0f;
+
+// Calibrated steps per detent
+static const float TILE_QUANTIZE_STEP = 0.05f;
+static const float TILE_SPEED_STEP = 0.1f;
+static const float TILE_PHASESHIFT_STEP = 0.05f;
+static const float TILE_SHARPNESS_STEP = 0.05f;
+
+// Range limits
+static const float TILE_QUANTIZE_MIN = 1.0f;
+static const float TILE_QUANTIZE_MAX = 12.0f;
+static const float TILE_SPEED_MIN = 0.1f;
+static const float TILE_SPEED_MAX = 10.0f;
+static const float TILE_PHASESHIFT_MIN = 0.0f;
+static const float TILE_PHASESHIFT_MAX = 5.0f;
+static const float TILE_SHARPNESS_MIN = 1.0f;
+static const float TILE_SHARPNESS_MAX = 10.0f;
+
+static float timeAcc = 0.0f;
+
+// tileSize is fixed at 8; precompute tile centers and distances for all grid cells.
+// Grid dimensions: (PANEL_RES_W/8 + 1) x (PANEL_RES_H/8 + 1) — center of panel is (w/2, h/2) in pixel coords.
+// We precompute dist for each grid cell once per frame since phaseShift can change,
+// but the gridX/gridY → dist mapping is parameter-dependent only via phaseShift multiplier applied later.
+// Actually dist itself is parameter-independent (pure geometry), so precompute it in setup.
+// gridCols = ceil(PANEL_RES_W / 8.0f), gridRows = ceil(PANEL_RES_H / 8.0f).
+// We store dist for each (gridX, gridY) so we don't recalc sqrtf per pixel.
+
+static const int TILE_SIZE = 8;
+static int gridCols;
+static int gridRows;
+static float* gridDist; // size gridCols * gridRows; dist from tile center to panel center
+
+static float cx, cy;
+
 void setup() {
     PFMath::buildSinLUT();
-    ca0 = cosf(DEG_58);
-    sa0 = sinf(DEG_58);
+    PFTables::init();
+
+    cx = PANEL_RES_W * 0.5f;
+    cy = PANEL_RES_H * 0.5f;
+    gridCols = (PANEL_RES_W + TILE_SIZE - 1) / TILE_SIZE;
+    gridRows = (PANEL_RES_H + TILE_SIZE - 1) / TILE_SIZE;
+    gridDist = new float[gridCols * gridRows];
+
+    float halfTile = TILE_SIZE * 0.5f;
+    for (int gy = 0; gy < gridRows; gy++) {
+        float ty = gy * TILE_SIZE + halfTile;
+        float dy = ty - cy;
+        int rowBase = gy * gridCols;
+        for (int gx = 0; gx < gridCols; gx++) {
+            float tx = gx * TILE_SIZE + halfTile;
+            float dx = tx - cx;
+            gridDist[rowBase + gx] = sqrtf(dx * dx + dy * dy);
+        }
+    }
 }
 
 void update(float dt, const InputFrame& input) {
-    knob1 += input.knobDeltas[0] * KNOB1_STEP;
-    if (knob1 < KNOB1_MIN) knob1 = KNOB1_MIN;
-    if (knob1 > KNOB1_MAX) knob1 = KNOB1_MAX;
+    quantizeState += input.knobDeltas[0] * TILE_QUANTIZE_STEP;
+    if (quantizeState < TILE_QUANTIZE_MIN) quantizeState = TILE_QUANTIZE_MIN;
+    if (quantizeState > TILE_QUANTIZE_MAX) quantizeState = TILE_QUANTIZE_MAX;
 
-    knob2 += input.knobDeltas[1] * KNOB2_STEP;
-    if (knob2 < KNOB2_MIN) knob2 = KNOB2_MIN;
-    if (knob2 > KNOB2_MAX) knob2 = KNOB2_MAX;
+    speedState += input.knobDeltas[1] * TILE_SPEED_STEP;
+    if (speedState < TILE_SPEED_MIN) speedState = TILE_SPEED_MIN;
+    if (speedState > TILE_SPEED_MAX) speedState = TILE_SPEED_MAX;
 
-    knob3 += input.knobDeltas[2] * KNOB3_STEP;
-    if (knob3 < KNOB3_MIN) knob3 = KNOB3_MIN;
-    if (knob3 > KNOB3_MAX) knob3 = KNOB3_MAX;
+    phaseShiftState += input.knobDeltas[2] * TILE_PHASESHIFT_STEP;
+    if (phaseShiftState < TILE_PHASESHIFT_MIN) phaseShiftState = TILE_PHASESHIFT_MIN;
+    if (phaseShiftState > TILE_PHASESHIFT_MAX) phaseShiftState = TILE_PHASESHIFT_MAX;
 
-    knob4 += input.knobDeltas[3] * KNOB4_STEP;
-    if (knob4 < KNOB4_MIN) knob4 = KNOB4_MIN;
-    if (knob4 > KNOB4_MAX) knob4 = KNOB4_MAX;
+    sharpnessState += input.knobDeltas[3] * TILE_SHARPNESS_STEP;
+    if (sharpnessState < TILE_SHARPNESS_MIN) sharpnessState = TILE_SHARPNESS_MIN;
+    if (sharpnessState > TILE_SHARPNESS_MAX) sharpnessState = TILE_SHARPNESS_MAX;
 
-    t += dt * knob2;   // master speed
+    timeAcc += dt * speedState;
+    // timeAcc feeds fastSin with integer multiplier (3.0) and floorf for quantization.
+    // Wrap at TWO_PI for the sin use; the quantization floorf operates on the wrapped value
+    // but produces the same floorf(localTime/step) since step is fractional and TWO_PI is the
+    // period of the underlying sine. The phase offset (dist * phaseShift * 0.08) drifts but is
+    // added before floorf. To keep floorf quantization stable we need to preserve the
+    // unbounded drift in the offset, but wrapping timeAcc at 2π is correct because
+    // sin(theta - 2π*k) == sin(theta) and floorf((theta - 2π*k)/step) differs from
+    // floorf(theta/step) by an integer, which sin eliminates. So wrap is safe.
+    if (timeAcc > TWO_PI) {
+        timeAcc -= TWO_PI;
+    } else if (timeAcc < -TWO_PI) {
+        timeAcc += TWO_PI;
+    }
 }
 
 void draw() {
-    const int w = PANEL_RES_W;
-    const int h = PANEL_RES_H;
-    const float halfW = w * 0.5f;
-    const float halfH = h * 0.5f;
+    float t = timeAcc;
+    float quantize = quantizeState;
+    float phaseShift = phaseShiftState;
+    float sharpness = sharpnessState;
 
-    const float sh0 = knob1 * 0.5f;
-    const float sh1 = knob4 * 0.5f;
-    const float ph0 = t * 1.0f;
-    const float ph1 = t * 0.55f;
-    const float a0 = 0.83f;
-    const float a1 = 0.61f;
-    const float contrast = knob3;
+    int tileSize = TILE_SIZE;
+    int cols = gridCols;
+    int rows = gridRows;
 
-    for (int y = 0; y < h; ++y) {
-        const float ny = (y - halfH) / h;
-        for (int x = 0; x < w; ++x) {
-            const float nx = (x - halfW) / h;
+    float quantizeStep = 1.0f;
+    float invQuantize = 1.0f;
+    if (quantize > 1.0f) {
+        quantizeStep = 1.0f / quantize;
+        invQuantize = quantize;
+    }
 
-            // ---- layer 1: rotated cells ----
-            const float rx = nx * ca0 - ny * sa0;
-            const float ry = nx * sa0 + ny * ca0;
-            const int gx0 = (int)floorf(rx * sh0);
-            const int gy0 = (int)floorf(ry * sh0);
-            const float h0 = hash2((float)gx0, (float)gy0);
-            const float lv0 = 0.5f + 0.5f * PFMath::fastSin(h0 * TWO_PI + ph0);
+    for (int y = 0; y < PANEL_RES_H; y++) {
+        int gridY = y / tileSize;
+        int rowBase = gridY * cols;
 
-            // ---- layer 2: difference cells ----
-            const int gx1 = (int)floorf(nx * sh1);
-            const int gy1 = (int)floorf(ny * sh1);
-            const float h1 = hash2((float)gx1, (float)gy1);
-            const float lv1 = 0.5f + 0.5f * PFMath::fastSin(h1 * TWO_PI + ph1);
+        // tile border check: top edge of tile
+        bool borderY = (y % tileSize == 0);
 
-            // blend
-            float v = lv0 * a0;
-            v = v + (fabsf(v - lv1) - v) * a1;   // equivalent to (1-a1)*v + a1*abs(v-lv1)
+        for (int x = 0; x < PANEL_RES_W; x++) {
+            int gridX = x / tileSize;
+            float dist = gridDist[rowBase + gridX];
 
-            // contrast and clamp
-            v = (v - 0.5f) * contrast + 0.5f;
-            if (v < 0.0f) v = 0.0f;
-            if (v > 1.0f) v = 1.0f;
+            // Phase-delayed, time-quantized motion
+            float localTime = t - dist * phaseShift * 0.08f;
+            if (quantize > 1.0f) {
+                localTime = floorf(localTime * invQuantize) * quantizeStep;
+            }
 
-            // lookup color from ramp
-            const int idx = (int)(v * 255.0f + 0.5f);
-            PFCanvas::setPixel(x, y,
-                RAMP_LUT[idx][0],
-                RAMP_LUT[idx][1],
-                RAMP_LUT[idx][2]);
+            // Concentric tile waves
+            float wave = PFMath::fastSin(dist * 0.25f - localTime * 3.0f);
+            float val = (wave + 1.0f) * 0.5f;
+
+            // Sharpness power scaling
+            if (val > 0.0f) {
+                val = PFMath::fastPow(val, sharpness);
+            }
+
+            // Tile frame borders
+            if (borderY || (x % tileSize == 0)) {
+                val = 0.0f;
+            }
+
+            // Clamp
+            if (val < 0.0f) val = 0.0f;
+            if (val > 1.0f) val = 1.0f;
+
+            int li = (int)(val * 255.0f + 0.5f);
+            PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
         }
     }
 
     PFCanvas::present();
 }
 
-} // namespace CellsDifferencePattern
+} // namespace TileWaves

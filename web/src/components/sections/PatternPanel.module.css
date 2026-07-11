@@ -215,6 +215,23 @@
   line-height: 1.55;
 }
 
+/* Supporting notes — same body size as the steps list. */
+.applyGuide .applyNote {
+  margin-top: 6px;
+  font-size: var(--pf-fs-body);
+}
+
+/* Lead sentences render as sub-headings, same style as the applyGuide h3. */
+.applyGuide p strong {
+  display: block;
+  margin: 32px 0 8px;
+  color: var(--pf-ink);
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
 .applyLinks {
   display: flex;
   flex-wrap: wrap;
@@ -285,17 +302,48 @@
   background: var(--pf-cream);
 }
 
-.editorTitle {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.editorHeader .editorHint {
+/* Compact numbered how-to rows; text left, that step's buttons right. */
+.editorHeader .editorSteps {
   flex-basis: 100%;
   margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 8px;
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-body);
   line-height: 1.5;
+}
+
+.editorSteps li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.editorSteps li::before {
+  counter-increment: step;
+  content: counter(step);
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--pf-rule);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  color: var(--pf-ink-muted);
+}
+
+.stepText {
+  flex: 1;
+  min-width: 200px;
+}
+
+.editorSteps .editorActions {
+  margin-left: auto;
 }
 
 .editorActions {
@@ -316,61 +364,53 @@
   text-transform: uppercase;
 }
 
-.editorActions button.dark {
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-  border-color: var(--pf-ink);
-}
-
-.presetChips {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+/* Segmented preset pager: ‹ | 1/35 | › | 🎲 | Discord — same grammar as the mode switch. */
+.presetBar {
+  display: grid;
+  grid-template-columns: 48px 96px 48px 48px 1fr;
   border-top: 1px solid var(--pf-rule);
   background: var(--pf-cream);
 }
 
-.presetChipsLabel {
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  color: var(--pf-ghost);
-  margin-right: 4px;
-}
-
-.presetChipsSeparator {
-  color: var(--pf-rule);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  margin: 0 4px;
-}
-
-.presetChip {
-  min-height: 30px;
+.presetBar > * {
+  min-height: 44px;
+  display: grid;
+  place-items: center;
   padding: 0 12px;
-  border: 1px solid var(--pf-rule);
-  background: #ffffff;
+  border: 0;
+  border-right: 1px solid var(--pf-rule);
+  background: transparent;
   color: var(--pf-ink);
   font-family: var(--pf-mono);
   font-size: var(--pf-fs-mono);
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
+  text-decoration: none;
+}
+
+.presetBar > *:last-child {
+  border-right: 0;
+}
+
+.presetBar button,
+.presetBar a {
   cursor: pointer;
 }
 
-.presetChip:hover {
+.presetBar button:hover,
+.presetBar a:hover {
   background: var(--pf-ink);
   color: var(--pf-cream);
-  border-color: var(--pf-ink);
 }
 
-.presetChip.active {
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-  border-color: var(--pf-ink);
+.presetBar button[aria-label='Previous preset'],
+.presetBar button[aria-label='Next preset'] {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.presetCount {
+  color: var(--pf-ink-muted);
 }
 
 .metaRows {
@@ -403,5 +443,20 @@
 
   .editorHeader {
     align-items: flex-start;
+  }
+
+  /* Discord drops to its own full-width row under the pager cells. */
+  .presetBar {
+    grid-template-columns: 48px 1fr 48px 48px;
+  }
+
+  .presetBar button[aria-label='Random preset'] {
+    border-right: 0;
+  }
+
+  .presetBar a {
+    grid-column: 1 / -1;
+    border-right: 0;
+    border-top: 1px solid var(--pf-rule);
   }
 }
