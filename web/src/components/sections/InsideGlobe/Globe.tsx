@@ -167,22 +167,52 @@ function ContinentOutlines() {
   );
 }
 
-// Spiderweb of great-circle links between every pair of builds.
+// How many nearest neighbours each build links out to. Edges are shared, so a
+// build can end up with more than this many lines, but never a full mesh.
+const NEIGHBOURS_PER_BUILD = 3;
+
+// Angular distance between two lat/lng points (radians), for nearest-neighbour ranking.
+function angularDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const toRad = Math.PI / 180;
+  const lat1 = a.lat * toRad;
+  const lat2 = b.lat * toRad;
+  const dLat = (b.lat - a.lat) * toRad;
+  const dLng = (b.lng - a.lng) * toRad;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+// Links between each build and its few nearest builds (deduped), not a full mesh.
 function ConnectionWeb() {
   const geometry = useMemo(() => {
     const radius = WEB_RADIUS;
     const points: number[] = [];
 
+    // Collect a unique set of edges: each build reaches to its N nearest.
+    const edges = new Set<string>();
     for (let i = 0; i < builds.length; i += 1) {
-      for (let j = i + 1; j < builds.length; j += 1) {
-        const a = builds[i].location;
-        const b = builds[j].location;
-        const arc = linkArc(a.lat, a.lng, b.lat, b.lng, radius);
-        // Emit as discrete segments so a single lineSegments draws them all.
-        for (let k = 0; k < arc.length - 3; k += 3) {
-          points.push(arc[k], arc[k + 1], arc[k + 2]);
-          points.push(arc[k + 3], arc[k + 4], arc[k + 5]);
-        }
+      const nearest = builds
+        .map((other, j) => ({ j, dist: angularDistance(builds[i].location, other.location) }))
+        .filter((entry) => entry.j !== i)
+        .sort((p, q) => p.dist - q.dist)
+        .slice(0, NEIGHBOURS_PER_BUILD);
+      for (const { j } of nearest) {
+        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
+        edges.add(key);
+      }
+    }
+
+    for (const key of edges) {
+      const [i, j] = key.split('-').map(Number);
+      const a = builds[i].location;
+      const b = builds[j].location;
+      const arc = linkArc(a.lat, a.lng, b.lat, b.lng, radius);
+      // Emit as discrete segments so a single lineSegments draws them all.
+      for (let k = 0; k < arc.length - 3; k += 3) {
+        points.push(arc[k], arc[k + 1], arc[k + 2]);
+        points.push(arc[k + 3], arc[k + 4], arc[k + 5]);
       }
     }
 
