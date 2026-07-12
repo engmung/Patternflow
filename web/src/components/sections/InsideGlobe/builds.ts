@@ -79,6 +79,20 @@ export const builds: Build[] = [
       { src: '/builds/day/noise.jpg', alt: "A red-and-white noise gradient on day's LED matrix build" },
     ],
   },
+  {
+    id: 'norway-enerjoy',
+    location: { lat: 68.4385, lng: 17.4273, label: 'Narvik, Norway' },
+    maker: 'Enerjoy',
+    country: 'Norway',
+    date: 'July 2026',
+    description:
+      'A black-edition Patternflow — and, remarkably, the maker\'s first-ever soldering job. It turned out beautifully.',
+    images: [
+      { src: '/builds/enerjoy/pattern.jpg', alt: "A red pattern glowing on Enerjoy's black-edition Patternflow" },
+      { src: '/builds/enerjoy/setup.jpg', alt: "Enerjoy's black-edition Patternflow on the wall above a DJ setup" },
+      { src: '/builds/enerjoy/build.jpg', alt: "Enerjoy's Patternflow mid-build, showing the PCB and black 3D-printed enclosure" },
+    ],
+  },
 ];
 
 export function latLngToVec3(lat: number, lng: number, radius: number): [number, number, number] {
