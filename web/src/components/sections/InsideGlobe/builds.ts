@@ -10,7 +10,7 @@ export type Build = {
   country: string;
   date: string;
   description: string;
-  link?: { href: string; label: string };
+  links?: { href: string; label: string }[];
   images?: BuildImage[];
 };
 
@@ -71,7 +71,10 @@ export const builds: Build[] = [
     date: 'July 2026',
     description:
       'The first port to a new platform — Patternflow reworked for a Raspberry Pi and a 64×32 LED matrix, in an enclosure adapted from another open-source design.',
-    link: { href: 'https://github.com/dayeggpi/pi-dashboard', label: 'github.com/dayeggpi/pi-dashboard' },
+    links: [
+      { href: 'https://github.com/dayeggpi/pi-dashboard', label: 'github.com/dayeggpi/pi-dashboard' },
+      { href: 'https://www.printables.com/model/850534-rgb-led-clock-case-64x32-matrix', label: 'Enclosure on Printables' },
+    ],
     images: [
       { src: '/builds/day/ring.jpg', alt: "A blue ring pattern on day's Raspberry Pi Patternflow build in a white enclosure" },
       { src: '/builds/day/waves.jpg', alt: "Red and blue crossing waves on day's LED matrix build" },

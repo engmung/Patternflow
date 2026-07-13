@@ -154,6 +154,13 @@
   line-height: 1.75;
 }
 
+/* Stack multiple links tight, no gap between them. */
+.links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .link {
   display: inline;
   box-decoration-break: clone;
