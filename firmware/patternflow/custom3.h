@@ -6,201 +6,185 @@
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_tables.h"
+#include "src/core_noise.h"
 
-namespace TileWaves {
+namespace MidsummerSea {
 
-const char* NAME = "TileWaves";
-const char* const KNOB_LABELS[4] = {"Quantize", "Speed", "PhaseShift", "Sharpness"};
+const char* NAME = "Midsummer Sea";
+const char* const KNOB_LABELS[4] = {"Waves", "Speed", "Sun", "Glitter"};
 
 static const uint8_t RAMP_LUT[256][3] = {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {1,0,8},{3,0,17},{4,0,25},{6,0,34},{7,0,42},{9,0,50},{10,0,59},{11,0,67},
-  {13,0,76},{14,0,84},{16,0,93},{17,0,101},{19,0,110},{20,0,118},{21,0,127},{23,0,135},
-  {24,0,144},{26,0,152},{27,0,161},{29,0,169},{30,0,178},{31,0,186},{33,0,195},{34,0,203},
-  {36,0,211},{37,0,220},{39,0,228},{40,0,237},{41,0,245},{43,0,254},{42,2,255},{42,4,255},
-  {41,7,255},{41,9,255},{40,11,255},{39,13,255},{39,16,255},{38,18,255},{37,20,255},{37,22,255},
-  {36,25,255},{36,27,255},{35,29,255},{34,32,255},{34,34,255},{33,36,255},{32,38,255},{32,41,255},
-  {31,43,255},{31,45,255},{30,48,255},{29,50,255},{29,52,255},{28,54,255},{27,57,255},{27,59,255},
-  {26,61,255},{26,64,255},{25,66,255},{24,68,255},{24,70,255},{23,73,255},{22,75,255},{22,77,255},
-  {21,80,255},{21,82,255},{20,84,255},{19,86,255},{19,89,255},{18,91,255},{17,93,255},{17,95,255},
-  {16,98,255},{16,100,255},{15,102,255},{14,105,255},{14,107,255},{13,109,255},{12,111,255},{12,114,255},
-  {11,116,255},{11,118,255},{10,121,255},{9,123,255},{9,125,255},{8,127,255},{7,130,255},{7,132,255},
-  {6,134,255},{6,137,255},{5,139,255},{4,141,255},{4,143,255},{3,146,255},{2,148,255},{2,150,255},
-  {1,152,255},{1,155,255},{0,157,255},{7,153,248},{14,148,241},{21,144,234},{28,140,227},{35,135,220},
-  {42,131,213},{49,127,206},{56,122,199},{63,118,192},{70,114,185},{77,110,178},{84,105,171},{91,101,164},
-  {98,97,157},{105,92,150},{112,88,143},{119,84,136},{126,79,129},{133,75,122},{140,71,115},{147,67,108},
-  {154,62,101},{161,58,94},{168,54,87},{175,49,80},{182,45,73},{189,41,66},{196,36,59},{203,32,52},
-  {210,28,45},{217,23,38},{224,19,31},{231,15,24},{238,11,17},{245,6,10},{252,2,3},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
-  {255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},{255,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
+  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{1,0,7},
+  {3,0,17},{5,0,27},{6,0,37},{8,0,47},{10,0,57},{11,0,67},{13,0,77},{15,0,87},
+  {16,0,97},{18,0,107},{20,0,117},{21,0,127},{23,0,137},{25,0,147},{26,0,157},{28,0,167},
+  {30,0,177},{32,0,187},{33,0,197},{35,0,207},{37,0,217},{38,0,227},{40,0,237},{42,0,247},
+  {45,1,253},{53,3,244},{60,5,234},{68,8,225},{76,10,215},{84,12,206},{92,15,196},{100,17,187},
+  {107,19,177},{115,22,168},{123,24,159},{131,27,149},{139,29,140},{147,31,130},{154,34,121},{162,36,111},
+  {170,38,102},{178,41,93},{186,43,83},{194,45,74},{202,48,64},{209,50,55},{217,53,45},{225,55,36},
+  {233,57,27},{241,60,17},{249,62,8},{255,65,2},{255,71,10},{255,78,18},{255,84,27},{255,90,35},
+  {255,97,44},{255,103,52},{255,109,60},{255,116,69},{255,122,77},{255,128,86},{255,134,94},{255,141,102},
+  {255,147,111},{255,153,119},{255,160,128},{255,166,136},{255,172,144},{255,178,153},{255,185,161},{255,191,170},
+  {255,197,178},{255,204,186},{255,210,195},{255,216,203},{255,223,212},{255,229,220},{255,235,228},{255,241,237},
+  {255,248,245},{255,254,254},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
 };
 
-// Knob state initialized to Pattern Lab current values
-static float quantizeState = 6.533f;
-static float speedState = 7.048f;
-static float phaseShiftState = 3.0f;
-static float sharpnessState = 1.0f;
-
-// Calibrated steps per detent
-static const float TILE_QUANTIZE_STEP = 0.05f;
-static const float TILE_SPEED_STEP = 0.1f;
-static const float TILE_PHASESHIFT_STEP = 0.05f;
-static const float TILE_SHARPNESS_STEP = 0.05f;
-
-// Range limits
-static const float TILE_QUANTIZE_MIN = 1.0f;
-static const float TILE_QUANTIZE_MAX = 12.0f;
-static const float TILE_SPEED_MIN = 0.1f;
-static const float TILE_SPEED_MAX = 10.0f;
-static const float TILE_PHASESHIFT_MIN = 0.0f;
-static const float TILE_PHASESHIFT_MAX = 5.0f;
-static const float TILE_SHARPNESS_MIN = 1.0f;
-static const float TILE_SHARPNESS_MAX = 10.0f;
-
-static float timeAcc = 0.0f;
-
-// tileSize is fixed at 8; precompute tile centers and distances for all grid cells.
-// Grid dimensions: (PANEL_RES_W/8 + 1) x (PANEL_RES_H/8 + 1) — center of panel is (w/2, h/2) in pixel coords.
-// We precompute dist for each grid cell once per frame since phaseShift can change,
-// but the gridX/gridY → dist mapping is parameter-dependent only via phaseShift multiplier applied later.
-// Actually dist itself is parameter-independent (pure geometry), so precompute it in setup.
-// gridCols = ceil(PANEL_RES_W / 8.0f), gridRows = ceil(PANEL_RES_H / 8.0f).
-// We store dist for each (gridX, gridY) so we don't recalc sqrtf per pixel.
-
-static const int TILE_SIZE = 8;
-static int gridCols;
-static int gridRows;
-static float* gridDist; // size gridCols * gridRows; dist from tile center to panel center
-
-static float cx, cy;
+static float waves   = 0.374f;
+static float speed   = 1.954f;
+static float sun     = 0.683f;
+static float glit    = 0.311f;
+static float t       = 0.0f;
 
 void setup() {
     PFMath::buildSinLUT();
-    PFTables::init();
-
-    cx = PANEL_RES_W * 0.5f;
-    cy = PANEL_RES_H * 0.5f;
-    gridCols = (PANEL_RES_W + TILE_SIZE - 1) / TILE_SIZE;
-    gridRows = (PANEL_RES_H + TILE_SIZE - 1) / TILE_SIZE;
-    gridDist = new float[gridCols * gridRows];
-
-    float halfTile = TILE_SIZE * 0.5f;
-    for (int gy = 0; gy < gridRows; gy++) {
-        float ty = gy * TILE_SIZE + halfTile;
-        float dy = ty - cy;
-        int rowBase = gy * gridCols;
-        for (int gx = 0; gx < gridCols; gx++) {
-            float tx = gx * TILE_SIZE + halfTile;
-            float dx = tx - cx;
-            gridDist[rowBase + gx] = sqrtf(dx * dx + dy * dy);
-        }
-    }
 }
 
 void update(float dt, const InputFrame& input) {
-    quantizeState += input.knobDeltas[0] * TILE_QUANTIZE_STEP;
-    if (quantizeState < TILE_QUANTIZE_MIN) quantizeState = TILE_QUANTIZE_MIN;
-    if (quantizeState > TILE_QUANTIZE_MAX) quantizeState = TILE_QUANTIZE_MAX;
+    waves += input.knobDeltas[0] * 0.05f;
+    if (waves < 0.0f) waves = 0.0f;
+    if (waves > 1.0f) waves = 1.0f;
 
-    speedState += input.knobDeltas[1] * TILE_SPEED_STEP;
-    if (speedState < TILE_SPEED_MIN) speedState = TILE_SPEED_MIN;
-    if (speedState > TILE_SPEED_MAX) speedState = TILE_SPEED_MAX;
+    speed += input.knobDeltas[1] * 0.1f;
+    if (speed < 0.1f) speed = 0.1f;
+    if (speed > 3.0f) speed = 3.0f;
 
-    phaseShiftState += input.knobDeltas[2] * TILE_PHASESHIFT_STEP;
-    if (phaseShiftState < TILE_PHASESHIFT_MIN) phaseShiftState = TILE_PHASESHIFT_MIN;
-    if (phaseShiftState > TILE_PHASESHIFT_MAX) phaseShiftState = TILE_PHASESHIFT_MAX;
+    sun += input.knobDeltas[2] * 0.05f;
+    if (sun < 0.0f) sun = 0.0f;
+    if (sun > 1.0f) sun = 1.0f;
 
-    sharpnessState += input.knobDeltas[3] * TILE_SHARPNESS_STEP;
-    if (sharpnessState < TILE_SHARPNESS_MIN) sharpnessState = TILE_SHARPNESS_MIN;
-    if (sharpnessState > TILE_SHARPNESS_MAX) sharpnessState = TILE_SHARPNESS_MAX;
+    glit += input.knobDeltas[3] * 0.05f;
+    if (glit < 0.0f) glit = 0.0f;
+    if (glit > 1.0f) glit = 1.0f;
 
-    timeAcc += dt * speedState;
-    // timeAcc feeds fastSin with integer multiplier (3.0) and floorf for quantization.
-    // Wrap at TWO_PI for the sin use; the quantization floorf operates on the wrapped value
-    // but produces the same floorf(localTime/step) since step is fractional and TWO_PI is the
-    // period of the underlying sine. The phase offset (dist * phaseShift * 0.08) drifts but is
-    // added before floorf. To keep floorf quantization stable we need to preserve the
-    // unbounded drift in the offset, but wrapping timeAcc at 2π is correct because
-    // sin(theta - 2π*k) == sin(theta) and floorf((theta - 2π*k)/step) differs from
-    // floorf(theta/step) by an integer, which sin eliminates. So wrap is safe.
-    if (timeAcc > TWO_PI) {
-        timeAcc -= TWO_PI;
-    } else if (timeAcc < -TWO_PI) {
-        timeAcc += TWO_PI;
+    t += dt * speed;
+    // common period for all sine multipliers: 2000π
+    if (t > 2000.0f * TWO_PI) {
+        t -= 2000.0f * TWO_PI;
     }
 }
 
 void draw() {
-    float t = timeAcc;
-    float quantize = quantizeState;
-    float phaseShift = phaseShiftState;
-    float sharpness = sharpnessState;
+    const int W = PANEL_RES_W; // 128
+    const int H = PANEL_RES_H; // 64
+    const float vh = (float)(W); // portrait logic: vh = max(W,H) = 128
+    const float vw = (float)(H); // 64
+    const float horizon   = floorf(vh * 0.34f);  // 43
+    const float beachTop  = vh - floorf(vh * 0.14f); // 111
+    const float sunU      = vw * 0.5f;          // 32.0
+    const float sunV      = horizon - 3.0f - sun * (horizon - 8.0f); // 40 - sun*35
+    const float invHorizon = 1.0f / horizon;
+    const float beachRange = vh - beachTop; // 17
 
-    int tileSize = TILE_SIZE;
-    int cols = gridCols;
-    int rows = gridRows;
+    for (int y = 0; y < H; ++y) {
+        const float u = (float)y;                // 0..63
 
-    float quantizeStep = 1.0f;
-    float invQuantize = 1.0f;
-    if (quantize > 1.0f) {
-        quantizeStep = 1.0f / quantize;
-        invQuantize = quantize;
-    }
+        for (int x = 0; x < W; ++x) {
+            // coordinate remap for vertical panel (landscape physical)
+            const float v = (float)(W - 1 - x); // 127..0
 
-    for (int y = 0; y < PANEL_RES_H; y++) {
-        int gridY = y / tileSize;
-        int rowBase = gridY * cols;
+            float val;
 
-        // tile border check: top edge of tile
-        bool borderY = (y % tileSize == 0);
+            if (v < horizon) {
+                // --- Sky ---
+                const float g = v * invHorizon;
+                val = 0.12f + 0.38f * g;
 
-        for (int x = 0; x < PANEL_RES_W; x++) {
-            int gridX = x / tileSize;
-            float dist = gridDist[rowBase + gridX];
+                const float du = u - sunU;
+                const float dv = (v - sunV) * 1.2f;
+                const float d = sqrtf(du * du + dv * dv);
+                if (d < 4.5f) {
+                    val = 1.0f;
+                } else {
+                    val += 0.7f * expf(-d * 0.18f);
+                }
 
-            // Phase-delayed, time-quantized motion
-            float localTime = t - dist * phaseShift * 0.08f;
-            if (quantize > 1.0f) {
-                localTime = floorf(localTime * invQuantize) * quantizeStep;
+                const float cl = PFMath::fastSin(u * 0.11f + v * 0.9f + t * 0.25f)
+                               + PFMath::fastSin(u * 0.05f - v * 0.5f + 2.0f);
+                if (cl > 1.2f && v < horizon * 0.8f) {
+                    val += 0.12f;
+                }
+            }
+            else if (v < beachTop) {
+                // --- Sea ---
+                const float depth = (v - horizon) / (beachTop - horizon);
+                const float persp = 1.0f / (depth + 0.09f);
+                const float wob   = PFMath::fastSin(u * 0.25f + t * 1.3f) * 0.5f * waves;
+                const float band  = PFMath::fastSin(persp * 2.6f + wob + t * (1.5f + depth * 2.0f));
+
+                val = 0.42f - 0.22f * depth
+                    + band * (0.06f + 0.14f * waves) * (0.4f + depth);
+
+                const float pathW  = 2.5f + depth * 9.0f;
+                const float sway   = PFMath::fastSin(v * 0.5f + t) * waves * 2.0f;
+                const bool  inPath = fabsf(u - sunU + sway) < pathW;
+                if (inPath) {
+                    val += 0.12f + 0.1f * (1.0f - depth);
+                }
+
+                // glitter sparkle
+                const int gx   = (int)(u * 7.3f);
+                const int gy   = (int)(v * 13.1f);
+                const int seed = (int)(floorf(t * 7.0f) * 17.7f);
+                const float sp = PFNoise::cellHash(gx, gy, seed);
+                const float thr = 1.0f - glit * (inPath ? 0.10f : 0.03f);
+                if (sp > thr && band > 0.2f) {
+                    val = 1.0f;
+                }
+            }
+            else {
+                // --- Beach ---
+                const float s = (v - beachTop) / beachRange;
+                const int bx = (int)(u * 3.7f);
+                const int by = (int)(v * 5.1f);
+                const float sandHash = PFNoise::cellHash(bx, by);
+                val = 0.5f + 0.15f * s + 0.06f * sandHash;
+
+                const float surge = PFMath::fastSin(t * 1.8f) * 0.5f + 0.5f;
+                const float edge  = beachTop + 2.0f
+                                  + surge * beachRange * 0.55f * (0.4f + waves)
+                                  + PFMath::fastSin(u * 0.35f + t * 2.2f) * 2.5f * waves;
+
+                if (v < edge) {
+                    const float waterDepth = (edge - v) / beachRange;
+                    val = 0.34f - 0.1f * waterDepth;
+                    if (edge - v < 1.5f) {
+                        val = 0.95f;
+                    }
+                }
             }
 
-            // Concentric tile waves
-            float wave = PFMath::fastSin(dist * 0.25f - localTime * 3.0f);
-            float val = (wave + 1.0f) * 0.5f;
-
-            // Sharpness power scaling
-            if (val > 0.0f) {
-                val = PFMath::fastPow(val, sharpness);
-            }
-
-            // Tile frame borders
-            if (borderY || (x % tileSize == 0)) {
-                val = 0.0f;
-            }
-
-            // Clamp
-            if (val < 0.0f) val = 0.0f;
-            if (val > 1.0f) val = 1.0f;
-
+            // clamp and map through baked ramp
+            val = fmaxf(0.0f, fminf(1.0f, val));
             int li = (int)(val * 255.0f + 0.5f);
-            PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
+            if (li < 0) li = 0;
+            if (li > 255) li = 255;
+            PFCanvas::setPixel(x, y,
+                               RAMP_LUT[li][0],
+                               RAMP_LUT[li][1],
+                               RAMP_LUT[li][2]);
         }
     }
 
     PFCanvas::present();
 }
 
-} // namespace TileWaves
+} // namespace MidsummerSea

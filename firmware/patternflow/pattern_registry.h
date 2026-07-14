@@ -55,9 +55,9 @@ struct PatternEntry {
 
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(UntitledPattern),
-  PATTERN_ENTRY(KaleidoscopeBlocks),
-  PATTERN_ENTRY(TileWaves),
+  PATTERN_ENTRY(FireflyHollow),
+  PATTERN_ENTRY(BreakoutArcade),
+  PATTERN_ENTRY(MidsummerSea),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
 
