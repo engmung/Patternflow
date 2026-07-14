@@ -26,6 +26,7 @@ export const journalImageMeta = {
   "/journal/what-is-patternflow/viral-x-post.png": { width: 596, height: 740 },
   "/journal/worn-out/c-type-patternflow.jpg": { width: 4032, height: 2268 },
   "/journal/worn-out/studying-sound.jpg": { width: 4032, height: 2268 },
+  "/journal/shaking-it-off/flooded-lawn.jpg": { width: 1080, height: 1920 },
 } as const;
 
 export function getJournalImageMeta(src?: string) {
