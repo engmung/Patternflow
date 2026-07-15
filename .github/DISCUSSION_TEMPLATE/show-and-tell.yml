@@ -1,0 +1,27 @@
+title: "Share your build"
+labels: ["area:community"]
+body:
+  - type: input
+    attributes:
+      label: Project / Maker name
+      description: How you want to be credited on the globe
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Short intro
+      description: About 3 sentences is enough
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Links
+      description: Your app, project page, video — anything
+  - type: textarea
+    attributes:
+      label: Images
+      description: Drag & drop ~3 screenshots or photos here
+  - type: input
+    attributes:
+      label: Location (optional)
+      description: City or country, so we can place you on the globe
