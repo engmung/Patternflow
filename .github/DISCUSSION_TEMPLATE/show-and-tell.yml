@@ -23,5 +23,7 @@ body:
       description: Drag & drop ~3 screenshots or photos here
   - type: input
     attributes:
-      label: Location (optional)
+      label: Location
       description: City or country, so we can place you on the globe
+    validations:
+      required: true
