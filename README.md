@@ -10,12 +10,12 @@
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
 
 <p align="center">
-  <a href="https://youtu.be/OXt-yg_7qdk">
+  <a href="https://youtu.be/BPMhTChY9vg">
     <img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="100%" alt="Patternflow demo video" />
   </a>
 </p>
 <p align="center">
-  <a href="https://youtu.be/OXt-yg_7qdk"><b>▶ Watch the demo on YouTube</b></a>
+  <a href="https://youtu.be/BPMhTChY9vg"><b>▶ Watch the demo on YouTube</b></a>
 </p>
 
 **Patternflow is an open-source LED synthesizer played with the fingertips.** Turning four physical knobs reshapes generative light patterns on an LED matrix in real time — a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik invited audiences to experience art; Patternflow invites you to create it.
