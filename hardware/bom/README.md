@@ -4,9 +4,9 @@ Machine-readable BOMs for the Patternflow board and build. **The CSV is the sour
 
 | File | Board | Status |
 |---|---|---|
-| `bom_v3.0.csv` | v3.0 (hybrid power: USB-C + screw-terminal bypass) | 🚧 Board unverified — test fab pending ([#114](https://github.com/engmung/Patternflow/issues/114)). Do not order boards yet; parts listed here are stable. |
+| `bom_v3.0.csv` | v3.0 (hybrid power: USB-C + screw-terminal bypass) | ✅ Board fabricated, assembled, and verified ([#114](https://github.com/engmung/Patternflow/issues/114)). Order `hardware/pcb/gerber/patternflow_v3.0_gerber.zip`. |
 
-For the current *buildable* version (v2.x), use the BOM inside the [v2.1.0 release build guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md#1-bill-of-materials-bom).
+For a v2.x build, use the BOM inside the [v2.1.0 release build guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md#1-bill-of-materials-bom).
 
 ## v3.0 at a glance
 

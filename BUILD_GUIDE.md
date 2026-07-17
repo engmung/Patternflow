@@ -68,7 +68,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
 
-> ⚠️ **Order v2.1 only.** `patternflow_v2.1_gerber.zip` is the current recommended board. Unverified in-development revisions live in `hardware/pcb/gerber/experiment/` (currently the v3.0 test board) — do **not** order those.
+> ⚠️ **For this (v2) guide, order v2.1 only.** This guide and its case files are built around the v2.1 board. The newer **v3.0 board** (`patternflow_v3.0_gerber.zip`, verified in [#114](https://github.com/engmung/Patternflow/issues/114)) is a different size — it does **not** fit the v2 cases described here, and v2.1 boards don't fit the v3 cases. The v3 build guide is being written; its case files live in `hardware/case/bed_330mm/` and `bed_256mm/`.
 
 If you want to order the PCB without manually uploading Gerbers, the Patternflow PCB is also listed as a PCBWay open-source project:
 
@@ -96,14 +96,14 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 | File | Contents | Color | Print Orientation |
 | --- | --- | --- | --- |
-| `standard/plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
-| `standard/plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
+|  `legacy_v2/plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
+|  `legacy_v2/plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
 | `knobs/knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
 | `knobs/knobs_20mm.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
 
 **Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
-> **Optional — easier-bonding main body (currently not recommended).** `hardware/case/standard/plate_main_easyfit.stl` is a drop-in replacement for `plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
+> **Optional — easier-bonding main body (currently not recommended).** `hardware/case/legacy_v2/plate_main_easyfit.stl` is a drop-in replacement for `plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
 
 ### Print Settings
 

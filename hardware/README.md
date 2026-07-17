@@ -4,11 +4,11 @@ Open hardware files for Patternflow.
 
 ## Structure
 
-- `case/` — 3D-printable enclosure, organized by build option
-  - `standard/` — split-plate body for 256 mm beds (glued)
-  - `oneshot/` — one-piece snap-fit body for 330 mm+ beds
-  - `divided/` — snap-fit body split for 256 mm beds (untested)
+- `case/` — 3D-printable enclosure, organized by printer bed size (v3.0 board)
+  - `bed_330mm/` — one-piece snap-fit body (H2S-class beds)
+  - `bed_256mm/` — divided snap-fit, 5 parts (P1S-class beds)
   - `knobs/` — knob plates (15/20 mm shafts), shared by all options
+  - `legacy_v2/` — every v2.x-board case (not compatible with v3.0)
   - `source/` — original Blender files (editable)
 - `pcb/` — circuit board
   - `kicad/` — KiCad project files (editable)
