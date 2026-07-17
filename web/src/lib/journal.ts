@@ -16,6 +16,8 @@ export type JournalFrontmatter = {
   series?: string;
   draft?: boolean;
   hideCover?: boolean;
+  featured?: boolean;
+  highlight?: boolean;
 };
 
 export type JournalPost = JournalFrontmatter & {
@@ -82,6 +84,8 @@ function readPost(slug: string, lang: JournalLang): JournalPost {
     series: data.series,
     draft: data.draft,
     hideCover: data.hideCover,
+    featured: data.featured,
+    highlight: data.highlight,
     content,
     readingTime: getReadingTime(content, lang),
   };

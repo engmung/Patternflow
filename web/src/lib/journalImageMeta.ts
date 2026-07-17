@@ -1,35 +1,62 @@
-export const journalImageMeta = {
-  "/journal/v1-30-days/assembled-pcb-back.jpg": { width: 4032, height: 3024 },
-  "/journal/v1-30-days/debugging-wires-esp32-potentiometer.jpg": { width: 4032, height: 3024 },
-  "/journal/v1-30-days/first-pcb.jpg": { width: 2048, height: 2731 },
-  "/journal/v1-30-days/kicad-schematic-screenshot.png": { width: 1157, height: 801 },
-  "/journal/v1-30-days/led-panel-in-nature-1.jpg": { width: 1080, height: 1440 },
-  "/journal/v1-30-days/led-panel-in-nature-2.jpg": { width: 1080, height: 1450 },
-  "/journal/v1-30-days/participation-tv-experience.jpg": { width: 1080, height: 1920 },
-  "/journal/v1-30-days/patternflow-origin-interaction.png": { width: 1635, height: 915 },
-  "/journal/v1-30-days/patternflow-v1-complete.jpg": { width: 4032, height: 3024 },
-  "/journal/v1-30-days/reddit-comment-1.png": { width: 736, height: 351 },
-  "/journal/v1-30-days/reddit-comment-2.png": { width: 748, height: 164 },
-  "/journal/v1-30-days/robot-k456.jpg": { width: 4032, height: 3024 },
-  "/journal/v1-30-days/tangled-wires-led-panel.jpg": { width: 1080, height: 1456 },
-  "/journal/v1-30-days/warped-3d-print.jpg": { width: 2268, height: 3085 },
-  "/journal/today-is-my-birthday/diffuser-discord.png": { width: 1160, height: 471 },
-  "/journal/wins-and-losses-next-step/io0-pullup-resistor.jpg": { width: 1600, height: 2134 },
-  "/journal/nam-june-paik-me-patternflow/pattern-30.png": { width: 1920, height: 1280 },
-  "/journal/refocus/exhibition-process.jpg": { width: 4032, height: 2268 },
-  "/journal/refocus/clean-3d-print.jpg": { width: 4032, height: 2268 },
-  "/journal/refocus/pcbway-delivery-1.jpg": { width: 4032, height: 2268 },
-  "/journal/refocus/pcbway-delivery-2.jpg": { width: 4032, height: 2268 },
-  "/journal/refocus/blender-3d-modeling.png": { width: 1268, height: 867 },
-  "/journal/refocus/pcb-discord-feedback.png": { width: 834, height: 429 },
-  "/journal/what-is-patternflow/crowd-supply-pre-launch.png": { width: 1325, height: 693 },
-  "/journal/what-is-patternflow/viral-x-post.png": { width: 596, height: 740 },
-  "/journal/worn-out/c-type-patternflow.jpg": { width: 4032, height: 2268 },
-  "/journal/worn-out/studying-sound.jpg": { width: 4032, height: 2268 },
-  "/journal/shaking-it-off/flooded-lawn.jpg": { width: 1080, height: 1920 },
-} as const;
+import fs from "node:fs";
+import path from "node:path";
 
-export function getJournalImageMeta(src?: string) {
-  if (!src) return { width: 1400, height: 900 };
-  return journalImageMeta[src as keyof typeof journalImageMeta] ?? { width: 1400, height: 900 };
+type ImageMeta = { width: number; height: number };
+
+const FALLBACK: ImageMeta = { width: 1400, height: 900 };
+const cache = new Map<string, ImageMeta>();
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function probePng(buffer: Buffer): ImageMeta | null {
+  if (buffer.length < 24 || !buffer.subarray(0, 8).equals(PNG_SIGNATURE)) {
+    return null;
+  }
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+function probeJpeg(buffer: Buffer): ImageMeta | null {
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
+    return null;
+  }
+  let offset = 2;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = buffer[offset + 1];
+    // SOF0–SOF15 carry dimensions, except DHT (C4), JPG (C8), DAC (CC)
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+    }
+    if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd9)) {
+      offset += 2;
+      continue;
+    }
+    offset += 2 + buffer.readUInt16BE(offset + 2);
+  }
+  return null;
+}
+
+export function getJournalImageMeta(src?: string): ImageMeta {
+  if (!src || !src.startsWith("/")) {
+    return FALLBACK;
+  }
+
+  const cached = cache.get(src);
+  if (cached) {
+    return cached;
+  }
+
+  let meta = FALLBACK;
+  try {
+    const buffer = fs.readFileSync(path.join(process.cwd(), "public", src));
+    meta = probePng(buffer) ?? probeJpeg(buffer) ?? FALLBACK;
+  } catch {
+    // missing file: fall back to default dimensions
+  }
+
+  cache.set(src, meta);
+  return meta;
 }

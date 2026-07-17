@@ -8,10 +8,8 @@ type JournalIndexProps = {
   lang: JournalLang;
 };
 
-const featuredSlug = "shaking-it-off";
-
 export default function JournalIndex({ posts, lang }: JournalIndexProps) {
-  const hero = posts.find((post) => post.slug === featuredSlug) ?? posts[0];
+  const hero = posts.find((post) => post.featured) ?? posts[0];
   const archive = posts;
   const postNumbers = new Map(
     [...posts]
@@ -20,11 +18,6 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
   );
   const newestSlug = posts[0]?.slug;
   const getPostHref = (slug: string) => lang === "en" ? `/journal/${slug}/en` : `/journal/${slug}`;
-  const isAnchorPost = (slug: string) =>
-    slug === "v1-30-days" ||
-    slug === "me-and-patternflow" ||
-    slug === "nam-june-paik-me-patternflow" ||
-    slug === "what-is-patternflow";
 
   return (
     <main className="journal-index">
@@ -71,7 +64,7 @@ export default function JournalIndex({ posts, lang }: JournalIndexProps) {
               {archive.map((post) => (
                 <li key={post.slug}>
                   <Link
-                    className={`pf-row${isAnchorPost(post.slug) ? " journal-anchor-post" : ""}`}
+                    className={`pf-row${post.highlight ? " journal-anchor-post" : ""}`}
                     href={getPostHref(post.slug)}
                   >
                     <span className="pf-ghost">{postNumbers.get(post.slug)}</span>
