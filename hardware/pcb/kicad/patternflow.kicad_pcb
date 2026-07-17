@@ -143,7 +143,7 @@
 				)
 			)
 		)
-		(property "Value" "1000uF/1.6V"
+		(property "Value" "1000uF/16V"
 			(at 2.5 6.25 0)
 			(layer "F.Fab")
 			(uuid "32e9d0d2-8204-458e-997a-1a2a0aad418f")
@@ -7103,7 +7103,7 @@
 			(uuid "013d4554-7578-47e3-8444-44da51c5504f")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_2x08_P2.54mm_Vertical.step"
+		(model "${KICAD10_3DMODEL_DIR}/Connector_IDC.3dshapes/IDC-Header_2x08_P2.54mm_Vertical.step"
 			(offset
 				(xyz 0 0 0)
 			)

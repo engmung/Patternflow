@@ -1,61 +1,55 @@
 # Patternflow Case
 
-3D-printable enclosure for the Patternflow LED synthesizer.
+3D-printable enclosure for the Patternflow LED synthesizer. Folders are named by **printer bed size** — find the folder that fits your printer.
 
-## Which files do I print?
+> **These cases fit the v3.0 board.** If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
 
-| Option | Printer bed | PCB | Status |
+## Which folder do I print?
+
+| Your printer bed | Print | Design | Status |
 |---|---|---|---|
-| [Standard plates](#standard-plates) (split body, glued) | 256 mm (P1S-class) | v2.x | ✅ Recommended |
-| [One-piece snap-fit](#one-piece-enclosure-large-format-printers) (`oneshot_v2`) | ~330 mm+ (H2S-class) | v2.x | ✅ Supported |
-| [`easyfit` main plate variant](#variants) | 256 mm | v2.x | ⚠️ Known issue — fix before printing ([#154](https://github.com/engmung/Patternflow/issues/154)) |
-| [`oneshot_v3-wip`](#one-piece-enclosure-large-format-printers) | ~330 mm+ | **v3.0 only** | 🚧 Do not print with a v2.x PCB |
-| [5-part divided snap-fit](#experiments) | 256 mm | v2.x | 🚧 Untested — do not print yet |
+| **256 mm** (Bambu P1S / X1C / A1 class) | [`bed_256mm/encloser.stl`](bed_256mm/) | The snap-fit design split for a 256 mm bed — **one STL with every part**, 20 mm knobs included | ✅ Standard option, ~10 h total |
+| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/`](bed_330mm/) | One-piece snap-fit body + closing part | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)); print verification of this exact STL pending |
 
-Whichever body you choose, **knobs are always printed separately, in black**, from the knob plate matching your encoder shaft length (see below).
+**Knobs print in black, everything else in white.** `encloser.stl` already contains the 20 mm knobs — just split them out in your slicer for the black print. For the 330 mm body (or 15 mm-shaft encoders), print a knob file from [`knobs/`](knobs/) instead (15 mm and 20 mm shafts are functionally identical; the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm).
 
-## Standard plates
+## `bed_330mm/` — one-piece snap-fit
 
-The standard build: body halves print on a 256 mm bed and are glued together. Print the main body, dividers, and one knob plate.
+The original mass-production-oriented design: a single-piece body plus a snap-fit closing part, wall-mount hanger hole included. No bonding step at all. Does **not** fit a 256 mm bed.
 
-| File | Contents | Color | Print time |
-|---|---|---|---|
-| `print-ready/01_plate_main.stl` | Body (upper + lower) and back panel (upper + lower) | White PLA | ~7h |
-| `print-ready/02_plate_dividers.stl` | Center divider, battery slider, board slider | White PLA | ~2h |
-| `print-ready/03_plate_knobs_15mm.stl` | 4× knobs for 15mm encoder shafts | Black PLA | ~30min |
-| `print-ready/03_plate_knobs.stl` | 4× knobs for 20mm encoder shafts | Black PLA | ~30min |
+| File | Color |
+|---|---|
+| `oneshot_v3_part1.stl` | White PLA |
+| `oneshot_v3_part2.stl` | White PLA |
 
-Total with one knob plate: **~10 hours** on a Bambu P1S with default settings. The 15mm knob plate is recommended for new builds.
+## `bed_256mm/` — the standard build
 
-## One-piece enclosure (large-format printers)
+**`encloser.stl`** is the whole kit in one file: body parts, the LED-panel mounting part, and the 20 mm knobs. Split the objects in your slicer — knobs in **black**, everything else in **white**. ~10 hours total on a P1S. The LED-panel mount is sized for the panel linked in the [BOM](../bom/).
 
-An alternative to the standard split-and-glue body: the enclosure prints as a **single-piece body plus a snap-fit closing part** — no bonding step at all. This is the mass-production-oriented design from [Issue #113](https://github.com/engmung/Patternflow/issues/113).
+### `for_other_panels/` — using a different LED panel?
 
-**Bed requirement: ~330 mm+ (Bambu H2S-class or similar large-format).** It does **not** fit a 256 mm bed (P1S/X1C/A1 class) — for those printers, use the standard plates above, or watch the 5-part divided version in [Experiments](#experiments).
+`divided_v3_part1..5.stl` is a community variant whose **LED-panel mounting part adapts to varying bolt-hole positions** — panel suppliers drill them in different places. Print this instead of `encloser.stl` **only if** your panel is not the BOM-linked one. Print & assembly verified with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), including USB-C port alignment.
 
-| File | For | Status |
-|---|---|---|
-| `print-ready/variants/oneshot_v2_1.stl` + `oneshot_v2_2.stl` | **Current (v2.x) PCB** | ✅ Print this one |
-| `print-ready/oneshot_v3-wip/oneshot_1.stl` + `oneshot_2.stl` | Upcoming **v3.0** board only | 🚧 Work-in-progress — **not compatible with v2.x**: cutouts and standoffs will not line up. Vent holes and anti-warp ribs are also planned before release. |
+> ⚠️ Adjustable ≠ universal: if your panel's hole layout differs a lot, even this version may not fit. Check the mounting part against your panel before committing to the full print.
 
-Both print in **white PLA**. Knob caps are **not** part of the one-piece case — print them separately from the standalone knob plate (`03_plate_knobs.stl` for 20mm shafts, `03_plate_knobs_15mm.stl` for 15mm), **in black**, and press-fit them last.
+### Assembly notes (both 256 mm variants)
 
-## Variants
+1. Match the **LED-panel mounting part** to your panel first.
+2. Insert the mounting part into the LED panel, then tighten the M4 screws.
+3. Fit the assembly into the enclosure and glue between the mounting part and the enclosure walls.
+4. ⚠️ Watch-outs: the panel insertion is very tight (near-zero clearance); flat-printed edges come out slightly rounded, so glued seams can show a small gap — fill with putty or a baking-soda + CA filler. If the mounting-part bond isn't solid, gripping the enclosure at the LED side can flex the wall.
 
-Optional drop-in replacements live in `print-ready/variants/`. Print a variant *instead of* the matching standard plate — same fit, different tradeoff. A variant keeps its base plate's name plus a descriptive suffix (e.g. `01_plate_main` + `_easyfit`), so it sorts next to the part it replaces. (The `oneshot_v2` files also live here; they're covered in the one-piece section above.)
+## `legacy_v2/` — v2.x boards only
 
-### `01_plate_main_easyfit.stl` — ⚠️ do not print as-is
+Everything that fits the v2.x board generation, kept for existing builds. **None of these fit the v3.0 board.** The v2 build guide lives at the [v2.1.0 release](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md).
 
-Replaces `01_plate_main.stl`, adding small alignment tabs along the bond seam so the two halves self-locate and glue easily — no taping or clamping. The tradeoff is a thin visible seam between the halves (hide it by sprinkling baking soda into the wet glue line).
+| File | What |
+|---|---|
+| `plate_main.stl` + `plate_dividers.stl` | Standard split plates (256 mm bed, glued) — the classic v2 build |
+| `oneshot_v2_part1/2.stl` | One-piece snap-fit for the v2.x board (330 mm+ bed) |
+| `divided_v2.1.stl` | Divided design fitted to the v2.1 board — never print-tested |
 
-**Known issue ([#154](https://github.com/engmung/Patternflow/issues/154)):** the current STL is missing the internal slot that the LED matrix divider wall slides into, so the divider does not seat. Until a fixed STL is uploaded, either **use the standard `01_plate_main.stl`**, or add the missing slot yourself (from the Blender source, matching the standard plate's slot) as described in the issue.
-
-## Experiments
-
-`print-ready/experiment/` holds unvalidated work-in-progress. Currently:
-
-- `divided_test_1.stl` … `divided_test_5.stl` — the one-piece enclosure split into **5 parts that fit a 256 mm bed** (P1S-class), so community printers can build the snap-fit design too. Modeled but **not yet print-tested** — do not build from these yet. Once validated, they will be promoted next to the one-piece files.
-- `v2.1_divided.stl` — the latest revision of the divided design, fitted to the v2.1 board. Same status: **not yet print-tested** — do not build from this yet.
+(An `easyfit` plate variant existed briefly but was retired over a fit defect — [#154](https://github.com/engmung/Patternflow/issues/154). It remains browsable at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case).)
 
 ## Print settings
 
@@ -65,27 +59,17 @@ Replaces `01_plate_main.stl`, adding small alignment tabs along the bond seam so
 - **Supports:** Standard (regular) — *not* tree supports
 - **Brim:** Off
 - **Aux fan:** ~20%
-- **Orientation:** Plate 01 prints vertically (standing). Plates 02 and 03 lay flat.
 
-## Source
+## `source/`
 
-`source/patternflow_v1.blend` — Blender 4.x source file.
+- `patternflow_case.blend` — Blender 4.x source for every printed part.
+- `patternflow_v1.svg` / `patternflow_v2.svg` — legacy laser-cut acrylic case designs (v1-era).
 
-> **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~45 MB file. To get the actual file, download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) or open it on GitHub and use the download button. The STL files are regular files and download fine either way.
+> **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~45 MB file. Download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) instead. The STL files are regular files and download fine either way.
 
 To re-export STLs after editing:
 
 1. Open the `.blend` in Blender.
-2. Select the entire collection for one plate (e.g. *Plate 01 — Main*).
+2. Select the entire collection for one part.
 3. `File → Export → Stl (.stl)`, with **Selection Only** checked.
-4. Save with the matching filename in `print-ready/`.
-
-Each plate is organized as its own collection inside the `.blend` for one-click export.
-
-## Assembly
-
-See [BUILD_GUIDE.md](../../BUILD_GUIDE.md) for the full assembly walkthrough — bonding the case halves, mounting the LED matrix, installing the PCB, and wiring the power input.
-
-## License
-
-CC-BY-SA 4.0. See [LICENSE-CC-BY-SA](../../LICENSE-CC-BY-SA) at the repository root.
+4. Save with the matching filename in the bed-size folder.

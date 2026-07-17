@@ -7,9 +7,9 @@ This path uses the custom Patternflow KiCad PCB in `hardware/pcb/`, populated by
 ## What This Path Means
 
 - Order the Patternflow PCB from the KiCad/Gerber files.
-- Hand-solder the SMD passives and through-hole parts.
+- Hand-solder the through-hole parts (the v3.0 board has no SMD passives at all).
 - Mount the ESP32-S3 module on female headers.
-- Wire the LED matrix and power-bank input through the PCB terminals.
+- Power comes in via USB-C, or via the back-side screw terminal if you'd rather skip the tricky Type-C soldering ([#114](https://github.com/engmung/Patternflow/issues/114)).
 
 The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3d-print.md).
 
@@ -18,7 +18,8 @@ The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3
 | File | Purpose |
 | --- | --- |
 | `hardware/pcb/kicad/` | Editable KiCad source |
-| `hardware/pcb/gerber/patternflow_v2.0_gerber.zip` | Current production Gerber |
+| `hardware/pcb/gerber/patternflow_v3.0_gerber.zip` | Current production Gerber (verified in [#114](https://github.com/engmung/Patternflow/issues/114)) |
+| `hardware/bom/bom_v3.0.csv` | Machine-readable BOM (every part by MPN) |
 | `hardware/pcb/schematic.pdf` | Schematic PDF |
 
 For the exact BOM, soldering order, wiring, and first boot checks, follow the current detailed guide:

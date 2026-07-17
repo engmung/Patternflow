@@ -28,14 +28,14 @@ The firmware is built around the `ESP32-HUB75-MatrixPanel-DMA` library to drive 
 The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 box header (`J1`).
 - **Core:** ESP32-S3 module on female headers.
 - **Inputs:** 4× EC11 rotary encoders mounted on the *back* of the PCB (shafts facing forward).
-- **Power Structure:** +5V from a user-supplied power bank enters at `J2`, and is internally routed on the PCB to `J3` which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the power delivery.
+- **Power Structure (v3.0 hybrid):** +5V from a user-supplied power bank enters either at `USB1` (USB-C, needs `R1`/`R2` 5.1k CC pull-downs; THT soldering is hard — see #114) or at `J4` (2-pin screw terminal on the back, the beginner bypass). It is internally routed to `J3` which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the power delivery.
 
 ### Hardware (Case)
-The current enclosure is modeled in Blender and sliced into print-ready plates located in `hardware/case/print-ready/`:
-1. `01_plate_main.stl`: White PLA body and back panel.
-2. `02_plate_dividers.stl`: White PLA internal dividers.
-3. `03_plate_knobs_15mm.stl`: Black PLA knobs for recommended 15mm encoder shafts.
-4. `03_plate_knobs.stl`: Black PLA knobs for older/alternate 20mm encoder shafts.
+The current enclosure is modeled in Blender. `hardware/case/` is organized by printer bed size, for the v3.0 board:
+1. `bed_330mm/`: one-piece snap-fit body (oneshot_v3_part1/2.stl) — H2S-class beds, the main design.
+2. `bed_256mm/`: divided snap-fit, 5 parts (divided_v3_part1..5.stl) — P1S-class beds; print & assembly tested (#169), separate LED-panel mounting part adapts to varying panel bolt-hole positions.
+3. `knobs/knobs_15mm.stl` / `knobs/knobs_20mm.stl`: Black PLA knobs, shared by all body options.
+4. `legacy_v2/`: every v2.x-board case (standard plates, oneshot_v2, divided_v2.1) — NOT compatible with the v3.0 board.
 
 ### Web
 A Next.js application residing in `web/`. It serves the landing page, browser firmware flasher, Pattern Lab / Live Editor, Video Baker, journal, and build map.
@@ -60,11 +60,11 @@ For full details, reference `BUILD_GUIDE.md` §10. Summary:
 2. **SMD silkscreen ambiguity:** fixed in v2.0.
 3. **LED matrix alignment bumps:** still open; current workaround is trimming during assembly.
 4. **Encoder direction:** handled in firmware.
-5. **Encoder shaft length:** New builds should use 15mm EC11 shafts. 20mm shafts still work with the matching legacy knob STL.
+5. **Encoder shaft length:** 15mm and 20mm EC11 shafts are functionally identical — purely preference. The BOM reference part (Bourns PEC11R-4220F-S0024) is 20mm; both knob STLs are kept.
 
 ## Conventions
 
-- **File naming:** Strictly lowercase with underscores (e.g., `patternflow.ino`, `01_plate_main.stl`).
+- **File naming:** Strictly lowercase with underscores (e.g., `patternflow.ino`, `plate_main.stl`).
 - **Brand naming layers:**
   - Body text: "Patternflow"
   - Physical engravings: "PATTERNFLOW"

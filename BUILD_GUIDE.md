@@ -10,9 +10,11 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 **Skill level:** Beginner-to-intermediate. If you've assembled a mechanical keyboard or built a basic Arduino project, you're ready — this is an all through-hole build.
 
-> **Heads-up — photos may differ slightly, and a v3.0 refresh is coming.** The images throughout this guide were shot on an early build, so small cosmetic details may not match the current files exactly. Where a photo looks slightly off, follow the written steps. A full **v3.0** revision is in progress — improved 3D-printed enclosure (snap-fit + minor refinements), a USB-C power adapter, and a fully cleaned-up BOM. This guide will be reorganized around v3.0 once it lands.
+> 🚀 **The v3.0 board is out — and it's the recommended build.** The verified v3.0 revision brings USB-C power (with a beginner-friendly screw-terminal bypass), a fully hand-solderable board with zero SMD passives, and a snap-fit enclosure. Its guide is being finalized at **[BUILD_GUIDE_v3.md](BUILD_GUIDE_v3.md)** and will replace this page when complete. **This guide covers the v2.x board** — keep following it if you already have v2.x parts (v2 and v3 boards/cases are not interchangeable).
+>
+> Photos in this guide were shot on an early build; where a photo looks slightly off, follow the written steps.
 
-> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case source/print-ready files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
+> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
 ![All parts laid out before assembly](docs/build-guide/images/all_parts.jpg)
 
@@ -41,7 +43,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 | --- | --- | --- | --- | --- |
 | - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. **Driver IC must be 74HC595, FM6126A, or FM6124 — see the panel compatibility warning below.** |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
-| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm shaft, with push-switch | 4 | Recommended shaft length. 20mm shafts also work with the matching knob STL. |
+| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm or 20mm shaft, with push-switch | 4 | Shaft length is purely preference — print the matching knob STL. The reference part (Bourns PEC11R-4220F-S0024) is 20mm. |
 | - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
 | J1 | Box Header (2x8, 2.54mm) | Vertical, for HUB75 ribbon | 1 | LED matrix data |
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
@@ -68,15 +70,15 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
 
-> ⚠️ **Order v2.1 only.** `patternflow_v2.1_gerber.zip` is the current recommended board. Unverified in-development revisions live in `hardware/pcb/gerber/experiment/` (currently the v3.0 test board) — do **not** order those.
+> ⚠️ **For this (v2) guide, order v2.1 only.** This guide and its case files are built around the v2.1 board. The newer **v3.0 board** (`patternflow_v3.0_gerber.zip`, verified in [#114](https://github.com/engmung/Patternflow/issues/114)) is a different size — it does **not** fit the v2 cases described here, and v2.1 boards don't fit the v3 cases. The v3 build guide is being written; its case files live in `hardware/case/bed_330mm/` and `bed_256mm/`.
 
 If you want to order the PCB without manually uploading Gerbers, the Patternflow PCB is also listed as a PCBWay open-source project:
 
 <a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
 
-> ⚠️ **ESP32-S3 — buy genuine Espressif.** AliExpress clone modules are significantly more likely to exhibit [cold-boot issues (Issue #16)](https://github.com/engmung/Patternflow/issues/16). Genuine Espressif modules are slightly more expensive but far more reliable. We no longer recommend AliExpress ESP32-S3 modules.
+> ℹ️ **ESP32-S3 sourcing.** Espressif-branded modules are the reference; AliExpress modules generally work fine too. If yours exhibits the [cold-boot issue (Issue #16)](https://github.com/engmung/Patternflow/issues/16), the on-module 10k GPIO0 pullup fix photographed in that issue solves it — one resistor.
 
-> ⚠️ **Rotary encoders — avoid cheap AliExpress packs.** The budget 5-packs fail frequently. We recommend sourcing **PEC11R-4220F-S0024** or equivalent quality EC11 encoders from **Mouser** or **DigiKey**. Any 5-pin EC11 with a click-switch will work.
+> ℹ️ **Rotary encoders.** Any 5-pin EC11 with a click-switch works — the cheapest packs just fail more often. **PEC11R-4220F-S0024** (Bourns, Mouser/DigiKey) is the reliable reference part.
 
 ### What you also need (not in BOM)
 
@@ -92,18 +94,18 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 ## 2. 3D Printing
 
-### Files (in `hardware/case/print-ready/`)
+### Files (in `hardware/case/`)
 
 | File | Contents | Color | Print Orientation |
 | --- | --- | --- | --- |
-| `01_plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
-| `02_plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
-| `03_plate_knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
-| `03_plate_knobs.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
+|  `legacy_v2/plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
+|  `legacy_v2/plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
+| `knobs/knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
+| `knobs/knobs_20mm.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
 
-**Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `03_plate_knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `03_plate_knobs.stl` instead. Each file is one print job; each knob STL contains all four knobs.
+**Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
-> **Optional — easier-bonding main body (currently not recommended).** `print-ready/variants/01_plate_main_easyfit.stl` is a drop-in replacement for `01_plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `01_plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
+> **Note:** an `easyfit` main-body variant (alignment tabs along the bond seam) existed briefly but was retired over a fit defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)). Use the standard `plate_main.stl`; the old variant remains at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case) if you're curious.
 
 ### Print Settings
 
@@ -117,7 +119,7 @@ I used a **Bambu P1S** with default settings, with one tweak:
 - **Aux fan:** Lower to ~20%
 - **Total print time:** ~11 hours combined
 
-The main body (`01_plate_main.stl`) is the long, thin part. I orient it standing up — this is the orientation the slicer will probably default to. Supports are needed and easy to remove.
+The main body (`plate_main.stl`) is the long, thin part. I orient it standing up — this is the orientation the slicer will probably default to. Supports are needed and easy to remove.
 
 > **Why standard supports, not tree:** During earlier prototypes I found tree supports more troublesome on this geometry. Standard supports remove cleanly here.
 
@@ -131,7 +133,7 @@ The case prints in halves because it's too tall for most printers in one piece. 
 
 Apply super glue along the seam between the upper and lower halves of the main body. Press firmly and hold until set.
 
-> **Standard vs. easyfit main body.** With the standard `01_plate_main.stl`, tape the halves together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If you printed `variants/01_plate_main_easyfit.stl`, the alignment tabs locate the halves for you: just glue and press, no taping. It bonds reliably but leaves a thin seam between the halves — to hide it, sprinkle a little baking soda into the wet glue line and the seam fills in.
+> **Bonding tip.** Tape the halves of `plate_main.stl` together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If a thin seam still shows, sprinkle a little baking soda into the wet glue line and it fills in.
 
 ### 3.2 Bond the back panel halves
 
@@ -353,7 +355,7 @@ Slide the PCB compartment cover panel into its slot to close off the electronics
 
 ### 7.5 Attach the knobs
 
-Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `03_plate_knobs_15mm.stl` for the recommended 15mm encoders, or `03_plate_knobs.stl` for 20mm encoders.
+Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `knobs_15mm.stl` for 15mm encoders, or `knobs_20mm.stl` for 20mm encoders.
 
 <img src="docs/build-guide/images/knobs.jpg" width="33%">
 
@@ -474,7 +476,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 - **C11 (1000uF electrolytic) retained.** Issue #16 discussion noted that 1000uF is roughly 100x over the USB inrush spec for desktop-USB-powered devices -- and that is correct. Patternflow is powered by a power bank, not a desktop USB port, so the inrush argument does not apply. Without C11 the panel can flicker visibly during the boot transient, so it stays. If you are designing a derivative that connects to a host PC, drop C11 to <=50uF.
 
-- **Encoder shaft length variants** (was Issue #5). The BOM now recommends 15mm shaft encoders because they sit better in the current case. Both 15mm and 20mm knob STLs are included in `hardware/case/print-ready/`; print the one that matches the encoders you bought. The guide photos still show 20mm shafts, but the 15mm parts assemble the same way.
+- **Encoder shaft length variants** (was Issue #5). 15mm and 20mm shafts are functionally identical here — it's purely a matter of what you can source or prefer. Both knob STLs are included in `hardware/case/knobs/`; print the one that matches the encoders you bought. The reference part in the BOM (Bourns PEC11R-4220F-S0024) happens to be 20mm.
 
 ---
 

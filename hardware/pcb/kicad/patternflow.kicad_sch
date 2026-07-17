@@ -6133,7 +6133,7 @@
 				)
 			)
 		)
-		(property "Value" "1000uF/1.6V"
+		(property "Value" "1000uF/16V"
 			(at 94.361 109.22 90)
 			(show_name no)
 			(do_not_autoplace no)

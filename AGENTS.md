@@ -8,7 +8,7 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 ## Repository map
 - `docs/` — license summary, releasing guide, assembly map (`docs/assembly/`), manifesto, and media (build-guide images in `docs/build-guide/`). The main hardware build guide is `BUILD_GUIDE.md` at the repo root. `docs/ROADMAP.md` is a stub — the live roadmap is patternflow.work/journal and the `/roadmap` page.
 - `firmware/` — Arduino code for the ESP32-S3. Main sketch folder: `firmware/patternflow/` with `patternflow.ino`, `config.h` (pin mappings, brightness, limits), `net_config.h` (Wi-Fi / OTA / OSC / audio-react config + defaults; per-device secrets in gitignored `patternflow_secrets.h`), and `pattern_registry.h` (function-pointer pattern table). Shared engine code lives in `firmware/patternflow/src/` (`core_display.h` HUB75 driver, `core_encoders.h`, canvas/color/math/noise helpers, Wi-Fi/OTA/OSC/audio modules). Curated patterns live in `firmware/patternflow/presets/` (`preset_origin.h`, `preset_wave_saw.h`, dated presets); user slots are `custom1.h`–`custom3.h` at the sketch root, each using its own pattern namespace. Also: `firmware/patternflow_stream/` (streaming variant), `firmware/encoder_test/`, `firmware/tools/` (PFV upload script), and `firmware/CUSTOM_PATTERNS.md` (pattern authoring guide).
-- `hardware/` — Hardware designs. Contains `case/` (Blender source, STLs in `case/print-ready/`) and `pcb/` (KiCad 10.0 source, Gerbers, schematic PDF).
+- `hardware/` — Hardware designs. Contains `case/` (Blender source, STL option folders in `case/`) and `pcb/` (KiCad 10.0 source, Gerbers, schematic PDF).
 - `web/` — Next.js site at patternflow.work: landing page, Live Editor, browser flasher, journal, roadmap, and internal tools (`/pattern-lab`, `/video-baker`). Architecture doc: `web/ARCHITECTURE.md`. The JS presets in `web/src/lib/presets/` are the source of truth for firmware preset headers.
 - `tools/` — desktop-side helpers, including the experimental audio-react browser extension (`tools/patternflow-audio-extension`).
 - `integrations/` — host-software integrations. `integrations/ableton/` is the Max for Live bridge (knobs → Live parameters over OSC) with its own README and guides; the OSC wire protocol lives in `docs/osc-spec.md` and is the contract for all integrations.
@@ -25,7 +25,7 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 - Web dev server: `npm run dev` (inside the `web/` directory)
 - Web production build: `npm run build` (inside the `web/` directory)
 - Firmware compilation: Open `firmware/patternflow/patternflow.ino` in Arduino IDE.
-- KiCad exports: Export Gerbers from `hardware/pcb/kicad/patternflow.kicad_pcb`. Export STLs from `hardware/case/source/patternflow_v1.blend`.
+- KiCad exports: Export Gerbers from `hardware/pcb/kicad/patternflow.kicad_pcb`. Export STLs from `hardware/case/source/patternflow_case.blend`.
 
 ## Versioning
 - Project: v2.0.0 (current), using unified semantic versioning across firmware, hardware, web, and docs.
