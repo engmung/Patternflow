@@ -1,6 +1,6 @@
 # Patternflow v3.0.0 -- Build Guide
 
-> 🚧 **DRAFT.** This guide is being written for the v3.0 board. The structure is final; sections marked `TODO` still need content and photos. Building a **v2.x** board? Use the [v2.1.0 build guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md) — v2 and v3 parts are **not** interchangeable.
+> 🚧 **DRAFT.** This guide is being written for the v3.0 board. The structure is final; sections marked `TODO` still need content and photos — an updated version with full photos is coming soon. **In the meantime, the [v2 build guide](BUILD_GUIDE.md) is a good visual reference: the overall assembly sequence is nearly identical**, so you can build from its photos plus this guide's v3 specifics (power path, case files, BOM). Building a **v2.x** board? Use the [v2.1.0 build guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md) — v2 and v3 parts are **not** interchangeable.
 
 This guide walks you through building a Patternflow v3.0.0 from scratch. It assumes basic familiarity with through-hole soldering and 3D printing.
 
@@ -157,6 +157,8 @@ Extracted from the v3.0 netlist (identical functions to v2.x — the same firmwa
 > **GPIO0 / cold-boot note.** The v3.0 board leaves GPIO0 unconnected (no pullup pad). Most modules boot reliably that way, but some show cold-boot lockups from the floating strap pin ([#16](https://github.com/engmung/Patternflow/issues/16)). If yours consistently needs a RESET press after power-on, apply the on-module 10k GPIO0→3.3V fix photographed in that issue — one resistor and it's solved.
 
 ## 6. Case Assembly
+
+> 📷 Photos for this section are coming. Until then, the [v2 guide](BUILD_GUIDE.md)'s case-assembly photos are a close visual reference — the overall sequence is nearly the same, minus the body gluing (v3 bodies snap-fit).
 
 ### 256 mm path (`encloser.stl` or `for_other_panels/`)
 
