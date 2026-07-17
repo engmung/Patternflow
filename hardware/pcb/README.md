@@ -12,7 +12,7 @@ Custom board for the Patternflow LED synthesizer — ESP32-S3 DevKit on sockets,
 
 - **U1** — ESP32-S3 DevKit (N16R8) on 2× 1×22 female sockets; the DevKit itself is never soldered
 - **SW1–SW4** — EC11 rotary encoders, inserted from the **back** (silkscreen reminds you: *encoder facing other side*)
-- **J1** — 2×8 socket to the LED matrix (HUB75)
+- **J1** — 2×8 box header; the panel's HUB75 ribbon plugs in here
 - **Power, two options on one board**: **USB1** (Type-C, needs the R1/R2 5.1k CC pull-downs; the THT signal pins are hard to solder — see [#114](https://github.com/engmung/Patternflow/issues/114)) or **J4** (2-pin screw terminal on the back — the beginner bypass: strip a USB cable, screw the wires in)
 - **J3** — +5V out to the LED matrix · **C11** — 1000µF bulk cap for the boot transient
 

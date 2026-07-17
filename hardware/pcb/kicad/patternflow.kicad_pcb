@@ -7103,9 +7103,9 @@
 			(uuid "013d4554-7578-47e3-8444-44da51c5504f")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Connector_PinSocket_2.54mm.3dshapes/PinSocket_2x08_P2.54mm_Vertical.step"
+		(model "${KICAD10_3DMODEL_DIR}/Connector_IDC.3dshapes/IDC-Header_2x08_P2.54mm_Vertical.step"
 			(offset
-				(xyz 2.54 0 0)
+				(xyz 0 0 0)
 			)
 			(scale
 				(xyz 1 1 1)
