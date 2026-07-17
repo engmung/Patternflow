@@ -48,14 +48,14 @@ The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v
 
 | Qty | Part | Notes |
 | --- | --- | --- |
-| 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Buy this one: [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr)** (affiliate link — supports Patternflow at no extra cost). Its mounting-screw positions are the verified match for the case, and it ships with the ribbon + power cable you'll use. |
+| 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Recommended: [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr)** (affiliate link — supports Patternflow at no extra cost). Its mounting-screw positions are the verified match for the case, and it ships with the ribbon + power cable you'll use. Other panels can work — see the sourcing rules below **before** buying one. |
 | 6 | M4 screw, ~10mm | Panel mounting — **sized for the linked panel.** Using a different panel? Buy whatever screws *its* mounting holes take (and see the `for_other_panels/` case note in Section 4). |
 | 1 | USB-C cable *(Path B)* or sacrificial USB cable *(Path A — it gets cut)* | Power feed |
 | 1 | USB power bank, 5V | Must fit the case compartment |
 
 Key sourcing rules (details in the BOM README):
 
-- **LED matrix panel: buy via the AliExpress link above** — the case is dimensioned around that exact listing. Going off-list? The driver IC must be 74HC595 / FM6126A / FM6124 (GCLK "video wall" panels — FM6363C/FM6373C, "3840Hz", "needs a receiving card" — stay completely dark), and your panel's screw positions may differ from the case.
+- **LED matrix panel: the linked listing is the verified, zero-surprises path** — the case is dimensioned around that exact panel. You're free to buy a different one, but **check two things first**: ① the driver IC must be 74HC595 / FM6126A / FM6124 (GCLK "video wall" panels — FM6363C/FM6373C, "3840Hz", "needs a receiving card" — stay completely dark); ② compare its mounting-screw positions against the case — if they differ, print the adjustable-mount version (Section 4) or **adapt the enclosure yourself** from the Blender source (`hardware/case/source/`). Verify before you buy, not after.
 - **ESP32-S3**: Espressif is the reference part, but AliExpress modules are usually fine — if yours hits the cold-boot issue, one 10k resistor fixes it ([#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoders**: any 5-pin EC11 with a push switch works — the cheapest packs just fail more often. Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
 - **USB-C connector**: LCSC `C5187475`, and many retail sites carry the same part — search "TYPE-C 14P CC-2.6". Only needed if you take the USB-C power path.
@@ -111,6 +111,8 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 
 ## 5. PCB Assembly
 
+> 📷 Photos for this section are coming. Until then, the [v2 guide](BUILD_GUIDE.md)'s PCB-assembly photos are a close visual reference — soldering sequence and techniques are nearly the same. What's different on v3: there are **no SMD passives at all**, and the power input is `USB1`/`J4` instead of the old `J2` terminal.
+
 All parts are through-hole. Suggested order (shortest to tallest):
 
 1. `R1`/`R2` — only if taking the USB-C path (skip on Path A)
@@ -125,7 +127,8 @@ All parts are through-hole. Suggested order (shortest to tallest):
 
 Don't plug the ESP32 DevKit in until after the first power check (Section 7).
 
-### ESP32 pin reference
+<details>
+<summary><b>ESP32 pin reference</b> — the full 44-pin map. You don't need it for a normal build; it's here for debugging and derivative designs.</summary>
 
 Extracted from the v3.0 netlist (identical functions to v2.x — the same firmware runs on both):
 
@@ -153,6 +156,8 @@ Extracted from the v3.0 netlist (identical functions to v2.x — the same firmwa
 | 20 | IO14 | HUB_OE | | 42 | IO19 | NC |
 | 21 | 5V | +5V input | | 43 | GND | GND |
 | 22 | GND | GND | | 44 | GND | GND |
+
+</details>
 
 > **GPIO0 / cold-boot note.** The v3.0 board leaves GPIO0 unconnected (no pullup pad). Most modules boot reliably that way, but some show cold-boot lockups from the floating strap pin ([#16](https://github.com/engmung/Patternflow/issues/16)). If yours consistently needs a RESET press after power-on, apply the on-module 10k GPIO0→3.3V fix photographed in that issue — one resistor and it's solved.
 
