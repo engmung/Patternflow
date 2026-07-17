@@ -30,7 +30,28 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. It assu
 
 The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v3.0.csv) — every part specified by manufacturer part number. Read the [BOM README](hardware/bom/README.md) for sourcing notes before ordering.
 
-<!-- TODO: render the CSV as a human-readable table here (script or manual), split into: PCB parts / off-board parts. -->
+### On the board
+
+| Ref | Qty | Part | Spec | MPN (Manufacturer) | Notes |
+| --- | --- | --- | --- | --- | --- |
+| U1 | 1 | ESP32-S3 DevKit | N16R8, 44-pin, 25.4mm row spacing | ESP32-S3-DevKitC-1-N16R8 (Espressif) | **Genuine Espressif only.** Plugs into sockets — never soldered. |
+| — | 2 | Female pin socket | 1×22, 2.54mm | PPPC221LFBN-RC (Sullins) | Soldered into the U1 rows; the DevKit rides on top. |
+| SW1–SW4 | 4 | Rotary encoder w/ switch | EC11, 5-pin, 20mm shaft | PEC11R-4220F-S0024 (Bourns) | Insert from the **back** of the board. Avoid budget EC11 packs. |
+| USB1 | 1 | USB-C receptacle | 14P CC-2.6, THT signal pins | TYPE-C 14P CC-2.6 (SHOU HAN, LCSC C5187475) | **Path B only.** ⚠️ Hard to solder — see Section 2. |
+| R1, R2 | 2 | Resistor 5.1kΩ | 1/4W axial THT | generic | **Path B only.** USB-C CC pull-downs. |
+| J1 | 1 | Box header | 2×8, 2.54mm, vertical | 61201621621 (Würth) | HUB75 ribbon from the panel plugs in here. Match silkscreen orientation. |
+| J3 | 1 | Screw terminal | 2-pin, 5.0mm | TB002-500-02BE (CUI Devices) | +5V out to the panel. Every build needs it. |
+| J4 | 1 | Screw terminal | 2-pin, 5.0mm | TB002-500-02BE (CUI Devices) | **Path A only.** Power-input bypass, back of board. |
+| C11 | 1 | Electrolytic cap | 1000µF 16V, radial D10×L13 | 16PX1000MEFC10X12.5 (Rubycon) | **Observe polarity.** |
+
+### Off the board
+
+| Qty | Part | Notes |
+| --- | --- | --- |
+| 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Buy via the BOM README link** — mounting holes match the case; driver IC must be 74HC595 / FM6126A / FM6124. Ships with the ribbon + power cable you'll use. |
+| 6 | M4 screw, ~10mm | Panel mounting |
+| 1 | USB-C cable *(Path B)* or sacrificial USB cable *(Path A — it gets cut)* | Power feed |
+| 1 | USB power bank, 5V | Must fit the case compartment |
 
 Key sourcing rules (details in the BOM README):
 
@@ -99,10 +120,39 @@ All parts are through-hole. Suggested order (shortest to tallest):
 7. `SW1–SW4` encoders — **insert from the BACK side**: bodies on the back, leads soldered on the front
 
 <!-- TODO: annotated board photo (front/back) with populate order. -->
-<!-- TODO: ESP32 pin reference table — carry over from v2 guide and re-verify against the v3 netlist. -->
-<!-- TODO: GPIO0 note — v3 board has no R13 pullup pad; carry over the on-module fix note from v2 guide §10 / #16 if it still applies to genuine modules. -->
 
 Don't plug the ESP32 DevKit in until after the first power check (Section 7).
+
+### ESP32 pin reference
+
+Extracted from the v3.0 netlist (identical functions to v2.x — the same firmware runs on both):
+
+| # | Pin | Function | | # | Pin | Function |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | 3V3 | +3.3V supply | | 23 | GND | GND |
+| 2 | 3V3 | NC | | 24 | TX | NC |
+| 3 | RST | NC | | 25 | RX | NC |
+| 4 | IO4 | ENC1_A | | 26 | IO1 | ENC4_SW |
+| 5 | IO5 | ENC2_A | | 27 | IO2 | HUB_CLK |
+| 6 | IO6 | ENC3_A | | 28 | IO42 | HUB_R1 |
+| 7 | IO7 | ENC4_A | | 29 | IO41 | HUB_G1 |
+| 8 | IO15 | ENC2_SW | | 30 | IO40 | HUB_B1 |
+| 9 | IO16 | ENC3_B | | 31 | IO39 | HUB_G2 |
+| 10 | IO17 | ENC3_SW | | 32 | IO38 | HUB_R2 |
+| 11 | IO18 | ENC4_B | | 33 | IO37 | NC (PSRAM internal) |
+| 12 | IO8 | ENC1_B | | 34 | IO36 | NC (PSRAM internal) |
+| 13 | IO3 | NC | | 35 | IO35 | NC (PSRAM internal) |
+| 14 | IO46 | HUB_A | | 36 | IO0 | NC — boot strap (see note) |
+| 15 | IO9 | ENC1_SW | | 37 | IO45 | NC |
+| 16 | IO10 | ENC2_B | | 38 | IO48 | HUB_C |
+| 17 | IO11 | HUB_B | | 39 | IO47 | HUB_LAT |
+| 18 | IO12 | HUB_D | | 40 | IO21 | HUB_E |
+| 19 | IO13 | HUB_B2 | | 41 | IO20 | NC |
+| 20 | IO14 | HUB_OE | | 42 | IO19 | NC |
+| 21 | 5V | +5V input | | 43 | GND | GND |
+| 22 | GND | GND | | 44 | GND | GND |
+
+> **GPIO0 / cold-boot note.** The v3.0 board leaves GPIO0 unconnected (no pullup pad). Genuine Espressif modules boot reliably that way; clone modules have shown cold-boot lockups from the floating strap pin ([#16](https://github.com/engmung/Patternflow/issues/16) — another reason to buy genuine). If a module consistently needs a RESET press after power-on, apply the on-module 10k GPIO0→3.3V fix photographed in that issue.
 
 ## 6. Case Assembly
 
@@ -140,25 +190,32 @@ Sequence verified in [#169](https://github.com/engmung/Patternflow/issues/169):
 
 ## 8. Firmware
 
-The easiest path is the **browser flasher** at [patternflow.work](https://patternflow.work) (Chrome/Edge, USB data cable to the DevKit's USB port). Wi-Fi can be provisioned from the browser too (Improv-Serial).
+The easiest path is the **browser flasher** at [patternflow.work](https://patternflow.work) (Chrome/Edge, USB data cable to the DevKit's USB port). Wi-Fi can be provisioned from the browser too (Improv-Serial). **One firmware image serves every board generation** — the pin map is identical on v2.x and v3.0, so there is no board selection to get wrong.
 
-Alternatives: Arduino IDE wired upload, or ArduinoOTA after the first Wi-Fi join — see [`firmware/README.md`](firmware/README.md).
+Flash **before** seating the DevKit in the board, then insert it into the sockets with the USB port facing the board edge (silkscreen shows the orientation).
 
-<!-- TODO: confirm the flasher ships a v3-tagged build; any config.h differences for v3 (PANEL_PROFILE etc.) -->
+Alternatives — see [`firmware/README.md`](firmware/README.md) for details:
+
+- **Arduino IDE** wired upload. Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled*. If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
+- **ArduinoOTA** over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
 
 ## 9. Final Checks
 
-1. Panel lights up with the default pattern (Origin).
-2. All four knobs respond; K4 long-press enters pattern select.
-3. <!-- TODO: full checklist carried over from v2 guide §9, re-verified on v3. -->
+1. Slide the power bank into its compartment and connect it (Path A: the J4 cable; Path B: USB-C).
+2. The panel lights up with the default pattern (Origin) within a second or two.
+3. Turn all four knobs — each should visibly change the pattern.
+4. Press-click each encoder once; long-press **K4** (~1s) to enter pattern select, rotate to browse, long-press again to exit.
+5. Long-press **K1** for the global brightness mode; **K2** long-press shows the OSC info screen.
+6. Power-cycle once and confirm it boots cleanly with no RESET press needed (see the GPIO0 note in Section 5 if it doesn't).
 
 ## 10. Known Issues & Design Notes
 
 - **Tight LED panel fit / seam gaps / mount-part bond** — see Section 6 watch-outs ([#169](https://github.com/engmung/Patternflow/issues/169)).
 - **USB-C THT soldering difficulty** — the reason Path A exists ([#114](https://github.com/engmung/Patternflow/issues/114)).
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
+- **GPIO0 left floating by design** — genuine Espressif modules don't need the pullup; clones might (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
+- **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.
 - <!-- TODO: LED matrix alignment-bump trimming (#4) — confirm whether the v3 cases still need it. -->
-- <!-- TODO: carry over encoder-direction firmware note; anything newly discovered during v3 verification builds. -->
 
 ---
 
