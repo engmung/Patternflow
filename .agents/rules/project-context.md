@@ -60,7 +60,7 @@ For full details, reference `BUILD_GUIDE.md` §10. Summary:
 2. **SMD silkscreen ambiguity:** fixed in v2.0.
 3. **LED matrix alignment bumps:** still open; current workaround is trimming during assembly.
 4. **Encoder direction:** handled in firmware.
-5. **Encoder shaft length:** The v3.0 BOM standardizes on 20mm EC11 shafts (Bourns PEC11R-4220F-S0024); the v2 guide recommended 15mm. Both knob STLs are kept and either works.
+5. **Encoder shaft length:** 15mm and 20mm EC11 shafts are functionally identical — purely preference. The BOM reference part (Bourns PEC11R-4220F-S0024) is 20mm; both knob STLs are kept.
 
 ## Conventions
 

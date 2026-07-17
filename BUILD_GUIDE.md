@@ -41,7 +41,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 | --- | --- | --- | --- | --- |
 | - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. **Driver IC must be 74HC595, FM6126A, or FM6124 — see the panel compatibility warning below.** |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
-| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm shaft, with push-switch | 4 | Recommended shaft length. 20mm shafts also work with the matching knob STL. |
+| SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm or 20mm shaft, with push-switch | 4 | Shaft length is purely preference — print the matching knob STL. The reference part (Bourns PEC11R-4220F-S0024) is 20mm. |
 | - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
 | J1 | Box Header (2x8, 2.54mm) | Vertical, for HUB75 ribbon | 1 | LED matrix data |
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
@@ -101,7 +101,7 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 | `knobs/knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
 | `knobs/knobs_20mm.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
 
-**Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `knobs_20mm.stl` instead. Each file is one print job; each knob STL contains all four knobs.
+**Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
 > **Optional — easier-bonding main body (currently not recommended).** `hardware/case/standard/plate_main_easyfit.stl` is a drop-in replacement for `plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
 
@@ -353,7 +353,7 @@ Slide the PCB compartment cover panel into its slot to close off the electronics
 
 ### 7.5 Attach the knobs
 
-Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `knobs_15mm.stl` for the recommended 15mm encoders, or `knobs_20mm.stl` for 20mm encoders.
+Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `knobs_15mm.stl` for 15mm encoders, or `knobs_20mm.stl` for 20mm encoders.
 
 <img src="docs/build-guide/images/knobs.jpg" width="33%">
 
@@ -474,7 +474,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 - **C11 (1000uF electrolytic) retained.** Issue #16 discussion noted that 1000uF is roughly 100x over the USB inrush spec for desktop-USB-powered devices -- and that is correct. Patternflow is powered by a power bank, not a desktop USB port, so the inrush argument does not apply. Without C11 the panel can flicker visibly during the boot transient, so it stays. If you are designing a derivative that connects to a host PC, drop C11 to <=50uF.
 
-- **Encoder shaft length variants** (was Issue #5). The BOM now recommends 15mm shaft encoders because they sit better in the current case. Both 15mm and 20mm knob STLs are included in `hardware/case/knobs/`; print the one that matches the encoders you bought. The guide photos still show 20mm shafts, but the 15mm parts assemble the same way.
+- **Encoder shaft length variants** (was Issue #5). 15mm and 20mm shafts are functionally identical here — it's purely a matter of what you can source or prefer. Both knob STLs are included in `hardware/case/knobs/`; print the one that matches the encoders you bought. The reference part in the BOM (Bourns PEC11R-4220F-S0024) happens to be 20mm.
 
 ---
 

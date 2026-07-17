@@ -10,8 +10,8 @@ This path uses the current PLA enclosure files in `hardware/case/`. The referenc
 | --- | --- |
 | `hardware/case/standard/plate_main.stl` | Main body and back panel |
 | `hardware/case/standard/plate_dividers.stl` | Internal dividers and sliders |
-| `hardware/case/knobs/knobs_15mm.stl` | Knobs for 15mm encoder shafts (v2 guide recommendation) |
-| `hardware/case/knobs/knobs_20mm.stl` | Knobs for 20mm encoder shafts (v3 BOM standard) |
+| `hardware/case/knobs/knobs_15mm.stl` | Knobs for 15mm encoder shafts |
+| `hardware/case/knobs/knobs_20mm.stl` | Knobs for 20mm encoder shafts (the BOM reference part is 20mm) |
 
 For full print settings, bonding steps, and assembly photos, follow the current detailed guide:
 

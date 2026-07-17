@@ -10,7 +10,7 @@
 | **One-piece snap-fit** | [`oneshot/`](oneshot/) | ~330 mm+ (H2S-class) | v2.x | ✅ Supported |
 | **Divided snap-fit** (5 parts) | [`divided/`](divided/) | 256 mm | v2.x | 🚧 Untested — do not print yet ([#169](https://github.com/engmung/Patternflow/issues/169)) |
 
-Whichever body you choose, **knobs are printed separately, in black**, from [`knobs/`](knobs/) — pick the file matching your encoder shaft length. The [v3.0 BOM](../bom/) standardizes on **20 mm shafts** (PEC11R-4220F-S0024 → `knobs_20mm.stl`); the v2.x build guide recommended 15 mm (→ `knobs_15mm.stl`). Both work with every body option.
+Whichever body you choose, **knobs are printed separately, in black**, from [`knobs/`](knobs/) — pick the file matching your encoder shaft length (15 mm and 20 mm are functionally identical; the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm). Both work with every body option.
 
 ## `standard/` — split plates (256 mm bed)
 
