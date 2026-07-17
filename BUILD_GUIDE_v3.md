@@ -85,11 +85,13 @@ The v3.0 board has **two power inputs on one board**. Pick one before ordering p
 
 ## 3. Order the PCB
 
-Order **`hardware/pcb/gerber/patternflow_v3.0_gerber.zip`** from your preferred fab (or use the KiCad source in `hardware/pcb/kicad/`).
+The easiest way is the **PCBWay shared project** — no Gerber upload needed, and ordering through it supports Patternflow development:
+
+<a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
+
+Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.0_gerber.zip`** to the fab of your choice (JLCPCB tends to be the cheapest), or start from the KiCad source in `hardware/pcb/kicad/`.
 
 > ⚠️ **v3.0 only.** Do not order v2.1 for this guide — the v2.1 board is a different size and **will not fit the v3 cases**. Anything in `hardware/pcb/gerber/experiment/` is unverified; don't order it either.
-
-<!-- TODO: update the PCBWay shared-project listing to v3.0 and re-link it here. -->
 
 ## 4. 3D Printing
 

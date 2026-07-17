@@ -24,7 +24,7 @@ Also available as [`schematic.pdf`](schematic.pdf) (no KiCad required).
 
 ## Ordering
 
-Upload [`gerber/patternflow_v3.0_gerber.zip`](gerber/) to your fab of choice.
+The board is listed as a [PCBWay shared project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html) — ordering there needs no Gerber upload and supports Patternflow development. Any fab works, though: upload [`gerber/patternflow_v3.0_gerber.zip`](gerber/) to the fab of your choice (JLCPCB tends to be the cheapest).
 
 | Gerber | Status |
 |---|---|
