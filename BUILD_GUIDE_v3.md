@@ -48,14 +48,14 @@ The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v
 
 | Qty | Part | Notes |
 | --- | --- | --- |
-| 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Buy via the BOM README link** — mounting holes match the case; driver IC must be 74HC595 / FM6126A / FM6124. Ships with the ribbon + power cable you'll use. |
-| 6 | M4 screw, ~10mm | Panel mounting |
+| 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Buy this one: [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr)** (affiliate link — supports Patternflow at no extra cost). Its mounting-screw positions are the verified match for the case, and it ships with the ribbon + power cable you'll use. |
+| 6 | M4 screw, ~10mm | Panel mounting — **sized for the linked panel.** Using a different panel? Buy whatever screws *its* mounting holes take (and see the `for_other_panels/` case note in Section 4). |
 | 1 | USB-C cable *(Path B)* or sacrificial USB cable *(Path A — it gets cut)* | Power feed |
 | 1 | USB power bank, 5V | Must fit the case compartment |
 
 Key sourcing rules (details in the BOM README):
 
-- **LED matrix panel: buy via the linked AliExpress listing** — its mounting-screw positions are the verified match for the case, and the driver IC must be 74HC595 / FM6126A / FM6124 (GCLK "video wall" panels stay dark).
+- **LED matrix panel: buy via the AliExpress link above** — the case is dimensioned around that exact listing. Going off-list? The driver IC must be 74HC595 / FM6126A / FM6124 (GCLK "video wall" panels — FM6363C/FM6373C, "3840Hz", "needs a receiving card" — stay completely dark), and your panel's screw positions may differ from the case.
 - **ESP32-S3: genuine Espressif only** (clone modules correlate with cold-boot issues, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoders: avoid budget AliExpress EC11 packs.** Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
 - **USB-C connector is LCSC-only** (`C5187475`) — only needed if you take the USB-C power path.
