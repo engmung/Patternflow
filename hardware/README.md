@@ -4,14 +4,17 @@ Open hardware files for Patternflow.
 
 ## Structure
 
-- `case/` — 3D-printable enclosure
+- `case/` — 3D-printable enclosure, organized by build option
+  - `standard/` — split-plate body for 256 mm beds (glued)
+  - `oneshot/` — one-piece snap-fit body for 330 mm+ beds
+  - `divided/` — snap-fit body split for 256 mm beds (untested)
+  - `knobs/` — knob plates (15/20 mm shafts), shared by all options
   - `source/` — original Blender files (editable)
-  - `print-ready/` — STL/3MF files ready for slicing
-  - `parts/` — individual component files (if applicable)
 - `pcb/` — circuit board
   - `kicad/` — KiCad project files (editable)
   - `gerber/` — production-ready Gerber files (zip — upload to your fab)
   - `schematic.pdf` — circuit schematic (no KiCad required to view)
+- `bom/` — machine-readable bill of materials (CSV, per board version)
 
 ## Build instructions
 

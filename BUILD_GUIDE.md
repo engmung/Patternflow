@@ -12,7 +12,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 > **Heads-up — photos may differ slightly, and a v3.0 refresh is coming.** The images throughout this guide were shot on an early build, so small cosmetic details may not match the current files exactly. Where a photo looks slightly off, follow the written steps. A full **v3.0** revision is in progress — improved 3D-printed enclosure (snap-fit + minor refinements), a USB-C power adapter, and a fully cleaned-up BOM. This guide will be reorganized around v3.0 once it lands.
 
-> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case source/print-ready files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
+> **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
 ![All parts laid out before assembly](docs/build-guide/images/all_parts.jpg)
 
@@ -92,18 +92,18 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 ## 2. 3D Printing
 
-### Files (in `hardware/case/print-ready/`)
+### Files (in `hardware/case/`)
 
 | File | Contents | Color | Print Orientation |
 | --- | --- | --- | --- |
-| `01_plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
-| `02_plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
-| `03_plate_knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
-| `03_plate_knobs.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
+| `standard/plate_main.stl` | Main body (vertical, tall part) | White | Vertical (standing up) |
+| `standard/plate_dividers.stl` | Back covers and internal divider plates | White | Flat |
+| `knobs/knobs_15mm.stl` | All 4 knobs for 15mm shaft encoders (one file) | Black | Standard |
+| `knobs/knobs_20mm.stl` | All 4 knobs for 20mm shaft encoders (one file) | Black | Standard |
 
-**Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `03_plate_knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `03_plate_knobs.stl` instead. Each file is one print job; each knob STL contains all four knobs.
+**Print the main body, dividers, and one knob file.** For the recommended 15mm encoders, print `knobs_15mm.stl`. If you already have 20mm shaft encoders from an older BOM or listing photo, print `knobs_20mm.stl` instead. Each file is one print job; each knob STL contains all four knobs.
 
-> **Optional — easier-bonding main body (currently not recommended).** `print-ready/variants/01_plate_main_easyfit.stl` is a drop-in replacement for `01_plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `01_plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
+> **Optional — easier-bonding main body (currently not recommended).** `hardware/case/standard/plate_main_easyfit.stl` is a drop-in replacement for `plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
 
 ### Print Settings
 
@@ -117,7 +117,7 @@ I used a **Bambu P1S** with default settings, with one tweak:
 - **Aux fan:** Lower to ~20%
 - **Total print time:** ~11 hours combined
 
-The main body (`01_plate_main.stl`) is the long, thin part. I orient it standing up — this is the orientation the slicer will probably default to. Supports are needed and easy to remove.
+The main body (`plate_main.stl`) is the long, thin part. I orient it standing up — this is the orientation the slicer will probably default to. Supports are needed and easy to remove.
 
 > **Why standard supports, not tree:** During earlier prototypes I found tree supports more troublesome on this geometry. Standard supports remove cleanly here.
 
@@ -131,7 +131,7 @@ The case prints in halves because it's too tall for most printers in one piece. 
 
 Apply super glue along the seam between the upper and lower halves of the main body. Press firmly and hold until set.
 
-> **Standard vs. easyfit main body.** With the standard `01_plate_main.stl`, tape the halves together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If you printed `variants/01_plate_main_easyfit.stl`, the alignment tabs locate the halves for you: just glue and press, no taping. It bonds reliably but leaves a thin seam between the halves — to hide it, sprinkle a little baking soda into the wet glue line and the seam fills in.
+> **Standard vs. easyfit main body.** With the standard `plate_main.stl`, tape the halves together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If you printed `plate_main_easyfit.stl`, the alignment tabs locate the halves for you: just glue and press, no taping. It bonds reliably but leaves a thin seam between the halves — to hide it, sprinkle a little baking soda into the wet glue line and the seam fills in.
 
 ### 3.2 Bond the back panel halves
 
@@ -353,7 +353,7 @@ Slide the PCB compartment cover panel into its slot to close off the electronics
 
 ### 7.5 Attach the knobs
 
-Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `03_plate_knobs_15mm.stl` for the recommended 15mm encoders, or `03_plate_knobs.stl` for 20mm encoders.
+Press-fit the four black knobs onto the encoder shafts. Use the knob set that matches your encoder shaft length: `knobs_15mm.stl` for the recommended 15mm encoders, or `knobs_20mm.stl` for 20mm encoders.
 
 <img src="docs/build-guide/images/knobs.jpg" width="33%">
 
@@ -474,7 +474,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 - **C11 (1000uF electrolytic) retained.** Issue #16 discussion noted that 1000uF is roughly 100x over the USB inrush spec for desktop-USB-powered devices -- and that is correct. Patternflow is powered by a power bank, not a desktop USB port, so the inrush argument does not apply. Without C11 the panel can flicker visibly during the boot transient, so it stays. If you are designing a derivative that connects to a host PC, drop C11 to <=50uF.
 
-- **Encoder shaft length variants** (was Issue #5). The BOM now recommends 15mm shaft encoders because they sit better in the current case. Both 15mm and 20mm knob STLs are included in `hardware/case/print-ready/`; print the one that matches the encoders you bought. The guide photos still show 20mm shafts, but the 15mm parts assemble the same way.
+- **Encoder shaft length variants** (was Issue #5). The BOM now recommends 15mm shaft encoders because they sit better in the current case. Both 15mm and 20mm knob STLs are included in `hardware/case/knobs/`; print the one that matches the encoders you bought. The guide photos still show 20mm shafts, but the 15mm parts assemble the same way.
 
 ---
 
