@@ -2,17 +2,67 @@
 
 All notable changes to Patternflow will be documented in this file.
 
-## [Unreleased]
+## [2.1.0] - 2026-07
 
-### Added
+The final consolidation release of the v2.x line before v3.0. Everything a v2.x builder needs — the v2.1 board, the case options, the current firmware and web tools — is pinned here.
+
+### Hardware — PCB
+
+- **v2.1 Gerbers are the recommended board** (`hardware/pcb/gerber/patternflow_v2.1_gerber.zip`). Over v2.0: reworked ESP32↔J1 (HUB75) routing and silkscreen fixes (clearer C15/R10 reference positions). The build guide pins PCB orders to v2.1.
+- **v3.0 test board** lives in `hardware/pcb/gerber/experiment/` — hybrid power input (USB-C plus a 2-pin screw terminal bypass for beginners), all-through-hole, DRC clean. **Unverified — do not order** ([#114](https://github.com/engmung/Patternflow/issues/114)). This absorbs the earlier v2.2 USB-C experiment.
+- Schematic component placement tidied to mirror the physical board layout.
+
+### Hardware — Case
+
+- **One-piece snap-fit enclosure** (`print-ready/variants/oneshot_v2_1/2.stl`) promoted to a supported print option ([#113](https://github.com/engmung/Patternflow/issues/113)): single-piece body plus snap-fit closing part, no gluing. Needs a ~330 mm bed (H2S-class). Includes a wall-mount hanger hole; stable print confirmed.
+- **`easyfit` main plate variant** with alignment tabs along the bond seam — ⚠️ current STL is missing the LED matrix divider slot; do not print as-is ([#154](https://github.com/engmung/Patternflow/issues/154)).
+- **Divided snap-fit experiments** (`print-ready/experiment/`): the one-piece design split to fit 256 mm (P1S-class) beds, including the latest `v2.1_divided.stl`. Modeled but **not print-tested yet**.
+- `oneshot_v3-wip/` quarantined — for the upcoming v3.0 board only, not compatible with v2.x.
+- USB-C adapter clearance fixed after the encoder position change.
+- STLs are stored as regular git files (not LFS) so GitHub's *Download ZIP* works; the Blender source stays in LFS and is attached to releases.
+- v1 Blender/SVG source for the original laser-cut acrylic case added for reference.
+
+### Firmware
+
+- **Foundation refactor.** Patterns render through `PFCanvas` instead of touching the HUB75 driver directly; shared `core_math` / `core_color` / `core_noise` libraries; foundation modules moved into `src/`.
+- **Color and refresh quality**: gamma LUT applied in `PFCanvas::present()`, per-channel white balance and saturation boost, panel refresh raised to ~240 Hz to eliminate phone-camera flicker bands.
+- **Controls**: encoder acceleration; K1 long-press global brightness mode; K2 long-press OSC info screen and runtime toggle (persisted in NVS); K3 knob-map screen; K1/K2 logical mapping fixed; encoder direction corrected for Bourns PEC11R parts.
+- **Two-way OSC as a sidechannel** (no longer a content mode): accepts knob, pattern, and content commands; `/patternflow/ping` full-announce for late-starting hosts; `/patternflow/version` sent with `hello`; remote host auto-learned from the last valid sender (`PF_OSC_REMOTE_HOST` now optional); up to 8 datagrams drained per frame; numeric args accepted as int or float.
+- **Wireless workflows**: ArduinoOTA flashing (with Arduino IDE 2.x workaround documented) and Improv-Serial Wi-Fi provisioning from the browser flasher.
+- **Live pattern preview** behind the SELECT screen.
+- **Audio-react foundation**: WebSocket server routing browser audio analysis through virtual knobs (opt-in override).
+- **Pattern system**: preset library plus reusable custom slots with a custom-first registry (Origin stays pattern 1); memory-for-math optimization toolkit (`fastPow`, LUTs, typed angle constants replacing Arduino macros).
+- Video Baker `PFV1` playback support and a standalone rotary encoder test sketch.
+
+### Web (patternflow.work)
+
+- **Pattern Lab**: development harness with calibrated knobs and encoder buttons; in-app Gemini pattern generation (bring-your-own-key); color ramp + v-field mode with a gradient editor; Experiment tab — a layer-stack patch editor that compiles to pattern code, with knob bindings.
+- **Video Baker** tool for baking patterns to `PFV1` video.
+- **Live Editor**: hardened C++ conversion prompt (exact helper signatures, expensive-math decision table, pre-baked ramp LUTs, knob ranges and `@knobs` annotations carried through), collapsible preset library with shuffle, pattern sharing modal and links, source-aware Discord share.
+- **Build globe**: community builds shown on an interactive globe inside the Inside viewer, with multi-link support per build.
+- **Interactive project map** replacing the status page, including the project's origins (PCBWay sponsorship, Nam June Paik Art Center).
+- **SEO / AI discoverability**: robots.txt, sitemap, JSON-LD, `llms.txt`.
+- **Crowd Supply pre-launch funnel**: hero and mobile floating CTAs link to the campaign page.
+- CI via GitHub Actions: web build, lint as a hard gate, Discord notifications.
+
+### Integrations
+
 - **Ableton Live integration** (`integrations/ableton/`). A Max for Live bridge device maps the four hardware knobs to any Live parameters over OSC (relative encoder deltas, per-slot sweep sensitivity, mappings saved with the Live set), plus guides for M4L/OSC pitfalls and a filming-with-synced-sound workflow.
 - **OSC spec** (`docs/osc-spec.md`): the wire protocol as a versioned contract for third-party integrations.
-- **OSC `/patternflow/ping`**: any host can request a full announce (hello/version/ip + current pattern/state) — hosts that start after the device no longer miss the current state.
-- **OSC auto-learned remote host.** The device now replies to whichever host sent the last valid OSC packet; `PF_OSC_REMOTE_HOST` is optional (default empty) and only needed for send-only setups.
-- **OSC `/patternflow/version`** sent alongside `hello`.
 
-### Changed
-- **OSC receive robustness**: up to 8 datagrams drained per frame (was 1 — fast Live automation used to build up seconds of queue lag), and numeric arguments are accepted as int *or* float (Max patches commonly send floats; they were silently dropped before).
+### Docs
+
+- **Build guide moved to the repo root** as `BUILD_GUIDE.md`, with an all-through-hole BOM and PCB orders pinned to the v2.1 Gerbers.
+- **Breadboard-only build guide** — the no-PCB path is now documented and surfaced as available.
+- HUB75 driver-IC selection and panel compatibility guidance.
+- Pattern licensing stated: CC-BY-SA-4.0, inbound=outbound.
+- Issue form templates, a "Share your build" discussion form, and a development workflow section in CONTRIBUTING.
+
+### Known issues
+
+- `easyfit` main plate STL missing the divider slot ([#154](https://github.com/engmung/Patternflow/issues/154)).
+- Divided (256 mm bed) snap-fit enclosure not yet print-tested.
+- LED matrix alignment bumps still require manual trimming ([#4](https://github.com/engmung/Patternflow/issues/4)).
 
 ## [2.0.0] - 2026-05
 
