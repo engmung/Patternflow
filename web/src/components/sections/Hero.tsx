@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
-import CrowdSupplyModal from "@/components/crowdsupply/CrowdSupplyModal";
 import { captureEvent } from "@/lib/posthogEvents";
+import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
-  const [isCrowdSupplyOpen, setIsCrowdSupplyOpen] = useState(false);
 
   useEffect(() => {
     // Show the video after 3 seconds (allowing it to initialize and hide controls)
@@ -133,23 +132,22 @@ export default function Hero() {
           >
             GitHub
           </a>
-          <button
-            type="button"
+          <a
             className="hero-cta hero-cta-waitlist"
-            onClick={() => {
-              setIsCrowdSupplyOpen(true);
-              captureEvent('crowd_supply_modal_opened', {
-                surface: 'hero',
-              });
-            }}
+            href={CROWD_SUPPLY_URL}
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('crowd_supply_clicked', {
+              surface: 'hero',
+              destination: 'crowd_supply',
+              via: 'direct',
+            })}
           >
             Get One
-          </button>
+          </a>
         </div>
+        <p className="hero-cta-note">Launching on Crowd Supply — ships worldwide.</p>
       </div>
-      {isCrowdSupplyOpen && (
-        <CrowdSupplyModal onClose={() => setIsCrowdSupplyOpen(false)} />
-      )}
     </section>
   );
 }

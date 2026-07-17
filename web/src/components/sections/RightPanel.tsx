@@ -8,6 +8,7 @@ import InsidePanel from './InsidePanel';
 import PatternPanel from './PatternPanel';
 import Footer from '../layout/Footer';
 import { SectionContent } from '@/lib/content';
+import { CROWD_SUPPLY_URL } from '@/lib/crowdSupply';
 import { useAppStore } from '@/store/useAppStore';
 import { captureEvent } from '@/lib/posthogEvents';
 
@@ -154,6 +155,24 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
           </div>
         </div>
       </div>
+
+      {/* Mobile-only floating CTA. While a section is open the hero's Get One
+          button is off-screen, so this pins to the viewer's bottom-right corner
+          to keep the Crowd Supply path one tap away. */}
+      <a
+        className={`mobile-viewer-cta ${activeTab !== 'hero' ? 'is-open' : ''}`}
+        href={CROWD_SUPPLY_URL}
+        target="_blank"
+        rel="noopener"
+        onClick={() => captureEvent('crowd_supply_clicked', {
+          surface: 'mobile_viewer',
+          destination: 'crowd_supply',
+          via: 'direct',
+          from_section: activeTab,
+        })}
+      >
+        Get One
+      </a>
 
       {/* Mobile-only bottom nav. Tapping a section drops the 3D viewer down from
           the top; tapping the active one again returns to the full-screen hero. */}
