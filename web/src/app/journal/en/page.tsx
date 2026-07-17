@@ -5,6 +5,14 @@ import { getAllJournalPosts } from "@/lib/journal";
 export const metadata: Metadata = {
   title: "Journal / Patternflow",
   description: "Writing and notes from Patternflow.",
+  alternates: {
+    canonical: "/journal/en",
+    languages: {
+      ko: "/journal",
+      en: "/journal/en",
+      "x-default": "/journal/en",
+    },
+  },
 };
 
 export default function EnglishJournalPage() {
