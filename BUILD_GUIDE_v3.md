@@ -208,6 +208,15 @@ Alternatives — see [`firmware/README.md`](firmware/README.md) for details:
 - **Arduino IDE** wired upload. Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled*. If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
 - **ArduinoOTA** over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
 
+### Want OSC / Ableton control? Build it yourself once
+
+The stock flasher image ships with **OSC disabled at compile time** — live control (the [Ableton bridge](integrations/ableton/), or any OSC host) needs one custom build with your Wi-Fi credentials baked in:
+
+1. Download this repo and open `firmware/patternflow/patternflow.ino` in Arduino IDE.
+2. In the same folder, copy `patternflow_secrets.example.h` → `patternflow_secrets.h`, fill in your Wi-Fi SSID/password, and enable what you want (e.g. `PF_OSC_ENABLED 1`). The file is gitignored, so your credentials stay local.
+3. Set up the IDE following [`firmware/README.md`](firmware/README.md) — ESP32 board package, libraries, and the board settings above.
+4. **First upload is wired**: plug the USB cable into the DevKit's port labeled **COM** (not the one labeled USB) and hit Upload. Once that first flash joins your Wi-Fi, later uploads can go wireless via ArduinoOTA.
+
 ## 9. Final Checks
 
 1. Slide the power bank into its compartment and connect it (Path A: the J4 cable; Path B: USB-C).
