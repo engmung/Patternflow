@@ -55,6 +55,7 @@ Replaces `01_plate_main.stl`, adding small alignment tabs along the bond seam so
 `print-ready/experiment/` holds unvalidated work-in-progress. Currently:
 
 - `divided_test_1.stl` … `divided_test_5.stl` — the one-piece enclosure split into **5 parts that fit a 256 mm bed** (P1S-class), so community printers can build the snap-fit design too. Modeled but **not yet print-tested** — do not build from these yet. Once validated, they will be promoted next to the one-piece files.
+- `v2.1_divided.stl` — the latest revision of the divided design, fitted to the v2.1 board. Same status: **not yet print-tested** — do not build from this yet.
 
 ## Print settings
 
