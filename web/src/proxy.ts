@@ -5,29 +5,13 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 const JOURNAL_ASSET_EXTENSION_PATTERN = /\.[a-z0-9]+$/i;
 
 function preferredJournalLang(request: NextRequest) {
+  // Cookie only (set when the user picks a language via ?lang=). No
+  // Accept-Language guessing: crawlers request with English headers, and
+  // auto-redirecting them made every Korean journal URL unindexable.
+  // Search engines route languages via hreflang instead.
   const cookieLang = request.cookies.get(LANGUAGE_COOKIE)?.value;
   if (cookieLang === "ko" || cookieLang === "en") return cookieLang;
-
-  const acceptLanguage = request.headers.get("accept-language") ?? "";
-  const languages = acceptLanguage
-    .split(",")
-    .map((item) => {
-      const [tag, qPart] = item.trim().split(";q=");
-      return {
-        tag: tag.toLowerCase(),
-        quality: qPart ? Number(qPart) : 1,
-      };
-    })
-    .filter(({ tag }) => tag.length > 0)
-    .sort((a, b) => b.quality - a.quality);
-
-  const primaryLanguage = languages[0]?.tag;
-
-  if (primaryLanguage === "en" || primaryLanguage?.startsWith("en-")) {
-    return "en";
-  }
-
-  return "ko";
+  return null;
 }
 
 function cleanLangQuery(request: NextRequest, responsePathname: string, lang: "ko" | "en") {

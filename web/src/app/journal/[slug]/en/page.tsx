@@ -31,6 +31,14 @@ export async function generateMetadata({
   return {
     title: `${post.title} / Patternflow Journal`,
     description: post.excerpt,
+    alternates: {
+      canonical: `/journal/${post.slug}/en`,
+      languages: {
+        ko: `/journal/${post.slug}`,
+        en: `/journal/${post.slug}/en`,
+        "x-default": `/journal/${post.slug}/en`,
+      },
+    },
     openGraph: {
       title: post.title,
       description: post.excerpt,
