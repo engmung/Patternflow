@@ -2,6 +2,20 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [Unreleased] — toward v3.0.0
+
+### Added
+- **v3.0 board promoted to the recommended revision** (`hardware/pcb/gerber/patternflow_v3.0_gerber.zip`). Fabricated, assembled, and verified ([#114](https://github.com/engmung/Patternflow/issues/114)): hybrid power input — USB-C (`USB1` + 5.1k CC pull-downs) or a back-side 2-pin screw terminal (`J4`) as the beginner bypass — all-through-hole, no SMD passives. **Not size-compatible with v2.x cases (and vice versa).**
+- **Machine-readable BOM** (`hardware/bom/bom_v3.0.csv`): every part by manufacturer part number, per-unit quantities, assembly-critical notes. The LED panel remains an AliExpress link (its mounting-screw positions match the case).
+- **v3 build guide draft** (`BUILD_GUIDE_v3.md`) — structure in place, content being filled in.
+
+### Changed
+- **`hardware/case/` reorganized by printer bed size**: `bed_330mm/` (one-piece snap-fit, the main design) and `bed_256mm/` (divided 5-part snap-fit, print & assembly tested with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), with a separate LED-panel mounting part that adapts to varying bolt-hole positions). All v2.x-board cases moved to `case/legacy_v2/`.
+- Encoder shaft guidance neutralized: 15mm and 20mm are functionally identical; the BOM reference part (Bourns PEC11R-4220F-S0024) is 20mm.
+
+### Fixed
+- C11 schematic value typo (`1000uF/1.6V` → `1000uF/16V`).
+
 ## [2.1.0] - 2026-07
 
 The final consolidation release of the v2.x line before v3.0. Everything a v2.x builder needs — the v2.1 board, the case options, the current firmware and web tools — is pinned here.
