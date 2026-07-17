@@ -34,9 +34,9 @@ The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v
 
 | Ref | Qty | Part | Spec | MPN (Manufacturer) | Notes |
 | --- | --- | --- | --- | --- | --- |
-| U1 | 1 | ESP32-S3 DevKit | N16R8, 44-pin, 25.4mm row spacing | ESP32-S3-DevKitC-1-N16R8 (Espressif) | **Genuine Espressif only.** Plugs into sockets — never soldered. |
+| U1 | 1 | ESP32-S3 DevKit | N16R8, 44-pin, 25.4mm row spacing | ESP32-S3-DevKitC-1-N16R8 (Espressif) | AliExpress modules are usually fine too (see the GPIO0 note, §5). Plugs into sockets — never soldered. |
 | — | 2 | Female pin socket | 1×22, 2.54mm | PPPC221LFBN-RC (Sullins) | Soldered into the U1 rows; the DevKit rides on top. |
-| SW1–SW4 | 4 | Rotary encoder w/ switch | EC11, 5-pin, 20mm shaft | PEC11R-4220F-S0024 (Bourns) | Insert from the **back** of the board. Avoid budget EC11 packs. |
+| SW1–SW4 | 4 | Rotary encoder w/ switch | EC11, 5-pin, 20mm shaft | PEC11R-4220F-S0024 (Bourns) | Insert from the **back** of the board. Cheap EC11 packs work but fail more often. |
 | USB1 | 1 | USB-C receptacle | 14P CC-2.6, THT signal pins | TYPE-C 14P CC-2.6 (SHOU HAN, LCSC C5187475) | **Path B only.** ⚠️ Hard to solder — see Section 2. |
 | R1, R2 | 2 | Resistor 5.1kΩ | 1/4W axial THT | generic | **Path B only.** USB-C CC pull-downs. |
 | J1 | 1 | Box header | 2×8, 2.54mm, vertical | 61201621621 (Würth) | HUB75 ribbon from the panel plugs in here. Match silkscreen orientation. |
@@ -56,9 +56,9 @@ The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v
 Key sourcing rules (details in the BOM README):
 
 - **LED matrix panel: buy via the AliExpress link above** — the case is dimensioned around that exact listing. Going off-list? The driver IC must be 74HC595 / FM6126A / FM6124 (GCLK "video wall" panels — FM6363C/FM6373C, "3840Hz", "needs a receiving card" — stay completely dark), and your panel's screw positions may differ from the case.
-- **ESP32-S3: genuine Espressif only** (clone modules correlate with cold-boot issues, [#16](https://github.com/engmung/Patternflow/issues/16)).
-- **Encoders: avoid budget AliExpress EC11 packs.** Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
-- **USB-C connector is LCSC-only** (`C5187475`) — only needed if you take the USB-C power path.
+- **ESP32-S3**: Espressif is the reference part, but AliExpress modules are usually fine — if yours hits the cold-boot issue, one 10k resistor fixes it ([#16](https://github.com/engmung/Patternflow/issues/16)).
+- **Encoders**: any 5-pin EC11 with a push switch works — the cheapest packs just fail more often. Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
+- **USB-C connector**: LCSC `C5187475`, and many retail sites carry the same part — search "TYPE-C 14P CC-2.6". Only needed if you take the USB-C power path.
 
 ### What you also need (not in BOM)
 
@@ -152,7 +152,7 @@ Extracted from the v3.0 netlist (identical functions to v2.x — the same firmwa
 | 21 | 5V | +5V input | | 43 | GND | GND |
 | 22 | GND | GND | | 44 | GND | GND |
 
-> **GPIO0 / cold-boot note.** The v3.0 board leaves GPIO0 unconnected (no pullup pad). Genuine Espressif modules boot reliably that way; clone modules have shown cold-boot lockups from the floating strap pin ([#16](https://github.com/engmung/Patternflow/issues/16) — another reason to buy genuine). If a module consistently needs a RESET press after power-on, apply the on-module 10k GPIO0→3.3V fix photographed in that issue.
+> **GPIO0 / cold-boot note.** The v3.0 board leaves GPIO0 unconnected (no pullup pad). Most modules boot reliably that way, but some show cold-boot lockups from the floating strap pin ([#16](https://github.com/engmung/Patternflow/issues/16)). If yours consistently needs a RESET press after power-on, apply the on-module 10k GPIO0→3.3V fix photographed in that issue — one resistor and it's solved.
 
 ## 6. Case Assembly
 
@@ -213,7 +213,7 @@ Alternatives — see [`firmware/README.md`](firmware/README.md) for details:
 - **Tight LED panel fit / seam gaps / mount-part bond** — see Section 6 watch-outs ([#169](https://github.com/engmung/Patternflow/issues/169)).
 - **USB-C THT soldering difficulty** — the reason Path A exists ([#114](https://github.com/engmung/Patternflow/issues/114)).
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
-- **GPIO0 left floating by design** — genuine Espressif modules don't need the pullup; clones might (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
+- **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.
 - <!-- TODO: LED matrix alignment-bump trimming (#4) — confirm whether the v3 cases still need it. -->
 

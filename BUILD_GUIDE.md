@@ -74,9 +74,9 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 <a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
 
-> ⚠️ **ESP32-S3 — buy genuine Espressif.** AliExpress clone modules are significantly more likely to exhibit [cold-boot issues (Issue #16)](https://github.com/engmung/Patternflow/issues/16). Genuine Espressif modules are slightly more expensive but far more reliable. We no longer recommend AliExpress ESP32-S3 modules.
+> ℹ️ **ESP32-S3 sourcing.** Espressif-branded modules are the reference; AliExpress modules generally work fine too. If yours exhibits the [cold-boot issue (Issue #16)](https://github.com/engmung/Patternflow/issues/16), the on-module 10k GPIO0 pullup fix photographed in that issue solves it — one resistor.
 
-> ⚠️ **Rotary encoders — avoid cheap AliExpress packs.** The budget 5-packs fail frequently. We recommend sourcing **PEC11R-4220F-S0024** or equivalent quality EC11 encoders from **Mouser** or **DigiKey**. Any 5-pin EC11 with a click-switch will work.
+> ℹ️ **Rotary encoders.** Any 5-pin EC11 with a click-switch works — the cheapest packs just fail more often. **PEC11R-4220F-S0024** (Bourns, Mouser/DigiKey) is the reliable reference part.
 
 ### What you also need (not in BOM)
 

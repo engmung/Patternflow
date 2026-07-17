@@ -25,9 +25,9 @@ Both footprints are on the same board; populating both is fine too.
 
 - **Every part is specified by manufacturer part number (MPN).** Order from Mouser/DigiKey (or find the same MPN elsewhere). The one exception:
 - **LED matrix panel — buy via this link:** [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr) (affiliate link — supports Patternflow development at no extra cost). LED panels have no meaningful MPNs, and this specific listing's **mounting-screw positions are known to match the case**. Other panels may work electrically (driver IC must be 74HC595 / FM6126A / FM6124 — see the [panel compatibility warning](../../BUILD_GUIDE.md)) but are not yet verified mechanically; broader panel compatibility is planned.
-- **USB-C connector is LCSC-only** (SHOU HAN, LCSC `C5187475`) — it was the only suitable THT-signal Type-C footprint sourceable. Add it to an LCSC/JLCPCB order.
-- **ESP32-S3: genuine Espressif only.** Clones correlate strongly with the cold-boot issue ([#16](https://github.com/engmung/Patternflow/issues/16)).
-- **Encoders: avoid budget AliExpress EC11 packs** — high failure rate. The Bourns PEC11R is the reference part; note the firmware assumes its direction ([`config.h`](../../firmware/patternflow/config.h)).
+- **USB-C connector**: listed at LCSC as `C5187475` (SHOU HAN), and plenty of retail sites carry the same part — search **"TYPE-C 14P CC-2.6"**. Only needed on the USB-C power path.
+- **ESP32-S3**: Espressif is the reference part; AliExpress modules generally work fine too. If yours won't cold-boot reliably, the on-module 10k GPIO0 pullup fix in [#16](https://github.com/engmung/Patternflow/issues/16) solves it — one resistor.
+- **Encoders**: any 5-pin EC11 with a push switch works — the cheapest packs just fail more often. The Bourns PEC11R is the reference part; note the firmware assumes its direction ([`config.h`](../../firmware/patternflow/config.h)).
 
 ## Column reference
 
