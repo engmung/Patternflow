@@ -10,7 +10,9 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 **Skill level:** Beginner-to-intermediate. If you've assembled a mechanical keyboard or built a basic Arduino project, you're ready — this is an all through-hole build.
 
-> **Heads-up — photos may differ slightly, and a v3.0 refresh is coming.** The images throughout this guide were shot on an early build, so small cosmetic details may not match the current files exactly. Where a photo looks slightly off, follow the written steps. A full **v3.0** revision is in progress — improved 3D-printed enclosure (snap-fit + minor refinements), a USB-C power adapter, and a fully cleaned-up BOM. This guide will be reorganized around v3.0 once it lands.
+> 🚀 **The v3.0 board is out — and it's the recommended build.** The verified v3.0 revision brings USB-C power (with a beginner-friendly screw-terminal bypass), a fully hand-solderable board with zero SMD passives, and a snap-fit enclosure. Its guide is being finalized at **[BUILD_GUIDE_v3.md](BUILD_GUIDE_v3.md)** and will replace this page when complete. **This guide covers the v2.x board** — keep following it if you already have v2.x parts (v2 and v3 boards/cases are not interchangeable).
+>
+> Photos in this guide were shot on an early build; where a photo looks slightly off, follow the written steps.
 
 > **What changed in v2.0.0.** PCB now includes a 10k pullup on GPIO0 (resolves the v1 cold-boot issue), silkscreen cleaned up to clearly mark R vs. C designators and the correct encoder solder side, firmware ships with a built-in custom-pattern template usable with any AI coding assistant, and the case files now include a 15mm encoder knob variant. Most of the case geometry is unchanged from v1; see Section 10 for the issues still open and the deliberate design notes worth knowing.
 
