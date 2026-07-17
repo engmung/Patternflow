@@ -76,15 +76,15 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 
 | Your printer bed | Print | Notes |
 |---|---|---|
-| **256 mm** (P1S / X1C / A1 class) | `bed_256mm/divided_v3_part1..5.stl` | 5-part divided snap-fit. Print & assembly verified ([#169](https://github.com/engmung/Patternflow/issues/169)). |
-| **~330 mm+** (H2S class) | `bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit — fewer parts, no LED-mount gluing. |
-| Everyone | `knobs/knobs_20mm.stl` (or `_15mm` to match your encoders) | **Black** PLA; all bodies in **white** |
+| **256 mm** (P1S / X1C / A1 class) | `bed_256mm/encloser.stl` | **One STL, every part** — body, LED-panel mount, and 20 mm knobs. Split the objects in your slicer: knobs in black, the rest in white. ~10 h total. |
+| **~330 mm+** (H2S class) | `bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit — fewer parts. Print knobs separately from `knobs/`. |
+
+> **Using a different LED panel than the BOM link?** Panel suppliers drill mounting holes in different places. Print `bed_256mm/for_other_panels/divided_v3_part1..5.stl` instead — its LED-mount part adjusts to varying bolt-hole positions ([#169](https://github.com/engmung/Patternflow/issues/169)-verified). Even so, check the mount against your panel before committing: a very different hole layout may still not fit.
 
 ### Print settings
 
 - Nozzle 0.4 mm, layer height 0.2 mm, standard supports (not tree), brim off, aux fan ~20% (Bambu P1S default profile works as-is)
-- <!-- TODO: per-part orientation table + plate screenshots for the 5 divided parts and the 2 oneshot parts. -->
-- <!-- TODO: print time estimates per part. -->
+- <!-- TODO: plate/orientation screenshots for encloser.stl and the oneshot parts. -->
 
 ## 5. PCB Assembly
 
@@ -106,9 +106,9 @@ Don't plug the ESP32 DevKit in until after the first power check (Section 7).
 
 ## 6. Case Assembly
 
-### 256 mm (divided) path
+### 256 mm path (`encloser.stl` or `for_other_panels/`)
 
-Verified sequence from [#169](https://github.com/engmung/Patternflow/issues/169):
+Sequence verified in [#169](https://github.com/engmung/Patternflow/issues/169):
 
 1. **Match the LED-panel mounting part to your panel.** The mounting part is separate precisely because panel bolt-hole positions vary between suppliers. <!-- TODO: photo (issue #169 step 1). -->
 2. Insert the mounting part into the LED panel, then tighten the M4 screws. <!-- TODO: photo (step 2). -->

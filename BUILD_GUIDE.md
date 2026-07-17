@@ -103,7 +103,7 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 **Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
-> **Optional — easier-bonding main body (currently not recommended).** `hardware/case/legacy_v2/plate_main_easyfit.stl` is a drop-in replacement for `plate_main.stl` with small alignment tabs along the bond seam, so the halves self-locate and glue without taping or clamping. **However, the current STL has a known defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)): it's missing the internal slot the LED matrix divider slides into, so the divider won't seat.** Use the standard `plate_main.stl` for now, or fix the slot yourself per the issue before printing. See Section 3.1 for the bonding difference.
+> **Note:** an `easyfit` main-body variant (alignment tabs along the bond seam) existed briefly but was retired over a fit defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)). Use the standard `plate_main.stl`; the old variant remains at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case) if you're curious.
 
 ### Print Settings
 
@@ -131,7 +131,7 @@ The case prints in halves because it's too tall for most printers in one piece. 
 
 Apply super glue along the seam between the upper and lower halves of the main body. Press firmly and hold until set.
 
-> **Standard vs. easyfit main body.** With the standard `plate_main.stl`, tape the halves together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If you printed `plate_main_easyfit.stl`, the alignment tabs locate the halves for you: just glue and press, no taping. It bonds reliably but leaves a thin seam between the halves — to hide it, sprinkle a little baking soda into the wet glue line and the seam fills in.
+> **Bonding tip.** Tape the halves of `plate_main.stl` together and keep firm, even pressure until the glue sets — done right, this gives the cleanest seam, but it takes a steady hand. If a thin seam still shows, sprinkle a little baking soda into the wet glue line and it fills in.
 
 ### 3.2 Bond the back panel halves
 

@@ -1,17 +1,17 @@
 # Patternflow Case
 
-3D-printable enclosure for the Patternflow LED synthesizer. Folders are named by **printer bed size** — find the folder that fits your printer, print everything in it, plus one knob file.
+3D-printable enclosure for the Patternflow LED synthesizer. Folders are named by **printer bed size** — find the folder that fits your printer.
 
 > **These cases fit the v3.0 board.** If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
 
 ## Which folder do I print?
 
-| Your printer bed | Folder | Design | Status |
+| Your printer bed | Print | Design | Status |
 |---|---|---|---|
-| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/`](bed_330mm/) | One-piece snap-fit body + closing part — no gluing | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)); print verification of this exact STL pending |
-| **256 mm** (Bambu P1S / X1C / A1 class) | [`bed_256mm/`](bed_256mm/) | The snap-fit design divided into 5 parts, with a **separate LED-panel mounting part** that adapts to varying panel bolt-hole positions | ✅ Print & assembly tested ([#169](https://github.com/engmung/Patternflow/issues/169)) |
+| **256 mm** (Bambu P1S / X1C / A1 class) | [`bed_256mm/encloser.stl`](bed_256mm/) | The snap-fit design split for a 256 mm bed — **one STL with every part**, 20 mm knobs included | ✅ Standard option, ~10 h total |
+| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/`](bed_330mm/) | One-piece snap-fit body + closing part | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)); print verification of this exact STL pending |
 
-Whichever body you print, **knobs print separately, in black**, from [`knobs/`](knobs/) — pick the file matching your encoder shaft length (15 mm and 20 mm are functionally identical; the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm).
+**Knobs print in black, everything else in white.** `encloser.stl` already contains the 20 mm knobs — just split them out in your slicer for the black print. For the 330 mm body (or 15 mm-shaft encoders), print a knob file from [`knobs/`](knobs/) instead (15 mm and 20 mm shafts are functionally identical; the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm).
 
 ## `bed_330mm/` — one-piece snap-fit
 
@@ -22,18 +22,20 @@ The original mass-production-oriented design: a single-piece body plus a snap-fi
 | `oneshot_v3_part1.stl` | White PLA |
 | `oneshot_v3_part2.stl` | White PLA |
 
-## `bed_256mm/` — divided snap-fit (5 parts)
+## `bed_256mm/` — the standard build
 
-The one-piece design split so standard printers can build it. Print & assembly verified with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), including USB-C port alignment.
+**`encloser.stl`** is the whole kit in one file: body parts, the LED-panel mounting part, and the 20 mm knobs. Split the objects in your slicer — knobs in **black**, everything else in **white**. ~10 hours total on a P1S. The LED-panel mount is sized for the panel linked in the [BOM](../bom/).
 
-| File | Color |
-|---|---|
-| `divided_v3_part1.stl` … `divided_v3_part5.stl` | White PLA |
+### `for_other_panels/` — using a different LED panel?
 
-Assembly notes from the verification build (full steps will be in the build guide):
+`divided_v3_part1..5.stl` is a community variant whose **LED-panel mounting part adapts to varying bolt-hole positions** — panel suppliers drill them in different places. Print this instead of `encloser.stl` **only if** your panel is not the BOM-linked one. Print & assembly verified with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), including USB-C port alignment.
 
-1. The **LED-panel mounting part is separate** because panel bolt-hole positions vary between suppliers — match it to your panel first.
-2. Insert the mounting part into the LED panel, then tighten the screws.
+> ⚠️ Adjustable ≠ universal: if your panel's hole layout differs a lot, even this version may not fit. Check the mounting part against your panel before committing to the full print.
+
+### Assembly notes (both 256 mm variants)
+
+1. Match the **LED-panel mounting part** to your panel first.
+2. Insert the mounting part into the LED panel, then tighten the M4 screws.
 3. Fit the assembly into the enclosure and glue between the mounting part and the enclosure walls.
 4. ⚠️ Watch-outs: the panel insertion is very tight (near-zero clearance); flat-printed edges come out slightly rounded, so glued seams can show a small gap — fill with putty or a baking-soda + CA filler. If the mounting-part bond isn't solid, gripping the enclosure at the LED side can flex the wall.
 
@@ -44,9 +46,10 @@ Everything that fits the v2.x board generation, kept for existing builds. **None
 | File | What |
 |---|---|
 | `plate_main.stl` + `plate_dividers.stl` | Standard split plates (256 mm bed, glued) — the classic v2 build |
-| `plate_main_easyfit.stl` | ⚠️ Known defect, do not print ([#154](https://github.com/engmung/Patternflow/issues/154)) |
 | `oneshot_v2_part1/2.stl` | One-piece snap-fit for the v2.x board (330 mm+ bed) |
 | `divided_v2.1.stl` | Divided design fitted to the v2.1 board — never print-tested |
+
+(An `easyfit` plate variant existed briefly but was retired over a fit defect — [#154](https://github.com/engmung/Patternflow/issues/154). It remains browsable at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case).)
 
 ## Print settings
 

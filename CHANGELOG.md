@@ -10,7 +10,9 @@ All notable changes to Patternflow will be documented in this file.
 - **v3 build guide draft** (`BUILD_GUIDE_v3.md`) — structure in place, content being filled in.
 
 ### Changed
-- **`hardware/case/` reorganized by printer bed size**: `bed_330mm/` (one-piece snap-fit, the main design) and `bed_256mm/` (divided 5-part snap-fit, print & assembly tested with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), with a separate LED-panel mounting part that adapts to varying bolt-hole positions). All v2.x-board cases moved to `case/legacy_v2/`.
+- **`hardware/case/` reorganized by printer bed size**: `bed_256mm/encloser.stl` (the standard print — every part in one STL, 20 mm knobs included, ~10 h) and `bed_330mm/` (one-piece snap-fit). `bed_256mm/for_other_panels/` holds the community divided variant with an adjustable LED-panel mount ([#169](https://github.com/engmung/Patternflow/issues/169)-tested) for panels other than the BOM-linked one. All v2.x-board cases moved to `case/legacy_v2/`.
+- **Browser-flasher firmware refreshed** to the latest build — one image, compatible with both v2.x and v3.0 boards. The `patternflow_v2_firmware.zip` release asset on v2.1.0 was updated to match.
+- The defective `easyfit` plate variant was removed ([#154](https://github.com/engmung/Patternflow/issues/154)); it remains at the v2.1.0 tag.
 - Encoder shaft guidance neutralized: 15mm and 20mm are functionally identical; the BOM reference part (Bourns PEC11R-4220F-S0024) is 20mm.
 
 ### Fixed
