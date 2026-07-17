@@ -2040,6 +2040,13 @@
     background: var(--cream-2);
     cursor: zoom-in;
   }
+  .journal-md-figure iframe {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+    border: 0;
+  }
   .journal-md-figure figcaption {
     margin-top: 10px;
     font-family: var(--mono);
