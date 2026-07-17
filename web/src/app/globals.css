@@ -204,6 +204,16 @@
     flex-wrap: wrap;
     gap: 10px;
   }
+  /* Expectation-setting line that replaced the Crowd Supply interstitial modal:
+     "Get One" now links straight out, so the "subscribe, not buy" framing lives here. */
+  .hero-cta-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 10px 0 0;
+  }
   .hero-tags {
     display: flex; gap: 8px; margin-bottom: 28px;
   }
@@ -2513,6 +2523,9 @@
   .mobile-bottom-nav {
     display: none;
   }
+  .mobile-viewer-cta {
+    display: none;
+  }
 
   @media (max-width: 900px) {
     .mobile-bottom-nav {
@@ -2557,6 +2570,43 @@
       color: var(--cream);
       background: var(--ink);
     }
+    /* Floating Get One pill in the viewer's bottom-right corner (just above
+       the divider nav). Only exists while a section is open — on the hero the
+       inline Get One button is already on screen. */
+    .mobile-viewer-cta {
+      display: block;
+      position: fixed;
+      top: calc(var(--mb-viewer-h) - 10px);
+      right: 10px;
+      transform: translateY(-100%);
+      z-index: 6;
+      appearance: none;
+      -webkit-appearance: none;
+      /* Same accent as the hero's Get One (.hero-cta-waitlist) so the floating
+         pill reads as the one buy path. */
+      border: 1px solid #E8552E;
+      background: #E8552E;
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      cursor: pointer;
+      text-decoration: none;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease 0.35s;
+    }
+    .mobile-viewer-cta:hover {
+      text-decoration: none;
+    }
+    .mobile-viewer-cta.is-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     /* Hero (closed): keep the footer clear of the parked nav at the bottom. */
     .content-panel {
       padding-bottom: calc(var(--mb-nav-h) + env(safe-area-inset-bottom, 0px));

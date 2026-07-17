@@ -427,7 +427,7 @@ export const NODES: RoadmapNode[] = [
     level: 1,
     detail:
       'The Crowd Supply pre-launch page replaced the waitlist across the site and README. Interest signups now feed the campaign directly.',
-    links: [{ label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/lsh/patternflow' }],
+    links: [{ label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/engmung/patternflow' }],
   },
   {
     id: 'biz-launch',
