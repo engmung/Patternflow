@@ -12,7 +12,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. It assu
 
 - **USB-C power**, with a screw-terminal bypass on the back of the board if you'd rather skip the tricky Type-C soldering
 - **No SMD passives** — every part you solder is through-hole
-- **Snap-fit enclosure** — no more gluing body halves (the 256 mm version glues one LED-mount part; that's it)
+- **Snap-fit enclosure** — the back panel clicks shut, wall-mount holes are built in, and the LED matrix needs no bump trimming
 - Smaller board. **v2.x boards do not fit v3 cases, and vice versa.**
 
 ## Table of Contents
@@ -70,8 +70,8 @@ Key sourcing rules (details in the BOM README):
 - White and black PLA filament
 - Soldering iron, solder, flux, tweezers
 - Wire cutters, Phillips screwdriver, small flathead (screw terminals)
-- Putty or baking soda + CA glue (seam filling, Section 6)
-- CA glue for the LED-mount part (256 mm case only)
+- CA glue (bonding the printed halves — Section 4)
+- Putty or baking soda + CA glue (optional seam filling, Section 4)
 
 ## 2. Choose Your Power Path
 
@@ -110,38 +110,47 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 
 - Nozzle 0.4 mm, layer height 0.2 mm, standard supports (not tree), brim off, aux fan ~20% (Bambu P1S default profile works as-is)
 
-<img src="docs/build-guide/images/v3/01_printing.jpg" width="49%"> <img src="docs/build-guide/images/v3/02_printed_parts.jpg" width="49%">
+<img src="docs/build-guide/images/v3/01_printing.jpg" width="38%"> <img src="docs/build-guide/images/v3/02_printed_parts.jpg" width="58%">
 
 *Left: `encloser.stl` on a P1S bed. Right: everything that comes out of the one print — body frame, back panels, battery cover, and the LED-panel mounting part.*
 
+### Bond the printed halves — right after printing
+
+The 256 mm print splits the **enclosure frame** and the **back panel** into upper and lower halves. As soon as the parts are off the bed, glue each pair together with CA glue — masking tape holds them while curing:
+
+<img src="docs/build-guide/images/v3/03_glue_mount.jpg" width="60%">
+
+Backlighting shows what a bonded seam looks like — a hairline gap is normal, and putty or baking soda + CA glue fills it:
+
+<img src="docs/build-guide/images/v3/04_seam_gap.jpg" width="60%">
+
+**Let the glue cure while you solder the PCB (Section 5).** By the time the board is done, the enclosure is ready.
+
 ## 5. PCB Assembly
 
-**Watch the full soldering walkthrough — it covers this entire section:**
+### ▶️ Video: the entire soldering process, start to finish
 
-<a href="https://youtu.be/NZCjMBCsDAc"><img src="https://img.youtube.com/vi/NZCjMBCsDAc/maxresdefault.jpg" alt="Patternflow v3.0 PCB soldering — full video walkthrough" width="70%"></a>
+The whole PCB assembly is covered in **one YouTube video** — soldering order included, so there's no separate step list here. Click to watch:
+
+[![▶ YouTube — Patternflow v3.0 PCB soldering, full walkthrough](https://img.youtube.com/vi/NZCjMBCsDAc/maxresdefault.jpg)](https://youtu.be/NZCjMBCsDAc)
+
+**[▶ Watch on YouTube — Patternflow v3.0 PCB soldering walkthrough](https://youtu.be/NZCjMBCsDAc)**
 
 <img src="docs/build-guide/images/v3/05_solder_layout.jpg" width="70%">
 
 *Everything laid out before soldering. (This photo predates the R1/R2 5.1kΩ resistors — add those two to the lineup if you're on Path B.)*
 
-All parts are through-hole. Suggested order (shortest to tallest):
+Two things to keep next to the video:
 
-1. `R1`/`R2` — only if taking the USB-C path (skip on Path A)
-2. `USB1` Type-C — only on Path B. **Read the warning in Section 2 first**, then compare your joints against these two:
+**Path B (USB-C) only — read the warning in Section 2 first**, then compare your joints against these two:
 
-   | ❌ Like this, and it can short | ✅ Aim for this |
-   |---|---|
-   | <img src="docs/build-guide/images/v3/06_usbc_bad.jpg" width="100%"> | <img src="docs/build-guide/images/v3/07_usbc_good.jpg" width="100%"> |
+| ❌ Like this, and it can short | ✅ Aim for this |
+|---|---|
+| <img src="docs/build-guide/images/v3/06_usbc_bad.jpg" width="100%"> | <img src="docs/build-guide/images/v3/07_usbc_good.jpg" width="100%"> |
 
-   **Before first power**, set your multimeter to continuity and probe between the USB-C VBUS and GND pads — the display should read open (no beep, "1"), like so:
+And before first power, go over the joints with a multimeter:
 
-   <img src="docs/build-guide/images/v3/08_short_check.jpg" width="60%">
-
-3. Female socket rows (2× 1×22) into the `U1` DevKit rows — **do not solder the DevKit itself**
-4. `J1` box header (2×8, HUB75) — orientation must match the silkscreen
-5. `J3` screw terminal (5V out to matrix) — and `J4` on the back if taking Path A
-6. `C11` 1000µF cap — **observe polarity**
-7. `SW1–SW4` encoders — **insert from the BACK side**: bodies on the back, leads soldered on the front
+<img src="docs/build-guide/images/v3/08_short_check.jpg" width="60%">
 
 Done right, it looks like this (this build populated both power paths):
 
@@ -185,44 +194,40 @@ Extracted from the v3.0 netlist (identical functions to v2.x — the same firmwa
 
 ## 6. Case Assembly
 
-### 256 mm path (`encloser.stl` or `for_other_panels/`)
-
-Everything ready to come together — board seated in the frame on the left, panel in position on the right:
+By now the enclosure halves you bonded in Section 4 have cured and the board is soldered — time to bring them together:
 
 <img src="docs/build-guide/images/v3/11_ready_to_mate.jpg" width="70%">
 
-Sequence (verified in [#169](https://github.com/engmung/Patternflow/issues/169)):
+*The ESP32, the PCB, and the cables, ready to go in.*
 
-1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from. Double-check before anything is screwed or glued:
+1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from:
 
    <img src="docs/build-guide/images/v3/12_hub_in_up.jpg" width="60%">
+
+   ⚠️ The panel insertion is very tight — near-zero clearance. Work it in slowly.
 
 2. **Fit the LED-panel mounting part and tighten the screws.** The mounting part is a separate piece precisely because panel bolt-hole positions vary between suppliers — match it to your panel first.
 
    <img src="docs/build-guide/images/v3/13_mount_screws.jpg" width="60%">
 
-3. **Glue between the mounting part and the enclosure walls** (CA glue; masking tape holds parts while it cures). If some glue reaches the panel itself, that's an acceptable side effect.
+3. **Set the board into its bay and secure the encoders from the front**: attach each encoder's nut and tighten with a wrench or pliers — this locks the board against the front face.
 
-   <img src="docs/build-guide/images/v3/03_glue_mount.jpg" width="60%">
+   <img src="docs/build-guide/images/encoder_nut.jpg" width="33%">
 
-4. Snap-fit the remaining parts together. Backlighting shows what a good bonded seam looks like — a hairline gap is normal and fillable:
-
-   <img src="docs/build-guide/images/v3/04_seam_gap.jpg" width="60%">
-
-**Watch-outs (from the verification build):**
-
-- The LED panel insertion is very tight — near-zero clearance. Work it in slowly.
-- Flat-printed edges come out slightly rounded, so glued seams can show a small gap. Fill with putty or baking soda + CA glue.
-- If the mounting-part bond isn't solid, gripping the enclosure at the LED side can flex the wall and cave the back panel. Let the glue cure fully.
+   *Photo from the v2 build — same encoders, same step.*
 
 ### 330 mm (one-piece) path
 
-Same design, fewer parts: the body is a single piece, so there is nothing to bond except the LED-panel mounting part — follow the 256 mm sequence, skipping the frame joints. <!-- TODO: dedicated photos once a 330 mm unit is built. -->
+Same design, fewer parts: the body prints in one piece, so there is nothing to bond — the panel, mount, and board go in the same way as above. <!-- TODO: dedicated photos once a 330 mm unit is built. -->
 
 ### Both paths
 
-- Press-fit the four black knobs onto the encoder shafts (last step, after Section 9 checks pass).
 - The power bank slides into the internal compartment behind the board bay.
+- The four black knobs press-fit onto the encoder shafts — save them for **last**, after the Section 9 checks pass:
+
+  <img src="docs/build-guide/images/knobs.jpg" width="33%">
+
+  *Photo from the v2 build — same press-fit.*
 
 ## 7. Wiring & First Power-Up
 
@@ -239,14 +244,26 @@ Same design, fewer parts: the body is a single piece, so there is nothing to bon
 
 ## 8. Firmware
 
-The easiest path is the **browser flasher** at [patternflow.work](https://patternflow.work) (Chrome/Edge, USB data cable to the DevKit's USB port). Wi-Fi can be provisioned from the browser too (Improv-Serial). **One firmware image serves every board generation** — the pin map is identical on v2.x and v3.0, so there is no board selection to get wrong.
+The ESP32-S3 module is flashed **separately, outside the PCB**. Already seated it? Just pop it gently out of the sockets, flash it, plug it back in, and connect power — done. **One firmware image serves every board generation** — the pin map is identical on v2.x and v3.0, so there is no board selection to get wrong.
 
-Flash **before** seating the DevKit in the board, then insert it into the sockets with the USB port facing the board edge (silkscreen shows the orientation).
+### 8.1 Browser flash (recommended)
 
-Alternatives — see [`firmware/README.md`](firmware/README.md) for details:
+No installation required — desktop **Chrome or Edge** only (Web Serial; Firefox/Safari won't work).
 
-- **Arduino IDE** wired upload. Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled*. If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
-- **ArduinoOTA** over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
+1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
+2. Connect the ESP32-S3 to your computer with a USB-C **data cable**.
+3. Scroll to the **Patterns** section, click **"Flash Patternflow OS"**, pick the serial port, and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
+4. Disconnect, seat the module back into the board sockets (orientation per silkscreen), and connect power.
+
+<img src="docs/build-guide/images/web_flash.jpg" width="33%"> <img src="docs/build-guide/images/esp32_insert.jpg" width="33%">
+
+*Photos from the v2 guide — the flashing flow is identical on v3.*
+
+### 8.2 Arduino IDE (custom builds)
+
+- Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled* — full setup in [`firmware/README.md`](firmware/README.md).
+- If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
+- **ArduinoOTA** works over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
 
 ### Want OSC / Ableton control? Build it yourself once
 
@@ -273,7 +290,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 
 ## 10. Known Issues & Design Notes
 
-- **Tight LED panel fit / seam gaps / mount-part bond** — see Section 6 watch-outs ([#169](https://github.com/engmung/Patternflow/issues/169)).
+- **Tight LED panel fit / bonded-seam gaps** — see the Section 4 bonding notes and Section 6 ([#169](https://github.com/engmung/Patternflow/issues/169)).
 - **USB-C THT soldering difficulty** — the reason Path A exists ([#114](https://github.com/engmung/Patternflow/issues/114)).
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
