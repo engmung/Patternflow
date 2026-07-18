@@ -17,6 +17,7 @@ All notable changes to Patternflow will be documented in this file.
 
 ### Fixed
 - C11 schematic value typo (`1000uF/1.6V` → `1000uF/16V`).
+- `bed_256mm/encloser.stl` briefly carried the **v2.1** cut of the enclosure; it now holds the v3.0 cut. The v2.1 version — print & assembly verified — moved to `legacy_v2/encloser_v2.1.stl` and is the recommended v2 print (replacing both the untested `divided_v2.1.stl` and the glued plates as the default v2 path).
 
 ## [2.1.0] - 2026-07
 
