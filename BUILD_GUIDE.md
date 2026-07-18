@@ -105,7 +105,7 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 **Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
-> 💡 **Easier option — skip the gluing.** [`hardware/case/legacy_v2/encloser_v2.1.stl`](hardware/case/legacy_v2/encloser_v2.1.stl) packs the newer **snap-fit** design, cut for the v2.1 board, into one STL — body, LED-panel mount, and knobs all inside. Print & assembly verified. Open it in your slicer, split the objects, print the knobs in black and the rest in white — then skip Section 3 entirely (no bonding; assembly follows the [v3 guide's Section 6](BUILD_GUIDE_v3.md#6-case-assembly) sequence). The plates below remain the classic, fully photo-documented path.
+> 💡 **Easier option — skip the gluing (and the nippers).** [`hardware/case/legacy_v2/encloser_v2.1.stl`](hardware/case/legacy_v2/encloser_v2.1.stl) packs the newer **snap-fit** design, cut for the v2.1 board, into one STL — body, LED-panel mount, and knobs all inside. Print & assembly verified. Open it in your slicer, split the objects, print the knobs in black and the rest in white — then skip Section 3 entirely (no bonding; assembly follows the [v3 guide's Section 6](BUILD_GUIDE_v3.md#6-case-assembly) sequence) **and skip Section 5.1 too**: the design recesses the LED matrix's alignment bumps, so no trimming. Bonus: a snap-fit back panel and two wall-mount holes. The plates below remain the classic, fully photo-documented path.
 
 > **Note:** an `easyfit` main-body variant (alignment tabs along the bond seam) existed briefly but was retired over a fit defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)). Use the standard `plate_main.stl`; the old variant remains at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case) if you're curious.
 
@@ -267,7 +267,7 @@ The LED matrix has two small alignment bumps on its back, diagonally opposite ea
 
 **Cut them off with strong nippers or pliers.** Slight residual nubs are fine — flat enough is flat enough.
 
-> A future case revision will include recesses for these bumps so trimming isn't needed.
+> This step only applies to the glued-plate body. If you printed `encloser_v2.1.stl` (the 💡 option in Section 2), skip it — that design has recesses for the bumps.
 
 <img src="docs/build-guide/images/matrix_bump_cut1.jpg" width="33%"> <img src="docs/build-guide/images/matrix_bump_cut2.jpg" width="33%">
 
@@ -466,7 +466,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 ### Still open
 
-- **Issue #4 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. Current workaround: cut them off during assembly (see Section 5.1). They cut easily. A future case revision (planned to land with the LED diffuser variant) will add recesses to accommodate them.
+- **Issue #4 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. On the glued-plate body, cut them off during assembly (see Section 5.1) — they cut easily. **Resolved in the snap-fit enclosure design** (`encloser_v2.1.stl` and the v3 cases), which recesses the bumps so no trimming is needed.
 
 ### Design notes (not bugs)
 
