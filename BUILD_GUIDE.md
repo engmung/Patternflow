@@ -105,6 +105,8 @@ If you want to order the PCB without manually uploading Gerbers, the Patternflow
 
 **Print the main body, dividers, and one knob file.** Print the knob STL that matches your encoder shaft length — `knobs_15mm.stl` or `knobs_20mm.stl`. Each file is one print job; each knob STL contains all four knobs.
 
+> 💡 **Easier option — skip the gluing.** [`hardware/case/legacy_v2/encloser_v2.1.stl`](hardware/case/legacy_v2/encloser_v2.1.stl) packs the newer **snap-fit** design, cut for the v2.1 board, into one STL — body, LED-panel mount, and knobs all inside. Print & assembly verified. Open it in your slicer, split the objects, print the knobs in black and the rest in white — then skip Section 3 entirely (no bonding; assembly follows the [v3 guide's Section 6](BUILD_GUIDE_v3.md#6-case-assembly) sequence). The plates below remain the classic, fully photo-documented path.
+
 > **Note:** an `easyfit` main-body variant (alignment tabs along the bond seam) existed briefly but was retired over a fit defect ([Issue #154](https://github.com/engmung/Patternflow/issues/154)). Use the standard `plate_main.stl`; the old variant remains at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case) if you're curious.
 
 ### Print Settings
