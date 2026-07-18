@@ -233,7 +233,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.
-- <!-- TODO: LED matrix alignment-bump trimming (#4) — confirm whether the v3 cases still need it. -->
+- **No LED-matrix bump trimming.** The enclosure recesses the panel's two alignment bumps, so the old nipper step ([#4](https://github.com/engmung/Patternflow/issues/4)) is gone. The design also gives you a snap-fit back panel and two wall-mount holes.
 
 ---
 
