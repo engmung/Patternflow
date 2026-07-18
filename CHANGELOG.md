@@ -7,7 +7,7 @@ All notable changes to Patternflow will be documented in this file.
 ### Added
 - **v3.0 board promoted to the recommended revision** (`hardware/pcb/gerber/patternflow_v3.0_gerber.zip`). Fabricated, assembled, and verified ([#114](https://github.com/engmung/Patternflow/issues/114)): hybrid power input — USB-C (`USB1` + 5.1k CC pull-downs) or a back-side 2-pin screw terminal (`J4`) as the beginner bypass — all-through-hole, no SMD passives. **Not size-compatible with v2.x cases (and vice versa).**
 - **Machine-readable BOM** (`hardware/bom/bom_v3.0.csv`): every part by manufacturer part number, per-unit quantities, assembly-critical notes. The LED panel remains an AliExpress link (its mounting-screw positions match the case).
-- **v3 build guide draft** (`BUILD_GUIDE_v3.md`) — structure in place, content being filled in.
+- **v3 build guide** — now the main `BUILD_GUIDE.md`: soldering covered by a full [video walkthrough](https://youtu.be/NZCjMBCsDAc), photo-documented print/case/wiring steps, netlist-derived pin reference. The v2 guide moved to `BUILD_GUIDE_v2.md` for existing v2.x builds.
 
 ### Changed
 - **`hardware/case/` reorganized by printer bed size**: `bed_256mm/encloser.stl` (the standard print — every part in one STL, 20 mm knobs included, ~10 h) and `bed_330mm/` (one-piece snap-fit). `bed_256mm/for_other_panels/` holds the community divided variant with an adjustable LED-panel mount ([#169](https://github.com/engmung/Patternflow/issues/169)-tested) for panels other than the BOM-linked one. All v2.x-board cases moved to `case/legacy_v2/`.

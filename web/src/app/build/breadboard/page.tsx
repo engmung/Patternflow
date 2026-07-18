@@ -142,7 +142,7 @@ export default function BreadboardBuildPage() {
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '12px', lineHeight: 1.5, color: 'var(--pf-ink-faint)' }}>
               Prefer Arduino IDE? See{' '}
-              <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#82-arduino-ide-manual--custom-builds" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>
+              <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#8-firmware" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>
                 official guide Section 8.2
               </a>{' '}
               for board settings and upload steps.
@@ -158,7 +158,7 @@ export default function BreadboardBuildPage() {
             color: 'var(--pf-ink-muted)'
           }}>
             <strong style={{ color: 'var(--pf-ink)' }}>🖨 3D-printed enclosure:</strong> Print the case <em>before</em> you start wiring — it takes ~11 hours. STL files and print settings are in the{' '}
-            <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#2-3d-printing" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>
+            <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#4-3d-printing" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>
               official Build Guide — Sections 2 & 3
             </a>. A cardboard box with four holes for the encoder shafts works too.
           </div>

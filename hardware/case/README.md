@@ -43,12 +43,12 @@ Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses 
 
 ## `legacy_v2/` — v2.x boards only
 
-Everything that fits the v2.x board generation, kept for existing builds. **None of these fit the v3.0 board.** The v2 build guide lives at the [v2.1.0 release](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md).
+Everything that fits the v2.x board generation, kept for existing builds. **None of these fit the v3.0 board.** Follow the [v2 build guide](../../BUILD_GUIDE_v2.md).
 
 | File | What |
 |---|---|
-| `encloser_v2.1.stl` | ✅ **Recommended v2 print** — the snap-fit design cut for the v2.1 board, every part in one STL (knobs included). Print & assembly verified. No body gluing, snap-fit back panel, two wall-mount holes, and **no LED-matrix bump trimming** ([#19](https://github.com/engmung/Patternflow/issues/19) recesses built in). Assemble per the sequence in the [v3 guide §6](../../BUILD_GUIDE_v3.md#6-case-assembly). |
-| `plate_main.stl` + `plate_dividers.stl` | Classic split plates (256 mm bed, glued) — the path the [v2 guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md) documents with full photos |
+| `encloser_v2.1.stl` | ✅ **Recommended v2 print** — the snap-fit design cut for the v2.1 board, every part in one STL (knobs included). Print & assembly verified. No body gluing, snap-fit back panel, two wall-mount holes, and **no LED-matrix bump trimming** ([#19](https://github.com/engmung/Patternflow/issues/19) recesses built in). Assemble per the sequence in the [v3 guide §6](../../BUILD_GUIDE.md#6-case-assembly). |
+| `plate_main.stl` + `plate_dividers.stl` | Classic split plates (256 mm bed, glued) — the path the [v2 guide](../../BUILD_GUIDE_v2.md) documents with full photos |
 | `oneshot_v2_part1/2.stl` | One-piece snap-fit for the v2.x board (330 mm+ bed) |
 
 (An `easyfit` plate variant existed briefly but was retired over a fit defect — [#154](https://github.com/engmung/Patternflow/issues/154). It remains browsable at the [v2.1.0 tag](https://github.com/engmung/Patternflow/tree/v2.1.0/hardware/case).)
