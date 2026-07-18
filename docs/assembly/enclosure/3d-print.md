@@ -17,7 +17,7 @@ Building for a **v2.x board**? Its case files moved to `hardware/case/legacy_v2/
 
 For full print settings, bonding steps, and assembly photos, follow the current detailed guide:
 
-[Open the 3D print build steps](../../../BUILD_GUIDE.md#2-3d-printing)
+[Open the 3D print build steps](../../../BUILD_GUIDE.md#4-3d-printing)
 
 Knob caps are printed separately (not part of the body) from the standalone knob STL matching your encoder shaft, in black. See [hardware/case/README.md](../../../hardware/case/README.md) for the full option matrix and assembly watch-outs.
 

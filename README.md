@@ -26,7 +26,7 @@
 - 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware.
 
-> **Moving fast.** The repo improves almost daily — [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0) consolidated the v2.x line (its release page bundles everything a v2 builder needs), and the **v3.0 board is verified and now the recommended build**: USB-C power with a beginner-friendly screw-terminal bypass, zero SMD passives, snap-fit enclosure. The [v3 build guide](BUILD_GUIDE_v3.md) is being finalized. Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+> **Moving fast.** The repo improves almost daily — [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0) consolidated the v2.x line (its release page bundles everything a v2 builder needs), and the **v3.0 board is verified and now the recommended build**: USB-C power with a beginner-friendly screw-terminal bypass, zero SMD passives, snap-fit enclosure. The [build guide](BUILD_GUIDE.md) now covers v3.0 (video-assisted soldering included). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 ## Quick facts
 
@@ -40,7 +40,7 @@
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Stock firmware from the browser (Chrome/Edge), no IDE needed; custom patterns via Arduino IDE |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
-| **Build** | 4–6 h active work + ~11 h 3D printing · intermediate skill · around US$80 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
+| **Build** | 3–5 h active work + ~10 h 3D printing · intermediate skill · around US$80 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web) · CC-BY-SA 4.0 (hardware & patterns) |
 
 ### Power & runtime
