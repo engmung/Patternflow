@@ -466,7 +466,7 @@ With flashing complete and the USB cable disconnected, plug the ESP32-S3 module 
 
 ### Still open
 
-- **Issue #4 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. On the glued-plate body, cut them off during assembly (see Section 5.1) — they cut easily. **Resolved in the snap-fit enclosure design** (`encloser_v2.1.stl` and the v3 cases), which recesses the bumps so no trimming is needed.
+- **Issue #19 -- LED matrix back has alignment bumps.** The matrix manufacturer leaves two small alignment bumps on the back of the panel. On the glued-plate body, cut them off during assembly (see Section 5.1) — they cut easily. **Resolved in the snap-fit enclosure design** (`encloser_v2.1.stl` and the v3 cases), which recesses the bumps so no trimming is needed.
 
 ### Design notes (not bugs)
 

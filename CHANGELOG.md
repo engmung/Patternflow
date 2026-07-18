@@ -79,7 +79,7 @@ The final consolidation release of the v2.x line before v3.0. Everything a v2.x 
 
 - `easyfit` main plate STL missing the divider slot ([#154](https://github.com/engmung/Patternflow/issues/154)).
 - Divided (256 mm bed) snap-fit enclosure not yet print-tested.
-- LED matrix alignment bumps still require manual trimming ([#4](https://github.com/engmung/Patternflow/issues/4)).
+- LED matrix alignment bumps still require manual trimming ([#19](https://github.com/engmung/Patternflow/issues/19)).
 
 ## [2.0.0] - 2026-05
 
@@ -98,7 +98,7 @@ The final consolidation release of the v2.x line before v3.0. Everything a v2.x 
 - **Cold-boot unreliability** after extended power-off. Root cause: GPIO0 strapping pin floating. Full story: [Issue #16](https://github.com/engmung/Patternflow/issues/16). Credit to @idranoutof1d and u/Infrated on r/AskElectronics.
 
 ### Still open
-- **Issue #4** -- LED matrix alignment bumps require manual trimming. Will be addressed when the LED diffuser variant ships.
+- **Issue #19** -- LED matrix alignment bumps require manual trimming. Will be addressed when the LED diffuser variant ships.
 
 ### Deliberate non-changes
 - **C11 (1000uF bulk cap)** retained despite USB inrush concerns. Patternflow is power-bank-powered, not desktop-USB-powered, and the cap improves boot transient stability.

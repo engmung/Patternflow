@@ -26,7 +26,7 @@ The original mass-production-oriented design: a single-piece body plus a snap-fi
 
 **`encloser.stl`** is the whole kit in one file: body parts, the LED-panel mounting part, and the 20 mm knobs. Split the objects in your slicer — knobs in **black**, everything else in **white**. ~10 hours total on a P1S. The LED-panel mount is sized for the panel linked in the [BOM](../bom/). (Its v2.1 twin — same design, cut for the v2.1 board — is print & assembly verified; this file is the v3.0 cut.)
 
-Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses for the LED matrix's alignment bumps — **no more nipper-trimming** the panel back (the old [#4](https://github.com/engmung/Patternflow/issues/4) workaround).
+Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses for the LED matrix's alignment bumps — **no more nipper-trimming** the panel back (the old [#19](https://github.com/engmung/Patternflow/issues/19) workaround).
 
 ### `for_other_panels/` — using a different LED panel?
 
@@ -47,7 +47,7 @@ Everything that fits the v2.x board generation, kept for existing builds. **None
 
 | File | What |
 |---|---|
-| `encloser_v2.1.stl` | ✅ **Recommended v2 print** — the snap-fit design cut for the v2.1 board, every part in one STL (knobs included). Print & assembly verified. No body gluing, snap-fit back panel, two wall-mount holes, and **no LED-matrix bump trimming** ([#4](https://github.com/engmung/Patternflow/issues/4) recesses built in). Assemble per the sequence in the [v3 guide §6](../../BUILD_GUIDE_v3.md#6-case-assembly). |
+| `encloser_v2.1.stl` | ✅ **Recommended v2 print** — the snap-fit design cut for the v2.1 board, every part in one STL (knobs included). Print & assembly verified. No body gluing, snap-fit back panel, two wall-mount holes, and **no LED-matrix bump trimming** ([#19](https://github.com/engmung/Patternflow/issues/19) recesses built in). Assemble per the sequence in the [v3 guide §6](../../BUILD_GUIDE_v3.md#6-case-assembly). |
 | `plate_main.stl` + `plate_dividers.stl` | Classic split plates (256 mm bed, glued) — the path the [v2 guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md) documents with full photos |
 | `oneshot_v2_part1/2.stl` | One-piece snap-fit for the v2.x board (330 mm+ bed) |
 
