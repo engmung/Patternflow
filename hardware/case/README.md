@@ -36,10 +36,7 @@ Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses 
 
 ### Assembly notes (both 256 mm variants)
 
-1. Match the **LED-panel mounting part** to your panel first.
-2. Insert the mounting part into the LED panel, then tighten the M4 screws.
-3. Fit the assembly into the enclosure and glue between the mounting part and the enclosure walls.
-4. ⚠️ Watch-outs: the panel insertion is very tight (near-zero clearance); flat-printed edges come out slightly rounded, so glued seams can show a small gap — fill with putty or a baking-soda + CA filler. If the mounting-part bond isn't solid, gripping the enclosure at the LED side can flex the wall.
+The full photo sequence lives in the [build guide](../../BUILD_GUIDE.md) — §4 (bond the printed halves right after printing) and §6 (panel in with `HUB-75E IN` toward the top → mounting part + screws → board in, encoder nuts from the front). Two watch-outs: the panel insertion is very tight (near-zero clearance) — work it in slowly — and bonded seams can show a hairline gap, fillable with putty or baking soda + CA.
 
 ## `legacy_v2/` — v2.x boards only
 
