@@ -72,9 +72,7 @@ PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** G
 
 > ⚠️ **For this (v2) guide, order v2.1 only.** This guide and its case files are built around the v2.1 board. The newer **v3.0 board** (`patternflow_v3.0_gerber.zip`, verified in [#114](https://github.com/engmung/Patternflow/issues/114)) is a different size — it does **not** fit the v2 cases described here, and v2.1 boards don't fit the v3 cases. The v3 build guide is being written; its case files live in `hardware/case/bed_330mm/` and `bed_256mm/`.
 
-If you want to order the PCB without manually uploading Gerbers, the Patternflow PCB is also listed as a PCBWay open-source project:
-
-<a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
+> ⚠️ **Don't order through the PCBWay shared project for this guide.** The [Patternflow PCBWay project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html) now carries the **v3.0 board**, which does not fit the v2 cases described here. For a v2 build, download `patternflow_v2.1_gerber.zip` and upload it to your fab yourself.
 
 > ℹ️ **ESP32-S3 sourcing.** Espressif-branded modules are the reference; AliExpress modules generally work fine too. If yours exhibits the [cold-boot issue (Issue #16)](https://github.com/engmung/Patternflow/issues/16), the on-module 10k GPIO0 pullup fix photographed in that issue solves it — one resistor.
 
