@@ -83,6 +83,23 @@ export const builds: Build[] = [
     ],
   },
   {
+    id: 'iran-azmano',
+    location: { lat: 35.6892, lng: 51.389, label: 'Iran' },
+    maker: 'Azmano',
+    country: 'Iran',
+    date: 'July 2026',
+    description:
+      'MOTIFLOW — a browser-based live visual instrument developed in collaboration with Azmano, using patterns adapted from Patternflow. Movement, sound, color, symmetry, and MIDI control turn the digital image into something that can be played.',
+    links: [
+      { href: 'https://azmano.art/portfolio-item/motiflow/', label: 'Project page on azmano.art' },
+    ],
+    images: [
+      { src: '/builds/azmano/performance.webp', alt: 'A performer moving in front of a projected MOTIFLOW pattern, with an LED column glowing beside them' },
+      { src: '/builds/azmano/interface.png', alt: 'The MOTIFLOW control interface with a red-and-white pattern on the canvas' },
+      { src: '/builds/azmano/pattern.png', alt: 'A yellow-and-cyan tiled pattern generated in MOTIFLOW' },
+    ],
+  },
+  {
     id: 'norway-enerjoy',
     location: { lat: 68.4385, lng: 17.4273, label: 'Narvik, Norway' },
     maker: 'Enerjoy',
