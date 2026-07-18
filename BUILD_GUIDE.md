@@ -101,8 +101,11 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 
 | Your printer bed | Print | Notes |
 |---|---|---|
-| **256 mm** (P1S / X1C / A1 class) | `bed_256mm/encloser.stl` | **One STL, every part** — body, LED-panel mount, and 20 mm knobs. Split the objects in your slicer: knobs in black, the rest in white. ~10 h total. |
-| **~330 mm+** (H2S class) | `bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit — fewer parts. Print knobs separately from `knobs/`. |
+| **256 mm** (P1S / X1C / A1 class) | `bed_256mm/encloser.stl` | Body frame, back panels, and LED-panel mount in one STL. **White PLA.** ~10 h total. |
+| **~330 mm+** (H2S class) | `bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit — fewer parts. **White PLA.** |
+| **Everyone** | `knobs/knobs_20mm.stl` | **Required for every build** — all four knobs in one plate, as its own separate print job. **Black PLA.** (15 mm-shaft encoders → `knobs_15mm.stl`.) |
+
+Two colors, on purpose: **body in white, knobs in black** — that contrast is the Patternflow look. Printing the knob plate as a separate job keeps it simple (no color changes mid-print).
 
 > **Using a different LED panel than the BOM link?** Panel suppliers drill mounting holes in different places. Print `bed_256mm/for_other_panels/divided_v3_part1..5.stl` instead — its LED-mount part adjusts to varying bolt-hole positions ([#169](https://github.com/engmung/Patternflow/issues/169)-verified). Even so, check the mount against your panel before committing: a very different hole layout may still not fit.
 
@@ -116,13 +119,9 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 
 ### Bond the printed halves — right after printing
 
-The 256 mm print splits the **enclosure frame** and the **back panel** into upper and lower halves. As soon as the parts are off the bed, glue each pair together with CA glue — masking tape holds them while curing:
+The 256 mm print splits the **enclosure frame** and the **back panel** into upper and lower halves. As soon as the parts are off the bed, glue each pair together with CA glue — masking tape holds them while curing (left). Backlit (right), a bonded seam shows a hairline gap — that's normal, and putty or baking soda + CA glue fills it:
 
-<img src="docs/build-guide/images/v3/03_glue_mount.jpg" width="60%">
-
-Backlighting shows what a bonded seam looks like — a hairline gap is normal, and putty or baking soda + CA glue fills it:
-
-<img src="docs/build-guide/images/v3/04_seam_gap.jpg" width="60%">
+<img src="docs/build-guide/images/v3/03_glue_mount.jpg" width="42%"> <img src="docs/build-guide/images/v3/04_seam_gap.jpg" width="42%">
 
 **Let the glue cure while you solder the PCB (Section 5).** By the time the board is done, the enclosure is ready.
 
@@ -200,6 +199,8 @@ By now the enclosure halves you bonded in Section 4 have cured and the board is 
 
 *The ESP32, the PCB, and the cables, ready to go in.*
 
+> Printed the **330 mm one-piece body**? Everything in this section is identical — the only thing you skipped is the bonding step in Section 4. <!-- TODO: dedicated 330 mm photos once a unit is built. -->
+
 1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from:
 
    <img src="docs/build-guide/images/v3/12_hub_in_up.jpg" width="60%">
@@ -216,11 +217,7 @@ By now the enclosure halves you bonded in Section 4 have cured and the board is 
 
    *Photo from the v2 build — same encoders, same step.*
 
-### 330 mm (one-piece) path
-
-Same design, fewer parts: the body prints in one piece, so there is nothing to bond — the panel, mount, and board go in the same way as above. <!-- TODO: dedicated photos once a 330 mm unit is built. -->
-
-### Both paths
+### Finishing touches
 
 - The power bank slides into the internal compartment behind the board bay.
 - The four black knobs press-fit onto the encoder shafts — save them for **last**, after the Section 9 checks pass:
