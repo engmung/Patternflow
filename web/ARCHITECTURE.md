@@ -15,7 +15,6 @@ The `web/` app is the Patternflow site at [patternflow.work](https://patternflow
 | `/roadmap` | Roadmap rendered from GitHub issues via `/api/roadmap` |
 | `/api/roadmap` | Server route that pulls open issues + sub-issue progress (10 min revalidate; optional `GITHUB_TOKEN` for rate limit) |
 | `/pattern-lab` | **Internal, noindex.** Pattern authoring/curation workspace: Monaco editor, preset library, BYOK Gemini generation, JS→C++ conversion prompt |
-| `/video-baker` | **Internal, noindex.** Bakes video clips into 128×64 PFV loops for the hardware |
 | `/business` · `/contact` | Static pages |
 | `feed.xml` · `sitemap.ts` · `robots.ts` | Feeds and SEO plumbing |
 
@@ -47,8 +46,6 @@ This is the core of the site and mirrors the firmware:
 - **`src/lib/patternHarness.ts`** — runs pattern JS in the browser on a 128×64 virtual matrix with 4 virtual encoders (20 detents/turn), matching device semantics (`knobDeltas`, `btnPressed`/`btnHeld`).
 - **`src/lib/gemini.ts`** — bring-your-own-key Gemini generation for Pattern Lab. The key lives in `localStorage` and calls go straight from the browser to Google; no server proxy, no bundled key.
 - **Flasher** — esp-web-tools driven by `public/flash/manifest.json` + prebuilt binaries in `public/flash/bin/`.
-- **`src/lib/serialUpload.ts`** — Web Serial upload of PFV data to a running device (`PFV:<name>:<size>\n` + raw bytes).
-- **`src/lib/pfv.ts`** — PFV1 binary LED video format (128×64, RGB565). **`src/lib/ledPipeline.ts`** — fit/crop/dither correction pipeline. **`src/lib/videoDecoder.ts`** — mp4box + WebCodecs decode for the Video Baker.
 
 ## Content pipeline
 

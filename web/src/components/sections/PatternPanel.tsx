@@ -6,7 +6,7 @@ import { SectionContent } from '@/lib/content';
 import Script from 'next/script';
 import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
-import { livePresets } from '@/lib/presets';
+import { showcasePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
 import SharePatternModal from '@/components/share/SharePatternModal';
 import styles from './PatternPanel.module.css';
@@ -216,7 +216,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const [mode, setMode] = useState<PatternMode>('create');
   // Start with Origin selected; the effect below loads it into the editor.
   const [activePresetId, setActivePresetId] = useState<string | null>(() =>
-    livePresets.some((p) => p.id === 'origin') ? 'origin' : null,
+    showcasePresets.some((p) => p.id === 'origin') ? 'origin' : null,
   );
   const [shareOpen, setShareOpen] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
@@ -234,7 +234,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
 
   // Load Origin into the editor (zustand store) once on mount.
   useEffect(() => {
-    const origin = livePresets.find((p) => p.id === 'origin');
+    const origin = showcasePresets.find((p) => p.id === 'origin');
     if (origin) {
       setCustomJsCode(origin.code);
     }
@@ -276,7 +276,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   };
   
   const handleLoadPreset = (presetId: string) => {
-    const preset = livePresets.find((p) => p.id === presetId);
+    const preset = showcasePresets.find((p) => p.id === presetId);
     if (!preset) return;
     setCustomJsCode(preset.code);
     setActivePresetId(preset.id);
@@ -289,21 +289,21 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     });
   };
 
-  const activePresetIndex = livePresets.findIndex((p) => p.id === activePresetId);
+  const activePresetIndex = showcasePresets.findIndex((p) => p.id === activePresetId);
 
   const handleStepPreset = (dir: number) => {
-    if (livePresets.length === 0) return;
+    if (showcasePresets.length === 0) return;
     const base = activePresetIndex >= 0 ? activePresetIndex : dir > 0 ? -1 : 0;
-    const next = (base + dir + livePresets.length) % livePresets.length;
-    handleLoadPreset(livePresets[next].id);
+    const next = (base + dir + showcasePresets.length) % showcasePresets.length;
+    handleLoadPreset(showcasePresets[next].id);
   };
 
   const handleRandomPreset = () => {
-    if (livePresets.length === 0) return;
-    let nextPreset = livePresets[Math.floor(Math.random() * livePresets.length)];
-    if (activePresetId && livePresets.length > 1) {
+    if (showcasePresets.length === 0) return;
+    let nextPreset = showcasePresets[Math.floor(Math.random() * showcasePresets.length)];
+    if (activePresetId && showcasePresets.length > 1) {
       while (nextPreset.id === activePresetId) {
-        nextPreset = livePresets[Math.floor(Math.random() * livePresets.length)];
+        nextPreset = showcasePresets[Math.floor(Math.random() * showcasePresets.length)];
       }
     }
     handleLoadPreset(nextPreset.id);
@@ -455,7 +455,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   setCustomJsCode(next);
                   // Deselect the chip once the code is edited away from the preset.
                   if (activePresetId) {
-                    const preset = livePresets.find((p) => p.id === activePresetId);
+                    const preset = showcasePresets.find((p) => p.id === activePresetId);
                     if (!preset || preset.code !== next) setActivePresetId(null);
                   }
                 }}
@@ -479,7 +479,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   ‹
                 </button>
                 <span className={styles.presetCount}>
-                  {activePresetIndex >= 0 ? activePresetIndex + 1 : '–'}/{livePresets.length}
+                  {activePresetIndex >= 0 ? activePresetIndex + 1 : '–'}/{showcasePresets.length}
                 </span>
                 <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
                   ›
@@ -524,9 +524,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     <span className={styles.toolLabel}>Pattern tools</span>
                     <Link href="/pattern-lab" className={styles.toolLink}>
                       Pattern Lab
-                    </Link>
-                    <Link href="/video-baker" className={styles.toolLink}>
-                      Video Baker (to be deprecated)
                     </Link>
                   </div>
                 </div>

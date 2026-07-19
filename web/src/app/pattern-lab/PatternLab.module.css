@@ -313,24 +313,6 @@
   accent-color: #171512;
 }
 
-.rampDemo {
-  margin-left: auto;
-  min-height: 28px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 8px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.rampDemo:hover {
-  border-color: #171512;
-}
-
 .rampTrack {
   position: relative;
   height: 34px;
@@ -652,6 +634,19 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.presetStep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.presetStep span {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  min-width: 44px;
+  text-align: center;
 }
 
 .editorHeader .guideButton {

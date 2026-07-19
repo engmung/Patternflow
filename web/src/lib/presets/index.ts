@@ -39,6 +39,19 @@ import { preset as pattern_0614_2 } from "./pattern-0614-2";
 import { preset as pattern_0619 } from "./pattern-0619";
 import { preset as pattern_0622 } from "./pattern-0622";
 import { preset as pattern_0624 } from "./pattern-0624";
+import { preset as pattern_0628 } from "./pattern-0628";
+import { preset as pattern_0629 } from "./pattern-0629";
+import { preset as pattern_0629_2 } from "./pattern-0629-2";
+import { preset as pattern_0701 } from "./pattern-0701";
+import { preset as pattern_0707 } from "./pattern-0707";
+import { preset as pattern_0710 } from "./pattern-0710";
+import { preset as pattern_0712 } from "./pattern-0712";
+import { preset as pattern_0712_2 } from "./pattern-0712-2";
+import { preset as pattern_0713 } from "./pattern-0713";
+import { preset as pattern_0715 } from "./pattern-0715";
+import { preset as pattern_0716 } from "./pattern-0716";
+import { preset as pattern_0718 } from "./pattern-0718";
+import { preset as pattern_0719 } from "./pattern-0719";
 import { preset as pattern_a_big_hit } from "./pattern-a-big-hit";
 
 const presets: LivePreset[] = [
@@ -76,10 +89,26 @@ const presets: LivePreset[] = [
   pattern_0619,
   pattern_0622,
   pattern_0624,
+  pattern_0628,
+  pattern_0629,
+  pattern_0629_2,
+  pattern_0701,
+  pattern_0707,
+  pattern_0710,
+  pattern_0712,
+  pattern_0712_2,
+  pattern_0713,
+  pattern_0715,
+  pattern_0716,
+  pattern_0718,
+  pattern_0719,
   pattern_a_big_hit
 ];
 
 export type { LivePreset } from "./types";
 
-/** All live-editor presets, sorted by pattern number. */
+/** All live-editor presets, sorted by pattern number. Pattern Lab shows this full set. */
 export const livePresets: LivePreset[] = [...presets].sort((a, b) => a.num - b.num);
+
+/** Presets for the simple /pattern showcase — lab-only patterns are excluded. */
+export const showcasePresets: LivePreset[] = livePresets.filter((p) => !p.labOnly);

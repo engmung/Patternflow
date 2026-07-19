@@ -20,6 +20,8 @@ export const preset: LivePreset = {
   license: "CC-BY-SA-4.0",   // SPDX id; project default is CC-BY-SA-4.0
   source: "",                // Instagram/Discord/PR URL, if any
   lineage: "original",       // e.g. "remixed from @someone's Wave Saw"
+  // labOnly: true,          // set if it needs Pattern Lab features (color ramp /
+  //                         // value panel) — hides it from the /pattern showcase
 
   code: `// Pattern: Template
 // Author: engmung
