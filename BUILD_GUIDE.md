@@ -100,7 +100,7 @@ Case folders are named by **printer bed size** — see [`hardware/case/`](hardwa
 | Your printer bed | Print | Notes |
 |---|---|---|
 | **256 mm** (P1S / X1C / A1 class) | `bed_256mm/encloser.stl` | Body frame, back panels, and LED-panel mount in one STL. **White PLA.** ~10 h total. |
-| **~330 mm+** (H2S class) | `bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit — fewer parts. **White PLA.** |
+| **~330 mm+** (H2S class) | `bed_330mm/encloser.stl` | The one-piece original — body, closing part, and LED-panel mount in one STL, **no bonding at all**. **White PLA.** |
 | **Everyone** | `knobs/knobs_20mm.stl` | **Required for every build** — all four knobs in one plate, as its own separate print job. **Black PLA.** (15 mm-shaft encoders → `knobs_15mm.stl`.) |
 
 Two colors, on purpose: **body in white, knobs in black** — that contrast is the Patternflow look. Printing the knob plate as a separate job keeps it simple (no color changes mid-print).
@@ -183,7 +183,7 @@ Sections 6, 7, and 9 are covered in **one YouTube video** — the full assembly,
 
 By now the enclosure halves you bonded in Section 4 have cured and the board is soldered — time to bring them together. The video above walks every step; in writing:
 
-> Printed the **330 mm one-piece body**? Everything in this section is identical — the only thing you skipped is the bonding step in Section 4. <!-- TODO: dedicated 330 mm photos once a unit is built. -->
+> Printed the **330 mm one-piece body**? Everything in this section is identical — the only thing you skipped is the bonding step in Section 4.
 
 1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from. ⚠️ The panel insertion is very tight — near-zero clearance. Work it in slowly.
 

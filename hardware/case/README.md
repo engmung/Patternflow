@@ -9,7 +9,7 @@
 | Your printer bed | Print | Design | Status |
 |---|---|---|---|
 | **256 mm** (Bambu P1S / X1C / A1 class) | [`bed_256mm/encloser.stl`](bed_256mm/) | The snap-fit design split for a 256 mm bed — body frame, back panels, and LED-panel mount in one STL | ✅ Standard option, ~10 h total |
-| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/`](bed_330mm/) | One-piece snap-fit body + closing part | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)); print verification of this exact STL pending |
+| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/encloser.stl`](bed_330mm/) | The one-piece original — body, closing part, and LED-panel mount in one STL, no bonding at all | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)) |
 
 **Whichever body you print, also print [`knobs/knobs_20mm.stl`](knobs/) — required for every build.** Knobs go in **black**, everything else in **white**; run the knob plate as its own print job. (15 mm-shaft encoders → `knobs_15mm.stl`; 15 mm and 20 mm shafts are functionally identical, and the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm.)
 
@@ -17,10 +17,7 @@
 
 The original mass-production-oriented design: a single-piece body plus a snap-fit closing part, wall-mount hanger hole included. No bonding step at all. Does **not** fit a 256 mm bed.
 
-| File | Color |
-|---|---|
-| `oneshot_v3_part1.stl` | White PLA |
-| `oneshot_v3_part2.stl` | White PLA |
+**`encloser.stl`** — everything in one STL (body, closing part, LED-panel mount), all **white** PLA; knobs from [`knobs/`](knobs/) in black. Same design as the print-&-assembly-verified 256 mm kit, just uncut.
 
 ## `bed_256mm/` — the standard build
 

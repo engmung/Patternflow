@@ -32,7 +32,7 @@ The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 
 
 ### Hardware (Case)
 The current enclosure is modeled in Blender. `hardware/case/` is organized by printer bed size, for the v3.0 board:
-1. `bed_330mm/`: one-piece snap-fit body (oneshot_v3_part1/2.stl) — H2S-class beds, the main design.
+1. `bed_330mm/encloser.stl`: one-piece snap-fit body, one STL — H2S-class beds, the main design.
 2. `bed_256mm/`: divided snap-fit, 5 parts (divided_v3_part1..5.stl) — P1S-class beds; print & assembly tested (#169), separate LED-panel mounting part adapts to varying panel bolt-hole positions.
 3. `knobs/knobs_15mm.stl` / `knobs/knobs_20mm.stl`: Black PLA knobs, shared by all body options.
 4. `legacy_v2/`: every v2.x-board case (standard plates, oneshot_v2, divided_v2.1) — NOT compatible with the v3.0 board.
