@@ -33,7 +33,7 @@ The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 
 ### Hardware (Case)
 The current enclosure is modeled in Blender. `hardware/case/` is organized by printer bed size, for the v3.0 board:
 1. `bed_330mm/encloser.stl`: one-piece snap-fit body, one STL — H2S-class beds, the main design.
-2. `bed_256mm/`: divided snap-fit, 5 parts (divided_v3_part1..5.stl) — P1S-class beds; print & assembly tested (#169), separate LED-panel mounting part adapts to varying panel bolt-hole positions.
+2. `bed_256mm/encloser.stl`: the standard 256mm print — body frame, back panels, and LED-panel mount in one STL; print & assembly verified. `for_other_panels/divided_v3_part1..5.stl` is the adjustable-mount variant for non-standard panels (#169).
 3. `knobs/knobs_15mm.stl` / `knobs/knobs_20mm.stl`: Black PLA knobs, shared by all body options.
 4. `legacy_v2/`: every v2.x-board case (standard plates, oneshot_v2, divided_v2.1) — NOT compatible with the v3.0 board.
 
@@ -58,7 +58,7 @@ The project maintains a strict dual-license approach to accommodate the differin
 For full details, reference `BUILD_GUIDE.md` §10. Summary:
 1. **Cold boot reliability:** fixed in v2.0 with a 10k GPIO0 pullup.
 2. **SMD silkscreen ambiguity:** fixed in v2.0.
-3. **LED matrix alignment bumps:** still open; current workaround is trimming during assembly.
+3. **LED matrix alignment bumps:** resolved by the v3 snap-fit enclosures (built-in recesses); trimming only applies to the legacy v2 glued plates.
 4. **Encoder direction:** handled in firmware.
 5. **Encoder shaft length:** 15mm and 20mm EC11 shafts are functionally identical — purely preference. The BOM reference part (Bourns PEC11R-4220F-S0024) is 20mm; both knob STLs are kept.
 
