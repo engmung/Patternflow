@@ -276,6 +276,22 @@
   color: var(--pf-cream);
 }
 
+.toolItem {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.toolDesc {
+  margin: 0;
+  max-width: 560px;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
 .unsupported {
   margin-top: 10px;
   color: var(--pf-ink-muted);

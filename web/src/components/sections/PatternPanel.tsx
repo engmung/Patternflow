@@ -531,9 +531,14 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   </div>
                   <div className={styles.toolLinks}>
                     <span className={styles.toolLabel}>Pattern tools</span>
-                    <Link href="/pattern-lab" className={styles.toolLink}>
-                      Pattern Lab
-                    </Link>
+                    <div className={styles.toolItem}>
+                      <Link href="/pattern-lab" className={styles.toolLink}>
+                        Pattern Lab
+                      </Link>
+                      <p className={styles.toolDesc}>
+                        Use Pattern Lab if you want to build more sophisticated patterns.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
