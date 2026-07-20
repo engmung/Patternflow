@@ -1,8 +1,6 @@
 # Patternflow v3.0.0 -- Build Guide
 
 > **Building a v2.x board?** Use the [v2 build guide](BUILD_GUIDE_v2.md) instead — v2 and v3 parts are **not** interchangeable.
->
-> 📷 A couple of photos (Sections 7 and 9) were shot on the v2.1-cut twin build (red board). The v3 procedure is identical; they'll be re-shot on a v3 unit soon.
 
 This guide walks you through building a Patternflow v3.0.0 from scratch. It assumes basic familiarity with through-hole soldering and 3D printing.
 
@@ -83,7 +81,7 @@ The v3.0 board has **two power inputs on one board**. Pick one before ordering p
 | Power cable | Any USB cable, stripped, wires screwed in | Standard USB-C cable |
 | Difficulty | Easy — the classic Patternflow method | ⚠️ **Hard.** The Type-C THT signal pins are tightly pitched; a solder bridge here has shorted and **burned a board** ([#114](https://github.com/engmung/Patternflow/issues/114)). Flux, fine tip, magnification, patience. |
 
-**If in doubt, take Path A.** The result is electrically identical. You can also populate both — the reference build in this guide does (see the finished-board photos in Section 5).
+**If in doubt, take Path A.** The result is electrically identical. You can also populate both — the reference build in this guide does.
 
 ## 3. Order the PCB
 
@@ -135,25 +133,7 @@ The whole PCB assembly is covered in **one YouTube video** — soldering order i
 
 **[▶ Watch on YouTube — Patternflow v3.0 PCB soldering walkthrough](https://youtu.be/NZCjMBCsDAc)**
 
-<img src="docs/build-guide/images/v3/05_solder_layout.jpg" width="70%">
-
-*Everything laid out before soldering. (This photo predates the R1/R2 5.1kΩ resistors — add those two to the lineup if you're on Path B.)*
-
-Two things to keep next to the video:
-
-**Path B (USB-C) only — read the warning in Section 2 first**, then compare your joints against these two:
-
-| ❌ Like this, and it can short | ✅ Aim for this |
-|---|---|
-| <img src="docs/build-guide/images/v3/06_usbc_bad.jpg" width="100%"> | <img src="docs/build-guide/images/v3/07_usbc_good.jpg" width="100%"> |
-
-And before first power, go over the joints with a multimeter:
-
-<img src="docs/build-guide/images/v3/08_short_check.jpg" width="60%">
-
-Done right, it looks like this (this build populated both power paths):
-
-<img src="docs/build-guide/images/v3/09_board_front.jpg" width="49%"> <img src="docs/build-guide/images/v3/10_board_back.jpg" width="49%">
+All parts are through-hole, and the video covers the complete order — including the USB-C connector, where the **first attempt (11:00) shows exactly what goes wrong** when you push too hard, and the second attempt (12:40) shows the fix. **Path B builders: read the warning in Section 2 first**, and go over the finished joints with a multimeter before first power.
 
 Don't plug the ESP32 DevKit in until after the first power check (Section 7).
 
@@ -201,48 +181,25 @@ Sections 6, 7, and 9 are covered in **one YouTube video** — the full assembly,
 
 **[▶ Watch on YouTube — Patternflow v3.0 assembly & first power-on](https://youtu.be/J9C9bZgkNKs)**
 
-By now the enclosure halves you bonded in Section 4 have cured and the board is soldered — time to bring them together:
-
-<img src="docs/build-guide/images/v3/11_ready_to_mate.jpg" width="70%">
-
-*The ESP32, the PCB, and the cables, ready to go in.*
+By now the enclosure halves you bonded in Section 4 have cured and the board is soldered — time to bring them together. The video above walks every step; in writing:
 
 > Printed the **330 mm one-piece body**? Everything in this section is identical — the only thing you skipped is the bonding step in Section 4. <!-- TODO: dedicated 330 mm photos once a unit is built. -->
 
-1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from:
-
-   <img src="docs/build-guide/images/v3/12_hub_in_up.jpg" width="60%">
-
-   ⚠️ The panel insertion is very tight — near-zero clearance. Work it in slowly.
+1. **Seat the LED panel in the enclosure with its `HUB-75E IN` connector toward the top** — that's the side the ribbon reaches `J1` from. ⚠️ The panel insertion is very tight — near-zero clearance. Work it in slowly.
 
 2. **Fit the LED-panel mounting part and tighten the screws.** The mounting part is a separate piece precisely because panel bolt-hole positions vary between suppliers — match it to your panel first.
 
-   <img src="docs/build-guide/images/v3/13_mount_screws.jpg" width="60%">
-
 3. **Set the board into its bay and secure the encoders from the front**: attach each encoder's nut and tighten with a wrench or pliers — this locks the board against the front face.
-
-   <img src="docs/build-guide/images/encoder_nut.jpg" width="33%">
-
-   *Photo from the v2 build — same encoders, same step.*
 
 ### Finishing touches
 
 - The power bank slides into the internal compartment behind the board bay.
-- The four black knobs press-fit onto the encoder shafts — save them for **last**, after the Section 9 checks pass:
-
-  <img src="docs/build-guide/images/knobs.jpg" width="33%">
-
-  *Photo from the v2 build — same press-fit.*
+- The four black knobs press-fit onto the encoder shafts — save them for **last**, after the Section 9 checks pass.
 
 ## 7. Wiring & First Power-Up
 
 1. Connect the HUB75 ribbon from `J1` to the panel's `IN` connector.
-2. Wire `J3` to the panel's power cable (+5V / GND — double-check polarity).
-
-   <img src="docs/build-guide/images/v3/14_wiring.jpg" width="70%">
-
-   *📷 Shot on the v2.1 twin build (red board) — the v3 wiring is identical. Photo will be refreshed.*
-
+2. Wire `J3` to the panel's power cable (+5V / GND — double-check polarity). The wiring run is shown at **06:57** in the [assembly video](https://youtu.be/J9C9bZgkNKs).
 3. Power: Path A — stripped USB cable into `J4` (red = +5V, black = GND); Path B — USB-C cable into `USB1`.
 4. **Before inserting the ESP32:** with power disconnected, continuity-check +5V↔GND at the `J3` terminals (open = good, like the Section 5 check). Then power up once and confirm ~5V across `J3`.
 5. Power off, seat the ESP32 DevKit in its sockets (orientation per silkscreen), power on.
@@ -287,11 +244,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 4. Press-click each encoder once; long-press **K4** (~1s) to enter pattern select, rotate to browse, long-press again to exit.
 5. Long-press **K1** for the global brightness mode; **K2** long-press shows the OSC info screen.
 6. Power-cycle once and confirm it boots cleanly with no RESET press needed (see the GPIO0 note in Section 5 if it doesn't).
-7. All good? **Close the back panel**: hook the right edge in first, then press along the snap-fit until it clicks shut. Press the knobs onto the shafts last.
-
-   <img src="docs/build-guide/images/v3/15_close_back.jpg" width="70%">
-
-   *📷 Shot on the v2.1 twin build — identical procedure on v3. Photo will be refreshed.*
+7. All good? **Close the back panel**: hook the right edge in first, then press along the snap-fit until it clicks shut (shown at **09:11** in the [assembly video](https://youtu.be/J9C9bZgkNKs)). Press the knobs onto the shafts last.
 
 ## 10. Known Issues & Design Notes
 
