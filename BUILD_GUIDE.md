@@ -193,6 +193,14 @@ Extracted from the v3.0 netlist (identical functions to v2.x — the same firmwa
 
 ## 6. Case Assembly
 
+### ▶️ Video: from printed parts to first power-on
+
+Sections 6, 7, and 9 are covered in **one YouTube video** — the full assembly, wiring, and first boot. Click to watch:
+
+[![▶ YouTube — Patternflow v3.0 enclosure assembly & first power-on](https://img.youtube.com/vi/J9C9bZgkNKs/maxresdefault.jpg)](https://youtu.be/J9C9bZgkNKs)
+
+**[▶ Watch on YouTube — Patternflow v3.0 assembly & first power-on](https://youtu.be/J9C9bZgkNKs)**
+
 By now the enclosure halves you bonded in Section 4 have cured and the board is soldered — time to bring them together:
 
 <img src="docs/build-guide/images/v3/11_ready_to_mate.jpg" width="70%">

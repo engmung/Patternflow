@@ -32,7 +32,7 @@ None are required — the site runs fully without them.
 
 ## Where things live
 
-- `src/app/` — routes (App Router). `/pattern-lab` and `/video-baker` are internal noindex tools.
+- `src/app/` — routes (App Router). `/pattern-lab` is an internal noindex tool.
 - `src/components/` — 3D viewer, landing sections, journal renderer.
 - `src/lib/presets/` — JS pattern library; **source of truth** for the firmware preset headers.
 - `content/` — markdown/MDX site copy and journal articles. Editing copy means editing these files.

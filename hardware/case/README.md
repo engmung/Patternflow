@@ -24,7 +24,7 @@ The original mass-production-oriented design: a single-piece body plus a snap-fi
 
 ## `bed_256mm/` — the standard build
 
-**`encloser.stl`** puts the whole body in one file: frame and back-panel halves plus the LED-panel mounting part, all in **white** PLA. ~10 hours total on a P1S. Print the knobs separately from [`knobs/`](knobs/), in **black**. The LED-panel mount is sized for the panel linked in the [BOM](../bom/). (Its v2.1 twin — same design, cut for the v2.1 board — is print & assembly verified; this file is the v3.0 cut.)
+**`encloser.stl`** puts the whole body in one file: frame and back-panel halves plus the LED-panel mounting part, all in **white** PLA. ~10 hours total on a P1S. Print the knobs separately from [`knobs/`](knobs/), in **black**. The LED-panel mount is sized for the panel linked in the [BOM](../bom/). **Print & assembly verified** — the [assembly video](https://youtu.be/J9C9bZgkNKs) builds from this exact file.
 
 Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses for the LED matrix's alignment bumps — **no more nipper-trimming** the panel back (the old [#19](https://github.com/engmung/Patternflow/issues/19) workaround).
 

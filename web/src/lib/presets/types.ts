@@ -26,4 +26,10 @@ export type LivePreset = {
   source?: string;
   /** Remix lineage, e.g. "remixed from @someone's Wave Saw". "original" if none. */
   lineage?: string;
+  /**
+   * Made with Pattern Lab-only features (color ramp / value panel), so the
+   * simple /pattern preview can't render it faithfully. Excluded from the
+   * /pattern showcase; Pattern Lab always shows the full set.
+   */
+  labOnly?: boolean;
 };

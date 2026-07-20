@@ -52,9 +52,14 @@ import {
 } from "@/lib/patternPatch";
 import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
-import { preset as originPreset } from "@/lib/presets/pattern-origin";
 import { livePresets } from "@/lib/presets";
 import styles from "./PatternLab.module.css";
+
+// Pattern Lab's own presets — the labOnly set (built on lab features like the
+// color ramp / value field) that the /pattern showcase hides. The header
+// stepper browses these; the editor opens on the first one.
+const labPresets = livePresets.filter((preset) => preset.labOnly);
+const initialLabPreset = labPresets[0] ?? livePresets[0];
 
 const DEFAULT_KNOB_LABELS = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
 const initialKnobs = [...LOGICAL_KNOB_DEFAULTS];
@@ -89,6 +94,22 @@ function parseKnobsAnnotation(code: string): KnobAnnotationEntry[] | null {
   return result.some(Boolean) ? result : null;
 }
 const defaultRanges: KnobRange[] = LOGICAL_KNOB_RANGES.map(([min, max]) => [min, max]);
+
+// The initial preset seeds useState directly (bypassing updateCode), so honor
+// its @knobs annotation here; every later load goes through applyKnobsAnnotation.
+const initialAnnotationRaw = initialLabPreset.code.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
+const initialAnnotation = initialAnnotationRaw ? parseKnobsAnnotation(initialLabPreset.code) : null;
+const presetKnobLabels = DEFAULT_KNOB_LABELS.map(
+  (label, index) => initialAnnotation?.[index]?.name ?? label,
+);
+const presetRanges: KnobRange[] = defaultRanges.map((range, index) => {
+  const entry = initialAnnotation?.[index];
+  return entry ? [entry.min, entry.max] : range;
+});
+const presetKnobs = initialKnobs.map((value, index) => {
+  const entry = initialAnnotation?.[index];
+  return entry ? Math.max(entry.min, Math.min(entry.max, value)) : value;
+});
 const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
 const pixelsPerDigitStep = 10;
@@ -255,50 +276,6 @@ function loadStoredPatch(): PatchState {
     return DEFAULT_PATCH;
   }
 }
-
-// Demo pattern for the value-field workflow: pure 0..1 field via setValue,
-// color comes entirely from the Color Ramp panel.
-const VFIELD_DEMO_CODE = `// V-field demo — this pattern outputs only a 0..1 value field.
-// Color comes from the Color Ramp panel, not from this code.
-// @knobs Warp=0..2.2, Speed=0.1..10, Zoom=0.6..3, Bands=0..8
-
-export function setup(params) {
-  params.t = 0;
-}
-
-export function update(dt, input, params) {
-  const kv = input.knobValues || [1.1, 2.0, 1.5, 0];
-  params.warp = kv[0];
-  params.speed = kv[1];
-  params.zoom = kv[2];
-  params.bands = Math.round(kv[3]);
-  params.t += dt * params.speed * 0.3;
-}
-
-export function draw(display, params, time) {
-  const w = display.width;
-  const h = display.height;
-  const t = params.t;
-  const zoom = params.zoom;
-  const cx = 0.5 + 0.22 * Math.sin(t * 0.7);
-  const cy = 0.5 + 0.22 * Math.cos(t * 0.9);
-
-  for (let y = 0; y < h; y++) {
-    const ny = (y / h - 0.5);
-    for (let x = 0; x < w; x++) {
-      const nx = (x / h - w / h * 0.5);
-      const dx = x / h - cx * (w / h);
-      const dy = y / h - cy;
-      const ring = Math.sin((dx * dx + dy * dy) * 14 * zoom - t * 2.0);
-      const wave = Math.sin(nx * 6 * zoom + t + params.warp * Math.sin(ny * 5 * zoom - t * 0.8));
-      let v = 0.5 + 0.25 * ring + 0.25 * wave;
-      if (params.bands > 1) {
-        v = Math.floor(v * params.bands) / (params.bands - 1);
-      }
-      display.setValue(x, y, v);
-    }
-  }
-}`;
 
 type GalleryItem = PatternVariant & { id: string; pinned?: boolean };
 
@@ -483,10 +460,10 @@ function VariantPreview({
 }
 
 export default function PatternLabClient() {
-  const [code, setCode] = useState(originPreset.code);
-  const [knobs, setKnobs] = useState(initialKnobs);
-  const [ranges, setRanges] = useState<KnobRange[]>(defaultRanges);
-  const [knobLabels, setKnobLabels] = useState<string[]>(DEFAULT_KNOB_LABELS);
+  const [code, setCode] = useState(initialLabPreset.code);
+  const [knobs, setKnobs] = useState(presetKnobs);
+  const [ranges, setRanges] = useState<KnobRange[]>(presetRanges);
+  const [knobLabels, setKnobLabels] = useState<string[]>(presetKnobLabels);
   const [running, setRunning] = useState(true);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [renderStats, setRenderStats] = useState({ fps: 0, ms: 0 });
@@ -522,7 +499,7 @@ export default function PatternLabClient() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const runtimeRef = useRef<PatternRuntime | null>(null);
   const knobsRef = useRef(knobs);
-  const previousKnobsRef = useRef(initialKnobs);
+  const previousKnobsRef = useRef(presetKnobs);
   const runningRef = useRef(running);
   const simTimeRef = useRef(0);
   const runtimeErrorRef = useRef<string | null>(null);
@@ -796,7 +773,7 @@ export default function PatternLabClient() {
 
   // Apply a pattern's @knobs annotation only when the annotation text itself
   // changes — manual label/range edits persist until different code arrives.
-  const lastKnobsAnnotationRef = useRef<string | null>(null);
+  const lastKnobsAnnotationRef = useRef<string | null>(initialAnnotationRaw);
 
   const applyKnobsAnnotation = (nextCode: string) => {
     const raw = nextCode.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
@@ -821,10 +798,22 @@ export default function PatternLabClient() {
   };
 
   // Single entry point for replacing the editor code so annotations apply on
-  // every path (typing/pasting, gallery load, demo, patch send).
+  // every path (typing/pasting, gallery load, preset step, patch send).
   const updateCode = (nextCode: string) => {
     applyKnobsAnnotation(nextCode);
     setCode(nextCode);
+  };
+
+  // ── Lab preset stepper ── browses the labOnly set; index follows the editor
+  // content, so editing away from a preset shows "–".
+  const activeLabIndex = labPresets.findIndex((preset) => preset.code === code);
+
+  const stepLabPreset = (dir: number) => {
+    if (labPresets.length === 0) return;
+    const base = activeLabIndex >= 0 ? activeLabIndex : dir > 0 ? -1 : 0;
+    const next = (base + dir + labPresets.length) % labPresets.length;
+    updateCode(labPresets[next].code);
+    setEditorView("code");
   };
 
   useEffect(() => {
@@ -1625,14 +1614,6 @@ ${activeCode}
                 />
                 recolor
               </label>
-              <button
-                type="button"
-                className={styles.rampDemo}
-                title="Load a demo pattern that draws a 0..1 value field via display.setValue"
-                onClick={() => updateCode(VFIELD_DEMO_CODE)}
-              >
-                V demo
-              </button>
             </div>
             <div
               ref={rampTrackRef}
@@ -1868,6 +1849,20 @@ ${activeCode}
                 </>
               ) : (
                 <>
+                  <div
+                    className={styles.presetStep}
+                    title={activeLabIndex >= 0 ? labPresets[activeLabIndex].name : "Lab presets"}
+                  >
+                    <button type="button" onClick={() => stepLabPreset(-1)} aria-label="Previous lab preset">
+                      ‹
+                    </button>
+                    <span>
+                      {activeLabIndex >= 0 ? activeLabIndex + 1 : "–"}/{labPresets.length}
+                    </span>
+                    <button type="button" onClick={() => stepLabPreset(1)} aria-label="Next lab preset">
+                      ›
+                    </button>
+                  </div>
                   <button type="button" onClick={copyVariantPrompt}>
                     {promptCopied ? "Copied" : "Copy prompt"}
                   </button>
