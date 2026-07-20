@@ -37,6 +37,7 @@ Required header structure:
   \`#include "src/core_math.h"\`   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
   \`#include "src/core_color.h"\`  // PFColor:: hsvToRgb, ColorStop, sampleRamp
   \`#include "src/core_noise.h"\`  // PFNoise:: perlin2D, fractal2D
+  \`#include "src/core_mem.h"\`    // PFMem:: allocFloats — PSRAM-first, zeroed allocation for framebuffer-sized buffers
 - Do not use \`<algorithm>\`, \`<cmath>\`, \`<cstdint>\`, \`std::clamp\`, \`std::round\`, \`std::vector\`, \`std::string\`, dynamic allocation, exceptions, file IO, external libraries, or placeholder declarations like \`extern Display*\` or mock \`InputFrame\`.
 - Use Arduino/math functions: \`constrain()\`, \`roundf()\`, \`floorf()\`, \`fmodf()\`, \`powf()\`. Prefer \`PFMath::fastSin()\` / \`PFMath::fastCos()\` over \`sinf()\` / \`cosf()\` inside the pixel loop.
 - Use \`PANEL_RES_W\` and \`PANEL_RES_H\`; never hardcode 128 or 64.
@@ -53,6 +54,14 @@ ESP32 optimization:
 - Precompute coordinate arrays such as normalized x/y values in \`setup()\`.
 - Precompute row-only and column-only warp terms once per frame outside the inner pixel loop.
 - Preserve the visual structure, but prefer a faster approximation over a literal slow translation.
+
+Memory rules (big buffers must never be static arrays):
+- All patterns compile into one firmware image, so every namespace static array occupies internal DRAM from boot even while the pattern is inactive — and internal DRAM is shared with the Wi-Fi stack and the HUB75 DMA driver. Never declare a framebuffer-sized static array such as \`static float buf[PANEL_RES_W * PANEL_RES_H]\` (32 KB locked at boot).
+- Any per-pixel buffer (trail map, glow/density accumulator, feedback field) must be a POINTER allocated once in \`setup()\` with \`PFMem::allocFloats\` from \`src/core_mem.h\` — it allocates from PSRAM when available and returns zeroed memory:
+  \`static float* trail = nullptr;\`
+  \`void setup() { if (!trail) trail = PFMem::allocFloats(PANEL_RES_W * PANEL_RES_H); }\`
+- Guard \`update()\` with \`if (!trail) return;\` and start \`draw()\` with \`if (!trail) { PFCanvas::present(); return; }\` so a failed allocation degrades to a blank pattern instead of crashing.
+- Small fixed state (particle arrays, knob params, 256-entry LUTs — anything under ~2 KB) stays as plain statics; this rule is only for framebuffer-scale buffers.
 
 Required namespace interface:
 - Choose a stable PascalCase namespace ending in \`Pattern\`.

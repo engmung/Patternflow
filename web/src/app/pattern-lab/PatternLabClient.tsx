@@ -1389,6 +1389,7 @@ Conditional includes — only when actually used in your code:
     #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT/buildPowLUTf, ColorStop, sampleRamp
     #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
     #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
+    #include "src/core_mem.h"    // PFMem:: allocFloats — PSRAM-first, zeroed allocation for framebuffer-sized buffers
 
 Helper signatures — these are the FULL argument lists. Call them exactly like this; do not add size arguments, reorder parameters, or invent overloads:
 
@@ -1407,12 +1408,25 @@ Helper signatures — these are the FULL argument lists. Call them exactly like 
     PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8);        // h/s/v floats 0..1; r8/g8/b8 are uint8_t& outputs
     static uint8_t plut[256];  PFColor::buildPowLUT(exponent, plut);   // fills (i/255)^exp scaled to 0..255
     static float  plutf[256];  PFColor::buildPowLUTf(exponent, plutf); // fills (i/255)^exp as 0..1 floats
+    static float* buf = nullptr;  buf = PFMem::allocFloats(count);     // in setup(); PSRAM-first, returns zeroed memory (or nullptr)
 
 Other interface rules:
 - Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
 - All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
 - The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
 - Macro collisions: Arduino.h and config.h define macros that will preprocessor-mangle same-named declarations into compile errors. Do NOT define your own variables, constants, or functions named PI, TWO_PI, HALF_PI, DEG_TO_RAD, RAD_TO_DEG, EULER, min, max, abs, sq, round, radians, degrees, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, or FREQ_STEP. Use the existing PI / TWO_PI constants directly, use fminf/fmaxf/fabsf for your own helpers, and prefix pattern constants with the pattern name (e.g. CELLS_TWO_PI, CELLS_SPEED_STEP).
+
+## Memory rules — big buffers must never be static arrays
+All patterns compile into one firmware image, so every namespace static array occupies internal DRAM from boot even while the pattern is inactive — and internal DRAM is shared with the Wi-Fi stack and the HUB75 DMA driver. Two 32 KB static arrays were enough to boot-loop a real device.
+
+- Any per-pixel buffer (trail map, glow/density accumulator, feedback field — anything sized by PANEL_RES_W * PANEL_RES_H or similar) must be a POINTER allocated once in setup() with PFMem::allocFloats (include src/core_mem.h). PFMem allocates from PSRAM when available and returns zeroed memory:
+
+    static float* trail = nullptr;
+    void setup() { if (!trail) trail = PFMem::allocFloats(PANEL_RES_W * PANEL_RES_H); }
+
+- Guard update() with \`if (!trail) return;\` and start draw() with \`if (!trail) { PFCanvas::present(); return; }\` so a failed allocation degrades to a blank pattern instead of crashing.
+- Small fixed state (particle arrays, knob params, 256-entry LUTs — anything under ~2 KB) stays as plain statics; this rule is only for framebuffer-scale buffers.
+- Call PFTables::init() ONLY if the code actually reads PFTables::rT or PFTables::thetaT. Never call it "just in case" — it allocates two 32 KB tables.
 
 ## DO NOT reimplement existing helpers
 The firmware ships tested, optimized versions of these. Using your own breaks shared optimizations (color calibration, sin LUT sharing) and wastes ROM. If the JavaScript source contains an inline hsvToRgb or sin LUT, strip it and call the firmware helper instead.
@@ -1485,9 +1499,10 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
 5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
 6. Does every time accumulator wrap at its period (TWO_PI or a common multiple — see Performance)? An unbounded accumulator is a bug even if the preview looks fine.
-7. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.${
+7. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.
+8. Did I declare any static array bigger than ~2 KB (e.g. float buf[PANEL_RES_W * PANEL_RES_H])? If yes, convert it to a PFMem::allocFloats pointer per the Memory rules. Did I call PFTables::init() without reading rT/thetaT anywhere? If yes, remove the call.${
       usesValueField
-        ? "\n8. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
+        ? "\n9. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
         : ""
     }
 

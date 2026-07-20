@@ -32,6 +32,19 @@
 #include "presets/preset_0531.h"
 #include "presets/preset_0601.h"
 #include "presets/preset_0602.h"
+#include "presets/preset_0628.h"
+#include "presets/preset_0629.h"
+#include "presets/preset_0629_2.h"
+#include "presets/preset_0701.h"
+#include "presets/preset_0707.h"
+#include "presets/preset_0710.h"
+#include "presets/preset_0712.h"
+#include "presets/preset_0712_2.h"
+#include "presets/preset_0713.h"
+#include "presets/preset_0715.h"
+#include "presets/preset_0716.h"
+#include "presets/preset_0718.h"
+#include "presets/preset_0719.h"
 #include "presets/preset_a_big_hit.h"
 
 struct PatternEntry {
@@ -55,9 +68,9 @@ struct PatternEntry {
 
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(FireflyHollow),
-  PATTERN_ENTRY(BreakoutArcade),
-  PATTERN_ENTRY(MidsummerSea),
+  PATTERN_ENTRY(BinaryCascade),
+  PATTERN_ENTRY(GridFracturePattern),
+  PATTERN_ENTRY(KineticRipplePattern),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
 
@@ -83,6 +96,19 @@ PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Pattern0531),
   PATTERN_ENTRY(Pattern0601),
   PATTERN_ENTRY(Pattern0602),
+  PATTERN_ENTRY(RetroDigitalTapestry),
+  PATTERN_ENTRY(ChromaticAberrationVortexPattern),
+  PATTERN_ENTRY(VectorFieldParticleFlowPattern),
+  PATTERN_ENTRY(LissajousWeave),
+  PATTERN_ENTRY(UntitledPattern),
+  PATTERN_ENTRY(TileWaves),
+  PATTERN_ENTRY(MidsummerSea),
+  PATTERN_ENTRY(BreakoutArcade),
+  PATTERN_ENTRY(FireflyHollow),
+  PATTERN_ENTRY(PoincareSphere),
+  PATTERN_ENTRY(TriMarch),
+  PATTERN_ENTRY(WarpedWave),
+  PATTERN_ENTRY(MagVortex),
   PATTERN_ENTRY(PatternABigHit),
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);

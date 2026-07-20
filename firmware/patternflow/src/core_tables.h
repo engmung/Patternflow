@@ -40,6 +40,7 @@
 #include <Arduino.h>
 #include <math.h>
 #include "config.h"
+#include "core_mem.h"
 
 namespace PFTables {
 
@@ -51,20 +52,11 @@ inline int idx(int x, int y) {
   return y * PANEL_RES_W + x;
 }
 
-inline float* allocFloats(int count) {
-  void* p = nullptr;
-#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
-  if (psramFound()) p = ps_malloc((size_t)count * sizeof(float));
-#endif
-  if (!p) p = malloc((size_t)count * sizeof(float));
-  return (float*)p;
-}
-
 inline void init() {
   if (ready) return;
   const int N = PANEL_RES_W * PANEL_RES_H;
-  rT = allocFloats(N);
-  thetaT = allocFloats(N);
+  rT = PFMem::allocFloats(N);
+  thetaT = PFMem::allocFloats(N);
   if (!rT || !thetaT) {
     // Allocation failed (no PSRAM and internal heap exhausted). Leave the
     // tables unavailable rather than half-initialized.

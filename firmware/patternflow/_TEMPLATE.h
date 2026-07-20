@@ -22,6 +22,9 @@
 // #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT, ColorStop, sampleRamp
 // #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
 // #include "src/core_tables.h" // PFTables:: init, rT[]/thetaT[] — per-pixel radius/angle from center
+// #include "src/core_mem.h"    // PFMem:: allocFloats — REQUIRED for framebuffer-sized buffers: never
+//                              // declare them as static arrays (they lock internal DRAM from boot);
+//                              // allocate once in setup(): if (!buf) buf = PFMem::allocFloats(N);
 
 namespace TemplatePattern {
   const char* NAME = "Template";
