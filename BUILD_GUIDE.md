@@ -133,7 +133,17 @@ The whole PCB assembly is covered in **one YouTube video** — soldering order i
 
 **[▶ Watch on YouTube — Patternflow v3.0 PCB soldering walkthrough](https://youtu.be/NZCjMBCsDAc)**
 
-All parts are through-hole, and the video covers the complete order — including the USB-C connector, where the **first attempt (11:00) shows exactly what goes wrong** when you push too hard, and the second attempt (12:40) shows the fix. **Path B builders: read the warning in Section 2 first**, and go over the finished joints with a multimeter before first power.
+All parts are through-hole, and the video covers the complete order — including the USB-C connector, where the **first attempt (11:00) shows exactly what goes wrong** when you push too hard, and the second attempt (12:40) shows the fix.
+
+**Path B (USB-C) builders — read the warning in Section 2 first**, then compare your joints against these two:
+
+| ❌ Like this, and it can short | ✅ Aim for this |
+|---|---|
+| <img src="docs/build-guide/images/v3/06_usbc_bad.jpg" width="100%"> | <img src="docs/build-guide/images/v3/07_usbc_good.jpg" width="100%"> |
+
+And before first power, go over the joints with a multimeter:
+
+<img src="docs/build-guide/images/v3/08_short_check.jpg" width="60%">
 
 Don't plug the ESP32 DevKit in until after the first power check (Section 7).
 
