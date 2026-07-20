@@ -4,6 +4,8 @@
 
 > **These cases fit the v3.0 board.** If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
 
+> 🖨️ **Bambu printer? One-click path:** the case is on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles — open in Bambu Studio and print. The same project ships in this repo as [`patternflow_v3.3mf`](patternflow_v3.3mf) (4 pre-arranged plates, settings included). The STLs below are for everyone else.
+
 ## Which folder do I print?
 
 | Your printer bed | Print | Design | Status |

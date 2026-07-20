@@ -95,7 +95,7 @@ Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.0_gerber.
 
 ## 4. 3D Printing
 
-Case folders are named by **printer bed size** — see [`hardware/case/`](hardware/case/):
+**Bambu / MakerWorld users — this section is one click:** the case lives on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles (the same 4-plate project is in the repo as [`hardware/case/patternflow_v3.3mf`](hardware/case/patternflow_v3.3mf)). Slicing manually instead? Case folders are named by **printer bed size** — see [`hardware/case/`](hardware/case/):
 
 | Your printer bed | Print | Notes |
 |---|---|---|
