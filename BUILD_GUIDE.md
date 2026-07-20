@@ -32,6 +32,8 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. It assu
 
 The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v3.0.csv) — every part specified by manufacturer part number. Read the [BOM README](hardware/bom/README.md) for sourcing notes before ordering.
 
+Rough breakdown of the ~US$100 total: 3D printing filament ~$30, LED matrix panel ~$20, ESP32-S3 ~$13, PCB + remaining parts (encoders, connectors, etc.) ~$35.
+
 ### On the board
 
 | Ref | Qty | Part | Spec | MPN (Manufacturer) | Notes |
@@ -51,7 +53,7 @@ The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v
 | Qty | Part | Notes |
 | --- | --- | --- |
 | 1 | LED matrix panel — HUB75, 128×64, P2.5, 320×160mm | **Recommended: [Full color 320×160mm P2.5 HUB75 — AliExpress](https://s.click.aliexpress.com/e/_c3SVdcQr)** (affiliate link — supports Patternflow at no extra cost). Its mounting-screw positions are the verified match for the case, and it ships with the ribbon + power cable you'll use. Other panels can work — see the sourcing rules below **before** buying one. |
-| 6 | M4 screw, ~10mm | Panel mounting — **sized for the linked panel.** Using a different panel? Buy whatever screws *its* mounting holes take (and see the `for_other_panels/` case note in Section 4). |
+| 12 | M4 screw, ~10mm | Panel mounting — **sized for the linked panel.** Using a different panel? Buy whatever screws *its* mounting holes take (and see the `for_other_panels/` case note in Section 4). |
 | 1 | USB-C cable *(Path B)* or sacrificial USB cable *(Path A — it gets cut)* | Power feed |
 | 1 | USB power bank, 5V | Must fit the case compartment |
 
