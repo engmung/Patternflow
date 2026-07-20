@@ -2,6 +2,12 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- **MakerWorld listing** for the case, with tuned print profiles; the same 4-plate Bambu Studio project ships in the repo as `hardware/case/patternflow_v3.3mf`. Linked from the build guide §4 and the case README.
+- The USB-C solder joint comparison photos returned to the guide (§5) — safety reference stays visible while soldering, video or not.
+
 ## [3.0.0] - 2026-07
 
 ### Added
