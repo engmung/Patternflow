@@ -8,8 +8,9 @@ This path uses the current PLA enclosure files in `hardware/case/`, organized by
 
 | File | Contents |
 | --- | --- |
-| `hardware/case/bed_330mm/oneshot_v3_part1/2.stl` | One-piece snap-fit body — H2S-class (330 mm+) beds |
-| `hardware/case/bed_256mm/divided_v3_part1..5.stl` | Divided snap-fit, 5 parts — P1S-class (256 mm) beds, print/assembly tested ([#169](https://github.com/engmung/Patternflow/issues/169)) |
+| `hardware/case/bed_330mm/encloser.stl` | One-piece snap-fit body — H2S-class (330 mm+) beds, one STL |
+| `hardware/case/bed_256mm/encloser.stl` | The standard 256 mm print — P1S-class beds, print & assembly verified |
+| `hardware/case/bed_256mm/for_other_panels/divided_v3_part1..5.stl` | Adjustable-mount variant for non-standard LED panels ([#169](https://github.com/engmung/Patternflow/issues/169)) |
 | `hardware/case/knobs/knobs_15mm.stl` | Knobs for 15mm encoder shafts |
 | `hardware/case/knobs/knobs_20mm.stl` | Knobs for 20mm encoder shafts (the BOM reference part is 20mm) |
 

@@ -26,7 +26,7 @@
 - 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware.
 
-> **Moving fast.** The repo improves almost daily — [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0) consolidated the v2.x line (its release page bundles everything a v2 builder needs), and the **v3.0 board is verified and now the recommended build**: USB-C power with a beginner-friendly screw-terminal bypass, zero SMD passives, snap-fit enclosure. The [build guide](BUILD_GUIDE.md) now covers v3.0 (video-assisted soldering included). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+> **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 ## Quick facts
 

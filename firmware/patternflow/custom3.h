@@ -1,190 +1,143 @@
 #pragma once
 
 #include <Arduino.h>
+#include <math.h>
+#include <stdint.h>
 #include "config.h"
 #include "src/core_display.h"
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_noise.h"
 
-namespace MidsummerSea {
+namespace KineticRipplePattern {
 
-const char* NAME = "Midsummer Sea";
-const char* const KNOB_LABELS[4] = {"Waves", "Speed", "Sun", "Glitter"};
+const char* NAME = "Kinetic Ripple";
+const char* const KNOB_LABELS[4] = {"CENTERS", "SPEED", "TIME WARP", "DENSITY"};
 
-static const uint8_t RAMP_LUT[256][3] = {
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{1,0,7},
-  {3,0,17},{5,0,27},{6,0,37},{8,0,47},{10,0,57},{11,0,67},{13,0,77},{15,0,87},
-  {16,0,97},{18,0,107},{20,0,117},{21,0,127},{23,0,137},{25,0,147},{26,0,157},{28,0,167},
-  {30,0,177},{32,0,187},{33,0,197},{35,0,207},{37,0,217},{38,0,227},{40,0,237},{42,0,247},
-  {45,1,253},{53,3,244},{60,5,234},{68,8,225},{76,10,215},{84,12,206},{92,15,196},{100,17,187},
-  {107,19,177},{115,22,168},{123,24,159},{131,27,149},{139,29,140},{147,31,130},{154,34,121},{162,36,111},
-  {170,38,102},{178,41,93},{186,43,83},{194,45,74},{202,48,64},{209,50,55},{217,53,45},{225,55,36},
-  {233,57,27},{241,60,17},{249,62,8},{255,65,2},{255,71,10},{255,78,18},{255,84,27},{255,90,35},
-  {255,97,44},{255,103,52},{255,109,60},{255,116,69},{255,122,77},{255,128,86},{255,134,94},{255,141,102},
-  {255,147,111},{255,153,119},{255,160,128},{255,166,136},{255,172,144},{255,178,153},{255,185,161},{255,191,170},
-  {255,197,178},{255,204,186},{255,210,195},{255,216,203},{255,223,212},{255,229,220},{255,235,228},{255,241,237},
-  {255,248,245},{255,254,254},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
-  {255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},{255,255,255},
+const float KINETIC_RIPPLE_WAVES_MIN = 1.0f;
+const float KINETIC_RIPPLE_WAVES_MAX = 6.0f;
+const float KINETIC_RIPPLE_WAVES_STEP = 0.05f;
+
+const float KINETIC_RIPPLE_SPEED_MIN = 0.1f;
+const float KINETIC_RIPPLE_SPEED_MAX = 8.0f;
+const float KINETIC_RIPPLE_SPEED_STEP = 0.10f;
+
+const float KINETIC_RIPPLE_WARP_MIN = 0.2f;
+const float KINETIC_RIPPLE_WARP_MAX = 3.0f;
+const float KINETIC_RIPPLE_WARP_STEP = 0.05f;
+
+const float KINETIC_RIPPLE_COMPLEXITY_MIN = 1.0f;
+const float KINETIC_RIPPLE_COMPLEXITY_MAX = 5.0f;
+const float KINETIC_RIPPLE_COMPLEXITY_STEP = 0.05f;
+
+struct Params {
+    float waves;
+    float speed;
+    float timeWarp;
+    float complexity;
+    float timeAcc;
 };
 
-static float waves   = 0.374f;
-static float speed   = 1.954f;
-static float sun     = 0.683f;
-static float glit    = 0.311f;
-static float t       = 0.0f;
+Params params;
 
 void setup() {
+    params.waves = 3.0f;
+    params.speed = 1.5f;
+    params.timeWarp = 1.0f;
+    params.complexity = 2.0f;
+    params.timeAcc = 0.0f;
+
     PFMath::buildSinLUT();
 }
 
 void update(float dt, const InputFrame& input) {
-    waves += input.knobDeltas[0] * 0.05f;
-    if (waves < 0.0f) waves = 0.0f;
-    if (waves > 1.0f) waves = 1.0f;
+    params.waves = constrain(params.waves + input.knobDeltas[0] * KINETIC_RIPPLE_WAVES_STEP, KINETIC_RIPPLE_WAVES_MIN, KINETIC_RIPPLE_WAVES_MAX);
+    params.speed = constrain(params.speed + input.knobDeltas[1] * KINETIC_RIPPLE_SPEED_STEP, KINETIC_RIPPLE_SPEED_MIN, KINETIC_RIPPLE_SPEED_MAX);
+    params.timeWarp = constrain(params.timeWarp + input.knobDeltas[2] * KINETIC_RIPPLE_WARP_STEP, KINETIC_RIPPLE_WARP_MIN, KINETIC_RIPPLE_WARP_MAX);
+    params.complexity = constrain(params.complexity + input.knobDeltas[3] * KINETIC_RIPPLE_COMPLEXITY_STEP, KINETIC_RIPPLE_COMPLEXITY_MIN, KINETIC_RIPPLE_COMPLEXITY_MAX);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < 0.1f) speed = 0.1f;
-    if (speed > 3.0f) speed = 3.0f;
-
-    sun += input.knobDeltas[2] * 0.05f;
-    if (sun < 0.0f) sun = 0.0f;
-    if (sun > 1.0f) sun = 1.0f;
-
-    glit += input.knobDeltas[3] * 0.05f;
-    if (glit < 0.0f) glit = 0.0f;
-    if (glit > 1.0f) glit = 1.0f;
-
-    t += dt * speed;
-    // common period for all sine multipliers: 2000π
-    if (t > 2000.0f * TWO_PI) {
-        t -= 2000.0f * TWO_PI;
-    }
+    params.timeAcc += dt * params.speed;
 }
 
 void draw() {
-    const int W = PANEL_RES_W; // 128
-    const int H = PANEL_RES_H; // 64
-    const float vh = (float)(W); // portrait logic: vh = max(W,H) = 128
-    const float vw = (float)(H); // 64
-    const float horizon   = floorf(vh * 0.34f);  // 43
-    const float beachTop  = vh - floorf(vh * 0.14f); // 111
-    const float sunU      = vw * 0.5f;          // 32.0
-    const float sunV      = horizon - 3.0f - sun * (horizon - 8.0f); // 40 - sun*35
-    const float invHorizon = 1.0f / horizon;
-    const float beachRange = vh - beachTop; // 17
+    const int w = PANEL_RES_W;
+    const int h = PANEL_RES_H;
+    const float t = params.timeAcc;
 
-    for (int y = 0; y < H; ++y) {
-        const float u = (float)y;                // 0..63
+    const int centers = (int)floorf(params.waves);
+    const float warp = params.timeWarp;
+    const float dens = params.complexity;
 
-        for (int x = 0; x < W; ++x) {
-            // coordinate remap for vertical panel (landscape physical)
-            const float v = (float)(W - 1 - x); // 127..0
+    const float cx1 = (float)w * 0.5f + PFMath::fastCos(t * 0.7f) * ((float)w * 0.25f);
+    const float cy1 = (float)h * 0.5f + PFMath::fastSin(t * 1.1f) * ((float)h * 0.25f);
+    const float cx2 = (float)w * 0.5f - PFMath::fastSin(t * 0.9f) * ((float)w * 0.3f);
+    const float cy2 = (float)h * 0.5f + PFMath::fastCos(t * 0.6f) * ((float)h * 0.2f);
 
-            float val;
+    const float d1_freq = 0.1f * dens;
+    const float d2_freq = 0.08f * dens;
+    const float t_offset1 = -t * 2.5f;
+    const float t_offset2 = -t * 1.8f;
 
-            if (v < horizon) {
-                // --- Sky ---
-                const float g = v * invHorizon;
-                val = 0.12f + 0.38f * g;
+    for (int y = 0; y < h; y++) {
+        const float dy1 = (float)y - cy1;
+        const float dy2 = (float)y - cy2;
 
-                const float du = u - sunU;
-                const float dv = (v - sunV) * 1.2f;
-                const float d = sqrtf(du * du + dv * dv);
-                if (d < 4.5f) {
-                    val = 1.0f;
+        for (int x = 0; x < w; x++) {
+            const float dx1 = (float)x - cx1;
+            const float dist1 = PFMath::approxLength(dx1, dy1);
+            
+            float tWarp1;
+            if (warp == 1.0f) {
+                tWarp1 = (dist1 * 0.02f) + t_offset1;
+            } else if (warp == 2.0f) {
+                float d1_scaled = dist1 * 0.02f;
+                tWarp1 = (d1_scaled * d1_scaled) + t_offset1;
+            } else {
+                tWarp1 = powf(dist1 * 0.02f, warp) + t_offset1;
+            }
+            const float v1 = PFMath::fastSin(dist1 * d1_freq + tWarp1);
+
+            float finalWave = v1;
+
+            if (centers > 1) {
+                const float dx2 = (float)x - cx2;
+                const float dist2 = PFMath::approxLength(dx2, dy2);
+                
+                float tWarp2;
+                if (warp == 1.0f) {
+                    tWarp2 = (dist2 * 0.02f) + t_offset2;
+                } else if (warp == 2.0f) {
+                    float d2_scaled = dist2 * 0.02f;
+                    tWarp2 = (d2_scaled * d2_scaled) + t_offset2;
                 } else {
-                    val += 0.7f * expf(-d * 0.18f);
+                    tWarp2 = powf(dist2 * 0.02f, warp) + t_offset2;
                 }
+                const float v2 = PFMath::fastCos(dist2 * d2_freq + tWarp2);
 
-                const float cl = PFMath::fastSin(u * 0.11f + v * 0.9f + t * 0.25f)
-                               + PFMath::fastSin(u * 0.05f - v * 0.5f + 2.0f);
-                if (cl > 1.2f && v < horizon * 0.8f) {
-                    val += 0.12f;
-                }
-            }
-            else if (v < beachTop) {
-                // --- Sea ---
-                const float depth = (v - horizon) / (beachTop - horizon);
-                const float persp = 1.0f / (depth + 0.09f);
-                const float wob   = PFMath::fastSin(u * 0.25f + t * 1.3f) * 0.5f * waves;
-                const float band  = PFMath::fastSin(persp * 2.6f + wob + t * (1.5f + depth * 2.0f));
-
-                val = 0.42f - 0.22f * depth
-                    + band * (0.06f + 0.14f * waves) * (0.4f + depth);
-
-                const float pathW  = 2.5f + depth * 9.0f;
-                const float sway   = PFMath::fastSin(v * 0.5f + t) * waves * 2.0f;
-                const bool  inPath = fabsf(u - sunU + sway) < pathW;
-                if (inPath) {
-                    val += 0.12f + 0.1f * (1.0f - depth);
-                }
-
-                // glitter sparkle
-                const int gx   = (int)(u * 7.3f);
-                const int gy   = (int)(v * 13.1f);
-                const int seed = (int)(floorf(t * 7.0f) * 17.7f);
-                const float sp = PFNoise::cellHash(gx, gy, seed);
-                const float thr = 1.0f - glit * (inPath ? 0.10f : 0.03f);
-                if (sp > thr && band > 0.2f) {
-                    val = 1.0f;
-                }
-            }
-            else {
-                // --- Beach ---
-                const float s = (v - beachTop) / beachRange;
-                const int bx = (int)(u * 3.7f);
-                const int by = (int)(v * 5.1f);
-                const float sandHash = PFNoise::cellHash(bx, by);
-                val = 0.5f + 0.15f * s + 0.06f * sandHash;
-
-                const float surge = PFMath::fastSin(t * 1.8f) * 0.5f + 0.5f;
-                const float edge  = beachTop + 2.0f
-                                  + surge * beachRange * 0.55f * (0.4f + waves)
-                                  + PFMath::fastSin(u * 0.35f + t * 2.2f) * 2.5f * waves;
-
-                if (v < edge) {
-                    const float waterDepth = (edge - v) / beachRange;
-                    val = 0.34f - 0.1f * waterDepth;
-                    if (edge - v < 1.5f) {
-                        val = 0.95f;
-                    }
+                if (centers == 2) {
+                    finalWave = (v1 + v2) * 0.5f;
+                } else {
+                    finalWave = fabsf(v1 * v2);
                 }
             }
 
-            // clamp and map through baked ramp
-            val = fmaxf(0.0f, fminf(1.0f, val));
-            int li = (int)(val * 255.0f + 0.5f);
-            if (li < 0) li = 0;
-            if (li > 255) li = 255;
-            PFCanvas::setPixel(x, y,
-                               RAMP_LUT[li][0],
-                               RAMP_LUT[li][1],
-                               RAMP_LUT[li][2]);
+            float v = (finalWave + 1.0f) * 0.5f;
+            
+            float bright;
+            if (v > 0.8f)       bright = 1.0f;
+            else if (v > 0.5f)  bright = 0.6f;
+            else if (v > 0.2f)  bright = 0.25f;
+            else                bright = 0.05f;
+
+            // Amplify brightness dynamically to reach near-full intensity on a HUB75 LED Matrix
+            float amplified = constrain(bright * 1.15f, 0.0f, 1.0f);
+            uint8_t c = (uint8_t)(amplified * 255.0f);
+
+            PFCanvas::setPixel(x, y, c, c, c);
         }
     }
 
     PFCanvas::present();
 }
 
-} // namespace MidsummerSea
+} // namespace KineticRipplePattern
