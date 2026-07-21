@@ -77,13 +77,15 @@ Key sourcing rules (details in the BOM README):
 
 The v3.0 board has **two power inputs on one board**. Pick one before ordering parts — it changes what you solder.
 
-| | **Path A — Screw terminal (default)** | **Path B — USB-C (advanced)** |
+> ✅ **Just take Path A (screw terminal) unless you solder for a living.** Strip a USB cable, screw the two wires in, done. It's the recommended path for almost everyone — the result is **electrically identical** to USB-C, and you skip the single hardest, most failure-prone step on the whole board. Only reach for Path B if you have real experience with tight-pitch THT soldering and want the cleaner USB-C finish.
+
+| | **Path A — Screw terminal (recommended)** | **Path B — USB-C (experts only)** |
 |---|---|---|
 | Populate | `J4` (2-pin screw terminal, back of board) | `USB1` (Type-C) + `R1`/`R2` (5.1kΩ CC pull-downs) |
 | Power cable | Any USB cable, stripped, wires screwed in | Standard USB-C cable |
-| Difficulty | Easy — the classic Patternflow method | ⚠️ **Hard.** The Type-C THT signal pins are tightly pitched; a solder bridge here has shorted and **burned a board** ([#114](https://github.com/engmung/Patternflow/issues/114)). Flux, fine tip, magnification, patience. |
+| Difficulty | Easy — the classic Patternflow method | 🛑 **Genuinely hard.** The Type-C THT signal pins are tightly pitched; a solder bridge here has shorted and **burned a board** ([#114](https://github.com/engmung/Patternflow/issues/114)). Needs flux, a fine tip, magnification, and experience. **If you're not already good at this, don't — take Path A.** |
 
-**If in doubt, take Path A.** The result is electrically identical. You can also populate both — the reference build in this guide does.
+You can populate both (the reference build in this guide does), but there is no functional reason to solder USB-C just to have it — the screw terminal powers the board exactly the same.
 
 ## 3. Order the PCB
 
@@ -137,7 +139,9 @@ The whole PCB assembly is covered in **one YouTube video** — soldering order i
 
 All parts are through-hole, and the video covers the complete order — including the USB-C connector, where the **first attempt (11:00) shows exactly what goes wrong** when you push too hard, and the second attempt (12:40) shows the fix.
 
-**Path B (USB-C) builders — read the warning in Section 2 first**, then compare your joints against these two:
+> **Doing Path A?** Skip `USB1` and `R1`/`R2` entirely — there's no USB-C to solder. That's the whole point of the screw terminal, and it's the right call for most builders (see Section 2).
+
+**Path B (USB-C) builders only — read the warning in Section 2 first.** If mid-solder you realize this joint is fighting you, stop and switch to Path A; you lose nothing. When you do commit, compare your joints against these two:
 
 | ❌ Like this, and it can short | ✅ Aim for this |
 |---|---|

@@ -16,10 +16,10 @@ Nine on-board line items, all hand-solderable. The only SMD part is the USB-C co
 
 | Path | Populate | Skill level |
 |---|---|---|
-| **A — USB-C** (`USB1` + `R1`/`R2`) | USB-C receptacle + two 5.1kΩ CC pull-downs | ⚠️ Hard. The Type-C THT signal pins are tightly pitched; a solder bridge here has shorted and burned a board ([#114](https://github.com/engmung/Patternflow/issues/114)). Recommended only with flux, a fine tip, and patience. |
-| **B — Screw terminal** (`J4`, back of board) | One extra screw terminal; strip a USB cable and screw the wires in | Easy — the classic v2.x method. Skip `USB1`, `R1`, `R2` entirely. |
+| **A — Screw terminal** (`J4`, back of board) — *recommended* | One extra screw terminal; strip a USB cable and screw the wires in | Easy — the classic method. Skip `USB1`, `R1`, `R2` entirely. **Right for almost everyone.** |
+| **B — USB-C** (`USB1` + `R1`/`R2`) — *experts only* | USB-C receptacle + two 5.1kΩ CC pull-downs | 🛑 Genuinely hard. The Type-C THT signal pins are tightly pitched; a solder bridge here has shorted and burned a board ([#114](https://github.com/engmung/Patternflow/issues/114)). Only if you're already good at tight-pitch THT soldering. |
 
-Both footprints are on the same board; populating both is fine too.
+Both inputs are electrically identical — the screw terminal powers the board exactly the same as USB-C. Populating both is fine, but there's no functional reason to solder USB-C just to have it.
 
 ## Sourcing notes
 
