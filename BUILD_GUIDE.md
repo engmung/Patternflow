@@ -78,6 +78,8 @@ Key sourcing rules (details in the BOM README):
 The v3.0 board has **two power inputs on one board**. Pick one before ordering parts — it changes what you solder.
 
 > ✅ **Just take Path A (screw terminal) unless you solder for a living.** Strip a USB cable, screw the two wires in, done. It's the recommended path for almost everyone — the result is **electrically identical** to USB-C, and you skip the single hardest, most failure-prone step on the whole board. Only reach for Path B if you have real experience with tight-pitch THT soldering and want the cleaner USB-C finish.
+>
+> 🔥 **Why this matters beyond a cosmetic redo:** a solder bridge across the USB-C power pins puts +5 V straight onto ground. This board has been **shorted and physically burned** that way ([#114](https://github.com/engmung/Patternflow/issues/114)) — scorched traces, a ruined board, and with a power bank pushing several amps into a dead short, a **real burn and fire risk**. It is not a "worst case you redo the joint" situation. If your USB-C soldering isn't confident and clean, do **not** power it on — use Path A.
 
 | | **Path A — Screw terminal (recommended)** | **Path B — USB-C (experts only)** |
 |---|---|---|
@@ -228,10 +230,14 @@ The ESP32-S3 module is flashed **separately, outside the PCB**. Already seated i
 
 No installation required — desktop **Chrome or Edge** only (Web Serial; Firefox/Safari won't work).
 
+> 🔌 **Use the LEFT USB-C port** — the one on your left when the two ports face you. On the ESP32-S3 DevKit that's the board's **native USB** port (labeled `USB`); the browser flasher (Web Serial + Improv) talks to it directly. The right-hand port goes through a separate USB-to-UART bridge chip and is the one Arduino IDE uses (§8.2) — the browser flasher won't see the board on that one.
+
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
-2. Connect the ESP32-S3 to your computer with a USB-C **data cable**.
+2. Connect the ESP32-S3 to your computer with a USB-C **data cable**, using the **left port** (see above).
 3. Scroll to the **Patterns** section, click **"Flash Patternflow OS"**, pick the serial port, and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
 4. Disconnect, seat the module back into the board sockets (orientation per silkscreen), and connect power.
+
+> 📶 **Changing Wi-Fi later.** The network you set during flashing is **saved on the device and reused on every boot** — it stays until you overwrite it. To move Patternflow to a different Wi-Fi, either **re-flash from the browser** (you'll set the new network during Improv provisioning), or in Arduino IDE do a **full erase** (Tools → *Erase All Flash Before Sketch Upload* → *Enabled*) and re-upload. A plain re-upload does **not** clear the stored credentials.
 
 <img src="docs/build-guide/images/web_flash.jpg" width="33%"> <img src="docs/build-guide/images/esp32_insert.jpg" width="33%">
 
@@ -239,8 +245,11 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 
 ### 8.2 Arduino IDE (custom builds)
 
+> 🔌 **Use the RIGHT USB-C port** for Arduino IDE — the one on your right when the ports face you, labeled `UART`/`COM`. It's the USB-to-UART bridge Arduino uploads through; the left (native `USB`) port is for the browser flasher (§8.1). If the IDE doesn't see a serial port, you're likely on the wrong one.
+
 - Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled* — full setup in [`firmware/README.md`](firmware/README.md).
 - If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
+- To wipe stored Wi-Fi credentials, enable **Tools → Erase All Flash Before Sketch Upload** before uploading (see the Wi-Fi note in §8.1).
 - **ArduinoOTA** works over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
 
 ### Want OSC / Ableton control? Build it yourself once
@@ -265,7 +274,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 ## 10. Known Issues & Design Notes
 
 - **Tight LED panel fit / bonded-seam gaps** — see the Section 4 bonding notes and Section 6 ([#169](https://github.com/engmung/Patternflow/issues/169)).
-- **USB-C THT soldering difficulty** — the reason Path A exists ([#114](https://github.com/engmung/Patternflow/issues/114)).
+- **USB-C THT soldering difficulty / short-circuit fire risk** — a bridge across the USB-C power pins is a dead short that has burned a board, and with an amps-capable power bank it's a genuine fire hazard. This is the reason Path A (screw terminal) exists and is recommended ([#114](https://github.com/engmung/Patternflow/issues/114)).
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.
