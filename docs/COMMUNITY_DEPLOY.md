@@ -79,9 +79,14 @@ sudo apt-get install -y build-essential python3 git sqlite3
 
 ### B1. Clone
 
+This box tracks **`dev`**, not `main`. It is a test deployment that should
+follow development closely — waiting for a merge to see a fix on the community
+would slow the loop down for no benefit. (When the community becomes something
+people rely on, switch it to `main` and update this line.)
+
 ```bash
 cd ~
-GIT_LFS_SKIP_SMUDGE=1 git clone https://github.com/engmung/Patternflow.git
+GIT_LFS_SKIP_SMUDGE=1 git clone -b dev https://github.com/engmung/Patternflow.git
 cd Patternflow/web
 ```
 
@@ -336,7 +341,7 @@ Pushing to GitHub does **not** update this box — Vercel auto-deploys, this one
 does not. To pull a change in:
 
 ```bash
-cd ~/Patternflow && git pull
+cd ~/Patternflow && git pull origin dev
 cd web && npm ci && npm run build
 sudo systemctl restart patternflow-community
 ```
