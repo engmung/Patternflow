@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import PatternCard, { PatternCardItem } from "./PatternCard";
+import FeedControls from "./FeedControls";
 import styles from "./Community.module.css";
 
 // Dynamic responsive single-row layout for 1.2x enlarged vertical cards (~205px slot width).
@@ -31,7 +32,15 @@ function useResponsiveCardsPerRow(containerRef: React.RefObject<HTMLDivElement |
   return cardsPerRow;
 }
 
-export default function CommunityFeedClient({ items }: { items: PatternCardItem[] }) {
+export default function CommunityFeedClient({
+  items,
+  sort = "new",
+  hardwareOnly = false,
+}: {
+  items: PatternCardItem[];
+  sort?: string;
+  hardwareOnly?: boolean;
+}) {
   const [page, setPage] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -74,9 +83,13 @@ export default function CommunityFeedClient({ items }: { items: PatternCardItem[
         </Link>
       </div>
 
+      <FeedControls sort={sort} hardwareOnly={hardwareOnly} />
+
       {items.length === 0 ? (
         <div className={styles.empty}>
-          Nothing here yet. Open Pattern Lab, make something, hit “Share to Community”.
+          {hardwareOnly
+            ? "No hardware-ready patterns yet — these are the ones shipping a verified .h you can flash straight to a board."
+            : "Nothing here yet. Open Pattern Lab, make something, hit “Share to Community”."}
         </div>
       ) : (
         <div ref={containerRef} className={styles.centeredFeedBody}>

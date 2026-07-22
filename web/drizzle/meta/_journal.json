@@ -8,6 +8,20 @@
       "when": 1784685898155,
       "tag": "0000_community-init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784708031751,
+      "tag": "0001_add-likes-and-cpp",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784710683324,
+      "tag": "0002_add-made-on",
+      "breakpoints": true
     }
   ]
 }

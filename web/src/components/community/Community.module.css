@@ -548,6 +548,10 @@
   border-radius: 6px;
   overflow: hidden;
   height: 100%;
+  /* Column so the tab bar sits above an editor that fills the rest. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ── Detail meta + comments ── */
@@ -789,4 +793,252 @@
 
 .notice a {
   color: #e8552e;
+}
+
+/* ── Feed sort + hardware filter ── */
+
+.feedControls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sortTabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.sortTabs a {
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sortTabs a:hover {
+  color: #171512;
+}
+
+.sortTabs a[data-active="true"] {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  border-color: rgba(23, 21, 18, 0.5);
+  color: #171512;
+}
+
+.filterChip[data-active="true"] {
+  background: rgba(232, 85, 46, 0.12);
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+/* ── Card badges ── */
+
+/* Speaks the same visual language as .forkChip (mono micro-label in a pill),
+   but SOLID rather than outlined so "runs on hardware" reads as the stronger
+   of the two. No emoji: a colour glyph fights the typographic look and ate
+   half the card title's width. */
+.hwChip {
+  flex: none;
+  display: inline-block;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: #fffdf8;
+  background: #e8552e;
+  border: 1px solid #e8552e;
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.cardStats {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Code panel (JS / .h tabs) ── */
+
+.codeTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #1e1e1e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  flex: none;
+}
+
+.codeTabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.codeTabs button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.codeTabs button[data-active="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.codeTabSpacer {
+  flex: 1;
+}
+
+.codeTabAction {
+  color: #ffb59c !important;
+}
+
+.codeTabAction:hover {
+  background: rgba(232, 85, 46, 0.22) !important;
+}
+
+.editorBody {
+  flex: 1;
+  min-height: 0;
+}
+
+.codeFootNote {
+  flex: none;
+  margin: 0;
+  padding: 7px 10px;
+  background: #1e1e1e;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.codeFootNote code {
+  color: #ffb59c;
+  font-family: var(--pf-mono, monospace);
+}
+
+/* ── Like button ── */
+
+.likeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 999px;
+  background: #fffdf8;
+  color: #6b655a;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.likeButton:hover {
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+.likeButtonOn {
+  background: rgba(232, 85, 46, 0.12);
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+/* ── Detail meta additions ── */
+
+.metaTitleRow {
+  display: flex;
+  align-items: center;
+  /* Sits right beside the title on purpose: the meta block is full-width, so
+     pushing it to the far edge put it off in empty space where nobody saw it. */
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hwNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c2431f;
+}
+
+.ownerBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(23, 21, 18, 0.28);
+  border-radius: 8px;
+  background: rgba(23, 21, 18, 0.03);
+}
+
+/* ── Add-header modal ── */
+
+.modalCardWide {
+  width: min(720px, 100%);
+}
+
+.cppInput {
+  min-height: 220px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.warnNote {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(232, 85, 46, 0.45);
+  border-radius: 6px;
+  background: rgba(232, 85, 46, 0.08);
+  color: #b8431f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.warnNote code {
+  font-family: var(--pf-mono, monospace);
 }

@@ -20,6 +20,10 @@ export type PatternCardItem = {
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
+  likeCount: number;
+  forkCount: number;
+  /** Ships a verified firmware header — flashable as-is. */
+  hasCpp: boolean;
 };
 
 export function formatDate(iso: string): string {
@@ -202,6 +206,11 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
       <div className={styles.cardMeta}>
         <div className={styles.cardTitle}>
           <span className={styles.cardTitleText}>{item.title}</span>
+          {item.hasCpp && (
+            <span className={styles.hwChip} title="Hardware ready — ships a .h firmware header">
+              .h
+            </span>
+          )}
           {item.parentId && <span className={styles.forkChip}>fork</span>}
         </div>
 
@@ -209,7 +218,17 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
           <span className={styles.userLink}>
             @{item.displayUsername ?? item.username ?? "unknown"}
           </span>
-          <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>
+          {/* Counts only — liking happens on the detail page, so the card stays
+              a single link and its hover/knob interactions are unaffected. */}
+          <span className={styles.cardStats}>
+            {item.likeCount > 0 && (
+              <span title={`${item.likeCount} likes`}>♥ {item.likeCount}</span>
+            )}
+            {item.forkCount > 0 && (
+              <span title={`Forked ${item.forkCount} times`}>⑂ {item.forkCount}</span>
+            )}
+            <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>
+          </span>
         </div>
       </div>
     </Link>

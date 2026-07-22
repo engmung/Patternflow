@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,10 +78,29 @@ export const patterns = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description"),
-    /** Complete standalone pattern source (setup/update/draw), plain JS text. */
+    /**
+     * Complete standalone pattern source (setup/update/draw), plain JS text.
+     * Stored CLEAN — the licence header and attribution footer are injected at
+     * download time from the row's own metadata (same rule as the Discord share
+     * flow), so attribution can never go stale or belong to the wrong person.
+     */
     code: text("code").notNull(),
+    /**
+     * Optional firmware header (C++). The JS is the source of truth; this is
+     * the author's hand-verified port, attached after the fact — a pattern with
+     * one is "hardware ready". Never auto-generated, never carried across forks
+     * (the JS may have changed, which would make the port a lie).
+     */
+    codeCpp: text("code_cpp"),
     /** SPDX id chosen at publish time. Same options as the Discord share flow. */
     license: text("license").notNull().default("CC-BY-SA-4.0"),
+    /**
+     * Optional "made on" date (YYYY-MM-DD), set by the author. A pattern is
+     * often finished long before it gets shared, and it is the creation date
+     * that belongs in the licence header — `created_at` only records when it
+     * was uploaded here.
+     */
+    madeOn: text("made_on"),
     /** Fork lineage: the community pattern this one was remixed from. */
     parentId: text("parent_id").references((): AnySQLiteColumn => patterns.id, {
       onDelete: "set null",
@@ -92,6 +111,25 @@ export const patterns = sqliteTable(
   (table) => [
     index("patterns_created_at_idx").on(table.createdAt),
     index("patterns_user_id_idx").on(table.userId),
+  ],
+);
+
+// One row per (user, pattern). The composite primary key makes a double like
+// impossible at the storage layer, so no application-side de-duplication.
+export const likes = sqliteTable(
+  "likes",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    patternId: text("pattern_id")
+      .notNull()
+      .references(() => patterns.id, { onDelete: "cascade" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.patternId] }),
+    index("likes_pattern_id_idx").on(table.patternId),
   ],
 );
 

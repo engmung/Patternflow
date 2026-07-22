@@ -11,5 +11,8 @@ export function toCardItem(item: FeedItem): PatternCardItem {
     createdAt: item.createdAt.toISOString(),
     username: item.username,
     displayUsername: item.displayUsername,
+    likeCount: item.likeCount,
+    forkCount: item.forkCount,
+    hasCpp: item.hasCpp,
   };
 }
