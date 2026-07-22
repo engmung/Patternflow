@@ -9,6 +9,7 @@ import Editor from '@monaco-editor/react';
 import { showcasePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
 import SharePatternModal from '@/components/share/SharePatternModal';
+import { communityHref } from '@/lib/community/apiBase';
 import styles from './PatternPanel.module.css';
 
 const getConvertPrompt = (code: string) => `Convert the following JavaScript LED pattern into one complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
@@ -382,8 +383,11 @@ export default function PatternPanel({ content }: PatternPanelProps) {
             >
               Flash presets
             </button>
+            {/* Straight to the community host — it runs on its own box, so
+                bouncing through this site's /community first would just be an
+                extra click. */}
             <Link
-              href="/community"
+              href={communityHref()}
               title="Explore the Patternflow pattern community"
             >
               Community ↗

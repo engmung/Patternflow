@@ -37,6 +37,19 @@ export function communityConfigured(): boolean {
   return configuredOrigin() !== null;
 }
 
+/**
+ * Href for a community page, usable from any deployment and from either the
+ * server or the client.
+ *
+ * Unlike `crossOriginCommunityBase` this never inspects `window`, so it
+ * renders identically during SSR and hydration — a link whose target flipped
+ * between the two would be a hydration mismatch.
+ */
+export function communityHref(path = "/community"): string {
+  const origin = configuredOrigin();
+  return origin ? `${origin}${path}` : path;
+}
+
 /** Absolute community origin, or null when the API is same-origin. */
 export function crossOriginCommunityBase(): string | null {
   if (typeof window === "undefined") return null;
