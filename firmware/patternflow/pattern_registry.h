@@ -68,9 +68,9 @@ struct PatternEntry {
 
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(BinaryCascade),
-  PATTERN_ENTRY(GridFracturePattern),
-  PATTERN_ENTRY(KineticRipplePattern),
+  PATTERN_ENTRY(FractalHoles),
+  PATTERN_ENTRY(RippleCellGrid),
+  PATTERN_ENTRY(RippleGrid),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
 

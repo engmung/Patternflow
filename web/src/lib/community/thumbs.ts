@@ -88,7 +88,7 @@ function pump() {
       code: job.code,
       knobValues,
       knobRanges: setup.ranges,
-      seconds: 0.9,
+      seconds: 0.0,
       fps: 15,
     },
     "*",

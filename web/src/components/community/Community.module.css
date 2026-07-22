@@ -76,49 +76,138 @@
   flex: none;
 }
 
-.feedScrollArea {
+.feedWrapper {
   flex: 1;
-  overflow-y: auto;
-  padding-right: 6px;
-  padding-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* ── Feed grid ── */
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+.centeredFeedBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 20px;
+}
+
+/* ── Single Centered Horizontal Row Grid ── */
+
+.singleRowGrid {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.pageBtn {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #171512;
+  border-color: #171512;
+  color: #f7f3ea;
+}
+
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pageIndicator {
+  color: #6b655a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageIndicator strong {
+  color: #171512;
+}
+
+.pageMetaTotal {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .card {
   display: block;
   border: 1px solid rgba(23, 21, 18, 0.18);
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 10px;
   background: #fffdf8;
-  color: inherit;
   text-decoration: none;
-  transition: border-color 120ms ease;
+  color: inherit;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .card:hover {
-  border-color: rgba(23, 21, 18, 0.5);
+  border-color: rgba(23, 21, 18, 0.55);
 }
 
 .cardThumb {
+  aspect-ratio: 1 / 2;
   position: relative;
-  aspect-ratio: 2 / 1;
-  background: #111;
-  user-select: none;
+  background: #09090b;
+  overflow: hidden;
 }
 
-.cardThumb img {
+.screenRotator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  background: #09090b;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.screenRotator img,
+.screenRotator iframe,
+.cardHoverIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  object-fit: fill;
   image-rendering: pixelated;
+}
+
+.cardHoverIframe {
+  z-index: 2;
+  background: transparent;
+  pointer-events: none;
 }
 
 .cardThumbNote {
@@ -134,127 +223,46 @@
   text-align: center;
 }
 
-.cardHoverPreview {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  pointer-events: none;
-  z-index: 2;
-  background: #111;
-}
+/* ── Sleek Top Overlay Knob Control Bar (ZERO layout shift!) ── */
 
-.liveBadge {
+/* ── Sleek Bottom Overlay Knob Control Bar (2 Stacked Lines, Zero layout shift!) ── */
+
+.bottomKnobOverlay {
   position: absolute;
-  top: 8px;
+  bottom: 8px;
+  left: 8px;
   right: 8px;
-  z-index: 3;
-  font-family: var(--pf-mono, monospace);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #fff;
-  background: #e8552e;
-  padding: 2px 6px;
-  border-radius: 4px;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.liveDot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #fff;
-  animation: livePulse 800ms infinite alternate ease-in-out;
-}
-
-@keyframes livePulse {
-  0% {
-    opacity: 0.3;
-    transform: scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1.1);
-  }
-}
-
-/* ── Interactive Knob Control Bar in Card Footer ── */
-
-/* ── Fixed Height Card Footer & Controls ── */
-
-.cardMeta {
-  padding: 10px 12px 12px;
+  z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.cardTitle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  height: 20px;
-  line-height: 20px;
-}
-
-.cardTitleText {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.metaFooterSlot {
-  position: relative;
-  height: 22px;
-  margin-top: 2px;
-  overflow: hidden;
-}
-
-.cardByline {
-  position: absolute;
-  inset: 0;
-  font-size: 12px;
-  color: #6b655a;
-  display: flex;
-  align-items: center;
   gap: 6px;
-  transition: opacity 150ms ease;
-}
-
-.metaKnobSection {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  background: rgba(9, 9, 11, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
   transition: opacity 150ms ease;
 }
 
 .knobZoneBarInMeta {
   display: flex;
-  background: rgba(23, 21, 18, 0.06);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid rgba(23, 21, 18, 0.15);
-  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
 }
 
 .knobSegmentInMeta {
-  padding: 1px 5px;
+  flex: 1;
+  text-align: center;
+  padding: 3px 0;
   font-family: var(--pf-mono, monospace);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  color: #6b655a;
-  border-right: 1px solid rgba(23, 21, 18, 0.1);
+  color: #a69f90;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
   transition: all 120ms ease;
 }
 
@@ -263,51 +271,93 @@
 }
 
 .activeKnobSegment {
-  background: #171512;
-  color: #f7f3ea;
+  background: #f7f3ea;
+  color: #171512;
 }
 
 .metaKnobStatus {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-family: var(--pf-mono, monospace);
+}
+
+.metaKnobInfoRow {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  min-width: 0;
+  justify-content: space-between;
+  font-size: 11px;
 }
 
 .metaKnobLabel {
-  font-weight: 600;
-  color: #171512;
+  color: #a69f90;
   white-space: nowrap;
 }
 
 .metaKnobVal {
-  color: #e8552e;
+  color: #ffffff;
   font-weight: 700;
-  flex: none;
 }
 
 .metaKnobTrack {
-  flex: 1;
-  height: 4px;
-  background: rgba(23, 21, 18, 0.12);
-  border-radius: 2px;
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
   overflow: hidden;
-  min-width: 20px;
 }
 
 .metaKnobFill {
   height: 100%;
-  background: #e8552e;
-  transition: width 100ms ease;
+  background: #ffffff;
+  border-radius: 3px;
+  transition: width 80ms ease-out;
+}
+
+/* ── Fixed Height Card Footer (Zero Layout Shift!) ── */
+
+.cardMeta {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fffdf8;
+  height: 64px;
+  box-sizing: border-box;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #171512;
+  line-height: 1.3;
+}
+
+.cardTitleText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardByline {
-  margin-top: 3px;
   font-size: 12px;
   color: #6b655a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardDate {
+  font-size: 11px;
+  color: #8c8577;
+  font-family: var(--pf-mono, monospace);
+  flex: none;
 }
 
 .forkChip {

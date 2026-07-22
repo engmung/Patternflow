@@ -10,7 +10,10 @@ import PatternDetailClient from "./PatternDetailClient";
 
 export const dynamic = "force-dynamic";
 
-type RouteParams = { params: Promise<{ id: string }> };
+type RouteParams = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ k?: string }>;
+};
 
 export async function generateMetadata(props: RouteParams): Promise<Metadata> {
   if (!communityEnabled()) return {};
@@ -27,8 +30,14 @@ export default async function CommunityPatternPage(props: RouteParams) {
   if (!communityEnabled()) return null; // layout already rendered the notice
 
   const { id } = await props.params;
+  const { k } = await props.searchParams;
+
   const pattern = await getPattern(id);
   if (!pattern) notFound();
+
+  const initialKnobs = k
+    ? k.split(",").map(Number).filter((v) => Number.isFinite(v))
+    : undefined;
 
   const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
   const comments: CommentView[] = (await listComments(pattern.id)).map((comment) => ({
@@ -53,6 +62,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
         parent: parent ? { id: parent.id, title: parent.title } : null,
       }}
       comments={comments}
+      initialKnobs={initialKnobs}
     />
   );
 }

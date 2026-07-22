@@ -31,19 +31,26 @@ export type PatternView = {
 export default function PatternDetailClient({
   pattern,
   comments,
+  initialKnobs,
 }: {
   pattern: PatternView;
   comments: CommentView[];
+  initialKnobs?: number[];
 }) {
   const router = useRouter();
   const [code, setCode] = useState(pattern.code);
   const [running, setRunning] = useState(true);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
-  // Knob labels/ranges come from the original pattern's @knobs annotation —
-  // live edits don't re-tune the sliders (Pattern Lab is the place for that).
   const knobSetup = useMemo(() => knobSetupFromCode(pattern.code), [pattern.code]);
-  const [knobValues, setKnobValues] = useState(knobSetup.values);
+
+  // Use custom initial knobs passed from feed card if present, otherwise default setup
+  const [knobValues, setKnobValues] = useState<number[]>(() => {
+    if (initialKnobs && initialKnobs.length === knobSetup.values.length) {
+      return initialKnobs;
+    }
+    return knobSetup.values;
+  });
 
   const edited = code !== pattern.code;
 
