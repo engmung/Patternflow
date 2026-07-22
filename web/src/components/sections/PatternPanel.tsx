@@ -382,6 +382,12 @@ export default function PatternPanel({ content }: PatternPanelProps) {
             >
               Flash presets
             </button>
+            <Link
+              href="/community"
+              title="Explore the Patternflow pattern community"
+            >
+              Community ↗
+            </Link>
           </div>
 
           {mode === 'flash' && (

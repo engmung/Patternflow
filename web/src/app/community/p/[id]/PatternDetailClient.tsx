@@ -65,17 +65,19 @@ export default function PatternDetailClient({
   };
 
   return (
-    <>
+    <div className={styles.detailWrap}>
       <div className={styles.detailLayout}>
-        <div>
+        <div className={styles.detailLeftCol}>
           <div className={styles.matrixFrame}>
-            <SandboxPreview
-              code={code}
-              knobValues={knobValues}
-              knobRanges={knobSetup.ranges}
-              running={running}
-              onStatus={(ok, error) => setRuntimeError(ok ? null : error ?? "Runtime error.")}
-            />
+            <div className={styles.screenRotator}>
+              <SandboxPreview
+                code={code}
+                knobValues={knobValues}
+                knobRanges={knobSetup.ranges}
+                running={running}
+                onStatus={(ok, error) => setRuntimeError(ok ? null : error ?? "Runtime error.")}
+              />
+            </div>
           </div>
 
           {runtimeError && <div className={styles.errorBox}>{runtimeError}</div>}
@@ -164,6 +166,6 @@ export default function PatternDetailClient({
       </div>
 
       <CommentSection patternId={pattern.id} comments={comments} />
-    </>
+    </div>
   );
 }

@@ -70,7 +70,14 @@
   padding: 18px;
 }
 
-.previewHeader,
+.previewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .editorHeader {
   display: flex;
   align-items: flex-start;
@@ -79,54 +86,90 @@
   margin-bottom: 16px;
 }
 
-.previewHeader h1 {
-  margin: 0;
-  font-size: clamp(34px, 5vw, 72px);
-  line-height: 0.95;
-  letter-spacing: 0;
-}
-
-.previewHeader {
-  justify-content: flex-end;
-}
-
 .stats {
-  justify-content: flex-end;
-  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(23, 21, 18, 0.62);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
 }
 
-.stats span {
-  padding: 4px 0;
+.dotSep {
+  opacity: 0.4;
 }
 
-.low {
-  color: #177246;
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.medium {
-  color: #8a5d00;
+.headerToggle,
+.headerSelect {
+  appearance: none;
+  min-height: 32px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 10px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 120ms ease;
 }
 
-.high {
-  color: #b42318;
+.headerToggle:hover,
+.headerSelect:hover {
+  border-color: #171512;
+  background: #f7f3ea;
 }
 
 .matrixFrame {
   position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(23, 21, 18, 0.2);
-  background:
-    linear-gradient(90deg, rgba(23, 21, 18, 0.06) 1px, transparent 1px),
-    linear-gradient(rgba(23, 21, 18, 0.06) 1px, transparent 1px),
-    #030303;
-  background-size: 16px 16px;
+  width: 100%;
   aspect-ratio: 2 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #111111;
+  background: #030303;
+  border-radius: 0;
+  overflow: hidden;
 }
 
 .matrixFrame canvas {
   display: block;
+  height: 100%;
+  max-height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.screenRotator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  background: #09090b;
+  overflow: hidden;
+}
+
+.screenRotator canvas {
+  display: block;
   width: 100%;
   height: 100%;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  object-fit: fill;
   image-rendering: pixelated;
 }
 
@@ -692,7 +735,8 @@
 
 .editorPane {
   flex: 1 1 auto;
-  min-height: 560px;
+  min-height: 720px;
+  height: 100%;
 }
 
 .snapshots {
@@ -1075,10 +1119,12 @@
 
 .variantFrame {
   position: relative;
+  aspect-ratio: 1 / 2;
+  width: 100%;
+  background: #09090b;
+  border-radius: 6px;
   overflow: hidden;
   border: 1px solid rgba(23, 21, 18, 0.2);
-  background: #030303;
-  aspect-ratio: 2 / 1;
 }
 
 .variantFrame canvas {

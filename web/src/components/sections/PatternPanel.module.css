@@ -10,7 +10,7 @@
 
 .modeSwitch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   border: 1px solid var(--pf-rule);
   margin-bottom: 24px;
 }
@@ -22,7 +22,12 @@
   cursor: pointer;
 }
 
-.modeSwitch button {
+.modeSwitch button,
+.modeSwitch a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   min-height: 54px;
   border: 0;
   border-right: 1px solid var(--pf-rule);
@@ -32,13 +37,16 @@
   font-size: var(--pf-fs-mono);
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
+  transition: background 120ms ease, color 120ms ease;
 }
 
-.modeSwitch button:last-child {
+.modeSwitch button:last-child,
+.modeSwitch a:last-child {
   border-right: 0;
 }
 
-.modeSwitch button.active {
+.modeSwitch button.active,
+.modeSwitch a:hover {
   background: var(--pf-ink);
   color: var(--pf-cream);
 }

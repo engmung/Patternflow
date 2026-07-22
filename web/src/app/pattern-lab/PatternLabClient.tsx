@@ -145,11 +145,17 @@ type RangeEditState = {
   value: string;
 };
 
-function paintCanvas(canvas: HTMLCanvasElement, data: Uint8ClampedArray) {
+function paintCanvas(
+  canvas: HTMLCanvasElement,
+  data: Uint8ClampedArray,
+  width = PATTERN_MATRIX_WIDTH,
+  height = PATTERN_MATRIX_HEIGHT,
+) {
   const context = canvas.getContext("2d");
   if (!context) return;
-  const imageData = context.createImageData(PATTERN_MATRIX_WIDTH, PATTERN_MATRIX_HEIGHT);
-  imageData.data.set(data);
+  const imageData = context.createImageData(width, height);
+  const minLength = Math.min(data.length, imageData.data.length);
+  imageData.data.set(data.subarray(0, minLength));
   context.putImageData(imageData, 0, 0);
 }
 
@@ -501,11 +507,25 @@ export default function PatternLabClient() {
   const [genOrientation, setGenOrientation] = useState<Orientation>("landscape");
   const [genRefs, setGenRefs] = useState(DEFAULT_REF_COUNT);
   const [genColorMode, setGenColorMode] = useState<ColorMode>("vfield");
-  const [rampState, setRampState] = useState<RampState>(loadStoredRamp);
+  const [rampState, setRampState] = useState<RampState>(DEFAULT_RAMP);
   const [recolor, setRecolor] = useState(false);
   const [selectedStopIndex, setSelectedStopIndex] = useState(0);
   const [editorView, setEditorView] = useState<"code" | "gallery" | "experiment">("code");
-  const [patch, setPatch] = useState<PatchState>(loadStoredPatch);
+  const [resPreset, setResPreset] = useState<string>("128x64");
+  const [resWidth, resHeight] = useMemo(() => {
+    const [wStr, hStr] = resPreset.split("x");
+    const w = parseInt(wStr ?? "128", 10) || 128;
+    const h = parseInt(hStr ?? "64", 10) || 64;
+    return [w, h];
+  }, [resPreset]);
+  const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
+
+  // Sync state from localStorage after initial client mount to prevent SSR hydration mismatches
+  useEffect(() => {
+    setRampState(loadStoredRamp());
+    setPatch(loadStoredPatch());
+    setGeminiKey(loadGeminiKey());
+  }, []);
   const [now, setNow] = useState(0);
   const removedJobsRef = useRef<Set<string>>(new Set());
 
@@ -765,7 +785,7 @@ export default function PatternLabClient() {
 
   const loadCode = useCallback(
     (nextCode: string) => {
-      const runtime = new PatternRuntime();
+      const runtime = new PatternRuntime(resWidth, resHeight);
       const result = runtime.loadCode(nextCode);
       runtimeRef.current = runtime;
       previousKnobsRef.current = [...knobsRef.current];
@@ -773,10 +793,10 @@ export default function PatternLabClient() {
       setRuntimeErrorSafe(result.ok ? null : result.error ?? "Pattern failed to load.");
 
       if (canvasRef.current) {
-        paintCanvas(canvasRef.current, runtime.data);
+        paintCanvas(canvasRef.current, runtime.data, runtime.width, runtime.height);
       }
     },
-    [setRuntimeErrorSafe],
+    [resWidth, resHeight, setRuntimeErrorSafe],
   );
 
   useEffect(() => {
@@ -933,7 +953,7 @@ export default function PatternLabClient() {
 
         if (result.ok) {
           setRuntimeErrorSafe(null);
-          paintCanvas(canvas, runtime.data);
+          paintCanvas(canvas, runtime.data, runtime.width, runtime.height);
         } else {
           setRuntimeErrorSafe(result.error ?? "Runtime error.");
         }
@@ -1572,8 +1592,8 @@ ${activeCode}
           <div className={styles.previewHeader}>
             <div className={styles.stats}>
               <span>{renderStats.fps.toFixed(0)} fps</span>
+              <span className={styles.dotSep}>·</span>
               <span>{renderStats.ms.toFixed(2)} ms</span>
-              <span className={styles[cost.level.toLowerCase()]}>ESP32 {cost.level}</span>
               {forkOf && (
                 <span
                   className={styles.forkBadge}
@@ -1590,13 +1610,34 @@ ${activeCode}
                 </span>
               )}
             </div>
+
+            <div className={styles.headerControls}>
+              <select
+                className={styles.headerSelect}
+                value={resPreset}
+                aria-label="Target matrix resolution"
+                title="Select target LED matrix resolution"
+                onChange={(e) => {
+                  if (e.target.value !== "custom") {
+                    setResPreset(e.target.value);
+                  }
+                }}
+              >
+                <option value="128x64">128 × 64 (Patternflow Standard)</option>
+                <option value="64x128">64 × 128 (Patternflow Vertical)</option>
+                <option value="custom" disabled>
+                  Custom Resolution (Coming Soon)
+                </option>
+              </select>
+            </div>
           </div>
 
           <div className={styles.matrixFrame}>
             <canvas
               ref={canvasRef}
-              width={PATTERN_MATRIX_WIDTH}
-              height={PATTERN_MATRIX_HEIGHT}
+              width={resWidth}
+              height={resHeight}
+              style={{ aspectRatio: `${resWidth} / ${resHeight}` }}
               aria-label="Pattern preview"
             />
           </div>
