@@ -7,9 +7,10 @@ import { knobSetupFromCode } from "@/lib/community/knobs";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import styles from "./Community.module.css";
 
-// One feed card. Fixed height with ZERO layout shift on hover.
-// Dynamically appends modified knob values to the detail link query string (?k=...)
-// so clicking the card opens the detail page with those exact custom knob settings!
+// One feed card.
+// 1. Live 60fps pattern plays continuously while hovering anywhere on the card.
+// 2. Knob overlay appears only while cursor is directly over the matrix screen (with top/bottom dodging).
+// 3. Moving cursor over the card title/footer completely hides the knob overlay for a 100% clean view of the live pattern!
 
 export type PatternCardItem = {
   id: string;
@@ -33,6 +34,8 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
 
   // Hover & Live state
   const [isHovered, setIsHovered] = useState(false);
+  const [isScreenHovered, setIsScreenHovered] = useState(false);
+  const [overlayPos, setOverlayPos] = useState<"bottom" | "top">("bottom");
 
   // Knob interaction state
   const [knobValues, setKnobValues] = useState<number[]>(knobSetup.values);
@@ -53,22 +56,43 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
     };
   }, [item.code, knobValues]);
 
-  const handleMouseEnter = () => {
+  const handleCardMouseEnter = () => {
     setIsHovered(true);
   };
 
-  const handleMouseLeave = () => {
+  const handleCardMouseLeave = () => {
     setIsHovered(false);
+    setIsScreenHovered(false);
+    setOverlayPos("bottom");
   };
 
-  // Track mouse X position on thumbnail to select active knob (K1..K4)
+  const handleThumbMouseEnter = () => {
+    setIsScreenHovered(true);
+  };
+
+  const handleThumbMouseLeave = () => {
+    setIsScreenHovered(false);
+  };
+
+  // Track mouse X position (for knob selection K1..K4) & Y position (for dynamic dodging top/bottom)
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!thumbRef.current) return;
     const rect = thumbRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-    const ratio = x / rect.width;
-    const idx = Math.min(3, Math.floor(ratio * 4));
+    const y = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+
+    // Select active knob (0..3) based on X quadrant
+    const xRatio = x / rect.width;
+    const idx = Math.min(3, Math.floor(xRatio * 4));
     setActiveKnobIdx(idx);
+
+    // Dynamic dodging: move overlay to top if cursor is on bottom half of screen, and vice versa
+    const yRatio = y / rect.height;
+    if (yRatio > 0.55) {
+      setOverlayPos("top");
+    } else if (yRatio < 0.45) {
+      setOverlayPos("bottom");
+    }
   };
 
   // Mouse wheel adjusts active knob value
@@ -101,13 +125,15 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
     <Link
       href={detailUrl}
       className={styles.card}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={handleCardMouseEnter}
+      onMouseLeave={handleCardMouseLeave}
     >
       {/* 1:2 Vertical Matrix Display Screen */}
       <div
         ref={thumbRef}
         className={styles.cardThumb}
+        onMouseEnter={handleThumbMouseEnter}
+        onMouseLeave={handleThumbMouseLeave}
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
       >
@@ -119,7 +145,7 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Pre-warmed Live Sandbox Preview (0ms instant playback on hover) */}
+          {/* Pre-warmed Live Sandbox Preview (0ms instant playback while hovering on card) */}
           <SandboxPreview
             code={item.code}
             knobValues={knobValues}
@@ -129,12 +155,14 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
           />
         </div>
 
-        {/* Sleek Bottom Overlay Knob Control Bar (2 Stacked Lines, Spacious Track Bar) */}
+        {/* Dynamic Dodging Knob Overlay Bar (Visible ONLY when cursor is on matrix screen) */}
         <div
-          className={styles.bottomKnobOverlay}
+          className={`${styles.knobOverlay} ${
+            overlayPos === "top" ? styles.overlayTop : styles.overlayBottom
+          }`}
           style={{
-            opacity: isHovered ? 1 : 0,
-            pointerEvents: isHovered ? "auto" : "none",
+            opacity: isHovered && isScreenHovered ? 1 : 0,
+            pointerEvents: isHovered && isScreenHovered ? "auto" : "none",
           }}
         >
           {/* Line 1: K1 ~ K4 Zone Buttons */}
@@ -170,7 +198,7 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
         </div>
       </div>
 
-      {/* Card Footer / Meta Section (Fixed height, 100% stationary) */}
+      {/* Card Footer / Meta Section (Clean Shot Mode: hides knob UI when hovered here!) */}
       <div className={styles.cardMeta}>
         <div className={styles.cardTitle}>
           <span className={styles.cardTitleText}>{item.title}</span>
