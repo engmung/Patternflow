@@ -1,16 +1,25 @@
 /* Community surfaces — matches the site's cream/ink look (see globals.css). */
 
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   background: #f7f3ea;
   color: #171512;
   font-family: var(--pf-sans, ui-sans-serif, system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
 }
 
 .inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 22px 22px 64px;
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  padding: 20px 36px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .pageHeader {
@@ -18,8 +27,9 @@
   align-items: baseline;
   gap: 14px;
   padding-bottom: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+  flex: none;
 }
 
 .brand {
@@ -60,17 +70,25 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   font-size: 14px;
   color: #6b655a;
+  flex: none;
+}
+
+.feedScrollArea {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 6px;
+  padding-bottom: 24px;
 }
 
 /* ── Feed grid ── */
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
 .card {
@@ -81,18 +99,18 @@
   background: #fffdf8;
   color: inherit;
   text-decoration: none;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition: border-color 120ms ease;
 }
 
 .card:hover {
-  border-color: rgba(23, 21, 18, 0.45);
-  transform: translateY(-1px);
+  border-color: rgba(23, 21, 18, 0.5);
 }
 
 .cardThumb {
   position: relative;
   aspect-ratio: 2 / 1;
   background: #111;
+  user-select: none;
 }
 
 .cardThumb img {
@@ -116,16 +134,174 @@
   text-align: center;
 }
 
+.cardHoverPreview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: #111;
+}
+
+.liveBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #fff;
+  background: #e8552e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.liveDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  animation: livePulse 800ms infinite alternate ease-in-out;
+}
+
+@keyframes livePulse {
+  0% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* ── Interactive Knob Control Bar in Card Footer ── */
+
+/* ── Fixed Height Card Footer & Controls ── */
+
 .cardMeta {
   padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .cardTitle {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   font-size: 14px;
+  font-weight: 700;
+  height: 20px;
+  line-height: 20px;
+}
+
+.cardTitleText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metaFooterSlot {
+  position: relative;
+  height: 22px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.cardByline {
+  position: absolute;
+  inset: 0;
+  font-size: 12px;
+  color: #6b655a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 150ms ease;
+}
+
+.metaKnobSection {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 150ms ease;
+}
+
+.knobZoneBarInMeta {
+  display: flex;
+  background: rgba(23, 21, 18, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(23, 21, 18, 0.15);
+  flex: none;
+}
+
+.knobSegmentInMeta {
+  padding: 1px 5px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  color: #6b655a;
+  border-right: 1px solid rgba(23, 21, 18, 0.1);
+  transition: all 120ms ease;
+}
+
+.knobSegmentInMeta:last-child {
+  border-right: 0;
+}
+
+.activeKnobSegment {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.metaKnobStatus {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  min-width: 0;
+}
+
+.metaKnobLabel {
   font-weight: 600;
+  color: #171512;
+  white-space: nowrap;
+}
+
+.metaKnobVal {
+  color: #e8552e;
+  font-weight: 700;
+  flex: none;
+}
+
+.metaKnobTrack {
+  flex: 1;
+  height: 4px;
+  background: rgba(23, 21, 18, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 20px;
+}
+
+.metaKnobFill {
+  height: 100%;
+  background: #e8552e;
+  transition: width 100ms ease;
 }
 
 .cardByline {

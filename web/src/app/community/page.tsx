@@ -16,10 +16,10 @@ export default async function CommunityFeedPage() {
   const items = (await listFeed()).map(toCardItem);
 
   return (
-    <>
+    <div className={styles.feedScrollArea}>
       <div className={styles.introRow}>
         <span>
-          Patterns shared by the community — open any of them, tweak the code, no login needed.
+          Patterns shared by the community — hover over any pattern to play live, scroll wheel to turn knobs!
         </span>
         <span className={styles.headerSpacer} />
         <Link href="/pattern-lab" className={styles.btnAccent}>
@@ -38,6 +38,6 @@ export default async function CommunityFeedPage() {
           ))}
         </div>
       )}
-    </>
+    </div>
   );
 }
