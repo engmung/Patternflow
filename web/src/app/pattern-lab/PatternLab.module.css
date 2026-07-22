@@ -1289,3 +1289,28 @@
     min-height: 520px;
   }
 }
+
+/* ── Community fork badge ── */
+
+.forkBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid rgba(232, 85, 46, 0.5);
+  border-radius: 999px;
+  color: #e8552e;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+}
+
+.forkBadge button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}

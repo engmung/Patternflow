@@ -1,0 +1,52 @@
+import { getAuth } from "@/lib/community/auth";
+import { communityEnabled, getDb } from "@/lib/community/db";
+import { getPatternStub, newId } from "@/lib/community/queries";
+import { rateLimit } from "@/lib/community/ratelimit";
+import { comments } from "@/lib/community/schema";
+import { cleanComment } from "@/lib/community/validate";
+
+// POST /api/community/patterns/[id]/comments — add a comment (login required).
+// Comments are stored as plain text and escaped on output by React.
+
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!communityEnabled()) {
+    return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
+  }
+
+  const session = await getAuth().api.getSession({ headers: request.headers });
+  if (!session) {
+    return Response.json({ error: "Sign in to comment." }, { status: 401 });
+  }
+
+  if (!rateLimit(`comment:${session.user.id}`, 10, 60_000)) {
+    return Response.json({ error: "Too many comments — wait a minute and try again." }, { status: 429 });
+  }
+
+  const { id: patternId } = await context.params;
+  const pattern = await getPatternStub(patternId);
+  if (!pattern) {
+    return Response.json({ error: "Pattern not found." }, { status: 404 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  const text = cleanComment((body as Record<string, unknown>).body);
+  if (!text) {
+    return Response.json({ error: "Comment is empty or over 2000 chars." }, { status: 400 });
+  }
+
+  await getDb().insert(comments).values({
+    id: newId(),
+    patternId,
+    userId: session.user.id,
+    body: text,
+    createdAt: new Date(),
+  });
+
+  return Response.json({ ok: true }, { status: 201 });
+}

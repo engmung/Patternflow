@@ -4,6 +4,8 @@ import { CAMPAIGN_ROUTES } from "./src/lib/campaignRoutes";
 
 const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
+  // Native module — must stay a runtime require, not a bundled dependency.
+  serverExternalPackages: ["better-sqlite3"],
   async redirects() {
     return [
       {

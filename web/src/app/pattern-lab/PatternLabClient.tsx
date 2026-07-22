@@ -52,6 +52,14 @@ import {
 } from "@/lib/patternPatch";
 import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
+import PublishModal from "@/components/community/PublishModal";
+import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
+import {
+  codeUsesValueField,
+  parseRampAnnotation,
+  stripRampAnnotation,
+  withRampAnnotation,
+} from "@/lib/patternRamp";
 import { livePresets } from "@/lib/presets";
 import styles from "./PatternLab.module.css";
 
@@ -474,6 +482,11 @@ export default function PatternLabClient() {
   const [cppPromptCopied, setCppPromptCopied] = useState(false);
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [communityShareOpen, setCommunityShareOpen] = useState(false);
+  // Fork lineage carried over from a community pattern opened "in Pattern
+  // Lab". Sticky until the user detaches it (×) — we never guess whether the
+  // code has diverged too far to still count as a fork.
+  const [forkOf, setForkOf] = useState<{ id: string; title: string } | null>(null);
   const [activeRangeId, setActiveRangeId] = useState<string | null>(null);
   const [editingRange, setEditingRange] = useState<RangeEditState | null>(null);
   const [geminiKey, setGeminiKey] = useState(loadGeminiKey);
@@ -803,6 +816,39 @@ export default function PatternLabClient() {
     applyKnobsAnnotation(nextCode);
     setCode(nextCode);
   };
+
+  // Consume a community → lab handoff exactly once per mount. The detail
+  // page's "Open in Pattern Lab" writes it to sessionStorage right before
+  // navigating here; publishing later records the carried parentId as a fork.
+  const handoffConsumedRef = useRef(false);
+  useEffect(() => {
+    if (handoffConsumedRef.current) return;
+    handoffConsumedRef.current = true;
+    const handoff = readLabHandoff();
+    if (!handoff) return;
+    clearLabHandoff();
+    // A shared pattern may carry its color ramp as a `// @ramp` line. Restore
+    // it into the lab's ramp state and keep the editor clean — the annotation
+    // is re-injected fresh at publish time. (These are post-mount reads of
+    // browser-only sessionStorage, hence the setState-in-effect exemptions.)
+    const rampAnnotation = parseRampAnnotation(handoff.code);
+    if (rampAnnotation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRampState({
+        stops: rampAnnotation.stops,
+        mode: rampAnnotation.mode,
+        wrap: rampAnnotation.wrap,
+      });
+      setRecolor(rampAnnotation.recolor);
+      updateCode(stripRampAnnotation(handoff.code));
+    } else {
+      updateCode(handoff.code); // editorView already defaults to "code" on mount
+    }
+    if (handoff.parentId) {
+      setForkOf({ id: handoff.parentId, title: handoff.parentTitle ?? "a community pattern" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Lab preset stepper ── browses the labOnly set; index follows the editor
   // content, so editing away from a preset shows "–".
@@ -1528,6 +1574,21 @@ ${activeCode}
               <span>{renderStats.fps.toFixed(0)} fps</span>
               <span>{renderStats.ms.toFixed(2)} ms</span>
               <span className={styles[cost.level.toLowerCase()]}>ESP32 {cost.level}</span>
+              {forkOf && (
+                <span
+                  className={styles.forkBadge}
+                  title="Sharing to the community will publish this as a fork of the linked pattern. Click × if this is no longer a remix of it."
+                >
+                  forking from {forkOf.title}
+                  <button
+                    type="button"
+                    aria-label="Detach fork lineage"
+                    onClick={() => setForkOf(null)}
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
             </div>
           </div>
 
@@ -1697,6 +1758,13 @@ ${activeCode}
             </button>
             <button type="button" className={styles.darkButton} onClick={() => setShareOpen(true)}>
               Share to Discord
+            </button>
+            <button
+              type="button"
+              className={styles.darkButton}
+              onClick={() => setCommunityShareOpen(true)}
+            >
+              Share to Community
             </button>
           </div>
 
@@ -2431,6 +2499,27 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
           cppConvertPrompt={buildCppPrompt()}
           source="pattern-lab"
           onClose={() => setShareOpen(false)}
+        />
+      )}
+
+      {communityShareOpen && (
+        <PublishModal
+          // Value-field patterns (and recolored ones) are colorless without
+          // their ramp — embed it as a @ramp line so the community renders
+          // them exactly as seen here. Plain RGB patterns ship untouched.
+          code={
+            codeUsesValueField(activeCode) || recolor
+              ? withRampAnnotation(activeCode, {
+                  stops: rampState.stops,
+                  mode: rampState.mode,
+                  wrap: rampState.wrap,
+                  recolor,
+                })
+              : activeCode
+          }
+          parentId={forkOf?.id ?? null}
+          parentTitle={forkOf?.title ?? null}
+          onClose={() => setCommunityShareOpen(false)}
         />
       )}
 

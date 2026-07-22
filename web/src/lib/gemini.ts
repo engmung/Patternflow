@@ -10,7 +10,7 @@
 // `/v1beta/interactions` does not send CORS headers, so browsers block it from
 // any origin (localhost and production alike). `generateContent` does send them,
 // which is what makes client-side BYOK work without a server proxy.
-export const GEMINI_MODEL = "gemini-3.5-flash";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 
 // More thinking = more varied/correct output but slower.
 export type ThinkingLevelKey = "MINIMAL" | "LOW" | "MEDIUM" | "HIGH";

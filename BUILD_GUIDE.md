@@ -89,6 +89,10 @@ The v3.0 board has **two power inputs on one board**. Pick one before ordering p
 
 You can populate both (the reference build in this guide does), but there is no functional reason to solder USB-C just to have it — the screw terminal powers the board exactly the same.
 
+<img src="docs/build-guide/images/v3/16_power_path_compare.jpg" width="85%">
+
+*The two builds side by side. **Left — Path A:** `J4` fits a screw terminal, `USB1` and the `R1`/`R2` pads stay empty. **Right — Path B:** the USB-C receptacle and its two 5.1kΩ CC pull-downs are populated (circled). Both boards run identically.*
+
 ## 3. Order the PCB
 
 The easiest way is the **PCBWay shared project** — no Gerber upload needed, and ordering through it supports Patternflow development:
@@ -219,6 +223,17 @@ By now the enclosure halves you bonded in Section 4 have cured and the board is 
 1. Connect the HUB75 ribbon from `J1` to the panel's `IN` connector.
 2. Wire `J3` to the panel's power cable (+5V / GND — double-check polarity). The wiring run is shown at **06:57** in the [assembly video](https://youtu.be/J9C9bZgkNKs).
 3. Power: Path A — stripped USB cable into `J4` (red = +5V, black = GND); Path B — USB-C cable into `USB1`.
+
+   **Path A — do it in this order, it's much easier:**
+
+   1. Cut the USB cable and **strip the two power wires** (red = +5 V, black = GND; ignore the data wires).
+   2. **Thread the cable through the enclosure's cable hole first** — before it's attached to anything.
+   3. **Clamp the stripped wires into `J4`** on the board and tighten the screws. Give each wire a gentle tug to confirm it's held.
+   4. *Then* fit the board into the enclosure. Doing it this way means you're never fishing a cable through a hole with the board already in place.
+
+   <img src="docs/build-guide/images/v3/17_screw_terminal_wiring.jpg" width="45%">
+
+   *Cable already through the enclosure hole, wires clamped into `J4`, board about to go in.*
 4. **Before inserting the ESP32:** with power disconnected, continuity-check +5V↔GND at the `J3` terminals (open = good, like the Section 5 check). Then power up once and confirm ~5V across `J3`.
 5. Power off, seat the ESP32 DevKit in its sockets (orientation per silkscreen), power on.
 

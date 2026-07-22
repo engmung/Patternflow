@@ -1,0 +1,518 @@
+/* Community surfaces — matches the site's cream/ink look (see globals.css). */
+
+.page {
+  min-height: 100vh;
+  background: #f7f3ea;
+  color: #171512;
+  font-family: var(--pf-sans, ui-sans-serif, system-ui, sans-serif);
+}
+
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 22px 22px 64px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.brand {
+  color: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pageTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #6b655a;
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.headerNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.headerNav a {
+  color: #6b655a;
+  text-decoration: none;
+}
+
+.headerNav a:hover {
+  color: #171512;
+}
+
+.introRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  color: #6b655a;
+}
+
+/* ── Feed grid ── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: block;
+  border: 1px solid rgba(23, 21, 18, 0.18);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fffdf8;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.card:hover {
+  border-color: rgba(23, 21, 18, 0.45);
+  transform: translateY(-1px);
+}
+
+.cardThumb {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  background: #111;
+}
+
+.cardThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.cardThumbNote {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  color: #a69f90;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  text-align: center;
+}
+
+.cardMeta {
+  padding: 10px 12px 12px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cardByline {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #6b655a;
+}
+
+.forkChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e8552e;
+  border: 1px solid rgba(232, 85, 46, 0.5);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.empty {
+  padding: 48px 0;
+  text-align: center;
+  color: #6b655a;
+  font-size: 14px;
+}
+
+/* ── Detail page ── */
+
+.detailLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .detailLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.matrixFrame {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  background: #111;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.matrixFrame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.errorBox {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid rgba(216, 64, 64, 0.5);
+  border-radius: 6px;
+  background: rgba(216, 64, 64, 0.08);
+  color: #a02020;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.knobs {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.knobLine {
+  display: grid;
+  grid-template-columns: 92px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+}
+
+.knobLine input[type="range"] {
+  width: 100%;
+  accent-color: #e8552e;
+}
+
+.knobValue {
+  text-align: right;
+  font-weight: 600;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.35);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-size: 13px;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: rgba(23, 21, 18, 0.7);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnPrimary {
+  composes: btn;
+  background: #171512;
+  border-color: #171512;
+  color: #f7f3ea;
+}
+
+.btnPrimary:hover {
+  background: #2c2822;
+}
+
+.btnAccent {
+  composes: btn;
+  background: #e8552e;
+  border-color: #e8552e;
+  color: #fff;
+}
+
+.btnAccent:hover {
+  background: #d24a26;
+  border-color: #d24a26;
+}
+
+.editorWrap {
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  height: 480px;
+}
+
+/* ── Detail meta + comments ── */
+
+.metaBlock {
+  margin-top: 28px;
+  max-width: 760px;
+}
+
+.metaTitle {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.metaByline {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #6b655a;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.metaByline a {
+  color: #171512;
+}
+
+.forkNote {
+  color: #e8552e;
+}
+
+.forkNote a {
+  color: #e8552e;
+}
+
+.metaDescription {
+  margin-top: 14px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  color: #2c2822;
+}
+
+.commentsBlock {
+  margin-top: 36px;
+  max-width: 760px;
+}
+
+.commentsTitle {
+  font-size: 15px;
+  font-weight: 700;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.commentItem {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.1);
+  font-size: 14px;
+}
+
+.commentHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.commentAuthor {
+  font-weight: 600;
+  color: #171512;
+  text-decoration: none;
+}
+
+.commentDate {
+  font-size: 12px;
+  color: #a69f90;
+}
+
+.commentBody {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.commentForm {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.commentForm textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+/* ── Forms / modals ── */
+
+.textInput,
+.commentForm textarea,
+.field select {
+  width: 100%;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 8px 10px;
+}
+
+.textInput:focus,
+.commentForm textarea:focus,
+.field select:focus {
+  outline: 2px solid rgba(232, 85, 46, 0.5);
+  outline-offset: 1px;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(23, 21, 18, 0.45);
+}
+
+.modalCard {
+  width: min(420px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 10px;
+  background: #f7f3ea;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  box-shadow: 0 18px 50px rgba(23, 21, 18, 0.25);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.15);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.modalHeader button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #6b655a;
+}
+
+.modalBody {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.fieldLabel {
+  font-weight: 600;
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: #6b655a;
+}
+
+.formError {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(216, 64, 64, 0.1);
+  border: 1px solid rgba(216, 64, 64, 0.4);
+  color: #a02020;
+  font-size: 13px;
+}
+
+.formNote {
+  font-size: 12px;
+  color: #6b655a;
+  line-height: 1.5;
+}
+
+.authTabs {
+  display: flex;
+  gap: 6px;
+}
+
+.authTabs button {
+  flex: 1;
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 6px;
+  background: transparent;
+  color: #6b655a;
+  font-size: 13px;
+  padding: 7px 0;
+  cursor: pointer;
+}
+
+.authTabs button[data-active="true"] {
+  background: #171512;
+  border-color: #171512;
+  color: #f7f3ea;
+}
+
+.userChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  color: #171512;
+  text-decoration: none;
+}
+
+.notice {
+  max-width: 560px;
+  margin: 80px auto;
+  padding: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 10px;
+  background: #fffdf8;
+  text-align: center;
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+.notice a {
+  color: #e8552e;
+}
