@@ -1,8 +1,14 @@
+import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
 
 // Better Auth catch-all (sign-up, sign-in, session, sign-out, …).
 // Lazy so that deployments without COMMUNITY_ENABLED never open the database.
+//
+// Sessions belong to this deployment, but the sign-in modal can be opened from
+// the main site (Pattern Lab), so these responses need CORS too. Better Auth
+// separately checks the Origin header against `trustedOrigins` — both lists
+// come from COMMUNITY_ALLOWED_ORIGINS.
 
 async function handler(request: Request) {
   if (!communityEnabled()) {
@@ -11,4 +17,10 @@ async function handler(request: Request) {
   return getAuth().handler(request);
 }
 
-export { handler as GET, handler as POST };
+async function corsHandler(request: Request) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handler(request));
+}
+
+export { corsHandler as GET, corsHandler as POST, preflight as OPTIONS };

@@ -2,10 +2,14 @@
 
 import { createAuthClient } from "better-auth/react";
 import { usernameClient } from "better-auth/client/plugins";
+import { crossOriginCommunityBase } from "./apiBase";
 
-// Same-origin client — baseURL defaults to the current origin, which is what
-// we want on both the dev server and the Pi deployment.
+// Sessions live on the community deployment, so auth calls have to go there
+// even when the page was served by the main site. Same-origin resolves to null
+// and Better Auth falls back to the current origin. See lib/community/apiBase.
 export const authClient = createAuthClient({
+  baseURL: crossOriginCommunityBase() ?? undefined,
+  fetchOptions: { credentials: "include" },
   plugins: [usernameClient()],
 });
 

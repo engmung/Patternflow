@@ -20,11 +20,12 @@ export const DISCORD_PATTERNS_CHANNEL = "🌀│patterns";
 // Which tool the share came from. Drives the caption link and the "Made with"
 // attribution so each surface points people back to the right place. URLs must
 // include the scheme — Discord only linkifies full https:// URLs.
-export type ShareSource = "pattern-lab" | "live-editor";
+export type ShareSource = "pattern-lab" | "live-editor" | "community";
 
 export const SHARE_TOOLS: Record<ShareSource, { label: string; url: string }> = {
   "pattern-lab": { label: "Patternflow Pattern Lab", url: "https://patternflow.work/pattern-lab" },
   "live-editor": { label: "Patternflow Live Editor", url: "https://patternflow.work/pattern" },
+  community: { label: "Patternflow Community", url: "https://patternflow.work/community" },
 };
 
 export function licenseById(id: string): LicenseOption {

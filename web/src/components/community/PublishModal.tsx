@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { DEFAULT_LICENSE_ID, LICENSE_OPTIONS, licenseById } from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
@@ -42,8 +43,9 @@ export default function PublishModal({ code, parentId, parentTitle, onClose }: P
 
     setBusy(true);
     try {
-      const response = await fetch("/api/community/patterns", {
+      const response = await fetch(communityApiUrl("/api/community/patterns"), {
         method: "POST",
+        ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: trimmed,

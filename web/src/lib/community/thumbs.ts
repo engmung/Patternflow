@@ -4,17 +4,14 @@ import { knobSetupFromCode } from "./knobs";
 import { PATTERN_SANDBOX_URL } from "./sandboxUrl";
 
 // Feed thumbnails: one hidden sandboxed iframe renders stills sequentially.
-// One iframe per card would be far too heavy, and running untrusted code in
-// the page is forbidden — so every card funnels through this queue and gets
-// back a data-URL PNG. A pattern that hangs (while(true)) only stalls the
-// queue until its timeout, after which the iframe is rebuilt and the queue
-// moves on.
+// Supports custom knob values so card thumbnails retain user-modified states.
 
 export type StillResult = { ok: boolean; dataUrl?: string; error?: string };
 
 type Job = {
   id: string;
   code: string;
+  customKnobValues?: number[];
   resolve: (result: StillResult) => void;
 };
 
@@ -55,7 +52,6 @@ function ensureFrame() {
   if (frame) return;
   frameReady = false;
   const element = document.createElement("iframe");
-  // The sandbox attribute is the security boundary — allow-scripts ONLY.
   element.setAttribute("sandbox", "allow-scripts");
   element.src = PATTERN_SANDBOX_URL;
   element.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden;";
@@ -83,21 +79,21 @@ function pump() {
   activeJob = job;
 
   const setup = knobSetupFromCode(job.code);
+  const knobValues = job.customKnobValues ?? setup.values;
+
   frame.contentWindow.postMessage(
     {
       type: "pf-still",
       id: job.id,
       code: job.code,
-      knobValues: setup.values,
+      knobValues,
       knobRanges: setup.ranges,
-      seconds: 0.9,
+      seconds: 0.0,
       fps: 15,
     },
     "*",
   );
 
-  // A runaway pattern blocks the sandbox's message loop entirely — the only
-  // recovery is to tear the iframe down and start a fresh one.
   activeTimeout = window.setTimeout(() => {
     if (activeJob !== job) return;
     activeJob = null;
@@ -107,15 +103,16 @@ function pump() {
   }, STILL_TIMEOUT_MS);
 }
 
-/** Render a thumbnail for pattern code. Cached per code string for the session. */
-export function renderPatternThumb(code: string): Promise<StillResult> {
-  const cached = cache.get(code);
+/** Render a thumbnail for pattern code (optionally with custom knob values). */
+export function renderPatternThumb(code: string, customKnobValues?: number[]): Promise<StillResult> {
+  const cacheKey = customKnobValues ? `${code}::${customKnobValues.join(",")}` : code;
+  const cached = cache.get(cacheKey);
   if (cached) return cached;
 
   const promise = new Promise<StillResult>((resolve) => {
-    queue.push({ id: `still-${++jobCounter}`, code, resolve });
+    queue.push({ id: `still-${++jobCounter}`, code, customKnobValues, resolve });
     pump();
   });
-  cache.set(code, promise);
+  cache.set(cacheKey, promise);
   return promise;
 }

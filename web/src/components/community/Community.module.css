@@ -5,12 +5,18 @@
   background: #f7f3ea;
   color: #171512;
   font-family: var(--pf-sans, ui-sans-serif, system-ui, sans-serif);
+  display: flex;
+  flex-direction: column;
 }
 
 .inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 22px 22px 64px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  padding: 20px 36px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .pageHeader {
@@ -18,8 +24,9 @@
   align-items: baseline;
   gap: 14px;
   padding-bottom: 16px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
   border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+  flex: none;
 }
 
 .brand {
@@ -60,47 +67,146 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   font-size: 14px;
   color: #6b655a;
+  flex: none;
 }
 
-/* ── Feed grid ── */
+.feedWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+  max-height: calc(100vh - 100px);
+  overflow: hidden;
+}
 
-.grid {
+.centeredFeedBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+/* ── Single Centered Horizontal Row Grid ── */
+
+.singleRowGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.pageBtn {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #171512;
+  border-color: #171512;
+  color: #f7f3ea;
+}
+
+.pageBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pageIndicator {
+  color: #6b655a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageIndicator strong {
+  color: #171512;
+}
+
+.pageMetaTotal {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .card {
   display: block;
   border: 1px solid rgba(23, 21, 18, 0.18);
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 10px;
   background: #fffdf8;
-  color: inherit;
   text-decoration: none;
-  transition: border-color 120ms ease, transform 120ms ease;
+  color: inherit;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .card:hover {
-  border-color: rgba(23, 21, 18, 0.45);
-  transform: translateY(-1px);
+  border-color: rgba(23, 21, 18, 0.55);
 }
 
 .cardThumb {
+  aspect-ratio: 1 / 2;
   position: relative;
-  aspect-ratio: 2 / 1;
-  background: #111;
+  background: #09090b;
+  overflow: hidden;
 }
 
-.cardThumb img {
+.screenRotator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  transform-origin: center center;
+  background: #09090b;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.screenRotator img,
+.screenRotator iframe,
+.cardHoverIframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  object-fit: fill;
   image-rendering: pixelated;
+}
+
+.cardHoverIframe {
+  z-index: 2;
+  background: transparent;
+  pointer-events: none;
 }
 
 .cardThumbNote {
@@ -116,22 +222,150 @@
   text-align: center;
 }
 
+/* ── Sleek Top Overlay Knob Control Bar (ZERO layout shift!) ── */
+
+/* ── Dynamic Dodging Knob Overlay Bar (Shifts Top/Bottom based on cursor!) ── */
+
+.knobOverlay {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(9, 9, 11, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  transition: opacity 150ms ease, top 220ms cubic-bezier(0.16, 1, 0.3, 1), bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.overlayBottom {
+  bottom: 8px;
+  top: auto;
+}
+
+.overlayTop {
+  top: 8px;
+  bottom: auto;
+}
+
+.knobZoneBarInMeta {
+  display: flex;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+}
+
+.knobSegmentInMeta {
+  flex: 1;
+  text-align: center;
+  padding: 3px 0;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  color: #a69f90;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all 120ms ease;
+}
+
+.knobSegmentInMeta:last-child {
+  border-right: 0;
+}
+
+.activeKnobSegment {
+  background: #f7f3ea;
+  color: #171512;
+}
+
+.metaKnobStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-family: var(--pf-mono, monospace);
+}
+
+.metaKnobInfoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.metaKnobLabel {
+  color: #a69f90;
+  white-space: nowrap;
+}
+
+.metaKnobVal {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.metaKnobTrack {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.metaKnobFill {
+  height: 100%;
+  background: #ffffff;
+  border-radius: 3px;
+  transition: width 80ms ease-out;
+}
+
+/* ── Fixed Height Card Footer (Zero Layout Shift!) ── */
+
 .cardMeta {
-  padding: 10px 12px 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fffdf8;
+  height: 64px;
+  box-sizing: border-box;
 }
 
 .cardTitle {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  color: #171512;
+  line-height: 1.3;
+}
+
+.cardTitleText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardByline {
-  margin-top: 3px;
   font-size: 12px;
   color: #6b655a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cardDate {
+  font-size: 11px;
+  color: #8c8577;
+  font-family: var(--pf-mono, monospace);
+  flex: none;
 }
 
 .forkChip {
@@ -155,11 +389,18 @@
 
 /* ── Detail page ── */
 
+.detailWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding-bottom: 80px;
+}
+
 .detailLayout {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: minmax(0, 4.4fr) minmax(0, 4.6fr);
+  gap: 24px;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
@@ -168,12 +409,22 @@
   }
 }
 
+.detailLeftCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
 .matrixFrame {
   position: relative;
-  aspect-ratio: 2 / 1;
-  background: #111;
-  border-radius: 6px;
+  aspect-ratio: 1 / 2;
+  width: 100%;
+  max-width: 320px;
+  background: #09090b;
+  border-radius: 8px;
   overflow: hidden;
+  border: 1px solid rgba(23, 21, 18, 0.2);
 }
 
 .matrixFrame iframe {
@@ -185,6 +436,8 @@
 
 .errorBox {
   margin-top: 10px;
+  width: 100%;
+  max-width: 320px;
   padding: 8px 12px;
   border: 1px solid rgba(216, 64, 64, 0.5);
   border-radius: 6px;
@@ -196,36 +449,55 @@
 }
 
 .knobs {
-  margin-top: 14px;
+  margin: 18px 0 0;
+  width: 100%;
+  max-width: 460px;
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .knobLine {
   display: grid;
-  grid-template-columns: 92px 1fr 64px;
+  grid-template-columns: 70px 320px 70px;
   align-items: center;
-  gap: 10px;
+  gap: 0;
   font-family: var(--pf-mono, monospace);
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.knobLine span:first-child {
+  color: #6b655a;
+  text-align: right;
+  padding-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .knobLine input[type="range"] {
-  width: 100%;
+  width: 320px;
+  margin: 0;
   accent-color: #e8552e;
+  cursor: pointer;
 }
 
 .knobValue {
-  text-align: right;
+  text-align: left;
   font-weight: 600;
+  color: #171512;
+  font-variant-numeric: tabular-nums;
+  padding-left: 12px;
 }
 
 .actionRow {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin: 18px 0 0;
+  width: 100%;
+  max-width: 320px;
 }
 
 .btn {
@@ -275,14 +547,20 @@
   border: 1px solid rgba(23, 21, 18, 0.25);
   border-radius: 6px;
   overflow: hidden;
-  height: 480px;
+  height: 100%;
+  /* Column so the tab bar sits above an editor that fills the rest. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ── Detail meta + comments ── */
 
 .metaBlock {
-  margin-top: 28px;
-  max-width: 760px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(23, 21, 18, 0.18);
+  max-width: 100%;
 }
 
 .metaTitle {
@@ -515,4 +793,349 @@
 
 .notice a {
   color: #e8552e;
+}
+
+/* ── Feed sort + hardware filter ── */
+
+.feedControls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sortTabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.sortTabs a {
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sortTabs a:hover {
+  color: #171512;
+}
+
+.sortTabs a[data-active="true"] {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  border-color: rgba(23, 21, 18, 0.5);
+  color: #171512;
+}
+
+.filterChip[data-active="true"] {
+  background: rgba(232, 85, 46, 0.12);
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+/* ── Card badges ── */
+
+/* Speaks the same visual language as .forkChip (mono micro-label in a pill),
+   but SOLID rather than outlined so "runs on hardware" reads as the stronger
+   of the two. No emoji: a colour glyph fights the typographic look and ate
+   half the card title's width. */
+.hwChip {
+  flex: none;
+  display: inline-block;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: #fffdf8;
+  background: #e8552e;
+  border: 1px solid #e8552e;
+  border-radius: 999px;
+  padding: 0 6px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.cardStats {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Code panel (JS / .h tabs) ── */
+
+.codeTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #1e1e1e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  flex: none;
+}
+
+.codeTabs button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.codeTabs button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.codeTabs button[data-active="true"] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.codeTabSpacer {
+  flex: 1;
+}
+
+.codeTabAction {
+  color: #ffb59c !important;
+}
+
+.codeTabAction:hover {
+  background: rgba(232, 85, 46, 0.22) !important;
+}
+
+.editorBody {
+  flex: 1;
+  min-height: 0;
+}
+
+.codeFootNote {
+  flex: none;
+  margin: 0;
+  padding: 7px 10px;
+  background: #1e1e1e;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.codeFootNote code {
+  color: #ffb59c;
+  font-family: var(--pf-mono, monospace);
+}
+
+/* ── Like button ── */
+
+.likeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 999px;
+  background: #fffdf8;
+  color: #6b655a;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.likeButton:hover {
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+.likeButtonOn {
+  background: rgba(232, 85, 46, 0.12);
+  border-color: #e8552e;
+  color: #c2431f;
+}
+
+/* ── Detail meta additions ── */
+
+.metaTitleRow {
+  display: flex;
+  align-items: center;
+  /* Sits right beside the title on purpose: the meta block is full-width, so
+     pushing it to the far edge put it off in empty space where nobody saw it. */
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hwNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c2431f;
+}
+
+.ownerBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px dashed rgba(23, 21, 18, 0.28);
+  border-radius: 8px;
+  background: rgba(23, 21, 18, 0.03);
+}
+
+/* ── Add-header modal ── */
+
+.modalCardWide {
+  width: min(720px, 100%);
+}
+
+.cppInput {
+  min-height: 220px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+.warnNote {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(232, 85, 46, 0.45);
+  border-radius: 6px;
+  background: rgba(232, 85, 46, 0.08);
+  color: #b8431f;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.warnNote code {
+  font-family: var(--pf-mono, monospace);
+}
+
+/* ── Profile page ── */
+
+.profilePage {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 64px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.profileName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.selfChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b655a;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.profileMeta {
+  margin-top: 6px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  color: #6b655a;
+}
+
+/* A profile is an archive, so it wraps and scrolls — unlike the feed's row. */
+.profileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.profileFootNote {
+  margin-top: 22px;
+  font-size: 12.5px;
+  color: #8c8577;
+}
+
+/* ── Destructive actions ── */
+
+.btnDanger {
+  composes: btn;
+  border-color: rgba(178, 40, 40, 0.55);
+  color: #a02020;
+}
+
+.btnDanger:hover {
+  background: #a02020;
+  border-color: #a02020;
+  color: #fffdf8;
+}
+
+.ownerBarSpacer {
+  flex: 1;
+}
+
+.confirmRow {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.confirmText {
+  font-size: 12.5px;
+  color: #a02020;
+  max-width: 46ch;
+  line-height: 1.45;
+}
+
+.confirmError {
+  font-size: 12.5px;
+  color: #a02020;
+  font-weight: 600;
 }

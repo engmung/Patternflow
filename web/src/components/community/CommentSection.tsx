@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { COMMENT_MAX } from "@/lib/community/validate";
 import AuthModal from "./AuthModal";
 import { formatDate } from "./PatternCard";
@@ -40,11 +41,15 @@ export default function CommentSection({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/community/patterns/${patternId}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: text }),
-      });
+      const response = await fetch(
+        communityApiUrl(`/api/community/patterns/${patternId}/comments`),
+        {
+          method: "POST",
+          ...COMMUNITY_FETCH_INIT,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: text }),
+        },
+      );
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
         setError(payload.error ?? "Comment failed.");

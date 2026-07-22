@@ -1,14 +1,13 @@
 "use client";
 
 import {
-  LOGICAL_KNOB_DEFAULTS,
   LOGICAL_KNOB_RANGES,
 } from "@/lib/patternflowControls";
 
 // @knobs annotation support for the community detail page.
 // Mirrors Pattern Lab's parser (PatternLabClient.tsx) — kept standalone on
 // purpose so the community surface never reaches into the lab's internals.
-//   // @knobs Folds=3..12, Speed=0.1..10, -, Contrast=0.1..1
+// Default values are set to the MIDPOINT of each range ((min + max) / 2).
 
 const KNOBS_ANNOTATION_RE = /^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m;
 
@@ -23,7 +22,9 @@ export const DEFAULT_KNOB_LABELS = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
 export function knobSetupFromCode(code: string): KnobSetup {
   const labels = [...DEFAULT_KNOB_LABELS];
   const ranges: Array<[number, number]> = LOGICAL_KNOB_RANGES.map(([min, max]) => [min, max]);
-  const values = [...LOGICAL_KNOB_DEFAULTS];
+
+  // Set default initial values to the MIDPOINT of each range ((min + max) / 2)
+  const values: number[] = ranges.map(([min, max]) => Number(((min + max) / 2).toFixed(3)));
 
   const match = code.match(KNOBS_ANNOTATION_RE);
   if (match) {
@@ -40,7 +41,8 @@ export function knobSetupFromCode(code: string): KnobSetup {
         if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
         labels[index] = m[1].trim().slice(0, 14);
         ranges[index] = [min, max];
-        values[index] = Math.max(min, Math.min(max, values[index]));
+        // Default value is the midpoint of the custom range
+        values[index] = Number(((min + max) / 2).toFixed(3));
       });
   }
 

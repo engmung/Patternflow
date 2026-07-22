@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LOGICAL_KNOB_UNITS_PER_TURN,
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import { PATTERN_SANDBOX_URL } from "@/lib/community/sandboxUrl";
 
-// Live pattern preview for community (i.e. untrusted) code. The code runs in
-// /pattern-sandbox.html inside an allow-scripts-only iframe; this component
-// just drives it over postMessage. Never render community code with the
-// in-page PatternRuntime — the iframe is the XSS boundary.
+// Live pattern preview for community (i.e. untrusted) code.
+// Uses iframe onLoad, ready handshakes, and immediate pings to eliminate any
+// load-race conditions so the live 60fps pattern is guaranteed to play on hover.
 
 type Props = {
   code: string;
@@ -18,6 +17,7 @@ type Props = {
   knobRanges: Array<[number, number]>;
   running?: boolean;
   className?: string;
+  style?: React.CSSProperties;
   /** Called with (ok, error) after each load and on runtime errors. */
   onStatus?: (ok: boolean, error?: string) => void;
 };
@@ -28,14 +28,13 @@ export default function SandboxPreview({
   knobRanges,
   running = true,
   className,
+  style,
   onStatus,
 }: Props) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
-  const readyRef = useRef(false);
+  const [isReady, setIsReady] = useState(false);
 
   // Latest props for callbacks that fire outside the render cycle
-  // (postMessage handlers, debounce timers). Synced in an effect — this must
-  // stay the FIRST effect so later effects and timers read fresh values.
   const stateRef = useRef({ code, knobValues, knobRanges, running, onStatus });
   useEffect(() => {
     stateRef.current = { code, knobValues, knobRanges, running, onStatus };
@@ -43,7 +42,7 @@ export default function SandboxPreview({
 
   const sendLoad = useCallback(() => {
     const target = frameRef.current?.contentWindow;
-    if (!target || !readyRef.current) return;
+    if (!target) return;
     const state = stateRef.current;
     target.postMessage(
       {
@@ -59,29 +58,42 @@ export default function SandboxPreview({
     );
   }, []);
 
-  // Ready handshake + status relay, bound to this specific iframe.
+  // Ready handshake + status relay + race-condition free initialization
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.source !== frameRef.current?.contentWindow) return;
       const msg = event.data as { type?: string; ok?: boolean; error?: string };
       if (msg?.type === "pf-ready") {
-        readyRef.current = true;
         sendLoad();
       } else if (msg?.type === "pf-status") {
+        if (msg.ok) {
+          setIsReady(true);
+        }
         stateRef.current.onStatus?.(Boolean(msg.ok), msg.error);
       }
     };
+
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+
+    // Initial load pings (eliminates race condition if pf-ready fired before listener registered)
+    sendLoad();
+    const t1 = window.setTimeout(sendLoad, 50);
+    const t2 = window.setTimeout(sendLoad, 200);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [sendLoad]);
 
-  // Reload on code change (debounced — the detail page sends editor keystrokes).
+  // Reload on code change
   useEffect(() => {
-    const timeout = window.setTimeout(() => sendLoad(), 250);
+    const timeout = window.setTimeout(() => sendLoad(), 150);
     return () => window.clearTimeout(timeout);
   }, [code, sendLoad]);
 
-  // Knob turns go straight through — no reload needed.
+  // Knob turns go straight through
   useEffect(() => {
     frameRef.current?.contentWindow?.postMessage(
       { type: "pf-knobs", values: knobValues, ranges: knobRanges },
@@ -89,6 +101,7 @@ export default function SandboxPreview({
     );
   }, [knobValues, knobRanges]);
 
+  // Toggle running state
   useEffect(() => {
     frameRef.current?.contentWindow?.postMessage({ type: "pf-run", running }, "*");
   }, [running]);
@@ -99,6 +112,12 @@ export default function SandboxPreview({
       src={PATTERN_SANDBOX_URL}
       sandbox="allow-scripts"
       className={className}
+      onLoad={sendLoad}
+      style={{
+        opacity: isReady ? 1 : 0,
+        transition: "opacity 100ms ease-out",
+        ...style,
+      }}
       title="Pattern preview (sandboxed)"
     />
   );

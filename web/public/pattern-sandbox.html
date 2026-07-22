@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>Patternflow sandbox</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
   canvas {
     display: block;
     width: 100%;
@@ -379,7 +379,7 @@ function renderStill(request) {
   if (!load.ok) return { ok: false, error: load.error };
 
   var fps = request.fps || 15;
-  var seconds = request.seconds || 0.9;
+  var seconds = typeof request.seconds === "number" ? request.seconds : 0.9;
   var frames = Math.max(1, Math.floor(seconds * fps));
   var values = request.knobValues || [0.5, 0.5, 0.5, 0.5];
   var ranges = request.knobRanges || [[0, 1], [0, 1], [0, 1], [0, 1]];
@@ -409,6 +409,7 @@ window.addEventListener("message", function (event) {
   if (msg.type === "pf-load") {
     live.runtime = new Runtime(WIDTH, HEIGHT);
     live.simTime = 0;
+    live.lastNow = performance.now();
     live.failed = false;
     live.prevKnobs = null;
     if (Array.isArray(msg.knobValues)) live.knobValues = msg.knobValues.slice(0, KNOB_COUNT);
