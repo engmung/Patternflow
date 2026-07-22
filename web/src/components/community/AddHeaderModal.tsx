@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { captureEvent } from "@/lib/posthogEvents";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import styles from "./Community.module.css";
 
 // Author-only: attach the hand-verified firmware header to an already published
@@ -29,8 +30,9 @@ export default function AddHeaderModal({
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/community/patterns/${patternId}`, {
+      const response = await fetch(communityApiUrl(`/api/community/patterns/${patternId}`), {
         method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codeCpp: next }),
       });

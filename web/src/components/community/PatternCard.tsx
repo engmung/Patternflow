@@ -46,14 +46,23 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
   const [activeKnobIdx, setActiveKnobIdx] = useState<number>(0);
 
   const thumbRef = useRef<HTMLDivElement | null>(null);
+  // Mirrors `thumb` so the effect can ask "do we already have one?" without
+  // depending on it — depending on the state would restart the render whenever
+  // a thumbnail arrives, and reading it from the closure would read a stale one.
+  const lastThumbRef = useRef<string | null>(null);
 
   // Initial static thumbnail
   useEffect(() => {
     let alive = true;
     renderPatternThumb(item.code, knobValues).then((result) => {
       if (!alive) return;
-      if (result.ok && result.dataUrl) setThumb(result.dataUrl);
-      else if (!thumb) setFailed(result.error ?? "Render failed.");
+      if (result.ok && result.dataUrl) {
+        lastThumbRef.current = result.dataUrl;
+        setThumb(result.dataUrl);
+      } else if (!lastThumbRef.current) {
+        // Keep showing the last good frame if a later re-render fails.
+        setFailed(result.error ?? "Render failed.");
+      }
     });
     return () => {
       alive = false;

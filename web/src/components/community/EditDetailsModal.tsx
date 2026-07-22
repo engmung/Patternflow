@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { LICENSE_OPTIONS } from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import styles from "./Community.module.css";
 
 // Author-only: edit the pattern's title, description and licence. Saving
@@ -44,8 +45,9 @@ export default function EditDetailsModal({
 
     setBusy(true);
     try {
-      const response = await fetch(`/api/community/patterns/${patternId}`, {
+      const response = await fetch(communityApiUrl(`/api/community/patterns/${patternId}`), {
         method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmed, description, license, madeOn }),
       });

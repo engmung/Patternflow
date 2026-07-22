@@ -25,6 +25,9 @@ export default function FeedControls({
 
   const hrefWith = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
+    // Changing the view always restarts at the first page — page 3 of "newest"
+    // means nothing in "most liked", and may not even exist once filtered.
+    next.delete("page");
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) next.delete(key);
       else next.set(key, value);

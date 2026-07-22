@@ -10,9 +10,11 @@ import { formatDate } from "@/components/community/PatternCard";
 import LikeButton from "@/components/community/LikeButton";
 import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
+import DeletePatternButton from "@/components/community/DeletePatternButton";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
 
@@ -103,8 +105,9 @@ export default function PatternDetailClient({
     setSavingCode(true);
     setSaveError(null);
     try {
-      const response = await fetch(`/api/community/patterns/${pattern.id}`, {
+      const response = await fetch(communityApiUrl(`/api/community/patterns/${pattern.id}`), {
         method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
@@ -368,6 +371,8 @@ export default function PatternDetailClient({
             >
               {pattern.codeCpp ? "Update .h" : "Add firmware header"}
             </button>
+            <span className={styles.ownerBarSpacer} />
+            <DeletePatternButton patternId={pattern.id} forkCount={pattern.forkCount} />
           </div>
         )}
       </div>

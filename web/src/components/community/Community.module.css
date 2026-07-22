@@ -1042,3 +1042,100 @@
 .warnNote code {
   font-family: var(--pf-mono, monospace);
 }
+
+/* ── Profile page ── */
+
+.profilePage {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 64px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.profileName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.selfChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b655a;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.profileMeta {
+  margin-top: 6px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  color: #6b655a;
+}
+
+/* A profile is an archive, so it wraps and scrolls — unlike the feed's row. */
+.profileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.profileFootNote {
+  margin-top: 22px;
+  font-size: 12.5px;
+  color: #8c8577;
+}
+
+/* ── Destructive actions ── */
+
+.btnDanger {
+  composes: btn;
+  border-color: rgba(178, 40, 40, 0.55);
+  color: #a02020;
+}
+
+.btnDanger:hover {
+  background: #a02020;
+  border-color: #a02020;
+  color: #fffdf8;
+}
+
+.ownerBarSpacer {
+  flex: 1;
+}
+
+.confirmRow {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.confirmText {
+  font-size: 12.5px;
+  color: #a02020;
+  max-width: 46ch;
+  line-height: 1.45;
+}
+
+.confirmError {
+  font-size: 12.5px;
+  color: #a02020;
+  font-weight: 600;
+}

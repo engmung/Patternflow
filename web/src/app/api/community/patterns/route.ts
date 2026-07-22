@@ -1,4 +1,5 @@
 import { getAuth } from "@/lib/community/auth";
+import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
@@ -9,8 +10,19 @@ import { LICENSE_OPTIONS, stripShareWrapping } from "@/lib/sharePattern";
 
 // POST /api/community/patterns — publish (or fork-publish) a pattern.
 // Reads happen in server components; only mutations go through the API.
+//
+// Callable from the main site's Pattern Lab, which is a different origin, so
+// every response carries CORS headers and OPTIONS answers the preflight.
 
 export async function POST(request: Request) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handlePost(request));
+}
+
+export const OPTIONS = preflight;
+
+async function handlePost(request: Request) {
   if (!communityEnabled()) {
     return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
   }

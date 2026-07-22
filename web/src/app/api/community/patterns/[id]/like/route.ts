@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { getAuth } from "@/lib/community/auth";
+import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import { countLikes, getPatternStub, hasLiked } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
@@ -9,6 +10,14 @@ import { likes } from "@/lib/community/schema";
 // Reading like counts is free; liking is a save, so it needs a session.
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handlePost(request, context));
+}
+
+export const OPTIONS = preflight;
+
+async function handlePost(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!communityEnabled()) {
     return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
   }

@@ -61,11 +61,26 @@ function toFeedItems(rows: FeedRow[]): FeedItem[] {
   return rows.map((row) => ({ ...row, hasCpp: Boolean(row.hasCpp) }));
 }
 
+/** How many patterns match the current filter — drives the page count. */
+export async function countFeed(hardwareOnly = false): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(patterns)
+    .where(hardwareOnly ? isNotNull(patterns.codeCpp) : undefined);
+  return rows[0]?.count ?? 0;
+}
+
 export async function listFeed({
   sort = "new",
   hardwareOnly = false,
   limit = 60,
-}: { sort?: FeedSort; hardwareOnly?: boolean; limit?: number } = {}): Promise<FeedItem[]> {
+  offset = 0,
+}: {
+  sort?: FeedSort;
+  hardwareOnly?: boolean;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<FeedItem[]> {
   const db = getDb();
   // Every ordering falls back to newest-first so results are stable when the
   // primary key ties (which it does constantly while counts are near zero).
@@ -82,7 +97,8 @@ export async function listFeed({
     .innerJoin(user, eq(patterns.userId, user.id))
     .where(hardwareOnly ? isNotNull(patterns.codeCpp) : undefined)
     .orderBy(...order)
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
   return toFeedItems(rows);
 }
 

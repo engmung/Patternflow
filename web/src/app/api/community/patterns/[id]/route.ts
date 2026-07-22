@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getAuth } from "@/lib/community/auth";
+import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import { getPattern } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
@@ -22,6 +23,47 @@ import { LICENSE_OPTIONS, stripShareWrapping } from "@/lib/sharePattern";
 // pattern's real title, licence and author.
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handlePatch(request, context));
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handleDelete(request, context));
+}
+
+export const OPTIONS = preflight;
+
+// Deleting takes the comments and likes with it (both cascade). Forks survive:
+// their `parent_id` is set to null, so a remix someone else built on top of
+// this pattern doesn't vanish because the original author changed their mind —
+// it just loses the lineage link.
+async function handleDelete(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!communityEnabled()) {
+    return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
+  }
+
+  const session = await getAuth().api.getSession({ headers: request.headers });
+  if (!session) {
+    return Response.json({ error: "Sign in to delete your pattern." }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const pattern = await getPattern(id);
+  if (!pattern) {
+    return Response.json({ error: "Pattern not found." }, { status: 404 });
+  }
+  if (pattern.userId !== session.user.id) {
+    return Response.json({ error: "You can only delete your own patterns." }, { status: 403 });
+  }
+
+  await getDb().delete(patterns).where(eq(patterns.id, id));
+  return Response.json({ ok: true });
+}
+
+async function handlePatch(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!communityEnabled()) {
     return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
   }

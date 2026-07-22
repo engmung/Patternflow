@@ -38,8 +38,10 @@ export default function CommunityLayout({ children }: { children: React.ReactNod
             Community
           </Link>
           <div className={styles.headerSpacer} />
+          {/* No Pattern Lab link here — the feed already has a prominent
+              "Make one in Pattern Lab" button, and two of them read as two
+              different destinations. */}
           <nav className={styles.headerNav}>
-            <Link href="/pattern-lab">Pattern Lab</Link>
             <AuthStatus />
           </nav>
         </header>

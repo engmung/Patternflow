@@ -14,9 +14,21 @@ import { USERNAME_RE } from "./validate";
 
 let instance: ReturnType<typeof createAuth> | null = null;
 
+function trustedOrigins(): string[] {
+  return (process.env.COMMUNITY_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 function createAuth() {
   return betterAuth({
     database: drizzleAdapter(getDb(), { provider: "sqlite", schema }),
+    // Better Auth checks the Origin header as CSRF protection. The main site
+    // (where Pattern Lab also lives) signs in against this deployment, so its
+    // origin has to be named explicitly or every cross-origin auth call is
+    // rejected. Same list the CORS layer uses — see lib/community/cors.ts.
+    trustedOrigins: trustedOrigins(),
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,

@@ -54,6 +54,7 @@ import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
 import PublishModal from "@/components/community/PublishModal";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
+import { communityConfigured } from "@/lib/community/apiBase";
 import {
   codeUsesValueField,
   parseRampAnnotation,
@@ -521,7 +522,10 @@ export default function PatternLabClient() {
   const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
 
   // Sync state from localStorage after initial client mount to prevent SSR hydration mismatches
+  // (browser-only state that cannot exist during the first render, so an
+  // effect is the right place despite the lint heuristic).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRampState(loadStoredRamp());
     setPatch(loadStoredPatch());
     setGeminiKey(loadGeminiKey());
@@ -1800,13 +1804,18 @@ ${activeCode}
             <button type="button" className={styles.darkButton} onClick={() => setShareOpen(true)}>
               Share to Discord
             </button>
-            <button
-              type="button"
-              className={styles.darkButton}
-              onClick={() => setCommunityShareOpen(true)}
-            >
-              Share to Community
-            </button>
+            {/* Only offered where a community actually exists to publish to —
+                otherwise this deployment would show a button that can only
+                fail (see lib/community/apiBase). */}
+            {communityConfigured() && (
+              <button
+                type="button"
+                className={styles.darkButton}
+                onClick={() => setCommunityShareOpen(true)}
+              >
+                Share to Community
+              </button>
+            )}
           </div>
 
           <div className={styles.sweepBar}>

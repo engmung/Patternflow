@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
 
@@ -39,9 +40,10 @@ export default function LikeButton({
     setCount(count + (liked ? -1 : 1));
     setBusy(true);
     try {
-      const response = await fetch(`/api/community/patterns/${patternId}/like`, {
-        method: "POST",
-      });
+      const response = await fetch(
+        communityApiUrl(`/api/community/patterns/${patternId}/like`),
+        { method: "POST", ...COMMUNITY_FETCH_INIT },
+      );
       if (!response.ok) {
         setLiked(previous.liked);
         setCount(previous.count);
