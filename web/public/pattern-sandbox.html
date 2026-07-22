@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Patternflow sandbox</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+  }
+</style>
+</head>
+<body>
+<canvas id="screen" width="128" height="64"></canvas>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Sandboxed pattern runtime.
+//
+// This page is embedded with <iframe sandbox="allow-scripts"> (NO
+// allow-same-origin), so user-submitted pattern code runs under an opaque
+// origin: no cookies, no localStorage, no parent DOM. All communication is
+// postMessage. This is the community's XSS boundary — never embed this page
+// with allow-same-origin, and never eval community code outside this page.
+//
+// The runtime mirrors web/src/lib/patternHarness.ts (compile semantics,
+// setPixel/setValue, knob input shape). Keep the two in sync when the pattern
+// contract changes.
+// ─────────────────────────────────────────────────────────────────────────────
+"use strict";
+
+var WIDTH = 128;
+var HEIGHT = 64;
+var KNOB_COUNT = 4;
+var DETENTS_PER_TURN = 20;
+
+function clampByte(v) {
+  if (!isFinite(v)) return 0;
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+// ── Color ramp ──────────────────────────────────────────────────────────────
+// Full port of the harness ramp (patternHarness.ts): 5 interpolation modes,
+// cyclic wrap, and the recolor post-pass. Shared patterns carry their ramp as
+// a `// @ramp …` comment line (see web/src/lib/patternRamp.ts — keep the two
+// parsers in sync); without one, a default lab ramp keeps setValue()
+// output presentable.
+
+function rgbToHsv(r, g, b) {
+  var rf = r / 255, gf = g / 255, bf = b / 255;
+  var max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+  var delta = max - min;
+  var h = 0;
+  if (delta > 0) {
+    if (max === rf) h = ((gf - bf) / delta) % 6;
+    else if (max === gf) h = (bf - rf) / delta + 2;
+    else h = (rf - gf) / delta + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+  return [h, max === 0 ? 0 : delta / max, max];
+}
+
+function hsvToRgbTuple(h, s, v) {
+  h = h - Math.floor(h);
+  var i = Math.floor(h * 6);
+  var f = h * 6 - i;
+  var p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  var r, g, b;
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    default: r = v; g = p; b = q; break;
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+function mixRampColors(a, b, t, mode) {
+  if (mode === "smooth") t = t * t * (3 - 2 * t);
+  if (mode === "hsvShort" || mode === "hsvLong") {
+    var ha = rgbToHsv(a[0], a[1], a[2]);
+    var hb = rgbToHsv(b[0], b[1], b[2]);
+    var h1 = ha[1] === 0 ? hb[0] : ha[0];
+    var h2 = hb[1] === 0 ? h1 : hb[0];
+    var dh = h2 - h1;
+    if (mode === "hsvShort") {
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+    } else {
+      if (dh > 0 && dh < 0.5) dh -= 1;
+      else if (dh <= 0 && dh > -0.5) dh += 1;
+    }
+    return hsvToRgbTuple(h1 + dh * t, ha[1] + (hb[1] - ha[1]) * t, ha[2] + (hb[2] - ha[2]) * t);
+  }
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ];
+}
+
+function sampleSortedRamp(stops, mode, wrap, t) {
+  if (stops.length === 0) return [255, 255, 255];
+  if (stops.length === 1) return stops[0].color;
+  t = Math.max(0, Math.min(1, t));
+  var first = stops[0], last = stops[stops.length - 1];
+
+  if (t <= first.position || t >= last.position) {
+    if (!wrap) return t <= first.position ? first.color : last.color;
+    var span = 1 - last.position + first.position;
+    var local = span <= 0
+      ? 0
+      : ((t >= last.position ? t - last.position : t + 1 - last.position) / span);
+    if (mode === "step") return last.color;
+    return mixRampColors(last.color, first.color, local, mode);
+  }
+
+  for (var i = 0; i < stops.length - 1; i++) {
+    var a = stops[i], b = stops[i + 1];
+    if (t > b.position) continue;
+    if (mode === "step") return a.color;
+    var segSpan = b.position - a.position;
+    var segLocal = segSpan <= 0 ? 0 : (t - a.position) / segSpan;
+    return mixRampColors(a.color, b.color, segLocal, mode);
+  }
+  return last.color;
+}
+
+function buildRampLUT(stops, mode, wrap) {
+  var sorted = stops.slice().sort(function (a, b) { return a.position - b.position; });
+  var lut = new Uint8Array(256 * 3);
+  for (var i = 0; i < 256; i++) {
+    var color = sampleSortedRamp(sorted, mode, wrap, i / 255);
+    lut[i * 3] = clampByte(color[0]);
+    lut[i * 3 + 1] = clampByte(color[1]);
+    lut[i * 3 + 2] = clampByte(color[2]);
+  }
+  return lut;
+}
+
+var RAMP_LINE_RE = /^[ \t]*\/\/[ \t]*@ramp[ \t]+(.+)$/m;
+var RAMP_STOP_RE = /^(\d*\.?\d+):(#[0-9a-fA-F]{6})$/;
+var RAMP_MODES = ["linear", "smooth", "step", "hsvShort", "hsvLong"];
+
+function parseRampAnnotation(code) {
+  var match = String(code).match(RAMP_LINE_RE);
+  if (!match) return null;
+  var tokens = match[1].trim().split(/\s+/);
+  if (RAMP_MODES.indexOf(tokens[0]) < 0) return null;
+  var result = { stops: [], mode: tokens[0], wrap: false, recolor: false };
+  for (var i = 1; i < tokens.length; i++) {
+    var token = tokens[i];
+    if (token === "wrap") { result.wrap = true; continue; }
+    if (token === "recolor") { result.recolor = true; continue; }
+    var stop = token.match(RAMP_STOP_RE);
+    if (!stop || result.stops.length >= 8) continue;
+    var position = Number(stop[1]);
+    if (!isFinite(position)) continue;
+    var value = parseInt(stop[2].slice(1), 16);
+    result.stops.push({
+      position: Math.max(0, Math.min(1, position)),
+      color: [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+    });
+  }
+  return result.stops.length > 0 ? result : null;
+}
+
+var DEFAULT_RAMP_LUT = buildRampLUT(
+  [
+    { position: 0.0, color: [8, 24, 64] },
+    { position: 0.55, color: [255, 77, 0] },
+    { position: 1.0, color: [255, 232, 154] }
+  ],
+  "linear",
+  false
+);
+
+function compilePattern(code) {
+  var normalized = String(code)
+    .replace(/^\s*import\s+.*?;?\s*$/gm, "")
+    .replace(/\bexport\s+function\b/g, "function");
+  var wrapper =
+    '"use strict";\n' + normalized + '\n' +
+    'return { setup: typeof setup === "function" ? setup : undefined,' +
+    ' update: typeof update === "function" ? update : undefined,' +
+    ' draw: typeof draw === "function" ? draw : undefined };';
+  var mod = new Function(wrapper)();
+  if (typeof mod.draw !== "function") {
+    throw new Error("Pattern must define draw(display, params, time).");
+  }
+  return mod;
+}
+
+function Runtime(width, height) {
+  var self = this;
+  this.width = width;
+  this.height = height;
+  this.data = new Uint8ClampedArray(width * height * 4);
+  this.module = null;
+  this.params = {};
+  this.rampLUT = DEFAULT_RAMP_LUT;
+  this.recolor = false;
+  this.display = {
+    width: width,
+    height: height,
+    setPixel: function (x, y, r, g, b) {
+      var xi = Math.floor(x), yi = Math.floor(y);
+      if (xi < 0 || xi >= self.width || yi < 0 || yi >= self.height) return;
+      var cr, cg, cb;
+      if (Array.isArray(r)) { cr = r[0] || 0; cg = r[1] || 0; cb = r[2] || 0; }
+      else { cr = r; cg = g || 0; cb = b || 0; }
+      var i = (yi * self.width + xi) * 4;
+      self.data[i] = clampByte(cr);
+      self.data[i + 1] = clampByte(cg);
+      self.data[i + 2] = clampByte(cb);
+      self.data[i + 3] = 255;
+    },
+    setValue: function (x, y, v) {
+      var xi = Math.floor(x), yi = Math.floor(y);
+      if (xi < 0 || xi >= self.width || yi < 0 || yi >= self.height) return;
+      var value = isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+      var i = (yi * self.width + xi) * 4;
+      var li = Math.round(value * 255) * 3;
+      self.data[i] = self.rampLUT[li];
+      self.data[i + 1] = self.rampLUT[li + 1];
+      self.data[i + 2] = self.rampLUT[li + 2];
+      self.data[i + 3] = 255;
+    }
+  };
+}
+
+Runtime.prototype.loadCode = function (code) {
+  try {
+    var annotation = parseRampAnnotation(code);
+    this.rampLUT = annotation
+      ? buildRampLUT(annotation.stops, annotation.mode, annotation.wrap)
+      : DEFAULT_RAMP_LUT;
+    this.recolor = annotation ? annotation.recolor : false;
+    this.module = compilePattern(code);
+    this.params = {};
+    this.data.fill(0);
+    if (this.module.setup) this.module.setup(this.params);
+    return { ok: true };
+  } catch (error) {
+    this.module = null;
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  }
+};
+
+Runtime.prototype.renderFrame = function (dt, time, input) {
+  if (!this.module) return { ok: false, error: "No pattern loaded." };
+  try {
+    this.params.knobValues = input.knobValues;
+    this.params.knobNormalized = input.knobNormalized;
+    this.params.knobDeltas = input.knobDeltas;
+    this.params.knobRanges = input.knobRanges;
+    this.params.btnPressed = input.btnPressed;
+    this.params.btnHeld = input.btnHeld;
+    if (this.module.update) this.module.update(dt, input, this.params);
+    this.data.fill(0);
+    this.module.draw(this.display, this.params, time);
+    if (this.recolor) {
+      var lut = this.rampLUT;
+      var data = this.data;
+      for (var i = 0; i < data.length; i += 4) {
+        var lum = Math.round(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+        var li = lum * 3;
+        data[i] = lut[li];
+        data[i + 1] = lut[li + 1];
+        data[i + 2] = lut[li + 2];
+      }
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  }
+};
+
+function makeInput(deltas, values, normalized, ranges) {
+  var zeros = [0, 0, 0, 0];
+  var flags = [false, false, false, false];
+  return {
+    knobDeltas: deltas || zeros,
+    knobValues: values,
+    knobNormalized: normalized,
+    knobRanges: ranges,
+    btnPressed: flags,
+    btnHeld: flags.slice()
+  };
+}
+
+function normalize(values, ranges) {
+  return values.map(function (v, i) {
+    var range = (ranges && ranges[i]) || [0, 1];
+    var span = Math.max(0.001, range[1] - range[0]);
+    return (v - range[0]) / span;
+  });
+}
+
+function knobDelta(prev, next, wrap, unitsPerTurn) {
+  var delta = next - prev;
+  if (wrap) {
+    if (delta > 0.5) delta -= 1;
+    if (delta < -0.5) delta += 1;
+  }
+  return delta * (DETENTS_PER_TURN / (unitsPerTurn || 1));
+}
+
+// ── Live view state ──────────────────────────────────────────────────────────
+var canvas = document.getElementById("screen");
+var context = canvas.getContext("2d");
+var imageData = context.createImageData(WIDTH, HEIGHT);
+
+var live = {
+  runtime: null,
+  running: true,
+  simTime: 0,
+  lastNow: 0,
+  knobValues: [0.5, 0.5, 0.5, 0.5],
+  knobRanges: [[0, 1], [0, 1], [0, 1], [0, 1]],
+  knobWrap: [false, false, false, false],
+  knobUnitsPerTurn: [1, 1, 1, 1],
+  prevKnobs: null,
+  failed: false
+};
+
+function paint(runtime) {
+  imageData.data.set(runtime.data);
+  context.putImageData(imageData, 0, 0);
+}
+
+function post(message) {
+  parent.postMessage(message, "*");
+}
+
+function tick(now) {
+  requestAnimationFrame(tick);
+  var runtime = live.runtime;
+  if (!runtime || live.failed) return;
+  var dt = live.running ? Math.min(Math.max(0, (now - live.lastNow) / 1000), 0.05) : 0;
+  live.lastNow = now;
+  live.simTime += dt;
+
+  var prev = live.prevKnobs || live.knobValues;
+  var deltas = live.knobValues.map(function (v, i) {
+    return knobDelta(prev[i], v, live.knobWrap[i], live.knobUnitsPerTurn[i]);
+  });
+  live.prevKnobs = live.knobValues.slice();
+
+  var input = makeInput(
+    deltas,
+    live.knobValues,
+    normalize(live.knobValues, live.knobRanges),
+    live.knobRanges
+  );
+  var result = runtime.renderFrame(dt, live.simTime, input);
+  if (result.ok) {
+    paint(runtime);
+  } else {
+    live.failed = true;
+    post({ type: "pf-status", ok: false, error: result.error });
+  }
+}
+requestAnimationFrame(function (now) {
+  live.lastNow = now;
+  requestAnimationFrame(tick);
+});
+
+// ── Still rendering (feed thumbnails) ────────────────────────────────────────
+function renderStill(request) {
+  var runtime = new Runtime(WIDTH, HEIGHT);
+  var load = runtime.loadCode(request.code);
+  if (!load.ok) return { ok: false, error: load.error };
+
+  var fps = request.fps || 15;
+  var seconds = request.seconds || 0.9;
+  var frames = Math.max(1, Math.floor(seconds * fps));
+  var values = request.knobValues || [0.5, 0.5, 0.5, 0.5];
+  var ranges = request.knobRanges || [[0, 1], [0, 1], [0, 1], [0, 1]];
+  var normalizedValues = normalize(values, ranges);
+
+  for (var frame = 0; frame < frames; frame++) {
+    var input = makeInput(null, values, normalizedValues, ranges);
+    var result = runtime.renderFrame(1 / fps, frame / fps, input);
+    if (!result.ok) return { ok: false, error: result.error };
+  }
+
+  var off = document.createElement("canvas");
+  off.width = WIDTH;
+  off.height = HEIGHT;
+  var offContext = off.getContext("2d");
+  var offImage = offContext.createImageData(WIDTH, HEIGHT);
+  offImage.data.set(runtime.data);
+  offContext.putImageData(offImage, 0, 0);
+  return { ok: true, dataUrl: off.toDataURL("image/png") };
+}
+
+// ── Message protocol ─────────────────────────────────────────────────────────
+window.addEventListener("message", function (event) {
+  var msg = event.data;
+  if (!msg || typeof msg.type !== "string") return;
+
+  if (msg.type === "pf-load") {
+    live.runtime = new Runtime(WIDTH, HEIGHT);
+    live.simTime = 0;
+    live.failed = false;
+    live.prevKnobs = null;
+    if (Array.isArray(msg.knobValues)) live.knobValues = msg.knobValues.slice(0, KNOB_COUNT);
+    if (Array.isArray(msg.knobRanges)) live.knobRanges = msg.knobRanges;
+    if (Array.isArray(msg.knobWrap)) live.knobWrap = msg.knobWrap;
+    if (Array.isArray(msg.knobUnitsPerTurn)) live.knobUnitsPerTurn = msg.knobUnitsPerTurn;
+    if (typeof msg.running === "boolean") live.running = msg.running;
+    var load = live.runtime.loadCode(String(msg.code || ""));
+    if (load.ok) {
+      paint(live.runtime);
+      post({ type: "pf-status", ok: true });
+    } else {
+      live.failed = true;
+      post({ type: "pf-status", ok: false, error: load.error });
+    }
+  } else if (msg.type === "pf-knobs") {
+    if (Array.isArray(msg.values)) live.knobValues = msg.values.slice(0, KNOB_COUNT);
+    if (Array.isArray(msg.ranges)) live.knobRanges = msg.ranges;
+  } else if (msg.type === "pf-run") {
+    live.running = Boolean(msg.running);
+  } else if (msg.type === "pf-still") {
+    var result;
+    try {
+      result = renderStill(msg);
+    } catch (error) {
+      result = { ok: false, error: error && error.message ? error.message : String(error) };
+    }
+    result.type = "pf-still-result";
+    result.id = msg.id;
+    post(result);
+  }
+});
+
+post({ type: "pf-ready" });
+</script>
+</body>
+</html>
