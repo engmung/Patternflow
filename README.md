@@ -20,11 +20,12 @@
 
 **Patternflow is an open-source LED synthesizer played with the fingertips.** Turning four physical knobs reshapes generative light patterns on an LED matrix in real time — a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik invited audiences to experience art; Patternflow invites you to create it.
 
-### Three ways in
+### Four ways in
 
 - 🔨 **Build it** — follow the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or go solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** — no PCB, no soldering iron, same Patternflow. More paths in the **[Assembly Map](docs/assembly/README.md)**.
 - 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware.
+- 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. Browse and edit anyone's pattern in the browser with no account; sign in only when you want to publish your own.
 
 > **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
@@ -64,7 +65,13 @@ On the device, the firmware bundles a **curated preset library** plus **three re
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
 
-New pattern studies go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel goes further — it mirrors every post *and* collects the community's own creations, each with full JavaScript source, a hardware-tested C++ header, and the design notes behind it. **Come for a pattern you saw on a post, stay to share your own.**
+### Where patterns are shared
+
+The **[Community](https://community.patternflow.work/community)** is the home for patterns people make. Open anyone's pattern, turn its knobs, edit the code and watch it change — all without an account. Take one into Pattern Lab to remix it and publishing it back records the fork, so you can see what grew out of what. Patterns that carry a hardware-tested `.h` header are marked, and you can filter for them when you want something to flash right now.
+
+Signing in is username and password only, with email optional — it never routes through a service that might be blocked where you are.
+
+New pattern studies also go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel remains a good place to hang around and talk about them. **Come for a pattern you saw on a post, stay to share your own.**
 
 ## Make your own patterns
 
@@ -127,11 +134,13 @@ Patternflow is therefore not a single luminous object. It is a living system in 
 
 **Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
 
-**Links:** [patternflow.work](https://patternflow.work) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
+**Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
 ## Contributing
 
-Builds, documentation fixes, part sourcing tips, and custom patterns are all welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how contributions flow (including the inbound = outbound pattern licensing). The [Discord](https://discord.gg/Vr9QtsxeTk) is the fastest place to ask questions, show a build in progress, or share a pattern — and to get your build pinned on the [build map](https://patternflow.work/inside).
+Builds, documentation fixes, part sourcing tips, and custom patterns are all welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how contributions flow (including the inbound = outbound pattern licensing).
+
+Patterns go to the **[Community](https://community.patternflow.work/community)**, builds and questions to **[Discussions](../../discussions)** or the **[Discord](https://discord.gg/Vr9QtsxeTk)** — whichever you can reach. Show a build in Discussions or Discord to get it pinned on the [build map](https://patternflow.work/inside).
 
 ## Story so far
 
