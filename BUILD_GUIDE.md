@@ -79,11 +79,11 @@ Key sourcing rules (details in the BOM README):
 
 > ⏸️ **The USB-C input (`USB1`) is on hold — don't use it for now.** The board carries a USB-C footprint, but it isn't running reliably yet, so **leave `USB1`, `R1`, and `R2` unpopulated** until this note says otherwise. It's being reworked and re-tested; the guide will be updated when it passes.
 >
-> Why it's paused:
-> - **It isn't stable yet.** Even correctly assembled, the USB-C input has misbehaved in testing. That's a hardware issue to fix, not a soldering-skill problem — a perfect solder job doesn't work around it.
-> - **The failure mode is nasty.** The Type-C THT pins are tightly pitched, and a solder bridge across them puts +5 V straight onto ground. A board has already been **shorted and physically burned** that way ([#114](https://github.com/engmung/Patternflow/issues/114)); with a power bank pushing several amps into a dead short, that's a real **burn and fire risk**.
+> **What happened** ([#221](https://github.com/engmung/Patternflow/issues/221)): a board powered through USB-C ran **completely fine for 20–30+ minutes** — no heat, no symptoms — and then suddenly started **smoking at one of the connector pins**, rapidly frying the receptacle and the power path around it. It is still open whether that's a hand-soldering defect on those tight-pitch pins or a structural limit of this 14-pin THT part under the LED matrix's peak current.
 >
-> The screw terminal has neither problem — it's the original, proven Patternflow power input, and it's exactly as capable.
+> ⚠️ **This is why "it seems to work" proves nothing here.** The failure is *delayed* — passing your multimeter checks and running for half an hour does not mean the joint is safe. Until the cause is pinned down, don't put this input into service.
+>
+> The screw terminal has none of this history — it's the original, proven Patternflow power input, and it's exactly as capable.
 
 | | **`J4` — screw terminal** |
 |---|---|
@@ -150,7 +150,7 @@ All parts are through-hole, and the video covers the complete order.
 
 > ⏸️ **Skip the USB-C connector for now.** The video shows `USB1` being soldered (11:00–15:18) — it was filmed before that input went on hold. **Leave `USB1`, `R1`, and `R2` unpopulated** (Section 2); everything else in the video applies exactly as shown.
 >
-> And this is why those pins deserve respect whenever the input does come back — a bridge there is a dead short from +5 V to ground:
+> And this is why those pins deserve respect whenever the input does come back — the pitch is tight enough that a bridge is easy to make and hard to spot ([#221](https://github.com/engmung/Patternflow/issues/221)):
 >
 > | ❌ A bridge like this shorts +5 V to ground | ✅ What a clean joint looks like |
 > |---|---|
@@ -292,7 +292,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 ## 10. Known Issues & Design Notes
 
 - **Tight LED panel fit / bonded-seam gaps** — see the Section 4 bonding notes and Section 6 ([#169](https://github.com/engmung/Patternflow/issues/169)).
-- **⏸️ USB-C input on hold.** The `USB1` input isn't running reliably yet, and its tightly-pitched THT pins make a +5 V-to-ground short easy to create — one board has already burned ([#114](https://github.com/engmung/Patternflow/issues/114)). **Power every build through the `J4` screw terminal** (Section 2) while the USB-C path is fixed and re-tested. This note will be updated once it's verified.
+- **⏸️ USB-C input on hold — delayed burnout under investigation.** A USB-C-powered board ran normally for 20–30+ minutes, then smoked at a connector pin and destroyed the receptacle and surrounding power path ([#221](https://github.com/engmung/Patternflow/issues/221)). Whether that's a soldering defect on the tight-pitch THT pins or a structural limit of the part under the matrix's peak current is still open; alternative power-only connectors are being evaluated for a future revision. **Power every build through the `J4` screw terminal** (Section 2) meanwhile. This note will be updated once the cause is settled.
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.

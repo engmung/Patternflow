@@ -4,7 +4,7 @@ Machine-readable BOMs for the Patternflow board and build. **The CSV is the sour
 
 | File | Board | Status |
 |---|---|---|
-| `bom_v3.0.csv` | v3.0 (screw-terminal power; USB-C input on hold) | ✅ Board fabricated, assembled, and verified on the screw-terminal input ([#114](https://github.com/engmung/Patternflow/issues/114)). Order `hardware/pcb/gerber/patternflow_v3.0_gerber.zip`. |
+| `bom_v3.0.csv` | v3.0 (screw-terminal power; USB-C input on hold) | ✅ Board fabricated, assembled, and verified on the screw-terminal input. USB-C input on hold ([#221](https://github.com/engmung/Patternflow/issues/221)). Order `hardware/pcb/gerber/patternflow_v3.0_gerber.zip`. |
 
 For a v2.x build, use the BOM inside the [v2.1.0 release build guide](https://github.com/engmung/Patternflow/blob/v2.1.0/BUILD_GUIDE.md#1-bill-of-materials-bom).
 
@@ -14,7 +14,7 @@ Seven on-board line items to populate, all through-hole and hand-solderable — 
 
 **Power input: the `J4` screw terminal, on every build.** Strip a USB cable, clamp the two wires in, done — no soldering iron needed for the power input.
 
-> ⏸️ **Leave `USB1`, `R1`, and `R2` unpopulated for now.** The USB-C input **isn't running reliably yet and is on hold** while it's fixed and re-tested — no need to buy those parts in the meantime. Note also that a solder bridge across the tight-pitch Type-C pins shorts +5 V to ground and has already burned a board ([#114](https://github.com/engmung/Patternflow/issues/114)), so it's a path to take seriously whenever it returns.
+> ⏸️ **Leave `USB1`, `R1`, and `R2` unpopulated for now.** The USB-C input is **on hold** pending investigation — no need to buy those parts. A USB-C-powered board ran fine for 20–30+ minutes and then smoked at a connector pin, destroying the receptacle and power path ([#221](https://github.com/engmung/Patternflow/issues/221)); the failure is *delayed*, so a board that seems fine at first is not proof the input is safe. Cause (hand-soldering vs. structural limit of this 14-pin THT part under the matrix's peak current) is still being determined, and alternative power-only connectors are being evaluated.
 
 ## Sourcing notes
 
