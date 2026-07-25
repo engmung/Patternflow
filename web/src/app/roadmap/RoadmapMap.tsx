@@ -643,11 +643,6 @@ export default function RoadmapMap() {
           </div>
         )}
 
-        <p className={styles.mapCaption}>
-          {lang === 'ko'
-            ? '하드웨어와 가이드는 v3.0.0 빌드 릴리스로 통합 동결됩니다. 펌웨어와 패턴 도구는 지속적으로 배포되며, 예정 항목은 확정 고정이 아닌 개발 방향성입니다.'
-            : 'Hardware and guides gather into the v3.0.0 build release — what people physically build from gets frozen per release. Firmware and pattern tools ship continuously. Planned items are intentions, not promises.'}
-        </p>
       </div>
     </div>
   );
