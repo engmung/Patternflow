@@ -45,6 +45,30 @@ export type BuildRunnerOptions = {
 };
 
 /**
+ * Board options this firmware requires, mirroring firmware/README.md.
+ *
+ * A bare `esp32:esp32:esp32s3` is not a neutral choice — it silently selects
+ * the board package's defaults, which are wrong here in ways nothing reports:
+ *
+ *  · PSRAM defaults to OFF. PFMem::allocFloats then has no PSRAM to allocate
+ *    from and falls back to internal DRAM, so patterns with framebuffer-sized
+ *    buffers fail on web-built firmware while working when built locally.
+ *  · FlashSize defaults to 4MB against a 16MB partition table.
+ *  · CDCOnBoot decides whether Serial — and so Improv Wi-Fi provisioning —
+ *    answers on the native USB port or the UART bridge, i.e. which of the two
+ *    USB-C sockets offers Wi-Fi setup after flashing.
+ *
+ * Getting an option NAME wrong makes arduino-cli fail loudly; leaving an option
+ * out fails silently. So the default here is the full string rather than
+ * something minimal, and BUILD_FQBN is checked rather than trusted.
+ */
+export const DEFAULT_FQBN =
+  "esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB,CDCOnBoot=cdc,USBMode=hwcdc";
+
+/** Options that must be pinned, whatever FQBN is in use. */
+const REQUIRED_FQBN_OPTIONS = ["PSRAM", "FlashSize", "PartitionScheme", "CDCOnBoot"];
+
+/**
  * Read when a build runs, not when this module loads.
  *
  * The worker calls loadEnv() in its own body, which under ES module semantics
@@ -54,7 +78,32 @@ export type BuildRunnerOptions = {
  * ordering question entirely.
  */
 export function fqbn(): string {
-  return process.env.BUILD_FQBN ?? "esp32:esp32:esp32s3";
+  return process.env.BUILD_FQBN ?? DEFAULT_FQBN;
+}
+
+/** Complaint about the configured FQBN, or null when it is usable. */
+export function checkFqbn(value = fqbn()): string | null {
+  const [vendor, arch, board, options] = value.split(":");
+  if (!vendor || !arch || !board) {
+    return `BUILD_FQBN "${value}" is not a valid FQBN (expected vendor:arch:board:options).`;
+  }
+
+  const present = new Set(
+    (options ?? "")
+      .split(",")
+      .map((entry) => entry.split("=")[0].trim())
+      .filter(Boolean),
+  );
+  const missing = REQUIRED_FQBN_OPTIONS.filter((option) => !present.has(option));
+  if (missing.length > 0) {
+    return (
+      `BUILD_FQBN is missing required board options: ${missing.join(", ")}. ` +
+      `Leaving these out compiles against the board defaults, which produces firmware that ` +
+      `boots but differs from the released build (see firmware/README.md). ` +
+      `Either unset BUILD_FQBN to use the pinned default, or add them.`
+    );
+  }
+  return null;
 }
 
 /** Files the assembler overwrites; everything else is copied once and left. */
@@ -190,6 +239,14 @@ export async function runBuild(
   options: BuildRunnerOptions,
 ): Promise<RunBuildResult> {
   const compile = options.compile ?? arduinoCliCompiler;
+
+  // Refuse before spending fifteen seconds producing the wrong firmware. Only
+  // checked for real compiles: an injected compiler is a test double and has no
+  // toolchain to configure.
+  if (!options.compile) {
+    const complaint = checkFqbn();
+    if (complaint) return { ok: false, error: complaint };
+  }
 
   const registryPath = path.join(options.firmwareSrcDir, "pattern_registry.h");
   let originalRegistry: string;

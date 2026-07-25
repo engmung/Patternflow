@@ -76,10 +76,19 @@
 #endif
 
 // ── OSC (Ableton/Max sidechannel) ────────────────────────────
-// Off by default — opt in from patternflow_secrets.h. Sends knob/button/
-// state out and accepts knob/pattern/content commands back.
+// Sends knob/button/state out and accepts knob/pattern/content commands back.
+//
+// On by default so that a build from a clean checkout matches the firmware we
+// release. It used to be opt-in from patternflow_secrets.h, but that file is
+// gitignored — so anyone building without one (a fresh clone, CI, the web
+// build service) silently got firmware with OSC missing, showing "OSC n/a" on
+// the knob-2 status screen while everything else looked right.
+//
+// Costs nothing when unused: with no remote configured it only listens, and
+// sends nothing until something talks to it first. Set to 0 in
+// patternflow_secrets.h to compile it out.
 #ifndef PF_OSC_ENABLED
-#define PF_OSC_ENABLED 0
+#define PF_OSC_ENABLED 1
 #endif
 // Where outgoing OSC goes. Leave EMPTY (the default) to auto-learn: the
 // device locks onto whoever sends it the first valid OSC packet — the M4L
