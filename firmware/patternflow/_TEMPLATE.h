@@ -41,6 +41,17 @@ namespace TemplatePattern {
   }
 
   void draw() {
+    // PANEL_RES_W/H come from config.h — change them there for a different
+    // panel, never here. If this pattern was composed for a grid that is NOT
+    // the panel's (a 64x128 portrait pattern, say), declare it instead:
+    //
+    //   constexpr int FRAME_W = 64, FRAME_H = 128;   // near the top
+    //   PFCanvas::setFrame(FRAME_W, FRAME_H);        // first line of draw()
+    //   ...then loop FRAME_W/FRAME_H and pass those x,y straight to setPixel.
+    //
+    // The canvas maps the frame onto the panel (straight through, quarter
+    // turn, or centred). Never rotate the coordinates yourself, and don't use
+    // PFTables inside a declared frame — see README.md.
     for (int y = 0; y < PANEL_RES_H; y++) {
       for (int x = 0; x < PANEL_RES_W; x++) {
         PFCanvas::setPixel(x, y, 0, 0, 0);   // r,g,b 0..255

@@ -70,9 +70,95 @@ inline void clear() {
   memset(buffer, 0, BUFFER_BYTES);
 }
 
+// ── Logical frame ────────────────────────────────────────────────────
+// A pattern is composed for some pixel grid, which is not always the
+// panel's. A 64×128 pattern on a 128×64 panel is simply the device
+// stood on its end — the pattern's "up" runs along the panel's x axis.
+//
+// draw() declares its grid with setFrame(); setPixel() then takes
+// LOGICAL coordinates and this is the ONE place that maps them onto the
+// panel. Patterns never do the rotation math themselves, which is what
+// used to make them come out cropped or turned by 90°.
+//
+// The mapping is derived, not configured — there is no rotation setting
+// to get out of sync with the pattern:
+//
+//   grid == panel            draw straight through (the default)
+//   grid == panel swapped    rotate 90°, filling the panel exactly
+//   anything else            centre it and letterbox the remainder
+//
+// present() restores the panel frame, so a pattern that never calls
+// setFrame() is completely unaffected and can never inherit another
+// pattern's grid. Every pattern written before this existed keeps
+// writing the same pixels it always did.
+inline int frameW = W;
+inline int frameH = H;
+inline int frameOffX = 0;
+inline int frameOffY = 0;
+inline bool frameRotate = false;
+// Fast-path flag: true when logical == physical, which is the case for
+// every stock pattern. Keeps the per-pixel cost at one predictable
+// branch instead of the offset/rotate arithmetic.
+inline bool frameDirect = true;
+
+inline void resetFrame() {
+  frameW = W;
+  frameH = H;
+  frameOffX = 0;
+  frameOffY = 0;
+  frameRotate = false;
+  frameDirect = true;
+}
+
+inline void setFrame(int w, int h) {
+  if (w <= 0 || h <= 0) { resetFrame(); return; }
+  frameW = w;
+  frameH = h;
+
+  if (w == W && h == H) {
+    frameOffX = 0;
+    frameOffY = 0;
+    frameRotate = false;
+    frameDirect = true;
+    return;
+  }
+
+  frameDirect = false;
+  frameRotate = (w == H && h == W);
+  if (frameRotate) {
+    // An exact swap covers the panel with no leftover pixels.
+    frameOffX = 0;
+    frameOffY = 0;
+  } else {
+    frameOffX = (W - w) / 2;
+    frameOffY = (H - h) / 2;
+  }
+  // Letterboxed and rotated frames leave panel pixels the pattern never
+  // writes; without this they would hold the previous frame's image.
+  clear();
+}
+
 inline void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
-  if ((unsigned)x >= (unsigned)W || (unsigned)y >= (unsigned)H) return;
-  size_t i = ((size_t)y * W + x) * 3;
+  if (frameDirect) {
+    if ((unsigned)x >= (unsigned)W || (unsigned)y >= (unsigned)H) return;
+    size_t i = ((size_t)y * W + x) * 3;
+    buffer[i]     = r;
+    buffer[i + 1] = g;
+    buffer[i + 2] = b;
+    return;
+  }
+
+  if ((unsigned)x >= (unsigned)frameW || (unsigned)y >= (unsigned)frameH) return;
+  int px, py;
+  if (frameRotate) {
+    px = W - 1 - y;
+    py = x;
+  } else {
+    px = x + frameOffX;
+    py = y + frameOffY;
+  }
+  if ((unsigned)px >= (unsigned)W || (unsigned)py >= (unsigned)H) return;
+  size_t i = ((size_t)py * W + px) * 3;
   buffer[i]     = r;
   buffer[i + 1] = g;
   buffer[i + 2] = b;
@@ -116,6 +202,10 @@ inline void present() {
         gammaLUT_B[b]);
     }
   }
+
+  // Hand the next pattern a clean panel-sized frame. Every draw() ends
+  // here, so a pattern's setFrame() can never leak into another one.
+  resetFrame();
 }
 
 } // namespace PFCanvas

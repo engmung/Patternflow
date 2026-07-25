@@ -91,9 +91,11 @@
   gap: 20px;
 }
 
-/* ── Single Centered Horizontal Row Grid ── */
+/* ── Feed grid ──
+   Column count and gap are set inline from the measured row width; the row
+   count comes from the active view (1 large row, or 2 small ones). */
 
-.singleRowGrid {
+.feedGrid {
   display: grid;
   gap: 16px;
   width: 100%;
@@ -152,6 +154,73 @@
   opacity: 0.7;
 }
 
+/* Type a page number instead of stepping to it. Sized for four digits, since
+   the spinner arrows are hidden and the value has to fit unaided. */
+.pageInput {
+  width: 52px;
+  padding: 3px 6px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 5px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.pageInput::-webkit-outer-spin-button,
+.pageInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pageInput:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+/* ── Small view ──
+   Half-size cards, two rows. The thumbnail keeps its 1:2 shape, so only the
+   text furniture needs to come down — at ~104px a 15px title and a full byline
+   would wrap into the next card's worth of height. */
+.feedGrid[data-view="small"] .cardMeta {
+  padding: 7px 8px;
+  gap: 3px;
+  height: 44px;
+}
+
+.feedGrid[data-view="small"] .cardTitle {
+  font-size: 11.5px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardByline {
+  font-size: 10px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardDate,
+.feedGrid[data-view="small"] .frameChip {
+  display: none;
+}
+
+.feedGrid[data-view="small"] .hwChip,
+.feedGrid[data-view="small"] .forkChip {
+  font-size: 8.5px;
+  padding: 0 4px;
+}
+
+.feedGrid[data-view="small"] .knobOverlay {
+  left: 4px;
+  right: 4px;
+  gap: 4px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+
 .card {
   display: block;
   border: 1px solid rgba(23, 21, 18, 0.18);
@@ -187,6 +256,20 @@
   z-index: 1;
 }
 
+/* Patterns composed for a portrait frame (`// @matrix 64x128`) are already the
+   right way up for these 1:2 cards — rotating them again would lay them on
+   their side. Same box, no transform. Landscape and legacy patterns keep using
+   .screenRotator above. */
+.screenUpright {
+  position: absolute;
+  inset: 0;
+  background: #09090b;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.screenUpright img,
+.screenUpright iframe,
 .screenRotator img,
 .screenRotator iframe,
 .cardHoverIframe {
@@ -201,6 +284,13 @@
   padding: 0;
   object-fit: fill;
   image-rendering: pixelated;
+}
+
+/* The rotator's box is built to match a landscape pattern exactly, so stretching
+   is a no-op there. An upright pattern can be any shape (64×128, 64×64, …), so
+   contain it rather than distorting it to the card. */
+.screenUpright img {
+  object-fit: contain;
 }
 
 .cardHoverIframe {
@@ -378,6 +468,19 @@
   border: 1px solid rgba(232, 85, 46, 0.5);
   border-radius: 999px;
   padding: 1px 7px;
+}
+
+/* Shown only for patterns composed for something other than the stock panel. */
+.frameChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #6b655a;
+  border: 1px solid rgba(23, 21, 18, 0.28);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
 }
 
 .empty {
@@ -831,6 +934,34 @@
   color: #f7f3ea;
 }
 
+/* Card-size switch. Same pill as the sort tabs — it's the same kind of choice,
+   so it should not look like a different kind of control. */
+.viewTabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.viewTabs a {
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.viewTabs a:hover {
+  color: #171512;
+}
+
+.viewTabs a[data-active="true"] {
+  background: #171512;
+  color: #f7f3ea;
+}
+
 .filterChip {
   display: inline-flex;
   align-items: center;
@@ -1138,4 +1269,258 @@
   font-size: 12.5px;
   color: #a02020;
   font-weight: 600;
+}
+
+/* ── Discussions ──
+   Plain-text threads. Deliberately quiet next to the pattern feed: no
+   previews, no thumbnails, nothing that needs a sandbox. */
+
+.discussionWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+.backLink {
+  color: #6b655a;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: #171512;
+}
+
+.postComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 10px;
+  background: #fffdf8;
+}
+
+.postTitleInput,
+.postBodyInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  padding: 9px 11px;
+}
+
+.postTitleInput {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.postBodyInput {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 180px;
+  resize: vertical;
+}
+
+.postTitleInput:focus,
+.postBodyInput:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.composerCount {
+  flex: 1;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: #a69f90;
+}
+
+.postList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.postRow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 13px 2px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.12);
+}
+
+.postRowLink {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.postRowTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #171512;
+}
+
+.postRowLink:hover .postRowTitle {
+  text-decoration: underline;
+}
+
+/* Reply count. Only rendered when there is one, so it never shows a bare 0. */
+.postRowCount {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  color: #e8552e;
+}
+
+.postRowPreview {
+  font-size: 12.5px;
+  color: #8c8577;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postRowMeta {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.postArticle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.postTitle {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.postMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.postBody {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: #2c2822;
+  padding-bottom: 20px;
+}
+
+.btnSmall {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 5px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.btnSmall:hover:not(:disabled) {
+  border-color: #171512;
+}
+
+.btnSmall:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnSmallDanger {
+  composes: btnSmall;
+  border-color: rgba(200, 50, 30, 0.55);
+  color: #b8351c;
+}
+
+.btnSmallDanger:hover:not(:disabled) {
+  background: #b8351c;
+  border-color: #b8351c;
+  color: #fffdf8;
+}
+
+/* Board pagination reuses .pageBtn, but as links — which can't be :disabled. */
+.pageBtn[data-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Linkified plain text ──
+   Keeps author line breaks, since the body was typed as plain text and the
+   shape is part of what they wrote. */
+
+.linkedText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inlineLink {
+  color: #b8451c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  color: #e8552e;
+}
+
+/* Section switch in the header: Patterns vs Discussions. Underline rather than
+   a pill, so it reads as "where am I" and not as another filter control — the
+   feed already has pill tabs for sort and card size. */
+.sectionNav {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-left: 6px;
+}
+
+.sectionNav a {
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+  color: #8c8577;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sectionNav a:hover {
+  color: #171512;
+}
+
+.sectionNav a[data-active="true"] {
+  color: #171512;
+  border-bottom-color: #e8552e;
 }

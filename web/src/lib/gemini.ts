@@ -4,6 +4,13 @@
 // Google's endpoint from the client — it never touches our servers. Because this
 // is a static, open-source site we deliberately avoid bundling any shared key.
 
+import {
+  buildMatrixAnnotationLine,
+  describeMatrixShape,
+  withMatrixAnnotation,
+  type MatrixSize,
+} from "@/lib/patternMatrix";
+
 // Swap these to change the model / reasoning depth used for in-app generation.
 //
 // NOTE: we call the `generateContent` endpoint, not the newer Interactions API.
@@ -18,10 +25,19 @@ export const THINKING_LEVELS: ThinkingLevelKey[] = ["MINIMAL", "LOW", "MEDIUM", 
 // Default reasoning depth. "LOW" keeps batches responsive.
 export const GEMINI_THINKING_LEVEL: ThinkingLevelKey = "LOW";
 
-// Bias for the pattern's dominant flow/axis. The preview is always 128×64; this
-// only nudges the composition the model designs for.
-export type Orientation = "any" | "landscape" | "portrait";
-export const ORIENTATIONS: Orientation[] = ["any", "landscape", "portrait"];
+// NOTE — there is deliberately no "orientation" setting here any more.
+//
+// There used to be one, and it was the source of a whole class of broken
+// output: it told the model to compose along the *opposite* axis from the one
+// the user picked, to compensate for the panel's mounting, while every other
+// line of the prompt still claimed the frame was 128×64. Once Pattern Lab could
+// actually change the preview resolution, that made three statements that
+// contradicted each other and the model had no way to win.
+//
+// Orientation is not independent information: a 64×128 frame *is* portrait.
+// The model now gets the real frame dimensions and nothing else, and the
+// logical→physical mapping (including any rotation) happens once, at the
+// display boundary. See lib/patternMatrix.ts.
 
 // How generated patterns handle color:
 // - "rgb": the model colors every pixel itself via setPixel (classic mode).
@@ -111,9 +127,29 @@ function controlLines(knobs: number[], ranges: Array<[number, number]>) {
     .join("\n");
 }
 
-const VARIANT_INTRO = `I am writing custom LED patterns in JavaScript for Patternflow's 128x64 LED matrix web preview.
+// ── Frame ───────────────────────────────────────────────────────────────────
+// One honest statement of the pixel grid, derived from the numbers alone. This
+// is the ONLY place the model is told about shape — no compensating axis
+// flips, no second "orientation" knob to disagree with it.
+function frameLine(matrix: MatrixSize) {
+  const { width, height } = matrix;
+  const shape = describeMatrixShape(matrix);
+  const shapeNote =
+    shape === "landscape"
+      ? `It is WIDER than it is tall (${(width / height).toFixed(2)}:1). Compose for a wide frame.`
+      : shape === "portrait"
+        ? `It is TALLER than it is wide (1:${(height / width).toFixed(2)}). Compose for a tall frame — a design meant for a wide frame will read as cramped and over-zoomed here.`
+        : "It is SQUARE. Compose for a square frame.";
+  return `Frame — the pattern is drawn into a ${width} × ${height} pixel grid: ${width} wide (x = 0..${width - 1}) and ${height} tall (y = 0..${height - 1}). ${shapeNote} Lay the composition, bands, and motion out for these proportions.`;
+}
+
+function variantIntro(matrix: MatrixSize) {
+  return `I am writing custom LED patterns in JavaScript for a Patternflow ${matrix.width}x${matrix.height} LED matrix web preview.
+
+${frameLine(matrix)}
 
 I will give you one existing Patternflow pattern. Use it as a seed, not as a cage. Create exactly 5 distinct standalone variations that explore different visual directions.`;
+}
 
 // Technical + quality spec shared by every path (API rules, controls, color).
 // Split into pieces so the pixel-write rule and the color section can swap
@@ -130,7 +166,10 @@ const TECH_API_COMMON = `Required API for every pattern:
 - Keep input.knobDeltas only as compatibility fallback if needed.
 - Optional: each knob also has a push button. input.btnPressed[i] is true only on the frame it is pressed (edge); input.btnHeld[i] is true while it is held down. Use these for momentary actions like reset, freeze, cycle, or trigger. Do not use long-press or mode-switching; that is a reserved system gesture.
 - IMPORTANT: input is passed ONLY to update(dt, input, params). draw's signature is draw(display, params, time) with NO input argument — params.input does not exist. To read knob or button values inside draw, use params.knobValues / params.knobNormalized / params.knobDeltas / params.btnPressed / params.btnHeld (the harness mirrors the latest input onto params every frame), or stash whatever you need on params during update. Never read input.* or params.input.* inside draw.
-- Use display.width and display.height in loops. Do not hardcode 128 or 64 inside draw().`;
+- Use display.width and display.height in loops. Never hardcode the frame's pixel dimensions inside draw() — the same pattern is run at other resolutions, and a hardcoded size crops or zooms it.
+- Declare the frame you composed for with ONE comment line near the top of the file, exactly this format:
+  {{MATRIX_LINE}}
+  Use exactly the dimensions given above. Pattern Lab reads this line to set the preview resolution, and the firmware uses it to map the pattern onto the physical panel.`;
 
 const TECH_PIXEL_RGB = `- Write each pixel with display.setPixel(x, y, r, g, b) — EXACTLY five arguments, where r, g, b are three SEPARATE integer arguments in the range 0–255. Never pass a color array such as display.setPixel(x, y, [r, g, b]); never pass a packed color or a 4th alpha argument. The array form renders pure black.
 - Use only plain JavaScript and Math.*. No browser APIs, DOM APIs, imports, async code, external libraries, dynamic evaluation, or per-pixel allocations.`;
@@ -163,10 +202,11 @@ const TECH_COLOR_VFIELD = `Value-field direction (IMPORTANT — there is NO colo
   - Avoid uniform mid-grey mush (everything hovering near 0.5) and avoid pure binary output unless the idea is intentionally hard-edged.
 - Knobs must control geometry/motion/structure, never color (no hue knobs — color belongs to the ramp).`;
 
-function buildTechGuide(colorMode: ColorMode) {
+function buildTechGuide(colorMode: ColorMode, matrix: MatrixSize) {
   const pixelRule = colorMode === "vfield" ? TECH_PIXEL_VFIELD : TECH_PIXEL_RGB;
   const colorSection = colorMode === "vfield" ? TECH_COLOR_VFIELD : TECH_COLOR_RGB;
-  return `${TECH_API_COMMON}\n${pixelRule}\n\n${TECH_CONTROLS}\n\n${colorSection}`;
+  const api = TECH_API_COMMON.replace("{{MATRIX_LINE}}", buildMatrixAnnotationLine(matrix));
+  return `${api}\n${pixelRule}\n\n${TECH_CONTROLS}\n\n${colorSection}`;
 }
 
 // Seed-based direction for the clipboard prompt (remix one existing pattern).
@@ -204,8 +244,9 @@ export function buildVariantCopyPrompt(
   knobs: number[],
   ranges: Array<[number, number]>,
   colorMode: ColorMode = "rgb",
+  matrix: MatrixSize = { width: 128, height: 64 },
 ) {
-  return `${VARIANT_INTRO}
+  return `${variantIntro(matrix)}
 
 Very important output rules:
 - Return exactly 5 separate JavaScript code blocks.
@@ -216,7 +257,7 @@ Very important output rules:
 - Put a short variation name before each code block.
 - Do not include nested triple backticks inside any code block.
 
-${buildTechGuide(colorMode)}
+${buildTechGuide(colorMode, matrix)}
 
 ${VARIANT_SEED_DIRECTION}
 
@@ -243,7 +284,7 @@ function buildVariantApiInstruction(
   ranges: Array<[number, number]>,
   count: number,
   examples: Array<{ name: string; code: string }>,
-  orientation: Orientation,
+  matrix: MatrixSize,
   seedWithCurrent: boolean,
   colorMode: ColorMode,
 ) {
@@ -254,16 +295,6 @@ function buildVariantApiInstruction(
     ? "No reference patterns are provided, on purpose. Invent the most original, surprising, and varied patterns you can purely from the rules below — do not fall back on common defaults.\n\n"
     : "";
 
-  // The physical panel is mounted rotated 90° from the 128×64 preview, so the
-  // user-facing "horizontal" must map to the preview's y (64-px) axis and
-  // "vertical" to the preview's x (128-px) axis — the opposite of the naive read.
-  const orientationLine =
-    orientation === "landscape" // shown to the user as "horizontal"
-      ? "Orientation — organize the pattern so its main features, bands, and motion run along the 64-pixel (y / height) axis of the 128×64 frame: vary primarily with the y coordinate. Avoid making everything vary along the 128-wide x axis.\n\n"
-      : orientation === "portrait" // shown to the user as "vertical"
-        ? "Orientation — organize the pattern so its main features, bands, and motion run along the 128-pixel (x / width) axis of the 128×64 frame: vary primarily with the x coordinate. Avoid making everything vary along the 64-tall y axis.\n\n"
-        : "";
-
   // Existing presets are RGB-mode; when generating value fields, make sure the
   // model doesn't imitate their setPixel/color code.
   const vfieldReferenceCaveat =
@@ -271,26 +302,36 @@ function buildVariantApiInstruction(
       ? " NOTE: the references are older RGB-mode patterns that call display.setPixel and compute colors — your output must instead call display.setValue(x, y, v) with NO color logic. Use the references only for geometry, structure, and motion ideas."
       : "";
 
+  // Every bundled preset was composed for the stock 128×64 panel. Asking for a
+  // different frame while showing landscape references is exactly how patterns
+  // came out cropped and over-zoomed, so say so outright.
+  const frameReferenceCaveat =
+    matrix.width === 128 && matrix.height === 64
+      ? ""
+      : ` NOTE: the references were composed for a 128×64 frame; you are composing for ${matrix.width}×${matrix.height}. Take their ideas, not their proportions — re-lay every composition out for the ${describeMatrixShape(matrix)} frame described above.`;
+
   const referenceBlock = examples.length
-    ? `Reference patterns — these show the RANGE of styles that work on Patternflow. Use them ONLY as inspiration for what is possible. Do NOT copy, port, or closely reproduce any single one.${vfieldReferenceCaveat}
+    ? `Reference patterns — these show the RANGE of styles that work on Patternflow. Use them ONLY as inspiration for what is possible. Do NOT copy, port, or closely reproduce any single one.${vfieldReferenceCaveat}${frameReferenceCaveat}
 
 ${examples.map((example) => `===== ${example.name} =====\n${example.code}`).join("\n\n")}
 
 `
     : "";
 
-  return `I am writing custom LED patterns in JavaScript for Patternflow's 128x64 LED matrix web preview.
+  return `I am writing custom LED patterns in JavaScript for a Patternflow ${matrix.width}x${matrix.height} LED matrix web preview.
+
+${frameLine(matrix)}
 
 Create exactly ${phrase} that are genuinely different from one another. Aim for wide variety, not small tweaks of a single look.
 
-${creativityLine}${orientationLine}Return the patterns as structured JSON matching the provided schema: an array of exactly ${count} object${count === 1 ? "" : "s"}. Each object has:
+${creativityLine}Return the patterns as structured JSON matching the provided schema: an array of exactly ${count} object${count === 1 ? "" : "s"}. Each object has:
 - "name": a short pattern name.
 - "knobNotes": one line naming what the 4 knobs do for that pattern.
 - "code": a complete standalone Patternflow pattern as plain JavaScript text. Do NOT wrap it in markdown fences. Do NOT combine patterns, add a mode selector, preset array, or switch statement that holds multiple patterns.
 - Format the code as normal, readable multi-line JavaScript using real line breaks and indentation. Do NOT put the whole pattern on a single line and do NOT minify it.
 - Do NOT add any license header, copyright line, author/date comment, or attribution footer — those are added automatically. Start directly with the pattern code.
 
-${buildTechGuide(colorMode)}
+${buildTechGuide(colorMode, matrix)}
 
 ${VARIANT_DIVERGE_DIRECTION}
 
@@ -364,7 +405,7 @@ export async function generatePatternVariants({
   count = 5,
   thinkingLevel = GEMINI_THINKING_LEVEL,
   examples = [],
-  orientation = "any",
+  matrix = { width: 128, height: 64 },
   seedWithCurrent = true,
   colorMode = "rgb",
 }: {
@@ -375,7 +416,7 @@ export async function generatePatternVariants({
   count?: number;
   thinkingLevel?: ThinkingLevelKey;
   examples?: Array<{ name: string; code: string }>;
-  orientation?: Orientation;
+  matrix?: MatrixSize;
   seedWithCurrent?: boolean;
   colorMode?: ColorMode;
 }): Promise<PatternVariant[]> {
@@ -397,7 +438,7 @@ export async function generatePatternVariants({
           ranges,
           count,
           examples,
-          orientation,
+          matrix,
           seedWithCurrent,
           colorMode,
         ),
@@ -451,10 +492,15 @@ export async function generatePatternVariants({
     .map((item) => {
       const name =
         typeof item.name === "string" && item.name.trim() ? item.name.trim() : "Variation";
+      // Models drop the @matrix line often enough that it can't be trusted to
+      // the prompt alone, and a pattern with no declared frame silently falls
+      // back to 128×64 later on. The requested size is the authority here — it
+      // is what the model was told to compose for.
+      const code = withMatrixAnnotation(normalizeCode(item.code as string), matrix);
       return {
         name,
         knobNotes: typeof item.knobNotes === "string" ? item.knobNotes : undefined,
-        code: stampLicense(normalizeCode(item.code as string), name),
+        code: stampLicense(code, name),
       };
     });
 

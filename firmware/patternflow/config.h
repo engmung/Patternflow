@@ -49,6 +49,13 @@ constexpr float RAD_TO_DEG = 57.29577951308232087680f;
 constexpr float EULER      = 2.71828182845904523536f;
 
 // --- Display Specifications ---
+// Running a panel other than the stock 128x64? Change these to match your
+// hardware and reflash — that is the whole change. Nothing else in the
+// firmware hardcodes a size: the HUB75 driver config, the canvas buffer, the
+// radius/angle tables and the on-screen menus all derive from these three.
+// (A pattern composed for a grid that ISN'T the panel — a 64x128 portrait
+// pattern on this 128x64 panel, say — is a separate matter, handled per
+// pattern with PFCanvas::setFrame(). See README.md.)
 #define PANEL_RES_W 128
 #define PANEL_RES_H 64
 #define PANEL_CHAIN 1
