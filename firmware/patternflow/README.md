@@ -109,6 +109,11 @@ Two things to know:
 `PFCanvas::present()` restores the panel frame, so a `setFrame` can never leak
 into the next pattern, and a pattern that never calls it is unaffected.
 
+**Tried either of these? Please report back.** There is more variety in panels
+and driver ICs than one desk can test, so results from real hardware are the
+only way this gets trustworthy — working or broken, both are useful:
+[#224 Custom panel sizes and pattern frames](https://github.com/engmung/Patternflow/issues/224).
+
 ## Registry
 
 `pattern_registry.h` keeps `customPatterns[]` and `presetPatterns[]` as two

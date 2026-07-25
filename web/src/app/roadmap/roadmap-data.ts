@@ -30,9 +30,9 @@ export const NOW = '2026-07-26';
 export const LANES: { id: LaneId; label: string; labelKo: string }[] = [
   { id: 'pcb', label: 'PCB', labelKo: 'PCB 회로' },
   { id: 'case', label: 'Enclosure', labelKo: '인클로저' },
-  { id: 'guides', label: 'Guides', labelKo: '가이드' },
+  { id: 'guides', label: 'Guides', labelKo: '빌드 가이드' },
   { id: 'firmware', label: 'Firmware', labelKo: '펌웨어' },
-  { id: 'tools', label: 'Pattern tools', labelKo: '패턴 도구' },
+  { id: 'tools', label: 'Pattern tools', labelKo: '패턴 편집기' },
   { id: 'community', label: 'Community', labelKo: '커뮤니티' },
 ];
 

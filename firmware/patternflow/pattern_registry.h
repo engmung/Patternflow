@@ -69,8 +69,8 @@ struct PatternEntry {
 // ── CUSTOM (your own — edit these) ──
 PatternEntry customPatterns[] = {
   PATTERN_ENTRY(FractalHoles),
-  PATTERN_ENTRY(RippleCellGrid),
-  PATTERN_ENTRY(RippleGrid),
+  PATTERN_ENTRY(CyberpunkCity),
+  PATTERN_ENTRY(CrystalCascade),
 };
 const int NUM_CUSTOM = sizeof(customPatterns) / sizeof(customPatterns[0]);
 

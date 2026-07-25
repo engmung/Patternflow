@@ -8,6 +8,7 @@
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
+#include "src/core_web_update.h"
 #include "pattern_registry.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
@@ -60,12 +61,23 @@ uint32_t knobMapDrawnAtMs = 0;
 bool knobMapDirty = false;
 uint32_t knobMapActiveAtMs[4] = {0, 0, 0, 0};
 
+// UPDATE screen: entered from the NETWORK screen by turning K4. While it
+// shows, the /update endpoint is ARMED — that is the whole security model
+// (see core_web_update.h): flashing over the LAN requires someone at the
+// device first. K4 click exits (disarming), except mid-flash. The idle
+// timeout is long because the user is at their computer fetching a .bin.
+bool updateShowing = false;
+uint32_t updateIdleAtMs = 0;
+uint32_t updateDrawnAtMs = 0;
+bool updateDirty = false;
+
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
 const uint32_t OSC_INFO_IDLE_MS = 8000;
 const uint32_t NET_INFO_REDRAW_MS = 250;
 const uint32_t KNOB_MAP_IDLE_MS = 8000;
 const uint32_t KNOB_MAP_HILITE_MS = 600;
+const uint32_t UPDATE_IDLE_MS = 600000;  // 10 min — downloading a build takes a while
 const float CONTENT_NOTICE_SECONDS = 1.0f;
 
 // Logical knob N = front-panel KN = physical encoder N. The PCB routes ENCn
@@ -83,6 +95,10 @@ Button* logicalButton(int logicalIdx) {
     default: return &btn4;
   }
 }
+
+// Defined below with the other screens; declared here because setup()
+// installs it as the upload progress callback.
+void drawUpdateScreen(int uploadPct);
 
 void setup() {
   Serial.begin(115200);
@@ -110,6 +126,16 @@ void setup() {
   // Improv-Serial: lets the browser flasher set Wi-Fi over USB after a web
   // flash. Just listens on Serial; no Wi-Fi required to be up yet.
   PatternflowImprov::begin();
+
+  // Wireless-update progress is drawn from inside the upload handler: the
+  // whole multipart POST is consumed in one handleClient() call, so the
+  // main loop never runs while the image streams in. This callback keeps
+  // the panel honest during those seconds (same task — drawing is safe).
+  PatternflowWebUpdate::progressCallback = [](int pct) {
+    drawUpdateScreen(pct);
+    dma_display->flipDMABuffer();
+    updateIdleAtMs = millis();
+  };
 
   buildPatternList();   // presets first (pattern 1 = Origin), custom appended last
   for (int i = 0; i < NUM_PATTERNS; i++) {
@@ -211,10 +237,82 @@ void drawNetworkInfo() {
     drawCenteredText(ip.substring(cut).c_str(), 70, gray, 1);
   }
 
-  // Hints — turn to toggle, click (or hold) K2 to leave.
-  drawCenteredText("TURN K2/K3", 96, dim, 1);
-  drawCenteredText("OSC / AUD", 106, dim, 1);
+  // Hints — turn to toggle, K4 for the update screen, click (or hold)
+  // K2 to leave.
+  drawCenteredText("TURN K2/K3", 86, dim, 1);
+  drawCenteredText("OSC / AUD", 96, dim, 1);
+  if (PatternflowWebUpdate::isCompiledIn()) {
+    drawCenteredText("K4=UPDATE", 107, dim, 1);
+  }
   drawCenteredText("K2 = EXIT", 118, dim, 1);
+
+  dma_display->setRotation(0);
+}
+
+// UPDATE screen (NETWORK screen → turn K4). Drawn PORTRAIT like the other
+// info screens. Idle: shows where to drop the .bin — the .local name AND
+// the raw IP, because mDNS is unreliable on Android (issue #232). During
+// a flash this is redrawn by the progress callback (uploadPct >= 0), since
+// the main loop is blocked inside handleClient() for the whole upload;
+// pass -1 when drawing from the loop.
+void drawUpdateScreen(int uploadPct) {
+  dma_display->setRotation(1);
+  dma_display->fillScreen(0);
+
+  uint16_t white = dma_display->color565(255, 255, 255);
+  uint16_t blue  = dma_display->color565(120, 180, 255);
+  uint16_t gray  = dma_display->color565(140, 140, 140);
+  uint16_t green = dma_display->color565(80, 220, 130);
+  uint16_t red   = dma_display->color565(255, 80, 80);
+  uint16_t dim   = dma_display->color565(90, 90, 90);
+
+  int w = dma_display->width();   // 64 in portrait
+  int h = dma_display->height();  // 128 in portrait
+
+  drawCenteredText("UPDATE", 4, white, 1);
+
+  if (uploadPct >= 0 || PatternflowWebUpdate::isUploading()) {
+    int pct = (uploadPct >= 0) ? uploadPct
+                               : (int)PatternflowWebUpdate::progressPercent();
+    drawCenteredText("FLASHING", 26, blue, 1);
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%d%%", pct);
+    drawCenteredText(buf, 46, white, 2);
+    int bx = 6, by = 72, bw = w - 12, bh = 8;
+    dma_display->drawRect(bx, by, bw, bh, gray);
+    int fill = ((bw - 4) * constrain(pct, 0, 100)) / 100;
+    if (fill > 0) dma_display->fillRect(bx + 2, by + 2, fill, bh - 4, green);
+    drawCenteredText("KEEP POWER", h - 28, dim, 1);
+    drawCenteredText("ON", h - 18, dim, 1);
+  } else if (PatternflowWebUpdate::isRebootPending()) {
+    drawCenteredText("DONE", 40, green, 1);
+    drawCenteredText("REBOOTING", 56, white, 1);
+  } else {
+    bool wifiUp = PatternflowWifi::isConnected();
+    if (PatternflowWebUpdate::hasError()) {
+      drawCenteredText("FAILED", 16, red, 1);  // details went to the browser
+    } else {
+      drawCenteredText(wifiUp ? "ARMED" : "NO WIFI", 16, wifiUp ? green : red, 1);
+    }
+    if (wifiUp) {
+      drawCenteredText("DROP .BIN:", 34, gray, 1);
+      drawCenteredText(PF_OTA_HOSTNAME, 48, blue, 1);
+      drawCenteredText(".local", 58, blue, 1);
+      drawCenteredText("/update", 68, blue, 1);
+      // Raw IP as the mDNS fallback, split like the NETWORK screen.
+      String ip = PatternflowWifi::ipString();
+      if (ip.length() <= 10) {
+        drawCenteredText(ip.c_str(), 84, gray, 1);
+      } else {
+        int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
+        drawCenteredText(ip.substring(0, cut).c_str(), 84, gray, 1);
+        drawCenteredText(ip.substring(cut).c_str(), 94, gray, 1);
+      }
+    } else {
+      drawCenteredText(PatternflowWifi::statusText(), 48, blue, 1);
+    }
+    drawCenteredText("K4 = EXIT", h - 10, dim, 1);
+  }
 
   dma_display->setRotation(0);
 }
@@ -387,6 +485,7 @@ void loop() {
     PatternflowOsc::begin();
     PatternflowOta::begin();
     PatternflowAudio::begin();
+    PatternflowWebUpdate::begin();
     Serial.println("[NET] services started");
   }
 
@@ -403,6 +502,11 @@ void loop() {
   // (single-threaded — no separate core-0 task). Cheap when idle.
   PatternflowAudio::handle();
 
+  // Browser self-update housekeeping: boot-valid marking and the deferred
+  // post-flash reboot. (Upload traffic itself arrives through the shared
+  // HTTP server serviced just above.)
+  PatternflowWebUpdate::handle();
+
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;
@@ -415,8 +519,9 @@ void loop() {
   bool k1Clicked = logicalButton(0)->clicked();
   bool k2Clicked = logicalButton(1)->clicked();
   bool k3Clicked = logicalButton(2)->clicked();
+  bool k4Clicked = logicalButton(3)->clicked();
 
-  if (!oscInfoShowing && !knobMapShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
     brightnessAdjusting = !brightnessAdjusting;
     brightnessIdleAtMs = now;
     Serial.printf(">>> BRIGHTNESS MODE: %s (%u%%)\n",
@@ -461,7 +566,7 @@ void loop() {
 
   // K2 longpress → enter/exit the NETWORK status + toggle screen.
   // A K2 click while inside also exits, instantly (mirrors brightness mode).
-  if (!knobMapShowing && logicalButton(1)->longPressed(MODE_HOLD_MS)) {
+  if (!knobMapShowing && !updateShowing && logicalButton(1)->longPressed(MODE_HOLD_MS)) {
     oscInfoShowing = !oscInfoShowing;
     oscInfoIdleAtMs = now;
     netInfoDirty = true;
@@ -472,6 +577,17 @@ void loop() {
   }
 
   if (oscInfoShowing) {
+    // Turn K4 → hand off to the UPDATE screen, which arms the /update
+    // endpoint (see core_web_update.h — the arming IS the security model).
+    if (input.knobDeltas[3] != 0 && PatternflowWebUpdate::isCompiledIn()) {
+      oscInfoShowing = false;
+      updateShowing = true;
+      updateIdleAtMs = now;
+      updateDirty = true;
+      PatternflowWebUpdate::arm();
+      Serial.println(">>> UPDATE SCREEN: ON");
+    }
+
     // Toggles use knob ROTATION, not clicks — so holding K2 to exit can't
     // accidentally flip a setting. Turn right = ON, left = OFF.
     if (input.knobDeltas[1] != 0) {                  // K2 turn → OSC
@@ -508,7 +624,7 @@ void loop() {
   }
 
   // K3 longpress → enter/exit the KNOB MAP screen. A K3 click inside exits.
-  if (!oscInfoShowing && logicalButton(2)->longPressed(MODE_HOLD_MS)) {
+  if (!oscInfoShowing && !updateShowing && logicalButton(2)->longPressed(MODE_HOLD_MS)) {
     knobMapShowing = !knobMapShowing;
     knobMapIdleAtMs = now;
     knobMapDirty = true;
@@ -536,7 +652,32 @@ void loop() {
     }
   }
 
-  if (!oscInfoShowing && !knobMapShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
+  if (updateShowing) {
+    // Locked in while a flash is in flight or the reboot is pending — the
+    // device must not disarm (or navigate away) under an active upload.
+    bool busy = PatternflowWebUpdate::isUploading() ||
+                PatternflowWebUpdate::isRebootPending();
+    if (k4Clicked && !busy) {
+      updateShowing = false;
+      PatternflowWebUpdate::disarm();
+      Serial.println(">>> UPDATE SCREEN: OFF (click)");
+    }
+
+    // Swallow all knob input; any activity keeps the screen alive.
+    for (int i = 0; i < 4; i++) {
+      if (input.knobDeltas[i] != 0) updateIdleAtMs = now;
+      input.knobDeltas[i] = 0;
+      input.btnPressed[i] = false;
+    }
+
+    if (updateShowing && !busy && (now - updateIdleAtMs) > UPDATE_IDLE_MS) {
+      updateShowing = false;
+      PatternflowWebUpdate::disarm();
+      Serial.println(">>> UPDATE SCREEN: OFF (idle)");
+    }
+  }
+
+  if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
@@ -594,6 +735,18 @@ void loop() {
       drawKnobMap();
       knobMapDrawnAtMs = now;
       knobMapDirty = false;
+    } else {
+      frameDrawn = false;
+    }
+  } else if (updateShowing) {
+    // Same throttled-redraw scheme as the NETWORK screen. This only paints
+    // the idle / done / failed states — during an actual flash the loop is
+    // blocked inside handleClient(), and the progress callback installed in
+    // setup() draws instead.
+    if (updateDirty || (now - updateDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      drawUpdateScreen(-1);
+      updateDrawnAtMs = now;
+      updateDirty = false;
     } else {
       frameDrawn = false;
     }

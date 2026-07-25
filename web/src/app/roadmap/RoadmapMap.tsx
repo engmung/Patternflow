@@ -24,24 +24,28 @@ type RoadmapApiData = { issues: LiveIssue[]; error?: string };
 // Piecewise time scale. Only the past gets month ticks; everything after
 // "today" is a single future region ordered by intention, not by fake dates.
 const ANCHORS: [number, number][] = [
-  [Date.UTC(2026, 0, 1), 0.01],
-  [Date.UTC(2026, 3, 1), 0.09],
-  [Date.UTC(2026, 4, 1), 0.26],
-  [Date.UTC(2026, 5, 1), 0.43],
-  [Date.UTC(2026, 6, 1), 0.6],
-  [Date.UTC(2026, 7, 1), 0.72],
-  [Date.UTC(2026, 8, 1), 0.82],
-  [Date.UTC(2026, 9, 1), 0.9],
-  [Date.UTC(2026, 10, 1), 0.96],
+  [Date.UTC(2026, 0, 1), 0.02],
+  [Date.UTC(2026, 1, 1), 0.10],
+  [Date.UTC(2026, 2, 1), 0.18],
+  [Date.UTC(2026, 3, 1), 0.28],
+  [Date.UTC(2026, 4, 1), 0.42],
+  [Date.UTC(2026, 5, 1), 0.56],
+  [Date.UTC(2026, 6, 1), 0.68],
+  [Date.UTC(2026, 7, 1), 0.78],
+  [Date.UTC(2026, 8, 1), 0.86],
+  [Date.UTC(2026, 9, 1), 0.92],
+  [Date.UTC(2026, 10, 1), 0.97],
   [Date.UTC(2026, 11, 1), 1.0],
 ];
 
 // No "Jul" tick — the today line sits right on it and marks July by itself.
-const TICKS: { label: string; utc: number }[] = [
-  { label: 'Jan', utc: Date.UTC(2026, 0, 1) },
-  { label: 'Apr', utc: Date.UTC(2026, 3, 1) },
-  { label: 'May', utc: Date.UTC(2026, 4, 1) },
-  { label: 'Jun', utc: Date.UTC(2026, 5, 1) },
+const TICKS: { label: string; labelKo: string; utc: number }[] = [
+  { label: 'Jan', labelKo: '1월', utc: Date.UTC(2026, 0, 1) },
+  { label: 'Feb', labelKo: '2월', utc: Date.UTC(2026, 1, 1) },
+  { label: 'Mar', labelKo: '3월', utc: Date.UTC(2026, 2, 1) },
+  { label: 'Apr', labelKo: '4월', utc: Date.UTC(2026, 3, 1) },
+  { label: 'May', labelKo: '5월', utc: Date.UTC(2026, 4, 1) },
+  { label: 'Jun', labelKo: '6월', utc: Date.UTC(2026, 5, 1) },
 ];
 
 function dateToT(date: string): number {
@@ -58,8 +62,8 @@ function dateToT(date: string): number {
 // The detailed view shows ~twice the nodes, so the whole time axis stretches
 // with it — ticks, today line and future zone all use the same scale, keeping
 // boxes near their real dates instead of just sliding off the axis.
-const OVERVIEW_W = 1700;
-const DETAILED_W = 2500;
+const OVERVIEW_W = 2000;
+const DETAILED_W = 3400;
 const GUTTER = 170;
 const RIGHT_PAD = 60;
 const TOP = 84;
@@ -116,8 +120,12 @@ function layoutNodes(detailed: boolean, lang: 'ko' | 'en'): {
   for (const lane of LANES) {
     const row = placed.filter((n) => n.lane === lane.id).sort((a, b) => a.x - b.x);
     for (let i = 1; i < row.length; i += 1) {
-      const minX = row[i - 1].x + row[i - 1].w + 16;
-      if (row[i].x < minX) row[i].x = minX;
+      const prev = row[i - 1];
+      const current = row[i];
+      const minX = prev.x + prev.w + 18;
+      if (current.x < minX) {
+        current.x = minX;
+      }
     }
     for (const n of row) {
       maxRight = Math.max(maxRight, n.x + n.w + RIGHT_PAD);
@@ -172,7 +180,10 @@ export default function RoadmapMap() {
     };
   }, []);
 
-  const { nodes, width, innerW } = useMemo(() => layoutNodes(detailed, lang), [detailed, lang]);
+  const { nodes, width, innerW } = useMemo(
+    () => layoutNodes(detailed, lang),
+    [detailed, lang],
+  );
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
 
@@ -307,6 +318,14 @@ export default function RoadmapMap() {
     setSelectedId((current) => (current === id ? null : id));
   };
 
+  const onCanvasClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (dragRef.current.moved) return;
+    const target = event.target as HTMLElement | SVGElement;
+    if (!target.closest(`.${styles.nodeGroup}`) && !target.closest(`.${styles.popup}`)) {
+      setSelectedId(null);
+    }
+  };
+
   const selectedIssues =
     selected?.issues && live
       ? live.issues.filter((issue) => selected.issues?.includes(issue.number))
@@ -331,6 +350,12 @@ export default function RoadmapMap() {
     const maxHeight = Math.max(160, ch - top - margin);
     popupPos = { left, top, maxHeight };
   }
+
+  // Sticky elements positioning:
+  // Lane labels stay pinned to the left edge of the viewport when panning horizontally
+  const stickyLaneX = Math.max(16, (16 - pan.x) / zoom);
+  // Timeline ticks and Today/Future labels stay pinned to the top edge of the canvas when panning vertically
+  const stickyHeaderY = Math.max(TOP - 32, (18 - pan.y) / zoom);
 
   return (
     <div className={styles.map}>
@@ -383,6 +408,7 @@ export default function RoadmapMap() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onClick={onCanvasClick}
         >
           <div
             className={styles.layer}
@@ -410,47 +436,54 @@ export default function RoadmapMap() {
               </marker>
             </defs>
 
+            {/* Infinite Seamless Horizontal Lane Dividers */}
+            {Array.from({ length: 24 }, (_, i) => i - 6).map((idx) => {
+              const y = TOP + idx * LANE_H;
+              return (
+                <line
+                  key={`lane-divider-${idx}`}
+                  className={styles.gridLineHorizontal}
+                  x1={-5000}
+                  y1={y}
+                  x2={10000}
+                  y2={y}
+                />
+              );
+            })}
+
             <rect
               className={styles.futureZone}
               x={nowX}
-              y={TOP - 16}
-              width={width - nowX - 8}
-              height={HEIGHT - TOP - 8}
+              y={-2000}
+              width={12000}
+              height={7000}
             />
-            <text
-              className={styles.futureLabel}
-              x={nowX + (width - nowX) / 2}
-              y={TOP - 32}
-              textAnchor="middle"
-            >
-              {lang === 'ko' ? '미래 예정' : 'future'}
-            </text>
 
+            {/* Infinite Seamless Vertical Month Ticks */}
             {TICKS.map((tick) => {
               const x =
                 GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
               return (
-                <g key={tick.label}>
-                  <line
-                    className={styles.gridLine}
-                    x1={x}
-                    y1={TOP - 16}
-                    x2={x}
-                    y2={HEIGHT - 24}
-                  />
-                  <text className={styles.tickText} x={x} y={TOP - 32} textAnchor="middle">
-                    {tick.label}
-                  </text>
-                </g>
+                <line
+                  key={`grid-line-${tick.label}`}
+                  className={styles.gridLineVertical}
+                  x1={x}
+                  y1={-2000}
+                  x2={x}
+                  y2={5000}
+                />
               );
             })}
 
-            {LANES.map((lane) => (
-              <text key={lane.id} className={styles.laneLabel} x={16} y={laneY(lane.id) + 5}>
-                {lang === 'ko' ? lane.labelKo : lane.label}
-              </text>
-            ))}
+            <line
+              className={styles.nowLine}
+              x1={nowX}
+              y1={-2000}
+              x2={nowX}
+              y2={5000}
+            />
 
+            {/* 2. Threads & dependency edges BEHIND nodes */}
             {LANES.map((lane) => {
               const row = nodes
                 .filter((n) => n.lane === lane.id)
@@ -506,17 +539,7 @@ export default function RoadmapMap() {
               );
             })}
 
-            <line
-              className={styles.nowLine}
-              x1={nowX}
-              y1={TOP - 16}
-              x2={nowX}
-              y2={HEIGHT - 24}
-            />
-            <text className={styles.nowLabel} x={nowX - 10} y={TOP - 32} textAnchor="end">
-              {lang === 'ko' ? '오늘' : 'today'}
-            </text>
-
+            {/* 3. Render Nodes */}
             {nodes.map((n) => {
               const isSelected = n.id === selectedId;
               const titleText = nodeTitle(n, lang);
@@ -573,6 +596,54 @@ export default function RoadmapMap() {
                 </g>
               );
             })}
+
+            {/* 4. Sticky Timeline Header Text ON TOP of nodes */}
+            <text
+              className={styles.futureLabel}
+              x={nowX + (width - nowX) / 2}
+              y={stickyHeaderY}
+              textAnchor="middle"
+            >
+              {lang === 'ko' ? '계획' : 'future'}
+            </text>
+
+            {TICKS.map((tick) => {
+              const x =
+                GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
+              return (
+                <text key={`tick-text-${tick.label}`} className={styles.tickText} x={x} y={stickyHeaderY} textAnchor="middle">
+                  {lang === 'ko' ? tick.labelKo : tick.label}
+                </text>
+              );
+            })}
+
+            <text className={styles.nowLabel} x={nowX - 10} y={stickyHeaderY} textAnchor="end">
+              {lang === 'ko' ? '현재' : 'today'}
+            </text>
+
+            {/* 5. Sticky Lane Labels ON TOP of nodes with frosted backdrop */}
+            {LANES.map((lane) => {
+              const laneName = lang === 'ko' ? lane.labelKo : lane.label;
+              const labelW = Math.round(laneName.length * (lang === 'ko' ? 14.5 : 11)) + 20;
+              return (
+                <g key={`sticky-lane-${lane.id}`}>
+                  <rect
+                    x={stickyLaneX - 8}
+                    y={laneY(lane.id) - 15}
+                    width={labelW}
+                    height={28}
+                    rx={6}
+                    fill="#fbf8f2"
+                    fillOpacity={0.94}
+                    stroke="var(--pf-rule)"
+                    strokeWidth={0.8}
+                  />
+                  <text className={styles.laneLabel} x={stickyLaneX} y={laneY(lane.id) + 5}>
+                    {laneName}
+                  </text>
+                </g>
+              );
+            })}
           </svg>
           </div>
         </div>
@@ -590,7 +661,7 @@ export default function RoadmapMap() {
           >
               <div className={styles.popupHead}>
                 <span className={styles.popupDate}>
-                  {selected.status === 'planned' ? (lang === 'ko' ? '미래 예정' : 'future') : selected.date}
+                  {selected.status === 'planned' ? (lang === 'ko' ? '계획' : 'future') : selected.date}
                 </span>
                 {selected.gate && <span className={styles.tagGate}>v3.0.0</span>}
                 <button

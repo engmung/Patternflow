@@ -201,6 +201,7 @@
 
 .mapSvg {
   display: block;
+  overflow: visible;
 }
 
 .tickText,
@@ -208,24 +209,38 @@
 .nowLabel,
 .gateLabel,
 .futureLabel {
-  font-family: var(--pf-mono);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .tickText {
-  font-size: 15px;
-  fill: var(--pf-ink-faint);
-}
-
-.laneLabel {
+  font-family: var(--pf-mono);
   font-size: 16px;
+  font-weight: 600;
   fill: var(--pf-ink-muted);
 }
 
-.gridLine {
+.laneLabel {
+  font-family: var(--pf-sans);
+  font-size: 17.5px;
+  font-weight: 600;
+  fill: var(--pf-ink);
+  letter-spacing: -0.01em;
+}
+
+.gridLine,
+.gridLineHorizontal {
   stroke: var(--pf-rule-soft);
   stroke-width: 1;
+  stroke-dasharray: 6 4;
+  opacity: 0.8;
+}
+
+.gridLineVertical {
+  stroke: var(--pf-rule-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
 }
 
 .futureZone {
@@ -234,8 +249,10 @@
 }
 
 .futureLabel {
-  font-size: 15px;
-  fill: var(--pf-ink-faint);
+  font-family: var(--pf-mono);
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--pf-ink-muted);
 }
 
 .nowLine {
@@ -246,7 +263,9 @@
 }
 
 .nowLabel {
-  font-size: 15px;
+  font-family: var(--pf-mono);
+  font-size: 16px;
+  font-weight: 700;
   fill: var(--pf-ink);
 }
 

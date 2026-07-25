@@ -71,7 +71,7 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>
-<div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
+<div class="sub">Stream music into the device. Map four FFT bands onto the four knobs. <a href="/update" style="color:inherit">firmware update &rarr;</a></div>
 <div id="status" class="bad">DISCONNECTED</div>
 
 <div class="section">
