@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './Roadmap.module.css';
 import {
@@ -333,80 +334,46 @@ export default function RoadmapMap() {
 
   return (
     <div className={styles.map}>
-      <div className={styles.controls}>
-        <div className={styles.toggleGroup} role="group" aria-label="Language">
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${lang === 'ko' ? styles.toggleOn : ''}`}
-            onClick={() => setLang('ko')}
-          >
-            한글
-          </button>
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${lang === 'en' ? styles.toggleOn : ''}`}
-            onClick={() => setLang('en')}
-          >
-            ENG
-          </button>
+      <header className={styles.topBar}>
+        <Link className={styles.back} href="/">
+          ← Patternflow
+        </Link>
+        <h1 className={styles.mapTitle}>Project map</h1>
+        <div className={styles.headerRight}>
+          <div className={styles.toggleGroup} role="group" aria-label="Language">
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${lang === 'ko' ? styles.toggleOn : ''}`}
+              onClick={() => setLang('ko')}
+            >
+              한글
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${lang === 'en' ? styles.toggleOn : ''}`}
+              onClick={() => setLang('en')}
+            >
+              ENG
+            </button>
+          </div>
+          <div className={styles.toggleGroup} role="group" aria-label="Map detail level">
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${!detailed ? styles.toggleOn : ''}`}
+              onClick={() => setDetailed(false)}
+            >
+              {lang === 'ko' ? '개요' : 'Overview'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${detailed ? styles.toggleOn : ''}`}
+              onClick={() => setDetailed(true)}
+            >
+              {lang === 'ko' ? '상세보기' : 'Detailed'}
+            </button>
+          </div>
         </div>
-        <div className={styles.toggleGroup} role="group" aria-label="Map detail level">
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${!detailed ? styles.toggleOn : ''}`}
-            onClick={() => setDetailed(false)}
-          >
-            {lang === 'ko' ? '개요' : 'Overview'}
-          </button>
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${detailed ? styles.toggleOn : ''}`}
-            onClick={() => setDetailed(true)}
-          >
-            {lang === 'ko' ? '상세보기' : 'Detailed'}
-          </button>
-        </div>
-        <div className={styles.legend}>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchDone} /> {lang === 'ko' ? '배포됨' : 'shipped'}
-          </span>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchPlanned} /> {lang === 'ko' ? '계획됨' : 'planned'}
-          </span>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchDep} /> {lang === 'ko' ? '의존성' : 'dependency'}
-          </span>
-          <span className={styles.legendDrag}>
-            {lang === 'ko' ? '드래그로 이동 · 스크롤로 확대/축소' : 'drag to move · scroll to zoom'}
-          </span>
-        </div>
-        <div className={styles.zoomGroup} role="group" aria-label="Zoom">
-          <button
-            type="button"
-            className={styles.zoomBtn}
-            aria-label="Zoom out"
-            onClick={() => zoomTo(zoom - 0.2)}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className={styles.zoomVal}
-            title="Reset zoom"
-            onClick={() => zoomTo(1)}
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            type="button"
-            className={styles.zoomBtn}
-            aria-label="Zoom in"
-            onClick={() => zoomTo(zoom + 0.2)}
-          >
-            +
-          </button>
-        </div>
-      </div>
+      </header>
 
       <div className={styles.viewport}>
         <div
