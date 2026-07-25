@@ -23,7 +23,7 @@ export type RoadmapNode = {
 
 export type RoadmapEdge = { from: string; to: string; note: string };
 
-export const NOW = '2026-07-06';
+export const NOW = '2026-07-26';
 
 export const LANES: { id: LaneId; label: string }[] = [
   { id: 'pcb', label: 'PCB' },
@@ -77,6 +77,18 @@ export const NODES: RoadmapNode[] = [
     level: 1,
     detail:
       'Test board that moves power input to USB-C and goes fully SMD-free. Ordered on 2026-06-30 through a PCBWay gerber sponsorship. Once verified, this board gets promoted to v3. Moving the power connector also breaks the current enclosure, which was designed around v2.1 — so the case follows.',
+  },
+  {
+    id: 'pcb-usbc-safety',
+    lane: 'pcb',
+    date: '2026-07-20',
+    title: 'USB-C power review',
+    status: 'done',
+    level: 2,
+    detail:
+      'Hardware safety review (Issue #221): documented hand-soldering constraints and short-circuit risks on USB-C connectors for DIY builders; updated guides to recommend 2-pin screw terminals for DIY builds while reserving USB-C for factory PCBA.',
+    issues: [221],
+    links: [{ label: 'Issue #221', href: `${REPO}/issues/221` }],
   },
   {
     id: 'pcb-v3',
@@ -274,6 +286,17 @@ export const NODES: RoadmapNode[] = [
       'A Max for Live OSC bridge: Ableton Live parameters drive the device knobs directly, with ping/announce auto-discovery on the firmware side.',
   },
   {
+    id: 'fw-browser-build',
+    lane: 'firmware',
+    date: '2026-07-25',
+    title: 'Browser firmware worker',
+    status: 'done',
+    level: 1,
+    detail:
+      'Cloud build queue + Web Serial flasher (PR #230, #231): write or generate custom patterns in Pattern Lab, compile ESP32-S3 firmware in the browser via build worker, and flash directly over Web Serial without local Arduino IDE setup.',
+    issues: [230, 231],
+  },
+  {
     id: 'fw-resolution',
     lane: 'firmware',
     date: '2026-09-15',
@@ -357,6 +380,16 @@ export const NODES: RoadmapNode[] = [
       'Color ramp and v-field modes, the Experiment layer-stack tab that compiles patches to pattern code, knob bindings, and a much stronger C++ conversion prompt (pre-baked LUTs, macro collision warnings, an expensive-math decision table).',
   },
   {
+    id: 'tools-lab-mobile',
+    lane: 'tools',
+    date: '2026-07-26',
+    title: 'Lab mobile & resolution',
+    status: 'done',
+    level: 2,
+    detail:
+      'Added direct clipboard paste and code clear buttons for mobile users, localStorage draft autosave, direct panel resolution entry (// @matrix), and upgraded C++ prompt generator.',
+  },
+  {
     id: 'tools-multiagent',
     lane: 'tools',
     date: '2026-09-28',
@@ -430,6 +463,31 @@ export const NODES: RoadmapNode[] = [
     links: [{ label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/engmung/patternflow' }],
   },
   {
+    id: 'biz-cs-150',
+    lane: 'community',
+    date: '2026-07-24',
+    title: '150 Crowd Supply subs',
+    status: 'done',
+    level: 1,
+    detail:
+      'Passed 160+ subscribers on Crowd Supply pre-launch — surpassing the 150 subscriber milestone required for official launch prep — driven by viral Instagram pattern posts hitting ~300k views.',
+    links: [
+      { label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/engmung/patternflow' },
+      { label: 'Journal (faster-faster)', href: 'https://patternflow.work/journal/faster-faster' },
+    ],
+  },
+  {
+    id: 'community-discussions',
+    lane: 'community',
+    date: '2026-07-24',
+    title: 'Discussions & pattern forks',
+    status: 'done',
+    level: 1,
+    detail:
+      'Launched the Patternflow Community hub (/community) featuring text discussion boards and pattern sharing with fork capabilities — copy base patterns, tweak color ramps or code, and republish.',
+    links: [{ label: 'Community Hub', href: 'https://patternflow.work/community' }],
+  },
+  {
     id: 'biz-launch',
     lane: 'community',
     date: '2026-09-25',
@@ -453,6 +511,8 @@ export const NODES: RoadmapNode[] = [
 
 export const EDGES: RoadmapEdge[] = [
   { from: 'pcb-v22', to: 'case-v3', note: 'USB-C moved the power input — the case must follow' },
+  { from: 'biz-cs-150', to: 'biz-launch', note: '150 subscriber milestone unlocked launch prep' },
+  { from: 'fw-browser-build', to: 'community-discussions', note: 'in-browser build & flash feeds pattern sharing' },
   { from: 'fw-resolution', to: 'biz-market', note: 'any panel, any size' },
   { from: 'tools-multiagent', to: 'biz-market', note: 'pattern quality at scale' },
 ];

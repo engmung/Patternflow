@@ -173,8 +173,11 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <li className={styles.storyCurrent}>
               <time>26.7</time>
               <span>
-                Keep <strong>refining the design for mass production</strong>, grow an active{' '}
-                <strong>community</strong>, and push <strong>outreach and promotion</strong>.
+                Reached <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
+                <Link href="/community">
+                  <strong>Community Discussions & Pattern Hub</strong>
+                </Link>{' '}
+                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and published <strong>USB-C power safety guidelines</strong> (#221).
               </span>
             </li>
             <li>
