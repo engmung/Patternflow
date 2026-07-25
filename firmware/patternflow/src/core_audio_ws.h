@@ -1,9 +1,11 @@
 // Patternflow - Audio-react WebSocket server (single-threaded)
 //
-// Hosts a small browser UI on port 80 (audio_index.h) and a WebSocket
-// endpoint on port 81. Browsers connect, send normalized 0..1 knob values
-// per frame, and patterns read those through InputFrame::knobAudioActive /
-// knobAudioValue.
+// Hosts the device web console on port 80 — a landing page at "/"
+// (home_index.h) and the audio-react UI at "/audio" (audio_index.h) —
+// plus a WebSocket endpoint on port 81. (core_web_update.h registers its
+// /update routes on this same server.) Browsers connect, send normalized
+// 0..1 knob values per frame, and patterns read those through
+// InputFrame::knobAudioActive / knobAudioValue.
 //
 // Threading: everything runs in the main Arduino loop via handle(). An
 // earlier version pushed this into a pinned core-0 FreeRTOS task guarded by
@@ -32,6 +34,7 @@
 #include <WebServer.h>
 #include <WebSocketsServer.h>
 #include "audio_index.h"
+#include "home_index.h"
 #endif
 
 namespace PatternflowAudio {
@@ -138,6 +141,10 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 }
 
 inline void handleRoot() {
+  httpServer.send_P(200, "text/html", HOME_INDEX_HTML);
+}
+
+inline void handleAudio() {
   httpServer.send_P(200, "text/html", AUDIO_INDEX_HTML);
 }
 
@@ -221,6 +228,7 @@ inline void begin() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   httpServer.on("/", handleRoot);
+  httpServer.on("/audio", handleAudio);
   httpServer.onNotFound([]() {
     httpServer.send(404, "text/plain", "Not found");
   });

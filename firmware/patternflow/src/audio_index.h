@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - Audio-react browser UI (PROGMEM HTML bundle)
 //
-// Served at http://patternflow.local/ by core_audio_ws.h. The UI:
+// Served at http://patternflow.local/audio by core_audio_ws.h. The UI:
 //   - audio source: file upload or mic
 //   - four frequency bands, each routed to a target knob (1..4)
 //   - per band: Hz min/max sliders, base value, ±range modulation
@@ -71,7 +71,7 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>
-<div class="sub">Stream music into the device. Map four FFT bands onto the four knobs. <a href="/update" style="color:inherit">firmware update &rarr;</a></div>
+<div class="sub"><a href="/" style="color:inherit;text-decoration:none">&larr; console</a> &nbsp;&middot;&nbsp; Stream music into the device. Map four FFT bands onto the four knobs.</div>
 <div id="status" class="bad">DISCONNECTED</div>
 
 <div class="section">

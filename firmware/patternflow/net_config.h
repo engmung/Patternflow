@@ -88,6 +88,17 @@
 #ifndef PF_WEBUPDATE_ENABLED
 #define PF_WEBUPDATE_ENABLED 1
 #endif
+// With 1 (the default) /update accepts firmware at any time — drop a .bin
+// whenever, no trip to the device. The tradeoff, stated plainly: anyone on
+// the same Wi-Fi can flash the device from a phone browser. That is the
+// same exposure ArduinoOTA's no-password default already has, and on a
+// home/studio network it is the right UX call. Set 0 on shared, office, or
+// exhibition Wi-Fi: uploads are then refused unless the UPDATE screen is
+// open on the device (hold K2 → NETWORK, turn K4) — a physical arming
+// switch only someone at the device can flip.
+#ifndef PF_WEBUPDATE_ALWAYS_ARMED
+#define PF_WEBUPDATE_ALWAYS_ARMED 1
+#endif
 
 // ── OSC (Ableton/Max sidechannel) ────────────────────────────
 // Sends knob/button/state out and accepts knob/pattern/content commands back.

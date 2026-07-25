@@ -10,12 +10,14 @@
 // sees a same-origin LAN upload, so there is no certificate to get wrong and
 // no mixed-content wall to hit.
 //
-// Safety catch: the POST endpoint only accepts firmware while the device is
-// ARMED — the user must physically open the UPDATE screen first (hold K2 →
-// NETWORK, turn K4). An always-open unauthenticated /update would let anyone
-// on the Wi-Fi reflash the device; arming from an encoder makes flashing an
-// explicit, present-at-the-device act, and doubles as the "ready now" signal.
-// The GET page itself is always served (harmless, and it tells you how to arm).
+// Access: by default (PF_WEBUPDATE_ALWAYS_ARMED 1) the POST endpoint accepts
+// firmware at any time — drop-a-.bin-whenever is the UX the project chose,
+// accepting that anyone on the LAN can flash the device (ArduinoOTA's
+// no-password default has the same exposure). Builds for shared networks set
+// the flag to 0, and then uploads are only accepted while the device is
+// ARMED — the UPDATE screen physically opened from an encoder (hold K2 →
+// NETWORK, turn K4). The GET page itself is always served (harmless, and it
+// tells you how to arm when arming is required).
 //
 // Rollback, honestly: once the app has been up for a few seconds, handle()
 // calls esp_ota_mark_app_valid_cancel_rollback(). With a bootloader built
@@ -98,7 +100,9 @@ inline void disarm() {
   Serial.println("[UPDATE] disarmed");
 }
 
-inline bool isArmed()         { return armed; }
+// Effective gate: the physical UPDATE screen, or the opt-in always-armed
+// build flag (see net_config.h for what that trades away).
+inline bool isArmed()         { return armed || PF_WEBUPDATE_ALWAYS_ARMED != 0; }
 inline bool isUploading()     { return uploading; }
 inline bool isRebootPending() { return rebootAtMs != 0; }
 inline bool hasError()        { return lastError.length() > 0; }
@@ -116,7 +120,7 @@ inline void handleUpload() {
   HTTPUpload& up = server().upload();
   switch (up.status) {
     case UPLOAD_FILE_START: {
-      rejected = !armed || uploading || rebootAtMs != 0;
+      rejected = !isArmed() || uploading || rebootAtMs != 0;
       if (rejected) {
         Serial.println("[UPDATE] upload refused (not armed)");
         break;
@@ -203,7 +207,7 @@ inline void handleUploadDone() {
 inline void handleStatus() {
   char buf[96];
   snprintf(buf, sizeof(buf), "{\"armed\":%s,\"busy\":%s,\"version\":\"%s\"}",
-           armed ? "true" : "false",
+           isArmed() ? "true" : "false",
            (uploading || rebootAtMs != 0) ? "true" : "false",
            PF_IMPROV_FW_VERSION);
   server().send(200, "application/json", buf);

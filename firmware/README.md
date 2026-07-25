@@ -63,8 +63,9 @@ firmware/patternflow/
     ├── core_wifi.h          # Shared Wi-Fi bring-up (single WiFi.begin for all features)
     ├── core_improv.h        # Improv-Serial Wi-Fi provisioning from the browser flasher
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
-    ├── core_audio_ws.h      # Browser audio-react HTTP/WebSocket server
-    ├── audio_index.h        # Built-in patternflow.local audio UI bundle
+    ├── core_audio_ws.h      # Device web console HTTP server + audio-react WebSocket
+    ├── home_index.h         # patternflow.local landing page (console home)
+    ├── audio_index.h        # Audio-react UI bundle (served at /audio)
     ├── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
     ├── core_web_update.h    # Browser self-update via patternflow.local/update
     └── web_update_index.h   # Built-in update page bundle (drop a .bin)
@@ -340,13 +341,12 @@ Numeric arguments may be int or float (floats are rounded) — Max patches commo
 Once the device is on Wi-Fi, it can flash itself from any browser on the same network — no Arduino IDE, no USB cable, no TLS setup ([#232](https://github.com/engmung/Patternflow/issues/232)).
 
 1. Get a firmware `.bin`: build one on [patternflow.work](https://patternflow.work) and hit *Download .bin*, or export one locally (`arduino-cli compile --output-dir …` — use the app image, not a merged full-flash image).
-2. Open `http://patternflow.local/update` (the update page also shows the device's raw IP fallback — use `http://<ip>/update` if `.local` doesn't resolve, which is common on Android).
-3. On the device: hold **K2** → NETWORK screen, then turn **K4** → **UPDATE** screen. This *arms* the upload endpoint; the page's status chip flips to ARMED. The screen shows both `patternflow.local/update` and the device IP.
-4. Drop the `.bin` on the page. The panel shows flash progress; the device verifies, reboots, and comes back on the new firmware in about ten seconds.
+2. Open `http://patternflow.local` — the device serves a small console (audio sync / firmware update) — and pick **Firmware Update**, or go straight to `/update`. If `.local` doesn't resolve (common on Android), use `http://<ip>/update`; the device shows its IP on the NETWORK screen (hold K2) and on the UPDATE screen.
+3. Drop the `.bin` on the page. The panel shows flash progress; the device verifies, reboots, and comes back on the new firmware in about ten seconds.
 
 Notes:
 
-- **The endpoint is closed unless you arm it from the device.** Anyone on your Wi-Fi can *see* the page, but a firmware POST is refused (`403`) unless someone physically opened the UPDATE screen — leaving the screen (K4 click, or the 10-minute idle timeout) disarms it again. That is the security model: flashing requires a person at the device.
+- **Uploads are accepted at any time by default** (`PF_WEBUPDATE_ALWAYS_ARMED 1`): drop a .bin whenever, no trip to the device. The flip side, stated plainly: anyone on the same Wi-Fi can flash the device from a phone browser — the same exposure ArduinoOTA's no-password default already has. On shared, office, or exhibition Wi-Fi, build with `#define PF_WEBUPDATE_ALWAYS_ARMED 0` in `patternflow_secrets.h`: uploads are then refused (`403`) unless the UPDATE screen is open on the device (hold **K2** → NETWORK, turn **K4**) — a physical arming switch only someone at the device can flip; leaving the screen (K4 click, or the 10-minute idle timeout) disarms it again.
 - A failed or interrupted upload leaves the old firmware running — `Update.h` only switches the boot partition after a complete, verified image. Power loss *during* the flash write is the one case to avoid; the panel says so while flashing.
 - Like all wireless paths, this capability has to arrive over USB once (it ships in the stock release).
 - Set `#define PF_WEBUPDATE_ENABLED 0` in `patternflow_secrets.h` to compile it out.

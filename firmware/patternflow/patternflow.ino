@@ -738,11 +738,14 @@ void loop() {
     } else {
       frameDrawn = false;
     }
-  } else if (updateShowing) {
+  } else if (updateShowing || PatternflowWebUpdate::isRebootPending()) {
     // Same throttled-redraw scheme as the NETWORK screen. This only paints
     // the idle / done / failed states — during an actual flash the loop is
     // blocked inside handleClient(), and the progress callback installed in
-    // setup() draws instead.
+    // setup() draws instead. The isRebootPending() arm covers always-armed
+    // uploads that land while a pattern is running: the DONE / REBOOTING
+    // card shows for the ~1.2 s before restart instead of snapping back to
+    // the pattern.
     if (updateDirty || (now - updateDrawnAtMs) >= NET_INFO_REDRAW_MS) {
       drawUpdateScreen(-1);
       updateDrawnAtMs = now;

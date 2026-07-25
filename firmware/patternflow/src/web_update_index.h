@@ -5,11 +5,12 @@
 // Drop a firmware .bin (the app image the web build service emits, or an
 // arduino-cli export) and the device flashes itself via Update.h.
 //
-// The page polls /update/status so the ARMED/LOCKED chip mirrors the
-// device: the POST endpoint only accepts firmware while the UPDATE screen
-// is open on the device (hold K2 → NETWORK, turn K4). Upload progress is
-// the XHR's own send progress — the device flashes as it receives, so the
-// bar tracks the actual write within a buffer's worth.
+// The page polls /update/status: stock builds are always ready
+// (PF_WEBUPDATE_ALWAYS_ARMED 1); builds that opted into physical arming
+// show a LOCKED pill plus the how-to-arm hint until the UPDATE screen is
+// opened on the device. Upload progress is the XHR's own send progress —
+// the device flashes as it receives, so the bar tracks the actual write
+// within a buffer's worth.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -22,63 +23,85 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow Update</title>
 <style>
-  :root{--bg:#0a0a0a;--card:#0d0d0d;--fg:#e8e8e8;--mut:#666;--ln:#1f1f1f;--accent:#5fdb89;--bad:#ff5d5d;--warn:#e8c35f}
+  :root{--bg:#0a0a0a;--card:#0e0e0e;--fg:#e8e8e8;--mut:#666;--ln:#212121;--accent:#5fdb89;--blue:#6ab7ff;--bad:#ff5d5d;--warn:#e8c35f}
   *{box-sizing:border-box}
-  body{margin:0 auto;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px;max-width:560px}
-  h1{font-size:11px;letter-spacing:.4em;opacity:.5;font-weight:normal;margin:0 0 4px}
-  .sub{font-size:11px;color:var(--mut);margin-bottom:20px}
-  a{color:var(--mut)}
-  #chip{position:fixed;top:14px;right:14px;font-size:10px;padding:7px 11px;border:1px solid var(--ln);background:var(--card);letter-spacing:.15em;z-index:10}
-  .ok{color:var(--accent)} .bad{color:var(--bad)} .warn{color:var(--warn)}
-  .section{margin:14px 0;padding:14px;border:1px solid var(--ln);background:var(--card)}
-  .section h2{font-size:10px;letter-spacing:.25em;color:var(--mut);font-weight:normal;text-transform:uppercase;margin:0 0 12px}
-  ol{margin:0;padding-left:18px;color:var(--mut);font-size:12px}
-  ol li{margin:4px 0}
-  ol b{color:var(--fg);font-weight:normal}
-  code{color:var(--fg)}
-  #drop{margin:14px 0;padding:38px 14px;border:1px dashed #333;background:var(--card);text-align:center;color:var(--mut);cursor:pointer;transition:border-color .15s}
-  #drop.hover{border-color:var(--accent);color:var(--fg)}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);
+       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;
+       padding:36px 20px;
+       background-image:radial-gradient(ellipse 90% 55% at 50% -12%,#151515 0%,transparent 65%)}
+  .col{width:100%;max-width:400px}
+  .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .back{font-size:11px;color:var(--mut);text-decoration:none;letter-spacing:.1em}
+  .back:hover{color:var(--fg)}
+  #pill{font-size:9px;padding:4px 10px;border:1px solid var(--ln);letter-spacing:.2em;background:var(--card)}
+  h1{font-size:13px;letter-spacing:.35em;font-weight:normal;margin:18px 0 6px;color:var(--blue)}
+  .sub{font-size:11px;color:var(--mut);line-height:1.7;margin-bottom:22px}
+  .ok{color:var(--accent);border-color:#1e3a2a!important}
+  .bad{color:var(--bad);border-color:#3a1e1e!important}
+  .warn{color:var(--warn);border-color:#3a331e!important}
+  .steps{margin:0 0 16px;padding:16px 18px;border:1px solid var(--ln);background:var(--card)}
+  .steps div{display:flex;gap:12px;font-size:11px;color:var(--mut);line-height:1.7;margin:4px 0}
+  .steps .n{color:#3a3a3a;letter-spacing:.1em}
+  .steps b{color:var(--fg);font-weight:normal}
+  #armHint{display:none;margin:0 0 16px;padding:13px 18px;border:1px solid #3a331e;background:#12100a;font-size:11px;color:var(--warn);line-height:1.7}
+  #armHint b{font-weight:normal;color:var(--fg)}
+  #drop{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+        border:1px dashed #333;background:var(--card);cursor:pointer;text-align:center;padding:20px;
+        transition:border-color .16s,background .16s}
+  #drop .big{font-size:12px;letter-spacing:.2em;color:var(--fg)}
+  #drop .small{font-size:10px;color:var(--mut);letter-spacing:.1em}
+  #drop.hover{border-color:var(--blue);background:#0f1216}
   #drop.disabled{opacity:.45}
-  #bar{height:6px;background:#1a1a1a;margin:14px 0 6px;display:none}
-  #fill{height:100%;width:0%;background:var(--accent)}
-  #msg{font-size:12px;min-height:18px;color:var(--mut)}
+  #bar{height:5px;background:#1a1a1a;margin:16px 0 8px;display:none}
+  #fill{height:100%;width:0%;background:var(--blue);transition:width .1s linear}
+  #msg{font-size:11px;min-height:18px;color:var(--mut);line-height:1.7}
   #msg.ok{color:var(--accent)} #msg.bad{color:var(--bad)}
 </style></head><body>
-<h1>PATTERNFLOW &middot; UPDATE</h1>
-<div class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN. <a href="/">audio-react &rarr;</a></div>
-<div id="chip">&hellip;</div>
+<div class="col">
+  <div class="top">
+    <a class="back" href="/">&larr; console</a>
+    <span id="pill">&hellip;</span>
+  </div>
+  <h1>FIRMWARE UPDATE</h1>
+  <div class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</div>
 
-<div class="section"><h2>How</h2>
-<ol>
-<li>Build &amp; download a firmware <b>.bin</b> (patternflow.work &rarr; Build, or an <code>arduino-cli</code> export).</li>
-<li>On the device: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>. The chip above turns ARMED.</li>
-<li>Drop the file below. Keep the device powered; it reboots itself when done.</li>
-</ol></div>
+  <div class="steps">
+    <div><span class="n">01</span><span>Build &amp; download a <b>.bin</b> &mdash; patternflow.work &rarr; Build, or an <b>arduino-cli</b> export.</span></div>
+    <div><span class="n">02</span><span>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</span></div>
+  </div>
 
-<div id="drop">drop firmware .bin here<br>or click to choose</div>
-<input id="file" type="file" accept=".bin" style="display:none">
-<div id="bar"><div id="fill"></div></div>
-<div id="msg"></div>
+  <div id="armHint">This build requires arming first. On the device: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>.</div>
+
+  <div id="drop">
+    <span class="big">DROP .BIN HERE</span>
+    <span class="small">or click to choose a file</span>
+  </div>
+  <input id="file" type="file" accept=".bin" style="display:none">
+  <div id="bar"><div id="fill"></div></div>
+  <div id="msg"></div>
+</div>
 
 <script>
 var drop=document.getElementById('drop'),fileIn=document.getElementById('file'),
-    chip=document.getElementById('chip'),bar=document.getElementById('bar'),
-    fill=document.getElementById('fill'),msg=document.getElementById('msg');
+    pill=document.getElementById('pill'),bar=document.getElementById('bar'),
+    fill=document.getElementById('fill'),msg=document.getElementById('msg'),
+    armHint=document.getElementById('armHint');
 var armed=false,busy=false,uploading=false;
-var ARM_HINT='Device is locked. On the device: hold K2 for NETWORK, then turn K4 for UPDATE.';
 
-function setChip(t,c){chip.textContent=t;chip.className=c||''}
+function setPill(t,c){pill.textContent=t;pill.className=c||''}
 function setMsg(t,c){msg.textContent=t;msg.className=c||''}
 
 function poll(){
   if(uploading)return;
   fetch('/update/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
     armed=s.armed;busy=s.busy;
-    if(busy)setChip('BUSY','warn');
-    else if(armed)setChip('ARMED','ok');
-    else setChip('LOCKED','bad');
+    if(busy)setPill('BUSY','warn');
+    else if(armed)setPill('READY','ok');
+    else setPill('LOCKED','bad');
+    armHint.style.display=(!armed&&!busy)?'block':'none';
     drop.classList.toggle('disabled',!armed||busy);
-  }).catch(function(){setChip('OFFLINE','bad')});
+  }).catch(function(){setPill('OFFLINE','bad')});
 }
 setInterval(poll,2000);poll();
 
@@ -93,9 +116,9 @@ function upload(f){
   if(!/\.bin$/i.test(f.name)){setMsg('That is not a .bin file.','bad');return}
   if(f.size>3*1024*1024){setMsg('Too big for the 3 MB app partition. This looks like a merged full-flash image; upload the app .bin instead.','bad');return}
   if(f.size<200*1024){setMsg('Suspiciously small for Patternflow firmware. Wrong file?','bad');return}
-  if(!armed){setMsg(ARM_HINT,'bad');return}
+  if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
   uploading=true;
-  setChip('FLASHING','warn');
+  setPill('FLASHING','warn');
   bar.style.display='block';fill.style.width='0%';
   setMsg('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');
   var xhr=new XMLHttpRequest();
@@ -128,7 +151,7 @@ function waitForReboot(){
   var t=setInterval(function(){
     if(++tries>30){clearInterval(t);return}
     fetch('/update/status',{cache:'no-store'}).then(function(r){
-      if(r.ok){clearInterval(t);setChip('BACK','ok');setMsg('Device is back online on the new firmware.','ok')}
+      if(r.ok){clearInterval(t);setPill('BACK','ok');setMsg('Device is back online on the new firmware.','ok')}
     }).catch(function(){});
   },2000);
 }
