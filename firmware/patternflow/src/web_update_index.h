@@ -63,6 +63,13 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   #armHint{display:none;margin:20px 0 0;border:1px dashed var(--rule);background:var(--cream);
        padding:14px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--muted)}
   #armHint b{font-weight:500;color:var(--ink)}
+  #handoff{display:none;margin:0 0 24px;padding:16px 18px;border:1px solid var(--rule);background:var(--cream)}
+  #handoffFrom{font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-all;margin:6px 0 14px;line-height:1.6}
+  #handoffGo{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+       background:var(--ink);color:var(--cream);border:1px solid var(--ink);padding:12px 16px;cursor:pointer;
+       transition:background .15s ease,color .15s ease}
+  #handoffGo:hover{background:transparent;color:var(--ink)}
+  #handoffGo:disabled{opacity:.5;cursor:default}
   #drop{margin-top:28px;min-height:176px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
        border:1px dashed var(--rule);background:var(--cream);cursor:pointer;text-align:center;padding:24px;
        transition:border-color .16s ease,background .16s ease}
@@ -88,6 +95,14 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   <h2>Firmware update.</h2>
   <p class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</p>
 
+  <!-- Shown when the build page hands a firmware URL over via ?src= —
+       the phone never touches a file picker. -->
+  <div id="handoff">
+    <span class="pf-kicker">Linked build</span>
+    <div id="handoffFrom"></div>
+    <button id="handoffGo" type="button">Fetch &amp; flash</button>
+  </div>
+
   <span class="pf-kicker">Two steps</span>
   <div class="step"><span class="n">01</span><p>Build &amp; download a <b>.bin</b> &mdash; patternflow.work &rarr; Build, or an <b>arduino-cli</b> export.</p></div>
   <div class="step"><span class="n">02</span><p>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</p></div>
@@ -98,10 +113,12 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
     <span class="big">Drop .bin here</span>
     <span class="small">or click to choose a file</span>
   </div>
-  <!-- No accept attribute: Android maps unknown extensions like .bin to a
-       media-only picker (camera/gallery), hiding the file manager. The JS
-       validates extension and size instead. -->
-  <input id="file" type="file" style="display:none">
+  <!-- accept="*/*", not ".bin": Android maps unknown extensions to a
+       media-only picker (camera/gallery), and on some devices NO accept
+       does the same — an explicit any-type accept is what reliably brings
+       up the full chooser with the file manager. The JS validates
+       extension and size instead. -->
+  <input id="file" type="file" accept="*/*" style="display:none">
   <div id="bar"><div id="fill"></div></div>
   <div id="msg"></div>
 </main>
@@ -179,6 +196,39 @@ function waitForReboot(){
     }).catch(function(){});
   },2000);
 }
+
+// ?src= handoff from the build page ("Send over Wi-Fi"): this page fetches
+// the .bin itself and feeds it into the same upload path — no file picker,
+// which some Android systems cannot show for arbitrary files. The firmware
+// route serves public CORS for exactly this fetch.
+var srcUrl=null;
+try{
+  var s=new URLSearchParams(location.search).get('src');
+  if(s&&/^https?:\/\//i.test(s)){
+    srcUrl=s;
+    document.getElementById('handoffFrom').textContent=s.replace(/^https?:\/\//i,'');
+    document.getElementById('handoff').style.display='block';
+  }
+}catch(e){}
+document.getElementById('handoffGo').addEventListener('click',function(){
+  if(!srcUrl||uploading)return;
+  if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
+  var btn=this;
+  btn.disabled=true;
+  setPill('FETCHING','warn');
+  setMsg('Downloading the build from '+srcUrl.split('/')[2]+' ...');
+  fetch(srcUrl).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.blob();
+  }).then(function(b){
+    btn.disabled=false;
+    upload(new File([b],'firmware.bin',{type:'application/octet-stream'}));
+  }).catch(function(e){
+    btn.disabled=false;
+    poll();
+    setMsg('Could not download the build ('+e.message+'). Download the .bin on this device and drop it above instead.','bad');
+  });
+});
 </script>
 </body></html>
 )HTML";

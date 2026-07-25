@@ -1,21 +1,43 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { artifactDir, getBuild } from "@/lib/community/builds";
-import { preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled } from "@/lib/community/db";
 
 // GET /api/community/builds/[id]/firmware — the built application image.
 //
 // No credential check by design: esp-web-tools fetches this itself, without
 // cookies and possibly cross-origin. The build id is the capability (see the
-// status route). No CORS *rejection* either, for the same reason — the flasher
-// must be able to read it from whichever origin the page was served from.
+// status route).
+//
+// CORS is deliberately PUBLIC (`*`, no credentials) instead of the allowlist
+// the rest of the community API uses: the device's own web console fetches
+// this URL to flash over Wi-Fi (#232 — "Send over Wi-Fi" hands the build off
+// to http://patternflow.local/update), and a LAN device origin — a raw IP,
+// different in every home — is exactly what an allowlist cannot enumerate.
+// Wildcard-without-credentials is safe here because the response needs no
+// cookie and the build id in the URL is the whole capability.
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  return withCors(request, await handleGet(context));
+const PUBLIC_CORS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Expose-Headers": "Content-Length",
+};
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const response = await handleGet(context);
+  for (const [key, value] of Object.entries(PUBLIC_CORS)) response.headers.set(key, value);
+  return response;
 }
 
-export const OPTIONS = preflight;
+export function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      ...PUBLIC_CORS,
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
 
 async function handleGet(context: { params: Promise<{ id: string }> }) {
   if (!communityEnabled()) {

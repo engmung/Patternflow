@@ -54,6 +54,37 @@ export default function BuildFirmwareModal({
   const [busy, setBusy] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
 
+  // "Send over Wi-Fi" hands the finished build to the device's own update
+  // page (#232). patternflow.local works on most platforms; Android can't
+  // resolve .local, so the address is editable and remembered.
+  const [deviceHost, setDeviceHost] = useState("patternflow.local");
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("pf-device-host");
+      if (stored) setDeviceHost(stored);
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  const changeDeviceHost = (value: string) => {
+    setDeviceHost(value);
+    try {
+      window.localStorage.setItem("pf-device-host", value);
+    } catch {
+      /* private mode */
+    }
+  };
+  const wifiSendUrl = (id: string) => {
+    if (typeof window === "undefined") return "#";
+    // The device page fetches this URL itself, so it must be absolute even
+    // when the community API is same-origin.
+    const firmware = new URL(
+      communityApiUrl(`/api/community/builds/${id}/firmware`),
+      window.location.origin,
+    ).toString();
+    return `http://${deviceHost.trim()}/update?src=${encodeURIComponent(firmware)}`;
+  };
+
   // Polling is stopped from inside its own callback, so it needs a handle that
   // survives re-renders.
   const pollRef = useRef<number | null>(null);
@@ -237,11 +268,39 @@ export default function BuildFirmwareModal({
                   >
                     Download .bin
                   </a>
+                  <a
+                    className={styles.btn}
+                    href={wifiSendUrl(build.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Send over Wi-Fi
+                  </a>
                   <span className={styles.headerSpacer} />
                   <button type="button" className={styles.btn} onClick={reset}>
                     Build another
                   </button>
                 </div>
+                <p className={styles.formNote}>
+                  Send over Wi-Fi opens the device&rsquo;s own update page with this build
+                  linked — no USB, works from a phone on the same network. Device address:{" "}
+                  <input
+                    type="text"
+                    value={deviceHost}
+                    onChange={(event) => changeDeviceHost(event.target.value)}
+                    spellCheck={false}
+                    style={{
+                      font: "inherit",
+                      width: "16ch",
+                      padding: "1px 6px",
+                      border: "1px solid var(--pf-rule, #D9D1C0)",
+                      background: "transparent",
+                      color: "inherit",
+                    }}
+                  />{" "}
+                  (Android can&rsquo;t resolve <code>.local</code> — use the IP shown on the
+                  device&rsquo;s NETWORK screen, hold K2).
+                </p>
               </>
             )}
           </div>

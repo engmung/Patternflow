@@ -140,11 +140,16 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
   }
 }
 
+// no-store on every console page: the HTML ships inside the firmware, so
+// it changes exactly when the firmware does — a cached copy (or a partial
+// one from a load interrupted by the post-flash reboot) must never stick.
 inline void handleRoot() {
+  httpServer.sendHeader("Cache-Control", "no-store");
   httpServer.send_P(200, "text/html", HOME_INDEX_HTML);
 }
 
 inline void handleAudio() {
+  httpServer.sendHeader("Cache-Control", "no-store");
   httpServer.send_P(200, "text/html", AUDIO_INDEX_HTML);
 }
 
