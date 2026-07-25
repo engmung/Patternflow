@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "worker": "tsx scripts/build-worker.ts",
+    "build:enqueue": "tsx scripts/enqueue-test-build.ts",
+    "build:status": "tsx scripts/build-status.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",
@@ -45,6 +48,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
   }
 }
