@@ -39,6 +39,17 @@ const REPO = 'https://github.com/engmung/Patternflow';
 export const NODES: RoadmapNode[] = [
   // PCB
   {
+    id: 'pcb-proto-v0',
+    lane: 'pcb',
+    date: '2026-03-29',
+    title: 'First hardware prototype',
+    status: 'done',
+    level: 2,
+    detail:
+      'First hand-wired prototype: LED matrix + ESP32 + 4 potentiometers assembled in the club room, bringing Patternflow out of the web browser and into physical space at Mapo Saebit Cultural Forest.',
+    links: [{ label: 'Journal (v1 in 30 days)', href: 'https://patternflow.work/journal/v1-30-days' }],
+  },
+  {
     id: 'pcb-v1',
     lane: 'pcb',
     date: '2026-04-26',
