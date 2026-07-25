@@ -42,6 +42,73 @@ Each file starts with a metadata header kept in sync with the JS source:
 // Generated from web/src/lib/presets/pattern-wave-saw.ts
 ```
 
+## Panel size, and the frame a pattern is drawn for
+
+Two different things, and it's worth keeping them apart.
+
+**Your panel** is set in [`config.h`](./config.h):
+
+```cpp
+#define PANEL_RES_W 128
+#define PANEL_RES_H 64
+#define PANEL_CHAIN 1
+```
+
+Running something other than the stock 128×64 — a 64×64 module, or two
+128×64 panels chained into 256×64 — means **editing those lines to match your
+hardware and reflashing. That's the whole change.** Nothing else in the
+firmware hardcodes a panel size: the HUB75 driver config, the radius/angle
+tables, the canvas buffer and the on-screen menus all derive from these three
+values. The patterns do too, as long as they loop over `PANEL_RES_W` /
+`PANEL_RES_H` instead of typing `128` and `64`.
+
+**A pattern's frame** is the pixel grid it was *composed* for, which is not
+always the panel's. A 64×128 pattern on a 128×64 panel is just the device
+stood on its end. In Pattern Lab this is picked in the header and written into
+the JS as one line — `// @matrix 64x128` — and it carries through generation,
+publishing and the C++ prompt.
+
+Most patterns are composed for the panel and need no thought: loop
+`PANEL_RES_W` / `PANEL_RES_H`, call `PFCanvas::setPixel(x, y, r, g, b)`, done.
+A pattern composed for a *different* grid declares it instead:
+
+```cpp
+constexpr int FRAME_W = 64;
+constexpr int FRAME_H = 128;
+
+void draw() {
+  PFCanvas::setFrame(FRAME_W, FRAME_H);   // first line
+  for (int y = 0; y < FRAME_H; y++) {
+    for (int x = 0; x < FRAME_W; x++) {
+      PFCanvas::setPixel(x, y, r, g, b);  // logical coords — do not rotate them yourself
+    }
+  }
+  PFCanvas::present();
+}
+```
+
+`setFrame` installs the mapping and `setPixel` applies it, so the pattern only
+ever thinks in its own coordinates. How it lands is *derived* from the two
+sizes — there is no rotation setting to keep in sync:
+
+| Frame vs panel | What happens |
+|---|---|
+| Same | Drawn straight through. Zero cost, and the path every stock pattern takes. |
+| Swapped (64×128 on 128×64) | Rotated a quarter turn, filling the panel exactly. |
+| Anything else | Centred, with the remainder left black. |
+
+Two things to know:
+
+- **Do not transform the coordinates yourself.** Rotating in the pattern *and*
+  in the canvas turns it back the wrong way.
+- **`PFTables::rT` / `thetaT` are panel-space** — indexed by the panel grid and
+  measured from the panel's centre — so they're wrong inside a declared frame.
+  Use `sqrtf` and `PFMath::fastAtan2` from your own frame centre, and don't
+  call `PFTables::init()`.
+
+`PFCanvas::present()` restores the panel frame, so a `setFrame` can never leak
+into the next pattern, and a pattern that never calls it is unaffected.
+
 ## Registry
 
 `pattern_registry.h` keeps `customPatterns[]` and `presetPatterns[]` as two
