@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Globe from './Globe';
 import PhotoLightbox from './PhotoLightbox';
 import { builds } from './builds';
-import { useAppStore } from '@/store/useAppStore';
+import { useBuildSelection } from './useBuildSelection';
 import styles from './GlobeViewer.module.css';
 
 // The Inside section's viewer: an interactive globe with the picked build's
@@ -16,8 +16,7 @@ import styles from './GlobeViewer.module.css';
 // viewer is only 44vh — far too little room for photos and a description — so
 // the Inside panel renders those as a card instead. See BuildCard.
 export default function GlobeViewer() {
-  const selectedId = useAppStore((state) => state.selectedBuildId);
-  const setSelectedId = useAppStore((state) => state.setSelectedBuildId);
+  const { selectedId, select: selectBuild } = useBuildSelection();
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
 
@@ -33,7 +32,7 @@ export default function GlobeViewer() {
   const galleryOpen = galleryIndex !== null && !!images?.length;
 
   const select = (id: string | null) => {
-    setSelectedId(id);
+    selectBuild(id);
     setGalleryIndex(null);
     if (id) setHasSelected(true);
   };

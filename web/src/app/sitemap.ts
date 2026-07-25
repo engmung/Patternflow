@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAllJournalPosts } from "@/lib/journal";
+import { builds } from "@/components/sections/InsideGlobe/builds";
 
 const siteUrl = "https://patternflow.work";
 
@@ -16,6 +17,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/journal`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${siteUrl}/journal/en`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
   ];
+
+  // One entry per pin on the build map.
+  const buildRoutes: MetadataRoute.Sitemap = builds.map((build) => ({
+    url: `${siteUrl}/inside/${build.slug}`,
+    lastModified: now,
+    changeFrequency: "yearly",
+    priority: 0.5,
+  }));
 
   const journalRoutes: MetadataRoute.Sitemap = getAllJournalPosts().flatMap(
     (post) => {
@@ -44,5 +53,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   );
 
-  return [...staticRoutes, ...journalRoutes];
+  return [...staticRoutes, ...buildRoutes, ...journalRoutes];
 }

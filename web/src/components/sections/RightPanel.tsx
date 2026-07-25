@@ -29,13 +29,14 @@ const TAB_PATHS: Record<TabType, string> = {
 };
 
 function tabFromPath(pathname: string): TabType {
+  // /inside also carries a build id when a pin on the map is open
+  // (/inside/<build-id>), so match the prefix rather than the exact path.
+  if (pathname === '/inside' || pathname.startsWith('/inside/')) return 'inside';
   switch (pathname) {
     case '/build':
       return 'build';
     case '/pattern':
       return 'pattern';
-    case '/inside':
-      return 'inside';
     default:
       return 'hero';
   }
@@ -57,6 +58,11 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
       store.setBuildStep(0);
       store.setIsExploded(true);
       setBuildPanelKey((key) => key + 1);
+    }
+    // Leaving Inside drops the open pin, so the tab's URL goes back to plain
+    // /inside and reopening it does not restore a stale selection.
+    if (prevTab === 'inside' && nextTab !== 'inside') {
+      useAppStore.getState().setSelectedBuildId(null);
     }
     activeTabRef.current = nextTab;
     setActiveTab(nextTab);

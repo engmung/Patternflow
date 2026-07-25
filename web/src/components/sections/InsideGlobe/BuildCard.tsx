@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import PhotoLightbox from './PhotoLightbox';
 import { builds } from './builds';
-import { useAppStore } from '@/store/useAppStore';
+import { useBuildSelection } from './useBuildSelection';
 import styles from './BuildCard.module.css';
 
 // Mobile-only companion to the globe. The viewer is pinned to the top 44vh on
@@ -12,8 +12,7 @@ import styles from './BuildCard.module.css';
 // so the picked build's details are rendered down here in the Inside panel
 // instead. Hidden entirely on desktop, where the globe overlay does the job.
 export default function BuildCard() {
-  const selectedId = useAppStore((state) => state.selectedBuildId);
-  const setSelectedId = useAppStore((state) => state.setSelectedBuildId);
+  const { selectedId, select } = useBuildSelection();
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +45,7 @@ export default function BuildCard() {
   const step = (delta: number) => {
     if (selectedIndex === -1) return;
     const next = (selectedIndex + delta + builds.length) % builds.length;
-    setSelectedId(builds[next].id);
+    select(builds[next].id);
     setGalleryIndex(null);
   };
 
@@ -66,7 +65,7 @@ export default function BuildCard() {
             <button
               type="button"
               className={styles.close}
-              onClick={() => setSelectedId(null)}
+              onClick={() => select(null)}
               aria-label="Clear selection"
             >
               close

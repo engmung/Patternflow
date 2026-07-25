@@ -5,6 +5,10 @@ export type BuildImage = {
 
 export type Build = {
   id: string;
+  // The build's address on the map: /inside/<slug>. Maker then region, so a
+  // link is readable on its own when it is sent to the person who made it.
+  // Kept separate from `id` so renaming one never breaks links already shared.
+  slug: string;
   location: { lat: number; lng: number; label: string };
   maker: string;
   country: string;
@@ -17,6 +21,7 @@ export type Build = {
 export const builds: Build[] = [
   {
     id: 'seoul-v1',
+    slug: 'seunghun-korea',
     location: { lat: 37.5665, lng: 126.978, label: 'Seoul, Korea' },
     maker: 'Seunghun LEE',
     country: 'Korea',
@@ -30,6 +35,7 @@ export const builds: Build[] = [
   },
   {
     id: 'paris-v1',
+    slug: 'seunghun-france',
     location: { lat: 48.8566, lng: 2.3522, label: 'Paris, France' },
     maker: 'Seunghun LEE',
     country: 'France',
@@ -38,6 +44,7 @@ export const builds: Build[] = [
   },
   {
     id: 'uk-nath',
+    slug: 'nath-uk',
     location: { lat: 51.5072, lng: -0.1276, label: 'United Kingdom' },
     maker: 'Nath',
     country: 'UK',
@@ -53,6 +60,7 @@ export const builds: Build[] = [
   },
   {
     id: 'poland-shooter',
+    slug: 'shooter-poland',
     location: { lat: 52.2297, lng: 21.0122, label: 'Poland' },
     maker: 'shooter',
     country: 'Poland',
@@ -65,6 +73,7 @@ export const builds: Build[] = [
   },
   {
     id: 'france-day',
+    slug: 'day-france',
     location: { lat: 46.6034, lng: 1.8883, label: 'France' },
     maker: 'day',
     country: 'France',
@@ -84,6 +93,7 @@ export const builds: Build[] = [
   },
   {
     id: 'iran-azmano',
+    slug: 'azmano-iran',
     location: { lat: 35.6892, lng: 51.389, label: 'Iran' },
     maker: 'Azmano',
     country: 'Iran',
@@ -101,6 +111,7 @@ export const builds: Build[] = [
   },
   {
     id: 'norway-enerjoy',
+    slug: 'enerjoy-norway',
     location: { lat: 68.4385, lng: 17.4273, label: 'Narvik, Norway' },
     maker: 'Enerjoy',
     country: 'Norway',
@@ -113,7 +124,31 @@ export const builds: Build[] = [
       { src: '/builds/enerjoy/build.jpg', alt: "Enerjoy's Patternflow mid-build, showing the PCB and black 3D-printed enclosure" },
     ],
   },
+  {
+    id: 'uae-simonepda',
+    slug: 'simonepda-uae',
+    location: { lat: 25.4052, lng: 55.5136, label: 'Ajman, UAE' },
+    maker: 'SimonePDA',
+    country: 'UAE',
+    date: 'July 2026',
+    description:
+      '"I am an old time maker, and LED matrices always had a sweet spot on me. Now they are cheap to buy and cool for many projects. This one stands out because it is both huge and interactive. Generative Art using AI to code is another cool recent development and this design is made explicitly to include patterns designed and coded using even simple chatbots. Last but not least important is fully Open Sourced and very well documented, that is the true meaning of open sourcing a project."',
+    links: [
+      { href: 'https://www.instagram.com/simonepda', label: 'instagram.com/simonepda' },
+    ],
+    images: [
+      { src: '/builds/simonepda/1.jpg', alt: "SimonePDA's Patternflow build in Ajman, UAE" },
+      { src: '/builds/simonepda/2.jpg', alt: "SimonePDA's Patternflow build, view 2" },
+      { src: '/builds/simonepda/3.jpg', alt: "SimonePDA's Patternflow build, view 3" },
+      { src: '/builds/simonepda/4.jpg', alt: "SimonePDA's Patternflow build, view 4" },
+      { src: '/builds/simonepda/5.jpg', alt: "SimonePDA's Patternflow build, view 5" },
+    ],
+  },
 ];
+
+export function buildBySlug(slug: string): Build | undefined {
+  return builds.find((build) => build.slug === slug);
+}
 
 export function latLngToVec3(lat: number, lng: number, radius: number): [number, number, number] {
   const phi = (90 - lat) * (Math.PI / 180);
