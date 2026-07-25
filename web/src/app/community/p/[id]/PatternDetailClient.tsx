@@ -12,6 +12,8 @@ import LikeButton from "@/components/community/LikeButton";
 import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
+import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
+import { buildsConfigured } from "@/lib/community/apiBase";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
@@ -62,6 +64,7 @@ export default function PatternDetailClient({
   const [codeTab, setCodeTab] = useState<"js" | "h">("js");
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [buildOpen, setBuildOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -191,6 +194,18 @@ export default function PatternDetailClient({
             <button type="button" className={styles.btnAccent} onClick={openInLab}>
               Open in Pattern Lab
             </button>
+            {/* Only for patterns that ship a verified header — this is the
+                zero-friction path: nothing to convert, nothing to install. */}
+            {buildsConfigured() && pattern.codeCpp && (
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                title="Compile a firmware image with this pattern and flash it over USB"
+                onClick={() => setBuildOpen(true)}
+              >
+                ⚡ Flash to my board
+              </button>
+            )}
             {isOwner && edited && (
               <button
                 type="button"
@@ -306,8 +321,17 @@ export default function PatternDetailClient({
 
           {codeTab === "h" && (
             <p className={styles.codeFootNote}>
-              To flash it: drop the file into <code>firmware/patternflow/</code> and add it to{" "}
-              <code>pattern_registry.h</code>. Provided by the author and not verified by us.
+              {buildsConfigured() ? (
+                <>
+                  Use <strong>Flash to my board</strong> below to compile and install this without
+                  an Arduino IDE. Provided by the author and not verified by us.
+                </>
+              ) : (
+                <>
+                  To flash it: drop the file into <code>firmware/patternflow/</code> and add it to{" "}
+                  <code>pattern_registry.h</code>. Provided by the author and not verified by us.
+                </>
+              )}
             </p>
           )}
         </div>
@@ -396,6 +420,14 @@ export default function PatternDetailClient({
           patternId={pattern.id}
           initialCpp={pattern.codeCpp}
           onClose={() => setHeaderModalOpen(false)}
+        />
+      )}
+
+      {buildOpen && pattern.codeCpp && (
+        <BuildFirmwareModal
+          initialHeader={pattern.codeCpp}
+          patternLabel={pattern.title}
+          onClose={() => setBuildOpen(false)}
         />
       )}
 

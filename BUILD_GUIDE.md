@@ -265,7 +265,7 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 
 > 🔌 **Use the RIGHT USB-C port** for Arduino IDE — the one on your right when the ports face you, labeled `UART`/`COM`. It's the USB-to-UART bridge Arduino uploads through; the left (native `USB`) port is for the browser flasher (§8.1). If the IDE doesn't see a serial port, you're likely on the wrong one.
 
-- Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Disabled* — full setup in [`firmware/README.md`](firmware/README.md).
+- Board settings: *ESP32S3 Dev Module*, PSRAM: *OPI PSRAM*, Flash: *16MB*, USB CDC On Boot: *Enabled* — full setup in [`firmware/README.md`](firmware/README.md). CDC On Boot is what puts the browser flasher's Wi-Fi setup on the left `USB` port; with it disabled that step moves to the other socket.
 - If your panel's driver IC is FM6126A/FM6124, set `PANEL_PROFILE` to `PANEL_HIGHREFRESH` in `config.h` (default `PANEL_STANDARD` covers 74HC595).
 - To wipe stored Wi-Fi credentials, enable **Tools → Erase All Flash Before Sketch Upload** before uploading (see the Wi-Fi note in §8.1).
 - **ArduinoOTA** works over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.

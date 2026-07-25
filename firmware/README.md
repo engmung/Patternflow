@@ -16,8 +16,16 @@ The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads fou
 - **PSRAM:** OPI PSRAM
 - **Flash Size:** 16MB
 - **Partition Scheme:** 16M Flash with PSRAM-aware partition
-- **USB CDC On Boot:** Disabled
+- **USB CDC On Boot:** Enabled
 - **Upload Mode:** UART0 / Hardware CDC
+
+> **Why CDC On Boot matters.** It decides whether `Serial` is the native USB
+> peripheral or UART0 — and therefore which of the two USB-C ports answers the
+> browser flasher's Wi-Fi setup (Improv speaks over `Serial`). Enabled puts it
+> on the **left/native `USB`** port, which is what the released firmware does
+> and what §8.1 of the build guide tells people to use. Building with it
+> disabled produces firmware that flashes fine but whose Wi-Fi setup only
+> appears on the other socket.
 
 ### Required libraries
 Install these via the Arduino Library Manager:

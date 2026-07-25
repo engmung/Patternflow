@@ -179,6 +179,46 @@ export const postComments = sqliteTable(
   (table) => [index("post_comments_post_id_idx").on(table.postId)],
 );
 
+// ── Firmware builds ──────────────────────────────────────────────────────────
+// A build is slow (~15 s) and CPU-bound, so the web request only enqueues one
+// and a separate worker process picks it up. Without that split, concurrent
+// requests would compile in-process and starve the site of the cores it is
+// running on.
+//
+// The submitted headers are stored inline rather than referenced: a build is
+// then self-contained and stays reproducible even if the pattern it came from
+// is later edited or deleted.
+export const builds = sqliteTable(
+  "builds",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** queued → running → done | error */
+    status: text("status").notNull().default("queued"),
+    /** JSON: [{ label, code }] — the C++ headers to put in the custom slots. */
+    patterns: text("patterns").notNull(),
+    /** Namespaces resolved at assembly time, for display. */
+    namespaces: text("namespaces"),
+    /** Filename of the finished image, relative to the artifact directory. */
+    artifact: text("artifact"),
+    artifactBytes: integer("artifact_bytes"),
+    /** Compiler output when status is "error" — shown to the author. */
+    error: text("error"),
+    /** Which worker claimed it; helps when more than one is running. */
+    worker: text("worker"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    startedAt: integer("started_at", { mode: "timestamp" }),
+    finishedAt: integer("finished_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    // The worker's claim query orders queued jobs by age.
+    index("builds_status_created_idx").on(table.status, table.createdAt),
+    index("builds_user_id_idx").on(table.userId),
+  ],
+);
+
 export const comments = sqliteTable(
   "comments",
   {

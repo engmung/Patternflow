@@ -76,3 +76,6 @@ tmp/
 integrations/ableton/max/*.amxd
 integrations/ableton/projects/
 
+
+# firmware build worker scratch (warm cache + sketch copy)
+/.build-worker
