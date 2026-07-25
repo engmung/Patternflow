@@ -37,7 +37,10 @@ const WORK_DIR = process.env.BUILD_WORK_DIR ?? path.resolve(process.cwd(), "../.
 
 const options = {
   firmwareSrcDir: FIRMWARE_SRC_DIR,
-  sketchDir: path.join(WORK_DIR, "sketch"),
+  // Keeps the source directory's name: arduino-cli requires a sketch folder to
+  // contain a .ino of the same name, so renaming this to "sketch" would make
+  // every build fail to find patternflow.ino.
+  sketchDir: path.join(WORK_DIR, path.basename(FIRMWARE_SRC_DIR)),
   buildPath: path.join(WORK_DIR, "cache"),
   artifactDir: artifactDir(),
 };

@@ -117,6 +117,15 @@ async function clearUnusedSlots(sketchDir: string, used: number): Promise<void> 
   }
 }
 
+/**
+ * arduino-cli names its output after the sketch, and a sketch is a directory
+ * containing a `.ino` of the same name — so the working copy must keep the
+ * firmware directory's name (`patternflow/`), not be renamed to `sketch/`.
+ */
+export function sketchName(sketchDir: string): string {
+  return path.basename(sketchDir);
+}
+
 /** The real compiler: arduino-cli against the persistent build path. */
 export const arduinoCliCompiler: Compiler = ({ sketchDir, buildPath }) =>
   new Promise((resolve) => {
@@ -145,7 +154,11 @@ export const arduinoCliCompiler: Compiler = ({ sketchDir, buildPath }) =>
         resolve({ ok: false, output: output || `arduino-cli exited with code ${code}` });
         return;
       }
-      resolve({ ok: true, appBinPath: path.join(buildPath, "patternflow.ino.bin"), output });
+      resolve({
+        ok: true,
+        appBinPath: path.join(buildPath, `${sketchName(sketchDir)}.ino.bin`),
+        output,
+      });
     });
   });
 
