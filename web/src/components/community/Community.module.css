@@ -91,9 +91,11 @@
   gap: 20px;
 }
 
-/* ── Single Centered Horizontal Row Grid ── */
+/* ── Feed grid ──
+   Column count and gap are set inline from the measured row width; the row
+   count comes from the active view (1 large row, or 2 small ones). */
 
-.singleRowGrid {
+.feedGrid {
   display: grid;
   gap: 16px;
   width: 100%;
@@ -150,6 +152,73 @@
 .pageMetaTotal {
   font-size: 11px;
   opacity: 0.7;
+}
+
+/* Type a page number instead of stepping to it. Sized for four digits, since
+   the spinner arrows are hidden and the value has to fit unaided. */
+.pageInput {
+  width: 52px;
+  padding: 3px 6px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 5px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.pageInput::-webkit-outer-spin-button,
+.pageInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.pageInput:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+/* ── Small view ──
+   Half-size cards, two rows. The thumbnail keeps its 1:2 shape, so only the
+   text furniture needs to come down — at ~104px a 15px title and a full byline
+   would wrap into the next card's worth of height. */
+.feedGrid[data-view="small"] .cardMeta {
+  padding: 7px 8px;
+  gap: 3px;
+  height: 44px;
+}
+
+.feedGrid[data-view="small"] .cardTitle {
+  font-size: 11.5px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardByline {
+  font-size: 10px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardDate,
+.feedGrid[data-view="small"] .frameChip {
+  display: none;
+}
+
+.feedGrid[data-view="small"] .hwChip,
+.feedGrid[data-view="small"] .forkChip {
+  font-size: 8.5px;
+  padding: 0 4px;
+}
+
+.feedGrid[data-view="small"] .knobOverlay {
+  left: 4px;
+  right: 4px;
+  gap: 4px;
+  padding: 5px 6px;
+  border-radius: 6px;
 }
 
 .card {
@@ -861,6 +930,34 @@
 }
 
 .sortTabs a[data-active="true"] {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+/* Card-size switch. Same pill as the sort tabs — it's the same kind of choice,
+   so it should not look like a different kind of control. */
+.viewTabs {
+  display: flex;
+  gap: 2px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.viewTabs a {
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: #6b655a;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.viewTabs a:hover {
+  color: #171512;
+}
+
+.viewTabs a[data-active="true"] {
   background: #171512;
   color: #f7f3ea;
 }

@@ -359,7 +359,12 @@ var live = {
   knobWrap: [false, false, false, false],
   knobUnitsPerTurn: [1, 1, 1, 1],
   prevKnobs: null,
-  failed: false
+  failed: false,
+  // Whether the canvas already shows the current state. Cleared whenever
+  // something changes what should be on screen, so a paused preview still
+  // redraws exactly once instead of either freezing stale or spinning at
+  // 60fps. See tick().
+  painted: false
 };
 
 function paint(runtime) {
@@ -377,6 +382,14 @@ function tick(now) {
   if (!runtime || live.failed) return;
   var dt = live.running ? Math.min(Math.max(0, (now - live.lastNow) / 1000), 0.05) : 0;
   live.lastNow = now;
+
+  // A paused preview keeps its runtime loaded so hovering plays instantly, but
+  // it has nothing new to draw. The community feed mounts one of these per
+  // card, so without this bail-out a page of idle previews each burned a full
+  // renderFrame + putImageData sixty times a second to reproduce a picture
+  // that never changed. Paint once after loading, then go quiet until the
+  // pattern resumes or its knobs move.
+  if (!live.running && live.painted) return;
   live.simTime += dt;
 
   var prev = live.prevKnobs || live.knobValues;
@@ -394,6 +407,7 @@ function tick(now) {
   var result = runtime.renderFrame(dt, live.simTime, input);
   if (result.ok) {
     paint(runtime);
+    live.painted = true;
   } else {
     live.failed = true;
     post({ type: "pf-status", ok: false, error: result.error });
@@ -447,6 +461,8 @@ window.addEventListener("message", function (event) {
     live.lastNow = performance.now();
     live.failed = false;
     live.prevKnobs = null;
+    // A fresh pattern must reach the canvas even if it loads paused.
+    live.painted = false;
     if (Array.isArray(msg.knobValues)) live.knobValues = msg.knobValues.slice(0, KNOB_COUNT);
     if (Array.isArray(msg.knobRanges)) live.knobRanges = msg.knobRanges;
     if (Array.isArray(msg.knobWrap)) live.knobWrap = msg.knobWrap;
@@ -463,6 +479,8 @@ window.addEventListener("message", function (event) {
   } else if (msg.type === "pf-knobs") {
     if (Array.isArray(msg.values)) live.knobValues = msg.values.slice(0, KNOB_COUNT);
     if (Array.isArray(msg.ranges)) live.knobRanges = msg.ranges;
+    // Knobs can be turned on a card that is not playing — redraw that once.
+    live.painted = false;
   } else if (msg.type === "pf-run") {
     live.running = Boolean(msg.running);
   } else if (msg.type === "pf-still") {

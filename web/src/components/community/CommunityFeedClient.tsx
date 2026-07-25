@@ -5,27 +5,30 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
 import FeedControls from "./FeedControls";
+import { DEFAULT_FEED_VIEW, FEED_VIEWS, type FeedView } from "@/lib/community/feedView";
 import styles from "./Community.module.css";
 
-// Dynamic responsive single-row layout for 1.2x enlarged vertical cards (~205px slot width).
+// Responsive grid sized to whichever view is active (see lib/community/feedView).
 //
-// Paging is server-side: each request returns roughly one row's worth of
-// patterns instead of the whole feed. Cards are tall (1:2), so a second row
-// would not fit the viewport anyway — there is no reason to ship code for
-// patterns that can't be drawn.
+// Paging is server-side: a request returns about a screenful of patterns rather
+// than the whole feed. Every row ships its full source — the cards compile and
+// play it client-side — so sending patterns nobody can see would be paying for
+// them twice, in transfer and in sandboxes.
 
-function useResponsiveCardsPerRow(containerRef: React.RefObject<HTMLDivElement | null>) {
+function useResponsiveCardsPerRow(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  slot: number,
+  gap: number,
+) {
   const [cardsPerRow, setCardsPerRow] = useState(6);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
+    // n cards need n*slot + (n-1)*gap, i.e. (width + gap) / (slot + gap).
     const update = () => {
-      const w = el.clientWidth;
-      // 1.2x enlarged card width ~205px + gap 20px = 225px per card slot
-      const count = Math.max(1, Math.floor((w + 20) / (205 + 20)));
-      setCardsPerRow(count);
+      setCardsPerRow(Math.max(1, Math.floor((el.clientWidth + gap) / (slot + gap))));
     };
 
     update();
@@ -33,7 +36,7 @@ function useResponsiveCardsPerRow(containerRef: React.RefObject<HTMLDivElement |
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [containerRef]);
+  }, [containerRef, slot, gap]);
 
   return cardsPerRow;
 }
@@ -42,12 +45,14 @@ export default function CommunityFeedClient({
   items,
   sort = "new",
   hardwareOnly = false,
+  view = DEFAULT_FEED_VIEW,
   page = 0,
   total = 0,
 }: {
   items: PatternCardItem[];
   sort?: string;
   hardwareOnly?: boolean;
+  view?: FeedView;
   page?: number;
   total?: number;
 }) {
@@ -56,13 +61,15 @@ export default function CommunityFeedClient({
   const params = useSearchParams();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const cardsPerRow = useResponsiveCardsPerRow(containerRef);
+  const config = FEED_VIEWS[view];
+  const cardsPerRow = useResponsiveCardsPerRow(containerRef, config.slot, config.gap);
+  const pageSize = Math.max(1, cardsPerRow * config.rows);
 
   // The server sends a slightly generous first page (it can't know the
   // viewport), so trim to what actually fits. Page 0 of any size shares the
   // same prefix, so the following pages line up exactly.
-  const visibleItems = items.slice(0, cardsPerRow);
-  const totalPages = Math.max(1, Math.ceil(total / cardsPerRow));
+  const visibleItems = items.slice(0, pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, totalPages - 1);
 
   const hrefForPage = useCallback(
@@ -70,12 +77,12 @@ export default function CommunityFeedClient({
       const next = new URLSearchParams(params.toString());
       if (nextPage <= 0) next.delete("page");
       else next.set("page", String(nextPage));
-      // Ask for exactly one row from here on.
-      next.set("size", String(cardsPerRow));
+      // Ask for exactly what this viewport shows from here on.
+      next.set("size", String(pageSize));
       const query = next.toString();
       return query ? `${pathname}?${query}` : pathname;
     },
-    [params, pathname, cardsPerRow],
+    [params, pathname, pageSize],
   );
 
   const goTo = useCallback(
@@ -85,6 +92,25 @@ export default function CommunityFeedClient({
     },
     [router, hrefForPage, totalPages],
   );
+
+  const pageInputRef = useRef<HTMLInputElement | null>(null);
+
+  const commitPageInput = useCallback(() => {
+    const input = pageInputRef.current;
+    if (!input) return;
+    const typed = Number(input.value);
+    if (!Number.isFinite(typed)) {
+      input.value = String(currentPage + 1);
+      return;
+    }
+    // Clamp rather than reject: "999" on a 7-page feed means the end.
+    const target = Math.max(0, Math.min(totalPages - 1, Math.round(typed) - 1));
+    if (target === currentPage) {
+      input.value = String(currentPage + 1);
+      return;
+    }
+    goTo(target);
+  }, [currentPage, totalPages, goTo]);
 
   // Arrow keys flip pages, as before.
   useEffect(() => {
@@ -110,7 +136,7 @@ export default function CommunityFeedClient({
         </Link>
       </div>
 
-      <FeedControls sort={sort} hardwareOnly={hardwareOnly} />
+      <FeedControls sort={sort} hardwareOnly={hardwareOnly} view={view} />
 
       {total === 0 ? (
         <div className={styles.empty}>
@@ -120,11 +146,12 @@ export default function CommunityFeedClient({
         </div>
       ) : (
         <div ref={containerRef} className={styles.centeredFeedBody}>
-          {/* Single Row Grid dynamically styled with exact cardsPerRow columns */}
           <div
-            className={styles.singleRowGrid}
+            className={styles.feedGrid}
+            data-view={view}
             style={{
               gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))`,
+              gap: `${config.gap}px`,
             }}
           >
             {visibleItems.map((item) => (
@@ -132,9 +159,21 @@ export default function CommunityFeedClient({
             ))}
           </div>
 
-          {/* Pagination Controls */}
+          {/* Pagination. Stepping is fine for a handful of pages, but a feed of
+              any size needs a way in that doesn't cost one page load per step —
+              hence First/Last and a page box you can type into. */}
           {totalPages > 1 && (
             <div className={styles.paginationBar}>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                onClick={() => goTo(0)}
+                disabled={currentPage === 0}
+                title="First page"
+                aria-label="First page"
+              >
+                ⏮
+              </button>
               <button
                 type="button"
                 className={styles.pageBtn}
@@ -145,7 +184,31 @@ export default function CommunityFeedClient({
               </button>
 
               <span className={styles.pageIndicator}>
-                Page <strong>{currentPage + 1}</strong> of {totalPages}
+                Page{" "}
+                <input
+                  // Remount on page change so the box always shows the page
+                  // actually being displayed, never a half-typed number left
+                  // over from a jump that got clamped or cancelled.
+                  key={currentPage}
+                  ref={pageInputRef}
+                  className={styles.pageInput}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={totalPages}
+                  defaultValue={currentPage + 1}
+                  aria-label={`Page number, 1 to ${totalPages}`}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onBlur={commitPageInput}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Escape") {
+                      event.currentTarget.value = String(currentPage + 1);
+                      event.currentTarget.blur();
+                    }
+                  }}
+                />{" "}
+                of {totalPages}
                 <span className={styles.pageMetaTotal}>({total} patterns)</span>
               </span>
 
@@ -156,6 +219,16 @@ export default function CommunityFeedClient({
                 disabled={currentPage >= totalPages - 1}
               >
                 Next ▶
+              </button>
+              <button
+                type="button"
+                className={styles.pageBtn}
+                onClick={() => goTo(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1}
+                title="Last page"
+                aria-label="Last page"
+              >
+                ⏭
               </button>
             </div>
           )}
