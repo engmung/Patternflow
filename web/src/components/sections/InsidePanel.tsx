@@ -177,7 +177,7 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <Link href="/community">
                   <strong>Community Discussions & Pattern Hub</strong>
                 </Link>{' '}
-                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and published <strong>USB-C power safety guidelines</strong> (#221).
+                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and placed <strong>USB-C power on hold for full re-evaluation</strong> (#221).
               </span>
             </li>
             <li>

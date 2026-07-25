@@ -82,11 +82,11 @@ export const NODES: RoadmapNode[] = [
     id: 'pcb-usbc-safety',
     lane: 'pcb',
     date: '2026-07-20',
-    title: 'USB-C power review',
+    title: 'USB-C power on hold & review',
     status: 'done',
     level: 2,
     detail:
-      'Hardware safety review (Issue #221): documented hand-soldering constraints and short-circuit risks on USB-C connectors for DIY builders; updated guides to recommend 2-pin screw terminals for DIY builds while reserving USB-C for factory PCBA.',
+      'USB-C power input placed on hold under active re-evaluation (Issue #221): investigating delayed connector burnout (20–30 min run before pin failure). Full re-evaluation of 14-pin THT vs power-only connectors in progress; builds pinned to 2-pin screw terminal (J4).',
     issues: [221],
     links: [{ label: 'Issue #221', href: `${REPO}/issues/221` }],
   },
