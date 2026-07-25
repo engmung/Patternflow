@@ -173,7 +173,8 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <li className={styles.storyCurrent}>
               <time>26.7</time>
               <span>
-                Reached <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
+                Shipped <strong>Patternflow v3.0.0 hardware & snap-fit enclosure</strong>, reached{' '}
+                <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
                 <Link href="/community">
                   <strong>Community Discussions & Pattern Hub</strong>
                 </Link>{' '}

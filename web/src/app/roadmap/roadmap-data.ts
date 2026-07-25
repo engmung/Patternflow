@@ -93,13 +93,17 @@ export const NODES: RoadmapNode[] = [
   {
     id: 'pcb-v3',
     lane: 'pcb',
-    date: '2026-08-12',
-    title: 'v3 board',
-    status: 'planned',
+    date: '2026-07-20',
+    title: 'v3.0.0 board',
+    status: 'done',
     level: 1,
     gate: true,
     detail:
-      'The v2.2 test board, verified and promoted to v3: USB-C power, all-through-hole layout, and a fully cleaned-up BOM. This is the board the v3.0.0 build guide will be written against.',
+      'v3.0.0 hardware release: reworked module positions, shrunk overall board size to reduce manufacturing costs, and added USB-C power footprint alongside the 2-pin screw terminal.',
+    links: [
+      { label: 'hardware/pcb', href: `${REPO}/tree/main/hardware/pcb` },
+      { label: 'Journal (v3 and beyond)', href: 'https://patternflow.work/journal/v3-and-beyond' },
+    ],
   },
 
   // Enclosure
@@ -148,15 +152,14 @@ export const NODES: RoadmapNode[] = [
   {
     id: 'case-v3',
     lane: 'case',
-    date: '2026-08-18',
-    title: 'USB-C case rework',
-    status: 'planned',
+    date: '2026-07-20',
+    title: 'v3 snap-fit enclosure',
+    status: 'done',
     level: 1,
     gate: true,
     detail:
-      'New enclosure models for the v3 board: the snap-fit design reworked around the USB-C port position, plus a validated multi-part split that fits common ~256 mm beds.',
-    issues: [169],
-    links: [{ label: 'Issue #169 — split validation', href: `${REPO}/issues/169` }],
+      'v3 enclosure release: added snap-fit joints and overall tolerance improvements to elevate product quality for the Crowd Supply launch.',
+    links: [{ label: 'hardware/case', href: `${REPO}/tree/main/hardware/case` }],
   },
 
   // Guides
@@ -204,13 +207,14 @@ export const NODES: RoadmapNode[] = [
   {
     id: 'guide-rebuild',
     lane: 'guides',
-    date: '2026-08-22',
-    title: 'Build guide rewrite',
-    status: 'planned',
+    date: '2026-07-20',
+    title: 'Build guide v3.0.0',
+    status: 'done',
     level: 1,
     gate: true,
     detail:
-      'A from-scratch rewrite shot against the v3 board and enclosure — one coherent guide instead of accumulated patches, with photos that match what builders actually receive.',
+      'Build guide updated for v3.0.0 hardware and snap-fit enclosure: BOM, assembly steps, and wiring diagrams updated for the v3 release.',
+    links: [{ label: 'BUILD_GUIDE.md', href: `${REPO}/blob/main/BUILD_GUIDE.md` }],
   },
   {
     id: 'guide-pattern',
