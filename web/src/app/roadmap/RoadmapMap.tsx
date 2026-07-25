@@ -78,7 +78,22 @@ const nodeTitle = (n: RoadmapNode, lang: 'ko' | 'en') =>
 const nodeDetail = (n: RoadmapNode, lang: 'ko' | 'en') =>
   lang === 'ko' && n.detailKo ? n.detailKo : n.detail;
 
-const nodeWidth = (title: string) => Math.round(title.length * 9.2) + 32;
+const nodeWidth = (title: string) => {
+  let charLen = 0;
+  for (let i = 0; i < title.length; i += 1) {
+    const code = title.charCodeAt(i);
+    if (
+      (code >= 0xac00 && code <= 0xd7a3) ||
+      (code >= 0x1100 && code <= 0x11ff) ||
+      (code >= 0x3130 && code <= 0x318f)
+    ) {
+      charLen += 14.5;
+    } else {
+      charLen += 8.2;
+    }
+  }
+  return Math.round(charLen) + 38;
+};
 
 type PlacedNode = RoadmapNode & { x: number; y: number; w: number };
 

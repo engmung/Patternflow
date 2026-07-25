@@ -356,9 +356,10 @@
 .nodeTextSecondary,
 .nodeTextPlannedSecondary,
 .nodeTextSelected {
-  font-family: var(--pf-mono);
-  font-size: 15px;
-  letter-spacing: 0.01em;
+  font-family: var(--pf-sans);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   pointer-events: none;
 }
 
