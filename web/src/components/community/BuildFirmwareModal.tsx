@@ -56,16 +56,17 @@ export default function BuildFirmwareModal({
 
   // "Send over Wi-Fi" hands the finished build to the device's own update
   // page (#232). patternflow.local works on most platforms; Android can't
-  // resolve .local, so the address is editable and remembered.
-  const [deviceHost, setDeviceHost] = useState("patternflow.local");
-  useEffect(() => {
+  // resolve .local, so the address is editable and remembered. Lazy init:
+  // the modal only mounts client-side, so localStorage is readable here and
+  // no effect (hence no synchronous setState-in-effect) is needed.
+  const [deviceHost, setDeviceHost] = useState(() => {
+    if (typeof window === "undefined") return "patternflow.local";
     try {
-      const stored = window.localStorage.getItem("pf-device-host");
-      if (stored) setDeviceHost(stored);
+      return window.localStorage.getItem("pf-device-host") ?? "patternflow.local";
     } catch {
-      /* private mode */
+      return "patternflow.local"; /* private mode */
     }
-  }, []);
+  });
   const changeDeviceHost = (value: string) => {
     setDeviceHost(value);
     try {
