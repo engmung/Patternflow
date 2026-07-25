@@ -6,7 +6,7 @@
 // things people physically build from. Software ships continuously and is
 // never gated.
 
-export type LaneId = 'pcb' | 'case' | 'guides' | 'firmware' | 'tools' | 'community';
+export type LaneId = 'pcb' | 'case' | 'guides' | 'firmware' | 'tools' | 'community' | 'media';
 
 export type RoadmapNode = {
   id: string;
@@ -34,6 +34,7 @@ export const LANES: { id: LaneId; label: string; labelKo: string }[] = [
   { id: 'firmware', label: 'Firmware', labelKo: '펌웨어' },
   { id: 'tools', label: 'Pattern tools', labelKo: '패턴 편집기' },
   { id: 'community', label: 'Community', labelKo: '커뮤니티' },
+  { id: 'media', label: 'Media & Press', labelKo: '언론 & 미디어' },
 ];
 
 const REPO = 'https://github.com/engmung/Patternflow';
@@ -567,25 +568,9 @@ export const NODES: RoadmapNode[] = [
 
   // Community & business
   {
-    id: 'biz-pcbway-order',
-    lane: 'community',
-    date: '2026-04-21',
-    title: 'First PCBWay order',
-    titleKo: '첫 PCBWay 스폰서십',
-    status: 'done',
-    level: 1,
-    detail:
-      'PCBWay sponsorship partnership: PCBWay reached out on Reddit and sponsored the first PCB prototype order, initiating ongoing hardware manufacturing support.',
-    detailKo:
-      '레딧 게시글을 본 PCBWay에서 패턴플로우의 가능성을 알아보고 첫 PCB 제작 전액 스폰서십을 제안. 프로젝트가 아이디어를 넘어 하드웨어 제조 단계로 도약한 순간.',
-    links: [
-      { label: 'Journal (v1 in 30 days)', href: 'https://patternflow.work/journal/v1-30-days' },
-    ],
-  },
-  {
     id: 'biz-reddit',
     lane: 'community',
-    date: '2026-04-23',
+    date: '2026-04-21',
     title: 'Reddit launch',
     titleKo: '레딧 프로젝트 공개',
     status: 'done',
@@ -598,6 +583,22 @@ export const NODES: RoadmapNode[] = [
       { label: 'Reddit Viral Post #1', href: 'https://www.reddit.com/r/arduino/comments/1so9er5/built_a_4knob_generative_pattern_controller_with/' },
       { label: 'Reddit PCB Update #2', href: 'https://www.reddit.com/r/arduino/comments/1szettd/12_days_later_pcb_done_rotary_encoders_done_fully/' },
       { label: 'Journal (Me and Patternflow)', href: 'https://patternflow.work/journal/me-and-patternflow' },
+    ],
+  },
+  {
+    id: 'biz-pcbway-order',
+    lane: 'community',
+    date: '2026-04-26',
+    title: 'First PCBWay order',
+    titleKo: '첫 PCBWay 스폰서십',
+    status: 'done',
+    level: 2,
+    detail:
+      'PCBWay sponsorship partnership: PCBWay reached out on Reddit and sponsored the first PCB prototype order, initiating ongoing hardware manufacturing support.',
+    detailKo:
+      '레딧 게시글을 본 PCBWay에서 패턴플로우의 가능성을 알아보고 첫 PCB 제작 전액 스폰서십을 제안. 프로젝트가 아이디어를 넘어 하드웨어 제조 단계로 도약한 순간.',
+    links: [
+      { label: 'Journal (v1 in 30 days)', href: 'https://patternflow.work/journal/v1-30-days' },
     ],
   },
   {
@@ -633,6 +634,105 @@ export const NODES: RoadmapNode[] = [
       { label: 'Crowd Supply Page', href: 'https://www.crowdsupply.com/engmung/patternflow' },
       { label: 'Journal (refocus)', href: 'https://patternflow.work/journal/refocus' },
     ],
+  },
+  // Media & Press
+  {
+    id: 'media-hackster-1',
+    lane: 'media',
+    date: '2026-05-02',
+    title: 'Hackster.io #1',
+    titleKo: 'Hackster.io (1차 피처)',
+    status: 'done',
+    level: 1,
+    detail:
+      'Hackster.io published an organic feature article titled "You\'ll Want This LED Pattern Generator on Your Desk" by Gareth Halfacree, published right after Patternflow\'s first viral Reddit post.',
+    detailKo:
+      '첫 레딧 포스트 바이럴 직후 Gareth Halfacree 기자가 보도한 Hackster.io 1차 자발적 언론 피처 기사 ("You\'ll Want This LED Pattern Generator on Your Desk"). 4개 노브 하드웨어 인터페이스와 제너러티브 알고리즘에 주목.',
+    links: [{ label: 'Hackster.io Article #1', href: 'https://www.hackster.io/news/you-ll-want-this-led-pattern-generator-on-your-desk-007c411e74e4' }],
+  },
+  {
+    id: 'media-twitter-viral',
+    lane: 'media',
+    date: '2026-05-12',
+    title: 'Twitter/X Viral',
+    titleKo: '트위터(X) 자발적 바이럴',
+    status: 'done',
+    level: 2,
+    detail:
+      'Spontaneous viral tweet on May 12, 2026 by third-party creator (@Inspector_9) showcasing Patternflow\'s visual patterns (noting author\'s name misspelled as "Seung-hun Lee").',
+    detailKo:
+      '5월 12일 해외 유저(@Inspector_9)가 작성한 트위터(X) 자발적 소개 포스트 바이럴. 제작자명이 \'이승헌\'으로 오기되었으나 유저들의 자발적 대량 공유로 글로벌 트래픽 유입 형성.',
+    links: [{ label: 'Twitter/X Post (@Inspector_9)', href: 'https://x.com/Inspector_9/status/2053926198049226794' }],
+  },
+  {
+    id: 'media-yanko',
+    lane: 'media',
+    date: '2026-05-14',
+    title: 'Yanko Design',
+    titleKo: '얀코디자인 (Yanko Design)',
+    status: 'done',
+    level: 2,
+    detail:
+      'Featured on May 14, 2026 on Yanko Design\'s official Instagram (@yankodesign), highlighting Patternflow\'s tactile industrial enclosure design and light matrix interaction.',
+    detailKo:
+      '5월 14일 글로벌 인더스트리얼 디자인 매체 얀코디자인(Yanko Design) 공식 인스타그램(@yankodesign) 자발적 프로젝트 피처 게시글 게재.',
+    links: [{ label: 'Yanko Design Instagram', href: 'https://www.instagram.com/p/DYUYZzxMBa6/' }],
+  },
+  {
+    id: 'media-hackster-2',
+    lane: 'media',
+    date: '2026-05-18',
+    title: 'Hackster.io #2',
+    titleKo: 'Hackster.io (2차 피처)',
+    status: 'done',
+    level: 2,
+    detail:
+      'Hackster.io published an organic follow-up article titled "A Living Canvas of Shifting Colors and Motion", exploring Patternflow\'s hardware evolution and open-source generative algorithms.',
+    detailKo:
+      'Hackster.io 자발적 2차 후속 피처 기사 ("A Living Canvas of Shifting Colors and Motion"). 패턴플로우의 하드웨어 발전과 오픈소스 렌더링 알고리즘 조명.',
+    links: [{ label: 'Hackster.io Article #2', href: 'https://www.hackster.io/news/a-living-canvas-of-shifting-colors-and-motion-c53f6fd6e478' }],
+  },
+  {
+    id: 'media-howtogeek',
+    lane: 'media',
+    date: '2026-07-03',
+    title: 'How-To Geek',
+    titleKo: '하우투긱 (How-To Geek)',
+    status: 'done',
+    level: 1,
+    detail:
+      'How-To Geek featured Patternflow in their curated article "Beautiful ESP32 Projects to Make This Weekend (Jul 3-5)", recommending the DIY hardware build to global makers.',
+    detailKo:
+      '글로벌 IT 매체 How-To Geek의 주말 추천 DIY 프로젝트 큐레이션 기사 수록 ("Beautiful ESP32 Projects to Make This Weekend", 7월 3~5일 자발적 추천).',
+    links: [{ label: 'How-To Geek Article', href: 'https://www.howtogeek.com/beautiful-esp32-projects-to-make-this-weekend-jul-3-5/' }],
+  },
+  {
+    id: 'media-digikey-youtube',
+    lane: 'media',
+    date: '2026-07-09',
+    title: 'DigiKey YouTube',
+    titleKo: '디지키(DigiKey) 공식 유튜브 피처',
+    status: 'done',
+    level: 2,
+    detail:
+      'Featured on DigiKey\'s official YouTube channel on July 9, 2026: a video spotlighting Patternflow\'s open-source hardware architecture, 4-knob control interface, and generative matrix performance.',
+    detailKo:
+      '7월 9일 글로벌 대표 전자부품 유통기업 디지키(DigiKey) 공식 유튜브 채널 수록. 패턴플로우의 오픈소스 하드웨어 설계 및 제너러티브 매트릭스 인터페이스를 조명한 공식 영상 피처.',
+    links: [{ label: 'DigiKey YouTube Video', href: 'https://www.youtube.com/watch?v=3Y-rTNgBq6w&t=18s' }],
+  },
+  {
+    id: 'media-can',
+    lane: 'media',
+    date: '2026-07-15',
+    title: 'Creative Applications',
+    titleKo: 'Creative Applications (CAN)',
+    status: 'done',
+    level: 1,
+    detail:
+      'Creative Applications Network (CAN) published a comprehensive feature titled "Patternflow – An open-source LED synthesizer reinterpreting Participation TV", submitted directly by the author to articulate the project\'s Nam June Paik artistic roots.',
+    detailKo:
+      '제작자가 직접 CAN(Creative Applications Network)에 신청/투고하여 성공적으로 게재된 정식 아티클 ("Patternflow – An open-source LED synthesizer reinterpreting Participation TV"). 백남준 <Participation TV> 재해석 철학 수록.',
+    links: [{ label: 'Creative Applications Article', href: 'https://www.creativeapplications.net/news/patternflow-an-open-source-led-synthesizer-reinterpreting-participation-tv/' }],
   },
   {
     id: 'biz-nath-build',

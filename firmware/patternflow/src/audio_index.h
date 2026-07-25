@@ -24,50 +24,56 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow Audio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0a0a0a;--card:#0d0d0d;--fg:#e8e8e8;--mut:#666;--ln:#1f1f1f;--accent:#5fdb89;--bad:#ff5d5d;--bar:#3a3a3a;--bar-on:#7adb9a}
+  /* patternflow.work design system tokens (web/docs/patternflow-styleguide.html):
+     cream + ink + LED accent. --accent doubles as the alert color; healthy
+     states read as ink, meters and attention states as the LED orange. */
+  :root{--bg:#F4EFE6;--card:#ffffff;--card2:#EDE7DB;--fg:#141414;--mut:#6B655A;--faint:#A69F90;--ln:#D9D1C0;--accent:#E8552E;--bad:#E8552E;--bar:#E5DDC9;--bar-on:#E8552E}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:20px;max-width:720px;margin:0 auto}
-  h1{font-size:11px;letter-spacing:.4em;opacity:.5;font-weight:normal;margin:0 0 4px}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;-webkit-font-smoothing:antialiased;padding:20px;max-width:720px;margin:0 auto}
+  h1{font-size:11px;letter-spacing:.4em;opacity:.6;font-weight:normal;margin:0 0 4px}
   .sub{font-size:11px;color:var(--mut);margin-bottom:20px}
-  #status{position:fixed;top:14px;right:14px;font-size:10px;padding:7px 11px;border:1px solid var(--ln);background:var(--card);letter-spacing:.15em;z-index:10}
-  .ok{color:var(--accent)} .bad{color:var(--bad)}
+  #status{position:fixed;top:14px;right:14px;font-size:10px;padding:7px 11px;border:1px solid var(--faint);background:var(--card);letter-spacing:.15em;z-index:10}
+  .ok{color:var(--fg);border-color:var(--fg)!important} .bad{color:var(--bad);border-color:var(--bad)!important}
 
   .section{margin:14px 0;padding:14px;border:1px solid var(--ln);background:var(--card)}
   .section h2{font-size:10px;letter-spacing:.25em;color:var(--mut);font-weight:normal;text-transform:uppercase;margin:0 0 12px}
 
   .sources{display:flex;gap:8px;flex-wrap:wrap}
-  .sources button{flex:1;min-width:120px;padding:10px;background:#1a1a1a;color:var(--fg);border:1px solid #333;font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
-  .sources button:hover{background:#222}
-  .sources button.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  .sources button{flex:1;min-width:120px;padding:10px;background:transparent;color:var(--mut);border:1px solid var(--ln);font-family:inherit;font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:color .15s ease,border-color .15s ease}
+  .sources button:hover{color:var(--fg);border-color:var(--fg)}
+  .sources button.active{background:var(--fg);color:var(--card);border-color:var(--fg)}
   .source-info{margin-top:10px;font-size:11px;color:var(--mut);min-height:18px}
 
   audio{width:100%;margin-top:10px}
 
-  .band{margin:12px 0;padding:12px;border:1px solid var(--ln);background:#0c0c0c}
+  .band{margin:12px 0;padding:12px;border:1px solid var(--ln);background:var(--bg)}
   .band-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:10px;flex-wrap:wrap}
   .band-title{font-size:11px;letter-spacing:.2em;color:var(--fg);text-transform:uppercase}
   .band-target{font-size:11px;color:var(--mut)}
-  .band-target select{background:#1a1a1a;color:var(--fg);border:1px solid #333;padding:4px 8px;font-family:inherit;font-size:11px}
+  .band-target select{background:var(--card);color:var(--fg);border:1px solid var(--ln);padding:4px 8px;font-family:inherit;font-size:11px}
 
   .row{display:grid;grid-template-columns:60px 1fr 70px;align-items:center;gap:10px;margin:6px 0;font-size:11px}
   .row .lbl{color:var(--mut);letter-spacing:.1em;text-transform:uppercase}
   .row .v{text-align:right;color:var(--fg);font-variant-numeric:tabular-nums}
-  .row input[type=range]{width:100%;accent-color:#888}
+  .row input[type=range]{width:100%;accent-color:var(--fg)}
   .hz-presets{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;grid-column:1 / -1}
   .hz-presets button{padding:3px 8px;background:transparent;color:var(--mut);border:1px solid var(--ln);font-family:inherit;font-size:10px;letter-spacing:.05em;cursor:pointer}
-  .hz-presets button:hover{background:#1a1a1a;color:var(--fg)}
+  .hz-presets button:hover{color:var(--fg);border-color:var(--fg)}
 
   .meter{height:6px;background:var(--bar);overflow:hidden;margin-top:8px;position:relative}
   .meter-fill{height:100%;background:var(--bar-on);transition:width 0.05s linear;width:0%}
   .meter-out{height:3px;background:var(--bar);margin-top:2px;position:relative}
   .meter-out-fill{height:100%;background:var(--accent);width:0%;transition:width 0.05s linear}
 
-  .release{width:100%;padding:11px;background:#1a1a1a;color:var(--fg);border:1px solid #333;font-family:inherit;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;margin-top:16px}
-  .release:hover{background:#222}
+  .release{width:100%;padding:11px;background:transparent;color:var(--fg);border:1px solid var(--fg);font-family:inherit;font-size:11px;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;margin-top:16px;transition:background .15s ease,color .15s ease}
+  .release:hover{background:var(--fg);color:var(--card)}
 
   .note{margin-top:18px;font-size:11px;color:var(--mut);line-height:1.6}
-  .note code{background:#1a1a1a;padding:1px 5px;color:var(--fg)}
+  .note code{background:var(--card2);padding:1px 5px;color:var(--fg)}
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>

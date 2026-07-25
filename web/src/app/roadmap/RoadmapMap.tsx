@@ -21,19 +21,19 @@ type LiveIssue = {
 
 type RoadmapApiData = { issues: LiveIssue[]; error?: string };
 
-// Piecewise time scale. Only the past gets month ticks; everything after
-// "today" is a single future region ordered by intention, not by fake dates.
+// Density-calibrated time scale: compacts empty early months (Jan–Mar) & May–June
+// so nodes flow continuously without empty gaps, reserving room for dense April & July.
 const ANCHORS: [number, number][] = [
   [Date.UTC(2026, 0, 1), 0.02],
-  [Date.UTC(2026, 1, 1), 0.10],
-  [Date.UTC(2026, 2, 1), 0.18],
-  [Date.UTC(2026, 3, 1), 0.28],
-  [Date.UTC(2026, 4, 1), 0.42],
-  [Date.UTC(2026, 5, 1), 0.56],
-  [Date.UTC(2026, 6, 1), 0.68],
-  [Date.UTC(2026, 7, 1), 0.78],
-  [Date.UTC(2026, 8, 1), 0.86],
-  [Date.UTC(2026, 9, 1), 0.92],
+  [Date.UTC(2026, 1, 1), 0.06],
+  [Date.UTC(2026, 2, 1), 0.10],
+  [Date.UTC(2026, 3, 1), 0.16],
+  [Date.UTC(2026, 4, 1), 0.35],
+  [Date.UTC(2026, 5, 1), 0.48],
+  [Date.UTC(2026, 6, 1), 0.62],
+  [Date.UTC(2026, 7, 1), 0.80],
+  [Date.UTC(2026, 8, 1), 0.87],
+  [Date.UTC(2026, 9, 1), 0.93],
   [Date.UTC(2026, 10, 1), 0.97],
   [Date.UTC(2026, 11, 1), 1.0],
 ];
@@ -59,19 +59,14 @@ function dateToT(date: string): number {
   return ANCHORS[ANCHORS.length - 1][1];
 }
 
-// The detailed view shows ~twice the nodes, so the whole time axis stretches
-// with it — ticks, today line and future zone all use the same scale, keeping
-// boxes near their real dates instead of just sliding off the axis.
-const OVERVIEW_W = 2000;
-const DETAILED_W = 3400;
 const GUTTER = 170;
 const RIGHT_PAD = 60;
 const TOP = 84;
 const LANE_H = 112;
 const NODE_H = 44;
-const HEIGHT = TOP + LANES.length * LANE_H + 32;
+const HEIGHT = TOP + LANES.length * LANE_H + 120;
 const POPUP_W = 360;
-const MIN_ZOOM = 0.6;
+const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 1.8;
 
 const laneY = (lane: LaneId) =>
@@ -102,14 +97,14 @@ const nodeWidth = (title: string) => {
 
 type PlacedNode = RoadmapNode & { x: number; y: number; w: number };
 
-// Nodes never get squeezed back into the frame — the canvas is pannable, so
-// the drawing just grows to whatever width the layout needs.
-function layoutNodes(detailed: boolean, lang: 'ko' | 'en'): {
+// Responsive layout scaling width smoothly to viewport size while preventing overlap.
+function layoutNodes(detailed: boolean, lang: 'ko' | 'en', containerW: number): {
   nodes: PlacedNode[];
   width: number;
   innerW: number;
 } {
-  const innerW = (detailed ? DETAILED_W : OVERVIEW_W) - GUTTER - RIGHT_PAD;
+  const baseW = Math.max(containerW * 1.35, detailed ? 3400 : 2100);
+  const innerW = baseW - GUTTER - RIGHT_PAD;
   const visible = NODES.filter((n) => detailed || n.level === 1);
   const placed: PlacedNode[] = visible.map((n) => {
     const titleText = nodeTitle(n, lang);
@@ -181,8 +176,8 @@ export default function RoadmapMap() {
   }, []);
 
   const { nodes, width, innerW } = useMemo(
-    () => layoutNodes(detailed, lang),
-    [detailed, lang],
+    () => layoutNodes(detailed, lang, canvasSize.w),
+    [detailed, lang, canvasSize.w],
   );
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
@@ -222,11 +217,17 @@ export default function RoadmapMap() {
     const ch = el ? el.clientHeight : HEIGHT;
     const drawW = width * z;
     const drawH = HEIGHT * z;
-    // When the canvas is bigger than the drawing, let the drawing sit
-    // anywhere inside it; otherwise pan within the drawing plus some slack.
+    // Spacious, free-panning bounds allowing users to move the map
+    // up/down/left/right freely without feeling clamped or trapped at borders.
+    const slackX = Math.max(800, cw * 0.75);
+    const slackY = Math.max(600, ch * 0.75);
+    const minX = Math.min(0, cw - drawW) - slackX;
+    const maxX = Math.max(0, cw - drawW) + slackX;
+    const minY = Math.min(0, ch - drawH) - slackY;
+    const maxY = Math.max(0, ch - drawH) + slackY;
     return {
-      x: Math.min(Math.max(0, cw - drawW) + 60, Math.max(Math.min(0, cw - drawW) - 60, x)),
-      y: Math.min(Math.max(0, ch - drawH) + 40, Math.max(Math.min(0, ch - drawH) - 40, y)),
+      x: Math.min(maxX, Math.max(minX, x)),
+      y: Math.min(maxY, Math.max(minY, y)),
     };
   };
 

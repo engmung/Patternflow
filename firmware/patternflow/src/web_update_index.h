@@ -7,10 +7,14 @@
 //
 // The page polls /update/status: stock builds are always ready
 // (PF_WEBUPDATE_ALWAYS_ARMED 1); builds that opted into physical arming
-// show a LOCKED pill plus the how-to-arm hint until the UPDATE screen is
+// show a LOCKED tag plus the how-to-arm note until the UPDATE screen is
 // opened on the device. Upload progress is the XHR's own send progress —
 // the device flashes as it receives, so the bar tracks the actual write
 // within a buffer's worth.
+//
+// Styled to the patternflow.work design system (web/docs/
+// patternflow-styleguide.html): cream + ink + LED accent, thin rules,
+// mono kickers/tags, dashed placeholder-style drop zone.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -21,66 +25,86 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Patternflow Update</title>
+<title>Patternflow — Firmware update</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0a0a0a;--card:#0e0e0e;--fg:#e8e8e8;--mut:#666;--ln:#212121;--accent:#5fdb89;--blue:#6ab7ff;--bad:#ff5d5d;--warn:#e8c35f}
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--bg);color:var(--fg);
-       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
-       display:flex;flex-direction:column;align-items:center;justify-content:center;
-       padding:36px 20px;
-       background-image:radial-gradient(ellipse 90% 55% at 50% -12%,#151515 0%,transparent 65%)}
-  .col{width:100%;max-width:400px}
-  .top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
-  .back{font-size:11px;color:var(--mut);text-decoration:none;letter-spacing:.1em}
-  .back:hover{color:var(--fg)}
-  #pill{font-size:9px;padding:4px 10px;border:1px solid var(--ln);letter-spacing:.2em;background:var(--card)}
-  h1{font-size:13px;letter-spacing:.35em;font-weight:normal;margin:18px 0 6px;color:var(--blue)}
-  .sub{font-size:11px;color:var(--mut);line-height:1.7;margin-bottom:22px}
-  .ok{color:var(--accent);border-color:#1e3a2a!important}
-  .bad{color:var(--bad);border-color:#3a1e1e!important}
-  .warn{color:var(--warn);border-color:#3a331e!important}
-  .steps{margin:0 0 16px;padding:16px 18px;border:1px solid var(--ln);background:var(--card)}
-  .steps div{display:flex;gap:12px;font-size:11px;color:var(--mut);line-height:1.7;margin:4px 0}
-  .steps .n{color:#3a3a3a;letter-spacing:.1em}
-  .steps b{color:var(--fg);font-weight:normal}
-  #armHint{display:none;margin:0 0 16px;padding:13px 18px;border:1px solid #3a331e;background:#12100a;font-size:11px;color:var(--warn);line-height:1.7}
-  #armHint b{font-weight:normal;color:var(--fg)}
-  #drop{min-height:170px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-        border:1px dashed #333;background:var(--card);cursor:pointer;text-align:center;padding:20px;
-        transition:border-color .16s,background .16s}
-  #drop .big{font-size:12px;letter-spacing:.2em;color:var(--fg)}
-  #drop .small{font-size:10px;color:var(--mut);letter-spacing:.1em}
-  #drop.hover{border-color:var(--blue);background:#0f1216}
+  :root{--cream:#F4EFE6;--cream2:#EDE7DB;--ink:#141414;--muted:#6B655A;--faint:#A69F90;--rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;
+        --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+        --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{min-height:100vh;background:var(--cream);color:var(--ink);
+       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;
+       display:flex;align-items:center;justify-content:center;padding:72px 24px}
+  .version-tag{position:fixed;top:24px;left:32px;z-index:40;font-family:var(--mono);font-size:10px;
+       letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none}
+  .version-tag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--led);
+       margin-right:8px;vertical-align:1px;box-shadow:0 0 6px var(--led)}
+  .panel{width:100%;max-width:560px;background:#ffffff;padding:48px 48px 44px}
+  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:36px}
+  .back{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+       color:var(--muted);text-decoration:none}
+  .back:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+  #pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+       padding:5px 10px 4px;border:1px solid var(--faint);color:var(--muted)}
+  #pill.ok{border-color:var(--ink);color:var(--ink)}
+  #pill.warn{border-color:var(--led);color:var(--led)}
+  #pill.bad{border-color:var(--faint);color:var(--faint)}
+  h2{font-size:34px;font-weight:500;letter-spacing:-.025em;line-height:1.05;margin-bottom:12px}
+  .sub{max-width:36ch;color:var(--muted);font-size:15px;line-height:1.5;margin-bottom:32px}
+  .pf-kicker{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+       color:var(--muted);margin-bottom:2px}
+  .step{display:grid;grid-template-columns:40px 1fr;gap:20px;padding:14px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+  .step:first-of-type{border-top:1px solid var(--rule)}
+  .step .n{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted)}
+  .step p{font-size:14px;line-height:1.5;color:var(--muted)}
+  .step b{font-weight:500;color:var(--ink)}
+  #armHint{display:none;margin:20px 0 0;border:1px dashed var(--rule);background:var(--cream);
+       padding:14px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--muted)}
+  #armHint b{font-weight:500;color:var(--ink)}
+  #drop{margin-top:28px;min-height:176px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+       border:1px dashed var(--rule);background:var(--cream);cursor:pointer;text-align:center;padding:24px;
+       transition:border-color .16s ease,background .16s ease}
+  #drop .big{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
+  #drop .small{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  #drop.hover{border-color:var(--ink);background:var(--cream2)}
   #drop.disabled{opacity:.45}
-  #bar{height:5px;background:#1a1a1a;margin:16px 0 8px;display:none}
-  #fill{height:100%;width:0%;background:var(--blue);transition:width .1s linear}
-  #msg{font-size:11px;min-height:18px;color:var(--mut);line-height:1.7}
-  #msg.ok{color:var(--accent)} #msg.bad{color:var(--bad)}
+  #bar{height:6px;background:var(--rule-soft);margin:20px 0 10px;display:none}
+  #fill{height:100%;width:0%;background:var(--led);transition:width .1s linear}
+  #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
+  #msg.ok{color:var(--ink)} #msg.bad{color:var(--led)}
+  @media(max-width:560px){body{padding:56px 16px}.panel{padding:36px 24px 32px}h2{font-size:28px}}
 </style></head><body>
-<div class="col">
+
+<div class="version-tag"><span class="dot"></span>device &middot; update</div>
+
+<main class="panel">
   <div class="top">
-    <a class="back" href="/">&larr; console</a>
+    <a class="back" href="/">&larr; Console</a>
     <span id="pill">&hellip;</span>
   </div>
-  <h1>FIRMWARE UPDATE</h1>
-  <div class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</div>
 
-  <div class="steps">
-    <div><span class="n">01</span><span>Build &amp; download a <b>.bin</b> &mdash; patternflow.work &rarr; Build, or an <b>arduino-cli</b> export.</span></div>
-    <div><span class="n">02</span><span>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</span></div>
-  </div>
+  <h2>Firmware update.</h2>
+  <p class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</p>
+
+  <span class="pf-kicker">Two steps</span>
+  <div class="step"><span class="n">01</span><p>Build &amp; download a <b>.bin</b> &mdash; patternflow.work &rarr; Build, or an <b>arduino-cli</b> export.</p></div>
+  <div class="step"><span class="n">02</span><p>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</p></div>
 
   <div id="armHint">This build requires arming first. On the device: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>.</div>
 
   <div id="drop">
-    <span class="big">DROP .BIN HERE</span>
+    <span class="big">Drop .bin here</span>
     <span class="small">or click to choose a file</span>
   </div>
-  <input id="file" type="file" accept=".bin" style="display:none">
+  <!-- No accept attribute: Android maps unknown extensions like .bin to a
+       media-only picker (camera/gallery), hiding the file manager. The JS
+       validates extension and size instead. -->
+  <input id="file" type="file" style="display:none">
   <div id="bar"><div id="fill"></div></div>
   <div id="msg"></div>
-</div>
+</main>
 
 <script>
 var drop=document.getElementById('drop'),fileIn=document.getElementById('file'),

@@ -177,6 +177,35 @@ void drawCenteredTextScrim(const char* text, int y, uint16_t color, int textSize
   dma_display->print(text);
 }
 
+// ── Panel palette + shared chrome for the info screens ──────────────
+// The on-device screens borrow the patternflow.work design system's motifs
+// at 64×128 scale: one LED-orange accent (#E8552E), hairline rules, and a
+// glowing-dot-plus-title header (the web's version tag). Green/red stay
+// reserved for live state (on/off, ok/error); orange is brand + progress.
+uint16_t pfLedC()   { return dma_display->color565(232, 85, 46); }
+uint16_t pfWhiteC() { return dma_display->color565(255, 255, 255); }
+uint16_t pfGrayC()  { return dma_display->color565(140, 140, 140); }
+uint16_t pfDimC()   { return dma_display->color565(90, 90, 90); }
+uint16_t pfRuleC()  { return dma_display->color565(60, 60, 60); }
+uint16_t pfGreenC() { return dma_display->color565(80, 220, 130); }
+uint16_t pfRedC()   { return dma_display->color565(255, 80, 80); }
+uint16_t pfBlueC()  { return dma_display->color565(120, 180, 255); }
+
+// LED dot + centered title + hairline rule at the top of a portrait info
+// screen (NETWORK / UPDATE). Content starts below y=15.
+void drawScreenHeader(const char* title) {
+  int16_t x1, y1;
+  uint16_t tw, th;
+  dma_display->setTextSize(1);
+  dma_display->getTextBounds(title, 0, 0, &x1, &y1, &tw, &th);
+  int x = (dma_display->width() - (int)(tw + 6)) / 2;
+  dma_display->fillRect(x, 7, 2, 2, pfLedC());
+  dma_display->setTextColor(pfWhiteC());
+  dma_display->setCursor(x + 6, 4);
+  dma_display->print(title);
+  dma_display->drawFastHLine(4, 15, dma_display->width() - 8, pfRuleC());
+}
+
 // Notices sit on the same tight scrim the SELECT overlay uses (text bounds
 // + 2px) instead of a full-width black band — less of the live pattern is
 // blotted out and every overlay text now shares one look.
@@ -184,11 +213,28 @@ void drawContentNotice() {
   drawCenteredTextScrim(currentContentName(), 30, dma_display->color565(255, 255, 255), 1);
 }
 
+// Label plus a thin LED-orange level bar on one shared scrim — the bar
+// makes the level readable at a glance mid-turn, without watching digits.
 void drawBrightnessNotice() {
   char buf[24];
   int pct = (int)((currentBrightness * 100 + 127) / 255);
   snprintf(buf, sizeof(buf), "BRIGHTNESS %d%%", pct);
-  drawCenteredTextScrim(buf, dma_display->height() - 10, dma_display->color565(255, 255, 255), 1);
+
+  int16_t x1, y1;
+  uint16_t w, h;
+  dma_display->setTextSize(1);
+  dma_display->getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
+  int x = (dma_display->width() - (int)w) / 2;
+  int y = dma_display->height() - 16;
+  dma_display->fillRect(x - 2, y - 2, w + 4, h + 9, 0);
+  dma_display->setTextColor(pfWhiteC());
+  dma_display->setCursor(x, y);
+  dma_display->print(buf);
+
+  int by = y + (int)h + 3;
+  dma_display->drawFastHLine(x, by, w, pfDimC());
+  int fw = ((int)w * pct) / 100;
+  if (fw > 0) dma_display->drawFastHLine(x, by, fw, pfLedC());
 }
 
 // NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi / OSC / audio
@@ -201,50 +247,57 @@ void drawNetworkInfo() {
   dma_display->setRotation(1);
   dma_display->fillScreen(0);
 
-  uint16_t white = dma_display->color565(255, 255, 255);
-  uint16_t blue  = dma_display->color565(120, 180, 255);
-  uint16_t gray  = dma_display->color565(140, 140, 140);
-  uint16_t green = dma_display->color565(80, 220, 130);
-  uint16_t red   = dma_display->color565(255, 80, 80);
-  uint16_t dim   = dma_display->color565(90, 90, 90);
+  int w = dma_display->width();   // 64 in portrait
 
+  drawScreenHeader("NETWORK");
+
+  // Feature rows: status dot + name on the left, state right-aligned in
+  // the state's color — reads like the web console's tag pills.
+  struct FeatureRow { const char* name; bool compiled; bool on; };
+  const FeatureRow rows[2] = {
+    { "OSC", PatternflowOsc::isCompiledIn(),   PatternflowOsc::isRuntimeEnabled() },
+    { "AUD", PatternflowAudio::isCompiledIn(), PatternflowAudio::isRuntimeEnabled() },
+  };
   dma_display->setTextSize(1);
-  drawCenteredText("NETWORK", 4, white, 1);
-
-  // OSC / AUDIO state rows.
-  bool oscC = PatternflowOsc::isCompiledIn();
-  bool oscOn = oscC && PatternflowOsc::isRuntimeEnabled();
-  dma_display->setTextColor(white);  dma_display->setCursor(8, 20);  dma_display->print("OSC");
-  dma_display->setTextColor(oscC ? (oscOn ? green : red) : dim);
-  dma_display->setCursor(38, 20);    dma_display->print(oscC ? (oscOn ? "ON" : "OFF") : "N/A");
-
-  bool audC = PatternflowAudio::isCompiledIn();
-  bool audOn = audC && PatternflowAudio::isRuntimeEnabled();
-  dma_display->setTextColor(white);  dma_display->setCursor(8, 30);  dma_display->print("AUD");
-  dma_display->setTextColor(audC ? (audOn ? green : red) : dim);
-  dma_display->setCursor(38, 30);    dma_display->print(audC ? (audOn ? "ON" : "OFF") : "N/A");
+  for (int i = 0; i < 2; i++) {
+    int y = 22 + i * 11;
+    bool on = rows[i].compiled && rows[i].on;
+    uint16_t st = rows[i].compiled ? (on ? pfGreenC() : pfRedC()) : pfDimC();
+    dma_display->fillRect(8, y + 2, 2, 2, st);
+    dma_display->setTextColor(pfWhiteC());
+    dma_display->setCursor(14, y);
+    dma_display->print(rows[i].name);
+    const char* val = rows[i].compiled ? (on ? "ON" : "OFF") : "N/A";
+    int16_t x1, y1;
+    uint16_t tw, th;
+    dma_display->getTextBounds(val, 0, 0, &x1, &y1, &tw, &th);
+    dma_display->setTextColor(st);
+    dma_display->setCursor(w - 8 - (int)tw, y);
+    dma_display->print(val);
+  }
 
   // Wi-Fi status + IP. A full IPv4 (up to 15 chars) doesn't fit one
   // portrait line — split after the second octet's dot.
   bool wifiUp = PatternflowWifi::isConnected();
-  drawCenteredText(PatternflowWifi::statusText(), 48, wifiUp ? green : blue, 1);
+  drawCenteredText(PatternflowWifi::statusText(), 50, wifiUp ? pfGreenC() : pfBlueC(), 1);
   String ip = PatternflowWifi::ipString();
   if (ip.length() <= 10) {
-    drawCenteredText(ip.c_str(), 60, gray, 1);
+    drawCenteredText(ip.c_str(), 62, pfGrayC(), 1);
   } else {
     int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
-    drawCenteredText(ip.substring(0, cut).c_str(), 60, gray, 1);
-    drawCenteredText(ip.substring(cut).c_str(), 70, gray, 1);
+    drawCenteredText(ip.substring(0, cut).c_str(), 62, pfGrayC(), 1);
+    drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
   }
 
-  // Hints — turn to toggle, K4 for the update screen, click (or hold)
-  // K2 to leave.
-  drawCenteredText("TURN K2/K3", 86, dim, 1);
-  drawCenteredText("OSC / AUD", 96, dim, 1);
+  // Hints under a hairline rule — turn to toggle, K4 for the update
+  // screen, click (or hold) K2 to leave.
+  dma_display->drawFastHLine(4, 82, w - 8, pfRuleC());
+  drawCenteredText("TURN K2/K3", 87, pfDimC(), 1);
+  drawCenteredText("OSC / AUD", 97, pfDimC(), 1);
   if (PatternflowWebUpdate::isCompiledIn()) {
-    drawCenteredText("K4=UPDATE", 107, dim, 1);
+    drawCenteredText("K4=UPDATE", 107, pfDimC(), 1);
   }
-  drawCenteredText("K2 = EXIT", 118, dim, 1);
+  drawCenteredText("K2 = EXIT", 118, pfDimC(), 1);
 
   dma_display->setRotation(0);
 }
@@ -259,59 +312,56 @@ void drawUpdateScreen(int uploadPct) {
   dma_display->setRotation(1);
   dma_display->fillScreen(0);
 
-  uint16_t white = dma_display->color565(255, 255, 255);
-  uint16_t blue  = dma_display->color565(120, 180, 255);
-  uint16_t gray  = dma_display->color565(140, 140, 140);
-  uint16_t green = dma_display->color565(80, 220, 130);
-  uint16_t red   = dma_display->color565(255, 80, 80);
-  uint16_t dim   = dma_display->color565(90, 90, 90);
-
   int w = dma_display->width();   // 64 in portrait
   int h = dma_display->height();  // 128 in portrait
 
-  drawCenteredText("UPDATE", 4, white, 1);
+  drawScreenHeader("UPDATE");
 
   if (uploadPct >= 0 || PatternflowWebUpdate::isUploading()) {
     int pct = (uploadPct >= 0) ? uploadPct
                                : (int)PatternflowWebUpdate::progressPercent();
-    drawCenteredText("FLASHING", 26, blue, 1);
+    drawCenteredText("FLASHING", 26, pfGrayC(), 1);
     char buf[8];
     snprintf(buf, sizeof(buf), "%d%%", pct);
-    drawCenteredText(buf, 46, white, 2);
-    int bx = 6, by = 72, bw = w - 12, bh = 8;
-    dma_display->drawRect(bx, by, bw, bh, gray);
+    drawCenteredText(buf, 44, pfWhiteC(), 2);
+    // LED-orange fill on a hairline frame — same accent as the web page's
+    // progress bar.
+    int bx = 8, by = 70, bw = w - 16;
+    dma_display->drawRect(bx, by, bw, 7, pfRuleC());
     int fill = ((bw - 4) * constrain(pct, 0, 100)) / 100;
-    if (fill > 0) dma_display->fillRect(bx + 2, by + 2, fill, bh - 4, green);
-    drawCenteredText("KEEP POWER", h - 28, dim, 1);
-    drawCenteredText("ON", h - 18, dim, 1);
+    if (fill > 0) dma_display->fillRect(bx + 2, by + 2, fill, 3, pfLedC());
+    dma_display->drawFastHLine(4, h - 26, w - 8, pfRuleC());
+    drawCenteredText("KEEP POWER", h - 21, pfDimC(), 1);
+    drawCenteredText("ON", h - 11, pfDimC(), 1);
   } else if (PatternflowWebUpdate::isRebootPending()) {
-    drawCenteredText("DONE", 40, green, 1);
-    drawCenteredText("REBOOTING", 56, white, 1);
+    drawCenteredText("DONE", 46, pfGreenC(), 1);
+    drawCenteredText("REBOOTING", 60, pfWhiteC(), 1);
   } else {
     bool wifiUp = PatternflowWifi::isConnected();
     if (PatternflowWebUpdate::hasError()) {
-      drawCenteredText("FAILED", 16, red, 1);  // details went to the browser
+      drawCenteredText("FAILED", 21, pfRedC(), 1);  // details went to the browser
     } else {
-      drawCenteredText(wifiUp ? "ARMED" : "NO WIFI", 16, wifiUp ? green : red, 1);
+      drawCenteredText(wifiUp ? "READY" : "NO WIFI", 21, wifiUp ? pfGreenC() : pfRedC(), 1);
     }
     if (wifiUp) {
-      drawCenteredText("DROP .BIN:", 34, gray, 1);
-      drawCenteredText(PF_OTA_HOSTNAME, 48, blue, 1);
-      drawCenteredText(".local", 58, blue, 1);
-      drawCenteredText("/update", 68, blue, 1);
+      drawCenteredText("DROP .BIN:", 36, pfDimC(), 1);
+      drawCenteredText(PF_OTA_HOSTNAME, 48, pfWhiteC(), 1);
+      drawCenteredText(".local", 58, pfWhiteC(), 1);
+      drawCenteredText("/update", 68, pfWhiteC(), 1);
       // Raw IP as the mDNS fallback, split like the NETWORK screen.
       String ip = PatternflowWifi::ipString();
       if (ip.length() <= 10) {
-        drawCenteredText(ip.c_str(), 84, gray, 1);
+        drawCenteredText(ip.c_str(), 82, pfGrayC(), 1);
       } else {
         int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
-        drawCenteredText(ip.substring(0, cut).c_str(), 84, gray, 1);
-        drawCenteredText(ip.substring(cut).c_str(), 94, gray, 1);
+        drawCenteredText(ip.substring(0, cut).c_str(), 82, pfGrayC(), 1);
+        drawCenteredText(ip.substring(cut).c_str(), 92, pfGrayC(), 1);
       }
     } else {
-      drawCenteredText(PatternflowWifi::statusText(), 48, blue, 1);
+      drawCenteredText(PatternflowWifi::statusText(), 52, pfBlueC(), 1);
     }
-    drawCenteredText("K4 = EXIT", h - 10, dim, 1);
+    dma_display->drawFastHLine(4, h - 16, w - 8, pfRuleC());
+    drawCenteredText("K4 = EXIT", h - 11, pfDimC(), 1);
   }
 
   dma_display->setRotation(0);
@@ -325,16 +375,26 @@ void drawKnobMap() {
   dma_display->setRotation(1);
   dma_display->fillScreen(0);
 
-  uint16_t white = dma_display->color565(255, 255, 255);
-  uint16_t green = dma_display->color565(80, 220, 130);
-  uint16_t dim   = dma_display->color565(90, 90, 90);
-
   int w = dma_display->width();   // 64 in portrait
   int h = dma_display->height();  // 128 in portrait
 
-  drawCenteredText("KNOB MAP", (h / 2) - 10, white, 1);
-  drawCenteredText("TURN = SHOW", (h / 2) + 2, dim, 1);
-  drawCenteredText("K3 = EXIT", (h / 2) + 12, dim, 1);
+  // Center lockup: LED dot + title (the top header strip would collide
+  // with the corner circles, so the lockup sits mid-screen instead).
+  {
+    const char* title = "KNOB MAP";
+    int16_t x1, y1;
+    uint16_t tw, th;
+    dma_display->setTextSize(1);
+    dma_display->getTextBounds(title, 0, 0, &x1, &y1, &tw, &th);
+    int x = (w - (int)(tw + 6)) / 2;
+    int y = (h / 2) - 10;
+    dma_display->fillRect(x, y + 3, 2, 2, pfLedC());
+    dma_display->setTextColor(pfWhiteC());
+    dma_display->setCursor(x + 6, y);
+    dma_display->print(title);
+  }
+  drawCenteredText("TURN = SHOW", (h / 2) + 2, pfDimC(), 1);
+  drawCenteredText("K3 = EXIT", (h / 2) + 12, pfDimC(), 1);
 
   // Front-view corners: K1 top-right, K2 top-left, K3 bottom-right,
   // K4 bottom-left (indices are logical = physical after the identity map).
@@ -345,11 +405,12 @@ void drawKnobMap() {
   for (int i = 0; i < 4; i++) {
     bool active = knobMapActiveAtMs[i] != 0 &&
                   (now - knobMapActiveAtMs[i]) < KNOB_MAP_HILITE_MS;
-    uint16_t col = active ? green : white;
-    if (active) dma_display->fillCircle(cx[i], cy[i], 10, dma_display->color565(15, 55, 30));
-    dma_display->drawCircle(cx[i], cy[i], 10, col);
+    // Active knob lights LED-orange (brand accent) with a soft fill; the
+    // digit stays white for contrast either way.
+    if (active) dma_display->fillCircle(cx[i], cy[i], 10, dma_display->color565(74, 27, 15));
+    dma_display->drawCircle(cx[i], cy[i], 10, active ? pfLedC() : pfWhiteC());
     dma_display->setTextSize(1);
-    dma_display->setTextColor(col);
+    dma_display->setTextColor(pfWhiteC());
     dma_display->setCursor(cx[i] - 2, cy[i] - 3);
     dma_display->print((char)('1' + i));
   }
@@ -366,6 +427,22 @@ void drawSelectingMode() {
   char pageStr[16];
   snprintf(pageStr, sizeof(pageStr), "%d / %d", currentPatternIdx + 1, NUM_PATTERNS);
   drawCenteredTextScrim(pageStr, 10, dma_display->color565(190, 190, 190), 1);
+
+  // Position track under the page indicator: a hairline with an LED-orange
+  // marker at the highlighted pattern's place in the list — browsing with
+  // K4 reads as sliding along the line. Drawn on its own small scrim so it
+  // stays legible over the live preview.
+  {
+    int trackW = 40;
+    int tx = (dma_display->width() - trackW) / 2;
+    int ty = 23;
+    dma_display->fillRect(tx - 2, ty - 2, trackW + 4, 5, 0);
+    dma_display->drawFastHLine(tx, ty, trackW, pfDimC());
+    int mx = (NUM_PATTERNS > 1)
+             ? tx + ((trackW - 3) * currentPatternIdx) / (NUM_PATTERNS - 1)
+             : tx;
+    dma_display->fillRect(mx, ty - 1, 3, 3, pfLedC());
+  }
 
   const char* name = patterns[currentPatternIdx].name;
   int nameSize = strlen(name) > 8 ? 1 : 2;
