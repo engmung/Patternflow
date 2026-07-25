@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeEsp32Cost } from "@/lib/esp32CostAnalyzer";
 import {
+  PATTERN_KNOB_COUNT,
   PATTERN_MATRIX_HEIGHT,
   PATTERN_MATRIX_WIDTH,
   PatternRuntime,
@@ -50,6 +51,13 @@ import {
   type PatchLayer,
   type PatchState,
 } from "@/lib/patternPatch";
+import {
+  clearDraft,
+  loadDraft,
+  loadGallery,
+  saveDraft,
+  saveGallery,
+} from "@/lib/labDraft";
 import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
 import PublishModal from "@/components/community/PublishModal";
@@ -520,6 +528,12 @@ export default function PatternLabClient() {
     return [w, h];
   }, [resPreset]);
   const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
+  // Draft autosave: `draftReady` gates every write until the restore pass has
+  // run, so the pre-restore initial state can never overwrite a saved draft.
+  // `draftRestoredAt` is non-null only when work was actually recovered — it
+  // drives the header badge that lets the user discard it.
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
 
   // Sync state from localStorage after initial client mount to prevent SSR hydration mismatches
   // (browser-only state that cannot exist during the first render, so an
@@ -839,6 +853,114 @@ export default function PatternLabClient() {
   const updateCode = (nextCode: string) => {
     applyKnobsAnnotation(nextCode);
     setCode(nextCode);
+  };
+
+  // ── Draft restore ──
+  // Runs before the handoff effect below, so an explicit "Open in Pattern Lab"
+  // still wins over whatever was left in the editor last session.
+  useEffect(() => {
+    const draft = loadDraft(PATTERN_KNOB_COUNT);
+    if (!draft) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDraftReady(true);
+      return;
+    }
+
+    // Device/generation settings are safe to restore either way — a handoff
+    // carries code, not lab settings.
+    if (draft.resPreset) setResPreset(draft.resPreset);
+    if (typeof draft.recolor === "boolean") setRecolor(draft.recolor);
+    if (draft.gen) {
+      setGenCount(draft.gen.count);
+      setGenThinking(draft.gen.thinking);
+      setGenOrientation(draft.gen.orientation);
+      setGenRefs(draft.gen.refs);
+      setGenColorMode(draft.gen.colorMode);
+    }
+
+    if (readLabHandoff() === null) {
+      // The draft's knob labels/ranges are the user's own tuning, so seed the
+      // annotation guard with the draft's own @knobs line — otherwise the next
+      // edit would look like "new annotation" and reset that tuning.
+      lastKnobsAnnotationRef.current = draft.code?.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
+      if (draft.code) setCode(draft.code);
+      if (draft.knobs) {
+        setKnobs(draft.knobs);
+        previousKnobsRef.current = [...draft.knobs];
+      }
+      if (draft.ranges) setRanges(draft.ranges);
+      if (draft.knobLabels) setKnobLabels(draft.knobLabels);
+      if (draft.forkOf) setForkOf(draft.forkOf);
+      if (draft.editorView) setEditorView(draft.editorView);
+      setGallery(loadGallery());
+      setDraftRestoredAt(draft.savedAt || Date.now());
+    }
+
+    setDraftReady(true);
+  }, []);
+
+  // Persist the working state. Debounced so typing in the editor doesn't
+  // serialize the whole draft on every keystroke.
+  useEffect(() => {
+    if (!draftReady) return;
+    const timeout = window.setTimeout(() => {
+      saveDraft({
+        code,
+        knobs,
+        ranges,
+        knobLabels,
+        recolor,
+        resPreset,
+        editorView,
+        forkOf,
+        gen: {
+          count: genCount,
+          thinking: genThinking,
+          orientation: genOrientation,
+          refs: genRefs,
+          colorMode: genColorMode,
+        },
+      });
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [
+    draftReady,
+    code,
+    knobs,
+    ranges,
+    knobLabels,
+    recolor,
+    resPreset,
+    editorView,
+    forkOf,
+    genCount,
+    genThinking,
+    genOrientation,
+    genRefs,
+    genColorMode,
+  ]);
+
+  // The gallery lives in its own key: it can run to hundreds of KB, and a
+  // quota failure there must not take the small draft down with it.
+  useEffect(() => {
+    if (!draftReady) return;
+    saveGallery(gallery);
+  }, [draftReady, gallery]);
+
+  // Throw the session away and return to the opening preset.
+  const discardDraft = () => {
+    clearDraft();
+    setDraftRestoredAt(null);
+    setGallery([]);
+    setSelected(new Set());
+    setSelectMode(false);
+    setForkOf(null);
+    setEditorView("code");
+    lastKnobsAnnotationRef.current = initialAnnotationRaw;
+    setCode(initialLabPreset.code);
+    setKnobs(presetKnobs);
+    setRanges(presetRanges);
+    setKnobLabels(presetKnobLabels);
   };
 
   // Consume a community → lab handoff exactly once per mount. The detail
@@ -1616,6 +1738,16 @@ ${activeCode}
             </div>
 
             <div className={styles.headerControls}>
+              {draftRestoredAt !== null && (
+                <button
+                  type="button"
+                  className={styles.headerToggle}
+                  title={`Restored your last session (${new Date(draftRestoredAt).toLocaleString()}). Click to discard it and start from the opening preset.`}
+                  onClick={discardDraft}
+                >
+                  restored ×
+                </button>
+              )}
               <select
                 className={styles.headerSelect}
                 value={resPreset}
