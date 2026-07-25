@@ -18,6 +18,10 @@
  * reach it.
  */
 import path from "node:path";
+import { loadEnv } from "./loadEnv";
+
+loadEnv();
+
 import {
   artifactDir,
   claimNextBuild,
