@@ -133,6 +133,52 @@ export const likes = sqliteTable(
   ],
 );
 
+// ── Board ────────────────────────────────────────────────────────────────────
+// Plain-text discussion, separate from patterns. A post is a title and a body;
+// that's the whole feature. No attachments, no markup — bodies are stored as
+// typed and escaped by React on output, same rule as comments.
+
+export const posts = sqliteTable(
+  "posts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("posts_created_at_idx").on(table.createdAt),
+    index("posts_user_id_idx").on(table.userId),
+  ],
+);
+
+/**
+ * Board comments get their own table rather than a nullable `pattern_id` on
+ * `comments`. Relaxing that column would mean rebuilding a populated table in
+ * SQLite, and a single table addressing two parents needs a constraint saying
+ * exactly one is set — more moving parts than the small amount of duplication
+ * this costs.
+ */
+export const postComments = sqliteTable(
+  "post_comments",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("post_comments_post_id_idx").on(table.postId)],
+);
+
 export const comments = sqliteTable(
   "comments",
   {

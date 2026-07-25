@@ -1,6 +1,6 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { comments, likes, patterns, user } from "./schema";
+import { comments, likes, patterns, postComments, posts, user } from "./schema";
 
 // Server-side read helpers for the community pages. Pages query the SQLite
 // file directly through these — no GET API layer for a single-process app.
@@ -181,6 +181,92 @@ export async function countLikes(patternId: string): Promise<number> {
     .from(likes)
     .where(eq(likes.patternId, patternId));
   return rows[0]?.count ?? 0;
+}
+
+// ── Board ────────────────────────────────────────────────────────────────────
+
+const postCommentCount = sql<number>`(SELECT COUNT(*) FROM ${postComments} WHERE ${postComments.postId} = ${posts.id})`;
+
+export type PostListItem = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: Date;
+  updatedAt: Date;
+  username: string | null;
+  displayUsername: string | null;
+  commentCount: number;
+};
+
+export async function countPosts(): Promise<number> {
+  const rows = await getDb().select({ count: sql<number>`COUNT(*)` }).from(posts);
+  return rows[0]?.count ?? 0;
+}
+
+export async function listPosts({
+  limit,
+  offset = 0,
+}: {
+  limit: number;
+  offset?: number;
+}): Promise<PostListItem[]> {
+  return getDb()
+    .select({
+      id: posts.id,
+      title: posts.title,
+      body: posts.body,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      ...authorFields,
+      commentCount: postCommentCount,
+    })
+    .from(posts)
+    .innerJoin(user, eq(posts.userId, user.id))
+    .orderBy(desc(posts.createdAt))
+    .limit(limit)
+    .offset(offset);
+}
+
+export async function getPost(id: string) {
+  const rows = await getDb()
+    .select({
+      id: posts.id,
+      userId: posts.userId,
+      title: posts.title,
+      body: posts.body,
+      createdAt: posts.createdAt,
+      updatedAt: posts.updatedAt,
+      ...authorFields,
+    })
+    .from(posts)
+    .innerJoin(user, eq(posts.userId, user.id))
+    .where(eq(posts.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Ownership check for edit/delete, without loading the body. */
+export async function getPostStub(id: string) {
+  const rows = await getDb()
+    .select({ id: posts.id, userId: posts.userId })
+    .from(posts)
+    .where(eq(posts.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listPostComments(postId: string) {
+  return getDb()
+    .select({
+      id: postComments.id,
+      body: postComments.body,
+      createdAt: postComments.createdAt,
+      ...authorFields,
+    })
+    .from(postComments)
+    .innerJoin(user, eq(postComments.userId, user.id))
+    .where(eq(postComments.postId, postId))
+    .orderBy(postComments.createdAt);
 }
 
 export async function getUserByUsername(usernameLower: string) {

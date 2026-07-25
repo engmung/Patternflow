@@ -1270,3 +1270,229 @@
   color: #a02020;
   font-weight: 600;
 }
+
+/* ── Board ──
+   Plain-text discussion. Deliberately quiet next to the pattern feed: no
+   previews, no thumbnails, nothing that needs a sandbox. */
+
+.boardWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+.backLink {
+  color: #6b655a;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  color: #171512;
+}
+
+.postComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  border-radius: 10px;
+  background: #fffdf8;
+}
+
+.postTitleInput,
+.postBodyInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 6px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  padding: 9px 11px;
+}
+
+.postTitleInput {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.postBodyInput {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 180px;
+  resize: vertical;
+}
+
+.postTitleInput:focus,
+.postBodyInput:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+.composerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.composerCount {
+  flex: 1;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: #a69f90;
+}
+
+.postList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.postRow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 13px 2px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.12);
+}
+
+.postRowLink {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.postRowTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #171512;
+}
+
+.postRowLink:hover .postRowTitle {
+  text-decoration: underline;
+}
+
+/* Reply count. Only rendered when there is one, so it never shows a bare 0. */
+.postRowCount {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  color: #e8552e;
+}
+
+.postRowPreview {
+  font-size: 12.5px;
+  color: #8c8577;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postRowMeta {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.postArticle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.postTitle {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.postMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.postBody {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: #2c2822;
+  padding-bottom: 20px;
+}
+
+.btnSmall {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  border-radius: 5px;
+  background: #fffdf8;
+  color: #171512;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.btnSmall:hover:not(:disabled) {
+  border-color: #171512;
+}
+
+.btnSmall:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnSmallDanger {
+  composes: btnSmall;
+  border-color: rgba(200, 50, 30, 0.55);
+  color: #b8351c;
+}
+
+.btnSmallDanger:hover:not(:disabled) {
+  background: #b8351c;
+  border-color: #b8351c;
+  color: #fffdf8;
+}
+
+/* Board pagination reuses .pageBtn, but as links — which can't be :disabled. */
+.pageBtn[data-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* ── Linkified plain text ──
+   Keeps author line breaks, since the body was typed as plain text and the
+   shape is part of what they wrote. */
+
+.linkedText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inlineLink {
+  color: #b8451c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  color: #e8552e;
+}

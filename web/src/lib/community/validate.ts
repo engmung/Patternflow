@@ -70,6 +70,20 @@ export function cleanMadeOn(raw: unknown): string | null | undefined {
   return value;
 }
 
+/**
+ * Board post body. Roomier than a comment because a post is the long-form
+ * side of the community — a build log or a question with output pasted in —
+ * but still plain text with no markup.
+ */
+export const POST_BODY_MAX = 20_000;
+
+export function cleanPostBody(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const body = raw.trim();
+  if (body.length === 0 || body.length > POST_BODY_MAX) return null;
+  return body;
+}
+
 export function cleanComment(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const body = raw.trim();

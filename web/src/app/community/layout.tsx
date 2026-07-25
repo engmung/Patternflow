@@ -60,6 +60,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
               "Make one in Pattern Lab" button, and two of them read as two
               different destinations. */}
           <nav className={styles.headerNav}>
+            <Link href="/community/board">Board</Link>
             <AuthStatus />
           </nav>
         </header>

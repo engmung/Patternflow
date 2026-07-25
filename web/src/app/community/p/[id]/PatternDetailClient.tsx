@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Editor from "@monaco-editor/react";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import CommentSection, { type CommentView } from "@/components/community/CommentSection";
+import LinkedText from "@/components/community/LinkedText";
 import { formatDate } from "@/components/community/PatternCard";
 import LikeButton from "@/components/community/LikeButton";
 import AddHeaderModal from "@/components/community/AddHeaderModal";
@@ -360,7 +361,9 @@ export default function PatternDetailClient({
         </div>
 
         {pattern.description && (
-          <p className={styles.metaDescription}>{pattern.description}</p>
+          <p className={styles.metaDescription}>
+            <LinkedText text={pattern.description} />
+          </p>
         )}
 
         {isOwner && (
@@ -386,7 +389,7 @@ export default function PatternDetailClient({
         )}
       </div>
 
-      <CommentSection patternId={pattern.id} comments={comments} />
+      <CommentSection target={{ kind: "pattern", id: pattern.id }} comments={comments} />
 
       {headerModalOpen && (
         <AddHeaderModal
