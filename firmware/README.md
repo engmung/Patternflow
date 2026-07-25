@@ -44,7 +44,7 @@ The experimental audio-react WebSocket control uses:
 firmware/patternflow/
 ├── patternflow.ino          # Main sketch: input routing, mode dispatch
 ├── config.h                 # Hardware configuration (pin mappings, limits)
-├── net_config.h             # Wi-Fi / OTA / OSC / audio-react config + defaults
+├── net_config.h             # Wi-Fi / OTA / OSC / audio-react / self-update config + defaults
 ├── pattern_registry.h       # Function-pointer table — register patterns here
 ├── pattern_origin.h         # Built-in pattern: radial sine grids
 ├── pattern_wave_saw.h       # Built-in pattern: directional saw bands
@@ -63,9 +63,12 @@ firmware/patternflow/
     ├── core_wifi.h          # Shared Wi-Fi bring-up (single WiFi.begin for all features)
     ├── core_improv.h        # Improv-Serial Wi-Fi provisioning from the browser flasher
     ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
-    ├── core_audio_ws.h      # Browser audio-react HTTP/WebSocket server
-    ├── audio_index.h        # Built-in patternflow.local audio UI bundle
-    └── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
+    ├── core_audio_ws.h      # Device web console HTTP server + audio-react WebSocket
+    ├── home_index.h         # patternflow.local landing page (console home)
+    ├── audio_index.h        # Audio-react UI bundle (served at /audio)
+    ├── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
+    ├── core_web_update.h    # Browser self-update via patternflow.local/update
+    └── web_update_index.h   # Built-in update page bundle (drop a .bin)
 ```
 
 The `src/` subfolder holds the foundation that patterns build on. Arduino IDE compiles everything underneath the sketch folder, but `.h` files inside subfolders **do not appear as tabs** — so the IDE stays focused on the files you actually edit (the sketch, config, registry, and patterns) while the foundation stays out of the way. Patterns and the main sketch reference these helpers via `#include "src/core_*.h"`.
@@ -332,6 +335,21 @@ The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external hos
 ```
 
 Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
+
+## Wireless update from the browser
+
+Once the device is on Wi-Fi, it can flash itself from any browser on the same network — no Arduino IDE, no USB cable, no TLS setup ([#232](https://github.com/engmung/Patternflow/issues/232)).
+
+1. Get a firmware `.bin`: build one on [patternflow.work](https://patternflow.work) and hit *Download .bin*, or export one locally (`arduino-cli compile --output-dir …` — use the app image, not a merged full-flash image).
+2. Open `http://patternflow.local` — the device serves a small console (audio sync / firmware update) — and pick **Firmware Update**, or go straight to `/update`. If `.local` doesn't resolve (common on Android), use `http://<ip>/update`; the device shows its IP on the NETWORK screen (hold K2) and on the UPDATE screen.
+3. Drop the `.bin` on the page. The panel shows flash progress; the device verifies, reboots, and comes back on the new firmware in about ten seconds.
+
+Notes:
+
+- **Uploads are accepted at any time by default** (`PF_WEBUPDATE_ALWAYS_ARMED 1`): drop a .bin whenever, no trip to the device. The flip side, stated plainly: anyone on the same Wi-Fi can flash the device from a phone browser — the same exposure ArduinoOTA's no-password default already has. On shared, office, or exhibition Wi-Fi, build with `#define PF_WEBUPDATE_ALWAYS_ARMED 0` in `patternflow_secrets.h`: uploads are then refused (`403`) unless the UPDATE screen is open on the device (hold **K2** → NETWORK, turn **K4**) — a physical arming switch only someone at the device can flip; leaving the screen (K4 click, or the 10-minute idle timeout) disarms it again.
+- A failed or interrupted upload leaves the old firmware running — `Update.h` only switches the boot partition after a complete, verified image. Power loss *during* the flash write is the one case to avoid; the panel says so while flashing.
+- Like all wireless paths, this capability has to arrive over USB once (it ships in the stock release).
+- Set `#define PF_WEBUPDATE_ENABLED 0` in `patternflow_secrets.h` to compile it out.
 
 ## OTA Updates (For Developers)
 

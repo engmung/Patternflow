@@ -6,147 +6,164 @@
 #include "src/core_encoders.h"
 #include "src/core_canvas.h"
 #include "src/core_math.h"
-#include "src/core_tables.h"
+#include "src/core_noise.h"
 
-namespace RippleCellGrid {
+namespace CyberpunkCity {
 
-const char* NAME = "Cell Ripple";
-const char* const KNOB_LABELS[4] = {"Speed", "Size", "Ripple", "Density"};
+const char* NAME = "Cyber City";
+const char* const KNOB_LABELS[4] = {"Buildings", "Speed", "Rain Density", "Glow"};
+
+static float g_buildings = 6.507f;
+static float g_speed = 0.939f;
+static float g_rainDensity = 0.397f;
+static float g_glow = 1.226f;
+static float g_timeAcc = 0.0f;
 
 static const uint8_t RAMP_LUT[256][3] = {
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
-  {0,0,0},{0,0,0},{0,0,0},{3,3,3},{24,22,22},{45,37,37},{67,49,49},{88,58,58},
-  {109,62,62},{130,64,64},{152,61,61},{173,56,56},{194,46,46},{216,33,33},{237,17,17},{255,0,1},
-  {255,0,10},{255,0,19},{255,0,27},{255,0,36},{255,0,45},{255,0,53},{255,0,62},{255,0,71},
-  {255,0,79},{255,0,88},{255,0,96},{255,0,105},{255,0,114},{255,0,122},{255,0,131},{255,0,140},
-  {255,0,148},{255,0,157},{255,0,166},{255,0,174},{255,0,183},{255,0,192},{255,0,200},{255,0,209},
-  {255,0,218},{255,0,226},{255,0,235},{255,0,244},{255,0,252},{249,0,255},{240,0,255},{232,0,255},
-  {223,0,255},{214,0,255},{206,0,255},{197,0,255},{188,0,255},{180,0,255},{171,0,255},{163,0,255},
-  {154,0,255},{145,0,255},{137,0,255},{128,0,255},{119,0,255},{111,0,255},{102,0,255},{93,0,255},
-  {85,0,255},{76,0,255},{67,0,255},{59,0,255},{50,0,255},{41,0,255},{33,0,255},{24,0,255},
-  {15,0,255},{7,0,255},{0,2,255},{0,11,255},{0,19,255},{0,28,255},{0,37,255},{0,45,255},
-  {0,54,255},{0,63,255},{0,71,255},{0,80,255},{0,88,255},{0,97,255},{0,106,255},{0,114,255},
-  {0,123,255},{0,132,255},{0,140,255},{0,149,255},{0,158,255},{0,166,255},{0,175,255},{0,184,255},
-  {0,192,255},{0,201,255},{0,210,255},{0,218,255},{0,225,255},{0,223,253},{0,221,252},{0,219,251},
-  {0,217,249},{0,215,248},{0,213,247},{0,211,246},{0,209,244},{0,207,243},{0,205,242},{0,204,240},
-  {0,202,239},{0,200,238},{0,198,236},{0,196,235},{0,194,234},{0,193,232},{0,191,231},{0,189,230},
-  {0,187,228},{0,185,227},{0,184,226},{0,182,225},{0,180,223},{0,178,222},{0,177,221},{0,175,219},
-  {0,173,218},{0,171,217},{0,170,215},{0,168,214},{0,166,213},{0,165,211},{0,163,210},{0,161,209},
-  {0,160,207},{0,158,206},{0,156,205},{0,155,204},{0,153,202},{0,151,201},{0,150,200},{0,148,198},
-  {0,147,197},{0,145,196},{0,143,194},{0,142,193},{0,140,192},{0,139,190},{0,137,189},{0,136,188},
-  {0,134,186},{0,133,185},{0,131,184},{0,130,183},{0,128,181},{0,127,180},{0,125,179},{0,124,177},
-  {0,122,176},{0,121,175},{0,119,173},{0,118,172},{0,116,171},{0,115,169},{0,114,168},{0,112,167},
-  {0,111,165},{0,109,164},{0,108,163},{0,107,162},{0,105,160},{0,104,159},{0,103,158},{0,101,156},
-  {0,100,155},{0,99,154},{0,97,152},{0,96,151},{0,95,150},{0,93,148},{0,92,147},{0,91,146},
-  {0,89,144},{0,88,143},{0,87,142},{0,86,141},{0,84,139},{0,83,138},{0,82,137},{0,81,135},
-  {0,80,134},{0,78,133},{0,77,131},{0,76,130},{0,75,129},{0,74,127},{0,73,126},{0,71,125},
-  {0,70,123},{0,69,122},{0,68,121},{0,67,120},{0,66,118},{0,65,117},{0,64,116},{0,63,114},
-  {0,62,113},{0,60,112},{0,59,110},{0,58,109},{0,57,108},{0,56,106},{0,55,105},{0,54,104},
-  {0,53,102},{0,52,101},{0,51,100},{0,50,99},{0,49,97},{0,48,96},{0,47,95},{0,46,93},
-  {0,45,92},{0,45,91},{0,44,89},{0,43,88},{0,42,87},{0,42,87},{0,42,87},{0,42,87},
-  {0,42,87},{0,42,87},{0,42,87},{0,42,87},{0,42,87},{0,42,87},{0,42,87},{0,42,87},
+  {8,24,64},{10,24,64},{12,25,63},{13,25,63},{15,26,62},{17,26,62},{19,26,61},{20,27,61},
+  {22,27,60},{24,27,60},{26,28,59},{27,28,59},{29,29,59},{31,29,58},{33,29,58},{34,30,57},
+  {36,30,57},{38,30,56},{40,31,56},{41,31,55},{43,32,55},{45,32,54},{47,32,54},{49,33,54},
+  {50,33,53},{52,33,53},{54,34,52},{56,34,52},{57,35,51},{59,35,51},{61,35,50},{63,36,50},
+  {64,36,49},{66,36,49},{68,37,48},{70,37,48},{71,38,48},{73,38,47},{75,38,47},{77,39,46},
+  {78,39,46},{80,39,45},{82,40,45},{84,40,44},{85,41,44},{87,41,43},{89,41,43},{91,42,43},
+  {93,42,42},{94,43,42},{96,43,41},{98,43,41},{100,44,40},{101,44,40},{103,44,39},{105,45,39},
+  {107,45,38},{108,46,38},{110,46,38},{112,46,37},{114,47,37},{115,47,36},{117,47,36},{119,48,35},
+  {121,48,35},{122,49,34},{124,49,34},{126,49,33},{128,50,33},{130,50,33},{131,50,32},{133,51,32},
+  {135,51,31},{137,52,31},{138,52,30},{140,52,30},{142,53,29},{144,53,29},{145,53,28},{147,54,28},
+  {149,54,27},{151,55,27},{152,55,27},{154,55,26},{156,56,26},{158,56,25},{159,56,25},{161,57,24},
+  {163,57,24},{165,58,23},{167,58,23},{168,58,22},{170,59,22},{172,59,22},{174,60,21},{175,60,21},
+  {177,60,20},{179,61,20},{181,61,19},{182,61,19},{184,62,18},{186,62,18},{188,63,17},{189,63,17},
+  {191,63,17},{193,64,16},{195,64,16},{196,64,15},{198,65,15},{200,65,14},{202,66,14},{203,66,13},
+  {205,66,13},{207,67,12},{209,67,12},{211,67,12},{212,68,11},{214,68,11},{216,69,10},{218,69,10},
+  {219,69,9},{221,70,9},{223,70,8},{225,70,8},{226,71,7},{228,71,7},{230,72,7},{232,72,6},
+  {233,72,6},{235,73,5},{237,73,5},{239,74,4},{240,74,4},{242,74,3},{244,75,3},{246,75,2},
+  {248,75,2},{249,76,1},{251,76,1},{253,77,1},{255,77,0},{255,78,1},{255,79,2},{255,81,4},
+  {255,82,5},{255,83,6},{255,85,8},{255,86,9},{255,87,10},{255,89,12},{255,90,13},{255,92,14},
+  {255,93,16},{255,94,17},{255,96,18},{255,97,20},{255,98,21},{255,100,22},{255,101,24},{255,102,25},
+  {255,104,27},{255,105,28},{255,106,29},{255,108,31},{255,109,32},{255,110,33},{255,112,35},{255,113,36},
+  {255,114,37},{255,116,39},{255,117,40},{255,119,41},{255,120,43},{255,121,44},{255,123,45},{255,124,47},
+  {255,125,48},{255,127,49},{255,128,51},{255,129,52},{255,131,53},{255,132,55},{255,133,56},{255,135,57},
+  {255,136,59},{255,137,60},{255,139,61},{255,140,63},{255,141,64},{255,143,65},{255,144,67},{255,146,68},
+  {255,147,69},{255,148,71},{255,150,72},{255,151,73},{255,152,75},{255,154,76},{255,155,78},{255,156,79},
+  {255,158,80},{255,159,82},{255,160,83},{255,161,84},{255,163,86},{255,164,87},{255,166,88},{255,167,90},
+  {255,169,91},{255,170,92},{255,171,94},{255,173,95},{255,174,96},{255,175,98},{255,177,99},{255,178,100},
+  {255,179,102},{255,181,103},{255,182,104},{255,183,106},{255,185,107},{255,186,108},{255,187,110},{255,189,111},
+  {255,190,112},{255,191,114},{255,193,115},{255,194,116},{255,196,118},{255,197,119},{255,198,120},{255,200,122},
+  {255,201,123},{255,202,124},{255,204,126},{255,205,127},{255,206,129},{255,208,130},{255,209,131},{255,210,133},
+  {255,212,134},{255,213,135},{255,214,137},{255,216,138},{255,217,139},{255,218,141},{255,220,142},{255,221,143},
+  {255,223,145},{255,224,146},{255,225,147},{255,227,149},{255,228,150},{255,229,151},{255,231,153},{255,232,154},
 };
 
-static float speedParam   = 2.0f;
-static float sizeParam    = 5.0f;
-static float rippleParam  = 5.0f;
-static float densityParam = 3.0f;
-
-static constexpr float CELLGRID_SPEED_STEP   = 0.05f;
-static constexpr float CELLGRID_SIZE_STEP    = 0.1f;
-static constexpr float CELLGRID_RIPPLE_STEP  = 0.05f;
-static constexpr float CELLGRID_DENSITY_STEP = 0.05f;
-
-static constexpr float CELLGRID_SPEED_MIN    = 0.0f;
-static constexpr float CELLGRID_SPEED_MAX    = 2.0f;
-static constexpr float CELLGRID_SIZE_MIN     = 3.0f;
-static constexpr float CELLGRID_SIZE_MAX     = 6.0f;
-static constexpr float CELLGRID_RIPPLE_MIN   = 0.0f;
-static constexpr float CELLGRID_RIPPLE_MAX   = 5.0f;
-static constexpr float CELLGRID_DENSITY_MIN  = 0.5f;
-static constexpr float CELLGRID_DENSITY_MAX  = 3.0f;
-
-static constexpr float CELLGRID_T_WRAP = 4.0f * PI;
-
-static float t = 0.0f;
-
 void setup() {
-  PFMath::buildSinLUT();
-  PFTables::init();
+    PFMath::buildSinLUT();
 }
 
 void update(float dt, const InputFrame& input) {
-  speedParam  += input.knobDeltas[0] * CELLGRID_SPEED_STEP;
-  if (speedParam < CELLGRID_SPEED_MIN) speedParam = CELLGRID_SPEED_MIN;
-  if (speedParam > CELLGRID_SPEED_MAX) speedParam = CELLGRID_SPEED_MAX;
+    g_buildings += input.knobDeltas[0] * 0.05f;
+    g_buildings = fmaxf(4.0f, fminf(16.0f, g_buildings));
 
-  sizeParam   += input.knobDeltas[1] * CELLGRID_SIZE_STEP;
-  if (sizeParam < CELLGRID_SIZE_MIN) sizeParam = CELLGRID_SIZE_MIN;
-  if (sizeParam > CELLGRID_SIZE_MAX) sizeParam = CELLGRID_SIZE_MAX;
+    g_speed += input.knobDeltas[1] * 0.1f;
+    g_speed = fmaxf(0.1f, fminf(5.0f, g_speed));
 
-  rippleParam += input.knobDeltas[2] * CELLGRID_RIPPLE_STEP;
-  if (rippleParam < CELLGRID_RIPPLE_MIN) rippleParam = CELLGRID_RIPPLE_MIN;
-  if (rippleParam > CELLGRID_RIPPLE_MAX) rippleParam = CELLGRID_RIPPLE_MAX;
+    g_rainDensity += input.knobDeltas[2] * 0.05f;
+    g_rainDensity = fmaxf(0.0f, fminf(1.0f, g_rainDensity));
 
-  densityParam += input.knobDeltas[3] * CELLGRID_DENSITY_STEP;
-  if (densityParam < CELLGRID_DENSITY_MIN) densityParam = CELLGRID_DENSITY_MIN;
-  if (densityParam > CELLGRID_DENSITY_MAX) densityParam = CELLGRID_DENSITY_MAX;
+    g_glow += input.knobDeltas[3] * 0.05f;
+    g_glow = fmaxf(0.5f, fminf(3.0f, g_glow));
 
-  t += dt * speedParam;
-  if (t > CELLGRID_T_WRAP) t -= CELLGRID_T_WRAP;
+    g_timeAcc += dt * g_speed;
+    const float maxPeriod = 10.0f * TWO_PI;
+    if (g_timeAcc > maxPeriod) {
+        g_timeAcc -= maxPeriod;
+    }
 }
 
 void draw() {
-  const float t_local = t;
-  const float ripple = rippleParam;
-  const float cellSpacing = sizeParam * 2.5f;
-  const float edgeWidth = densityParam * 2.5f;
-  const float edgeWidthInv = 1.0f / edgeWidth;
-  const float halfSpacing = cellSpacing * 0.5f;
-  const int total = PANEL_RES_W * PANEL_RES_H;
+    const int w = PANEL_RES_W;
+    const int h = PANEL_RES_H;
+    const float hInv = 1.0f / (float)h;
 
-  for (int i = 0; i < total; i++) {
-    // pixel distance from fixed center
-    float r = PFTables::rT[i] * (float)PANEL_RES_H;
-    float th = PFTables::thetaT[i];
+    const float t = g_timeAcc;
+    const float searchlightPhase = PFMath::fastSin(t * 0.8f) * 4.0f;
+    const float farBuildingWidth = 128.0f / g_buildings;
+    const int nearWidth = (int)(100.0f / g_buildings);
+    const int nearWidthHalf = nearWidth / 2;
+    const float invGlow = 1.0f / g_glow;
+    const float rainThreshold = g_rainDensity * 0.15f;
+    const bool beaconOn = ((int)(t * 4.0f) % 2) == 0;
 
-    float rippleOffset = ripple * 4.0f * PFMath::fastSin(r * 0.08f - t_local * 1.5f);
-    float rr = r + rippleOffset;
+    for (int y = 0; y < h; y++) {
+        const float normY = y * hInv;
+        const int yMod4 = y % 4;
+        const int yMod5 = y % 5;
+        const int rainY = (int)((y + t * 40.0f) * 0.25f);
 
-    float rx = rr * PFMath::fastCos(th);
-    float ry = rr * PFMath::fastSin(th);
+        for (int x = 0; x < w; x++) {
+            float val = 0.05f;
 
-    // cell center snapped to grid
-    float cx0 = floorf(rx / cellSpacing) * cellSpacing + halfSpacing;
-    float cy0 = floorf(ry / cellSpacing) * cellSpacing + halfSpacing;
+            // 1. Sky / Searchlight layer
+            if (normY < 0.7f) {
+                float lightBeam = PFMath::fastSin((x * 0.04f) + searchlightPhase - normY * 3.0f);
+                if (lightBeam > 0.82f) {
+                    val += (lightBeam - 0.82f) * 2.0f;
+                }
+            }
 
-    // search 3x3 neighborhood for minimum distance (squared)
-    float minDistSq = 1e12f;
-    for (int dy = -1; dy <= 1; dy++) {
-      for (int dx = -1; dx <= 1; dx++) {
-        float nx = cx0 + dx * cellSpacing;
-        float ny = cy0 + dy * cellSpacing;
-        float ddx = rx - nx;
-        float ddy = ry - ny;
-        float dsq = ddx*ddx + ddy*ddy;
-        if (dsq < minDistSq) minDistSq = dsq;
-      }
+            // 2. Far Skyline (Layer 1 - Slow Scroll)
+            const int farX = (int)(x + t * 4.0f);
+            const int farBuildingId = (int)(farX / farBuildingWidth);
+            const float farHeight = 0.3f + (PFMath::fastSin(farBuildingId * 17.31f) * 0.5f + 0.5f) * 0.35f;
+
+            if (normY > (1.0f - farHeight)) {
+                val = 0.25f;
+                if ((farX % 3 == 0) && (yMod4 == 0) && normY < 0.9f) {
+                    float winFlicker = (PFMath::fastSin(farBuildingId + t * 2.0f) > 0.1f) ? 0.6f : 0.2f;
+                    val = winFlicker;
+                }
+            }
+
+            // 3. Near Cityscape (Layer 2 - Fast Scroll with Antennas & Signage)
+            const int nearX = (int)(x + t * 12.0f);
+            const int nearBuildingId = nearWidth > 0 ? (nearX / nearWidth) : 0;
+            const float nearHeight = 0.2f + (PFMath::fastSin(nearBuildingId * 91.7f) * 0.5f + 0.5f) * 0.5f;
+            const int relX = nearWidth > 0 ? (nearX % nearWidth) : 0;
+
+            if (normY > (1.0f - nearHeight)) {
+                if (relX == 0 || relX == nearWidth - 1) {
+                    val = 0.1f;
+                } else {
+                    val = 0.4f;
+                    int winX = relX % 4;
+                    int winY = yMod5;
+                    if (winX > 1 && winY > 1) {
+                        float signGlow = PFMath::fastSin(nearBuildingId * 3.0f + t * 5.0f) * 0.5f + 0.5f;
+                        val = 0.7f + signGlow * 0.3f;
+                    }
+                }
+            } else if (normY > (1.0f - nearHeight - 0.1f) && relX == nearWidthHalf) {
+                val = beaconOn ? 0.9f : 0.3f;
+            }
+
+            // 4. Downpouring Pixel Rain overlay
+            if (g_rainDensity > 0.05f) {
+                float rainSeed = PFNoise::cellHash(x, rainY);
+                if (rainSeed < rainThreshold) {
+                    val += 0.4f;
+                }
+            }
+
+            val = fmaxf(0.0f, fminf(1.0f, val));
+            val = PFMath::fastPow(val, invGlow);
+
+            int li = (int)(val * 255.0f + 0.5f);
+            if (li < 0) li = 0;
+            if (li > 255) li = 255;
+
+            PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
+        }
     }
 
-    float minDist = sqrtf(minDistSq);
-    float val = (minDist < edgeWidth) ? 1.0f - (minDist * edgeWidthInv) * 0.9f : 0.05f;
-
-    if (val < 0.0f) val = 0.0f;
-    if (val > 1.0f) val = 1.0f;
-
-    int li = (int)(val * 255.0f + 0.5f);
-    int y = i / PANEL_RES_W;
-    int x = i - y * PANEL_RES_W;
-    PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
-  }
-
-  PFCanvas::present();
+    PFCanvas::present();
 }
 
-} // namespace RippleCellGrid
+} // namespace CyberpunkCity

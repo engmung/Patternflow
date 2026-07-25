@@ -56,6 +56,8 @@ constexpr float EULER      = 2.71828182845904523536f;
 // (A pattern composed for a grid that ISN'T the panel — a 64x128 portrait
 // pattern on this 128x64 panel, say — is a separate matter, handled per
 // pattern with PFCanvas::setFrame(). See README.md.)
+// Running a non-stock panel? Please report how it went, working or not:
+// https://github.com/engmung/Patternflow/issues/224
 #define PANEL_RES_W 128
 #define PANEL_RES_H 64
 #define PANEL_CHAIN 1

@@ -22,7 +22,7 @@
 #include <Arduino.h>
 #include "config.h"
 
-#if PF_OSC_ENABLED || PF_OTA_ENABLED || PF_AUDIO_ENABLED
+#if PF_OSC_ENABLED || PF_OTA_ENABLED || PF_AUDIO_ENABLED || PF_WEBUPDATE_ENABLED
 #define PF_WIFI_NEEDED 1
 #include <WiFi.h>
 #include <Preferences.h>

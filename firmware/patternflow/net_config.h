@@ -2,8 +2,9 @@
 // PatternFlow - Network feature configuration
 //
 // One place for everything Wi-Fi touches: the shared Wi-Fi connection
-// and the three features that ride on it — OTA (wireless flashing),
-// OSC (Ableton/Max sidechannel), and the audio-react WebSocket server.
+// and the features that ride on it — OTA (wireless flashing), OSC
+// (Ableton/Max sidechannel), the audio-react WebSocket server, and the
+// browser self-update page.
 //
 // Per-device secrets and toggles live in patternflow_secrets.h (gitignored).
 // That file is included FIRST below, so anything it #defines wins; the
@@ -73,6 +74,30 @@
 // upload from the command line instead (see firmware/README.md).
 #ifndef PF_OTA_PASSWORD
 #define PF_OTA_PASSWORD ""
+#endif
+
+// ── Browser self-update (drop a .bin onto patternflow.local/update) ──
+// The device serves an update page over plain LAN HTTP; dropping a firmware
+// .bin there flashes it via Update.h and reboots (issue #232). No TLS, no
+// certificates — the browser fetches the build over HTTPS, the device only
+// sees a same-origin LAN upload. The POST endpoint only accepts firmware
+// while the UPDATE screen is open on the device (hold K2 → NETWORK, turn
+// K4), so nobody on the Wi-Fi can reflash a device that is just sitting
+// there. Shares the audio-react HTTP server (port 80) when that is enabled;
+// otherwise runs its own. Uses PF_OTA_HOSTNAME for the .local name.
+#ifndef PF_WEBUPDATE_ENABLED
+#define PF_WEBUPDATE_ENABLED 1
+#endif
+// With 1 (the default) /update accepts firmware at any time — drop a .bin
+// whenever, no trip to the device. The tradeoff, stated plainly: anyone on
+// the same Wi-Fi can flash the device from a phone browser. That is the
+// same exposure ArduinoOTA's no-password default already has, and on a
+// home/studio network it is the right UX call. Set 0 on shared, office, or
+// exhibition Wi-Fi: uploads are then refused unless the UPDATE screen is
+// open on the device (hold K2 → NETWORK, turn K4) — a physical arming
+// switch only someone at the device can flip.
+#ifndef PF_WEBUPDATE_ALWAYS_ARMED
+#define PF_WEBUPDATE_ALWAYS_ARMED 1
 #endif
 
 // ── OSC (Ableton/Max sidechannel) ────────────────────────────

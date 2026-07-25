@@ -173,8 +173,12 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <li className={styles.storyCurrent}>
               <time>26.7</time>
               <span>
-                Keep <strong>refining the design for mass production</strong>, grow an active{' '}
-                <strong>community</strong>, and push <strong>outreach and promotion</strong>.
+                Shipped <strong>Patternflow v3.0.0 hardware & snap-fit enclosure</strong>, reached{' '}
+                <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
+                <Link href="/community">
+                  <strong>Community Discussions & Pattern Hub</strong>
+                </Link>{' '}
+                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and placed <strong>USB-C power on hold for full re-evaluation</strong> (#221).
               </span>
             </li>
             <li>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './Roadmap.module.css';
 import {
@@ -20,27 +21,31 @@ type LiveIssue = {
 
 type RoadmapApiData = { issues: LiveIssue[]; error?: string };
 
-// Piecewise time scale. Only the past gets month ticks; everything after
-// "today" is a single future region ordered by intention, not by fake dates.
+// Density-calibrated time scale: compacts empty early months (Jan–Mar) & May–June
+// so nodes flow continuously without empty gaps, reserving room for dense April & July.
 const ANCHORS: [number, number][] = [
-  [Date.UTC(2026, 0, 1), 0.01],
-  [Date.UTC(2026, 3, 1), 0.09],
-  [Date.UTC(2026, 4, 1), 0.26],
-  [Date.UTC(2026, 5, 1), 0.43],
-  [Date.UTC(2026, 6, 1), 0.6],
-  [Date.UTC(2026, 7, 1), 0.72],
-  [Date.UTC(2026, 8, 1), 0.82],
-  [Date.UTC(2026, 9, 1), 0.9],
-  [Date.UTC(2026, 10, 1), 0.96],
+  [Date.UTC(2026, 0, 1), 0.02],
+  [Date.UTC(2026, 1, 1), 0.06],
+  [Date.UTC(2026, 2, 1), 0.10],
+  [Date.UTC(2026, 3, 1), 0.16],
+  [Date.UTC(2026, 4, 1), 0.35],
+  [Date.UTC(2026, 5, 1), 0.48],
+  [Date.UTC(2026, 6, 1), 0.62],
+  [Date.UTC(2026, 7, 1), 0.80],
+  [Date.UTC(2026, 8, 1), 0.87],
+  [Date.UTC(2026, 9, 1), 0.93],
+  [Date.UTC(2026, 10, 1), 0.97],
   [Date.UTC(2026, 11, 1), 1.0],
 ];
 
 // No "Jul" tick — the today line sits right on it and marks July by itself.
-const TICKS: { label: string; utc: number }[] = [
-  { label: 'Jan', utc: Date.UTC(2026, 0, 1) },
-  { label: 'Apr', utc: Date.UTC(2026, 3, 1) },
-  { label: 'May', utc: Date.UTC(2026, 4, 1) },
-  { label: 'Jun', utc: Date.UTC(2026, 5, 1) },
+const TICKS: { label: string; labelKo: string; utc: number }[] = [
+  { label: 'Jan', labelKo: '1월', utc: Date.UTC(2026, 0, 1) },
+  { label: 'Feb', labelKo: '2월', utc: Date.UTC(2026, 1, 1) },
+  { label: 'Mar', labelKo: '3월', utc: Date.UTC(2026, 2, 1) },
+  { label: 'Apr', labelKo: '4월', utc: Date.UTC(2026, 3, 1) },
+  { label: 'May', labelKo: '5월', utc: Date.UTC(2026, 4, 1) },
+  { label: 'Jun', labelKo: '6월', utc: Date.UTC(2026, 5, 1) },
 ];
 
 function dateToT(date: string): number {
@@ -54,47 +59,68 @@ function dateToT(date: string): number {
   return ANCHORS[ANCHORS.length - 1][1];
 }
 
-// The detailed view shows ~twice the nodes, so the whole time axis stretches
-// with it — ticks, today line and future zone all use the same scale, keeping
-// boxes near their real dates instead of just sliding off the axis.
-const OVERVIEW_W = 1700;
-const DETAILED_W = 2500;
 const GUTTER = 170;
 const RIGHT_PAD = 60;
 const TOP = 84;
 const LANE_H = 112;
 const NODE_H = 44;
-const HEIGHT = TOP + LANES.length * LANE_H + 32;
+const HEIGHT = TOP + LANES.length * LANE_H + 120;
 const POPUP_W = 360;
-const MIN_ZOOM = 0.6;
+const MIN_ZOOM = 0.4;
 const MAX_ZOOM = 1.8;
 
 const laneY = (lane: LaneId) =>
   TOP + LANES.findIndex((l) => l.id === lane) * LANE_H + LANE_H / 2;
 
-const nodeWidth = (title: string) => Math.round(title.length * 9.2) + 32;
+const nodeTitle = (n: RoadmapNode, lang: 'ko' | 'en') =>
+  lang === 'ko' && n.titleKo ? n.titleKo : n.title;
+
+const nodeDetail = (n: RoadmapNode, lang: 'ko' | 'en') =>
+  lang === 'ko' && n.detailKo ? n.detailKo : n.detail;
+
+const nodeWidth = (title: string) => {
+  let charLen = 0;
+  for (let i = 0; i < title.length; i += 1) {
+    const code = title.charCodeAt(i);
+    if (
+      (code >= 0xac00 && code <= 0xd7a3) ||
+      (code >= 0x1100 && code <= 0x11ff) ||
+      (code >= 0x3130 && code <= 0x318f)
+    ) {
+      charLen += 14.5;
+    } else {
+      charLen += 8.2;
+    }
+  }
+  return Math.round(charLen) + 38;
+};
 
 type PlacedNode = RoadmapNode & { x: number; y: number; w: number };
 
-// Nodes never get squeezed back into the frame — the canvas is pannable, so
-// the drawing just grows to whatever width the layout needs.
-function layoutNodes(detailed: boolean): {
+// Responsive layout scaling width smoothly to viewport size while preventing overlap.
+function layoutNodes(detailed: boolean, lang: 'ko' | 'en', containerW: number): {
   nodes: PlacedNode[];
   width: number;
   innerW: number;
 } {
-  const innerW = (detailed ? DETAILED_W : OVERVIEW_W) - GUTTER - RIGHT_PAD;
+  const baseW = Math.max(containerW * 1.35, detailed ? 3400 : 2100);
+  const innerW = baseW - GUTTER - RIGHT_PAD;
   const visible = NODES.filter((n) => detailed || n.level === 1);
   const placed: PlacedNode[] = visible.map((n) => {
-    const w = nodeWidth(n.title);
+    const titleText = nodeTitle(n, lang);
+    const w = nodeWidth(titleText);
     return { ...n, w, x: GUTTER + dateToT(n.date) * innerW - w / 2, y: laneY(n.lane) };
   });
   let maxRight = GUTTER + innerW + RIGHT_PAD;
   for (const lane of LANES) {
     const row = placed.filter((n) => n.lane === lane.id).sort((a, b) => a.x - b.x);
     for (let i = 1; i < row.length; i += 1) {
-      const minX = row[i - 1].x + row[i - 1].w + 16;
-      if (row[i].x < minX) row[i].x = minX;
+      const prev = row[i - 1];
+      const current = row[i];
+      const minX = prev.x + prev.w + 18;
+      if (current.x < minX) {
+        current.x = minX;
+      }
     }
     for (const n of row) {
       maxRight = Math.max(maxRight, n.x + n.w + RIGHT_PAD);
@@ -104,6 +130,7 @@ function layoutNodes(detailed: boolean): {
 }
 
 export default function RoadmapMap() {
+  const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [detailed, setDetailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [live, setLive] = useState<RoadmapApiData | null>(null);
@@ -148,7 +175,10 @@ export default function RoadmapMap() {
     };
   }, []);
 
-  const { nodes, width, innerW } = useMemo(() => layoutNodes(detailed), [detailed]);
+  const { nodes, width, innerW } = useMemo(
+    () => layoutNodes(detailed, lang, canvasSize.w),
+    [detailed, lang, canvasSize.w],
+  );
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
 
@@ -187,11 +217,17 @@ export default function RoadmapMap() {
     const ch = el ? el.clientHeight : HEIGHT;
     const drawW = width * z;
     const drawH = HEIGHT * z;
-    // When the canvas is bigger than the drawing, let the drawing sit
-    // anywhere inside it; otherwise pan within the drawing plus some slack.
+    // Spacious, free-panning bounds allowing users to move the map
+    // up/down/left/right freely without feeling clamped or trapped at borders.
+    const slackX = Math.max(800, cw * 0.75);
+    const slackY = Math.max(600, ch * 0.75);
+    const minX = Math.min(0, cw - drawW) - slackX;
+    const maxX = Math.max(0, cw - drawW) + slackX;
+    const minY = Math.min(0, ch - drawH) - slackY;
+    const maxY = Math.max(0, ch - drawH) + slackY;
     return {
-      x: Math.min(Math.max(0, cw - drawW) + 60, Math.max(Math.min(0, cw - drawW) - 60, x)),
-      y: Math.min(Math.max(0, ch - drawH) + 40, Math.max(Math.min(0, ch - drawH) - 40, y)),
+      x: Math.min(maxX, Math.max(minX, x)),
+      y: Math.min(maxY, Math.max(minY, y)),
     };
   };
 
@@ -207,6 +243,38 @@ export default function RoadmapMap() {
     );
     setZoom(nz);
   };
+
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cursorX = event.clientX - rect.left;
+      const cursorY = event.clientY - rect.top;
+
+      const zoomFactor = event.deltaY < 0 ? 1.15 : 0.87;
+
+      setZoom((currentZoom) => {
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(currentZoom * zoomFactor * 100) / 100));
+        if (nextZoom === currentZoom) return currentZoom;
+
+        setPan((currentPan) => {
+          const newX = cursorX - ((cursorX - currentPan.x) / currentZoom) * nextZoom;
+          const newY = cursorY - ((cursorY - currentPan.y) / currentZoom) * nextZoom;
+          return clampPan(newX, newY, nextZoom);
+        });
+
+        return nextZoom;
+      });
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [width, zoom]);
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
@@ -251,6 +319,14 @@ export default function RoadmapMap() {
     setSelectedId((current) => (current === id ? null : id));
   };
 
+  const onCanvasClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (dragRef.current.moved) return;
+    const target = event.target as HTMLElement | SVGElement;
+    if (!target.closest(`.${styles.nodeGroup}`) && !target.closest(`.${styles.popup}`)) {
+      setSelectedId(null);
+    }
+  };
+
   const selectedIssues =
     selected?.issues && live
       ? live.issues.filter((issue) => selected.issues?.includes(issue.number))
@@ -276,64 +352,54 @@ export default function RoadmapMap() {
     popupPos = { left, top, maxHeight };
   }
 
+  // Sticky elements positioning:
+  // Lane labels stay pinned to the left edge of the viewport when panning horizontally
+  const stickyLaneX = Math.max(16, (16 - pan.x) / zoom);
+  // Timeline ticks and Today/Future labels stay pinned to the top edge of the canvas when panning vertically
+  const stickyHeaderY = Math.max(TOP - 32, (18 - pan.y) / zoom);
+
   return (
     <div className={styles.map}>
-      <div className={styles.controls}>
-        <div className={styles.toggleGroup} role="group" aria-label="Map detail level">
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${!detailed ? styles.toggleOn : ''}`}
-            onClick={() => setDetailed(false)}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            className={`${styles.toggleBtn} ${detailed ? styles.toggleOn : ''}`}
-            onClick={() => setDetailed(true)}
-          >
-            Detailed
-          </button>
+      <header className={styles.topBar}>
+        <Link className={styles.back} href="/">
+          ← Patternflow
+        </Link>
+        <h1 className={styles.mapTitle}>Project map</h1>
+        <div className={styles.headerRight}>
+          <div className={styles.toggleGroup} role="group" aria-label="Language">
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${lang === 'ko' ? styles.toggleOn : ''}`}
+              onClick={() => setLang('ko')}
+            >
+              한글
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${lang === 'en' ? styles.toggleOn : ''}`}
+              onClick={() => setLang('en')}
+            >
+              ENG
+            </button>
+          </div>
+          <div className={styles.toggleGroup} role="group" aria-label="Map detail level">
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${!detailed ? styles.toggleOn : ''}`}
+              onClick={() => setDetailed(false)}
+            >
+              {lang === 'ko' ? '개요' : 'Overview'}
+            </button>
+            <button
+              type="button"
+              className={`${styles.toggleBtn} ${detailed ? styles.toggleOn : ''}`}
+              onClick={() => setDetailed(true)}
+            >
+              {lang === 'ko' ? '상세보기' : 'Detailed'}
+            </button>
+          </div>
         </div>
-        <div className={styles.legend}>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchDone} /> shipped
-          </span>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchPlanned} /> planned
-          </span>
-          <span className={styles.legendItem}>
-            <span className={styles.swatchDep} /> dependency
-          </span>
-          <span className={styles.legendDrag}>drag to move</span>
-        </div>
-        <div className={styles.zoomGroup} role="group" aria-label="Zoom">
-          <button
-            type="button"
-            className={styles.zoomBtn}
-            aria-label="Zoom out"
-            onClick={() => zoomTo(zoom - 0.2)}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className={styles.zoomVal}
-            title="Reset zoom"
-            onClick={() => zoomTo(1)}
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <button
-            type="button"
-            className={styles.zoomBtn}
-            aria-label="Zoom in"
-            onClick={() => zoomTo(zoom + 0.2)}
-          >
-            +
-          </button>
-        </div>
-      </div>
+      </header>
 
       <div className={styles.viewport}>
         <div
@@ -343,6 +409,7 @@ export default function RoadmapMap() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onClick={onCanvasClick}
         >
           <div
             className={styles.layer}
@@ -370,47 +437,54 @@ export default function RoadmapMap() {
               </marker>
             </defs>
 
+            {/* Infinite Seamless Horizontal Lane Dividers */}
+            {Array.from({ length: 24 }, (_, i) => i - 6).map((idx) => {
+              const y = TOP + idx * LANE_H;
+              return (
+                <line
+                  key={`lane-divider-${idx}`}
+                  className={styles.gridLineHorizontal}
+                  x1={-5000}
+                  y1={y}
+                  x2={10000}
+                  y2={y}
+                />
+              );
+            })}
+
             <rect
               className={styles.futureZone}
               x={nowX}
-              y={TOP - 16}
-              width={width - nowX - 8}
-              height={HEIGHT - TOP - 8}
+              y={-2000}
+              width={12000}
+              height={7000}
             />
-            <text
-              className={styles.futureLabel}
-              x={nowX + (width - nowX) / 2}
-              y={TOP - 32}
-              textAnchor="middle"
-            >
-              future
-            </text>
 
+            {/* Infinite Seamless Vertical Month Ticks */}
             {TICKS.map((tick) => {
               const x =
                 GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
               return (
-                <g key={tick.label}>
-                  <line
-                    className={styles.gridLine}
-                    x1={x}
-                    y1={TOP - 16}
-                    x2={x}
-                    y2={HEIGHT - 24}
-                  />
-                  <text className={styles.tickText} x={x} y={TOP - 32} textAnchor="middle">
-                    {tick.label}
-                  </text>
-                </g>
+                <line
+                  key={`grid-line-${tick.label}`}
+                  className={styles.gridLineVertical}
+                  x1={x}
+                  y1={-2000}
+                  x2={x}
+                  y2={5000}
+                />
               );
             })}
 
-            {LANES.map((lane) => (
-              <text key={lane.id} className={styles.laneLabel} x={16} y={laneY(lane.id) + 5}>
-                {lane.label}
-              </text>
-            ))}
+            <line
+              className={styles.nowLine}
+              x1={nowX}
+              y1={-2000}
+              x2={nowX}
+              y2={5000}
+            />
 
+            {/* 2. Threads & dependency edges BEHIND nodes */}
             {LANES.map((lane) => {
               const row = nodes
                 .filter((n) => n.lane === lane.id)
@@ -442,7 +516,7 @@ export default function RoadmapMap() {
                   rx={16}
                 />
                 <text className={styles.gateLabel} x={gate.x + 6} y={gate.y - 14}>
-                  v3.0.0 — build release
+                  {lang === 'ko' ? 'v3.0.0 — 빌드 릴리스' : 'v3.0.0 — build release'}
                 </text>
               </g>
             )}
@@ -466,21 +540,10 @@ export default function RoadmapMap() {
               );
             })}
 
-            <line
-              className={styles.nowLine}
-              x1={nowX}
-              y1={TOP - 16}
-              x2={nowX}
-              y2={HEIGHT - 24}
-            />
-            <text className={styles.nowLabel} x={nowX - 10} y={TOP - 32} textAnchor="end">
-              today
-            </text>
-
+            {/* 3. Render Nodes */}
             {nodes.map((n) => {
               const isSelected = n.id === selectedId;
-              // Level 2 nodes only exist in the detailed view — give them a
-              // visibly secondary color so overview-level nodes keep priority.
+              const titleText = nodeTitle(n, lang);
               const secondary = n.level === 2 && !isSelected;
               const boxClass = isSelected
                 ? styles.nodeSelected
@@ -506,7 +569,7 @@ export default function RoadmapMap() {
                   className={styles.nodeGroup}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${n.title}, ${n.status}`}
+                  aria-label={`${titleText}, ${n.status}`}
                   onClick={() => handleNodeClick(n.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -529,7 +592,55 @@ export default function RoadmapMap() {
                     y={n.y + 5}
                     textAnchor="middle"
                   >
-                    {n.title}
+                    {titleText}
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* 4. Sticky Timeline Header Text ON TOP of nodes */}
+            <text
+              className={styles.futureLabel}
+              x={nowX + (width - nowX) / 2}
+              y={stickyHeaderY}
+              textAnchor="middle"
+            >
+              {lang === 'ko' ? '계획' : 'future'}
+            </text>
+
+            {TICKS.map((tick) => {
+              const x =
+                GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
+              return (
+                <text key={`tick-text-${tick.label}`} className={styles.tickText} x={x} y={stickyHeaderY} textAnchor="middle">
+                  {lang === 'ko' ? tick.labelKo : tick.label}
+                </text>
+              );
+            })}
+
+            <text className={styles.nowLabel} x={nowX - 10} y={stickyHeaderY} textAnchor="end">
+              {lang === 'ko' ? '현재' : 'today'}
+            </text>
+
+            {/* 5. Sticky Lane Labels ON TOP of nodes with frosted backdrop */}
+            {LANES.map((lane) => {
+              const laneName = lang === 'ko' ? lane.labelKo : lane.label;
+              const labelW = Math.round(laneName.length * (lang === 'ko' ? 14.5 : 11)) + 20;
+              return (
+                <g key={`sticky-lane-${lane.id}`}>
+                  <rect
+                    x={stickyLaneX - 8}
+                    y={laneY(lane.id) - 15}
+                    width={labelW}
+                    height={28}
+                    rx={6}
+                    fill="#fbf8f2"
+                    fillOpacity={0.94}
+                    stroke="var(--pf-rule)"
+                    strokeWidth={0.8}
+                  />
+                  <text className={styles.laneLabel} x={stickyLaneX} y={laneY(lane.id) + 5}>
+                    {laneName}
                   </text>
                 </g>
               );
@@ -551,7 +662,7 @@ export default function RoadmapMap() {
           >
               <div className={styles.popupHead}>
                 <span className={styles.popupDate}>
-                  {selected.status === 'planned' ? 'future' : selected.date}
+                  {selected.status === 'planned' ? (lang === 'ko' ? '계획' : 'future') : selected.date}
                 </span>
                 {selected.gate && <span className={styles.tagGate}>v3.0.0</span>}
                 <button
@@ -563,8 +674,8 @@ export default function RoadmapMap() {
                   ×
                 </button>
               </div>
-              <h2 className={styles.popupTitle}>{selected.title}</h2>
-              <p className={styles.popupBody}>{selected.detail}</p>
+              <h2 className={styles.popupTitle}>{nodeTitle(selected, lang)}</h2>
+              <p className={styles.popupBody}>{nodeDetail(selected, lang)}</p>
               {(selected.links?.length || selectedIssues.length > 0) && (
                 <div className={styles.popupLinks}>
                   {selected.links?.map((link) => (
@@ -586,11 +697,6 @@ export default function RoadmapMap() {
           </div>
         )}
 
-        <p className={styles.mapCaption}>
-          Hardware and guides gather into the v3.0.0 build release — what people physically build
-          from gets frozen per release. Firmware and pattern tools ship continuously. Planned
-          items are intentions, not promises.
-        </p>
       </div>
     </div>
   );
