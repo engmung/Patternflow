@@ -758,6 +758,29 @@
   background: #d9c8a4 !important;
 }
 
+.editorHeader .pasteButton {
+  background: #e8552e !important;
+  color: #ffffff !important;
+  border-color: #e8552e !important;
+  font-weight: 600;
+}
+
+.editorHeader .pasteButton:hover {
+  background: #d44722 !important;
+  border-color: #d44722 !important;
+}
+
+.editorHeader .clearButton {
+  background: #ffffff !important;
+  color: #171512 !important;
+  border: 1px solid rgba(23, 21, 18, 0.3) !important;
+}
+
+.editorHeader .clearButton:hover {
+  background: #f0eae1 !important;
+  border-color: #171512 !important;
+}
+
 .sweepBar {
   margin-top: 12px;
   padding-top: 12px;
@@ -1370,6 +1393,17 @@
   .editorHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .editorActions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .editorHeader button {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 11px;
   }
 
   .workspace {

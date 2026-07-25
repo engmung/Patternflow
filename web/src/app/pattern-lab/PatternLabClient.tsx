@@ -524,6 +524,8 @@ export default function PatternLabClient() {
   const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [cppPromptCopied, setCppPromptCopied] = useState(false);
+  const [pasted, setPasted] = useState(false);
+  const [cleared, setCleared] = useState(false);
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [communityShareOpen, setCommunityShareOpen] = useState(false);
@@ -1451,6 +1453,34 @@ export default function PatternLabClient() {
     window.setTimeout(() => setPromptCopied(false), 1200);
   };
 
+  const pasteFromClipboard = async () => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          updateCode(text);
+          setPasted(true);
+          window.setTimeout(() => setPasted(false), 1200);
+          return;
+        }
+      }
+    } catch {
+      // Permission blocked or unsupported in WebView — fall back to window.prompt
+    }
+    const fallbackText = window.prompt("붙여넣을 패턴 코드를 아래 상자에 입력하거나 붙여넣어 주세요:");
+    if (fallbackText !== null) {
+      updateCode(fallbackText);
+      setPasted(true);
+      window.setTimeout(() => setPasted(false), 1200);
+    }
+  };
+
+  const clearCode = () => {
+    updateCode("");
+    setCleared(true);
+    window.setTimeout(() => setCleared(false), 1200);
+  };
+
   const openKeyModal = () => {
     setKeyDraft(geminiKey);
     setKeyModalOpen(true);
@@ -2295,6 +2325,22 @@ ${codeWithMatrix(activeCode)}
                       ›
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    className={styles.pasteButton}
+                    onClick={pasteFromClipboard}
+                    title="Paste pattern code directly from clipboard"
+                  >
+                    {pasted ? "Pasted ✓" : "Paste"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.clearButton}
+                    onClick={clearCode}
+                    title="Clear all code in the editor"
+                  >
+                    {cleared ? "Cleared ✓" : "Clear"}
+                  </button>
                   <button type="button" onClick={copyVariantPrompt}>
                     {promptCopied ? "Copied" : "Copy prompt"}
                   </button>
