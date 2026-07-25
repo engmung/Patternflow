@@ -401,6 +401,19 @@
   padding: 1px 7px;
 }
 
+/* Shown only for patterns composed for something other than the stock panel. */
+.frameChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #6b655a;
+  border: 1px solid rgba(23, 21, 18, 0.28);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
 .empty {
   padding: 48px 0;
   text-align: center;

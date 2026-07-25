@@ -42,6 +42,22 @@ function clampDimension(value: number): number | null {
   return rounded;
 }
 
+/**
+ * For direct entry: pull a typed number into the supported range rather than
+ * rejecting it, so typing "4" settles on the minimum instead of silently doing
+ * nothing. Only a non-number fails.
+ */
+export function clampMatrixDimension(value: number): number | null {
+  if (!Number.isFinite(value)) return null;
+  return Math.max(MATRIX_MIN, Math.min(MATRIX_MAX, Math.round(value)));
+}
+
+/**
+ * Pixels per frame beyond which the JS preview starts to struggle — four times
+ * the stock panel. Not a limit, just the point worth warning about.
+ */
+export const MATRIX_HEAVY_PIXELS = 128 * 64 * 4;
+
 export function isValidMatrix(size: Partial<MatrixSize> | null | undefined): boolean {
   if (!size) return false;
   return clampDimension(Number(size.width)) !== null && clampDimension(Number(size.height)) !== null;

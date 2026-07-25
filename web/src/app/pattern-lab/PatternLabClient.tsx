@@ -38,7 +38,10 @@ import {
 } from "@/lib/gemini";
 import {
   DEFAULT_MATRIX,
-  formatMatrix,
+  MATRIX_HEAVY_PIXELS,
+  MATRIX_MAX,
+  MATRIX_MIN,
+  clampMatrixDimension,
   matchMatrixAnnotation,
   matrixesEqual,
   parseMatrixAnnotation,
@@ -553,6 +556,10 @@ export default function PatternLabClient() {
   );
   const resPreset = `${matrix.width}x${matrix.height}`;
   const isPresetMatrix = RESOLUTION_PRESETS.some((preset) => preset.value === resPreset);
+  // Direct W×H entry. Also shown unprompted for a frame that isn't one of the
+  // presets, which is how a community pattern's own @matrix line arrives.
+  const [customOpen, setCustomOpen] = useState(false);
+  const showCustomMatrix = customOpen || !isPresetMatrix;
   const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
   // Draft autosave: `draftReady` gates every write until the restore pass has
   // run, so the pre-restore initial state can never overwrite a saved draft.
@@ -912,6 +919,31 @@ export default function PatternLabClient() {
 
   /** Code as it leaves the lab: the frame it was composed for always attached. */
   const codeWithMatrix = (source: string) => withMatrixAnnotation(source, matrix);
+
+  // The W×H boxes are uncontrolled and keyed on the active frame: any change
+  // from elsewhere (a preset, a loaded pattern's @matrix line) remounts them
+  // with the new numbers, so they can't drift out of sync while half-typed.
+  const customWidthRef = useRef<HTMLInputElement | null>(null);
+  const customHeightRef = useRef<HTMLInputElement | null>(null);
+
+  const commitCustomMatrix = () => {
+    const width = clampMatrixDimension(Number(customWidthRef.current?.value));
+    const height = clampMatrixDimension(Number(customHeightRef.current?.value));
+    if (width === null || height === null) {
+      // Nonsense entry: put the active frame back rather than leaving the box
+      // showing something that isn't what the pattern is being drawn at.
+      if (customWidthRef.current) customWidthRef.current.value = String(matrix.width);
+      if (customHeightRef.current) customHeightRef.current.value = String(matrix.height);
+      return;
+    }
+    if (width !== matrix.width || height !== matrix.height) {
+      changeMatrix({ width, height });
+    } else {
+      // Clamped back to where we already were — reflect the clamp in the boxes.
+      if (customWidthRef.current) customWidthRef.current.value = String(width);
+      if (customHeightRef.current) customHeightRef.current.value = String(height);
+    }
+  };
 
   // ── Draft restore ──
   // Runs before the handoff effect below, so an explicit "Open in Pattern Lab"
@@ -1840,10 +1872,15 @@ ${codeWithMatrix(activeCode)}
               )}
               <select
                 className={styles.headerSelect}
-                value={resPreset}
+                value={showCustomMatrix ? "custom" : resPreset}
                 aria-label="Pattern frame"
                 title="The pixel grid this pattern is composed for. Written into the code as an @matrix line, and used for the AI prompt, the community preview, and the firmware export."
                 onChange={(event) => {
+                  if (event.target.value === "custom") {
+                    setCustomOpen(true);
+                    return;
+                  }
+                  setCustomOpen(false);
                   const [width, height] = event.target.value.split("x").map(Number);
                   if (Number.isFinite(width) && Number.isFinite(height)) {
                     changeMatrix({ width, height });
@@ -1855,10 +1892,48 @@ ${codeWithMatrix(activeCode)}
                     {preset.label}
                   </option>
                 ))}
-                {/* A pattern can declare any frame in its own @matrix line, so
-                    show whatever is active even when it is not a preset. */}
-                {!isPresetMatrix && <option value={resPreset}>{formatMatrix(matrix)} (custom)</option>}
+                <option value="custom">Custom…</option>
               </select>
+
+              {showCustomMatrix && (
+                <span className={styles.customMatrix}>
+                  {(["width", "height"] as const).map((edge, index) => (
+                    <span key={edge} className={styles.customMatrixField}>
+                      {index === 1 && <span aria-hidden="true">×</span>}
+                      <input
+                        // Remount on frame change so the box always shows the
+                        // frame actually in use.
+                        key={`${edge}-${matrix[edge]}`}
+                        ref={edge === "width" ? customWidthRef : customHeightRef}
+                        type="number"
+                        inputMode="numeric"
+                        min={MATRIX_MIN}
+                        max={MATRIX_MAX}
+                        defaultValue={matrix[edge]}
+                        aria-label={`Frame ${edge}`}
+                        title={`${MATRIX_MIN}–${MATRIX_MAX} pixels`}
+                        onBlur={commitCustomMatrix}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") event.currentTarget.blur();
+                          if (event.key === "Escape") {
+                            event.currentTarget.value = String(matrix[edge]);
+                            event.currentTarget.blur();
+                          }
+                        }}
+                      />
+                    </span>
+                  ))}
+                </span>
+              )}
+
+              {matrix.width * matrix.height > MATRIX_HEAVY_PIXELS && (
+                <span
+                  className={styles.frameWarning}
+                  title="Large frames cost proportionally more per preview frame, and the ESP32 has to fill every one of those pixels too."
+                >
+                  heavy
+                </span>
+              )}
             </div>
           </div>
 
