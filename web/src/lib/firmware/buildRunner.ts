@@ -44,7 +44,18 @@ export type BuildRunnerOptions = {
   compile?: Compiler;
 };
 
-export const FQBN = process.env.BUILD_FQBN ?? "esp32:esp32:esp32s3";
+/**
+ * Read when a build runs, not when this module loads.
+ *
+ * The worker calls loadEnv() in its own body, which under ES module semantics
+ * happens *after* every import has been evaluated — so anything reading
+ * process.env at module scope would capture the value from before .env.local
+ * was loaded and silently ignore it. Keeping every env read lazy removes the
+ * ordering question entirely.
+ */
+export function fqbn(): string {
+  return process.env.BUILD_FQBN ?? "esp32:esp32:esp32s3";
+}
 
 /** Files the assembler overwrites; everything else is copied once and left. */
 const GENERATED = /^(custom\d+\.h|pattern_registry\.h)$/;
@@ -132,7 +143,7 @@ export const arduinoCliCompiler: Compiler = ({ sketchDir, buildPath }) =>
     const bin = process.env.ARDUINO_CLI_PATH ?? "arduino-cli";
     const child = spawn(
       bin,
-      ["compile", "--fqbn", FQBN, "--build-path", buildPath, sketchDir],
+      ["compile", "--fqbn", fqbn(), "--build-path", buildPath, sketchDir],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
 
