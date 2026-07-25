@@ -1271,11 +1271,11 @@
   font-weight: 600;
 }
 
-/* ── Board ──
-   Plain-text discussion. Deliberately quiet next to the pattern feed: no
+/* ── Discussions ──
+   Plain-text threads. Deliberately quiet next to the pattern feed: no
    previews, no thumbnails, nothing that needs a sandbox. */
 
-.boardWrap {
+.discussionWrap {
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -1495,4 +1495,32 @@
 
 .inlineLink:hover {
   color: #e8552e;
+}
+
+/* Section switch in the header: Patterns vs Discussions. Underline rather than
+   a pill, so it reads as "where am I" and not as another filter control — the
+   feed already has pill tabs for sort and card size. */
+.sectionNav {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-left: 6px;
+}
+
+.sectionNav a {
+  padding: 2px 0;
+  border-bottom: 2px solid transparent;
+  color: #8c8577;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sectionNav a:hover {
+  color: #171512;
+}
+
+.sectionNav a[data-active="true"] {
+  color: #171512;
+  border-bottom-color: #e8552e;
 }

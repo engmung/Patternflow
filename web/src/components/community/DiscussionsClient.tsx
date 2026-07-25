@@ -10,7 +10,7 @@ import AuthModal from "./AuthModal";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
-// Board index: the thread list, plus an inline composer.
+// Discussions index: the thread list, plus an inline composer.
 //
 // The composer is inline rather than a separate /new page because a post here
 // is short — making someone navigate away to write three lines is more
@@ -32,7 +32,7 @@ function preview(body: string): string {
   return flat.length > 160 ? `${flat.slice(0, 160)}…` : flat;
 }
 
-export default function BoardClient({
+export default function DiscussionsClient({
   posts,
   page,
   pageSize,
@@ -76,7 +76,7 @@ export default function BoardClient({
       setBody("");
       setComposing(false);
       // Straight into the new thread — the author almost always wants to see it.
-      if (payload.id) router.push(`/community/board/${payload.id}`);
+      if (payload.id) router.push(`/community/discussions/${payload.id}`);
       else router.refresh();
     } catch {
       setError("Network error.");
@@ -86,7 +86,7 @@ export default function BoardClient({
   };
 
   return (
-    <div className={styles.boardWrap}>
+    <div className={styles.discussionWrap}>
       <div className={styles.introRow}>
         <span>Questions, build logs and anything else that isn&apos;t a pattern.</span>
         <span className={styles.headerSpacer} />
@@ -142,13 +142,13 @@ export default function BoardClient({
 
       {posts.length === 0 ? (
         <div className={styles.empty}>
-          Nothing on the board yet. Ask something, or write up what you built.
+          Nothing here yet. Ask something, or write up what you built.
         </div>
       ) : (
         <ul className={styles.postList}>
           {posts.map((post) => (
             <li key={post.id} className={styles.postRow}>
-              <Link href={`/community/board/${post.id}`} className={styles.postRowLink}>
+              <Link href={`/community/discussions/${post.id}`} className={styles.postRowLink}>
                 <span className={styles.postRowTitle}>
                   {post.title}
                   {post.commentCount > 0 && (
@@ -175,7 +175,7 @@ export default function BoardClient({
         <div className={styles.paginationBar}>
           <Link
             className={styles.pageBtn}
-            href={page > 0 ? `/community/board?page=${page - 1}` : "#"}
+            href={page > 0 ? `/community/discussions?page=${page - 1}` : "#"}
             aria-disabled={page === 0}
             data-disabled={page === 0}
             scroll={false}
@@ -188,7 +188,7 @@ export default function BoardClient({
           </span>
           <Link
             className={styles.pageBtn}
-            href={page < totalPages - 1 ? `/community/board?page=${page + 1}` : "#"}
+            href={page < totalPages - 1 ? `/community/discussions?page=${page + 1}` : "#"}
             aria-disabled={page >= totalPages - 1}
             data-disabled={page >= totalPages - 1}
             scroll={false}

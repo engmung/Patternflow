@@ -133,7 +133,7 @@ export const likes = sqliteTable(
   ],
 );
 
-// ── Board ────────────────────────────────────────────────────────────────────
+// ── Discussions ────────────────────────────────────────────────────────────────────
 // Plain-text discussion, separate from patterns. A post is a title and a body;
 // that's the whole feature. No attachments, no markup — bodies are stored as
 // typed and escaped by React on output, same rule as comments.
@@ -157,7 +157,7 @@ export const posts = sqliteTable(
 );
 
 /**
- * Board comments get their own table rather than a nullable `pattern_id` on
+ * Discussion comments get their own table rather than a nullable `pattern_id` on
  * `comments`. Relaxing that column would mean rebuilding a populated table in
  * SQLite, and a single table addressing two parents needs a constraint saying
  * exactly one is set — more moving parts than the small amount of duplication

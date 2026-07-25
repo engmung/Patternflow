@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/community/ratelimit";
 import { posts } from "@/lib/community/schema";
 import { cleanPostBody, cleanTitle } from "@/lib/community/validate";
 
-// POST /api/community/posts — start a board thread (login required).
+// POST /api/community/posts — start a discussion thread (login required).
 // Title and body are plain text, escaped by React on output.
 
 export async function POST(request: Request) {

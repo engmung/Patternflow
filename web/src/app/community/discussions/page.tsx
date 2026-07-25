@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { communityEnabled } from "@/lib/community/db";
 import { countPosts, listPosts } from "@/lib/community/queries";
-import BoardClient from "@/components/community/BoardClient";
+import DiscussionsClient from "@/components/community/DiscussionsClient";
 
-// The board: plain-text discussion that isn't attached to a pattern.
+// Discussions: plain-text threads that aren't attached to a pattern.
 //
 // Deliberately the boring half of the community. No previews, no sandboxes,
 // no thumbnails — a title, a body, and replies. That is why it can page in
@@ -12,13 +12,13 @@ import BoardClient from "@/components/community/BoardClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Board / Patternflow Community",
+  title: "Discussions / Patternflow Community",
   description: "Questions, build logs and discussion from the Patternflow community.",
 };
 
 const PAGE_SIZE = 20;
 
-export default async function CommunityBoardPage(props: {
+export default async function CommunityDiscussionsPage(props: {
   searchParams: Promise<{ page?: string }>;
 }) {
   if (!communityEnabled()) return null; // layout already rendered the notice
@@ -33,7 +33,7 @@ export default async function CommunityBoardPage(props: {
   ]);
 
   return (
-    <BoardClient
+    <DiscussionsClient
       posts={posts.map((post) => ({
         id: post.id,
         title: post.title,

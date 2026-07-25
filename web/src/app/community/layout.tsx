@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/db";
 import AuthStatus from "@/components/community/AuthStatus";
+import CommunityNav from "@/components/community/CommunityNav";
 import styles from "@/components/community/Community.module.css";
 
 export const metadata: Metadata = {
@@ -55,12 +56,12 @@ export default async function CommunityLayout({ children }: { children: React.Re
           <Link href="/community" className={styles.pageTitle}>
             Community
           </Link>
+          <CommunityNav />
           <div className={styles.headerSpacer} />
           {/* No Pattern Lab link here — the feed already has a prominent
               "Make one in Pattern Lab" button, and two of them read as two
               different destinations. */}
           <nav className={styles.headerNav}>
-            <Link href="/community/board">Board</Link>
             <AuthStatus />
           </nav>
         </header>

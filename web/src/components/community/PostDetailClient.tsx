@@ -10,7 +10,7 @@ import LinkedText from "./LinkedText";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
-// One board thread. Read-only for everyone; the author gets edit and delete.
+// One discussion thread. Read-only for everyone; the author gets edit and delete.
 
 export type PostView = {
   id: string;
@@ -79,7 +79,7 @@ export default function PostDetailClient({
         setError(payload.error ?? "Could not delete.");
         return;
       }
-      router.push("/community/board");
+      router.push("/community/discussions");
       router.refresh();
     } catch {
       setError("Network error.");
@@ -89,10 +89,10 @@ export default function PostDetailClient({
   };
 
   return (
-    <div className={styles.boardWrap}>
+    <div className={styles.discussionWrap}>
       <div className={styles.introRow}>
-        <Link href="/community/board" className={styles.backLink}>
-          ← Board
+        <Link href="/community/discussions" className={styles.backLink}>
+          ← Discussions
         </Link>
       </div>
 

@@ -183,7 +183,7 @@ export async function countLikes(patternId: string): Promise<number> {
   return rows[0]?.count ?? 0;
 }
 
-// ── Board ────────────────────────────────────────────────────────────────────
+// ── Discussions ────────────────────────────────────────────────────────────────────
 
 const postCommentCount = sql<number>`(SELECT COUNT(*) FROM ${postComments} WHERE ${postComments.postId} = ${posts.id})`;
 

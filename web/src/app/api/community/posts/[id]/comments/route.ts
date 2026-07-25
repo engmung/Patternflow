@@ -6,7 +6,7 @@ import { rateLimit } from "@/lib/community/ratelimit";
 import { postComments } from "@/lib/community/schema";
 import { cleanComment } from "@/lib/community/validate";
 
-// POST /api/community/posts/[id]/comments — reply to a board thread (login
+// POST /api/community/posts/[id]/comments — reply to a discussion thread (login
 // required). Same rules as pattern comments: plain text in, React escapes out.
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
