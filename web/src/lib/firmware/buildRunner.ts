@@ -107,7 +107,7 @@ export function checkFqbn(value = fqbn()): string | null {
 }
 
 /** Files the assembler overwrites; everything else is copied once and left. */
-const GENERATED = /^(custom\d+\.h|pattern_registry\.h)$/;
+const GENERATED = /^(custom\d+\.h|pattern_registry\.h|patternflow_secrets\.h)$/;
 
 async function pathExists(target: string): Promise<boolean> {
   try {
