@@ -18,9 +18,6 @@ export default function RoadmapPage() {
           ← Patternflow
         </Link>
         <h1 className={styles.mapTitle}>Project map</h1>
-        <a className={styles.repoLink} href={GITHUB_ISSUES_URL} target="_blank" rel="noreferrer">
-          Open issues on GitHub
-        </a>
       </header>
 
       <RoadmapMap />

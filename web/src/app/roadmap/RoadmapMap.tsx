@@ -208,6 +208,38 @@ export default function RoadmapMap() {
     setZoom(nz);
   };
 
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cursorX = event.clientX - rect.left;
+      const cursorY = event.clientY - rect.top;
+
+      const zoomFactor = event.deltaY < 0 ? 1.15 : 0.87;
+
+      setZoom((currentZoom) => {
+        const nextZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(currentZoom * zoomFactor * 100) / 100));
+        if (nextZoom === currentZoom) return currentZoom;
+
+        setPan((currentPan) => {
+          const newX = cursorX - ((cursorX - currentPan.x) / currentZoom) * nextZoom;
+          const newY = cursorY - ((cursorY - currentPan.y) / currentZoom) * nextZoom;
+          return clampPan(newX, newY, nextZoom);
+        });
+
+        return nextZoom;
+      });
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, [width, zoom]);
+
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = {
       active: true,
@@ -305,7 +337,7 @@ export default function RoadmapMap() {
           <span className={styles.legendItem}>
             <span className={styles.swatchDep} /> dependency
           </span>
-          <span className={styles.legendDrag}>drag to move</span>
+          <span className={styles.legendDrag}>drag to move · scroll to zoom</span>
         </div>
         <div className={styles.zoomGroup} role="group" aria-label="Zoom">
           <button
