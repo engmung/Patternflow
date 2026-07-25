@@ -72,13 +72,19 @@ const MAX_ZOOM = 1.8;
 const laneY = (lane: LaneId) =>
   TOP + LANES.findIndex((l) => l.id === lane) * LANE_H + LANE_H / 2;
 
+const nodeTitle = (n: RoadmapNode, lang: 'ko' | 'en') =>
+  lang === 'ko' && n.titleKo ? n.titleKo : n.title;
+
+const nodeDetail = (n: RoadmapNode, lang: 'ko' | 'en') =>
+  lang === 'ko' && n.detailKo ? n.detailKo : n.detail;
+
 const nodeWidth = (title: string) => Math.round(title.length * 9.2) + 32;
 
 type PlacedNode = RoadmapNode & { x: number; y: number; w: number };
 
 // Nodes never get squeezed back into the frame — the canvas is pannable, so
 // the drawing just grows to whatever width the layout needs.
-function layoutNodes(detailed: boolean): {
+function layoutNodes(detailed: boolean, lang: 'ko' | 'en'): {
   nodes: PlacedNode[];
   width: number;
   innerW: number;
@@ -86,7 +92,8 @@ function layoutNodes(detailed: boolean): {
   const innerW = (detailed ? DETAILED_W : OVERVIEW_W) - GUTTER - RIGHT_PAD;
   const visible = NODES.filter((n) => detailed || n.level === 1);
   const placed: PlacedNode[] = visible.map((n) => {
-    const w = nodeWidth(n.title);
+    const titleText = nodeTitle(n, lang);
+    const w = nodeWidth(titleText);
     return { ...n, w, x: GUTTER + dateToT(n.date) * innerW - w / 2, y: laneY(n.lane) };
   });
   let maxRight = GUTTER + innerW + RIGHT_PAD;
@@ -104,6 +111,7 @@ function layoutNodes(detailed: boolean): {
 }
 
 export default function RoadmapMap() {
+  const [lang, setLang] = useState<'ko' | 'en'>('ko');
   const [detailed, setDetailed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [live, setLive] = useState<RoadmapApiData | null>(null);
@@ -148,7 +156,7 @@ export default function RoadmapMap() {
     };
   }, []);
 
-  const { nodes, width, innerW } = useMemo(() => layoutNodes(detailed), [detailed]);
+  const { nodes, width, innerW } = useMemo(() => layoutNodes(detailed, lang), [detailed, lang]);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
 
@@ -311,33 +319,51 @@ export default function RoadmapMap() {
   return (
     <div className={styles.map}>
       <div className={styles.controls}>
+        <div className={styles.toggleGroup} role="group" aria-label="Language">
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${lang === 'ko' ? styles.toggleOn : ''}`}
+            onClick={() => setLang('ko')}
+          >
+            한글
+          </button>
+          <button
+            type="button"
+            className={`${styles.toggleBtn} ${lang === 'en' ? styles.toggleOn : ''}`}
+            onClick={() => setLang('en')}
+          >
+            ENG
+          </button>
+        </div>
         <div className={styles.toggleGroup} role="group" aria-label="Map detail level">
           <button
             type="button"
             className={`${styles.toggleBtn} ${!detailed ? styles.toggleOn : ''}`}
             onClick={() => setDetailed(false)}
           >
-            Overview
+            {lang === 'ko' ? '개요' : 'Overview'}
           </button>
           <button
             type="button"
             className={`${styles.toggleBtn} ${detailed ? styles.toggleOn : ''}`}
             onClick={() => setDetailed(true)}
           >
-            Detailed
+            {lang === 'ko' ? '상세보기' : 'Detailed'}
           </button>
         </div>
         <div className={styles.legend}>
           <span className={styles.legendItem}>
-            <span className={styles.swatchDone} /> shipped
+            <span className={styles.swatchDone} /> {lang === 'ko' ? '배포됨' : 'shipped'}
           </span>
           <span className={styles.legendItem}>
-            <span className={styles.swatchPlanned} /> planned
+            <span className={styles.swatchPlanned} /> {lang === 'ko' ? '계획됨' : 'planned'}
           </span>
           <span className={styles.legendItem}>
-            <span className={styles.swatchDep} /> dependency
+            <span className={styles.swatchDep} /> {lang === 'ko' ? '의존성' : 'dependency'}
           </span>
-          <span className={styles.legendDrag}>drag to move · scroll to zoom</span>
+          <span className={styles.legendDrag}>
+            {lang === 'ko' ? '드래그로 이동 · 스크롤로 확대/축소' : 'drag to move · scroll to zoom'}
+          </span>
         </div>
         <div className={styles.zoomGroup} role="group" aria-label="Zoom">
           <button
@@ -415,7 +441,7 @@ export default function RoadmapMap() {
               y={TOP - 32}
               textAnchor="middle"
             >
-              future
+              {lang === 'ko' ? '미래 예정' : 'future'}
             </text>
 
             {TICKS.map((tick) => {
@@ -439,7 +465,7 @@ export default function RoadmapMap() {
 
             {LANES.map((lane) => (
               <text key={lane.id} className={styles.laneLabel} x={16} y={laneY(lane.id) + 5}>
-                {lane.label}
+                {lang === 'ko' ? lane.labelKo : lane.label}
               </text>
             ))}
 
@@ -474,7 +500,7 @@ export default function RoadmapMap() {
                   rx={16}
                 />
                 <text className={styles.gateLabel} x={gate.x + 6} y={gate.y - 14}>
-                  v3.0.0 — build release
+                  {lang === 'ko' ? 'v3.0.0 — 빌드 릴리스' : 'v3.0.0 — build release'}
                 </text>
               </g>
             )}
@@ -506,13 +532,12 @@ export default function RoadmapMap() {
               y2={HEIGHT - 24}
             />
             <text className={styles.nowLabel} x={nowX - 10} y={TOP - 32} textAnchor="end">
-              today
+              {lang === 'ko' ? '오늘' : 'today'}
             </text>
 
             {nodes.map((n) => {
               const isSelected = n.id === selectedId;
-              // Level 2 nodes only exist in the detailed view — give them a
-              // visibly secondary color so overview-level nodes keep priority.
+              const titleText = nodeTitle(n, lang);
               const secondary = n.level === 2 && !isSelected;
               const boxClass = isSelected
                 ? styles.nodeSelected
@@ -538,7 +563,7 @@ export default function RoadmapMap() {
                   className={styles.nodeGroup}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${n.title}, ${n.status}`}
+                  aria-label={`${titleText}, ${n.status}`}
                   onClick={() => handleNodeClick(n.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
@@ -561,7 +586,7 @@ export default function RoadmapMap() {
                     y={n.y + 5}
                     textAnchor="middle"
                   >
-                    {n.title}
+                    {titleText}
                   </text>
                 </g>
               );
@@ -583,7 +608,7 @@ export default function RoadmapMap() {
           >
               <div className={styles.popupHead}>
                 <span className={styles.popupDate}>
-                  {selected.status === 'planned' ? 'future' : selected.date}
+                  {selected.status === 'planned' ? (lang === 'ko' ? '미래 예정' : 'future') : selected.date}
                 </span>
                 {selected.gate && <span className={styles.tagGate}>v3.0.0</span>}
                 <button
@@ -595,8 +620,8 @@ export default function RoadmapMap() {
                   ×
                 </button>
               </div>
-              <h2 className={styles.popupTitle}>{selected.title}</h2>
-              <p className={styles.popupBody}>{selected.detail}</p>
+              <h2 className={styles.popupTitle}>{nodeTitle(selected, lang)}</h2>
+              <p className={styles.popupBody}>{nodeDetail(selected, lang)}</p>
               {(selected.links?.length || selectedIssues.length > 0) && (
                 <div className={styles.popupLinks}>
                   {selected.links?.map((link) => (
@@ -619,9 +644,9 @@ export default function RoadmapMap() {
         )}
 
         <p className={styles.mapCaption}>
-          Hardware and guides gather into the v3.0.0 build release — what people physically build
-          from gets frozen per release. Firmware and pattern tools ship continuously. Planned
-          items are intentions, not promises.
+          {lang === 'ko'
+            ? '하드웨어와 가이드는 v3.0.0 빌드 릴리스로 통합 동결됩니다. 펌웨어와 패턴 도구는 지속적으로 배포되며, 예정 항목은 확정 고정이 아닌 개발 방향성입니다.'
+            : 'Hardware and guides gather into the v3.0.0 build release — what people physically build from gets frozen per release. Firmware and pattern tools ship continuously. Planned items are intentions, not promises.'}
         </p>
       </div>
     </div>
