@@ -11,9 +11,9 @@ Once you build these two components, you simply flash the firmware to bring your
 
 | Enclosure | Electronics | Firmware | Status |
 | --- | --- | --- | --- |
-| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Arduino IDE / Custom patterns](firmware/custom-patterns.md) | Supported now |
+| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Browser or Arduino IDE / Custom patterns](firmware/custom-patterns.md) | Supported now |
 
-This is the same path as the original build guide: PLA parts printed on a Bambu P1S or similar FDM printer, a hand-soldered Patternflow PCB, and firmware compiled/uploaded via Arduino IDE to support custom generative patterns.
+This is the same path as the original build guide: PLA parts printed on a Bambu P1S or similar FDM printer, a hand-soldered Patternflow PCB, and firmware flashed from the browser — or compiled locally in the Arduino IDE — to run custom generative patterns.
 
 ## Build Combinations
 
@@ -30,9 +30,11 @@ The custom PCB path is stable. PCBA may become a later electronics path for peop
 
 ## Firmware & Custom Patterns
 
-To bring your Patternflow hardware to life, you will compile and upload the firmware using the Arduino IDE. This setup allows you to **create and run your own generative patterns using AI coding assistants**.
+To bring your Patternflow hardware to life you flash it with firmware, and you can **create and run your own generative patterns using AI coding assistants**.
 
-- **[Create Custom Patterns (Recommended)](firmware/custom-patterns.md)** — Use our interactive web Live Editor and an AI assistant (Claude, ChatGPT, etc.) to generate, preview, and install your own visual patterns using the Arduino IDE.
+Custom patterns no longer need a local toolchain: the server compiles a firmware image containing your pattern and the browser writes it over USB. The Arduino IDE route remains for firmware development and offline work.
+
+- **[Create Custom Patterns (Recommended)](firmware/custom-patterns.md)** — Use our interactive web Live Editor and an AI assistant (Claude, ChatGPT, etc.) to generate, preview and install your own visual patterns, either straight from the browser or via the Arduino IDE.
 
 ## Legacy Guide
 

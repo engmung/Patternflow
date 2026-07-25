@@ -5,6 +5,8 @@ Patternflow includes a workflow for creating patterns without writing low-level 
 - **AI-assisted** — describe the pattern in plain language, paste the AI's output into the editor, tune knobs, copy to C++, flash. No shader knowledge required.
 - **Direct** — write the JavaScript pattern by hand in the editor, then convert to C++. For anyone comfortable with fragment-shader-style code.
 
+> **New: you no longer need the Arduino IDE.** The last step — turning a pattern into firmware and getting it onto the board — now runs in the browser: the server compiles, your browser flashes over USB. See [step 5](#5-convert-to-c-and-flash). The Arduino IDE route still works and is still the right one for firmware development.
+
 The 5-step path below is the AI-assisted route. The direct route reuses the same editor; skip to [Direct coding](#direct-coding-no-ai) if you don't need AI help.
 
 ---
@@ -42,11 +44,29 @@ When you're happy with how it looks:
 
 1. Click **Copy C++ prompt**. This bundles your final JS together with a conversion prompt and copies the whole thing to your clipboard.
 2. Paste into your AI assistant again. It returns C++ in Patternflow's namespace format.
-3. Save that C++ output as `pattern_yourname.h` inside `firmware/patternflow/`.
-4. Open `pattern_registry.h` and add two lines (see [Installing your pattern](#installing-your-pattern) below).
-5. Open `patternflow.ino` in Arduino IDE, select your ESP32-S3 port, and upload.
+3. Put it on the device. **Two routes, same result** — pick either:
+
+#### Route A — from the browser (nothing to install)
+
+In **Pattern Lab**, press **Build firmware**, paste the C++ your assistant returned, and press build. A server compiles a complete firmware image with your pattern in it — about fifteen seconds — and the browser writes it to the board over USB.
+
+No Arduino IDE, no board package, no editing `pattern_registry.h`: the registry entry is generated from the namespace in your header. A community pattern already marked `.h` skips steps 1–2 entirely and offers **Flash to my board**.
+
+Requirements: desktop **Chrome or Edge** (browser flashing needs Web Serial, which Firefox and Safari do not implement) and a USB cable. Wireless updates are [planned but not built](../../issues/232).
+
+If the build fails you get the compiler's own error. The usual causes are a helper the firmware already provides being redefined, or a type that differs from the JavaScript original.
+
+#### Route B — from the Arduino IDE (local build)
+
+1. Save the C++ output as `pattern_yourname.h` inside `firmware/patternflow/`.
+2. Open `pattern_registry.h` and add two lines (see [Installing your pattern](#installing-your-pattern) below).
+3. Open `patternflow.ino` in Arduino IDE, select your ESP32-S3 port, and upload.
+
+Still the route for changing anything beyond a pattern — firmware development, config edits, working offline, or building for a board you cannot plug into this machine.
 
 Long-press encoder 4 on the device to cycle to your new pattern.
+
+> Either route flashes a **whole firmware image**, so whatever was in the custom slots is replaced. The preset library is compiled in every time, so you never lose those.
 
 ---
 

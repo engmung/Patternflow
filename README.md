@@ -81,12 +81,15 @@ Patternflow ships with a prompt template designed for AI coding assistants (Clau
 2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
 3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
 4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
-5. Open `firmware/patternflow/patternflow.ino` in the Arduino IDE — the custom slots and the registry open right alongside it as editor tabs, so everything happens in one window.
-6. In the `custom1.h` (or `custom2.h` / `custom3.h`) tab, paste the C++ output **as-is**. Grab the pattern's namespace name from the bottom of the file (`} // namespace YourPatternName`), paste it into that slot's `PATTERN_ENTRY(...)` line in the `pattern_registry.h` tab, and hit flash. To add more slots, see [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+5. Put it on the device — **from the browser**, or from the Arduino IDE if you prefer:
+
+**From the browser** — in **Pattern Lab**, press **Build firmware**, paste the C++ your assistant returned, and press build. A server compiles a complete firmware image with your pattern in it — about fifteen seconds — and your browser writes it to the board over USB. Nothing to install: no IDE, no board package, no editing the pattern registry by hand. Community patterns marked `.h` skip the conversion entirely and offer **Flash to my board** directly. Needs desktop Chrome or Edge (browser flashing uses Web Serial) and a USB cable — wireless updates are [planned, not built](../../issues/232).
+
+**From the Arduino IDE** — open `firmware/patternflow/patternflow.ino`; the custom slots and the registry open alongside it as editor tabs. Paste the C++ into `custom1.h` (or `custom2.h` / `custom3.h`) **as-is**, take the namespace from the bottom of the file (`} // namespace YourPatternName`), add it to that slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h`, and flash. Still the route for changing anything beyond a pattern, or working offline. See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
-Custom patterns require a local Arduino IDE compile/upload step for now.
+Either way you are flashing a whole firmware image, so the custom slots are replaced — the preset library always comes along.
 
 ## The website
 

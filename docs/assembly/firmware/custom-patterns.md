@@ -4,12 +4,22 @@ Status: supported now.
 
 Use this path when you want to run your own pattern on Patternflow hardware.
 
-The important distinction:
+Two routes, and the browser one is new:
 
-- The browser flasher installs the official release firmware.
-- Custom patterns require a local Arduino IDE build.
+- **From the browser** — the server compiles a firmware image containing your pattern and the browser flashes it over USB. Nothing to install.
+- **From the Arduino IDE** — a local build. Still the route for firmware development, config changes, or working offline.
 
-## Workflow
+## Workflow — from the browser
+
+1. Open the Patternflow Live Editor at [patternflow.work](https://patternflow.work).
+2. Make or tune a JavaScript pattern.
+3. Click **Copy C++ prompt** and use an AI assistant to convert the pattern.
+4. In **Pattern Lab**, press **Build firmware**, paste the C++, and build. Takes about fifteen seconds.
+5. Press **Flash to my Patternflow** and pick the serial port.
+
+Needs desktop Chrome or Edge — browser flashing uses Web Serial, which Firefox and Safari do not implement — and a USB cable. A community pattern already marked `.h` skips steps 2–4 and offers **Flash to my board** directly.
+
+## Workflow — from the Arduino IDE
 
 1. Open the Patternflow Live Editor at [patternflow.work](https://patternflow.work).
 2. Make or tune a JavaScript pattern.
