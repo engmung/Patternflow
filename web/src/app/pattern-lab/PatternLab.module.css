@@ -130,7 +130,12 @@
 .matrixFrame {
   position: relative;
   width: 100%;
+  /* Overridden inline with the active pattern's frame; 2:1 is the stock panel
+     and the fallback. Capped so a tall frame can't push the knobs off screen —
+     when the cap bites, the canvas just letterboxes inside the stage. */
   aspect-ratio: 2 / 1;
+  max-height: 58vh;
+  margin-inline: auto;
   display: flex;
   align-items: center;
   justify-content: center;

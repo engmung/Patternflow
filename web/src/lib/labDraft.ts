@@ -14,8 +14,9 @@
 // by an older build, or hand-edited, must degrade to "no draft" rather than
 // crash the lab on boot.
 
-import { COLOR_MODES, ORIENTATIONS, THINKING_LEVELS } from "@/lib/gemini";
-import type { ColorMode, Orientation, PatternVariant, ThinkingLevelKey } from "@/lib/gemini";
+import { COLOR_MODES, THINKING_LEVELS } from "@/lib/gemini";
+import type { ColorMode, PatternVariant, ThinkingLevelKey } from "@/lib/gemini";
+import { isValidMatrix, type MatrixSize } from "@/lib/patternMatrix";
 
 export const DRAFT_STORAGE = "patternflow_lab_draft_v1";
 export const GALLERY_STORAGE = "patternflow_lab_gallery_v1";
@@ -27,7 +28,6 @@ const MAX_GALLERY_ITEMS = 48;
 export type DraftGenSettings = {
   count: number;
   thinking: ThinkingLevelKey;
-  orientation: Orientation;
   refs: number;
   colorMode: ColorMode;
 };
@@ -40,7 +40,11 @@ export type LabDraft = {
   knobLabels: string[];
   /** Not part of the ramp payload, but the user's ramp decision all the same. */
   recolor: boolean;
-  resPreset: string;
+  /**
+   * Fallback only. The code's own `// @matrix` line is authoritative — this
+   * covers drafts whose code predates the annotation.
+   */
+  matrix: MatrixSize;
   editorView: "code" | "gallery" | "experiment";
   forkOf: { id: string; title: string } | null;
   gen: DraftGenSettings;
@@ -107,6 +111,21 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
   return allowed.includes(value as T) ? (value as T) : fallback;
 }
 
+// Accepts the current `{width, height}` shape and the older `resPreset: "128x64"`
+// string, so a draft written before the frame rework still restores.
+function readMatrix(raw: Record<string, unknown>): MatrixSize | undefined {
+  const candidate = raw.matrix as Partial<MatrixSize> | undefined;
+  if (isValidMatrix(candidate)) {
+    return { width: Number(candidate!.width), height: Number(candidate!.height) };
+  }
+  if (typeof raw.resPreset === "string") {
+    const [w, h] = raw.resPreset.split("x");
+    const legacy = { width: Number(w), height: Number(h) };
+    if (isValidMatrix(legacy)) return legacy;
+  }
+  return undefined;
+}
+
 export function loadDraft(knobCount: number): Partial<LabDraft> | null {
   const parsed = readJson(DRAFT_STORAGE);
   if (!parsed || typeof parsed !== "object") return null;
@@ -138,13 +157,12 @@ export function loadDraft(knobCount: number): Partial<LabDraft> | null {
     ranges: rangeArray(raw.ranges, knobCount) ?? undefined,
     knobLabels: stringArray(raw.knobLabels, knobCount) ?? undefined,
     recolor: typeof raw.recolor === "boolean" ? raw.recolor : undefined,
-    resPreset: typeof raw.resPreset === "string" ? raw.resPreset.slice(0, 20) : undefined,
+    matrix: readMatrix(raw),
     editorView: oneOf(raw.editorView, ["code", "gallery", "experiment"] as const, "code"),
     forkOf,
     gen: {
       count: Number.isFinite(genCount) ? genCount : 5,
       thinking: oneOf<ThinkingLevelKey>(gen.thinking, THINKING_LEVELS, "LOW"),
-      orientation: oneOf<Orientation>(gen.orientation, ORIENTATIONS, "landscape"),
       refs: Number.isFinite(genRefs) ? genRefs : 6,
       colorMode: oneOf<ColorMode>(gen.colorMode, COLOR_MODES, "vfield"),
     },

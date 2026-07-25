@@ -27,17 +27,24 @@ import {
   COLOR_MODES,
   GEMINI_MODEL,
   GEMINI_THINKING_LEVEL,
-  ORIENTATIONS,
   THINKING_LEVELS,
   buildVariantCopyPrompt,
   generatePatternVariants,
   loadGeminiKey,
   saveGeminiKey,
   type ColorMode,
-  type Orientation,
   type PatternVariant,
   type ThinkingLevelKey,
 } from "@/lib/gemini";
+import {
+  DEFAULT_MATRIX,
+  formatMatrix,
+  matchMatrixAnnotation,
+  matrixesEqual,
+  parseMatrixAnnotation,
+  withMatrixAnnotation,
+  type MatrixSize,
+} from "@/lib/patternMatrix";
 import {
   DEFAULT_PATCH,
   MAX_PATCH_LAYERS,
@@ -127,6 +134,15 @@ const presetKnobs = initialKnobs.map((value, index) => {
   const entry = initialAnnotation?.[index];
   return entry ? Math.max(entry.min, Math.min(entry.max, value)) : value;
 });
+// Frames offered in the header picker. Any other size is still legal — it can
+// arrive from a pattern's own @matrix line, or (later) from direct entry — and
+// is shown as an extra option rather than being snapped to a preset.
+const RESOLUTION_PRESETS = [
+  { value: "128x64", label: "128 × 64 (Patternflow Standard)" },
+  { value: "64x128", label: "64 × 128 (Patternflow Vertical)" },
+  { value: "64x64", label: "64 × 64 (Square)" },
+];
+
 const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
 const pixelsPerDigitStep = 10;
@@ -168,11 +184,11 @@ function paintCanvas(
   context.putImageData(imageData, 0, 0);
 }
 
-function dataToUrl(data: Uint8ClampedArray) {
+function dataToUrl(data: Uint8ClampedArray, size: MatrixSize) {
   const canvas = document.createElement("canvas");
-  canvas.width = PATTERN_MATRIX_WIDTH;
-  canvas.height = PATTERN_MATRIX_HEIGHT;
-  paintCanvas(canvas, data);
+  canvas.width = size.width;
+  canvas.height = size.height;
+  paintCanvas(canvas, data, size.width, size.height);
   return canvas.toDataURL("image/png");
 }
 
@@ -389,9 +405,13 @@ function VariantPreview({
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Each card renders at the frame its own code declares — a gallery can hold
+  // patterns composed for different frames (a 64×128 run sitting above an
+  // earlier 128×64 one).
+  const cardMatrix = useMemo(() => parseMatrixAnnotation(code) ?? DEFAULT_MATRIX, [code]);
 
   useEffect(() => {
-    const runtime = new PatternRuntime();
+    const runtime = new PatternRuntime(cardMatrix.width, cardMatrix.height);
     const load = runtime.loadCode(code);
     let frameId = 0;
     if (!load.ok) {
@@ -399,7 +419,9 @@ function VariantPreview({
       frameId = requestAnimationFrame(() => setError(load.error ?? "Pattern failed to load."));
       return () => cancelAnimationFrame(frameId);
     }
-    if (canvasRef.current) paintCanvas(canvasRef.current, runtime.data);
+    if (canvasRef.current) {
+      paintCanvas(canvasRef.current, runtime.data, runtime.width, runtime.height);
+    }
 
     let previousKnobs = [...knobsRef.current];
     let lastNow = performance.now();
@@ -440,13 +462,15 @@ function VariantPreview({
         setError(result.error ?? "Runtime error.");
         return;
       }
-      if (canvasRef.current) paintCanvas(canvasRef.current, runtime.data);
+      if (canvasRef.current) {
+        paintCanvas(canvasRef.current, runtime.data, runtime.width, runtime.height);
+      }
       frameId = requestAnimationFrame(tick);
     };
 
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [code, knobsRef, rangesRef, rampRef, recolorRef]);
+  }, [code, cardMatrix, knobsRef, rangesRef, rampRef, recolorRef]);
 
   return (
     <button
@@ -459,8 +483,9 @@ function VariantPreview({
       <div className={styles.variantFrame}>
         <canvas
           ref={canvasRef}
-          width={PATTERN_MATRIX_WIDTH}
-          height={PATTERN_MATRIX_HEIGHT}
+          width={cardMatrix.width}
+          height={cardMatrix.height}
+          style={{ aspectRatio: `${cardMatrix.width} / ${cardMatrix.height}` }}
           aria-label={`${name} preview`}
         />
         {error && <div className={styles.variantError}>{error}</div>}
@@ -513,20 +538,21 @@ export default function PatternLabClient() {
   const [selectMode, setSelectMode] = useState(false);
   const [genCount, setGenCount] = useState(5);
   const [genThinking, setGenThinking] = useState<ThinkingLevelKey>(GEMINI_THINKING_LEVEL);
-  const [genOrientation, setGenOrientation] = useState<Orientation>("landscape");
   const [genRefs, setGenRefs] = useState(DEFAULT_REF_COUNT);
   const [genColorMode, setGenColorMode] = useState<ColorMode>("vfield");
   const [rampState, setRampState] = useState<RampState>(DEFAULT_RAMP);
   const [recolor, setRecolor] = useState(false);
   const [selectedStopIndex, setSelectedStopIndex] = useState(0);
   const [editorView, setEditorView] = useState<"code" | "gallery" | "experiment">("code");
-  const [resPreset, setResPreset] = useState<string>("128x64");
-  const [resWidth, resHeight] = useMemo(() => {
-    const [wStr, hStr] = resPreset.split("x");
-    const w = parseInt(wStr ?? "128", 10) || 128;
-    const h = parseInt(hStr ?? "64", 10) || 64;
-    return [w, h];
-  }, [resPreset]);
+  // The pattern's LOGICAL frame — what it draws into, and what a viewer sees.
+  // Single source of truth: there is no separate "orientation", because a
+  // 64×128 frame already *is* portrait. Travels with the code as a `// @matrix`
+  // line so the community, the sandbox and the firmware all agree.
+  const [matrix, setMatrix] = useState<MatrixSize>(
+    () => parseMatrixAnnotation(initialLabPreset.code) ?? DEFAULT_MATRIX,
+  );
+  const resPreset = `${matrix.width}x${matrix.height}`;
+  const isPresetMatrix = RESOLUTION_PRESETS.some((preset) => preset.value === resPreset);
   const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
   // Draft autosave: `draftReady` gates every write until the restore pass has
   // run, so the pre-restore initial state can never overwrite a saved draft.
@@ -605,7 +631,9 @@ export default function PatternLabClient() {
   };
 
   const sendPatchToEditor = () => {
-    updateCode(patchCode);
+    // The patch compiler doesn't emit an @matrix line, so stamp the lab's
+    // current frame on the way into the editor.
+    updateCode(withMatrixAnnotation(patchCode, matrix));
     setEditorView("code");
   };
 
@@ -803,7 +831,7 @@ export default function PatternLabClient() {
 
   const loadCode = useCallback(
     (nextCode: string) => {
-      const runtime = new PatternRuntime(resWidth, resHeight);
+      const runtime = new PatternRuntime(matrix.width, matrix.height);
       const result = runtime.loadCode(nextCode);
       runtimeRef.current = runtime;
       previousKnobsRef.current = [...knobsRef.current];
@@ -814,7 +842,7 @@ export default function PatternLabClient() {
         paintCanvas(canvasRef.current, runtime.data, runtime.width, runtime.height);
       }
     },
-    [resWidth, resHeight, setRuntimeErrorSafe],
+    [matrix, setRuntimeErrorSafe],
   );
 
   useEffect(() => {
@@ -848,12 +876,42 @@ export default function PatternLabClient() {
     );
   };
 
+  // ── @matrix ↔ the frame picker ──
+  // Same change-detection trick as @knobs: apply the annotation only when the
+  // line itself changes, so a manual frame switch survives the next keystroke.
+  // Code that declares no frame is a legacy pattern, which means 128×64.
+  const lastMatrixAnnotationRef = useRef<string | null>(
+    matchMatrixAnnotation(initialLabPreset.code),
+  );
+
+  const applyMatrixAnnotation = (nextCode: string) => {
+    const raw = matchMatrixAnnotation(nextCode);
+    if (raw === lastMatrixAnnotationRef.current) return;
+    lastMatrixAnnotationRef.current = raw;
+    setMatrix(parseMatrixAnnotation(nextCode) ?? DEFAULT_MATRIX);
+  };
+
   // Single entry point for replacing the editor code so annotations apply on
   // every path (typing/pasting, gallery load, preset step, patch send).
   const updateCode = (nextCode: string) => {
     applyKnobsAnnotation(nextCode);
+    applyMatrixAnnotation(nextCode);
     setCode(nextCode);
   };
+
+  // The other direction. Picking a frame rewrites the code's @matrix line so
+  // the editor and the picker can never disagree — that disagreement is exactly
+  // what made generated patterns come out cropped and over-zoomed.
+  const changeMatrix = (next: MatrixSize) => {
+    if (matrixesEqual(next, matrix)) return;
+    setMatrix(next);
+    const nextCode = withMatrixAnnotation(code, next);
+    lastMatrixAnnotationRef.current = matchMatrixAnnotation(nextCode);
+    setCode(nextCode);
+  };
+
+  /** Code as it leaves the lab: the frame it was composed for always attached. */
+  const codeWithMatrix = (source: string) => withMatrixAnnotation(source, matrix);
 
   // ── Draft restore ──
   // Runs before the handoff effect below, so an explicit "Open in Pattern Lab"
@@ -866,23 +924,27 @@ export default function PatternLabClient() {
       return;
     }
 
-    // Device/generation settings are safe to restore either way — a handoff
-    // carries code, not lab settings.
-    if (draft.resPreset) setResPreset(draft.resPreset);
+    // Generation settings are safe to restore either way — a handoff carries
+    // code, not lab settings.
     if (typeof draft.recolor === "boolean") setRecolor(draft.recolor);
     if (draft.gen) {
       setGenCount(draft.gen.count);
       setGenThinking(draft.gen.thinking);
-      setGenOrientation(draft.gen.orientation);
       setGenRefs(draft.gen.refs);
       setGenColorMode(draft.gen.colorMode);
     }
 
     if (readLabHandoff() === null) {
       // The draft's knob labels/ranges are the user's own tuning, so seed the
-      // annotation guard with the draft's own @knobs line — otherwise the next
-      // edit would look like "new annotation" and reset that tuning.
+      // annotation guards with the draft's own lines — otherwise the next edit
+      // would look like "new annotation" and reset that tuning.
       lastKnobsAnnotationRef.current = draft.code?.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
+      lastMatrixAnnotationRef.current = draft.code ? matchMatrixAnnotation(draft.code) : null;
+      // The code's own @matrix line wins; the stored frame only covers drafts
+      // saved before annotations existed.
+      const draftMatrix =
+        (draft.code ? parseMatrixAnnotation(draft.code) : null) ?? draft.matrix ?? null;
+      if (draftMatrix) setMatrix(draftMatrix);
       if (draft.code) setCode(draft.code);
       if (draft.knobs) {
         setKnobs(draft.knobs);
@@ -910,13 +972,12 @@ export default function PatternLabClient() {
         ranges,
         knobLabels,
         recolor,
-        resPreset,
+        matrix,
         editorView,
         forkOf,
         gen: {
           count: genCount,
           thinking: genThinking,
-          orientation: genOrientation,
           refs: genRefs,
           colorMode: genColorMode,
         },
@@ -930,12 +991,11 @@ export default function PatternLabClient() {
     ranges,
     knobLabels,
     recolor,
-    resPreset,
+    matrix,
     editorView,
     forkOf,
     genCount,
     genThinking,
-    genOrientation,
     genRefs,
     genColorMode,
   ]);
@@ -957,6 +1017,8 @@ export default function PatternLabClient() {
     setForkOf(null);
     setEditorView("code");
     lastKnobsAnnotationRef.current = initialAnnotationRaw;
+    lastMatrixAnnotationRef.current = matchMatrixAnnotation(initialLabPreset.code);
+    setMatrix(parseMatrixAnnotation(initialLabPreset.code) ?? DEFAULT_MATRIX);
     setCode(initialLabPreset.code);
     setKnobs(presetKnobs);
     setRanges(presetRanges);
@@ -1311,6 +1373,8 @@ export default function PatternLabClient() {
       const targets = knobs.map((knob, index) => index === activeSweepKnob ? targetValue : knob);
       const knobStart = ranges.map(getRangeMidpoint);
       const result = renderPatternStill(activeCode, {
+        width: matrix.width,
+        height: matrix.height,
         knobStart,
         knobTargets: targets,
         knobRanges: ranges,
@@ -1319,7 +1383,7 @@ export default function PatternLabClient() {
         ramp,
         recolor,
       });
-      const src = dataToUrl(result.data);
+      const src = dataToUrl(result.data, matrix);
       return {
         id: `${Date.now()}-${activeSweepKnob}-${value}`,
         src,
@@ -1331,14 +1395,14 @@ export default function PatternLabClient() {
 
   const copyManifest = async () => {
     const payload = {
-      matrix: { width: PATTERN_MATRIX_WIDTH, height: PATTERN_MATRIX_HEIGHT },
+      matrix: { width: matrix.width, height: matrix.height },
       knobs: Object.fromEntries(knobs.map((value, index) => [`knob${index + 1}`, value])),
       ranges: Object.fromEntries(ranges.map((range, index) => [`knob${index + 1}`, range])),
       normalizedKnobs: Object.fromEntries(
         getNormalizedKnobs(knobs, ranges).map((value, index) => [`knob${index + 1}`, value]),
       ),
       esp32Cost: cost,
-      code: activeCode,
+      code: codeWithMatrix(activeCode),
     };
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopied(true);
@@ -1346,7 +1410,9 @@ export default function PatternLabClient() {
   };
 
   const copyVariantPrompt = async () => {
-    await navigator.clipboard.writeText(buildVariantCopyPrompt(activeCode, knobs, ranges, genColorMode));
+    await navigator.clipboard.writeText(
+      buildVariantCopyPrompt(activeCode, knobs, ranges, genColorMode, matrix),
+    );
     setPromptCopied(true);
     window.setTimeout(() => setPromptCopied(false), 1200);
   };
@@ -1396,7 +1462,7 @@ export default function PatternLabClient() {
     const examples = sampleExamples(activeCode, genRefs);
     const seedWithCurrent = genRefs > 0;
 
-    generatePatternVariants({ apiKey: geminiKey, code: activeCode, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, orientation: genOrientation, seedWithCurrent, colorMode: genColorMode })
+    generatePatternVariants({ apiKey: geminiKey, code: activeCode, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, matrix, seedWithCurrent, colorMode: genColorMode })
       .then((items) => {
         if (removedJobsRef.current.has(jobId)) return;
         const stamped: GalleryItem[] = items.map((item, index) => ({ ...item, id: `${jobId}-${index}` }));
@@ -1496,6 +1562,26 @@ export default function PatternLabClient() {
   };
 
   const buildCppPrompt = () => {
+    // ── Frame ──
+    // A pattern composed for the panel's own grid compiles exactly as it
+    // always did: loop PANEL_RES_W/H, write PFCanvas::setPixel, done. Any
+    // other grid declares itself to the canvas, which owns the single
+    // logical→physical mapping (see firmware/patternflow/src/core_canvas.h).
+    // The model is never asked to rotate coordinates itself — that is the
+    // mistake this whole rework exists to remove.
+    const isPanelFrame = matrix.width === PATTERN_MATRIX_WIDTH && matrix.height === PATTERN_MATRIX_HEIGHT;
+    const frameSection = isPanelFrame
+      ? `- Use PANEL_RES_W and PANEL_RES_H for the pixel loops.
+`
+      : `- FRAME: this pattern is composed for a ${matrix.width} × ${matrix.height} grid, which is NOT the panel's ${PATTERN_MATRIX_WIDTH} × ${PATTERN_MATRIX_HEIGHT}. Handle it exactly like this and in no other way:
+    - Declare the grid in the namespace: \`constexpr int FRAME_W = ${matrix.width}; constexpr int FRAME_H = ${matrix.height};\`
+    - Make \`PFCanvas::setFrame(FRAME_W, FRAME_H);\` the FIRST line of draw().
+    - Loop over FRAME_W / FRAME_H — not PANEL_RES_W / PANEL_RES_H — and pass those same logical x, y straight to PFCanvas::setPixel.
+    - Do NOT rotate, swap, mirror, offset, or otherwise transform the coordinates yourself, and do not mention the panel's dimensions anywhere in the drawing math. PFCanvas::setFrame installs the mapping and setPixel applies it; doing it a second time turns the pattern the wrong way.
+    - Do NOT use PFTables::rT / PFTables::thetaT. Those tables are indexed by the PANEL grid and measured from the panel's centre, so they are wrong for this frame. Compute radius with sqrtf and angle with PFMath::fastAtan2 from the FRAME centre (FRAME_W * 0.5f, FRAME_H * 0.5f) instead, and do not call PFTables::init().
+    - Size any per-pixel buffer by FRAME_W * FRAME_H.
+`;
+
     const rangeLines = ranges
       .map((range, index) => {
         const detentStep = LOGICAL_KNOB_UNITS_PER_TURN[index] / 20;
@@ -1603,7 +1689,7 @@ Helper signatures — these are the FULL argument lists. Call them exactly like 
     static float* buf = nullptr;  buf = PFMem::allocFloats(count);     // in setup(); PSRAM-first, returns zeroed memory (or nullptr)
 
 Other interface rules:
-- Use PANEL_RES_W and PANEL_RES_H. Never hardcode 128 or 64.
+${frameSection}- Never hardcode pixel dimensions as literals. Use the frame constants named above.
 - All pixel writes go through PFCanvas::setPixel(x, y, r, g, b). Never call dma_display->drawPixelRGB888 directly.
 - The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
 - Macro collisions: Arduino.h and config.h define macros that will preprocessor-mangle same-named declarations into compile errors. Do NOT define your own variables, constants, or functions named PI, TWO_PI, HALF_PI, DEG_TO_RAD, RAD_TO_DEG, EULER, min, max, abs, sq, round, radians, degrees, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, or FREQ_STEP. Use the existing PI / TWO_PI constants directly, use fminf/fmaxf/fabsf for your own helpers, and prefix pattern constants with the pattern name (e.g. CELLS_TWO_PI, CELLS_SPEED_STEP).
@@ -1696,11 +1782,15 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
       usesValueField
         ? "\n9. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
         : ""
+    }${
+      isPanelFrame
+        ? ""
+        : `\n${usesValueField ? "10" : "9"}. Is PFCanvas::setFrame(FRAME_W, FRAME_H) the first line of draw(), do all loops run over FRAME_W/FRAME_H, and did I avoid transforming the coordinates myself or touching PFTables?`
     }
 
 ## JavaScript source
 \`\`\`javascript
-${activeCode}
+${codeWithMatrix(activeCode)}
 \`\`\``;
 
   };
@@ -1751,29 +1841,36 @@ ${activeCode}
               <select
                 className={styles.headerSelect}
                 value={resPreset}
-                aria-label="Target matrix resolution"
-                title="Select target LED matrix resolution"
-                onChange={(e) => {
-                  if (e.target.value !== "custom") {
-                    setResPreset(e.target.value);
+                aria-label="Pattern frame"
+                title="The pixel grid this pattern is composed for. Written into the code as an @matrix line, and used for the AI prompt, the community preview, and the firmware export."
+                onChange={(event) => {
+                  const [width, height] = event.target.value.split("x").map(Number);
+                  if (Number.isFinite(width) && Number.isFinite(height)) {
+                    changeMatrix({ width, height });
                   }
                 }}
               >
-                <option value="128x64">128 × 64 (Patternflow Standard)</option>
-                <option value="64x128">64 × 128 (Patternflow Vertical)</option>
-                <option value="custom" disabled>
-                  Custom Resolution (Coming Soon)
-                </option>
+                {RESOLUTION_PRESETS.map((preset) => (
+                  <option key={preset.value} value={preset.value}>
+                    {preset.label}
+                  </option>
+                ))}
+                {/* A pattern can declare any frame in its own @matrix line, so
+                    show whatever is active even when it is not a preset. */}
+                {!isPresetMatrix && <option value={resPreset}>{formatMatrix(matrix)} (custom)</option>}
               </select>
             </div>
           </div>
 
-          <div className={styles.matrixFrame}>
+          <div
+            className={styles.matrixFrame}
+            style={{ aspectRatio: `${matrix.width} / ${matrix.height}` }}
+          >
             <canvas
               ref={canvasRef}
-              width={resWidth}
-              height={resHeight}
-              style={{ aspectRatio: `${resWidth} / ${resHeight}` }}
+              width={matrix.width}
+              height={matrix.height}
+              style={{ aspectRatio: `${matrix.width} / ${matrix.height}` }}
               aria-label="Pattern preview"
             />
           </div>
@@ -2023,23 +2120,6 @@ ${activeCode}
                     {THINKING_LEVELS.map((level) => (
                       <option key={level} value={level}>
                         {level.toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className={styles.genThinking}
-                    value={genOrientation}
-                    aria-label="Orientation"
-                    title="Dominant flow direction the pattern is designed for"
-                    onChange={(event) => setGenOrientation(event.target.value as Orientation)}
-                  >
-                    {ORIENTATIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option === "landscape"
-                          ? "horizontal"
-                          : option === "portrait"
-                            ? "vertical"
-                            : "any dir"}
                       </option>
                     ))}
                   </select>
@@ -2677,7 +2757,7 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
 
       {shareOpen && (
         <SharePatternModal
-          code={activeCode}
+          code={codeWithMatrix(activeCode)}
           cppConvertPrompt={buildCppPrompt()}
           source="pattern-lab"
           onClose={() => setShareOpen(false)}
@@ -2688,16 +2768,18 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
         <PublishModal
           // Value-field patterns (and recolored ones) are colorless without
           // their ramp — embed it as a @ramp line so the community renders
-          // them exactly as seen here. Plain RGB patterns ship untouched.
+          // them exactly as seen here. Plain RGB patterns keep their colors.
+          // The frame goes along either way: without it the community sandbox
+          // would render a 64×128 pattern into a 128×64 canvas.
           code={
             codeUsesValueField(activeCode) || recolor
-              ? withRampAnnotation(activeCode, {
+              ? withRampAnnotation(codeWithMatrix(activeCode), {
                   stops: rampState.stops,
                   mode: rampState.mode,
                   wrap: rampState.wrap,
                   recolor,
                 })
-              : activeCode
+              : codeWithMatrix(activeCode)
           }
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}

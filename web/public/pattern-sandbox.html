@@ -32,10 +32,32 @@
 // ─────────────────────────────────────────────────────────────────────────────
 "use strict";
 
-var WIDTH = 128;
-var HEIGHT = 64;
+// Default frame for patterns that declare none (everything written before the
+// @matrix annotation existed). The live view resizes itself per pattern.
+var DEFAULT_WIDTH = 128;
+var DEFAULT_HEIGHT = 64;
 var KNOB_COUNT = 4;
 var DETENTS_PER_TURN = 20;
+
+// ── @matrix ─────────────────────────────────────────────────────────────────
+// A pattern carries the pixel grid it was composed for as a comment line (see
+// web/src/lib/patternMatrix.ts — keep the two parsers in sync). Without this,
+// a 64×128 pattern would be rendered into a 128×64 canvas and come out cropped.
+var MATRIX_LINE_RE = /^[ \t]*\/\/[ \t]*@matrix[ \t]+(\d{1,4})[ \t]*[x×*][ \t]*(\d{1,4})[ \t]*$/m;
+var MATRIX_MIN = 8;
+var MATRIX_MAX = 512;
+
+function frameFor(code) {
+  var match = String(code).match(MATRIX_LINE_RE);
+  if (match) {
+    var w = Number(match[1]);
+    var h = Number(match[2]);
+    if (w >= MATRIX_MIN && w <= MATRIX_MAX && h >= MATRIX_MIN && h <= MATRIX_MAX) {
+      return { width: w, height: h };
+    }
+  }
+  return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+}
 
 function clampByte(v) {
   if (!isFinite(v)) return 0;
@@ -315,7 +337,17 @@ function knobDelta(prev, next, wrap, unitsPerTurn) {
 // ── Live view state ──────────────────────────────────────────────────────────
 var canvas = document.getElementById("screen");
 var context = canvas.getContext("2d");
-var imageData = context.createImageData(WIDTH, HEIGHT);
+var imageData = context.createImageData(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+
+// Match the canvas to the frame the incoming pattern declares. The CSS keeps
+// object-fit: contain, so a portrait pattern letterboxes inside the card
+// instead of being squashed into a landscape box.
+function resizeLive(frame) {
+  if (canvas.width === frame.width && canvas.height === frame.height) return;
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  imageData = context.createImageData(frame.width, frame.height);
+}
 
 var live = {
   runtime: null,
@@ -374,7 +406,8 @@ requestAnimationFrame(function (now) {
 
 // ── Still rendering (feed thumbnails) ────────────────────────────────────────
 function renderStill(request) {
-  var runtime = new Runtime(WIDTH, HEIGHT);
+  var frame = frameFor(request.code);
+  var runtime = new Runtime(frame.width, frame.height);
   var load = runtime.loadCode(request.code);
   if (!load.ok) return { ok: false, error: load.error };
 
@@ -392,10 +425,10 @@ function renderStill(request) {
   }
 
   var off = document.createElement("canvas");
-  off.width = WIDTH;
-  off.height = HEIGHT;
+  off.width = frame.width;
+  off.height = frame.height;
   var offContext = off.getContext("2d");
-  var offImage = offContext.createImageData(WIDTH, HEIGHT);
+  var offImage = offContext.createImageData(frame.width, frame.height);
   offImage.data.set(runtime.data);
   offContext.putImageData(offImage, 0, 0);
   return { ok: true, dataUrl: off.toDataURL("image/png") };
@@ -407,7 +440,9 @@ window.addEventListener("message", function (event) {
   if (!msg || typeof msg.type !== "string") return;
 
   if (msg.type === "pf-load") {
-    live.runtime = new Runtime(WIDTH, HEIGHT);
+    var liveFrame = frameFor(String(msg.code || ""));
+    resizeLive(liveFrame);
+    live.runtime = new Runtime(liveFrame.width, liveFrame.height);
     live.simTime = 0;
     live.lastNow = performance.now();
     live.failed = false;

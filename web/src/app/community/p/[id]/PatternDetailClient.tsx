@@ -12,6 +12,7 @@ import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import { knobSetupFromCode } from "@/lib/community/knobs";
+import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -64,6 +65,14 @@ export default function PatternDetailClient({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const knobSetup = useMemo(() => knobSetupFromCode(pattern.code), [pattern.code]);
+
+  // The frame is shown as it looks on an upright device, so landscape patterns
+  // get a quarter-turn and portrait ones are left alone. Keyed off the edited
+  // code, so changing the @matrix line in the editor flips the preview at once.
+  const rotatePreview = useMemo(
+    () => describeMatrixShape(matrixFromCode(code)) === "landscape",
+    [code],
+  );
 
   // Use custom initial knobs passed from feed card if present, otherwise default setup
   const [knobValues, setKnobValues] = useState<number[]>(() => {
@@ -130,7 +139,7 @@ export default function PatternDetailClient({
       <div className={styles.detailLayout}>
         <div className={styles.detailLeftCol}>
           <div className={styles.matrixFrame}>
-            <div className={styles.screenRotator}>
+            <div className={rotatePreview ? styles.screenRotator : styles.screenUpright}>
               <SandboxPreview
                 code={code}
                 knobValues={knobValues}

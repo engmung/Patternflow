@@ -187,6 +187,20 @@
   z-index: 1;
 }
 
+/* Patterns composed for a portrait frame (`// @matrix 64x128`) are already the
+   right way up for these 1:2 cards — rotating them again would lay them on
+   their side. Same box, no transform. Landscape and legacy patterns keep using
+   .screenRotator above. */
+.screenUpright {
+  position: absolute;
+  inset: 0;
+  background: #09090b;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.screenUpright img,
+.screenUpright iframe,
 .screenRotator img,
 .screenRotator iframe,
 .cardHoverIframe {
@@ -201,6 +215,13 @@
   padding: 0;
   object-fit: fill;
   image-rendering: pixelated;
+}
+
+/* The rotator's box is built to match a landscape pattern exactly, so stretching
+   is a no-op there. An upright pattern can be any shape (64×128, 64×64, …), so
+   contain it rather than distorting it to the card. */
+.screenUpright img {
+  object-fit: contain;
 }
 
 .cardHoverIframe {

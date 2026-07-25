@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
+import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import styles from "./Community.module.css";
 
@@ -32,6 +33,10 @@ export function formatDate(iso: string): string {
 
 export default function PatternCard({ item }: { item: PatternCardItem }) {
   const knobSetup = knobSetupFromCode(item.code);
+  // These cards show the pattern as it looks on a device standing upright, so
+  // a landscape pattern gets turned a quarter-turn. One composed for a portrait
+  // frame is already upright and must be left alone.
+  const rotateThumb = describeMatrixShape(matrixFromCode(item.code)) === "landscape";
 
   const [thumb, setThumb] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
@@ -150,7 +155,7 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
         onMouseMove={handleMouseMove}
         onWheel={handleWheel}
       >
-        <div className={styles.screenRotator}>
+        <div className={rotateThumb ? styles.screenRotator : styles.screenUpright}>
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb} alt={`${item.title} preview`} />
