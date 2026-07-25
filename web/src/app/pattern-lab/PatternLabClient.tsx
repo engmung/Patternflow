@@ -72,7 +72,8 @@ import { captureEvent } from "@/lib/posthogEvents";
 import SharePatternModal from "@/components/share/SharePatternModal";
 import PublishModal from "@/components/community/PublishModal";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
-import { communityConfigured } from "@/lib/community/apiBase";
+import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
+import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import {
   codeUsesValueField,
   parseRampAnnotation,
@@ -526,6 +527,7 @@ export default function PatternLabClient() {
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [communityShareOpen, setCommunityShareOpen] = useState(false);
+  const [buildOpen, setBuildOpen] = useState(false);
   // Fork lineage carried over from a community pattern opened "in Pattern
   // Lab". Sticky until the user detaches it (×) — we never guess whether the
   // code has diverged too far to still count as a fork.
@@ -2120,6 +2122,16 @@ ${codeWithMatrix(activeCode)}
                 Share to Community
               </button>
             )}
+            {buildsConfigured() && (
+              <button
+                type="button"
+                className={styles.darkButton}
+                title="Compile a firmware image with this pattern and flash it over USB — no Arduino IDE"
+                onClick={() => setBuildOpen(true)}
+              >
+                Build firmware
+              </button>
+            )}
           </div>
 
           <div className={styles.sweepBar}>
@@ -2836,6 +2848,16 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
           cppConvertPrompt={buildCppPrompt()}
           source="pattern-lab"
           onClose={() => setShareOpen(false)}
+        />
+      )}
+
+      {buildOpen && (
+        <BuildFirmwareModal
+          patternLabel={forkOf?.title ?? "Pattern Lab pattern"}
+          // The lab holds JavaScript, not a header, so the conversion prompt is
+          // offered right in the modal rather than sending people elsewhere.
+          cppPrompt={buildCppPrompt()}
+          onClose={() => setBuildOpen(false)}
         />
       )}
 

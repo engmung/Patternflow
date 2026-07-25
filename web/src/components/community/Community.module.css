@@ -1524,3 +1524,47 @@
   color: #171512;
   border-bottom-color: #e8552e;
 }
+
+/* ── Firmware build modal ── */
+
+.buildStatusLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #171512;
+}
+
+.buildSpinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(232, 85, 46, 0.25);
+  border-top-color: #e8552e;
+  border-radius: 50%;
+  animation: buildSpin 700ms linear infinite;
+}
+
+@keyframes buildSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buildSpinner { animation-duration: 2.4s; }
+}
+
+.buildLog {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #1e1e1e;
+  color: #e8e2d6;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

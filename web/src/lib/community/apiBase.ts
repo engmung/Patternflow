@@ -50,6 +50,18 @@ export function communityHref(path = "/community"): string {
   return origin ? `${origin}${path}` : path;
 }
 
+/**
+ * Does the community this page talks to compile firmware?
+ *
+ * Separate from `communityConfigured` because the build worker is its own
+ * process: a community can be running perfectly well with nobody to compile
+ * for it, and offering a button that can only 503 is worse than not offering
+ * one. Set NEXT_PUBLIC_BUILD_ENABLED alongside the server's BUILD_ENABLED.
+ */
+export function buildsConfigured(): boolean {
+  return process.env.NEXT_PUBLIC_BUILD_ENABLED === "1";
+}
+
 /** Absolute community origin, or null when the API is same-origin. */
 export function crossOriginCommunityBase(): string | null {
   if (typeof window === "undefined") return null;
