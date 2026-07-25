@@ -16,10 +16,11 @@ export default function GlobeViewer() {
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
 
-  const selected = useMemo(
-    () => builds.find((build) => build.id === selectedId) ?? null,
+  const selectedIndex = useMemo(
+    () => builds.findIndex((build) => build.id === selectedId),
     [selectedId],
   );
+  const selected = selectedIndex === -1 ? null : builds[selectedIndex];
 
   // Every build photo across all pins — warmed up front (see preloader below).
   const allImages = useMemo(() => builds.flatMap((build) => build.images ?? []), []);
@@ -34,9 +35,8 @@ export default function GlobeViewer() {
 
   // Step to the previous/next build, cycling through the list.
   const step = (delta: number) => {
-    const index = builds.findIndex((build) => build.id === selectedId);
-    if (index === -1) return;
-    const next = (index + delta + builds.length) % builds.length;
+    if (selectedIndex === -1) return;
+    const next = (selectedIndex + delta + builds.length) % builds.length;
     select(builds[next].id);
   };
 
@@ -64,7 +64,7 @@ export default function GlobeViewer() {
       <div className={styles.preload} aria-hidden>
         {allImages.map((image) => (
           <span key={image.src} className={styles.preloadBox}>
-            <Image src={image.src} alt="" fill sizes="160px" loading="eager" />
+            <Image src={image.src} alt="" fill sizes="280px" loading="eager" />
           </span>
         ))}
       </div>
@@ -84,46 +84,73 @@ export default function GlobeViewer() {
       >
         {selected && (
           <>
-            {builds.length > 1 && (
-              <>
-                <button
-                  className={`${styles.arrow} ${styles.arrowPrev}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    step(-1);
-                  }}
-                  aria-label="Previous build"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M15 4 7 12l8 8" />
-                  </svg>
-                </button>
-                <button
-                  className={`${styles.arrow} ${styles.arrowNext}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    step(1);
-                  }}
-                  aria-label="Next build"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 4l8 8-8 8" />
-                  </svg>
-                </button>
-              </>
+            {/* Photo strip, pinned to the top edge. */}
+            {images && images.length > 0 && (
+              <div className={styles.thumbs} onClick={(event) => event.stopPropagation()}>
+                {images.map((image, index) => (
+                  <button
+                    key={image.src}
+                    type="button"
+                    className={styles.thumb}
+                    onClick={() => setGalleryIndex(index)}
+                    aria-label={image.alt}
+                  >
+                    <Image src={image.src} alt="" fill sizes="280px" />
+                  </button>
+                ))}
+              </div>
             )}
-            <div className={styles.card}>
-              <div>
-                <span className={styles.maker}>{selected.maker}</span>
+
+            {/* The counter row is the anchor for the middle group: the arrows
+                are centred on it, the name and place hang above it, and the
+                links hang below — so the name sits on the same line for every
+                build no matter how many links there are. */}
+            <div className={styles.nav}>
+              <div className={styles.info}>
+                <div>
+                  <span className={styles.maker}>{selected.maker}</span>
+                </div>
+                <div>
+                  <span className={styles.meta}>
+                    {selected.location.label} · {selected.date}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className={styles.meta}>
-                  {selected.location.label} · {selected.date}
-                </span>
-              </div>
-              <div>
-                <span className={styles.desc}>{selected.description}</span>
-              </div>
+
+              {builds.length > 1 && (
+                <>
+                  <button
+                    className={`${styles.arrow} ${styles.arrowPrev}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      step(-1);
+                    }}
+                    aria-label="Previous build"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M15 4 7 12l8 8" />
+                    </svg>
+                  </button>
+                  <button
+                    className={`${styles.arrow} ${styles.arrowNext}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      step(1);
+                    }}
+                    aria-label="Next build"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 4l8 8-8 8" />
+                    </svg>
+                  </button>
+                </>
+              )}
+
+              <span className={styles.kicker}>
+                {String(selectedIndex + 1).padStart(2, '0')} /{' '}
+                {String(builds.length).padStart(2, '0')}
+              </span>
+
               {selected.links && selected.links.length > 0 && (
                 <div className={styles.links}>
                   {selected.links.map((link) => (
@@ -140,21 +167,13 @@ export default function GlobeViewer() {
                   ))}
                 </div>
               )}
-              {images && images.length > 0 && (
-                <div className={styles.thumbs} onClick={(event) => event.stopPropagation()}>
-                  {images.map((image, index) => (
-                    <button
-                      key={image.src}
-                      type="button"
-                      className={styles.thumb}
-                      onClick={() => setGalleryIndex(index)}
-                      aria-label={image.alt}
-                    >
-                      <Image src={image.src} alt="" fill sizes="160px" />
-                    </button>
-                  ))}
-                </div>
-              )}
+            </div>
+
+            {/* Description, pinned to the bottom edge. Wrapper keeps the span
+                inline, so the highlight hugs each wrapped line instead of
+                becoming one big rectangle. */}
+            <div className={styles.detail}>
+              <span className={styles.desc}>{selected.description}</span>
             </div>
           </>
         )}
@@ -177,18 +196,24 @@ export default function GlobeViewer() {
             >
               close
             </button>
-            <div className={gallery.galleryStage} onClick={(event) => event.stopPropagation()}>
+            {/* No stopPropagation on the stage itself — only the photo, the
+                arrows and the thumbnails swallow the click, so clicking the
+                space around them closes the popup. */}
+            <div className={gallery.galleryStage}>
               <div className={gallery.galleryFrame}>
                 {images.length > 1 && (
                   <button
                     type="button"
                     className={gallery.galleryNav}
                     aria-label="Previous photo"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === null ? i : (i - 1 + images.length) % images.length))
-                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setGalleryIndex((i) => (i === null ? i : (i - 1 + images.length) % images.length));
+                    }}
                   >
-                    ‹
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M15 4 7 12l8 8" />
+                    </svg>
                   </button>
                 )}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -196,22 +221,26 @@ export default function GlobeViewer() {
                   className={gallery.galleryMain}
                   src={images[galleryIndex].src}
                   alt={images[galleryIndex].alt}
+                  onClick={(event) => event.stopPropagation()}
                 />
                 {images.length > 1 && (
                   <button
                     type="button"
                     className={gallery.galleryNav}
                     aria-label="Next photo"
-                    onClick={() =>
-                      setGalleryIndex((i) => (i === null ? i : (i + 1) % images.length))
-                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setGalleryIndex((i) => (i === null ? i : (i + 1) % images.length));
+                    }}
                   >
-                    ›
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 4l8 8-8 8" />
+                    </svg>
                   </button>
                 )}
               </div>
               {images.length > 1 && (
-                <div className={gallery.galleryThumbs}>
+                <div className={gallery.galleryThumbs} onClick={(event) => event.stopPropagation()}>
                   {images.map((image, index) => (
                     <button
                       key={image.src}

@@ -18,8 +18,8 @@
 .preloadBox {
   position: relative;
   display: block;
-  width: 160px;
-  height: 120px;
+  width: 280px;
+  height: 210px;
 }
 
 /* When open, the whole viewer becomes a click-to-close surface. */
@@ -58,10 +58,45 @@
   opacity: 0;
 }
 
-/* Bare glyph arrows to flip between builds. */
+/* The counter's row, centred in the upper part of the frame. Everything in the
+   upper column hangs off this one line — arrows centred on it, name above,
+   links below — so no piece of variable content can shift the name. */
+.nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 33%;
+  transform: translateY(50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Name and place, stacked directly above the counter. */
+.info {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+}
+
+/* Links hang below the counter, where growing downward disturbs nothing. */
+.links {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Bare glyph arrows to flip between builds, centred on the counter's line. */
 .arrow {
   position: absolute;
-  top: 44%;
+  top: 50%;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
@@ -93,25 +128,25 @@
   right: 12px;
 }
 
-/* Layout-only container; text rows carry their own highlight backgrounds. */
-.card {
+/* Description, centred against the bottom edge. Switching builds swaps the
+   text in place, with no fade or slide, so nothing blinks on every click.
+   (The overlay's own opacity transition still handles opening and closing.) */
+.detail {
   position: absolute;
   left: 0;
-  bottom: 0;
-  width: min(100%, 600px);
-  display: grid;
-  justify-items: start;
-  gap: 9px;
-  padding: 0 30px 32px;
+  right: 0;
+  bottom: 32px;
+  padding: 0 30px;
+  box-sizing: border-box;
+  text-align: center;
   pointer-events: none;
-  transform: translateY(14px);
-  transition: transform 0.42s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.overlayOpen .card {
-  transform: translateY(0);
 }
 
-/* Highlight backgrounds that hug the text itself, line by line. */
+/* Highlight backgrounds that hug the text itself, line by line. Translucent,
+   so the globe reads through — which means each wrapped line's padded box must
+   stay shorter than the line advance, or the fills stack where they overlap
+   and draw a seam across every line break. Hence the roomy line-height and
+   modest vertical padding on .desc below, the only block that ever wraps. */
 .kicker,
 .maker,
 .meta,
@@ -119,16 +154,15 @@
   display: inline;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  background: rgba(13, 13, 13, 0.85);
+  background: rgba(13, 13, 13, 0.72);
   color: var(--cream);
 }
 
 .kicker {
-  padding: 3px 9px;
+  padding: 4px 12px;
   font-family: var(--pf-mono);
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  font-size: 22px;
+  letter-spacing: 0.14em;
   color: var(--pf-led);
 }
 
@@ -148,24 +182,17 @@
 }
 
 .desc {
-  padding: 4px 10px;
-  max-width: 60ch;
+  padding: 3px 10px;
   font-size: 19px;
-  line-height: 1.75;
-}
-
-/* Stack multiple links tight, no gap between them. */
-.links {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  line-height: 1.9;
+  text-align: center;
 }
 
 .link {
   display: inline;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  background: rgba(13, 13, 13, 0.85);
+  background: rgba(13, 13, 13, 0.72);
   color: var(--pf-led);
   padding: 4px 10px;
   font-family: var(--pf-mono);
@@ -178,26 +205,40 @@
   text-decoration: underline;
 }
 
+/* Pinned to the top edge and centred, so the slack left over once the tiles
+   hit their width cap splits evenly instead of all landing on one side. Spans
+   the full width but stays click-through itself, so the space beside the strip
+   still closes the card. */
 .thumbs {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 40px;
   display: flex;
+  justify-content: center;
   gap: 12px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-  pointer-events: auto;
+  padding: 0 30px;
+  box-sizing: border-box;
+  pointer-events: none;
 }
 .thumb {
   position: relative;
-  width: 150px;
-  height: 112px;
+  flex: 0 1 270px;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   padding: 0;
   border: 1px solid rgba(244, 239, 230, 0.45);
   background: #000;
   cursor: pointer;
-  transition: border-color 0.2s ease;
+  pointer-events: auto;
+  /* Let the globe read faintly through the strip, like the text highlights.
+     Full strength on hover, so the one you're about to open is clear. */
+  opacity: 0.82;
+  transition: border-color 0.2s ease, opacity 0.2s ease;
 }
 .thumb:hover {
   border-color: var(--cream);
+  opacity: 1;
 }
 .thumb img {
   object-fit: cover;
@@ -208,10 +249,26 @@
 }
 
 @media (max-width: 900px) {
-  .card {
-    width: 100%;
-    padding: 0 16px 14px;
-    gap: 5px;
+  /* Same three centred bands, just tighter — the panel is only 44vh here. */
+  .thumbs {
+    top: 16px;
+    gap: 7px;
+    padding: 0 16px;
+  }
+  .detail {
+    bottom: 14px;
+    padding: 0 16px;
+  }
+  .info {
+    bottom: calc(100% + 6px);
+    gap: 4px;
+  }
+  .links {
+    top: calc(100% + 6px);
+  }
+  .kicker {
+    padding: 2px 8px;
+    font-size: 14px;
   }
   .maker {
     padding: 2px 7px;
@@ -227,19 +284,12 @@
     font-size: 10.5px;
   }
   .desc {
-    padding: 3px 7px;
+    padding: 2px 7px;
     font-size: 12.5px;
-    line-height: 1.5;
-    max-width: none;
-  }
-  .thumbs {
-    gap: 7px;
-    margin-top: 4px;
-    flex-wrap: nowrap;
+    line-height: 1.85;
   }
   .thumb {
-    width: 76px;
-    height: 57px;
+    flex: 0 1 100px;
   }
   /* Keep the strip to a single row — show only the first three. */
   .thumb:nth-child(n + 4) {

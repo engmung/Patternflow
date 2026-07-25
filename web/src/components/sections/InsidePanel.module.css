@@ -207,12 +207,13 @@
   cursor: pointer;
 }
 
+/* Keeps the zoom-out cursor: only the photo, the arrows and the thumbnails
+   swallow the click, so anywhere around them closes the popup. */
 .galleryStage {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  cursor: default;
 }
 
 .galleryFrame {
@@ -221,27 +222,32 @@
   gap: 16px;
 }
 
+/* Bare glyph chevrons, the same shape as the build map's. */
 .galleryNav {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid rgba(244, 239, 230, 0.35);
-  border-radius: 50%;
-  background: rgba(20, 20, 20, 0.35);
-  color: var(--cream);
-  font-size: 24px;
-  line-height: 1;
+  border: 0;
+  background: transparent;
+  color: var(--pf-led);
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.18s ease;
+}
+
+.galleryNav svg {
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .galleryNav:hover {
-  background: rgba(20, 20, 20, 0.85);
-  border-color: var(--cream);
+  transform: scale(1.08);
 }
 
 .galleryMain {
@@ -251,6 +257,7 @@
   height: auto;
   object-fit: contain;
   display: block;
+  cursor: default;
 }
 
 .galleryThumbs {
@@ -290,7 +297,7 @@
   .galleryThumb { width: 36px; }
   .galleryMain { max-width: 94vw; max-height: 72vh; }
   .galleryFrame { gap: 8px; }
-  .galleryNav { width: 36px; height: 36px; font-size: 20px; }
+  .galleryNav svg { width: 36px; height: 36px; }
 }
 
 .actionList {
