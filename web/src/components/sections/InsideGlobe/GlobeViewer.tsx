@@ -1,18 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
-import { createPortal } from 'react-dom';
 import Globe from './Globe';
+import PhotoLightbox from './PhotoLightbox';
 import { builds } from './builds';
-import gallery from '../InsidePanel.module.css';
+import { useAppStore } from '@/store/useAppStore';
 import styles from './GlobeViewer.module.css';
 
-// The Inside section's left viewer: an interactive globe with the picked
-// build's details overlaid on a translucent scrim. Tap a marker (or the X)
-// to open/close; tapping empty space or the marker again clears it.
+// The Inside section's viewer: an interactive globe with the picked build's
+// details overlaid on a translucent scrim. Tap a marker (or empty space, or
+// the marker again) to open/close.
+//
+// The selection lives in the app store rather than here, because on mobile the
+// viewer is only 44vh — far too little room for photos and a description — so
+// the Inside panel renders those as a card instead. See BuildCard.
 export default function GlobeViewer() {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedId = useAppStore((state) => state.selectedBuildId);
+  const setSelectedId = useAppStore((state) => state.setSelectedBuildId);
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
 
@@ -39,22 +44,6 @@ export default function GlobeViewer() {
     const next = (selectedIndex + delta + builds.length) % builds.length;
     select(builds[next].id);
   };
-
-  useEffect(() => {
-    if (!galleryOpen || !images) return;
-    const count = images.length;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setGalleryIndex(null);
-      else if (event.key === 'ArrowRight') setGalleryIndex((i) => (i === null ? i : (i + 1) % count));
-      else if (event.key === 'ArrowLeft') setGalleryIndex((i) => (i === null ? i : (i - 1 + count) % count));
-    };
-    document.body.style.overflow = 'hidden';
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [galleryOpen, images]);
 
   return (
     <div className={styles.viewer}>
@@ -101,10 +90,40 @@ export default function GlobeViewer() {
               </div>
             )}
 
-            {/* The counter row is the anchor for the middle group: the arrows
-                are centred on it, the name and place hang above it, and the
-                links hang below — so the name sits on the same line for every
-                build no matter how many links there are. */}
+            {builds.length > 1 && (
+              <>
+                <button
+                  className={`${styles.arrow} ${styles.arrowPrev}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    step(-1);
+                  }}
+                  aria-label="Previous build"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15 4 7 12l8 8" />
+                  </svg>
+                </button>
+                <button
+                  className={`${styles.arrow} ${styles.arrowNext}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    step(1);
+                  }}
+                  aria-label="Next build"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 4l8 8-8 8" />
+                  </svg>
+                </button>
+              </>
+            )}
+
+            {/* The counter row is the anchor for the text group: the name and
+                place hang above it and the links below, so the name sits on
+                the same line for every build however many links there are. On
+                desktop the arrows share its line; on mobile they stay centred
+                in the frame while this group moves up out of the way. */}
             <div className={styles.nav}>
               <div className={styles.info}>
                 <div>
@@ -116,35 +135,6 @@ export default function GlobeViewer() {
                   </span>
                 </div>
               </div>
-
-              {builds.length > 1 && (
-                <>
-                  <button
-                    className={`${styles.arrow} ${styles.arrowPrev}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      step(-1);
-                    }}
-                    aria-label="Previous build"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M15 4 7 12l8 8" />
-                    </svg>
-                  </button>
-                  <button
-                    className={`${styles.arrow} ${styles.arrowNext}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      step(1);
-                    }}
-                    aria-label="Next build"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 4l8 8-8 8" />
-                    </svg>
-                  </button>
-                </>
-              )}
 
               <span className={styles.kicker}>
                 {String(selectedIndex + 1).padStart(2, '0')} /{' '}
@@ -179,86 +169,14 @@ export default function GlobeViewer() {
         )}
       </div>
 
-      {galleryOpen && images && typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            className={gallery.gallery}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Build photos"
-            onClick={() => setGalleryIndex(null)}
-          >
-            <button
-              className={gallery.galleryClose}
-              type="button"
-              aria-label="Close gallery"
-              onClick={() => setGalleryIndex(null)}
-            >
-              close
-            </button>
-            {/* No stopPropagation on the stage itself — only the photo, the
-                arrows and the thumbnails swallow the click, so clicking the
-                space around them closes the popup. */}
-            <div className={gallery.galleryStage}>
-              <div className={gallery.galleryFrame}>
-                {images.length > 1 && (
-                  <button
-                    type="button"
-                    className={gallery.galleryNav}
-                    aria-label="Previous photo"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setGalleryIndex((i) => (i === null ? i : (i - 1 + images.length) % images.length));
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M15 4 7 12l8 8" />
-                    </svg>
-                  </button>
-                )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={gallery.galleryMain}
-                  src={images[galleryIndex].src}
-                  alt={images[galleryIndex].alt}
-                  onClick={(event) => event.stopPropagation()}
-                />
-                {images.length > 1 && (
-                  <button
-                    type="button"
-                    className={gallery.galleryNav}
-                    aria-label="Next photo"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setGalleryIndex((i) => (i === null ? i : (i + 1) % images.length));
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 4l8 8-8 8" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {images.length > 1 && (
-                <div className={gallery.galleryThumbs} onClick={(event) => event.stopPropagation()}>
-                  {images.map((image, index) => (
-                    <button
-                      key={image.src}
-                      type="button"
-                      className={`${gallery.galleryThumb} ${index === galleryIndex ? gallery.galleryThumbActive : ''}`}
-                      onClick={() => setGalleryIndex(index)}
-                      aria-label={image.alt}
-                      aria-current={index === galleryIndex}
-                    >
-                      <Image src={image.src} alt="" fill sizes="42px" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )}
+      {galleryOpen && images && (
+        <PhotoLightbox
+          images={images}
+          index={galleryIndex}
+          onIndexChange={setGalleryIndex}
+          onClose={() => setGalleryIndex(null)}
+        />
+      )}
     </div>
   );
 }

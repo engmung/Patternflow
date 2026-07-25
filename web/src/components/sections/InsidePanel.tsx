@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
+import BuildCard from './InsideGlobe/BuildCard';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
@@ -66,6 +67,9 @@ export default function InsidePanel({ content }: InsidePanelProps) {
               one yourself, come share it in Discord and I&apos;ll add your pin to the map.
             </p>
           </div>
+          {/* Mobile only — the details for the pin picked on the globe above,
+              which has no room to show them at 44vh. */}
+          <BuildCard />
         </div>
 
         <div className="pf-block">

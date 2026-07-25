@@ -93,11 +93,13 @@
   align-items: center;
 }
 
-/* Bare glyph arrows to flip between builds, centred on the counter's line. */
+/* Bare glyph arrows to flip between builds. Anchored to the counter's line
+   rather than nested inside it, so mobile can move the text group up without
+   dragging the arrows along. */
 .arrow {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 33%;
+  transform: translateY(50%);
   display: grid;
   place-items: center;
   padding: 0;
@@ -119,7 +121,7 @@
   stroke-linejoin: round;
 }
 .arrow:hover {
-  transform: translateY(-50%) scale(1.08);
+  transform: translateY(50%) scale(1.08);
 }
 .arrowPrev {
   left: 12px;
@@ -249,26 +251,50 @@
 }
 
 @media (max-width: 900px) {
-  /* Same three centred bands, just tighter — the panel is only 44vh here. */
-  .thumbs {
-    top: 16px;
-    gap: 7px;
-    padding: 0 16px;
+  /* The viewer is only 44vh here, so the photos, description and links move
+     out of the overlay entirely and are rendered as a card in the Inside panel
+     below (see BuildCard). What stays on the map is just enough to say which
+     pin is open and to step between them. */
+  .thumbs,
+  .detail,
+  .links {
+    display: none;
   }
-  .detail {
-    bottom: 14px;
-    padding: 0 16px;
+
+  /* The name/counter group moves up near the top edge, clear of the globe,
+     while the arrows go back to the middle of the frame where they are
+     easiest to reach with a thumb. */
+  .nav {
+    /* Enough that the name clears the top edge rather than hugging it. */
+    top: 78px;
+    bottom: auto;
+    transform: none;
   }
   .info {
     bottom: calc(100% + 6px);
     gap: 4px;
   }
-  .links {
-    top: calc(100% + 6px);
+  .arrow {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
+  .arrow:hover {
+    transform: translateY(-50%) scale(1.08);
+  }
+  .arrow svg {
+    width: 44px;
+    height: 44px;
   }
   .kicker {
     padding: 2px 8px;
-    font-size: 14px;
+    font-size: 13px;
+  }
+  /* Never wrap: a two-line name or place would push the row out of place and
+     read as a jump when stepping between builds. */
+  .maker,
+  .meta {
+    white-space: nowrap;
   }
   .maker {
     padding: 2px 7px;
@@ -278,25 +304,5 @@
   .meta {
     padding: 2px 7px;
     font-size: 10.5px;
-  }
-  .link {
-    padding: 2px 7px;
-    font-size: 10.5px;
-  }
-  .desc {
-    padding: 2px 7px;
-    font-size: 12.5px;
-    line-height: 1.85;
-  }
-  .thumb {
-    flex: 0 1 100px;
-  }
-  /* Keep the strip to a single row — show only the first three. */
-  .thumb:nth-child(n + 4) {
-    display: none;
-  }
-  .arrow svg {
-    width: 52px;
-    height: 52px;
   }
 }

@@ -1,0 +1,172 @@
+/* Mobile-only. On desktop the globe overlay already shows all of this, so the
+   card would just be a duplicate. */
+.card {
+  display: none;
+}
+
+/* The card sits inside .panel-body, whose global `p` rule (17px on mobile,
+   plus a 28px bottom margin) outranks a bare module class. Both paragraph
+   styles below are scoped through .card to win that. */
+.card .empty {
+  margin: 0;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .card {
+    display: grid;
+    gap: 16px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: var(--pf-rule-w) solid var(--pf-rule);
+    /* Clears the fixed viewer when the card is scrolled to. */
+    scroll-margin-top: calc(var(--mb-viewer-h) + var(--mb-nav-h) + 12px);
+  }
+
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .headText {
+    display: grid;
+    gap: 4px;
+  }
+
+  .maker {
+    font-size: 19px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--pf-ink);
+  }
+
+  .meta {
+    font-family: var(--pf-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--pf-ink-muted);
+  }
+
+  .close {
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--pf-ink-muted);
+    font-family: var(--pf-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  /* Two tiles on one row, and only two — the rest live in the lightbox, so
+     the description below stays on screen. */
+  .photos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .photo {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    padding: 0;
+    border: var(--pf-rule-w) solid var(--pf-rule);
+    background: #000;
+    cursor: pointer;
+  }
+
+  .photo:nth-child(n + 3) {
+    display: none;
+  }
+
+  .photo img {
+    object-fit: cover;
+  }
+
+  /* How many more are waiting in the lightbox. */
+  .more {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 1;
+    padding: 2px 7px;
+    background: rgba(13, 13, 13, 0.72);
+    color: var(--cream);
+    font-family: var(--pf-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .card .desc {
+    margin: 0;
+    max-width: none;
+    color: var(--pf-ink-muted);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .links {
+    display: grid;
+    justify-items: start;
+    gap: 6px;
+  }
+
+  /* Near-zero tracking: these are URLs, not labels, and the panel's 0.14em
+     mono tracking stretches them into a line of their own for no gain. */
+  .link {
+    width: fit-content;
+    color: var(--pf-ink);
+    border-bottom: var(--pf-rule-w) solid currentColor;
+    font-family: var(--pf-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    word-break: break-all;
+  }
+
+  /* Step through builds without going back up to the map. */
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding-top: 4px;
+  }
+
+  .pager button {
+    display: grid;
+    place-items: center;
+    padding: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--pf-ink);
+    cursor: pointer;
+  }
+
+  .pager svg {
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .counter {
+    font-family: var(--pf-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--pf-ink-muted);
+  }
+}

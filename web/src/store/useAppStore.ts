@@ -11,6 +11,11 @@ interface AppState {
   setActiveSection: (section: SectionType) => void;
   homeTab: HomeTabType;
   setHomeTab: (tab: HomeTabType) => void;
+  // Which build pin is open on the globe. Lifted out of the globe itself so
+  // the Inside panel can show the details as a card — on mobile the viewer is
+  // only 44vh, far too little room for photos and a description.
+  selectedBuildId: string | null;
+  setSelectedBuildId: (id: string | null) => void;
   knobValues: {
     c1: number;
     c2: number;
@@ -39,6 +44,8 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveSection: (section) => set({ activeSection: section }),
   homeTab: 'hero',
   setHomeTab: (tab) => set({ homeTab: tab }),
+  selectedBuildId: null,
+  setSelectedBuildId: (id) => set({ selectedBuildId: id }),
   knobValues: {
     c1: 0.00, // Hue
     c2: 2.00, // Speed
