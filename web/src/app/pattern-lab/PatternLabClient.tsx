@@ -466,7 +466,6 @@ export default function PatternLabClient() {
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [renderStats, setRenderStats] = useState({ fps: 0, ms: 0 });
   const [promptCopied, setPromptCopied] = useState(false);
-  const [cppPromptCopied, setCppPromptCopied] = useState(false);
   const [pasted, setPasted] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
@@ -1623,12 +1622,6 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 ${codeWithMatrix(code)}
 \`\`\``;
 
-  };
-
-  const copyCppPrompt = async () => {
-    await navigator.clipboard.writeText(buildCppPrompt());
-    setCppPromptCopied(true);
-    window.setTimeout(() => setCppPromptCopied(false), 1200);
   };
 
   return (

@@ -11,11 +11,17 @@ export function useMediaQuery(query: string): boolean {
 
   useEffect(() => {
     const mql = window.matchMedia(query);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMatches(mql.matches);
-    const onChange = (event: MediaQueryListEvent) => setMatches(event.matches);
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
+    const update = () => setMatches(mql.matches);
+    update();
+    // `change` is the real signal; the resize listener is a fallback for
+    // embedded WebViews / emulated viewports that resize the window without
+    // dispatching MediaQueryList change events.
+    mql.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    return () => {
+      mql.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
   }, [query]);
 
   return matches;
