@@ -45,7 +45,7 @@ export type LabDraft = {
    * covers drafts whose code predates the annotation.
    */
   matrix: MatrixSize;
-  editorView: "code" | "gallery" | "experiment";
+  editorView: "code" | "gallery";
   forkOf: { id: string; title: string } | null;
   gen: DraftGenSettings;
 };
@@ -158,7 +158,7 @@ export function loadDraft(knobCount: number): Partial<LabDraft> | null {
     knobLabels: stringArray(raw.knobLabels, knobCount) ?? undefined,
     recolor: typeof raw.recolor === "boolean" ? raw.recolor : undefined,
     matrix: readMatrix(raw),
-    editorView: oneOf(raw.editorView, ["code", "gallery", "experiment"] as const, "code"),
+    editorView: oneOf(raw.editorView, ["code", "gallery"] as const, "code"),
     forkOf,
     gen: {
       count: Number.isFinite(genCount) ? genCount : 5,

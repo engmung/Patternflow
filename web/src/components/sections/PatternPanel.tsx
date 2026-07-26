@@ -8,7 +8,6 @@ import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
 import { showcasePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
-import SharePatternModal from '@/components/share/SharePatternModal';
 import { communityHref } from '@/lib/community/apiBase';
 import styles from './PatternPanel.module.css';
 
@@ -228,7 +227,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   const [activePresetId, setActivePresetId] = useState<string | null>(() =>
     showcasePresets.some((p) => p.id === 'origin') ? 'origin' : null,
   );
-  const [shareOpen, setShareOpen] = useState(false);
   const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
@@ -455,12 +453,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     </div>
                   </li>
                   <li>
-                    <span className={styles.stepText}>Flash it to the firmware and share to Discord.</span>
-                    <div className={styles.editorActions}>
-                      <button type="button" onClick={() => setShareOpen(true)}>
-                        Share to Discord
-                      </button>
-                    </div>
+                    <span className={styles.stepText}>Flash the converted pattern to your device with the firmware guide below.</span>
                   </li>
                 </ol>
               </div>
@@ -574,15 +567,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           </div>
         )}
       </div>
-
-      {shareOpen && (
-        <SharePatternModal
-          code={customJsCode}
-          cppConvertPrompt={getConvertPrompt(customJsCode)}
-          source="live-editor"
-          onClose={() => setShareOpen(false)}
-        />
-      )}
     </div>
   );
 }

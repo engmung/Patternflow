@@ -29,9 +29,7 @@
 
 .headerMeta,
 .stats,
-.actionRow,
-.sweepBar,
-.snapshotsHeader {
+.actionRow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -40,9 +38,7 @@
 
 .headerMeta,
 .stats,
-.snapshotsHeader,
-.emptyState,
-.snapshotGrid span {
+.emptyState {
   color: rgba(23, 21, 18, 0.62);
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
@@ -60,8 +56,7 @@
 }
 
 .previewColumn,
-.editorColumn,
-.snapshots {
+.editorColumn {
   border: 1px solid rgba(23, 21, 18, 0.18);
   background: #fffdf8;
 }
@@ -178,6 +173,30 @@
   cursor: help;
 }
 
+/* One-tap "replace editor with clipboard" for phones, sitting right above the
+   simulator. Desktop keeps the editor-header Paste instead. */
+.mobilePaste {
+  display: none;
+  width: 100%;
+  min-height: 46px;
+  margin-bottom: 12px;
+  border: 1px solid #e8552e;
+  background: #e8552e;
+  color: #ffffff;
+  padding: 0 14px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mobilePaste:active {
+  background: #d44722;
+  border-color: #d44722;
+}
+
 .matrixFrame {
   position: relative;
   width: 100%;
@@ -242,14 +261,19 @@
 
 .controls {
   display: grid;
-  gap: 6px;
+  gap: 12px;
   margin-top: 14px;
 }
 
-/* One compact line per knob: name · min · slider · max · value · push */
+/* Two lines per knob: name · value · push on top, then a full-width slider
+   flanked by its min/max fields — long enough to tune precisely. */
 .knobLine {
   display: grid;
-  grid-template-columns: 50px 60px minmax(0, 1fr) 60px 54px auto;
+  gap: 4px;
+}
+
+.knobHead {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
@@ -260,12 +284,20 @@
   white-space: nowrap;
 }
 
-.knobLine > input[type="range"] {
+.knobSlider {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 60px;
+  align-items: center;
+  gap: 8px;
+}
+
+.knobSlider input[type="range"] {
   width: 100%;
   accent-color: #171512;
 }
 
 .knobValue {
+  margin-left: auto;
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   font-weight: 500;
@@ -515,193 +547,12 @@
   text-transform: uppercase;
 }
 
-/* ── Experiment (layer stack) ── */
-
-.patchPane {
-  height: 100%;
-  overflow-y: auto;
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  background: #ffffff;
-  border: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.patchIntro {
-  margin: 0;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: rgba(23, 21, 18, 0.62);
-}
-
-.patchLayer {
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.patchLayer[data-disabled="true"] .patchSliders {
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.patchLayerHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.patchEnable {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.patchEnable input {
-  accent-color: #171512;
-}
-
-.patchLayerHead select {
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.patchBase {
-  color: rgba(23, 21, 18, 0.5);
-}
-
-.patchRemove {
-  margin-left: auto;
-  min-width: 26px;
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.patchRemove:hover:not(:disabled) {
-  border-color: #b3261e;
-  color: #b3261e;
-}
-
-.patchRemove:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.patchSliders,
-.patchPost {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-}
-
-.patchSliders label,
-.patchPost label {
-  display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) 38px 44px;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  color: rgba(23, 21, 18, 0.62);
-}
-
-.patchBind {
-  min-height: 22px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-/* Highlight active bindings so it's obvious which params the knobs own. */
-.patchBind:has(option:checked:not([value="-1"])) {
-  border-color: #171512;
-  background: #171512;
-  color: #f7f3ea;
-}
-
-.patchSliders input[type="range"]:disabled,
-.patchPost input[type="range"]:disabled {
-  opacity: 0.45;
-}
-
-.patchSliders input[type="range"],
-.patchPost input[type="range"] {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.patchSliders em,
-.patchPost em {
-  font-style: normal;
-  font-size: 11px;
-  color: #171512;
-  text-align: right;
-}
-
-.patchAdd {
-  min-height: 30px;
-  border: 1px dashed rgba(23, 21, 18, 0.35);
-  background: #ffffff;
-  color: #171512;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.patchAdd:hover {
-  border-color: #171512;
-}
-
-.patchPost {
-  border-top: 1px solid rgba(23, 21, 18, 0.14);
-  padding-top: 10px;
-}
-
-.patchInvert {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 6px;
-}
-
-.patchInvert input {
-  accent-color: #171512;
-}
-
 .actionRow {
   margin-top: 12px;
 }
 
 .actionRow button,
-.sweepBar button,
-.sweepBar select,
-.editorHeader button,
-.snapshotsHeader button {
+.editorHeader button {
   min-height: 38px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
@@ -715,9 +566,7 @@
 }
 
 .actionRow button:hover,
-.sweepBar button:hover,
-.editorHeader button:hover,
-.snapshotsHeader button:hover {
+.editorHeader button:hover {
   border-color: #171512;
 }
 
@@ -781,16 +630,6 @@
   border-color: #171512 !important;
 }
 
-.sweepBar {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.sweepBar select {
-  min-width: 140px;
-}
-
 .editorColumn {
   overflow: hidden;
   display: flex;
@@ -816,45 +655,6 @@
   flex: 1 1 auto;
   min-height: 720px;
   height: 100%;
-}
-
-.snapshots {
-  margin-top: 22px;
-}
-
-.snapshotsHeader {
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
-}
-
-.snapshotGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.snapshotGrid li {
-  border-right: 1px solid rgba(23, 21, 18, 0.14);
-  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
-  padding: 10px;
-}
-
-.snapshotGrid img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 2 / 1;
-  background: #030303;
-  image-rendering: pixelated;
-}
-
-.snapshotGrid span {
-  display: block;
-  margin-top: 8px;
-  text-transform: none;
 }
 
 .emptyState {
@@ -1385,7 +1185,7 @@
 
 @media (max-width: 980px) {
   .shell {
-    padding: 14px;
+    padding: 12px;
   }
 
   .header,
@@ -1395,19 +1195,30 @@
     flex-direction: column;
   }
 
+  .previewHeader {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .previewColumn {
+    padding: 12px;
+  }
+
   .editorActions {
     width: 100%;
     gap: 8px;
   }
 
   .editorHeader button {
-    min-height: 32px;
+    min-height: 36px;
     padding: 0 10px;
     font-size: 11px;
   }
 
   .workspace {
     grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 14px;
     min-height: auto;
   }
 
@@ -1416,13 +1227,53 @@
     text-align: left;
   }
 
-  .knobLine {
-    grid-template-columns: 40px 52px minmax(0, 1fr) 52px 48px auto;
+  /* The one-tap clipboard paste appears above the simulator on phones. */
+  .mobilePaste {
+    display: block;
+  }
+
+  /* Keep the preview compact so the knobs stay on screen. */
+  .matrixFrame {
+    max-height: 38vh;
+  }
+
+  /* Finger-sized knob rows: taller slider hit area, roomier gaps. */
+  .controls {
+    gap: 14px;
+  }
+
+  .knobSlider {
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
     gap: 6px;
   }
 
+  .knobSlider input[type="range"] {
+    min-height: 30px;
+  }
+
+  .knobButton {
+    min-height: 30px;
+  }
+
+  .rangeValue,
+  .rangeInput {
+    min-height: 30px;
+  }
+
+  /* Action buttons become full-width rows — easy to hit, nothing truncated. */
+  .actionRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .actionRow button {
+    width: 100%;
+    min-height: 44px;
+  }
+
   .editorPane {
-    min-height: 520px;
+    min-height: 420px;
   }
 }
 

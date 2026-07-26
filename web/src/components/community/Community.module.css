@@ -1568,3 +1568,58 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ── Mobile feed ──
+   Static thumbnail wall: no hover exists, so cards drop their live sandboxes
+   and knob overlays (see PatternCard `interactive`) and the page itself
+   scrolls through several dense rows per page. Keep this media query in sync
+   with MOBILE_MEDIA_QUERY in lib/useMediaQuery.ts. */
+@media (max-width: 768px), (hover: none) {
+  .inner {
+    padding: 14px 16px;
+    min-height: auto;
+  }
+
+  /* The desktop feed locks itself to the viewport and never scrolls; on
+     mobile the wall of thumbnails IS the page, so let it flow. */
+  .feedWrapper {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .centeredFeedBody {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .introRow {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  /* Card size is fixed by the mobile view config — a Large/Small toggle
+     would be a lie here. */
+  .viewTabs {
+    display: none;
+  }
+
+  /* Touch-sized pagination. */
+  .paginationBar {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 10px;
+    margin-top: 14px;
+    padding-bottom: 28px;
+  }
+
+  .pageBtn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .pageInput {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
+}
