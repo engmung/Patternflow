@@ -110,7 +110,7 @@
 
 .quickLinks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   max-width: 620px;
   border: 1px solid var(--pf-rule);
   border-top: 0;

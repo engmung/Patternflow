@@ -265,6 +265,14 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
               <strong>Print the case — MakerWorld ↗</strong>
               <span>Tuned one-click profiles for Bambu printers; STLs in the repo for the rest</span>
             </a>
+            <a
+              href="https://github.com/engmung/Patternflow/releases/tag/v3.0.0"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <strong>All files — Release v3.0.0 ↗</strong>
+              <span>STLs, Gerbers, print project, and firmware images bundled in one place</span>
+            </a>
           </div>
           <p className={styles.otherPaths}>
             Building another way — breadboard electronics, laser-cut enclosure, or an older v2
