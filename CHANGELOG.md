@@ -4,9 +4,32 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-07
+
+A software, safety-guidance, and docs release — **hardware unchanged**: the v3.0 board and case carry over as-is (the Gerber keeps its `v3.0` name).
+
+### Safety
+- **USB-C power input withdrawn from service** ([#221](https://github.com/engmung/Patternflow/issues/221)): a USB-C-powered board ran fine for 20–30+ minutes, then smoked at a connector pin, destroying the receptacle and power path. Power through the `J4` screw terminal only and leave `USB1`/`R1`/`R2` unpopulated until the redesign passes. Guide §2, the assembly map, and the v3.0.0 release notes all carry the hold now.
+- The USB-C solder-joint comparison photos returned to the guide (§5) — the safety reference stays visible while soldering, video or not.
+
 ### Added
+- **Pattern Community** ([community.patternflow.work](https://community.patternflow.work/community)): a paged feed with hover-to-play live previews and scroll-wheel knob control, detail pages with in-place code editing and live knobs, publishing with recorded fork lineage, likes and sorting, comments, user profiles, and a Discussions text board ([#217](https://github.com/engmung/Patternflow/pull/217)). Patterns shipping a hardware-verified `.h` are flagged and filterable; licence headers (CC-BY-SA, inbound = outbound) are baked into the shared source. Browse and edit without an account — username + password only to publish. A self-hosting deployment guide is included.
+- **Browser firmware builds** ([#230](https://github.com/engmung/Patternflow/issues/230)): a build queue + worker compiles a complete firmware image containing your pattern (~30 s) and the browser flashes it over Web Serial — no IDE, no board package, no registry editing. OSC ships enabled by default ([#231](https://github.com/engmung/Patternflow/issues/231)).
+- **Send over Wi-Fi** ([#232](https://github.com/engmung/Patternflow/issues/232)): finished builds hand off to the device's own update page — after the first USB flash (which also sets up Wi-Fi), new patterns go over the air.
+- **Pattern frames, end to end**: a pattern declares the matrix it was composed for (`// @matrix`) and that single fact travels through Pattern Lab, the community sandbox, and the firmware conversion — portrait and custom resolutions render correctly everywhere, and Pattern Lab accepts any frame typed directly.
+- **Pattern Lab**: in-app batch AI generation (bring-your-own Gemini key), session autosave to localStorage, and a mobile Copy prompt / Paste response action bar.
+- **Interactive project roadmap** at [/roadmap](https://patternflow.work/roadmap): the whole project on one zoomable map, with a Korean toggle and a media/press lane.
+- **Build map**: every pin gets its own link, collaboration credits, a photo lightbox, and a phone layout.
 - **MakerWorld listing** for the case, with tuned print profiles; the same 4-plate Bambu Studio project ships in the repo as `hardware/case/patternflow_v3.3mf`. Linked from the build guide §4 and the case README.
-- The USB-C solder joint comparison photos returned to the guide (§5) — safety reference stays visible while soldering, video or not.
+
+### Changed
+- **Landing pattern section rebuilt** around the current flow: a preset jump bar above the editor (42 presets, numbered), Pattern Lab promoted beside Community, the wired first-flash folded into the how-to steps with an accented Flash button, and Pattern Lab / Community vision cards replacing the outdated Arduino/Discord guide. The build section gained a cost & time reality check (~US$100 in parts · ~1 h hands-on · first-build friendly) and a spotlighted Build Guide v3.0.0 card with PCBWay / MakerWorld / release-bundle shortcuts.
+- **Pattern Lab decluttered**: snapshots, sweep, the Experiment layer stack, Copy JSON, pause, and the Discord share flow removed; Share to Community and Build firmware remain. Mobile UI reworked across Pattern Lab and the community feed (full-width knob rows, dense static-thumbnail feed on phones).
+- **Docs caught up with the product**: the main README (browser build server, Wi-Fi updates, 42 Live-Editor / 34 firmware preset counts, Pattern Lab & Community sections), the assembly map (v2/v3 distinction with release bundles, corrected power guidance), and the BUILD_GUIDE intro (no soldering experience needed; ~30 min soldering + ~30 min assembly).
+
+### Fixed
+- Community feed thumbnails rendered at the wrong frame size (a shadowed loop variable in the sandbox's still renderer) — non-default-frame patterns now preview correctly.
+- Build service: `patternflow_secrets.h` is synced into the sketch directory on slot updates, and board build options are pinned so server builds match the IDE.
 
 ## [3.0.0] - 2026-07
 
