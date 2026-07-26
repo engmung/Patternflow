@@ -2,9 +2,9 @@
 
 > **Building a v2.x board?** Use the [v2 build guide](BUILD_GUIDE_v2.md) instead — v2 and v3 parts are **not** interchangeable.
 
-This guide walks you through building a Patternflow v3.0.0 from scratch. It assumes basic familiarity with through-hole soldering and 3D printing.
+This guide walks you through building a Patternflow v3.0.0 from scratch. No prior soldering experience needed — every joint is big, forgiving through-hole, and the board was deliberately kept that simple so a first-time solderer can finish it.
 
-**Estimated build time:** 3–5 hours of active work, plus ~10 hours of 3D printing.
+**Estimated build time:** about 1 hour of hands-on work (~30 min soldering + ~30 min assembly), plus ~10 hours of 3D printing. Parts shipping typically takes ~2 weeks — order first, build later.
 
 **What's new in v3** (vs. v2.x):
 

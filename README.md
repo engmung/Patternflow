@@ -24,7 +24,7 @@
 
 - 🔨 **Build it** — follow the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or go solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** — no PCB, no soldering iron, same Patternflow. More paths in the **[Assembly Map](docs/assembly/README.md)**.
 - 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
-- 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware.
+- 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware. Want the full studio? **[Pattern Lab](https://patternflow.work/pattern-lab)** adds batch AI generation, color ramps, and one-click firmware builds.
 - 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. Browse and edit anyone's pattern in the browser with no account; sign in only when you want to publish your own.
 
 > **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
@@ -39,9 +39,9 @@
 | **Power** | 5 V over USB from any power bank — about **4 h per 10,000 mAh** at max brightness (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
-| **Flashing** | Stock firmware from the browser (Chrome/Edge), no IDE needed; custom patterns via Arduino IDE |
+| **Flashing** | Everything from the browser (Chrome/Edge) — stock firmware, and custom patterns compiled by the build server; after the first USB flash, new builds can go over Wi-Fi. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
-| **Build** | 3–5 h active work + ~10 h 3D printing · intermediate skill · around US$100 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
+| **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · around US$100 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web) · CC-BY-SA 4.0 (hardware & patterns) |
 
 ### Power & runtime
@@ -58,9 +58,9 @@ These are worst-case numbers measured with a bright pattern at maximum brightnes
 
 ## Patterns
 
-The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **nearly 30 patterns** — a month of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
+The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
 
-On the device, the firmware bundles a **curated preset library** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing.
+On the device, the firmware bundles **34 curated presets** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing.
 
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
@@ -75,17 +75,21 @@ New pattern studies also go up on [Instagram](https://www.instagram.com/patternf
 
 ## Make your own patterns
 
-Patternflow ships with a prompt template designed for AI coding assistants (Claude, ChatGPT, etc.). To make a new pattern:
+Patternflow ships with prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.), and the whole journey from idea to hardware runs in the browser — no toolchain.
 
-1. Go to the **Live Editor** in the **Pattern** section on [patternflow.work](https://patternflow.work) and click **Copy creation prompt**.
-2. Paste it into your AI assistant (Claude, ChatGPT, etc.) along with a description of the look you want.
-3. Copy the generated JavaScript code, paste it into the **Live Editor**, and turn the virtual knobs in the web preview to test the pattern.
-4. Once you are happy with the visuals, click **Copy C++ prompt** in the editor and send it to your AI assistant.
-5. Put it on the device — **from the browser**, or from the Arduino IDE if you prefer:
+**Start in the [Live Editor](https://patternflow.work/pattern)** — the quick taste:
 
-**From the browser** — in **Pattern Lab**, press **Build firmware**, paste the C++ your assistant returned, and press build. A server compiles a complete firmware image with your pattern in it — about fifteen seconds — and your browser writes it to the board over USB. Nothing to install: no IDE, no board package, no editing the pattern registry by hand. Community patterns marked `.h` skip the conversion entirely and offer **Flash to my board** directly. Needs desktop Chrome or Edge (browser flashing uses Web Serial) and a USB cable — wireless updates are [planned, not built](../../issues/232).
+1. Click **Copy creation prompt** and paste it into your AI assistant along with a description of the look you want.
+2. Paste the JavaScript it returns into the editor and turn the virtual knobs to test the pattern live.
 
-**From the Arduino IDE** — open `firmware/patternflow/patternflow.ino`; the custom slots and the registry open alongside it as editor tabs. Paste the C++ into `custom1.h` (or `custom2.h` / `custom3.h`) **as-is**, take the namespace from the bottom of the file (`} // namespace YourPatternName`), add it to that slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h`, and flash. Still the route for changing anything beyond a pattern, or working offline. See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+**Go deeper in [Pattern Lab](https://patternflow.work/pattern-lab)** — the full studio, and where patterns become firmware:
+
+- Generate variations **in batches**, in-app (bring your own free Gemini key) or via copy-paste prompts.
+- Shape **color ramps**, retune knob ranges, and compose for **custom matrix sizes**.
+- **Build firmware** — the build server compiles a complete firmware image with your pattern in it (about 30 seconds) and your browser writes it to the board over USB (desktop Chrome/Edge, Web Serial). Nothing to install: no IDE, no board package, no editing the pattern registry by hand. The first flash sets up Wi-Fi too, and from then on **Send over Wi-Fi** pushes new builds to the device without a cable.
+- **Share to Community** — publish it; remixes and forks get recorded, so you can see what grew out of what. Community patterns marked `.h` skip conversion entirely and offer **Flash to my board** directly.
+
+**From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, paste the C++ into `custom1.h` (or `custom2.h` / `custom3.h`) **as-is**, add the namespace from the bottom of the file to that slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h`, and flash. See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
@@ -101,6 +105,10 @@ Either way you are flashing a whole firmware image, so the custom slots are repl
 </p>
 
 **[Live Editor](https://patternflow.work/pattern)** — a full Patternflow simulator. You don't need the hardware to start: turn the virtual knobs and the on-screen device behaves exactly like the real one, down to the encoder detents. Browse the presets, copy the AI prompts, test your pattern live, and flash the stock firmware over USB — all from the same page.
+
+**[Pattern Lab](https://patternflow.work/pattern-lab)** — the professional pattern studio: batch AI generation, color ramps, custom frames, knob-range tuning, ESP32 C++ conversion, and one-click firmware builds. This is where Patternflow's creation tools keep growing.
+
+**[Community](https://community.patternflow.work/community)** — patterns published, remixed and forked, each fork recorded so you can see what grew out of what. It's growing toward a marketplace where creators can trade patterns and earn inside the Patternflow ecosystem.
 
 **[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, and the goal is simple: cover it with pins. If you've made one — any material, any variation — share it in Discord and your build gets added to the map.
 
@@ -130,7 +138,7 @@ Patternflow is therefore not a single luminous object. It is a living system in 
 | :--- | :--- |
 | `firmware/` | Arduino code for ESP32-S3, plus the custom pattern template |
 | `hardware/` | Enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF) |
-| `web/` | Next.js site (landing, browser flasher, Live Editor, journal) |
+| `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal) |
 | `docs/` | Assembly map, build-guide media, manifesto, license summary |
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
 | `integrations/` | Host-software bridges — Ableton Live / Max for Live (OSC knob mapping) |
