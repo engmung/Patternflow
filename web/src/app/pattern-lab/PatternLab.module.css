@@ -2,7 +2,62 @@
   min-height: 100vh;
   background: #f7f3ea;
   color: #171512;
-  padding: 22px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* Compact top navigation bar for Pattern Lab */
+.labHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
+  background: rgba(247, 243, 234, 0.85);
+}
+
+.labBrandBlock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.labBrand {
+  color: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.labBrand:hover {
+  opacity: 0.8;
+}
+
+.labTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8577;
+  letter-spacing: 0.01em;
+}
+
+.labNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.labNav a {
+  color: #6b655a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.labNav a:hover {
+  color: #171512;
 }
 
 .shellDragging {

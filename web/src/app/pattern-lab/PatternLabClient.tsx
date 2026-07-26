@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Editor from "@monaco-editor/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1632,6 +1633,19 @@ ${codeWithMatrix(code)}
 
   return (
     <main className={`${styles.shell}${activeRangeId ? ` ${styles.shellDragging}` : ""}`}>
+      <header className={styles.labHeader}>
+        <div className={styles.labBrandBlock}>
+          <Link href="/" className={styles.labBrand}>
+            Patternflow
+          </Link>
+          <span className={styles.labTitle}>Pattern Lab</span>
+        </div>
+        <nav className={styles.labNav}>
+          <Link href="/community" title="Patternflow Community">
+            Community ↗
+          </Link>
+        </nav>
+      </header>
       <section className={styles.workspace}>
         <div className={styles.previewColumn}>
           <div className={styles.previewHeader}>

@@ -152,10 +152,6 @@ export default function CommunityFeedClient({
             ? "Patterns shared by the community — tap any pattern to open it and play it live."
             : "Patterns shared by the community — hover over any pattern to play live, scroll wheel to turn knobs!"}
         </span>
-        <span className={styles.headerSpacer} />
-        <Link href="/pattern-lab" className={styles.btnAccent}>
-          Make one in Pattern Lab
-        </Link>
       </div>
 
       <FeedControls sort={sort} hardwareOnly={hardwareOnly} view={view} />

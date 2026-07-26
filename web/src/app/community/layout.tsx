@@ -60,10 +60,10 @@ export default async function CommunityLayout({ children }: { children: React.Re
           </div>
           <CommunityNav />
           <div className={styles.headerSpacer} />
-          {/* No Pattern Lab link here — the feed already has a prominent
-              "Make one in Pattern Lab" button, and two of them read as two
-              different destinations. */}
           <nav className={styles.headerNav}>
+            <Link href="/pattern-lab" title="Open Pattern Lab editor">
+              Pattern Lab ↗
+            </Link>
             <AuthStatus />
           </nav>
         </header>
