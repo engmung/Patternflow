@@ -23,6 +23,51 @@
   gap: 3px;
 }
 
+/* ── What it takes ── cost + time reality check before the build matrix. */
+.factsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--pf-rule);
+}
+
+.factCard {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
+}
+
+.factCard:nth-child(2n) {
+  border-right: 0;
+}
+
+.factCard:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.factValue {
+  font-family: var(--pf-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--pf-ink);
+}
+
+.factLabel {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
+.factsNote {
+  max-width: 640px;
+  margin: 14px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.6;
+}
+
 .pathIntro {
   max-width: 640px;
   margin-bottom: 24px;

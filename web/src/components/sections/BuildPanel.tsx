@@ -188,6 +188,45 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
           </div>
         </div>
 
+        {/* The reality check every would-be builder wants before committing:
+            what it costs, how long it takes, and — the big one — that the
+            soldering was deliberately kept first-timer easy. Numbers follow
+            the main path (custom PCB + 3D print, see BUILD_GUIDE.md BOM). */}
+        <div className="pf-block">
+          <span className="pf-kicker">What it takes</span>
+          <div className={styles.factsGrid}>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~US$100</span>
+              <span className={styles.factLabel}>
+                all parts — filament ~$30 · LED panel ~$20 · ESP32-S3 ~$13 · PCB &amp; the rest ~$35
+              </span>
+            </div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~2 weeks</span>
+              <span className={styles.factLabel}>
+                parts shipping — order first; the wait is the longest part of the build
+              </span>
+            </div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~10 hours</span>
+              <span className={styles.factLabel}>
+                3D printing — printer time, not yours; it runs while you wait
+              </span>
+            </div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~1 hour</span>
+              <span className={styles.factLabel}>
+                hands-on — about 30 min of soldering and 30 min of final assembly
+              </span>
+            </div>
+          </div>
+          <p className={styles.factsNote}>
+            Never soldered before? Start here. The soldering is genuinely, really easy — every
+            joint is big through-hole, and the board was deliberately stripped down to only the
+            easy parts so that first-time solderers can finish it.
+          </p>
+        </div>
+
         <div className="pf-block">
           <span className="pf-kicker">Choose your build</span>
           <div className={`pf-prose ${styles.pathIntro}`}>
