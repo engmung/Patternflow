@@ -173,26 +173,48 @@
   cursor: help;
 }
 
-/* One-tap "replace editor with clipboard" for phones, sitting right above the
-   simulator. Desktop keeps the editor-header Paste instead. */
-.mobilePaste {
+/* Mobile-first AI workflow: Copy prompt & Paste response buttons. Hidden on desktop. */
+.mobileActions {
   display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   width: 100%;
-  min-height: 46px;
   margin-bottom: 12px;
-  border: 1px solid #e8552e;
-  background: #e8552e;
-  color: #ffffff;
-  padding: 0 14px;
+}
+
+.mobileCopyPromptBtn,
+.mobilePasteBtn {
+  min-height: 44px;
+  border-radius: 6px;
+  padding: 0 10px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.mobilePaste:active {
+.mobileCopyPromptBtn {
+  border: 1px solid rgba(23, 21, 18, 0.28);
+  background: #ffffff;
+  color: #171512;
+}
+
+.mobileCopyPromptBtn:active {
+  background: #f0eae1;
+}
+
+.mobilePasteBtn {
+  border: 1px solid #e8552e;
+  background: #e8552e;
+  color: #ffffff;
+}
+
+.mobilePasteBtn:active {
   background: #d44722;
   border-color: #d44722;
 }
@@ -1252,9 +1274,9 @@
     text-align: left;
   }
 
-  /* The one-tap clipboard paste appears above the simulator on phones. */
-  .mobilePaste {
-    display: block;
+  /* Mobile AI workflow action bar sitting right above the simulator. */
+  .mobileActions {
+    display: grid;
   }
 
   /* Keep the preview compact so the knobs stay on screen. */

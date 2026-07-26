@@ -1734,18 +1734,25 @@ ${codeWithMatrix(code)}
             </div>
           </div>
 
-          {/* Mobile-first paste: editing in the code editor is painful on a
-              phone, so one tap replaces the whole editor content with the
-              clipboard (e.g. code copied from an AI chat). Hidden on desktop —
-              the editor header has its own Paste there. */}
-          <button
-            type="button"
-            className={styles.mobilePaste}
-            onClick={pasteFromClipboard}
-            title="Replace the editor content with your clipboard"
-          >
-            {pasted ? "Pasted ✓ — editor replaced" : "📋 Paste code from clipboard"}
-          </button>
+          {/* Mobile AI workflow action bar: Copy prompt for AI chat, and Paste response into editor. */}
+          <div className={styles.mobileActions}>
+            <button
+              type="button"
+              className={styles.mobileCopyPromptBtn}
+              onClick={copyVariantPrompt}
+              title="Copy AI prompt to clipboard for ChatGPT / Claude / Gemini"
+            >
+              {promptCopied ? "Copied ✓" : "Copy prompt"}
+            </button>
+            <button
+              type="button"
+              className={styles.mobilePasteBtn}
+              onClick={pasteFromClipboard}
+              title="Replace editor content with copied AI response"
+            >
+              {pasted ? "Pasted ✓" : "Paste response"}
+            </button>
+          </div>
 
           <div
             className={styles.matrixFrame}
