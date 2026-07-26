@@ -37,7 +37,16 @@ export function formatDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
-export default function PatternCard({ item }: { item: PatternCardItem }) {
+export default function PatternCard({
+  item,
+  // false = static thumbnail card (mobile): no live sandbox iframe, no knob
+  // overlay — hover doesn't exist there, and dozens of iframes cost real
+  // battery. The card is just a tappable preview linking to the detail page.
+  interactive = true,
+}: {
+  item: PatternCardItem;
+  interactive?: boolean;
+}) {
   const knobSetup = knobSetupFromCode(item.code);
   // These cards show the pattern as it looks on a device standing upright, so
   // a landscape pattern gets turned a quarter-turn. One composed for a portrait
@@ -150,17 +159,17 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
     <Link
       href={detailUrl}
       className={styles.card}
-      onMouseEnter={handleCardMouseEnter}
-      onMouseLeave={handleCardMouseLeave}
+      onMouseEnter={interactive ? handleCardMouseEnter : undefined}
+      onMouseLeave={interactive ? handleCardMouseLeave : undefined}
     >
       {/* 1:2 Vertical Matrix Display Screen */}
       <div
         ref={thumbRef}
         className={styles.cardThumb}
-        onMouseEnter={handleThumbMouseEnter}
-        onMouseLeave={handleThumbMouseLeave}
-        onMouseMove={handleMouseMove}
-        onWheel={handleWheel}
+        onMouseEnter={interactive ? handleThumbMouseEnter : undefined}
+        onMouseLeave={interactive ? handleThumbMouseLeave : undefined}
+        onMouseMove={interactive ? handleMouseMove : undefined}
+        onWheel={interactive ? handleWheel : undefined}
       >
         <div className={rotateThumb ? styles.screenRotator : styles.screenUpright}>
           {thumb ? (
@@ -171,56 +180,60 @@ export default function PatternCard({ item }: { item: PatternCardItem }) {
           )}
 
           {/* Pre-warmed Live Sandbox Preview (0ms instant playback while hovering on card) */}
-          <SandboxPreview
-            code={item.code}
-            knobValues={knobValues}
-            knobRanges={knobSetup.ranges}
-            running={isHovered}
-            className={styles.cardHoverIframe}
-          />
+          {interactive && (
+            <SandboxPreview
+              code={item.code}
+              knobValues={knobValues}
+              knobRanges={knobSetup.ranges}
+              running={isHovered}
+              className={styles.cardHoverIframe}
+            />
+          )}
         </div>
 
         {/* Dynamic Dodging Knob Overlay Bar (Visible ONLY when cursor is on matrix screen) */}
-        <div
-          className={`${styles.knobOverlay} ${
-            overlayPos === "top" ? styles.overlayTop : styles.overlayBottom
-          }`}
-          style={{
-            opacity: isHovered && isScreenHovered ? 1 : 0,
-            pointerEvents: isHovered && isScreenHovered ? "auto" : "none",
-          }}
-        >
-          {/* Line 1: K1 ~ K4 Zone Buttons */}
-          <div className={styles.knobZoneBarInMeta}>
-            {knobSetup.labels.map((label, idx) => (
-              <div
-                key={idx}
-                className={`${styles.knobSegmentInMeta} ${
-                  idx === activeKnobIdx ? styles.activeKnobSegment : ""
-                }`}
-                title={`${label}: ${knobValues[idx] ?? 0}`}
-              >
-                <span>K{idx + 1}</span>
-              </div>
-            ))}
-          </div>
+        {interactive && (
+          <div
+            className={`${styles.knobOverlay} ${
+              overlayPos === "top" ? styles.overlayTop : styles.overlayBottom
+            }`}
+            style={{
+              opacity: isHovered && isScreenHovered ? 1 : 0,
+              pointerEvents: isHovered && isScreenHovered ? "auto" : "none",
+            }}
+          >
+            {/* Line 1: K1 ~ K4 Zone Buttons */}
+            <div className={styles.knobZoneBarInMeta}>
+              {knobSetup.labels.map((label, idx) => (
+                <div
+                  key={idx}
+                  className={`${styles.knobSegmentInMeta} ${
+                    idx === activeKnobIdx ? styles.activeKnobSegment : ""
+                  }`}
+                  title={`${label}: ${knobValues[idx] ?? 0}`}
+                >
+                  <span>K{idx + 1}</span>
+                </div>
+              ))}
+            </div>
 
-          {/* Line 2: Knob Name, Value, and Spacious Full Track Bar */}
-          <div className={styles.metaKnobStatus}>
-            <div className={styles.metaKnobInfoRow}>
-              <span className={styles.metaKnobLabel}>
-                K{activeKnobIdx + 1} {activeLabel.slice(0, 8)}
-              </span>
-              <strong className={styles.metaKnobVal}>{activeValue}</strong>
-            </div>
-            <div className={styles.metaKnobTrack}>
-              <div
-                className={styles.metaKnobFill}
-                style={{ width: `${Math.round(activeNorm * 100)}%` }}
-              />
+            {/* Line 2: Knob Name, Value, and Spacious Full Track Bar */}
+            <div className={styles.metaKnobStatus}>
+              <div className={styles.metaKnobInfoRow}>
+                <span className={styles.metaKnobLabel}>
+                  K{activeKnobIdx + 1} {activeLabel.slice(0, 8)}
+                </span>
+                <strong className={styles.metaKnobVal}>{activeValue}</strong>
+              </div>
+              <div className={styles.metaKnobTrack}>
+                <div
+                  className={styles.metaKnobFill}
+                  style={{ width: `${Math.round(activeNorm * 100)}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Card Footer / Meta Section (Clean Shot Mode: hides knob UI when hovered here!) */}

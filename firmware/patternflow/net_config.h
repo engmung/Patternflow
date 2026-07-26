@@ -52,7 +52,7 @@
 // Firmware version string reported to the flasher (Improv device-info RPC).
 // Keep in sync with web/public/flash/manifest.json.
 #ifndef PF_IMPROV_FW_VERSION
-#define PF_IMPROV_FW_VERSION "3.0.0"
+#define PF_IMPROV_FW_VERSION "3.1.0"
 #endif
 
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────

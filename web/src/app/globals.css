@@ -180,9 +180,21 @@
     font-size: 28px;
     font-weight: 400;
     color: var(--ink);
-    margin-bottom: 66px; /* 44px -> 66px (1.5x) */
+    /* Tight, because .hero-spec below is a continuation of this line rather
+       than a new thought. (This used to say 66px, but an inline style on the
+       element had been overriding it with 24px for as long as it existed.) */
+    margin-bottom: 10px;
     letter-spacing: -0.015em;
     line-height: 1.15;
+  }
+  /* What you actually do with it — the concrete beat between the one-line
+     definition above and the video below. */
+  .hero-spec {
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-muted);
+    margin: 0 0 24px;
+    max-width: 44ch;
   }
   .hero-copy p.lede {
     font-size: 21px;
@@ -276,7 +288,8 @@
 
     .hero-viewer { height: 50vh; min-height: 320px; order: -1; }
     .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
-    .hero-copy .kicker { font-size: 20px; margin-bottom: 28px; }
+    .hero-copy .kicker { font-size: 20px; margin-bottom: 8px; }
+    .hero-spec { font-size: 14.5px; margin: 0 0 20px; }
     .hero-copy p.lede { font-size: 17.5px; margin-bottom: 28px; }
     .hero-kit-note { font-size: 14.5px; margin: 0 0 10px; }
     .hero-cta-row { gap: 8px; }
@@ -1298,12 +1311,12 @@
   /* ───── Sponsor ───── */
   .sponsor {
     background: var(--cream);
-    padding: 44px 80px 32px;
+    padding: 34px 80px 24px;
     border-top: 1px solid var(--rule);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 14px;
     text-align: left;
   }
   .sponsor-label {
@@ -1328,13 +1341,13 @@
   .sponsor-logo:hover { opacity: 1; }
   .sponsor-logo img { display: block; width: auto; height: 34px; }
   @media (max-width: 640px) {
-    .sponsor { padding: 36px 24px 28px; }
+    .sponsor { padding: 28px 24px 20px; }
     .sponsor-logos { gap: 24px 40px; }
   }
 
   /* ───── Footer ───── */
   footer {
-    padding: 80px 80px 60px;
+    padding: 38px 80px 42px;
     font-size: 14px;
     color: var(--ink-muted);
     line-height: 1.6;
@@ -1351,12 +1364,12 @@
     font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin-top: 60px;
+    margin-top: 28px;
     color: var(--ink-muted);
   }
   footer em { font-style: italic; font-weight: 400; }
   @media (max-width: 640px) {
-    footer { padding: 60px 24px 40px; }
+    footer { padding: 30px 24px 34px; }
     footer .foot-row { grid-template-columns: 1fr; }
   }
 

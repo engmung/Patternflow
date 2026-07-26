@@ -16,8 +16,8 @@
 }
 
 .modeSwitch button,
-.presetCard,
-.editorActions button {
+.editorActions button,
+.editorActions a {
   font: inherit;
   cursor: pointer;
 }
@@ -51,255 +51,6 @@
   color: var(--pf-cream);
 }
 
-.block {
-  border-top: 1px solid var(--pf-rule);
-  padding-top: 22px;
-  margin-top: 22px;
-}
-
-.block:first-of-type {
-  margin-top: 0;
-}
-
-.lead p {
-  max-width: 640px;
-  margin: 0 0 14px;
-  color: var(--pf-ink);
-  font-size: var(--pf-fs-body);
-  line-height: 1.5;
-}
-
-.flashMobileCopy {
-  display: none;
-}
-
-.previewNote {
-  margin: 0;
-  max-width: 560px;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.5;
-}
-
-.presetList {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  margin-top: 28px;
-  border: 0;
-  border-top: 1px solid var(--pf-rule);
-}
-
-.presetItem {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border: 0;
-  border-bottom: 1px solid var(--pf-rule);
-  background: transparent;
-  color: var(--pf-ink-muted);
-  text-align: left;
-}
-
-.presetItem:last-child {
-  border-bottom: 0;
-}
-
-.presetItem:hover {
-  color: var(--pf-ink);
-}
-
-.presetItem.active {
-  color: var(--pf-ink);
-}
-
-.presetIndex {
-  flex-shrink: 0;
-  width: 24px;
-  font-family: var(--pf-mono);
-  font-size: 13px;
-  color: var(--pf-ink-muted);
-  text-align: center;
-}
-
-.presetItem.active .presetIndex {
-  color: var(--pf-ink);
-}
-
-.presetName {
-  flex-shrink: 0;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.presetDesc {
-  margin-left: auto;
-  font-size: 13px;
-  color: var(--pf-ink-muted);
-  line-height: 1.4;
-  text-align: right;
-}
-
-.presetLink {
-  display: inline;
-  margin-left: 8px;
-  font-size: var(--pf-fs-mono);
-  font-family: var(--pf-mono);
-  color: var(--pf-ink-muted);
-  text-decoration: none;
-  opacity: 0.7;
-}
-
-.presetLink:hover {
-  opacity: 1;
-  color: var(--pf-ink);
-}
-
-.flashAction {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  margin-top: 20px;
-}
-
-.primaryAction {
-  min-height: 64px;
-  border: 1px solid var(--pf-ink);
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-  padding: 0 30px;
-  font-size: var(--pf-fs-row);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.secondaryLink {
-  color: var(--pf-ink);
-  border-bottom: 1px solid var(--pf-ink);
-  padding-bottom: 2px;
-  font-size: var(--pf-fs-body);
-  text-decoration: none;
-}
-
-.sourceRow {
-  padding: 18px 14px;
-  border-top: 1px solid var(--pf-rule);
-}
-
-.applyGuide h3 {
-  margin: 0 0 10px;
-  font-size: var(--pf-fs-row);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.applyGuide ol {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.65;
-}
-
-.applyGuide li {
-  padding-left: 3px;
-}
-
-.applyGuide code {
-  color: var(--pf-ink);
-  font-family: var(--pf-mono);
-  font-size: 12px;
-}
-
-.applyGuide p {
-  margin: 14px 0 0;
-  max-width: 560px;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.55;
-}
-
-/* Supporting notes — same body size as the steps list. */
-.applyGuide .applyNote {
-  margin-top: 6px;
-  font-size: var(--pf-fs-body);
-}
-
-/* Lead sentences render as sub-headings, same style as the applyGuide h3. */
-.applyGuide p strong {
-  display: block;
-  margin: 32px 0 8px;
-  color: var(--pf-ink);
-  font-size: var(--pf-fs-row);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
-}
-
-.applyLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.toolLinks {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--pf-rule);
-}
-
-.toolLabel {
-  flex-basis: 100%;
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-}
-
-.toolLink {
-  min-height: 34px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--pf-rule);
-  color: var(--pf-ink);
-  padding: 0 12px;
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  text-decoration: none;
-  text-transform: uppercase;
-}
-
-.toolLink:hover {
-  border-color: var(--pf-ink);
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.toolItem {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.toolDesc {
-  margin: 0;
-  max-width: 560px;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.5;
-}
-
 .unsupported {
   margin-top: 10px;
   color: var(--pf-ink-muted);
@@ -310,11 +61,12 @@
 
 .liveEditor {
   margin-top: 20px;
-  margin-bottom: 2rem;
+  margin-bottom: 14px;
   border: 1px solid var(--pf-rule);
   overflow: hidden;
 }
 
+/* Sits under the editor since the preset bar took the top slot. */
 .editorHeader {
   display: flex;
   align-items: center;
@@ -322,7 +74,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--pf-rule);
+  border-top: 1px solid var(--pf-rule);
   background: var(--pf-cream);
 }
 
@@ -366,6 +118,11 @@
   min-width: 200px;
 }
 
+.stepText strong {
+  color: var(--pf-ink);
+  font-weight: 600;
+}
+
 .editorSteps .editorActions {
   margin-left: auto;
 }
@@ -376,8 +133,11 @@
   gap: 8px;
 }
 
-.editorActions button {
+.editorActions button,
+.editorActions a {
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid var(--pf-rule);
   background: #ffffff;
   color: var(--pf-ink);
@@ -386,13 +146,33 @@
   font-family: var(--pf-mono);
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
+  text-decoration: none;
 }
 
-/* Segmented preset pager: ‹ | 1/35 | › | 🎲 | Discord — same grammar as the mode switch. */
+/* The one action everyone must do once (it's also the Wi-Fi setup), so it
+   gets the accent treatment instead of the quiet step-button look. */
+.editorActions .flashButton {
+  min-height: 38px;
+  border-color: #e8552e;
+  background: #e8552e;
+  color: #ffffff;
+  padding: 0 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.editorActions .flashButton:hover {
+  border-color: #d44722;
+  background: #d44722;
+}
+
+/* Segmented preset pager: ‹ | numbers | › | 🎲 — same grammar as the mode
+   switch. Leads the editor box, so its rule sits on the bottom edge. */
 .presetBar {
   display: grid;
-  grid-template-columns: 48px 96px 48px 48px 1fr;
-  border-top: 1px solid var(--pf-rule);
+  grid-template-columns: 48px 1fr 48px 48px;
+  border-bottom: 1px solid var(--pf-rule);
   background: var(--pf-cream);
 }
 
@@ -433,8 +213,113 @@
   line-height: 1;
 }
 
-.presetCount {
+/* Numbered preset cells filling the space between the arrows: every preset is
+   one tap away. Wraps to more rows as the library grows. */
+.presetNumbers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  /* Beat the `.presetBar > *` cell defaults: fill the cell, don't center-shrink. */
+  place-items: stretch;
+  align-content: center;
+  padding: 2px;
+  gap: 0;
+}
+
+.presetNumbers button {
+  min-height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.presetNumbers button:hover {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.presetNumbers .presetNumActive {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+/* ── Next steps ── the two destinations under the editor: Pattern Lab (the
+   AI editing studio) and Community (the sharing space growing into a
+   marketplace). Replaces the old hand-written hardware guide. */
+.nextSteps {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--pf-rule);
+}
+
+.nextCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 18px 16px;
+  border-right: 1px solid var(--pf-rule);
+  color: inherit;
+  text-decoration: none;
+}
+
+.nextCard:last-child {
+  border-right: 0;
+}
+
+/* Link cards (Pattern Lab / Community): the card itself is the button. */
+a.nextCard {
+  transition: background 120ms ease;
+}
+
+a.nextCard:hover {
+  background: rgba(23, 21, 18, 0.05);
+}
+
+.nextKicker {
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+.nextCard h3 {
+  margin: 0;
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.nextCard p {
+  flex: 1;
+  margin: 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.55;
+}
+
+/* Closing note: custom patterns no longer need the Arduino IDE (the build
+   server handles them); the IDE is only for new firmware features or other
+   matrix resolutions. */
+.advancedNote {
+  margin: 14px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
+.advancedNote a {
+  color: var(--pf-ink);
+  border-bottom: 1px solid var(--pf-ink);
+  padding-bottom: 1px;
+  text-decoration: none;
 }
 
 .metaRows {
@@ -452,35 +337,31 @@
     margin-top: 18px;
   }
 
-  .flashDesktopCopy,
-  .flashAction {
-    display: none;
-  }
-
-  .flashMobileCopy {
-    display: block;
-  }
-
-  .presetDesc {
-    display: none;
-  }
-
   .editorHeader {
     align-items: flex-start;
   }
 
-  /* Discord drops to its own full-width row under the pager cells. */
-  .presetBar {
-    grid-template-columns: 48px 1fr 48px 48px;
+  /* One row of exactly MOBILE_PRESET_WINDOW cells (see PatternPanel.tsx) —
+     the component only renders a window around the active preset here. */
+  .presetNumbers {
+    grid-template-columns: repeat(7, 1fr);
   }
 
-  .presetBar button[aria-label='Random preset'] {
-    border-right: 0;
+  .presetNumbers button {
+    min-height: 40px;
   }
 
-  .presetBar a {
-    grid-column: 1 / -1;
+  /* Cards stack into a single column on phones. */
+  .nextSteps {
+    grid-template-columns: 1fr;
+  }
+
+  .nextCard {
     border-right: 0;
-    border-top: 1px solid var(--pf-rule);
+    border-bottom: 1px solid var(--pf-rule);
+  }
+
+  .nextCard:last-child {
+    border-bottom: 0;
   }
 }

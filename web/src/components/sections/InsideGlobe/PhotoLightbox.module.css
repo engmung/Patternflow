@@ -1,0 +1,123 @@
+/* Full-screen photo viewer for a build's images. Lived in InsidePanel's module
+   until it had grown its own component; the panel never used these classes. */
+.gallery {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 40px;
+  background: rgba(18, 18, 18, 0.92);
+  cursor: zoom-out;
+}
+
+.galleryClose {
+  position: fixed;
+  top: 22px;
+  right: 26px;
+  border: 0;
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* Keeps the zoom-out cursor: only the photo, the arrows and the thumbnails
+   swallow the click, so anywhere around them closes the popup. */
+.galleryStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.galleryFrame {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Bare glyph chevrons, the same shape as the build map's. */
+.galleryNav {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pf-led);
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+
+.galleryNav svg {
+  width: 56px;
+  height: 56px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.galleryNav:hover {
+  transform: scale(1.08);
+}
+
+.galleryMain {
+  max-width: min(92vw, 1200px);
+  max-height: 82vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  cursor: default;
+}
+
+.galleryThumbs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.galleryThumb {
+  position: relative;
+  width: 42px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid transparent;
+  background: #000;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.galleryThumb:hover {
+  opacity: 0.85;
+}
+
+.galleryThumbActive {
+  opacity: 1;
+  border-color: var(--cream);
+}
+
+.galleryThumb img {
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .galleryThumb { width: 36px; }
+  .galleryMain { max-width: 94vw; max-height: 72vh; }
+  .galleryFrame { gap: 8px; }
+  .galleryNav svg { width: 36px; height: 36px; }
+}
+

@@ -1,6 +1,6 @@
-// Shared logic for the "Share to Discord" flow used by both the Live Editor
-// (/pattern) and Pattern Lab. The editor stays clean while editing; the
-// licence header + attribution footer are injected only at export time.
+// Licence + attribution machinery for shared patterns (community publishing
+// and downloads). The editor stays clean while editing; the licence header +
+// attribution footer are injected only at export time.
 
 export type LicenseOption = { id: string; label: string; spdx: string };
 
@@ -13,13 +13,8 @@ export const LICENSE_OPTIONS: LicenseOption[] = [
 
 export const DEFAULT_LICENSE_ID = "cc-by-sa-4.0";
 
-// Server hosting the patterns channel, plus its display name for instructions.
-export const DISCORD_PATTERNS_URL = "https://discord.gg/Vr9QtsxeTk";
-export const DISCORD_PATTERNS_CHANNEL = "🌀│patterns";
-
-// Which tool the share came from. Drives the caption link and the "Made with"
-// attribution so each surface points people back to the right place. URLs must
-// include the scheme — Discord only linkifies full https:// URLs.
+// Which tool the share came from. Drives the "Made with" attribution so each
+// surface points people back to the right place.
 export type ShareSource = "pattern-lab" | "live-editor" | "community";
 
 export const SHARE_TOOLS: Record<ShareSource, { label: string; url: string }> = {
@@ -32,26 +27,6 @@ export function licenseById(id: string): LicenseOption {
   return LICENSE_OPTIONS.find((option) => option.id === id) ?? LICENSE_OPTIONS[0];
 }
 
-const AUTHOR_KEY = "patternflow.share.author";
-
-export function loadShareAuthor(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(AUTHOR_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-export function saveShareAuthor(name: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(AUTHOR_KEY, name);
-  } catch {
-    // ignore storage failures (private mode, etc.)
-  }
-}
-
 export function slugifyName(name: string): string {
   return (
     name
@@ -60,10 +35,6 @@ export function slugifyName(name: string): string {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "pattern"
   );
-}
-
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
 }
 
 export type ShareMeta = {
@@ -87,8 +58,8 @@ export function buildLicenseHeader(meta: ShareMeta): string {
 }
 
 // Bottom-of-file attribution. Worded so people know it is not optional.
-// "Made with" (not "generated") — Pattern Lab covers AI generation, the
-// Experiment layer stack, and hand-written code alike.
+// "Made with" (not "generated") — Pattern Lab covers AI generation and
+// hand-written code alike.
 export function buildAttributionFooter(meta: ShareMeta): string {
   const tool = SHARE_TOOLS[meta.source];
   return [
@@ -115,40 +86,6 @@ export function stripShareWrapping(code: string): string {
 export function buildSharedPatternFile(code: string, meta: ShareMeta): string {
   const body = stripShareWrapping(code);
   return `${buildLicenseHeader(meta)}\n\n${body}\n\n${buildAttributionFooter(meta)}\n`;
-}
-
-// Minimal Discord caption. Licence/credit live in the file, so this stays
-// light. The try-it link must be a full https:// URL — Discord does not
-// linkify bare domains — and points at the tool the share came from.
-export function buildShareCaption(meta: {
-  title: string;
-  author: string;
-  videoUrl: string;
-  source: ShareSource;
-}): string {
-  const tool = SHARE_TOOLS[meta.source];
-  const parts = [`🎛️ ${meta.title || "New Patternflow pattern"}`];
-  if (meta.author) parts.push(`by ${meta.author}`);
-  parts.push("");
-  if (meta.videoUrl) {
-    parts.push(`🎬 ${meta.videoUrl}`);
-    parts.push("");
-  }
-  parts.push(`Code attached (.js) — try it: ${tool.url}`);
-  parts.push("Licence & credit are in the file header. #patternflow");
-  return parts.join("\n");
-}
-
-// Appended to a page's existing JS→C++ conversion prompt so the generated
-// header is named after the pattern. The licence header itself is injected
-// in-app on download (see buildSharedHeaderFile), so the prompt does not need
-// to embed it.
-export function cppNamingInstruction(meta: ShareMeta): string {
-  return [
-    "",
-    "## Naming",
-    `- Name the pattern "${meta.title || "Untitled pattern"}": use it for the NAME string and the namespace.`,
-  ].join("\n");
 }
 
 // Wrap pasted C++ (the AI's conversion output) with the same licence header and

@@ -1,8 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import Editor from "@monaco-editor/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { analyzeEsp32Cost } from "@/lib/esp32CostAnalyzer";
 import {
   PATTERN_KNOB_COUNT,
   PATTERN_MATRIX_HEIGHT,
@@ -12,7 +12,6 @@ import {
   buildRampLUT,
   createIdleInput,
   knobTargetToDelta,
-  renderPatternStill,
   sampleRamp,
   type ColorRamp,
   type RampMode,
@@ -49,19 +48,6 @@ import {
   type MatrixSize,
 } from "@/lib/patternMatrix";
 import {
-  DEFAULT_PATCH,
-  MAX_PATCH_LAYERS,
-  PATCH_BLENDS,
-  PATCH_GENERATORS,
-  PATCH_RANGES,
-  buildPatchCode,
-  createPatchLayer,
-  describePatchKnobs,
-  type PatchKnob,
-  type PatchLayer,
-  type PatchState,
-} from "@/lib/patternPatch";
-import {
   clearDraft,
   loadDraft,
   loadGallery,
@@ -69,7 +55,6 @@ import {
   saveGallery,
 } from "@/lib/labDraft";
 import { captureEvent } from "@/lib/posthogEvents";
-import SharePatternModal from "@/components/share/SharePatternModal";
 import PublishModal from "@/components/community/PublishModal";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
@@ -147,15 +132,8 @@ const RESOLUTION_PRESETS = [
   { value: "64x64", label: "64 × 64 (Square)" },
 ];
 
-const sweepValues = [0, 0.25, 0.5, 0.75, 1];
 const minRangeSpan = 0.001;
 const pixelsPerDigitStep = 10;
-
-type Snapshot = {
-  id: string;
-  src: string;
-  label: string;
-};
 
 type KnobRange = [number, number];
 
@@ -188,14 +166,6 @@ function paintCanvas(
   context.putImageData(imageData, 0, 0);
 }
 
-function dataToUrl(data: Uint8ClampedArray, size: MatrixSize) {
-  const canvas = document.createElement("canvas");
-  canvas.width = size.width;
-  canvas.height = size.height;
-  paintCanvas(canvas, data, size.width, size.height);
-  return canvas.toDataURL("image/png");
-}
-
 function formatKnob(value: number) {
   return value.toFixed(3);
 }
@@ -219,14 +189,6 @@ function getDigitStep(text: string, index: number) {
   }
 
   return 10 ** -(index - decimalIndex);
-}
-
-function getRangeMidpoint(range: KnobRange) {
-  return range[0] + (range[1] - range[0]) * 0.5;
-}
-
-function clampToRange(value: number, range: KnobRange) {
-  return Math.max(range[0], Math.min(range[1], value));
 }
 
 function getNormalizedKnobs(knobs: number[], ranges: KnobRange[]) {
@@ -271,7 +233,7 @@ const DEFAULT_RAMP: RampState = {
 };
 
 const RAMP_STORAGE = "patternflow_ramp_v1";
-const MAX_RAMP_STOPS = 8;
+const MAX_RAMP_STOPS = 64;
 
 function loadStoredRamp(): RampState {
   if (typeof window === "undefined") return DEFAULT_RAMP;
@@ -303,21 +265,6 @@ function hexToRgb(hex: string): [number, number, number] {
 function rgbToHex(r: number, g: number, b: number): string {
   const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
   return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
-}
-
-const PATCH_STORAGE = "patternflow_patch_v1";
-
-function loadStoredPatch(): PatchState {
-  if (typeof window === "undefined") return DEFAULT_PATCH;
-  try {
-    const raw = window.localStorage.getItem(PATCH_STORAGE);
-    if (!raw) return DEFAULT_PATCH;
-    const parsed = JSON.parse(raw) as PatchState;
-    if (!Array.isArray(parsed.layers) || parsed.layers.length === 0) return DEFAULT_PATCH;
-    return parsed;
-  } catch {
-    return DEFAULT_PATCH;
-  }
 }
 
 type GalleryItem = PatternVariant & { id: string; pinned?: boolean };
@@ -516,18 +463,12 @@ export default function PatternLabClient() {
   const [knobs, setKnobs] = useState(presetKnobs);
   const [ranges, setRanges] = useState<KnobRange[]>(presetRanges);
   const [knobLabels, setKnobLabels] = useState<string[]>(presetKnobLabels);
-  const [running, setRunning] = useState(true);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [renderStats, setRenderStats] = useState({ fps: 0, ms: 0 });
-  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
-  const [activeSweepKnob, setActiveSweepKnob] = useState(2);
-  const [copied, setCopied] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
-  const [cppPromptCopied, setCppPromptCopied] = useState(false);
   const [pasted, setPasted] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [buttonHelpOpen, setButtonHelpOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
   const [communityShareOpen, setCommunityShareOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
   // Fork lineage carried over from a community pattern opened "in Pattern
@@ -550,7 +491,7 @@ export default function PatternLabClient() {
   const [rampState, setRampState] = useState<RampState>(DEFAULT_RAMP);
   const [recolor, setRecolor] = useState(false);
   const [selectedStopIndex, setSelectedStopIndex] = useState(0);
-  const [editorView, setEditorView] = useState<"code" | "gallery" | "experiment">("code");
+  const [editorView, setEditorView] = useState<"code" | "gallery">("code");
   // The pattern's LOGICAL frame — what it draws into, and what a viewer sees.
   // Single source of truth: there is no separate "orientation", because a
   // 64×128 frame already *is* portrait. Travels with the code as a `// @matrix`
@@ -564,7 +505,6 @@ export default function PatternLabClient() {
   // presets, which is how a community pattern's own @matrix line arrives.
   const [customOpen, setCustomOpen] = useState(false);
   const showCustomMatrix = customOpen || !isPresetMatrix;
-  const [patch, setPatch] = useState<PatchState>(DEFAULT_PATCH);
   // Draft autosave: `draftReady` gates every write until the restore pass has
   // run, so the pre-restore initial state can never overwrite a saved draft.
   // `draftRestoredAt` is non-null only when work was actually recovered — it
@@ -578,7 +518,6 @@ export default function PatternLabClient() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRampState(loadStoredRamp());
-    setPatch(loadStoredPatch());
     setGeminiKey(loadGeminiKey());
   }, []);
   const [now, setNow] = useState(0);
@@ -588,117 +527,12 @@ export default function PatternLabClient() {
   const runtimeRef = useRef<PatternRuntime | null>(null);
   const knobsRef = useRef(knobs);
   const previousKnobsRef = useRef(presetKnobs);
-  const runningRef = useRef(running);
   const simTimeRef = useRef(0);
   const runtimeErrorRef = useRef<string | null>(null);
   const rangesRef = useRef(ranges);
   const rangeDragRef = useRef<RangeDragState | null>(null);
   const btnHeldRef = useRef([false, false, false, false]);
   const btnPressPendingRef = useRef([false, false, false, false]);
-
-  // The Experiment tab renders its layer patch by compiling it to ordinary
-  // pattern code and feeding the same runtime; everything downstream (ramp,
-  // cost, prompts) just sees code.
-  const patchCode = useMemo(() => buildPatchCode(patch), [patch]);
-  const activeCode = editorView === "experiment" ? patchCode : code;
-
-  const cost = useMemo(() => analyzeEsp32Cost(activeCode), [activeCode]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(PATCH_STORAGE, JSON.stringify(patch));
-    } catch {
-      // Ignore private-mode / storage-disabled sessions.
-    }
-  }, [patch]);
-
-  const updatePatch = (patchUpdate: Partial<PatchState>) => {
-    setPatch((current) => ({ ...current, ...patchUpdate }));
-  };
-
-  const updatePatchLayer = (index: number, layerUpdate: Partial<PatchLayer>) => {
-    setPatch((current) => ({
-      ...current,
-      layers: current.layers.map((layer, layerIndex) =>
-        layerIndex === index ? { ...layer, ...layerUpdate } : layer,
-      ),
-    }));
-  };
-
-  const addPatchLayer = () => {
-    setPatch((current) =>
-      current.layers.length >= MAX_PATCH_LAYERS
-        ? current
-        : { ...current, layers: [...current.layers, createPatchLayer(current.layers.length)] },
-    );
-  };
-
-  const removePatchLayer = (index: number) => {
-    setPatch((current) =>
-      current.layers.length <= 1
-        ? current
-        : { ...current, layers: current.layers.filter((_, layerIndex) => layerIndex !== index) },
-    );
-  };
-
-  const sendPatchToEditor = () => {
-    // The patch compiler doesn't emit an @matrix line, so stamp the lab's
-    // current frame on the way into the editor.
-    updateCode(withMatrixAnnotation(patchCode, matrix));
-    setEditorView("code");
-  };
-
-  // ── Patch knob bindings ──
-  // Binding a slider to a knob syncs the knob's min/max to the parameter's
-  // range and sets the knob to the current value, so knob value = parameter
-  // value 1:1. The select next to each slider picks the knob. -1 = unbound.
-  const isKnobBound = (knob: PatchKnob | undefined): knob is number =>
-    typeof knob === "number" && knob >= 0 && knob <= 3;
-
-  // Bound params show/take the knob's raw value — the knob's own min/max is
-  // the range authority (widening the knob range extends the parameter).
-  const patchParamValue = (knob: PatchKnob | undefined, value: number) =>
-    isKnobBound(knob) ? knobs[knob] ?? value : value;
-
-  // Apply the binding to patch state, then retune the chosen knob to the
-  // parameter: range = parameter range, value = current parameter value, so
-  // nothing visibly jumps at the moment of binding.
-  const bindPatchKnob = (
-    knob: number,
-    range: readonly [number, number],
-    value: number,
-    apply: () => void,
-  ) => {
-    apply();
-    if (knob < 0 || knob > 3) return;
-    // Retune as a starting point only — the user can widen the knob's min/max
-    // afterwards and the parameter follows it (no clamp in the generated code).
-    const clamped = Math.max(range[0], Math.min(range[1], value));
-    setRanges((current) =>
-      current.map((entry, index): KnobRange => (index === knob ? [range[0], range[1]] : entry)),
-    );
-    setKnobs((current) => current.map((entry, index) => (index === knob ? clamped : entry)));
-  };
-
-  const renderBindSelect = (
-    knob: PatchKnob | undefined,
-    onChange: (knob: number) => void,
-    label: string,
-  ) => (
-    <select
-      className={styles.patchBind}
-      value={isKnobBound(knob) ? knob : -1}
-      aria-label={`${label} knob binding`}
-      title="Drive this slider with a knob (K1–K4). Bound sliders follow the knob and become the pattern's knobs in C++."
-      onChange={(event) => onChange(Number(event.target.value))}
-    >
-      <option value={-1}>–</option>
-      <option value={0}>K1</option>
-      <option value={1}>K2</option>
-      <option value={2}>K3</option>
-      <option value={3}>K4</option>
-    </select>
-  );
 
   // Derived harness ramp — referentially stable so per-frame identity checks
   // in the render loops only trigger a LUT rebuild when the ramp truly changed.
@@ -831,6 +665,17 @@ export default function PatternLabClient() {
     });
   };
 
+  const resetRampToBlack = () => {
+    setRampState((current) => ({
+      ...current,
+      stops: [
+        { position: 0, color: "#000000" },
+        { position: 1, color: "#000000" },
+      ],
+    }));
+    setSelectedStopIndex(0);
+  };
+
   const activeStopIndex = Math.min(selectedStopIndex, rampState.stops.length - 1);
   const activeStop = rampState.stops[activeStopIndex];
 
@@ -857,9 +702,9 @@ export default function PatternLabClient() {
   );
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => loadCode(activeCode), 180);
+    const timeout = window.setTimeout(() => loadCode(code), 180);
     return () => window.clearTimeout(timeout);
-  }, [activeCode, loadCode]);
+  }, [code, loadCode]);
 
   // Apply a pattern's @knobs annotation only when the annotation text itself
   // changes — manual label/range edits persist until different code arrives.
@@ -1114,10 +959,6 @@ export default function PatternLabClient() {
     rangesRef.current = ranges;
   }, [ranges]);
 
-  useEffect(() => {
-    runningRef.current = running;
-  }, [running]);
-
   // Tick `now` once a second while any job runs so elapsed timers update.
   useEffect(() => {
     if (!jobs.some((job) => job.status === "running")) return;
@@ -1134,7 +975,7 @@ export default function PatternLabClient() {
 
     const tick = (now: number) => {
       const elapsed = Math.max(0, (now - lastNow) / 1000);
-      const dt = runningRef.current ? Math.min(elapsed, 0.05) : 0;
+      const dt = Math.min(elapsed, 0.05);
       lastNow = now;
       simTimeRef.current += dt;
 
@@ -1383,71 +1224,9 @@ export default function PatternLabClient() {
     );
   };
 
-  const resetKnobs = () => {
-    const defaults = ranges.map((range, index) => clampToRange(initialKnobs[index] ?? getRangeMidpoint(range), range));
-    setKnobs(defaults);
-    previousKnobsRef.current = defaults;
-  };
-
-  const captureSnapshot = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const label = knobs.map((value, index) => `${knobLabels[index]} ${formatKnob(value)}`).join(" / ");
-    const snapshot = {
-      id: `${Date.now()}-${snapshots.length}`,
-      src: canvas.toDataURL("image/png"),
-      label,
-    };
-    setSnapshots((current) => [snapshot, ...current].slice(0, 24));
-  };
-
-  const generateSweep = () => {
-    const generated = sweepValues.map((value) => {
-      const activeRange = ranges[activeSweepKnob] ?? [0, 1];
-      const targetValue = activeRange[0] + value * (activeRange[1] - activeRange[0]);
-      const targets = knobs.map((knob, index) => index === activeSweepKnob ? targetValue : knob);
-      const knobStart = ranges.map(getRangeMidpoint);
-      const result = renderPatternStill(activeCode, {
-        width: matrix.width,
-        height: matrix.height,
-        knobStart,
-        knobTargets: targets,
-        knobRanges: ranges,
-        knobWrap: LOGICAL_KNOB_WRAP,
-        knobUnitsPerTurn: LOGICAL_KNOB_UNITS_PER_TURN,
-        ramp,
-        recolor,
-      });
-      const src = dataToUrl(result.data, matrix);
-      return {
-        id: `${Date.now()}-${activeSweepKnob}-${value}`,
-        src,
-        label: `${knobLabels[activeSweepKnob]} ${formatKnob(targetValue)}${result.ok ? "" : " error"}`,
-      };
-    });
-    setSnapshots((current) => [...generated, ...current].slice(0, 24));
-  };
-
-  const copyManifest = async () => {
-    const payload = {
-      matrix: { width: matrix.width, height: matrix.height },
-      knobs: Object.fromEntries(knobs.map((value, index) => [`knob${index + 1}`, value])),
-      ranges: Object.fromEntries(ranges.map((range, index) => [`knob${index + 1}`, range])),
-      normalizedKnobs: Object.fromEntries(
-        getNormalizedKnobs(knobs, ranges).map((value, index) => [`knob${index + 1}`, value]),
-      ),
-      esp32Cost: cost,
-      code: codeWithMatrix(activeCode),
-    };
-    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1200);
-  };
-
   const copyVariantPrompt = async () => {
     await navigator.clipboard.writeText(
-      buildVariantCopyPrompt(activeCode, knobs, ranges, genColorMode, matrix),
+      buildVariantCopyPrompt(code, knobs, ranges, genColorMode, matrix),
     );
     setPromptCopied(true);
     window.setTimeout(() => setPromptCopied(false), 1200);
@@ -1523,10 +1302,10 @@ export default function PatternLabClient() {
 
     const seedKnobs = [...knobs];
     const seedRanges = ranges.map((range): KnobRange => [...range]);
-    const examples = sampleExamples(activeCode, genRefs);
+    const examples = sampleExamples(code, genRefs);
     const seedWithCurrent = genRefs > 0;
 
-    generatePatternVariants({ apiKey: geminiKey, code: activeCode, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, matrix, seedWithCurrent, colorMode: genColorMode })
+    generatePatternVariants({ apiKey: geminiKey, code, knobs: seedKnobs, ranges: seedRanges, count, thinkingLevel, examples, matrix, seedWithCurrent, colorMode: genColorMode })
       .then((items) => {
         if (removedJobsRef.current.has(jobId)) return;
         const stamped: GalleryItem[] = items.map((item, index) => ({ ...item, id: `${jobId}-${index}` }));
@@ -1658,7 +1437,7 @@ export default function PatternLabClient() {
     // a finished C array — models must not write sorting/interpolation code,
     // which is exactly where weaker models broke (unsorted stops → all-black
     // LUT, hallucinated tokens in hand-rolled lerp loops).
-    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(activeCode);
+    const usesValueField = /display\s*\.\s*setValue\s*\(/.test(code);
     let rampSection = "";
     if (usesValueField) {
       const lut = buildRampLUT(ramp);
@@ -1809,21 +1588,7 @@ Last resort — half-resolution rendering: if the pattern is genuinely smooth/lo
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
-${
-      editorView === "experiment"
-        ? `
-## Layer-patch knob mappings
-This pattern was built in the Experiment layer stack. Each bound parameter reads input.knobValues[i] as an ABSOLUTE value with no extra clamp — knob value = parameter value. The AUTHORITATIVE min/max for each knob is the "Pattern Lab knob ranges and current values" list above (the user may have retuned it); ranges in the roles below are only bind-time defaults:
-${describePatchKnobs(patch)
-  .map((role) => `- ${role}`)
-  .join("\n")}
-
-- In C++, each bound parameter is knob state: initialize to that knob's current value above, update with param += input.knobDeltas[i] * STEP, clamp to that knob's authoritative min/max. Use STEP = (MAX - MIN) / 20 so one full encoder turn (~20 detents) sweeps the range.
-- Name the min/max as constants (e.g. PATCH_SCALE1_MIN 1.0f / PATCH_SCALE1_MAX 100.0f) — do not collapse them to 0..1.
-- Knobs marked (unused) get KNOB_LABELS entry "-" and no update logic.
-`
-        : ""
-    }${rampSection}
+${rampSection}
 ## Performance
 - Hoist anything that depends only on time, row, or parameters out of the inner pixel loop.
 - Wrap every time accumulator at its period — the device runs for days, and an unbounded t += dt * speed loses float precision until sin-driven motion visibly stutters (hours at high speed). If t only ever feeds fastSin/fastCos through INTEGER multipliers (t, t*2.0f, t*3.0f...), wrap with if (t > TWO_PI) t -= TWO_PI;. For non-integer multipliers, wrap at a common period instead (e.g. multipliers 0.1 and 1.2 → period 20π wraps both seamlessly). A drift that is fract()ed anyway (hue cycling) should be its own accumulator wrapped with PFMath::fract. Never leave a time accumulator unbounded.
@@ -1854,19 +1619,26 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 
 ## JavaScript source
 \`\`\`javascript
-${codeWithMatrix(activeCode)}
+${codeWithMatrix(code)}
 \`\`\``;
 
   };
 
-  const copyCppPrompt = async () => {
-    await navigator.clipboard.writeText(buildCppPrompt());
-    setCppPromptCopied(true);
-    window.setTimeout(() => setCppPromptCopied(false), 1200);
-  };
-
   return (
     <main className={`${styles.shell}${activeRangeId ? ` ${styles.shellDragging}` : ""}`}>
+      <header className={styles.labHeader}>
+        <div className={styles.labBrandBlock}>
+          <Link href="/" className={styles.labBrand}>
+            Patternflow
+          </Link>
+          <span className={styles.labTitle}>Pattern Lab</span>
+        </div>
+        <nav className={styles.labNav}>
+          <Link href="/community" title="Patternflow Community">
+            Community ↗
+          </Link>
+        </nav>
+      </header>
       <section className={styles.workspace}>
         <div className={styles.previewColumn}>
           <div className={styles.previewHeader}>
@@ -1969,6 +1741,26 @@ ${codeWithMatrix(activeCode)}
             </div>
           </div>
 
+          {/* Mobile AI workflow action bar: Copy prompt for AI chat, and Paste response into editor. */}
+          <div className={styles.mobileActions}>
+            <button
+              type="button"
+              className={styles.mobileCopyPromptBtn}
+              onClick={copyVariantPrompt}
+              title="Copy AI prompt to clipboard for ChatGPT / Claude / Gemini"
+            >
+              {promptCopied ? "Copied ✓" : "Copy prompt"}
+            </button>
+            <button
+              type="button"
+              className={styles.mobilePasteBtn}
+              onClick={pasteFromClipboard}
+              title="Replace editor content with copied AI response"
+            >
+              {pasted ? "Pasted ✓" : "Paste response"}
+            </button>
+          </div>
+
           <div
             className={styles.matrixFrame}
             style={{ aspectRatio: `${matrix.width} / ${matrix.height}` }}
@@ -1991,44 +1783,51 @@ ${codeWithMatrix(activeCode)}
           <div className={styles.controls}>
             {knobs.map((value, index) => (
               <div key={knobLabels[index]} className={styles.knobLine}>
-                <span className={styles.knobName}>{knobLabels[index]}</span>
-                {renderRangeValue(index, "min")}
-                <input
-                  type="range"
-                  min={ranges[index][0]}
-                  max={ranges[index][1]}
-                  step="0.001"
-                  value={value}
-                  aria-label={`${knobLabels[index]} value`}
-                  onChange={(event) => updateKnob(index, Number(event.target.value))}
-                />
-                {renderRangeValue(index, "max")}
-                <strong className={styles.knobValue}>{formatKnob(value)}</strong>
-                <button
-                  type="button"
-                  className={styles.knobButton}
-                  aria-label={`${knobLabels[index]} button`}
-                  title="Encoder button (short press)"
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                    pressButton(index);
-                  }}
-                  onPointerUp={() => releaseButton(index)}
-                  onPointerLeave={() => releaseButton(index)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
+                {/* Name/value/push on top; the slider gets its own full-width
+                    row below (flanked by its min/max) so it's long enough to
+                    tune precisely — especially with a finger. */}
+                <div className={styles.knobHead}>
+                  <span className={styles.knobName}>{knobLabels[index]}</span>
+                  <strong className={styles.knobValue}>{formatKnob(value)}</strong>
+                  <button
+                    type="button"
+                    className={styles.knobButton}
+                    aria-label={`${knobLabels[index]} button`}
+                    title="Encoder button (short press)"
+                    onPointerDown={(event) => {
                       event.preventDefault();
                       pressButton(index);
-                    }
-                  }}
-                  onKeyUp={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      releaseButton(index);
-                    }
-                  }}
-                >
-                  Push
-                </button>
+                    }}
+                    onPointerUp={() => releaseButton(index)}
+                    onPointerLeave={() => releaseButton(index)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        pressButton(index);
+                      }
+                    }}
+                    onKeyUp={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        releaseButton(index);
+                      }
+                    }}
+                  >
+                    Push
+                  </button>
+                </div>
+                <div className={styles.knobSlider}>
+                  {renderRangeValue(index, "min")}
+                  <input
+                    type="range"
+                    min={ranges[index][0]}
+                    max={ranges[index][1]}
+                    step="0.001"
+                    value={value}
+                    aria-label={`${knobLabels[index]} value`}
+                    onChange={(event) => updateKnob(index, Number(event.target.value))}
+                  />
+                  {renderRangeValue(index, "max")}
+                </div>
               </div>
             ))}
           </div>
@@ -2117,29 +1916,19 @@ ${codeWithMatrix(activeCode)}
                 >
                   Delete
                 </button>
-                <span className={styles.rampHint}>
-                  click bar = add · drag line = move
-                </span>
+                <button
+                  type="button"
+                  className={styles.rampResetBtn}
+                  title="Reset all stops to black"
+                  onClick={resetRampToBlack}
+                >
+                  Reset to black
+                </button>
               </div>
             )}
           </div>
 
           <div className={styles.actionRow}>
-            <button type="button" onClick={() => setRunning((value) => !value)}>
-              {running ? "Pause" : "Run"}
-            </button>
-            <button type="button" onClick={resetKnobs}>
-              Reset knobs
-            </button>
-            <button type="button" onClick={captureSnapshot}>
-              Snapshot
-            </button>
-            <button type="button" className={styles.darkButton} onClick={copyManifest}>
-              {copied ? "Copied" : "Copy JSON"}
-            </button>
-            <button type="button" className={styles.darkButton} onClick={() => setShareOpen(true)}>
-              Share to Discord
-            </button>
             {/* Only offered where a community actually exists to publish to —
                 otherwise this deployment would show a button that can only
                 fail (see lib/community/apiBase). */}
@@ -2163,21 +1952,6 @@ ${codeWithMatrix(activeCode)}
               </button>
             )}
           </div>
-
-          <div className={styles.sweepBar}>
-            <select
-              value={activeSweepKnob}
-              onChange={(event) => setActiveSweepKnob(Number(event.target.value))}
-              aria-label="Sweep knob"
-            >
-              {knobLabels.map((label, index) => (
-                <option key={label} value={index}>{label}</option>
-              ))}
-            </select>
-            <button type="button" onClick={generateSweep}>
-              Sweep
-            </button>
-          </div>
         </div>
 
         <div className={styles.editorColumn}>
@@ -2196,14 +1970,6 @@ ${codeWithMatrix(activeCode)}
                 onClick={() => setEditorView("gallery")}
               >
                 Gallery{gallery.length > 0 ? ` (${gallery.length})` : ""}
-              </button>
-              <button
-                type="button"
-                data-active={editorView === "experiment"}
-                onClick={() => setEditorView("experiment")}
-                title="Layer-stack experiment: build a value field by stacking generators, no code"
-              >
-                Experiment
               </button>
             </div>
             <div className={styles.editorActions}>
@@ -2288,27 +2054,6 @@ ${codeWithMatrix(activeCode)}
                     {geminiKey ? "Key ✓" : "Key"}
                   </button>
                 </>
-              ) : editorView === "experiment" ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={sendPatchToEditor}
-                    title="Copy the generated pattern code into the Code tab for hand-editing"
-                  >
-                    Send to editor
-                  </button>
-                  <button type="button" onClick={copyCppPrompt}>
-                    {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.guideButton}
-                    onClick={() => setPatch(DEFAULT_PATCH)}
-                    title="Reset the layer stack to the default patch"
-                  >
-                    Reset
-                  </button>
-                </>
               ) : (
                 <>
                   <div
@@ -2344,9 +2089,6 @@ ${codeWithMatrix(activeCode)}
                   <button type="button" onClick={copyVariantPrompt}>
                     {promptCopied ? "Copied" : "Copy prompt"}
                   </button>
-                  <button type="button" onClick={copyCppPrompt}>
-                    {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
-                  </button>
                   <button
                     type="button"
                     className={styles.guideButton}
@@ -2375,257 +2117,6 @@ ${codeWithMatrix(activeCode)}
                   overviewRulerLanes: 0,
                 }}
               />
-            ) : editorView === "experiment" ? (
-              <div className={styles.patchPane}>
-                <p className={styles.patchIntro}>
-                  Stack field generators into one 0–1 value field; the Color Ramp does the
-                  coloring. The stack compiles to ordinary pattern code — check the ESP32 cost
-                  live, then &quot;Send to editor&quot; to refine it as code. Bind any slider to
-                  K1–K4 to drive it with the knobs on the left; bound sliders become the
-                  pattern&apos;s knobs when converted to C++.
-                </p>
-                {patch.layers.map((layer, index) => (
-                  <div
-                    key={index}
-                    className={styles.patchLayer}
-                    data-disabled={!layer.enabled}
-                  >
-                    <div className={styles.patchLayerHead}>
-                      <label className={styles.patchEnable}>
-                        <input
-                          type="checkbox"
-                          checked={layer.enabled}
-                          onChange={(event) =>
-                            updatePatchLayer(index, { enabled: event.target.checked })
-                          }
-                        />
-                        <span>{index + 1}</span>
-                      </label>
-                      <select
-                        value={layer.gen}
-                        aria-label={`Layer ${index + 1} generator`}
-                        onChange={(event) =>
-                          updatePatchLayer(index, { gen: event.target.value as PatchLayer["gen"] })
-                        }
-                      >
-                        {PATCH_GENERATORS.map((gen) => (
-                          <option key={gen} value={gen}>
-                            {gen}
-                          </option>
-                        ))}
-                      </select>
-                      {index > 0 ? (
-                        <select
-                          value={layer.blend}
-                          aria-label={`Layer ${index + 1} blend`}
-                          title="How this layer combines with the layers above it"
-                          onChange={(event) =>
-                            updatePatchLayer(index, {
-                              blend: event.target.value as PatchLayer["blend"],
-                            })
-                          }
-                        >
-                          {PATCH_BLENDS.map((blend) => (
-                            <option key={blend} value={blend}>
-                              {blend}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className={styles.patchBase}>base</span>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.patchRemove}
-                        disabled={patch.layers.length <= 1}
-                        aria-label={`Remove layer ${index + 1}`}
-                        onClick={() => removePatchLayer(index)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className={styles.patchSliders}>
-                      <label>
-                        <span>scale</span>
-                        <input
-                          type="range"
-                          min={PATCH_RANGES.scale[0]}
-                          max={PATCH_RANGES.scale[1]}
-                          step={0.5}
-                          value={patchParamValue(layer.scaleK, layer.scale)}
-                          disabled={isKnobBound(layer.scaleK)}
-                          onChange={(event) =>
-                            updatePatchLayer(index, { scale: Number(event.target.value) })
-                          }
-                        />
-                        <em>{patchParamValue(layer.scaleK, layer.scale).toFixed(1)}</em>
-                        {renderBindSelect(
-                          layer.scaleK,
-                          (knob) =>
-                            bindPatchKnob(knob, PATCH_RANGES.scale, layer.scale, () =>
-                              updatePatchLayer(index, { scaleK: knob }),
-                            ),
-                          `Layer ${index + 1} scale`,
-                        )}
-                      </label>
-                      <label>
-                        <span>speed</span>
-                        <input
-                          type="range"
-                          min={PATCH_RANGES.speed[0]}
-                          max={PATCH_RANGES.speed[1]}
-                          step={0.05}
-                          value={patchParamValue(layer.speedK, layer.speed)}
-                          disabled={isKnobBound(layer.speedK)}
-                          onChange={(event) =>
-                            updatePatchLayer(index, { speed: Number(event.target.value) })
-                          }
-                        />
-                        <em>{patchParamValue(layer.speedK, layer.speed).toFixed(2)}</em>
-                        {renderBindSelect(
-                          layer.speedK,
-                          (knob) =>
-                            bindPatchKnob(knob, PATCH_RANGES.speed, layer.speed, () =>
-                              updatePatchLayer(index, { speedK: knob }),
-                            ),
-                          `Layer ${index + 1} speed`,
-                        )}
-                      </label>
-                      <label>
-                        <span>angle</span>
-                        <input
-                          type="range"
-                          min={PATCH_RANGES.angle[0]}
-                          max={PATCH_RANGES.angle[1]}
-                          step={1}
-                          value={patchParamValue(layer.angleK, layer.angle)}
-                          disabled={isKnobBound(layer.angleK)}
-                          onChange={(event) =>
-                            updatePatchLayer(index, { angle: Number(event.target.value) })
-                          }
-                        />
-                        <em>{patchParamValue(layer.angleK, layer.angle).toFixed(0)}°</em>
-                        {renderBindSelect(
-                          layer.angleK,
-                          (knob) =>
-                            bindPatchKnob(knob, PATCH_RANGES.angle, layer.angle, () =>
-                              updatePatchLayer(index, { angleK: knob }),
-                            ),
-                          `Layer ${index + 1} angle`,
-                        )}
-                      </label>
-                      <label>
-                        <span>amount</span>
-                        <input
-                          type="range"
-                          min={PATCH_RANGES.amount[0]}
-                          max={PATCH_RANGES.amount[1]}
-                          step={0.01}
-                          value={patchParamValue(layer.amountK, layer.amount)}
-                          disabled={isKnobBound(layer.amountK)}
-                          onChange={(event) =>
-                            updatePatchLayer(index, { amount: Number(event.target.value) })
-                          }
-                        />
-                        <em>{patchParamValue(layer.amountK, layer.amount).toFixed(2)}</em>
-                        {renderBindSelect(
-                          layer.amountK,
-                          (knob) =>
-                            bindPatchKnob(knob, PATCH_RANGES.amount, layer.amount, () =>
-                              updatePatchLayer(index, { amountK: knob }),
-                            ),
-                          `Layer ${index + 1} amount`,
-                        )}
-                      </label>
-                    </div>
-                  </div>
-                ))}
-                {patch.layers.length < MAX_PATCH_LAYERS && (
-                  <button type="button" className={styles.patchAdd} onClick={addPatchLayer}>
-                    + Add layer
-                  </button>
-                )}
-                <div className={styles.patchPost}>
-                  <label>
-                    <span>master speed</span>
-                    <input
-                      type="range"
-                      min={PATCH_RANGES.masterSpeed[0]}
-                      max={PATCH_RANGES.masterSpeed[1]}
-                      step={0.05}
-                      value={patchParamValue(patch.masterSpeedK, patch.masterSpeed)}
-                      disabled={isKnobBound(patch.masterSpeedK)}
-                      onChange={(event) => updatePatch({ masterSpeed: Number(event.target.value) })}
-                    />
-                    <em>{patchParamValue(patch.masterSpeedK, patch.masterSpeed).toFixed(2)}</em>
-                    {renderBindSelect(
-                      patch.masterSpeedK,
-                      (knob) =>
-                        bindPatchKnob(knob, PATCH_RANGES.masterSpeed, patch.masterSpeed, () =>
-                          updatePatch({ masterSpeedK: knob }),
-                        ),
-                      "Master speed",
-                    )}
-                  </label>
-                  <label>
-                    <span>contrast</span>
-                    <input
-                      type="range"
-                      min={PATCH_RANGES.contrast[0]}
-                      max={PATCH_RANGES.contrast[1]}
-                      step={0.05}
-                      value={patchParamValue(patch.contrastK, patch.contrast)}
-                      disabled={isKnobBound(patch.contrastK)}
-                      onChange={(event) => updatePatch({ contrast: Number(event.target.value) })}
-                    />
-                    <em>{patchParamValue(patch.contrastK, patch.contrast).toFixed(2)}</em>
-                    {renderBindSelect(
-                      patch.contrastK,
-                      (knob) =>
-                        bindPatchKnob(knob, PATCH_RANGES.contrast, patch.contrast, () =>
-                          updatePatch({ contrastK: knob }),
-                        ),
-                      "Contrast",
-                    )}
-                  </label>
-                  <label>
-                    <span>posterize</span>
-                    <input
-                      type="range"
-                      min={PATCH_RANGES.posterize[0]}
-                      max={PATCH_RANGES.posterize[1]}
-                      step={1}
-                      value={patchParamValue(patch.posterizeK, patch.posterize)}
-                      disabled={isKnobBound(patch.posterizeK)}
-                      onChange={(event) => updatePatch({ posterize: Number(event.target.value) })}
-                    />
-                    <em>
-                      {(() => {
-                        const bands = Math.round(
-                          patchParamValue(patch.posterizeK, patch.posterize),
-                        );
-                        return bands <= 1 ? "off" : bands;
-                      })()}
-                    </em>
-                    {renderBindSelect(
-                      patch.posterizeK,
-                      (knob) =>
-                        bindPatchKnob(knob, PATCH_RANGES.posterize, patch.posterize, () =>
-                          updatePatch({ posterizeK: knob }),
-                        ),
-                      "Posterize",
-                    )}
-                  </label>
-                  <label className={styles.patchInvert}>
-                    <input
-                      type="checkbox"
-                      checked={patch.invert}
-                      onChange={(event) => updatePatch({ invert: event.target.checked })}
-                    />
-                    <span>invert</span>
-                  </label>
-                </div>
-              </div>
             ) : (
               <div className={styles.galleryPane}>
                 {jobs.length > 0 && (
@@ -2762,28 +2253,6 @@ ${codeWithMatrix(activeCode)}
         </div>
       </section>
 
-      <section className={styles.snapshots} aria-label="Snapshots">
-        <div className={styles.snapshotsHeader}>
-          <span>Snapshots</span>
-          <button type="button" onClick={() => setSnapshots([])}>
-            Clear
-          </button>
-        </div>
-        {snapshots.length > 0 ? (
-          <ol className={styles.snapshotGrid}>
-            {snapshots.map((snapshot) => (
-              <li key={snapshot.id}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={snapshot.src} alt="" />
-                <span>{snapshot.label}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className={styles.emptyState}>No snapshots yet.</p>
-        )}
-      </section>
-
       {buttonHelpOpen && (
         <div
           className={styles.modalOverlay}
@@ -2888,15 +2357,6 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
         </div>
       )}
 
-      {shareOpen && (
-        <SharePatternModal
-          code={codeWithMatrix(activeCode)}
-          cppConvertPrompt={buildCppPrompt()}
-          source="pattern-lab"
-          onClose={() => setShareOpen(false)}
-        />
-      )}
-
       {buildOpen && (
         <BuildFirmwareModal
           patternLabel={forkOf?.title ?? "Pattern Lab pattern"}
@@ -2915,14 +2375,14 @@ export function draw(display, params, time) {} // runs each frame`}</pre>
           // The frame goes along either way: without it the community sandbox
           // would render a 64×128 pattern into a 128×64 canvas.
           code={
-            codeUsesValueField(activeCode) || recolor
-              ? withRampAnnotation(codeWithMatrix(activeCode), {
+            codeUsesValueField(code) || recolor
+              ? withRampAnnotation(codeWithMatrix(code), {
                   stops: rampState.stops,
                   mode: rampState.mode,
                   wrap: rampState.wrap,
                   recolor,
                 })
-              : codeWithMatrix(activeCode)
+              : codeWithMatrix(code)
           }
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}

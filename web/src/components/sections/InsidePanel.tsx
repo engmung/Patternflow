@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
 import BuildCard from './InsideGlobe/BuildCard';
+import BuildIndex from './InsideGlobe/BuildIndex';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
@@ -65,11 +66,15 @@ export default function InsidePanel({ content }: InsidePanelProps) {
             <p>
               The goal is simple: cover the whole globe with Patternflow. If you have made
               one yourself, come share it in Discord and I&apos;ll add your pin to the map.
+              A ring instead of a dot marks a collaboration — a separate work made
+              together with Patternflow, rather than a build of it.
             </p>
           </div>
           {/* Mobile only — the details for the pin picked on the globe above,
               which has no room to show them at 44vh. */}
           <BuildCard />
+          {/* Every pin as a link, for keyboards, screen readers and crawlers. */}
+          <BuildIndex />
         </div>
 
         <div className="pf-block">

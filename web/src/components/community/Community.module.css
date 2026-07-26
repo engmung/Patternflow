@@ -21,12 +21,18 @@
 
 .pageHeader {
   display: flex;
-  align-items: baseline;
-  gap: 14px;
+  align-items: center;
+  gap: 16px;
   padding-bottom: 16px;
   margin-bottom: 18px;
   border-bottom: 1px solid rgba(23, 21, 18, 0.18);
   flex: none;
+}
+
+.brandBlock {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
 }
 
 .brand {
@@ -34,12 +40,15 @@
   font-size: 17px;
   font-weight: 700;
   text-decoration: none;
+  line-height: 1.15;
 }
 
 .pageTitle {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   color: #6b655a;
+  text-decoration: none;
+  letter-spacing: 0.02em;
 }
 
 .headerSpacer {
@@ -507,8 +516,40 @@
 }
 
 @media (max-width: 900px) {
+  .detailWrap {
+    gap: 20px;
+    padding-bottom: 40px;
+  }
+
   .detailLayout {
     grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .matrixFrame {
+    max-width: 180px;
+    max-height: 360px;
+  }
+
+  .knobs {
+    margin-top: 14px;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  .knobLine {
+    grid-template-columns: 55px minmax(0, 1fr) 45px;
+    gap: 6px;
+  }
+
+  .actionRow {
+    max-width: 100%;
+    gap: 6px;
+  }
+
+  .actionRow button {
+    flex: 1 1 auto;
+    min-height: 36px;
   }
 }
 
@@ -561,9 +602,9 @@
 
 .knobLine {
   display: grid;
-  grid-template-columns: 70px 320px 70px;
+  grid-template-columns: 70px minmax(0, 1fr) 60px;
   align-items: center;
-  gap: 0;
+  gap: 8px;
   font-family: var(--pf-mono, monospace);
   font-size: 11px;
 }
@@ -571,14 +612,14 @@
 .knobLine span:first-child {
   color: #6b655a;
   text-align: right;
-  padding-right: 12px;
+  padding-right: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .knobLine input[type="range"] {
-  width: 320px;
+  width: 100%;
   margin: 0;
   accent-color: #e8552e;
   cursor: pointer;
@@ -589,7 +630,7 @@
   font-weight: 600;
   color: #171512;
   font-variant-numeric: tabular-nums;
-  padding-left: 12px;
+  padding-left: 4px;
 }
 
 .actionRow {
@@ -1567,4 +1608,85 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* ── Mobile feed ──
+   Static thumbnail wall: no hover exists, so cards drop their live sandboxes
+   and knob overlays (see PatternCard `interactive`) and the page itself
+   scrolls through several dense rows per page. Keep this media query in sync
+   with MOBILE_MEDIA_QUERY in lib/useMediaQuery.ts. */
+@media (max-width: 768px), (hover: none) {
+  .pageHeader {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+
+  .headerSpacer {
+    display: none;
+  }
+
+  .sectionNav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 4px;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  .headerNav {
+    margin-left: auto;
+  }
+
+  .inner {
+    padding: 14px 16px;
+    min-height: auto;
+  }
+
+  /* The desktop feed locks itself to the viewport and never scrolls; on
+     mobile the wall of thumbnails IS the page, so let it flow. */
+  .feedWrapper {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .centeredFeedBody {
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .introRow {
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  /* Card size is fixed by the mobile view config — a Large/Small toggle
+     would be a lie here. */
+  .viewTabs {
+    display: none;
+  }
+
+  /* Touch-sized pagination. */
+  .paginationBar {
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 10px;
+    margin-top: 14px;
+    padding-bottom: 28px;
+  }
+
+  .pageBtn {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .pageInput {
+    padding: 8px 6px;
+    font-size: 13px;
+  }
 }

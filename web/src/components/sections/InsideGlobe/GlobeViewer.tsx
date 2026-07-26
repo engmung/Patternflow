@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Globe from './Globe';
 import PhotoLightbox from './PhotoLightbox';
-import { builds } from './builds';
+import { builds, formatBuildDate, CARD_TILES, STRIP_TILES } from './builds';
 import { useBuildSelection } from './useBuildSelection';
 import styles from './GlobeViewer.module.css';
 
@@ -26,9 +26,18 @@ export default function GlobeViewer() {
   );
   const selected = selectedIndex === -1 ? null : builds[selectedIndex];
 
-  // Every build photo across all pins — warmed up front (see preloader below).
-  const allImages = useMemo(() => builds.flatMap((build) => build.images ?? []), []);
+  // Only the tiles a pin shows the moment it opens are warmed up front (see the
+  // preloader below). The rest of a build's photos live in the lightbox and can
+  // load when it is opened, which keeps the warm-up flat as pins are added
+  // instead of growing with every photo posted.
+  const warmTiles = Math.max(STRIP_TILES, CARD_TILES);
+  const allImages = useMemo(
+    () => builds.flatMap((build) => (build.images ?? []).slice(0, warmTiles)),
+    [warmTiles],
+  );
   const images = selected?.images;
+  // The strip only has room for a few; the rest are reachable through any tile.
+  const stripImages = images?.slice(0, STRIP_TILES);
   const galleryOpen = galleryIndex !== null && !!images?.length;
 
   const select = (id: string | null) => {
@@ -46,21 +55,26 @@ export default function GlobeViewer() {
 
   return (
     <div className={styles.viewer}>
-      {/* Offscreen preloader: fetch every pin's thumbnail (the same 160px
-          optimized variant the card uses) eagerly the moment the globe mounts,
-          so opening a pin shows its photos instantly instead of lazy-loading. */}
+      {/* Offscreen preloader: fetch each pin's opening tiles (the same optimized
+          variant the strip and card use) eagerly the moment the globe mounts, so
+          opening a pin shows its photos instantly instead of lazy-loading. Low
+          fetch priority so they queue behind the globe itself rather than
+          competing with it for bandwidth on first paint. */}
       <div className={styles.preload} aria-hidden>
         {allImages.map((image) => (
           <span key={image.src} className={styles.preloadBox}>
-            <Image src={image.src} alt="" fill sizes="280px" loading="eager" />
+            <Image src={image.src} alt="" fill sizes="280px" loading="eager" fetchPriority="low" />
           </span>
         ))}
       </div>
 
       <Globe selectedBuildId={selectedId ?? undefined} onSelectBuild={select} />
 
+      {/* Swapped in CSS rather than by measuring the viewport, so the server
+          and the client render the same thing. */}
       <div className={`${styles.hint} ${hasSelected ? styles.hintHidden : ''}`}>
-        Click a marker to explore
+        <span className={styles.hintPointer}>Click a marker to explore</span>
+        <span className={styles.hintTouch}>Tap a marker to explore</span>
       </div>
 
       <div
@@ -73,9 +87,9 @@ export default function GlobeViewer() {
         {selected && (
           <>
             {/* Photo strip, pinned to the top edge. */}
-            {images && images.length > 0 && (
+            {stripImages && stripImages.length > 0 && (
               <div className={styles.thumbs} onClick={(event) => event.stopPropagation()}>
-                {images.map((image, index) => (
+                {stripImages.map((image, index) => (
                   <button
                     key={image.src}
                     type="button"
@@ -130,7 +144,7 @@ export default function GlobeViewer() {
                 </div>
                 <div>
                   <span className={styles.meta}>
-                    {selected.location.label} · {selected.date}
+                    {selected.location.label} · {formatBuildDate(selected.date)}
                   </span>
                 </div>
               </div>
@@ -158,11 +172,14 @@ export default function GlobeViewer() {
               )}
             </div>
 
-            {/* Description, pinned to the bottom edge. Wrapper keeps the span
-                inline, so the highlight hugs each wrapped line instead of
-                becoming one big rectangle. */}
+            {/* Description, centred in the band between the arrows and the
+                bottom edge. The inner wrapper is what the band centres — put
+                the span in directly and being a grid item would blockify it,
+                turning the per-line highlight into one big rectangle. */}
             <div className={styles.detail}>
-              <span className={styles.desc}>{selected.description}</span>
+              <div className={styles.detailInner}>
+                <span className={styles.desc}>{selected.description}</span>
+              </div>
             </div>
           </>
         )}

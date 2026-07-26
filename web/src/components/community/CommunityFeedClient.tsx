@@ -1,11 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
 import FeedControls from "./FeedControls";
-import { DEFAULT_FEED_VIEW, FEED_VIEWS, type FeedView } from "@/lib/community/feedView";
+import {
+  DEFAULT_FEED_VIEW,
+  FEED_VIEWS,
+  MAX_FEED_PAGE_SIZE,
+  MOBILE_FEED_VIEW,
+  type FeedView,
+} from "@/lib/community/feedView";
+import { useIsMobile } from "@/lib/useMediaQuery";
 import styles from "./Community.module.css";
 
 // Responsive grid sized to whichever view is active (see lib/community/feedView).
@@ -61,9 +67,12 @@ export default function CommunityFeedClient({
   const params = useSearchParams();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const config = FEED_VIEWS[view];
+  // Mobile swaps in its own view config: dense static thumbnails, several rows
+  // per page, the whole page scrollable. Desktop keeps the Large/Small toggle.
+  const isMobile = useIsMobile();
+  const config = isMobile ? MOBILE_FEED_VIEW : FEED_VIEWS[view];
   const cardsPerRow = useResponsiveCardsPerRow(containerRef, config.slot, config.gap);
-  const pageSize = Math.max(1, cardsPerRow * config.rows);
+  const pageSize = Math.min(MAX_FEED_PAGE_SIZE, Math.max(1, cardsPerRow * config.rows));
 
   // The server sends a slightly generous first page (it can't know the
   // viewport), so trim to what actually fits. Page 0 of any size shares the
@@ -92,6 +101,16 @@ export default function CommunityFeedClient({
     },
     [router, hrefForPage, totalPages],
   );
+
+  // Self-correcting page size: when this viewport shows more cards than the
+  // server guessed (a first load on mobile, where six dense rows outrun the
+  // desktop-sized default), re-request the page at the real size. hrefForPage
+  // pins ?size= to the measured value, so this settles after one replace.
+  const expectedCount = Math.min(pageSize, Math.max(0, total - currentPage * pageSize));
+  useEffect(() => {
+    if (items.length >= expectedCount) return;
+    router.replace(hrefForPage(currentPage), { scroll: false });
+  }, [items.length, expectedCount, router, hrefForPage, currentPage]);
 
   const pageInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -128,12 +147,10 @@ export default function CommunityFeedClient({
     <div className={styles.feedWrapper}>
       <div className={styles.introRow}>
         <span>
-          Patterns shared by the community — hover over any pattern to play live, scroll wheel to turn knobs!
+          {isMobile
+            ? "Patterns shared by the community — tap any pattern to open it and play it live."
+            : "Patterns shared by the community — hover over any pattern to play live, scroll wheel to turn knobs!"}
         </span>
-        <span className={styles.headerSpacer} />
-        <Link href="/pattern-lab" className={styles.btnAccent}>
-          Make one in Pattern Lab
-        </Link>
       </div>
 
       <FeedControls sort={sort} hardwareOnly={hardwareOnly} view={view} />
@@ -148,14 +165,17 @@ export default function CommunityFeedClient({
         <div ref={containerRef} className={styles.centeredFeedBody}>
           <div
             className={styles.feedGrid}
-            data-view={view}
+            // Mobile borrows the small view's compact card furniture.
+            data-view={isMobile ? "small" : view}
             style={{
               gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))`,
               gap: `${config.gap}px`,
             }}
           >
             {visibleItems.map((item) => (
-              <PatternCard key={item.id} item={item} />
+              // Static thumbnails on mobile: no hover means the live sandbox
+              // iframes and knob overlay are pure cost there.
+              <PatternCard key={item.id} item={item} interactive={!isMobile} />
             ))}
           </div>
 

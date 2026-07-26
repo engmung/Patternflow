@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useAppStore, SectionType } from '@/store/useAppStore';
 import { SectionContent } from '@/lib/content';
 import { captureEvent } from '@/lib/posthogEvents';
@@ -188,44 +187,97 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
           </div>
         </div>
 
+        {/* The reality check every would-be builder wants before committing:
+            what it costs, how long it takes, and — the big one — that the
+            soldering was deliberately kept first-timer easy. Numbers follow
+            the main path (custom PCB + 3D print, see BUILD_GUIDE.md BOM). */}
         <div className="pf-block">
-          <span className="pf-kicker">Choose your build</span>
-          <div className={`pf-prose ${styles.pathIntro}`}>
-            <p>
-              Pick one enclosure path and one electronics path. The current guide is the complete
-              route today; the other combinations are in active testing — follow the linked issues
-              to track progress — so you can start with the tools, budget, and space you actually
-              have. The custom PCB is stable; PCBA may come later as an easier assembly option.
-            </p>
-          </div>
-          <div className={styles.buildMatrix} role="table" aria-label="Build combinations">
-            <div className={`${styles.matrixCell} ${styles.matrixCorner}`} role="columnheader">
-              <span className={styles.cornerElectronics}>Electronics</span>
-              <span className={styles.cornerEnclosure}>Enclosure</span>
+          <span className="pf-kicker">What it takes</span>
+          <div className={styles.factsGrid}>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~US$100</span>
+              <span className={styles.factLabel}>
+                all parts — filament ~$30 · LED panel ~$20 · ESP32-S3 ~$13 · PCB &amp; the rest ~$35
+              </span>
             </div>
-            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Custom PCB</div>
-            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixColumnHeader}`} role="columnheader">Breadboard</div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~2 weeks</span>
+              <span className={styles.factLabel}>
+                parts shipping — order first; the wait is the longest part of the build
+              </span>
+            </div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~10 hours</span>
+              <span className={styles.factLabel}>
+                3D printing — printer time, not yours; it runs while you wait
+              </span>
+            </div>
+            <div className={styles.factCard}>
+              <span className={styles.factValue}>~1 hour</span>
+              <span className={styles.factLabel}>
+                hands-on — about 30 min of soldering and 30 min of final assembly
+              </span>
+            </div>
+          </div>
+          <p className={styles.factsNote}>
+            Never soldered before? Start here. The soldering is genuinely, really easy — every
+            joint is big through-hole, and the board was deliberately stripped down to only the
+            easy parts so that first-time solderers can finish it.
+          </p>
+        </div>
 
-            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">3D print</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md" target="_blank" rel="noreferrer" role="cell">
-              <strong>Build guide</strong>
-              <span>PLA print · hand solder</span>
+        {/* ONE prominent route — the current v3.0.0 guide — with the two
+            ordering shortcuts wired straight to it. Every other combination
+            (breadboard, laser cut, older boards) lives in the assembly map,
+            which replaced the old build matrix here. */}
+        <div className="pf-block">
+          <span className="pf-kicker">Build guide</span>
+          <a
+            className={styles.guideCard}
+            href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md"
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => captureEvent('build_guide_opened', {
+              guide: 'v3.0.0',
+              surface: 'build_panel',
+            })}
+          >
+            <strong>Build Guide v3.0.0 ↗</strong>
+            <span>
+              The complete, current route — PLA-printed case, hand-soldered custom PCB, browser
+              flash. Start to finish in one document.
+            </span>
+          </a>
+          <div className={styles.quickLinks}>
+            <a
+              href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <strong>Order the PCB — PCBWay ↗</strong>
+              <span>Shared project: no Gerber upload, and ordering supports Patternflow</span>
             </a>
-            <Link className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixCurrent} ${styles.matrixLink}`} href="/build/breadboard" role="cell">
-              <strong>Build guide</strong>
-              <span>PCB-free wiring</span>
-            </Link>
-
-            <div className={`${styles.matrixCell} ${styles.matrixHeader} ${styles.matrixRowHeader}`} role="rowheader">Laser cut</div>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/123" target="_blank" rel="noreferrer" role="cell">
-              <strong>In testing</strong>
-              <span>Flat enclosure</span>
+            <a
+              href="https://makerworld.com/en/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <strong>Print the case — MakerWorld ↗</strong>
+              <span>Tuned one-click profiles for Bambu printers; STLs in the repo for the rest</span>
             </a>
-            <a className={`${styles.matrixCell} ${styles.matrixOption} ${styles.matrixLink}`} href="https://github.com/engmung/Patternflow/issues/123" target="_blank" rel="noreferrer" role="cell">
-              <strong>In testing</strong>
-              <span>Lowest fabrication path</span>
+            <a
+              href="https://github.com/engmung/Patternflow/releases/tag/v3.0.0"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <strong>All files — Release v3.0.0 ↗</strong>
+              <span>STLs, Gerbers, print project, and firmware images bundled in one place</span>
             </a>
           </div>
+          <p className={styles.otherPaths}>
+            Building another way — breadboard electronics, laser-cut enclosure, or an older v2
+            board? Every route lives in the assembly map.
+          </p>
           <div className={styles.pathLinks}>
             <a className="pf-link" href="https://github.com/engmung/Patternflow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">
               Open the assembly map

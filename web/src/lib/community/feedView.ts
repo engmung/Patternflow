@@ -26,6 +26,18 @@ export const FEED_VIEWS: Record<FeedView, FeedViewConfig> = {
 
 export const DEFAULT_FEED_VIEW: FeedView = "large";
 
+// Mobile ignores the Large/Small toggle entirely: cards are static thumbnails
+// (no hover on a phone), packed dense and stacked several rows deep so one
+// page is a real scrollable wall of patterns. The client detects mobile and
+// swaps this config in; the page URL keeps working like any other view.
+export const MOBILE_FEED_VIEW: FeedViewConfig = {
+  label: "Mobile",
+  slot: 100,
+  gap: 8,
+  rows: 6,
+  defaultSize: 18,
+};
+
 /** Ceiling on how much pattern source one request can ship. */
 export const MAX_FEED_PAGE_SIZE = 44;
 

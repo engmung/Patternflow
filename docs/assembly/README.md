@@ -1,41 +1,50 @@
-# Build Patternflow
+# Build Patternflow — Assembly Map
+
+> **Which version am I building?** Current hardware is **v3.0.0**: follow **[BUILD_GUIDE.md](../../BUILD_GUIDE.md)**, with every file bundled at the **[v3.0.0 release](https://github.com/engmung/Patternflow/releases/tag/v3.0.0)** (STLs, Gerbers, Bambu print project, firmware images).
+> Own a **v2.x board**? Use **[BUILD_GUIDE_v2.md](../../BUILD_GUIDE_v2.md)** and the **[v2.1.0 release](https://github.com/engmung/Patternflow/releases/tag/v2.1.0)** instead. **v2 and v3 parts are not interchangeable** — the boards do not fit each other's cases.
 
 Patternflow is not a single, rigid kit. It is a modular system divided into two core parts:
 
-1. **Enclosure** — Choose how you house the device (3D printed, etc.).
-2. **Electronics** — Choose how you wire the hardware (Custom PCB, etc.).
+1. **Enclosure** — how you house the device (3D printed today; laser cut in testing).
+2. **Electronics** — how you wire the hardware (custom PCB, or breadboard).
 
-Once you build these two components, you simply flash the firmware to bring your Patternflow to life.
+Build those two, flash the firmware, and your Patternflow is alive.
 
-## Current Supported Path
+## The main route (v3.0.0)
 
 | Enclosure | Electronics | Firmware | Status |
 | --- | --- | --- | --- |
-| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Browser or Arduino IDE / Custom patterns](firmware/custom-patterns.md) | Supported now |
+| [3D printed enclosure](enclosure/3d-print.md) | [Custom PCB, hand-soldered](electronics/pcb.md) | [Browser flash / custom patterns](firmware/custom-patterns.md) | **Current — fully documented** |
 
-This is the same path as the original build guide: PLA parts printed on a Bambu P1S or similar FDM printer, a hand-soldered Patternflow PCB, and firmware flashed from the browser — or compiled locally in the Arduino IDE — to run custom generative patterns.
+This is the route [BUILD_GUIDE.md](../../BUILD_GUIDE.md) walks start to finish: PLA parts on any 256 mm-bed FDM printer, the hand-soldered v3.0 board (all through-hole — deliberately kept first-timer easy), and firmware flashed from the browser. Two ordering shortcuts are wired straight to it:
 
-## Build Combinations
+- **PCB** — the [PCBWay shared project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html): no Gerber upload, and ordering there supports Patternflow development.
+- **Case** — the [MakerWorld listing](https://makerworld.com/en/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015): tuned one-click print profiles for Bambu printers (STLs in `hardware/case/` for everyone else).
+
+## All combinations
 
 | Enclosure | Electronics | Status |
 | --- | --- | --- |
-| 3D printed enclosure | Custom PCB | Supported now |
-| 3D printed enclosure | Breadboard / jumper-wire electronics | [Available — Breadboard Build Guide](https://patternflow.work/build/breadboard) |
-| Laser-cut enclosure | Custom PCB | Preparing |
-| Laser-cut enclosure | Breadboard / jumper-wire electronics | Preparing |
+| 3D printed enclosure | Custom PCB | **Current** — [BUILD_GUIDE.md](../../BUILD_GUIDE.md) |
+| 3D printed enclosure | Breadboard / jumper-wire electronics | Available — [Breadboard Build Guide](https://patternflow.work/build/breadboard) |
+| Laser-cut enclosure | Custom PCB | In testing — [#123](https://github.com/engmung/Patternflow/issues/123) |
+| Laser-cut enclosure | Breadboard / jumper-wire electronics | In testing — [#123](https://github.com/engmung/Patternflow/issues/123) |
 
-The preparing paths are meant to make Patternflow easier and cheaper to start. A breadboard build is not only a temporary prototype. If that form is enough for you, it is a valid Patternflow build. If you want a more polished object later, you can move to the PCB and enclosure paths.
+The in-testing paths exist to make Patternflow easier and cheaper to start. A breadboard build is not just a temporary prototype — if that form is enough for you, it is a valid Patternflow build. Want a more finished object later? Move to the PCB and printed-enclosure path whenever you like.
 
 The custom PCB path is stable. PCBA may become a later electronics path for people who want the same PCB with less hand assembly.
 
-## Firmware & Custom Patterns
+## Firmware & custom patterns
 
-To bring your Patternflow hardware to life you flash it with firmware, and you can **create and run your own generative patterns using AI coding assistants**.
+To bring the hardware to life you flash it with firmware, and you can **create and run your own generative patterns with AI coding assistants**.
 
-Custom patterns no longer need a local toolchain: the server compiles a firmware image containing your pattern and the browser writes it over USB. The Arduino IDE route remains for firmware development and offline work.
+Custom patterns no longer need a local toolchain: Patternflow's build server compiles a firmware image containing your pattern and the browser writes it over USB (after the first flash sets up Wi-Fi, updates can go over the air). The Arduino IDE route remains only for firmware feature development or targeting a different LED matrix resolution.
 
-- **[Create Custom Patterns (Recommended)](firmware/custom-patterns.md)** — Use our interactive web Live Editor and an AI assistant (Claude, ChatGPT, etc.) to generate, preview and install your own visual patterns, either straight from the browser or via the Arduino IDE.
+- **[Create custom patterns (recommended)](firmware/custom-patterns.md)** — make a pattern in the [Live Editor](https://patternflow.work) or [Pattern Lab](https://patternflow.work/pattern-lab), preview it live, and install it from the browser.
 
-## Legacy Guide
+## Guides & releases
 
-The full original walkthrough still lives at [BUILD_GUIDE.md](../../BUILD_GUIDE.md). It currently documents the supported PCB + 3D print path in detail.
+| Version | Guide | Everything bundled |
+| --- | --- | --- |
+| **v3.0.0** (current) | [BUILD_GUIDE.md](../../BUILD_GUIDE.md) | [v3.0.0 release](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) |
+| v2.1.0 (legacy) | [BUILD_GUIDE_v2.md](../../BUILD_GUIDE_v2.md) | [v2.1.0 release](https://github.com/engmung/Patternflow/releases/tag/v2.1.0) |

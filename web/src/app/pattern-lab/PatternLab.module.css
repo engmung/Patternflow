@@ -2,7 +2,62 @@
   min-height: 100vh;
   background: #f7f3ea;
   color: #171512;
-  padding: 22px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+/* Compact top navigation bar for Pattern Lab */
+.labHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
+  background: rgba(247, 243, 234, 0.85);
+}
+
+.labBrandBlock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.labBrand {
+  color: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.labBrand:hover {
+  opacity: 0.8;
+}
+
+.labTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8577;
+  letter-spacing: 0.01em;
+}
+
+.labNav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.labNav a {
+  color: #6b655a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.labNav a:hover {
+  color: #171512;
 }
 
 .shellDragging {
@@ -29,9 +84,7 @@
 
 .headerMeta,
 .stats,
-.actionRow,
-.sweepBar,
-.snapshotsHeader {
+.actionRow {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -40,9 +93,7 @@
 
 .headerMeta,
 .stats,
-.snapshotsHeader,
-.emptyState,
-.snapshotGrid span {
+.emptyState {
   color: rgba(23, 21, 18, 0.62);
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
@@ -60,8 +111,7 @@
 }
 
 .previewColumn,
-.editorColumn,
-.snapshots {
+.editorColumn {
   border: 1px solid rgba(23, 21, 18, 0.18);
   background: #fffdf8;
 }
@@ -178,6 +228,52 @@
   cursor: help;
 }
 
+/* Mobile-first AI workflow: Copy prompt & Paste response buttons. Hidden on desktop. */
+.mobileActions {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.mobileCopyPromptBtn,
+.mobilePasteBtn {
+  min-height: 44px;
+  border-radius: 6px;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobileCopyPromptBtn {
+  border: 1px solid rgba(23, 21, 18, 0.28);
+  background: #ffffff;
+  color: #171512;
+}
+
+.mobileCopyPromptBtn:active {
+  background: #f0eae1;
+}
+
+.mobilePasteBtn {
+  border: 1px solid #e8552e;
+  background: #e8552e;
+  color: #ffffff;
+}
+
+.mobilePasteBtn:active {
+  background: #d44722;
+  border-color: #d44722;
+}
+
 .matrixFrame {
   position: relative;
   width: 100%;
@@ -242,14 +338,19 @@
 
 .controls {
   display: grid;
-  gap: 6px;
+  gap: 12px;
   margin-top: 14px;
 }
 
-/* One compact line per knob: name · min · slider · max · value · push */
+/* Two lines per knob: name · value · push on top, then a full-width slider
+   flanked by its min/max fields — long enough to tune precisely. */
 .knobLine {
   display: grid;
-  grid-template-columns: 50px 60px minmax(0, 1fr) 60px 54px auto;
+  gap: 4px;
+}
+
+.knobHead {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
@@ -260,12 +361,20 @@
   white-space: nowrap;
 }
 
-.knobLine > input[type="range"] {
+.knobSlider {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 60px;
+  align-items: center;
+  gap: 8px;
+}
+
+.knobSlider input[type="range"] {
   width: 100%;
   accent-color: #171512;
 }
 
 .knobValue {
+  margin-left: auto;
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   font-weight: 500;
@@ -507,6 +616,24 @@
   cursor: default;
 }
 
+.rampResetBtn {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampResetBtn:hover {
+  border-color: #171512;
+  background: #f0eae1;
+}
+
 .rampHint {
   margin-left: auto;
   font-family: var(--font-jetbrains), monospace;
@@ -515,193 +642,12 @@
   text-transform: uppercase;
 }
 
-/* ── Experiment (layer stack) ── */
-
-.patchPane {
-  height: 100%;
-  overflow-y: auto;
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  background: #ffffff;
-  border: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.patchIntro {
-  margin: 0;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: rgba(23, 21, 18, 0.62);
-}
-
-.patchLayer {
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.patchLayer[data-disabled="true"] .patchSliders {
-  opacity: 0.35;
-  pointer-events: none;
-}
-
-.patchLayerHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.patchEnable {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.patchEnable input {
-  accent-color: #171512;
-}
-
-.patchLayerHead select {
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.patchBase {
-  color: rgba(23, 21, 18, 0.5);
-}
-
-.patchRemove {
-  margin-left: auto;
-  min-width: 26px;
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.patchRemove:hover:not(:disabled) {
-  border-color: #b3261e;
-  color: #b3261e;
-}
-
-.patchRemove:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.patchSliders,
-.patchPost {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-}
-
-.patchSliders label,
-.patchPost label {
-  display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) 38px 44px;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  color: rgba(23, 21, 18, 0.62);
-}
-
-.patchBind {
-  min-height: 22px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-/* Highlight active bindings so it's obvious which params the knobs own. */
-.patchBind:has(option:checked:not([value="-1"])) {
-  border-color: #171512;
-  background: #171512;
-  color: #f7f3ea;
-}
-
-.patchSliders input[type="range"]:disabled,
-.patchPost input[type="range"]:disabled {
-  opacity: 0.45;
-}
-
-.patchSliders input[type="range"],
-.patchPost input[type="range"] {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.patchSliders em,
-.patchPost em {
-  font-style: normal;
-  font-size: 11px;
-  color: #171512;
-  text-align: right;
-}
-
-.patchAdd {
-  min-height: 30px;
-  border: 1px dashed rgba(23, 21, 18, 0.35);
-  background: #ffffff;
-  color: #171512;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.patchAdd:hover {
-  border-color: #171512;
-}
-
-.patchPost {
-  border-top: 1px solid rgba(23, 21, 18, 0.14);
-  padding-top: 10px;
-}
-
-.patchInvert {
-  display: inline-flex !important;
-  align-items: center;
-  gap: 6px;
-}
-
-.patchInvert input {
-  accent-color: #171512;
-}
-
 .actionRow {
   margin-top: 12px;
 }
 
 .actionRow button,
-.sweepBar button,
-.sweepBar select,
-.editorHeader button,
-.snapshotsHeader button {
+.editorHeader button {
   min-height: 38px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
@@ -715,9 +661,7 @@
 }
 
 .actionRow button:hover,
-.sweepBar button:hover,
-.editorHeader button:hover,
-.snapshotsHeader button:hover {
+.editorHeader button:hover {
   border-color: #171512;
 }
 
@@ -759,6 +703,7 @@
 }
 
 .editorHeader .pasteButton {
+  display: none;
   background: #e8552e !important;
   color: #ffffff !important;
   border-color: #e8552e !important;
@@ -771,6 +716,7 @@
 }
 
 .editorHeader .clearButton {
+  display: none;
   background: #ffffff !important;
   color: #171512 !important;
   border: 1px solid rgba(23, 21, 18, 0.3) !important;
@@ -779,16 +725,6 @@
 .editorHeader .clearButton:hover {
   background: #f0eae1 !important;
   border-color: #171512 !important;
-}
-
-.sweepBar {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.sweepBar select {
-  min-width: 140px;
 }
 
 .editorColumn {
@@ -816,45 +752,6 @@
   flex: 1 1 auto;
   min-height: 720px;
   height: 100%;
-}
-
-.snapshots {
-  margin-top: 22px;
-}
-
-.snapshotsHeader {
-  justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
-}
-
-.snapshotGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.snapshotGrid li {
-  border-right: 1px solid rgba(23, 21, 18, 0.14);
-  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
-  padding: 10px;
-}
-
-.snapshotGrid img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 2 / 1;
-  background: #030303;
-  image-rendering: pixelated;
-}
-
-.snapshotGrid span {
-  display: block;
-  margin-top: 8px;
-  text-transform: none;
 }
 
 .emptyState {
@@ -1385,7 +1282,7 @@
 
 @media (max-width: 980px) {
   .shell {
-    padding: 14px;
+    padding: 12px;
   }
 
   .header,
@@ -1395,19 +1292,35 @@
     flex-direction: column;
   }
 
+  .previewHeader {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .previewColumn {
+    padding: 12px;
+  }
+
   .editorActions {
     width: 100%;
     gap: 8px;
   }
 
   .editorHeader button {
-    min-height: 32px;
+    min-height: 36px;
     padding: 0 10px;
     font-size: 11px;
   }
 
+  .editorHeader .pasteButton,
+  .editorHeader .clearButton {
+    display: inline-flex;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 14px;
     min-height: auto;
   }
 
@@ -1416,13 +1329,68 @@
     text-align: left;
   }
 
+  /* Mobile AI workflow action bar sitting right above the simulator. */
+  .mobileActions {
+    display: grid;
+  }
+
+  /* Keep the preview compact so the knobs stay on screen. */
+  .matrixFrame {
+    max-height: 38vh;
+  }
+
+  /* Compact mobile knob rows: reduced gaps and vertical height. */
+  .controls {
+    gap: 6px;
+    margin-top: 10px;
+  }
+
   .knobLine {
-    grid-template-columns: 40px 52px minmax(0, 1fr) 52px 48px auto;
+    gap: 2px;
+    padding: 6px 8px;
+    background: rgba(23, 21, 18, 0.03);
+    border-radius: 6px;
+  }
+
+  .knobHead {
     gap: 6px;
   }
 
+  .knobSlider {
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    gap: 4px;
+  }
+
+  .knobSlider input[type="range"] {
+    min-height: 22px;
+  }
+
+  .knobButton {
+    min-height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+
+  .rangeValue,
+  .rangeInput {
+    min-height: 22px;
+    font-size: 11px;
+  }
+
+  /* Action buttons become full-width rows — easy to hit, nothing truncated. */
+  .actionRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .actionRow button {
+    width: 100%;
+    min-height: 44px;
+  }
+
   .editorPane {
-    min-height: 520px;
+    min-height: 420px;
   }
 }
 

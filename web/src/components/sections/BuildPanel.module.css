@@ -23,145 +23,138 @@
   gap: 3px;
 }
 
-.pathIntro {
-  max-width: 640px;
-  margin-bottom: 24px;
+/* ── What it takes ── cost + time reality check before the build matrix. */
+.factsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid var(--pf-rule);
 }
 
-.pathIntro p {
+.factCard {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-right: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
+}
+
+.factCard:nth-child(2n) {
+  border-right: 0;
+}
+
+.factCard:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.factValue {
+  font-family: var(--pf-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--pf-ink);
+}
+
+.factLabel {
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-body);
   line-height: 1.5;
 }
 
-.buildMatrix {
-  display: grid;
-  grid-template-columns: minmax(142px, 0.85fr) repeat(2, minmax(0, 1fr));
-  max-width: 620px;
-  border-top: 1px solid var(--pf-rule);
-  border-left: 1px solid var(--pf-rule);
+.factsNote {
+  max-width: 640px;
+  margin: 14px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.6;
 }
 
-.matrixCell {
-  min-height: 86px;
-  padding: 18px;
+/* ── Build guide ── one loud card for the current v3.0.0 route, two quiet
+   ordering shortcuts under it, everything else via the assembly map. */
+.guideCard {
+  display: grid;
+  gap: 8px;
+  max-width: 620px;
+  padding: 20px 22px;
+  border: 1px solid var(--pf-ink);
+  background: var(--pf-cream-2);
+  color: var(--pf-ink);
+  text-decoration: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.guideCard strong {
+  font-size: clamp(19px, 2vw, 24px);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.guideCard span {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.5;
+}
+
+.guideCard:hover,
+.guideCard:focus-visible {
+  outline: 0;
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.guideCard:hover span,
+.guideCard:focus-visible span {
+  color: var(--pf-cream);
+  opacity: 0.75;
+}
+
+.quickLinks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  max-width: 620px;
+  border: 1px solid var(--pf-rule);
+  border-top: 0;
+}
+
+.quickLinks a {
+  display: grid;
+  gap: 4px;
+  padding: 13px 16px;
   border-right: 1px solid var(--pf-rule);
-  border-bottom: 1px solid var(--pf-rule);
   color: var(--pf-ink);
   text-decoration: none;
 }
 
-.matrixHeader,
-.matrixCorner {
-  color: var(--pf-ink);
+.quickLinks a:last-child {
+  border-right: 0;
 }
 
-.matrixHeader {
-  background: var(--pf-cream-2);
-}
-
-.matrixCorner {
-  position: relative;
-  overflow: hidden;
-  background: var(--pf-cream-2);
-  color: var(--pf-ink-faint);
-}
-
-.matrixCorner::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom left,
-    transparent calc(50% - 0.5px),
-    var(--pf-rule) calc(50% - 0.5px),
-    var(--pf-rule) calc(50% + 0.5px),
-    transparent calc(50% + 0.5px)
-  );
-  pointer-events: none;
-}
-
-.cornerElectronics,
-.cornerEnclosure {
-  position: absolute;
-  z-index: 1;
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: 10px;
-  letter-spacing: var(--pf-track-mono);
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.cornerElectronics {
-  top: 15px;
-  right: 14px;
-  text-align: right;
-}
-
-.cornerEnclosure {
-  left: 14px;
-  bottom: 14px;
-}
-
-.matrixColumnHeader,
-.matrixRowHeader {
-  display: flex;
-  align-items: center;
-  font-size: clamp(18px, 2vw, 24px);
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.matrixColumnHeader {
-  align-items: center;
-}
-
-.matrixOption {
-  display: grid;
-  align-content: center;
-  gap: 5px;
-}
-
-.matrixOption strong {
-  color: var(--pf-ink-muted);
-  font-size: clamp(16px, 1.55vw, 19px);
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.matrixOption span {
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.35;
-}
-
-.matrixCurrent strong {
-  color: var(--pf-ink);
-}
-
-.matrixCurrent span {
-  color: var(--pf-ink-muted);
-}
-
-.matrixCurrent:hover,
-.matrixCurrent:focus-visible {
+.quickLinks a:hover,
+.quickLinks a:focus-visible {
   outline: 0;
   background: var(--pf-cream-2);
 }
 
-.matrixLink strong {
+.quickLinks strong {
+  font-size: var(--pf-fs-row-d);
+  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
   text-decoration-thickness: 1px;
 }
 
-.matrixLink:hover,
-.matrixLink:focus-visible {
-  outline: 0;
-  background: var(--pf-cream-2);
+.quickLinks span {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.4;
+}
+
+.otherPaths {
+  max-width: 620px;
+  margin: 16px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-body);
+  line-height: 1.55;
 }
 
 .pathLinks {
@@ -216,82 +209,20 @@
   .inlineAction {
     right: 62px;
   }
-
-  .buildMatrix {
-    grid-template-columns: minmax(104px, 0.8fr) repeat(2, minmax(0, 1fr));
-  }
-
-  .matrixCell {
-    min-height: 76px;
-    padding: 12px;
-  }
-
-  .cornerElectronics,
-  .cornerEnclosure {
-    font-size: 9px;
-    letter-spacing: 0.1em;
-  }
-
-  .cornerElectronics {
-    top: 11px;
-    right: 10px;
-  }
-
-  .cornerEnclosure {
-    left: 10px;
-    bottom: 10px;
-  }
-
-  .matrixColumnHeader,
-  .matrixRowHeader {
-    font-size: 17px;
-  }
-
-  .matrixOption strong {
-    font-size: 15px;
-  }
 }
 
-
 @media (max-width: 600px) {
-  .buildMatrix {
-    grid-template-columns: minmax(78px, 0.75fr) repeat(2, minmax(0, 1fr));
+  /* The ordering shortcuts stack on phones. */
+  .quickLinks {
+    grid-template-columns: 1fr;
   }
 
-  .matrixCell {
-    min-height: 64px;
-    padding: 8px;
-    word-break: break-word;
-    overflow-wrap: break-word;
+  .quickLinks a {
+    border-right: 0;
+    border-bottom: 1px solid var(--pf-rule);
   }
 
-  .cornerElectronics,
-  .cornerEnclosure {
-    font-size: 7px;
-    letter-spacing: 0.05em;
-  }
-
-  .cornerElectronics {
-    top: 6px;
-    right: 6px;
-  }
-
-  .cornerEnclosure {
-    left: 6px;
-    bottom: 6px;
-  }
-
-  .matrixColumnHeader,
-  .matrixRowHeader {
-    font-size: 13px;
-  }
-
-  .matrixOption strong {
-    font-size: 12px;
-  }
-
-  .matrixOption span {
-    font-size: 9px;
-    line-height: 1.15;
+  .quickLinks a:last-child {
+    border-bottom: 0;
   }
 }

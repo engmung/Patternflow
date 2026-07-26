@@ -8,106 +8,9 @@ import { useAppStore } from '@/store/useAppStore';
 import Editor from '@monaco-editor/react';
 import { showcasePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
-import SharePatternModal from '@/components/share/SharePatternModal';
 import { communityHref } from '@/lib/community/apiBase';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 import styles from './PatternPanel.module.css';
-
-const getConvertPrompt = (code: string) => `Convert the following JavaScript LED pattern into one complete Arduino-compatible C++ header for the Patternflow ESP32-S3 firmware.
-
-Output rules:
-- Put the complete header in one single code block labeled \`cpp\`.
-- Do not write any text before or after the code block.
-- The code block content itself must start with \`#pragma once\`.
-- The code block content itself must end with the namespace closing brace comment, for example \`} // namespace ExamplePattern\`.
-- Do not include nested triple backticks inside the code block.
-- Do not output explanations, registry edits, .ino edits, mock declarations, placeholder comments, or separate .cpp files.
-- Do not include stray HTML/XML-like tokens such as \`</Arduino.h>\`.
-- The file will be copied directly into \`firmware/patternflow/\`.
-
-Required header structure:
-- Start with \`#pragma once\`.
-- Use only these includes:
-  \`#include <Arduino.h>\`
-  \`#include <math.h>\`
-  \`#include <stdint.h>\`
-  \`#include "config.h"\`
-  \`#include "src/core_display.h"\`
-  \`#include "src/core_encoders.h"\`
-  \`#include "src/core_canvas.h"\`  // required: draw via PFCanvas, not dma_display
-- Optionally include any of these shared helpers when you actually use them. Do not include what you do not use.
-  \`#include "src/core_math.h"\`   // PFMath:: fastSin, fastCos, fract, lerp, approxLength, sin LUT
-  \`#include "src/core_color.h"\`  // PFColor:: hsvToRgb, ColorStop, sampleRamp
-  \`#include "src/core_noise.h"\`  // PFNoise:: perlin2D, fractal2D
-  \`#include "src/core_mem.h"\`    // PFMem:: allocFloats — PSRAM-first, zeroed allocation for framebuffer-sized buffers
-- Do not use \`<algorithm>\`, \`<cmath>\`, \`<cstdint>\`, \`std::clamp\`, \`std::round\`, \`std::vector\`, \`std::string\`, dynamic allocation, exceptions, file IO, external libraries, or placeholder declarations like \`extern Display*\` or mock \`InputFrame\`.
-- Use Arduino/math functions: \`constrain()\`, \`roundf()\`, \`floorf()\`, \`fmodf()\`, \`powf()\`. Prefer \`PFMath::fastSin()\` / \`PFMath::fastCos()\` over \`sinf()\` / \`cosf()\` inside the pixel loop.
-- Use \`PANEL_RES_W\` and \`PANEL_RES_H\`; never hardcode 128 or 64.
-- Do not write your own sin LUT, HSV-to-RGB converter, or Perlin noise. Use \`PFMath\`, \`PFColor\`, \`PFNoise\` instead — they are already optimized and shared across patterns.
-- Avoid names that may collide with macros from \`config.h\`, such as \`MAX_HUE\`, \`MAX_SPEED\`, \`SPEED_STEP\`, \`MAX_FREQ\`, or \`FREQ_STEP\`.
-- Prefix all pattern constants with the uppercase pattern name, for example \`VECTOR_FIELD_SPEED_STEP\`, not \`SPEED_STEP\`.
-
-ESP32 optimization:
-- If the JavaScript pattern has HIGH ESP32 cost, do not translate expensive pixel-loop math literally.
-- Avoid \`sinf()\`, \`cosf()\`, \`powf()\`, \`sqrtf()\`, and \`atan2f()\` inside the inner pixel loop when possible.
-- For repeated sine/cosine, use \`PFMath::fastSin()\` / \`PFMath::fastCos()\`. Call \`PFMath::buildSinLUT()\` from \`setup()\` (idempotent — safe even if other patterns already called it).
-- Replace \`pow(x, 2.0)\` with \`x * x\`; replace non-integer \`pow()\` with a cheap polynomial approximation when visual fidelity allows.
-- Replace \`sqrt(x*x + y*y)\` with \`PFMath::approxLength(x, y)\` when exact distance is not visually essential — it has ~5% error and avoids the \`sqrtf\` call inside the pixel loop.
-- Precompute coordinate arrays such as normalized x/y values in \`setup()\`.
-- Precompute row-only and column-only warp terms once per frame outside the inner pixel loop.
-- Preserve the visual structure, but prefer a faster approximation over a literal slow translation.
-
-Memory rules (big buffers must never be static arrays):
-- All patterns compile into one firmware image, so every namespace static array occupies internal DRAM from boot even while the pattern is inactive — and internal DRAM is shared with the Wi-Fi stack and the HUB75 DMA driver. Never declare a framebuffer-sized static array such as \`static float buf[PANEL_RES_W * PANEL_RES_H]\` (32 KB locked at boot).
-- Any per-pixel buffer (trail map, glow/density accumulator, feedback field) must be a POINTER allocated once in \`setup()\` with \`PFMem::allocFloats\` from \`src/core_mem.h\` — it allocates from PSRAM when available and returns zeroed memory:
-  \`static float* trail = nullptr;\`
-  \`void setup() { if (!trail) trail = PFMem::allocFloats(PANEL_RES_W * PANEL_RES_H); }\`
-- Guard \`update()\` with \`if (!trail) return;\` and start \`draw()\` with \`if (!trail) { PFCanvas::present(); return; }\` so a failed allocation degrades to a blank pattern instead of crashing.
-- Small fixed state (particle arrays, knob params, 256-entry LUTs — anything under ~2 KB) stays as plain statics; this rule is only for framebuffer-scale buffers.
-
-Required namespace interface:
-- Choose a stable PascalCase namespace ending in \`Pattern\`.
-- Inside the namespace, define:
-  \`const char* NAME = "Short Display Name";\`
-  \`const char* const KNOB_LABELS[4] = {"KNOB 1", "KNOB 2", "KNOB 3", "KNOB 4"};\`
-  \`struct Params { ... };\`
-  one global \`Params params;\`
-  \`void setup();\`
-  \`void update(float dt, const InputFrame& input);\`
-  \`void draw();\`
-- \`draw()\` must write pixels with \`PFCanvas::setPixel(x, y, r, g, b)\`, never with \`dma_display->drawPixelRGB888()\` directly. The canvas is the single point of contact with the LED driver and is where global brightness, gamma, and color post-processing live.
-- The final line of \`draw()\` must be \`PFCanvas::present();\` — this is what pushes the rendered frame to the LED matrix. Without it, nothing shows up.
-
-Conversion fidelity:
-- Preserve the JavaScript pattern's setup defaults exactly unless a value would break Arduino compilation.
-- Preserve parameter ranges, formulas, color logic, and animation timing from the JavaScript preview.
-- If the JavaScript uses \`input.knobValues[i]\`, treat those as absolute target parameter values. In C++, maintain equivalent target params and update them from encoder deltas using Patternflow's calibrated hardware steps unless the JavaScript clearly defines another scale.
-- If the JavaScript uses \`input.knobNormalized[i]\`, do not store that normalized value directly as the firmware knob state. First maintain the same raw knob state as the web preview, then compute normalized values from that raw state.
-- Do not collapse absolute JavaScript knob ranges back to 0.0-1.0. Preserve ranges such as 0.2-8.0, 4-24, or -2.0-2.0 as named min/max constants.
-- Do not invent different defaults such as changing \`turbScale = 0.05\` to \`0.15\`.
-- Treat the JavaScript code as the source of truth. Make only the minimal changes needed for Arduino compatibility, safe brightness, and Patternflow's required namespace interface.
-
-Knob mapping:
-- JavaScript preview code is knobValues-first, but firmware receives encoder deltas. Convert absolute \`input.knobValues\` mappings into firmware params by storing the current target value and adding \`input.knobDeltas[i] * STEP\`.
-- Match the web preview's raw logical knob state exactly:
-  - knob 1 raw range \`0.0f..1.0f\`, wrap, \`STEP = 0.05f\`.
-  - knob 2 raw range \`0.1f..10.0f\`, clamp, \`STEP = 0.10f\`.
-  - knob 3 raw range \`0.0f..4.9f\`, clamp, \`STEP = 0.05f\`.
-  - knob 4 raw range \`0.0f..1.0f\`, wrap, \`STEP = 0.05f\`.
-- If the JavaScript reads \`input.knobNormalized[i]\`, compute it in C++ from the raw state above: \`(raw - min) / (max - min)\`, with wrap/clamp behavior matching the web.
-- Preserve named min/max constants as clamps and UI intent, but do not automatically use \`(MAX - MIN) / 20.0f\` unless the JavaScript clearly intends one turn to sweep the entire range.
-- Put named min/max/step constants near the top of the namespace, for example \`const float VECTOR_FIELD_SCALE_MIN = 4.0f;\`, \`VECTOR_FIELD_SCALE_MAX = 24.0f;\`, and \`VECTOR_FIELD_SCALE_STEP = 0.05f;\`.
-- Do not make one detent jump across a whole parameter range.
-
-Brightness:
-- Generate bright output suitable for a real HUB75 LED matrix, not a dim screen-only preview.
-- At least some pixels should regularly reach near-full intensity, around 230-255 in one or more RGB channels.
-- Do not cap final brightness below 0.9 unless the pattern intentionally has dark contrast.
-- Prefer \`float val = constrain(base + signal * gain, 0.0f, 1.0f);\` with a small base brightness and enough gain to use the full 0-255 range.
-- If the JavaScript preview is dim because it uses values like \`pow(v, 2.0)\` followed by \`v * 0.9\`, preserve the visual formula but raise output safely with a small base and gain, for example \`constrain(0.12f + v * 1.35f, 0.0f, 1.0f)\`.
-
-Here is the JavaScript code to convert:
-
-${code}`;
 
 const getVariantPrompt = (code: string) => `I am writing custom LED patterns in JavaScript for Patternflow's 128x64 LED matrix web preview.
 
@@ -185,65 +88,35 @@ interface PatternPanelProps {
   content: SectionContent;
 }
 
-type BuiltInPatternId = 'patternFlowOriginal' | 'patternWaveSaw';
-type PatternMode = 'flash' | 'create';
-
-interface PresetPattern {
-  id: BuiltInPatternId;
-  name: string;
-  desc: string;
-  link?: { label: string; href: string };
-  values: { c1: number; c2: number; c3: number; c4: number };
-}
-
-const presetPatterns: PresetPattern[] = [
-  {
-    id: 'patternFlowOriginal',
-    name: 'Origin',
-    desc: 'Radial sine waves inside tiled grids, with a hue-mapped color ramp.',
-    link: { label: 'View original source', href: 'https://origin.patternflow.work' },
-    values: { c1: 0.00, c2: 2.00, c3: 0.06, c4: 0.00 },
-  },
-  {
-    id: 'patternWaveSaw',
-    name: 'Wave Saw',
-    desc: 'Directional saw-tooth wave bands with a 3-step constant color ramp.',
-    values: { c1: 0.00, c2: 3.00, c3: 0.15, c4: 0.00 },
-  },
-];
-
-
-
 const EDITOR_LINE_HEIGHT = 20;
 // Fixed editor height — most visitors only paste AI-generated code and
 // rarely scroll the source themselves, so growing the page with line
 // count just pushed the rest of the section out of view. The editor
 // now scrolls internally instead.
 const EDITOR_HEIGHT = 480;
-const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
+
+// Phones show a sliding window of preset numbers around the active one instead
+// of the whole library — all 42 would wrap into a wall of rows. Keep in sync
+// with the `.presetNumbers` column count in the 720px media query.
+const MOBILE_PRESET_WINDOW = 7;
+
+// Curated presets baked into the official flash image — keep in sync with
+// presetPatterns[] in firmware/patternflow/pattern_registry.h.
+const NUM_FIRMWARE_PRESETS = 34;
 
 export default function PatternPanel({ content }: PatternPanelProps) {
-  const [mode, setMode] = useState<PatternMode>('create');
   // Start with Origin selected; the effect below loads it into the editor.
   const [activePresetId, setActivePresetId] = useState<string | null>(() =>
     showcasePresets.some((p) => p.id === 'origin') ? 'origin' : null,
   );
-  const [shareOpen, setShareOpen] = useState(false);
-  const activePatternId = useAppStore(state => state.activePatternId);
   const customJsCode = useAppStore(state => state.customJsCode);
   const setCustomJsCode = useAppStore(state => state.setCustomJsCode);
 
-  // The Live Editor renders through the 'custom' pattern, so the 3D preview only
-  // reflects the editor (and loaded presets) while it is the active pattern.
-  // Sync on mount and whenever the Live Editor is the active workflow.
+  // The Live Editor renders through the 'custom' pattern, so the 3D preview
+  // reflects the editor (and loaded presets). Load Origin into the editor
+  // (zustand store) once on mount.
   useEffect(() => {
-    if (mode === 'create') {
-      useAppStore.getState().setActivePatternId('custom');
-    }
-  }, [mode]);
-
-  // Load Origin into the editor (zustand store) once on mount.
-  useEffect(() => {
+    useAppStore.getState().setActivePatternId('custom');
     const origin = showcasePresets.find((p) => p.id === 'origin');
     if (origin) {
       setCustomJsCode(origin.code);
@@ -251,40 +124,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const selectBuiltInPattern = (pattern: PresetPattern, track = true) => {
-    const store = useAppStore.getState();
-    store.setActivePatternId(pattern.id);
-    store.setKnobValue('c1', pattern.values.c1);
-    store.setKnobValue('c2', pattern.values.c2);
-    store.setKnobValue('c3', pattern.values.c3);
-    store.setKnobValue('c4', pattern.values.c4);
-
-    if (track) {
-      captureEvent('pattern_preset_selected', {
-        pattern_id: pattern.id,
-        pattern_name: pattern.name,
-        surface: 'pattern_panel',
-      });
-    }
-  };
-
-  const handleModeChange = (nextMode: PatternMode) => {
-    if (nextMode === 'create' && mode !== 'create') {
-      captureEvent('live_editor_opened', {
-        surface: 'pattern_panel',
-      });
-    }
-
-    setMode(nextMode);
-    if (nextMode === 'create') {
-      useAppStore.getState().setActivePatternId('custom');
-      return;
-    }
-
-    const currentPreset = presetPatterns.find((pattern) => pattern.id === activePatternId);
-    selectBuiltInPattern(currentPreset ?? presetPatterns[0], false);
-  };
-  
   const handleLoadPreset = (presetId: string) => {
     const preset = showcasePresets.find((p) => p.id === presetId);
     if (!preset) return;
@@ -300,6 +139,23 @@ export default function PatternPanel({ content }: PatternPanelProps) {
   };
 
   const activePresetIndex = showcasePresets.findIndex((p) => p.id === activePresetId);
+
+  // Which numbered cells to render: everything on desktop, a window centred on
+  // the active preset (clamped at both ends) on phones. Tapping near the edge
+  // of the window re-centres it, so the whole library stays reachable.
+  const isNarrow = useMediaQuery('(max-width: 720px)');
+  const windowStart = isNarrow
+    ? Math.max(
+        0,
+        Math.min(
+          (activePresetIndex >= 0 ? activePresetIndex : 0) - Math.floor(MOBILE_PRESET_WINDOW / 2),
+          showcasePresets.length - MOBILE_PRESET_WINDOW,
+        ),
+      )
+    : 0;
+  const visiblePresets = isNarrow
+    ? showcasePresets.slice(windowStart, windowStart + MOBILE_PRESET_WINDOW)
+    : showcasePresets;
 
   const handleStepPreset = (dir: number) => {
     if (showcasePresets.length === 0) return;
@@ -325,14 +181,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
       surface: 'live_editor',
     });
     alert('Creation prompt copied to clipboard! Paste it in ChatGPT/Claude to get 5 pattern variations.');
-  };
-
-  const handleCopyConvertPrompt = () => {
-    navigator.clipboard.writeText(getConvertPrompt(customJsCode));
-    captureEvent('copy_cpp_prompt_clicked', {
-      surface: 'live_editor',
-    });
-    alert('C++ Conversion Prompt copied to clipboard! Paste it in ChatGPT/Claude to get your ESP32 C++ code.');
   };
 
   return (
@@ -368,21 +216,17 @@ export default function PatternPanel({ content }: PatternPanelProps) {
         />
 
         <div className={styles.workspace}>
-          <div className={styles.modeSwitch} role="tablist" aria-label="Pattern workflows">
-            <button
-              type="button"
-              className={mode === 'create' ? styles.active : ''}
-              onClick={() => handleModeChange('create')}
-            >
+          {/* The Live Editor is the only in-page workflow now; the other two
+              slots are the places it feeds into. Pattern Lab sits where Flash
+              presets used to — it's the full studio, so it ranks next to
+              Community, and the quick-flash block moved below the editor. */}
+          <div className={styles.modeSwitch} aria-label="Pattern tools">
+            <button type="button" className={styles.active} aria-current="true">
               Live Editor
             </button>
-            <button
-              type="button"
-              className={mode === 'flash' ? styles.active : ''}
-              onClick={() => handleModeChange('flash')}
-            >
-              Flash presets
-            </button>
+            <Link href="/pattern-lab" title="Pattern Lab — the full pattern studio">
+              Pattern Lab ↗
+            </Link>
             {/* Straight to the community host — it runs on its own box, so
                 bouncing through this site's /community first would just be an
                 extra click. */}
@@ -394,75 +238,42 @@ export default function PatternPanel({ content }: PatternPanelProps) {
             </Link>
           </div>
 
-          {mode === 'flash' && (
-            <div>
-              <div className={styles.block}>
-                <div className={styles.lead}>
-                  <p className={styles.flashDesktopCopy}>
-                    Try it instantly — connect Patternflow over USB and flash the official firmware right from the browser. No toolchain, no setup.
-                  </p>
-                  <p className={styles.flashMobileCopy}>
-                    Browser flashing needs desktop Chrome or Edge.
-                  </p>
+          <div className={styles.liveEditor}>
+              {/* Preset numbers FIRST, editor second, how-to steps last. On a
+                  phone the bar under the editor was below the fold — people
+                  never found the other presets, got stuck dragging inside
+                  Monaco, and scrolled away. Trying patterns is the hook, so it
+                  leads. */}
+              <div className={styles.presetBar} aria-label="Live editor presets">
+                <button type="button" onClick={() => handleStepPreset(-1)} aria-label="Previous preset">
+                  ‹
+                </button>
+                {/* Every preset as a numbered cell — jump straight to any of
+                    them instead of paging one step at a time. */}
+                <div className={styles.presetNumbers} role="group" aria-label="Jump to preset">
+                  {visiblePresets.map((preset, i) => {
+                    const idx = windowStart + i;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={idx === activePresetIndex ? styles.presetNumActive : undefined}
+                        title={preset.name}
+                        aria-label={`Preset ${idx + 1}: ${preset.name}`}
+                        aria-current={idx === activePresetIndex ? 'true' : undefined}
+                        onClick={() => handleLoadPreset(preset.id)}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
                 </div>
-
-                <div className={styles.flashAction}>
-                  <EspWebInstallButton manifest="/flash/manifest.json">
-                    <button
-                      slot="activate"
-                      className={styles.primaryAction}
-                      onClick={() => captureEvent('flash_patternflow_clicked', {
-                        manifest: '/flash/manifest.json',
-                        surface: 'pattern_panel',
-                      })}
-                    >
-                      Flash Patternflow
-                    </button>
-                    <div slot="unsupported" className={styles.unsupported}>
-                      Browser flashing works in desktop Chrome or Edge.
-                    </div>
-                  </EspWebInstallButton>
-                </div>
-              </div>
-
-              <div className={styles.block}>
-                <p className={styles.previewNote}>
-                  This is the quick way to try Patternflow in the browser. A guide to
-                  creating and applying your own patterns is coming soon.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {mode === 'create' && (
-            <div className={styles.liveEditor}>
-              <div className={styles.editorHeader}>
-                <ol className={styles.editorSteps}>
-                  <li>
-                    <span className={styles.stepText}>Copy the prompt into your AI chatbot, then paste the result below.</span>
-                    <div className={styles.editorActions}>
-                      <button type="button" onClick={handleCopyVariantPrompt}>
-                        Copy creation prompt
-                      </button>
-                    </div>
-                  </li>
-                  <li>
-                    <span className={styles.stepText}>Play with it on the preview — when you like it, copy the C++ prompt.</span>
-                    <div className={styles.editorActions}>
-                      <button type="button" onClick={handleCopyConvertPrompt}>
-                        Copy C++ prompt
-                      </button>
-                    </div>
-                  </li>
-                  <li>
-                    <span className={styles.stepText}>Flash it to the firmware and share to Discord.</span>
-                    <div className={styles.editorActions}>
-                      <button type="button" onClick={() => setShareOpen(true)}>
-                        Share to Discord
-                      </button>
-                    </div>
-                  </li>
-                </ol>
+                <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
+                  ›
+                </button>
+                <button type="button" onClick={handleRandomPreset} aria-label="Random preset" title="Random preset">
+                  🎲
+                </button>
               </div>
               <Editor
                 height={EDITOR_HEIGHT}
@@ -493,67 +304,103 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   automaticLayout: true,
                 }}
               />
-              <div className={styles.presetBar} aria-label="Live editor presets">
-                <button type="button" onClick={() => handleStepPreset(-1)} aria-label="Previous preset">
-                  ‹
-                </button>
-                <span className={styles.presetCount}>
-                  {activePresetIndex >= 0 ? activePresetIndex + 1 : '–'}/{showcasePresets.length}
-                </span>
-                <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
-                  ›
-                </button>
-                <button type="button" onClick={handleRandomPreset} aria-label="Random preset" title="Random preset">
-                  🎲
-                </button>
-                <a href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noopener noreferrer">
-                  More patterns on Discord
-                </a>
-              </div>
-              <div className={styles.sourceRow}>
-                <div className={styles.applyGuide}>
-                  <h3>Use it on hardware</h3>
-                  <ol>
-                    <li>Download the firmware source and open <code>patternflow.ino</code> in Arduino IDE.</li>
-                    <li>Add your generated pattern header to <code>firmware/patternflow</code>.</li>
-                    <li>Add the pattern namespace to <code>pattern_registry.h</code>.</li>
-                    <li>Upload the sketch to your ESP32-S3.</li>
-                  </ol>
-                  <p>
-                    <strong>Every pattern from Patternflow&apos;s Instagram is also shared on Discord.</strong>
-                  </p>
-                  <p className={styles.applyNote}>
-                    The Discord patterns channel mirrors the Instagram feed with the full JavaScript source, the hardware-tested C++ header, and the design notes behind each one. Join the Discord to grab any pattern you saw on a post, or share yours back — selected community patterns may be bundled into future releases.
-                  </p>
-                  <p className={styles.applyNote}>
-                    <strong>Want more detail than the four steps above?</strong> Read the <a href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md" target="_blank" rel="noopener noreferrer">firmware README</a> — it covers wiring, OTA wireless flashing, panel color calibration, and the most common upload errors.
-                  </p>
-                  <p className={styles.applyNote}>
-                    <strong>Newer to Arduino or embedded work?</strong> Copy the entire firmware README into ChatGPT or Claude and ask it to walk you through your specific setup. The README is written densely enough that an AI assistant can guide a beginner through it step by step.
-                  </p>
-                  <div className={styles.applyLinks}>
-                    <a href="https://github.com/engmung/Patternflow/tree/main/firmware" className={styles.secondaryLink}>
-                      Firmware source
-                    </a>
-                    <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className={styles.secondaryLink}>
-                      Instagram
-                    </a>
-                  </div>
-                  <div className={styles.toolLinks}>
-                    <span className={styles.toolLabel}>Pattern tools</span>
-                    <div className={styles.toolItem}>
-                      <Link href="/pattern-lab" className={styles.toolLink}>
-                        Pattern Lab
-                      </Link>
-                      <p className={styles.toolDesc}>
-                        Use Pattern Lab if you want to build more sophisticated patterns.
-                      </p>
+              {/* One combined how-to block under the editor: make a pattern
+                  (1–2), get it onto hardware via Pattern Lab (3), and the
+                  wired first-flash of the official firmware (4). */}
+              <div className={styles.editorHeader}>
+                <ol className={styles.editorSteps}>
+                  <li>
+                    <span className={styles.stepText}>Copy the prompt into your AI chatbot, then paste the result into the editor above.</span>
+                    <div className={styles.editorActions}>
+                      <button type="button" onClick={handleCopyVariantPrompt}>
+                        Copy creation prompt
+                      </button>
                     </div>
-                  </div>
-                </div>
+                  </li>
+                  <li>
+                    <span className={styles.stepText}>Play with it on the preview — tweak the code until it feels right.</span>
+                  </li>
+                  <li>
+                    {/* The C++ prompt button used to live here; the process
+                        stays visible, but the conversion itself now happens in
+                        Pattern Lab, whose prompt knows about frames and ramps.
+                        No button — Pattern Lab is one tab up and one card down. */}
+                    <span className={styles.stepText}>
+                      Want it on hardware? Open it in Pattern Lab — the full studio — to convert
+                      it to ESP32 C++ and build flashable firmware.
+                    </span>
+                  </li>
+                  <li>
+                    <span className={styles.stepText}>
+                      <strong>Got the hardware? Flash this once, whatever you do</strong> — it
+                      also sets up Wi-Fi. Plug the ESP32 in over USB and flash the official
+                      firmware — {NUM_FIRMWARE_PRESETS} presets built in — right from the browser.
+                      After that your own patterns go wirelessly from Pattern Lab.
+                    </span>
+                    <div className={styles.editorActions}>
+                      <EspWebInstallButton manifest="/flash/manifest.json">
+                        <button
+                          slot="activate"
+                          type="button"
+                          className={styles.flashButton}
+                          onClick={() => captureEvent('flash_patternflow_clicked', {
+                            manifest: '/flash/manifest.json',
+                            surface: 'pattern_panel',
+                          })}
+                        >
+                          Flash Patternflow
+                        </button>
+                        <div slot="unsupported" className={styles.unsupported}>
+                          Browser flashing works in desktop Chrome or Edge.
+                        </div>
+                      </EspWebInstallButton>
+                    </div>
+                  </li>
+                </ol>
               </div>
-            </div>
-          )}
+          </div>
+
+          {/* Where the editor leads. Two destinations, each carrying its part
+              of the roadmap: Pattern Lab is the professional AI editing tool
+              and keeps growing as one; Community is the sharing space that
+              grows into a marketplace where creators earn. The whole card is
+              the link — no inner CTA buttons. (Replaces the old hand-written
+              Arduino/Discord guide, which described dead workflows.) */}
+          <div className={styles.nextSteps} aria-label="Next steps">
+            <Link href="/pattern-lab" className={styles.nextCard}>
+              <span className={styles.nextKicker}>The studio</span>
+              <h3>Pattern Lab ↗</h3>
+              <p>
+                A professional editor for composing patterns with AI — generate in batches, shape
+                color ramps, tune knobs on custom frames, then compile straight to ESP32 firmware.
+                This is where Patternflow&apos;s creation tools keep growing.
+              </p>
+            </Link>
+            <Link href={communityHref()} className={styles.nextCard}>
+              <span className={styles.nextKicker}>The ecosystem</span>
+              <h3>Community ↗</h3>
+              <p>
+                Share what you make, explore and fork what everyone else made. It&apos;s growing
+                into a marketplace where creators trade patterns and earn inside the Patternflow
+                ecosystem.
+              </p>
+            </Link>
+          </div>
+
+          <p className={styles.advancedNote}>
+            No Arduino IDE needed for custom patterns anymore — Patternflow&apos;s own build server
+            compiles your pattern into firmware and uploads it straight from the browser. The IDE
+            route only matters when you&apos;re adding new firmware features or targeting an LED
+            matrix with a different resolution; for that, the{' '}
+            <a
+              href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              firmware README
+            </a>{' '}
+            covers setup, wiring, OTA flashing, and color calibration.
+          </p>
         </div>
 
         {content.cta && (
@@ -574,15 +421,6 @@ export default function PatternPanel({ content }: PatternPanelProps) {
           </div>
         )}
       </div>
-
-      {shareOpen && (
-        <SharePatternModal
-          code={customJsCode}
-          cppConvertPrompt={getConvertPrompt(customJsCode)}
-          source="live-editor"
-          onClose={() => setShareOpen(false)}
-        />
-      )}
     </div>
   );
 }
