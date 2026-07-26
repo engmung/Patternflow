@@ -8,6 +8,7 @@
       "parts": [
         { "path": "bin/v3.1.0/patternflow.ino.bootloader.bin", "offset": 0 },
         { "path": "bin/v3.1.0/patternflow.ino.partitions.bin", "offset": 32768 },
+        { "path": "bin/v3.1.0/boot_app0.bin", "offset": 57344 },
         { "path": "bin/v3.1.0/patternflow.ino.bin", "offset": 65536 }
       ]
     }
