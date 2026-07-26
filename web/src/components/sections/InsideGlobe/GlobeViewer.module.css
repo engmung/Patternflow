@@ -2,6 +2,12 @@
   position: relative;
   width: 100%;
   height: 100%;
+
+  /* The one horizontal line everything in the overlay hangs off: the counter
+     sits on it, the arrows are centred on it, the name goes above and the
+     links below. Measured up from the bottom edge. */
+  --pin-row: 33%;
+  --arrow-size: 84px;
 }
 
 /* Offscreen image preloader — rendered (so eager <Image> actually fetches the
@@ -58,6 +64,12 @@
   opacity: 0;
 }
 
+/* One wording per input method — the mobile card says "tap" too, and having
+   the map say "click" beside it read as a leftover. */
+.hintTouch {
+  display: none;
+}
+
 /* The counter's row, centred in the upper part of the frame. Everything in the
    upper column hangs off this one line — arrows centred on it, name above,
    links below — so no piece of variable content can shift the name. */
@@ -65,7 +77,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 33%;
+  bottom: var(--pin-row);
   transform: translateY(50%);
   text-align: center;
   pointer-events: none;
@@ -98,7 +110,7 @@
    dragging the arrows along. */
 .arrow {
   position: absolute;
-  bottom: 33%;
+  bottom: var(--pin-row);
   transform: translateY(50%);
   display: grid;
   place-items: center;
@@ -112,8 +124,8 @@
   transition: transform 0.18s ease;
 }
 .arrow svg {
-  width: 84px;
-  height: 84px;
+  width: var(--arrow-size);
+  height: var(--arrow-size);
   fill: none;
   stroke: currentColor;
   stroke-width: 2.1;
@@ -130,14 +142,21 @@
   right: 12px;
 }
 
-/* Description, centred against the bottom edge. Switching builds swaps the
-   text in place, with no fade or slide, so nothing blinks on every click.
-   (The overlay's own opacity transition still handles opening and closing.) */
+/* Description, centred in the band left between the arrows and the bottom edge
+   — not pinned to the floor, so a one-line description and a five-line one both
+   sit in the middle of the same space. The band's top is the arrows' lower
+   edge: they hang half their height below --pin-row.
+   Switching builds swaps the text in place, with no fade or slide, so nothing
+   blinks on every click. (The overlay's own opacity transition still handles
+   opening and closing.) */
 .detail {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 32px;
+  bottom: 0;
+  height: calc(var(--pin-row) - var(--arrow-size) / 2);
+  display: grid;
+  place-items: center;
   padding: 0 30px;
   box-sizing: border-box;
   text-align: center;
@@ -245,10 +264,6 @@
 .thumb img {
   object-fit: cover;
 }
-/* Only ever preview the first three; the rest live in the lightbox. */
-.thumb:nth-child(n + 4) {
-  display: none;
-}
 
 @media (max-width: 900px) {
   /* The viewer is only 44vh here, so the photos, description and links move
@@ -285,6 +300,12 @@
   .arrow svg {
     width: 44px;
     height: 44px;
+  }
+  .hintPointer {
+    display: none;
+  }
+  .hintTouch {
+    display: inline;
   }
   .kicker {
     padding: 2px 8px;

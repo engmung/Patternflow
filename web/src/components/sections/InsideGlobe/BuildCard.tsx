@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import PhotoLightbox from './PhotoLightbox';
-import { builds } from './builds';
+import { builds, formatBuildDate, CARD_TILES } from './builds';
 import { useBuildSelection } from './useBuildSelection';
 import styles from './BuildCard.module.css';
 
@@ -22,6 +22,9 @@ export default function BuildCard() {
   );
   const selected = selectedIndex === -1 ? null : builds[selectedIndex];
   const images = selected?.images;
+  // Two tiles fit side by side; the last one carries a count of what is left.
+  const tiles = images?.slice(0, CARD_TILES);
+  const hidden = (images?.length ?? 0) - CARD_TILES;
 
   // Bring the card into view when a pin is tapped — the globe is fixed over
   // the top of the screen, so without this the details land off-screen.
@@ -59,7 +62,7 @@ export default function BuildCard() {
             <div className={styles.headText}>
               <strong className={styles.maker}>{selected.maker}</strong>
               <span className={styles.meta}>
-                {selected.location.label} · {selected.date}
+                {selected.location.label} · {formatBuildDate(selected.date)}
               </span>
             </div>
             <button
@@ -91,9 +94,9 @@ export default function BuildCard() {
           {/* A two-tile preview, not the whole set — a taller strip pushed the
               description off-screen, so you could not tell it was there. Any
               tile opens the full run of photos in the lightbox. */}
-          {images && images.length > 0 && (
+          {tiles && tiles.length > 0 && (
             <div className={styles.photos}>
-              {images.map((image, index) => (
+              {tiles.map((image, index) => (
                 <button
                   key={image.src}
                   type="button"
@@ -102,8 +105,8 @@ export default function BuildCard() {
                   aria-label={image.alt}
                 >
                   <Image src={image.src} alt="" fill sizes="45vw" />
-                  {index === 1 && images.length > 2 && (
-                    <span className={styles.more}>+{images.length - 2}</span>
+                  {index === tiles.length - 1 && hidden > 0 && (
+                    <span className={styles.more}>+{hidden}</span>
                   )}
                 </button>
               ))}

@@ -17,7 +17,12 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
   const build = buildBySlug(slug);
   if (!build) return {};
 
-  const title = `${build.maker}'s Patternflow build — ${build.location.label}`;
+  // A collaboration is not a build of Patternflow, and calling it one in the
+  // page title is the sort of thing that gets quoted back at you.
+  const title =
+    build.kind === 'collaboration'
+      ? `${build.maker} × Patternflow — a collaboration in ${build.location.label}`
+      : `${build.maker}'s Patternflow build — ${build.location.label}`;
   const url = `${SITE_URL}/inside/${build.slug}`;
   const photo = build.images?.[0];
 

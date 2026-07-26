@@ -85,10 +85,6 @@
     cursor: pointer;
   }
 
-  .photo:nth-child(n + 3) {
-    display: none;
-  }
-
   .photo img {
     object-fit: cover;
   }

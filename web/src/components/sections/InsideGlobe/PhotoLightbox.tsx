@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import Image from 'next/image';
 import { createPortal } from 'react-dom';
 import type { BuildImage } from './builds';
-import gallery from '../InsidePanel.module.css';
+import gallery from './PhotoLightbox.module.css';
 
 interface PhotoLightboxProps {
   images: BuildImage[];
@@ -70,11 +70,21 @@ export default function PhotoLightbox({
               </svg>
             </button>
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* The source photos are phone-camera originals — several megabytes
+              each — so this goes through the optimizer rather than serving the
+              file as-is. The nominal width/height only give it a ratio to work
+              with: the CSS sets both back to auto, so the real one takes over
+              once it loads. `sizes` stays plain viewport widths — a min() there
+              parses as CSS, but the browser ignores it when picking from the
+              srcset and quietly falls back to the largest variant there is. */}
+          <Image
             className={gallery.galleryMain}
             src={images[index].src}
             alt={images[index].alt}
+            width={1600}
+            height={1200}
+            sizes="(max-width: 640px) 94vw, 92vw"
+            priority
             onClick={(event) => event.stopPropagation()}
           />
           {count > 1 && (

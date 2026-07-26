@@ -1,0 +1,67 @@
+/* The pins as a plain list, under the "On the map" copy. Rows rather than a
+   run of names: the place and date are what make a line worth reading, and
+   they are the same two facts the map itself shows. */
+.list {
+  display: grid;
+  gap: 0;
+  max-width: 620px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 11px 2px;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+  color: var(--pf-ink);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--pf-hover, rgba(20, 20, 20, 0.05));
+}
+
+.itemActive {
+  background: var(--pf-hover, rgba(20, 20, 20, 0.05));
+}
+
+.maker {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.meta {
+  /* Pushes anything after it to the far edge of the row. */
+  margin-right: auto;
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+/* Marks a work built on top of Patternflow, matching the map's ring markers. */
+.tag {
+  font-family: var(--pf-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pf-led);
+}
+
+@media (max-width: 900px) {
+  .maker {
+    font-size: 14px;
+  }
+  .meta {
+    font-size: 9.5px;
+  }
+}
