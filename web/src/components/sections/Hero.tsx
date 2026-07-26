@@ -32,7 +32,10 @@ export default function Hero() {
         <h1>
           <em className="wordmark">Patternflow</em>
         </h1>
-        <div className="kicker" style={{ marginBottom: '24px' }}>An open-source LED synthesizer played with the fingertips.</div>
+        <div className="kicker">An open-source LED synthesizer played with the fingertips.</div>
+        {/* The one thing the page never said: what you actually do with it.
+            Sits above the video so it reads before the picture, not after. */}
+        <p className="hero-spec">Four knobs. The pattern answers as you turn them.</p>
         <div style={{ 
           marginBottom: '24px', 
           overflow: 'hidden', 
@@ -107,9 +110,9 @@ export default function Hero() {
           </em>{" "}
           (1963).
           <br />
-          Where Paik brought participation into art,
+          Paik let the viewer change the image.
           <br />
-          Patternflow puts creation in everyone&apos;s hands.
+          Patternflow lets you make it.
           <br />
           <br />
           <span style={{ fontWeight: 500 }}>Create and share your own light.</span>
