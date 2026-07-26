@@ -59,6 +59,7 @@ export function communityHref(path = "/community"): string {
  * one. Set NEXT_PUBLIC_BUILD_ENABLED alongside the server's BUILD_ENABLED.
  */
 export function buildsConfigured(): boolean {
+  if (process.env.NODE_ENV === "development") return true;
   return process.env.NEXT_PUBLIC_BUILD_ENABLED === "1";
 }
 

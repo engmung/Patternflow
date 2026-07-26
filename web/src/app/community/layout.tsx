@@ -50,12 +50,14 @@ export default async function CommunityLayout({ children }: { children: React.Re
     <main className={styles.page}>
       <div className={styles.inner}>
         <header className={styles.pageHeader}>
-          <Link href="/" className={styles.brand}>
-            Patternflow
-          </Link>
-          <Link href="/community" className={styles.pageTitle}>
-            Community
-          </Link>
+          <div className={styles.brandBlock}>
+            <Link href="/" className={styles.brand}>
+              Patternflow
+            </Link>
+            <Link href="/community" className={styles.pageTitle}>
+              Community
+            </Link>
+          </div>
           <CommunityNav />
           <div className={styles.headerSpacer} />
           {/* No Pattern Lab link here — the feed already has a prominent

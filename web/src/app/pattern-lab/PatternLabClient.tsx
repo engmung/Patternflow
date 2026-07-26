@@ -232,7 +232,7 @@ const DEFAULT_RAMP: RampState = {
 };
 
 const RAMP_STORAGE = "patternflow_ramp_v1";
-const MAX_RAMP_STOPS = 8;
+const MAX_RAMP_STOPS = 64;
 
 function loadStoredRamp(): RampState {
   if (typeof window === "undefined") return DEFAULT_RAMP;
@@ -663,6 +663,17 @@ export default function PatternLabClient() {
       if (current === index) return 0;
       return current > index ? current - 1 : current;
     });
+  };
+
+  const resetRampToBlack = () => {
+    setRampState((current) => ({
+      ...current,
+      stops: [
+        { position: 0, color: "#000000" },
+        { position: 1, color: "#000000" },
+      ],
+    }));
+    setSelectedStopIndex(0);
   };
 
   const activeStopIndex = Math.min(selectedStopIndex, rampState.stops.length - 1);
@@ -1891,9 +1902,14 @@ ${codeWithMatrix(code)}
                 >
                   Delete
                 </button>
-                <span className={styles.rampHint}>
-                  click bar = add · drag line = move
-                </span>
+                <button
+                  type="button"
+                  className={styles.rampResetBtn}
+                  title="Reset all stops to black"
+                  onClick={resetRampToBlack}
+                >
+                  Reset to black
+                </button>
               </div>
             )}
           </div>
@@ -2058,9 +2074,6 @@ ${codeWithMatrix(code)}
                   </button>
                   <button type="button" onClick={copyVariantPrompt}>
                     {promptCopied ? "Copied" : "Copy prompt"}
-                  </button>
-                  <button type="button" onClick={copyCppPrompt}>
-                    {cppPromptCopied ? "Copied" : "Copy C++ prompt"}
                   </button>
                   <button
                     type="button"

@@ -539,6 +539,24 @@
   cursor: default;
 }
 
+.rampResetBtn {
+  min-height: 26px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.rampResetBtn:hover {
+  border-color: #171512;
+  background: #f0eae1;
+}
+
 .rampHint {
   margin-left: auto;
   font-family: var(--font-jetbrains), monospace;
@@ -608,6 +626,7 @@
 }
 
 .editorHeader .pasteButton {
+  display: none;
   background: #e8552e !important;
   color: #ffffff !important;
   border-color: #e8552e !important;
@@ -620,6 +639,7 @@
 }
 
 .editorHeader .clearButton {
+  display: none;
   background: #ffffff !important;
   color: #171512 !important;
   border: 1px solid rgba(23, 21, 18, 0.3) !important;
@@ -1215,6 +1235,11 @@
     font-size: 11px;
   }
 
+  .editorHeader .pasteButton,
+  .editorHeader .clearButton {
+    display: inline-flex;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -1237,27 +1262,42 @@
     max-height: 38vh;
   }
 
-  /* Finger-sized knob rows: taller slider hit area, roomier gaps. */
+  /* Compact mobile knob rows: reduced gaps and vertical height. */
   .controls {
-    gap: 14px;
+    gap: 6px;
+    margin-top: 10px;
   }
 
-  .knobSlider {
-    grid-template-columns: 56px minmax(0, 1fr) 56px;
+  .knobLine {
+    gap: 2px;
+    padding: 6px 8px;
+    background: rgba(23, 21, 18, 0.03);
+    border-radius: 6px;
+  }
+
+  .knobHead {
     gap: 6px;
   }
 
+  .knobSlider {
+    grid-template-columns: 48px minmax(0, 1fr) 48px;
+    gap: 4px;
+  }
+
   .knobSlider input[type="range"] {
-    min-height: 30px;
+    min-height: 22px;
   }
 
   .knobButton {
-    min-height: 30px;
+    min-height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
   }
 
   .rangeValue,
   .rangeInput {
-    min-height: 30px;
+    min-height: 22px;
+    font-size: 11px;
   }
 
   /* Action buttons become full-width rows — easy to hit, nothing truncated. */

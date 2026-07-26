@@ -217,7 +217,7 @@ export default function BuildFirmwareModal({
                     : `Compiling${seconds ? ` — ${seconds}s` : "…"}`}
                 </p>
                 <p className={styles.formNote}>
-                  A build takes about 15 seconds. The whole preset library is compiled
+                  A build takes about 30 seconds. The whole preset library is compiled
                   alongside your pattern, so this produces a complete firmware image.
                 </p>
               </>

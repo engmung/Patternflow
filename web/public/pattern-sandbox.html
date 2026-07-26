@@ -420,8 +420,8 @@ requestAnimationFrame(function (now) {
 
 // ── Still rendering (feed thumbnails) ────────────────────────────────────────
 function renderStill(request) {
-  var frame = frameFor(request.code);
-  var runtime = new Runtime(frame.width, frame.height);
+  var matrixFrame = frameFor(request.code);
+  var runtime = new Runtime(matrixFrame.width, matrixFrame.height);
   var load = runtime.loadCode(request.code);
   if (!load.ok) return { ok: false, error: load.error };
 
@@ -432,17 +432,17 @@ function renderStill(request) {
   var ranges = request.knobRanges || [[0, 1], [0, 1], [0, 1], [0, 1]];
   var normalizedValues = normalize(values, ranges);
 
-  for (var frame = 0; frame < frames; frame++) {
+  for (var f = 0; f < frames; f++) {
     var input = makeInput(null, values, normalizedValues, ranges);
-    var result = runtime.renderFrame(1 / fps, frame / fps, input);
+    var result = runtime.renderFrame(1 / fps, f / fps, input);
     if (!result.ok) return { ok: false, error: result.error };
   }
 
   var off = document.createElement("canvas");
-  off.width = frame.width;
-  off.height = frame.height;
+  off.width = matrixFrame.width;
+  off.height = matrixFrame.height;
   var offContext = off.getContext("2d");
-  var offImage = offContext.createImageData(frame.width, frame.height);
+  var offImage = offContext.createImageData(matrixFrame.width, matrixFrame.height);
   offImage.data.set(runtime.data);
   offContext.putImageData(offImage, 0, 0);
   return { ok: true, dataUrl: off.toDataURL("image/png") };
