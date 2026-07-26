@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
       destination,
     }));
   },
+  async headers() {
+    return [
+      {
+        // The flasher manifest names the image paths for a given release, so a
+        // cached copy keeps handing out the previous firmware long after a new
+        // one ships. The images themselves live at version-stamped paths and
+        // may be cached freely; only this pointer must always be fetched fresh.
+        source: "/flash/manifest.json",
+        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 const withMDX = createMDX({
