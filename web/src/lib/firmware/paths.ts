@@ -20,8 +20,9 @@ export function registryPath(): string {
  * ~1.1 MB application image differs.
  */
 export const STATIC_FLASH_PARTS = [
-  { path: "/flash/bin/v2/patternflow.ino.bootloader.bin", offset: 0 },
-  { path: "/flash/bin/v2/patternflow.ino.partitions.bin", offset: 0x8000 },
+  { path: "/flash/bin/v3.1.0/patternflow.ino.bootloader.bin", offset: 0 },
+  { path: "/flash/bin/v3.1.0/patternflow.ino.partitions.bin", offset: 0x8000 },
+  { path: "/flash/bin/v3.1.0/boot_app0.bin", offset: 0xe000 },
 ] as const;
 
 /** Offset the application image is written to (app0 in the partition table). */
