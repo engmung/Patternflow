@@ -6,10 +6,10 @@ This path uses the custom Patternflow KiCad PCB in `hardware/pcb/`, populated by
 
 ## What This Path Means
 
-- Order the Patternflow PCB from the KiCad/Gerber files.
+- Order the Patternflow PCB — easiest via the [PCBWay shared project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html) (no Gerber upload), or from any fab with the Gerber zip below.
 - Hand-solder the through-hole parts (the v3.0 board has no SMD passives at all).
 - Mount the ESP32-S3 module on female headers.
-- Power comes in via USB-C, or via the back-side screw terminal if you'd rather skip the tricky Type-C soldering ([#114](https://github.com/engmung/Patternflow/issues/114)).
+- Power comes in via `J4`, the back-side 2-pin screw terminal — strip a USB cable, screw the wires in, done. ⏸️ The board also carries a USB-C footprint, but that input is **on hold** — leave `USB1`, `R1`, and `R2` unpopulated until [#221](https://github.com/engmung/Patternflow/issues/221) is resolved (see [BUILD_GUIDE.md §2](../../../BUILD_GUIDE.md#2-power-input--use-the-screw-terminal)).
 
 The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3d-print.md).
 
@@ -26,6 +26,6 @@ For the exact BOM, soldering order, wiring, and first boot checks, follow the cu
 
 [Open the PCB assembly guide](../../../BUILD_GUIDE.md#5-pcb-assembly)
 
-## Planned Alternative
+## Alternative — Breadboard
 
-A breadboard / jumper-wire electronics path is planned. It will use the same core parts and firmware, but will not require ordering the PCB.
+Don't want to order a PCB? The [breadboard / jumper-wire path](https://patternflow.work/build/breadboard) is available now — same core parts and firmware, no PCB and no soldering iron.
