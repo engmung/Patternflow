@@ -65,6 +65,14 @@ export default function ModuleCart() {
     }
   };
 
+  // The device page fetches this URL itself, so it must be absolute even when
+  // the community API is same-origin. Mirrors the firmware modal's wifiSendUrl.
+  const wifiInstallUrl = (modulesUrl: string) => {
+    if (typeof window === "undefined") return "#";
+    const absolute = new URL(communityApiUrl(modulesUrl), window.location.origin).toString();
+    return `http://${deviceHost.trim()}/patterns?src=${encodeURIComponent(absolute)}`;
+  };
+
   useEffect(() => {
     const sync = () => setItems(cartItems());
     sync();
@@ -221,25 +229,26 @@ export default function ModuleCart() {
                       built · {((build.bytes ?? 0) / 1024).toFixed(0)} KB zip
                     </p>
                     <p className={styles.formNote}>
-                      Unzip, then open your device&rsquo;s pattern manager and drop all the
-                      files in at once — they appear in the pattern list immediately, no
-                      reflash, no reboot. (Needs firmware with loadable-module support.)
+                      Send over Wi-Fi opens the device&rsquo;s pattern manager with this build
+                      linked — it fetches and installs every module itself. Patterns appear in
+                      the list immediately: no reflash, no reboot, nothing to unzip. (Needs
+                      firmware with loadable-module support.)
                     </p>
                     <div className={styles.actionRow}>
                       <a
                         className={styles.btnAccent}
-                        href={communityApiUrl(build.modulesUrl)}
-                        download
-                      >
-                        Download modules (.zip)
-                      </a>
-                      <a
-                        className={styles.btn}
-                        href={`http://${deviceHost.trim()}/patterns`}
+                        href={wifiInstallUrl(build.modulesUrl)}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Open device patterns page
+                        Send over Wi-Fi
+                      </a>
+                      <a
+                        className={styles.btn}
+                        href={communityApiUrl(build.modulesUrl)}
+                        download
+                      >
+                        Download .zip instead
                       </a>
                       <span className={styles.headerSpacer} />
                       <button

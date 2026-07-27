@@ -145,5 +145,43 @@ file.onchange=function(){if(file.files.length)send(file.files,0)};
 drop.addEventListener('drop',function(ev){
   if(ev.dataTransfer.files.length)send(ev.dataTransfer.files,0)});
 
+// One-click install from the community site: /patterns?src=<modules-url>.
+// This page runs in the visitor's browser, which can reach both the (https)
+// community and this (http) device — so IT does the ferrying: fetch the file
+// list, then each file, hand them to the same send() the drop zone uses.
+// The device never talks to the internet and the visitor downloads nothing.
+function installFromUrl(src){
+  say('fetching module list…');
+  var sep=src.indexOf('?')>=0?'&':'?';
+  fetch(src+sep+'list=1').then(function(r){
+    if(!r.ok)throw 0;return r.json();
+  }).then(function(d){
+    var names=(d.files||[]).filter(function(n){
+      return /\.(pfm|json)$/.test(n)});
+    if(!names.length)throw 0;
+    var files=[];
+    // Sequential on purpose: one at a time is all the device can take anyway.
+    return names.reduce(function(chain,name){
+      return chain.then(function(){
+        say('fetching '+name+'…');
+        return fetch(src+sep+'file='+encodeURIComponent(name))
+          .then(function(r){if(!r.ok)throw 0;return r.blob()})
+          .then(function(b){files.push(new File([b],name))});
+      });
+    },Promise.resolve()).then(function(){
+      say('installing '+files.length+' file(s)…');
+      send(files,0);
+    });
+  }).catch(function(){
+    say('could not fetch modules from the link — is the build still available?',1);
+  });
+}
+var srcParam=new URLSearchParams(location.search).get('src');
+if(srcParam&&/^https?:\/\//.test(srcParam)){
+  // Strip the query so a reload doesn't reinstall.
+  history.replaceState(null,'',location.pathname);
+  installFromUrl(srcParam);
+}
+
 load();
 </script></body></html>)HTML";
