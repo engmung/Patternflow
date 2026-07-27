@@ -10,6 +10,9 @@
 #include "src/core_audio_ws.h"
 #include "src/core_web_update.h"
 #include "pattern_registry.h"
+// After the registry: the pattern manager serves and mutates that list.
+#include "src/core_patterns_http.h"
+#include "src/core_status_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -22,6 +25,9 @@ enum AppMode {
 
 AppMode currentMode = MODE_RUNNING;
 unsigned long lastMs = 0;
+// Smoothed time to render one pattern frame, in microseconds. Read by /status;
+// 0 until the first frame lands.
+uint32_t renderFrameUs = 0;
 float contentNoticeTimer = 0.0f;
 
 // Global brightness: K1 longpress enters brightness mode, K1 rotation
@@ -105,8 +111,10 @@ void setup() {
   delay(500);
   Serial.println("\n=== Patternflow OS Booting... ===");
 
+  reportHeap("boot");
   initEncoders();
   initDisplay();
+  reportHeap("after display");
 
   prefs.begin("patternflow", false);
   currentBrightness = prefs.getUChar("brightness", DEFAULT_BRIGHTNESS);
@@ -137,10 +145,19 @@ void setup() {
     updateIdleAtMs = millis();
   };
 
-  buildPatternList();   // presets first (pattern 1 = Origin), custom appended last
+  buildPatternList();   // presets first (pattern 1 = Origin), FATFS modules appended
+  // Presets only. A module's setup() runs inside the loader when it is
+  // activated, because its code is not resident until then.
+  //
+  // Note: the fork this came from stopped HUB75 DMA around module loads to keep
+  // its ISR from tripping the interrupt watchdog mid-relocation. This library
+  // version has stopDMAoutput() but no way back, so that trick is unavailable —
+  // the loader's yield() every 64 relocations is the mitigation. Revisit if a
+  // watchdog reset actually shows up on hardware.
   for (int i = 0; i < NUM_PATTERNS; i++) {
-    patterns[i].setup();
+    if (!patterns[i].modulePath) patterns[i].setup();
   }
+  activatePattern(currentPatternIdx);
 
   Serial.printf("Current Pattern: %s\n", patterns[currentPatternIdx].name);
   lastMs = millis();
@@ -563,7 +580,10 @@ void loop() {
     PatternflowOta::begin();
     PatternflowAudio::begin();
     PatternflowWebUpdate::begin();
+    PatternflowPatternsHttp::begin();
+    PatternflowStatusHttp::begin();
     Serial.println("[NET] services started");
+    reportHeap("services up");
   }
 
   // Improv-Serial provisioning: drains any browser-flasher Wi-Fi setup
@@ -587,6 +607,7 @@ void loop() {
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;
+  const uint32_t frameStartedUs = micros();
 
   InputFrame input;
   readInputFrame(input);
@@ -788,7 +809,8 @@ void loop() {
   // frame inside readInputFrame().
   int oscPatternIdx;
   if (PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
-      oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS) {
+      oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
+      activatePattern(oscPatternIdx)) {
     currentPatternIdx = oscPatternIdx;
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
@@ -831,8 +853,8 @@ void loop() {
       frameDrawn = false;
     }
   } else if (currentMode == MODE_RUNNING) {
-    patterns[currentPatternIdx].update(dt, input);
-    patterns[currentPatternIdx].draw();
+    updateActivePattern(dt, input);
+    drawActivePattern();
 
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();
@@ -851,6 +873,10 @@ void loop() {
       // than -NUM_PATTERNS in one frame, and C++'s % keeps the sign — a plain
       // "+= NUM_PATTERNS once" would leave a negative index into patterns[].
       currentPatternIdx = ((currentPatternIdx % NUM_PATTERNS) + NUM_PATTERNS) % NUM_PATTERNS;
+      // Presets are already resident so this returns immediately; landing on a
+      // module costs a read + relocate + setup(). Measure that before deciding
+      // whether browsing needs to defer the load until the knob settles.
+      activatePattern(currentPatternIdx);
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
     }
 
@@ -865,8 +891,8 @@ void loop() {
     InputFrame preview = {};
     preview.now = input.now;
     for (int i = 0; i < 4; i++) preview.knobs[i] = input.knobs[i];
-    patterns[currentPatternIdx].update(dt, preview);
-    patterns[currentPatternIdx].draw();
+    updateActivePattern(dt, preview);
+    drawActivePattern();
 
     dma_display->setRotation(1);
     drawSelectingMode();
@@ -876,5 +902,13 @@ void loop() {
     dma_display->setRotation(0);  // back to landscape for the next frame
   }
 
-  if (frameDrawn) dma_display->flipDMABuffer();
+  // Frame rate, sampled only on frames that actually rendered a pattern — the
+  // info screens deliberately skip drawing, and counting those would report a
+  // rate the panel never showed. Exponential average so /status reads steady
+  // instead of jittering with every frame.
+  if (frameDrawn) {
+    dma_display->flipDMABuffer();
+    uint32_t frameUs = micros() - frameStartedUs;
+    renderFrameUs = renderFrameUs ? (renderFrameUs * 7 + frameUs) / 8 : frameUs;
+  }
 }
