@@ -20,6 +20,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
+import { zipSync } from "fflate";
+
 import { validateCustomPattern, type CustomPatternInput } from "./assemble";
 import { firmwareSrcDir } from "./paths";
 
@@ -193,5 +195,70 @@ export async function runModuleBuild(
     };
   } finally {
     if (ephemeral) await fs.rm(workDir, { recursive: true, force: true });
+  }
+}
+
+export type RunModuleZipResult =
+  | { ok: true; zipPath: string; zipBytes: number; slugs: string[]; namespaces: string[]; output: string }
+  | { ok: false; error: string };
+
+/**
+ * The queue-facing shape: build every submitted pattern and bundle the
+ * .pfm/.json pairs into one zip.
+ *
+ * One file because the builds table stores one artifact per job, and one
+ * download is what a cart of patterns should be anyway — the device's
+ * /patterns page accepts several files dropped at once, so the flow is
+ * download, unzip, drag the lot in.
+ */
+export async function runModuleBuildZipped(
+  patterns: CustomPatternInput[],
+  zipPath: string,
+  options: Omit<ModuleBuildOptions, "artifactDir">,
+): Promise<RunModuleZipResult> {
+  const staging = await fs.mkdtemp(path.join(os.tmpdir(), "pf-module-zip-"));
+  try {
+    const built = await runModuleBuild(patterns, { ...options, artifactDir: staging });
+    if (!built.ok) return built;
+
+    // Slugs come from each pattern's NAME, so two patterns that share a name
+    // would silently overwrite each other inside the staging directory — the
+    // second .pfm replaces the first and the zip ends up one module short.
+    const seen = new Map<string, string>();
+    for (const artifact of built.artifacts) {
+      const previous = seen.get(artifact.slug);
+      if (previous) {
+        return {
+          ok: false,
+          error:
+            `Two patterns produce the same module name "${artifact.slug}" ` +
+            `(namespaces ${previous} and ${artifact.namespace}). Give them distinct NAMEs.`,
+        };
+      }
+      seen.set(artifact.slug, artifact.namespace);
+    }
+
+    const entries: Record<string, Uint8Array> = {};
+    for (const artifact of built.artifacts) {
+      entries[`${artifact.slug}.pfm`] = new Uint8Array(await fs.readFile(artifact.modulePath));
+      entries[`${artifact.slug}.json`] = new Uint8Array(await fs.readFile(artifact.sidecarPath));
+    }
+
+    const zipped = zipSync(entries);
+    await fs.mkdir(path.dirname(zipPath), { recursive: true });
+    await fs.writeFile(zipPath, zipped);
+
+    return {
+      ok: true,
+      zipPath,
+      zipBytes: zipped.byteLength,
+      slugs: built.artifacts.map((artifact) => artifact.slug),
+      namespaces: built.artifacts.map((artifact) => artifact.namespace),
+      output: built.output,
+    };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    await fs.rm(staging, { recursive: true, force: true });
   }
 }

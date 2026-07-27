@@ -3,19 +3,18 @@ import path from "node:path";
 import { artifactDir, getBuild } from "@/lib/community/builds";
 import { communityEnabled } from "@/lib/community/db";
 
-// GET /api/community/builds/[id]/firmware — the built application image.
+// GET /api/community/builds/[id]/modules — the built .pfm modules, zipped.
 //
-// No credential check by design: esp-web-tools fetches this itself, without
-// cookies and possibly cross-origin. The build id is the capability (see the
-// status route).
+// The module counterpart of ../firmware: one zip holding <slug>.pfm and
+// <slug>.json for every pattern in the build. Installing is unzip + drop the
+// files onto the device's /patterns page (it accepts several at once) — no
+// reflash, no reboot.
 //
-// CORS is deliberately PUBLIC (`*`, no credentials) instead of the allowlist
-// the rest of the community API uses: the device's own web console fetches
-// this URL to flash over Wi-Fi (#232 — "Send over Wi-Fi" hands the build off
-// to http://patternflow.local/update), and a LAN device origin — a raw IP,
-// different in every home — is exactly what an allowlist cannot enumerate.
-// Wildcard-without-credentials is safe here because the response needs no
-// cookie and the build id in the URL is the whole capability.
+// Same access model as the firmware route: the 64-bit build id in the URL is
+// the capability, no cookies. CORS is public for the same reason — a LAN
+// device origin (raw IP, different in every home) is exactly what an allowlist
+// cannot enumerate, and a future device-side "fetch from community" needs to
+// reach this cross-origin.
 
 const PUBLIC_CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -46,10 +45,8 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
 
   const { id } = await context.params;
   const build = await getBuild(id);
-  if (!build || build.status !== "done" || !build.artifact || build.format === "pfm") {
-    // A pfm build's artifact is a zip of modules, not a flashable image —
-    // serving it from here with a .bin name would brick-scare somebody.
-    return new Response("No firmware for this build.", { status: 404 });
+  if (!build || build.status !== "done" || !build.artifact || build.format !== "pfm") {
+    return new Response("No modules for this build.", { status: 404 });
   }
 
   // The artifact name comes from the database, but it is still joined and then
@@ -61,18 +58,18 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
     return new Response("Invalid artifact path.", { status: 400 });
   }
 
-  let image: Buffer;
+  let zip: Buffer;
   try {
-    image = await fs.readFile(file);
+    zip = await fs.readFile(file);
   } catch {
-    return new Response("Firmware image is missing from disk.", { status: 410 });
+    return new Response("Module bundle is missing from disk.", { status: 410 });
   }
 
-  return new Response(new Uint8Array(image), {
+  return new Response(new Uint8Array(zip), {
     headers: {
-      "Content-Type": "application/octet-stream",
-      "Content-Length": String(image.byteLength),
-      "Content-Disposition": `attachment; filename="patternflow-${build.id}.bin"`,
+      "Content-Type": "application/zip",
+      "Content-Length": String(zip.byteLength),
+      "Content-Disposition": `attachment; filename="patternflow-modules-${build.id}.zip"`,
       // Immutable once built, and the URL contains the build id.
       "Cache-Control": "private, max-age=3600",
     },

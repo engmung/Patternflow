@@ -1,0 +1,1 @@
+ALTER TABLE `builds` ADD `format` text DEFAULT 'bin' NOT NULL;

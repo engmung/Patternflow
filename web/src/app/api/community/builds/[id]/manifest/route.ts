@@ -35,7 +35,8 @@ async function handleGet(request: Request, context: { params: Promise<{ id: stri
 
   const { id } = await context.params;
   const build = await getBuild(id);
-  if (!build || build.status !== "done") {
+  if (!build || build.status !== "done" || build.format === "pfm") {
+    // esp-web-tools manifests describe flashable images; module builds have none.
     return Response.json({ error: "No firmware for this build." }, { status: 404 });
   }
 

@@ -13,6 +13,13 @@ import { builds } from "./schema";
 
 export type BuildStatus = "queued" | "running" | "done" | "error";
 
+/**
+ * "bin" — a whole flashable image (legacy; still what pre-loader firmware
+ * needs). "pfm" — loadable modules, zipped, installed over Wi-Fi with no
+ * reflash. See moduleRunner.ts for why the difference is 14 s vs ½ s.
+ */
+export type BuildFormat = "bin" | "pfm";
+
 /** A pattern header as submitted, stored inline on the job. */
 export type BuildPatternInput = { label: string; code: string };
 
@@ -26,12 +33,17 @@ export function artifactDir(): string {
   return path.join(path.dirname(dbPath), "builds");
 }
 
-export async function enqueueBuild(userId: string, patterns: BuildPatternInput[]): Promise<string> {
+export async function enqueueBuild(
+  userId: string,
+  patterns: BuildPatternInput[],
+  format: BuildFormat = "bin",
+): Promise<string> {
   const id = newId();
   await getDb().insert(builds).values({
     id,
     userId,
     status: "queued",
+    format,
     patterns: JSON.stringify(patterns),
     createdAt: new Date(),
   });
