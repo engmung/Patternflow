@@ -76,7 +76,10 @@ font-family:var(--mono);font-size:11.5px}
 #msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
 #msg.err{color:var(--led)}
 #msg.good{color:var(--ok)}
-.actions{display:flex;gap:8px;margin-top:8px}
+.actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
+#bulk{display:none}
+.bulkNote{font-family:var(--mono);font-size:11px;color:var(--faint)}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
@@ -100,6 +103,10 @@ a{color:var(--muted)}
 <section>
   <h2>Installed</h2>
   <ul id="list"></ul>
+  <div class="actions" id="bulk">
+    <button class="del" id="bulkDel">Delete selected</button>
+    <span class="bulkNote" id="bulkN"></span>
+  </div>
 </section>
 
 <footer>Presets are built into the firmware and cannot be removed here.
@@ -108,7 +115,19 @@ a{color:var(--muted)}
 <script>
 function $(i){return document.getElementById(i)}
 var msg=$('msg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
-    qEl=$('q'),retryBtn=$('retry');
+    qEl=$('q'),retryBtn=$('retry'),bulk=$('bulk'),bulkDel=$('bulkDel'),bulkN=$('bulkN');
+
+function selectedSlugs(){
+  var out=[];
+  listEl.querySelectorAll('input.sel:checked').forEach(function(c){out.push(c.dataset.slug)});
+  return out;
+}
+function updateBulk(){
+  var n=selectedSlugs().length;
+  bulk.style.display=n?'flex':'none';
+  bulkDel.textContent='Delete selected ('+n+')';
+  bulkN.textContent=n?'presets cannot be deleted':'';
+}
 
 function say(t,cls){msg.textContent=t;msg.className=cls||''}
 
@@ -124,6 +143,13 @@ function load(){
       var tg=document.createElement('span');
       tg.className='tag'+(p.module?' mod':'');
       tg.textContent=p.module?'module':'preset';
+      if(p.module){
+        var c=document.createElement('input');c.type='checkbox';c.className='sel';
+        c.dataset.slug=p.module;c.onchange=updateBulk;
+        li.appendChild(c);
+      }else{
+        var sp=document.createElement('span');sp.style.width='14px';li.appendChild(sp);
+      }
       li.appendChild(n);li.appendChild(nm);li.appendChild(tg);
       if(p.module){
         var b=document.createElement('button');b.className='del';b.textContent='delete';
@@ -132,8 +158,46 @@ function load(){
       }
       listEl.appendChild(li);
     });
+    updateBulk();
   }).catch(function(){say('cannot reach device','err')});
 }
+
+// Bulk delete rides the same visible queue as uploads: one row per module,
+// deleting… → ✓ removed / ✗ failed, and the batch never stops at a failure.
+// Server-side this is just the existing per-slug DELETE, called sequentially;
+// the device captures the running pattern once and restores it 150ms after
+// the last call, exactly as for uploads.
+function delSeq(i){
+  while(i<items.length&&items[i].st!=='wait')i++;
+  if(i>=items.length){
+    var ok=0,fail=0;
+    items.forEach(function(it){if(it.st==='ok')ok++;else if(it.st==='fail')fail++});
+    say(fail?ok+' removed, '+fail+' failed':(ok+' module'+(ok===1?'':'s')+' removed'),
+        fail?'err':'good');
+    setTimeout(load,700);return;
+  }
+  var it=items[i];it.st='del';renderQ();
+  fetch('/api/patterns?slug='+encodeURIComponent(it.slug),{method:'DELETE'})
+    .then(function(r){return r.json()})
+    .then(function(d){
+      if(d.ok)it.st='ok';else{it.st='fail';it.err=d.error||'delete failed'}
+      renderQ();setTimeout(function(){delSeq(i+1)},250);
+    })
+    .catch(function(){it.st='fail';it.err='no reply from device';
+      renderQ();setTimeout(function(){delSeq(i+1)},250)});
+}
+
+bulkDel.onclick=function(){
+  var slugs=selectedSlugs();
+  if(!slugs.length)return;
+  if(!confirm('Delete '+slugs.length+' module'+(slugs.length===1?'':'s')+'?
+
+'+
+              slugs.join(', ')))return;
+  items=slugs.map(function(s){return {slug:s,name:s,st:'wait',pct:0,tries:0}});
+  retryBtn.style.display='none';
+  say('');renderQ();delSeq(0);
+};
 
 function del(slug,name){
   if(!confirm('Delete "'+name+'"?'))return;
@@ -149,7 +213,7 @@ function del(slug,name){
 // items: {f:File|null, name, st:'get'|'wait'|'up'|'retry'|'ok'|'fail', pct, err}
 var items=[];
 
-var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',
+var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',del:'deleting…',
                  retry:'retrying…',ok:'✓ done',fail:'✗ failed'};
 
 function renderQ(){
