@@ -13,6 +13,7 @@
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
 #include "src/core_status_http.h"
+#include "src/core_wifi_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -582,6 +583,7 @@ void loop() {
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
+    PatternflowWifiHttp::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
   }

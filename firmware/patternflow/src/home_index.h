@@ -92,13 +92,18 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
       <div class="pf-row-t">Status</div>
       <div class="pf-row-d">Frame rate, memory, storage and network &mdash; what the device is actually doing.</div>
     </a>
-    <a class="pf-row" href="/update">
+    <a class="pf-row" href="/wifi">
       <span class="pf-ghost">04</span>
+      <div class="pf-row-t">Wi-Fi</div>
+      <div class="pf-row-d">Remember several networks &mdash; the device joins whichever one it finds.</div>
+    </a>
+    <a class="pf-row" href="/update">
+      <span class="pf-ghost">05</span>
       <div class="pf-row-t">Firmware update</div>
       <div class="pf-row-d">Drop a .bin &mdash; the device flashes itself over the LAN and reboots.</div>
     </a>
     <div class="pf-row soon">
-      <span class="pf-ghost">05</span>
+      <span class="pf-ghost">06</span>
       <div class="pf-row-t">Remote compute<span class="tag">Soon</span></div>
       <div class="pf-row-d">Link an external computer to drive patterns with more horsepower.</div>
     </div>
