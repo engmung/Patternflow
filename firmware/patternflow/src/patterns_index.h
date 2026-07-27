@@ -190,10 +190,8 @@ function delSeq(i){
 bulkDel.onclick=function(){
   var slugs=selectedSlugs();
   if(!slugs.length)return;
-  if(!confirm('Delete '+slugs.length+' module'+(slugs.length===1?'':'s')+'?
-
-'+
-              slugs.join(', ')))return;
+  if(!confirm('Delete '+slugs.length+' module'+(slugs.length===1?'':'s')+
+              ' -- '+slugs.join(', ')+'?'))return;
   items=slugs.map(function(s){return {slug:s,name:s,st:'wait',pct:0,tries:0}});
   retryBtn.style.display='none';
   say('');renderQ();delSeq(0);
