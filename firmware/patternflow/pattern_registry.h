@@ -15,8 +15,11 @@
 //            after the presets. This is where a pattern from the community site
 //            lands — a ~6 KB upload instead of a 1 MB reflash.
 //
-// The custom1..3 slots are gone: uploading a module is what they were for, and
-// it no longer costs a rebuild. Their patterns live on under firmware/modules/.
+// The hand-edited custom1..3 slots are gone: uploading a module is what they
+// were for, and it no longer costs a rebuild. Their patterns live on under
+// firmware/modules/. An empty region further down is still reserved for the web
+// build service, which needs to compile a pattern in for devices running
+// firmware older than the module loader — see CUSTOM SLOTS below.
 
 // ── PRESETS (curated showcase, in presets/) ──
 #include "presets/preset_origin.h"
@@ -117,6 +120,23 @@ PatternEntry presetPatterns[] = {
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 
+// ── CUSTOM SLOTS (legacy build-service path) ─────────────────────────
+// Empty here by design, and not meant to be edited by hand — uploading a .pfm
+// at /patterns is how a pattern gets on a device now.
+//
+// The web build service (web/src/lib/firmware/assemble.ts) rewrites everything
+// between the two markers below to compile a submitted pattern into
+// firmware.bin. That is the path for devices whose firmware predates the module
+// loader: they cannot load a .pfm, so they still need a whole image. Keeping it
+// alive costs these few lines and means a bug in the module path never leaves
+// the community with no way to build at all.
+//
+// Leave the markers in place even when the region is empty. Removing them
+// breaks "Send to build".
+// PF_CUSTOM_SLOTS_BEGIN
+#define PF_CUSTOM_SLOT_COUNT 0
+// PF_CUSTOM_SLOTS_END
+
 // ── MODULES (.pfm on FATFS) ──────────────────────────────────────────
 // Names and paths need RAM because they come off the filesystem, unlike the
 // preset entries which point straight at flash literals.
@@ -155,7 +175,8 @@ int activePatternIdx = -1;
 // Presets-only fallback for a board with no usable PSRAM. Same size the list
 // was before modules existed, so the device degrades to old behaviour rather
 // than to a null dereference.
-PatternEntry presetsOnlyList[sizeof(presetPatterns) / sizeof(presetPatterns[0])];
+PatternEntry presetsOnlyList[sizeof(presetPatterns) / sizeof(presetPatterns[0]) +
+                            PF_CUSTOM_SLOT_COUNT];
 
 inline void* allocPreferSpiram(size_t bytes) {
   void* p = heap_caps_calloc(1, bytes, MALLOC_CAP_SPIRAM);
@@ -168,7 +189,8 @@ inline bool allocPatternStorage() {
   if (patterns) return moduleCapacity > 0;
 
   patterns = static_cast<PatternEntry*>(
-      allocPreferSpiram(sizeof(PatternEntry) * (NUM_PRESETS + MAX_MODULE_PATTERNS)));
+      allocPreferSpiram(sizeof(PatternEntry) *
+                        (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT + MAX_MODULE_PATTERNS)));
   moduleNames = static_cast<char(*)[MODULE_NAME_BYTES]>(
       allocPreferSpiram(MODULE_NAME_BYTES * MAX_MODULE_PATTERNS));
   modulePaths = static_cast<char(*)[MODULE_PATH_BYTES]>(
@@ -327,6 +349,10 @@ inline void buildPatternList() {
   allocPatternStorage();
   NUM_PATTERNS = 0;
   for (int i = 0; i < NUM_PRESETS; i++) patterns[NUM_PATTERNS++] = presetPatterns[i];
+#if PF_CUSTOM_SLOT_COUNT > 0
+  // Present only in a build-service image; see the CUSTOM SLOTS note above.
+  for (int i = 0; i < PF_CUSTOM_SLOT_COUNT; i++) patterns[NUM_PATTERNS++] = customPatterns[i];
+#endif
 
   scanModules();
   for (int i = 0; i < numModules; i++) {
