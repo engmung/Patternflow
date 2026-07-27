@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Editor from "@monaco-editor/react";
 import SandboxPreview from "@/components/community/SandboxPreview";
@@ -14,6 +14,7 @@ import EditDetailsModal from "@/components/community/EditDetailsModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
+import { CART_EVENT, cartAdd, cartHas, cartRemove } from "@/lib/community/cart";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
@@ -66,6 +67,26 @@ export default function PatternDetailClient({
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
+  // Cart membership is shared state (header chip, other tabs), so it is read
+  // from the store and refreshed on its change event rather than mirrored.
+  const [inCart, setInCart] = useState(false);
+  const [cartNote, setCartNote] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setInCart(cartHas(pattern.id));
+    sync();
+    window.addEventListener(CART_EVENT, sync);
+    return () => window.removeEventListener(CART_EVENT, sync);
+  }, [pattern.id]);
+  const toggleCart = () => {
+    if (!pattern.codeCpp) return;
+    if (inCart) {
+      cartRemove(pattern.id);
+      setCartNote(null);
+      return;
+    }
+    const added = cartAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp });
+    setCartNote(added.ok ? null : added.reason ?? null);
+  };
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const knobSetup = useMemo(() => knobSetupFromCode(pattern.code), [pattern.code]);
@@ -206,6 +227,19 @@ export default function PatternDetailClient({
                 ⚡ Flash to my board
               </button>
             )}
+            {/* Cart = the module path: collect several patterns, build them all
+                as .pfm in one go, install from the device's /patterns page. */}
+            {buildsConfigured() && pattern.codeCpp && (
+              <button
+                type="button"
+                className={styles.btn}
+                title="Collect this pattern; build the whole cart as loadable modules"
+                onClick={toggleCart}
+              >
+                {inCart ? "✓ In cart" : "▦ Add to cart"}
+              </button>
+            )}
+            {cartNote && <span className={styles.fieldHint}>{cartNote}</span>}
             {isOwner && edited && (
               <button
                 type="button"
