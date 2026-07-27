@@ -119,21 +119,37 @@ function del(slug,name){
 
 // One at a time: the device writes straight to flash and a second concurrent
 // multipart POST would interleave with the first upload's chunk state.
-function send(files,i){
+function send(files,i,retried){
   if(i>=files.length){bar.style.display='none';load();return}
-  var fd=new FormData();fd.append('module',files[i]);
+  var fd=new FormData();
+  // last=0 defers the device's rescan-and-reload to the batch's final file —
+  // reloading a module between every file starves the uploads of heap. Sent as
+  // a form field, NOT a URL query: the ESP32 WebServer drops multipart POSTs
+  // that carry a query string (empty reply, found the hard way).
+  fd.append('last',i===files.length-1?'1':'0');
+  fd.append('module',files[i]);
   var xhr=new XMLHttpRequest();
   xhr.open('POST','/api/patterns');
   bar.style.display='block';
   xhr.upload.onprogress=function(e){
     if(e.lengthComputable)bar.firstChild.style.width=(e.loaded/e.total*100)+'%';
   };
-  xhr.onload=function(){
-    var d={};try{d=JSON.parse(xhr.responseText)}catch(e){}
-    if(d.ok){say('uploaded '+d.slug+' ('+d.bytes+' B)');send(files,i+1)}
-    else{say(d.error||'upload failed',1);bar.style.display='none';load()}
+  // The device occasionally stores the file but drops the connection before
+  // the reply gets out (low-heap first request after boot, typically). One
+  // retry after a beat rides that out — re-sending the same bytes just
+  // overwrites the same file. A real rejection (a JSON error) never retries.
+  var failSoft=function(){
+    if(!retried){say('retrying '+files[i].name+'…');
+      setTimeout(function(){send(files,i,1)},500);return}
+    say('upload failed at '+files[i].name,1);bar.style.display='none';load();
   };
-  xhr.onerror=function(){say('upload failed',1);bar.style.display='none'};
+  xhr.onload=function(){
+    var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
+    if(d&&d.ok){say('uploaded '+d.slug+' ('+d.bytes+' B)');send(files,i+1)}
+    else if(d&&d.error){say(d.error,1);bar.style.display='none';load()}
+    else failSoft();
+  };
+  xhr.onerror=failSoft;
   xhr.send(fd);
 }
 

@@ -26,6 +26,7 @@
 #include <FFat.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_heap_caps.h>
 
 #if PF_AUDIO_ENABLED
 #include "core_audio_ws.h"
@@ -61,26 +62,51 @@ inline size_t uploadBytes = 0;
 
 inline bool isCompiledIn() { return true; }
 
-// Rebuilding the list renumbers everything, so re-point the running pattern at
-// the same file rather than at the same index.
-inline void reloadKeepingSelection() {
-  char previous[MODULE_PATH_BYTES] = {};
-  bool wasModule = activePatternIdx >= 0 && patterns[activePatternIdx].modulePath;
-  if (wasModule) snprintf(previous, sizeof(previous), "%s", patterns[activePatternIdx].modulePath);
+// What was playing before an upload/delete started, so it can be put back
+// afterwards. Presets keep their index (the preset half of the list never
+// reorders); modules are remembered by path, because rebuilding the list
+// renumbers them.
+//
+// Split into capture/restore instead of one reload function for a heap reason:
+// a resident module owns ~5-8 KB of internal RAM, and internal RAM is exactly
+// what a multipart upload needs to parse its body. Measured earlier today:
+// with a 22 KB module resident (heap ~4-6 KB) uploads fail outright. So the
+// module is evicted when a batch of uploads BEGINS, and only reloaded once at
+// the END — not re-loaded between the .json and the .pfm of every pattern,
+// which is what made the fourth file of a cart install fail.
+inline char restorePath[MODULE_PATH_BYTES] = {};
+inline int restorePresetIdx = -1;
+inline bool restorePending = false;
 
+inline void captureSelectionOnce() {
+  if (restorePending) return;
+  restorePending = true;
+  restorePath[0] = '\0';
+  restorePresetIdx = -1;
+  if (activePatternIdx >= 0 && patterns) {
+    if (patterns[activePatternIdx].modulePath) {
+      snprintf(restorePath, sizeof(restorePath), "%s", patterns[activePatternIdx].modulePath);
+    } else {
+      restorePresetIdx = activePatternIdx;
+    }
+  }
+  // Free the module's executable+data RAM before any body bytes arrive.
   PFModuleLoader::unload();
   activePatternIdx = -1;
-  buildPatternList();
+}
 
-  if (wasModule) {
+inline void restoreSelection() {
+  restorePending = false;
+  buildPatternList();
+  if (restorePath[0]) {
     for (int i = 0; i < NUM_PATTERNS; i++) {
-      if (patterns[i].modulePath && strcmp(patterns[i].modulePath, previous) == 0) {
+      if (patterns[i].modulePath && strcmp(patterns[i].modulePath, restorePath) == 0) {
         activatePattern(i);
         return;
       }
     }
   }
-  activatePattern(0);  // deleted out from under us, or was a preset
+  activatePattern(restorePresetIdx >= 0 ? restorePresetIdx : 0);
 }
 
 // Filenames arrive from a browser, so treat them as hostile: keep only
@@ -168,15 +194,14 @@ inline void handleDelete() {
   }
 
   // Drop it out of executable RAM before the file goes, in case it is running.
-  PFModuleLoader::unload();
-  activePatternIdx = -1;
+  captureSelectionOnce();
   FFat.remove(path);
 
   char sidecar[MODULE_PATH_BYTES];
   snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
   if (FFat.exists(sidecar)) FFat.remove(sidecar);
 
-  reloadKeepingSelection();
+  restoreSelection();
   Serial.printf("[PATTERNS-HTTP] deleted %s (%d patterns)\n", slug, NUM_PATTERNS);
   sendJson(200, "{\"ok\":true}");
 }
@@ -219,18 +244,14 @@ inline void handleUpload() {
     snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
              isJson ? "json" : "pfm");
 
-    // Overwriting the running module would pull code out from under the
-    // renderer, so unload first.
-    if (activePatternIdx >= 0 && patterns[activePatternIdx].modulePath &&
-        strcmp(patterns[activePatternIdx].modulePath, uploadPath) == 0) {
-      PFModuleLoader::unload();
-      activePatternIdx = -1;
-    }
+    // Evict the resident module for the whole batch — see captureSelectionOnce.
+    captureSelectionOnce();
 
     uploadFile = FFat.open(uploadPath, FILE_WRITE);
     if (!uploadFile) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "cannot open destination");
+      snprintf(uploadError, sizeof(uploadError), "cannot open destination (heap %u)",
+               (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       return;
     }
     Serial.printf("[PATTERNS-HTTP] upload start %s\n", uploadPath);
@@ -243,7 +264,8 @@ inline void handleUpload() {
     if (!uploadFile) return;
     if (uploadFile.write(upload.buf, upload.currentSize) != upload.currentSize) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "write failed (disk full?)");
+      snprintf(uploadError, sizeof(uploadError), "write failed (heap %u)",
+               (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       uploadFile.close();
       return;
     }
@@ -262,8 +284,17 @@ inline void handleUpload() {
 
 // Runs once the whole body has been consumed.
 inline void handleUploadDone() {
+  // Batched install (the /patterns page, or its ?src= one-click flow) marks
+  // every file but the final one with last=0, so the rescan-and-reload runs
+  // once per batch instead of once per file. Anything not sending the flag
+  // (curl, scripts) is treated as a batch of one.
+  bool lastInBatch = !server().hasArg("last") || server().arg("last") != "0";
+
   if (uploadFailed) {
     if (uploadPath[0] && FFat.exists(uploadPath)) FFat.remove(uploadPath);
+    Serial.printf("[PATTERNS-HTTP] upload failed: %s (heap %u)\n", uploadError,
+                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    if (lastInBatch && restorePending) restoreSelection();
     String body = "{\"ok\":false,\"error\":\"";
     body += uploadError[0] ? uploadError : "upload failed";
     body += "\"}";
@@ -271,11 +302,12 @@ inline void handleUploadDone() {
     return;
   }
   if (!uploadPath[0] || uploadBytes == 0) {
+    if (lastInBatch && restorePending) restoreSelection();
     sendJson(400, "{\"ok\":false,\"error\":\"empty upload\"}");
     return;
   }
 
-  reloadKeepingSelection();
+  if (lastInBatch) restoreSelection();
   Serial.printf("[PATTERNS-HTTP] uploaded %s (%u bytes, %d patterns)\n", uploadPath,
                 (unsigned)uploadBytes, NUM_PATTERNS);
 
