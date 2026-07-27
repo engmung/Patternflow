@@ -118,26 +118,60 @@ async function pathExists(target: string): Promise<boolean> {
   }
 }
 
+/** Directories under the sketch that must never reach the worker's copy. */
+const SYNC_SKIP = new Set(["build", "data"]);
+
+async function syncTree(sourceDir: string, destinationDir: string): Promise<void> {
+  await fs.mkdir(destinationDir, { recursive: true });
+  for (const entry of await fs.readdir(sourceDir, { withFileTypes: true })) {
+    if (SYNC_SKIP.has(entry.name)) continue;
+    const source = path.join(sourceDir, entry.name);
+    const destination = path.join(destinationDir, entry.name);
+    if (entry.isDirectory()) {
+      await syncTree(source, destination);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+
+    // Copy only what is new or changed, preserving everything else's mtime —
+    // arduino-cli rebuilds exactly the translation units the change touches
+    // and the warm cache stays warm.
+    const sourceStat = await fs.stat(source);
+    let same = false;
+    try {
+      const destinationStat = await fs.stat(destination);
+      same =
+        destinationStat.size === sourceStat.size &&
+        destinationStat.mtimeMs === sourceStat.mtimeMs;
+    } catch {
+      same = false;
+    }
+    if (!same) {
+      await fs.copyFile(source, destination);
+      await fs.utimes(destination, sourceStat.atime, sourceStat.mtime);
+    }
+  }
+}
+
 /**
- * Copy the firmware sources into the runner's working directory, once.
+ * Bring the runner's working copy of the firmware up to date with the repo.
  *
- * Re-copied on every build only for the files a build can change, so the
- * remaining sources keep their timestamps and arduino-cli does not decide the
- * world has moved and rebuild the lot.
+ * This used to full-copy once and then refresh only the generated files
+ * (custom slots, registry, secrets) — which meant a firmware source ADDED
+ * later never reached a long-lived worker: after the loadable-modules change,
+ * every deployed worker got the new pattern_registry.h (generated) but not
+ * the new src/core_module_loader.h it includes, and every "Flash to my board"
+ * died with a fatal include error. Now the whole tree is synced incrementally
+ * by size+mtime, so new and edited sources propagate while untouched files
+ * keep their timestamps (and the build cache its warmth).
  */
 export async function syncSketchDir(firmwareSrcDir: string, sketchDir: string): Promise<void> {
-  if (!(await pathExists(sketchDir))) {
-    await fs.mkdir(path.dirname(sketchDir), { recursive: true });
-    await fs.cp(firmwareSrcDir, sketchDir, {
-      recursive: true,
-      // The repo's own build output would be copied as a stale cache.
-      filter: (source) => !source.split(path.sep).includes("build"),
-    });
-    return;
-  }
+  await syncTree(firmwareSrcDir, sketchDir);
 
   // Restore the generated files to their pristine state so a previous build's
-  // custom slots cannot leak into this one.
+  // custom slots cannot leak into this one. (syncTree above only fixes them
+  // when the REPO side changed; this guards against the WORKER side having
+  // been rewritten by the previous job.)
   for (const entry of await fs.readdir(firmwareSrcDir)) {
     if (!GENERATED.test(entry)) continue;
     await fs.copyFile(path.join(firmwareSrcDir, entry), path.join(sketchDir, entry));

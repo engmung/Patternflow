@@ -212,7 +212,7 @@ function del(slug,name){
 var items=[];
 
 var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',del:'deleting…',
-                 retry:'retrying…',ok:'✓ done',fail:'✗ failed'};
+                 ver:'verifying…',retry:'retrying…',ok:'✓ done',fail:'✗ failed'};
 
 function renderQ(){
   qEl.style.display=items.length?'block':'none';
@@ -221,7 +221,8 @@ function renderQ(){
     var li=document.createElement('li');
     var row=document.createElement('div');row.className='qrow';
     var nm=document.createElement('span');nm.className='qn';nm.textContent=it.name;
-    var st=document.createElement('span');st.className='qs '+it.st;
+    var st=document.createElement('span');
+    st.className='qs '+(it.st==='ver'?'up':it.st);
     st.textContent=it.st==='up'?('uploading '+(it.pct||0)+'%'):STATE_LABEL[it.st];
     row.appendChild(nm);row.appendChild(st);li.appendChild(row);
     if(it.st==='up'){
@@ -260,32 +261,40 @@ function runQ(i){
     if(items[j].st==='wait'||items[j].st==='retry')isLast=false;
   it.st='up';it.pct=0;renderQ();
 
-  var fd=new FormData();
-  // Form field, NOT a URL query: this WebServer answers multipart POSTs that
-  // carry a query string with an empty reply. last=1 triggers the device's
-  // single end-of-batch rescan.
-  fd.append('last',isLast?'1':'0');
-  fd.append('module',it.f);
   var xhr=new XMLHttpRequest();
-  xhr.open('POST','/api/patterns');
+  // Raw PUT, not multipart: the device WebServer's multipart parser is its
+  // flakiest path (multi-chunk bodies died with no reply often enough to make
+  // installs feel broken). A raw body sidesteps boundary parsing entirely.
+  // Filename and the batch flag travel as headers; last=1 triggers the
+  // device's single end-of-batch rescan.
+  xhr.open('PUT','/api/patterns');
+  xhr.setRequestHeader('X-PF-Name',it.name);
+  xhr.setRequestHeader('X-PF-Last',isLast?'1':'0');
+  // Transfer shows 0-90%. "100% handed to the network" is not "installed" —
+  // a bar parked on 100 while the device was still writing (or failing) read
+  // as success. The last 10% is the device's own confirmation.
   xhr.upload.onprogress=function(e){
-    if(e.lengthComputable){it.pct=Math.round(e.loaded/e.total*100);renderQ()}
+    if(!e.lengthComputable)return;
+    it.pct=Math.round(e.loaded/e.total*90);
+    if(e.loaded===e.total)it.st='ver';
+    renderQ();
   };
   var next=function(){setTimeout(function(){runQ(i+1)},350)};
   var deadReply=function(){
     it.tries=(it.tries||0)+1;
+    it.pct=0;
     if(it.tries<=2){it.st='retry';renderQ();
       setTimeout(function(){runQ(i)},700);return}
     it.st='fail';it.err='no reply from device';renderQ();next();
   };
   xhr.onload=function(){
     var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
-    if(d&&d.ok){it.st='ok';renderQ();next()}
+    if(d&&d.ok){it.st='ok';it.pct=100;renderQ();next()}
     else if(d&&d.error){it.st='fail';it.err=d.error;renderQ();next()}
     else deadReply();
   };
   xhr.onerror=deadReply;
-  xhr.send(fd);
+  xhr.send(it.f);
 }
 
 function startBatch(fileList){

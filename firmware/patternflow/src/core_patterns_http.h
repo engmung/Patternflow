@@ -330,13 +330,94 @@ inline void handleUpload() {
   }
 }
 
+// Raw PUT body: same file lifecycle as the multipart handler, none of the
+// multipart parsing. Chunks arrive straight off the socket.
+inline void handlePutBody() {
+  HTTPRaw& raw = server().raw();
+  lastUploadActivityMs = millis();
+
+  if (raw.status == RAW_START) {
+    uploadFailed = false;
+    uploadError[0] = ' ';
+    uploadBytes = 0;
+    uploadPath[0] = ' ';
+    uploadSlug[0] = ' ';
+    if (uploadFile) uploadFile.close();
+
+    String name = server().header("X-PF-Name");
+    String lowered = name;
+    lowered.toLowerCase();
+    bool isJson = lowered.endsWith(".json");
+    if (!isJson && !lowered.endsWith(".pfm")) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "only .pfm or .json accepted");
+      return;
+    }
+    if (!slugFromFilename(name, uploadSlug, sizeof(uploadSlug))) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "invalid X-PF-Name");
+      return;
+    }
+    if (!mountModuleStorage()) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "filesystem not mounted");
+      return;
+    }
+    if (!FFat.exists(MODULE_DIR) && !FFat.mkdir(MODULE_DIR)) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "cannot create %s", MODULE_DIR);
+      return;
+    }
+    snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
+             isJson ? "json" : "pfm");
+
+    captureSelectionOnce();
+
+    uploadFile = FFat.open(uploadPath, FILE_WRITE);
+    if (!uploadFile) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "cannot open destination (heap %u)",
+               (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+      return;
+    }
+    Serial.printf("[PATTERNS-HTTP] put start %s\n", uploadPath);
+    return;
+  }
+
+  if (uploadFailed) return;
+
+  if (raw.status == RAW_WRITE) {
+    if (!uploadFile) return;
+    if (uploadFile.write(raw.buf, raw.currentSize) != raw.currentSize) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "write failed (heap %u)",
+               (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+      uploadFile.close();
+      return;
+    }
+    uploadBytes += raw.currentSize;
+    return;
+  }
+
+  if (raw.status == RAW_END || raw.status == RAW_ABORTED) {
+    if (uploadFile) uploadFile.close();
+    if (raw.status == RAW_ABORTED) {
+      uploadFailed = true;
+      snprintf(uploadError, sizeof(uploadError), "upload aborted");
+    }
+  }
+}
+
 // Runs once the whole body has been consumed.
 inline void handleUploadDone() {
   // Batched install (the /patterns page, or its ?src= one-click flow) marks
-  // every file but the final one with last=0, so the rescan-and-reload runs
-  // once per batch instead of once per file. Anything not sending the flag
-  // (curl, scripts) is treated as a batch of one.
-  bool lastInBatch = !server().hasArg("last") || server().arg("last") != "0";
+  // every file but the final one as last=0, so the rescan-and-reload runs
+  // once per batch instead of once per file. Multipart carries it as a form
+  // field, raw PUT as the X-PF-Last header. Anything sending neither (curl,
+  // scripts) is treated as a batch of one.
+  bool lastInBatch = true;
+  if (server().hasArg("last")) lastInBatch = server().arg("last") != "0";
+  else if (server().hasHeader("X-PF-Last")) lastInBatch = server().header("X-PF-Last") != "0";
 
   if (uploadFailed) {
     if (uploadPath[0] && FFat.exists(uploadPath)) FFat.remove(uploadPath);
@@ -373,9 +454,20 @@ inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
+  // Custom headers are only readable when collected up front. Nothing else on
+  // the shared server collects any, so this list is the whole set.
+  static const char* headerKeys[] = {"X-PF-Name", "X-PF-Last"};
+  server().collectHeaders(headerKeys, 2);
+
   server().on("/patterns", HTTP_GET, handleIndex);
   server().on("/api/patterns", HTTP_GET, handleList);
   server().on("/api/patterns", HTTP_POST, handleUploadDone, handleUpload);
+  // Raw-body PUT is what the page actually uses: the WebServer's multipart
+  // parser is the flakiest part of this stack (query-string quirk, dead
+  // replies on multi-chunk bodies), and a raw octet stream sidesteps ALL of
+  // its boundary handling. Filename travels in X-PF-Name. The multipart POST
+  // above stays for curl and older pages.
+  server().on("/api/patterns", HTTP_PUT, handleUploadDone, handlePutBody);
   server().on("/api/patterns", HTTP_DELETE, handleDelete);
   server().on("/api/patterns/format", HTTP_POST, handleFormat);
 
