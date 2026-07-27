@@ -4,6 +4,11 @@
 // Same cream/ink/LED tokens as the update and home consoles. Kept to one
 // PROGMEM string with no external assets: the device serves this with no
 // internet in the loop.
+//
+// Uploads run through a visible per-file queue (waiting / uploading % / done /
+// failed), continue past failures, and offer one retry pass — a batch of eight
+// files with one hiccup used to die silently at the hiccup, which read as
+// "upload is broken" when seven of eight were actually fine.
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
@@ -16,7 +21,7 @@ static const char PATTERNS_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <title>Patternflow - Patterns</title>
 <style>
 :root{--cream:#F4EFE6;--ink:#141414;--muted:#6B655A;--faint:#A69F90;
---rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;
+--rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;--ok:#2E8B57;--warn:#C77B1F;
 --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
 --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}
@@ -50,10 +55,28 @@ li.on{background:rgba(232,85,46,.06)}
 button.del{font:inherit;font-size:11px;color:var(--muted);background:none;
 border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer}
 button.del:hover{border-color:var(--led);color:var(--led)}
-#msg{margin-top:14px;font-family:var(--mono);font-size:11px;min-height:16px}
+
+/* Install queue: one row per file, states colour-coded. The bar under an
+   uploading row is its own progress, not a global one. */
+.queue{border-top:none;margin-top:12px;display:none}
+.queue li{display:block;padding:6px 2px;border-bottom:1px dashed var(--rule-soft);
+font-family:var(--mono);font-size:11.5px}
+.qrow{display:flex;align-items:center;gap:10px}
+.qn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.qs{white-space:nowrap}
+.qs.get,.qs.wait{color:var(--faint)}
+.qs.up{color:var(--ink)}
+.qs.retry{color:var(--warn)}
+.qs.ok{color:var(--ok)}
+.qs.fail{color:var(--led)}
+.qbar{height:2px;background:var(--rule-soft);margin-top:5px}
+.qbar i{display:block;height:100%;width:0;background:var(--led)}
+.qerr{margin-top:3px;color:var(--led);font-size:10.5px;white-space:normal}
+
+#msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
 #msg.err{color:var(--led)}
-.bar{height:2px;background:var(--rule-soft);margin-top:12px;display:none}
-.bar i{display:block;height:100%;width:0;background:var(--led);transition:width .2s}
+#msg.good{color:var(--ok)}
+.actions{display:flex;gap:8px;margin-top:8px}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
@@ -64,11 +87,14 @@ a{color:var(--muted)}
   <h2>Upload</h2>
   <label class="drop" id="drop">
     <input type="file" id="file" accept=".pfm,.json" multiple>
-    <p>Drop a <b>.pfm</b> here, or click to choose</p>
-    <p class="hint">module + optional .json sidecar</p>
+    <p>Drop <b>.pfm</b> files here, or click to choose</p>
+    <p class="hint">modules + their .json sidecars, all at once</p>
   </label>
-  <div class="bar" id="bar"><i></i></div>
+  <ul class="queue" id="q"></ul>
   <div id="msg"></div>
+  <div class="actions">
+    <button class="del" id="retry" style="display:none">Retry failed</button>
+  </div>
 </section>
 
 <section>
@@ -80,16 +106,16 @@ a{color:var(--muted)}
 &nbsp;<a href="/">Home</a></footer>
 </div>
 <script>
-var msg=document.getElementById('msg'),bar=document.getElementById('bar'),
-    list=document.getElementById('list'),drop=document.getElementById('drop'),
-    file=document.getElementById('file'),fs=document.getElementById('fs');
+function $(i){return document.getElementById(i)}
+var msg=$('msg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
+    qEl=$('q'),retryBtn=$('retry');
 
-function say(t,err){msg.textContent=t;msg.className=err?'err':''}
+function say(t,cls){msg.textContent=t;msg.className=cls||''}
 
 function load(){
   fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
     fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'FS not mounted';
-    list.innerHTML='';
+    listEl.innerHTML='';
     d.patterns.forEach(function(p){
       var li=document.createElement('li');
       if(p.index===d.active)li.className='on';
@@ -104,92 +130,152 @@ function load(){
         b.onclick=function(){del(p.module,p.name)};
         li.appendChild(b);
       }
-      list.appendChild(li);
+      listEl.appendChild(li);
     });
-  }).catch(function(){say('cannot reach device',1)});
+  }).catch(function(){say('cannot reach device','err')});
 }
 
 function del(slug,name){
   if(!confirm('Delete "'+name+'"?'))return;
   fetch('/api/patterns?slug='+encodeURIComponent(slug),{method:'DELETE'})
     .then(function(r){return r.json()}).then(function(d){
-      say(d.ok?('deleted '+slug):(d.error||'delete failed'),!d.ok);load();
-    }).catch(function(){say('delete failed',1)});
+      say(d.ok?('deleted '+slug):(d.error||'delete failed'),d.ok?'':'err');
+      // The device rebuilds its list off the HTTP path ~150ms later.
+      setTimeout(load,700);
+    }).catch(function(){say('delete failed','err')});
 }
 
-// One at a time: the device writes straight to flash and a second concurrent
-// multipart POST would interleave with the first upload's chunk state.
-function send(files,i,retried){
-  if(i>=files.length){bar.style.display='none';load();return}
+// ── Install queue ────────────────────────────────────────────────
+// items: {f:File|null, name, st:'get'|'wait'|'up'|'retry'|'ok'|'fail', pct, err}
+var items=[];
+
+var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',
+                 retry:'retrying…',ok:'✓ done',fail:'✗ failed'};
+
+function renderQ(){
+  qEl.style.display=items.length?'block':'none';
+  qEl.innerHTML='';
+  items.forEach(function(it){
+    var li=document.createElement('li');
+    var row=document.createElement('div');row.className='qrow';
+    var nm=document.createElement('span');nm.className='qn';nm.textContent=it.name;
+    var st=document.createElement('span');st.className='qs '+it.st;
+    st.textContent=it.st==='up'?('uploading '+(it.pct||0)+'%'):STATE_LABEL[it.st];
+    row.appendChild(nm);row.appendChild(st);li.appendChild(row);
+    if(it.st==='up'){
+      var b=document.createElement('div');b.className='qbar';
+      var f=document.createElement('i');f.style.width=(it.pct||0)+'%';
+      b.appendChild(f);li.appendChild(b);
+    }
+    if(it.st==='fail'&&it.err){
+      var e=document.createElement('div');e.className='qerr';e.textContent=it.err;
+      li.appendChild(e);
+    }
+    qEl.appendChild(li);
+  });
+}
+
+function finishBatch(){
+  var ok=0,fail=0;
+  items.forEach(function(it){if(it.st==='ok')ok++;else if(it.st==='fail')fail++});
+  if(fail===0){say(ok+' file'+(ok===1?'':'s')+' installed','good')}
+  else{say(ok+' installed, '+fail+' failed','err')}
+  retryBtn.style.display=items.some(function(it){return it.st==='fail'&&it.f})?'':'none';
+  setTimeout(load,700);
+}
+
+// Sequential with a breather between files — this WebServer flakes under
+// rapid back-to-back multipart POSTs (~1 in 12 dies even when healthy).
+// Failures don't stop the batch: the row goes red with the reason and the
+// rest carry on. A dead reply (device usually stored the file anyway) gets
+// two retries; a real JSON rejection never retries.
+function runQ(i){
+  while(i<items.length&&items[i].st!=='wait'&&items[i].st!=='retry')i++;
+  if(i>=items.length){finishBatch();return}
+  var it=items[i];
+  var isLast=true;
+  for(var j=i+1;j<items.length;j++)
+    if(items[j].st==='wait'||items[j].st==='retry')isLast=false;
+  it.st='up';it.pct=0;renderQ();
+
   var fd=new FormData();
-  // last=0 defers the device's rescan-and-reload to the batch's final file —
-  // reloading a module between every file starves the uploads of heap. Sent as
-  // a form field, NOT a URL query: the ESP32 WebServer drops multipart POSTs
-  // that carry a query string (empty reply, found the hard way).
-  fd.append('last',i===files.length-1?'1':'0');
-  fd.append('module',files[i]);
+  // Form field, NOT a URL query: this WebServer answers multipart POSTs that
+  // carry a query string with an empty reply. last=1 triggers the device's
+  // single end-of-batch rescan.
+  fd.append('last',isLast?'1':'0');
+  fd.append('module',it.f);
   var xhr=new XMLHttpRequest();
   xhr.open('POST','/api/patterns');
-  bar.style.display='block';
   xhr.upload.onprogress=function(e){
-    if(e.lengthComputable)bar.firstChild.style.width=(e.loaded/e.total*100)+'%';
+    if(e.lengthComputable){it.pct=Math.round(e.loaded/e.total*100);renderQ()}
   };
-  // The device occasionally stores the file but drops the connection before
-  // the reply gets out (low-heap first request after boot, typically). One
-  // retry after a beat rides that out — re-sending the same bytes just
-  // overwrites the same file. A real rejection (a JSON error) never retries.
-  var failSoft=function(){
-    if(!retried){say('retrying '+files[i].name+'…');
-      setTimeout(function(){send(files,i,1)},500);return}
-    say('upload failed at '+files[i].name,1);bar.style.display='none';load();
+  var next=function(){setTimeout(function(){runQ(i+1)},350)};
+  var deadReply=function(){
+    it.tries=(it.tries||0)+1;
+    if(it.tries<=2){it.st='retry';renderQ();
+      setTimeout(function(){runQ(i)},700);return}
+    it.st='fail';it.err='no reply from device';renderQ();next();
   };
   xhr.onload=function(){
     var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
-    if(d&&d.ok){say('uploaded '+d.slug+' ('+d.bytes+' B)');send(files,i+1)}
-    else if(d&&d.error){say(d.error,1);bar.style.display='none';load()}
-    else failSoft();
+    if(d&&d.ok){it.st='ok';renderQ();next()}
+    else if(d&&d.error){it.st='fail';it.err=d.error;renderQ();next()}
+    else deadReply();
   };
-  xhr.onerror=failSoft;
+  xhr.onerror=deadReply;
   xhr.send(fd);
 }
 
-file.onchange=function(){if(file.files.length)send(file.files,0)};
+function startBatch(fileList){
+  items=[];
+  for(var i=0;i<fileList.length;i++)
+    items.push({f:fileList[i],name:fileList[i].name,st:'wait',pct:0,tries:0});
+  retryBtn.style.display='none';
+  say('');renderQ();runQ(0);
+}
+
+retryBtn.onclick=function(){
+  var redo=[];
+  items.forEach(function(it){if(it.st==='fail'&&it.f)redo.push(it.f)});
+  if(redo.length)startBatch(redo);
+};
+
+file.onchange=function(){if(file.files.length)startBatch(file.files)};
 ['dragenter','dragover'].forEach(function(e){
   drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over')})});
 ['dragleave','drop'].forEach(function(e){
   drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('over')})});
 drop.addEventListener('drop',function(ev){
-  if(ev.dataTransfer.files.length)send(ev.dataTransfer.files,0)});
+  if(ev.dataTransfer.files.length)startBatch(ev.dataTransfer.files)});
 
 // One-click install from the community site: /patterns?src=<modules-url>.
 // This page runs in the visitor's browser, which can reach both the (https)
 // community and this (http) device — so IT does the ferrying: fetch the file
-// list, then each file, hand them to the same send() the drop zone uses.
-// The device never talks to the internet and the visitor downloads nothing.
+// list, then each file, then the same upload queue the drop zone uses. The
+// device never talks to the internet and the visitor downloads nothing.
 function installFromUrl(src){
-  say('fetching module list…');
+  say('fetching module list from the community…');
   var sep=src.indexOf('?')>=0?'&':'?';
   fetch(src+sep+'list=1').then(function(r){
     if(!r.ok)throw 0;return r.json();
   }).then(function(d){
-    var names=(d.files||[]).filter(function(n){
-      return /\.(pfm|json)$/.test(n)});
+    var names=(d.files||[]).filter(function(n){return /\.(pfm|json)$/.test(n)});
     if(!names.length)throw 0;
-    var files=[];
-    // Sequential on purpose: one at a time is all the device can take anyway.
-    return names.reduce(function(chain,name){
-      return chain.then(function(){
-        say('fetching '+name+'…');
-        return fetch(src+sep+'file='+encodeURIComponent(name))
+    items=names.map(function(n){return {f:null,name:n,st:'get',pct:0,tries:0}});
+    retryBtn.style.display='none';
+    say('');renderQ();
+    var chain=Promise.resolve();
+    items.forEach(function(it){
+      chain=chain.then(function(){
+        return fetch(src+sep+'file='+encodeURIComponent(it.name))
           .then(function(r){if(!r.ok)throw 0;return r.blob()})
-          .then(function(b){files.push(new File([b],name))});
+          .then(function(b){it.f=new File([b],it.name);it.st='wait';renderQ()})
+          .catch(function(){it.st='fail';it.err='could not fetch from community';renderQ()});
       });
-    },Promise.resolve()).then(function(){
-      say('installing '+files.length+' file(s)…');
-      send(files,0);
     });
+    return chain.then(function(){runQ(0)});
   }).catch(function(){
-    say('could not fetch modules from the link — is the build still available?',1);
+    say('could not fetch modules from the link — is the build still available?','err');
   });
 }
 var srcParam=new URLSearchParams(location.search).get('src');

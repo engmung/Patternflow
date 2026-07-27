@@ -601,6 +601,10 @@ void loop() {
   // (single-threaded — no separate core-0 task). Cheap when idle.
   PatternflowAudio::handle();
 
+  // Deferred module-list rebuilds requested by uploads/deletes — run here,
+  // outside any HTTP transaction.
+  PatternflowPatternsHttp::tick();
+
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
   // HTTP server serviced just above.)

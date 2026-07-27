@@ -109,6 +109,33 @@ inline void restoreSelection() {
   activatePattern(restorePresetIdx >= 0 ? restorePresetIdx : 0);
 }
 
+// The rescan-and-reload above touches FATFS and the ELF loader — tens of
+// milliseconds of filesystem work. Doing that INSIDE an upload's HTTP handler
+// is what crashed the device mid-batch (and a crash mid-FAT-write is how the
+// volume got corrupted). So handlers only *request* it, and tick() — called
+// from loop(), outside any HTTP transaction — performs it.
+inline uint32_t reloadRequestedAtMs = 0;
+inline uint32_t lastUploadActivityMs = 0;
+
+inline void requestReload() { reloadRequestedAtMs = millis(); }
+
+inline void tick() {
+  if (reloadRequestedAtMs && millis() - reloadRequestedAtMs >= 150) {
+    reloadRequestedAtMs = 0;
+    restoreSelection();
+    return;
+  }
+  // A batch that dies partway (page closed, network drop) has evicted the
+  // running module and never sent its final file. Put the panel back rather
+  // than leaving it dark until the next successful upload.
+  if (restorePending && !reloadRequestedAtMs && lastUploadActivityMs &&
+      millis() - lastUploadActivityMs > 5000) {
+    lastUploadActivityMs = 0;
+    Serial.println("[PATTERNS-HTTP] batch abandoned - restoring");
+    restoreSelection();
+  }
+}
+
 // Filenames arrive from a browser, so treat them as hostile: keep only
 // [A-Za-z0-9_-] and refuse anything that would escape /patterns.
 inline bool slugFromFilename(const String& filename, char* slug, size_t slugSize) {
@@ -133,6 +160,26 @@ inline bool slugFromFilename(const String& filename, char* slug, size_t slugSize
 inline void sendJson(int code, const String& body) {
   server().sendHeader("Cache-Control", "no-store");
   server().send(code, "application/json", body);
+}
+
+// NOTE: an earlier revision force-closed the connection after each upload
+// (sendHeader Connection:close + client().stop()) to defeat browser keep-alive
+// reuse. That "fix" made things progressively worse: every server-initiated
+// close parked a TCP pcb in TIME_WAIT, and after a couple of batches all
+// multi-chunk uploads died with empty replies until reboot. With the reload
+// deferred out of the handler (tick above) the transaction is fast enough that
+// plain keep-alive behaves — so this is now just sendJson under its old name.
+inline void sendJsonAndClose(int code, const String& body) {
+  sendJson(code, body);
+}
+
+// Explicit, destructive, button-initiated. See formatModuleStorage.
+inline void handleFormat() {
+  captureSelectionOnce();
+  bool ok = formatModuleStorage();
+  requestReload();
+  sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}"
+                              : "{\"ok\":false,\"error\":\"format failed\"}");
 }
 
 inline void handleIndex() {
@@ -210,6 +257,7 @@ inline void handleDelete() {
 inline void handleUpload() {
   HTTPUpload& upload = server().upload();
 
+  lastUploadActivityMs = millis();
   if (upload.status == UPLOAD_FILE_START) {
     uploadFailed = false;
     uploadError[0] = '\0';
@@ -294,20 +342,20 @@ inline void handleUploadDone() {
     if (uploadPath[0] && FFat.exists(uploadPath)) FFat.remove(uploadPath);
     Serial.printf("[PATTERNS-HTTP] upload failed: %s (heap %u)\n", uploadError,
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
-    if (lastInBatch && restorePending) restoreSelection();
+    if (lastInBatch && restorePending) requestReload();
     String body = "{\"ok\":false,\"error\":\"";
     body += uploadError[0] ? uploadError : "upload failed";
     body += "\"}";
-    sendJson(400, body);
+    sendJsonAndClose(400, body);
     return;
   }
   if (!uploadPath[0] || uploadBytes == 0) {
-    if (lastInBatch && restorePending) restoreSelection();
-    sendJson(400, "{\"ok\":false,\"error\":\"empty upload\"}");
+    if (lastInBatch && restorePending) requestReload();
+    sendJsonAndClose(400, "{\"ok\":false,\"error\":\"empty upload\"}");
     return;
   }
 
-  if (lastInBatch) restoreSelection();
+  if (lastInBatch) requestReload();
   Serial.printf("[PATTERNS-HTTP] uploaded %s (%u bytes, %d patterns)\n", uploadPath,
                 (unsigned)uploadBytes, NUM_PATTERNS);
 
@@ -318,7 +366,7 @@ inline void handleUploadDone() {
   body += ",\"patterns\":";
   body += NUM_PATTERNS;
   body += "}";
-  sendJson(200, body);
+  sendJsonAndClose(200, body);
 }
 
 inline void begin() {
@@ -329,6 +377,7 @@ inline void begin() {
   server().on("/api/patterns", HTTP_GET, handleList);
   server().on("/api/patterns", HTTP_POST, handleUploadDone, handleUpload);
   server().on("/api/patterns", HTTP_DELETE, handleDelete);
+  server().on("/api/patterns/format", HTTP_POST, handleFormat);
 
 #if !PF_AUDIO_ENABLED
   server().begin();
@@ -343,6 +392,7 @@ inline void begin() {
 
 inline bool isCompiledIn() { return false; }
 inline void begin() {}
+inline void tick() {}
 
 #endif  // PF_PATTERNS_HTTP_ENABLED
 

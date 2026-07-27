@@ -277,17 +277,26 @@ inline void reportHeap(const char* stage) {
 
 inline bool mountModuleStorage() {
   if (moduleStorageMounted) return true;
-  reportHeap("before FFat");
-  if (FFat.begin(false, "/ffat", MODULE_FS_MAX_FILES, "ffat")) {
-    moduleStorageMounted = true;
-    reportHeap("after FFat");
-    return true;
+  moduleStorageMounted = FFat.begin(false, "/ffat", MODULE_FS_MAX_FILES, "ffat");
+  if (!moduleStorageMounted) {
+    Serial.println("[PATTERNS] FATFS mount failed - presets only "
+                   "(format from /patterns if this persists)");
   }
-  Serial.println("[PATTERNS] FATFS would not mount - formatting once");
-  moduleStorageMounted = FFat.begin(true, "/ffat", MODULE_FS_MAX_FILES, "ffat");
-  Serial.printf("[PATTERNS] format %s\n", moduleStorageMounted ? "OK" : "FAILED");
-  reportHeap("after format");
   return moduleStorageMounted;
+}
+
+// The deliberate, user-initiated format. Destroys everything on the volume —
+// modules AND .pfv clips — which is exactly why it only runs from an explicit
+// button on /patterns and never as a fallback. An earlier revision formatted
+// automatically when a mount failed; a crash mid-write corrupted the FAT, the
+// next boot "helpfully" wiped it, and every installed module was lost.
+inline bool formatModuleStorage() {
+  FFat.end();
+  moduleStorageMounted = false;
+  bool ok = FFat.format(true, (char*)"ffat");
+  Serial.printf("[PATTERNS] format %s\n", ok ? "OK" : "FAILED");
+  if (ok) mountModuleStorage();
+  return ok && moduleStorageMounted;
 }
 
 inline void scanModules() {
