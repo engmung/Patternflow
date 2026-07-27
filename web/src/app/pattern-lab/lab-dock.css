@@ -1,0 +1,63 @@
+/* ── Pattern Lab dockview theme ──────────────────────────────────────────────
+   Matches the lab's cream/ink aesthetic. Applied via a custom DockviewTheme
+   object ({ className: "dockview-theme-patternflow" }) on the DockviewReact
+   host. Global on purpose: dockview renders outside CSS-module scope. */
+
+.dockview-theme-patternflow {
+  --dv-group-view-background-color: #fffdf8;
+  --dv-tabs-and-actions-container-background-color: #efe9da;
+  --dv-tabs-and-actions-container-height: 30px;
+  --dv-tabs-and-actions-container-font-size: 11px;
+
+  --dv-activegroup-visiblepanel-tab-background-color: #fffdf8;
+  --dv-activegroup-hiddenpanel-tab-background-color: #efe9da;
+  --dv-inactivegroup-visiblepanel-tab-background-color: #f7f3ea;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: #efe9da;
+  --dv-activegroup-visiblepanel-tab-color: #171512;
+  --dv-activegroup-hiddenpanel-tab-color: rgba(23, 21, 18, 0.5);
+  --dv-inactivegroup-visiblepanel-tab-color: rgba(23, 21, 18, 0.72);
+  --dv-inactivegroup-hiddenpanel-tab-color: rgba(23, 21, 18, 0.42);
+
+  --dv-tab-divider-color: rgba(23, 21, 18, 0.14);
+  --dv-separator-border: rgba(23, 21, 18, 0.18);
+  --dv-paneview-header-border-color: rgba(23, 21, 18, 0.18);
+
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: #ff4d00;
+
+  --dv-drag-over-background-color: rgba(255, 77, 0, 0.14);
+  --dv-drag-over-border-color: #ff4d00;
+
+  --dv-icon-hover-background-color: rgba(23, 21, 18, 0.08);
+  --dv-scrollbar-background-color: rgba(23, 21, 18, 0.28);
+
+  --dv-floating-box-shadow: 0 14px 40px rgba(23, 21, 18, 0.28);
+  --dv-floating-border: 1px solid rgba(23, 21, 18, 0.3);
+  --dv-floating-titlebar-background-color: #efe9da;
+  --dv-floating-titlebar-height: 26px;
+
+  --dv-context-menu-background-color: #fffdf8;
+  --dv-context-menu-color: #171512;
+
+  --dv-tab-font-size: 11px;
+  --dv-border-radius: 0;
+  --dv-tab-border-radius: 0;
+
+  --dv-background-color: #f7f3ea;
+}
+
+.dockview-theme-patternflow .dv-tab {
+  font-family: var(--font-jetbrains), monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dockview-theme-patternflow .dv-groupview {
+  border: 1px solid rgba(23, 21, 18, 0.16);
+  box-sizing: border-box;
+}
+
+/* Keep every panel's content clipped and scrollable on its own terms. */
+.dockview-theme-patternflow .dv-content-container {
+  overflow: hidden;
+}

@@ -53,6 +53,25 @@ export async function countActiveBuilds(userId: string): Promise<number> {
 }
 
 /**
+ * Cancel this user's builds that are still WAITING (not yet claimed by a
+ * worker). Iterating on a pattern means re-submitting quickly, and the newest
+ * submission is always the one the user actually wants — their own stale
+ * queue entries should never block it. Running compiles are left alone.
+ */
+export async function supersedeQueuedBuilds(userId: string): Promise<number> {
+  const rows = await getDb()
+    .update(builds)
+    .set({
+      status: "error",
+      error: "Superseded by a newer build you started.",
+      finishedAt: new Date(),
+    })
+    .where(and(eq(builds.userId, userId), eq(builds.status, "queued")))
+    .returning({ id: builds.id });
+  return rows.length;
+}
+
+/**
  * Take the oldest queued job, atomically.
  *
  * The UPDATE ... WHERE id = (SELECT ... LIMIT 1) form is what makes this safe

@@ -1,6 +1,11 @@
 import fs from "node:fs/promises";
 import { getAuth } from "@/lib/community/auth";
-import { countActiveBuilds, enqueueBuild, type BuildPatternInput } from "@/lib/community/builds";
+import {
+  countActiveBuilds,
+  enqueueBuild,
+  supersedeQueuedBuilds,
+  type BuildPatternInput,
+} from "@/lib/community/builds";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled } from "@/lib/community/db";
 import { rateLimit } from "@/lib/community/ratelimit";
@@ -45,16 +50,11 @@ async function handlePost(request: Request) {
   }
 
   // Builds are the most expensive thing a signed-in user can ask for, so they
-  // are limited twice: by rate, and by how many can be in flight at once.
-  if (!rateLimit(`build:${session.user.id}`, 10, 60 * 60_000)) {
+  // are limited twice: by rate, and by how many can be COMPILING at once.
+  // A user's own still-queued builds never block them — see below.
+  if (!rateLimit(`build:${session.user.id}`, 30, 60 * 60_000)) {
     return Response.json(
       { error: "Build limit reached for this hour. Try again later." },
-      { status: 429 },
-    );
-  }
-  if ((await countActiveBuilds(session.user.id)) >= 2) {
-    return Response.json(
-      { error: "You already have builds queued. Wait for them to finish." },
       { status: 429 },
     );
   }
@@ -107,6 +107,19 @@ async function handlePost(request: Request) {
   const assembled = assembleFirmwareSource(patterns, registry);
   if (!assembled.ok) {
     return Response.json({ error: assembled.error }, { status: 400 });
+  }
+
+  // Iterating on a pattern means re-submitting fast, and the newest submission
+  // is the one the user wants: cancel their still-queued builds instead of
+  // bouncing them off their own queue. Runs only after validation, so a
+  // malformed request can never wipe a good queued build. Compiles already
+  // running are untouched — only those still count against the cap.
+  await supersedeQueuedBuilds(session.user.id);
+  if ((await countActiveBuilds(session.user.id)) >= 2) {
+    return Response.json(
+      { error: "Your previous builds are still compiling. Try again in a few seconds." },
+      { status: 429 },
+    );
   }
 
   const id = await enqueueBuild(session.user.id, patterns);
