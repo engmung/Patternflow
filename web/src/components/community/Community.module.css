@@ -1610,6 +1610,37 @@
   overflow-wrap: anywhere;
 }
 
+/* ── Module cart ── */
+.cartList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border-top: 1px solid var(--pf-rule-soft, #e5ddc9);
+}
+
+.cartRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--pf-rule-soft, #e5ddc9);
+  font-size: 14px;
+}
+
+.cartRow a {
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cartRow a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ── Mobile feed ──
    Static thumbnail wall: no hover exists, so cards drop their live sandboxes
    and knob overlays (see PatternCard `interactive`) and the page itself

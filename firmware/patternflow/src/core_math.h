@@ -6,8 +6,15 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
+// Hardware-free by design, so loadable pattern modules share this file verbatim
+// instead of carrying a second copy that can drift (abi/pf_module.h includes
+// it). A module links freestanding with no Arduino core, hence the guard —
+// nothing here uses Arduino anyway, the include is historical.
+#ifndef PF_MODULE_BUILD
 #include <Arduino.h>
+#endif
 #include <math.h>
+#include <stdint.h>
 
 namespace PFMath {
 

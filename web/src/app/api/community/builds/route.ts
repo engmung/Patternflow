@@ -1,19 +1,36 @@
 import fs from "node:fs/promises";
 import { getAuth } from "@/lib/community/auth";
-import { countActiveBuilds, enqueueBuild, type BuildPatternInput } from "@/lib/community/builds";
+import {
+  countActiveBuilds,
+  enqueueBuild,
+  supersedeQueuedBuilds,
+  type BuildFormat,
+  type BuildPatternInput,
+} from "@/lib/community/builds";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled } from "@/lib/community/db";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { CPP_MAX } from "@/lib/community/validate";
-import { assembleFirmwareSource, MAX_CUSTOM_SLOTS } from "@/lib/firmware/assemble";
+import {
+  assembleFirmwareSource,
+  validateCustomPattern,
+  MAX_CUSTOM_SLOTS,
+} from "@/lib/firmware/assemble";
 import { registryPath } from "@/lib/firmware/paths";
 
 // POST /api/community/builds — queue a firmware build.
 //
 // The compile itself happens in the worker process (see scripts/build-worker),
 // so this returns as soon as the job is on the queue. What it does do is run
-// the same assembly the worker will: a namespace that collides with a bundled
+// the same validation the worker will: a namespace that collides with a bundled
 // pattern is worth reporting now rather than after a fifteen second wait.
+//
+// `format` selects what comes out. "bin" (default) is a whole flashable image,
+// limited to the firmware's custom slots. "pfm" is loadable modules — one .pfm
+// per pattern, zipped — where the slot limit does not apply because nothing is
+// compiled into the image; the cap there is only queue hygiene.
+
+const MAX_MODULE_PATTERNS_PER_BUILD = 10;
 
 export async function POST(request: Request) {
   const blocked = originBlocked(request);
@@ -45,16 +62,11 @@ async function handlePost(request: Request) {
   }
 
   // Builds are the most expensive thing a signed-in user can ask for, so they
-  // are limited twice: by rate, and by how many can be in flight at once.
-  if (!rateLimit(`build:${session.user.id}`, 10, 60 * 60_000)) {
+  // are limited twice: by rate, and by how many can be COMPILING at once.
+  // A user's own still-queued builds never block them — see below.
+  if (!rateLimit(`build:${session.user.id}`, 30, 60 * 60_000)) {
     return Response.json(
       { error: "Build limit reached for this hour. Try again later." },
-      { status: 429 },
-    );
-  }
-  if ((await countActiveBuilds(session.user.id)) >= 2) {
-    return Response.json(
-      { error: "You already have builds queued. Wait for them to finish." },
       { status: 429 },
     );
   }
@@ -66,13 +78,25 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
+  const rawFormat = (body as Record<string, unknown>).format ?? "bin";
+  if (rawFormat !== "bin" && rawFormat !== "pfm") {
+    return Response.json({ error: 'format must be "bin" or "pfm".' }, { status: 400 });
+  }
+  const format: BuildFormat = rawFormat;
+
   const raw = (body as Record<string, unknown>).patterns;
   if (!Array.isArray(raw) || raw.length === 0) {
     return Response.json({ error: "Send at least one pattern to build." }, { status: 400 });
   }
-  if (raw.length > MAX_CUSTOM_SLOTS) {
+  if (format === "bin" && raw.length > MAX_CUSTOM_SLOTS) {
     return Response.json(
       { error: `The firmware has ${MAX_CUSTOM_SLOTS} custom slots.` },
+      { status: 400 },
+    );
+  }
+  if (format === "pfm" && raw.length > MAX_MODULE_PATTERNS_PER_BUILD) {
+    return Response.json(
+      { error: `At most ${MAX_MODULE_PATTERNS_PER_BUILD} modules per build.` },
       { status: 400 },
     );
   }
@@ -93,22 +117,50 @@ async function handlePost(request: Request) {
     patterns.push({ label, code });
   }
 
-  // Dry-run the assembly so bad submissions fail here, with a readable reason.
-  let registry: string;
-  try {
-    registry = await fs.readFile(registryPath(), "utf8");
-  } catch {
+  // Dry-run so bad submissions fail here, with a readable reason.
+  let namespaces: string[];
+  if (format === "pfm") {
+    // A module never enters the firmware image, so preset-namespace collisions
+    // and the registry itself are irrelevant — shape-check each header alone.
+    namespaces = [];
+    for (const pattern of patterns) {
+      const verdict = validateCustomPattern(pattern.code);
+      if (!verdict.ok) {
+        return Response.json({ error: `${pattern.label}: ${verdict.error}` }, { status: 400 });
+      }
+      namespaces.push(verdict.namespace);
+    }
+  } else {
+    let registry: string;
+    try {
+      registry = await fs.readFile(registryPath(), "utf8");
+    } catch {
+      return Response.json(
+        { error: "Firmware sources are not available on this deployment." },
+        { status: 503 },
+      );
+    }
+
+    const assembled = assembleFirmwareSource(patterns, registry);
+    if (!assembled.ok) {
+      return Response.json({ error: assembled.error }, { status: 400 });
+    }
+    namespaces = assembled.namespaces;
+  }
+
+  // Iterating on a pattern means re-submitting fast, and the newest submission
+  // is the one the user wants: cancel their still-queued builds instead of
+  // bouncing them off their own queue. Runs only after validation, so a
+  // malformed request can never wipe a good queued build. Compiles already
+  // running are untouched — only those still count against the cap.
+  await supersedeQueuedBuilds(session.user.id);
+  if ((await countActiveBuilds(session.user.id)) >= 2) {
     return Response.json(
-      { error: "Firmware sources are not available on this deployment." },
-      { status: 503 },
+      { error: "Your previous builds are still compiling. Try again in a few seconds." },
+      { status: 429 },
     );
   }
 
-  const assembled = assembleFirmwareSource(patterns, registry);
-  if (!assembled.ok) {
-    return Response.json({ error: assembled.error }, { status: 400 });
-  }
-
-  const id = await enqueueBuild(session.user.id, patterns);
-  return Response.json({ id, namespaces: assembled.namespaces }, { status: 202 });
+  const id = await enqueueBuild(session.user.id, patterns, format);
+  return Response.json({ id, format, namespaces }, { status: 202 });
 }

@@ -46,7 +46,9 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
 
   const { id } = await context.params;
   const build = await getBuild(id);
-  if (!build || build.status !== "done" || !build.artifact) {
+  if (!build || build.status !== "done" || !build.artifact || build.format === "pfm") {
+    // A pfm build's artifact is a zip of modules, not a flashable image —
+    // serving it from here with a .bin name would brick-scare somebody.
     return new Response("No firmware for this build.", { status: 404 });
   }
 

@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/db";
 import AuthStatus from "@/components/community/AuthStatus";
 import CommunityNav from "@/components/community/CommunityNav";
+import ModuleCart from "@/components/community/ModuleCart";
 import styles from "@/components/community/Community.module.css";
 
 export const metadata: Metadata = {
@@ -61,6 +62,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
           <CommunityNav />
           <div className={styles.headerSpacer} />
           <nav className={styles.headerNav}>
+            <ModuleCart />
             <Link href="/pattern-lab" title="Open Pattern Lab editor">
               Pattern Lab ↗
             </Link>

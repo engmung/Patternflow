@@ -1,0 +1,519 @@
+/* ── Layered lab: dock header + panel chrome ─────────────────────────────────
+   New-in-v2 styles only; knob/ramp/gallery/modal styles are shared from
+   PatternLab.module.css. */
+
+.dockShell {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f7f3ea;
+  color: #171512;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.dockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+  background: rgba(247, 243, 234, 0.95);
+  flex: 0 0 auto;
+}
+
+.dockHeaderGroup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dockHost {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  padding: 8px;
+}
+
+.dockHost > div {
+  height: 100%;
+  width: 100%;
+}
+
+/* Panels dropdown */
+.menuWrap {
+  position: relative;
+}
+
+.menuPop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: #fffdf8;
+  border: 1px solid rgba(23, 21, 18, 0.25);
+  box-shadow: 0 12px 32px rgba(23, 21, 18, 0.18);
+}
+
+.menuPop button {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 6px 8px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #171512;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menuPop button:hover {
+  background: rgba(23, 21, 18, 0.07);
+}
+
+.menuPop button em {
+  font-style: normal;
+  color: rgba(23, 21, 18, 0.4);
+}
+
+/* ── Generic panel chrome ── */
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fffdf8;
+  box-sizing: border-box;
+}
+
+.panelBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.12);
+  background: #fbf7ee;
+  flex: 0 0 auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}
+
+.panelBar button {
+  appearance: none;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.panelBar button:hover {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.panelBar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.panelBar button:disabled:hover {
+  background: #fffdf8;
+  color: #171512;
+}
+
+.panelBar button[data-active="true"] {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.panelBar select,
+.panelBar input[type="number"] {
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  color: inherit;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 4px;
+}
+
+.panelBar input[type="number"] {
+  width: 52px;
+}
+
+.panelBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  color: rgba(23, 21, 18, 0.6);
+}
+
+.panelBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.panelHint {
+  padding: 14px;
+  color: rgba(23, 21, 18, 0.55);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+
+.panelHint button {
+  appearance: none;
+  display: block;
+  border: 1px solid rgba(23, 21, 18, 0.35);
+  background: none;
+  font: inherit;
+  color: inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.panelHint button:hover {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+/* ── Preview panel ── */
+
+.previewBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+
+.previewCanvasBox {
+  flex: 1 1 auto;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.previewFrame {
+  background: #060505;
+  border: 1px solid #171512;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  max-width: 100%;
+  max-height: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewFrame canvas {
+  image-rendering: pixelated;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ── Layers panel ── */
+
+.layerList {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layerRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border: 1px solid transparent;
+  background: #fbf7ee;
+  cursor: pointer;
+  user-select: none;
+}
+
+.layerRow:hover {
+  border-color: rgba(23, 21, 18, 0.25);
+}
+
+.layerRowActive {
+  background: #171512;
+  color: #f7f3ea;
+  border-color: #171512;
+}
+
+.layerRow[data-dragover="true"] {
+  border-top: 2px solid #ff4d00;
+}
+
+.layerEye {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  width: 20px;
+  padding: 0;
+  opacity: 0.85;
+}
+
+.layerEyeOff {
+  opacity: 0.3;
+}
+
+.layerName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.layerRenameInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid rgba(23, 21, 18, 0.4);
+  background: #fffdf8;
+  color: #171512;
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 4px;
+}
+
+.layerType {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  opacity: 0.65;
+  flex: 0 0 auto;
+}
+
+.layerErrDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d63e2e;
+  flex: 0 0 auto;
+}
+
+.layerMeta {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 9px;
+  opacity: 0.55;
+  flex: 0 0 auto;
+}
+
+.layerControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid rgba(23, 21, 18, 0.12);
+  background: #fbf7ee;
+  flex: 0 0 auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}
+
+.layerControlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layerControlRow > span {
+  width: 58px;
+  flex: 0 0 auto;
+  text-transform: uppercase;
+  color: rgba(23, 21, 18, 0.6);
+  font-size: 10px;
+}
+
+.layerControlRow input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: #171512;
+}
+
+.layerControlRow select {
+  flex: 1 1 auto;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.layerControlValue {
+  width: 40px;
+  text-align: right;
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
+.layerMaskLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/* ── Pixel editor panel ── */
+
+.pixelViewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  background: #eee8d8;
+  padding: 16px;
+}
+
+.pixelStage {
+  position: relative;
+  flex: 0 0 auto;
+  /* auto margins center when small AND keep every edge scrollable when zoomed */
+  margin: auto;
+  background: repeating-conic-gradient(#c9c2b1 0% 25%, #b5ad9a 0% 50%) 0 0 / 12px 12px;
+  box-shadow: 0 0 0 1px rgba(23, 21, 18, 0.5);
+}
+
+.pixelStage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  display: block;
+}
+
+.pixelStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border-top: 1px solid rgba(23, 21, 18, 0.12);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  color: rgba(23, 21, 18, 0.6);
+  text-transform: uppercase;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.colorWell {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(23, 21, 18, 0.4);
+  background: none;
+  cursor: pointer;
+}
+
+.swatchRow {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.toolSep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(23, 21, 18, 0.15);
+  margin: 0 2px;
+}
+
+/* ── Ramp panel (dock variant) ── */
+
+.rampDock {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rampAlphaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: rgba(23, 21, 18, 0.65);
+}
+
+.rampAlphaRow input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: #171512;
+}
+
+.rampAlphaValue {
+  width: 36px;
+  text-align: right;
+}
+
+/* Knobs panel: dock padding around the shared .controls block */
+.knobsDock {
+  padding: 10px;
+}
+
+/* Compact scrollbars inside panels */
+.panel ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.panel ::-webkit-scrollbar-thumb {
+  background: rgba(23, 21, 18, 0.25);
+  border: 3px solid #fffdf8;
+  border-radius: 6px;
+}

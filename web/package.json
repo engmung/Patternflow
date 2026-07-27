@@ -9,7 +9,9 @@
     "lint": "eslint",
     "worker": "tsx scripts/build-worker.ts",
     "build:enqueue": "tsx scripts/enqueue-test-build.ts",
-    "build:status": "tsx scripts/build-status.ts"
+    "build:status": "tsx scripts/build-status.ts",
+    "check:assemble": "tsx scripts/assemble-registry-smoke.ts",
+    "check:module": "tsx scripts/module-build-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",
@@ -25,6 +27,8 @@
     "@vercel/speed-insights": "^2.0.0",
     "better-auth": "^1.6.23",
     "better-sqlite3": "^12.11.1",
+    "dockview": "^7.0.4",
+    "dockview-react": "^7.0.4",
     "drizzle-orm": "^0.45.2",
     "feed": "^5.2.1",
     "gray-matter": "^4.0.3",

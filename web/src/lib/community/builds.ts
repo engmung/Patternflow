@@ -13,6 +13,13 @@ import { builds } from "./schema";
 
 export type BuildStatus = "queued" | "running" | "done" | "error";
 
+/**
+ * "bin" — a whole flashable image (legacy; still what pre-loader firmware
+ * needs). "pfm" — loadable modules, zipped, installed over Wi-Fi with no
+ * reflash. See moduleRunner.ts for why the difference is 14 s vs ½ s.
+ */
+export type BuildFormat = "bin" | "pfm";
+
 /** A pattern header as submitted, stored inline on the job. */
 export type BuildPatternInput = { label: string; code: string };
 
@@ -26,12 +33,17 @@ export function artifactDir(): string {
   return path.join(path.dirname(dbPath), "builds");
 }
 
-export async function enqueueBuild(userId: string, patterns: BuildPatternInput[]): Promise<string> {
+export async function enqueueBuild(
+  userId: string,
+  patterns: BuildPatternInput[],
+  format: BuildFormat = "bin",
+): Promise<string> {
   const id = newId();
   await getDb().insert(builds).values({
     id,
     userId,
     status: "queued",
+    format,
     patterns: JSON.stringify(patterns),
     createdAt: new Date(),
   });
@@ -50,6 +62,25 @@ export async function countActiveBuilds(userId: string): Promise<number> {
       ),
     );
   return rows[0]?.count ?? 0;
+}
+
+/**
+ * Cancel this user's builds that are still WAITING (not yet claimed by a
+ * worker). Iterating on a pattern means re-submitting quickly, and the newest
+ * submission is always the one the user actually wants — their own stale
+ * queue entries should never block it. Running compiles are left alone.
+ */
+export async function supersedeQueuedBuilds(userId: string): Promise<number> {
+  const rows = await getDb()
+    .update(builds)
+    .set({
+      status: "error",
+      error: "Superseded by a newer build you started.",
+      finishedAt: new Date(),
+    })
+    .where(and(eq(builds.userId, userId), eq(builds.status, "queued")))
+    .returning({ id: builds.id });
+  return rows.length;
 }
 
 /**

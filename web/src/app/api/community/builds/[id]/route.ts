@@ -32,21 +32,27 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
     ? (build.finishedAt ?? new Date()).getTime() - build.startedAt.getTime()
     : null;
 
+  const done = build.status === "done";
+  const isModules = build.format === "pfm";
   return Response.json(
     {
       id: build.id,
       status: build.status,
+      format: build.format,
       patterns: parseBuildPatterns(build.patterns).map((pattern) => pattern.label),
       namespaces: build.namespaces ? (JSON.parse(build.namespaces) as string[]) : [],
       queuePosition: build.status === "queued" ? await queuePosition(build.id, build.createdAt) : null,
       elapsedMs,
       bytes: build.artifactBytes ?? null,
       error: build.error ?? null,
-      // Only meaningful once done; the client uses these directly.
-      firmwareUrl: build.status === "done" ? `/api/community/builds/${build.id}/firmware` : null,
-      manifestUrl: build.status === "done" ? `/api/community/builds/${build.id}/manifest` : null,
+      // Only meaningful once done; the client uses these directly. Which set is
+      // non-null tells it what it got: an image to flash, or modules to drop
+      // onto the device's /patterns page.
+      firmwareUrl: done && !isModules ? `/api/community/builds/${build.id}/firmware` : null,
+      manifestUrl: done && !isModules ? `/api/community/builds/${build.id}/manifest` : null,
+      modulesUrl: done && isModules ? `/api/community/builds/${build.id}/modules` : null,
     },
     // A finished build never changes; a running one must not be cached at all.
-    { headers: { "Cache-Control": build.status === "done" ? "private, max-age=60" : "no-store" } },
+    { headers: { "Cache-Control": done ? "private, max-age=60" : "no-store" } },
   );
 }

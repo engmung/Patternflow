@@ -36,6 +36,13 @@
       "when": 1784987368285,
       "tag": "0004_add-builds",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1785135019087,
+      "tag": "0005_add-build-format",
+      "breakpoints": true
     }
   ]
 }

@@ -86,3 +86,8 @@ integrations/ableton/projects/
 
 # firmware build worker scratch (warm cache + sketch copy)
 /.build-worker
+
+# Loadable pattern modules — build outputs, not sources.
+# Rebuild with: python firmware/toolchain/build_module.py --all
+firmware/modules/.build/
+firmware/patternflow/data/patterns/

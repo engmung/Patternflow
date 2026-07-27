@@ -66,6 +66,9 @@ export const RAMP_MODES: RampMode[] = ["linear", "smooth", "step", "hsvShort", "
 export type RampStop = {
   position: number; // 0..1
   color: [number, number, number]; // sRGB 0..255
+  // Opacity of this stop, 0..1. Omitted means 1 (opaque). Lets a value field
+  // fade to transparent so layered patterns can show through each other.
+  alpha?: number;
 };
 
 export type ColorRamp = {
@@ -147,14 +150,28 @@ function mixRampColors(
   ];
 }
 
-function sampleSortedRamp(
+function stopAlpha(stop: RampStop): number {
+  const a = stop.alpha;
+  if (a === undefined || !Number.isFinite(a)) return 1;
+  return Math.max(0, Math.min(1, a));
+}
+
+// Alpha blends with the same easing the color uses: step holds, smooth eases,
+// everything else (linear and both hsv modes) interpolates linearly.
+function mixStopAlpha(a: RampStop, b: RampStop, t: number, mode: RampMode): number {
+  if (mode === "smooth") t = t * t * (3 - 2 * t);
+  const aa = stopAlpha(a);
+  return aa + (stopAlpha(b) - aa) * t;
+}
+
+function sampleSortedRampRGBA(
   stops: RampStop[],
   mode: RampMode,
   wrap: boolean,
   t: number,
-): [number, number, number] {
-  if (stops.length === 0) return [255, 255, 255];
-  if (stops.length === 1) return stops[0].color;
+): [number, number, number, number] {
+  if (stops.length === 0) return [255, 255, 255, 1];
+  if (stops.length === 1) return [...stops[0].color, stopAlpha(stops[0])];
   t = Math.max(0, Math.min(1, t));
 
   const first = stops[0];
@@ -162,32 +179,42 @@ function sampleSortedRamp(
 
   if (t <= first.position || t >= last.position) {
     if (!wrap) {
-      return t <= first.position ? first.color : last.color;
+      const edge = t <= first.position ? first : last;
+      return [...edge.color, stopAlpha(edge)];
     }
     // Cyclic segment last → first crossing the 1→0 seam.
     const span = 1 - last.position + first.position;
     const local = span <= 0
       ? 0
       : ((t >= last.position ? t - last.position : t + 1 - last.position) / span);
-    if (mode === "step") return last.color;
-    return mixRampColors(last.color, first.color, local, mode);
+    if (mode === "step") return [...last.color, stopAlpha(last)];
+    return [
+      ...mixRampColors(last.color, first.color, local, mode),
+      mixStopAlpha(last, first, local, mode),
+    ];
   }
 
   for (let i = 0; i < stops.length - 1; i++) {
     const a = stops[i];
     const b = stops[i + 1];
     if (t > b.position) continue;
-    if (mode === "step") return a.color;
+    if (mode === "step") return [...a.color, stopAlpha(a)];
     const span = b.position - a.position;
     const local = span <= 0 ? 0 : (t - a.position) / span;
-    return mixRampColors(a.color, b.color, local, mode);
+    return [...mixRampColors(a.color, b.color, local, mode), mixStopAlpha(a, b, local, mode)];
   }
-  return last.color;
+  return [...last.color, stopAlpha(last)];
 }
 
 export function sampleRamp(ramp: ColorRamp, t: number): [number, number, number] {
   const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
-  return sampleSortedRamp(sorted, ramp.mode, ramp.wrap, t);
+  const [r, g, b] = sampleSortedRampRGBA(sorted, ramp.mode, ramp.wrap, t);
+  return [r, g, b];
+}
+
+export function sampleRampRGBA(ramp: ColorRamp, t: number): [number, number, number, number] {
+  const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
+  return sampleSortedRampRGBA(sorted, ramp.mode, ramp.wrap, t);
 }
 
 // 256-entry RGB lookup table so per-pixel value→color is a plain array read.
@@ -196,10 +223,25 @@ export function buildRampLUT(ramp: ColorRamp): Uint8Array {
   const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
   const lut = new Uint8Array(256 * 3);
   for (let i = 0; i < 256; i++) {
-    const [r, g, b] = sampleSortedRamp(sorted, ramp.mode, ramp.wrap, i / 255);
+    const [r, g, b] = sampleSortedRampRGBA(sorted, ramp.mode, ramp.wrap, i / 255);
     lut[i * 3] = clampByte(r);
     lut[i * 3 + 1] = clampByte(g);
     lut[i * 3 + 2] = clampByte(b);
+  }
+  return lut;
+}
+
+// RGBA variant: 256 × 4 bytes, alpha included. This is what the layered lab
+// compositor consumes; the RGB table above stays for single-pattern callers.
+export function buildRampLUTRGBA(ramp: ColorRamp): Uint8Array {
+  const sorted = [...ramp.stops].sort((a, b) => a.position - b.position);
+  const lut = new Uint8Array(256 * 4);
+  for (let i = 0; i < 256; i++) {
+    const [r, g, b, a] = sampleSortedRampRGBA(sorted, ramp.mode, ramp.wrap, i / 255);
+    lut[i * 4] = clampByte(r);
+    lut[i * 4 + 1] = clampByte(g);
+    lut[i * 4 + 2] = clampByte(b);
+    lut[i * 4 + 3] = clampByte(a * 255);
   }
   return lut;
 }
@@ -242,7 +284,8 @@ export class PatternRuntime {
   // is mapped through the ramp. Lets the ramp restyle ordinary RGB patterns.
   public recolor = false;
 
-  private rampLUT: Uint8Array | null = null;
+  private rampLUT: Uint8Array | null = null; // 256×3 RGB (recolor path)
+  private rampLUTA: Uint8Array | null = null; // 256×4 RGBA (setValue path)
   private module: PatternModule | null = null;
   private params: PatternParams = {};
   private display: PatternDisplay;
@@ -287,19 +330,20 @@ export class PatternRuntime {
 
         const value = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
         const index = (yi * this.width + xi) * 4;
-        const lut = this.rampLUT;
+        const lut = this.rampLUTA;
         if (lut) {
-          const li = Math.round(value * 255) * 3;
+          const li = Math.round(value * 255) * 4;
           this.data[index] = lut[li];
           this.data[index + 1] = lut[li + 1];
           this.data[index + 2] = lut[li + 2];
+          this.data[index + 3] = lut[li + 3];
         } else {
           const byte = Math.round(value * 255);
           this.data[index] = byte;
           this.data[index + 1] = byte;
           this.data[index + 2] = byte;
+          this.data[index + 3] = 255;
         }
-        this.data[index + 3] = 255;
       },
     };
   }
@@ -307,6 +351,7 @@ export class PatternRuntime {
   public setRamp(ramp: ColorRamp | null) {
     this.ramp = ramp;
     this.rampLUT = ramp && ramp.stops.length > 0 ? buildRampLUT(ramp) : null;
+    this.rampLUTA = ramp && ramp.stops.length > 0 ? buildRampLUTRGBA(ramp) : null;
   }
 
   public loadCode(code: string): PatternRenderResult {
@@ -344,17 +389,23 @@ export class PatternRuntime {
       this.module.update?.(dt, input, this.params);
       this.data.fill(0);
       this.module.draw(this.display, this.params, time);
-      if (this.recolor && this.rampLUT) {
-        const lut = this.rampLUT;
+      if (this.recolor && this.rampLUTA) {
+        // Luminance → ramp, alpha included: with alpha stops an RGB pattern
+        // recolors into a translucent layer (dark = transparent, etc.). Only
+        // pixels the pattern actually wrote are touched — untouched pixels
+        // stay fully transparent for the layer compositor.
+        const lut = this.rampLUTA;
         const data = this.data;
         for (let index = 0; index < data.length; index += 4) {
+          if (data[index + 3] === 0) continue;
           const luminance = Math.round(
             0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2],
           );
-          const li = luminance * 3;
+          const li = luminance * 4;
           data[index] = lut[li];
           data[index + 1] = lut[li + 1];
           data[index + 2] = lut[li + 2];
+          data[index + 3] = lut[li + 3];
         }
       }
       return { ok: true };
