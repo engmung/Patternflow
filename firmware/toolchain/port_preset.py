@@ -1,10 +1,13 @@
 """
 Convert firmware-linked pattern headers into freestanding module sources.
 
-    python toolchain/port_preset.py --all
-    python toolchain/port_preset.py presets/preset_0510.h
+    python firmware/toolchain/port_preset.py --all
+    python firmware/toolchain/port_preset.py firmware/patternflow/presets/preset_0510.h
+    python firmware/toolchain/port_preset.py --out-dir /tmp/mods submitted.h
 
-For each input it writes sdk/patterns/<slug>/pattern.cpp and module.json.
+For each input it writes <out-dir>/<slug>/pattern.cpp and module.json, defaulting
+to firmware/modules/. The build service passes --out-dir so a submitted pattern
+never lands in the repo.
 
 The conversion is deliberately mechanical, because every pattern in this repo
 shares one shape (NAME, KNOB_LABELS, setup, update, draw inside a namespace):
@@ -42,7 +45,7 @@ def slugify(name: str) -> str:
     return slug or "pattern"
 
 
-def convert(src_path: Path) -> dict:
+def convert(src_path: Path, out_root: Path = OUT_ROOT) -> dict:
     text = src_path.read_text(encoding="utf-8", errors="replace")
 
     ns_match = NAMESPACE_RE.search(text)
@@ -82,7 +85,7 @@ def convert(src_path: Path) -> dict:
     out = f"{header}\n{body}\n\nPF_REGISTER_PATTERN({namespace})\n"
 
     slug = slugify(display_name)
-    out_dir = OUT_ROOT / slug
+    out_dir = out_root / slug
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "pattern.cpp").write_text(out, encoding="utf-8", newline="\n")
 
@@ -119,16 +122,18 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("sources", nargs="*", type=Path, help="Pattern headers to convert")
     ap.add_argument("--all", action="store_true", help="Convert presets/ and custom*.h")
+    ap.add_argument("--out-dir", type=Path, default=OUT_ROOT,
+                    help="Where to write <slug>/pattern.cpp (default: firmware/modules)")
     args = ap.parse_args()
 
     sources = discover() if args.all else [resolve_source(p) for p in args.sources]
     if not sources:
         raise SystemExit("Nothing to convert. Pass files or --all.")
 
-    results = [convert(p) for p in sources]
+    results = [convert(p, args.out_dir) for p in sources]
     for r in results:
         print(f"{r['slug']:<28} {r['name']:<24} ns={r['namespace']}")
-    print(f"\nConverted {len(results)} pattern(s) into {OUT_ROOT}")
+    print(f"\nConverted {len(results)} pattern(s) into {args.out_dir}")
 
 
 if __name__ == "__main__":

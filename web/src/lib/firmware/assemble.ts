@@ -160,10 +160,12 @@ export function assembleFirmwareSource(
   }
 
   const reserved = new Set(listRegistryNamespaces(originalRegistry));
-  // Preset namespaces come from the registry, but the custom slots currently
-  // listed there are about to be replaced — they must not count as taken.
-  const replacedCustoms = originalRegistry.match(CUSTOM_ARRAY_RE)?.[0] ?? "";
-  for (const ns of listRegistryNamespaces(replacedCustoms)) reserved.delete(ns);
+  // Preset namespaces come from the registry, but anything in the custom-slot
+  // region is about to be overwritten — it must not count as taken. The region
+  // is empty in the repo; it is not empty in the worker's warm checkout, which
+  // still holds whatever the previous build put there.
+  const replaced = originalRegistry.match(CUSTOM_SLOTS_RE)?.[0] ?? "";
+  for (const ns of listRegistryNamespaces(replaced)) reserved.delete(ns);
 
   const namespaces: string[] = [];
   const files: AssembledFile[] = [];

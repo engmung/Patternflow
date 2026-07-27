@@ -1,18 +1,18 @@
 """
 Build Patternflow loadable pattern modules (.pfm) with the Xtensa toolchain.
 
-    python toolchain/build_module.py --all
-    python toolchain/build_module.py sdk/patterns/0510
-    python toolchain/build_module.py --all --compile-only
+    python firmware/toolchain/build_module.py --all
+    python firmware/toolchain/build_module.py firmware/modules/layer_stack
+    python firmware/toolchain/build_module.py --all --compile-only
+    python firmware/toolchain/build_module.py --out /tmp/art /tmp/mods/my_pattern
 
-Inputs  : sdk/patterns/<slug>/pattern.cpp (+ module.json)
-Outputs : data/patterns/<slug>.pfm  and  data/patterns/<slug>.json
+Inputs  : firmware/modules/<slug>/pattern.cpp (+ optional module.json)
+Outputs : <out>/<slug>.pfm and <out>/<slug>.json, defaulting to the sketch's
+          data/patterns/ so "ESP32 Sketch Data Upload" carries them to FATFS.
+          The build service passes --out to keep artefacts out of the repo.
 
-Everything under data/ is what `pio run -t uploadfs` writes to the on-device
-FATFS partition, so a build here is one `uploadfs` away from the panel.
-
-Requires PlatformIO to have fetched the ESP32-S3 toolchain (run `python -m
-platformio run` once first).
+Needs an xtensa-esp32s3 toolchain; it finds the one the ESP32 Arduino core
+installs, or PlatformIO's, or whatever PF_XTENSA_BIN points at.
 """
 
 from __future__ import annotations
@@ -218,11 +218,13 @@ def main() -> None:
     ap.add_argument("--clean", action="store_true", help="Remove previous build output first")
     ap.add_argument("--opt", default=DEFAULT_OPT, choices=["s", "1", "2", "3"],
                     help="Optimisation level (default: s, matching the firmware)")
+    ap.add_argument("--out", type=Path, default=OUT,
+                    help="Where to write <slug>.pfm/.json (default: the sketch data dir)")
     args = ap.parse_args()
 
     if args.clean:
         shutil.rmtree(BUILD, ignore_errors=True)
-        shutil.rmtree(OUT, ignore_errors=True)
+        shutil.rmtree(args.out, ignore_errors=True)
 
     dirs = discover() if args.all else [resolve_source(p) for p in args.sources]
     if not dirs:
@@ -254,7 +256,7 @@ def main() -> None:
                 shutil.copytree(d, staged_src)
                 sources.append(staged_src)
         else:
-            abi, build_dir, out_dir, sources = ABI, BUILD, OUT, dirs
+            abi, build_dir, out_dir, sources = ABI, BUILD, args.out, dirs
             build_dir.mkdir(parents=True, exist_ok=True)
 
         shutil.copyfile(ROOT / "toolchain" / "module.ld", build_dir / "module.ld")
@@ -272,9 +274,9 @@ def main() -> None:
                     failures.append((slug, log))
 
         if staged and not args.compile_only and out_dir.is_dir():
-            OUT.mkdir(parents=True, exist_ok=True)
+            args.out.mkdir(parents=True, exist_ok=True)
             for produced in out_dir.iterdir():
-                shutil.copyfile(produced, OUT / produced.name)
+                shutil.copyfile(produced, args.out / produced.name)
 
     print(f"\n{len(dirs) - len(failures)}/{len(dirs)} module(s) built")
     if failures:
@@ -282,7 +284,7 @@ def main() -> None:
             print(f"\n=== {slug} ===\n{log}")
         sys.exit(1)
     if not args.compile_only:
-        print(f"Output: {OUT}")
+        print(f"Output: {args.out}")
 
 
 if __name__ == "__main__":
