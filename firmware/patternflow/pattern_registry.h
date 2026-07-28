@@ -140,7 +140,20 @@ const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 // ── MODULES (.pfm on FATFS) ──────────────────────────────────────────
 // Names and paths need RAM because they come off the filesystem, unlike the
 // preset entries which point straight at flash literals.
-constexpr int MAX_MODULE_PATTERNS = 48;
+//
+// The cap is a UX decision, not a memory one. A slot costs 136 bytes of PSRAM
+// (PatternEntry 24 + name 40 + path 72) and the arrays are allocated at full
+// capacity on boot whether or not the modules exist, so installing patterns is
+// free at runtime: 128 slots is 17 KB out of 8 MB, and the /patterns partition
+// holds ~1,500 modules at the measured median of 5.9 KB.
+//
+// What actually degrades first is scrolling the list on one knob (34 presets
+// plus whatever is installed) and, further out, the per-module sidecar read in
+// scanModules() at boot. 128 is roughly three times the whole community
+// library as it stands, which is meant to be enough that nobody meets this
+// number — if somebody does, raise it and fix the selection UI in the same
+// breath.
+constexpr int MAX_MODULE_PATTERNS = 128;
 constexpr size_t MODULE_NAME_BYTES = 40;
 constexpr size_t MODULE_PATH_BYTES = 72;
 constexpr const char* MODULE_DIR = "/patterns";

@@ -254,6 +254,50 @@ libc/libm symbol the host does not export yet: the message names it
 in `core_module_loader.h`. Check `loadError` first for any "this pattern is
 broken" report — it turns a vague complaint into a specific one.
 
+**Pattern names are UTF-8.** "Dynamic Moiré" and "Poincaré Sphere" are real
+entries in the library, and an accent used to break three layers at once: the
+toolchain scripts printing a name on a cp949 console, a loader guard that
+tested names for printable ASCII and called anything else a relocation bug,
+and the panel's 5×7 ASCII font. Names stay UTF-8 in the ELF and in every JSON
+API; only the panel folds them (`asciiFold()` in `patternflow.ino`). Any new
+code that touches a name must assume UTF-8.
+
+### How many can you install
+
+Installing costs nothing at runtime. The registry allocates its arrays at full
+capacity on boot, in PSRAM, whether or not the modules exist — so five
+installed modules and 128 installed modules use exactly the same RAM. Only the
+**resident** module costs internal RAM, and unloading returns all of it
+(measured: 4,548 B free with a module resident → 11,692 B on a preset).
+
+| Limit | Value | Binding? |
+|---|---|---|
+| Installed modules | **128** (`MAX_MODULE_PATTERNS`) | The only real cap, and it is a UX choice — 136 B of PSRAM per slot, 17 KB total |
+| Storage | ~1,500 modules (10.2 MB partition, 5.9 KB median) | No — 12× the count cap |
+| Per-module RAM | ≲ 8 KB of data comfortable | Yes, for that module's own frame rate |
+| Concurrent modules | 1 | By design — one pattern is selected at a time |
+
+A large module only costs while it is the selected pattern; it has no effect
+on the presets or on any other module. The one way it is not self-contained:
+while resident it drops `heapLargest` to ~3 KB, which is what makes opening a
+console page pause the pattern (see the constraints section below).
+
+Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
+largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
+
+### Current state (v3.1.0, measured on hardware)
+
+| | |
+|---|---|
+| Frame time, preset (Origin) | 18,717 µs = **53.4 fps** |
+| Internal heap, preset resident | 11,692 B free, largest block 7,668 B |
+| Internal heap, module resident | ~4,550 B free, largest block ~3,060 B |
+| PSRAM | 8.28 MB idle |
+| Flash | 1,292,519 B = **41 %** of the app partition |
+| Globals | 92,760 B = **28 %**, 234 KB left for locals |
+| Pattern storage | 73,728 / 10,235,904 B with 5 modules installed |
+| Leak check | 48 consecutive page loads: **−8 B** net, largest block unchanged |
+
 ## Adding features — the constraints that matter
 
 Read this before adding anything to the firmware. Every item here was learned
