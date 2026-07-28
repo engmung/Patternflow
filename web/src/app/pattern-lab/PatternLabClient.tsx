@@ -37,7 +37,7 @@ import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
 import { buildStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer, type CodeLayer } from "@/lib/lab/types";
-import FirmwareExportModal from "./FirmwareExportModal";
+import HardwareModal from "./HardwareModal";
 
 import PreviewPanel from "./panels/PreviewPanel";
 import LayersPanel from "./panels/LayersPanel";
@@ -192,23 +192,6 @@ async function buildExportCode(): Promise<string> {
   return code;
 }
 
-// Single plain code layer only — layered stacks go through the
-// FirmwareExportModal wizard (deterministic scaffold + per-layer prompts).
-function buildFirmwarePrompt(): string {
-  const state = useLabStore.getState();
-  const active = state.layers.find((entry) => entry.id === state.activeLayerId);
-  const focus = isCodeLayer(active) ? active : state.layers.find(isCodeLayer);
-  if (!focus) return "";
-  return buildCppPrompt({
-    code: focus.code,
-    matrix: state.matrix,
-    knobs: state.knobs,
-    ranges: state.ranges,
-    knobLabels: state.knobLabels,
-    ramp: focus.ramp,
-  });
-}
-
 export default function PatternLabClient() {
   const [mounted, setMounted] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
@@ -217,7 +200,7 @@ export default function PatternLabClient() {
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [firmwarePrompt, setFirmwarePrompt] = useState<string | null>(null);
-  const [firmwareWizardOpen, setFirmwareWizardOpen] = useState(false);
+  const [hardwareOpen, setHardwareOpen] = useState(false);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -377,16 +360,10 @@ export default function PatternLabClient() {
             <button
               type="button"
               className={styles.headerToggle}
-              title="Turn this composition into an ESP32 firmware header and flash it"
-              onClick={() => {
-                if (needsFlatten(useLabStore.getState().layers)) {
-                  setFirmwareWizardOpen(true);
-                } else {
-                  setFirmwarePrompt(buildFirmwarePrompt());
-                }
-              }}
+              title="Convert this composition to a .h header, then build it, install it on the board, or publish it hardware-ready"
+              onClick={() => setHardwareOpen(true)}
             >
-              Build firmware
+              To hardware
             </button>
           )}
           {/* Recent works. The list is only read when the menu opens, so
@@ -497,15 +474,9 @@ export default function PatternLabClient() {
         />
       )}
 
-      {firmwarePrompt !== null && (
-        <BuildFirmwareModal
-          patternLabel={forkOf?.title ?? "Pattern Lab composition"}
-          cppPrompt={firmwarePrompt}
-          onClose={() => setFirmwarePrompt(null)}
-        />
+      {hardwareOpen && (
+        <HardwareModal exportCode={buildExportCode} onClose={() => setHardwareOpen(false)} />
       )}
-
-      {firmwareWizardOpen && <FirmwareExportModal onClose={() => setFirmwareWizardOpen(false)} />}
     </main>
   );
 }

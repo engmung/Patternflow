@@ -17,10 +17,17 @@ type Props = {
   code: string;
   parentId: string | null;
   parentTitle: string | null;
+  /**
+   * Firmware header to publish alongside the pattern, when the hardware flow
+   * already produced one. Publishing with it is what makes a pattern show up
+   * as hardware-ready straight away instead of needing a second trip through
+   * "Add firmware header".
+   */
+  codeCpp?: string | null;
   onClose: () => void;
 };
 
-export default function PublishModal({ code, parentId, parentTitle, onClose }: Props) {
+export default function PublishModal({ code, parentId, parentTitle, codeCpp, onClose }: Props) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [title, setTitle] = useState("");
@@ -51,6 +58,7 @@ export default function PublishModal({ code, parentId, parentTitle, onClose }: P
           title: trimmed,
           description,
           code,
+          codeCpp: codeCpp ?? undefined,
           license: licenseById(licenseId).spdx,
           parentId,
         }),
@@ -65,6 +73,7 @@ export default function PublishModal({ code, parentId, parentTitle, onClose }: P
         is_fork: Boolean(parentId),
         license: licenseById(licenseId).spdx,
         code_length: code.length,
+        with_header: Boolean(codeCpp),
       });
       router.push(`/community/p/${payload.id}`);
     } catch {

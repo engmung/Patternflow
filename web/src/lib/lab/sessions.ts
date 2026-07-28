@@ -72,7 +72,13 @@ function write(sessions: StoredSession[]): void {
 }
 
 export function listSessions(): SessionMeta[] {
-  return read().map(({ json: _json, ...meta }) => meta);
+  return read().map((entry) => ({
+    id: entry.id,
+    title: entry.title,
+    savedAt: entry.savedAt,
+    layerCount: entry.layerCount,
+    bytes: entry.bytes,
+  }));
 }
 
 /**
