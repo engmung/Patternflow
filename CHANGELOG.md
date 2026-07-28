@@ -4,7 +4,16 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-07
+
+Patterns stop needing a firmware build. **Hardware unchanged** — v3.0 board and case carry over as-is.
+
 ### Added
+- **Loadable pattern modules (`.pfm`)** ([#232](https://github.com/engmung/Patternflow/issues/232), [#242](https://github.com/engmung/Patternflow/pull/242)): a pattern compiles to a relocatable Xtensa ELF of a few KB, is sent to the device over Wi-Fi, and appears in the list immediately — no reflash, no reboot, no 1 MB image for a 6 KB pattern. Design and the working proof of concept came from **Simone Majocchi ([@SimonePDA](https://github.com/SimonePDA))**: a frozen C ABI between host and module, a linker script collapsing each module to four sections, and an on-device relocator. Switching patterns costs 6–11 ms; up to **128** modules can be installed, and installing costs nothing at runtime.
+- **Module cart**: collect patterns across the community — from a card's own button or the pattern page — and build the lot in one request. "Send over Wi-Fi" points the device's pattern manager at the result and it fetches and installs every file itself.
+- **Pattern manager on the device** (`/patterns`): install, list, multi-select delete, and format the pattern partition, with a per-file queue showing progress, retries and per-file results. Console navigation now spans every device page.
+- **Pattern Lab: a staged hardware flow.** `To hardware` converts the composition to a `.h` first — one prompt for a single layer, a deterministic scaffold with a prompt per layer for a stack — then offers what a header makes possible: install it as a module, build a full image, or publish it to the community with the header attached so the pattern lands hardware-ready.
+- **Recent works in Pattern Lab**: opening someone else's pattern replaces the canvas instead of stacking its layers onto yours, and what was in progress is parked in a ring of three.
 - **Pattern Lab rebuilt as a layered, dockable editor platform.** The single-pattern lab is now a workspace for compositions:
   - **Layer stack** — code-pattern layers and pixel-art layers composite bottom-to-top, each with visibility, opacity, and a blend mode (normal / add / multiply / screen). Layers select, rename, duplicate, reorder (drag), and report their runtime errors in place.
   - **Layer masks** — any layer can flip from painting to masking the layer directly below it, binary on purpose (one compare per pixel on the ESP32): a pixel-art mask reveals wherever something is drawn, a code mask reveals where its ramp-colored output crosses 0.5 luminance — so the color ramp is the mask control. Invertible, stackable (masks intersect), and replicated 1:1 in flattened exports.
@@ -15,6 +24,19 @@ All notable changes to Patternflow will be documented in this file.
   - **Compositions that survive sharing** — the published code also carries the FULL layer project as one `// @stack` comment line (deflate-compressed, size-guarded): the sandbox ignores it, but "Open in Pattern Lab" — or pasting the code — restores every layer, ramp, mask and pixel bitmap as an editable stack on top of whatever is in progress, with fork lineage intact.
   - **Firmware .h for layer stacks, the safe way** — a deterministic C++ scaffold generator plus per-layer AI translation. Pattern Lab emits finished code for everything mechanical (layer buffers, one shared knob accumulator, RGBA ramp LUTs byte-for-byte, pixel art as RLE data, mask tests, blend compositing — same math as the preview) with compiling no-op stubs in marked slots; each code layer gets its own small conversion prompt whose output is just one `namespace L<i>` block that the export wizard validates and swaps in. The model never sees the machine data it used to corrupt, and the two historic conversion bug classes — hand-rolled knob delta accumulation and reproduced color LUTs — are gone from the prompt entirely. The assembled header flows straight into the existing browser build + flash pipeline.
   - **One shared knob set** — the four knobs stay global, like the four physical encoders: every code layer reads the same input (per-layer knob targeting stays open as a future mode). `@knobs` lines retune the shared set on load; range digit-dragging and encoder push buttons carry over, and the previous draft migrates into a one-layer project on first open. Gallery cards can also stack a generated variant as a new layer.
+
+### Fixed
+- **The browser flasher was shipping firmware without the module loader.** It served the image built for 3.1.0, so anyone who flashed from the site got a board that could not receive a single pattern from the community. The stock image is now built from the release source and version-stamped per release.
+- **A pattern named "Dynamic Moiré" could neither build nor load** — three separate faults, all from one non-ASCII character in a name: the toolchain scripts crashed printing it on a cp949 console, a loader guard tested names for printable ASCII and called anything else a relocation bug, and the panel's ASCII font drew it as mojibake. Names are UTF-8 everywhere now; only the panel folds them.
+- **A pattern that fails to load says why.** `/api/status` reports `loadError` and the panel draws the reason, instead of a torn frame that reads as "the pattern is broken".
+- **"Uploaded" means "verified"** — after writing a `.pfm` the device reopens it and checks it is structurally a module, which is what catches truncation. Bad files are deleted and reported rather than counted as success.
+- **A never-used board can start.** The pattern partition ships unformatted; `/patterns` offers an explicit Format button exactly when the volume will not mount. Formatting is never automatic — an earlier auto-format wiped every installed module after a crash corrupted the FAT.
+
+### Known issues
+- **Repeated uploads can wedge the device**, and the way out is a power cycle. Seen while installing many modules in a row. Not diagnosed — `/update/status` now reports `lastError`, `received`/`expected` and an attempt counter, so the next occurrence can be read rather than guessed at.
+- **A firmware upload from the browser occasionally aborts partway** ("Connection lost during upload", ~29 % in the observed case) and succeeds on a retry. Two candidate causes were tested on hardware and disproved: request contention (an upload completes normally with another client polling every 2 s) and the page's own status poll. Same instrumentation applies.
+- **Opening a console page still pauses the running pattern.** A resident module holds ~7 KB of the ~15 KB internal heap, dropping the largest free block to ~3 KB, and lwIP cannot deliver a 16 KB page from there. Three fixes were tried and are recorded in `firmware/README.md`; an async server would not help, since it shares the same heap.
+- **A module runs ~20 % slower** than the same source compiled into the firmware — the cost of the relocatable code model, not something a compiler flag reaches.
 
 ## [3.1.0] - 2026-07
 
