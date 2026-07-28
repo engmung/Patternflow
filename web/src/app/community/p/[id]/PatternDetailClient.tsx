@@ -13,6 +13,7 @@ import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
+import SendModuleModal from "@/components/community/SendModuleModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
 import { CART_EVENT, cartAdd, cartHas, cartRemove } from "@/lib/community/cart";
 import { knobSetupFromCode } from "@/lib/community/knobs";
@@ -66,6 +67,7 @@ export default function PatternDetailClient({
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
   // Cart membership is shared state (header chip, other tabs), so it is read
   // from the store and refreshed on its change event rather than mirrored.
@@ -227,8 +229,20 @@ export default function PatternDetailClient({
                 ⚡ Flash to my board
               </button>
             )}
-            {/* Cart = the module path: collect several patterns, build them all
-                as .pfm in one go, install from the device's /patterns page. */}
+            {/* The common case: one pattern, onto the board, no USB. Builds a
+                single .pfm and hands it to the device over Wi-Fi. */}
+            {buildsConfigured() && pattern.codeCpp && (
+              <button
+                type="button"
+                className={styles.btnAccent}
+                title="Build this pattern as a loadable module and install it over Wi-Fi"
+                onClick={() => setSendOpen(true)}
+              >
+                ↗ Send to my Patternflow
+              </button>
+            )}
+            {/* Cart = the batch version: collect several patterns and build
+                them all as .pfm in one go. */}
             {buildsConfigured() && pattern.codeCpp && (
               <button
                 type="button"
@@ -454,6 +468,14 @@ export default function PatternDetailClient({
           patternId={pattern.id}
           initialCpp={pattern.codeCpp}
           onClose={() => setHeaderModalOpen(false)}
+        />
+      )}
+
+      {sendOpen && pattern.codeCpp && (
+        <SendModuleModal
+          patternTitle={pattern.title}
+          code={pattern.codeCpp}
+          onClose={() => setSendOpen(false)}
         />
       )}
 

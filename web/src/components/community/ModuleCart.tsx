@@ -12,6 +12,7 @@ import {
   cartRemove,
   type CartItem,
 } from "@/lib/community/cart";
+import { useDeviceHost } from "@/lib/community/deviceHost";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
@@ -44,34 +45,7 @@ export default function ModuleCart() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Same remembered device address the firmware modal uses, so someone who has
-  // already told us their board's IP is not asked twice. Lazy init: the value
-  // is only ever rendered inside the opened modal, so the server-render default
-  // never reaches the DOM and cannot mismatch on hydration.
-  const [deviceHost, setDeviceHost] = useState(() => {
-    if (typeof window === "undefined") return "patternflow.local";
-    try {
-      return window.localStorage.getItem("pf-device-host") ?? "patternflow.local";
-    } catch {
-      return "patternflow.local"; /* private mode */
-    }
-  });
-  const changeDeviceHost = (value: string) => {
-    setDeviceHost(value);
-    try {
-      window.localStorage.setItem("pf-device-host", value);
-    } catch {
-      /* private mode */
-    }
-  };
-
-  // The device page fetches this URL itself, so it must be absolute even when
-  // the community API is same-origin. Mirrors the firmware modal's wifiSendUrl.
-  const wifiInstallUrl = (modulesUrl: string) => {
-    if (typeof window === "undefined") return "#";
-    const absolute = new URL(communityApiUrl(modulesUrl), window.location.origin).toString();
-    return `http://${deviceHost.trim()}/patterns?src=${encodeURIComponent(absolute)}`;
-  };
+  const { deviceHost, changeDeviceHost, patternsUrl } = useDeviceHost();
 
   useEffect(() => {
     const sync = () => setItems(cartItems());
@@ -237,7 +211,7 @@ export default function ModuleCart() {
                     <div className={styles.actionRow}>
                       <a
                         className={styles.btnAccent}
-                        href={wifiInstallUrl(build.modulesUrl)}
+                        href={patternsUrl(build.modulesUrl)}
                         target="_blank"
                         rel="noreferrer"
                       >
