@@ -82,13 +82,19 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
   #msg.ok{color:var(--ink)} #msg.bad{color:var(--led)}
   @media(max-width:560px){body{padding:56px 16px}.panel{padding:36px 24px 32px}h2{font-size:28px}}
+/* Console navigation, same on every page. */
+.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.pfnav a{color:var(--faint);text-decoration:none}
+.pfnav a:hover{color:var(--led)}
+.pfnav a.here{color:var(--ink)}
 </style></head><body>
 
 <div class="version-tag"><span class="dot"></span>device &middot; update</div>
 
 <main class="panel">
   <div class="top">
-    <a class="back" href="/">&larr; Console</a>
+    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update" class="here">Update</a></nav>
     <span id="pill">&hellip;</span>
   </div>
 

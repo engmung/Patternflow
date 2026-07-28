@@ -41,8 +41,15 @@ dd.big{font-size:13px;font-weight:600}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
+/* Console navigation, same on every page. */
+.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.pfnav a{color:var(--faint);text-decoration:none}
+.pfnav a:hover{color:var(--led)}
+.pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Status</h1><span class="sub" id="up">-</span></header>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/update">Update</a></nav>
 
 <section><h2>Render</h2><dl>
   <div class="row"><dt>Frame rate</dt><dd class="big" id="fps">-</dd></div>
