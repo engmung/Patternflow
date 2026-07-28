@@ -247,10 +247,12 @@ surface — the math headers are literally the same files, included with
 | ABI | `PF_ABI_VERSION` must match; bump it on ANY layout change in `pf_abi.h` and rebuild every module |
 
 If a module fails to load, nothing else is affected — the presets and other
-modules keep working, and `/status` shows the last load's phase timings. If a
-module needs a libm symbol the loader doesn't export yet, the serial log names
-it (`unresolved symbol: …`); add it to `resolveHostSymbol()` in
-`core_module_loader.h`.
+modules keep working, the panel shows a `PATTERN FAILED` screen with the
+reason, and `/api/status` reports it as `loadError`. The usual cause is a
+libc/libm symbol the host does not export yet: the message names it
+(`unresolved symbol: rand`), and the fix is one line in `resolveHostSymbol()`
+in `core_module_loader.h`. Check `loadError` first for any "this pattern is
+broken" report — it turns a vague complaint into a specific one.
 
 ## Adding features — the constraints that matter
 
@@ -328,13 +330,36 @@ far, each confirmed by A/B on hardware:
    installed module. Mount failure now means presets-only; formatting is an
    explicit button (`POST /api/patterns/format`).
 
-Open issue: sustained heavy upload traffic (~30–40 POSTs in one boot) can
-still degrade the network stack — large transfers stall at exactly ~5.6 KB
-(the initial TCP window; ACKs stop being processed) while small requests stay
-fast, so pages truncate and *look* empty. A reboot clears it. Signature and
-investigation plan are tracked; suspect is a socket/pbuf leak, and the real
-fix is likely migrating the console to an async server (ESPAsyncWebServer or
-esp-idf httpd), which would also lift the one-client and pacing limits.
+6. **A response larger than ~5.6 KB needs the heap a loaded module is
+   holding.** This one looked for a long time like a slow "leak" that
+   degraded over hours; it is not. Measured on one device, one minute apart:
+
+   ```
+   module resident    internal heap  4,932   /patterns truncated at 5,633 B
+                                             after a 10 s stall
+   module unloaded    internal heap 11,852   /patterns whole (15,903 B), 0.43 s
+   ```
+
+   5,633 B is four TCP segments — one bufferful. Under a starved heap the
+   one-shot `send()` fills that and gives up, and the client waits out the
+   timeout holding half a page. The HTML renders, its script is cut
+   mid-statement and never runs, and the console looks blank while every API
+   underneath answers fine.
+
+   The console therefore **pauses the pattern**: opening any console page
+   evicts the module, and `tick()` restores it after 25 s of console
+   silence (`core_patterns_http.h`). The request that triggers the eviction
+   cannot be rescued — its send path is already constrained — so it gets a
+   552-byte interstitial that reloads itself.
+
+   Two fixes were tried and **do not work**; do not retry them:
+   - Spilling module data sections to PSRAM to spare internal RAM — reboots
+     the device the moment a module is selected.
+   - Chunked transfer encoding — delivers *less*, not more (one 1 KB chunk,
+     or nothing), with or without pacing between chunks.
+
+   The real fix remains an async server (ESPAsyncWebServer or esp-idf httpd),
+   which would also lift the one-client and pacing limits.
 
 ### Adding a console page
 
@@ -349,9 +374,13 @@ smallest example): one `core_<name>_http.h` that attaches routes in a
   extract the `<script>` body and run `node --check` on it. A single stray
   newline in a string once shipped a page whose script never ran — the page
   rendered but showed nothing, which reads as "the device is broken".
-- Keep pages lean. In the degraded state above, only the first ~5.6 KB of a
-  response survives — `/status` (5.5 KB) kept working through it while larger
-  pages appeared blank. Small pages are also just faster on this server.
+- Keep pages lean, and call `PatternflowPatternsHttp::noteConsolePageOpened()`
+  first (see any existing page): a page over ~5.6 KB cannot be delivered while
+  a pattern module is resident. `/status` at 5.5 KB was the only page that
+  survived that state by accident.
+- **Never leave the render loop with nothing to draw.** If a screen decides not
+  to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn
+  leftover frame, which every tester reads as "the pattern is broken".
 
 ### What is cheap and what is expensive here
 
