@@ -408,10 +408,10 @@ inline void handlePutBody() {
 
   if (raw.status == RAW_START) {
     uploadFailed = false;
-    uploadError[0] = ' ';
+    uploadError[0] = '\0';
     uploadBytes = 0;
-    uploadPath[0] = ' ';
-    uploadSlug[0] = ' ';
+    uploadPath[0] = '\0';
+    uploadSlug[0] = '\0';
     if (uploadFile) uploadFile.close();
 
     String name = server().header("X-PF-Name");

@@ -91,3 +91,6 @@ integrations/ableton/projects/
 # Rebuild with: python firmware/toolchain/build_module.py --all
 firmware/modules/.build/
 firmware/patternflow/data/patterns/
+
+# Python bytecode from the firmware toolchain scripts
+__pycache__/

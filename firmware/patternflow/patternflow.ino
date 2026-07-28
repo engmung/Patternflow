@@ -176,6 +176,38 @@ const char* currentContentName() {
   return patterns[currentPatternIdx].name;
 }
 
+// Pattern names are UTF-8 — a community pattern is as likely to be called
+// "Dynamic Moiré" as "Origin" — but the panel's font is a 5x7 ASCII table.
+// Handed the raw bytes it draws one wrong glyph per byte, so "Moiré" came out
+// as "MoirÃ©". Fold the Latin-1 letters onto their base character and reduce
+// anything else to one '?', so a name is always readable and never explodes
+// into noise. The JSON APIs keep the real UTF-8 name; this is display only.
+void asciiFold(const char* source, char* out, size_t capacity) {
+  static const char* const LATIN1 =
+      "AAAAAAACEEEEIIII"   // C0-CF
+      "DNOOOOOxOUUUUYPs"   // D0-DF
+      "aaaaaaaceeeeiiii"   // E0-EF
+      "dnooooo/ouuuuypy";  // F0-FF
+  size_t w = 0;
+  for (const uint8_t* p = (const uint8_t*)source; *p && w + 1 < capacity; ) {
+    uint8_t c = *p;
+    if (c >= 0x20 && c <= 0x7e) {
+      out[w++] = (char)c;
+      p++;
+    } else if ((c == 0xc3) && p[1]) {
+      // Two-byte Latin-1 supplement: 0xC3 0x80..0xBF maps to U+00C0..U+00FF.
+      out[w++] = LATIN1[p[1] & 0x3f];
+      p += 2;
+    } else {
+      out[w++] = '?';
+      // Skip the whole multi-byte sequence so one character yields one '?'.
+      p++;
+      while ((*p & 0xc0) == 0x80) p++;
+    }
+  }
+  out[w] = '\0';
+}
+
 void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1) {
   int16_t x1, y1;
   uint16_t w, h;
@@ -367,7 +399,7 @@ void drawPausedScreen() {
       for (size_t i = 0; reason[i] && y < h - 26; i += 10, y += 10) {
         size_t n = 0;
         while (n < 10 && reason[i + n]) { line[n] = reason[i + n]; n++; }
-        line[n] = ' ';
+        line[n] = '\0';
         drawCenteredText(line, y, pfGrayC(), 1);
       }
     }
@@ -520,7 +552,8 @@ void drawSelectingMode() {
     dma_display->fillRect(mx, ty - 1, 3, 3, pfLedC());
   }
 
-  const char* name = patterns[currentPatternIdx].name;
+  char name[MODULE_NAME_BYTES];
+  asciiFold(patterns[currentPatternIdx].name, name, sizeof(name));
   int nameSize = strlen(name) > 8 ? 1 : 2;
   int16_t x1, y1;
   uint16_t w, h;

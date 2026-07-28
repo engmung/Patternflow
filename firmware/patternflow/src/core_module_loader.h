@@ -150,6 +150,20 @@ inline LoadedSection* sectionByIndex(uint16_t index) {
   return nullptr;
 }
 
+// Which loaded section a relocated pointer lands in, or nullptr if it points
+// outside the module image entirely — which is what a broken relocation
+// actually looks like.
+inline const LoadedSection* sectionContaining(const void* address) {
+  const uint8_t* p = static_cast<const uint8_t*>(address);
+  for (int i = 0; i < sectionCount; ++i) {
+    const LoadedSection& section = sections[i];
+    if (section.memory && p >= section.memory && p < section.memory + section.size) {
+      return &section;
+    }
+  }
+  return nullptr;
+}
+
 // A partial link normally keeps the SHT_INIT_ARRAY type, but match the name
 // too: some toolchains hand the orphan section through as plain PROGBITS and
 // silently skipping it would mean skipping a module's constructors.
@@ -684,18 +698,26 @@ inline bool load(fs::FS& filesystem, const char* path) {
   }
   // Guard against a still-broken string reloc: a bad NAME pointer used to
   // hang inside printf and trip the interrupt watchdog with no backtrace.
+  //
+  // The question is "does this pointer land inside the module image and
+  // terminate there", never "is the text ASCII". Testing for printable ASCII
+  // is what the first version did, and it rejected every pattern whose NAME
+  // carried an accent or CJK: "Dynamic Moiré" was reported as a reloc bug
+  // with the relocation perfectly intact. Names are UTF-8 and may be
+  // anything; only the panel's font is ASCII, and that is a drawing concern.
   {
     const char* name = active->name;
-    bool ok = true;
-    for (int i = 0; i < 64; ++i) {
-      char c = name[i];
-      if (c == '\0') { ok = i > 0; break; }
-      if ((uint8_t)c < 0x20 || (uint8_t)c > 0x7e) { ok = false; break; }
-      if (i == 63) ok = false;
-    }
-    if (!ok) {
+    const LoadedSection* owner = sectionContaining(name);
+    if (!owner) {
       unload();
-      return fail("module name pointer looks corrupt (reloc bug)");
+      return fail("module name points outside the image (reloc bug)");
+    }
+    const size_t room = owner->size - (size_t)((const uint8_t*)name - owner->memory);
+    size_t length = 0;
+    while (length < room && name[length] != '\0') length++;
+    if (length == 0 || length == room) {
+      unload();
+      return fail("module name is empty or unterminated (reloc bug)");
     }
   }
   Serial.printf("[MODULE] setup %s...\n", active->name);

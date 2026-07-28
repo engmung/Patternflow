@@ -3,14 +3,19 @@ Fast pre-compile sanity check on the firmware sources.
 
     python firmware/toolchain/check_sources.py
 
-Two classes of bug, both of which have shipped from this repo and both of which
+Three classes of bug, all of which have shipped from this repo and all of which
 cost far more to find on the device than here:
 
 1. A C string literal broken by a real newline. Patch scripts and shell
    heredocs mangle `\\n` into an actual line break; the compiler then reports
    "missing terminating character" thirty lines away from the cause.
 
-2. A syntax error in a page's embedded JavaScript. The device serves the page
+2. A raw control byte where an escape belongs. The same mangling collapses
+   `'\\0'` into a literal NUL. This one *compiles* - a NUL char literal has the
+   value it should - so nothing fails; the file just quietly becomes binary to
+   git, grep and every editor, and the next patch that touches it corrupts more.
+
+3. A syntax error in a page's embedded JavaScript. The device serves the page
    fine, the browser refuses to run any of it, and the console looks blank and
    "broken" while every API underneath is healthy. Needs node on PATH; skipped
    with a warning if absent.
@@ -113,6 +118,23 @@ def unterminated_strings(path: Path) -> list[tuple[int, str]]:
     return bad
 
 
+def control_bytes(path: Path) -> list[tuple[int, str]]:
+    """Lines carrying a raw control byte, i.e. an escape that got flattened.
+
+    Tab, LF and CR are the only ones that belong in a source file. Anything
+    else here is the residue of a mangled `\\0`, `\\r` or `\\x1b`.
+    """
+    data = path.read_bytes()
+    allowed = {0x09, 0x0A, 0x0D}
+    found: list[tuple[int, str]] = []
+    for offset, byte in enumerate(data):
+        if byte < 0x20 and byte not in allowed:
+            number = data.count(b"\n", 0, offset) + 1
+            context = data[max(0, offset - 40) : offset + 40]
+            found.append((number, context.decode("utf-8", "replace").replace("\n", " ")))
+    return found
+
+
 def page_scripts(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8", errors="replace")
     return re.findall(r"<script>(.*?)</script>", text, re.DOTALL)
@@ -128,6 +150,13 @@ def main() -> None:
         for number, line in unterminated_strings(path):
             failures += 1
             print(f"  FAIL {path.relative_to(ROOT)}:{number}\n       {line}")
+
+    print(f"\nscanning {len(headers)} source files for raw control bytes")
+    for path in headers:
+        for number, context in control_bytes(path):
+            failures += 1
+            print(f"  FAIL {path.relative_to(ROOT)}:{number} raw control byte")
+            print(f"       {context}")
 
     node = shutil.which("node")
     pages = [p for p in SKETCH.rglob("*_index.h") if "build" not in p.parts]
