@@ -81,6 +81,10 @@ inline bool bootMarkedValid = false;
 inline unsigned progressPct = 0;
 inline size_t expectedBytes = 0;
 inline size_t receivedBytes = 0;
+// Counts POSTs the upload handler actually saw. Distinguishes "the device
+// never received the request" from "it received it and got nowhere", which
+// look identical from the browser.
+inline unsigned uploadAttempts = 0;
 inline uint32_t rebootAtMs = 0;   // nonzero = flash landed, reboot scheduled
 inline String lastError;
 
@@ -120,6 +124,7 @@ inline void handleUpload() {
   HTTPUpload& up = server().upload();
   switch (up.status) {
     case UPLOAD_FILE_START: {
+      uploadAttempts++;
       rejected = !isArmed() || uploading || rebootAtMs != 0;
       if (rejected) {
         Serial.println("[UPDATE] upload refused (not armed)");
@@ -204,12 +209,28 @@ inline void handleUploadDone() {
                 "{\"error\":\"" + lastError + "\"}");
 }
 
+// Reports what the LAST upload attempt actually did, not just whether one is
+// running. "Connection lost during upload" is what the browser says for every
+// network-level failure, and without these fields there is no way to tell a
+// device that never saw a byte from one that took 900 KB and then had the
+// client vanish from one that failed the flash write. The counters are only
+// cleared when the next upload starts, so they can be read after the fact —
+// the same reason /api/status carries loadError.
 inline void handleStatus() {
-  char buf[96];
-  snprintf(buf, sizeof(buf), "{\"armed\":%s,\"busy\":%s,\"version\":\"%s\"}",
+  char buf[224];
+  String error = lastError;
+  error.replace("\"", "'");
+  snprintf(buf, sizeof(buf),
+           "{\"armed\":%s,\"busy\":%s,\"version\":\"%s\","
+           "\"lastError\":\"%s\",\"lastRejected\":%s,\"lastOk\":%s,"
+           "\"received\":%u,\"expected\":%u,\"attempts\":%u}",
            isArmed() ? "true" : "false",
            (uploading || rebootAtMs != 0) ? "true" : "false",
-           PF_IMPROV_FW_VERSION);
+           PF_IMPROV_FW_VERSION,
+           error.c_str(),
+           rejected ? "true" : "false",
+           completedOk ? "true" : "false",
+           (unsigned)receivedBytes, (unsigned)expectedBytes, uploadAttempts);
   server().send(200, "application/json", buf);
 }
 
