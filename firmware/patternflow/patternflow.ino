@@ -68,6 +68,14 @@ uint32_t knobMapDrawnAtMs = 0;
 bool knobMapDirty = false;
 uint32_t knobMapActiveAtMs[4] = {0, 0, 0, 0};
 
+// Shown whenever no pattern is resident: the web console paused it, or a module
+// refused to load. Before this the render loop simply drew nothing and flipped
+// the buffer anyway, so the panel showed a torn, flickering leftover frame —
+// which read as "the pattern is broken" even when the cause was just an open
+// browser tab.
+uint32_t pausedDrawnAtMs = 0;
+bool pausedDirty = true;
+
 // UPDATE screen: entered from the NETWORK screen by turning K4. While it
 // shows, the /update endpoint is ARMED — that is the whole security model
 // (see core_web_update.h): flashing over the LAN requires someone at the
@@ -316,6 +324,56 @@ void drawNetworkInfo() {
     drawCenteredText("K4=UPDATE", 107, pfDimC(), 1);
   }
   drawCenteredText("K2 = EXIT", 118, pfDimC(), 1);
+
+  dma_display->setRotation(0);
+}
+
+// Shown when no pattern is resident. Two causes, and the difference matters to
+// whoever is standing in front of the panel:
+//
+//   CONSOLE MODE   a browser has a console page open, so the pattern module was
+//                  evicted to give the web server the RAM it needs (see
+//                  core_patterns_http.h). Resumes on its own.
+//   PATTERN FAILED a module refused to load. The loader's reason is printed,
+//                  because "it just doesn't work" is the least useful bug report
+//                  and this turns it into a specific one.
+//
+// Drawn PORTRAIT like the other info screens.
+void drawPausedScreen() {
+  dma_display->setRotation(1);
+  dma_display->fillScreen(0);
+
+  const int w = dma_display->width();
+  const int h = dma_display->height();
+  const bool consolePaused = PatternflowPatternsHttp::isConsolePaused();
+  const char* reason = PFModuleLoader::error();
+
+  drawScreenHeader(consolePaused ? "CONSOLE" : "PATTERN");
+
+  if (consolePaused) {
+    drawCenteredText("PAUSED", 26, pfWhiteC(), 1);
+    drawCenteredText("web console", 42, pfDimC(), 1);
+    drawCenteredText("is open", 52, pfDimC(), 1);
+    dma_display->drawFastHLine(4, h - 28, w - 8, pfRuleC());
+    drawCenteredText("RESUMES", h - 23, pfDimC(), 1);
+    drawCenteredText("WHEN DONE", h - 13, pfDimC(), 1);
+  } else {
+    drawCenteredText("FAILED", 26, pfRedC(), 1);
+    // The reason can be long (a missing symbol name); wrap it across the
+    // 64px-wide portrait screen rather than clipping it to nothing.
+    if (reason && reason[0]) {
+      char line[12];
+      int y = 44;
+      for (size_t i = 0; reason[i] && y < h - 26; i += 10, y += 10) {
+        size_t n = 0;
+        while (n < 10 && reason[i + n]) { line[n] = reason[i + n]; n++; }
+        line[n] = ' ';
+        drawCenteredText(line, y, pfGrayC(), 1);
+      }
+    }
+    dma_display->drawFastHLine(4, h - 18, w - 8, pfRuleC());
+    drawCenteredText("TURN K4", h - 13, pfDimC(), 1);
+  }
 
   dma_display->setRotation(0);
 }
@@ -858,7 +916,18 @@ void loop() {
     } else {
       frameDrawn = false;
     }
+  } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
+    // Same throttled-redraw scheme as the info screens: this is static text and
+    // repainting it every loop races the panel scanout.
+    if (pausedDirty || (now - pausedDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      drawPausedScreen();
+      pausedDrawnAtMs = now;
+      pausedDirty = false;
+    } else {
+      frameDrawn = false;
+    }
   } else if (currentMode == MODE_RUNNING) {
+    pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
 

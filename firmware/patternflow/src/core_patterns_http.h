@@ -125,6 +125,10 @@ constexpr uint32_t CONSOLE_IDLE_RESTORE_MS = 25000;
 
 inline void requestReload() { reloadRequestedAtMs = millis(); }
 
+// True while a console page has the pattern module evicted. The sketch draws a
+// CONSOLE PAUSED screen instead of a torn frame when this is set.
+inline bool isConsolePaused() { return restorePending; }
+
 // A resident module and the web console cannot both have the RAM they need.
 //
 // Measured on a 128x64 board: with a module loaded, internal heap sits at

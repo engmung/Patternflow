@@ -188,6 +188,15 @@ inline uintptr_t mapDefinedSymbol(const Elf32Sym& symbol) {
   return (uintptr_t)section->memory + symbol.value;
 }
 
+// A module reaching for raw malloc would take memory the loader never gets back
+// on unload — a leak per pattern switch. Route the C allocators through the
+// module allocator, which is freed wholesale when the module is dropped. free()
+// is a no-op for the same reason unload() exists.
+inline void* moduleAlloc(size_t bytes);  // defined below
+inline void* pfModuleMalloc(size_t bytes) { return moduleAlloc(bytes); }
+inline void* pfModuleCalloc(size_t count, size_t size) { return moduleAlloc(count * size); }
+inline void pfModuleFree(void*) {}
+
 #define PF_HOST_SYMBOL(name) \
   if (strcmp(symbol, #name) == 0) return (uintptr_t)(void*)(&name)
 
@@ -273,6 +282,21 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(memcmp);
   PF_HOST_SYMBOL(strlen);
   PF_HOST_SYMBOL(strcmp);
+  PF_HOST_SYMBOL(strncmp);
+  PF_HOST_SYMBOL(snprintf);
+
+  // stdlib. A real community pattern (Rocket Flight) failed to load for want of
+  // rand() alone, which is exactly the kind of one-symbol cliff worth removing
+  // in bulk rather than one report at a time.
+  PF_HOST_SYMBOL(rand);
+  PF_HOST_SYMBOL(srand);
+  PF_HOST_FN(abs, int (*)(int));
+  PF_HOST_FN(labs, long (*)(long));
+
+  // Allocators, routed through the module's tracked heap (see the shims above).
+  if (strcmp(symbol, "malloc") == 0) return (uintptr_t)(void*)(&pfModuleMalloc);
+  if (strcmp(symbol, "calloc") == 0) return (uintptr_t)(void*)(&pfModuleCalloc);
+  if (strcmp(symbol, "free") == 0) return (uintptr_t)(void*)(&pfModuleFree);
   return 0;
 }
 
