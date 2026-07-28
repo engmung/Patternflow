@@ -139,16 +139,24 @@ var armed=false,busy=false,uploading=false;
 function setPill(t,c){pill.textContent=t;pill.className=c||''}
 function setMsg(t,c){msg.textContent=t;msg.className=c||''}
 
+// The device serves one client at a time. Skipping polls while uploading is
+// not enough on its own: a poll issued a moment BEFORE the upload starts is
+// still in flight, and that one request is enough to wedge a 1.2 MB POST into
+// "Connection lost during upload". So the poll is abortable and the upload
+// cancels it before opening its own connection.
+var pollAbort=null;
 function poll(){
   if(uploading)return;
-  fetch('/update/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
+  pollAbort=new AbortController();
+  fetch('/update/status',{cache:'no-store',signal:pollAbort.signal})
+  .then(function(r){return r.json()}).then(function(s){
     armed=s.armed;busy=s.busy;
     if(busy)setPill('BUSY','warn');
     else if(armed)setPill('READY','ok');
     else setPill('LOCKED','bad');
     armHint.style.display=(!armed&&!busy)?'block':'none';
     drop.classList.toggle('disabled',!armed||busy);
-  }).catch(function(){setPill('OFFLINE','bad')});
+  }).catch(function(e){if(!e||e.name!=='AbortError')setPill('OFFLINE','bad')});
 }
 setInterval(poll,2000);poll();
 
@@ -165,6 +173,7 @@ function upload(f){
   if(f.size<200*1024){setMsg('Suspiciously small for Patternflow firmware. Wrong file?','bad');return}
   if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
   uploading=true;
+  if(pollAbort)pollAbort.abort();
   setPill('FLASHING','warn');
   bar.style.display='block';fill.style.width='0%';
   setMsg('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');
