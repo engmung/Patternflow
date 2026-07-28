@@ -81,6 +81,13 @@ export default function HardwareModal({
 
   const headerLooksReal = /^\s*#pragma\s+once\b/m.test(assembled);
 
+  /** null = nothing pasted yet, true/false = parsed or not. */
+  const unitState = (index: number): boolean | null => {
+    const pasted = (pastes[index] ?? "").trim();
+    if (pasted.length === 0) return null;
+    return cleanPastedUnit(pasted, index) !== null;
+  };
+
   const flashCopied = (key: string) => {
     setCopiedKey(key);
     window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1200);
@@ -136,11 +143,12 @@ export default function HardwareModal({
 
               {stacked ? (
                 <>
-                  <label className={styles.modalNote}>
-                    <span>Composition name</span>
+                  <label className={styles.hwField}>
+                    <span>Name</span>
                     <input
                       type="text"
                       value={name}
+                      maxLength={24}
                       onChange={(event) => setName(event.target.value)}
                       spellCheck={false}
                     />
@@ -151,9 +159,16 @@ export default function HardwareModal({
                     partial port still builds.
                   </p>
                   {exportData.units.map((unit) => (
-                    <div key={unit.index} className={styles.modalNote}>
-                      <div className={styles.variantActions}>
-                        <span>L{unit.index} - {unit.name}{unit.isMask ? " (mask)" : ""}</span>
+                    <div key={unit.index} className={styles.hwUnit}>
+                      <div className={styles.hwUnitHead}>
+                        <span className={styles.hwUnitName}>
+                          L{unit.index} · {unit.name}
+                          {unit.isMask ? " · mask" : ""}
+                        </span>
+                        {unitState(unit.index) === true && <span className={styles.hwOk}>parsed ✓</span>}
+                        {unitState(unit.index) === false && (
+                          <span className={styles.hwBad}>not a namespace L{unit.index} block</span>
+                        )}
                         <button
                           type="button"
                           onClick={() => void copyText(`u${unit.index}`, unit.prompt)}
@@ -162,13 +177,14 @@ export default function HardwareModal({
                         </button>
                       </div>
                       <textarea
+                        className={styles.hwPaste}
                         value={pastes[unit.index] ?? ""}
                         onChange={(event) =>
                           setPastes((current) => ({ ...current, [unit.index]: event.target.value }))
                         }
-                        placeholder="Paste this layer's C++ here"
+                        placeholder={`Paste the namespace L${unit.index} { … } block here`}
                         spellCheck={false}
-                        rows={4}
+                        rows={5}
                       />
                     </div>
                   ))}
@@ -181,12 +197,20 @@ export default function HardwareModal({
                     </button>
                   </div>
                   <textarea
+                    className={styles.hwPaste}
                     value={single}
                     onChange={(event) => setSingle(event.target.value)}
                     placeholder="Paste the .h the model gives you — it starts with #pragma once"
                     spellCheck={false}
-                    rows={10}
+                    rows={12}
                   />
+                  {single.trim().length > 0 && (
+                    <p className={headerLooksReal ? styles.hwOk : styles.hwBad}>
+                      {headerLooksReal
+                        ? "Looks like a header ✓"
+                        : "A Patternflow header starts with #pragma once"}
+                    </p>
+                  )}
                 </>
               )}
 
