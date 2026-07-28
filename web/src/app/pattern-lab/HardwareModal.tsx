@@ -240,12 +240,6 @@ export default function HardwareModal({
                     ⚡ Build firmware
                   </button>
                 )}
-                <button type="button" onClick={() => void copyText("h2", assembled)}>
-                  {copiedKey === "h2" ? "Copied ✓" : "Copy .h"}
-                </button>
-                <button type="button" onClick={downloadH}>
-                  Download .h
-                </button>
               </div>
 
               {communityConfigured() && (

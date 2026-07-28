@@ -44,6 +44,7 @@ export default function ModuleCart() {
   const [build, setBuild] = useState<ModuleBuildState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmEmpty, setConfirmEmpty] = useState(false);
 
   const { deviceHost, changeDeviceHost, patternsUrl } = useDeviceHost();
 
@@ -303,8 +304,24 @@ export default function ModuleCart() {
                           : `Build ${items.length} module${items.length === 1 ? "" : "s"}`}
                       </button>
                       <span className={styles.headerSpacer} />
-                      <button type="button" className={styles.btn} onClick={() => cartClear()}>
-                        Clear
+                      {/* Two presses: a cart is cheap to rebuild but ten
+                          collected patterns are not, and this sits next to the
+                          button people actually mean to press. */}
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        title="Remove every pattern from the cart"
+                        onClick={() => {
+                          if (confirmEmpty) {
+                            cartClear();
+                            setConfirmEmpty(false);
+                          } else {
+                            setConfirmEmpty(true);
+                            window.setTimeout(() => setConfirmEmpty(false), 4000);
+                          }
+                        }}
+                      >
+                        {confirmEmpty ? "Press again to empty" : `Empty cart (${items.length})`}
                       </button>
                     </div>
                   </>

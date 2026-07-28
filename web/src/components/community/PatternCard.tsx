@@ -12,6 +12,8 @@ import {
   matrixesEqual,
 } from "@/lib/patternMatrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
+import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
+import { CART_EVENT, cartAdd, cartHas, cartRemove } from "@/lib/community/cart";
 import styles from "./Community.module.css";
 
 // One feed card.
@@ -65,6 +67,54 @@ export default function PatternCard({
   // Knob interaction state
   const [knobValues, setKnobValues] = useState<number[]>(knobSetup.values);
   const [activeKnobIdx, setActiveKnobIdx] = useState<number>(0);
+
+  // Cart membership, kept in step with every other cart surface on the page.
+  const [inCart, setInCart] = useState(false);
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartNote, setCartNote] = useState<string | null>(null);
+  useEffect(() => {
+    const sync = () => setInCart(cartHas(item.id));
+    sync();
+    window.addEventListener(CART_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(CART_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [item.id]);
+
+  // The cart holds the .h, which the feed does not carry — a header can be
+  // 200 KB and most cards are never added. Fetch it on the press instead.
+  const toggleCart = async (event: React.MouseEvent) => {
+    // The whole card is a link to the detail page.
+    event.preventDefault();
+    event.stopPropagation();
+    if (cartBusy) return;
+    if (inCart) {
+      cartRemove(item.id);
+      return;
+    }
+    setCartBusy(true);
+    setCartNote(null);
+    try {
+      const response = await fetch(
+        communityApiUrl(`/api/community/patterns/${item.id}/header`),
+        COMMUNITY_FETCH_INIT,
+      );
+      const payload = (await response.json()) as { codeCpp?: string; error?: string };
+      if (!response.ok || !payload.codeCpp) {
+        setCartNote(payload.error ?? "Could not read the header.");
+        return;
+      }
+      const added = cartAdd({ patternId: item.id, title: item.title, code: payload.codeCpp });
+      if (!added.ok) setCartNote(added.reason ?? "Cart is full.");
+    } catch {
+      setCartNote("Network error.");
+    } finally {
+      setCartBusy(false);
+      window.setTimeout(() => setCartNote(null), 2500);
+    }
+  };
 
   const thumbRef = useRef<HTMLDivElement | null>(null);
   // Mirrors `thumb` so the effect can ask "do we already have one?" without
@@ -190,6 +240,23 @@ export default function PatternCard({
             />
           )}
         </div>
+
+        {/* Straight into the module cart, without opening the pattern. Only
+            for patterns that ship a header, since that is what the cart
+            builds. Sits over the thumbnail's corner so it never reflows the
+            card, and swallows the click so the card link does not fire. */}
+        {buildsConfigured() && item.hasCpp && (
+          <button
+            type="button"
+            className={`${styles.cardCartBtn} ${inCart ? styles.cardCartBtnOn : ""}`}
+            title={inCart ? "In the module cart — click to remove" : "Add to the module cart"}
+            aria-label={inCart ? "Remove from the module cart" : "Add to the module cart"}
+            onClick={(event) => void toggleCart(event)}
+          >
+            {cartBusy ? "…" : inCart ? "✓" : "▦"}
+          </button>
+        )}
+        {cartNote && <span className={styles.cardCartNote}>{cartNote}</span>}
 
         {/* Dynamic Dodging Knob Overlay Bar (Visible ONLY when cursor is on matrix screen) */}
         {interactive && (
