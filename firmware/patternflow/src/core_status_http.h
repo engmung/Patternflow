@@ -109,6 +109,11 @@ inline void handleStatus() {
   // Render + last module load
   json += "\"frameUs\":";
   json += renderFrameUs;
+  // Why the last module load failed, if it did. Without it a refusal is
+  // invisible from the network: the panel just stops and nothing says why.
+  json += ",\"loadError\":\"";
+  json += PFModuleLoader::error();
+  json += "\"";
   json += ",\"load\":{\"total\":";
   json += PFModuleLoader::lastTotalUs;
   json += ",\"read\":";
@@ -125,6 +130,10 @@ inline void handleStatus() {
 
 inline void handleIndex() {
   server().sendHeader("Cache-Control", "no-store");
+  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
+    PatternflowPatternsHttp::sendConsoleWakePage();
+    return;
+  }
   server().send_P(200, "text/html", STATUS_INDEX_HTML);
 }
 

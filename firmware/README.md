@@ -247,10 +247,56 @@ surface — the math headers are literally the same files, included with
 | ABI | `PF_ABI_VERSION` must match; bump it on ANY layout change in `pf_abi.h` and rebuild every module |
 
 If a module fails to load, nothing else is affected — the presets and other
-modules keep working, and `/status` shows the last load's phase timings. If a
-module needs a libm symbol the loader doesn't export yet, the serial log names
-it (`unresolved symbol: …`); add it to `resolveHostSymbol()` in
-`core_module_loader.h`.
+modules keep working, the panel shows a `PATTERN FAILED` screen with the
+reason, and `/api/status` reports it as `loadError`. The usual cause is a
+libc/libm symbol the host does not export yet: the message names it
+(`unresolved symbol: rand`), and the fix is one line in `resolveHostSymbol()`
+in `core_module_loader.h`. Check `loadError` first for any "this pattern is
+broken" report — it turns a vague complaint into a specific one.
+
+**Pattern names are UTF-8.** "Dynamic Moiré" and "Poincaré Sphere" are real
+entries in the library, and an accent used to break three layers at once: the
+toolchain scripts printing a name on a cp949 console, a loader guard that
+tested names for printable ASCII and called anything else a relocation bug,
+and the panel's 5×7 ASCII font. Names stay UTF-8 in the ELF and in every JSON
+API; only the panel folds them (`asciiFold()` in `patternflow.ino`). Any new
+code that touches a name must assume UTF-8.
+
+### How many can you install
+
+Installing costs nothing at runtime. The registry allocates its arrays at full
+capacity on boot, in PSRAM, whether or not the modules exist — so five
+installed modules and 128 installed modules use exactly the same RAM. Only the
+**resident** module costs internal RAM, and unloading returns all of it
+(measured: 4,548 B free with a module resident → 11,692 B on a preset).
+
+| Limit | Value | Binding? |
+|---|---|---|
+| Installed modules | **128** (`MAX_MODULE_PATTERNS`) | The only real cap, and it is a UX choice — 136 B of PSRAM per slot, 17 KB total |
+| Storage | ~1,500 modules (10.2 MB partition, 5.9 KB median) | No — 12× the count cap |
+| Per-module RAM | ≲ 8 KB of data comfortable | Yes, for that module's own frame rate |
+| Concurrent modules | 1 | By design — one pattern is selected at a time |
+
+A large module only costs while it is the selected pattern; it has no effect
+on the presets or on any other module. The one way it is not self-contained:
+while resident it drops `heapLargest` to ~3 KB, which is what makes opening a
+console page pause the pattern (see the constraints section below).
+
+Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
+largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
+
+### Current state (v3.1.0, measured on hardware)
+
+| | |
+|---|---|
+| Frame time, preset (Origin) | 18,717 µs = **53.4 fps** |
+| Internal heap, preset resident | 11,692 B free, largest block 7,668 B |
+| Internal heap, module resident | ~4,550 B free, largest block ~3,060 B |
+| PSRAM | 8.28 MB idle |
+| Flash | 1,292,519 B = **41 %** of the app partition |
+| Globals | 92,760 B = **28 %**, 234 KB left for locals |
+| Pattern storage | 73,728 / 10,235,904 B with 5 modules installed |
+| Leak check | 48 consecutive page loads: **−8 B** net, largest block unchanged |
 
 ## Adding features — the constraints that matter
 
@@ -328,13 +374,53 @@ far, each confirmed by A/B on hardware:
    installed module. Mount failure now means presets-only; formatting is an
    explicit button (`POST /api/patterns/format`).
 
-Open issue: sustained heavy upload traffic (~30–40 POSTs in one boot) can
-still degrade the network stack — large transfers stall at exactly ~5.6 KB
-(the initial TCP window; ACKs stop being processed) while small requests stay
-fast, so pages truncate and *look* empty. A reboot clears it. Signature and
-investigation plan are tracked; suspect is a socket/pbuf leak, and the real
-fix is likely migrating the console to an async server (ESPAsyncWebServer or
-esp-idf httpd), which would also lift the one-client and pacing limits.
+6. **A response larger than ~5.6 KB needs the heap a loaded module is
+   holding.** This one looked for a long time like a slow "leak" that
+   degraded over hours; it is not. Measured on one device, one minute apart:
+
+   ```
+   module resident    internal heap  4,932   /patterns truncated at 5,633 B
+                                             after a 10 s stall
+   module unloaded    internal heap 11,852   /patterns whole (15,903 B), 0.43 s
+   ```
+
+   5,633 B is four TCP segments — one bufferful. Under a starved heap the
+   one-shot `send()` fills that and gives up, and the client waits out the
+   timeout holding half a page. The HTML renders, its script is cut
+   mid-statement and never runs, and the console looks blank while every API
+   underneath answers fine.
+
+   The console therefore **pauses the pattern**: opening any console page
+   evicts the module, and `tick()` restores it after 25 s of console
+   silence (`core_patterns_http.h`). The request that triggers the eviction
+   cannot be rescued — its send path is already constrained — so it gets a
+   552-byte interstitial that reloads itself.
+
+   **This is a memory wall, not a pacing problem.** It is tempting to read
+   the 10 s stall as impatience — `NetworkClient::write()` really does send
+   with `MSG_DONTWAIT` and give up after `WIFI_CLIENT_MAX_WRITE_RETRY` (10)
+   non-writable selects of 1 s each, which is where the ten seconds comes
+   from. Rewriting the send path to be patient does not help, because the
+   number that matters is `heapLargest`: **3,060 bytes** with a module
+   resident. lwIP cannot allocate the pbufs, and no amount of waiting
+   creates them.
+
+   Three fixes were tried on hardware and **do not work**; do not retry them:
+   - Spilling module data sections to PSRAM to spare internal RAM — reboots
+     the device the moment a module is selected.
+   - Chunked transfer encoding — delivers *less*, not more (one 1 KB chunk,
+     or nothing), with or without pacing between chunks.
+   - 512-byte slices with a wall-clock deadline instead of a retry count
+     (`core_http_send.h`, reverted in bb8e52c) — delivers **3,072 B**, worse
+     than the 5,633 B it replaced, and still takes the full 10 s. It *is*
+     ~3× faster than `send_P` on a healthy heap, which is exactly the trap:
+     it measures beautifully in the condition that was never the problem.
+
+   An async server (ESPAsyncWebServer or esp-idf httpd) would lift the
+   one-client and upload-pacing limits, but it shares this same lwIP heap —
+   do not expect it to make a 16 KB page deliverable on a 4.5 KB heap. The
+   only real levers on page delivery are using less internal RAM per module
+   or shrinking the pages.
 
 ### Adding a console page
 
@@ -349,9 +435,13 @@ smallest example): one `core_<name>_http.h` that attaches routes in a
   extract the `<script>` body and run `node --check` on it. A single stray
   newline in a string once shipped a page whose script never ran — the page
   rendered but showed nothing, which reads as "the device is broken".
-- Keep pages lean. In the degraded state above, only the first ~5.6 KB of a
-  response survives — `/status` (5.5 KB) kept working through it while larger
-  pages appeared blank. Small pages are also just faster on this server.
+- Keep pages lean, and call `PatternflowPatternsHttp::noteConsolePageOpened()`
+  first (see any existing page): a page over ~5.6 KB cannot be delivered while
+  a pattern module is resident. `/status` at 5.5 KB was the only page that
+  survived that state by accident.
+- **Never leave the render loop with nothing to draw.** If a screen decides not
+  to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn
+  leftover frame, which every tester reads as "the pattern is broken".
 
 ### What is cheap and what is expensive here
 

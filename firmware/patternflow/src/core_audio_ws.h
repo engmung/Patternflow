@@ -37,6 +37,15 @@
 #include "home_index.h"
 #endif
 
+// Forward declaration: the home page pauses a loaded pattern module the same
+// way the other console pages do (see core_patterns_http.h for why), but this
+// header is included first, so only the declaration is available here. The
+// definition lands later in the same translation unit.
+namespace PatternflowPatternsHttp {
+bool noteConsolePageOpened();
+void sendConsoleWakePage();
+}
+
 namespace PatternflowAudio {
 
 #if PF_AUDIO_ENABLED
@@ -145,6 +154,10 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 // one from a load interrupted by the post-flash reboot) must never stick.
 inline void handleRoot() {
   httpServer.sendHeader("Cache-Control", "no-store");
+  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
+    PatternflowPatternsHttp::sendConsoleWakePage();
+    return;
+  }
   httpServer.send_P(200, "text/html", HOME_INDEX_HTML);
 }
 

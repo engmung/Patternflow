@@ -36,7 +36,7 @@ h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
 section{margin-top:28px}
 h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
 color:var(--muted);margin:0 0 10px}
-.drop{border:1px dashed var(--rule);border-radius:3px;padding:26px 18px;text-align:center;
+.drop{display:block;border:1px dashed var(--rule);border-radius:3px;padding:26px 18px;text-align:center;
 background:rgba(255,255,255,.4);transition:border-color .15s,background .15s;cursor:pointer}
 .drop.over{border-color:var(--led);background:rgba(232,85,46,.05)}
 .drop p{margin:0;font-size:13px;color:var(--muted)}
@@ -83,8 +83,15 @@ input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
+/* Console navigation, same on every page. */
+.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.pfnav a{color:var(--faint);text-decoration:none}
+.pfnav a:hover{color:var(--led)}
+.pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Patterns</h1><span class="sub" id="fs">-</span></header>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns" class="here">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update">Update</a></nav>
 
 <section>
   <h2>Upload</h2>
@@ -97,6 +104,8 @@ a{color:var(--muted)}
   <div id="msg"></div>
   <div class="actions">
     <button class="del" id="retry" style="display:none">Retry failed</button>
+    <button class="del" id="fmt" style="display:none">Format storage</button>
+    <span class="bulkNote" id="fmtNote"></span>
   </div>
 </section>
 
@@ -133,9 +142,15 @@ function say(t,cls){msg.textContent=t;msg.className=cls||''}
 
 function load(){
   fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
-    fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'FS not mounted';
+    fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'storage not mounted';
+    // A board whose pattern partition was never formatted cannot store
+    // modules. Formatting is deliberate and destructive, so it is a button
+    // rather than something the firmware does behind your back.
+    $('fmt').style.display=d.mounted?'none':'';
+    $('fmtNote').textContent=d.mounted?'':
+      'this board has never stored patterns - format once to start';
     listEl.innerHTML='';
-    d.patterns.forEach(function(p){
+    d.patterns.slice().reverse().forEach(function(p){
       var li=document.createElement('li');
       if(p.index===d.active)li.className='on';
       var n=document.createElement('span');n.className='n';n.textContent=p.index+1;
@@ -304,6 +319,17 @@ function startBatch(fileList){
   retryBtn.style.display='none';
   say('');renderQ();runQ(0);
 }
+
+$('fmt').onclick=function(){
+  if(!confirm('Format pattern storage? This erases every module on the device.'))return;
+  say('formatting...');
+  fetch('/api/patterns/format',{method:'POST'})
+    .then(function(r){return r.json()}).then(function(d){
+      say(d.ok?'storage ready - upload patterns now':(d.error||'format failed'),
+          d.ok?'good':'err');
+      setTimeout(load,900);
+    }).catch(function(){say('format failed','err')});
+};
 
 retryBtn.onclick=function(){
   var redo=[];

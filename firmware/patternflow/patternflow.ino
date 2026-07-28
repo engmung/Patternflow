@@ -68,6 +68,14 @@ uint32_t knobMapDrawnAtMs = 0;
 bool knobMapDirty = false;
 uint32_t knobMapActiveAtMs[4] = {0, 0, 0, 0};
 
+// Shown whenever no pattern is resident: the web console paused it, or a module
+// refused to load. Before this the render loop simply drew nothing and flipped
+// the buffer anyway, so the panel showed a torn, flickering leftover frame —
+// which read as "the pattern is broken" even when the cause was just an open
+// browser tab.
+uint32_t pausedDrawnAtMs = 0;
+bool pausedDirty = true;
+
 // UPDATE screen: entered from the NETWORK screen by turning K4. While it
 // shows, the /update endpoint is ARMED — that is the whole security model
 // (see core_web_update.h): flashing over the LAN requires someone at the
@@ -166,6 +174,38 @@ void setup() {
 
 const char* currentContentName() {
   return patterns[currentPatternIdx].name;
+}
+
+// Pattern names are UTF-8 — a community pattern is as likely to be called
+// "Dynamic Moiré" as "Origin" — but the panel's font is a 5x7 ASCII table.
+// Handed the raw bytes it draws one wrong glyph per byte, so "Moiré" came out
+// as "MoirÃ©". Fold the Latin-1 letters onto their base character and reduce
+// anything else to one '?', so a name is always readable and never explodes
+// into noise. The JSON APIs keep the real UTF-8 name; this is display only.
+void asciiFold(const char* source, char* out, size_t capacity) {
+  static const char* const LATIN1 =
+      "AAAAAAACEEEEIIII"   // C0-CF
+      "DNOOOOOxOUUUUYPs"   // D0-DF
+      "aaaaaaaceeeeiiii"   // E0-EF
+      "dnooooo/ouuuuypy";  // F0-FF
+  size_t w = 0;
+  for (const uint8_t* p = (const uint8_t*)source; *p && w + 1 < capacity; ) {
+    uint8_t c = *p;
+    if (c >= 0x20 && c <= 0x7e) {
+      out[w++] = (char)c;
+      p++;
+    } else if ((c == 0xc3) && p[1]) {
+      // Two-byte Latin-1 supplement: 0xC3 0x80..0xBF maps to U+00C0..U+00FF.
+      out[w++] = LATIN1[p[1] & 0x3f];
+      p += 2;
+    } else {
+      out[w++] = '?';
+      // Skip the whole multi-byte sequence so one character yields one '?'.
+      p++;
+      while ((*p & 0xc0) == 0x80) p++;
+    }
+  }
+  out[w] = '\0';
 }
 
 void drawCenteredText(const char* text, int y, uint16_t color, int textSize = 1) {
@@ -320,6 +360,56 @@ void drawNetworkInfo() {
   dma_display->setRotation(0);
 }
 
+// Shown when no pattern is resident. Two causes, and the difference matters to
+// whoever is standing in front of the panel:
+//
+//   CONSOLE MODE   a browser has a console page open, so the pattern module was
+//                  evicted to give the web server the RAM it needs (see
+//                  core_patterns_http.h). Resumes on its own.
+//   PATTERN FAILED a module refused to load. The loader's reason is printed,
+//                  because "it just doesn't work" is the least useful bug report
+//                  and this turns it into a specific one.
+//
+// Drawn PORTRAIT like the other info screens.
+void drawPausedScreen() {
+  dma_display->setRotation(1);
+  dma_display->fillScreen(0);
+
+  const int w = dma_display->width();
+  const int h = dma_display->height();
+  const bool consolePaused = PatternflowPatternsHttp::isConsolePaused();
+  const char* reason = PFModuleLoader::error();
+
+  drawScreenHeader(consolePaused ? "CONSOLE" : "PATTERN");
+
+  if (consolePaused) {
+    drawCenteredText("PAUSED", 26, pfWhiteC(), 1);
+    drawCenteredText("web console", 42, pfDimC(), 1);
+    drawCenteredText("is open", 52, pfDimC(), 1);
+    dma_display->drawFastHLine(4, h - 28, w - 8, pfRuleC());
+    drawCenteredText("RESUMES", h - 23, pfDimC(), 1);
+    drawCenteredText("WHEN DONE", h - 13, pfDimC(), 1);
+  } else {
+    drawCenteredText("FAILED", 26, pfRedC(), 1);
+    // The reason can be long (a missing symbol name); wrap it across the
+    // 64px-wide portrait screen rather than clipping it to nothing.
+    if (reason && reason[0]) {
+      char line[12];
+      int y = 44;
+      for (size_t i = 0; reason[i] && y < h - 26; i += 10, y += 10) {
+        size_t n = 0;
+        while (n < 10 && reason[i + n]) { line[n] = reason[i + n]; n++; }
+        line[n] = '\0';
+        drawCenteredText(line, y, pfGrayC(), 1);
+      }
+    }
+    dma_display->drawFastHLine(4, h - 18, w - 8, pfRuleC());
+    drawCenteredText("TURN K4", h - 13, pfDimC(), 1);
+  }
+
+  dma_display->setRotation(0);
+}
+
 // UPDATE screen (NETWORK screen → turn K4). Drawn PORTRAIT like the other
 // info screens. Idle: shows where to drop the .bin — the .local name AND
 // the raw IP, because mDNS is unreliable on Android (issue #232). During
@@ -462,7 +552,8 @@ void drawSelectingMode() {
     dma_display->fillRect(mx, ty - 1, 3, 3, pfLedC());
   }
 
-  const char* name = patterns[currentPatternIdx].name;
+  char name[MODULE_NAME_BYTES];
+  asciiFold(patterns[currentPatternIdx].name, name, sizeof(name));
   int nameSize = strlen(name) > 8 ? 1 : 2;
   int16_t x1, y1;
   uint16_t w, h;
@@ -858,7 +949,18 @@ void loop() {
     } else {
       frameDrawn = false;
     }
+  } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
+    // Same throttled-redraw scheme as the info screens: this is static text and
+    // repainting it every loop races the panel scanout.
+    if (pausedDirty || (now - pausedDrawnAtMs) >= NET_INFO_REDRAW_MS) {
+      drawPausedScreen();
+      pausedDrawnAtMs = now;
+      pausedDirty = false;
+    } else {
+      frameDrawn = false;
+    }
   } else if (currentMode == MODE_RUNNING) {
+    pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
 

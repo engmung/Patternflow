@@ -28,6 +28,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+# The worker captures this output and the console here may be cp949, while
+# pattern names legitimately contain accents, CJK and emoji. Emit UTF-8 and
+# never let an unprintable character turn a successful build into a crash.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 ROOT = Path(__file__).resolve().parents[1]          # firmware/
 SKETCH = ROOT / "patternflow"
 ABI = SKETCH / "abi"

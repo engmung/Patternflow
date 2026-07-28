@@ -150,6 +150,20 @@ inline LoadedSection* sectionByIndex(uint16_t index) {
   return nullptr;
 }
 
+// Which loaded section a relocated pointer lands in, or nullptr if it points
+// outside the module image entirely — which is what a broken relocation
+// actually looks like.
+inline const LoadedSection* sectionContaining(const void* address) {
+  const uint8_t* p = static_cast<const uint8_t*>(address);
+  for (int i = 0; i < sectionCount; ++i) {
+    const LoadedSection& section = sections[i];
+    if (section.memory && p >= section.memory && p < section.memory + section.size) {
+      return &section;
+    }
+  }
+  return nullptr;
+}
+
 // A partial link normally keeps the SHT_INIT_ARRAY type, but match the name
 // too: some toolchains hand the orphan section through as plain PROGBITS and
 // silently skipping it would mean skipping a module's constructors.
@@ -187,6 +201,15 @@ inline uintptr_t mapDefinedSymbol(const Elf32Sym& symbol) {
   if (!section || symbol.value > section->size) return 0;
   return (uintptr_t)section->memory + symbol.value;
 }
+
+// A module reaching for raw malloc would take memory the loader never gets back
+// on unload — a leak per pattern switch. Route the C allocators through the
+// module allocator, which is freed wholesale when the module is dropped. free()
+// is a no-op for the same reason unload() exists.
+inline void* moduleAlloc(size_t bytes);  // defined below
+inline void* pfModuleMalloc(size_t bytes) { return moduleAlloc(bytes); }
+inline void* pfModuleCalloc(size_t count, size_t size) { return moduleAlloc(count * size); }
+inline void pfModuleFree(void*) {}
 
 #define PF_HOST_SYMBOL(name) \
   if (strcmp(symbol, #name) == 0) return (uintptr_t)(void*)(&name)
@@ -273,6 +296,21 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(memcmp);
   PF_HOST_SYMBOL(strlen);
   PF_HOST_SYMBOL(strcmp);
+  PF_HOST_SYMBOL(strncmp);
+  PF_HOST_SYMBOL(snprintf);
+
+  // stdlib. A real community pattern (Rocket Flight) failed to load for want of
+  // rand() alone, which is exactly the kind of one-symbol cliff worth removing
+  // in bulk rather than one report at a time.
+  PF_HOST_SYMBOL(rand);
+  PF_HOST_SYMBOL(srand);
+  PF_HOST_FN(abs, int (*)(int));
+  PF_HOST_FN(labs, long (*)(long));
+
+  // Allocators, routed through the module's tracked heap (see the shims above).
+  if (strcmp(symbol, "malloc") == 0) return (uintptr_t)(void*)(&pfModuleMalloc);
+  if (strcmp(symbol, "calloc") == 0) return (uintptr_t)(void*)(&pfModuleCalloc);
+  if (strcmp(symbol, "free") == 0) return (uintptr_t)(void*)(&pfModuleFree);
   return 0;
 }
 
@@ -381,6 +419,47 @@ inline uint32_t lastReadUs = 0;
 inline uint32_t lastRelocateUs = 0;
 inline uint32_t lastSetupUs = 0;
 inline uint32_t lastTotalUs = 0;
+
+// Cheap structural check on a freshly written .pfm, without loading it.
+//
+// The upload path used to answer "ok" as soon as the bytes were received, so a
+// truncated or corrupted module reported success and only revealed itself when
+// the knob reached it. Validating the header at upload time makes the reply
+// mean something: a file that passes this is at least the right kind of object
+// for this device.
+inline bool looksLikeModule(fs::FS& filesystem, const char* path, char* why, size_t whySize) {
+  File file = filesystem.open(path, FILE_READ);
+  if (!file) {
+    snprintf(why, whySize, "cannot reopen after write");
+    return false;
+  }
+  Elf32Ehdr header;
+  size_t got = file.read(reinterpret_cast<uint8_t*>(&header), sizeof(header));
+  size_t size = file.size();
+  file.close();
+
+  if (got != sizeof(header)) {
+    snprintf(why, whySize, "too small to be a module (%u bytes)", (unsigned)size);
+    return false;
+  }
+  uint32_t magic;
+  memcpy(&magic, header.ident, sizeof(magic));
+  if (magic != ELF_MAGIC) {
+    snprintf(why, whySize, "not an ELF file (corrupt upload?)");
+    return false;
+  }
+  if (header.type != ET_REL || header.machine != EM_XTENSA) {
+    snprintf(why, whySize, "wrong ELF kind - rebuild with build_module.py");
+    return false;
+  }
+  // Section headers live at the END of the image, so this catches the
+  // truncation a plain size check would miss.
+  if (header.shoff + (uint32_t)header.shnum * sizeof(Elf32Shdr) > size) {
+    snprintf(why, whySize, "truncated - section table past end of file");
+    return false;
+  }
+  return true;
+}
 
 inline bool load(fs::FS& filesystem, const char* path) {
   unload();
@@ -619,18 +698,26 @@ inline bool load(fs::FS& filesystem, const char* path) {
   }
   // Guard against a still-broken string reloc: a bad NAME pointer used to
   // hang inside printf and trip the interrupt watchdog with no backtrace.
+  //
+  // The question is "does this pointer land inside the module image and
+  // terminate there", never "is the text ASCII". Testing for printable ASCII
+  // is what the first version did, and it rejected every pattern whose NAME
+  // carried an accent or CJK: "Dynamic Moiré" was reported as a reloc bug
+  // with the relocation perfectly intact. Names are UTF-8 and may be
+  // anything; only the panel's font is ASCII, and that is a drawing concern.
   {
     const char* name = active->name;
-    bool ok = true;
-    for (int i = 0; i < 64; ++i) {
-      char c = name[i];
-      if (c == '\0') { ok = i > 0; break; }
-      if ((uint8_t)c < 0x20 || (uint8_t)c > 0x7e) { ok = false; break; }
-      if (i == 63) ok = false;
-    }
-    if (!ok) {
+    const LoadedSection* owner = sectionContaining(name);
+    if (!owner) {
       unload();
-      return fail("module name pointer looks corrupt (reloc bug)");
+      return fail("module name points outside the image (reloc bug)");
+    }
+    const size_t room = owner->size - (size_t)((const uint8_t*)name - owner->memory);
+    size_t length = 0;
+    while (length < room && name[length] != '\0') length++;
+    if (length == 0 || length == room) {
+      unload();
+      return fail("module name is empty or unterminated (reloc bug)");
     }
   }
   Serial.printf("[MODULE] setup %s...\n", active->name);

@@ -116,8 +116,67 @@ inline void restoreSelection() {
 // from loop(), outside any HTTP transaction — performs it.
 inline uint32_t reloadRequestedAtMs = 0;
 inline uint32_t lastUploadActivityMs = 0;
+inline uint32_t lastConsoleActivityMs = 0;
+
+// How long the console has to go quiet before the paused pattern comes back.
+// Long enough to read a page and click something, short enough that walking
+// away restores the panel on its own.
+constexpr uint32_t CONSOLE_IDLE_RESTORE_MS = 25000;
 
 inline void requestReload() { reloadRequestedAtMs = millis(); }
+
+// True while a console page has the pattern module evicted. The sketch draws a
+// CONSOLE PAUSED screen instead of a torn frame when this is set.
+inline bool isConsolePaused() { return restorePending; }
+
+// A resident module and the web console cannot both have the RAM they need.
+//
+// Measured on a 128x64 board: with a module loaded, internal heap sits at
+// ~4.9 KB and the server can only push ~5.6 KB of a response — /patterns
+// (15.9 KB) arrives truncated, its script cut mid-statement, and the page
+// renders blank while every API underneath answers fine. Unload the module and
+// the same page arrives whole in 0.47 s at ~11.9 KB free.
+//
+// So opening a console page pauses the pattern: the module is evicted, the
+// panel falls back to a preset, and tick() brings the module back once the
+// console has been idle. Loading a module costs 6-11 ms, so the churn is
+// invisible. Tried and rejected first: spilling module data to PSRAM (reboots
+// the device) and chunked page sends (delivers less, not more).
+// Returns true when this call is what evicted the module — the caller should
+// then serve the interstitial below rather than the real page.
+//
+// Freeing the module's RAM does not help the request that triggered it: that
+// connection's send path is already constrained and still truncates. One tiny
+// page and one reload later, the heap is back and everything serves normally.
+inline bool noteConsolePageOpened() {
+  lastConsoleActivityMs = millis();
+  const bool hadModule = PFModuleLoader::active != nullptr;
+  captureSelectionOnce();
+  return hadModule;
+}
+
+// Deliberately tiny — it has to fit in the ~5.6 KB a starved send can manage.
+inline void sendConsoleWakePage() {
+  server().sendHeader("Cache-Control", "no-store");
+  server().send(200, "text/html",
+                F("<!doctype html><meta charset=utf-8>"
+                  "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                  "<title>Patternflow</title>"
+                  "<style>body{background:#F4EFE6;color:#6B655A;font:14px/1.5 "
+                  "ui-sans-serif,system-ui,sans-serif;display:flex;height:100vh;"
+                  "margin:0;align-items:center;justify-content:center;text-align:center}"
+                  "b{color:#141414;font-weight:600}</style>"
+                  "<div><b>Pausing the pattern&hellip;</b><br>"
+                  "freeing memory for the console<br>"
+                  "<small>the pattern resumes when you are done</small></div>"
+                  "<script>setTimeout(function(){location.reload()},400)</script>"));
+}
+
+// API calls are small enough to serve with a module loaded, so they only keep
+// the console "in use" — they never evict anything themselves.
+inline void noteConsoleApiCall() {
+  if (restorePending) lastConsoleActivityMs = millis();
+}
 
 inline void tick() {
   if (reloadRequestedAtMs && millis() - reloadRequestedAtMs >= 150) {
@@ -132,6 +191,15 @@ inline void tick() {
       millis() - lastUploadActivityMs > 5000) {
     lastUploadActivityMs = 0;
     Serial.println("[PATTERNS-HTTP] batch abandoned - restoring");
+    restoreSelection();
+    return;
+  }
+  // Console finished with: give the pattern back.
+  if (restorePending && !reloadRequestedAtMs && !lastUploadActivityMs &&
+      lastConsoleActivityMs &&
+      millis() - lastConsoleActivityMs > CONSOLE_IDLE_RESTORE_MS) {
+    lastConsoleActivityMs = 0;
+    Serial.println("[PATTERNS-HTTP] console idle - resuming pattern");
     restoreSelection();
   }
 }
@@ -183,11 +251,13 @@ inline void handleFormat() {
 }
 
 inline void handleIndex() {
+  if (noteConsolePageOpened()) { sendConsoleWakePage(); return; }
   server().sendHeader("Cache-Control", "no-store");
   server().send_P(200, "text/html", PATTERNS_INDEX_HTML);
 }
 
 inline void handleList() {
+  noteConsoleApiCall();
   String json = "{\"active\":";
   json += activePatternIdx;
   json += ",\"presets\":";
@@ -338,10 +408,10 @@ inline void handlePutBody() {
 
   if (raw.status == RAW_START) {
     uploadFailed = false;
-    uploadError[0] = ' ';
+    uploadError[0] = '\0';
     uploadBytes = 0;
-    uploadPath[0] = ' ';
-    uploadSlug[0] = ' ';
+    uploadPath[0] = '\0';
+    uploadSlug[0] = '\0';
     if (uploadFile) uploadFile.close();
 
     String name = server().header("X-PF-Name");
@@ -434,6 +504,25 @@ inline void handleUploadDone() {
     if (lastInBatch && restorePending) requestReload();
     sendJsonAndClose(400, "{\"ok\":false,\"error\":\"empty upload\"}");
     return;
+  }
+
+  // "The bytes arrived" is not "the module is good". Re-read what was written
+  // and check it is structurally a module before answering ok — otherwise a
+  // truncated or corrupted upload reports success and only reveals itself when
+  // somebody turns the knob to it.
+  bool isModule = strstr(uploadPath, ".pfm") != nullptr;
+  if (isModule) {
+    char why[80];
+    if (!PFModuleLoader::looksLikeModule(FFat, uploadPath, why, sizeof(why))) {
+      FFat.remove(uploadPath);
+      Serial.printf("[PATTERNS-HTTP] rejected %s: %s\n", uploadPath, why);
+      if (lastInBatch && restorePending) requestReload();
+      String body = "{\"ok\":false,\"error\":\"";
+      body += why;
+      body += "\"}";
+      sendJsonAndClose(400, body);
+      return;
+    }
   }
 
   if (lastInBatch) requestReload();
