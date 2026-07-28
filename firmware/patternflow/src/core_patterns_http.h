@@ -17,7 +17,6 @@
 #pragma once
 
 #include "../net_config.h"
-#include "core_http_send.h"
 
 #ifndef PF_PATTERNS_HTTP_ENABLED
 #define PF_PATTERNS_HTTP_ENABLED 1
@@ -126,24 +125,55 @@ constexpr uint32_t CONSOLE_IDLE_RESTORE_MS = 25000;
 
 inline void requestReload() { reloadRequestedAtMs = millis(); }
 
-// True while an upload batch has the pattern module evicted. The sketch draws
-// a PAUSED screen instead of a torn frame when this is set.
+// True while a console page has the pattern module evicted. The sketch draws a
+// CONSOLE PAUSED screen instead of a torn frame when this is set.
 inline bool isConsolePaused() { return restorePending; }
 
-// Opening a console page used to evict the running module, because a starved
-// heap could only push ~5.6 KB of a 15.9 KB page and the rest was silently
-// dropped. core_http_send.h fixes that at the source — the body now goes out
-// in small slices with a wall-clock deadline instead of a retry count — so
-// pages serve with a module resident and browsing the console no longer
-// interrupts the pattern.
+// A resident module and the web console cannot both have the RAM they need.
 //
-// Uploads still evict (see captureSelectionOnce): that is the receive path,
-// where the body has to be buffered and parsed, and it needs the RAM for a
-// different reason.
-inline void noteConsolePageOpened() { lastConsoleActivityMs = millis(); }
+// Measured on a 128x64 board: with a module loaded, internal heap sits at
+// ~4.9 KB and the server can only push ~5.6 KB of a response — /patterns
+// (15.9 KB) arrives truncated, its script cut mid-statement, and the page
+// renders blank while every API underneath answers fine. Unload the module and
+// the same page arrives whole in 0.47 s at ~11.9 KB free.
+//
+// So opening a console page pauses the pattern: the module is evicted, the
+// panel falls back to a preset, and tick() brings the module back once the
+// console has been idle. Loading a module costs 6-11 ms, so the churn is
+// invisible. Tried and rejected first: spilling module data to PSRAM (reboots
+// the device) and chunked page sends (delivers less, not more).
+// Returns true when this call is what evicted the module — the caller should
+// then serve the interstitial below rather than the real page.
+//
+// Freeing the module's RAM does not help the request that triggered it: that
+// connection's send path is already constrained and still truncates. One tiny
+// page and one reload later, the heap is back and everything serves normally.
+inline bool noteConsolePageOpened() {
+  lastConsoleActivityMs = millis();
+  const bool hadModule = PFModuleLoader::active != nullptr;
+  captureSelectionOnce();
+  return hadModule;
+}
 
-// Keeps the console "in use" so an upload batch's restore does not fire while
-// somebody is still clicking around.
+// Deliberately tiny — it has to fit in the ~5.6 KB a starved send can manage.
+inline void sendConsoleWakePage() {
+  server().sendHeader("Cache-Control", "no-store");
+  server().send(200, "text/html",
+                F("<!doctype html><meta charset=utf-8>"
+                  "<meta name=viewport content='width=device-width,initial-scale=1'>"
+                  "<title>Patternflow</title>"
+                  "<style>body{background:#F4EFE6;color:#6B655A;font:14px/1.5 "
+                  "ui-sans-serif,system-ui,sans-serif;display:flex;height:100vh;"
+                  "margin:0;align-items:center;justify-content:center;text-align:center}"
+                  "b{color:#141414;font-weight:600}</style>"
+                  "<div><b>Pausing the pattern&hellip;</b><br>"
+                  "freeing memory for the console<br>"
+                  "<small>the pattern resumes when you are done</small></div>"
+                  "<script>setTimeout(function(){location.reload()},400)</script>"));
+}
+
+// API calls are small enough to serve with a module loaded, so they only keep
+// the console "in use" — they never evict anything themselves.
 inline void noteConsoleApiCall() {
   if (restorePending) lastConsoleActivityMs = millis();
 }
@@ -197,7 +227,7 @@ inline bool slugFromFilename(const String& filename, char* slug, size_t slugSize
 
 inline void sendJson(int code, const String& body) {
   server().sendHeader("Cache-Control", "no-store");
-  PatternflowHttpSend::sendLarge(server(), code, "application/json", body);
+  server().send(code, "application/json", body);
 }
 
 // NOTE: an earlier revision force-closed the connection after each upload
@@ -221,10 +251,9 @@ inline void handleFormat() {
 }
 
 inline void handleIndex() {
-  noteConsolePageOpened();
+  if (noteConsolePageOpened()) { sendConsoleWakePage(); return; }
   server().sendHeader("Cache-Control", "no-store");
-  PatternflowHttpSend::sendLarge(server(), 200, "text/html", PATTERNS_INDEX_HTML,
-                                strlen_P(PATTERNS_INDEX_HTML));
+  server().send_P(200, "text/html", PATTERNS_INDEX_HTML);
 }
 
 inline void handleList() {

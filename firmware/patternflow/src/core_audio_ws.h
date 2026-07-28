@@ -27,7 +27,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include "core_http_send.h"
 #include "config.h"
 
 #if PF_AUDIO_ENABLED
@@ -43,7 +42,8 @@
 // header is included first, so only the declaration is available here. The
 // definition lands later in the same translation unit.
 namespace PatternflowPatternsHttp {
-void noteConsolePageOpened();
+bool noteConsolePageOpened();
+void sendConsoleWakePage();
 }
 
 namespace PatternflowAudio {
@@ -154,15 +154,16 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
 // one from a load interrupted by the post-flash reboot) must never stick.
 inline void handleRoot() {
   httpServer.sendHeader("Cache-Control", "no-store");
-  PatternflowPatternsHttp::noteConsolePageOpened();
-  PatternflowHttpSend::sendLarge(httpServer, 200, "text/html", HOME_INDEX_HTML,
-                                strlen_P(HOME_INDEX_HTML));
+  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
+    PatternflowPatternsHttp::sendConsoleWakePage();
+    return;
+  }
+  httpServer.send_P(200, "text/html", HOME_INDEX_HTML);
 }
 
 inline void handleAudio() {
   httpServer.sendHeader("Cache-Control", "no-store");
-  PatternflowHttpSend::sendLarge(httpServer, 200, "text/html", AUDIO_INDEX_HTML,
-                                strlen_P(AUDIO_INDEX_HTML));
+  httpServer.send_P(200, "text/html", AUDIO_INDEX_HTML);
 }
 
 #endif  // PF_AUDIO_ENABLED

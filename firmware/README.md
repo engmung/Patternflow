@@ -340,38 +340,26 @@ far, each confirmed by A/B on hardware:
    module unloaded    internal heap 11,852   /patterns whole (15,903 B), 0.43 s
    ```
 
-   The mechanism, read out of the core rather than inferred:
-   `NetworkClient::write()` sends with `MSG_DONTWAIT` and counts
-   *consecutive* non-writable selects. After `WIFI_CLIENT_MAX_WRITE_RETRY`
-   (10) of them, each with a `WIFI_CLIENT_SELECT_TIMEOUT_US` (1 s) timeout,
-   it returns however many bytes it managed — 10 s, then a partial write.
-   `WebServer::send_P` never checks that count, so the page simply arrives
-   short: the HTML renders, its script is cut mid-statement and never runs,
-   and the console looks blank while every API underneath answers fine.
+   5,633 B is four TCP segments — one bufferful. Under a starved heap the
+   one-shot `send()` fills that and gives up, and the client waits out the
+   timeout holding half a page. The HTML renders, its script is cut
+   mid-statement and never runs, and the console looks blank while every API
+   underneath answers fine.
 
-   **Fixed in `core_http_send.h`.** Bodies go out in 512-byte slices, so
-   lwIP only has to find one small pbuf at a time, and patience is a wall
-   clock rather than a retry count — any forward progress resets the
-   deadline. Every page and the two JSON lists route through
-   `PatternflowHttpSend::sendLarge()`. Measured after: `/patterns` (15,903 B)
-   in 144 ms, versus 430 ms for the same page on a *healthy* heap before.
-   Console pages no longer touch the module, so browsing the console does
-   not interrupt the pattern.
+   The console therefore **pauses the pattern**: opening any console page
+   evicts the module, and `tick()` restores it after 25 s of console
+   silence (`core_patterns_http.h`). The request that triggers the eviction
+   cannot be rescued — its send path is already constrained — so it gets a
+   552-byte interstitial that reloads itself.
 
-   Uploads still evict the module (`captureSelectionOnce`) — that is the
-   *receive* path, where the body has to be buffered and parsed, and this
-   fix does not address it. That is the pause the panel now labels
-   INSTALLING.
-
-   Two other fixes were tried and **do not work**; do not retry them:
+   Two fixes were tried and **do not work**; do not retry them:
    - Spilling module data sections to PSRAM to spare internal RAM — reboots
      the device the moment a module is selected.
    - Chunked transfer encoding — delivers *less*, not more (one 1 KB chunk,
      or nothing), with or without pacing between chunks.
 
-   An async server (ESPAsyncWebServer or esp-idf httpd) is still the answer
-   for the *one-client* limit and for upload pacing; it is no longer needed
-   for page delivery.
+   The real fix remains an async server (ESPAsyncWebServer or esp-idf httpd),
+   which would also lift the one-client and pacing limits.
 
 ### Adding a console page
 
@@ -386,11 +374,10 @@ smallest example): one `core_<name>_http.h` that attaches routes in a
   extract the `<script>` body and run `node --check` on it. A single stray
   newline in a string once shipped a page whose script never ran — the page
   rendered but showed nothing, which reads as "the device is broken".
-- **Send the body with `PatternflowHttpSend::sendLarge()`, not `send_P()`.**
-  A one-shot `send()` silently truncates a page larger than one TCP bufferful
-  when a module is resident (see point 6 above). Also call
-  `PatternflowPatternsHttp::noteConsolePageOpened()` so an upload batch's
-  auto-restore does not fire while somebody is still using the console.
+- Keep pages lean, and call `PatternflowPatternsHttp::noteConsolePageOpened()`
+  first (see any existing page): a page over ~5.6 KB cannot be delivered while
+  a pattern module is resident. `/status` at 5.5 KB was the only page that
+  survived that state by accident.
 - **Never leave the render loop with nothing to draw.** If a screen decides not
   to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn
   leftover frame, which every tester reads as "the pattern is broken".
