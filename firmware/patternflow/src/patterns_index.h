@@ -79,6 +79,7 @@ font-family:var(--mono);font-size:11.5px}
 .actions{display:flex;gap:8px;margin-top:8px;align-items:center}
 input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
 #bulk{display:none}
+.bulkTop{margin:0 0 10px}
 .bulkNote{font-family:var(--mono);font-size:11px;color:var(--faint)}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
@@ -111,11 +112,11 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 
 <section>
   <h2>Installed</h2>
-  <ul id="list"></ul>
-  <div class="actions" id="bulk">
+  <div class="actions bulkTop" id="bulk">
     <button class="del" id="bulkDel">Delete selected</button>
     <span class="bulkNote" id="bulkN"></span>
   </div>
+  <ul id="list"></ul>
 </section>
 
 <footer>Presets are built into the firmware and cannot be removed here.

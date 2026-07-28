@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { useDeviceHost } from "@/lib/community/deviceHost";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
@@ -54,37 +55,7 @@ export default function BuildFirmwareModal({
   const [busy, setBusy] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
 
-  // "Send over Wi-Fi" hands the finished build to the device's own update
-  // page (#232). patternflow.local works on most platforms; Android can't
-  // resolve .local, so the address is editable and remembered. Lazy init:
-  // the modal only mounts client-side, so localStorage is readable here and
-  // no effect (hence no synchronous setState-in-effect) is needed.
-  const [deviceHost, setDeviceHost] = useState(() => {
-    if (typeof window === "undefined") return "patternflow.local";
-    try {
-      return window.localStorage.getItem("pf-device-host") ?? "patternflow.local";
-    } catch {
-      return "patternflow.local"; /* private mode */
-    }
-  });
-  const changeDeviceHost = (value: string) => {
-    setDeviceHost(value);
-    try {
-      window.localStorage.setItem("pf-device-host", value);
-    } catch {
-      /* private mode */
-    }
-  };
-  const wifiSendUrl = (id: string) => {
-    if (typeof window === "undefined") return "#";
-    // The device page fetches this URL itself, so it must be absolute even
-    // when the community API is same-origin.
-    const firmware = new URL(
-      communityApiUrl(`/api/community/builds/${id}/firmware`),
-      window.location.origin,
-    ).toString();
-    return `http://${deviceHost.trim()}/update?src=${encodeURIComponent(firmware)}`;
-  };
+  const { deviceHost, changeDeviceHost, updateUrl } = useDeviceHost();
 
   // Polling is stopped from inside its own callback, so it needs a handle that
   // survives re-renders.
@@ -272,7 +243,7 @@ export default function BuildFirmwareModal({
                   </a>
                   <a
                     className={styles.btn}
-                    href={wifiSendUrl(build.id)}
+                    href={updateUrl(build.id)}
                     target="_blank"
                     rel="noreferrer"
                   >
