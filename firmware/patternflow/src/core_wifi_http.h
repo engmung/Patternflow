@@ -18,6 +18,7 @@
 #pragma once
 
 #include "../net_config.h"
+#include "core_http_send.h"
 
 #ifndef PF_WIFI_HTTP_ENABLED
 #define PF_WIFI_HTTP_ENABLED 1
@@ -49,7 +50,7 @@ inline bool initialized = false;
 
 inline void sendJson(int code, const String& body) {
   server().sendHeader("Cache-Control", "no-store");
-  server().send(code, "application/json", body);
+  PatternflowHttpSend::sendLarge(server(), code, "application/json", body);
 }
 
 // Minimal JSON string escaping — an SSID may legitimately contain a quote or a
@@ -152,11 +153,9 @@ inline void handleDelete() {
 
 inline void handleIndex() {
   server().sendHeader("Cache-Control", "no-store");
-  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
-    PatternflowPatternsHttp::sendConsoleWakePage();
-    return;
-  }
-  server().send_P(200, "text/html", WIFI_INDEX_HTML);
+  PatternflowPatternsHttp::noteConsolePageOpened();
+  PatternflowHttpSend::sendLarge(server(), 200, "text/html", WIFI_INDEX_HTML,
+                                strlen_P(WIFI_INDEX_HTML));
 }
 
 inline void begin() {

@@ -363,9 +363,12 @@ void drawNetworkInfo() {
 // Shown when no pattern is resident. Two causes, and the difference matters to
 // whoever is standing in front of the panel:
 //
-//   CONSOLE MODE   a browser has a console page open, so the pattern module was
-//                  evicted to give the web server the RAM it needs (see
-//                  core_patterns_http.h). Resumes on its own.
+//   INSTALLING     an upload batch is in progress, so the pattern module was
+//                  evicted to free the RAM the receive path needs (see
+//                  core_patterns_http.h). Resumes on its own when the batch
+//                  ends. Merely *browsing* the console no longer pauses
+//                  anything - core_http_send.h made large pages deliverable
+//                  with a module resident.
 //   PATTERN FAILED a module refused to load. The loader's reason is printed,
 //                  because "it just doesn't work" is the least useful bug report
 //                  and this turns it into a specific one.
@@ -380,12 +383,12 @@ void drawPausedScreen() {
   const bool consolePaused = PatternflowPatternsHttp::isConsolePaused();
   const char* reason = PFModuleLoader::error();
 
-  drawScreenHeader(consolePaused ? "CONSOLE" : "PATTERN");
+  drawScreenHeader(consolePaused ? "INSTALLING" : "PATTERN");
 
   if (consolePaused) {
-    drawCenteredText("PAUSED", 26, pfWhiteC(), 1);
-    drawCenteredText("web console", 42, pfDimC(), 1);
-    drawCenteredText("is open", 52, pfDimC(), 1);
+    drawCenteredText("PATTERNS", 26, pfWhiteC(), 1);
+    drawCenteredText("receiving", 42, pfDimC(), 1);
+    drawCenteredText("over Wi-Fi", 52, pfDimC(), 1);
     dma_display->drawFastHLine(4, h - 28, w - 8, pfRuleC());
     drawCenteredText("RESUMES", h - 23, pfDimC(), 1);
     drawCenteredText("WHEN DONE", h - 13, pfDimC(), 1);

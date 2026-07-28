@@ -14,6 +14,7 @@
 #pragma once
 
 #include "../net_config.h"
+#include "core_http_send.h"
 
 #ifndef PF_STATUS_HTTP_ENABLED
 #define PF_STATUS_HTTP_ENABLED 1
@@ -125,16 +126,14 @@ inline void handleStatus() {
   json += "}}";
 
   server().sendHeader("Cache-Control", "no-store");
-  server().send(200, "application/json", json);
+  PatternflowHttpSend::sendLarge(server(), 200, "application/json", json);
 }
 
 inline void handleIndex() {
   server().sendHeader("Cache-Control", "no-store");
-  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
-    PatternflowPatternsHttp::sendConsoleWakePage();
-    return;
-  }
-  server().send_P(200, "text/html", STATUS_INDEX_HTML);
+  PatternflowPatternsHttp::noteConsolePageOpened();
+  PatternflowHttpSend::sendLarge(server(), 200, "text/html", STATUS_INDEX_HTML,
+                                strlen_P(STATUS_INDEX_HTML));
 }
 
 inline void begin() {

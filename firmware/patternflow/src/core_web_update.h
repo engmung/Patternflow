@@ -37,6 +37,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "core_http_send.h"
 #include "config.h"
 #include "core_wifi.h"
 
@@ -241,7 +242,8 @@ inline void begin() {
     // no-store: the page ships inside the firmware and changes with it; a
     // cached (or reboot-truncated) copy must never stick in the browser.
     server().sendHeader("Cache-Control", "no-store");
-    server().send_P(200, "text/html", WEB_UPDATE_HTML);
+    PatternflowHttpSend::sendLarge(server(), 200, "text/html", WEB_UPDATE_HTML,
+                                  strlen_P(WEB_UPDATE_HTML));
   });
   server().on("/update", HTTP_POST, handleUploadDone, handleUpload);
   server().on("/update/status", HTTP_GET, handleStatus);
