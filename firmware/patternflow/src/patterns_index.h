@@ -97,6 +97,8 @@ a{color:var(--muted)}
   <div id="msg"></div>
   <div class="actions">
     <button class="del" id="retry" style="display:none">Retry failed</button>
+    <button class="del" id="fmt" style="display:none">Format storage</button>
+    <span class="bulkNote" id="fmtNote"></span>
   </div>
 </section>
 
@@ -133,7 +135,13 @@ function say(t,cls){msg.textContent=t;msg.className=cls||''}
 
 function load(){
   fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
-    fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'FS not mounted';
+    fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'storage not mounted';
+    // A board whose pattern partition was never formatted cannot store
+    // modules. Formatting is deliberate and destructive, so it is a button
+    // rather than something the firmware does behind your back.
+    $('fmt').style.display=d.mounted?'none':'';
+    $('fmtNote').textContent=d.mounted?'':
+      'this board has never stored patterns - format once to start';
     listEl.innerHTML='';
     d.patterns.forEach(function(p){
       var li=document.createElement('li');
@@ -304,6 +312,17 @@ function startBatch(fileList){
   retryBtn.style.display='none';
   say('');renderQ();runQ(0);
 }
+
+$('fmt').onclick=function(){
+  if(!confirm('Format pattern storage? This erases every module on the device.'))return;
+  say('formatting...');
+  fetch('/api/patterns/format',{method:'POST'})
+    .then(function(r){return r.json()}).then(function(d){
+      say(d.ok?'storage ready - upload patterns now':(d.error||'format failed'),
+          d.ok?'good':'err');
+      setTimeout(load,900);
+    }).catch(function(){say('format failed','err')});
+};
 
 retryBtn.onclick=function(){
   var redo=[];

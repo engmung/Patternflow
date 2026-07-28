@@ -393,8 +393,14 @@ inline bool activatePattern(int index) {
   }
   // The loaded descriptor is authoritative; the sidecar name was only a guess
   // for the selection list.
-  snprintf(moduleNames[index - NUM_PRESETS], MODULE_NAME_BYTES, "%s",
-           PFModuleLoader::active->name);
+  // Module slot, not pattern index: the list is presets, then any build-service
+  // custom slots, THEN modules. Subtracting only NUM_PRESETS wrote the loaded
+  // name into the wrong slot on an image that has custom slots filled — which
+  // is exactly how a pattern ends up displaying somebody else's name.
+  const int moduleSlot = index - (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT);
+  if (moduleSlot >= 0 && moduleSlot < numModules) {
+    snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
+  }
   activePatternIdx = index;
   return true;
 }

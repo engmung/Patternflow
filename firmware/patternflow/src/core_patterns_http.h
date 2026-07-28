@@ -436,6 +436,25 @@ inline void handleUploadDone() {
     return;
   }
 
+  // "The bytes arrived" is not "the module is good". Re-read what was written
+  // and check it is structurally a module before answering ok — otherwise a
+  // truncated or corrupted upload reports success and only reveals itself when
+  // somebody turns the knob to it.
+  bool isModule = strstr(uploadPath, ".pfm") != nullptr;
+  if (isModule) {
+    char why[80];
+    if (!PFModuleLoader::looksLikeModule(FFat, uploadPath, why, sizeof(why))) {
+      FFat.remove(uploadPath);
+      Serial.printf("[PATTERNS-HTTP] rejected %s: %s\n", uploadPath, why);
+      if (lastInBatch && restorePending) requestReload();
+      String body = "{\"ok\":false,\"error\":\"";
+      body += why;
+      body += "\"}";
+      sendJsonAndClose(400, body);
+      return;
+    }
+  }
+
   if (lastInBatch) requestReload();
   Serial.printf("[PATTERNS-HTTP] uploaded %s (%u bytes, %d patterns)\n", uploadPath,
                 (unsigned)uploadBytes, NUM_PATTERNS);

@@ -382,6 +382,47 @@ inline uint32_t lastRelocateUs = 0;
 inline uint32_t lastSetupUs = 0;
 inline uint32_t lastTotalUs = 0;
 
+// Cheap structural check on a freshly written .pfm, without loading it.
+//
+// The upload path used to answer "ok" as soon as the bytes were received, so a
+// truncated or corrupted module reported success and only revealed itself when
+// the knob reached it. Validating the header at upload time makes the reply
+// mean something: a file that passes this is at least the right kind of object
+// for this device.
+inline bool looksLikeModule(fs::FS& filesystem, const char* path, char* why, size_t whySize) {
+  File file = filesystem.open(path, FILE_READ);
+  if (!file) {
+    snprintf(why, whySize, "cannot reopen after write");
+    return false;
+  }
+  Elf32Ehdr header;
+  size_t got = file.read(reinterpret_cast<uint8_t*>(&header), sizeof(header));
+  size_t size = file.size();
+  file.close();
+
+  if (got != sizeof(header)) {
+    snprintf(why, whySize, "too small to be a module (%u bytes)", (unsigned)size);
+    return false;
+  }
+  uint32_t magic;
+  memcpy(&magic, header.ident, sizeof(magic));
+  if (magic != ELF_MAGIC) {
+    snprintf(why, whySize, "not an ELF file (corrupt upload?)");
+    return false;
+  }
+  if (header.type != ET_REL || header.machine != EM_XTENSA) {
+    snprintf(why, whySize, "wrong ELF kind - rebuild with build_module.py");
+    return false;
+  }
+  // Section headers live at the END of the image, so this catches the
+  // truncation a plain size check would miss.
+  if (header.shoff + (uint32_t)header.shnum * sizeof(Elf32Shdr) > size) {
+    snprintf(why, whySize, "truncated - section table past end of file");
+    return false;
+  }
+  return true;
+}
+
 inline bool load(fs::FS& filesystem, const char* path) {
   unload();
   lastError[0] = '\0';
