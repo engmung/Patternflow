@@ -352,14 +352,31 @@ far, each confirmed by A/B on hardware:
    cannot be rescued — its send path is already constrained — so it gets a
    552-byte interstitial that reloads itself.
 
-   Two fixes were tried and **do not work**; do not retry them:
+   **This is a memory wall, not a pacing problem.** It is tempting to read
+   the 10 s stall as impatience — `NetworkClient::write()` really does send
+   with `MSG_DONTWAIT` and give up after `WIFI_CLIENT_MAX_WRITE_RETRY` (10)
+   non-writable selects of 1 s each, which is where the ten seconds comes
+   from. Rewriting the send path to be patient does not help, because the
+   number that matters is `heapLargest`: **3,060 bytes** with a module
+   resident. lwIP cannot allocate the pbufs, and no amount of waiting
+   creates them.
+
+   Three fixes were tried on hardware and **do not work**; do not retry them:
    - Spilling module data sections to PSRAM to spare internal RAM — reboots
      the device the moment a module is selected.
    - Chunked transfer encoding — delivers *less*, not more (one 1 KB chunk,
      or nothing), with or without pacing between chunks.
+   - 512-byte slices with a wall-clock deadline instead of a retry count
+     (`core_http_send.h`, reverted in bb8e52c) — delivers **3,072 B**, worse
+     than the 5,633 B it replaced, and still takes the full 10 s. It *is*
+     ~3× faster than `send_P` on a healthy heap, which is exactly the trap:
+     it measures beautifully in the condition that was never the problem.
 
-   The real fix remains an async server (ESPAsyncWebServer or esp-idf httpd),
-   which would also lift the one-client and pacing limits.
+   An async server (ESPAsyncWebServer or esp-idf httpd) would lift the
+   one-client and upload-pacing limits, but it shares this same lwIP heap —
+   do not expect it to make a 16 KB page deliverable on a 4.5 KB heap. The
+   only real levers on page delivery are using less internal RAM per module
+   or shrinking the pages.
 
 ### Adding a console page
 
