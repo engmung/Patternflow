@@ -94,7 +94,19 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-     
+
+  }, []);
+
+  // Tab changes use pushState so the 3D scene never remounts, which means the
+  // Next router never learns about them: its cache entry for a pushed URL still
+  // holds whichever page was rendered before the push. Leaving for a real route
+  // and coming back then restores that stale entry, and the panel disagrees
+  // with the address bar — /inside showing the hero, and so on. The URL is the
+  // truth here, so re-derive the tab from it once on mount.
+  useEffect(() => {
+    const fromUrl = tabFromPath(window.location.pathname);
+    if (fromUrl !== activeTabRef.current) applyTab(fromUrl);
+
   }, []);
 
   // Mirror the active tab into the store so the sibling 3D viewer panel knows

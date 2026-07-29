@@ -92,7 +92,7 @@ export default function Hero() {
             action at the journal index just split the same destination in two. */}
         <p className="hero-footnote">
           <Link
-            href="/journal/nam-june-paik-me-patternflow"
+            href="/journal/nam-june-paik-me-patternflow/en"
             onClick={() => captureEvent('hero_footnote_clicked', {
               surface: 'hero',
               destination: 'journal_nam_june_paik',
