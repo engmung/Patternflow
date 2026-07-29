@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
+import {
+  DESCRIPTION_MAX,
+  MADE_HOW_LABELS,
+  MADE_HOW_VALUES,
+  TITLE_MAX,
+  type MadeHow,
+} from "@/lib/community/validate";
 import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -18,6 +24,7 @@ export default function EditDetailsModal({
   initialDescription,
   initialLicense,
   initialMadeOn,
+  initialMadeHow,
   parentLicense,
   onClose,
 }: {
@@ -26,6 +33,7 @@ export default function EditDetailsModal({
   initialDescription: string | null;
   initialLicense: string; // SPDX
   initialMadeOn: string | null; // YYYY-MM-DD
+  initialMadeHow: string | null;
   /** Parent's SPDX id when this pattern is a fork — narrows what it may become. */
   parentLicense?: string | null;
   onClose: () => void;
@@ -35,6 +43,9 @@ export default function EditDetailsModal({
   const [description, setDescription] = useState(initialDescription ?? "");
   const [license, setLicense] = useState(initialLicense);
   const [madeOn, setMadeOn] = useState(initialMadeOn ?? "");
+  const [madeHow, setMadeHow] = useState<MadeHow | "">(
+    (initialMadeHow as MadeHow | null) ?? "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -64,7 +75,7 @@ export default function EditDetailsModal({
         method: "PATCH",
         ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmed, description, license, madeOn }),
+        body: JSON.stringify({ title: trimmed, description, license, madeOn, madeHow }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -127,6 +138,21 @@ export default function EditDetailsModal({
               When you actually made it, if that differs from the day you shared it. This is the
               date written into the licence header.
             </span>
+          </label>
+
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>How was it made?</span>
+            <select value={madeHow} onChange={(event) => setMadeHow(event.target.value as MadeHow)}>
+              {/* Blank stays available: patterns published before this field
+                  existed have no answer, and inventing one for them would be
+                  worse than leaving it unsaid. */}
+              <option value="">Not stated</option>
+              {MADE_HOW_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {MADE_HOW_LABELS[value]}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className={styles.field}>

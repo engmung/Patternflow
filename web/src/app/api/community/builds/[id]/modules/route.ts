@@ -78,7 +78,7 @@ async function handleGet(request: Request, context: { params: Promise<{ id: stri
 
   if (wantList || wantedFile) {
     // Unzipping per request instead of storing loose files keeps the artifact
-    // store one-file-per-build; a cart's zip is tens of KB, so this is cheap.
+    // store one-file-per-build; a deck's zip is tens of KB, so this is cheap.
     let entries: Record<string, Uint8Array>;
     try {
       entries = unzipSync(new Uint8Array(zip));

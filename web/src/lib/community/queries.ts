@@ -1,6 +1,6 @@
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { comments, likes, patterns, postComments, posts, user } from "./schema";
+import { comments, likes, patterns, postComments, posts, reports, user } from "./schema";
 
 // Server-side read helpers for the community pages. Pages query the SQLite
 // file directly through these — no GET API layer for a single-process app.
@@ -114,6 +114,7 @@ export async function getPattern(id: string) {
       codeCpp: patterns.codeCpp,
       license: patterns.license,
       madeOn: patterns.madeOn,
+      madeHow: patterns.madeHow,
       parentId: patterns.parentId,
       createdAt: patterns.createdAt,
       updatedAt: patterns.updatedAt,
@@ -148,6 +149,64 @@ export async function getPatternStub(id: string) {
     .where(eq(patterns.id, id))
     .limit(1);
   return rows[0] ?? null;
+}
+
+// ── Reports ──────────────────────────────────────────────────────────────────
+
+export type ReportRow = {
+  id: string;
+  targetType: string;
+  targetId: string;
+  targetTitle: string | null;
+  targetUserId: string | null;
+  reason: string;
+  detail: string | null;
+  status: string;
+  createdAt: Date;
+  reporterName: string | null;
+  /** How many times this author has been reported, across all their content. */
+  priorReports: number;
+};
+
+/**
+ * Reports for the moderation queue, newest first. `priorReports` is the reason
+ * the table exists at all — one complaint is noise, the same account appearing
+ * repeatedly is a pattern, and that is only visible if the count survives the
+ * removal of whatever was reported.
+ */
+export async function listReports(status: "open" | "all" = "open"): Promise<ReportRow[]> {
+  const priorReports = sql<number>`(
+    SELECT COUNT(*) FROM ${reports} AS prior
+    WHERE prior.target_user_id = ${reports.targetUserId}
+  )`;
+
+  return getDb()
+    .select({
+      id: reports.id,
+      targetType: reports.targetType,
+      targetId: reports.targetId,
+      targetTitle: reports.targetTitle,
+      targetUserId: reports.targetUserId,
+      reason: reports.reason,
+      detail: reports.detail,
+      status: reports.status,
+      createdAt: reports.createdAt,
+      reporterName: user.displayUsername,
+      priorReports,
+    })
+    .from(reports)
+    .leftJoin(user, eq(reports.reporterId, user.id))
+    .where(status === "open" ? eq(reports.status, "open") : undefined)
+    .orderBy(desc(reports.createdAt))
+    .limit(200);
+}
+
+export async function countOpenReports(): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(reports)
+    .where(eq(reports.status, "open"));
+  return rows[0]?.count ?? 0;
 }
 
 /** Ownership check for comment deletion, without loading the thread. */

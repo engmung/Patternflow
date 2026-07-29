@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
-import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
+import {
+  DESCRIPTION_MAX,
+  MADE_HOW_LABELS,
+  MADE_HOW_VALUES,
+  TITLE_MAX,
+  type MadeHow,
+} from "@/lib/community/validate";
 import {
   DEFAULT_LICENSE_ID,
   LICENSE_OPTIONS,
@@ -50,6 +56,7 @@ export default function PublishModal({
   const { data: session, isPending } = authClient.useSession();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [madeHow, setMadeHow] = useState<MadeHow>("ai-assisted");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -85,6 +92,7 @@ export default function PublishModal({
           code,
           codeCpp: codeCpp ?? undefined,
           license: licenseById(licenseId).spdx,
+          madeHow,
           parentId,
         }),
       });
@@ -97,6 +105,7 @@ export default function PublishModal({
         pattern_id: payload.id,
         is_fork: Boolean(parentId),
         license: licenseById(licenseId).spdx,
+        made_how: madeHow,
         code_length: code.length,
         with_header: Boolean(codeCpp),
       });
@@ -155,6 +164,25 @@ export default function PublishModal({
                 maxLength={DESCRIPTION_MAX}
                 onChange={(event) => setDescription(event.target.value)}
               />
+            </label>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>How was it made?</span>
+              <select
+                value={madeHow}
+                onChange={(event) => setMadeHow(event.target.value as MadeHow)}
+              >
+                {MADE_HOW_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {MADE_HOW_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              <span className={styles.fieldHint}>
+                Shown on your pattern. Using AI is not a mark against anything here — Pattern Lab
+                is built for it. Saying so plainly is what makes the answer worth having, and it
+                is recorded now because nobody can reconstruct it later.
+              </span>
             </label>
 
             <label className={styles.field}>

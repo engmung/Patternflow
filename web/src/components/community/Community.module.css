@@ -1652,37 +1652,7 @@
   overflow-wrap: anywhere;
 }
 
-/* ── Module cart ── */
-.cartList {
-  list-style: none;
-  margin: 0 0 12px;
-  padding: 0;
-  border-top: 1px solid var(--pf-rule-soft, #e5ddc9);
-}
-
-.cartRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 2px;
-  border-bottom: 1px solid var(--pf-rule-soft, #e5ddc9);
-  font-size: 14px;
-}
-
-.cartRow a {
-  color: inherit;
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cartRow a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
+/* ── Deck / saved lists ── */
 /* ── Mobile feed ──
    Static thumbnail wall: no hover exists, so cards drop their live sandboxes
    and knob overlays (see PatternCard `interactive`) and the page itself
@@ -1764,13 +1734,13 @@
   }
 }
 
-/* Add-to-cart on a feed card.
+/* Add-to-deck on a feed card.
    The card is one big link, so this floats over the thumbnail's corner rather
    than sitting in the meta row: it cannot reflow the layout, and it stays out
    of the knob overlay's way (which dodges to whichever half the cursor is
    not in). Visible on hover, and always visible once the pattern is in the
-   cart, so a full cart is readable at a glance without hovering every card. */
-.cardCartBtn {
+   deck, so a full deck is readable at a glance without hovering every card. */
+.cardDeckBtn {
   position: absolute;
   right: 8px;
   z-index: 3;
@@ -1794,33 +1764,33 @@
   font-size: 16px;
 }
 
-.cartBottom {
+.deckBottom {
   bottom: 8px;
   top: auto;
 }
 
-.cartTop {
+.deckTop {
   top: 8px;
   bottom: auto;
 }
 
-.card:hover .cardCartBtn,
-.cardCartBtn:focus-visible {
+.card:hover .cardDeckBtn,
+.cardDeckBtn:focus-visible {
   opacity: 1;
 }
 
-.cardCartBtn:hover {
+.cardDeckBtn:hover {
   background: rgba(232, 85, 46, 0.9);
   border-color: rgba(232, 85, 46, 1);
 }
 
-.cardCartBtnOn {
+.cardDeckBtnOn {
   opacity: 1;
   background: rgba(232, 85, 46, 0.92);
   border-color: rgba(232, 85, 46, 1);
 }
 
-.cardCartNote {
+.cardDeckNote {
   position: absolute;
   right: 8px;
   z-index: 3;
@@ -1835,19 +1805,19 @@
 }
 
 /* Sits just clear of the button, on whichever edge it went to. */
-.cartNoteBottom {
+.deckNoteBottom {
   bottom: 42px;
   top: auto;
 }
 
-.cartNoteTop {
+.deckNoteTop {
   top: 42px;
   bottom: auto;
 }
 
 /* Coarse pointers have no hover, so the button has to be there already. */
 @media (hover: none) {
-  .cardCartBtn {
+  .cardDeckBtn {
     opacity: 1;
   }
 }
@@ -1876,4 +1846,237 @@
 
 .pageFooter a:hover {
   color: var(--pf-led);
+}
+
+/* ── Moderation queue (/community/reports) ──
+   Admin-only, so it is plain: a list you read top to bottom and act on, not a
+   dashboard. */
+.reportsPage {
+  max-width: 780px;
+  padding: 8px 0 40px;
+}
+
+.reportsHead {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.reportsHead h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.reportsTabs {
+  display: flex;
+  gap: 12px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+.reportsTabs a {
+  color: var(--pf-ink-faint);
+  text-decoration: none;
+}
+
+.reportsTabs a[data-active="true"] {
+  color: var(--pf-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.reportList {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+}
+
+.reportRow {
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(20, 20, 20, 0.18);
+  background: #FFFFFF;
+}
+
+/* A closed report stays legible but stops competing with the open ones. */
+.reportRow[data-status="actioned"],
+.reportRow[data-status="dismissed"] {
+  opacity: 0.55;
+  background: transparent;
+}
+
+.reportMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+.reportReason {
+  color: var(--pf-ink);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--pf-sans);
+  font-size: 13px;
+}
+
+.reportRepeat {
+  padding: 1px 6px;
+  background: var(--pf-danger);
+  color: #FFFFFF;
+}
+
+.reportStatus {
+  padding: 1px 6px;
+  border: 1px solid var(--pf-rule);
+}
+
+.reportDate {
+  margin-left: auto;
+}
+
+.reportTarget {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.reportKind {
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
+.reportQuote {
+  color: var(--pf-ink-muted);
+  font-style: italic;
+}
+
+.reportDetail {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  background: var(--pf-cream-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reportFoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--pf-ink-muted);
+}
+
+/* ── Provenance ──
+   How the pattern came to exist. Sits under the meta row, quiet: this is a
+   record, not a badge to earn, and a pattern with none of it is not being
+   accused of anything. */
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.provenanceMade,
+.provenanceSignal {
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid var(--pf-rule);
+  color: var(--pf-ink-muted);
+  cursor: help;
+}
+
+/* The author's own declaration reads a shade stronger than the derived
+   signals, because it is a claim someone made rather than something we read. */
+.provenanceMade {
+  border-color: rgba(20, 20, 20, 0.45);
+  color: var(--pf-ink);
+}
+
+/* ── Deck panel ──
+   Two lists in one modal: the deck (capped, ordered, buildable) and saved
+   (unbounded). */
+.deckTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--pf-rule);
+}
+
+.deckTabs button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 6px 10px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.deckTabs button[data-active="true"] {
+  color: var(--pf-ink);
+  border-bottom-color: var(--pf-led);
+}
+
+.deckList {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.deckRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--pf-rule-soft);
+  font-size: 14px;
+}
+
+.deckRow a {
+  color: var(--pf-ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deckRow a:hover {
+  color: var(--pf-led);
+}
+
+/* The running order is the deck's whole reason to exist, so it is numbered. */
+.deckIndex {
+  flex: none;
+  width: 18px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  color: var(--pf-ink-faint);
+  text-align: right;
 }

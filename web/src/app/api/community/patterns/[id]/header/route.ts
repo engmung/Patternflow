@@ -6,7 +6,7 @@ import { patterns } from "@/lib/community/schema";
 
 // GET /api/community/patterns/[id]/header — the pattern's firmware header.
 //
-// Feed cards can add a pattern to the module cart, and the cart holds the .h,
+// Feed cards can add a pattern to the deck, and the deck holds the .h,
 // not the JavaScript. Shipping every header in the feed payload would mean
 // carrying up to 200 KB per card for something most visitors never click, so
 // the card fetches just this one when the button is pressed.

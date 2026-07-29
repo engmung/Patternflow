@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
 import { getPattern, getPatternStub, hasLiked, listComments } from "@/lib/community/queries";
+import { provenanceFor } from "@/lib/community/provenance";
 import type { CommentView } from "@/components/community/CommentSection";
 import PatternDetailClient from "./PatternDetailClient";
 
@@ -69,9 +70,13 @@ export default async function CommunityPatternPage(props: RouteParams) {
         codeCpp: pattern.codeCpp,
         license: pattern.license,
         madeOn: pattern.madeOn,
+        madeHow: pattern.madeHow,
         createdAt: pattern.createdAt.toISOString(),
         username: pattern.username,
         displayUsername: pattern.displayUsername,
+        // Read out of the stored source, not stored separately — the source is
+        // where Pattern Lab wrote these while the author worked.
+        provenance: provenanceFor(pattern.code, pattern.codeCpp !== null, pattern.madeHow),
         parent: parent
           ? {
               id: parent.id,
