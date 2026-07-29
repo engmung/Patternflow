@@ -2080,3 +2080,47 @@
   color: var(--pf-ink-faint);
   text-align: right;
 }
+
+/* ── Comment author controls ──
+   Sit in the head row beside the date, muted: available to the person who
+   wrote it, invisible to everyone else, and never louder than the comment. */
+.commentActions {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.commentActions button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--pf-ink-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.commentActions button:hover:not(:disabled) {
+  color: var(--pf-led);
+}
+
+.commentActions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* An edited comment says so. Replies sit under it, and one that quietly became
+   something else makes them read as answers to something never said. */
+.commentEdited {
+  font-size: 11px;
+  color: var(--pf-ink-faint);
+  font-style: italic;
+}
+
+.commentEditRow {
+  display: flex;
+  gap: 8px;
+}

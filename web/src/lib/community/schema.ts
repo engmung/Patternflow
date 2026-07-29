@@ -187,6 +187,9 @@ export const postComments = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    /** Set when the author rewrites it. A comment that changes with no trace
+     *  makes the replies under it read as answers to something never said. */
+    editedAt: integer("edited_at", { mode: "timestamp" }),
   },
   (table) => [index("post_comments_post_id_idx").on(table.postId)],
 );
@@ -285,6 +288,8 @@ export const comments = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    /** Set when the author rewrites it — see postComments.editedAt. */
+    editedAt: integer("edited_at", { mode: "timestamp" }),
   },
   (table) => [index("comments_pattern_id_idx").on(table.patternId)],
 );

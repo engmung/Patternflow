@@ -33,8 +33,10 @@ export default async function CommunityPostPage(props: RouteParams) {
   const session = await getAuth().api.getSession({ headers: await headers() });
   const comments: CommentView[] = (await listPostComments(post.id)).map((comment) => ({
     id: comment.id,
+    userId: comment.userId,
     body: comment.body,
     createdAt: comment.createdAt.toISOString(),
+    editedAt: comment.editedAt?.toISOString() ?? null,
     username: comment.username,
     displayUsername: comment.displayUsername,
   }));

@@ -268,8 +268,10 @@ export async function listComments(patternId: string) {
   return db
     .select({
       id: comments.id,
+      userId: comments.userId,
       body: comments.body,
       createdAt: comments.createdAt,
+      editedAt: comments.editedAt,
       ...authorFields,
     })
     .from(comments)
@@ -383,8 +385,10 @@ export async function listPostComments(postId: string) {
   return getDb()
     .select({
       id: postComments.id,
+      userId: postComments.userId,
       body: postComments.body,
       createdAt: postComments.createdAt,
+      editedAt: postComments.editedAt,
       ...authorFields,
     })
     .from(postComments)

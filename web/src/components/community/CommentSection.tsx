@@ -18,8 +18,12 @@ import styles from "./Community.module.css";
 
 export type CommentView = {
   id: string;
+  /** Who wrote it — drives whether the edit/delete controls appear. */
+  userId: string;
   body: string;
   createdAt: string; // ISO
+  /** Set when the author rewrote it, so the thread can say so. */
+  editedAt: string | null;
   username: string | null;
   displayUsername: string | null;
 };
@@ -40,6 +44,68 @@ export default function CommentSection({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  // Which comment is open for editing, and the draft inside it.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+  // Deleting is one click away but takes two, because there is no undo and the
+  // button sits right beside "edit".
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const viewerId = session?.user.id ?? null;
+  const on = target.kind === "post" ? "post" : "pattern";
+
+  const saveEdit = async (id: string) => {
+    const text = draft.trim();
+    if (text.length === 0) return;
+    setRowBusy(id);
+    setRowError(null);
+    try {
+      const response = await fetch(
+        communityApiUrl(`/api/community/comments/${id}?on=${on}`),
+        {
+          method: "PATCH",
+          ...COMMUNITY_FETCH_INIT,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: text }),
+        },
+      );
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setRowError(payload.error ?? "Could not save the edit.");
+        return;
+      }
+      setEditingId(null);
+      router.refresh();
+    } catch {
+      setRowError("Network error.");
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const remove = async (id: string) => {
+    setRowBusy(id);
+    setRowError(null);
+    try {
+      const response = await fetch(
+        communityApiUrl(`/api/community/comments/${id}?on=${on}`),
+        { method: "DELETE", ...COMMUNITY_FETCH_INIT },
+      );
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setRowError(payload.error ?? "Could not delete the comment.");
+        return;
+      }
+      setConfirmDelete(null);
+      router.refresh();
+    } catch {
+      setRowError("Network error.");
+    } finally {
+      setRowBusy(null);
+    }
+  };
 
   const submit = async () => {
     const text = body.trim();
@@ -75,22 +141,92 @@ export default function CommentSection({
     <section className={styles.commentsBlock}>
       <h2 className={styles.commentsTitle}>Comments ({comments.length})</h2>
 
-      {comments.map((comment) => (
-        <div key={comment.id} className={styles.commentItem}>
-          <div className={styles.commentHead}>
-            <Link
-              href={`/community/u/${comment.username ?? ""}`}
-              className={styles.commentAuthor}
-            >
-              @{comment.displayUsername ?? comment.username ?? "unknown"}
-            </Link>
-            <span className={styles.commentDate}>{formatDate(comment.createdAt)}</span>
+      {comments.map((comment) => {
+        const mine = viewerId !== null && viewerId === comment.userId;
+        const editing = editingId === comment.id;
+        return (
+          <div key={comment.id} className={styles.commentItem}>
+            <div className={styles.commentHead}>
+              <Link
+                href={`/community/u/${comment.username ?? ""}`}
+                className={styles.commentAuthor}
+              >
+                @{comment.displayUsername ?? comment.username ?? "unknown"}
+              </Link>
+              <span className={styles.commentDate}>{formatDate(comment.createdAt)}</span>
+              {comment.editedAt && <span className={styles.commentEdited}>edited</span>}
+              {mine && !editing && (
+                <span className={styles.commentActions}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(comment.id);
+                      setDraft(comment.body);
+                      setRowError(null);
+                    }}
+                  >
+                    edit
+                  </button>
+                  <button
+                    type="button"
+                    disabled={rowBusy === comment.id}
+                    onClick={() => {
+                      if (confirmDelete === comment.id) void remove(comment.id);
+                      else {
+                        setConfirmDelete(comment.id);
+                        window.setTimeout(
+                          () => setConfirmDelete((current) => (current === comment.id ? null : current)),
+                          4000,
+                        );
+                      }
+                    }}
+                  >
+                    {confirmDelete === comment.id ? "press again" : "delete"}
+                  </button>
+                </span>
+              )}
+            </div>
+            {editing ? (
+              <div className={styles.commentForm}>
+                <textarea
+                  value={draft}
+                  maxLength={COMMENT_MAX}
+                  autoFocus
+                  onChange={(event) => setDraft(event.target.value)}
+                />
+                {rowError && <div className={styles.formError}>{rowError}</div>}
+                <div className={styles.commentEditRow}>
+                  <button
+                    type="button"
+                    className={styles.btnPrimary}
+                    disabled={rowBusy === comment.id || draft.trim().length === 0}
+                    onClick={() => void saveEdit(comment.id)}
+                  >
+                    {rowBusy === comment.id ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.btn}
+                    onClick={() => {
+                      setEditingId(null);
+                      setRowError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.commentBody}>
+                <LinkedText text={comment.body} />
+              </div>
+            )}
+            {!editing && rowError && rowBusy === null && confirmDelete === comment.id && (
+              <div className={styles.formError}>{rowError}</div>
+            )}
           </div>
-          <div className={styles.commentBody}>
-            <LinkedText text={comment.body} />
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       {session ? (
         <div className={styles.commentForm}>
