@@ -11,6 +11,7 @@ import {
   cleanCode,
   cleanCpp,
   cleanDescription,
+  cleanMadeHow,
   cleanMadeOn,
   cleanTitle,
 } from "@/lib/community/validate";
@@ -149,6 +150,15 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     madeOn = next;
   }
 
+  let madeHow = pattern.madeHow;
+  if (raw.madeHow !== undefined) {
+    const next = cleanMadeHow(raw.madeHow);
+    if (next === undefined) {
+      return Response.json({ error: 'Unknown "made how" value.' }, { status: 400 });
+    }
+    madeHow = next;
+  }
+
   // Compare the bodies with any licence wrapping removed, so re-saving without
   // touching the code isn't mistaken for a code change.
   let bareCode = stripShareWrapping(pattern.code);
@@ -193,6 +203,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       description,
       license,
       madeOn,
+      madeHow,
       // The header records when the work was MADE, which is what a licence
       // notice is about. Falls back to the upload date when unset; `createdAt`
       // itself never moves.

@@ -11,13 +11,13 @@ import styles from "./Community.module.css";
 
 // One pattern, straight onto the device as a loadable module.
 //
-// The cart already does this for several patterns at once, and "Flash to my
+// The deck already does this for several patterns at once, and "Flash to my
 // board" does the whole-firmware version. Neither fits the common case people
-// asked for: I like this one pattern, put it on my board. The cart makes you
+// asked for: I like this one pattern, put it on my board. The deck makes you
 // collect before you can install, and a firmware build costs a minute and a
 // USB cable to deliver one ~6 KB module.
 //
-// Same build endpoint as the cart with a single-item list, so there is one
+// Same build endpoint as the deck with a single-item list, so there is one
 // server path for modules and no second thing to keep in step.
 
 type ModuleBuild = {

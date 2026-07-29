@@ -101,6 +101,18 @@ export const patterns = sqliteTable(
      * was uploaded here.
      */
     madeOn: text("made_on"),
+    /**
+     * How the pattern was made: "hand" | "ai-assisted" | "ai-generated".
+     * Author-declared and optional — older rows have none.
+     *
+     * This exists because of what happens later, not what happens now. Standard
+     * licensing practice has the creator *warrant* they hold the rights, and a
+     * buyer's legal review asks how the work was made. A declaration recorded at
+     * publication is worth more than one reconstructed from memory two years on,
+     * and it is only ever collectable going forward — which is why it is here
+     * before anything charges money.
+     */
+    madeHow: text("made_how"),
     /** Fork lineage: the community pattern this one was remixed from. */
     parentId: text("parent_id").references((): AnySQLiteColumn => patterns.id, {
       onDelete: "set null",

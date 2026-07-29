@@ -44,6 +44,40 @@ sudo systemctl restart patternflow-community.service
 sudo systemctl restart patternflow-worker.service
 ```
 
+### 보관 기간 정리 (Retention)
+
+`/terms` §9에 약속한 보관 기간을 실제로 이행하는 작업입니다.
+
+| 대상 | 보관 |
+|---|---|
+| 세션 (IP·User-Agent 포함) | 만료 시 삭제, 최대 **90일** |
+| Better Auth 인증 토큰 | 만료 시 삭제 |
+| 빌드 산출물 + 빌드 기록 | **30일** |
+| 참조되지 않는 산출물 파일 | 24시간 유예 후 삭제 |
+
+**빌드 워커가 하루에 한 번 자동으로 돌립니다** (`patternflow-worker.service`).
+별도 systemd 타이머를 설치할 필요가 없습니다 — 대신 **워커가 꺼져 있으면
+정리도 멈춥니다.**
+
+```bash
+cd web
+
+# 뭐가 지워질지 먼저 확인 (아무것도 안 지움)
+npm run sweep -- --dry-run
+
+# 실제로 정리
+npm run sweep
+```
+
+워커 로그에서 `retention swept` 줄로 마지막 실행 결과를 확인할 수 있습니다:
+
+```bash
+sudo journalctl -u patternflow-worker.service | grep "retention"
+```
+
+> 보관 기간을 바꾸려면 `web/src/lib/community/retention.ts`의 상수와
+> `/terms` §9를 **함께** 고쳐야 합니다. 한쪽만 고치면 약관이 거짓말이 됩니다.
+
 ### 펌웨어 빌드 큐 상태 점검 스크립트
 ```bash
 cd web

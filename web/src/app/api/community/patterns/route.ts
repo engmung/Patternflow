@@ -4,7 +4,13 @@ import { communityEnabled, getDb } from "@/lib/community/db";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
-import { cleanCode, cleanCpp, cleanDescription, cleanTitle } from "@/lib/community/validate";
+import {
+  cleanCode,
+  cleanCpp,
+  cleanDescription,
+  cleanMadeHow,
+  cleanTitle,
+} from "@/lib/community/validate";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
@@ -73,6 +79,11 @@ async function handlePost(request: Request) {
     );
   }
 
+  const madeHow = cleanMadeHow(raw.madeHow);
+  if (madeHow === undefined) {
+    return Response.json({ error: "Unknown \"made how\" value." }, { status: 400 });
+  }
+
   // New work can only take a currently-offered licence (the retired ones stay
   // readable but are not selectable — see LICENSE_OPTIONS).
   const license =
@@ -124,6 +135,7 @@ async function handlePost(request: Request) {
     }),
     codeCpp,
     license,
+    madeHow,
     parentId,
     createdAt: now,
     updatedAt: now,

@@ -16,12 +16,21 @@ import DeletePatternButton from "@/components/community/DeletePatternButton";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
-import { CART_EVENT, cartAdd, cartHas, cartRemove } from "@/lib/community/cart";
+import {
+  COLLECTION_EVENT,
+  deckAdd,
+  deckHas,
+  deckRemove,
+  savedAdd,
+  savedHas,
+  savedRemove,
+} from "@/lib/community/deck";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
 import { communityPatternUrl } from "@/lib/community/license";
+import type { Provenance } from "@/lib/community/provenance";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
@@ -40,6 +49,9 @@ export type PatternView = {
   license: string;
   /** Author-stated creation date (YYYY-MM-DD), when it differs from the upload. */
   madeOn: string | null;
+  /** Author's declaration of how it was made, when they gave one. */
+  madeHow: string | null;
+  provenance: Provenance;
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
@@ -72,25 +84,41 @@ export default function PatternDetailClient({
   const [buildOpen, setBuildOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
-  // Cart membership is shared state (header chip, other tabs), so it is read
-  // from the store and refreshed on its change event rather than mirrored.
-  const [inCart, setInCart] = useState(false);
-  const [cartNote, setCartNote] = useState<string | null>(null);
+  // Deck and saved membership are shared state (header chip, other tabs), so read
+  // from the store and refreshed on the change event rather than mirrored.
+  const [inDeck, setInDeck] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [collectNote, setCollectNote] = useState<string | null>(null);
   useEffect(() => {
-    const sync = () => setInCart(cartHas(pattern.id));
+    const sync = () => {
+      setInDeck(deckHas(pattern.id));
+      setIsSaved(savedHas(pattern.id));
+    };
     sync();
-    window.addEventListener(CART_EVENT, sync);
-    return () => window.removeEventListener(CART_EVENT, sync);
+    window.addEventListener(COLLECTION_EVENT, sync);
+    return () => window.removeEventListener(COLLECTION_EVENT, sync);
   }, [pattern.id]);
-  const toggleCart = () => {
+  const toggleDeck = () => {
     if (!pattern.codeCpp) return;
-    if (inCart) {
-      cartRemove(pattern.id);
-      setCartNote(null);
+    if (inDeck) {
+      deckRemove(pattern.id);
+      setCollectNote(null);
       return;
     }
-    const added = cartAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp });
-    setCartNote(added.ok ? null : added.reason ?? null);
+    const added = deckAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp });
+    setCollectNote(added.ok ? null : (added.reason ?? null));
+  };
+
+  // Saving works with or without a firmware header: it is a bookmark, not a
+  // build slot. The stored `code` is only used when a saved pattern is later
+  // promoted into the deck, which the deck itself re-checks.
+  const toggleSaved = () => {
+    if (isSaved) {
+      savedRemove(pattern.id);
+      return;
+    }
+    savedAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp ?? "" });
+    setCollectNote(null);
   };
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -258,19 +286,28 @@ export default function PatternDetailClient({
                 ↗ Send to my Patternflow
               </button>
             )}
-            {/* Cart = the batch version: collect several patterns and build
-                them all as .pfm in one go. */}
+            {/* Two different gestures. Saving is "I might want this", and has
+                no limit. The deck is the short ordered list that becomes one
+                build, so it is capped at what a build holds. */}
+            <button
+              type="button"
+              className={styles.btn}
+              title={isSaved ? "Remove from your saved patterns" : "Save for later — no limit"}
+              onClick={toggleSaved}
+            >
+              {isSaved ? "★ Saved" : "☆ Save"}
+            </button>
             {buildsConfigured() && pattern.codeCpp && (
               <button
                 type="button"
                 className={styles.btn}
-                title="Collect this pattern; build the whole cart as loadable modules"
-                onClick={toggleCart}
+                title="Put this in your deck; build the whole deck as loadable modules"
+                onClick={toggleDeck}
               >
-                {inCart ? "✓ In cart" : "▦ Add to cart"}
+                {inDeck ? "✓ In deck" : "▦ Add to deck"}
               </button>
             )}
-            {cartNote && <span className={styles.fieldHint}>{cartNote}</span>}
+            {collectNote && <span className={styles.fieldHint}>{collectNote}</span>}
             {isOwner && edited && (
               <button
                 type="button"
@@ -455,6 +492,23 @@ export default function PatternDetailClient({
           )}
         </div>
 
+        {(pattern.provenance.madeHowLabel || pattern.provenance.signals.length > 0) && (
+          <div className={styles.provenance}>
+            {pattern.provenance.madeHowLabel && (
+              <span className={styles.provenanceMade} title={pattern.provenance.madeHowBlurb ?? undefined}>
+                {pattern.provenance.madeHowLabel}
+              </span>
+            )}
+            {/* Not a score and not a badge to earn — just the human decisions
+                that left a trace in the source. */}
+            {pattern.provenance.signals.map((signal) => (
+              <span key={signal.id} className={styles.provenanceSignal} title={signal.detail}>
+                {signal.label}
+              </span>
+            ))}
+          </div>
+        )}
+
         {pattern.description && (
           <p className={styles.metaDescription}>
             <LinkedText text={pattern.description} />
@@ -517,6 +571,7 @@ export default function PatternDetailClient({
           initialDescription={pattern.description}
           initialLicense={pattern.license}
           initialMadeOn={pattern.madeOn}
+          initialMadeHow={pattern.madeHow}
           parentLicense={pattern.parent?.license ?? null}
           onClose={() => setDetailsModalOpen(false)}
         />

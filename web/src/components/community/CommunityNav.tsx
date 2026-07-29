@@ -23,7 +23,13 @@ const SECTIONS = [
   },
 ];
 
-export default function CommunityNav() {
+export default function CommunityNav({
+  isAdmin = false,
+  openReports = 0,
+}: {
+  isAdmin?: boolean;
+  openReports?: number;
+}) {
   const pathname = usePathname() ?? "";
 
   return (
@@ -41,6 +47,17 @@ export default function CommunityNav() {
           </Link>
         );
       })}
+      {/* Moderators only, and only worth a slot in the nav because an unread
+          queue is the one thing here that goes stale by being ignored. */}
+      {isAdmin && (
+        <Link
+          href="/community/reports"
+          data-active={pathname.startsWith("/community/reports")}
+          aria-current={pathname.startsWith("/community/reports") ? "page" : undefined}
+        >
+          Reports{openReports > 0 ? ` (${openReports})` : ""}
+        </Link>
+      )}
     </nav>
   );
 }

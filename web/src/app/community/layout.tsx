@@ -2,10 +2,13 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { isAdminSession } from "@/lib/community/admin";
+import { getAuth } from "@/lib/community/auth";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/db";
+import { countOpenReports } from "@/lib/community/queries";
 import AuthStatus from "@/components/community/AuthStatus";
 import CommunityNav from "@/components/community/CommunityNav";
-import ModuleCart from "@/components/community/ModuleCart";
+import DeckPanel from "@/components/community/DeckPanel";
 import styles from "@/components/community/Community.module.css";
 
 export const metadata: Metadata = {
@@ -47,6 +50,12 @@ export default async function CommunityLayout({ children }: { children: React.Re
     );
   }
 
+  // Moderators get one extra nav entry with the size of the queue on it. Every
+  // other visitor gets no hint that a queue exists.
+  const session = await getAuth().api.getSession({ headers: await headers() });
+  const isAdmin = isAdminSession(session);
+  const openReports = isAdmin ? await countOpenReports() : 0;
+
   return (
     <main className={styles.page}>
       <div className={styles.inner}>
@@ -59,10 +68,10 @@ export default async function CommunityLayout({ children }: { children: React.Re
               Community
             </Link>
           </div>
-          <CommunityNav />
+          <CommunityNav isAdmin={isAdmin} openReports={openReports} />
           <div className={styles.headerSpacer} />
           <nav className={styles.headerNav}>
-            <ModuleCart />
+            <DeckPanel />
             <Link href="/pattern-lab" title="Open Pattern Lab editor">
               Pattern Lab ↗
             </Link>

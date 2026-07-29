@@ -13,7 +13,12 @@ import {
 } from "@/lib/patternMatrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
-import { CART_EVENT, cartAdd, cartHas, cartRemove } from "@/lib/community/cart";
+import {
+  COLLECTION_EVENT,
+  deckAdd,
+  deckHas,
+  deckRemove,
+} from "@/lib/community/deck";
 import styles from "./Community.module.css";
 
 // One feed card.
@@ -68,34 +73,34 @@ export default function PatternCard({
   const [knobValues, setKnobValues] = useState<number[]>(knobSetup.values);
   const [activeKnobIdx, setActiveKnobIdx] = useState<number>(0);
 
-  // Cart membership, kept in step with every other cart surface on the page.
-  const [inCart, setInCart] = useState(false);
-  const [cartBusy, setCartBusy] = useState(false);
-  const [cartNote, setCartNote] = useState<string | null>(null);
+  // Deck membership, kept in step with every other deck surface on the page.
+  const [inDeck, setInDeck] = useState(false);
+  const [deckBusy, setDeckBusy] = useState(false);
+  const [deckNote, setDeckNote] = useState<string | null>(null);
   useEffect(() => {
-    const sync = () => setInCart(cartHas(item.id));
+    const sync = () => setInDeck(deckHas(item.id));
     sync();
-    window.addEventListener(CART_EVENT, sync);
+    window.addEventListener(COLLECTION_EVENT, sync);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener(CART_EVENT, sync);
+      window.removeEventListener(COLLECTION_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
   }, [item.id]);
 
-  // The cart holds the .h, which the feed does not carry — a header can be
+  // The deck holds the .h, which the feed does not carry — a header can be
   // 200 KB and most cards are never added. Fetch it on the press instead.
-  const toggleCart = async (event: React.MouseEvent) => {
+  const toggleDeck = async (event: React.MouseEvent) => {
     // The whole card is a link to the detail page.
     event.preventDefault();
     event.stopPropagation();
-    if (cartBusy) return;
-    if (inCart) {
-      cartRemove(item.id);
+    if (deckBusy) return;
+    if (inDeck) {
+      deckRemove(item.id);
       return;
     }
-    setCartBusy(true);
-    setCartNote(null);
+    setDeckBusy(true);
+    setDeckNote(null);
     try {
       const response = await fetch(
         communityApiUrl(`/api/community/patterns/${item.id}/header`),
@@ -103,16 +108,16 @@ export default function PatternCard({
       );
       const payload = (await response.json()) as { codeCpp?: string; error?: string };
       if (!response.ok || !payload.codeCpp) {
-        setCartNote(payload.error ?? "Could not read the header.");
+        setDeckNote(payload.error ?? "Could not read the header.");
         return;
       }
-      const added = cartAdd({ patternId: item.id, title: item.title, code: payload.codeCpp });
-      if (!added.ok) setCartNote(added.reason ?? "Cart is full.");
+      const added = deckAdd({ patternId: item.id, title: item.title, code: payload.codeCpp });
+      if (!added.ok) setDeckNote(added.reason ?? "Deck is full.");
     } catch {
-      setCartNote("Network error.");
+      setDeckNote("Network error.");
     } finally {
-      setCartBusy(false);
-      window.setTimeout(() => setCartNote(null), 2500);
+      setDeckBusy(false);
+      window.setTimeout(() => setDeckNote(null), 2500);
     }
   };
 
@@ -241,22 +246,35 @@ export default function PatternCard({
           )}
         </div>
 
-        {/* Straight into the module cart, without opening the pattern. Only
-            for patterns that ship a header, since that is what the cart
+        {/* Straight into the deck, without opening the pattern. Only
+            for patterns that ship a header, since that is what the deck
             builds. Sits over the thumbnail's corner so it never reflows the
             card, and swallows the click so the card link does not fire. */}
+        {/* Follows the cursor to the half it is in, which is the opposite of
+            where the knob overlay dodges to — so the thing you are reaching for
+            comes to you and the two never land on top of each other. */}
         {buildsConfigured() && item.hasCpp && (
           <button
             type="button"
-            className={`${styles.cardCartBtn} ${inCart ? styles.cardCartBtnOn : ""}`}
-            title={inCart ? "In the module cart — click to remove" : "Add to the module cart"}
-            aria-label={inCart ? "Remove from the module cart" : "Add to the module cart"}
-            onClick={(event) => void toggleCart(event)}
+            className={`${styles.cardDeckBtn} ${
+              overlayPos === "top" ? styles.deckBottom : styles.deckTop
+            } ${inDeck ? styles.cardDeckBtnOn : ""}`}
+            title={inDeck ? "In your deck — click to remove" : "Add to your deck"}
+            aria-label={inDeck ? "Remove from your deck" : "Add to your deck"}
+            onClick={(event) => void toggleDeck(event)}
           >
-            {cartBusy ? "…" : inCart ? "✓" : "▦"}
+            {deckBusy ? "…" : inDeck ? "−" : "+"}
           </button>
         )}
-        {cartNote && <span className={styles.cardCartNote}>{cartNote}</span>}
+        {deckNote && (
+          <span
+            className={`${styles.cardDeckNote} ${
+              overlayPos === "top" ? styles.deckNoteBottom : styles.deckNoteTop
+            }`}
+          >
+            {deckNote}
+          </span>
+        )}
 
         {/* Dynamic Dodging Knob Overlay Bar (Visible ONLY when cursor is on matrix screen) */}
         {interactive && (
