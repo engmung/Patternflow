@@ -87,26 +87,18 @@ export default function Hero() {
             this is the most headline-like surface on the site). This is a
             signpost to it, not a shortened version of it — the line itself is
             unchanged and still runs in full in the README and the journal. */}
+        {/* One link, one target: the journal post about Paik is the "why", so
+            pointing the work title at an external museum page and the call to
+            action at the journal index just split the same destination in two. */}
         <p className="hero-footnote">
-          After Nam June Paik&apos;s{" "}
-          <a
-            className="has-tip"
-            data-tip="Nam June Paik Art Center"
-            href="https://njpart.ggcf.kr/mediaObjects/32"
-            target="_blank"
-            rel="noopener"
-          >
-            Participation TV
-          </a>
-          , 1963 —{" "}
           <Link
-            href="/journal"
+            href="/journal/nam-june-paik-me-patternflow"
             onClick={() => captureEvent('hero_footnote_clicked', {
               surface: 'hero',
-              destination: 'journal',
+              destination: 'journal_nam_june_paik',
             })}
           >
-            read why ↗
+            After Nam June Paik&apos;s <em>Participation TV</em>, 1963 — read why ↗
           </Link>
         </p>
         {/* Get One leads: it is the action that costs the reader something, so

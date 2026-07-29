@@ -15,26 +15,39 @@ const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
 
-// Three rows, one grammar — no icons. The old version put 30px brand glyphs in
-// a list while every other row on the site is a hairline with a mono label.
+// One grammar — no icons. The old version put 30px brand glyphs in a list while
+// every other row on the site is a hairline with a mono label.
+//
+// Contact sits here rather than in the top nav: this band is already the "how
+// to reach us" surface, and almost nothing arrives through the form.
 const JOIN = [
   {
     kicker: 'Day-to-day help',
     name: 'Discord ↗',
     href: DISCORD_URL,
+    external: true,
     desc: 'Build questions, finished builds, custom patterns.',
   },
   {
     kicker: 'In motion',
     name: 'Instagram ↗',
     href: INSTAGRAM_URL,
+    external: true,
     desc: 'Send a clean video and it usually goes up as a collab post.',
   },
   {
     kicker: 'The files',
     name: 'GitHub ↗',
     href: GITHUB_CONTRIBUTING_URL,
+    external: true,
     desc: 'Contributing notes, issues, pull requests.',
+  },
+  {
+    kicker: 'Anything else',
+    name: 'Contact',
+    href: '/contact',
+    external: false,
+    desc: 'Press, exhibitions, and collaboration.',
   },
 ];
 
@@ -76,13 +89,24 @@ export default function InsidePanel({ content }: InsidePanelProps) {
         </div>
 
         <div className={styles.joinBand} aria-label="Ways to join Patternflow">
-          {JOIN.map((row) => (
-            <a key={row.name} className={styles.joinCell} href={row.href} target="_blank" rel="noreferrer">
-              <span className={styles.joinKicker}>{row.kicker}</span>
-              <strong>{row.name}</strong>
-              <span className={styles.joinDesc}>{row.desc}</span>
-            </a>
-          ))}
+          {JOIN.map((row) => {
+            const inner = (
+              <>
+                <span className={styles.joinKicker}>{row.kicker}</span>
+                <strong>{row.name}</strong>
+                <span className={styles.joinDesc}>{row.desc}</span>
+              </>
+            );
+            return row.external ? (
+              <a key={row.name} className={styles.joinCell} href={row.href} target="_blank" rel="noreferrer">
+                {inner}
+              </a>
+            ) : (
+              <Link key={row.name} className={styles.joinCell} href={row.href}>
+                {inner}
+              </Link>
+            );
+          })}
         </div>
 
         <div className="pf-block">

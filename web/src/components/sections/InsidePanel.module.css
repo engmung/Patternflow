@@ -1,5 +1,9 @@
+/* Container queries, not media queries: the 3D globe takes the left half, so
+   this panel's width does not track the viewport — at a 1512px window it is
+   631px, and a viewport breakpoint folds the bands at the wrong moment. */
 .body {
   max-width: 820px;
+  container-type: inline-size;
 }
 
 .mapLayout {
@@ -236,10 +240,10 @@
   line-height: 1.55;
 }
 
-/* Beat 3: three cells across, mono labels, no icons. */
+/* Beat 3: four cells across, mono labels, no icons. */
 .joinBand {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin: 30px 0 0;
   border: 1px solid var(--pf-rule);
 }
@@ -414,6 +418,27 @@
     gap: 14px;
   }
 
+  .body .declaration {
+    font-size: 20px;
+  }
+}
+
+/* Four across needs ~700px of panel; below that the descriptions shred. */
+@container (max-width: 700px) {
+  .joinBand {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .joinCell:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .joinCell:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--pf-rule);
+  }
+}
+
+@container (max-width: 380px) {
   .joinBand {
     grid-template-columns: 1fr;
   }
@@ -425,10 +450,6 @@
 
   .joinCell:last-child {
     border-bottom: 0;
-  }
-
-  .body .declaration {
-    font-size: 20px;
   }
 }
 

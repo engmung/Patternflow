@@ -221,15 +221,21 @@
     margin: 0 0 26px;
     max-width: 580px;
   }
+  /* The whole line is the link, so it carries no rule until hover — a 56-char
+     underline at this size would weigh more than the sentence above it. */
   .hero-footnote a {
-    color: var(--ink);
-    border-bottom: 1px solid var(--ink);
+    color: var(--ink-muted);
+    border-bottom: 1px solid transparent;
     padding-bottom: 1px;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
   .hero-footnote a:hover {
-    color: var(--ink-muted);
-    border-color: var(--ink-muted);
+    color: var(--ink);
+    border-color: var(--ink);
     text-decoration: none;
+  }
+  .hero-footnote em {
+    font-style: italic;
   }
   /* Grid, not flex, so the note can be pinned to column 1 — under Get One
      alone. As a flex row it sat under both buttons and read as a condition on
