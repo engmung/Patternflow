@@ -1371,9 +1371,11 @@
   }
 
   /* ───── Sponsor ───── */
+  /* 60px horizontal, matching .hero — these sit directly under it in the same
+     column, and at 80px their content started 20px right of the wordmark. */
   .sponsor {
     background: var(--cream);
-    padding: 34px 80px 24px;
+    padding: 34px 60px 24px;
     border-top: 1px solid var(--rule);
     display: flex;
     flex-direction: column;
@@ -1402,14 +1404,23 @@
   }
   .sponsor-logo:hover { opacity: 1; }
   .sponsor-logo img { display: block; width: auto; height: 34px; }
+  /* Below 900px .deck-content supplies the 24px gutter and .hero drops its own
+     horizontal padding, so this has to drop its own on the same breakpoint or
+     it sits 60px right of the wordmark. Must come after the base rule above:
+     a media query adds no specificity, so source order decides. */
+  @media (max-width: 900px) {
+    .sponsor { padding-left: 0; padding-right: 0; }
+  }
   @media (max-width: 640px) {
-    .sponsor { padding: 28px 24px 20px; }
+    /* Vertical only — the gutter comes from .deck-content down here. */
+    .sponsor { padding: 28px 0 20px; }
     .sponsor-logos { gap: 24px 40px; }
   }
 
   /* ───── Footer ───── */
   footer {
-    padding: 38px 80px 42px;
+    /* Matches .hero and .sponsor — see the note on .sponsor. */
+    padding: 38px 60px 42px;
     font-size: 14px;
     color: var(--ink-muted);
     line-height: 1.6;
@@ -1430,8 +1441,12 @@
     color: var(--ink-muted);
   }
   footer em { font-style: italic; font-weight: 400; }
+  /* Same reasoning as .sponsor above — matches .hero dropping to a 0 gutter. */
+  @media (max-width: 900px) {
+    footer { padding-left: 0; padding-right: 0; }
+  }
   @media (max-width: 640px) {
-    footer { padding: 30px 24px 34px; }
+    footer { padding: 30px 0 34px; }
     footer .foot-row { grid-template-columns: 1fr; }
   }
 
