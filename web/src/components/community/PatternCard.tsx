@@ -245,18 +245,31 @@ export default function PatternCard({
             for patterns that ship a header, since that is what the cart
             builds. Sits over the thumbnail's corner so it never reflows the
             card, and swallows the click so the card link does not fire. */}
+        {/* Follows the cursor to the half it is in, which is the opposite of
+            where the knob overlay dodges to — so the thing you are reaching for
+            comes to you and the two never land on top of each other. */}
         {buildsConfigured() && item.hasCpp && (
           <button
             type="button"
-            className={`${styles.cardCartBtn} ${inCart ? styles.cardCartBtnOn : ""}`}
+            className={`${styles.cardCartBtn} ${
+              overlayPos === "top" ? styles.cartBottom : styles.cartTop
+            } ${inCart ? styles.cardCartBtnOn : ""}`}
             title={inCart ? "In the module cart — click to remove" : "Add to the module cart"}
             aria-label={inCart ? "Remove from the module cart" : "Add to the module cart"}
             onClick={(event) => void toggleCart(event)}
           >
-            {cartBusy ? "…" : inCart ? "✓" : "▦"}
+            {cartBusy ? "…" : inCart ? "−" : "+"}
           </button>
         )}
-        {cartNote && <span className={styles.cardCartNote}>{cartNote}</span>}
+        {cartNote && (
+          <span
+            className={`${styles.cardCartNote} ${
+              overlayPos === "top" ? styles.cartNoteBottom : styles.cartNoteTop
+            }`}
+          >
+            {cartNote}
+          </span>
+        )}
 
         {/* Dynamic Dodging Knob Overlay Bar (Visible ONLY when cursor is on matrix screen) */}
         {interactive && (

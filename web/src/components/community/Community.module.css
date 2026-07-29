@@ -198,7 +198,7 @@
 .feedGrid[data-view="small"] .cardMeta {
   padding: 7px 8px;
   gap: 3px;
-  height: 44px;
+  min-height: 44px;
 }
 
 .feedGrid[data-view="small"] .cardTitle {
@@ -429,7 +429,9 @@
   flex-direction: column;
   gap: 6px;
   background: #FFFFFF;
-  height: 64px;
+  /* min-height, not height: the grid equalises row heights on its own, and a
+     hard 64px silently clipped the byline instead of letting it breathe. */
+  min-height: 64px;
   box-sizing: border-box;
 }
 
@@ -450,8 +452,11 @@
   text-overflow: ellipsis;
 }
 
-/* Username above, mono meta below. Side-by-side clipped the date once the
-   stats became mono labels — at 185px the row has no room for both. */
+/* One row. Stacking these clipped the date instead: .cardMeta is a fixed 64px
+   (44 in small view) so every card in the grid is the same height, and two rows
+   need 85. The row fits because the username is the only part that can be any
+   length, so it is the part that truncates — the counts and the date are fixed
+   facts and keep their space. */
 .cardByline {
   font-size: 12px;
   color: var(--pf-ink-muted);
@@ -459,6 +464,16 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+/* Its own row, so it gets the full width before it has to truncate. */
+.cardByline .userLink {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardDate {
@@ -466,7 +481,6 @@
   color: var(--pf-ink-muted);
   font-family: var(--pf-mono, monospace);
   flex: none;
-  /* Sits at the end of the mono meta row, after LIK / FRK. */
   margin-left: auto;
 }
 
@@ -1759,7 +1773,6 @@
 .cardCartBtn {
   position: absolute;
   right: 8px;
-  bottom: 8px;
   z-index: 3;
   width: 28px;
   height: 28px;
@@ -1774,8 +1787,21 @@
   border-radius: 0;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  /* Same easing as .knobOverlay, so the pair reads as one system moving. */
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s,
+    top 220ms cubic-bezier(0.16, 1, 0.3, 1), bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(2px);
+  font-size: 16px;
+}
+
+.cartBottom {
+  bottom: 8px;
+  top: auto;
+}
+
+.cartTop {
+  top: 8px;
+  bottom: auto;
 }
 
 .card:hover .cardCartBtn,
@@ -1797,7 +1823,6 @@
 .cardCartNote {
   position: absolute;
   right: 8px;
-  bottom: 42px;
   z-index: 3;
   max-width: calc(100% - 16px);
   padding: 3px 7px;
@@ -1807,6 +1832,17 @@
   color: var(--pf-cream);
   background: rgba(20, 20, 20, 0.86);
   border-radius: 0;
+}
+
+/* Sits just clear of the button, on whichever edge it went to. */
+.cartNoteBottom {
+  bottom: 42px;
+  top: auto;
+}
+
+.cartNoteTop {
+  top: 42px;
+  bottom: auto;
 }
 
 /* Coarse pointers have no hover, so the button has to be there already. */
