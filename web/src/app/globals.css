@@ -237,6 +237,26 @@
   .hero-footnote em {
     font-style: italic;
   }
+  /* Evidence line under the CTA. Same mono register as the footnote, but it
+     carries a rule by default — this one is meant to be followed. */
+  .hero-proof {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 16px 0 0;
+  }
+  .hero-proof a {
+    color: var(--ink);
+    border-bottom: 1px solid var(--pf-rule);
+    padding-bottom: 2px;
+    transition: border-color 0.15s ease;
+  }
+  .hero-proof a:hover {
+    border-color: var(--ink);
+    text-decoration: none;
+  }
   /* Grid, not flex, so the note can be pinned to column 1 — under Get One
      alone. As a flex row it sat under both buttons and read as a condition on
      whichever one the eye landed on last. */

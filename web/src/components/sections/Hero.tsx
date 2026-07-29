@@ -5,6 +5,7 @@ import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
+import { builds } from "@/components/sections/InsideGlobe/builds";
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
@@ -132,6 +133,23 @@ export default function Hero() {
           </a>
           <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
         </div>
+        {/* The hero is all claim and no evidence otherwise. Per the manifesto,
+            the build map is the strongest proof there is — a star is interest,
+            a pin is someone who actually did it — and the count comes from the
+            data so it cannot go stale. Below the buttons on purpose: evidence
+            belongs after the ask, and the CTA row keeps its place above the
+            fold. */}
+        <p className="hero-proof">
+          <Link
+            href="/inside"
+            onClick={() => captureEvent('hero_proof_clicked', {
+              surface: 'hero',
+              destination: 'inside_build_map',
+            })}
+          >
+            {builds.length} pins on the globe — see who built one ↗
+          </Link>
+        </p>
       </div>
     </section>
   );
