@@ -1,5 +1,9 @@
+/* Container queries, not media queries: the 3D globe takes the left half, so
+   this panel's width does not track the viewport — at a 1512px window it is
+   631px, and a viewport breakpoint folds the bands at the wrong moment. */
 .body {
   max-width: 820px;
+  container-type: inline-size;
 }
 
 .mapLayout {
@@ -175,135 +179,156 @@
   font-family: var(--pf-mono);
   font-size: 10px;
   line-height: 1;
-  border-radius: 2px;
 }
 
 
-.actionList {
-  display: grid;
-  max-width: 620px;
-  margin-top: 22px;
+/* Beat 1 of the panel: one 24px statement, not a two-paragraph preamble.
+   Scoped through .body because the global `.panel-body p` rule is (0,1,1) and
+   would otherwise win the font-size. */
+.body .declaration {
+  max-width: 34ch;
+  margin: 0 0 8px;
+  color: var(--pf-ink);
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: var(--pf-track-tight);
+  text-wrap: pretty;
 }
 
-.actionRow {
-  display: grid;
-  grid-template-columns: 42px 1fr;
-  gap: 16px;
+/* Legend for the globe's markers. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 12px;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+.legendBuild,
+.legendCollab {
+  display: inline-flex;
   align-items: center;
-  padding: 16px 0;
-  border-top: 1px solid var(--pf-rule);
+  gap: 8px;
+}
+
+.legendBuild::before,
+.legendCollab::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  /* Round on purpose: these depict the map's dot and ring markers. */
+  border-radius: 999px;
+}
+
+.legendBuild::before {
+  background: var(--pf-ink);
+}
+
+.legendCollab::before {
+  border: 1px solid var(--pf-led);
+}
+
+/* Same specificity problem as .declaration — `.panel-body p` is (0,1,1). */
+.body .mapNote {
+  margin: 14px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.55;
+}
+
+/* Beat 3: three cells across, mono labels, no icons. */
+.joinBand {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 30px 0 0;
+  border: 1px solid var(--pf-rule);
+}
+
+.joinCell {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 16px;
+  border-right: 1px solid var(--pf-rule);
   color: var(--pf-ink);
   text-decoration: none;
+  transition: background 120ms ease;
 }
 
-.actionRow:last-child {
-  border-bottom: 1px solid var(--pf-rule);
+.joinCell:last-child {
+  border-right: 0;
 }
 
-.actionIcon {
-  width: 30px;
-  height: 30px;
+.joinCell:hover,
+.joinCell:focus-visible {
+  outline: 0;
+  background: var(--pf-cream-2);
+}
+
+.joinKicker {
   color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
 }
 
-.actionIcon svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  fill: currentColor;
-}
-
-.actionCopy {
-  display: grid;
-  gap: 3px;
-}
-
-.actionCopy strong {
-  color: var(--pf-ink);
+.joinCell strong {
   font-size: var(--pf-fs-row);
   font-weight: 500;
-  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
-.actionCopy span {
-  max-width: 46ch;
+.joinDesc {
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-row-d);
   line-height: 1.45;
 }
 
-.actionRow:hover .actionIcon,
-.actionRow:focus-visible .actionIcon {
-  color: var(--pf-ink);
-}
-
+/* Compact mono rows. The dot-and-rail timeline was the panel's third list
+   grammar and the only thing on the site positioned absolutely off a 68px
+   rail; the date column carries the same information. */
 .storyList {
-  position: relative;
   display: grid;
   gap: 0;
-  max-width: 760px;
-  margin: 0 0 34px;
+  margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.storyList::before {
-  position: absolute;
-  top: 9px;
-  bottom: 18px;
-  left: 68px;
-  width: 1px;
-  background: var(--pf-rule);
-  content: "";
+  border-top: 1px solid var(--pf-rule);
 }
 
 .storyList li {
-  position: relative;
   display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 44px;
-  align-items: start;
-  padding: 0 0 22px;
+  grid-template-columns: 56px 1fr;
+  gap: 18px;
+  align-items: baseline;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--pf-rule);
   color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.6;
-}
-
-.storyList li:last-child {
-  padding-bottom: 0;
-}
-
-.storyList li::before {
-  position: absolute;
-  top: 6px;
-  left: 64px;
-  z-index: 1;
-  width: 9px;
-  height: 9px;
-  border: 1px solid var(--pf-rule);
-  border-radius: 999px;
-  background: var(--pf-cream);
-  content: "";
-}
-
-.storyList .storyCurrent::before {
-  border-color: var(--pf-ink);
-  background: var(--pf-ink);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.5;
 }
 
 .storyList time {
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+}
+
+.storyList .storyCurrent time {
   color: var(--pf-ink);
-  font-size: var(--pf-fs-row-d);
-  font-weight: 500;
-  letter-spacing: 0;
-  line-height: 1.55;
 }
 
 .storyList a {
   color: var(--pf-ink);
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
+  text-underline-offset: 3px;
 }
 
 .storyList strong {
@@ -363,7 +388,6 @@
 .wipTag {
   padding: 1px 7px;
   border: 1px solid var(--pf-rule);
-  border-radius: 999px;
   color: var(--pf-ink-muted);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -391,15 +415,28 @@
 
   .storyList li {
     grid-template-columns: 48px 1fr;
-    gap: 28px;
+    gap: 14px;
   }
 
-  .storyList::before {
-    left: 58px;
+  .body .declaration {
+    font-size: 20px;
+  }
+}
+
+/* Three across holds down to ~480px of panel; below that the descriptions
+   shred, and three cells fold straight to one rather than leaving an orphan. */
+@container (max-width: 480px) {
+  .joinBand {
+    grid-template-columns: 1fr;
   }
 
-  .storyList li::before {
-    left: 54px;
+  .joinCell {
+    border-right: 0;
+    border-bottom: 1px solid var(--pf-rule);
+  }
+
+  .joinCell:last-child {
+    border-bottom: 0;
   }
 }
 

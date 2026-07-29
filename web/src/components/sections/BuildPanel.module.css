@@ -1,5 +1,12 @@
+/* No max-width: the panel is ~928px at full size and the facts band wants all
+   of it. At 760px the band folded to 2×2 and left 168px empty on the right.
+   Container queries, not media queries: the 3D viewer takes the left half, so
+   this panel's width does not track the viewport — at a 1440px window it is
+   594px, and a viewport breakpoint would fold it at the wrong moment. */
 .buildPanel {
-  max-width: 760px;
+  display: grid;
+  gap: 34px;
+  container-type: inline-size;
 }
 
 .note {
@@ -8,6 +15,64 @@
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-body);
   line-height: 1.65;
+}
+
+/* ── What it takes ── cost + time, before the steps. Four across, because the
+   decision is "is this worth it", and that is one glance, not four rows. */
+.factsBand {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--pf-rule);
+}
+
+.factCard {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 18px 18px 20px;
+  border-right: 1px solid var(--pf-rule);
+}
+
+.factCard:last-child {
+  border-right: 0;
+}
+
+/* 28px → 18px → 13px inside the cell, so the number carries and the detail
+   recedes. Weight stays 500 — the system has no 600. */
+.factValue {
+  font-family: var(--pf-mono);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--pf-ink);
+}
+
+.factName {
+  font-size: var(--pf-fs-row);
+  line-height: 1.25;
+  color: var(--pf-ink);
+}
+
+.factLabel {
+  margin-top: 2px;
+  color: var(--pf-ink-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Steps | Start here ── side by side, which halves the scroll. */
+.buildCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+}
+
+/* pf-block is a global class, so match the child element instead — naming it
+   here would get hashed by CSS Modules and match nothing. */
+.buildCols > div {
+  min-width: 0;
 }
 
 .stepList {
@@ -23,63 +88,17 @@
   gap: 3px;
 }
 
-/* ── What it takes ── cost + time reality check before the build matrix. */
-.factsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  border: 1px solid var(--pf-rule);
-}
-
-.factCard {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border-right: 1px solid var(--pf-rule);
-  border-bottom: 1px solid var(--pf-rule);
-}
-
-.factCard:nth-child(2n) {
-  border-right: 0;
-}
-
-.factCard:nth-last-child(-n + 2) {
-  border-bottom: 0;
-}
-
-.factValue {
-  font-family: var(--pf-mono);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--pf-ink);
-}
-
-.factLabel {
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.5;
-}
-
-.factsNote {
-  max-width: 640px;
-  margin: 14px 0 0;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.6;
-}
-
-/* ── Build guide ── one loud card for the current v3.0.0 route, two quiet
-   ordering shortcuts under it, everything else via the assembly map. */
+/* ── Build guide ── the single ink solid in this panel, so there is never a
+   question which link is the main route. */
 .guideCard {
   display: grid;
   gap: 8px;
-  max-width: 620px;
   padding: 20px 22px;
   border: 1px solid var(--pf-ink);
-  background: var(--pf-cream-2);
-  color: var(--pf-ink);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
   text-decoration: none;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 
 .guideCard strong {
@@ -90,43 +109,39 @@
 }
 
 .guideCard span {
-  color: var(--pf-ink-muted);
+  color: var(--pf-cream);
+  opacity: 0.75;
   font-size: var(--pf-fs-body);
   line-height: 1.5;
 }
 
+/* Keep the fill — emptying a solid on hover reads as disabled. */
 .guideCard:hover,
 .guideCard:focus-visible {
   outline: 0;
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.guideCard:hover span,
-.guideCard:focus-visible span {
-  color: var(--pf-cream);
-  opacity: 0.75;
+  background: var(--pf-ink-muted);
+  border-color: var(--pf-ink-muted);
 }
 
 .quickLinks {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  max-width: 620px;
   border: 1px solid var(--pf-rule);
   border-top: 0;
 }
 
 .quickLinks a {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
   padding: 13px 16px;
-  border-right: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
   color: var(--pf-ink);
   text-decoration: none;
 }
 
 .quickLinks a:last-child {
-  border-right: 0;
+  border-bottom: 0;
 }
 
 .quickLinks a:hover,
@@ -138,19 +153,18 @@
 .quickLinks strong {
   font-size: var(--pf-fs-row-d);
   font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
 }
 
 .quickLinks span {
+  flex: none;
   color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.4;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
 }
 
 .otherPaths {
-  max-width: 620px;
   margin: 16px 0 0;
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-body);
@@ -161,68 +175,116 @@
   display: flex;
   flex-wrap: wrap;
   gap: 18px;
-  margin-top: 22px;
+  margin-top: 18px;
 }
 
+/* Explode rides in the row instead of floating over it — the old
+   position:absolute pinned it to a fixed offset that only fit one column
+   width. */
 .stepHead {
   min-height: 21px;
-  display: block;
-  padding-right: 180px;
-  position: relative;
-  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
-.inlineAction {
-  position: absolute;
-  top: 1px;
-  right: 84px;
-  height: 18px;
+.explodeControl {
+  flex: none;
   display: inline-flex;
   align-items: center;
-  padding: 0 0 2px;
-  border: 0;
-  border-bottom: 1px solid currentColor;
-  color: var(--pf-ink);
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.explodeControl label {
+  min-width: 8ch;
+  color: var(--pf-ink-muted);
   font-family: var(--pf-mono);
   font-size: 10px;
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
-  cursor: pointer;
-  white-space: nowrap;
 }
 
-.inlineAction::before {
-  content: "->";
-  margin-right: 7px;
-  letter-spacing: 0;
+/* Square everything — the system has no radius, and a stock range input brings
+   a rounded track and thumb by default. */
+.explodeControl input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 92px;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: ew-resize;
 }
 
-.inlineActionOn::before {
-  content: "<-";
+.explodeControl input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--pf-rule);
 }
 
-@media (max-width: 900px) {
-  .stepHead {
-    padding-right: 150px;
+.explodeControl input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--pf-rule);
+}
+
+.explodeControl input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 3px;
+  height: 14px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--pf-ink);
+}
+
+.explodeControl input[type="range"]::-moz-range-thumb {
+  width: 3px;
+  height: 14px;
+  border: 0;
+  border-radius: 0;
+  background: var(--pf-ink);
+}
+
+.explodeControl input[type="range"]:focus-visible {
+  outline: 1px solid var(--pf-ink);
+  outline-offset: 3px;
+}
+
+/* Four across needs ~760px of panel; below that the detail lines shred into
+   six-word columns. */
+@container (max-width: 760px) {
+  .factsBand {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .inlineAction {
-    right: 62px;
+  .factCard:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .factCard:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--pf-rule);
   }
 }
 
-@media (max-width: 600px) {
-  /* The ordering shortcuts stack on phones. */
-  .quickLinks {
+@container (max-width: 620px) {
+  .buildCols {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
+@container (max-width: 400px) {
+  .factsBand {
     grid-template-columns: 1fr;
   }
 
-  .quickLinks a {
+  .factCard {
     border-right: 0;
     border-bottom: 1px solid var(--pf-rule);
   }
 
-  .quickLinks a:last-child {
+  .factCard:last-child {
     border-bottom: 0;
   }
 }

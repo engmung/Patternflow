@@ -9,6 +9,35 @@ interface BuildPanelProps {
   isActive: boolean;
 }
 
+// The reality check every would-be builder wants before committing. Ordered
+// cost → your time → machine time → waiting, so the two numbers the reader is
+// actually deciding on come first. Numbers follow the main path (custom PCB +
+// 3D print, see BUILD_GUIDE.md BOM).
+const FACTS = [
+  {
+    value: '~$100',
+    name: 'All parts',
+    // Printing, not filament: most people order the case rather than owning a
+    // printer, and $30 is what that costs.
+    detail: '3D printing ~$30 · panel ~$20 · ESP32-S3 ~$15 · PCB & rest ~$35',
+  },
+  {
+    value: '~1 hr',
+    name: 'Hands-on',
+    detail: '30 min soldering, 30 min assembly. Big through-hole joints — a first time is fine.',
+  },
+  {
+    value: '~10–12 hr',
+    name: 'Printing',
+    detail: 'Printer time, not yours. Nearer 12 at finer layer heights.',
+  },
+  {
+    value: '~2 wk',
+    name: 'Shipping',
+    detail: 'Order the parts first — the wait is the longest part.',
+  },
+];
+
 const STEPS = [
   {
     id: 1,
@@ -36,8 +65,8 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
   const setActiveSection = useAppStore((state) => state.setActiveSection);
   const buildStep = useAppStore((state) => state.buildStep);
   const setBuildStep = useAppStore((state) => state.setBuildStep);
-  const isExploded = useAppStore((state) => state.isExploded);
-  const setIsExploded = useAppStore((state) => state.setIsExploded);
+  const explode = useAppStore((state) => state.explode);
+  const setExplode = useAppStore((state) => state.setExplode);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [lockedStep, setLockedStep] = useState<number | null>(null);
@@ -131,8 +160,23 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
       </div>
 
       <div className={`panel-body ${styles.buildPanel}`} ref={containerRef}>
+        {/* Cost and time first: the reader decides whether to build at all
+            before they care what the four steps are. */}
+        <div className={styles.factsBand}>
+          {FACTS.map((fact) => (
+            <div className={styles.factCard} key={fact.name}>
+              <span className={styles.factValue}>{fact.value}</span>
+              <span className={styles.factName}>{fact.name}</span>
+              <span className={styles.factLabel}>{fact.detail}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.buildCols}>
         <div className="pf-block" onMouseLeave={handleStepLeave}>
-          <span className="pf-kicker">Step preview</span>
+          <span className="pf-kicker">
+            {isMobile ? 'Four steps — tap to preview' : 'Four steps — hover to preview on the device'}
+          </span>
           <div className={styles.stepList}>
             {STEPS.map((step) => {
               const isActive = isMobile ? activeTouchStep === step.id : buildStep === step.id;
@@ -157,25 +201,31 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
                   <div className={styles.stepContent}>
                     <div className={styles.stepHead}>
                       <span className="pf-row-t">{step.title}</span>
+                      {/* A slider, not a toggle. The old control was a text
+                          link that flipped between two fixed states, so the
+                          separation happened *at* you; dragging it puts the
+                          device apart in your own hand, which is the claim the
+                          whole project makes. Events stop here so a drag does
+                          not also re-trigger the row underneath. */}
                       {step.id === 3 && isActive && (
                         <span
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={isExploded}
-                          className={`${styles.inlineAction} ${isExploded ? styles.inlineActionOn : ''}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setIsExploded(!isExploded);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setIsExploded(!isExploded);
-                            }
-                          }}
+                          className={styles.explodeControl}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
                         >
-                          {isExploded ? 'Assemble' : 'Explode'}
+                          <label htmlFor="pf-explode">
+                            {explode < 0.02 ? 'Assembled' : 'Exploded'}
+                          </label>
+                          <input
+                            id="pf-explode"
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={explode}
+                            aria-label="How far apart the device is drawn"
+                            onChange={(event) => setExplode(Number(event.target.value))}
+                          />
                         </span>
                       )}
                     </div>
@@ -187,51 +237,12 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
           </div>
         </div>
 
-        {/* The reality check every would-be builder wants before committing:
-            what it costs, how long it takes, and — the big one — that the
-            soldering was deliberately kept first-timer easy. Numbers follow
-            the main path (custom PCB + 3D print, see BUILD_GUIDE.md BOM). */}
-        <div className="pf-block">
-          <span className="pf-kicker">What it takes</span>
-          <div className={styles.factsGrid}>
-            <div className={styles.factCard}>
-              <span className={styles.factValue}>~US$100</span>
-              <span className={styles.factLabel}>
-                all parts — filament ~$30 · LED panel ~$20 · ESP32-S3 ~$13 · PCB &amp; the rest ~$35
-              </span>
-            </div>
-            <div className={styles.factCard}>
-              <span className={styles.factValue}>~2 weeks</span>
-              <span className={styles.factLabel}>
-                parts shipping — order first; the wait is the longest part of the build
-              </span>
-            </div>
-            <div className={styles.factCard}>
-              <span className={styles.factValue}>~10 hours</span>
-              <span className={styles.factLabel}>
-                3D printing — printer time, not yours; it runs while you wait
-              </span>
-            </div>
-            <div className={styles.factCard}>
-              <span className={styles.factValue}>~1 hour</span>
-              <span className={styles.factLabel}>
-                hands-on — about 30 min of soldering and 30 min of final assembly
-              </span>
-            </div>
-          </div>
-          <p className={styles.factsNote}>
-            Never soldered before? Start here. The soldering is genuinely, really easy — every
-            joint is big through-hole, and the board was deliberately stripped down to only the
-            easy parts so that first-time solderers can finish it.
-          </p>
-        </div>
-
         {/* ONE prominent route — the current v3.0.0 guide — with the two
             ordering shortcuts wired straight to it. Every other combination
             (breadboard, laser cut, older boards) lives in the assembly map,
             which replaced the old build matrix here. */}
         <div className="pf-block">
-          <span className="pf-kicker">Build guide</span>
+          <span className="pf-kicker">Start here</span>
           <a
             className={styles.guideCard}
             href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md"
@@ -244,45 +255,46 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
           >
             <strong>Build Guide v3.0.0 ↗</strong>
             <span>
-              The complete, current route — PLA-printed case, hand-soldered custom PCB, browser
-              flash. Start to finish in one document.
+              PLA case, hand-soldered PCB, browser flash. Start to finish in one document.
             </span>
           </a>
+          {/* Name on the left, destination on the right — the guide card above
+              is the only solid in this panel, so these stay hairline rows. */}
           <div className={styles.quickLinks}>
             <a
               href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"
               target="_blank"
               rel="noreferrer"
             >
-              <strong>Order the PCB — PCBWay ↗</strong>
-              <span>Shared project: no Gerber upload, and ordering supports Patternflow</span>
+              <strong>Order the PCB</strong>
+              <span>PCBWay ↗</span>
             </a>
             <a
               href="https://makerworld.com/en/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015"
               target="_blank"
               rel="noreferrer"
             >
-              <strong>Print the case — MakerWorld ↗</strong>
-              <span>Tuned one-click profiles for Bambu printers; STLs in the repo for the rest</span>
+              <strong>Print the case</strong>
+              <span>MakerWorld ↗</span>
             </a>
             <a
               href="https://github.com/engmung/Patternflow/releases/tag/v3.0.0"
               target="_blank"
               rel="noreferrer"
             >
-              <strong>All files — Release v3.0.0 ↗</strong>
-              <span>STLs, Gerbers, print project, and firmware images bundled in one place</span>
+              <strong>All files</strong>
+              <span>Release v3.0.0 ↗</span>
             </a>
           </div>
           <p className={styles.otherPaths}>
-            Building another way — breadboard electronics, laser-cut enclosure, or an older v2
-            board? Every route lives in the assembly map.
+            Breadboard, laser-cut, or an older v2 board? Every route is in the assembly map.
           </p>
           <div className={styles.pathLinks}>
             <a className="pf-link" href="https://github.com/engmung/Patternflow/blob/main/docs/assembly/README.md" target="_blank" rel="noreferrer">
               Open the assembly map
             </a>
           </div>
+        </div>
         </div>
       </div>
     </div>

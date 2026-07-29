@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
+import { builds } from "@/components/sections/InsideGlobe/builds";
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
@@ -32,12 +34,14 @@ export default function Hero() {
         <h1>
           <em className="wordmark">Patternflow</em>
         </h1>
-        <div className="kicker">An open-source LED synthesizer played with the fingertips.</div>
+        <div className="kicker">An open-source LED synthesizer. Play light with your fingertips.</div>
         {/* The one thing the page never said: what you actually do with it.
             Sits above the video so it reads before the picture, not after. */}
         <p className="hero-spec">Four knobs. The pattern answers as you turn them.</p>
-        <div style={{ 
-          marginBottom: '24px', 
+        <div style={{
+          /* 14, not 24: the last few pixels that put the CTA row above the
+             fold on an 820px-tall laptop. */
+          marginBottom: '14px',
           overflow: 'hidden', 
           border: '1px solid var(--pf-rule)',
           position: 'relative',
@@ -77,66 +81,33 @@ export default function Hero() {
             }}
           />
         </div>
-        <p className="lede">
-          A reinterpretation of{" "}
-          <a
-            className="has-tip"
-            data-tip="View on MoMA"
-            href="https://www.moma.org/artists/4469"
-            target="_blank"
-            rel="noopener"
-            style={{
-              color: "inherit",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              fontWeight: 500,
-            }}
-          >
-            Nam June Paik
-          </a>
-          &apos;s
-          <br />
-          <em>
-            <a
-              className="has-tip"
-              data-tip="Nam June Paik Art Center"
-              href="https://njpart.ggcf.kr/mediaObjects/32"
-              target="_blank"
-              rel="noopener"
-              style={{ color: "inherit", textDecoration: "none" }}
-            >
-              Participation TV
-            </a>
-          </em>{" "}
-          (1963).
-          <br />
-          Paik let the viewer change the image.
-          <br />
-          Patternflow lets you make it.
-          <br />
-          <br />
-          <span style={{ fontWeight: 500 }}>Create and share your own light.</span>
-        </p>
-        <p className="hero-kit-note">
-          All source files and guides are on GitHub.
-          <br />
-          Build one yourself, or get one.
-        </p>
-        <div className="hero-cta-row" aria-label="Patternflow actions">
-          <a
-            className="hero-cta"
-            href="https://github.com/engmung/Patternflow"
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('github_cta_clicked', {
+        {/* L3 — the strongest line we have, per the manifesto: a description of
+            how the system works, with nothing in it to disbelieve. */}
+        <p className="lede">Every Patternflow plays every pattern we make.</p>
+        {/* L5 does not run in the hero (manifesto §2: depth, not headline, and
+            this is the most headline-like surface on the site). This is a
+            signpost to it, not a shortened version of it — the line itself is
+            unchanged and still runs in full in the README and the journal. */}
+        {/* One link, one target: the journal post about Paik is the "why", so
+            pointing the work title at an external museum page and the call to
+            action at the journal index just split the same destination in two. */}
+        <p className="hero-footnote">
+          <Link
+            href="/journal/nam-june-paik-me-patternflow/en"
+            onClick={() => captureEvent('hero_footnote_clicked', {
               surface: 'hero',
-              destination: 'github_repository',
+              destination: 'journal_nam_june_paik',
             })}
           >
-            GitHub
-          </a>
+            After Nam June Paik&apos;s <em>Participation TV</em>, 1963 — read why ↗
+          </Link>
+        </p>
+        {/* Get One leads: it is the action that costs the reader something, so
+            it takes the solid weight. The note sits under it — not under both —
+            so it is unambiguous which button ships worldwide. */}
+        <div className="hero-cta-row" aria-label="Patternflow actions">
           <a
-            className="hero-cta hero-cta-waitlist"
+            className="hero-cta hero-cta-primary"
             href={CROWD_SUPPLY_URL}
             target="_blank"
             rel="noopener"
@@ -148,8 +119,37 @@ export default function Hero() {
           >
             Get One
           </a>
+          <a
+            className="hero-cta hero-cta-secondary"
+            href="https://github.com/engmung/Patternflow"
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('github_cta_clicked', {
+              surface: 'hero',
+              destination: 'github_repository',
+            })}
+          >
+            Build it — GitHub
+          </a>
+          <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
         </div>
-        <p className="hero-cta-note">Launching on Crowd Supply — ships worldwide.</p>
+        {/* The hero is all claim and no evidence otherwise. Per the manifesto,
+            the build map is the strongest proof there is — a star is interest,
+            a pin is someone who actually did it — and the count comes from the
+            data so it cannot go stale. Below the buttons on purpose: evidence
+            belongs after the ask, and the CTA row keeps its place above the
+            fold. */}
+        <p className="hero-proof">
+          <Link
+            href="/inside"
+            onClick={() => captureEvent('hero_proof_clicked', {
+              surface: 'hero',
+              destination: 'inside_build_map',
+            })}
+          >
+            {builds.length} pins on the globe — see who built one ↗
+          </Link>
+        </p>
       </div>
     </section>
   );

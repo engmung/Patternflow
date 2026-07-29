@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://patternflow.work"),
   title: "Patternflow — An LED synthesizer",
   description:
-    "Play light patterns with your fingertips. An open-source LED synthesizer — a modern reinterpretation of Nam June Paik's Participation TV (1963).",
+    "Patternflow is an open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern we make.",
   keywords: [
     "LED synthesizer",
     "open-source hardware",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     url: "https://patternflow.work",
     title: "Patternflow — An LED synthesizer",
     description:
-      "Play light patterns with your fingertips. An open-source LED synthesizer built with ESP32-S3 and a 128×64 LED matrix.",
+      "An open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern we make.",
     images: [
       {
         url: "/og-image.png",
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Patternflow — An LED synthesizer",
     description:
-      "Play light patterns with your fingertips. An open-source LED synthesizer.",
+      "Patternflow is an open-source LED synthesizer. Play light with your fingertips.",
     images: ["/og-image.png"],
   },
   alternates: {
@@ -112,7 +112,7 @@ const structuredData = {
       url: siteUrl,
       logo: `${siteUrl}/apple-touch-icon.png`,
       description:
-        "Open-source LED synthesizer played with the fingertips — a modern reinterpretation of Nam June Paik's Participation TV (1963).",
+        "Patternflow is an open-source LED synthesizer. Play light patterns with your fingertips — a contemporary reinterpretation of Nam June Paik's Participation TV (1963).",
       founder: { "@id": `${siteUrl}/#person` },
       sameAs: [
         "https://github.com/engmung/Patternflow",
@@ -135,7 +135,7 @@ const structuredData = {
       url: siteUrl,
       name: "Patternflow",
       description:
-        "Play light patterns with your fingertips. An open-source LED synthesizer built with ESP32-S3 and a HUB75 LED matrix.",
+        "Patternflow is an open-source LED synthesizer. Play light patterns with your fingertips — four knobs reshaping generative light on an ESP32-S3-driven HUB75 LED matrix.",
       publisher: { "@id": `${siteUrl}/#organization` },
       inLanguage: "en",
     },

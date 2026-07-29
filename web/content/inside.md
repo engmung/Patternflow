@@ -1,6 +1,6 @@
 ---
 title: Inside the work.
-subtitle: How to get involved.
+subtitle: Here is every one of them.
 cta:
   primary:
     label: "Contributing"

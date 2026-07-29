@@ -333,10 +333,14 @@ export default function PatternCard({
               a single link and its hover/knob interactions are unaffected. */}
           <span className={styles.cardStats}>
             {item.likeCount > 0 && (
-              <span title={`${item.likeCount} likes`}>♥ {item.likeCount}</span>
+              <span title={`${item.likeCount} likes`}>
+                LIK {String(item.likeCount).padStart(2, "0")}
+              </span>
             )}
             {item.forkCount > 0 && (
-              <span title={`Forked ${item.forkCount} times`}>⑂ {item.forkCount}</span>
+              <span title={`Forked ${item.forkCount} times`}>
+                FRK {String(item.forkCount).padStart(2, "0")}
+              </span>
             )}
             <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>
           </span>

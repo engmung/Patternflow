@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
 import BuildCard from './InsideGlobe/BuildCard';
 import BuildIndex from './InsideGlobe/BuildIndex';
+import { builds } from './InsideGlobe/builds';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
@@ -12,117 +13,96 @@ interface InsidePanelProps {
 
 const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
-const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
 
-function DiscordIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M20.3 4.7A16.7 16.7 0 0 0 16.2 3l-.2.4c-.2.4-.4.8-.5 1.2a15.6 15.6 0 0 0-7 0c-.2-.4-.3-.8-.5-1.2L7.8 3a16.7 16.7 0 0 0-4.1 1.7C1.1 8.6.4 12.4.8 16.2A16.9 16.9 0 0 0 5.9 19l.6-.8.5-.9c-.9-.3-1.7-.7-2.4-1.2l.6-.5c4.6 2.1 9.5 2.1 14.1 0l.6.5c-.8.5-1.6.9-2.4 1.2l.5.9.6.8a16.9 16.9 0 0 0 5.1-2.8c.5-4.3-.7-8-3.4-11.5ZM8.3 14.1c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z" />
-    </svg>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M7.6 2h8.8A5.6 5.6 0 0 1 22 7.6v8.8a5.6 5.6 0 0 1-5.6 5.6H7.6A5.6 5.6 0 0 1 2 16.4V7.6A5.6 5.6 0 0 1 7.6 2Zm0 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm8.9 2.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
-    </svg>
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.6.1.8-.3.8-.6v-2c-3.4.7-4.1-1.5-4.1-1.5-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.4-5.5-6a4.6 4.6 0 0 1 1.3-3.3c-.1-.3-.6-1.6.1-3.3 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6.2 0C18 3.7 19 4 19 4c.7 1.7.2 3 .1 3.3a4.7 4.7 0 0 1 1.3 3.3c0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2V22c0 .3.2.7.8.6A11.2 11.2 0 0 0 12 .8Z" />
-    </svg>
-  );
-}
+// One grammar — no icons. The old version put 30px brand glyphs in a list while
+// every other row on the site is a hairline with a mono label.
+//
+// Contact sits here rather than in the top nav: this band is already the "how
+// to reach us" surface, and almost nothing arrives through the form.
+const JOIN = [
+  {
+    kicker: 'Day-to-day help',
+    name: 'Discord ↗',
+    href: DISCORD_URL,
+    external: true,
+    desc: 'Build questions, finished builds, custom patterns.',
+  },
+  {
+    kicker: 'In motion',
+    name: 'Instagram ↗',
+    href: INSTAGRAM_URL,
+    external: true,
+    desc: 'Send a clean video and it usually goes up as a collab post.',
+  },
+  // No GitHub row: the hero's second CTA is "Build it — GitHub" and carries far
+  // more weight than a cell down here could. CONTRIBUTING.md is linked from the
+  // README, which is where someone heading for it already is.
+  {
+    kicker: 'Anything else',
+    name: 'Contact',
+    href: '/contact',
+    external: false,
+    desc: 'Exhibitions, commissions, and collaboration.',
+  },
+];
 
 export default function InsidePanel({ content }: InsidePanelProps) {
   return (
     <div className="panel-content pf-section-panel" id="inside" aria-label={content.title}>
       <div className="panel-header">
         <h2 className="pf-h2">{content.title || 'Inside the work.'}</h2>
-        <p className="pf-sub">{content.subtitle || 'The build map and how to get involved.'}</p>
+        {/* The count comes from builds.ts so it can never disagree with the
+            list below it; content/inside.md owns the sentence after it, so the
+            file stays live rather than holding a subtitle nothing reads. */}
+        <p className="pf-sub">
+          {builds.length} pins on the globe so far. {content.subtitle}
+        </p>
       </div>
 
       <div className={`panel-body ${styles.body}`}>
-        <div className="pf-block">
-          <span className="pf-kicker">Start anywhere</span>
-          <div className="pf-prose">
-            <p>
-              Patternflow is a way to play light with your fingertips. You do not have to be
-              special to make one, and you do not have to start with the most polished version.
-            </p>
-            <p>
-              Start with what you have, ask when you get stuck, and pass help on when you can.
-            </p>
-          </div>
-        </div>
+        <p className={styles.declaration}>
+          Start with what you have, ask when you get stuck, and pass help on when you can.
+        </p>
 
         <div className="pf-block">
-          <span className="pf-kicker">On the map</span>
-          <div className="pf-prose">
-            <p>
-              The goal is simple: cover the whole globe with Patternflow. If you have made
-              one yourself, come share it in Discord and I&apos;ll add your pin to the map.
-              A ring instead of a dot marks a collaboration — a separate work made
-              together with Patternflow, rather than a build of it.
-            </p>
+          <span className="pf-kicker">On the map — the ledger for the globe</span>
+          {/* Legend for the globe's own markers, so the two read as one thing.
+              Circles here because the map draws circles; this describes the
+              map rather than being UI chrome. */}
+          <div className={styles.legend}>
+            <span className={styles.legendBuild}>Build</span>
+            <span className={styles.legendCollab}>Collaboration</span>
           </div>
           {/* Mobile only — the details for the pin picked on the globe above,
               which has no room to show them at 44vh. */}
           <BuildCard />
           {/* Every pin as a link, for keyboards, screen readers and crawlers. */}
           <BuildIndex />
+          <p className={styles.mapNote}>
+            Made one? Share it in Discord and I&apos;ll add your pin. A ring instead of a dot
+            marks a collaboration.
+          </p>
         </div>
 
-        <div className="pf-block">
-          <span className="pf-kicker">Join in</span>
-          <div className="pf-prose">
-            <p>
-              Most of the day-to-day help happens in Discord. Instagram is for showing patterns
-              in motion. GitHub is where the files, issues, and contribution notes live.
-            </p>
-          </div>
-          <div className={styles.actionList} aria-label="Ways to join Patternflow">
-            <a className={styles.actionRow} href={DISCORD_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <DiscordIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>Discord</strong>
-                <span>
-                  Ask build questions, show finished builds, share custom patterns, and find the
-                  pattern code from the Instagram posts.
-                </span>
-              </span>
-            </a>
-            <a className={styles.actionRow} href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <InstagramIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>Instagram</strong>
-                <span>
-                  Send a clean video of your pattern. If it fits Patternflow, I&apos;ll usually
-                  share it as a collaboration post.
-                </span>
-              </span>
-            </a>
-            <a className={styles.actionRow} href={GITHUB_CONTRIBUTING_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <GitHubIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>GitHub</strong>
-                <span>
-                  Start with the contributing notes, then open an issue or pull request for docs,
-                  firmware, hardware, or web changes.
-                </span>
-              </span>
-            </a>
-          </div>
+        <div className={styles.joinBand} aria-label="Ways to join Patternflow">
+          {JOIN.map((row) => {
+            const inner = (
+              <>
+                <span className={styles.joinKicker}>{row.kicker}</span>
+                <strong>{row.name}</strong>
+                <span className={styles.joinDesc}>{row.desc}</span>
+              </>
+            );
+            return row.external ? (
+              <a key={row.name} className={styles.joinCell} href={row.href} target="_blank" rel="noreferrer">
+                {inner}
+              </a>
+            ) : (
+              <Link key={row.name} className={styles.joinCell} href={row.href}>
+                {inner}
+              </Link>
+            );
+          })}
         </div>
 
         <div className="pf-block">
@@ -163,8 +143,8 @@ export default function InsidePanel({ content }: InsidePanelProps) {
               <time>26.5</time>
               <span>
                 Patternflow reached <strong>100 GitHub stars</strong>, and the{' '}
-                <strong>first collaborator</strong> joined. Preparing for small-run sales, we initiated a precise{' '}
-                <strong>BOM cost calculation</strong>, estimating roughly <strong>$120</strong> in pure material cost for the worst-case scenario.
+                <strong>first collaborator</strong> joined. A precise{' '}
+                <strong>BOM cost calculation</strong> went in ahead of small-run sales.
               </span>
             </li>
             <li>
@@ -175,23 +155,32 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <strong>1,000 followers</strong>.
               </span>
             </li>
-            <li className={styles.storyCurrent}>
+            <li>
               <time>26.7</time>
               <span>
-                Shipped <strong>Patternflow v3.0.0 hardware & snap-fit enclosure</strong>, reached{' '}
-                <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
+                Shipped <strong>v3.0.0</strong> — snap-fit enclosure,{' '}
+                <strong>browser firmware compilation</strong>, and Web Serial flashing. The{' '}
+                <strong>Community</strong> opened, Crowd Supply passed{' '}
+                <strong>150 subscribers</strong>, and <strong>USB-C power went back on hold</strong>.
+              </span>
+            </li>
+            <li className={styles.storyCurrent}>
+              <time>26.8</time>
+              <span>
+                Taking the <strong>Crowd Supply campaign</strong> to launch, and putting a real
+                foundation under the{' '}
                 <Link href="/community">
-                  <strong>Community Discussions & Pattern Hub</strong>
-                </Link>{' '}
-                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and placed <strong>USB-C power on hold for full re-evaluation</strong> (#221).
+                  <strong>Community</strong>
+                </Link>
+                .
               </span>
             </li>
             <li>
               <time>~</time>
               <span>
-                Run the <strong>Crowd Supply campaign</strong> at the lowest sustainable price,
-                send Patternflow further out into the world, collaborate with{' '}
-                <strong>more artists</strong>, and earn <strong>academic recognition</strong>.
+                Keep the price as low as it can sustainably go, send Patternflow further out into
+                the world, collaborate with <strong>more artists</strong>, and earn{' '}
+                <strong>academic recognition</strong>.
               </span>
             </li>
             <li>

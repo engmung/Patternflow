@@ -1,6 +1,6 @@
 ---
 title: Make and flash patterns.
-subtitle: Make one with AI in seconds — then take it further in Pattern Lab.
+subtitle: Write it here, watch it on the device, flash it from the browser.
 status: live
 ---
 

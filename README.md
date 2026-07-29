@@ -18,7 +18,7 @@
   <a href="https://youtu.be/BPMhTChY9vg"><b>▶ Watch the demo on YouTube</b></a>
 </p>
 
-**Patternflow is an open-source LED synthesizer played with the fingertips.** Turning four physical knobs reshapes generative light patterns on an LED matrix in real time — a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik invited audiences to experience art; Patternflow invites you to create it.
+**Patternflow is an open-source LED synthesizer.** Play light patterns with your fingertips — four physical knobs reshape generative light on an LED matrix in real time. A pattern is just a small file, so **every Patternflow plays every pattern we make.**
 
 ### Four ways in
 
@@ -126,11 +126,11 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 
 ## The idea
 
-At its core, this work is about **making things easy and sharing them.** Interactive media art has a gatekeeping problem — installations can require serious capital, custom engineering, and years of specialized skill. Patternflow flips that: through the publicly released hardware files, firmware, 3D models, web preview, and AI prompts, anyone can build their own Patternflow, generate their own patterns, test them in the browser, and upload them to the device.
+**Make it easy. Make it fun. Make it yours.** Interactive media art usually demands serious capital, custom engineering, and years of specialized skill — an entry fee paid long before anyone gets to participate in anything. Patternflow removes it: the hardware files, firmware, 3D models, browser editor, and AI prompts are all public, so anyone can build their own, make their own patterns, test them in the browser, and load them onto the device.
 
-Where Nam June Paik's *Participation TV* showed that the audience could intervene in an electronic image, Patternflow proposes the step that comes after participation: the audience moves from operating the work to making, modifying, and sharing it as creators.
+This is a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik let the audience change the image; Patternflow lets you make it — and give it away. That is the step after participation: from intervening in a work to making, modifying, and sharing it.
 
-Patternflow is therefore not a single luminous object. It is a living system in which a physical experience extends outward into open-source making and community creation. The longer version lives in the [manifesto](docs/manifesto.md) and the [journal](https://patternflow.work/journal).
+So Patternflow is not a single luminous object. It is a living system in which a physical experience extends outward into open-source making and community creation. **We're not making art easier to watch. We're making it easier to make.** The longer version lives in the [manifesto](docs/manifesto.md) and the [journal](https://patternflow.work/journal).
 
 ## Repository & documentation
 
