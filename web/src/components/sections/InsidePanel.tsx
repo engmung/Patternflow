@@ -42,7 +42,7 @@ const JOIN = [
     name: 'Contact',
     href: '/contact',
     external: false,
-    desc: 'Press, exhibitions, and collaboration.',
+    desc: 'Exhibitions, commissions, and collaboration.',
   },
 ];
 
@@ -51,10 +51,11 @@ export default function InsidePanel({ content }: InsidePanelProps) {
     <div className="panel-content pf-section-panel" id="inside" aria-label={content.title}>
       <div className="panel-header">
         <h2 className="pf-h2">{content.title || 'Inside the work.'}</h2>
-        {/* Counted from builds.ts rather than written down, so the number and
-            the list below it can never disagree. */}
+        {/* The count comes from builds.ts so it can never disagree with the
+            list below it; content/inside.md owns the sentence after it, so the
+            file stays live rather than holding a subtitle nothing reads. */}
         <p className="pf-sub">
-          {builds.length} pins on the globe so far. Here is every one of them.
+          {builds.length} pins on the globe so far. {content.subtitle}
         </p>
       </div>
 

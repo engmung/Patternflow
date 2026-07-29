@@ -216,6 +216,14 @@ Patternflow started as one person's project and says so plainly in the journal.
 The move from *I* to *we* is the story, not a marketing decision. Both stay in
 the writing: the journal is first person, everything forward-facing is *we*.
 
+**One exception, and it matters.** Where a sentence describes something one
+person actually does, or actually did, it stays first person even on a
+forward-facing surface — "share it in Discord and **I'll** add your pin", "**my**
+first work as a new media artist". Nobody else adds the pins. Rewriting those as
+*we* would be a quieter lie than the marketing kind, but still a lie, and the
+whole point of §4 is that our *we* is checkable. The test is simple: if a real
+person is doing the thing, say who.
+
 ---
 
 ## 6. How we treat each other
