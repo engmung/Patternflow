@@ -240,10 +240,10 @@
   line-height: 1.55;
 }
 
-/* Beat 3: four cells across, mono labels, no icons. */
+/* Beat 3: three cells across, mono labels, no icons. */
 .joinBand {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   margin: 30px 0 0;
   border: 1px solid var(--pf-rule);
 }
@@ -423,22 +423,9 @@
   }
 }
 
-/* Four across needs ~700px of panel; below that the descriptions shred. */
-@container (max-width: 700px) {
-  .joinBand {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .joinCell:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .joinCell:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--pf-rule);
-  }
-}
-
-@container (max-width: 380px) {
+/* Three across holds down to ~480px of panel; below that the descriptions
+   shred, and three cells fold straight to one rather than leaving an orphan. */
+@container (max-width: 480px) {
   .joinBand {
     grid-template-columns: 1fr;
   }

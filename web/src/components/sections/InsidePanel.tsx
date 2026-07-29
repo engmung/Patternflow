@@ -13,7 +13,6 @@ interface InsidePanelProps {
 
 const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
-const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
 
 // One grammar — no icons. The old version put 30px brand glyphs in a list while
 // every other row on the site is a hairline with a mono label.
@@ -35,13 +34,9 @@ const JOIN = [
     external: true,
     desc: 'Send a clean video and it usually goes up as a collab post.',
   },
-  {
-    kicker: 'The files',
-    name: 'GitHub ↗',
-    href: GITHUB_CONTRIBUTING_URL,
-    external: true,
-    desc: 'Contributing notes, issues, pull requests.',
-  },
+  // No GitHub row: the hero's second CTA is "Build it — GitHub" and carries far
+  // more weight than a cell down here could. CONTRIBUTING.md is linked from the
+  // README, which is where someone heading for it already is.
   {
     kicker: 'Anything else',
     name: 'Contact',
@@ -147,8 +142,8 @@ export default function InsidePanel({ content }: InsidePanelProps) {
               <time>26.5</time>
               <span>
                 Patternflow reached <strong>100 GitHub stars</strong>, and the{' '}
-                <strong>first collaborator</strong> joined. Preparing for small-run sales, we initiated a precise{' '}
-                <strong>BOM cost calculation</strong>, estimating roughly <strong>$120</strong> in pure material cost for the worst-case scenario.
+                <strong>first collaborator</strong> joined. A precise{' '}
+                <strong>BOM cost calculation</strong> went in ahead of small-run sales.
               </span>
             </li>
             <li>
@@ -159,23 +154,32 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <strong>1,000 followers</strong>.
               </span>
             </li>
-            <li className={styles.storyCurrent}>
+            <li>
               <time>26.7</time>
               <span>
-                Shipped <strong>Patternflow v3.0.0 hardware & snap-fit enclosure</strong>, reached{' '}
-                <strong>150+ Crowd Supply subscribers</strong> (162 on July 24!), launched the{' '}
+                Shipped <strong>v3.0.0</strong> — snap-fit enclosure,{' '}
+                <strong>browser firmware compilation</strong>, and Web Serial flashing. The{' '}
+                <strong>Community</strong> opened, Crowd Supply passed{' '}
+                <strong>150 subscribers</strong>, and <strong>USB-C power went back on hold</strong>.
+              </span>
+            </li>
+            <li className={styles.storyCurrent}>
+              <time>26.8</time>
+              <span>
+                Taking the <strong>Crowd Supply campaign</strong> to launch, and putting a real
+                foundation under the{' '}
                 <Link href="/community">
-                  <strong>Community Discussions & Pattern Hub</strong>
-                </Link>{' '}
-                with pattern fork capabilities, added <strong>browser firmware compilation & Web Serial flashing</strong> (#230), and placed <strong>USB-C power on hold for full re-evaluation</strong> (#221).
+                  <strong>Community</strong>
+                </Link>
+                .
               </span>
             </li>
             <li>
               <time>~</time>
               <span>
-                Run the <strong>Crowd Supply campaign</strong> at the lowest sustainable price,
-                send Patternflow further out into the world, collaborate with{' '}
-                <strong>more artists</strong>, and earn <strong>academic recognition</strong>.
+                Keep the price as low as it can sustainably go, send Patternflow further out into
+                the world, collaborate with <strong>more artists</strong>, and earn{' '}
+                <strong>academic recognition</strong>.
               </span>
             </li>
             <li>

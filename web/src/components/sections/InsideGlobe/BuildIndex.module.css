@@ -87,6 +87,52 @@
   overflow: hidden;
 }
 
+/* Off-page rows stay in the HTML so every pin keeps a crawlable link — only
+   the display is paged. */
+.offPage {
+  display: none;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.pager button {
+  appearance: none;
+  padding: 6px 12px;
+  border: 1px solid var(--pf-rule);
+  background: transparent;
+  color: var(--pf-ink);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pager button:hover:not(:disabled) {
+  background: var(--pf-ink);
+  border-color: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.pager button:disabled {
+  color: var(--pf-ink-ghost);
+  cursor: default;
+}
+
+.pagerCount {
+  margin-right: auto;
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Marks a work built on top of Patternflow, matching the map's ring markers. */
 .tag {
   font-family: var(--pf-mono);
