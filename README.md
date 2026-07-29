@@ -143,7 +143,7 @@ So Patternflow is not a single luminous object. It is a living system in which a
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
 | `integrations/` | Host-software bridges — Ableton Live / Max for Live (OSC knob mapping) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Community](docs/COMMUNITY.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 

@@ -51,8 +51,10 @@ export default async function CommunityPatternPage(props: RouteParams) {
   const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
   const comments: CommentView[] = (await listComments(pattern.id)).map((comment) => ({
     id: comment.id,
+    userId: comment.userId,
     body: comment.body,
     createdAt: comment.createdAt.toISOString(),
+    editedAt: comment.editedAt?.toISOString() ?? null,
     username: comment.username,
     displayUsername: comment.displayUsername,
   }));
