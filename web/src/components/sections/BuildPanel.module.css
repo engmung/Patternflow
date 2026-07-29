@@ -188,30 +188,67 @@
   gap: 12px;
 }
 
-.inlineAction {
+.explodeControl {
   flex: none;
   display: inline-flex;
   align-items: center;
-  padding: 0 0 2px;
-  border: 0;
-  border-bottom: 1px solid currentColor;
-  color: var(--pf-ink);
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.explodeControl label {
+  min-width: 8ch;
+  color: var(--pf-ink-muted);
   font-family: var(--pf-mono);
   font-size: 10px;
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
-  cursor: pointer;
-  white-space: nowrap;
 }
 
-.inlineAction::before {
-  content: "->";
-  margin-right: 7px;
-  letter-spacing: 0;
+/* Square everything — the system has no radius, and a stock range input brings
+   a rounded track and thumb by default. */
+.explodeControl input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 92px;
+  height: 14px;
+  margin: 0;
+  background: transparent;
+  cursor: ew-resize;
 }
 
-.inlineActionOn::before {
-  content: "<-";
+.explodeControl input[type="range"]::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--pf-rule);
+}
+
+.explodeControl input[type="range"]::-moz-range-track {
+  height: 1px;
+  background: var(--pf-rule);
+}
+
+.explodeControl input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 3px;
+  height: 14px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--pf-ink);
+}
+
+.explodeControl input[type="range"]::-moz-range-thumb {
+  width: 3px;
+  height: 14px;
+  border: 0;
+  border-radius: 0;
+  background: var(--pf-ink);
+}
+
+.explodeControl input[type="range"]:focus-visible {
+  outline: 1px solid var(--pf-ink);
+  outline-offset: 3px;
 }
 
 /* Four across needs ~760px of panel; below that the detail lines shred into

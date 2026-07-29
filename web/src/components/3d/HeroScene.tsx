@@ -72,7 +72,7 @@ function Model() {
   const { scene } = useGLTF('/3dforweb.glb', 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
   const knobValues = useAppStore((state) => state.knobValues);
   const buildStep = useAppStore((state) => state.buildStep);
-  const isExploded = useAppStore((state) => state.isExploded);
+  const explode = useAppStore((state) => state.explode);
 
   const partsRef = useRef<{
     top: THREE.Mesh[];
@@ -379,16 +379,12 @@ function Model() {
         targetGroupY = -4.45;
         targetRotationY = 2.64;
       } else if (buildStep === 3) {
-        const currentIsExploded = useAppStore.getState().isExploded;
-        if (currentIsExploded) {
-          targetScale = 0.075; // Zoom out further for exploded view
-          targetGroupX = -0.3; // Slight left
-          targetRotationY = -0.5; // Standard 3/4 view
-        } else {
-          targetScale = 0.11; // Zoom in slightly when compact
-          targetGroupX = -0.3; // Keep original alignment
-          targetRotationY = -0.5; // Keep original rotation
-        }
+        // Pull back as the parts separate, rather than snapping between two
+        // framings — the reader is dragging this, so it has to track the drag.
+        const t = useAppStore.getState().explode;
+        targetScale = THREE.MathUtils.lerp(0.11, 0.075, t);
+        targetGroupX = -0.3;
+        targetRotationY = -0.5;
       }
     }
     
@@ -407,10 +403,14 @@ function Model() {
     } else if (buildStep === 2) { // 2. Solder
       offsetLedZ = 6; offsetPcbZ = 0; 
     } else if (buildStep === 3) { // 3. Assemble
-      if (isExploded) {
-        // LED matrix frontmost, then Top cover, Mid case, PCB, Bot case (furthest back)
-        offsetLedZ = 24; offsetTopZ = 16; offsetMidZ = 8; offsetPcbZ = 0; offsetBotZ = -12;
-      }
+      // LED matrix frontmost, then Top cover, Mid case, PCB, Bot case (furthest
+      // back). Every offset is the full-separation value times `explode`, so
+      // t=0 lands exactly on the assembled positions.
+      offsetLedZ = 24 * explode;
+      offsetTopZ = 16 * explode;
+      offsetMidZ = 8 * explode;
+      offsetPcbZ = 0;
+      offsetBotZ = -12 * explode;
     }
 
     const lerpSpeed = 0.08;
@@ -421,19 +421,19 @@ function Model() {
       let targetY = m.userData.originalY;
       const targetX = m.userData.originalX;
 
-      if (buildStep === 3 && isExploded) {
+      if (buildStep === 3) {
         if (m.name === 't_rb') {
           // Top cover: move UP
-          targetY += 25;
-          targetZ += 2; 
+          targetY += 25 * explode;
+          targetZ += 2 * explode;
         } else if (m.name === 't_b') {
           // Back top case: move BACK
-          targetZ -= 20; // push far back
+          targetZ -= 20 * explode; // push far back
         } else if (m.name !== 't') {
-          targetZ += 4;
+          targetZ += 4 * explode;
         }
         // General top group slight Y upward shift
-        if (m.name !== 't_rb') targetY += 2;
+        if (m.name !== 't_rb') targetY += 2 * explode;
       }
 
       m.position.z = THREE.MathUtils.lerp(m.position.z, targetZ, lerpSpeed);
@@ -442,8 +442,9 @@ function Model() {
     });
     
     partsRef.current.knobs.forEach(m => {
-      m.position.z = THREE.MathUtils.lerp(m.position.z, m.userData.originalZ + offsetTopZ + (buildStep === 3 && isExploded ? 8 : 0), lerpSpeed);
-      m.position.y = THREE.MathUtils.lerp(m.position.y, m.userData.originalY + (buildStep === 3 && isExploded ? 2 : 0), lerpSpeed);
+      const knobLift = buildStep === 3 ? explode : 0;
+      m.position.z = THREE.MathUtils.lerp(m.position.z, m.userData.originalZ + offsetTopZ + 8 * knobLift, lerpSpeed);
+      m.position.y = THREE.MathUtils.lerp(m.position.y, m.userData.originalY + 2 * knobLift, lerpSpeed);
     });
     
     partsRef.current.mid.forEach(m => m.position.z = THREE.MathUtils.lerp(m.position.z, m.userData.originalZ + offsetMidZ, lerpSpeed));
@@ -456,17 +457,17 @@ function Model() {
       let targetY = m.userData.originalY;
       let targetX = m.userData.originalX;
       
-      if (buildStep === 3 && isExploded) {
+      if (buildStep === 3) {
         if (m.name === 'b_f') {
           // Front cover: move to the RIGHT
-          targetX += 20;
-          targetZ += 2; 
+          targetX += 20 * explode;
+          targetZ += 2 * explode;
         } else if (m.name === 'b_b') {
           // Back bottom case: move BACK
-          targetZ -= 20; // push far back
+          targetZ -= 20 * explode; // push far back
         } else {
-          targetZ += (m.name !== 'b' ? -4 : 0);
-          targetY -= 2;
+          targetZ += (m.name !== 'b' ? -4 : 0) * explode;
+          targetY -= 2 * explode;
         }
       }
 

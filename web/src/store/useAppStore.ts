@@ -35,8 +35,11 @@ interface AppState {
   setCustomJsCode: (code: string) => void;
   buildStep: number;
   setBuildStep: (step: number) => void;
-  isExploded: boolean;
-  setIsExploded: (isExploded: boolean) => void;
+  // How far the device is pulled apart on build step 3, 0 (assembled) to 1
+  // (fully exploded). Continuous rather than a flag so the panel can hand the
+  // separation to the reader instead of animating it at them.
+  explode: number;
+  setExplode: (explode: number) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -102,6 +105,6 @@ export function draw(display, params, globalTime) {
   setCustomJsCode: (code) => set({ customJsCode: code }),
   buildStep: 0,
   setBuildStep: (step) => set({ buildStep: step }),
-  isExploded: true,
-  setIsExploded: (val) => set({ isExploded: val }),
+  explode: 1,
+  setExplode: (val) => set({ explode: val }),
 }));

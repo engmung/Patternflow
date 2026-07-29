@@ -17,17 +17,19 @@ const FACTS = [
   {
     value: '~$100',
     name: 'All parts',
-    detail: 'filament ~$30 · panel ~$20 · ESP32-S3 ~$13 · PCB & rest ~$35',
+    // Printing, not filament: most people order the case rather than owning a
+    // printer, and $30 is what that costs.
+    detail: '3D printing ~$30 · panel ~$20 · ESP32-S3 ~$15 · PCB & rest ~$35',
   },
   {
     value: '~1 hr',
     name: 'Hands-on',
-    detail: '30 min soldering, 30 min assembly. Big through-hole joints only.',
+    detail: '30 min soldering, 30 min assembly. Big through-hole joints — a first time is fine.',
   },
   {
-    value: '~10 hr',
+    value: '~10–12 hr',
     name: 'Printing',
-    detail: 'Printer time, not yours — it runs while you wait.',
+    detail: 'Printer time, not yours. Nearer 12 at finer layer heights.',
   },
   {
     value: '~2 wk',
@@ -63,8 +65,8 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
   const setActiveSection = useAppStore((state) => state.setActiveSection);
   const buildStep = useAppStore((state) => state.buildStep);
   const setBuildStep = useAppStore((state) => state.setBuildStep);
-  const isExploded = useAppStore((state) => state.isExploded);
-  const setIsExploded = useAppStore((state) => state.setIsExploded);
+  const explode = useAppStore((state) => state.explode);
+  const setExplode = useAppStore((state) => state.setExplode);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [lockedStep, setLockedStep] = useState<number | null>(null);
@@ -199,25 +201,31 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
                   <div className={styles.stepContent}>
                     <div className={styles.stepHead}>
                       <span className="pf-row-t">{step.title}</span>
+                      {/* A slider, not a toggle. The old control was a text
+                          link that flipped between two fixed states, so the
+                          separation happened *at* you; dragging it puts the
+                          device apart in your own hand, which is the claim the
+                          whole project makes. Events stop here so a drag does
+                          not also re-trigger the row underneath. */}
                       {step.id === 3 && isActive && (
                         <span
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={isExploded}
-                          className={`${styles.inlineAction} ${isExploded ? styles.inlineActionOn : ''}`}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setIsExploded(!isExploded);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              setIsExploded(!isExploded);
-                            }
-                          }}
+                          className={styles.explodeControl}
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
                         >
-                          {isExploded ? 'Assemble' : 'Explode'}
+                          <label htmlFor="pf-explode">
+                            {explode < 0.02 ? 'Assembled' : 'Exploded'}
+                          </label>
+                          <input
+                            id="pf-explode"
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={explode}
+                            aria-label="How far apart the device is drawn"
+                            onChange={(event) => setExplode(Number(event.target.value))}
+                          />
                         </span>
                       )}
                     </div>

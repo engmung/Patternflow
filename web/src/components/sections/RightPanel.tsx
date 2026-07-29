@@ -56,7 +56,7 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
     if (prevTab === 'build' && nextTab !== 'build') {
       const store = useAppStore.getState();
       store.setBuildStep(0);
-      store.setIsExploded(true);
+      store.setExplode(1);
       setBuildPanelKey((key) => key + 1);
     }
     // Leaving Inside drops the open pin, so the tab's URL goes back to plain
