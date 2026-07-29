@@ -101,6 +101,15 @@
   margin-bottom: 7px;
 }
 
+.doc code {
+  font-family: var(--pf-mono);
+  font-size: 13px;
+  padding: 1px 5px;
+  background: var(--pf-cream-2);
+  border: 1px solid var(--pf-rule-soft);
+  word-break: break-all;
+}
+
 .doc a {
   color: var(--pf-led);
   text-underline-offset: 2px;

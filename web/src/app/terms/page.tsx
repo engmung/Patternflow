@@ -204,6 +204,10 @@ export default function TermsPage() {
               record is the only way a repeat problem is visible.
             </li>
           </ul>
+          <p>
+            These are not aspirations. A job runs daily and deletes what is past its window; the
+            code is in the open, in <code>web/src/lib/community/retention.ts</code>.
+          </p>
 
           <h3>Who else sees it</h3>
           <p>

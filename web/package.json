@@ -13,7 +13,9 @@
     "check:assemble": "tsx scripts/assemble-registry-smoke.ts",
     "check:module": "tsx scripts/module-build-smoke.ts",
     "check:license": "tsx scripts/license-smoke.ts",
-    "check:moderation": "tsx scripts/moderation-smoke.ts"
+    "check:moderation": "tsx scripts/moderation-smoke.ts",
+    "check:retention": "tsx scripts/retention-smoke.ts",
+    "sweep": "tsx scripts/retention-sweep.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

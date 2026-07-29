@@ -30,6 +30,7 @@ import {
   failBuild,
   parseBuildPatterns,
 } from "../src/lib/community/builds";
+import { describeSweep, sweepRetention } from "../src/lib/community/retention";
 import { runBuild } from "../src/lib/firmware/buildRunner";
 import { runModuleBuildZipped } from "../src/lib/firmware/moduleRunner";
 
@@ -58,6 +59,28 @@ function log(message: string, extra: Record<string, unknown> = {}) {
     .map(([key, value]) => `${key}=${value}`)
     .join(" ");
   console.log(`[${new Date().toISOString()}] [${WORKER_ID}] ${message}${detail ? ` ${detail}` : ""}`);
+}
+
+// ── Retention ────────────────────────────────────────────────────────────────
+// The sweep lives here rather than in its own systemd timer because this
+// process is already running forever on the same box with the same database,
+// and a promise in /terms should not depend on someone remembering to install
+// a second unit file. `npm run sweep` runs the same code by hand.
+const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+let lastSweep = 0;
+
+async function maybeSweep(): Promise<void> {
+  if (Date.now() - lastSweep < SWEEP_INTERVAL_MS) return;
+  lastSweep = Date.now();
+  try {
+    const result = await sweepRetention();
+    log(`retention swept — ${describeSweep(result)}`);
+    for (const error of result.errors) log(`retention problem: ${error}`);
+  } catch (error) {
+    // Never fatal: the queue matters more than the sweep, and the next pass is
+    // a day away regardless.
+    log(`retention failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 async function processOne(): Promise<boolean> {
@@ -139,6 +162,8 @@ async function main() {
     });
   }
 
+  await maybeSweep();
+
   while (!stopping) {
     let worked = false;
     try {
@@ -149,6 +174,7 @@ async function main() {
       log(`poll error: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!worked && !stopping) {
+      await maybeSweep();
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
   }
