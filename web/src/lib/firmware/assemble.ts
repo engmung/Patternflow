@@ -33,11 +33,18 @@ export type AssembleResult =
 // because there would be nothing to name in PATTERN_ENTRY.
 const NAMESPACE_RE = /^[ \t]*namespace[ \t]+([A-Za-z_]\w*)[ \t]*\{/m;
 
-// The two regions of pattern_registry.h this module owns. Everything else in
-// that file — presets, the PatternEntry struct, buildPatternList — is left
-// exactly as it is, so the generated registry stays diffable against the repo's.
-const CUSTOM_INCLUDE_BLOCK_RE = /(?:^[ \t]*#include[ \t]+"custom\d+\.h"[ \t]*\r?\n)+/m;
-const CUSTOM_ARRAY_RE = /PatternEntry[ \t]+customPatterns\[\][ \t]*=[ \t]*\{[\s\S]*?\};/;
+// The one region of pattern_registry.h this module owns, delimited by explicit
+// markers. Everything else in that file — presets, the PatternEntry struct,
+// buildPatternList, the loadable-module half — is left exactly as it is, so the
+// generated registry stays diffable against the repo's.
+//
+// Anchoring on markers rather than on the shape of the C++ is deliberate: this
+// used to match `#include "customN.h"` lines and the `customPatterns[]` array
+// directly, which meant any edit to those declarations silently broke builds.
+// The region is empty in the repo (patterns ship as loadable .pfm modules now),
+// so there is no longer C++ there to match against at all.
+const CUSTOM_SLOTS_RE =
+  /^[ \t]*\/\/[ \t]*PF_CUSTOM_SLOTS_BEGIN[ \t]*\r?\n[\s\S]*?^[ \t]*\/\/[ \t]*PF_CUSTOM_SLOTS_END[ \t]*$/m;
 
 /** Strip comments and string literals so scans can't trip over them. */
 function stripCommentsAndStrings(code: string): string {
@@ -103,25 +110,32 @@ export function validateCustomPattern(code: string): { ok: true; namespace: stri
   return { ok: true, namespace };
 }
 
-/** Rewrite the registry's custom includes and entry list for `namespaces`. */
+/** Fill the registry's reserved custom-slot region for `namespaces`. */
 export function buildRegistry(originalRegistry: string, namespaces: string[]): string {
-  const includes = namespaces
-    .map((_, index) => `#include "custom${index + 1}.h"`)
-    .join("\n");
-
-  const entries = namespaces.map((ns) => `  PATTERN_ENTRY(${ns}),`).join("\n");
-  const array = `PatternEntry customPatterns[] = {\n${entries}\n};`;
-
-  if (!CUSTOM_INCLUDE_BLOCK_RE.test(originalRegistry)) {
-    throw new Error("pattern_registry.h has no custom include block to replace.");
-  }
-  if (!CUSTOM_ARRAY_RE.test(originalRegistry)) {
-    throw new Error("pattern_registry.h has no customPatterns[] array to replace.");
+  if (!CUSTOM_SLOTS_RE.test(originalRegistry)) {
+    throw new Error(
+      "pattern_registry.h has no PF_CUSTOM_SLOTS_BEGIN/END markers to fill. " +
+        "The build service writes submitted patterns into that region; see the " +
+        "CUSTOM SLOTS note in pattern_registry.h.",
+    );
   }
 
-  return originalRegistry
-    .replace(CUSTOM_INCLUDE_BLOCK_RE, `${includes}\n`)
-    .replace(CUSTOM_ARRAY_RE, array);
+  const includes = namespaces.map((_, index) => `#include "custom${index + 1}.h"`);
+  const entries = namespaces.map((ns) => `  PATTERN_ENTRY(${ns}),`);
+
+  // PF_CUSTOM_SLOT_COUNT gates the loop in buildPatternList(), so it has to be
+  // defined whether or not there are any patterns to add.
+  const region = [
+    "// PF_CUSTOM_SLOTS_BEGIN",
+    ...includes,
+    `#define PF_CUSTOM_SLOT_COUNT ${namespaces.length}`,
+    ...(namespaces.length > 0
+      ? [`PatternEntry customPatterns[] = {`, ...entries, `};`]
+      : []),
+    "// PF_CUSTOM_SLOTS_END",
+  ].join("\n");
+
+  return originalRegistry.replace(CUSTOM_SLOTS_RE, region);
 }
 
 /**
@@ -146,10 +160,12 @@ export function assembleFirmwareSource(
   }
 
   const reserved = new Set(listRegistryNamespaces(originalRegistry));
-  // Preset namespaces come from the registry, but the custom slots currently
-  // listed there are about to be replaced — they must not count as taken.
-  const replacedCustoms = originalRegistry.match(CUSTOM_ARRAY_RE)?.[0] ?? "";
-  for (const ns of listRegistryNamespaces(replacedCustoms)) reserved.delete(ns);
+  // Preset namespaces come from the registry, but anything in the custom-slot
+  // region is about to be overwritten — it must not count as taken. The region
+  // is empty in the repo; it is not empty in the worker's warm checkout, which
+  // still holds whatever the previous build put there.
+  const replaced = originalRegistry.match(CUSTOM_SLOTS_RE)?.[0] ?? "";
+  for (const ns of listRegistryNamespaces(replaced)) reserved.delete(ns);
 
   const namespaces: string[] = [];
   const files: AssembledFile[] = [];

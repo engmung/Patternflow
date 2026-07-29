@@ -197,7 +197,15 @@ export const builds = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     /** queued → running → done | error */
     status: text("status").notNull().default("queued"),
-    /** JSON: [{ label, code }] — the C++ headers to put in the custom slots. */
+    /**
+     * What the worker produces. "bin" is a whole flashable image — the legacy
+     * path, and still what a device running firmware older than the module
+     * loader needs. "pfm" is loadable modules: one .pfm per pattern, zipped,
+     * built in ~½ s and installed over Wi-Fi at the device's /patterns page
+     * with no reflash.
+     */
+    format: text("format").notNull().default("bin"),
+    /** JSON: [{ label, code }] — the C++ headers to build. */
     patterns: text("patterns").notNull(),
     /** Namespaces resolved at assembly time, for display. */
     namespaces: text("namespaces"),

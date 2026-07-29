@@ -74,10 +74,17 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 
   .note{margin-top:18px;font-size:11px;color:var(--mut);line-height:1.6}
   .note code{background:var(--card2);padding:1px 5px;color:var(--fg)}
+/* Console navigation, same on every page. */
+.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+font-family:inherit;font-size:11px;letter-spacing:.04em}
+.pfnav a{color:var(--faint);text-decoration:none}
+.pfnav a:hover{color:var(--accent)}
+.pfnav a.here{color:var(--fg)}
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>
-<div class="sub"><a href="/" style="color:inherit;text-decoration:none">&larr; console</a> &nbsp;&middot;&nbsp; Stream music into the device. Map four FFT bands onto the four knobs.</div>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update">Update</a></nav>
+<div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
 <div id="status" class="bad">DISCONNECTED</div>
 
 <div class="section">

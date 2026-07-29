@@ -4,7 +4,7 @@ import { communityEnabled, getDb } from "@/lib/community/db";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
-import { cleanCode, cleanDescription, cleanTitle } from "@/lib/community/validate";
+import { cleanCode, cleanCpp, cleanDescription, cleanTitle } from "@/lib/community/validate";
 import { buildStoredPatternCode } from "@/lib/community/license";
 import { LICENSE_OPTIONS, stripShareWrapping } from "@/lib/sharePattern";
 
@@ -62,6 +62,17 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Pattern code is empty once the licence header is removed." }, { status: 400 });
   }
 
+  // A pattern may arrive already ported. Pattern Lab's hardware flow converts
+  // to a header, then offers to publish — making people publish first and
+  // attach the header afterwards would lose the port half the time.
+  const codeCpp = cleanCpp(raw.codeCpp);
+  if (codeCpp === undefined) {
+    return Response.json(
+      { error: "That does not look like a Patternflow header — it must start with `#pragma once` and be under 200KB." },
+      { status: 400 },
+    );
+  }
+
   const license =
     LICENSE_OPTIONS.find((option) => option.spdx === raw.license)?.spdx ?? "CC-BY-SA-4.0";
 
@@ -89,6 +100,7 @@ async function handlePost(request: Request) {
     // who copies the code out of the page takes the terms and the credit with
     // it — not just people who download the file.
     code: buildStoredPatternCode(code, { title, license, handle, date: now }),
+    codeCpp,
     license,
     parentId,
     createdAt: now,

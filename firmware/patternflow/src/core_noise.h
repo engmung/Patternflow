@@ -5,8 +5,12 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
+// Shared verbatim with loadable pattern modules — see the note in core_math.h.
+#ifndef PF_MODULE_BUILD
 #include <Arduino.h>
+#endif
 #include <math.h>
+#include <stdint.h>
 
 namespace PFNoise {
 

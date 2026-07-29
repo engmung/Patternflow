@@ -41,34 +41,42 @@ The experimental audio-react WebSocket control uses:
 ## Project layout
 
 ```
-firmware/patternflow/
-├── patternflow.ino          # Main sketch: input routing, mode dispatch
-├── config.h                 # Hardware configuration (pin mappings, limits)
-├── net_config.h             # Wi-Fi / OTA / OSC / audio-react / self-update config + defaults
-├── pattern_registry.h       # Function-pointer table — register patterns here
-├── pattern_origin.h         # Built-in pattern: radial sine grids
-├── pattern_wave_saw.h       # Built-in pattern: directional saw bands
-├── pattern_video.h          # Built-in: PFV1 video playback from FATFS
-├── pattern_dev1.h           # Development pattern slot
-├── pattern_dev2.h           # Development pattern slot
-├── pattern_dev3.h           # Development pattern slot
-├── patternflow_secrets.example.h  # Template for secrets (copy to patternflow_secrets.h)
-└── src/                     # Foundation — not shown in the Arduino IDE tab bar
-    ├── core_display.h       # HUB75 driver init + refresh-rate config
-    ├── core_encoders.h      # Encoder ISRs + InputFrame contract
-    ├── core_canvas.h        # 128×64 RGB888 framebuffer + per-channel gamma/WB/sat
-    ├── core_math.h          # PFMath:: sin LUT, fastSin/Cos, fract, approxLength
-    ├── core_color.h         # PFColor:: hsvToRgb, ColorStop, sampleRamp
-    ├── core_noise.h         # PFNoise:: perlin2D, fractal2D
-    ├── core_wifi.h          # Shared Wi-Fi bring-up (single WiFi.begin for all features)
-    ├── core_improv.h        # Improv-Serial Wi-Fi provisioning from the browser flasher
-    ├── core_osc.h           # OSC sidechannel (UDP send when PF_OSC_ENABLED)
-    ├── core_audio_ws.h      # Device web console HTTP server + audio-react WebSocket
-    ├── home_index.h         # patternflow.local landing page (console home)
-    ├── audio_index.h        # Audio-react UI bundle (served at /audio)
-    ├── core_ota.h           # ArduinoOTA wireless flashing (PF_OTA_ENABLED)
-    ├── core_web_update.h    # Browser self-update via patternflow.local/update
-    └── web_update_index.h   # Built-in update page bundle (drop a .bin)
+firmware/
+├── patternflow/                 # The Arduino sketch (open patternflow.ino)
+│   ├── patternflow.ino          # Main sketch: input routing, mode dispatch
+│   ├── config.h                 # Hardware configuration (pin mappings, limits)
+│   ├── net_config.h             # Wi-Fi / OTA / OSC / audio-react / self-update config
+│   ├── pattern_registry.h       # Presets compiled in + .pfm modules discovered on FATFS
+│   ├── presets/                 # Curated presets (34), compiled into firmware.bin
+│   ├── abi/                     # Host ⇄ module contract for loadable patterns
+│   │   ├── pf_abi.h             # Frozen C ABI: PFHostAPI, PFPatternModule, PF_ABI_VERSION
+│   │   └── pf_module.h          # Module SDK — the ONE header a .pfm pattern includes
+│   ├── patternflow_secrets.example.h  # Template (copy to patternflow_secrets.h)
+│   └── src/                     # Foundation — not shown in the Arduino IDE tab bar
+│       ├── core_display.h       # HUB75 driver init + refresh-rate config
+│       ├── core_encoders.h      # Encoder ISRs + InputFrame contract
+│       ├── core_canvas.h        # 128×64 RGB888 framebuffer + gamma/WB/sat
+│       ├── core_math.h          # PFMath — shared verbatim with modules
+│       ├── core_color.h         # PFColor — shared verbatim with modules
+│       ├── core_noise.h         # PFNoise — shared verbatim with modules
+│       ├── core_mem.h           # PSRAM-first allocator (PFMem)
+│       ├── core_tables.h        # Panel-space polar tables (host-owned, 32 KB each)
+│       ├── core_module_loader.h # ELF loader/relocator for .pfm modules
+│       ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
+│       ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
+│       ├── core_osc.h           # OSC sidechannel (UDP)
+│       ├── core_audio_ws.h      # Shared port-80 WebServer + audio-react WebSocket
+│       ├── core_web_update.h    # Browser self-update (/update)
+│       ├── core_patterns_http.h # Module manager (/patterns + /api/patterns)
+│       ├── core_status_http.h   # Diagnostics (/status + /api/status)
+│       ├── core_wifi_http.h     # Wi-Fi manager (/wifi + /api/wifi)
+│       └── *_index.h            # PROGMEM HTML bundles for the pages above
+├── modules/                     # Loadable-pattern sources (one dir per pattern)
+│   └── <slug>/pattern.cpp       # + optional module.json sidecar
+└── toolchain/
+    ├── build_module.py          # pattern.cpp → <slug>.pfm (Xtensa relocatable ELF)
+    ├── port_preset.py           # firmware .h → freestanding module source
+    └── module.ld                # Collapses a module to .text/.rodata/.data/.bss
 ```
 
 The `src/` subfolder holds the foundation that patterns build on. Arduino IDE compiles everything underneath the sketch folder, but `.h` files inside subfolders **do not appear as tabs** — so the IDE stays focused on the files you actually edit (the sketch, config, registry, and patterns) while the foundation stays out of the way. Patterns and the main sketch reference these helpers via `#include "src/core_*.h"`.
@@ -147,25 +155,311 @@ The flasher sends the SSID/password over serial; `core_wifi.h` stores them in NV
 
 ## Patterns
 
-Current registered patterns:
-- `Origin` — base pattern, radial sine grids
-- `Wave Saw` — base pattern, directional saw bands
-- `Liquid Ripple` (in `pattern_dev1.h`) — refraction-style ripple field
-- `Layered Vorticity Field` (in `pattern_dev2.h`) — fluid vortex simulation
-- `Spectral Caustics` (in `pattern_dev3.h`) — three-channel offset caustic web
+The pattern list has two tiers:
 
-The two base patterns (`Origin`, `Wave Saw`) are meant to stay. The `pattern_dev*.h` slots are intentionally mutable — generate new patterns from the [Live Editor](https://patternflow.work/pattern-lab) and swap them into the dev slots as you iterate.
+- **Presets** — the curated showcase in `presets/`, compiled into `firmware.bin`.
+  Pattern 1 is always `Origin`. They work whether or not the filesystem mounts,
+  and switching between them is instant.
+- **Modules** — `.pfm` files on the FATFS partition, discovered at boot and
+  appended after the presets. This is how new patterns normally arrive now: a
+  ~3–22 KB file installed over Wi-Fi at `http://patternflow.local/patterns`,
+  **no reflash, no reboot**. See [Loadable pattern modules](#loadable-pattern-modules-pfm).
 
-To add a new pattern, start with [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md), then create a `pattern_new_name.h` with the standard namespace interface:
+Both tiers share the same pattern shape — a namespace with:
 - `NAME`
 - `KNOB_LABELS`
 - `setup()`
 - `update(float dt, const InputFrame& input)`
 - `draw()` — draws via `PFCanvas::setPixel(...)` and ends with `PFCanvas::present();`
 
-Then register it once in `patternflow/pattern_registry.h` by adding the include and one `PATTERN_ENTRY(NewPatternNamespace)` line.
+and the same foundation (`PFCanvas`/`PFMath`/`PFColor`/`PFNoise`), so a pattern
+written for one tier ports to the other mechanically. `CUSTOM_PATTERNS.md`
+documents the submission format; the Pattern Lab at
+[patternflow.work](https://patternflow.work) generates conforming C++ from a
+JavaScript pattern via its "Copy C++ prompt" flow.
 
-The Live Editor at [patternflow.work](https://patternflow.work) has a "Copy C++ prompt" button that bundles your JavaScript pattern with a conversion prompt — the prompt already teaches the LLM these foundation conventions, so the generated C++ should use `PFCanvas`/`PFMath`/`PFColor`/`PFNoise` without any extra instruction.
+To add a **preset** (rare — curated set): copy `_TEMPLATE.h` into
+`presets/preset_<name>.h` and add one `PATTERN_ENTRY(...)` line in
+`pattern_registry.h`. To add a **module** (the usual way): see the next section.
+
+## Loadable pattern modules (.pfm)
+
+Patterns no longer have to be compiled into the firmware image. A pattern can
+be built as a relocatable Xtensa ELF module, copied to the device over Wi-Fi,
+and it appears in the list immediately.
+
+```
+firmware/modules/<slug>/pattern.cpp     ← freestanding pattern source
+        │  python firmware/toolchain/build_module.py firmware/modules/<slug>
+        ▼
+<slug>.pfm  (+ <slug>.json sidecar)     ← 3–22 KB relocatable ELF
+        │  drag onto http://patternflow.local/patterns   (several at once)
+        ▼
+FATFS /patterns/<slug>.pfm  →  loaded on selection in ~5–11 ms
+```
+
+The design comes from Simone Majocchi (@SimonePDA), who proved the whole idea
+in a working fork: a frozen C ABI between host and module, a linker script
+that collapses each module to four sections, and an on-device relocator.
+
+**How it works, briefly.** The firmware exposes a versioned function table
+(`abi/pf_abi.h` — framebuffer, present, alloc, log, millis, polar tables,
+libm hooks). A module is compiled freestanding against `abi/pf_module.h`
+only — never against Arduino or the HUB75 driver — and partially linked with
+`toolchain/module.ld` so all code lands in one contiguous `.text` with
+literals inside it. At load time `core_module_loader.h` reads the ELF from
+FATFS, allocates executable internal RAM, applies `R_XTENSA_32` relocations,
+resolves libm/libgcc against the host's own symbols, runs `.init_array` (so
+C++ global constructors work), syncs the instruction cache, and calls the
+module's entry point. Switching away unloads it; one module is resident at a
+time.
+
+**Converting an existing pattern header:**
+
+```bash
+python firmware/toolchain/port_preset.py firmware/patternflow/presets/preset_origin.h
+python firmware/toolchain/build_module.py firmware/modules/origin
+# outputs land in firmware/patternflow/data/patterns/ — upload from /patterns
+```
+
+The port is mechanical (drop firmware includes, add `#include "pf_module.h"`,
+append `PF_REGISTER_PATTERN(Namespace)`); the body is copied verbatim because
+the module SDK provides the same `PFCanvas`/`PFMath`/`PFColor`/`PFNoise`
+surface — the math headers are literally the same files, included with
+`-DPF_MODULE_BUILD`.
+
+**Install paths**, easiest first:
+- Community cart → "Send over Wi-Fi": opens `/patterns?src=<modules-url>`, and
+  the page fetches and installs every file itself. Nothing downloaded.
+- Drag any number of `.pfm`/`.json` files onto `/patterns` — a visible queue
+  uploads them one by one with progress, retries, and per-file results.
+- `curl -F "module=@slug.pfm" http://patternflow.local/api/patterns` for scripts.
+
+**Costs and limits, measured on hardware** (128×64, esp32 core 3.3.8):
+
+| Property | Measured |
+|---|---|
+| Switch latency (7.5 KB module) | 6.0 ms = read 4.4 + relocate 0.6 + setup 1.0 |
+| Switch latency (22 KB module) | 10.9 ms — still under one 60 fps frame |
+| Runtime speed vs the same source compiled in | **~20 % slower** (Origin: 53.4 → 43.5 fps) — the cost of relocatable code (`-mlongcalls`); not fixable by `-O2` (~2 %) or memory placement |
+| Comfortable module size | ≲ 8 KB of data; a 22 KB module pushes `.rodata` to PSRAM and drops to ~14 fps |
+| Panel size | Baked in at build (`-DPF_PANEL_W/H`); the loader rejects a mismatch |
+| ABI | `PF_ABI_VERSION` must match; bump it on ANY layout change in `pf_abi.h` and rebuild every module |
+
+If a module fails to load, nothing else is affected — the presets and other
+modules keep working, the panel shows a `PATTERN FAILED` screen with the
+reason, and `/api/status` reports it as `loadError`. The usual cause is a
+libc/libm symbol the host does not export yet: the message names it
+(`unresolved symbol: rand`), and the fix is one line in `resolveHostSymbol()`
+in `core_module_loader.h`. Check `loadError` first for any "this pattern is
+broken" report — it turns a vague complaint into a specific one.
+
+**Pattern names are UTF-8.** "Dynamic Moiré" and "Poincaré Sphere" are real
+entries in the library, and an accent used to break three layers at once: the
+toolchain scripts printing a name on a cp949 console, a loader guard that
+tested names for printable ASCII and called anything else a relocation bug,
+and the panel's 5×7 ASCII font. Names stay UTF-8 in the ELF and in every JSON
+API; only the panel folds them (`asciiFold()` in `patternflow.ino`). Any new
+code that touches a name must assume UTF-8.
+
+### How many can you install
+
+Installing costs nothing at runtime. The registry allocates its arrays at full
+capacity on boot, in PSRAM, whether or not the modules exist — so five
+installed modules and 128 installed modules use exactly the same RAM. Only the
+**resident** module costs internal RAM, and unloading returns all of it
+(measured: 4,548 B free with a module resident → 11,692 B on a preset).
+
+| Limit | Value | Binding? |
+|---|---|---|
+| Installed modules | **128** (`MAX_MODULE_PATTERNS`) | The only real cap, and it is a UX choice — 136 B of PSRAM per slot, 17 KB total |
+| Storage | ~1,500 modules (10.2 MB partition, 5.9 KB median) | No — 12× the count cap |
+| Per-module RAM | ≲ 8 KB of data comfortable | Yes, for that module's own frame rate |
+| Concurrent modules | 1 | By design — one pattern is selected at a time |
+
+A large module only costs while it is the selected pattern; it has no effect
+on the presets or on any other module. The one way it is not self-contained:
+while resident it drops `heapLargest` to ~3 KB, which is what makes opening a
+console page pause the pattern (see the constraints section below).
+
+Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
+largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
+
+### Current state (v3.1.0, measured on hardware)
+
+| | |
+|---|---|
+| Frame time, preset (Origin) | 18,717 µs = **53.4 fps** |
+| Internal heap, preset resident | 11,692 B free, largest block 7,668 B |
+| Internal heap, module resident | ~4,550 B free, largest block ~3,060 B |
+| PSRAM | 8.28 MB idle |
+| Flash | 1,292,519 B = **41 %** of the app partition |
+| Globals | 92,760 B = **28 %**, 234 KB left for locals |
+| Pattern storage | 73,728 / 10,235,904 B with 5 modules installed |
+| Leak check | 48 consecutive page loads: **−8 B** net, largest block unchanged |
+
+## Adding features — the constraints that matter
+
+Read this before adding anything to the firmware. Every item here was learned
+the expensive way, with measurements to back it.
+
+### Internal RAM is the budget. Everything else is roomy.
+
+The ESP32-S3 has 512 KB of internal SRAM, but what a feature can actually
+claim is far smaller:
+
+```
+≈320 KB   Arduino data region (of 512 KB SRAM; rest is cache/ROM/RTOS)
+ −92 KB   this firmware's globals (24 KB canvas, fonts, module state…)
+ =213 KB  free heap at boot                          ← measured
+ −150 KB  HUB75 DMA framebuffers (see below)
+ −49 KB   Wi-Fi socket buffers, HTTP, OSC, mDNS…
+ ≈ 15 KB  steady-state free internal heap            ← your budget
+```
+
+Below roughly **10 KB free**, the web console starts failing in a maddening
+way: every endpoint returns its status line and then hangs, while Wi-Fi, OSC
+and OTA look perfectly healthy. A 7 KB static array added during development
+took down four unrelated pages at once. So:
+
+- **Static buffers are guilty until proven innocent.** If data is written at
+  boot and read occasionally — lists, tables, names — allocate it from PSRAM
+  (`heap_caps_calloc(1, size, MALLOC_CAP_SPIRAM)`). There are **8 MB** of
+  PSRAM sitting idle; the pattern registry lives there for exactly this
+  reason. Reserve internal RAM for hot loops and DMA.
+- Check `/status` (or `/api/status`) after your change: it reports free
+  internal heap, largest block, and PSRAM live from the device.
+
+### Why HUB75 owns 150 KB and it cannot move
+
+HUB75 panels have no framebuffer of their own and only understand on/off per
+pixel. The driver therefore streams the whole frame continuously (the panel
+lights 2 rows at a time) and achieves 256 brightness levels by re-sending the
+frame as 8 binary-weighted bit-planes (BCM). That waveform is what DMA plays
+out autonomously:
+
+```
+128 cols × 32 row-pairs × 2 B = 8 KB per bit-plane
+× 8 bit-planes                = 64 KB per frame buffer
+× 2 (double buffering)        = 128 KB  (+ descriptors ≈ 150 KB)
+```
+
+It must be internal RAM — PSRAM's latency jitter glitches the 15 MHz stream.
+Shrinking it costs image quality directly (6-bit color = banding in exactly
+the gradients these patterns live on; single buffering = tearing). This is
+the standard tax every ESP32-driven HUB75 project pays; in exchange, refresh
+costs zero CPU and the render loop effectively owns a core.
+
+### The Arduino WebServer will hurt you. Known landmines:
+
+The console shares **one** synchronous, single-client `WebServer` on port 80
+(owned by `core_audio_ws.h`; other features attach routes to it). Learned so
+far, each confirmed by A/B on hardware:
+
+1. **A multipart POST with a URL query string gets an empty reply.** Send
+   flags as form fields instead (`fd.append('last', …)`), never `?last=1` on
+   an upload.
+2. **Never do heavy work inside a request handler.** A FATFS rescan + module
+   reload inside the upload handler crashed the device mid-batch — and the
+   crash corrupted the FAT. Handlers set a flag; `tick()` functions called
+   from `loop()` do the work ~150 ms later (see `core_patterns_http.h`).
+3. **Never force-close connections from the server** (`client().stop()`).
+   Each server-initiated close parks a TCP pcb in TIME_WAIT; after a couple
+   of upload batches every multi-chunk transfer died until reboot.
+4. **Rapid sequential uploads flake ~1 in 12** even when healthy (dead reply
+   after the file was stored). Client pages pace files ~350 ms apart and
+   retry each file twice; re-uploading is harmless (same bytes, same name).
+5. **Never auto-format the filesystem on a failed mount.** A crash mid-write
+   once corrupted the FAT and the "helpful" auto-format erased every
+   installed module. Mount failure now means presets-only; formatting is an
+   explicit button (`POST /api/patterns/format`).
+
+6. **A response larger than ~5.6 KB needs the heap a loaded module is
+   holding.** This one looked for a long time like a slow "leak" that
+   degraded over hours; it is not. Measured on one device, one minute apart:
+
+   ```
+   module resident    internal heap  4,932   /patterns truncated at 5,633 B
+                                             after a 10 s stall
+   module unloaded    internal heap 11,852   /patterns whole (15,903 B), 0.43 s
+   ```
+
+   5,633 B is four TCP segments — one bufferful. Under a starved heap the
+   one-shot `send()` fills that and gives up, and the client waits out the
+   timeout holding half a page. The HTML renders, its script is cut
+   mid-statement and never runs, and the console looks blank while every API
+   underneath answers fine.
+
+   The console therefore **pauses the pattern**: opening any console page
+   evicts the module, and `tick()` restores it after 25 s of console
+   silence (`core_patterns_http.h`). The request that triggers the eviction
+   cannot be rescued — its send path is already constrained — so it gets a
+   552-byte interstitial that reloads itself.
+
+   **This is a memory wall, not a pacing problem.** It is tempting to read
+   the 10 s stall as impatience — `NetworkClient::write()` really does send
+   with `MSG_DONTWAIT` and give up after `WIFI_CLIENT_MAX_WRITE_RETRY` (10)
+   non-writable selects of 1 s each, which is where the ten seconds comes
+   from. Rewriting the send path to be patient does not help, because the
+   number that matters is `heapLargest`: **3,060 bytes** with a module
+   resident. lwIP cannot allocate the pbufs, and no amount of waiting
+   creates them.
+
+   Three fixes were tried on hardware and **do not work**; do not retry them:
+   - Spilling module data sections to PSRAM to spare internal RAM — reboots
+     the device the moment a module is selected.
+   - Chunked transfer encoding — delivers *less*, not more (one 1 KB chunk,
+     or nothing), with or without pacing between chunks.
+   - 512-byte slices with a wall-clock deadline instead of a retry count
+     (`core_http_send.h`, reverted in bb8e52c) — delivers **3,072 B**, worse
+     than the 5,633 B it replaced, and still takes the full 10 s. It *is*
+     ~3× faster than `send_P` on a healthy heap, which is exactly the trap:
+     it measures beautifully in the condition that was never the problem.
+
+   An async server (ESPAsyncWebServer or esp-idf httpd) would lift the
+   one-client and upload-pacing limits, but it shares this same lwIP heap —
+   do not expect it to make a 16 KB page deliverable on a 4.5 KB heap. The
+   only real levers on page delivery are using less internal RAM per module
+   or shrinking the pages.
+
+### Adding a console page
+
+Follow the existing shape (`core_status_http.h` + `status_index.h` is the
+smallest example): one `core_<name>_http.h` that attaches routes in a
+`begin()` called from the Wi-Fi connect edge in `patternflow.ino`, one
+`<name>_index.h` PROGMEM HTML bundle, a row on `home_index.h`. Rules:
+
+- Self-contained HTML only — the device serves with no internet in the loop.
+  Match the cream/ink/LED design tokens of the existing pages.
+- **Syntax-check the page's JavaScript before flashing**:
+  extract the `<script>` body and run `node --check` on it. A single stray
+  newline in a string once shipped a page whose script never ran — the page
+  rendered but showed nothing, which reads as "the device is broken".
+- Keep pages lean, and call `PatternflowPatternsHttp::noteConsolePageOpened()`
+  first (see any existing page): a page over ~5.6 KB cannot be delivered while
+  a pattern module is resident. `/status` at 5.5 KB was the only page that
+  survived that state by accident.
+- **Never leave the render loop with nothing to draw.** If a screen decides not
+  to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn
+  leftover frame, which every tester reads as "the pattern is broken".
+
+### What is cheap and what is expensive here
+
+Cheap (fits the platform well):
+- **Wired OSC over USB-C** — the S3's native USB does CDC serial out of the
+  box; OSC 1.1 over SLIP is a standard TouchDesigner/Max speak. Reuses the
+  existing OSC message parser with a different transport. Near-zero RAM,
+  independent of Wi-Fi entirely. A very good first contribution.
+- More device pages, more OSC addresses, more module-SDK helpers (add the
+  symbol to the host table + bump nothing, if it's a new function on
+  `PFHostAPI` — that's an ABI bump).
+- Anything whose cold data can live in PSRAM.
+
+Expensive (think twice, or push to "Remote compute"):
+- TLS clients/servers (tens of KB of internal RAM per connection).
+- Many concurrent WebSockets or HTTP clients (single-threaded server today).
+- Anything needing large always-resident internal-RAM buffers — that budget
+  is 15 KB, total, shared with everyone.
 
 ## Configuration (`config.h`)
 

@@ -82,13 +82,19 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
   #msg.ok{color:var(--ink)} #msg.bad{color:var(--led)}
   @media(max-width:560px){body{padding:56px 16px}.panel{padding:36px 24px 32px}h2{font-size:28px}}
+/* Console navigation, same on every page. */
+.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+.pfnav a{color:var(--faint);text-decoration:none}
+.pfnav a:hover{color:var(--led)}
+.pfnav a.here{color:var(--ink)}
 </style></head><body>
 
 <div class="version-tag"><span class="dot"></span>device &middot; update</div>
 
 <main class="panel">
   <div class="top">
-    <a class="back" href="/">&larr; Console</a>
+    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update" class="here">Update</a></nav>
     <span id="pill">&hellip;</span>
   </div>
 
@@ -133,16 +139,24 @@ var armed=false,busy=false,uploading=false;
 function setPill(t,c){pill.textContent=t;pill.className=c||''}
 function setMsg(t,c){msg.textContent=t;msg.className=c||''}
 
+// The device serves one client at a time. Skipping polls while uploading is
+// not enough on its own: a poll issued a moment BEFORE the upload starts is
+// still in flight, and that one request is enough to wedge a 1.2 MB POST into
+// "Connection lost during upload". So the poll is abortable and the upload
+// cancels it before opening its own connection.
+var pollAbort=null;
 function poll(){
   if(uploading)return;
-  fetch('/update/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
+  pollAbort=new AbortController();
+  fetch('/update/status',{cache:'no-store',signal:pollAbort.signal})
+  .then(function(r){return r.json()}).then(function(s){
     armed=s.armed;busy=s.busy;
     if(busy)setPill('BUSY','warn');
     else if(armed)setPill('READY','ok');
     else setPill('LOCKED','bad');
     armHint.style.display=(!armed&&!busy)?'block':'none';
     drop.classList.toggle('disabled',!armed||busy);
-  }).catch(function(){setPill('OFFLINE','bad')});
+  }).catch(function(e){if(!e||e.name!=='AbortError')setPill('OFFLINE','bad')});
 }
 setInterval(poll,2000);poll();
 
@@ -159,6 +173,7 @@ function upload(f){
   if(f.size<200*1024){setMsg('Suspiciously small for Patternflow firmware. Wrong file?','bad');return}
   if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
   uploading=true;
+  if(pollAbort)pollAbort.abort();
   setPill('FLASHING','warn');
   bar.style.display='block';fill.style.width='0%';
   setMsg('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');

@@ -59,25 +59,136 @@ inline bool credsFromNvs = false;
 // duration of each read/write below.
 constexpr const char* WIFI_NVS_NS = "pf_wifi";
 
-// Pull stored credentials out of NVS, falling back to the compile-time
-// placeholders when nothing has been provisioned yet.
+// Several networks can be remembered — home, studio, a friend's place, the
+// venue — so moving the device does not mean re-provisioning it over USB.
+//
+// Stored as ssid0..ssidN / pass0..passN plus "count". Slot order is priority
+// order: whatever connected (or was provisioned) most recently sits at 0.
+constexpr int MAX_NETWORKS = 5;
+
+inline String savedSsids[MAX_NETWORKS];
+inline String savedPasses[MAX_NETWORKS];
+inline int savedCountValue = 0;
+// Which slot the next join attempt uses. tick() walks this forward so a boot
+// in any remembered location eventually lands, without scanning.
+inline int attemptIdx = 0;
+
+inline int savedCount() { return savedCountValue; }
+inline const String& savedSsid(int i) { return savedSsids[i]; }
+
+inline void writeNetworks() {
+  Preferences p;
+  if (!p.begin(WIFI_NVS_NS, /*readOnly=*/false)) return;
+  p.putInt("count", savedCountValue);
+  char key[8];
+  for (int i = 0; i < savedCountValue; i++) {
+    snprintf(key, sizeof(key), "ssid%d", i);
+    p.putString(key, savedSsids[i]);
+    snprintf(key, sizeof(key), "pass%d", i);
+    p.putString(key, savedPasses[i]);
+  }
+  // Keep the legacy single-slot keys pointing at the top network, so a
+  // downgrade to an older firmware still finds a usable network.
+  if (savedCountValue > 0) {
+    p.putString("ssid", savedSsids[0]);
+    p.putString("pass", savedPasses[0]);
+  }
+  p.end();
+}
+
+// Pull stored networks out of NVS, falling back to the compile-time
+// placeholder when nothing has been provisioned yet.
 inline void loadCredentials() {
-  String ssid, pass;
+  savedCountValue = 0;
   Preferences p;
   if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
-    ssid = p.getString("ssid", "");
-    pass = p.getString("pass", "");
+    int count = p.getInt("count", -1);
+    if (count >= 0) {
+      char key[8];
+      for (int i = 0; i < count && i < MAX_NETWORKS; i++) {
+        snprintf(key, sizeof(key), "ssid%d", i);
+        String ssid = p.getString(key, "");
+        if (ssid.length() == 0) continue;
+        snprintf(key, sizeof(key), "pass%d", i);
+        savedSsids[savedCountValue] = ssid;
+        savedPasses[savedCountValue] = p.getString(key, "");
+        savedCountValue++;
+      }
+    } else {
+      // Migration: firmware before multi-network stored one ssid/pass pair.
+      String ssid = p.getString("ssid", "");
+      if (ssid.length() > 0) {
+        savedSsids[0] = ssid;
+        savedPasses[0] = p.getString("pass", "");
+        savedCountValue = 1;
+      }
+    }
     p.end();
   }
-  if (ssid.length() > 0) {
-    activeSsid = ssid;
-    activePass = pass;
+
+  if (savedCountValue > 0) {
+    if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
+      bool migrated = p.getInt("count", -1) < 0;
+      p.end();
+      if (migrated) writeNetworks();  // persist the migrated slot layout once
+    }
+    attemptIdx = 0;
+    activeSsid = savedSsids[0];
+    activePass = savedPasses[0];
     credsFromNvs = true;
   } else {
     activeSsid = PF_WIFI_SSID;
     activePass = PF_WIFI_PASS;
     credsFromNvs = false;
   }
+}
+
+// Add a network, or move an already-known one to the front. Returns false only
+// when the SSID is empty or the list is full of other networks.
+inline bool addNetwork(const String& ssid, const String& pass) {
+  if (ssid.length() == 0) return false;
+
+  int existing = -1;
+  for (int i = 0; i < savedCountValue; i++) {
+    if (savedSsids[i] == ssid) { existing = i; break; }
+  }
+
+  if (existing < 0 && savedCountValue >= MAX_NETWORKS) {
+    // Full: drop the least recently used (last) entry to make room.
+    existing = MAX_NETWORKS - 1;
+    savedCountValue = MAX_NETWORKS - 1;
+  }
+
+  int from = existing >= 0 ? existing : savedCountValue;
+  if (from >= savedCountValue) savedCountValue = min(savedCountValue + 1, MAX_NETWORKS);
+  for (int i = min(from, MAX_NETWORKS - 1); i > 0; i--) {
+    savedSsids[i] = savedSsids[i - 1];
+    savedPasses[i] = savedPasses[i - 1];
+  }
+  savedSsids[0] = ssid;
+  savedPasses[0] = pass;
+  writeNetworks();
+  return true;
+}
+
+// Forget one network by SSID. The device may be connected to it right now; the
+// join is left alone so nobody loses their session mid-request, and the entry
+// simply is not tried again after the next drop.
+inline bool removeNetwork(const String& ssid) {
+  for (int i = 0; i < savedCountValue; i++) {
+    if (savedSsids[i] != ssid) continue;
+    for (int j = i; j < savedCountValue - 1; j++) {
+      savedSsids[j] = savedSsids[j + 1];
+      savedPasses[j] = savedPasses[j + 1];
+    }
+    savedCountValue--;
+    savedSsids[savedCountValue] = "";
+    savedPasses[savedCountValue] = "";
+    if (attemptIdx >= savedCountValue) attemptIdx = 0;
+    writeNetworks();
+    return true;
+  }
+  return false;
 }
 
 // Kick off the connection and return immediately.
@@ -99,12 +210,10 @@ inline void begin() {
 // immediately so the next tick() reflects the new network. Persisted to NVS
 // so they survive reboot and win over the built-in placeholders.
 inline void applyCredentials(const String& ssid, const String& pass) {
-  Preferences p;
-  if (p.begin(WIFI_NVS_NS, /*readOnly=*/false)) {
-    p.putString("ssid", ssid);
-    p.putString("pass", pass);
-    p.end();
-  }
+  // Adds rather than replaces: provisioning at a second location keeps the
+  // first one working, and this network becomes the one tried first.
+  addNetwork(ssid, pass);
+  attemptIdx = 0;
   activeSsid = ssid;
   activePass = pass;
   credsFromNvs = true;
@@ -134,6 +243,12 @@ inline void tick() {
       justConnectedEdge = true;
       Serial.printf("[WiFi] connected — IP %s\n",
                     WiFi.localIP().toString().c_str());
+      // Whatever just worked becomes the first thing tried next boot, so a
+      // device that lives in one place stops cycling after the first join.
+      if (attemptIdx > 0 && attemptIdx < savedCountValue) {
+        addNetwork(savedSsids[attemptIdx], savedPasses[attemptIdx]);
+        attemptIdx = 0;
+      }
     }
     return;
   }
@@ -148,10 +263,28 @@ inline void tick() {
   uint32_t now = millis();
   if (now - lastBeginMs >= RETRY_INTERVAL_MS) {
     lastBeginMs = now;
+
+    // With more than one network remembered, each retry tries the next one.
+    // A present network normally authenticates well inside one 5 s window, and
+    // an absent one reports NO_SSID_AVAIL quickly, so cycling finds whichever
+    // is in range. Deliberately no WiFi.scanNetworks() here: a scan allocates
+    // internal RAM, and on this board that is the resource the web console is
+    // already short of (see /status).
+    if (savedCountValue > 1) {
+      attemptIdx = (attemptIdx + 1) % savedCountValue;
+      activeSsid = savedSsids[attemptIdx];
+      activePass = savedPasses[attemptIdx];
+    }
+
     WiFi.disconnect();  // clear any half-finished attempt (avoids the
                         // "sta is connecting, cannot set config" error)
     WiFi.begin(activeSsid.c_str(), activePass.c_str());
-    Serial.println("[WiFi] retry connect...");
+    if (savedCountValue > 1) {
+      Serial.printf("[WiFi] retry connect (%d/%d: \"%s\")...\n", attemptIdx + 1,
+                    savedCountValue, activeSsid.c_str());
+    } else {
+      Serial.println("[WiFi] retry connect...");
+    }
   }
 }
 
@@ -197,6 +330,10 @@ inline void tick() {}
 inline void applyCredentials(const String&, const String&) {}
 inline bool hasStoredCredentials() { return false; }
 inline const String& currentSsid() { static String s; return s; }
+inline int savedCount() { return 0; }
+inline const String& savedSsid(int) { static String s; return s; }
+inline bool addNetwork(const String&, const String&) { return false; }
+inline bool removeNetwork(const String&) { return false; }
 inline bool isConnected() { return false; }
 inline bool consumeJustConnected() { return false; }
 inline const char* statusText() { return "OFF"; }

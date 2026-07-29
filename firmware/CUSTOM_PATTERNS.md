@@ -7,6 +7,12 @@ Patternflow includes a workflow for creating patterns without writing low-level 
 
 > **New: you no longer need the Arduino IDE.** The last step — turning a pattern into firmware and getting it onto the board — now runs in the browser: the server compiles, your browser flashes over USB. See [step 5](#5-convert-to-c-and-flash). The Arduino IDE route still works and is still the right one for firmware development.
 
+> **Newer still: patterns can install without any flashing at all.** On firmware
+> with loadable-module support, the same `.h` builds into a tiny `.pfm` module
+> that installs over Wi-Fi from the device's `/patterns` page — a few KB, no
+> reflash, no reboot, unlimited slots. The community cart does this end to end.
+> Details: [firmware/README.md → Loadable pattern modules](README.md#loadable-pattern-modules-pfm).
+
 The 5-step path below is the AI-assisted route. The direct route reuses the same editor; skip to [Direct coding](#direct-coding-no-ai) if you don't need AI help.
 
 ---

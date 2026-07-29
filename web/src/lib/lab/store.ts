@@ -24,10 +24,13 @@ import {
 } from "./annotations";
 import {
   clearProject,
+  deserializeProject,
   loadProject,
   migrateLegacyDraft,
   saveProject,
+  serializeProject,
 } from "./serialize";
+import { readSession, stashSession } from "./sessions";
 import { resizeSurface } from "./pixelTools";
 import {
   DEFAULT_RAMP_STATE,
@@ -164,6 +167,10 @@ export type LabStore = LabProject & {
   setRampSelection: (layerId: string, index: number) => void;
   hydrate: () => void;
   discardProject: () => void;
+  /** Park the current work in the session ring and empty the canvas. */
+  stashCurrent: () => boolean;
+  /** Swap the canvas for a stashed session, parking what is there now. */
+  restoreSession: (id: string) => boolean;
 
   setMatrix: (matrix: MatrixSize) => void;
   setGen: (patch: Partial<GenSettings>) => void;
@@ -243,6 +250,41 @@ export const useLabStore = create<LabStore>((set, get) => ({
       return;
     }
     set({ hydrated: true, gallery: loadGallery() });
+  },
+
+  // Used before anything replaces the canvas wholesale, so a community open
+  // can never eat work in progress. Returns whether anything was stashed.
+  stashCurrent: () => {
+    const state = get();
+    const json = serializeProject({
+      matrix: state.matrix,
+      layers: state.layers,
+      activeLayerId: state.activeLayerId,
+      knobs: state.knobs,
+      ranges: state.ranges,
+      knobLabels: state.knobLabels,
+      forkOf: state.forkOf,
+      gen: state.gen,
+    });
+    if (!json) return false;
+    const title = state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work";
+    const stashed = stashSession(json, title, state.layers.length);
+    if (stashed) {
+      clearProject();
+      set({ ...defaultProject(), restoredAt: null, layers: [], activeLayerId: "" });
+    }
+    return stashed;
+  },
+
+  restoreSession: (id) => {
+    const json = readSession(id);
+    if (!json) return false;
+    const restored = deserializeProject(json);
+    if (!restored) return false;
+    get().stashCurrent();
+    const { savedAt, ...project } = restored;
+    set({ ...project, restoredAt: savedAt || Date.now() });
+    return true;
   },
 
   discardProject: () => {

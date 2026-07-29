@@ -33,10 +33,11 @@ import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { LAYOUT_STORAGE } from "@/lib/lab/serialize";
+import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
 import { buildStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer, type CodeLayer } from "@/lib/lab/types";
-import FirmwareExportModal from "./FirmwareExportModal";
+import HardwareModal from "./HardwareModal";
 
 import PreviewPanel from "./panels/PreviewPanel";
 import LayersPanel from "./panels/LayersPanel";
@@ -191,42 +192,34 @@ async function buildExportCode(): Promise<string> {
   return code;
 }
 
-// Single plain code layer only — layered stacks go through the
-// FirmwareExportModal wizard (deterministic scaffold + per-layer prompts).
-function buildFirmwarePrompt(): string {
-  const state = useLabStore.getState();
-  const active = state.layers.find((entry) => entry.id === state.activeLayerId);
-  const focus = isCodeLayer(active) ? active : state.layers.find(isCodeLayer);
-  if (!focus) return "";
-  return buildCppPrompt({
-    code: focus.code,
-    matrix: state.matrix,
-    knobs: state.knobs,
-    ranges: state.ranges,
-    knobLabels: state.knobLabels,
-    ramp: focus.ramp,
-  });
-}
-
 export default function PatternLabClient() {
   const [mounted, setMounted] = useState(false);
   const [panelsMenuOpen, setPanelsMenuOpen] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [recent, setRecent] = useState<SessionMeta[]>([]);
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [firmwarePrompt, setFirmwarePrompt] = useState<string | null>(null);
-  const [firmwareWizardOpen, setFirmwareWizardOpen] = useState(false);
+  const [hardwareOpen, setHardwareOpen] = useState(false);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hydrate = useLabStore((state) => state.hydrate);
   const restoredAt = useLabStore((state) => state.restoredAt);
   const discardProject = useLabStore((state) => state.discardProject);
+  const restoreSession = useLabStore((state) => state.restoreSession);
+  const stashCurrent = useLabStore((state) => state.stashCurrent);
   const forkOf = useLabStore((state) => state.forkOf);
   const setForkOf = useLabStore((state) => state.setForkOf);
 
   // Boot: restore the project (or migrate the old draft), then consume a
-  // community → lab handoff exactly once. The handoff arrives as a NEW layer
-  // on top — it must never clobber a layered composition in progress.
+  // community → lab handoff exactly once.
+  //
+  // The handoff used to land as new layers ON TOP of whatever was in
+  // progress. For a plain pattern that was one stray layer; for a shared
+  // composition it was somebody else's entire stack interleaved with yours,
+  // blending into a mess. Opening now clears the canvas first and the
+  // previous work goes into the session ring, reachable from Recent ▾.
   const bootRef = useRef(false);
   useEffect(() => {
     if (bootRef.current) return;
@@ -235,9 +228,10 @@ export default function PatternLabClient() {
     const handoff = readLabHandoff();
     if (handoff) {
       clearLabHandoff();
+      useLabStore.getState().stashCurrent();
       // A shared composition carries its layers as a @stack line — restore
-      // them; plain patterns arrive as one new layer. Either way on TOP of
-      // whatever is in progress.
+      // them; a plain pattern arrives as one layer. Either way it is now the
+      // only thing on the canvas.
       void importCodeIntoLab(
         handoff.code,
         handoff.parentTitle ?? undefined,
@@ -366,18 +360,64 @@ export default function PatternLabClient() {
             <button
               type="button"
               className={styles.headerToggle}
-              title="Turn this composition into an ESP32 firmware header and flash it"
-              onClick={() => {
-                if (needsFlatten(useLabStore.getState().layers)) {
-                  setFirmwareWizardOpen(true);
-                } else {
-                  setFirmwarePrompt(buildFirmwarePrompt());
-                }
-              }}
+              title="Convert this composition to a .h header, then build it, install it on the board, or publish it hardware-ready"
+              onClick={() => setHardwareOpen(true)}
             >
-              Build firmware
+              To hardware
             </button>
           )}
+          {/* Recent works. The list is only read when the menu opens, so
+              nothing polls localStorage while you are editing. */}
+          <div className={dock.menuWrap}>
+            <button
+              type="button"
+              className={styles.headerToggle}
+              aria-expanded={recentOpen}
+              title="Earlier work, parked when something replaced the canvas"
+              onClick={() => {
+                setRecent(listSessions());
+                setRecentOpen((current) => !current);
+              }}
+            >
+              Recent ▾
+            </button>
+            {recentOpen && (
+              <div className={dock.menuPop} onMouseLeave={() => setRecentOpen(false)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (stashCurrent()) setRecent(listSessions());
+                    setRecentOpen(false);
+                  }}
+                >
+                  Park this and start fresh
+                </button>
+                {recent.length === 0 ? (
+                  <button type="button" disabled>
+                    nothing parked yet
+                  </button>
+                ) : (
+                  recent.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      title={`${session.layerCount} layer${
+                        session.layerCount === 1 ? "" : "s"
+                      } · ${new Date(session.savedAt).toLocaleString()}`}
+                      onClick={() => {
+                        restoreSession(session.id);
+                        setRecent(listSessions());
+                        setRecentOpen(false);
+                      }}
+                    >
+                      {session.title}
+                      <em>{session.layerCount}L</em>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           <div className={dock.menuWrap}>
             <button
               type="button"
@@ -434,15 +474,9 @@ export default function PatternLabClient() {
         />
       )}
 
-      {firmwarePrompt !== null && (
-        <BuildFirmwareModal
-          patternLabel={forkOf?.title ?? "Pattern Lab composition"}
-          cppPrompt={firmwarePrompt}
-          onClose={() => setFirmwarePrompt(null)}
-        />
+      {hardwareOpen && (
+        <HardwareModal exportCode={buildExportCode} onClose={() => setHardwareOpen(false)} />
       )}
-
-      {firmwareWizardOpen && <FirmwareExportModal onClose={() => setFirmwareWizardOpen(false)} />}
     </main>
   );
 }

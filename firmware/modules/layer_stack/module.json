@@ -1,0 +1,14 @@
+{
+  "name": "Layer Stack",
+  "namespace": "LabStack_Layer_Stack",
+  "author": "unknown",
+  "license": "CC-BY-SA-4.0",
+  "abi": 1,
+  "knobs": [
+    "Waves",
+    "Speed",
+    "Sun",
+    "Glitter"
+  ],
+  "source": "G:/2026_G/26_1/\ud328\ud134\ud50c\ub85c\uc6b0/\ub79c\ub529\ud398\uc774\uc9c0_opensorce/firmware/patternflow/custom3.h"
+}

@@ -31,13 +31,13 @@ async function main() {
       : null;
 
   console.log(`build   : ${build.id}`);
-  console.log(`status  : ${build.status}`);
+  console.log(`status  : ${build.status} (${build.format})`);
   console.log(`patterns: ${parseBuildPatterns(build.patterns).map((p) => p.label).join(", ")}`);
   if (build.namespaces) console.log(`namespac: ${build.namespaces}`);
   if (build.worker) console.log(`worker  : ${build.worker}`);
   if (seconds) console.log(`took    : ${seconds}s`);
   if (build.artifact) {
-    console.log(`image   : ${path.join(artifactDir(), build.artifact)}`);
+    console.log(`${build.format === "pfm" ? "modules" : "image  "} : ${path.join(artifactDir(), build.artifact)}`);
     console.log(`size    : ${((build.artifactBytes ?? 0) / 1024).toFixed(0)} KB`);
   }
   if (build.error) console.log(`\n--- error ---\n${build.error}`);

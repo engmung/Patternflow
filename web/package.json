@@ -9,7 +9,9 @@
     "lint": "eslint",
     "worker": "tsx scripts/build-worker.ts",
     "build:enqueue": "tsx scripts/enqueue-test-build.ts",
-    "build:status": "tsx scripts/build-status.ts"
+    "build:status": "tsx scripts/build-status.ts",
+    "check:assemble": "tsx scripts/assemble-registry-smoke.ts",
+    "check:module": "tsx scripts/module-build-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

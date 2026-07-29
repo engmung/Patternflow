@@ -17,6 +17,7 @@
  * in src/lib/firmware/buildRunner.ts before letting anyone but the maintainer
  * reach it.
  */
+import fs from "node:fs/promises";
 import path from "node:path";
 import { loadEnv } from "./loadEnv";
 
@@ -30,6 +31,7 @@ import {
   parseBuildPatterns,
 } from "../src/lib/community/builds";
 import { runBuild } from "../src/lib/firmware/buildRunner";
+import { runModuleBuildZipped } from "../src/lib/firmware/moduleRunner";
 
 const WORKER_ID = process.env.WORKER_ID ?? `worker-${process.pid}`;
 const POLL_MS = Number(process.env.BUILD_POLL_MS ?? 2000);
@@ -63,10 +65,34 @@ async function processOne(): Promise<boolean> {
   if (!job) return false;
 
   const patterns = parseBuildPatterns(job.patterns);
-  log("build started", { id: job.id, patterns: patterns.length });
+  log("build started", { id: job.id, format: job.format, patterns: patterns.length });
   const startedAt = Date.now();
 
   try {
+    if (job.format === "pfm") {
+      // Module build: each pattern compiles alone (~½ s) and the artifact is a
+      // zip of .pfm/.json pairs the device's /patterns page installs without a
+      // reflash. No sketch dir or warm cache involved.
+      const zipPath = path.join(artifactDir(), `${job.id}.zip`);
+      const result = await runModuleBuildZipped(patterns, zipPath, {
+        workDir: path.join(WORK_DIR, "modules", job.id),
+      });
+      const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
+
+      if (result.ok) {
+        await completeBuild(job.id, {
+          artifact: `${job.id}.zip`,
+          artifactBytes: result.zipBytes,
+          namespaces: result.namespaces,
+        });
+        log("modules ok", { id: job.id, seconds, kb: Math.round(result.zipBytes / 1024) });
+      } else {
+        await failBuild(job.id, result.error);
+        log("modules failed", { id: job.id, seconds });
+      }
+      return true;
+    }
+
     const result = await runBuild(job.id, patterns, options);
     const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
 
@@ -87,6 +113,12 @@ async function processOne(): Promise<boolean> {
     const message = error instanceof Error ? error.stack ?? error.message : String(error);
     await failBuild(job.id, message);
     log("build crashed", { id: job.id });
+  } finally {
+    // Per-job module scratch; nothing warm lives there, unlike the sketch dir.
+    if (job.format === "pfm") {
+      await fs.rm(path.join(WORK_DIR, "modules", job.id), { recursive: true, force: true })
+        .catch(() => {});
+    }
   }
 
   return true;

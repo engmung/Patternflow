@@ -1619,6 +1619,37 @@
   overflow-wrap: anywhere;
 }
 
+/* ── Module cart ── */
+.cartList {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  border-top: 1px solid var(--pf-rule-soft, #e5ddc9);
+}
+
+.cartRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--pf-rule-soft, #e5ddc9);
+  font-size: 14px;
+}
+
+.cartRow a {
+  color: inherit;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cartRow a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ── Mobile feed ──
    Static thumbnail wall: no hover exists, so cards drop their live sandboxes
    and knob overlays (see PatternCard `interactive`) and the page itself
@@ -1697,5 +1728,71 @@
   .pageInput {
     padding: 8px 6px;
     font-size: 13px;
+  }
+}
+
+/* Add-to-cart on a feed card.
+   The card is one big link, so this floats over the thumbnail's corner rather
+   than sitting in the meta row: it cannot reflow the layout, and it stays out
+   of the knob overlay's way (which dodges to whichever half the cursor is
+   not in). Visible on hover, and always visible once the pattern is in the
+   cart, so a full cart is readable at a glance without hovering every card. */
+.cardCartBtn {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--pf-cream);
+  background: rgba(20, 20, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(2px);
+}
+
+.card:hover .cardCartBtn,
+.cardCartBtn:focus-visible {
+  opacity: 1;
+}
+
+.cardCartBtn:hover {
+  background: rgba(232, 85, 46, 0.9);
+  border-color: rgba(232, 85, 46, 1);
+}
+
+.cardCartBtnOn {
+  opacity: 1;
+  background: rgba(232, 85, 46, 0.92);
+  border-color: rgba(232, 85, 46, 1);
+}
+
+.cardCartNote {
+  position: absolute;
+  right: 8px;
+  bottom: 42px;
+  z-index: 3;
+  max-width: calc(100% - 16px);
+  padding: 3px 7px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--pf-cream);
+  background: rgba(20, 20, 20, 0.86);
+  border-radius: 0;
+}
+
+/* Coarse pointers have no hover, so the button has to be there already. */
+@media (hover: none) {
+  .cardCartBtn {
+    opacity: 1;
   }
 }
