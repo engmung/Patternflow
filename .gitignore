@@ -86,3 +86,7 @@ integrations/ableton/projects/
 
 # firmware build worker scratch (warm cache + sketch copy)
 /.build-worker
+
+# Compiled loadable pattern modules — build output of the ELF-on-FATFS loader,
+# rebuilt from firmware/patternflow/presets/*.h
+*.pfm
