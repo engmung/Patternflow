@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
@@ -44,7 +45,11 @@ async function authorize(request: Request, id: string, verb: string) {
   if (!post) {
     return { error: Response.json({ error: "Post not found." }, { status: 404 }) };
   }
-  if (post.userId !== session.user.id) {
+  // Moderators can take a post down, but not rewrite it: removing someone's
+  // post is a moderation act, editing it in their name is not.
+  const allowed =
+    post.userId === session.user.id || (verb === "delete" && isAdminSession(session));
+  if (!allowed) {
     // 403, not 404 — the post is public, it just isn't theirs to change.
     return {
       error: Response.json({ error: `You can only ${verb} your own posts.` }, { status: 403 }),

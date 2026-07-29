@@ -739,6 +739,25 @@
   color: var(--pf-led);
 }
 
+/* Sits in the meta row, styled to recede: reporting should be findable without
+   being an invitation. Inherits the row's font so it reads as one more fact,
+   not a call to action. */
+.reportLink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--pf-ink-dim, inherit);
+  opacity: 0.55;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reportLink:hover {
+  opacity: 1;
+}
+
 .metaDescription {
   margin-top: 14px;
   font-size: 14.5px;
@@ -1795,4 +1814,30 @@
   .cardCartBtn {
     opacity: 1;
   }
+}
+
+/* Community-wide footer: the terms link and the non-member reporting route.
+   Every page in the community needs to be one click from both. */
+.pageFooter {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 0 8px;
+  margin-top: 40px;
+  border-top: var(--pf-rule-w, 1px) solid var(--pf-rule);
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
+.pageFooter a {
+  color: var(--pf-ink-faint);
+  text-decoration: none;
+}
+
+.pageFooter a:hover {
+  color: var(--pf-led);
 }

@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
-import { DEFAULT_LICENSE_ID, LICENSE_OPTIONS, licenseById } from "@/lib/sharePattern";
+import {
+  DEFAULT_LICENSE_ID,
+  LICENSE_OPTIONS,
+  forkLicenseOptions,
+  licenseById,
+} from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
@@ -18,6 +23,12 @@ type Props = {
   parentId: string | null;
   parentTitle: string | null;
   /**
+   * The parent's SPDX id, when forking. A derivative cannot be looser than what
+   * it came from, so the picker only offers what the API would accept — the
+   * server enforces the same rule regardless.
+   */
+  parentLicense?: string | null;
+  /**
    * Firmware header to publish alongside the pattern, when the hardware flow
    * already produced one. Publishing with it is what makes a pattern show up
    * as hardware-ready straight away instead of needing a second trip through
@@ -27,14 +38,28 @@ type Props = {
   onClose: () => void;
 };
 
-export default function PublishModal({ code, parentId, parentTitle, codeCpp, onClose }: Props) {
+export default function PublishModal({
+  code,
+  parentId,
+  parentTitle,
+  parentLicense,
+  codeCpp,
+  onClose,
+}: Props) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [licenseId, setLicenseId] = useState(DEFAULT_LICENSE_ID);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const licenseChoices = parentLicense ? forkLicenseOptions(parentLicense) : LICENSE_OPTIONS;
+  // Default to the recommended licence, unless the parent's terms rule it out.
+  const [licenseId, setLicenseId] = useState(
+    licenseChoices.some((option) => option.id === DEFAULT_LICENSE_ID)
+      ? DEFAULT_LICENSE_ID
+      : (licenseChoices[0]?.id ?? DEFAULT_LICENSE_ID),
+  );
 
   const publish = async () => {
     const trimmed = title.trim();
@@ -105,7 +130,8 @@ export default function PublishModal({ code, parentId, parentTitle, codeCpp, onC
             {parentId && (
               <p className={styles.formNote}>
                 Publishing as a fork of <strong>{parentTitle ?? "a community pattern"}</strong> — the
-                original stays linked from your post.
+                original stays linked from your post, and its author is credited in your pattern&apos;s
+                header.
               </p>
             )}
 
@@ -134,14 +160,19 @@ export default function PublishModal({ code, parentId, parentTitle, codeCpp, onC
             <label className={styles.field}>
               <span className={styles.fieldLabel}>License</span>
               <select value={licenseId} onChange={(event) => setLicenseId(event.target.value)}>
-                {LICENSE_OPTIONS.map((option) => (
+                {licenseChoices.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.label}
                   </option>
                 ))}
               </select>
               <span className={styles.fieldHint}>
-                Publishing shares your pattern under this license, credited to your username.
+                {licenseId === "cc-by-4.0"
+                  ? "Anyone may use and adapt your pattern, including commercially, as long as they credit you. Their versions can be released under any license."
+                  : "Anyone may use and adapt your pattern, including commercially, as long as they credit you — and their versions have to stay under this same license."}
+                {parentLicense && licenseChoices.length === 1
+                  ? " This is fixed by the license of the pattern you forked."
+                  : ""}
               </span>
             </label>
 

@@ -42,7 +42,7 @@
 | **Flashing** | Everything from the browser (Chrome/Edge) — stock firmware, and custom patterns compiled by the build server; after the first USB flash, new builds can go over Wi-Fi. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · around US$100 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
-| **License** | MIT (firmware & web) · CC-BY-SA 4.0 (hardware & patterns) |
+| **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 
 ### Power & runtime
 
@@ -180,9 +180,13 @@ Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWa
 
 ## License
 
-- Firmware & web — **MIT** ([LICENSE-MIT](./LICENSE-MIT))
-- Hardware & designs — **CC-BY-SA 4.0** ([LICENSE-CC-BY-SA](./LICENSE-CC-BY-SA))
-- Patterns — **CC-BY-SA 4.0**. Community submissions are inbound = outbound: by sharing a pattern you license it under CC-BY-SA 4.0 with attribution kept in the code header (no CLA). See [CONTRIBUTING.md](CONTRIBUTING.md).
+The SPDX header inside a file is the authority — folders are not license boundaries. Full breakdown in the **[License Summary](docs/LICENSE-SUMMARY.md)**.
+
+- Firmware & web code — **MIT** ([LICENSE-MIT](./LICENSE-MIT))
+- Hardware, designs & docs — **CC-BY-SA 4.0** ([LICENSE-CC-BY-SA](./LICENSE-CC-BY-SA))
+- Bundled patterns (the presets shipped in the firmware and the editor) — **CC-BY-SA 4.0**, per-file SPDX headers.
+- Patterns contributed *to the repository* — inbound = outbound: by sending a pattern as a PR, issue or Discord post you license it under CC-BY-SA 4.0, attribution kept in the code header (no CLA). See [CONTRIBUTING.md](CONTRIBUTING.md).
+- Patterns published *to the Community* — **licensed by their author**, either **CC-BY-SA 4.0** (default) or **CC-BY-4.0**. Both permit commercial use with credit; CC-BY-SA additionally requires adaptations to stay under the same license. A fork can never be looser than what it came from, and carries a `Based on:` credit to the original author in its source.
 
 "Patternflow" is a trademark of SeungHun Lee.
 

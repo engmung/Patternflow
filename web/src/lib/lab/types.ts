@@ -94,7 +94,12 @@ export type PixelLayer = LayerCommon & {
 
 export type Layer = CodeLayer | PixelLayer;
 
-export type ForkRef = { id: string; title: string } | null;
+/**
+ * `license` is the parent's SPDX id, used to narrow the publish picker to what
+ * a derivative may legally use. Optional because drafts saved before it existed
+ * do not carry it — the publish API enforces the same rule either way.
+ */
+export type ForkRef = { id: string; title: string; license?: string | null } | null;
 
 export type GenSettings = {
   count: number;

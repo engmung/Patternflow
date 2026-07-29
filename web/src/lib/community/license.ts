@@ -1,7 +1,9 @@
 import {
-  LICENSE_OPTIONS,
+  SHARE_TOOLS,
   buildSharedPatternFile,
+  licenseBySpdx,
   type LicenseOption,
+  type ShareLineage,
   type ShareMeta,
 } from "@/lib/sharePattern";
 
@@ -21,7 +23,29 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function licenseOptionFor(spdx: string): LicenseOption {
-  return LICENSE_OPTIONS.find((option) => option.spdx === spdx) ?? LICENSE_OPTIONS[0];
+  return licenseBySpdx(spdx);
+}
+
+/** Public URL of a community pattern — used for the fork credit line. */
+export function communityPatternUrl(id: string): string {
+  return `${SHARE_TOOLS.community.url}/p/${id}`;
+}
+
+/** Upstream pattern a fork was adapted from, as stored on the parent row. */
+export type ParentCredit = {
+  id: string;
+  title: string;
+  username: string | null;
+  displayUsername: string | null;
+};
+
+export function lineageFrom(parent: ParentCredit | null | undefined): ShareLineage | null {
+  if (!parent) return null;
+  return {
+    title: parent.title,
+    handle: parent.displayUsername ?? parent.username ?? null,
+    url: communityPatternUrl(parent.id),
+  };
 }
 
 export type PatternLicenseMeta = {
@@ -31,6 +55,8 @@ export type PatternLicenseMeta = {
   handle: string | null;
   /** Publication date (ISO or Date) — stays the original date across edits. */
   date: Date | string;
+  /** Set on a fork so the original creator stays credited in the source. */
+  basedOn?: ShareLineage | null;
 };
 
 function shareMeta(meta: PatternLicenseMeta): ShareMeta {
@@ -41,6 +67,7 @@ function shareMeta(meta: PatternLicenseMeta): ShareMeta {
     license: licenseOptionFor(meta.license),
     date: date.slice(0, 10),
     source: "community",
+    basedOn: meta.basedOn ?? null,
   };
 }
 

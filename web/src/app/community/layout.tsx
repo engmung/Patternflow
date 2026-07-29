@@ -70,6 +70,11 @@ export default async function CommunityLayout({ children }: { children: React.Re
           </nav>
         </header>
         {children}
+        <footer className={styles.pageFooter}>
+          <Link href="/terms">Terms &amp; Privacy</Link>
+          <span>·</span>
+          <a href="mailto:contact@patternflow.work">Report something</a>
+        </footer>
       </div>
     </main>
   );

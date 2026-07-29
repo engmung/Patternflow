@@ -236,7 +236,11 @@ export default function PatternLabClient() {
         handoff.code,
         handoff.parentTitle ?? undefined,
         handoff.parentId
-          ? { id: handoff.parentId, title: handoff.parentTitle ?? "a community pattern" }
+          ? {
+              id: handoff.parentId,
+              title: handoff.parentTitle ?? "a community pattern",
+              license: handoff.parentLicense,
+            }
           : undefined,
       );
     }
@@ -470,6 +474,7 @@ export default function PatternLabClient() {
           code={shareCode}
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
+          parentLicense={forkOf?.license ?? null}
           onClose={() => setShareCode(null)}
         />
       )}

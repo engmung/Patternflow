@@ -11,6 +11,7 @@ import { formatDate } from "@/components/community/PatternCard";
 import LikeButton from "@/components/community/LikeButton";
 import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
+import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import SendModuleModal from "@/components/community/SendModuleModal";
@@ -20,6 +21,7 @@ import { knobSetupFromCode } from "@/lib/community/knobs";
 import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
+import { communityPatternUrl } from "@/lib/community/license";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
@@ -41,7 +43,7 @@ export type PatternView = {
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
-  parent: { id: string; title: string } | null;
+  parent: { id: string; title: string; handle: string | null; license: string } | null;
   likeCount: number;
   forkCount: number;
 };
@@ -66,6 +68,7 @@ export default function PatternDetailClient({
   const [codeTab, setCodeTab] = useState<"js" | "h">("js");
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
@@ -116,6 +119,7 @@ export default function PatternDetailClient({
       code,
       parentId: pattern.id,
       parentTitle: pattern.title,
+      parentLicense: pattern.license,
     });
     captureEvent("community_open_in_lab", { pattern_id: pattern.id, edited });
     router.push("/pattern-lab?from=community");
@@ -124,14 +128,27 @@ export default function PatternDetailClient({
   // Downloads always carry the PUBLISHED source, never in-page edits: the
   // licence header credits this pattern's author, which is only true of what
   // they actually published. Edits belong in a fork, via Open in Pattern Lab.
+  //
+  // A fork's file also carries its upstream credit, matching the stored source.
+  const downloadable = {
+    ...pattern,
+    basedOn: pattern.parent
+      ? {
+          title: pattern.parent.title,
+          handle: pattern.parent.handle,
+          url: communityPatternUrl(pattern.parent.id),
+        }
+      : null,
+  };
+
   const downloadJs = () => {
-    downloadPatternJs(pattern, pattern.code);
+    downloadPatternJs(downloadable, pattern.code);
     captureEvent("community_download", { pattern_id: pattern.id, kind: "js" });
   };
 
   const downloadHeader = () => {
     if (!pattern.codeCpp) return;
-    downloadPatternHeader(pattern, pattern.codeCpp);
+    downloadPatternHeader(downloadable, pattern.codeCpp);
     captureEvent("community_download", { pattern_id: pattern.id, kind: "h" });
   };
 
@@ -430,6 +447,12 @@ export default function PatternDetailClient({
               <Link href={`/community/p/${pattern.parent.id}`}>{pattern.parent.title}</Link>
             </span>
           )}
+          {/* Last in the row on purpose: available, never the thing you notice. */}
+          {!isOwner && (
+            <button type="button" className={styles.reportLink} onClick={() => setReportOpen(true)}>
+              Report
+            </button>
+          )}
         </div>
 
         {pattern.description && (
@@ -494,7 +517,17 @@ export default function PatternDetailClient({
           initialDescription={pattern.description}
           initialLicense={pattern.license}
           initialMadeOn={pattern.madeOn}
+          parentLicense={pattern.parent?.license ?? null}
           onClose={() => setDetailsModalOpen(false)}
+        />
+      )}
+
+      {reportOpen && (
+        <ReportModal
+          targetType="pattern"
+          targetId={pattern.id}
+          targetLabel={pattern.title}
+          onClose={() => setReportOpen(false)}
         />
       )}
     </div>

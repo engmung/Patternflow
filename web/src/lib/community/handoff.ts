@@ -11,6 +11,8 @@ export type LabHandoff = {
   /** Community pattern this code came from — becomes parent_id if re-shared. */
   parentId: string | null;
   parentTitle: string | null;
+  /** Parent's SPDX id, so the publish picker only offers compatible licences. */
+  parentLicense: string | null;
 };
 
 export function writeLabHandoff(handoff: LabHandoff): void {
@@ -31,6 +33,7 @@ export function readLabHandoff(): LabHandoff | null {
       code: parsed.code,
       parentId: typeof parsed.parentId === "string" ? parsed.parentId : null,
       parentTitle: typeof parsed.parentTitle === "string" ? parsed.parentTitle : null,
+      parentLicense: typeof parsed.parentLicense === "string" ? parsed.parentLicense : null,
     };
   } catch {
     return null;

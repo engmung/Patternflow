@@ -317,6 +317,7 @@ export default function HardwareModal({
           codeCpp={assembled}
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
+          parentLicense={forkOf?.license ?? null}
           onClose={() => setPublishCode(null)}
         />
       )}

@@ -5,8 +5,8 @@ import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
 import { cleanCode, cleanCpp, cleanDescription, cleanTitle } from "@/lib/community/validate";
-import { buildStoredPatternCode } from "@/lib/community/license";
-import { LICENSE_OPTIONS, stripShareWrapping } from "@/lib/sharePattern";
+import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
+import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
 // POST /api/community/patterns — publish (or fork-publish) a pattern.
 // Reads happen in server components; only mutations go through the API.
@@ -73,15 +73,30 @@ async function handlePost(request: Request) {
     );
   }
 
+  // New work can only take a currently-offered licence (the retired ones stay
+  // readable but are not selectable — see LICENSE_OPTIONS).
   const license =
     LICENSE_OPTIONS.find((option) => option.spdx === raw.license)?.spdx ?? "CC-BY-SA-4.0";
 
   // Fork lineage: only record parents that actually exist; a dangling or
   // malformed parentId silently degrades to an original post.
   let parentId: string | null = null;
+  let parent: Awaited<ReturnType<typeof getPatternStub>> | null = null;
   if (typeof raw.parentId === "string" && raw.parentId.length > 0) {
-    const parent = await getPatternStub(raw.parentId);
+    parent = await getPatternStub(raw.parentId);
     parentId = parent?.id ?? null;
+  }
+
+  // A fork is a derivative: it cannot be published under looser terms than the
+  // pattern it came from. Without this a CC BY-SA pattern could be forked and
+  // re-published as something permissive, with the platform doing the laundering.
+  if (parent && !forkLicenseAllowed(parent.license, license)) {
+    return Response.json(
+      {
+        error: `A fork of a ${parent.license} pattern cannot be published as ${license}. Publish it under ${parent.license}.`,
+      },
+      { status: 400 },
+    );
   }
 
   const now = new Date();
@@ -98,8 +113,15 @@ async function handlePost(request: Request) {
     description,
     // Licence header + attribution are baked into the stored source, so anyone
     // who copies the code out of the page takes the terms and the credit with
-    // it — not just people who download the file.
-    code: buildStoredPatternCode(code, { title, license, handle, date: now }),
+    // it — not just people who download the file. On a fork that includes the
+    // upstream credit, which both CC licences require a derivative to keep.
+    code: buildStoredPatternCode(code, {
+      title,
+      license,
+      handle,
+      date: now,
+      basedOn: lineageFrom(parent),
+    }),
     codeCpp,
     license,
     parentId,
