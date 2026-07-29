@@ -1,0 +1,142 @@
+/* Terms & privacy. A legal page nobody reads is a legal page that does not
+   work, so this is set as prose — one column, generous measure, real hierarchy
+   — using the project's own tokens rather than a wall of small grey text. */
+
+.page {
+  min-height: 100vh;
+  padding: 48px 24px 96px;
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.doc {
+  max-width: 68ch;
+  margin: 0 auto;
+}
+
+.head {
+  padding-bottom: 28px;
+  margin-bottom: 32px;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.brand {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--pf-led);
+}
+
+.head h1 {
+  margin: 0;
+  font-size: var(--pf-fs-h2);
+  letter-spacing: var(--pf-track-tight);
+  font-weight: 600;
+}
+
+.updated {
+  margin: 10px 0 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
+.lede {
+  margin: 0 0 40px;
+  font-family: var(--pf-serif);
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--pf-ink);
+}
+
+.doc section {
+  margin-bottom: 36px;
+}
+
+.doc h2 {
+  margin: 0 0 14px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: var(--pf-track-tight);
+}
+
+.doc h3 {
+  margin: 24px 0 10px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--pf-ink-muted);
+}
+
+.doc p,
+.doc li {
+  font-size: var(--pf-fs-body);
+  line-height: 1.7;
+  color: var(--pf-ink);
+}
+
+.doc p {
+  margin: 0 0 12px;
+}
+
+.doc ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.doc li {
+  margin-bottom: 7px;
+}
+
+.doc a {
+  color: var(--pf-led);
+  text-underline-offset: 2px;
+}
+
+/* The one clause most likely to surprise someone later — account closure not
+   removing published patterns. Given its own frame so it cannot be skimmed past. */
+.callout {
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-left: 2px solid var(--pf-led);
+  background: var(--pf-cream-2);
+}
+
+.foot {
+  padding-top: 28px;
+  margin-top: 8px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+  font-size: var(--pf-fs-body);
+  color: var(--pf-ink-muted);
+}
+
+.foot p {
+  margin: 0 0 8px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 32px 20px 72px;
+  }
+
+  .head h1 {
+    font-size: 26px;
+  }
+
+  .lede {
+    font-size: 17px;
+  }
+}

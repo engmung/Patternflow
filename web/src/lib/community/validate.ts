@@ -90,3 +90,44 @@ export function cleanComment(raw: unknown): string | null {
   if (body.length === 0 || body.length > COMMENT_MAX) return null;
   return body;
 }
+
+// ── Reports ──────────────────────────────────────────────────────────────────
+
+export const REPORT_TARGET_TYPES = ["pattern", "post", "comment"] as const;
+export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
+
+export function isReportTargetType(raw: unknown): raw is ReportTargetType {
+  return typeof raw === "string" && REPORT_TARGET_TYPES.includes(raw as ReportTargetType);
+}
+
+/**
+ * Why something was reported. "malicious" is on the list because a pattern is
+ * executable code that other people run in their browser and flash to their
+ * board — a category the usual report menus have no word for.
+ */
+export const REPORT_REASONS = [
+  "copyright",
+  "inappropriate",
+  "spam",
+  "malicious",
+  "other",
+] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  copyright: "Copyright — this is someone else's work, or the license is wrong",
+  inappropriate: "Inappropriate or abusive content",
+  spam: "Spam or junk",
+  malicious: "Malicious code",
+  other: "Something else",
+};
+
+export const REPORT_DETAIL_MAX = 2000;
+
+export function cleanReportDetail(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const detail = raw.trim();
+  if (detail.length > REPORT_DETAIL_MAX) return undefined;
+  return detail.length === 0 ? null : detail;
+}

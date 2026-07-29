@@ -227,6 +227,40 @@ export const builds = sqliteTable(
   ],
 );
 
+// ── Moderation ───────────────────────────────────────────────────────────────
+// A report is a record, not a pointer. `targetId` and `targetUserId` carry NO
+// foreign key on purpose: the whole reason to keep reports is to see that the
+// same account has been reported before, and a cascade would erase exactly that
+// history the moment the offending pattern is removed. The title is snapshotted
+// for the same reason — so a resolved report still reads as something.
+export const reports = sqliteTable(
+  "reports",
+  {
+    id: text("id").primaryKey(),
+    /** "pattern" | "post" | "comment" */
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
+    /** What it was called when it was reported. */
+    targetTitle: text("target_title"),
+    /** Who authored the reported content — the repeat-infringer signal. */
+    targetUserId: text("target_user_id"),
+    reporterId: text("reporter_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** "copyright" | "inappropriate" | "spam" | "malicious" | "other" */
+    reason: text("reason").notNull(),
+    detail: text("detail"),
+    /** "open" | "actioned" | "dismissed" */
+    status: text("status").notNull().default("open"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    resolvedAt: integer("resolved_at", { mode: "timestamp" }),
+  },
+  (table) => [
+    index("reports_status_created_idx").on(table.status, table.createdAt),
+    index("reports_target_user_idx").on(table.targetUserId),
+  ],
+);
+
 export const comments = sqliteTable(
   "comments",
   {

@@ -1,11 +1,12 @@
 import { eq } from "drizzle-orm";
+import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
-import { getPattern } from "@/lib/community/queries";
+import { getPattern, getPatternStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
-import { buildStoredPatternCode } from "@/lib/community/license";
+import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
   cleanCode,
   cleanCpp,
@@ -13,7 +14,7 @@ import {
   cleanMadeOn,
   cleanTitle,
 } from "@/lib/community/validate";
-import { LICENSE_OPTIONS, stripShareWrapping } from "@/lib/sharePattern";
+import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
 // PATCH /api/community/patterns/[id] — the author edits their own pattern.
 //
@@ -55,7 +56,9 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
   if (!pattern) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
-  if (pattern.userId !== session.user.id) {
+  // Moderators can take anything down. Editing stays owner-only: removing
+  // someone's pattern is a moderation act, rewriting it in their name is not.
+  if (pattern.userId !== session.user.id && !isAdminSession(session)) {
     return Response.json({ error: "You can only delete your own patterns." }, { status: 403 });
   }
 
@@ -112,10 +115,25 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     description = next;
   }
 
+  // The parent is needed twice below: to keep a fork's licence compatible, and
+  // to re-bake the upstream credit into the source.
+  const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
+
   let license = pattern.license;
   if (raw.license !== undefined) {
-    const match = LICENSE_OPTIONS.find((option) => option.spdx === raw.license);
+    // KNOWN_LICENSES, not LICENSE_OPTIONS: a pattern published under a licence
+    // that has since been retired must stay editable by its author. Keeping the
+    // stored value is always allowed; only *changing* it is restricted.
+    const match = KNOWN_LICENSES.find((option) => option.spdx === raw.license);
     if (!match) return Response.json({ error: "Unknown licence." }, { status: 400 });
+    if (match.spdx !== pattern.license && parent && !forkLicenseAllowed(parent.license, match.spdx)) {
+      return Response.json(
+        {
+          error: `This pattern is a fork of a ${parent.license} pattern, so it cannot be relicensed as ${match.spdx}.`,
+        },
+        { status: 400 },
+      );
+    }
     license = match.spdx;
   }
 
@@ -183,6 +201,10 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
         license,
         handle,
         date: madeOn ?? pattern.createdAt,
+        // Rebuilt from the parent row every time, never carried over from the
+        // submitted code — an author editing their fork cannot drop the credit
+        // by deleting the line from the editor.
+        basedOn: lineageFrom(parent),
       }),
       codeCpp,
       updatedAt: new Date(),

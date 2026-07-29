@@ -3,8 +3,10 @@ export default function Footer() {
     <footer id="origin">
       <div className="foot-row">
         <div>
-          Firmware &amp; web — MIT License.<br />
-          Hardware &amp; designs — CC BY-SA 4.0.<br />
+          Firmware &amp; web code — MIT License.<br />
+          Hardware, designs &amp; patterns — CC BY-SA 4.0.<br />
+          Community patterns are licensed by their authors.<br />
+          <a href="/terms">Terms &amp; Privacy</a><br />
           <br />
           <em className="wordmark">Patternflow</em> is a trademark of SeungHun Lee.
         </div>

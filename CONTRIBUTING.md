@@ -17,7 +17,13 @@ This file is intentionally a starting point. The contribution process will becom
 
 Custom patterns are welcome as community work, but official bundled firmware patterns will be curated for now. If you make something interesting, share it in the Discord **patterns** channel (follow the post guidelines there) or open an issue with the source.
 
-**Licensing — inbound = outbound.** By sharing a pattern (Discord, issue, or PR) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
+**Licensing — inbound = outbound.** By sending a pattern *to this repository* (Discord, issue, or PR) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
+
+**Publishing to the Community is a different thing.** Patterns posted to the
+[Community site](https://patternflow.work/community) are not repository
+contributions — you pick their license yourself when you publish (CC-BY-SA 4.0
+by default, or CC-BY 4.0), and nothing here applies to them. See the
+[License Summary](docs/LICENSE-SUMMARY.md).
 
 ## Commit messages
 

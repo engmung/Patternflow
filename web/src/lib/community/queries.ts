@@ -128,15 +128,80 @@ export async function getPattern(id: string) {
   return rows[0] ?? null;
 }
 
-/** Minimal parent info for the "forked from" link. */
+/**
+ * Parent info for the "forked from" link — and for the two things a fork owes
+ * its parent: the upstream credit baked into the source, and the licence its
+ * own choice has to stay compatible with.
+ */
 export async function getPatternStub(id: string) {
   const db = getDb();
   const rows = await db
-    .select({ id: patterns.id, title: patterns.title, userId: patterns.userId })
+    .select({
+      id: patterns.id,
+      title: patterns.title,
+      userId: patterns.userId,
+      license: patterns.license,
+      ...authorFields,
+    })
     .from(patterns)
+    .innerJoin(user, eq(patterns.userId, user.id))
     .where(eq(patterns.id, id))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/** Ownership check for comment deletion, without loading the thread. */
+export async function getCommentStub(on: "pattern" | "post", id: string) {
+  const db = getDb();
+  if (on === "pattern") {
+    const rows = await db
+      .select({ id: comments.id, userId: comments.userId })
+      .from(comments)
+      .where(eq(comments.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+  const rows = await db
+    .select({ id: postComments.id, userId: postComments.userId })
+    .from(postComments)
+    .where(eq(postComments.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Title + author of whatever is being reported, so the report keeps a readable
+ * snapshot. Comments have no title, so the body stands in — truncated, because
+ * this is a label in a moderation list, not a copy of the content.
+ */
+export async function reportTarget(
+  type: "pattern" | "post" | "comment",
+  id: string,
+): Promise<{ title: string; userId: string } | null> {
+  const db = getDb();
+  if (type === "pattern") {
+    const rows = await db
+      .select({ title: patterns.title, userId: patterns.userId })
+      .from(patterns)
+      .where(eq(patterns.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+  if (type === "post") {
+    const rows = await db
+      .select({ title: posts.title, userId: posts.userId })
+      .from(posts)
+      .where(eq(posts.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+  const rows = await db
+    .select({ body: comments.body, userId: comments.userId })
+    .from(comments)
+    .where(eq(comments.id, id))
+    .limit(1);
+  const row = rows[0];
+  return row ? { title: row.body.slice(0, 80), userId: row.userId } : null;
 }
 
 export async function listComments(patternId: string) {

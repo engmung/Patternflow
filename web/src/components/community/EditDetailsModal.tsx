@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
-import { LICENSE_OPTIONS } from "@/lib/sharePattern";
+import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import styles from "./Community.module.css";
@@ -18,6 +18,7 @@ export default function EditDetailsModal({
   initialDescription,
   initialLicense,
   initialMadeOn,
+  parentLicense,
   onClose,
 }: {
   patternId: string;
@@ -25,6 +26,8 @@ export default function EditDetailsModal({
   initialDescription: string | null;
   initialLicense: string; // SPDX
   initialMadeOn: string | null; // YYYY-MM-DD
+  /** Parent's SPDX id when this pattern is a fork — narrows what it may become. */
+  parentLicense?: string | null;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -34,6 +37,18 @@ export default function EditDetailsModal({
   const [madeOn, setMadeOn] = useState(initialMadeOn ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // What this pattern may be relicensed to. The pattern's CURRENT licence is
+  // always included even when it is no longer offered (MIT, CC0): a retired
+  // option must stay selectable, or opening this modal to fix a typo in the
+  // title would silently relicense the pattern to whatever sits first in the
+  // list.
+  const licenseChoices = (() => {
+    const offered = parentLicense ? forkLicenseOptions(parentLicense) : LICENSE_OPTIONS;
+    return offered.some((option) => option.spdx === initialLicense)
+      ? offered
+      : [licenseBySpdx(initialLicense), ...offered];
+  })();
 
   const save = async () => {
     const trimmed = title.trim();
@@ -117,14 +132,17 @@ export default function EditDetailsModal({
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Licence</span>
             <select value={license} onChange={(event) => setLicense(event.target.value)}>
-              {LICENSE_OPTIONS.map((option) => (
-                <option key={option.id} value={option.spdx}>
+              {licenseChoices.map((option) => (
+                <option key={option.spdx} value={option.spdx}>
                   {option.label}
                 </option>
               ))}
             </select>
             <span className={styles.fieldHint}>
               The licence header inside the code is rewritten to match.
+              {parentLicense && licenseChoices.length === 1
+                ? " Fixed by the licence of the pattern this was forked from."
+                : ""}
             </span>
           </label>
 

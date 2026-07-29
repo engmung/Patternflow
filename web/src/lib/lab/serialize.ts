@@ -287,7 +287,13 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
       ? (() => {
           const entry = raw.forkOf as Record<string, unknown>;
           return typeof entry.id === "string" && typeof entry.title === "string"
-            ? { id: entry.id, title: entry.title.slice(0, 120) }
+            ? {
+                id: entry.id,
+                title: entry.title.slice(0, 120),
+                // Absent on drafts saved before forks tracked the parent's
+                // licence; the publish API enforces compatibility regardless.
+                license: typeof entry.license === "string" ? entry.license : null,
+              }
             : null;
         })()
       : null;

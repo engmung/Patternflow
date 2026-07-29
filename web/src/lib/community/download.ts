@@ -1,10 +1,11 @@
 "use client";
 
 import {
-  LICENSE_OPTIONS,
   buildSharedHeaderFile,
   buildSharedPatternFile,
+  licenseBySpdx,
   slugifyName,
+  type ShareLineage,
   type ShareMeta,
 } from "@/lib/sharePattern";
 
@@ -19,6 +20,8 @@ export type DownloadablePattern = {
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
+  /** Upstream credit when this is a fork — same line the stored source carries. */
+  basedOn?: ShareLineage | null;
 };
 
 function shareMetaFor(pattern: DownloadablePattern): ShareMeta {
@@ -26,11 +29,13 @@ function shareMetaFor(pattern: DownloadablePattern): ShareMeta {
   return {
     title: pattern.title,
     author: handle ? `@${handle}` : "(unknown)",
-    license:
-      LICENSE_OPTIONS.find((option) => option.spdx === pattern.license) ?? LICENSE_OPTIONS[0],
+    // Never fall back to a default licence — an unrecognised SPDX is passed
+    // through so the file cannot claim terms the author did not choose.
+    license: licenseBySpdx(pattern.license),
     // The publication date, not today's — the file records when it was shared.
     date: pattern.createdAt.slice(0, 10),
     source: "community",
+    basedOn: pattern.basedOn ?? null,
   };
 }
 

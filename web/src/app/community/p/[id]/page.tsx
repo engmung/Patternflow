@@ -72,7 +72,16 @@ export default async function CommunityPatternPage(props: RouteParams) {
         createdAt: pattern.createdAt.toISOString(),
         username: pattern.username,
         displayUsername: pattern.displayUsername,
-        parent: parent ? { id: parent.id, title: parent.title } : null,
+        parent: parent
+          ? {
+              id: parent.id,
+              title: parent.title,
+              // Carried so the download's credit line matches the stored source.
+              handle: parent.displayUsername ?? parent.username ?? null,
+              // Bounds what this fork may be relicensed to.
+              license: parent.license,
+            }
+          : null,
         likeCount: pattern.likeCount,
         forkCount: pattern.forkCount,
       }}
