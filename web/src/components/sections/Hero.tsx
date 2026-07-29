@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
@@ -36,8 +37,10 @@ export default function Hero() {
         {/* The one thing the page never said: what you actually do with it.
             Sits above the video so it reads before the picture, not after. */}
         <p className="hero-spec">Four knobs. The pattern answers as you turn them.</p>
-        <div style={{ 
-          marginBottom: '24px', 
+        <div style={{
+          /* 14, not 24: the last few pixels that put the CTA row above the
+             fold on an 820px-tall laptop. */
+          marginBottom: '14px',
           overflow: 'hidden', 
           border: '1px solid var(--pf-rule)',
           position: 'relative',
@@ -77,50 +80,34 @@ export default function Hero() {
             }}
           />
         </div>
-        <p className="lede">
-          A reinterpretation of{" "}
+        {/* L3 — the strongest line we have, per the manifesto: a description of
+            how the system works, with nothing in it to disbelieve. */}
+        <p className="lede">Every Patternflow plays every pattern we make.</p>
+        {/* L5 does not run in the hero (manifesto §2: depth, not headline, and
+            this is the most headline-like surface on the site). This is a
+            signpost to it, not a shortened version of it — the line itself is
+            unchanged and still runs in full in the README and the journal. */}
+        <p className="hero-footnote">
+          After Nam June Paik&apos;s{" "}
           <a
             className="has-tip"
-            data-tip="View on MoMA"
-            href="https://www.moma.org/artists/4469"
+            data-tip="Nam June Paik Art Center"
+            href="https://njpart.ggcf.kr/mediaObjects/32"
             target="_blank"
             rel="noopener"
-            style={{
-              color: "inherit",
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              fontWeight: 500,
-            }}
           >
-            Nam June Paik
+            Participation TV
           </a>
-          &apos;s
-          <br />
-          <em>
-            <a
-              className="has-tip"
-              data-tip="Nam June Paik Art Center"
-              href="https://njpart.ggcf.kr/mediaObjects/32"
-              target="_blank"
-              rel="noopener"
-              style={{ color: "inherit", textDecoration: "none" }}
-            >
-              Participation TV
-            </a>
-          </em>{" "}
-          (1963).
-          <br />
-          Paik let the audience change the image.
-          <br />
-          Patternflow lets you make it — and give it away.
-          <br />
-          <br />
-          <span style={{ fontWeight: 500 }}>Every Patternflow plays every pattern we make.</span>
-        </p>
-        <p className="hero-kit-note">
-          All source files and guides are on GitHub.
-          <br />
-          Build one yourself, or get one.
+          , 1963 —{" "}
+          <Link
+            href="/journal"
+            onClick={() => captureEvent('hero_footnote_clicked', {
+              surface: 'hero',
+              destination: 'journal',
+            })}
+          >
+            read why ↗
+          </Link>
         </p>
         {/* Get One leads: it is the action that costs the reader something, so
             it takes the solid weight. The note sits under it — not under both —

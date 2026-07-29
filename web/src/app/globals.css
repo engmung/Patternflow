@@ -196,22 +196,40 @@
     font-size: 15px;
     line-height: 1.55;
     color: var(--ink-muted);
-    margin: 0 0 24px;
+    margin: 0 0 18px;
     max-width: 44ch;
   }
+  /* L3, on its own. It used to carry the Paik passage above it as well, which
+     ran six lines at this size and pushed the CTA off the fold on any laptop. */
   .hero-copy p.lede {
     font-size: 21px;
+    font-weight: 500;
     line-height: 1.5;
     max-width: 580px;
-    margin-bottom: 34px;
+    margin-bottom: 14px;
     text-wrap: pretty;
   }
-  .hero-kit-note {
-    font-size: 15px;
-    line-height: 1.55;
+  /* Signpost to L5, which does not run in the hero — see manifesto §11. Mono
+     and small on purpose: it closes the column rather than competing with it. */
+  .hero-footnote {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.6;
     color: var(--ink-muted);
-    margin: 0 0 12px;
-    max-width: 44ch;
+    margin: 0 0 26px;
+    max-width: 580px;
+  }
+  .hero-footnote a {
+    color: var(--ink);
+    border-bottom: 1px solid var(--ink);
+    padding-bottom: 1px;
+  }
+  .hero-footnote a:hover {
+    color: var(--ink-muted);
+    border-color: var(--ink-muted);
+    text-decoration: none;
   }
   /* Grid, not flex, so the note can be pinned to column 1 — under Get One
      alone. As a flex row it sat under both buttons and read as a condition on
@@ -303,8 +321,8 @@
     .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
     .hero-copy .kicker { font-size: 20px; margin-bottom: 8px; }
     .hero-spec { font-size: 14.5px; margin: 0 0 20px; }
-    .hero-copy p.lede { font-size: 17.5px; margin-bottom: 28px; }
-    .hero-kit-note { font-size: 14.5px; margin: 0 0 10px; }
+    .hero-copy p.lede { font-size: 17.5px; margin-bottom: 12px; }
+    .hero-footnote { font-size: 10px; margin: 0 0 20px; }
     /* Single column — keep the note directly under Get One rather than letting
        it fall to the bottom of the stack. */
     .hero-cta-row { gap: 8px; grid-template-columns: 1fr; }

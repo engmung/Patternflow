@@ -365,8 +365,17 @@ Which layers go where.
 the wordmark and the full L2 pushes it onto an extra line at every breakpoint.
 The second beat expands L2 rather than jumping ahead to L3: *"Four knobs. The
 pattern answers as you turn them."* Say what the thing does before saying how far
-it reaches. L3 lands after the video, once the device has been seen moving; L5
-sits just above it.
+it reaches. L3 lands after the video, once the device has been seen moving.
+
+**L5 does not run in the hero.** §2 keeps it out of headline surfaces, and the
+hero is the most headline-like surface we have — running it there was this
+document contradicting itself. A one-line mono footnote points to it instead:
+
+> After Nam June Paik's *Participation TV*, 1963 — read why ↗
+
+That is a signpost, not a shortened L5. L5 itself is unchanged and still runs in
+full everywhere §2 sends it. Every hero paragraph should map to a layer; if it
+maps to none, it is probably restating a button.
 
 **README opening** — L1 + L2 + L3, with L5 in the section explaining the idea.
 
