@@ -88,5 +88,8 @@ integrations/ableton/projects/
 /.build-worker
 
 # Compiled loadable pattern modules — build output of the ELF-on-FATFS loader,
-# rebuilt from firmware/patternflow/presets/*.h
+# rebuilt from firmware/patternflow/presets/*.h. The sidecar JSON is generated
+# alongside each module and embeds an absolute local path, so it is
+# machine-specific and never worth committing.
 *.pfm
+firmware/patternflow/data/patterns/*.json
