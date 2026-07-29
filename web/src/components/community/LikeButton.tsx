@@ -69,8 +69,10 @@ export default function LikeButton({
         aria-label={liked ? "Unlike this pattern" : "Like this pattern"}
         onClick={() => void toggle()}
       >
-        <span aria-hidden="true">{liked ? "♥" : "♡"}</span>
-        <span>{count}</span>
+        {/* State reads from .likeButtonOn (accent), not a glyph — the style
+            guide keeps the UI on mono labels. */}
+        <span aria-hidden="true">LIK</span>
+        <span>{String(count).padStart(2, "0")}</span>
       </button>
 
       {authOpen && (

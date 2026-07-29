@@ -49,8 +49,8 @@ export default async function CommunityUserPage(props: RouteParams) {
   const stats = [
     `${items.length} ${items.length === 1 ? "pattern" : "patterns"}`,
     hardwareReady > 0 ? `${hardwareReady} hardware ready` : null,
-    totalLikes > 0 ? `♥ ${totalLikes}` : null,
-    totalForks > 0 ? `⑂ ${totalForks}` : null,
+    totalLikes > 0 ? `LIK ${String(totalLikes).padStart(2, "0")}` : null,
+    totalForks > 0 ? `FRK ${String(totalForks).padStart(2, "0")}` : null,
     `joined ${profile.createdAt.toISOString().slice(0, 10)}`,
   ].filter(Boolean) as string[];
 

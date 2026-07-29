@@ -671,7 +671,7 @@ export default function RoadmapMap() {
                   aria-label="Close"
                   onClick={() => setSelectedId(null)}
                 >
-                  ×
+                  Close
                 </button>
               </div>
               <h2 className={styles.popupTitle}>{nodeTitle(selected, lang)}</h2>

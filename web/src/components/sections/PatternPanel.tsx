@@ -175,6 +175,11 @@ export default function PatternPanel({ content }: PatternPanelProps) {
     handleLoadPreset(nextPreset.id);
   };
 
+  // The 42-cell number wall is folded away by default — it was the loudest
+  // thing in the panel and said nothing about which preset you were on.
+  const [showAllPresets, setShowAllPresets] = useState(false);
+  const activePreset = activePresetIndex >= 0 ? showcasePresets[activePresetIndex] : null;
+
   const handleCopyVariantPrompt = () => {
     navigator.clipboard.writeText(getVariantPrompt(customJsCode));
     captureEvent('copy_variants_prompt_clicked', {
@@ -216,40 +221,40 @@ export default function PatternPanel({ content }: PatternPanelProps) {
         />
 
         <div className={styles.workspace}>
-          {/* The Live Editor is the only in-page workflow now; the other two
-              slots are the places it feeds into. Pattern Lab sits where Flash
-              presets used to — it's the full studio, so it ranks next to
-              Community, and the quick-flash block moved below the editor. */}
-          <div className={styles.modeSwitch} aria-label="Pattern tools">
-            <button type="button" className={styles.active} aria-current="true">
-              Live Editor
-            </button>
-            <Link href="/pattern-lab" title="Pattern Lab — the full pattern studio">
-              Pattern Lab ↗
-            </Link>
-            {/* Straight to the community host — it runs on its own box, so
-                bouncing through this site's /community first would just be an
-                extra click. */}
-            <Link
-              href={communityHref()}
-              title="Explore the Patternflow pattern community"
-            >
-              Community ↗
-            </Link>
-          </div>
-
+          {/* No tab bar: two of its three cells navigated to other pages, so it
+              promised tabs and delivered links. The editor is this panel, and
+              the way out is one block below it. */}
           <div className={styles.liveEditor}>
-              {/* Preset numbers FIRST, editor second, how-to steps last. On a
-                  phone the bar under the editor was below the fold — people
-                  never found the other presets, got stuck dragging inside
-                  Monaco, and scrolled away. Trying patterns is the hook, so it
-                  leads. */}
+              {/* Which preset you are on, by name — the numbered wall said
+                  nothing about that and is folded behind "All 42" now. */}
               <div className={styles.presetBar} aria-label="Live editor presets">
                 <button type="button" onClick={() => handleStepPreset(-1)} aria-label="Previous preset">
                   ‹
                 </button>
-                {/* Every preset as a numbered cell — jump straight to any of
-                    them instead of paging one step at a time. */}
+                <div className={styles.presetNow}>
+                  <span className={styles.presetIndex}>
+                    {String(activePresetIndex >= 0 ? activePresetIndex + 1 : 0).padStart(2, '0')} / {showcasePresets.length}
+                  </span>
+                  <span className={styles.presetName}>{activePreset?.name ?? 'Custom'}</span>
+                  {/* The one accent in this panel: it means "this is what the
+                      preview is running right now", not decoration. */}
+                  <span className={styles.presetLive}>on the device</span>
+                </div>
+                <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
+                  ›
+                </button>
+                <button type="button" onClick={handleRandomPreset} aria-label="Random preset" title="Random preset">
+                  Random
+                </button>
+                <button
+                  type="button"
+                  aria-expanded={showAllPresets}
+                  onClick={() => setShowAllPresets((open) => !open)}
+                >
+                  All {showcasePresets.length}
+                </button>
+              </div>
+              {showAllPresets && (
                 <div className={styles.presetNumbers} role="group" aria-label="Jump to preset">
                   {visiblePresets.map((preset, i) => {
                     const idx = windowStart + i;
@@ -268,13 +273,7 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                     );
                   })}
                 </div>
-                <button type="button" onClick={() => handleStepPreset(1)} aria-label="Next preset">
-                  ›
-                </button>
-                <button type="button" onClick={handleRandomPreset} aria-label="Random preset" title="Random preset">
-                  🎲
-                </button>
-              </div>
+              )}
               <Editor
                 height={EDITOR_HEIGHT}
                 defaultLanguage="javascript"
@@ -304,103 +303,75 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   automaticLayout: true,
                 }}
               />
-              {/* One combined how-to block under the editor: make a pattern
-                  (1–2), get it onto hardware via Pattern Lab (3), and the
-                  wired first-flash of the official firmware (4). */}
-              <div className={styles.editorHeader}>
-                <ol className={styles.editorSteps}>
-                  <li>
-                    <span className={styles.stepText}>Copy the prompt into your AI chatbot, then paste the result into the editor above.</span>
-                    <div className={styles.editorActions}>
-                      <button type="button" onClick={handleCopyVariantPrompt}>
-                        Copy creation prompt
-                      </button>
-                    </div>
-                  </li>
-                  <li>
-                    <span className={styles.stepText}>Play with it on the preview — tweak the code until it feels right.</span>
-                  </li>
-                  <li>
-                    {/* The C++ prompt button used to live here; the process
-                        stays visible, but the conversion itself now happens in
-                        Pattern Lab, whose prompt knows about frames and ramps.
-                        No button — Pattern Lab is one tab up and one card down. */}
-                    <span className={styles.stepText}>
-                      Want it on hardware? Open it in Pattern Lab — the full studio — to convert
-                      it to ESP32 C++ and build flashable firmware.
-                    </span>
-                  </li>
-                  <li>
-                    <span className={styles.stepText}>
-                      <strong>Got the hardware? Flash this once, whatever you do</strong> — it
-                      also sets up Wi-Fi. Plug the ESP32 in over USB and flash the official
-                      firmware — {NUM_FIRMWARE_PRESETS} presets built in — right from the browser.
-                      After that your own patterns go wirelessly from Pattern Lab.
-                    </span>
-                    <div className={styles.editorActions}>
-                      <EspWebInstallButton manifest="/flash/manifest.json">
-                        <button
-                          slot="activate"
-                          type="button"
-                          className={styles.flashButton}
-                          onClick={() => captureEvent('flash_patternflow_clicked', {
-                            manifest: '/flash/manifest.json',
-                            surface: 'pattern_panel',
-                          })}
-                        >
-                          Flash Patternflow
-                        </button>
-                        <div slot="unsupported" className={styles.unsupported}>
-                          Browser flashing works in desktop Chrome or Edge.
-                        </div>
-                      </EspWebInstallButton>
-                    </div>
-                  </li>
-                </ol>
+              {/* The four numbered steps collapsed to this: what the editor is
+                  for, and the one button that belongs next to it. Everything
+                  about hardware moved to its own block below. */}
+              <div className={styles.editorFoot}>
+                <span>
+                  Paste AI-generated code here, or edit the preset. The preview updates as
+                  you type.
+                </span>
+                <button type="button" onClick={handleCopyVariantPrompt}>
+                  Copy creation prompt
+                </button>
               </div>
           </div>
 
-          {/* Where the editor leads. Two destinations, each carrying its part
-              of the roadmap: Pattern Lab is the professional AI editing tool
-              and keeps growing as one; Community is the sharing space that
-              grows into a marketplace where creators earn. The whole card is
-              the link — no inner CTA buttons. (Replaces the old hand-written
-              Arduino/Discord guide, which described dead workflows.) */}
-          <div className={styles.nextSteps} aria-label="Next steps">
-            <Link href="/pattern-lab" className={styles.nextCard}>
-              <span className={styles.nextKicker}>The studio</span>
-              <h3>Pattern Lab ↗</h3>
-              <p>
-                A professional editor for composing patterns with AI — generate in batches, shape
-                color ramps, tune knobs on custom frames, then compile straight to ESP32 firmware.
-                This is where Patternflow&apos;s creation tools keep growing.
+          {/* Two branches, one row: where the pattern goes, and what to do if
+              you already own a board. Previously the exits were scattered
+              across the tab bar, these cards, and a trailing paragraph. */}
+          <div className={styles.branches}>
+            <div className={styles.nextSteps} aria-label="Next steps">
+              <span className="pf-kicker">Where it goes next</span>
+              <Link href="/pattern-lab" className={styles.nextCard}>
+                <span className={styles.nextKicker}>01</span>
+                <h3>Pattern Lab ↗</h3>
+                <p>The full studio — batch generation, color ramps, and ESP32 C++ compile.</p>
+              </Link>
+              <Link href={communityHref()} className={styles.nextCard}>
+                <span className={styles.nextKicker}>02</span>
+                <h3>Community ↗</h3>
+                <p>Share what you make, fork what everyone else made.</p>
+              </Link>
+              <p className={styles.advancedNote}>
+                The build server compiles your pattern into firmware in the browser. The{' '}
+                <a
+                  href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Arduino IDE
+                </a>{' '}
+                is only for new firmware features or a different matrix size.
               </p>
-            </Link>
-            <Link href={communityHref()} className={styles.nextCard}>
-              <span className={styles.nextKicker}>The ecosystem</span>
-              <h3>Community ↗</h3>
-              <p>
-                Share what you make, explore and fork what everyone else made. It&apos;s growing
-                into a marketplace where creators trade patterns and earn inside the Patternflow
-                ecosystem.
-              </p>
-            </Link>
-          </div>
+            </div>
 
-          <p className={styles.advancedNote}>
-            No Arduino IDE needed for custom patterns anymore — Patternflow&apos;s own build server
-            compiles your pattern into firmware and uploads it straight from the browser. The IDE
-            route only matters when you&apos;re adding new firmware features or targeting an LED
-            matrix with a different resolution; for that, the{' '}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/firmware/README.md"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              firmware README
-            </a>{' '}
-            covers setup, wiring, OTA flashing, and color calibration.
-          </p>
+            <div className={styles.hardwareBlock}>
+              <span className="pf-kicker">Got the hardware?</span>
+              <strong className={styles.hardwareTitle}>Do this once</strong>
+              <EspWebInstallButton manifest="/flash/manifest.json">
+                <button
+                  slot="activate"
+                  type="button"
+                  className={styles.flashButton}
+                  onClick={() => captureEvent('flash_patternflow_clicked', {
+                    manifest: '/flash/manifest.json',
+                    surface: 'pattern_panel',
+                  })}
+                >
+                  Flash Patternflow
+                </button>
+                <div slot="unsupported" className={styles.unsupported}>
+                  Browser flashing works in desktop Chrome or Edge.
+                </div>
+              </EspWebInstallButton>
+              <p className={styles.hardwareNote}>
+                Plug the ESP32-S3 in over USB. Brings {NUM_FIRMWARE_PRESETS} presets and sets up
+                Wi-Fi. After that your own patterns go over the air.
+              </p>
+              <span className={styles.hardwareReq}>Chrome / Edge only</span>
+            </div>
+          </div>
         </div>
 
         {content.cta && (

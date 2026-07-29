@@ -368,7 +368,7 @@ export default function PatternDetailClient({
           <span>{pattern.license}</span>
           {pattern.forkCount > 0 && (
             <span>
-              ⑂ forked {pattern.forkCount} {pattern.forkCount === 1 ? "time" : "times"}
+              FRK — forked {pattern.forkCount} {pattern.forkCount === 1 ? "time" : "times"}
             </span>
           )}
           {pattern.codeCpp && (

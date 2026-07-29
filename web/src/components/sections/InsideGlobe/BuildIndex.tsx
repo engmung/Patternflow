@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { builds, formatBuildDate } from './builds';
 import { buildPath, useBuildSelection } from './useBuildSelection';
 import styles from './BuildIndex.module.css';
@@ -30,11 +31,32 @@ export default function BuildIndex() {
               select(build.id);
             }}
           >
-            <span className={styles.maker}>{build.maker}</span>
-            <span className={styles.meta}>
-              {build.location.label} · {formatBuildDate(build.date)}
+            {/* The first photo, where there is one. A pin with a face on it
+                reads as somebody's build rather than a row in a table — which
+                is the whole claim this list is making. */}
+            {build.images?.[0] ? (
+              <Image
+                className={styles.thumb}
+                src={build.images[0].src}
+                alt={build.images[0].alt}
+                width={104}
+                height={72}
+              />
+            ) : (
+              <span className={styles.thumbEmpty} aria-hidden="true" />
+            )}
+            <span className={styles.rowText}>
+              <span className={styles.rowHead}>
+                <span className={styles.maker}>{build.maker}</span>
+                {build.kind === 'collaboration' && (
+                  <span className={styles.tag}>Collaboration</span>
+                )}
+              </span>
+              <span className={styles.meta}>
+                {build.location.label} · {formatBuildDate(build.date)}
+              </span>
+              <span className={styles.desc}>{build.description}</span>
             </span>
-            {build.kind === 'collaboration' && <span className={styles.tag}>Collaboration</span>}
           </a>
         </li>
       ))}

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
 import BuildCard from './InsideGlobe/BuildCard';
 import BuildIndex from './InsideGlobe/BuildIndex';
+import { builds } from './InsideGlobe/builds';
 import styles from './InsidePanel.module.css';
 
 interface InsidePanelProps {
@@ -14,115 +15,74 @@ const DISCORD_URL = 'https://discord.gg/Vr9QtsxeTk';
 const INSTAGRAM_URL = 'https://www.instagram.com/patternflow.work/';
 const GITHUB_CONTRIBUTING_URL = 'https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md';
 
-function DiscordIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M20.3 4.7A16.7 16.7 0 0 0 16.2 3l-.2.4c-.2.4-.4.8-.5 1.2a15.6 15.6 0 0 0-7 0c-.2-.4-.3-.8-.5-1.2L7.8 3a16.7 16.7 0 0 0-4.1 1.7C1.1 8.6.4 12.4.8 16.2A16.9 16.9 0 0 0 5.9 19l.6-.8.5-.9c-.9-.3-1.7-.7-2.4-1.2l.6-.5c4.6 2.1 9.5 2.1 14.1 0l.6.5c-.8.5-1.6.9-2.4 1.2l.5.9.6.8a16.9 16.9 0 0 0 5.1-2.8c.5-4.3-.7-8-3.4-11.5ZM8.3 14.1c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Zm7.4 0c-1 0-1.8-.9-1.8-2s.8-2 1.8-2 1.8.9 1.8 2-.8 2-1.8 2Z" />
-    </svg>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M7.6 2h8.8A5.6 5.6 0 0 1 22 7.6v8.8a5.6 5.6 0 0 1-5.6 5.6H7.6A5.6 5.6 0 0 1 2 16.4V7.6A5.6 5.6 0 0 1 7.6 2Zm0 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm8.9 2.7a1.1 1.1 0 1 1 0 2.2 1.1 1.1 0 0 1 0-2.2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
-    </svg>
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <svg viewBox="0 0 24 24">
-      <path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.6.1.8-.3.8-.6v-2c-3.4.7-4.1-1.5-4.1-1.5-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.8.1-.8 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.4-5.5-6a4.6 4.6 0 0 1 1.3-3.3c-.1-.3-.6-1.6.1-3.3 0 0 1-.3 3.4 1.2a11.5 11.5 0 0 1 6.2 0C18 3.7 19 4 19 4c.7 1.7.2 3 .1 3.3a4.7 4.7 0 0 1 1.3 3.3c0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2V22c0 .3.2.7.8.6A11.2 11.2 0 0 0 12 .8Z" />
-    </svg>
-  );
-}
+// Three rows, one grammar — no icons. The old version put 30px brand glyphs in
+// a list while every other row on the site is a hairline with a mono label.
+const JOIN = [
+  {
+    kicker: 'Day-to-day help',
+    name: 'Discord ↗',
+    href: DISCORD_URL,
+    desc: 'Build questions, finished builds, custom patterns.',
+  },
+  {
+    kicker: 'In motion',
+    name: 'Instagram ↗',
+    href: INSTAGRAM_URL,
+    desc: 'Send a clean video and it usually goes up as a collab post.',
+  },
+  {
+    kicker: 'The files',
+    name: 'GitHub ↗',
+    href: GITHUB_CONTRIBUTING_URL,
+    desc: 'Contributing notes, issues, pull requests.',
+  },
+];
 
 export default function InsidePanel({ content }: InsidePanelProps) {
   return (
     <div className="panel-content pf-section-panel" id="inside" aria-label={content.title}>
       <div className="panel-header">
         <h2 className="pf-h2">{content.title || 'Inside the work.'}</h2>
-        <p className="pf-sub">{content.subtitle || 'The build map and how to get involved.'}</p>
+        {/* Counted from builds.ts rather than written down, so the number and
+            the list below it can never disagree. */}
+        <p className="pf-sub">
+          {builds.length} pins on the globe so far. Here is every one of them.
+        </p>
       </div>
 
       <div className={`panel-body ${styles.body}`}>
-        <div className="pf-block">
-          <span className="pf-kicker">Start anywhere</span>
-          <div className="pf-prose">
-            <p>
-              Patternflow is a way to play light with your fingertips. You do not have to be
-              special to make one, and you do not have to start with the most polished version.
-            </p>
-            <p>
-              Start with what you have, ask when you get stuck, and pass help on when you can.
-            </p>
-          </div>
-        </div>
+        <p className={styles.declaration}>
+          Start with what you have, ask when you get stuck, and pass help on when you can.
+        </p>
 
         <div className="pf-block">
-          <span className="pf-kicker">On the map</span>
-          <div className="pf-prose">
-            <p>
-              The goal is simple: cover the whole globe with Patternflow. If you have made
-              one yourself, come share it in Discord and I&apos;ll add your pin to the map.
-              A ring instead of a dot marks a collaboration — a separate work made
-              together with Patternflow, rather than a build of it.
-            </p>
+          <span className="pf-kicker">On the map — the ledger for the globe</span>
+          {/* Legend for the globe's own markers, so the two read as one thing.
+              Circles here because the map draws circles; this describes the
+              map rather than being UI chrome. */}
+          <div className={styles.legend}>
+            <span className={styles.legendBuild}>Build</span>
+            <span className={styles.legendCollab}>Collaboration</span>
           </div>
           {/* Mobile only — the details for the pin picked on the globe above,
               which has no room to show them at 44vh. */}
           <BuildCard />
           {/* Every pin as a link, for keyboards, screen readers and crawlers. */}
           <BuildIndex />
+          <p className={styles.mapNote}>
+            Made one? Share it in Discord and I&apos;ll add your pin. A ring instead of a dot
+            marks a collaboration.
+          </p>
         </div>
 
-        <div className="pf-block">
-          <span className="pf-kicker">Join in</span>
-          <div className="pf-prose">
-            <p>
-              Most of the day-to-day help happens in Discord. Instagram is for showing patterns
-              in motion. GitHub is where the files, issues, and contribution notes live.
-            </p>
-          </div>
-          <div className={styles.actionList} aria-label="Ways to join Patternflow">
-            <a className={styles.actionRow} href={DISCORD_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <DiscordIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>Discord</strong>
-                <span>
-                  Ask build questions, show finished builds, share custom patterns, and find the
-                  pattern code from the Instagram posts.
-                </span>
-              </span>
+        <div className={styles.joinBand} aria-label="Ways to join Patternflow">
+          {JOIN.map((row) => (
+            <a key={row.name} className={styles.joinCell} href={row.href} target="_blank" rel="noreferrer">
+              <span className={styles.joinKicker}>{row.kicker}</span>
+              <strong>{row.name}</strong>
+              <span className={styles.joinDesc}>{row.desc}</span>
             </a>
-            <a className={styles.actionRow} href={INSTAGRAM_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <InstagramIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>Instagram</strong>
-                <span>
-                  Send a clean video of your pattern. If it fits Patternflow, I&apos;ll usually
-                  share it as a collaboration post.
-                </span>
-              </span>
-            </a>
-            <a className={styles.actionRow} href={GITHUB_CONTRIBUTING_URL} target="_blank" rel="noreferrer">
-              <span className={styles.actionIcon} aria-hidden="true">
-                <GitHubIcon />
-              </span>
-              <span className={styles.actionCopy}>
-                <strong>GitHub</strong>
-                <span>
-                  Start with the contributing notes, then open an issue or pull request for docs,
-                  firmware, hardware, or web changes.
-                </span>
-              </span>
-            </a>
-          </div>
+          ))}
         </div>
 
         <div className="pf-block">

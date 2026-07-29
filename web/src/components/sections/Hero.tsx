@@ -32,7 +32,7 @@ export default function Hero() {
         <h1>
           <em className="wordmark">Patternflow</em>
         </h1>
-        <div className="kicker">An open-source LED synthesizer played with the fingertips.</div>
+        <div className="kicker">An open-source LED synthesizer. Play light with your fingertips.</div>
         {/* The one thing the page never said: what you actually do with it.
             Sits above the video so it reads before the picture, not after. */}
         <p className="hero-spec">Four knobs. The pattern answers as you turn them.</p>
@@ -110,33 +110,24 @@ export default function Hero() {
           </em>{" "}
           (1963).
           <br />
-          Paik let the viewer change the image.
+          Paik let the audience change the image.
           <br />
-          Patternflow lets you make it.
+          Patternflow lets you make it — and give it away.
           <br />
           <br />
-          <span style={{ fontWeight: 500 }}>Create and share your own light.</span>
+          <span style={{ fontWeight: 500 }}>Every Patternflow plays every pattern we make.</span>
         </p>
         <p className="hero-kit-note">
           All source files and guides are on GitHub.
           <br />
           Build one yourself, or get one.
         </p>
+        {/* Get One leads: it is the action that costs the reader something, so
+            it takes the solid weight. The note sits under it — not under both —
+            so it is unambiguous which button ships worldwide. */}
         <div className="hero-cta-row" aria-label="Patternflow actions">
           <a
-            className="hero-cta"
-            href="https://github.com/engmung/Patternflow"
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('github_cta_clicked', {
-              surface: 'hero',
-              destination: 'github_repository',
-            })}
-          >
-            GitHub
-          </a>
-          <a
-            className="hero-cta hero-cta-waitlist"
+            className="hero-cta hero-cta-primary"
             href={CROWD_SUPPLY_URL}
             target="_blank"
             rel="noopener"
@@ -148,8 +139,20 @@ export default function Hero() {
           >
             Get One
           </a>
+          <a
+            className="hero-cta hero-cta-secondary"
+            href="https://github.com/engmung/Patternflow"
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('github_cta_clicked', {
+              surface: 'hero',
+              destination: 'github_repository',
+            })}
+          >
+            Build it — GitHub
+          </a>
+          <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
         </div>
-        <p className="hero-cta-note">Launching on Crowd Supply — ships worldwide.</p>
       </div>
     </section>
   );

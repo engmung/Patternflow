@@ -1,6 +1,6 @@
 ---
 title: Build your own.
-subtitle: Follow the guides to build your own Patternflow.
+subtitle: About US$100 and an hour of hands-on work.
 meta:
   - label: Available now
     value: "3D print + PCB · breadboard"

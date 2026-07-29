@@ -4,56 +4,15 @@
 }
 
 .workspace {
-  max-width: 760px;
   margin: 24px 0 10vh;
+  container-type: inline-size;
 }
 
-.modeSwitch {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  border: 1px solid var(--pf-rule);
-  margin-bottom: 24px;
-}
-
-.modeSwitch button,
-.editorActions button,
-.editorActions a {
-  font: inherit;
-  cursor: pointer;
-}
-
-.modeSwitch button,
-.modeSwitch a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  min-height: 54px;
-  border: 0;
-  border-right: 1px solid var(--pf-rule);
-  background: transparent;
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  transition: background 120ms ease, color 120ms ease;
-}
-
-.modeSwitch button:last-child,
-.modeSwitch a:last-child {
-  border-right: 0;
-}
-
-.modeSwitch button.active,
-.modeSwitch a:hover {
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
+/* The mode switch is gone: two of its three cells left the page. */
 .unsupported {
   margin-top: 10px;
-  color: var(--pf-ink-muted);
+  color: var(--pf-cream);
+  opacity: 0.75;
   font-family: var(--pf-mono);
   font-size: var(--pf-fs-mono);
   line-height: 1.5;
@@ -66,8 +25,9 @@
   overflow: hidden;
 }
 
-/* Sits under the editor since the preset bar took the top slot. */
-.editorHeader {
+/* One line under the editor instead of four numbered steps: what to do here,
+   and the single button that belongs to it. */
+.editorFoot {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -76,102 +36,44 @@
   padding: 12px 14px;
   border-top: 1px solid var(--pf-rule);
   background: var(--pf-cream);
-}
-
-/* Compact numbered how-to rows; text left, that step's buttons right. */
-.editorHeader .editorSteps {
-  flex-basis: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: step;
-  display: grid;
-  gap: 8px;
   color: var(--pf-ink-muted);
   font-size: var(--pf-fs-body);
   line-height: 1.5;
 }
 
-.editorSteps li {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-}
-
-.editorSteps li::before {
-  counter-increment: step;
-  content: counter(step);
-  flex: none;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--pf-rule);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  color: var(--pf-ink-muted);
-}
-
-.stepText {
+.editorFoot span {
   flex: 1;
-  min-width: 200px;
+  min-width: 220px;
 }
 
-.stepText strong {
-  color: var(--pf-ink);
-  font-weight: 600;
-}
-
-.editorSteps .editorActions {
-  margin-left: auto;
-}
-
-.editorActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.editorActions button,
-.editorActions a {
+.editorFoot button {
+  flex: none;
   min-height: 34px;
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--pf-rule);
-  background: #ffffff;
+  background: #FFFFFF;
   color: var(--pf-ink);
-  padding: 0 10px;
+  padding: 0 12px;
+  font: inherit;
   font-size: var(--pf-fs-mono);
   font-family: var(--pf-mono);
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
-  text-decoration: none;
-}
-
-/* The one action everyone must do once (it's also the Wi-Fi setup), so it
-   gets the accent treatment instead of the quiet step-button look. */
-.editorActions .flashButton {
-  min-height: 38px;
-  border-color: #e8552e;
-  background: #e8552e;
-  color: #ffffff;
-  padding: 0 16px;
-  font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
 }
 
-.editorActions .flashButton:hover {
-  border-color: #d44722;
-  background: #d44722;
+.editorFoot button:hover {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  border-color: var(--pf-ink);
 }
 
 /* Segmented preset pager: ‹ | numbers | › | 🎲 — same grammar as the mode
    switch. Leads the editor box, so its rule sits on the bottom edge. */
 .presetBar {
   display: grid;
-  grid-template-columns: 48px 1fr 48px 48px;
+  grid-template-columns: 48px 1fr 48px auto auto;
   border-bottom: 1px solid var(--pf-rule);
   background: var(--pf-cream);
 }
@@ -213,20 +115,20 @@
   line-height: 1;
 }
 
-/* Numbered preset cells filling the space between the arrows: every preset is
-   one tap away. Wraps to more rows as the library grows. */
+/* Folded away by default (see showAllPresets) — a wall of 42 numbers was the
+   loudest thing in the panel and never said which preset was loaded. */
 .presetNumbers {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
-  /* Beat the `.presetBar > *` cell defaults: fill the cell, don't center-shrink. */
-  place-items: stretch;
   align-content: center;
   padding: 2px;
   gap: 0;
+  border-bottom: 1px solid var(--pf-rule);
+  background: var(--pf-cream);
 }
 
 .presetNumbers button {
-  min-height: 20px;
+  min-height: 24px;
   display: grid;
   place-items: center;
   border: 0;
@@ -249,45 +151,96 @@
   color: var(--pf-cream);
 }
 
-/* ── Next steps ── the two destinations under the editor: Pattern Lab (the
-   AI editing studio) and Community (the sharing space growing into a
-   marketplace). Replaces the old hand-written hardware guide. */
+/* Which preset is loaded, in words. Index, name, then the live marker.
+   align-items must be center, not baseline: baseline pins the group to the top
+   of the 44px cell (the tallest child lands at top:0) while every other cell in
+   the bar is place-items:center, so the row read as floating. */
+.presetNow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.presetIndex {
+  flex: none;
+  color: var(--pf-ink-muted);
+}
+
+/* Hugs its text. As `flex: 1` it stretched to fill the cell, which opened a
+   dead gap before the live marker and read as a broken bar. This is the answer
+   to "which preset am I on", so it also takes the row size, not the small one. */
+.presetName {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--pf-ink);
+  text-transform: none;
+  letter-spacing: var(--pf-track-tight);
+  font-family: var(--pf-sans);
+  font-size: var(--pf-fs-row);
+}
+
+/* The single accent in this panel. It is a state readout — "the preview is
+   running this right now" — not decoration. */
+.presetLive {
+  flex: none;
+  /* Status readout, so it sits at the cell edge rather than trailing the name
+     by whatever slack happens to be left over. */
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pf-ink-muted);
+  font-size: 10px;
+}
+
+.presetLive::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--pf-led);
+}
+
+/* ── Two branches ── where the pattern goes, and what to do if you already
+   have a board. Every exit from this panel is in this one row. */
+.branches {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+  margin-top: 20px;
+}
+
 .nextSteps {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  border: 1px solid var(--pf-rule);
+  align-content: start;
 }
 
 .nextCard {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 18px 16px;
-  border-right: 1px solid var(--pf-rule);
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 2px 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--pf-rule);
   color: inherit;
   text-decoration: none;
-}
-
-.nextCard:last-child {
-  border-right: 0;
-}
-
-/* Link cards (Pattern Lab / Community): the card itself is the button. */
-a.nextCard {
   transition: background 120ms ease;
 }
 
-a.nextCard:hover {
-  background: rgba(23, 21, 18, 0.05);
+.nextCard:hover {
+  background: var(--pf-cream-2);
 }
 
 .nextKicker {
-  color: var(--pf-ink-muted);
+  grid-row: span 2;
+  color: var(--pf-ink-ghost);
   font-family: var(--pf-mono);
   font-size: var(--pf-fs-mono);
   letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
 }
 
 .nextCard h3 {
@@ -298,20 +251,16 @@ a.nextCard:hover {
 }
 
 .nextCard p {
-  flex: 1;
   margin: 0;
   color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.55;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.5;
 }
 
-/* Closing note: custom patterns no longer need the Arduino IDE (the build
-   server handles them); the IDE is only for new firmware features or other
-   matrix resolutions. */
 .advancedNote {
   margin: 14px 0 0;
   color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
+  font-size: var(--pf-fs-row-d);
   line-height: 1.5;
 }
 
@@ -320,6 +269,70 @@ a.nextCard:hover {
   border-bottom: 1px solid var(--pf-ink);
   padding-bottom: 1px;
   text-decoration: none;
+}
+
+/* Solid ink, not accent: this is the panel's one terminal action, and the
+   style guide reserves the orange for live signals. */
+.hardwareBlock {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 18px;
+  border: 1px solid var(--pf-ink);
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.hardwareBlock :global(.pf-kicker) {
+  color: var(--pf-cream);
+  opacity: 0.65;
+}
+
+.hardwareTitle {
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.flashButton {
+  min-height: 40px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--pf-cream);
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  padding: 0 16px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  font-weight: 500;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.flashButton:hover {
+  background: var(--pf-cream-2);
+  border-color: var(--pf-cream-2);
+}
+
+.hardwareNote {
+  margin: 0;
+  color: var(--pf-cream);
+  opacity: 0.75;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.5;
+}
+
+.hardwareReq {
+  color: var(--pf-cream);
+  opacity: 0.55;
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
 }
 
 .metaRows {
@@ -337,7 +350,7 @@ a.nextCard:hover {
     margin-top: 18px;
   }
 
-  .editorHeader {
+  .editorFoot {
     align-items: flex-start;
   }
 
@@ -351,17 +364,11 @@ a.nextCard:hover {
     min-height: 40px;
   }
 
-  /* Cards stack into a single column on phones. */
-  .nextSteps {
+}
+
+/* The hardware block drops under the exits when the panel gets narrow. */
+@container (max-width: 620px) {
+  .branches {
     grid-template-columns: 1fr;
-  }
-
-  .nextCard {
-    border-right: 0;
-    border-bottom: 1px solid var(--pf-rule);
-  }
-
-  .nextCard:last-child {
-    border-bottom: 0;
   }
 }
