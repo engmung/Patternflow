@@ -60,7 +60,7 @@ These are worst-case numbers measured with a bright pattern at maximum brightnes
 
 The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
 
-On the device, the firmware bundles **34 curated presets** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing. The device carries fewer than the browser because the on-board set is a curated showcase, not the whole library; anything left out is still one Pattern Lab build away.
+On the device, the firmware bundles **34 curated presets** in a single image, switchable without reflashing — and your own patterns install alongside them as **`.pfm` modules over Wi-Fi**, up to 128 of them, no reflash needed. The device carries fewer presets than the browser because the on-board set is a curated showcase, not the whole library; anything left out is one Pattern Lab build away.
 
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
@@ -91,11 +91,11 @@ The Live Editor is where you find out you want to make patterns. It stays delibe
 - **Build firmware** — the build server compiles a complete firmware image with your pattern in it (about 30 seconds) and your browser writes it to the board over USB (desktop Chrome/Edge, Web Serial). Nothing to install: no IDE, no board package, no editing the pattern registry by hand. The first flash sets up Wi-Fi too, and from then on **Send over Wi-Fi** pushes new builds to the device without a cable.
 - **Share to Community** — publish it; remixes and forks get recorded, so you can see what grew out of what. Community patterns marked `.h` skip conversion entirely and offer **Flash to my board** directly.
 
-**From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, paste the C++ into `custom1.h` (or `custom2.h` / `custom3.h`) **as-is**, add the namespace from the bottom of the file to that slot's `PATTERN_ENTRY(...)` line in `pattern_registry.h`, and flash. See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+**From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, drop the C++ into `presets/preset_<name>.h` **as-is**, add the namespace from the bottom of the file to `presetPatterns[]` in `pattern_registry.h`, and flash. (For just adding a pattern you don't need this at all — build it as a `.pfm` module and send it over Wi-Fi.) See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
-Either way you are flashing a whole firmware image, so the custom slots are replaced — the preset library always comes along.
+Either way you are flashing a whole firmware image, and the preset library always comes along. Patterns you installed as `.pfm` modules sit on a separate partition and survive the reflash.
 
 ## The website
 

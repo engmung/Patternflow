@@ -4,6 +4,21 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **[LED panel compatibility guide](docs/panel-compatibility.md)** ([#258](https://github.com/engmung/Patternflow/pull/258), [#259](https://github.com/engmung/Patternflow/issues/259)): a panel matching our spec line for line can still stay completely black, because HUB75E is a connector and not a protocol — the driver ICs decide. The catch is that the driver IC is essentially never in the listing (we audited our own: it appears in the title, spec table, marketplace AI summary and attached PDF manual zero times), so the guide leads with what actually works — reading buyer reviews for anyone running it off an ESP32 — then asking the seller, with the chip taxonomy kept as reference for a panel already in hand. Includes a verified-panel table with photos, how to tell the LED driver from the buffer and the row driver on a board, and a symptom→cause table. Opened up by **[@SimonePDA](https://github.com/SimonePDA)**, who hit the failure and researched it properly.
+- **`PANEL_PROFILE` covers all six library drivers** instead of two — `PANEL_STANDARD`, `PANEL_HIGHREFRESH`, `PANEL_FM6124`, `PANEL_ICN2038S`, `PANEL_MBI5124`, `PANEL_DP3246`. Existing values keep their numbers and the default is unchanged.
+
+### Fixed
+- **Panel-profile guidance was backwards.** `config.h` advised setting `PANEL_HIGHREFRESH` for an FM6126A/FM6124 panel — which would send anyone holding the reference panel to change a setting they don't need, since its `FM6124EJ` runs on `PANEL_STANDARD` with no init at all. The rule is now empirical: stay on the default unless the panel comes up completely dark. It also advised "swap to FM6124 if dark/distorted"; `FM6124`, `FM6126A` and `ICN2038S` all dispatch to the same `fm6124init()` with no per-chip branch, so that swap does nothing.
+- **"Walk away if the listing mentions a receiving card"** would have rejected our own verified panel — that sentence is factory boilerplate in every LED module manual. The red flag is now scoped to the listing, not the PDF.
+- Brightness is **K1** long-press, not K2 (`README.md`).
+- Removed the Pattern/Video content mode from the docs — it was deleted from the firmware, but `firmware/README.md`, `docs/osc-spec.md` and the OSC address tables still described it. `/patternflow/content/toggle` is now documented as an accepted no-op.
+- `firmware/README.md` long-press reference rewritten against the code: the K2 screen is NETWORK (not "OSC info"), its toggles are knob **rotation** not clicks, and K3 long-press is the KNOB MAP screen.
+- `CUSTOM_PATTERNS.md` file tree updated to the `presets/` layout; `firmware/patternflow/README.md` no longer describes the removed hand-edited `custom1..3` slots or enumerate a preset list that had fallen thirteen behind.
+- v2 build guide realigned to the current firmware: **USB CDC On Boot enabled**, browser flashing on the left/native USB port and Arduino IDE on the right. One image serves every board generation, and the site can't ship a per-version build.
+- Panel mounting screws are **6–12**, not 6 (v2) or 12 (v3) — all 12 holes is the exact fit, 6 holds it firmly.
+- The v2 BOM said the panel's ribbon and power cable are "both used as-is" while §6.2 tells you to cut the power cable.
+
 ## [3.2.0] - 2026-07
 
 Patterns stop needing a firmware build. **Hardware unchanged** — v3.0 board and case carry over as-is.

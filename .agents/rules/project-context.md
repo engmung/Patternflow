@@ -22,13 +22,13 @@ The system is fully open source. It is designed to support multiple build paths 
 The firmware is built around the `ESP32-HUB75-MatrixPanel-DMA` library to drive the 128x64 HUB75 LED panel. 
 - **Pin Mapping:** Defined centrally in `firmware/patternflow/config.h`. Uses specific I2S pins for DMA output.
 - **Encoders:** Four EC11 encoders read via interrupt-based logic. 
-- **Pattern System:** Curated patterns live in `firmware/patternflow/presets/preset_*.h`; user patterns occupy the `custom1.h`–`custom3.h` slots at the sketch root, each with its own pattern namespace. All are registered in `pattern_registry.h` (`presetPatterns[]` / `customPatterns[]`). Each pattern exposes `NAME`, `KNOB_LABELS`, `setup()`, `update()`, and `draw()`. Shared engine code (display, encoders, canvas, color, math, noise, network) lives in `firmware/patternflow/src/`.
+- **Pattern System:** Curated patterns live in `firmware/patternflow/presets/preset_*.h`, each with its own namespace, registered in `pattern_registry.h` (`presetPatterns[]`). Each exposes `NAME`, `KNOB_LABELS`, `setup()`, `update()`, and `draw()`. User patterns are **`.pfm` modules on the FATFS partition** — uploaded over Wi-Fi at `/patterns`, discovered at boot, appended after the presets, up to 128. The old hand-edited `custom1.h`–`custom3.h` slots are gone; `PF_CUSTOM_SLOT_COUNT` is 0 and the region between the `PF_CUSTOM_SLOTS_BEGIN/END` markers exists only for the web build service to compile a pattern into a full image for devices predating the module loader — **leave those markers in place.** Shared engine code (display, encoders, canvas, color, math, noise, network) lives in `firmware/patternflow/src/`.
 
 ### Hardware (PCB)
 The board topologically sits behind the LED matrix, interfacing via a 2x8 HUB75 box header (`J1`).
 - **Core:** ESP32-S3 module on female headers.
 - **Inputs:** 4× EC11 rotary encoders mounted on the *back* of the PCB (shafts facing forward).
-- **Power Structure (v3.0 hybrid):** +5V from a user-supplied power bank enters either at `USB1` (USB-C, needs `R1`/`R2` 5.1k CC pull-downs; THT soldering is hard — see #114) or at `J4` (2-pin screw terminal on the back, the beginner bypass). It is internally routed to `J3` which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the power delivery.
+- **Power Structure (v3.0):** +5V from a user-supplied power bank enters at **`J4`** (2-pin screw terminal on the back) — this is the input on *every* build. It is internally routed to `J3`, which outputs +5V to the LED matrix. A 1000µF bulk capacitor (`C11`) smooths the delivery. The board also carries a `USB1` USB-C footprint with `R1`/`R2` CC pull-downs, but that input is **ON HOLD** and must be left unpopulated: a USB-C-powered board ran fine for 20–30+ minutes then smoked at a connector pin and destroyed the receptacle and power path ([#221](https://github.com/engmung/Patternflow/issues/221)). The failure is delayed, so "it seems to work" is not evidence. Never describe USB-C as a current option.
 
 ### Hardware (Case)
 The current enclosure is modeled in Blender. `hardware/case/` is organized by printer bed size, for the v3.0 board:
