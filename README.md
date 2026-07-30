@@ -54,7 +54,7 @@ Patternflow runs off any standard USB power bank that can supply a couple of amp
 | 20,000 mAh | ~8 hours |
 | 40,000 mAh | ~15 hours |
 
-These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 2) extends runtime well beyond these figures.
+These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 1) extends runtime well beyond these figures.
 
 ## Patterns
 

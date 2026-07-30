@@ -1,10 +1,10 @@
 # Patternflow Firmware
 
-Arduino-based firmware for the ESP32-S3 powering Patternflow v2.0.0.
+Arduino-based firmware for the ESP32-S3 powering Patternflow. One image serves every board generation — the pin map is identical on v2.x and v3.0.
 
 The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads four rotary encoders to control generative patterns, and supports Arduino OTA for wireless updates.
 
-> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: **74HC595**, **FM6126A**, or **FM6124**. GCLK PWM "video wall" panels (**FM6363C / FM6373C**, sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. Check this **before buying** — see [BUILD_GUIDE.md → Panel compatibility](../BUILD_GUIDE.md#1-bill-of-materials-bom). Select your panel's driver below via `PANEL_PROFILE`.
+> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: classic shift-register parts — **74HC595**, **FM6124**, **FM6126A**, **ICN2037**, **ICN2038S**, **DP5125D**, **DP3246**, **MBI5124**, **SM162xx**. S-PWM / GCLK "video wall" panels (**ICN2053**, **FM6353**, **FM6363C / FM6373C**, **DP3264/DP3265**, **ICND2055**, **MBI505x** — sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. "HUB75E" on a listing guarantees a connector, not compatibility. Check this **before buying** — see **[docs/panel-compatibility.md](../docs/panel-compatibility.md)**. Select your panel's driver below via `PANEL_PROFILE`.
 
 ## Setup
 
@@ -464,7 +464,7 @@ Expensive (think twice, or push to "Remote compute"):
 ## Configuration (`config.h`)
 
 All hardware-specific pins and limits are centralized in `config.h`.
-- **Panel Selection:** `PANEL_PROFILE` selects the panel's driver IC — `PANEL_STANDARD` (74HC595, the default) or `PANEL_HIGHREFRESH` (FM6126A/FM6124). This is the only line to change when switching between supported panels; it expands to the `HUB75_DRIVER` value `core_display.h` passes to the library. See the panel-compatibility note at the top of this README before buying a panel.
+- **Panel Selection:** `PANEL_PROFILE` picks the driver-init path — `PANEL_STANDARD` (no init; the default and what the browser flasher ships), `PANEL_HIGHREFRESH` (FM6126A), `PANEL_FM6124`, `PANEL_ICN2038S`, `PANEL_MBI5124`, `PANEL_DP3246`. It expands to the `HUB75_DRIVER` value `core_display.h` passes to the library. **Don't set it by part number — leave it at `PANEL_STANDARD` unless the panel comes up completely dark.** The init sequence only writes a brightness register and an output-enable bit; many panels ship with those already usable, and the reference panel's FM6124 runs fine without it. A panel that genuinely needs a different profile needs one custom build. Full buyer's guide: [docs/panel-compatibility.md](../docs/panel-compatibility.md).
 - **Pin Mapping:** Adjust the `R1_PIN`, `ENC1_A` etc. if you are not using the official Patternflow PCB.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
 
@@ -506,15 +506,20 @@ For the original defaults:
 
 ### Longpress actions
 - **Encoder 1 longpress (≥1s)** — enter/exit global brightness mode. While active, K1 rotation adjusts panel brightness (5–255, ~5 per detent), the active pattern does not see K1 input, and a "BRIGHTNESS XX%" overlay shows the current level. Exits on a second longpress or after 5 seconds of idle. Value persists across reboots via NVS.
-- **Encoder 2 longpress (≥1s)** — enter/exit the OSC info screen (full-screen status view: OSC on/off, Wi-Fi state, local IP, configured remote host/port). Inside the screen, **K2 short press** toggles OSC send/receive on or off — the toggle persists in NVS, so the device reboots into the same state. Wi-Fi stays connected; toggling OSC only enables/disables traffic. If the firmware was built with `PF_OSC_ENABLED 0` the screen still shows up but the toggle is inert ("REBUILD WITH PF_OSC_ENABLED=1"). Exits on a second longpress or after 8 seconds of idle.
-- **Encoder 3 longpress (≥1s)** — toggle between Pattern and Video content modes.
-- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode (only available in Pattern content mode). In SELECT mode, K4 rotation cycles patterns; longpress again to confirm.
+- **Encoder 2 longpress (≥1s)** — enter/exit the NETWORK screen (portrait status view: Wi-Fi state, local IP, OSC on/off and its remote host/port, audio-react on/off). Inside the screen, settings are toggled by **knob rotation, not clicks** — right = ON, left = OFF — so that holding K2 to leave can't flip anything on the way out:
+  - **turn K2** → OSC send/receive on/off (persists in NVS, so the device reboots into the same state). Wi-Fi stays connected either way; the toggle only enables/disables traffic. If the firmware was built with `PF_OSC_ENABLED 0` the row still shows but the toggle is inert ("REBUILD WITH PF_OSC_ENABLED=1").
+  - **turn K3** → audio-react on/off (also persisted).
+  - **turn K4** → hand off to the UPDATE screen, which arms the `/update` endpoint (the arming *is* the security model — see `core_web_update.h`).
+
+  Exits on a second K2 longpress, a **K2 click**, or after 8 seconds of idle.
+- **Encoder 3 longpress (≥1s)** — enter/exit the KNOB MAP screen: it shows which physical knob is which number (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left), and turning any knob lights its digit green so each one can be verified without leaving the screen. Knob input is swallowed while it's up, so the pattern underneath never sees it. Exits on a K3 click, a second K3 longpress, or after 8 seconds of idle.
+- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation cycles patterns; longpress again to confirm.
 
 ### Encoder acceleration
 Knob deltas are scaled by how quickly the encoder is turning. Fast spins multiply each detent ×2 to ×5 so one encoder can sweep a wide range quickly; slow turns stay at ×1 for fine control. Pattern step constants do not need to change — the acceleration is applied once in `readInputFrame()` before patterns receive their deltas.
 
 ### Short press (per-pattern, opt-in)
-There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. Patterns that do not handle `btnPressed` (currently `pattern_dev1/2/3.h` and `pattern_video.h`) simply ignore short presses.
+There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. A pattern that does not handle `btnPressed` — most of the curated presets — simply ignores short presses.
 
 When you generate a new pattern from the Live Editor, the conversion prompt does not force a particular short-press convention — if you want one, either ask for it in the prompt ("K1 short press resets hue") or add the line by hand in `update()`.
 
@@ -598,7 +603,7 @@ Without a `patternflow_secrets.h` file, OSC stays off (the default `PF_OSC_ENABL
 ### Runtime: toggle from the device (no rebuild)
 Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
 
-Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously in every content mode (Pattern or Video). It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
+Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously, whichever pattern is running. It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
 
 ```text
 /patternflow/knob/1/delta
@@ -625,8 +630,9 @@ The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external hos
 /patternflow/ping              (—)             — learn sender as remote host + reply with full announce
 /patternflow/knob/N/delta      (int or float)  — virtual rotation on logical knob N (1..4)
 /patternflow/pattern/index     (int or float)  — switch to pattern at this registry index
-/patternflow/content/toggle    (—)             — toggle PATTERN ↔ VIDEO
 ```
+
+`/patternflow/content/toggle` is still accepted but does nothing — the Pattern/Video content-mode split was removed, so `/patternflow/content/mode` now always announces `0`. Both stay on the wire only so older hosts don't error; don't build against them.
 
 Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
 

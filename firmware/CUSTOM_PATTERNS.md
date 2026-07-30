@@ -112,13 +112,12 @@ firmware/patternflow/
 ├── net_config.h               ← Wi-Fi / OTA / OSC / audio-react config
 ├── patternflow_secrets.example.h  ← copy to patternflow_secrets.h for credentials
 ├── pattern_registry.h         ← edit this
-├── pattern_origin.h
-├── pattern_wave_saw.h
-├── pattern_video.h
-├── pattern_dev1.h
-├── pattern_dev2.h
-├── pattern_dev3.h
-├── pattern_yourname.h         ← drop your file here
+├── _TEMPLATE.h                ← starting point for a new preset
+├── presets/                   ← the curated patterns compiled into firmware.bin
+│   ├── preset_origin.h
+│   ├── preset_wave_saw.h
+│   ├── preset_0510.h  …       ← 34 presets, all named preset_*.h
+│   └── preset_yourname.h      ← drop your file here
 └── src/                       ← Arduino IDE doesn't show these as tabs
     ├── core_display.h
     ├── core_encoders.h
@@ -127,33 +126,37 @@ firmware/patternflow/
     ├── core_color.h           ← shared HSV/ramp/pow-LUT helpers
     ├── core_noise.h           ← shared Perlin/value noise + cell hash
     ├── core_tables.h          ← precomputed per-pixel radius/angle tables
+    ├── core_module_loader.h   ← runs .pfm modules off FATFS
     ├── core_wifi.h            ← shared Wi-Fi bring-up
     ├── core_osc.h             ← OSC sidechannel
     ├── core_audio_ws.h        ← browser audio-react server
     ├── audio_index.h          ← bundled audio UI
-    └── core_ota.h             ← wireless flashing
+    ├── core_web_update.h      ← wireless flashing from the browser
+    └── core_ota.h             ← ArduinoOTA
 ```
+
+A pattern living in `presets/` reaches the foundation one level up — `#include "../src/core_canvas.h"` — which is what `_TEMPLATE.h` already does.
 
 The `src/` folder holds the foundation: generated patterns include the ones they need (`#include "src/core_canvas.h"`, etc.) and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
 
 Open `pattern_registry.h` and add two things:
 
 ```cpp
-#include "core_encoders.h"
-#include "pattern_origin.h"
-#include "pattern_wave_saw.h"
-#include "pattern_yourname.h"        // ← 1. include your header
+#include "src/core_encoders.h"
+#include "presets/preset_origin.h"
+#include "presets/preset_wave_saw.h"
+#include "presets/preset_yourname.h"   // ← 1. include your header
 
 // ...
 
-PatternEntry patterns[] = {
+PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
   PATTERN_ENTRY(WaveSaw),
-  PATTERN_ENTRY(YourNamespace),      // ← 2. add the namespace
+  PATTERN_ENTRY(YourNamespace),        // ← 2. add the namespace
 };
 ```
 
-`YourNamespace` is whatever name the AI gave the C++ namespace during the conversion step. It's at the top of your generated `pattern_yourname.h`. Match it exactly — C++ is case-sensitive and won't compile if it's off.
+`YourNamespace` is whatever name the AI gave the C++ namespace during the conversion step. It's at the top of your generated `preset_yourname.h`. Match it exactly — C++ is case-sensitive and won't compile if it's off.
 
 Open `patternflow.ino` in Arduino IDE, select the right port, hit upload. The device picks up the new pattern on the next boot.
 
