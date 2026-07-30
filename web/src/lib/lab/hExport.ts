@@ -27,7 +27,7 @@ import {
   PATTERN_MATRIX_WIDTH,
   buildRampLUTRGBA,
 } from "@/lib/patternHarness";
-import { LOGICAL_KNOB_UNITS_PER_TURN } from "@/lib/patternflowControls";
+import { knobDetentStep } from "@/lib/patternflowControls";
 import type { MatrixSize } from "@/lib/patternMatrix";
 import { codeUsesValueField } from "@/lib/patternRamp";
 import { KNOBS_ANNOTATION_RE } from "./annotations";
@@ -242,7 +242,7 @@ constexpr int LAYER_N = ${stack.length};
 // ── Shared knobs: encoder detents become values HERE, once, for every layer ──
 static const float KNOB_MIN[4]  = {${ranges.map((r) => fmtFloat(r[0])).join(", ")}};
 static const float KNOB_MAX[4]  = {${ranges.map((r) => fmtFloat(r[1])).join(", ")}};
-static const float KNOB_STEP[4] = {${LOGICAL_KNOB_UNITS_PER_TURN.map((u) => fmtFloat(u / 20)).join(", ")}}; // value per detent (calibrated)
+static const float KNOB_STEP[4] = {${ranges.map((r) => fmtFloat(knobDetentStep(r))).join(", ")}}; // value per detent — two turns cross the range
 static float knobVal[4]  = {${knobs.map(fmtFloat).join(", ")}};
 static float knobNorm[4] = {${knobNorm.map(fmtFloat).join(", ")}};
 

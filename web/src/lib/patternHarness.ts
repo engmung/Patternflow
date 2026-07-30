@@ -1,7 +1,14 @@
 export const PATTERN_MATRIX_WIDTH = 128;
 export const PATTERN_MATRIX_HEIGHT = 64;
 export const PATTERN_KNOB_COUNT = 4;
-export const PATTERN_DETENTS_PER_TURN = 20;
+// Detents in one full turn of the physical encoder. The BOM reference part is
+// Bourns PEC11R-4220F-S0024 — the S0024 suffix means 24 detents / 24 PPR, which
+// distributors confirm. This was 20 for a long time, which silently put the web
+// preview 20 % out of step with the hardware it claims to mirror.
+// Sourcing a different encoder? Generic EC11s ship as 20, 24 or 30 detents —
+// this constant has to match whatever is actually in the build.
+// Keep in sync with ENCODER_CLICKS_PER_TURN in patternflowControls.ts.
+export const PATTERN_DETENTS_PER_TURN = 24;
 
 export type PatternParams = Record<string, unknown>;
 

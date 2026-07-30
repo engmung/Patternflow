@@ -14,7 +14,7 @@ import { patternVert } from './patterns/common';
 import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
-import { LOGICAL_KNOB_TO_WEB_KNOB, WEB_KNOB_UNITS_PER_TURN } from '@/lib/patternflowControls';
+import { LOGICAL_KNOB_TO_WEB_KNOB, knobUnitsPerTurn, webKnobRange } from '@/lib/patternflowControls';
 
 const customFragmentShader = `
 uniform sampler2D uTex;
@@ -172,8 +172,9 @@ function Model() {
       const currentVal = useAppStore.getState().knobValues[knobName];
       let deltaVal = 0;
       
-      // 회전 민감도 (1바퀴(2*PI) 돌릴 때 변하는 값)
-      deltaVal = deltaAngle * (WEB_KNOB_UNITS_PER_TURN[knobName] / (2 * Math.PI));
+      // 회전 민감도 (1바퀴(2*PI) 돌릴 때 변하는 값). 실물 엔코더와 같은 규칙:
+      // 전체 범위를 TURNS_PER_FULL_RANGE 바퀴에 걸쳐 훑는다.
+      deltaVal = deltaAngle * (knobUnitsPerTurn(webKnobRange(knobName)) / (2 * Math.PI));
       
       let newVal = currentVal + deltaVal;
       if (knobName === 'c1') newVal = (newVal % 1.0 + 1.0) % 1.0; // Hue

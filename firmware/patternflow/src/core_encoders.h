@@ -2,13 +2,39 @@
 #include <Arduino.h>
 #include "config.h"
 
-volatile long encPos[4]      = {0, 0, 0, 0};
-volatile uint8_t encState[4] = {0, 0, 0, 0};
+volatile long     encPos[4]    = {0, 0, 0, 0};   // sub-steps; 4 per detent
+volatile uint8_t  encState[4]  = {0, 0, 0, 0};   // last ACCEPTED (A<<1)|B
+volatile uint32_t encLastUs[4] = {0, 0, 0, 0};   // time of last accepted edge
 
+// Quadrature decode with two bounce guards.
+//
+// These are mechanical contacts and the board gives them no help — the A/B
+// pull-ups are the ESP32's internal (weak) ones, and the RC filter pads v2
+// carried were never populated and are gone on v3. The edges landing here are
+// noisy, so the decoder has to do the filtering itself.
+//
+//  1. An illegal transition is DISCARDED and encState is left alone. An
+//     earlier version updated encState unconditionally, which meant a bounced
+//     jump (00->11, say) resynchronised the decoder at the wrong phase — and
+//     that surfaces as a missed detent, or a step counted in the wrong
+//     direction. Holding the last known-good state lets the next clean edge
+//     carry on from where the knob actually is.
+//  2. Edges closer together than ENC_BOUNCE_US are ignored (config.h).
+//
+// Note the guards only ever DROP input; neither can invent a step. Worst case
+// on a genuinely fast spin is a lost sub-step, which the /4 in getClicks()
+// mostly absorbs.
 static inline void IRAM_ATTR handleEncoder(int idx, int pinA, int pinB) {
   uint8_t s = (digitalRead(pinA) << 1) | digitalRead(pinB);
-  uint8_t combined = (encState[idx] << 2) | s;
-  switch (combined) {
+  uint8_t prev = encState[idx];
+  if (s == prev) return;                  // bounce that settled back where it was
+
+#if ENC_BOUNCE_US > 0
+  uint32_t now = micros();
+  if ((uint32_t)(now - encLastUs[idx]) < ENC_BOUNCE_US) return;
+#endif
+
+  switch ((prev << 2) | s) {
     case 0b0001: case 0b0111: case 0b1110: case 0b1000:
 #if INVERT_ENCODER
       encPos[idx]--;
@@ -23,8 +49,14 @@ static inline void IRAM_ATTR handleEncoder(int idx, int pinA, int pinB) {
       encPos[idx]--;
 #endif
       break;
+    default:
+      return;                             // illegal jump: keep prev, count nothing
   }
+
   encState[idx] = s;
+#if ENC_BOUNCE_US > 0
+  encLastUs[idx] = now;
+#endif
 }
 
 void IRAM_ATTR isr1() { handleEncoder(0, ENC1_A, ENC1_B); }

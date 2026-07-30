@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  LOGICAL_KNOB_UNITS_PER_TURN,
+  logicalKnobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import { PATTERN_SANDBOX_URL } from "@/lib/community/sandboxUrl";
@@ -51,7 +51,7 @@ export default function SandboxPreview({
         knobValues: state.knobValues,
         knobRanges: state.knobRanges,
         knobWrap: [...LOGICAL_KNOB_WRAP],
-        knobUnitsPerTurn: [...LOGICAL_KNOB_UNITS_PER_TURN],
+        knobUnitsPerTurn: logicalKnobUnitsPerTurn(state.knobRanges),
         running: state.running,
       },
       "*",

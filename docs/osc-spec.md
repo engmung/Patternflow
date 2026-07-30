@@ -21,7 +21,7 @@ Numeric arguments may be sent as OSC `int32` (`i`) or `float32` (`f`); the devic
 
 | Address | Args | When |
 |---|---|---|
-| `/patternflow/knob/N/delta` | int | Encoder N (1–4) turned; signed detent delta for this frame (acceleration applied) |
+| `/patternflow/knob/N/delta` | int | Encoder N (1–4) turned; signed detent delta for this frame |
 | `/patternflow/knob/N/clicks` | int | Same event; absolute accumulated click count |
 | `/patternflow/button/N/press` | int (1) | Encoder button N pressed |
 | `/patternflow/button/N/held` | int (0/1) | Hold state changed |
@@ -41,7 +41,7 @@ Numeric arguments may be sent as OSC `int32` (`i`) or `float32` (`f`); the devic
 | Address | Args | Effect |
 |---|---|---|
 | `/patternflow/ping` | none | Learn/refresh sender as the remote host and reply with a full announce (hello, version, ip, pattern index/name, modes). Send this on host startup. |
-| `/patternflow/knob/N/delta` | int or float | Virtual rotation on knob N (1–4), applied on top of physical motion at raw 1×-per-detent rate (no acceleration) |
+| `/patternflow/knob/N/delta` | int or float | Virtual rotation on knob N (1–4), applied on top of physical motion at 1× per detent |
 | `/patternflow/pattern/index` | int or float | Switch to the pattern at this registry index |
 | `/patternflow/content/toggle` | none | **No-op.** Accepted and discarded — the Pattern/Video content-mode split was removed. Kept on the wire so older hosts don't error; don't build against it. |
 

@@ -568,7 +568,6 @@ void drawSelectingMode() {
 
 void readInputFrame(InputFrame& input) {
   static long prevKnobs[4] = {0, 0, 0, 0};
-  static uint32_t lastDeltaMs[4] = {0, 0, 0, 0};
 
   input.now = (uint32_t)millis();
 
@@ -576,22 +575,19 @@ void readInputFrame(InputFrame& input) {
     input.knobs[i] = getClicks(LOGICAL_TO_PHYSICAL_KNOB[i]);
   }
 
-  // Encoder acceleration: short interval since last detent → multiply delta.
-  // Lets one encoder sweep a large range quickly without losing fine control
-  // when turned slowly. Pattern step constants stay the same.
+  // One detent, one step. There used to be a fast-spin multiplier here (x2 to
+  // x5 as the gap between detents shrank) so a knob could sweep a wide range
+  // quickly — but it made the knobs unpredictable on exactly the parameter
+  // that needs landing on a value: Origin's Mode knob picks a discrete preset,
+  // and a quick turn skipped five of them at a time. Tested against a
+  // no-acceleration build and the linear one won on feel.
+  //
+  // If some pattern's range now feels slow to cross, raise THAT pattern's step
+  // constant (d * 10 -> d * 25). Linear and predictable beats a curve that
+  // guesses at intent. Note OSC already bypassed the multiplier for the same
+  // reason — see below.
   for (int i = 0; i < 4; i++) {
-    int raw = (int)(input.knobs[i] - prevKnobs[i]);
-    if (raw != 0) {
-      uint32_t gap = input.now - lastDeltaMs[i];
-      int mult = 1;
-      if (gap < 40)       mult = 5;
-      else if (gap < 90)  mult = 3;
-      else if (gap < 180) mult = 2;
-      input.knobDeltas[i] = raw * mult;
-      lastDeltaMs[i] = input.now;
-    } else {
-      input.knobDeltas[i] = 0;
-    }
+    input.knobDeltas[i] = (int)(input.knobs[i] - prevKnobs[i]);
     prevKnobs[i] = input.knobs[i];
   }
 

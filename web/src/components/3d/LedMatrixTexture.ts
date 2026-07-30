@@ -102,8 +102,11 @@ export class LedMatrixTexture {
 
       // Prepare input frame
       const input = {
-        knobDeltas: LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) =>
-          toEncoderDelta(knobId, getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId]))
+        knobDeltas: LOGICAL_KNOB_TO_WEB_KNOB.map((knobId, logicalIndex) =>
+          toEncoderDelta(
+            LOGICAL_KNOB_RANGES[logicalIndex],
+            getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId]),
+          )
         ),
         knobValues: logicalKnobValues,
         knobNormalized: getLogicalKnobNormalized(logicalKnobValues),

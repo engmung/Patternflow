@@ -173,6 +173,19 @@ constexpr float EULER      = 2.71828182845904523536f;
 // revision board); set to 1 if rotation reads reversed (e.g. AliExpress
 // clones, or encoders mounted on the back of the PCB).
 #define INVERT_ENCODER 0
+
+// Contact-bounce filter for the encoder A/B lines, in microseconds. These are
+// mechanical contacts with no hardware help: the pull-ups are the ESP32's
+// internal ones (weak), and the RC filter pads that v2 carried were never
+// populated and are gone on v3. So an edge arriving sooner than this after the
+// last accepted one is treated as bounce and dropped.
+//
+// Sizing: contact bounce settles in a few hundred microseconds. A real
+// sub-step is ~12 ms apart at the EC11's rated 60 RPM ceiling, and still
+// ~2.5 ms at a hard 300 RPM flick — so 500 µs leaves a wide margin either way.
+// Raise it if a knob still double-counts; set it to 0 to disable the filter.
+#define ENC_BOUNCE_US 500
+
 #define DEFAULT_BRIGHTNESS 204  // 80% (0-255)
 
 // --- LED Panel Color Calibration ---
