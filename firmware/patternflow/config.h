@@ -63,33 +63,68 @@ constexpr float EULER      = 2.71828182845904523536f;
 #define PANEL_CHAIN 1
 
 // --- Panel Selection ---
-// This firmware runs on standard HUB75 / HUB75E panels driven directly by the
+// This firmware runs on classic HUB75 / HUB75E panels driven directly by the
 // ESP32-S3 (no external sending/receiving card). Pick your panel's driver IC
 // below, then build & upload. PANEL_PROFILE is the ONLY line you change.
 //
-//   PANEL_STANDARD     Plain 74HC595 shift-register panel.
-//                      Default — matches the firmware's previous behavior.
-//   PANEL_HIGHREFRESH  Panels whose driver IC needs a register init sequence
-//                      before they light up: FM6126A / FM6124. The I2S-DMA
-//                      library sends that init directly, so no video card is
-//                      needed. (If dark/distorted, try swapping FM6126A↔FM6124
-//                      in the block below — they share an init family.)
+// "HUB75E" on the listing guarantees a connector, NOT compatibility — the
+// driver ICs on the back of the panel decide whether it lights up at all.
+// Full buyer's guide, symptom table and a copy-paste question for the seller:
+// docs/panel-compatibility.md
 //
-// NOT SUPPORTED — do not expect these to work with this firmware:
-//   GCLK PWM panels (FM6363C / FM6373C, sold as "1920/3840Hz" high-refresh
-//   modules). They need a separate GCLK signal and a proprietary addressing
-//   scheme the ESP32-HUB75-MatrixPanel-DMA library cannot generate — the panel
-//   stays completely dark regardless of the driver value. These are designed
-//   to be driven by a Nova/Linsn/Colorlight/Huidu receiving card fed from a
-//   video source, not by direct ESP32 HUB75 output. Use a plain shift-register
-//   or genuine FM6126A panel instead. (Upstream: issue #642, closed wontfix.)
+// Six names, but the library only has FOUR distinct behaviours — verified in
+// ESP32-HUB75-MatrixPanel-leddrivers.cpp, shiftDriver():
+//
+//   PANEL_STANDARD     No init sequence at all. Plain 74HC595 shift-register
+//                      panels, and the right starting point for any classic
+//                      chip with no dedicated value below (ICN2037, SM162xx,
+//                      unlabeled indoor panels). This is what the browser
+//                      flasher ships, so a working stock build is by
+//                      definition running this path.
+//   PANEL_HIGHREFRESH  ┐ All three run the SAME fm6124init() register
+//   PANEL_FM6124       ├─ sequence — there is no per-chip branch inside it.
+//   PANEL_ICN2038S     ┘ Pick whichever matches your silkscreen; switching
+//                      between them changes nothing.
+//   PANEL_MBI5124      Only flips clkphase to true (MBI5124 latches on the
+//                      clock's rising edge). No register writes.
+//   PANEL_DP3246       dp3246init() — its own register sequence, and also
+//                      forces clkphase true.
+//
+// DON'T pick by part number alone — try PANEL_STANDARD first, always. The
+// init sequence writes a brightness register and one output-enable bit; many
+// panels ship with those already usable and light up with no init at all,
+// others come up dark until they're written, and the part number does not
+// tell you which. The Patternflow reference panel's driver is an FM6124 and
+// it runs fine on PANEL_STANDARD. Only reach for another profile if the
+// panel stays COMPLETELY dark.
+//
+// NOT SUPPORTED — no value here rescues these:
+//   S-PWM / GCLK "smart" panels — ICN2053, FM6353, FM6363/FM6363C, FM6373C,
+//   DP3264/DP3265, ICND2055, MBI5051/5052/5053, MBI6024. Usually sold on
+//   "1920/3840Hz high refresh" or as needing a Nova/Linsn/Colorlight/Huidu
+//   receiving card. Their drivers generate PWM on-chip from a separate
+//   grey-scale clock and use an addressing scheme ESP32-HUB75-MatrixPanel-DMA
+//   cannot produce, so the panel stays completely dark whatever you set.
+//   (Upstream: issue #642, closed wontfix.)
 #define PANEL_STANDARD     0
 #define PANEL_HIGHREFRESH  1
+#define PANEL_FM6124       2
+#define PANEL_ICN2038S     3
+#define PANEL_MBI5124      4
+#define PANEL_DP3246       5
 
-#define PANEL_PROFILE  PANEL_STANDARD   // ← set to PANEL_HIGHREFRESH for an FM6126A/FM6124 panel
+#define PANEL_PROFILE  PANEL_STANDARD   // ← change ONLY if the panel stays dark
 
-#if PANEL_PROFILE == PANEL_HIGHREFRESH
-  #define HUB75_DRIVER HUB75_I2S_CFG::FM6126A   // swap to FM6124 if dark/distorted
+#if   PANEL_PROFILE == PANEL_HIGHREFRESH
+  #define HUB75_DRIVER HUB75_I2S_CFG::FM6126A
+#elif PANEL_PROFILE == PANEL_FM6124
+  #define HUB75_DRIVER HUB75_I2S_CFG::FM6124
+#elif PANEL_PROFILE == PANEL_ICN2038S
+  #define HUB75_DRIVER HUB75_I2S_CFG::ICN2038S
+#elif PANEL_PROFILE == PANEL_MBI5124
+  #define HUB75_DRIVER HUB75_I2S_CFG::MBI5124
+#elif PANEL_PROFILE == PANEL_DP3246
+  #define HUB75_DRIVER HUB75_I2S_CFG::DP3246
 #else
   #define HUB75_DRIVER HUB75_I2S_CFG::SHIFTREG  // plain shift-register panel
 #endif

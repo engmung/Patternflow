@@ -22,10 +22,10 @@
 
 ### Four ways in
 
-- 🔨 **Build it** — follow the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or go solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** — no PCB, no soldering iron, same Patternflow. More paths in the **[Assembly Map](docs/assembly/README.md)**.
-- 📦 **Get one ready-made** — Patternflow is in **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to be notified the moment the campaign goes live.
-- 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** runs a virtual Patternflow in your browser. Same knobs, same patterns, no hardware. Want the full studio? **[Pattern Lab](https://patternflow.work/pattern-lab)** adds batch AI generation, color ramps, and one-click firmware builds.
-- 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. Browse and edit anyone's pattern in the browser with no account; sign in only when you want to publish your own.
+- 🔨 **Build it** — the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. Every other route is in the **[Assembly Map](docs/assembly/README.md)**.
+- 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** is a working Patternflow in your browser. No hardware, no install, no account.
+- 📦 **Get one ready-made** — **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to hear the moment the campaign opens.
+- 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked.
 
 > **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
@@ -54,20 +54,20 @@ Patternflow runs off any standard USB power bank that can supply a couple of amp
 | 20,000 mAh | ~8 hours |
 | 40,000 mAh | ~15 hours |
 
-These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 2) extends runtime well beyond these figures.
+These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 1) extends runtime well beyond these figures.
 
 ## Patterns
 
 The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
 
-On the device, the firmware bundles **34 curated presets** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing.
+On the device, the firmware bundles **34 curated presets** plus **three reusable custom slots** for your own patterns — all in a single image, switchable without reflashing. The device carries fewer than the browser because the on-board set is a curated showcase, not the whole library; anything left out is still one Pattern Lab build away.
 
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
 
 ### Where patterns are shared
 
-The **[Community](https://community.patternflow.work/community)** is the home for patterns people make. Open anyone's pattern, turn its knobs, edit the code and watch it change — all without an account. Take one into Pattern Lab to remix it and publishing it back records the fork, so you can see what grew out of what. Patterns that carry a hardware-tested `.h` header are marked, and you can filter for them when you want something to flash right now.
+The **[Community](https://community.patternflow.work/community)** is the home for patterns people make. Open anyone's pattern, turn its knobs, edit the code and watch it change — all without an account. Take one into Pattern Lab to remix it — publishing it back records the fork, so you can see what grew out of what. Patterns that carry a hardware-tested `.h` header are marked, and you can filter for them when you want something to flash right now.
 
 Signing in is username and password only, with email optional — it never routes through a service that might be blocked where you are.
 
@@ -75,12 +75,14 @@ New pattern studies also go up on [Instagram](https://www.instagram.com/patternf
 
 ## Make your own patterns
 
-Patternflow ships with prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.), and the whole journey from idea to hardware runs in the browser — no toolchain.
+Patternflow ships with prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.), and the whole journey from idea to hardware runs in the browser — no toolchain. The **Live Editor** is where you start, **Pattern Lab** is where a pattern becomes firmware, and the **[Community](https://community.patternflow.work/community)** is where it goes when it's done.
 
-**Start in the [Live Editor](https://patternflow.work/pattern)** — the quick taste:
+**Start in the [Live Editor](https://patternflow.work/pattern)** — a full Patternflow simulator, and the quick taste. Turn the virtual knobs and the on-screen device behaves exactly like the real one, down to the encoder detents. You don't need the hardware to begin:
 
 1. Click **Copy creation prompt** and paste it into your AI assistant along with a description of the look you want.
 2. Paste the JavaScript it returns into the editor and turn the virtual knobs to test the pattern live.
+
+The Live Editor is where you find out you want to make patterns. It stays deliberately light — the stock firmware flashes straight from it, and everything below is where the making happens.
 
 **Go deeper in [Pattern Lab](https://patternflow.work/pattern-lab)** — the full studio, and where patterns become firmware:
 
@@ -97,22 +99,16 @@ Either way you are flashing a whole firmware image, so the custom slots are repl
 
 ## The website
 
-[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. Everything below runs in the browser, no account, no install.
+[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. The three tools above live there. So do the two records that show the project working in the open.
 
 <p align="center">
   <img src="./docs/media/web-live-editor.png" width="49%" alt="Live Editor — a full Patternflow simulator in the browser" />
   <img src="./docs/media/web-build-map.png" width="49%" alt="Build map — a globe of Patternflows built around the world" />
 </p>
 
-**[Live Editor](https://patternflow.work/pattern)** — a full Patternflow simulator. You don't need the hardware to start: turn the virtual knobs and the on-screen device behaves exactly like the real one, down to the encoder detents. Browse the presets, copy the AI prompts, test your pattern live, and flash the stock firmware over USB — all from the same page.
+**[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, and the goal is simple: cover it with pins. The build map is also what *we* means in "every pattern we make": every pin is a person who built one from these files, in their own material, wherever they are. If you've made one, share it in Discord and it goes on the map.
 
-**[Pattern Lab](https://patternflow.work/pattern-lab)** — the professional pattern studio: batch AI generation, color ramps, custom frames, knob-range tuning, ESP32 C++ conversion, and one-click firmware builds. This is where Patternflow's creation tools keep growing.
-
-**[Community](https://community.patternflow.work/community)** — patterns published, remixed and forked, each fork recorded so you can see what grew out of what. It's growing toward a marketplace where creators can trade patterns and earn inside the Patternflow ecosystem.
-
-**[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, and the goal is simple: cover it with pins. If you've made one — any material, any variation — share it in Discord and your build gets added to the map.
-
-**[Journal](https://patternflow.work/journal)** — Patternflow is treated as art, so the whole process is documented transparently: the events, the emotions, and the thinking behind every step, written up at least once a week since the beginning. If you want to know why this project exists — and what it costs to keep it alive — start there.
+**[Journal](https://patternflow.work/journal)** — Patternflow is treated as art, so the whole process is documented transparently: the events, the emotions, and the thinking behind every step, written up at least once a week since the beginning. Including the parts that went badly. If you want to know why this project exists — and what it costs to keep it alive — start there.
 
 ## OSC & audio-react
 

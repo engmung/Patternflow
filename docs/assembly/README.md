@@ -3,6 +3,8 @@
 > **Which version am I building?** Current hardware is **v3.0.0**: follow **[BUILD_GUIDE.md](../../BUILD_GUIDE.md)**, with every file bundled at the **[v3.0.0 release](https://github.com/engmung/Patternflow/releases/tag/v3.0.0)** (STLs, Gerbers, Bambu print project, firmware images).
 > Own a **v2.x board**? Use **[BUILD_GUIDE_v2.md](../../BUILD_GUIDE_v2.md)** and the **[v2.1.0 release](https://github.com/engmung/Patternflow/releases/tag/v2.1.0)** instead. **v2 and v3 parts are not interchangeable** — the boards do not fit each other's cases.
 
+> 🔦 **Buying the LED panel? Read [LED Panel Compatibility](../panel-compatibility.md) first.** Patternflow scans the panel directly from the ESP32-S3, so the **driver IC** decides whether it lights up — "HUB75E" on the listing does not, and a spec-matching panel with S-PWM "video wall" drivers stays completely dark with no firmware fix. Since that part number is almost never in the listing, the practical check is the **buyer reviews**: someone running it off an ESP32 or Raspberry Pi is the best evidence you'll get.
+
 Patternflow is not a single, rigid kit. It is a modular system divided into two core parts:
 
 1. **Enclosure** — how you house the device (3D printed today; laser cut in testing).

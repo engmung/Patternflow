@@ -197,7 +197,7 @@ export default function BreadboardBuildPage() {
                 <tr style={{ borderBottom: '1px solid var(--pf-rule)' }}>
                   <td style={{ padding: '10px 8px', color: 'var(--pf-led)', fontWeight: 700 }}>1×</td>
                   <td style={{ padding: '10px 8px', fontWeight: 600 }}>HUB75E LED matrix</td>
-                  <td style={{ padding: '10px 8px', color: 'var(--pf-ink-muted)' }}>128×64 px, P2.5, 320×160 mm. Driver IC must be <strong>74HC595</strong>, <strong>FM6126A</strong>, or <strong>FM6124</strong>. Ships with ribbon cable + power cable — both used as-is.</td>
+                  <td style={{ padding: '10px 8px', color: 'var(--pf-ink-muted)' }}>128×64 px, P2.5, 320×160 mm. Driver IC must be a classic shift-register type — see the compatibility note below. Ships with a ribbon cable and a power cable.</td>
                 </tr>
                 <tr style={{ borderBottom: '1px solid var(--pf-rule)' }}>
                   <td style={{ padding: '10px 8px', color: 'var(--pf-led)', fontWeight: 700 }}>4×</td>
@@ -242,8 +242,8 @@ export default function BreadboardBuildPage() {
             lineHeight: 1.55,
             color: 'var(--pf-ink-muted)'
           }}>
-            <strong style={{ color: 'var(--pf-ink)' }}>⚠️ Panel compatibility:</strong> Panels with <strong>FM6363C / FM6373C</strong> driver ICs (“3840 Hz” / “needs a receiving card”) will <strong>not work</strong>. Stick with 74HC595 / FM6126A / FM6124 panels.{' '}
-            <a href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#1-bill-of-materials-bom" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>Full compatibility details →</a>
+            <strong style={{ color: 'var(--pf-ink)' }}>⚠️ Panel compatibility:</strong> “HUB75E” on a listing is a connector, not a promise — the <strong>driver IC</strong> decides. S-PWM “video wall” panels (<strong>ICN2053, FM6353, FM6363C / FM6373C, MBI505x</strong> — “3840 Hz” / “needs a receiving card”) stay <strong>completely dark</strong>. Stick with classic shift-register chips: 74HC595, FM6124, FM6126A, ICN2037, ICN2038S, DP5125D, MBI5124.{' '}
+            <a href="https://github.com/engmung/Patternflow/blob/main/docs/panel-compatibility.md" target="_blank" rel="noreferrer" style={{ color: 'var(--pf-led)', textDecoration: 'underline' }}>Full compatibility guide →</a>
           </div>
 
           <div style={{

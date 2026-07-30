@@ -41,7 +41,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 | Ref | Item | Spec | Qty | Notes |
 | --- | --- | --- | --- | --- |
-| - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with HUB75 ribbon cable + power cable; both used as-is. **Driver IC must be 74HC595, FM6126A, or FM6124 — see the panel compatibility warning below.** |
+| - | LED Matrix Panel | HUB75, 128x64 px, P2.5, 320x160 mm | 1 | Full color SMD. Ships with a HUB75 ribbon cable (used as-is — do not cut) and a power cable (cut to length in §6.2). **Check the driver IC before you buy — see the panel compatibility warning below.** |
 | U1 | ESP32-S3 DevKit | ESP32-S3-WROOM-1, **N16R8** (16MB Flash, 8MB PSRAM), 44-pin, 25.4mm header spacing | 1 | PSRAM is required |
 | SW1-SW4 | Rotary Encoder | EC11, 5-pin, 15mm or 20mm shaft, with push-switch | 4 | Shaft length is purely preference — print the matching knob STL. The reference part (Bourns PEC11R-4220F-S0024) is 20mm. |
 | - | Female Pin Socket (1x22, 2.54mm) | For ESP32-S3 module | 2 |  |
@@ -49,7 +49,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 | J2 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V input from power bank |
 | J3 | Screw Terminal | 2-pin, 5mm pitch | 1 | +5V output to LED matrix |
 | C11 | Electrolytic Cap 1000uF / 16V | Radial D10xL13 | 1 | Main bulk decoupling |
-| - | M4 Screws | ~10mm length | 6 | LED matrix mounting |
+| - | M4 Screws | ~10mm length | 6-12 | LED matrix mounting. The panel has 12 holes; all 12 is the exact fit, 6 is enough to hold it firmly. |
 | - | USB Cable (sacrificial) | Any USB cable, will be cut | 1 | For 5V power input |
 | - | Power Bank | Any standard USB power bank that physically fits | 1 | User-supplied |
 
@@ -61,12 +61,12 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 > ⚠️ **Panel compatibility — check the driver IC before you buy.**
 >
-> Patternflow drives the panel **directly from the ESP32-S3** — there is no sending/receiving card. So the panel's **driver IC** matters more than its size or pitch. Not every "HUB75 P2.5 128×64" panel works:
+> Patternflow drives the panel **directly from the ESP32-S3** — there is no sending/receiving card. So the panel's **driver IC** decides whether it works, and "HUB75E" on the listing is a connector, not a compatibility promise. A spec-matching panel with the wrong chips stays **completely dark** even when wiring, power and firmware are all correct.
 >
-> - ✅ **Works:** driver IC is **74HC595** (plain shift register), **FM6126A**, or **FM6124**. These are the common, cheap indoor panels. Set `PANEL_PROFILE` in [`firmware/patternflow/config.h`](firmware/patternflow/config.h) — `PANEL_STANDARD` for 74HC595, `PANEL_HIGHREFRESH` for FM6126A/FM6124.
-> - ❌ **Does NOT work:** **GCLK PWM "video wall" panels** — driver IC **FM6363C / FM6373C** and similar, usually sold by advertising a **very high refresh rate (1920/3840Hz)** and/or that they **require a Nova/Linsn/Colorlight/Huidu sending+receiving card**. These need a separate GCLK signal and a proprietary addressing scheme the `ESP32-HUB75-MatrixPanel-DMA` library cannot produce, so the panel stays **completely dark** no matter what you configure ([upstream issue #642](https://github.com/mrcodetastic/ESP32-HUB75-MatrixPanel-DMA/issues/642), closed *wontfix*).
+> - ✅ **Works:** classic shift-register drivers — **74HC595**, **FM6124**, **FM6126A**, **ICN2037**, **ICN2038S**, **DP5125D**, **DP3246**, **MBI5124**, **SM162xx**. Stock firmware drives most of these as-is; only if the panel comes up completely dark do you set `PANEL_PROFILE` in [`firmware/patternflow/config.h`](firmware/patternflow/config.h) to match your chip.
+> - ❌ **Does NOT work:** S-PWM / GCLK "video wall" drivers — **ICN2053**, **FM6353**, **FM6363C/FM6373C**, **DP3264/DP3265**, **ICND2055**, **MBI505x**. Usually sold on a **very high refresh rate (1920/3840Hz)** and/or that they **require a Nova/Linsn/Colorlight/Huidu receiving card**.
 >
-> **The safe move:** before buying, ask the seller which driver IC the panel uses. If they say *FM6363C/FM6373C*, *3840Hz*, or *"needs a receiving card"*, pick a different panel — ideally one explicitly advertised as *"hzeller / ESP32-HUB75-MatrixPanel-DMA compatible."* The linked panel above is a known-good one.
+> 📖 **Read [LED Panel Compatibility](docs/panel-compatibility.md) before ordering** — full chip lists, how to read the markings on a panel you already own, a symptom→cause table, and a copy-paste question to send the seller. The linked panel above is a known-good one.
 
 PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
 
@@ -273,7 +273,7 @@ The LED matrix has two small alignment bumps on its back, diagonally opposite ea
 
 1. From the front of the case, lower the LED matrix into its slot.
 2. Flip the case over.
-3. From the back, secure the matrix with the M4 screws (×6).
+3. From the back, secure the matrix with the M4 screws. The panel has 12 holes — all 12 is the exact fit, and 6 (spread across the corners and middle) is enough to hold it firmly.
 
 > The screws thread directly into the LED matrix's mounting holes. Don't over-tighten.
 
@@ -376,10 +376,14 @@ The ESP32-S3 module is flashed *separately*, with the module **outside** the PCB
 
 No installation required. Works on any desktop with Chrome or Edge.
 
+> 🔌 **Use the LEFT USB-C port** — the one on your left when the two ports face you. On the ESP32-S3 DevKit that's the board's **native USB** port (labeled `USB`), and the browser flasher (Web Serial + Improv) talks to it directly. The right-hand port goes through a separate USB-to-UART bridge chip and is the one Arduino IDE uses (§8.2); the browser flasher won't see the board on that one.
+>
+> **This is the same flasher for every board generation.** The site ships one current image and can't serve a per-version build, so v2.x boards flash exactly like v3 — including the `USB CDC On Boot: Enabled` setting in §8.2.
+
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
-2. Connect your ESP32-S3 to your computer via a USB-C **data cable** — do not insert it into the PCB yet.
+2. Connect your ESP32-S3 to your computer via a USB-C **data cable**, using the **left port** (see above) — do not insert it into the PCB yet.
 3. Scroll to the **Patterns** section and click **"Flash Patternflow OS"**.
-4. Select the correct serial port when prompted and follow the on-screen steps.
+4. Select the correct serial port when prompted and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
 
 <img src="docs/build-guide/images/web_flash.jpg" width="33%">
 
@@ -398,14 +402,18 @@ Use this method if you want to modify the firmware source, add custom patterns, 
 
 #### Board Settings
 
+> 🔌 **Use the RIGHT USB-C port** for Arduino IDE — the one on your right when the ports face you, labeled `UART`/`COM`. It's the USB-to-UART bridge Arduino uploads through; the left (native `USB`) port is for the browser flasher (§8.1). If the IDE doesn't see a serial port, you're likely on the wrong one.
+
 In Arduino IDE, **Tools** menu:
 
 - **Board:** ESP32S3 Dev Module
 - **PSRAM:** OPI PSRAM
 - **Flash Size:** 16MB
 - **Partition Scheme:** 16M Flash (3MB APP/9.9MB FATFS) or similar with PSRAM-aware partition
-- **USB CDC On Boot:** Disabled
+- **USB CDC On Boot:** Enabled
 - **Upload Mode:** UART0 / Hardware CDC
+
+> ⚠️ **CDC On Boot must be *Enabled*** — earlier revisions of this guide said Disabled. It decides whether `Serial` is the native USB peripheral or UART0, and therefore which of the two USB-C ports answers the browser flasher's Wi-Fi setup (Improv speaks over `Serial`). Enabled puts it on the **left/native `USB`** port, which is what the released firmware does and what §8.1 tells you to use. Build it Disabled and the firmware still flashes fine, but its Wi-Fi setup only appears on the other socket.
 
 #### Upload
 
