@@ -72,7 +72,7 @@ Still the route for changing anything beyond a pattern — firmware development,
 
 Long-press encoder 4 on the device to cycle to your new pattern.
 
-> Either route flashes a **whole firmware image**, so whatever was in the custom slots is replaced. The preset library is compiled in every time, so you never lose those.
+> Either route flashes a **whole firmware image**, replacing the firmware and the presets compiled into it. Any `.pfm` modules you've installed live on a separate FATFS partition and **survive a normal reflash** — they only go away if you enable *Erase All Flash Before Sketch Upload*, or format the partition from `/patterns`.
 
 ---
 

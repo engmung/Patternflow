@@ -8,21 +8,26 @@ reflash.
 
 ```
 patternflow/
-├── custom1.h, custom2.h, ...   ← your own patterns (reusable slots)
 └── presets/
     └── preset_<name>.h         ← curated patterns the project ships as a showcase
+
+FATFS partition (on the device, not in this repo)
+└── <slug>.pfm                  ← your own patterns, uploaded over Wi-Fi
 ```
 
-- **`custom<N>.h` lives in the sketch ROOT** and is a **reusable slot**. The
-  Arduino IDE only shows root-folder files as editable tabs, and the whole point
-  is that people write and tweak their own pattern right there. Overwrite the
-  slot's contents to try a new pattern — no file renaming. Each pattern defines
-  its own descriptive namespace, so update the slot's `PATTERN_ENTRY(...)` line
-  in `pattern_registry.h` to match. Add `custom<N+1>.h` for more. Includes use
-  `"src/..."`.
-- **`presets/preset_<name>.h` lives in the `presets/` subfolder.** Presets are
-  curated and not hand-edited in the IDE, so they're tucked away. Because they
-  sit one level down, their includes use `"../src/..."` (and `"../config.h"`).
+- **`presets/preset_<name>.h`** is compiled into `firmware.bin`. Presets are
+  curated rather than hand-edited in the IDE, so they're tucked in a subfolder.
+  Because they sit one level down, their includes use `"../src/..."` (and
+  `"../config.h"`). Adding one means an entry in `presetPatterns[]` and a
+  rebuild — see [`../CUSTOM_PATTERNS.md`](../CUSTOM_PATTERNS.md).
+- **`.pfm` modules** are how a pattern of your own gets onto a device now: a few
+  KB of relocatable ELF, uploaded at `/patterns` over Wi-Fi, discovered at boot
+  and appended after the presets. No reflash, no reboot, up to 128 of them.
+  Build one with `firmware/toolchain/build_module.py`.
+
+> The old `custom1.h`–`custom3.h` slots in the sketch root are **gone** —
+> modules are what they were for, and no longer cost a rebuild. Their patterns
+> live on under `firmware/modules/`.
 
 ## Source of truth
 
@@ -109,72 +114,53 @@ Two things to know:
 `PFCanvas::present()` restores the panel frame, so a `setFrame` can never leak
 into the next pattern, and a pattern that never calls it is unaffected.
 
-**Tried either of these? Please report back.** There is more variety in panels
-and driver ICs than one desk can test, so results from real hardware are the
-only way this gets trustworthy — working or broken, both are useful:
+**Tried either of these? Please report back.** There is more variety out there
+than one desk can test, so results from real hardware are the only way this gets
+trustworthy — working or broken, both are useful:
 [#224 Custom panel sizes and pattern frames](https://github.com/engmung/Patternflow/issues/224).
+
+(A panel that won't light up at all is a *different* problem — that's the driver
+IC, not the resolution. See [`docs/panel-compatibility.md`](../../docs/panel-compatibility.md)
+and report it in [#259](https://github.com/engmung/Patternflow/issues/259).)
 
 ## Registry
 
-`pattern_registry.h` keeps `customPatterns[]` and `presetPatterns[]` as two
-separate arrays. **Custom is listed first** so it's quick to edit, but
-`buildPatternList()` combines them at runtime as **presets-then-custom** — so on
-the device **pattern 1 = Origin** (the boot default) and the custom slots come
-**last** (turn back from pattern 1 to reach them):
+`pattern_registry.h` assembles the device's pattern list from two sources:
 
 ```cpp
-// edit these — listed first for convenience; each entry names the
-// namespace of whatever pattern currently occupies the slot file
-PatternEntry customPatterns[] = {
-  PATTERN_ENTRY(ReactionDiffusionPattern),   // custom1.h
-  PATTERN_ENTRY(LissajousWeave),             // custom2.h
-  PATTERN_ENTRY(ChromaticAberrationVortexPattern), // custom3.h
-};
-
+// compiled into firmware.bin — the curated showcase
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin), PATTERN_ENTRY(WaveSaw), ...
 };
 
-// runtime list: presets first, custom last — call once in setup()
-void buildPatternList() { /* copy presets, then custom, into patterns[] */ }
+// .pfm modules discovered on FATFS at boot, appended after the presets
+// (cap of 128; a slot costs 136 bytes of PSRAM whether or not it's filled)
+
+// runtime list: presets first, modules last — call once in setup()
+void buildPatternList() { /* copy presets, then modules, into patterns[] */ }
 ```
 
-`NUM_CUSTOM` and `NUM_PRESETS` are exposed alongside `NUM_PATTERNS`.
+So on the device **pattern 1 = Origin** (the boot default) and your uploaded
+modules come **last** — turn back from pattern 1 to reach them.
 
-## Currently Registered Patterns (v2.0.0)
+> **The `custom1..3` slots are gone.** They were the hand-edited way to get a
+> pattern on a device, and uploading a `.pfm` replaced them. `PF_CUSTOM_SLOT_COUNT`
+> is `0`, and the region between the `PF_CUSTOM_SLOTS_BEGIN` / `PF_CUSTOM_SLOTS_END`
+> markers exists only so the web build service can compile a submitted pattern
+> into a whole image for devices whose firmware predates the module loader.
+> **Leave the markers in place even though the region is empty** — removing them
+> breaks "Send to build".
 
-The following patterns are currently compiled into the firmware and registered in `pattern_registry.h`:
+## Currently registered patterns
 
-### Presets (21)
-1. **Origin** (`presets/preset_origin.h`) — Default startup pattern
-2. **Wave Saw** (`presets/preset_wave_saw.h`)
-3. **0510** (`presets/preset_0510.h`)
-4. **0511** (`presets/preset_0511.h`)
-5. **0512** (`presets/preset_0512.h`)
-6. **0513** (`presets/preset_0513.h`)
-7. **0514** (`presets/preset_0514.h`)
-8. **0515-3** (`presets/preset_0515_3.h`)
-9. **0515-4** (`presets/preset_0515_4.h`)
-10. **0515** (`presets/preset_0515.h`)
-11. **0518** (`presets/preset_0518.h`)
-12. **0519-1** (`presets/preset_0519_1.h`)
-13. **0520** (`presets/preset_0520.h`)
-14. **0521** (`presets/preset_0521.h`)
-15. **0522** (`presets/preset_0522.h`)
-16. **0527** (`presets/preset_0527.h`)
-17. **0528** (`presets/preset_0528.h`)
-18. **0531** (`presets/preset_0531.h`)
-19. **0601** (`presets/preset_0601.h`)
-20. **0602** (`presets/preset_0602.h`)
-21. **A Big Hit** (`presets/preset_a_big_hit.h`)
+**`presetPatterns[]` in [`pattern_registry.h`](pattern_registry.h) is the source of truth** — it and the contents of [`presets/`](presets/) are the list. This page used to enumerate them and fell thirteen behind, so it doesn't any more.
 
-*(Note: Presets 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529, and 0530 were excluded due to performance lag or rendering issues on the physical ESP32 hardware. Additionally, patterns posted on Instagram after 0602 are not included in this repository by default; you can find them on Discord and convert them yourself to use them.)*
+Two things about that set which the file itself won't tell you:
 
-### Custom Patterns (3)
+- **Not every pattern made the cut.** 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529 and 0530 were left out for performance lag or rendering problems on real ESP32 hardware. A pattern that looks fine in the browser can still miss frame budget on the device.
+- **Patterns posted to Instagram after 0602 aren't bundled here.** They're on Discord; convert them yourself, or install them as `.pfm` modules.
 
-The three `custom<N>.h` slots ship with rotating example patterns and are meant
-to be overwritten with your own. `customPatterns[]` in `pattern_registry.h` is
-the source of truth for what's currently loaded.
+Anything not compiled in is one upload away — build a module and send it to the device over Wi-Fi, no reflash.
 
 ## Licensing (read before submitting)
 
