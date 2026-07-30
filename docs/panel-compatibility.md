@@ -257,7 +257,9 @@ It isn't broken, it's a different class of hardware. Options, best first:
 
 ## Report your panel
 
-Running something other than the BOM-linked panel? **Please tell us how it went — working or not.** Every report makes this page better for the next person: [#224](https://github.com/engmung/Patternflow/issues/224).
+Running something other than the BOM-linked panel? **Please tell us how it went — working or not.** Every report makes this page better for the next person: [#259](https://github.com/engmung/Patternflow/issues/259).
+
+*(Changed the panel **resolution** instead — a 64×64, a chain of two? That's [#224](https://github.com/engmung/Patternflow/issues/224), a different question.)*
 
 Useful to include: driver IC part number **and its lot code line**, silkscreen model string, resolution and scan rate, which `PANEL_PROFILE` you used, and a close-up of the back of the PCB — framed like the three in §10, close enough to read the chip. Those go straight into the verified table.
 
