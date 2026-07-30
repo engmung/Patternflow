@@ -1,15 +1,31 @@
-export const ENCODER_CLICKS_PER_TURN = 20;
+// Detents in one full turn of the physical encoder.
+// Keep in sync with PATTERN_DETENTS_PER_TURN in patternHarness.ts (see the note
+// there: the reference Bourns PEC11R-...-S0024 is 24, not the 20 assumed here
+// for a long time).
+export const ENCODER_CLICKS_PER_TURN = 24;
 
-// One full web knob rotation should equal one physical encoder turn.
-// Keep these as the source of truth for both preview sensitivity and C++ steps.
-export const WEB_KNOB_UNITS_PER_TURN = {
-  c1: 1,
-  c2: 2,
-  c3: 1,
-  c4: 1,
-} as const;
+// How many full turns cross a parameter's ENTIRE range.
+//
+// Travel used to be a fixed per-knob constant ({c1:1, c2:2, ...}) that ignored
+// the parameter's range entirely, so a 0..1 knob crossed in one turn while a
+// 0..100 knob needed a hundred — and the C++ step the conversion prompt handed
+// out inherited exactly the same mistake (hence ~80 patterns all using 0.05f).
+// Deriving travel from the range makes every knob feel the same regardless of
+// what it controls, and keeps the web preview and the encoder in step because
+// both read the value from here.
+export const TURNS_PER_FULL_RANGE = 2;
 
-export type KnobId = keyof typeof WEB_KNOB_UNITS_PER_TURN;
+/** Value units covered by one full turn, for a parameter spanning `range`. */
+export function knobUnitsPerTurn(range: readonly [number, number]) {
+  return (range[1] - range[0]) / TURNS_PER_FULL_RANGE;
+}
+
+/** Value change per detent — this is the STEP a C++ pattern multiplies by. */
+export function knobDetentStep(range: readonly [number, number]) {
+  return knobUnitsPerTurn(range) / ENCODER_CLICKS_PER_TURN;
+}
+
+export type KnobId = 'c1' | 'c2' | 'c3' | 'c4';
 
 export type KnobValues = Record<KnobId, number>;
 
@@ -28,9 +44,20 @@ export const LOGICAL_KNOB_DEFAULTS = [0, 2, 0, 0.06];
 
 export const LOGICAL_KNOB_WRAP = [true, false, false, true];
 
-export const LOGICAL_KNOB_UNITS_PER_TURN = LOGICAL_KNOB_TO_WEB_KNOB.map(
-  (knobId) => WEB_KNOB_UNITS_PER_TURN[knobId],
-);
+/** Units-per-turn for each logical knob, given that pattern's declared ranges. */
+export function logicalKnobUnitsPerTurn(
+  ranges: ReadonlyArray<readonly [number, number]> = LOGICAL_KNOB_RANGES,
+) {
+  return LOGICAL_KNOB_RANGES.map((fallback, index) =>
+    knobUnitsPerTurn(ranges[index] ?? fallback),
+  );
+}
+
+/** The declared range of a knob addressed by its front-panel id. */
+export function webKnobRange(knobId: KnobId): readonly [number, number] {
+  const logicalIndex = LOGICAL_KNOB_TO_WEB_KNOB.indexOf(knobId);
+  return LOGICAL_KNOB_RANGES[logicalIndex] ?? [0, 1];
+}
 
 export function getKnobValueDelta(knobId: KnobId, current: number, previous: number) {
   let delta = current - previous;
@@ -43,6 +70,6 @@ export function getKnobValueDelta(knobId: KnobId, current: number, previous: num
   return delta;
 }
 
-export function toEncoderDelta(knobId: KnobId, valueDelta: number) {
-  return valueDelta * (ENCODER_CLICKS_PER_TURN / WEB_KNOB_UNITS_PER_TURN[knobId]);
+export function toEncoderDelta(range: readonly [number, number], valueDelta: number) {
+  return valueDelta * (ENCODER_CLICKS_PER_TURN / knobUnitsPerTurn(range));
 }

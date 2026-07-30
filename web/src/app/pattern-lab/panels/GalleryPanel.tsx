@@ -12,7 +12,7 @@ import {
   knobTargetToDelta,
 } from "@/lib/patternHarness";
 import {
-  LOGICAL_KNOB_UNITS_PER_TURN,
+  knobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import { DEFAULT_MATRIX, parseMatrixAnnotation } from "@/lib/patternMatrix";
@@ -142,7 +142,7 @@ function VariantPreview({
           previousKnobs![index] ?? value,
           value,
           LOGICAL_KNOB_WRAP[index],
-          LOGICAL_KNOB_UNITS_PER_TURN[index],
+          knobUnitsPerTurn(state.ranges[index] ?? [0, 1]),
         ),
       );
       const knobNormalized = state.knobs.map((value, index) => {

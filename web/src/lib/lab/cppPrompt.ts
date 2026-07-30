@@ -9,7 +9,7 @@ import {
   buildRampLUT,
   type ColorRamp,
 } from "@/lib/patternHarness";
-import { LOGICAL_KNOB_UNITS_PER_TURN } from "@/lib/patternflowControls";
+import { knobDetentStep } from "@/lib/patternflowControls";
 import { withMatrixAnnotation, type MatrixSize } from "@/lib/patternMatrix";
 import type { KnobRange, RampState } from "./types";
 import { rampStateToHarness } from "./engine";
@@ -63,7 +63,7 @@ export function buildCppPrompt({
 
   const rangeLines = ranges
     .map((range, index) => {
-      const detentStep = LOGICAL_KNOB_UNITS_PER_TURN[index] / 20;
+      const detentStep = knobDetentStep(range);
       return `- ${knobLabels[index]}: min ${range[0]}, max ${range[1]}, current ${knobs[index]}, calibrated encoder step ${roundRangeValue(detentStep)} per detent`;
     })
     .join("\n");

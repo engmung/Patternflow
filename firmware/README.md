@@ -515,8 +515,12 @@ For the original defaults:
 - **Encoder 3 longpress (≥1s)** — enter/exit the KNOB MAP screen: it shows which physical knob is which number (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left), and turning any knob lights its digit green so each one can be verified without leaving the screen. Knob input is swallowed while it's up, so the pattern underneath never sees it. Exits on a K3 click, a second K3 longpress, or after 8 seconds of idle.
 - **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation cycles patterns; longpress again to confirm.
 
-### Encoder acceleration
-Knob deltas are scaled by how quickly the encoder is turning. Fast spins multiply each detent ×2 to ×5 so one encoder can sweep a wide range quickly; slow turns stay at ×1 for fine control. Pattern step constants do not need to change — the acceleration is applied once in `readInputFrame()` before patterns receive their deltas.
+### One detent, one step
+Knob deltas are linear: a pattern sees exactly the number of detents that were turned, however fast the turn was.
+
+There used to be a fast-spin multiplier here (×2 to ×5 as the gap between detents shrank), meant to let one knob sweep a wide range quickly. It was removed after testing against a linear build, because it made the knobs unpredictable on exactly the parameter that most needs landing on a value — Origin's Mode knob picks a discrete preset, and a quick turn skipped five at a time. OSC had already been routed around the multiplier for the same reason, which was the tell.
+
+**If a pattern's range feels slow to cross, raise that pattern's own step constant** (`d * 10` → `d * 25`). Linear and predictable beats a curve guessing at intent.
 
 ### Short press (per-pattern, opt-in)
 There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. A pattern that does not handle `btnPressed` — most of the curated presets — simply ignores short presses.
@@ -634,7 +638,7 @@ The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external hos
 
 `/patternflow/content/toggle` is still accepted but does nothing — the Pattern/Video content-mode split was removed, so `/patternflow/content/mode` now always announces `0`. Both stay on the wire only so older hosts don't error; don't build against them.
 
-Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate (no acceleration). Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
+Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate — the same rate physical knobs now use. Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
 
 ## Wireless update from the browser
 

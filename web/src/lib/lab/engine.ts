@@ -11,7 +11,7 @@ import {
   type ColorRamp,
 } from "@/lib/patternHarness";
 import {
-  LOGICAL_KNOB_UNITS_PER_TURN,
+  knobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
 } from "@/lib/patternflowControls";
 import type { MatrixSize } from "@/lib/patternMatrix";
@@ -173,7 +173,7 @@ export class LabEngine {
         previous[knobIndex] ?? value,
         value,
         LOGICAL_KNOB_WRAP[knobIndex],
-        LOGICAL_KNOB_UNITS_PER_TURN[knobIndex],
+        knobUnitsPerTurn(ranges[knobIndex] ?? [0, 1]),
       ),
     );
     const knobNormalized = knobs.map((value, knobIndex) => {
