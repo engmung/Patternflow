@@ -388,9 +388,10 @@ inline void begin() {
 }
 
 // Drain any pending knob delta sent over OSC for one knob.
-// Main loop calls this once per knob per frame after computing the
-// hardware-accelerated knobDeltas, so OSC-driven motion is added on
-// top without going through the acceleration curve.
+// Main loop calls this once per knob per frame after the physical deltas are
+// read, so OSC-driven motion adds on top of whatever the encoders did.
+// (There used to be a fast-spin multiplier applied to the physical deltas that
+// this deliberately bypassed. It was removed — both paths are 1:1 now.)
 inline int32_t consumeKnobDelta(int idx) {
 #if PF_OSC_ENABLED
   if (idx < 0 || idx > 3) return 0;

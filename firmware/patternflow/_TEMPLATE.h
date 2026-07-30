@@ -35,7 +35,10 @@ namespace TemplatePattern {
   }
 
   void update(float dt, const InputFrame& input) {
-    // input.knobDeltas[i] : per-frame change in detents
+    // input.knobDeltas[i] : per-frame change in detents — 1 detent, 1 step,
+    //   no acceleration. Scale it by YOUR parameter's range rather than a
+    //   habit constant: (max - min) / 48 makes one knob cross its whole range
+    //   in two turns, which is what every generated pattern now does.
     // input.btnPressed[i] : true only on the frame button i is pressed (edge)
     // input.btnHeld[i]    : true while button i is held (level)   (i = 0..3)
   }
