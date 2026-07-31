@@ -52,36 +52,18 @@ inline uint8_t gammaLUT_G[256];
 inline uint8_t gammaLUT_B[256];
 inline bool gammaLUTReady = false;
 
-// Live copies of the calibration, so the whole pipeline can be switched off and
-// back on while looking at the panel instead of across two reflashes. Seeded
-// from config.h; /colortest writes them and rebuilds the LUTs.
-//
-// Worth knowing before touching these: the DRIVER already applies a CIE1931
-// curve of its own (lumConvTab, ~2.44). Everything here lands on top of that.
-// Measured end to end, the stock values put mid-grey (128) on the panel at
-// 2.2 % instead of the 18.6 % the driver alone would give, and cap full white
-// at 81 % — an effective exponent of 5.5. These were added before Pattern Lab
-// could control colour precisely; now that it can, the device correcting on
-// top of the author's choice is mostly working against them.
-inline float calGammaR = LED_GAMMA_R;
-inline float calGammaG = LED_GAMMA_G;
-inline float calGammaB = LED_GAMMA_B;
-inline float calWbR    = LED_WB_R;
-inline float calWbG    = LED_WB_G;
-inline float calWbB    = LED_WB_B;
-inline float calSat    = LED_SAT_BOOST;
+
 
 // Saturation boost as 8.8 fixed-point. 256 = identity (no boost). Built
 // once from LED_SAT_BOOST so present()'s inner loop avoids floats.
 inline int satBoostQ8 = (int)(LED_SAT_BOOST * 256.0f + 0.5f);
 
 inline void buildGammaLUT() {
-  satBoostQ8 = (int)(calSat * 256.0f + 0.5f);
   for (int i = 0; i < 256; i++) {
     float n = i / 255.0f;
-    float rOut = powf(n, calGammaR) * 255.0f * calWbR + 0.5f;
-    float gOut = powf(n, calGammaG) * 255.0f * calWbG + 0.5f;
-    float bOut = powf(n, calGammaB) * 255.0f * calWbB + 0.5f;
+    float rOut = powf(n, LED_GAMMA_R) * 255.0f * LED_WB_R + 0.5f;
+    float gOut = powf(n, LED_GAMMA_G) * 255.0f * LED_WB_G + 0.5f;
+    float bOut = powf(n, LED_GAMMA_B) * 255.0f * LED_WB_B + 0.5f;
     gammaLUT_R[i] = (uint8_t)(rOut > 255.0f ? 255.0f : (rOut < 0.0f ? 0.0f : rOut));
     gammaLUT_G[i] = (uint8_t)(gOut > 255.0f ? 255.0f : (gOut < 0.0f ? 0.0f : gOut));
     gammaLUT_B[i] = (uint8_t)(bOut > 255.0f ? 255.0f : (bOut < 0.0f ? 0.0f : bOut));

@@ -195,6 +195,32 @@ constexpr float EULER      = 2.71828182845904523536f;
 // blues from collapsing into black. WB gain trims R and G a touch so
 // pure-white whites land closer to D65 instead of warm pink.
 //
+// MEASURED, and worth knowing before you touch anything below: the DRIVER
+// already applies a CIE1931 curve of its own (lumConvTab, effective exponent
+// ~2.44). Everything here lands ON TOP of that, so the two stack.
+//
+//   input   driver alone   driver + the values below
+//     64        4.4 %              0.3 %
+//    128       18.6 %              2.2 %
+//    192       48.7 %             14.6 %
+//    255      100.0 %             81.1 %
+//
+// Effective exponent 5.5, and the 0.92 WB gain caps white at 81 % — a fifth of
+// the panel's brightness given away. Greys are not dim by accident; they are
+// being crushed twice.
+//
+// Setting all three gammas and all three WB gains to 1.0 is not a hack, it is
+// the standard pipeline: editor colours are sRGB, the panel is linear PWM, and
+// the driver's curve is exactly that conversion. Tried on hardware — greys read
+// correctly and the preset library still looks right, though everything reads
+// brighter, which is a BRIGHTNESS question (DEFAULT_BRIGHTNESS, or K1 longpress)
+// and not a gamma one. Left at the old values here only because nobody has
+// settled on the replacement numbers yet.
+//
+// If you are the one to settle it: change brightness for overall level,
+// saturation for highlights collapsing to white, WB for a colour cast. Gamma is
+// the driver's job and almost never yours.
+
 // OPEN: matching panel colour to a monitor properly.
 // Per-channel gain is an approximation. The real difference is that the LED
 // primaries sit at different wavelengths than sRGB's, so the same RGB triplet
