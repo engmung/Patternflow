@@ -117,12 +117,23 @@ export const patterns = sqliteTable(
     parentId: text("parent_id").references((): AnySQLiteColumn => patterns.id, {
       onDelete: "set null",
     }),
+    /**
+     * "public" | "unlisted" | "private" — who can find it.
+     *
+     * Public is in the feed. Unlisted is reachable by link only — the "look at
+     * this before I post it" state, and what a shared deck can carry without
+     * flooding the feed. Private is the author alone (moderators keep sight of
+     * everything — visibility is not a shield from a report).
+     */
+    visibility: text("visibility").notNull().default("public"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [
     index("patterns_created_at_idx").on(table.createdAt),
     index("patterns_user_id_idx").on(table.userId),
+    // The feed's exact shape: visible rows, newest first.
+    index("patterns_visibility_created_idx").on(table.visibility, table.createdAt),
   ],
 );
 
@@ -142,6 +153,60 @@ export const likes = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.userId, table.patternId] }),
     index("likes_pattern_id_idx").on(table.patternId),
+  ],
+);
+
+// ── Shared decks ─────────────────────────────────────────────────────────────
+// A deck is an ordered set of patterns — a setlist, because the device cycles
+// them in sequence. The working deck stays in the browser's localStorage
+// (lib/community/deck.ts); a row here is the explicit act of sharing one.
+//
+// Publishing is deliberately scarce: two PUBLIC decks per account (see
+// PUBLIC_DECKS_MAX). That is a curation policy, not a technical limit — a
+// shelf you must ration is a shelf you curate. Private and unlisted decks are
+// not rationed.
+
+export const decks = sqliteTable(
+  "decks",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    /** "public" | "unlisted" | "private" — same three states as patterns. */
+    visibility: text("visibility").notNull().default("private"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("decks_user_id_idx").on(table.userId),
+    index("decks_visibility_created_idx").on(table.visibility, table.createdAt),
+  ],
+);
+
+export const deckPatterns = sqliteTable(
+  "deck_patterns",
+  {
+    deckId: text("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    /**
+     * NO foreign key on purpose (same reasoning as reports): deleting a pattern
+     * must leave a visible gap in the running order, not silently shorten
+     * somebody's arranged set. The title below is what the gap shows.
+     */
+    patternId: text("pattern_id").notNull(),
+    /** 0-based running order — the order the device cycles them. */
+    position: integer("position").notNull(),
+    /** What the pattern was called when the deck was published. */
+    titleSnapshot: text("title_snapshot").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.deckId, table.patternId] }),
+    // The feed's "in decks" ranking signal counts through this.
+    index("deck_patterns_pattern_id_idx").on(table.patternId),
   ],
 );
 
@@ -239,6 +304,65 @@ export const builds = sqliteTable(
     // The worker's claim query orders queued jobs by age.
     index("builds_status_created_idx").on(table.status, table.createdAt),
     index("builds_user_id_idx").on(table.userId),
+  ],
+);
+
+// ── Notifications ────────────────────────────────────────────────────────────
+// In-app only, by policy: no email is ever sent (most accounts have none), and
+// nothing here is real-time — the badge is read on the next page load, which
+// is what a server-rendered site can promise honestly.
+//
+// A notification is DISPOSABLE — the deliberate opposite of a report. Reports
+// must outlive what they point at; a notification pointing at something gone
+// is pure noise, so content deletion routes clear these explicitly, and the
+// retention sweep ages the rest out (NOTIFICATION_MAX_AGE_DAYS).
+
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    /** Recipient. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * What happened:
+     *   "comment" — on something the recipient made
+     *   "thread"  — on something the recipient commented on earlier
+     *   "fork"    — their pattern was forked
+     *   "deck"    — their pattern entered someone's public deck
+     */
+    type: text("type").notNull(),
+    /** Who did it. Cascades: a deleted account takes its acts with it. */
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * Where clicking goes: "pattern" | "post" | "deck". No foreign key — the
+     * types share one column — so the delete routes clear matching rows
+     * themselves, and the read path drops anything that slipped through.
+     */
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
+    /** Title at event time — the row reads without a join. */
+    targetTitle: text("target_title").notNull(),
+    /**
+     * The specific thing that triggered the row — a comment's id, or for
+     * "deck" the pattern that was included. The precise cleanup key: when
+     * that thing is deleted, rows carrying its id here go with it.
+     */
+    sourceId: text("source_id"),
+    /** Display extra: a comment's first line, or the pattern a deck took. */
+    snippet: text("snippet"),
+    readAt: integer("read_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    // The badge (unread count) and the list both start from the recipient.
+    index("notifications_user_created_idx").on(table.userId, table.createdAt),
+    // Cleanup paths: by deleted content, and by deleted source.
+    index("notifications_target_idx").on(table.targetType, table.targetId),
+    index("notifications_source_idx").on(table.sourceId),
   ],
 );
 

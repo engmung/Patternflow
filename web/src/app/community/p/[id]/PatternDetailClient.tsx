@@ -51,11 +51,19 @@ export type PatternView = {
   madeOn: string | null;
   /** Author's declaration of how it was made, when they gave one. */
   madeHow: string | null;
+  /** "public" | "unlisted" | "private" — the page is already gated server-side. */
+  visibility: string;
   provenance: Provenance;
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
-  parent: { id: string; title: string; handle: string | null; license: string } | null;
+  parent: {
+    id: string;
+    title: string;
+    handle: string | null;
+    license: string;
+    visibility: string;
+  } | null;
   likeCount: number;
   forkCount: number;
 };
@@ -478,10 +486,28 @@ export default function PatternDetailClient({
               <span className={styles.hwChip}>.h</span> hardware ready
             </span>
           )}
+          {pattern.visibility !== "public" && (
+            <span
+              className={styles.visChip}
+              title={
+                pattern.visibility === "private"
+                  ? "Private — only you can open this page"
+                  : "Unlisted — off the feed, anyone with this link can open it"
+              }
+            >
+              {pattern.visibility}
+            </span>
+          )}
           {pattern.parent && (
             <span className={styles.forkNote}>
               forked from{" "}
-              <Link href={`/community/p/${pattern.parent.id}`}>{pattern.parent.title}</Link>
+              {pattern.parent.visibility === "private" ? (
+                // The parent went private after this fork: the credit stands
+                // (it is baked into the source) but the link would 404.
+                <span title="The original is now private">{pattern.parent.title}</span>
+              ) : (
+                <Link href={`/community/p/${pattern.parent.id}`}>{pattern.parent.title}</Link>
+              )}
             </span>
           )}
           {/* Last in the row on purpose: available, never the thing you notice. */}
@@ -572,6 +598,7 @@ export default function PatternDetailClient({
           initialLicense={pattern.license}
           initialMadeOn={pattern.madeOn}
           initialMadeHow={pattern.madeHow}
+          initialVisibility={pattern.visibility}
           parentLicense={pattern.parent?.license ?? null}
           onClose={() => setDetailsModalOpen(false)}
         />

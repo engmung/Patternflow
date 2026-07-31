@@ -1,5 +1,6 @@
+import type { DeckCardItem } from "@/components/community/DeckCard";
 import type { PatternCardItem } from "@/components/community/PatternCard";
-import type { FeedItem } from "./queries";
+import type { DeckItem, DeckListItem, FeedItem } from "./queries";
 
 /** Server → client boundary: Dates become ISO strings. */
 export function toCardItem(item: FeedItem): PatternCardItem {
@@ -14,5 +15,40 @@ export function toCardItem(item: FeedItem): PatternCardItem {
     likeCount: item.likeCount,
     forkCount: item.forkCount,
     hasCpp: item.hasCpp,
+    visibility: item.visibility,
+    deckCount: item.deckCount,
+  };
+}
+
+export function toDeckCardItem(item: DeckListItem): DeckCardItem {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    visibility: item.visibility,
+    createdAt: item.createdAt.toISOString(),
+    username: item.username,
+    displayUsername: item.displayUsername,
+    patternCount: item.patternCount,
+    preview: item.preview,
+  };
+}
+
+/** One slot of a deck page: a pattern card, or a named gap. */
+export type DeckPageItem = {
+  position: number;
+  patternId: string;
+  titleSnapshot: string;
+  pattern: PatternCardItem | null;
+  gap: "deleted" | "private" | null;
+};
+
+export function toDeckPageItem(item: DeckItem): DeckPageItem {
+  return {
+    position: item.position,
+    patternId: item.patternId,
+    titleSnapshot: item.titleSnapshot,
+    pattern: item.pattern ? toCardItem(item.pattern) : null,
+    gap: item.gap,
   };
 }

@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { clearNotificationsFor } from "@/lib/community/notify";
 import { getPostStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { posts } from "@/lib/community/schema";
@@ -65,6 +66,7 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
   if (gate.error) return gate.error;
 
   await getDb().delete(posts).where(eq(posts.id, id));
+  await clearNotificationsFor({ targetType: "post", targetId: id });
   return Response.json({ ok: true });
 }
 

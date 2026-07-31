@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
-import { getUserByUsername, listPatternsByUser } from "@/lib/community/queries";
-import { toCardItem } from "@/lib/community/serialize";
+import { getUserByUsername, listDecksByUser, listPatternsByUser } from "@/lib/community/queries";
+import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
+import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
 import styles from "@/components/community/Community.module.css";
 
@@ -36,10 +37,14 @@ export default async function CommunityUserPage(props: RouteParams) {
   const profile = await getUserByUsername(username.toLowerCase());
   if (!profile) notFound();
 
-  const items = (await listPatternsByUser(profile.id)).map(toCardItem);
-
   const session = await getAuth().api.getSession({ headers: await headers() });
-  const isSelf = session?.user.id === profile.id;
+  const viewerId = session?.user.id ?? null;
+  const isSelf = viewerId === profile.id;
+
+  // The owner sees their whole archive, badges marking what is not public;
+  // visitors see the public rows only. Same rule for patterns and decks.
+  const items = (await listPatternsByUser(profile.id, viewerId)).map(toCardItem);
+  const deckItems = (await listDecksByUser(profile.id, viewerId)).map(toDeckCardItem);
 
   const handle = profile.displayUsername ?? profile.username;
   const hardwareReady = items.filter((item) => item.hasCpp).length;
@@ -86,9 +91,21 @@ export default async function CommunityUserPage(props: RouteParams) {
         </div>
       )}
 
+      {deckItems.length > 0 && (
+        <>
+          <h2 className={styles.profileSectionTitle}>Decks</h2>
+          <div className={styles.deckGrid}>
+            {deckItems.map((deck) => (
+              <DeckCard key={deck.id} deck={deck} />
+            ))}
+          </div>
+        </>
+      )}
+
       {isSelf && items.length > 0 && (
         <p className={styles.profileFootNote}>
-          Open any pattern to edit its details, attach a firmware header, or delete it.
+          Open any pattern to edit its details, attach a firmware header, or delete it. Patterns
+          marked unlisted or private are visible only to you here.
         </p>
       )}
     </div>

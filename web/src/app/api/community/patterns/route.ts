@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { notifyForkPublished } from "@/lib/community/notify";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
@@ -11,6 +12,7 @@ import {
   cleanMadeHow,
   cleanTitle,
 } from "@/lib/community/validate";
+import { cleanVisibility, forkBlocked } from "@/lib/community/visibility";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
@@ -84,6 +86,13 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Unknown \"made how\" value." }, { status: 400 });
   }
 
+  // Absent means public — the community works because things are shared. The
+  // quieter states are a choice made at the picker, not a silent default.
+  const visibility = raw.visibility === undefined ? "public" : cleanVisibility(raw.visibility);
+  if (!visibility) {
+    return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+  }
+
   // New work can only take a currently-offered licence (the retired ones stay
   // readable but are not selectable — see LICENSE_OPTIONS).
   const license =
@@ -96,6 +105,15 @@ async function handlePost(request: Request) {
   if (typeof raw.parentId === "string" && raw.parentId.length > 0) {
     parent = await getPatternStub(raw.parentId);
     parentId = parent?.id ?? null;
+  }
+
+  // A fork of a private pattern would bake a credit link that 404s for every
+  // reader (#255). The author forking their own private work is fine.
+  if (parent && forkBlocked(parent, session.user.id)) {
+    return Response.json(
+      { error: "That pattern is private — it cannot be forked." },
+      { status: 400 },
+    );
   }
 
   // A fork is a derivative: it cannot be published under looser terms than the
@@ -137,9 +155,20 @@ async function handlePost(request: Request) {
     license,
     madeHow,
     parentId,
+    visibility,
     createdAt: now,
     updatedAt: now,
   });
+
+  if (parent) {
+    await notifyForkPublished({
+      parentOwnerId: parent.userId,
+      parentTitle: parent.title,
+      forkId: id,
+      forkVisibility: visibility,
+      actorId: session.user.id,
+    });
+  }
 
   return Response.json({ id }, { status: 201 });
 }

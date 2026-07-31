@@ -1,13 +1,14 @@
 # The Community — how it works, and what it does not do yet
 
 The pattern community at [community.patternflow.work](https://community.patternflow.work/community):
-publishing, forking, comments, moderation, and the deck you build onto a board.
+publishing, forking, comments, moderation, shared decks, and the deck you build
+onto a board.
 
 This page is the map. It says what exists, why some of it is shaped the way it
 is, and — at the bottom — what is deliberately missing, so nobody has to read
 the source to find out.
 
-**Last reviewed:** 29 July 2026
+**Last reviewed:** 1 August 2026
 
 ---
 
@@ -52,6 +53,35 @@ changed, which would make the port a lie.
 postMessage protocol). That boundary is what makes "edit anyone's pattern in
 the browser with no account" safe. The sandbox duplicates the pattern harness
 on purpose — keep the two in step when the pattern contract changes.
+
+### Visibility
+
+Three states, chosen at publish time and changeable afterwards from the
+pattern's page:
+
+| State | In the feed | Reachable by link | Who can open it |
+| :--- | :--- | :--- | :--- |
+| Public (default) | yes | yes | everyone |
+| Unlisted | no | yes | anyone with the link |
+| Private | no | no | the author |
+
+Unlisted is the one that earns its keep: it is how you show someone a pattern
+before posting it — and how a pattern can sit in a shared deck without being
+in the feed. Publishing still defaults to public, because the community works
+by things being shared.
+
+Details that follow from it:
+
+- A **private pattern cannot be forked** by anyone but its author — a fork
+  bakes a credit link into its source, and that link would 404 for every
+  reader. Unlisted patterns fork normally.
+- A pattern that goes private **after** being forked keeps its credit in the
+  fork's source (that cannot be edited away), but the fork's "forked from"
+  line drops the link.
+- Moderators can still open anything: visibility is not a shield from a
+  report.
+- Every listing query filters on visibility. When adding a new read path,
+  start from `feedVisible` in `queries.ts` — a missed filter is a leak.
 
 ### Licences
 
@@ -156,6 +186,70 @@ Saving works on any pattern. Building does not — a pattern with no firmware
 header has nothing to compile, so promoting it is refused with the reason
 rather than sending an empty file to the compiler.
 
+### Shared decks
+
+The working deck above stays browser state. **Sharing one is an explicit act**
+("Share deck" in the Deck panel): it stores a titled snapshot of the ids and
+their order, and gets a page at `/community/d/[id]` plus a listing under the
+community's **Decks** tab. Decks take the same three visibility states as
+patterns.
+
+Two rules carry the design:
+
+- **Two public decks per account.** A curation policy, not a technical limit —
+  the deliberate opposite of the build cap. Publishing a deck spends one of two
+  slots, so a published deck is staked reputation rather than overflow storage:
+  a shelf you must ration is a shelf you curate. Private and unlisted decks are
+  not rationed. (`PUBLIC_DECKS_MAX` — raising it is easy; lowering it would
+  strand people over the limit, which is why it starts small.)
+- **No private patterns in a shared deck.** Unlisted ones are welcome — that is
+  the "in a deck but not in the feed" state working as intended.
+
+What follows from a deck being somebody's arrangement:
+
+- A slot whose pattern was deleted, or made private since, renders as a **gap**
+  with the title it had — never a silently shorter set.
+- Every slot renders the pattern's own card, author byline included. The deck
+  is the arrangement; the patterns stay their authors'.
+- "Copy to my deck" loads a shared deck into the working deck, order intact, so
+  a shared deck is a starting point rather than a read-only artifact.
+- **"In decks" is a feed sort**: it counts how many *other* people put a
+  pattern in a public deck (distinct people, own decks excluded). It ranks
+  better than likes because it costs one of somebody's two slots.
+- Decks are reportable and moderator-deletable like everything else, and the
+  build path is untouched: a copied deck builds exactly as the working deck
+  always has.
+
+---
+
+## Alerts
+
+In-app notifications — the header shows **Alerts (n)** while anything is
+unread, and `/community/notifications` lists them. Opening the page marks
+everything read.
+
+Four things produce one:
+
+| Event | Who hears about it |
+| :--- | :--- |
+| A comment on your pattern or post | you |
+| A comment on something you commented on earlier | everyone earlier in the thread |
+| Your pattern gets forked | you (private forks tell nobody — their page would 404) |
+| Your pattern enters someone's **public** deck | you (quieter decks tell nobody — the deck author chose not to list them) |
+
+The second row is what "reply to my comment" means on a flat thread — there is
+no comment threading, so participation in the thing is the unit.
+
+What it deliberately is not:
+
+- **Not email, not push.** Nothing leaves the site, ever — most accounts have
+  no real address, and the terms promise no mail. Delivery is the next page
+  load.
+- **Not a record.** The opposite of a report: deleting content deletes the
+  notifications about it, and the rest age out after 90 days, read or not.
+  Nobody is notified of their own actions, and repeat events (a deck flipping
+  visibility) are absorbed while the first row is unread.
+
 ---
 
 ## Data and retention
@@ -170,8 +264,9 @@ first).
 | Verification tokens | Until they expire |
 | Build artifacts and build rows | **30 days** — they can always be rebuilt |
 | Unreferenced artifact files | Swept after a 24-hour grace window |
+| Notifications | **90 days**, read or not — and gone sooner if their subject is deleted |
 | Reports | Kept after the reported content is gone |
-| Patterns, posts, comments | Until removed |
+| Patterns, decks, posts, comments | Until removed |
 
 Changing a retention period means changing the constant in
 `web/src/lib/community/retention.ts` **and** the terms. Both, or the terms stop
@@ -189,6 +284,8 @@ npm run check:license      # licence headers, fork compatibility, downloads
 npm run check:moderation   # admin env parsing, report input
 npm run check:retention    # the sweep, against a throwaway database
 npm run check:deck         # deck cap, ordering, legacy migration
+npm run check:sharing      # visibility read paths, shared-deck rules, gaps
+npm run check:notify       # notification fan-out, cleanup, age-out
 ```
 
 They exist for the failures that are silent. A sweep that deletes too little
@@ -203,11 +300,9 @@ Listed because "is this missing or am I holding it wrong" deserves an answer.
 
 | | Status |
 | :--- | :--- |
-| **Pattern visibility (public / private)** | Not built. Everything published is public immediately. Tracked as an issue. |
-| **Shareable decks** | Not built. A deck lives in one browser and cannot be sent to anyone. Tracked as an issue. |
-| **Tags and search** | Not built. The feed sorts by new / most liked / most forked, and filters for hardware-ready. |
+| **Tags and search** | Not built. The feed sorts by new / most liked / most forked / in decks, and filters for hardware-ready. |
 | **Self-serve account deletion** | Not built. Requests go to the address in the terms and are handled by hand. Published patterns are anonymised rather than removed — the licence granted is irrevocable and others may have built on them. |
-| **Email of any kind** | Not sent, ever. No verification, no notifications, no password-reset mail. |
+| **Email of any kind** | Not sent, ever. No verification, no notification, no password-reset mail — alerts exist only inside the site. |
 | **Approval queue for new patterns** | Not built, and not currently wanted — moderation is after the fact. |
 | **Lineage tree view** | Not built. A fork links to its parent; there is no graph. |
 

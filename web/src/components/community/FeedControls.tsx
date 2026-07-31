@@ -12,6 +12,9 @@ const SORTS = [
   { id: "new", label: "Newest" },
   { id: "top", label: "Most liked" },
   { id: "forks", label: "Most forked" },
+  // Counts distinct OTHER people whose published decks carry the pattern —
+  // harder to game than likes, since it costs a public deck slot.
+  { id: "decks", label: "In decks" },
 ] as const;
 
 export default function FeedControls({

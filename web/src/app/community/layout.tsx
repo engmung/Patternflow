@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/db";
-import { countOpenReports } from "@/lib/community/queries";
+import { countOpenReports, countUnreadNotifications } from "@/lib/community/queries";
 import AuthStatus from "@/components/community/AuthStatus";
 import CommunityNav from "@/components/community/CommunityNav";
 import DeckPanel from "@/components/community/DeckPanel";
@@ -55,6 +55,9 @@ export default async function CommunityLayout({ children }: { children: React.Re
   const session = await getAuth().api.getSession({ headers: await headers() });
   const isAdmin = isAdminSession(session);
   const openReports = isAdmin ? await countOpenReports() : 0;
+  // Read fresh on every page load — that is the whole notification system's
+  // idea of "delivery" on a server-rendered site.
+  const unread = session ? await countUnreadNotifications(session.user.id) : 0;
 
   return (
     <main className={styles.page}>
@@ -75,6 +78,16 @@ export default async function CommunityLayout({ children }: { children: React.Re
             <Link href="/pattern-lab" title="Open Pattern Lab editor">
               Pattern Lab ↗
             </Link>
+            {session && (
+              <Link
+                href="/community/notifications"
+                className={styles.notifyLink}
+                data-unread={unread > 0}
+                title="Comments on your work, forks, and decks your patterns joined"
+              >
+                Alerts{unread > 0 ? ` (${unread})` : ""}
+              </Link>
+            )}
             <AuthStatus />
           </nav>
         </header>

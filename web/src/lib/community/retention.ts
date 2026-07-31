@@ -3,7 +3,7 @@ import path from "node:path";
 import { lt, isNotNull, sql } from "drizzle-orm";
 import { artifactDir } from "./builds";
 import { getDb } from "./db";
-import { builds, session, verification } from "./schema";
+import { builds, notifications, session, verification } from "./schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Retention sweep.
@@ -25,6 +25,10 @@ export const SESSION_MAX_AGE_DAYS = 90;
 /** /terms §9 — build artifacts last 30 days. They can always be rebuilt. */
 export const BUILD_MAX_AGE_DAYS = 30;
 
+/** /terms §9 — notifications last 90 days, read or not. After that an unread
+ *  one is not waiting, it is clutter. */
+export const NOTIFICATION_MAX_AGE_DAYS = 90;
+
 /**
  * A file on disk with no row pointing at it is only an orphan once the worker
  * has certainly finished with it. Inside this window it may simply be a build
@@ -37,6 +41,7 @@ export type SweepResult = {
   oldSessions: number;
   expiredVerifications: number;
   oldBuilds: number;
+  oldNotifications: number;
   artifactFilesDeleted: number;
   orphanFilesDeleted: number;
   artifactBytesFreed: number;
@@ -49,6 +54,7 @@ export function describeSweep(result: SweepResult): string {
     `sessions: ${result.expiredSessions} expired, ${result.oldSessions} over ${SESSION_MAX_AGE_DAYS}d`,
     `verifications: ${result.expiredVerifications} expired`,
     `builds: ${result.oldBuilds} over ${BUILD_MAX_AGE_DAYS}d`,
+    `notifications: ${result.oldNotifications} over ${NOTIFICATION_MAX_AGE_DAYS}d`,
     `files: ${result.artifactFilesDeleted} artifacts + ${result.orphanFilesDeleted} orphans (${mb} MB)`,
   ].join(" · ");
 }
@@ -69,6 +75,7 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
     oldSessions: 0,
     expiredVerifications: 0,
     oldBuilds: 0,
+    oldNotifications: 0,
     artifactFilesDeleted: 0,
     orphanFilesDeleted: 0,
     artifactBytesFreed: 0,
@@ -107,6 +114,21 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
     result.expiredVerifications = rows.length;
   } catch (error) {
     result.errors.push(`verifications: ${String(error)}`);
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────────
+  // Disposable by design (see schema.ts): read or unread, ninety days is the
+  // whole shelf life. The content deletion routes already cleared anything
+  // pointing at removed things; this ages out the rest.
+  try {
+    const cutoff = new Date(now.getTime() - NOTIFICATION_MAX_AGE_DAYS * DAY_MS);
+    const rows = await db
+      .delete(notifications)
+      .where(lt(notifications.createdAt, cutoff))
+      .returning({ id: notifications.id });
+    result.oldNotifications = rows.length;
+  } catch (error) {
+    result.errors.push(`notifications: ${String(error)}`);
   }
 
   // ── Builds ─────────────────────────────────────────────────────────────────
@@ -191,12 +213,17 @@ export async function previewRetention(now = new Date()): Promise<{
   oldSessions: number;
   expiredVerifications: number;
   oldBuilds: number;
+  oldNotifications: number;
 }> {
   const db = getDb();
   const sessionCutoff = new Date(now.getTime() - SESSION_MAX_AGE_DAYS * DAY_MS);
   const buildCutoff = new Date(now.getTime() - BUILD_MAX_AGE_DAYS * DAY_MS);
+  const notificationCutoff = new Date(now.getTime() - NOTIFICATION_MAX_AGE_DAYS * DAY_MS);
 
-  const count = async (table: typeof session | typeof verification | typeof builds, where: ReturnType<typeof lt>) => {
+  const count = async (
+    table: typeof session | typeof verification | typeof builds | typeof notifications,
+    where: ReturnType<typeof lt>,
+  ) => {
     const rows = await db.select({ n: sql<number>`COUNT(*)` }).from(table).where(where);
     return rows[0]?.n ?? 0;
   };
@@ -206,5 +233,6 @@ export async function previewRetention(now = new Date()): Promise<{
     oldSessions: await count(session, lt(session.createdAt, sessionCutoff)),
     expiredVerifications: await count(verification, lt(verification.expiresAt, now)),
     oldBuilds: await count(builds, lt(builds.createdAt, buildCutoff)),
+    oldNotifications: await count(notifications, lt(notifications.createdAt, notificationCutoff)),
   };
 }

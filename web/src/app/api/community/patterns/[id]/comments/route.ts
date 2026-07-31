@@ -1,10 +1,12 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { notifyCommentAdded } from "@/lib/community/notify";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { comments } from "@/lib/community/schema";
 import { cleanComment } from "@/lib/community/validate";
+import { canView } from "@/lib/community/visibility";
 
 // POST /api/community/patterns/[id]/comments — add a comment (login required).
 // Comments are stored as plain text and escaped on output by React.
@@ -33,7 +35,8 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
 
   const { id: patternId } = await context.params;
   const pattern = await getPatternStub(patternId);
-  if (!pattern) {
+  // Private patterns take no drive-by interaction — same 404 as a missing row.
+  if (!pattern || !canView(pattern.visibility, pattern.userId, session.user.id)) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
 
@@ -49,12 +52,25 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: "Comment is empty or over 2000 chars." }, { status: 400 });
   }
 
+  // Fan-out reads the thread as it was BEFORE this insert, so the id is fixed
+  // first and the notify call comes after the row exists.
+  const commentId = newId();
   await getDb().insert(comments).values({
-    id: newId(),
+    id: commentId,
     patternId,
     userId: session.user.id,
     body: text,
     createdAt: new Date(),
+  });
+
+  await notifyCommentAdded({
+    on: "pattern",
+    targetId: patternId,
+    targetTitle: pattern.title,
+    ownerId: pattern.userId,
+    actorId: session.user.id,
+    commentId,
+    body: text,
   });
 
   return Response.json({ ok: true }, { status: 201 });

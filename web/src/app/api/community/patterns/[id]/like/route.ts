@@ -5,6 +5,7 @@ import { communityEnabled, getDb } from "@/lib/community/db";
 import { countLikes, getPatternStub, hasLiked } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { likes } from "@/lib/community/schema";
+import { canView } from "@/lib/community/visibility";
 
 // POST /api/community/patterns/[id]/like — toggle the viewer's like.
 // Reading like counts is free; liking is a save, so it needs a session.
@@ -33,7 +34,9 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
 
   const { id: patternId } = await context.params;
   const pattern = await getPatternStub(patternId);
-  if (!pattern) {
+  // A private pattern's page is only reachable by its owner, so anyone else
+  // arriving here is probing ids — same 404 as a missing row.
+  if (!pattern || !canView(pattern.visibility, pattern.userId, session.user.id)) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
 

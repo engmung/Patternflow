@@ -38,6 +38,11 @@ export type PatternCardItem = {
   forkCount: number;
   /** Ships a verified firmware header — flashable as-is. */
   hasCpp: boolean;
+  /** "public" | "unlisted" | "private" — a chip appears when not public,
+   *  which only ever happens on the owner's own profile. */
+  visibility: string;
+  /** Distinct other people whose public decks carry this pattern. */
+  deckCount: number;
 };
 
 export function formatDate(iso: string): string {
@@ -330,6 +335,18 @@ export default function PatternCard({
               .h
             </span>
           )}
+          {item.visibility !== "public" && (
+            <span
+              className={styles.visChip}
+              title={
+                item.visibility === "private"
+                  ? "Private — only you can open it"
+                  : "Unlisted — off the feed, anyone with the link"
+              }
+            >
+              {item.visibility}
+            </span>
+          )}
           {item.parentId && <span className={styles.forkChip}>fork</span>}
           {/* Only worth the space when it isn't the stock panel — that is the
               assumption a reader already has. */}
@@ -358,6 +375,11 @@ export default function PatternCard({
             {item.forkCount > 0 && (
               <span title={`Forked ${item.forkCount} times`}>
                 FRK {String(item.forkCount).padStart(2, "0")}
+              </span>
+            )}
+            {item.deckCount > 0 && (
+              <span title={`In ${item.deckCount} ${item.deckCount === 1 ? "person's" : "people's"} published decks`}>
+                DCK {String(item.deckCount).padStart(2, "0")}
               </span>
             )}
             <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>

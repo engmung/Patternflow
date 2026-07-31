@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { clearNotificationsFor } from "@/lib/community/notify";
 import { getPattern, getPatternStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
@@ -15,6 +16,7 @@ import {
   cleanMadeOn,
   cleanTitle,
 } from "@/lib/community/validate";
+import { cleanVisibility } from "@/lib/community/visibility";
 import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
 // PATCH /api/community/patterns/[id] — the author edits their own pattern.
@@ -64,6 +66,9 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
   }
 
   await getDb().delete(patterns).where(eq(patterns.id, id));
+  // Rows pointing at the pattern, and "deck took your pattern" rows triggered
+  // by it — a notification for something gone is noise, not a record.
+  await clearNotificationsFor({ targetType: "pattern", targetId: id, sourceId: id });
   return Response.json({ ok: true });
 }
 
@@ -159,6 +164,16 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     madeHow = next;
   }
 
+  // Going private leaves any published deck carrying this pattern with a gap
+  // at its position — deliberate: the author's withdrawal wins, and the deck
+  // page says what happened rather than silently closing the hole.
+  let visibility = pattern.visibility;
+  if (raw.visibility !== undefined) {
+    const next = cleanVisibility(raw.visibility);
+    if (!next) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+    visibility = next;
+  }
+
   // Compare the bodies with any licence wrapping removed, so re-saving without
   // touching the code isn't mistaken for a code change.
   let bareCode = stripShareWrapping(pattern.code);
@@ -218,6 +233,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
         basedOn: lineageFrom(parent),
       }),
       codeCpp,
+      visibility,
       updatedAt: new Date(),
     })
     .where(eq(patterns.id, id));

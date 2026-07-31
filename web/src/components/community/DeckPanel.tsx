@@ -21,6 +21,7 @@ import {
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
+import ShareDeckModal from "./ShareDeckModal";
 import styles from "./Community.module.css";
 
 // The deck and the saved list, in one panel.
@@ -57,6 +58,9 @@ export default function DeckPanel() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmEmpty, setConfirmEmpty] = useState(false);
+  // Sharing gets its own modal, opened with the panel closed — two stacked
+  // dialogs would fight over the overlay click.
+  const [shareOpen, setShareOpen] = useState(false);
   // Sign-in is asked for at the moment it is needed — building — and never for
   // looking at your own lists. Saving is a local bookmark; gating the panel on
   // an account would mean a signed-out visitor cannot see what they saved.
@@ -374,6 +378,17 @@ export default function DeckPanel() {
                             ? "Queueing…"
                             : `Build ${deck.length} module${deck.length === 1 ? "" : "s"}`}
                         </button>
+                        <button
+                          type="button"
+                          className={styles.btn}
+                          title="Publish this deck — its patterns and their order — as a page others can open and copy"
+                          onClick={() => {
+                            setOpen(false);
+                            setShareOpen(true);
+                          }}
+                        >
+                          Share deck
+                        </button>
                         <span className={styles.headerSpacer} />
                         {/* Two presses: a deck is cheap to rebuild but an
                             arranged one is not, and this sits next to the button
@@ -439,6 +454,8 @@ export default function DeckPanel() {
           </div>
         </div>
       )}
+
+      {shareOpen && <ShareDeckModal deck={deck} onClose={() => setShareOpen(false)} />}
     </>
   );
 }
