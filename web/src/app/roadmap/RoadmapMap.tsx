@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import styles from './Roadmap.module.css';
 import {
   EDGES,
   LANES,
   NODES,
   NOW,
+  todaySeoul,
   type LaneId,
   type RoadmapNode,
 } from './roadmap-data';
@@ -38,15 +39,43 @@ const ANCHORS: [number, number][] = [
   [Date.UTC(2026, 11, 1), 1.0],
 ];
 
-// No "Jul" tick — the today line sits right on it and marks July by itself.
-const TICKS: { label: string; labelKo: string; utc: number }[] = [
-  { label: 'Jan', labelKo: '1월', utc: Date.UTC(2026, 0, 1) },
-  { label: 'Feb', labelKo: '2월', utc: Date.UTC(2026, 1, 1) },
-  { label: 'Mar', labelKo: '3월', utc: Date.UTC(2026, 2, 1) },
-  { label: 'Apr', labelKo: '4월', utc: Date.UTC(2026, 3, 1) },
-  { label: 'May', labelKo: '5월', utc: Date.UTC(2026, 4, 1) },
-  { label: 'Jun', labelKo: '6월', utc: Date.UTC(2026, 5, 1) },
+const MONTHS: [string, string][] = [
+  ['Jan', '1월'],
+  ['Feb', '2월'],
+  ['Mar', '3월'],
+  ['Apr', '4월'],
+  ['May', '5월'],
+  ['Jun', '6월'],
+  ['Jul', '7월'],
+  ['Aug', '8월'],
+  ['Sep', '9월'],
+  ['Oct', '10월'],
+  ['Nov', '11월'],
+  ['Dec', '12월'],
 ];
+
+const isoDay = (utc: number) => new Date(utc).toISOString().slice(0, 10);
+
+// A month gets a tick once the today line has moved far enough past it that the
+// label and the line don't sit on top of each other — so the current month
+// still gets labelled late in the month, but not on the 2nd.
+const TICK_CLEARANCE = 0.03;
+
+function ticksFor(today: string): { label: string; labelKo: string; utc: number }[] {
+  const nowT = dateToT(today);
+  return MONTHS.map(([label, labelKo], i) => ({
+    label,
+    labelKo,
+    utc: Date.UTC(2026, i, 1),
+  })).filter((tick) => nowT - dateToT(isoDay(tick.utc)) >= TICK_CLEARANCE);
+}
+
+// The today line reads the real Seoul date on the client and the NOW fallback
+// on the server, so it tracks the calendar without a hydration mismatch. The
+// date only has to be read once per mount, hence the no-op subscribe; both
+// snapshots return plain strings, so Object.is keeps the value stable.
+const noopSubscribe = () => () => {};
+const serverToday = () => NOW;
 
 function dateToT(date: string): number {
   const ms = new Date(`${date}T00:00:00Z`).getTime();
@@ -113,7 +142,13 @@ function layoutNodes(detailed: boolean, lang: 'ko' | 'en', containerW: number): 
   });
   let maxRight = GUTTER + innerW + RIGHT_PAD;
   for (const lane of LANES) {
-    const row = placed.filter((n) => n.lane === lane.id).sort((a, b) => a.x - b.x);
+    // Order by date, not by left edge: nodes are centered on their date, so a
+    // wide box a couple of days later can start further left than a narrow one
+    // and get resolved into the wrong order — on a timeline that reads as the
+    // events having happened in the wrong sequence.
+    const row = placed
+      .filter((n) => n.lane === lane.id)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     for (let i = 1; i < row.length; i += 1) {
       const prev = row[i - 1];
       const current = row[i];
@@ -137,6 +172,7 @@ export default function RoadmapMap() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [canvasSize, setCanvasSize] = useState({ w: 1200, h: 700 });
+  const today = useSyncExternalStore(noopSubscribe, todaySeoul, serverToday);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({
@@ -182,10 +218,12 @@ export default function RoadmapMap() {
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const selected = selectedId ? byId.get(selectedId) ?? null : null;
 
-  const nowX = GUTTER + dateToT(NOW) * innerW;
+  const nowX = GUTTER + dateToT(today) * innerW;
+  const ticks = useMemo(() => ticksFor(today), [today]);
 
   // Start with "today" around the right third of the viewport so both the
   // recent past and the future zone are visible on load; center vertically.
+  // Re-runs once when the real date replaces the SSR fallback.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -196,7 +234,7 @@ export default function RoadmapMap() {
       y: Math.round((ch - HEIGHT) / 2),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [today]);
 
   const gate = useMemo(() => {
     const gateNodes = nodes.filter((n) => n.gate);
@@ -461,9 +499,9 @@ export default function RoadmapMap() {
             />
 
             {/* Infinite Seamless Vertical Month Ticks */}
-            {TICKS.map((tick) => {
+            {ticks.map((tick) => {
               const x =
-                GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
+                GUTTER + dateToT(isoDay(tick.utc)) * innerW;
               return (
                 <line
                   key={`grid-line-${tick.label}`}
@@ -608,9 +646,9 @@ export default function RoadmapMap() {
               {lang === 'ko' ? '계획' : 'future'}
             </text>
 
-            {TICKS.map((tick) => {
+            {ticks.map((tick) => {
               const x =
-                GUTTER + dateToT(new Date(tick.utc).toISOString().slice(0, 10)) * innerW;
+                GUTTER + dateToT(isoDay(tick.utc)) * innerW;
               return (
                 <text key={`tick-text-${tick.label}`} className={styles.tickText} x={x} y={stickyHeaderY} textAnchor="middle">
                   {lang === 'ko' ? tick.labelKo : tick.label}
