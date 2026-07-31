@@ -1,5 +1,8 @@
 #pragma once
-#include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+// Vendored HUB75 driver (src/hub75/), not the Library Manager copy: it
+// carries one addition, blitRGB888(), that upstream has no equivalent for.
+// See src/hub75/VENDORED.md.
+#include "hub75/ESP32-HUB75-MatrixPanel-I2S-DMA.h"
 #include "config.h"
 
 // 메인 .ino에서 생성할 디스플레이 객체를 모든 패턴에서 접근할 수 있게 열어둠
