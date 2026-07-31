@@ -2283,3 +2283,79 @@
   font-weight: 500;
   color: var(--pf-ink);
 }
+
+/* ── Alerts ──
+   Delivery is the next page load — no polling, no sockets. The header link
+   turns LED-orange while anything is unread, and goes quiet again. */
+
+.notifyLink[data-unread="true"] {
+  color: var(--pf-led);
+}
+
+.notifyList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 720px;
+}
+
+.notifyRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--pf-rule-soft);
+  text-decoration: none;
+  color: var(--pf-ink);
+}
+
+.notifyRow:hover {
+  background: rgba(20, 20, 20, 0.03);
+}
+
+/* The unread marker keeps its place when read, so rows do not shift as the
+   visit marks them — it just empties. */
+.notifyMark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  align-self: center;
+  border: 1px solid transparent;
+}
+
+.notifyRow[data-unread="true"] .notifyMark {
+  background: var(--pf-led);
+  border-color: var(--pf-led);
+}
+
+.notifyBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notifySentence {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notifySentence strong {
+  font-weight: 500;
+}
+
+.notifySnippet {
+  font-size: 12.5px;
+  color: var(--pf-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifyDate {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pf-ink-faint);
+}

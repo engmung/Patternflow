@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { clearNotificationsFor } from "@/lib/community/notify";
 import { getCommentStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { comments, postComments } from "@/lib/community/schema";
@@ -117,5 +118,7 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
 
   const table = on === "pattern" ? comments : postComments;
   await getDb().delete(table).where(eq(table.id, id));
+  // The notifications this comment caused go with it.
+  await clearNotificationsFor({ sourceId: id });
   return Response.json({ ok: true });
 }

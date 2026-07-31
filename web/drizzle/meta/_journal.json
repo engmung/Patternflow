@@ -71,6 +71,13 @@
       "when": 1785535849348,
       "tag": "0009_add-visibility-and-decks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1785537782506,
+      "tag": "0010_add-notifications",
+      "breakpoints": true
     }
   ]
 }

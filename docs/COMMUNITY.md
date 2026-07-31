@@ -222,6 +222,36 @@ What follows from a deck being somebody's arrangement:
 
 ---
 
+## Alerts
+
+In-app notifications — the header shows **Alerts (n)** while anything is
+unread, and `/community/notifications` lists them. Opening the page marks
+everything read.
+
+Four things produce one:
+
+| Event | Who hears about it |
+| :--- | :--- |
+| A comment on your pattern or post | you |
+| A comment on something you commented on earlier | everyone earlier in the thread |
+| Your pattern gets forked | you (private forks tell nobody — their page would 404) |
+| Your pattern enters someone's **public** deck | you (quieter decks tell nobody — the deck author chose not to list them) |
+
+The second row is what "reply to my comment" means on a flat thread — there is
+no comment threading, so participation in the thing is the unit.
+
+What it deliberately is not:
+
+- **Not email, not push.** Nothing leaves the site, ever — most accounts have
+  no real address, and the terms promise no mail. Delivery is the next page
+  load.
+- **Not a record.** The opposite of a report: deleting content deletes the
+  notifications about it, and the rest age out after 90 days, read or not.
+  Nobody is notified of their own actions, and repeat events (a deck flipping
+  visibility) are absorbed while the first row is unread.
+
+---
+
 ## Data and retention
 
 Written into the [terms](https://patternflow.work/terms), and enforced by a
@@ -234,6 +264,7 @@ first).
 | Verification tokens | Until they expire |
 | Build artifacts and build rows | **30 days** — they can always be rebuilt |
 | Unreferenced artifact files | Swept after a 24-hour grace window |
+| Notifications | **90 days**, read or not — and gone sooner if their subject is deleted |
 | Reports | Kept after the reported content is gone |
 | Patterns, decks, posts, comments | Until removed |
 
@@ -254,6 +285,7 @@ npm run check:moderation   # admin env parsing, report input
 npm run check:retention    # the sweep, against a throwaway database
 npm run check:deck         # deck cap, ordering, legacy migration
 npm run check:sharing      # visibility read paths, shared-deck rules, gaps
+npm run check:notify       # notification fan-out, cleanup, age-out
 ```
 
 They exist for the failures that are silent. A sweep that deletes too little
@@ -270,7 +302,7 @@ Listed because "is this missing or am I holding it wrong" deserves an answer.
 | :--- | :--- |
 | **Tags and search** | Not built. The feed sorts by new / most liked / most forked / in decks, and filters for hardware-ready. |
 | **Self-serve account deletion** | Not built. Requests go to the address in the terms and are handled by hand. Published patterns are anonymised rather than removed — the licence granted is irrevocable and others may have built on them. |
-| **Email of any kind** | Not sent, ever. No verification, no notifications, no password-reset mail. |
+| **Email of any kind** | Not sent, ever. No verification, no notification, no password-reset mail — alerts exist only inside the site. |
 | **Approval queue for new patterns** | Not built, and not currently wanted — moderation is after the fact. |
 | **Lineage tree view** | Not built. A fork links to its parent; there is no graph. |
 

@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { notifyCommentAdded } from "@/lib/community/notify";
 import { getPostStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { postComments } from "@/lib/community/schema";
@@ -51,12 +52,23 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: "Comment is empty or over 2000 chars." }, { status: 400 });
   }
 
+  const commentId = newId();
   await getDb().insert(postComments).values({
-    id: newId(),
+    id: commentId,
     postId,
     userId: session.user.id,
     body: text,
     createdAt: new Date(),
+  });
+
+  await notifyCommentAdded({
+    on: "post",
+    targetId: postId,
+    targetTitle: post.title,
+    ownerId: post.userId,
+    actorId: session.user.id,
+    commentId,
+    body: text,
   });
 
   return Response.json({ ok: true }, { status: 201 });

@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { notifyForkPublished } from "@/lib/community/notify";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
@@ -158,6 +159,16 @@ async function handlePost(request: Request) {
     createdAt: now,
     updatedAt: now,
   });
+
+  if (parent) {
+    await notifyForkPublished({
+      parentOwnerId: parent.userId,
+      parentTitle: parent.title,
+      forkId: id,
+      forkVisibility: visibility,
+      actorId: session.user.id,
+    });
+  }
 
   return Response.json({ id }, { status: 201 });
 }

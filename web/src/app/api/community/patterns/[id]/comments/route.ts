@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { notifyCommentAdded } from "@/lib/community/notify";
 import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { comments } from "@/lib/community/schema";
@@ -51,12 +52,25 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: "Comment is empty or over 2000 chars." }, { status: 400 });
   }
 
+  // Fan-out reads the thread as it was BEFORE this insert, so the id is fixed
+  // first and the notify call comes after the row exists.
+  const commentId = newId();
   await getDb().insert(comments).values({
-    id: newId(),
+    id: commentId,
     patternId,
     userId: session.user.id,
     body: text,
     createdAt: new Date(),
+  });
+
+  await notifyCommentAdded({
+    on: "pattern",
+    targetId: patternId,
+    targetTitle: pattern.title,
+    ownerId: pattern.userId,
+    actorId: session.user.id,
+    commentId,
+    body: text,
   });
 
   return Response.json({ ok: true }, { status: 201 });

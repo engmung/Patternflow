@@ -5,6 +5,7 @@ import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
+import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/notify";
 import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { deckPatterns, decks } from "@/lib/community/schema";
@@ -52,6 +53,7 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
   // The join rows cascade; the patterns inside belong to their authors and
   // are untouched.
   await getDb().delete(decks).where(eq(decks.id, id));
+  await clearNotificationsFor({ targetType: "deck", targetId: id });
   return Response.json({ ok: true });
 }
 
@@ -133,18 +135,20 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
 
   const db = getDb();
 
+  // The list as it stands — the fallback when no replacement came, and the
+  // baseline for "which patterns are NEW here" when one did.
+  const currentIds = (
+    await db
+      .select({ patternId: deckPatterns.patternId })
+      .from(deckPatterns)
+      .where(eq(deckPatterns.deckId, id))
+  ).map((row) => row.patternId);
+
   // Whatever list the deck ends up with has to be allowed at the visibility it
   // ends up at. A replaced list is checked strictly; for a visibility-only
   // change the rows that still exist are checked and gaps stay gaps — a deck
   // is not held hostage by a pattern its author already deleted.
-  const effectiveIds =
-    patternIds ??
-    (
-      await db
-        .select({ patternId: deckPatterns.patternId })
-        .from(deckPatterns)
-        .where(eq(deckPatterns.deckId, id))
-    ).map((row) => row.patternId);
+  const effectiveIds = patternIds ?? currentIds;
   const rows = await getPatternsForDeck(effectiveIds);
   const byId = new Map(rows.map((row) => [row.id, row]));
   for (const patternId of effectiveIds) {
@@ -186,6 +190,30 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
         titleSnapshot: byId.get(patternId)?.title ?? "",
       })),
     );
+  }
+
+  // A deck that just became public announces its whole running order to the
+  // pattern authors; one already public announces only what was added. A
+  // title edit announces nothing, and notifyDeckInclusion's unread guard
+  // absorbs visibility flip-flopping.
+  if (visibility === "public") {
+    const wasPublic = deck.visibility === "public";
+    const announceIds = !wasPublic
+      ? effectiveIds
+      : patternIds
+        ? patternIds.filter((patternId) => !currentIds.includes(patternId))
+        : [];
+    const announce = announceIds
+      .map((patternId) => byId.get(patternId))
+      .filter((pattern): pattern is NonNullable<typeof pattern> => Boolean(pattern));
+    if (announce.length > 0) {
+      await notifyDeckInclusion({
+        deckId: id,
+        deckTitle: title,
+        actorId: session.user.id,
+        patterns: announce,
+      });
+    }
   }
 
   return Response.json({ ok: true });

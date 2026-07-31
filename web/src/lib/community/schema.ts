@@ -307,6 +307,65 @@ export const builds = sqliteTable(
   ],
 );
 
+// ── Notifications ────────────────────────────────────────────────────────────
+// In-app only, by policy: no email is ever sent (most accounts have none), and
+// nothing here is real-time — the badge is read on the next page load, which
+// is what a server-rendered site can promise honestly.
+//
+// A notification is DISPOSABLE — the deliberate opposite of a report. Reports
+// must outlive what they point at; a notification pointing at something gone
+// is pure noise, so content deletion routes clear these explicitly, and the
+// retention sweep ages the rest out (NOTIFICATION_MAX_AGE_DAYS).
+
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    /** Recipient. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * What happened:
+     *   "comment" — on something the recipient made
+     *   "thread"  — on something the recipient commented on earlier
+     *   "fork"    — their pattern was forked
+     *   "deck"    — their pattern entered someone's public deck
+     */
+    type: text("type").notNull(),
+    /** Who did it. Cascades: a deleted account takes its acts with it. */
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * Where clicking goes: "pattern" | "post" | "deck". No foreign key — the
+     * types share one column — so the delete routes clear matching rows
+     * themselves, and the read path drops anything that slipped through.
+     */
+    targetType: text("target_type").notNull(),
+    targetId: text("target_id").notNull(),
+    /** Title at event time — the row reads without a join. */
+    targetTitle: text("target_title").notNull(),
+    /**
+     * The specific thing that triggered the row — a comment's id, or for
+     * "deck" the pattern that was included. The precise cleanup key: when
+     * that thing is deleted, rows carrying its id here go with it.
+     */
+    sourceId: text("source_id"),
+    /** Display extra: a comment's first line, or the pattern a deck took. */
+    snippet: text("snippet"),
+    readAt: integer("read_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    // The badge (unread count) and the list both start from the recipient.
+    index("notifications_user_created_idx").on(table.userId, table.createdAt),
+    // Cleanup paths: by deleted content, and by deleted source.
+    index("notifications_target_idx").on(table.targetType, table.targetId),
+    index("notifications_source_idx").on(table.sourceId),
+  ],
+);
+
 // ── Moderation ───────────────────────────────────────────────────────────────
 // A report is a record, not a pointer. `targetId` and `targetUserId` carry NO
 // foreign key on purpose: the whole reason to keep reports is to see that the

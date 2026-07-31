@@ -3,6 +3,7 @@ import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
+import { notifyDeckInclusion } from "@/lib/community/notify";
 import { countPublicDecksByUser, getPatternsForDeck, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { deckPatterns, decks } from "@/lib/community/schema";
@@ -123,6 +124,17 @@ async function handlePost(request: Request) {
       titleSnapshot: byId.get(patternId)?.title ?? "",
     })),
   );
+
+  // Tell each pattern's author their work made someone's public shelf — the
+  // same act the feed's "in decks" sort counts. Quieter decks tell nobody.
+  if (visibility === "public") {
+    await notifyDeckInclusion({
+      deckId: id,
+      deckTitle: title,
+      actorId: session.user.id,
+      patterns: rows,
+    });
+  }
 
   return Response.json({ id }, { status: 201 });
 }

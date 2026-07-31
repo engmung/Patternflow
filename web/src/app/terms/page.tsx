@@ -183,6 +183,11 @@ export default function TermsPage() {
               <strong>What you publish</strong> — patterns, decks, comments, posts, likes, and
               firmware build requests.
             </li>
+            <li>
+              <strong>Alerts</strong> — a note when someone comments on your work, forks a pattern
+              of yours, or puts one in a public deck. Shown only inside the site; nothing is ever
+              emailed.
+            </li>
           </ul>
 
           <h3>How long we keep it</h3>
@@ -194,6 +199,10 @@ export default function TermsPage() {
             <li>
               <strong>Firmware build artifacts</strong> — <strong>30 days</strong>. They can always
               be rebuilt.
+            </li>
+            <li>
+              <strong>Alerts</strong> — <strong>90 days</strong>, read or unread, and sooner when
+              what they point at is deleted.
             </li>
             <li>
               <strong>Account and published content</strong> — until you remove them, subject to

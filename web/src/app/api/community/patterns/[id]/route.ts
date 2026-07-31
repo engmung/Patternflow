@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { clearNotificationsFor } from "@/lib/community/notify";
 import { getPattern, getPatternStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
@@ -65,6 +66,9 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
   }
 
   await getDb().delete(patterns).where(eq(patterns.id, id));
+  // Rows pointing at the pattern, and "deck took your pattern" rows triggered
+  // by it — a notification for something gone is noise, not a record.
+  await clearNotificationsFor({ targetType: "pattern", targetId: id, sourceId: id });
   return Response.json({ ok: true });
 }
 
