@@ -195,31 +195,33 @@ constexpr float EULER      = 2.71828182845904523536f;
 // blues from collapsing into black. WB gain trims R and G a touch so
 // pure-white whites land closer to D65 instead of warm pink.
 //
-// MEASURED, and worth knowing before you touch anything below: the DRIVER
-// already applies a CIE1931 curve of its own (lumConvTab, effective exponent
-// ~2.44). Everything here lands ON TOP of that, so the two stack.
+// These are PASSTHROUGH: the device adds nothing of its own to the colour a
+// pattern asked for. That is the standard pipeline, not an absence of one —
+// editor colours are sRGB, the panel is linear PWM, and the HUB75 driver
+// already applies exactly that conversion (lumConvTab, a CIE1931 curve of
+// effective exponent ~2.44). Anything set here stacks on top of it.
 //
-//   input   driver alone   driver + the values below
+// It used to: gamma 2.5/2.4/2.2 with a 0.92 white-balance gain. Measured end
+// to end, that put the panel here —
+//
+//   input   driver alone   driver + the old values
 //     64        4.4 %              0.3 %
 //    128       18.6 %              2.2 %
 //    192       48.7 %             14.6 %
 //    255      100.0 %             81.1 %
 //
-// Effective exponent 5.5, and the 0.92 WB gain caps white at 81 % — a fifth of
-// the panel's brightness given away. Greys are not dim by accident; they are
-// being crushed twice.
+// — an effective exponent of 5.5, with white capped at 81 %. Greys were not
+// dim by accident; they were being crushed twice, and a fifth of the panel's
+// brightness was being thrown away. Those values predate Pattern Lab being
+// able to set colour precisely, and were written believing the driver did no
+// curve of its own.
 //
-// Setting all three gammas and all three WB gains to 1.0 is not a hack, it is
-// the standard pipeline: editor colours are sRGB, the panel is linear PWM, and
-// the driver's curve is exactly that conversion. Tried on hardware — greys read
-// correctly and the preset library still looks right, though everything reads
-// brighter, which is a BRIGHTNESS question (DEFAULT_BRIGHTNESS, or K1 longpress)
-// and not a gamma one. Left at the old values here only because nobody has
-// settled on the replacement numbers yet.
-//
-// If you are the one to settle it: change brightness for overall level,
-// saturation for highlights collapsing to white, WB for a colour cast. Gamma is
-// the driver's job and almost never yours.
+// STILL OPEN, and deliberately left to whoever wants it: the fine tuning on
+// top of this baseline. Nobody has chosen numbers for it. If that is you —
+// change DEFAULT_BRIGHTNESS for overall level (it scales PWM without bending
+// colour), LED_SAT_BOOST if highlights collapse toward white, LED_WB_* for a
+// colour cast. Gamma is the driver's job and almost never yours: putting a
+// curve back here is how the stack above happened.
 
 // OPEN: matching panel colour to a monitor properly.
 // Per-channel gain is an approximation. The real difference is that the LED
@@ -234,23 +236,23 @@ constexpr float EULER      = 2.71828182845904523536f;
 // Worth doing once a production panel batch is fixed, not before — measure a
 // panel you will not be replacing.
 
-// To revert to the previous behavior, set all three gammas to 2.4,
-// all three WB gains to 1.0, and saturation boost to 1.0.
+// To get the pre-2026-07 look back: gammas 2.5/2.4/2.2, WB 0.92/0.92/1.0,
+// saturation 1.10. It is darker and dimmer, not more correct.
 #ifndef LED_GAMMA_R
-#define LED_GAMMA_R 2.5f
+#define LED_GAMMA_R 1.0f
 #endif
 #ifndef LED_GAMMA_G
-#define LED_GAMMA_G 2.4f
+#define LED_GAMMA_G 1.0f
 #endif
 #ifndef LED_GAMMA_B
-#define LED_GAMMA_B 2.2f
+#define LED_GAMMA_B 1.0f
 #endif
 
 #ifndef LED_WB_R
-#define LED_WB_R 0.92f
+#define LED_WB_R 1.00f
 #endif
 #ifndef LED_WB_G
-#define LED_WB_G 0.92f
+#define LED_WB_G 1.00f
 #endif
 #ifndef LED_WB_B
 #define LED_WB_B 1.00f
@@ -260,7 +262,7 @@ constexpr float EULER      = 2.71828182845904523536f;
 // (mathematically a no-op when r==g==b), saturated colors get pulled
 // further away from gray. 1.10 = +10%; 1.0 disables.
 #ifndef LED_SAT_BOOST
-#define LED_SAT_BOOST 1.10f
+#define LED_SAT_BOOST 1.00f
 #endif
 
 // --- Network features (Wi-Fi, OTA, OSC, audio-react) ---
