@@ -32,6 +32,15 @@
 #ifndef PF_WIFI_PASS
 #define PF_WIFI_PASS "YOUR_WIFI_PASSWORD"
 #endif
+// ⚠️ If an RF conformance test fails on output power / EIRP:
+// nothing here sets the transmit power, so the radio runs at the ESP32
+// default of 19.5 dBm — the maximum. With the WROOM-1 antenna's gain that
+// can sit at or over the EU 20 dBm EIRP limit. The knob is
+// WiFi.setTxPower(WIFI_POWER_17dBm) in core_wifi.h after the join; ~17 dBm
+// buys margin for roughly a quarter of the range. Take the number from the
+// test report, not from a guess. (This is the RADIO test — for EMC, see the
+// note in core_display.h; Wi-Fi power is almost irrelevant there.)
+
 // Wi-Fi is non-blocking (see core_wifi.h): boot never waits for the join.
 // While disconnected, core_wifi.h re-issues WiFi.begin() at this interval
 // until it links up.

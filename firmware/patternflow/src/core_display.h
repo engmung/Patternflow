@@ -25,6 +25,16 @@ inline void initDisplay() {
   // effective color depth (8-bit → 6–7 bit) to hit the target rate,
   // which can introduce mild banding in long smooth gradients. Dial
   // min_refresh_rate down to ~180 if banding is noticeable.
+  //
+  // ⚠️ If an EMC radiated-emissions test fails: this 15 MHz clock and its
+  // harmonics, streamed continuously down the HUB75 ribbon, are the loudest
+  // thing in the product — far louder than Wi-Fi, which is a separate test
+  // entirely. HZ_10M drops the fundamental and every harmonic with it.
+  // It is NOT free: at a lower clock the library either sheds bit-planes to
+  // hold 240 Hz (banding in the gradients these patterns are made of) or
+  // keeps the depth and lets refresh fall (camera banding returns on video).
+  // Try the cheap fixes first — ferrite on the ribbon, shorter ribbon,
+  // routing, grounding — and come here only if a pre-scan says to.
   mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;
   mxconfig.min_refresh_rate = 240;
   mxconfig.latch_blanking   = 2;
