@@ -2124,3 +2124,162 @@
   display: flex;
   gap: 8px;
 }
+
+/* ── Visibility ──
+   Same visual family as .frameChip (outlined mono micro-label), muted rather
+   than alarming: unlisted/private are states the owner chose, not warnings.
+   Only ever rendered when not public, so the feed never shows it. */
+.visChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+  border: 1px dashed rgba(20, 20, 20, 0.4);
+  border-radius: 0;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* ── Shared decks ── */
+
+.decksPage,
+.deckPage {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 80px;
+}
+
+/* Same rhythm as the profile grid; a deck card is wider than a pattern card
+   because it carries a strip, not a single screen. */
+.deckGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+}
+
+.deckCard {
+  display: block;
+  border: 1px solid rgba(20, 20, 20, 0.18);
+  border-radius: 0;
+  background: #ffffff;
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.deckCard:hover {
+  border-color: rgba(20, 20, 20, 0.55);
+}
+
+/* First patterns in running order, left to right — the card IS the order. */
+.deckStrip {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  background: #09090b;
+}
+
+.deckStripSlot {
+  aspect-ratio: 1 / 2;
+  position: relative;
+  background: #09090b;
+  overflow: hidden;
+}
+
+.deckStripEmpty {
+  grid-column: 1 / -1;
+  aspect-ratio: 3 / 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--pf-ink-faint);
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+}
+
+.deckStripMore {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: #ffffff;
+  background: rgba(9, 9, 11, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 1px 6px;
+}
+
+/* The deck page's running order: numbered slots, wrapping like the profile
+   grid. The number sits above the card, not on it — it belongs to the deck,
+   not to the pattern. */
+.deckSlots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.deckSlot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.deckSlotIndex {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: var(--pf-ink-faint);
+}
+
+/* A slot whose pattern is gone. The deck keeps the position and the name —
+   the arrangement is the deck author's work; the pattern was its author's. */
+.deckGap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 200px;
+  border: 1px dashed rgba(20, 20, 20, 0.35);
+  padding: 16px;
+  text-align: center;
+}
+
+.deckGapTitle {
+  font-size: 14px;
+  color: var(--pf-ink-muted);
+  text-decoration: line-through;
+}
+
+.deckGapReason {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
+.deckVisControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--pf-ink-muted);
+}
+
+.profileSectionTitle {
+  margin: 34px 0 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--pf-ink);
+}

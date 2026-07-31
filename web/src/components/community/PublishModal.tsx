@@ -12,6 +12,12 @@ import {
   type MadeHow,
 } from "@/lib/community/validate";
 import {
+  VISIBILITY_HINTS,
+  VISIBILITY_LABELS,
+  VISIBILITY_VALUES,
+  type Visibility,
+} from "@/lib/community/visibility";
+import {
   DEFAULT_LICENSE_ID,
   LICENSE_OPTIONS,
   forkLicenseOptions,
@@ -57,6 +63,9 @@ export default function PublishModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [madeHow, setMadeHow] = useState<MadeHow>("ai-assisted");
+  // Public by default — the feed is the point. The quieter states are for
+  // work in progress (private) and "look before I post it" (unlisted).
+  const [visibility, setVisibility] = useState<Visibility>("public");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -93,6 +102,7 @@ export default function PublishModal({
           codeCpp: codeCpp ?? undefined,
           license: licenseById(licenseId).spdx,
           madeHow,
+          visibility,
           parentId,
         }),
       });
@@ -204,6 +214,24 @@ export default function PublishModal({
               </span>
             </label>
 
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Who can see it?</span>
+              <select
+                value={visibility}
+                onChange={(event) => setVisibility(event.target.value as Visibility)}
+              >
+                {VISIBILITY_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {VISIBILITY_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+              <span className={styles.fieldHint}>
+                {VISIBILITY_HINTS[visibility]}
+                {visibility !== "public" && " You can change this any time from the pattern's page."}
+              </span>
+            </label>
+
             {error && <div className={styles.formError}>{error}</div>}
 
             <button
@@ -212,7 +240,13 @@ export default function PublishModal({
               disabled={busy}
               onClick={() => void publish()}
             >
-              {busy ? "Publishing…" : "Publish to feed"}
+              {busy
+                ? "Publishing…"
+                : visibility === "public"
+                  ? "Publish to feed"
+                  : visibility === "unlisted"
+                    ? "Publish unlisted"
+                    : "Save privately"}
             </button>
           </div>
         )}

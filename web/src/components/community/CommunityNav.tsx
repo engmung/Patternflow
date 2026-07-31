@@ -17,6 +17,12 @@ const SECTIONS = [
       path === "/community" || path.startsWith("/community/p/") || path.startsWith("/community/u/"),
   },
   {
+    href: "/community/decks",
+    label: "Decks",
+    match: (path: string) =>
+      path.startsWith("/community/decks") || path.startsWith("/community/d/"),
+  },
+  {
     href: "/community/discussions",
     label: "Discussions",
     match: (path: string) => path.startsWith("/community/discussions"),

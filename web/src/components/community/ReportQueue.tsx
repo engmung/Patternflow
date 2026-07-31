@@ -23,6 +23,7 @@ export type ReportView = {
 function targetHref(type: string, id: string): string | null {
   if (type === "pattern") return `/community/p/${id}`;
   if (type === "post") return `/community/discussions/${id}`;
+  if (type === "deck") return `/community/d/${id}`;
   return null; // a comment has no page of its own
 }
 

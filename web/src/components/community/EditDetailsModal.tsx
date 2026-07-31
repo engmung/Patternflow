@@ -12,6 +12,13 @@ import {
 import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/sharePattern";
 import { captureEvent } from "@/lib/posthogEvents";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import {
+  VISIBILITY_HINTS,
+  VISIBILITY_LABELS,
+  VISIBILITY_VALUES,
+  cleanVisibility,
+  type Visibility,
+} from "@/lib/community/visibility";
 import styles from "./Community.module.css";
 
 // Author-only: edit the pattern's title, description and licence. Saving
@@ -25,6 +32,7 @@ export default function EditDetailsModal({
   initialLicense,
   initialMadeOn,
   initialMadeHow,
+  initialVisibility,
   parentLicense,
   onClose,
 }: {
@@ -34,6 +42,7 @@ export default function EditDetailsModal({
   initialLicense: string; // SPDX
   initialMadeOn: string | null; // YYYY-MM-DD
   initialMadeHow: string | null;
+  initialVisibility: string;
   /** Parent's SPDX id when this pattern is a fork — narrows what it may become. */
   parentLicense?: string | null;
   onClose: () => void;
@@ -45,6 +54,9 @@ export default function EditDetailsModal({
   const [madeOn, setMadeOn] = useState(initialMadeOn ?? "");
   const [madeHow, setMadeHow] = useState<MadeHow | "">(
     (initialMadeHow as MadeHow | null) ?? "",
+  );
+  const [visibility, setVisibility] = useState<Visibility>(
+    cleanVisibility(initialVisibility) ?? "public",
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -75,7 +87,7 @@ export default function EditDetailsModal({
         method: "PATCH",
         ...COMMUNITY_FETCH_INIT,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: trimmed, description, license, madeOn, madeHow }),
+        body: JSON.stringify({ title: trimmed, description, license, madeOn, madeHow, visibility }),
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
@@ -153,6 +165,26 @@ export default function EditDetailsModal({
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Who can see it?</span>
+            <select
+              value={visibility}
+              onChange={(event) => setVisibility(event.target.value as Visibility)}
+            >
+              {VISIBILITY_VALUES.map((value) => (
+                <option key={value} value={value}>
+                  {VISIBILITY_LABELS[value]}
+                </option>
+              ))}
+            </select>
+            <span className={styles.fieldHint}>
+              {VISIBILITY_HINTS[visibility]}
+              {visibility === "private" &&
+                initialVisibility !== "private" &&
+                " If this pattern sits in somebody's published deck, its slot shows as a gap while it is private."}
+            </span>
           </label>
 
           <label className={styles.field}>

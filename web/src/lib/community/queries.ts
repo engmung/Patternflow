@@ -1,6 +1,16 @@
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { getDb } from "./db";
-import { comments, likes, patterns, postComments, posts, reports, user } from "./schema";
+import {
+  comments,
+  deckPatterns,
+  decks,
+  likes,
+  patterns,
+  postComments,
+  posts,
+  reports,
+  user,
+} from "./schema";
 
 // Server-side read helpers for the community pages. Pages query the SQLite
 // file directly through these — no GET API layer for a single-process app.
@@ -20,9 +30,20 @@ const authorFields = {
 const likeCount = sql<number>`(SELECT COUNT(*) FROM ${likes} WHERE ${likes.patternId} = ${patterns.id})`;
 const forkCount = sql<number>`(SELECT COUNT(*) FROM ${patterns} AS child WHERE child.parent_id = ${patterns.id})`;
 const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL)`;
+// How many *other people* put this pattern in a public deck. Distinct owners,
+// not rows, and never the pattern's own author: a like costs a click, but this
+// costs one of somebody's two public deck slots spent on someone else's work —
+// which is why it ranks better than likes (#256).
+const deckCount = sql<number>`(
+  SELECT COUNT(DISTINCT d.user_id) FROM ${deckPatterns} AS dp
+  JOIN ${decks} AS d ON d.id = dp.deck_id
+  WHERE dp.pattern_id = ${patterns.id}
+    AND d.visibility = 'public'
+    AND d.user_id != ${patterns.userId}
+)`;
 
-/** Feed ordering. "top"/"forks" are all-time; add a time window once volume justifies it. */
-export const FEED_SORTS = ["new", "top", "forks"] as const;
+/** Feed ordering. "top"/"forks"/"decks" are all-time; add a time window once volume justifies it. */
+export const FEED_SORTS = ["new", "top", "forks", "decks"] as const;
 export type FeedSort = (typeof FEED_SORTS)[number];
 
 export function parseFeedSort(raw: string | undefined): FeedSort {
@@ -40,6 +61,10 @@ export type FeedItem = {
   likeCount: number;
   forkCount: number;
   hasCpp: boolean;
+  /** "public" | "unlisted" | "private" — always "public" in the feed itself. */
+  visibility: string;
+  /** Distinct other people whose public decks carry this pattern. */
+  deckCount: number;
 };
 
 const feedColumns = {
@@ -48,10 +73,12 @@ const feedColumns = {
   code: patterns.code,
   parentId: patterns.parentId,
   createdAt: patterns.createdAt,
+  visibility: patterns.visibility,
   ...authorFields,
   likeCount,
   forkCount,
   hasCpp,
+  deckCount,
 };
 
 type FeedRow = Omit<FeedItem, "hasCpp"> & { hasCpp: number | boolean };
@@ -61,12 +88,16 @@ function toFeedItems(rows: FeedRow[]): FeedItem[] {
   return rows.map((row) => ({ ...row, hasCpp: Boolean(row.hasCpp) }));
 }
 
+// The feed shows public patterns only. Unlisted and private rows exist in the
+// same table, so EVERY listing query needs this — a miss here is a leak (#255).
+const feedVisible = eq(patterns.visibility, "public");
+
 /** How many patterns match the current filter — drives the page count. */
 export async function countFeed(hardwareOnly = false): Promise<number> {
   const rows = await getDb()
     .select({ count: sql<number>`COUNT(*)` })
     .from(patterns)
-    .where(hardwareOnly ? isNotNull(patterns.codeCpp) : undefined);
+    .where(and(feedVisible, hardwareOnly ? isNotNull(patterns.codeCpp) : undefined));
   return rows[0]?.count ?? 0;
 }
 
@@ -89,13 +120,15 @@ export async function listFeed({
       ? [desc(likeCount), desc(patterns.createdAt)]
       : sort === "forks"
         ? [desc(forkCount), desc(patterns.createdAt)]
-        : [desc(patterns.createdAt)];
+        : sort === "decks"
+          ? [desc(deckCount), desc(patterns.createdAt)]
+          : [desc(patterns.createdAt)];
 
   const rows = await db
     .select(feedColumns)
     .from(patterns)
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(hardwareOnly ? isNotNull(patterns.codeCpp) : undefined)
+    .where(and(feedVisible, hardwareOnly ? isNotNull(patterns.codeCpp) : undefined))
     .orderBy(...order)
     .limit(limit)
     .offset(offset);
@@ -116,6 +149,7 @@ export async function getPattern(id: string) {
       madeOn: patterns.madeOn,
       madeHow: patterns.madeHow,
       parentId: patterns.parentId,
+      visibility: patterns.visibility,
       createdAt: patterns.createdAt,
       updatedAt: patterns.updatedAt,
       ...authorFields,
@@ -132,7 +166,9 @@ export async function getPattern(id: string) {
 /**
  * Parent info for the "forked from" link — and for the two things a fork owes
  * its parent: the upstream credit baked into the source, and the licence its
- * own choice has to stay compatible with.
+ * own choice has to stay compatible with. Carries visibility so interaction
+ * routes (like, comment, fork) can refuse private patterns without loading
+ * the whole row.
  */
 export async function getPatternStub(id: string) {
   const db = getDb();
@@ -142,6 +178,7 @@ export async function getPatternStub(id: string) {
       title: patterns.title,
       userId: patterns.userId,
       license: patterns.license,
+      visibility: patterns.visibility,
       ...authorFields,
     })
     .from(patterns)
@@ -234,7 +271,7 @@ export async function getCommentStub(on: "pattern" | "post", id: string) {
  * this is a label in a moderation list, not a copy of the content.
  */
 export async function reportTarget(
-  type: "pattern" | "post" | "comment",
+  type: "pattern" | "post" | "comment" | "deck",
   id: string,
 ): Promise<{ title: string; userId: string } | null> {
   const db = getDb();
@@ -243,6 +280,14 @@ export async function reportTarget(
       .select({ title: patterns.title, userId: patterns.userId })
       .from(patterns)
       .where(eq(patterns.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+  if (type === "deck") {
+    const rows = await db
+      .select({ title: decks.title, userId: decks.userId })
+      .from(decks)
+      .where(eq(decks.id, id))
       .limit(1);
     return rows[0] ?? null;
   }
@@ -412,13 +457,272 @@ export async function getUserByUsername(usernameLower: string) {
   return rows[0] ?? null;
 }
 
-export async function listPatternsByUser(userId: string): Promise<FeedItem[]> {
+/**
+ * A profile is the complete archive only to its owner. Everyone else sees the
+ * public rows — unlisted stays reachable by link, not by browsing the author.
+ */
+export async function listPatternsByUser(
+  userId: string,
+  viewerId: string | null = null,
+): Promise<FeedItem[]> {
   const db = getDb();
   const rows = await db
     .select(feedColumns)
     .from(patterns)
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(eq(patterns.userId, userId))
+    .where(
+      viewerId === userId
+        ? eq(patterns.userId, userId)
+        : and(eq(patterns.userId, userId), feedVisible),
+    )
     .orderBy(desc(patterns.createdAt));
   return toFeedItems(rows);
+}
+
+// ── Decks ────────────────────────────────────────────────────────────────────
+// Shared decks: the ordered set someone published, distinct from the working
+// deck in localStorage (lib/community/deck.ts). Reads follow the same
+// visibility rules as patterns.
+
+const deckPatternCount = sql<number>`(SELECT COUNT(*) FROM ${deckPatterns} WHERE ${deckPatterns.deckId} = ${decks.id})`;
+
+export type DeckListItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  createdAt: Date;
+  updatedAt: Date;
+  username: string | null;
+  displayUsername: string | null;
+  patternCount: number;
+  /** First few patterns in running order — the card's thumbnail strip. */
+  preview: { id: string; title: string; code: string }[];
+};
+
+const deckListColumns = {
+  id: decks.id,
+  title: decks.title,
+  description: decks.description,
+  visibility: decks.visibility,
+  createdAt: decks.createdAt,
+  updatedAt: decks.updatedAt,
+  ...authorFields,
+  patternCount: deckPatternCount,
+};
+
+type DeckListRow = Omit<DeckListItem, "preview">;
+
+/**
+ * Attach each deck's first few visible patterns. One query per deck — at this
+ * scale (two public decks per account) a join-and-regroup would be more code
+ * than the problem.
+ */
+async function withPreviews(rows: DeckListRow[], perDeck = 3): Promise<DeckListItem[]> {
+  const db = getDb();
+  const result: DeckListItem[] = [];
+  for (const row of rows) {
+    const preview = await db
+      .select({ id: patterns.id, title: patterns.title, code: patterns.code })
+      .from(deckPatterns)
+      .innerJoin(patterns, eq(deckPatterns.patternId, patterns.id))
+      .where(
+        and(
+          eq(deckPatterns.deckId, row.id),
+          // A pattern that went private after the deck was published renders
+          // as a gap on the deck page, so it cannot headline the card either.
+          ne(patterns.visibility, "private"),
+        ),
+      )
+      .orderBy(deckPatterns.position)
+      .limit(perDeck);
+    result.push({ ...row, preview });
+  }
+  return result;
+}
+
+/** The deck feed: published decks, newest first. No pager yet — two public
+ *  decks per account keeps this list countable for a long while. */
+export async function listPublicDecks(limit = 60): Promise<DeckListItem[]> {
+  const rows = await getDb()
+    .select(deckListColumns)
+    .from(decks)
+    .innerJoin(user, eq(decks.userId, user.id))
+    .where(eq(decks.visibility, "public"))
+    .orderBy(desc(decks.createdAt))
+    .limit(limit);
+  return withPreviews(rows);
+}
+
+/** A profile's decks: all of them to the owner, public ones to everyone else. */
+export async function listDecksByUser(
+  userId: string,
+  viewerId: string | null = null,
+): Promise<DeckListItem[]> {
+  const rows = await getDb()
+    .select(deckListColumns)
+    .from(decks)
+    .innerJoin(user, eq(decks.userId, user.id))
+    .where(
+      viewerId === userId
+        ? eq(decks.userId, userId)
+        : and(eq(decks.userId, userId), eq(decks.visibility, "public")),
+    )
+    .orderBy(desc(decks.createdAt));
+  return withPreviews(rows);
+}
+
+export async function getDeck(id: string) {
+  const rows = await getDb()
+    .select({
+      id: decks.id,
+      userId: decks.userId,
+      title: decks.title,
+      description: decks.description,
+      visibility: decks.visibility,
+      createdAt: decks.createdAt,
+      updatedAt: decks.updatedAt,
+      ...authorFields,
+    })
+    .from(decks)
+    .innerJoin(user, eq(decks.userId, user.id))
+    .where(eq(decks.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Ownership check for PATCH/DELETE, without loading the whole deck. */
+export async function getDeckStub(id: string) {
+  const rows = await getDb()
+    .select({ id: decks.id, userId: decks.userId, title: decks.title, visibility: decks.visibility })
+    .from(decks)
+    .where(eq(decks.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type DeckItem = {
+  position: number;
+  patternId: string;
+  titleSnapshot: string;
+  /** Null when the slot is a gap — see `gap`. */
+  pattern: FeedItem | null;
+  /** Why the slot is empty. A deck shows the gap rather than silently
+   *  shortening the set (#256): the running order is the author's work. */
+  gap: "deleted" | "private" | null;
+};
+
+/**
+ * A deck's contents in running order. `viewerId` decides whether a pattern
+ * that has since gone private still renders (its own author keeps seeing it).
+ */
+export async function listDeckItems(
+  deckId: string,
+  viewerId: string | null = null,
+): Promise<DeckItem[]> {
+  const rows = await getDb()
+    .select({
+      position: deckPatterns.position,
+      patternId: deckPatterns.patternId,
+      titleSnapshot: deckPatterns.titleSnapshot,
+      patternRow: {
+        id: patterns.id,
+        title: patterns.title,
+        code: patterns.code,
+        parentId: patterns.parentId,
+        createdAt: patterns.createdAt,
+        visibility: patterns.visibility,
+        userId: patterns.userId,
+      },
+      username: user.username,
+      displayUsername: user.displayUsername,
+      likeCount,
+      forkCount,
+      hasCpp,
+      deckCount,
+    })
+    .from(deckPatterns)
+    // LEFT joins: a deleted pattern's row is gone, and the whole point of the
+    // snapshot column is that the deck row survives it.
+    .leftJoin(patterns, eq(deckPatterns.patternId, patterns.id))
+    .leftJoin(user, eq(patterns.userId, user.id))
+    .where(eq(deckPatterns.deckId, deckId))
+    .orderBy(deckPatterns.position);
+
+  return rows.map((row) => {
+    if (!row.patternRow?.id) {
+      return {
+        position: row.position,
+        patternId: row.patternId,
+        titleSnapshot: row.titleSnapshot,
+        pattern: null,
+        gap: "deleted" as const,
+      };
+    }
+    const p = row.patternRow;
+    if (p.visibility === "private" && viewerId !== p.userId) {
+      return {
+        position: row.position,
+        patternId: row.patternId,
+        titleSnapshot: row.titleSnapshot,
+        pattern: null,
+        gap: "private" as const,
+      };
+    }
+    return {
+      position: row.position,
+      patternId: row.patternId,
+      titleSnapshot: row.titleSnapshot,
+      pattern: {
+        id: p.id,
+        title: p.title,
+        code: p.code,
+        parentId: p.parentId,
+        createdAt: p.createdAt,
+        visibility: p.visibility,
+        username: row.username,
+        displayUsername: row.displayUsername,
+        likeCount: row.likeCount,
+        forkCount: row.forkCount,
+        hasCpp: Boolean(row.hasCpp),
+        deckCount: row.deckCount,
+      },
+      gap: null,
+    };
+  });
+}
+
+/** How many public decks this account has — the two-slot cap's input. */
+export async function countPublicDecksByUser(
+  userId: string,
+  excludeDeckId?: string,
+): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(decks)
+    .where(
+      and(
+        eq(decks.userId, userId),
+        eq(decks.visibility, "public"),
+        excludeDeckId ? ne(decks.id, excludeDeckId) : undefined,
+      ),
+    );
+  return rows[0]?.count ?? 0;
+}
+
+/**
+ * The rows a deck submission points at — existence and visibility checks
+ * happen against these, and the title snapshots are taken from them.
+ */
+export async function getPatternsForDeck(ids: string[]) {
+  if (ids.length === 0) return [];
+  return getDb()
+    .select({
+      id: patterns.id,
+      title: patterns.title,
+      userId: patterns.userId,
+      visibility: patterns.visibility,
+    })
+    .from(patterns)
+    .where(inArray(patterns.id, ids));
 }

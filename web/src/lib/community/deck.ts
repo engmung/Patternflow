@@ -29,6 +29,18 @@ export type CollectedPattern = {
 /** Mirrors MAX_MODULE_PATTERNS_PER_BUILD on the build API. */
 export const DECK_MAX = 10;
 
+/**
+ * How many PUBLIC decks one account may share at once.
+ *
+ * A curation policy, not a technical limit — the opposite of DECK_MAX, which
+ * is a fact about firmware. Publishing a deck spends one of two slots, so a
+ * published deck is staked reputation rather than overflow storage: a shelf
+ * you must ration is a shelf you curate. Private and unlisted decks are not
+ * rationed. Raising this is easy; lowering it would strand people over the
+ * limit, which is why it starts small.
+ */
+export const PUBLIC_DECKS_MAX = 2;
+
 export const COLLECTION_EVENT = "pf-collection-changed";
 
 const DECK_KEY = "pf-deck";
@@ -118,6 +130,16 @@ export function deckRemove(patternId: string): void {
 
 export function deckClear(): void {
   write(DECK_KEY, []);
+}
+
+/**
+ * Replace the whole working deck in one move — how a shared deck is copied in.
+ * Order is preserved (it is the point of a deck); anything over the cap is
+ * dropped from the end. The caller confirms before overwriting a non-empty
+ * deck — this function does not ask.
+ */
+export function deckReplace(items: CollectedPattern[]): void {
+  write(DECK_KEY, items.slice(0, DECK_MAX));
 }
 
 /**

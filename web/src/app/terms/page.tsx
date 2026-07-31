@@ -134,7 +134,7 @@ export default function TermsPage() {
         <section>
           <h2>7. Reporting something</h2>
           <p>
-            Every pattern, post and comment has a <strong>Report</strong> control. If you are not a
+            Every pattern, deck, post and comment has a <strong>Report</strong> control. If you are not a
             member — a rights holder sending a takedown notice, for example — email{" "}
             <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Please include a link to the content, what
             is wrong with it, and for a copyright claim a link to the original and enough contact
@@ -154,7 +154,7 @@ export default function TermsPage() {
             reasonable to do so we will say why.
           </p>
           <p>
-            You can delete your own patterns, posts and comments at any time. To close your account,
+            You can delete your own patterns, decks, posts and comments at any time. To close your account,
             email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
           </p>
           <p className={styles.callout}>
@@ -180,8 +180,8 @@ export default function TermsPage() {
               user-agent of the sign-in. This is for security and abuse handling, not analytics.
             </li>
             <li>
-              <strong>What you publish</strong> — patterns, comments, posts, likes, and firmware
-              build requests.
+              <strong>What you publish</strong> — patterns, decks, comments, posts, likes, and
+              firmware build requests.
             </li>
           </ul>
 

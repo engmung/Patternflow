@@ -128,7 +128,7 @@ export function cleanMadeHow(raw: unknown): string | null | undefined {
 
 // ── Reports ──────────────────────────────────────────────────────────────────
 
-export const REPORT_TARGET_TYPES = ["pattern", "post", "comment"] as const;
+export const REPORT_TARGET_TYPES = ["pattern", "post", "comment", "deck"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export function isReportTargetType(raw: unknown): raw is ReportTargetType {

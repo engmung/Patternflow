@@ -5,6 +5,7 @@ import { getPatternStub, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { comments } from "@/lib/community/schema";
 import { cleanComment } from "@/lib/community/validate";
+import { canView } from "@/lib/community/visibility";
 
 // POST /api/community/patterns/[id]/comments — add a comment (login required).
 // Comments are stored as plain text and escaped on output by React.
@@ -33,7 +34,8 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
 
   const { id: patternId } = await context.params;
   const pattern = await getPatternStub(patternId);
-  if (!pattern) {
+  // Private patterns take no drive-by interaction — same 404 as a missing row.
+  if (!pattern || !canView(pattern.visibility, pattern.userId, session.user.id)) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
 

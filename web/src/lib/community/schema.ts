@@ -117,12 +117,23 @@ export const patterns = sqliteTable(
     parentId: text("parent_id").references((): AnySQLiteColumn => patterns.id, {
       onDelete: "set null",
     }),
+    /**
+     * "public" | "unlisted" | "private" — who can find it.
+     *
+     * Public is in the feed. Unlisted is reachable by link only — the "look at
+     * this before I post it" state, and what a shared deck can carry without
+     * flooding the feed. Private is the author alone (moderators keep sight of
+     * everything — visibility is not a shield from a report).
+     */
+    visibility: text("visibility").notNull().default("public"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [
     index("patterns_created_at_idx").on(table.createdAt),
     index("patterns_user_id_idx").on(table.userId),
+    // The feed's exact shape: visible rows, newest first.
+    index("patterns_visibility_created_idx").on(table.visibility, table.createdAt),
   ],
 );
 
@@ -142,6 +153,60 @@ export const likes = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.userId, table.patternId] }),
     index("likes_pattern_id_idx").on(table.patternId),
+  ],
+);
+
+// ── Shared decks ─────────────────────────────────────────────────────────────
+// A deck is an ordered set of patterns — a setlist, because the device cycles
+// them in sequence. The working deck stays in the browser's localStorage
+// (lib/community/deck.ts); a row here is the explicit act of sharing one.
+//
+// Publishing is deliberately scarce: two PUBLIC decks per account (see
+// PUBLIC_DECKS_MAX). That is a curation policy, not a technical limit — a
+// shelf you must ration is a shelf you curate. Private and unlisted decks are
+// not rationed.
+
+export const decks = sqliteTable(
+  "decks",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    /** "public" | "unlisted" | "private" — same three states as patterns. */
+    visibility: text("visibility").notNull().default("private"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    index("decks_user_id_idx").on(table.userId),
+    index("decks_visibility_created_idx").on(table.visibility, table.createdAt),
+  ],
+);
+
+export const deckPatterns = sqliteTable(
+  "deck_patterns",
+  {
+    deckId: text("deck_id")
+      .notNull()
+      .references(() => decks.id, { onDelete: "cascade" }),
+    /**
+     * NO foreign key on purpose (same reasoning as reports): deleting a pattern
+     * must leave a visible gap in the running order, not silently shorten
+     * somebody's arranged set. The title below is what the gap shows.
+     */
+    patternId: text("pattern_id").notNull(),
+    /** 0-based running order — the order the device cycles them. */
+    position: integer("position").notNull(),
+    /** What the pattern was called when the deck was published. */
+    titleSnapshot: text("title_snapshot").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.deckId, table.patternId] }),
+    // The feed's "in decks" ranking signal counts through this.
+    index("deck_patterns_pattern_id_idx").on(table.patternId),
   ],
 );
 

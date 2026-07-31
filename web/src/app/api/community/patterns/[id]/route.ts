@@ -15,6 +15,7 @@ import {
   cleanMadeOn,
   cleanTitle,
 } from "@/lib/community/validate";
+import { cleanVisibility } from "@/lib/community/visibility";
 import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
 // PATCH /api/community/patterns/[id] — the author edits their own pattern.
@@ -159,6 +160,16 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     madeHow = next;
   }
 
+  // Going private leaves any published deck carrying this pattern with a gap
+  // at its position — deliberate: the author's withdrawal wins, and the deck
+  // page says what happened rather than silently closing the hole.
+  let visibility = pattern.visibility;
+  if (raw.visibility !== undefined) {
+    const next = cleanVisibility(raw.visibility);
+    if (!next) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+    visibility = next;
+  }
+
   // Compare the bodies with any licence wrapping removed, so re-saving without
   // touching the code isn't mistaken for a code change.
   let bareCode = stripShareWrapping(pattern.code);
@@ -218,6 +229,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
         basedOn: lineageFrom(parent),
       }),
       codeCpp,
+      visibility,
       updatedAt: new Date(),
     })
     .where(eq(patterns.id, id));

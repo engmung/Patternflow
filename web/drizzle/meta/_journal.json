@@ -64,6 +64,13 @@
       "when": 1785321984220,
       "tag": "0008_add-comment-edited",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785535849348,
+      "tag": "0009_add-visibility-and-decks",
+      "breakpoints": true
     }
   ]
 }
