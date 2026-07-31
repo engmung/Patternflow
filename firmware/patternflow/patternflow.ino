@@ -14,6 +14,7 @@
 #include "src/core_patterns_http.h"
 #include "src/core_status_http.h"
 #include "src/core_wifi_http.h"
+#include "src/core_colortest_http.h"   // TEMPORARY: colour pipeline A/B
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -671,6 +672,7 @@ void loop() {
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
     PatternflowWifiHttp::begin();
+    PatternflowColorTestHttp::begin();   // TEMPORARY
     Serial.println("[NET] services started");
     reportHeap("services up");
   }

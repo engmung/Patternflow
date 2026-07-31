@@ -195,6 +195,19 @@ constexpr float EULER      = 2.71828182845904523536f;
 // blues from collapsing into black. WB gain trims R and G a touch so
 // pure-white whites land closer to D65 instead of warm pink.
 //
+// OPEN: matching panel colour to a monitor properly.
+// Per-channel gain is an approximation. The real difference is that the LED
+// primaries sit at different wavelengths than sRGB's, so the same RGB triplet
+// is a genuinely different colour on each. The textbook fix is a pair of 3x3
+// matrices (sRGB -> XYZ -> panel RGB) derived from the panel primaries' xy
+// chromaticity and its white point — which needs a colorimeter to measure, and
+// a gamut decision, because these panels are often WIDER than sRGB and mapping
+// into it costs saturation. Nobody has done that here. If you want to:
+// russellcottrell.com/photo/matrixCalculator.htm derives the matrices from xy,
+// and FastLED's ColorCorrection is the usual per-channel approximation.
+// Worth doing once a production panel batch is fixed, not before — measure a
+// panel you will not be replacing.
+
 // To revert to the previous behavior, set all three gammas to 2.4,
 // all three WB gains to 1.0, and saturation boost to 1.0.
 #ifndef LED_GAMMA_R
