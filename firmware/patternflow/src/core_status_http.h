@@ -28,6 +28,7 @@
 #if PF_AUDIO_ENABLED
 #include "core_audio_ws.h"
 #endif
+#include "core_canvas.h"   // presentUs
 #include "status_index.h"
 #endif
 
@@ -109,6 +110,18 @@ inline void handleStatus() {
   // Render + last module load
   json += "\"frameUs\":";
   json += renderFrameUs;
+  // How the frame splits, which core the render loop is on, and what the
+  // driver settled on for depth/refresh. The last two are not fixed: the
+  // library trades colour depth against the requested min_refresh_rate, so
+  // reading them back is the only way to know what the panel is really doing.
+  json += ",\"presentUs\":";
+  json += PFCanvas::presentUs;
+  json += ",\"loopCore\":";
+  json += xPortGetCoreID();
+  json += ",\"colorBits\":";
+  json += dma_display->getCfg().getPixelColorDepthBits();
+  json += ",\"refreshHz\":";
+  json += dma_display->calculated_refresh_rate;
   // Why the last module load failed, if it did. Without it a refusal is
   // invisible from the network: the panel just stops and nothing says why.
   json += ",\"loadError\":\"";
