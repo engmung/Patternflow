@@ -150,23 +150,38 @@ export default function PatternCard({
     return () => el.removeEventListener("wheel", onWheel);
   }, [interactive]);
 
-  // The live sandbox iframe mounts only once the card has been near the
-  // viewport, and stays mounted after. An infinite feed accumulates hundreds
-  // of cards; pre-warming every one of them would be hundreds of iframes.
-  const [nearViewport, setNearViewport] = useState(false);
+  // The live sandbox iframe exists only while the card is anywhere near the
+  // viewport. An infinite feed accumulates hundreds of cards, and an iframe
+  // is a whole document with a canvas — warming all of them would be
+  // hundreds of live frames. Two thresholds with a wide gap between them:
+  // approach within 300px and the iframe boots (cheap — the sandbox document
+  // is immutable-cached); fall more than ~2 screens behind and it is torn
+  // down. The gap is hysteresis, so a card at the boundary does not flap
+  // while you scroll past it.
+  const [warm, setWarm] = useState(false);
   useEffect(() => {
-    if (!interactive || nearViewport) return;
+    if (!interactive) return;
     const el = thumbRef.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
+    const warmObserver = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) setNearViewport(true);
+        if (entries.some((entry) => entry.isIntersecting)) setWarm(true);
       },
       { rootMargin: "300px 0px" },
     );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [interactive, nearViewport]);
+    const coolObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => !entry.isIntersecting)) setWarm(false);
+      },
+      { rootMargin: "2400px 0px" },
+    );
+    warmObserver.observe(el);
+    coolObserver.observe(el);
+    return () => {
+      warmObserver.disconnect();
+      coolObserver.disconnect();
+    };
+  }, [interactive]);
 
   // Initial static thumbnail
   useEffect(() => {
@@ -278,9 +293,9 @@ export default function PatternCard({
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Live sandbox, pre-warmed once the card nears the viewport so the
-              first hover still plays instantly. */}
-          {interactive && nearViewport && (
+          {/* Live sandbox, pre-warmed while the card is near the viewport so
+              a hover plays instantly. */}
+          {interactive && warm && (
             <SandboxPreview
               code={item.code}
               knobValues={knobValues}

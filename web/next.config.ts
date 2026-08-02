@@ -38,6 +38,16 @@ const nextConfig: NextConfig = {
         source: "/flash/manifest.json",
         headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
       },
+      {
+        // Every pattern card boots its own sandboxed iframe from this one
+        // document, so the feed loads it dozens of times per visit. Without
+        // this header each load is a round trip to the origin (a Raspberry
+        // Pi), and the cards visibly warm up one by one. Safe to cache hard:
+        // the URL carries ?v= (see lib/community/sandboxUrl.ts), and bumping
+        // it on change is already the rule.
+        source: "/pattern-sandbox.html",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };
