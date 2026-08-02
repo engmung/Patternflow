@@ -213,9 +213,11 @@ What follows from a deck being somebody's arrangement:
   is the arrangement; the patterns stay their authors'.
 - "Copy to my deck" loads a shared deck into the working deck, order intact, so
   a shared deck is a starting point rather than a read-only artifact.
-- **"In decks" is a feed sort**: it counts how many *other* people put a
-  pattern in a public deck (distinct people, own decks excluded). It ranks
-  better than likes because it costs one of somebody's two slots.
+- **Deck membership shows on every card** (`DCK n`): distinct *other* people
+  whose public decks carry the pattern — own decks excluded, so it costs one
+  of somebody's two slots and games worse than likes. It is deliberately not
+  a feed sort yet; with a handful of decks it would reorder the feed on
+  almost no signal.
 - Decks are reportable and moderator-deletable like everything else, and the
   build path is untouched: a copied deck builds exactly as the working deck
   always has.
@@ -300,7 +302,7 @@ Listed because "is this missing or am I holding it wrong" deserves an answer.
 
 | | Status |
 | :--- | :--- |
-| **Tags and search** | Not built. The feed sorts by new / most liked / most forked / in decks, and filters for hardware-ready. |
+| **Tags and search** | Not built. The feed sorts by new / most liked / most forked, and filters for hardware-ready. |
 | **Self-serve account deletion** | Not built. Requests go to the address in the terms and are handled by hand. Published patterns are anonymised rather than removed — the licence granted is irrevocable and others may have built on them. |
 | **Email of any kind** | Not sent, ever. No verification, no notification, no password-reset mail — alerts exist only inside the site. |
 | **Approval queue for new patterns** | Not built, and not currently wanted — moderation is after the fact. |

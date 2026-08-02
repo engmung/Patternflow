@@ -43,8 +43,10 @@ const deckCount = sql<number>`(
     AND d.user_id != ${patterns.userId}
 )`;
 
-/** Feed ordering. "top"/"forks"/"decks" are all-time; add a time window once volume justifies it. */
-export const FEED_SORTS = ["new", "top", "forks", "decks"] as const;
+/** Feed ordering. "top"/"forks" are all-time; add a time window once volume justifies it.
+ *  The deck-inclusion count rides on every card (DCK) but is not a sort yet —
+ *  with a handful of decks it would reorder the feed on almost no signal. */
+export const FEED_SORTS = ["new", "top", "forks"] as const;
 export type FeedSort = (typeof FEED_SORTS)[number];
 
 export function parseFeedSort(raw: string | undefined): FeedSort {
@@ -121,9 +123,7 @@ export async function listFeed({
       ? [desc(likeCount), desc(patterns.createdAt)]
       : sort === "forks"
         ? [desc(forkCount), desc(patterns.createdAt)]
-        : sort === "decks"
-          ? [desc(deckCount), desc(patterns.createdAt)]
-          : [desc(patterns.createdAt)];
+        : [desc(patterns.createdAt)];
 
   const rows = await db
     .select(feedColumns)

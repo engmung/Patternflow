@@ -82,21 +82,20 @@
   flex: none;
 }
 
+/* The feed flows with the document and grows as batches append — ONE
+   scrollbar, the page's own. (Its ancestor once locked itself to the viewport
+   for the paginated layout; that clipped the controls on short screens.) */
 .feedWrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 100px);
-  max-height: calc(100vh - 100px);
-  overflow: hidden;
+  padding-bottom: 60px;
 }
 
 .centeredFeedBody {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: 20px;
 }
 
@@ -112,83 +111,19 @@
   justify-content: center;
 }
 
-.paginationBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
+/* The infinite-scroll loader's target: a sliver under the grid whose
+   approach triggers the next batch. Height, not emptiness — a 0px element
+   never intersects. */
+.feedSentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.feedEndNote {
+  margin: 4px 0 0;
   font-family: var(--pf-mono, monospace);
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.pageBtn {
-  appearance: none;
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
-  font-size: 12px;
-  font-family: inherit;
-  font-weight: 500;
-  padding: 6px 14px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.pageBtn:hover:not(:disabled) {
-  background: var(--pf-ink);
-  border-color: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.pageBtn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.pageIndicator {
-  color: var(--pf-ink-muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pageIndicator strong {
-  color: var(--pf-ink);
-}
-
-.pageMetaTotal {
   font-size: 11px;
-  opacity: 0.7;
-}
-
-/* Type a page number instead of stepping to it. Sized for four digits, since
-   the spinner arrows are hidden and the value has to fit unaided. */
-.pageInput {
-  width: 52px;
-  padding: 3px 6px;
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: center;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.pageInput::-webkit-outer-spin-button,
-.pageInput::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.pageInput:focus {
-  outline: none;
-  border-color: var(--pf-ink);
+  color: var(--pf-ink-faint);
 }
 
 /* ── Small view ──
@@ -1012,32 +947,14 @@
   color: var(--pf-cream);
 }
 
-/* Card-size switch. Same pill as the sort tabs — it's the same kind of choice,
-   so it should not look like a different kind of control. */
-.viewTabs {
-  display: flex;
-  gap: 2px;
-  border: 1px solid rgba(20, 20, 20, 0.2);
-  border-radius: 0;
-  padding: 2px;
-}
-
-.viewTabs a {
-  padding: 5px 12px;
-  border-radius: 0;
-  color: var(--pf-ink-muted);
-  font-size: 12.5px;
-  text-decoration: none;
+/* Card size has no widget — Ctrl+scroll (or pinch) IS the control, so this
+   hint is its entire discoverability. Quiet on purpose. */
+.zoomHint {
+  margin-left: auto;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: var(--pf-ink-faint);
   white-space: nowrap;
-}
-
-.viewTabs a:hover {
-  color: var(--pf-ink);
-}
-
-.viewTabs a[data-active="true"] {
-  background: var(--pf-ink);
-  color: var(--pf-cream);
 }
 
 .filterChip {
@@ -1690,16 +1607,7 @@
     min-height: auto;
   }
 
-  /* The desktop feed locks itself to the viewport and never scrolls; on
-     mobile the wall of thumbnails IS the page, so let it flow. */
-  .feedWrapper {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-  }
-
   .centeredFeedBody {
-    justify-content: flex-start;
     gap: 14px;
   }
 
@@ -1708,29 +1616,10 @@
     margin-bottom: 14px;
   }
 
-  /* Card size is fixed by the mobile view config — a Large/Small toggle
-     would be a lie here. */
-  .viewTabs {
+  /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
+     on a phone — the hint would advertise a gesture that does not exist. */
+  .zoomHint {
     display: none;
-  }
-
-  /* Touch-sized pagination. */
-  .paginationBar {
-    flex-wrap: wrap;
-    justify-content: center;
-    row-gap: 10px;
-    margin-top: 14px;
-    padding-bottom: 28px;
-  }
-
-  .pageBtn {
-    padding: 10px 14px;
-    font-size: 13px;
-  }
-
-  .pageInput {
-    padding: 8px 6px;
-    font-size: 13px;
   }
 }
 

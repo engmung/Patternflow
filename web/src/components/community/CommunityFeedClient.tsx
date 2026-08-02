@@ -1,25 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
 import FeedControls from "./FeedControls";
+import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
-  DEFAULT_FEED_VIEW,
-  FEED_VIEWS,
+  FEED_SLOT_KEY,
   MAX_FEED_PAGE_SIZE,
   MOBILE_FEED_VIEW,
-  type FeedView,
+  SLOT_COMPACT,
+  SLOT_DEFAULT,
+  SLOT_MAX,
+  SLOT_MIN,
+  batchRowsForSlot,
+  gapForSlot,
 } from "@/lib/community/feedView";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import styles from "./Community.module.css";
 
-// Responsive grid sized to whichever view is active (see lib/community/feedView).
+// Infinite scroll, one scrollbar: the page itself. The grid grows downward as
+// the sentinel under it comes into view — no pager, no inner scroll region to
+// fight the document over the wheel.
 //
-// Paging is server-side: a request returns about a screenful of patterns rather
-// than the whole feed. Every row ships its full source — the cards compile and
-// play it client-side — so sending patterns nobody can see would be paying for
-// them twice, in transfer and in sandboxes.
+// Card size is a continuous zoom (Ctrl + scroll, or trackpad pinch),
+// Pinterest-style, remembered per browser. Plain scrolling feeds the page;
+// Ctrl distinguishes "resize the wall" from "walk along it" — and from the
+// knob overlay, whose wheel only acts without Ctrl.
+//
+// Batches stay small because every card ships its full source. Appends are
+// de-duplicated by id: the feed is newest-first, so anything published while
+// you scroll shifts the offsets and would otherwise repeat a card.
 
 function useResponsiveCardsPerRow(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -48,103 +58,152 @@ function useResponsiveCardsPerRow(
 }
 
 export default function CommunityFeedClient({
-  items,
+  items: initialItems,
   sort = "new",
   hardwareOnly = false,
-  view = DEFAULT_FEED_VIEW,
-  page = 0,
-  total = 0,
+  total: initialTotal = 0,
 }: {
   items: PatternCardItem[];
   sort?: string;
   hardwareOnly?: boolean;
-  view?: FeedView;
-  page?: number;
   total?: number;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Mobile swaps in its own view config: dense static thumbnails, several rows
-  // per page, the whole page scrollable. Desktop keeps the Large/Small toggle.
   const isMobile = useIsMobile();
-  const config = isMobile ? MOBILE_FEED_VIEW : FEED_VIEWS[view];
-  const cardsPerRow = useResponsiveCardsPerRow(containerRef, config.slot, config.gap);
-  const pageSize = Math.min(MAX_FEED_PAGE_SIZE, Math.max(1, cardsPerRow * config.rows));
 
-  // The server sends a slightly generous first page (it can't know the
-  // viewport), so trim to what actually fits. Page 0 of any size shares the
-  // same prefix, so the following pages line up exactly.
-  const visibleItems = items.slice(0, pageSize);
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const currentPage = Math.min(page, totalPages - 1);
-
-  const hrefForPage = useCallback(
-    (nextPage: number) => {
-      const next = new URLSearchParams(params.toString());
-      if (nextPage <= 0) next.delete("page");
-      else next.set("page", String(nextPage));
-      // Ask for exactly what this viewport shows from here on.
-      next.set("size", String(pageSize));
-      const query = next.toString();
-      return query ? `${pathname}?${query}` : pathname;
-    },
-    [params, pathname, pageSize],
-  );
-
-  const goTo = useCallback(
-    (nextPage: number) => {
-      if (nextPage < 0 || nextPage > totalPages - 1) return;
-      router.push(hrefForPage(nextPage), { scroll: false });
-    },
-    [router, hrefForPage, totalPages],
-  );
-
-  // Self-correcting page size: when this viewport shows more cards than the
-  // server guessed (a first load on mobile, where six dense rows outrun the
-  // desktop-sized default), re-request the page at the real size. hrefForPage
-  // pins ?size= to the measured value, so this settles after one replace.
-  const expectedCount = Math.min(pageSize, Math.max(0, total - currentPage * pageSize));
+  // The zoom. Starts at the default for a hydration-stable first paint, then
+  // adopts whatever this browser chose last time — a frame later, so the
+  // stored value never fights the server-rendered markup.
+  const [slot, setSlot] = useState<number>(SLOT_DEFAULT);
   useEffect(() => {
-    if (items.length >= expectedCount) return;
-    router.replace(hrefForPage(currentPage), { scroll: false });
-  }, [items.length, expectedCount, router, hrefForPage, currentPage]);
-
-  const pageInputRef = useRef<HTMLInputElement | null>(null);
-
-  const commitPageInput = useCallback(() => {
-    const input = pageInputRef.current;
-    if (!input) return;
-    const typed = Number(input.value);
-    if (!Number.isFinite(typed)) {
-      input.value = String(currentPage + 1);
-      return;
-    }
-    // Clamp rather than reject: "999" on a 7-page feed means the end.
-    const target = Math.max(0, Math.min(totalPages - 1, Math.round(typed) - 1));
-    if (target === currentPage) {
-      input.value = String(currentPage + 1);
-      return;
-    }
-    goTo(target);
-  }, [currentPage, totalPages, goTo]);
-
-  // Arrow keys flip pages, as before.
+    const id = window.requestAnimationFrame(() => {
+      try {
+        const saved = Number(window.localStorage.getItem(FEED_SLOT_KEY));
+        if (Number.isFinite(saved) && saved >= SLOT_MIN && saved <= SLOT_MAX) setSlot(saved);
+      } catch {
+        // Private mode: the default is fine.
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, []);
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (event.key === "ArrowLeft") goTo(currentPage - 1);
-      if (event.key === "ArrowRight") goTo(currentPage + 1);
+    try {
+      window.localStorage.setItem(FEED_SLOT_KEY, String(slot));
+    } catch {
+      // Private mode: the size lasts for this page, which is still something.
+    }
+  }, [slot]);
+
+  // Ctrl+wheel (and pinch, which reports as ctrlKey wheel) resizes the wall.
+  // A native non-passive listener, because preventDefault here is the whole
+  // point — without it the browser zooms the page instead.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || isMobile) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      setSlot((prev) =>
+        Math.round(
+          Math.min(SLOT_MAX, Math.max(SLOT_MIN, prev * Math.exp(-event.deltaY * 0.0015))),
+        ),
+      );
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goTo, currentPage]);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [isMobile]);
+
+  const gap = isMobile ? MOBILE_FEED_VIEW.gap : gapForSlot(slot);
+  const effectiveSlot = isMobile ? MOBILE_FEED_VIEW.slot : slot;
+  const compact = isMobile || slot <= SLOT_COMPACT;
+  const cardsPerRow = useResponsiveCardsPerRow(containerRef, effectiveSlot, gap);
+
+  const [items, setItems] = useState<PatternCardItem[]>(initialItems);
+  const [total, setTotal] = useState(initialTotal);
+  const [failed, setFailed] = useState(false);
+  // Everything the loader itself needs lives in refs: loads are triggered by
+  // an IntersectionObserver, and stale closures over state would double-fetch.
+  const itemsRef = useRef(initialItems);
+  const busyRef = useRef(false);
+  const doneRef = useRef(initialItems.length >= initialTotal);
+  const [done, setDone] = useState(initialItems.length >= initialTotal);
+
+  const batchRows = isMobile ? MOBILE_FEED_VIEW.batchRows : batchRowsForSlot(slot);
+
+  const loadMore = useCallback(async () => {
+    if (busyRef.current || doneRef.current) return;
+    busyRef.current = true;
+    setFailed(false);
+    try {
+      const have = itemsRef.current.length;
+      const size = Math.min(MAX_FEED_PAGE_SIZE, Math.max(cardsPerRow * batchRows, cardsPerRow));
+      const params = new URLSearchParams({ offset: String(have), size: String(size) });
+      if (sort !== "new") params.set("sort", sort);
+      if (hardwareOnly) params.set("hw", "1");
+      const response = await fetch(
+        communityApiUrl(`/api/community/patterns?${params.toString()}`),
+        COMMUNITY_FETCH_INIT,
+      );
+      if (!response.ok) throw new Error(String(response.status));
+      const payload = (await response.json()) as { items: PatternCardItem[]; total: number };
+
+      const seen = new Set(itemsRef.current.map((item) => item.id));
+      const fresh = payload.items.filter((item) => !seen.has(item.id));
+      const next = [...itemsRef.current, ...fresh];
+      itemsRef.current = next;
+      setItems(next);
+      setTotal(payload.total);
+      if (payload.items.length < size || next.length >= payload.total) {
+        doneRef.current = true;
+        setDone(true);
+      }
+    } catch {
+      // Note it and stand down until the next intersection — a flaky network
+      // must not become a fetch loop.
+      setFailed(true);
+    } finally {
+      busyRef.current = false;
+    }
+  }, [cardsPerRow, batchRows, sort, hardwareOnly]);
+
+  // The sentinel drives loading. One subtlety: after an append the sentinel
+  // can STILL be inside the viewport (short feed, tall screen), and an
+  // observer only fires on crossings — so keep loading while it shows.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    let cancelled = false;
+    const fillViewport = async () => {
+      while (!cancelled && !doneRef.current && !busyRef.current) {
+        const rect = sentinel.getBoundingClientRect();
+        if (rect.top > window.innerHeight + 600) break;
+        await loadMore();
+        if (busyRef.current) break;
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void fillViewport();
+      },
+      // Start fetching a comfortable distance before the gap becomes visible.
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(sentinel);
+    void fillViewport();
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [loadMore]);
 
   return (
-    <div className={styles.feedWrapper}>
+    <div ref={wrapperRef} className={styles.feedWrapper}>
       <div className={styles.introRow}>
         <span>
           {isMobile
@@ -153,7 +212,7 @@ export default function CommunityFeedClient({
         </span>
       </div>
 
-      <FeedControls sort={sort} hardwareOnly={hardwareOnly} view={view} />
+      <FeedControls sort={sort} hardwareOnly={hardwareOnly} />
 
       {total === 0 ? (
         <div className={styles.empty}>
@@ -165,92 +224,34 @@ export default function CommunityFeedClient({
         <div ref={containerRef} className={styles.centeredFeedBody}>
           <div
             className={styles.feedGrid}
-            // Mobile borrows the small view's compact card furniture.
-            data-view={isMobile ? "small" : view}
+            // Compact cards borrow the small view's furniture.
+            data-view={compact ? "small" : "large"}
             style={{
               gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))`,
-              gap: `${config.gap}px`,
+              gap: `${gap}px`,
             }}
           >
-            {visibleItems.map((item) => (
+            {items.map((item) => (
               // Static thumbnails on mobile: no hover means the live sandbox
               // iframes and knob overlay are pure cost there.
               <PatternCard key={item.id} item={item} interactive={!isMobile} />
             ))}
           </div>
 
-          {/* Pagination. Stepping is fine for a handful of pages, but a feed of
-              any size needs a way in that doesn't cost one page load per step —
-              hence First/Last and a page box you can type into. */}
-          {totalPages > 1 && (
-            <div className={styles.paginationBar}>
-              <button
-                type="button"
-                className={styles.pageBtn}
-                onClick={() => goTo(0)}
-                disabled={currentPage === 0}
-                title="First page"
-                aria-label="First page"
-              >
-                ⏮
-              </button>
-              <button
-                type="button"
-                className={styles.pageBtn}
-                onClick={() => goTo(currentPage - 1)}
-                disabled={currentPage === 0}
-              >
-                ◀ Prev
-              </button>
+          {/* The loader's target. Kept in the tree even when done, so a feed
+              that grows while you read can resume. */}
+          <div ref={sentinelRef} className={styles.feedSentinel} aria-hidden="true" />
 
-              <span className={styles.pageIndicator}>
-                Page{" "}
-                <input
-                  // Remount on page change so the box always shows the page
-                  // actually being displayed, never a half-typed number left
-                  // over from a jump that got clamped or cancelled.
-                  key={currentPage}
-                  ref={pageInputRef}
-                  className={styles.pageInput}
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={totalPages}
-                  defaultValue={currentPage + 1}
-                  aria-label={`Page number, 1 to ${totalPages}`}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onBlur={commitPageInput}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                    if (event.key === "Escape") {
-                      event.currentTarget.value = String(currentPage + 1);
-                      event.currentTarget.blur();
-                    }
-                  }}
-                />{" "}
-                of {totalPages}
-                <span className={styles.pageMetaTotal}>({total} patterns)</span>
-              </span>
+          {failed && (
+            <button type="button" className={styles.btn} onClick={() => void loadMore()}>
+              Loading failed — try again
+            </button>
+          )}
 
-              <button
-                type="button"
-                className={styles.pageBtn}
-                onClick={() => goTo(currentPage + 1)}
-                disabled={currentPage >= totalPages - 1}
-              >
-                Next ▶
-              </button>
-              <button
-                type="button"
-                className={styles.pageBtn}
-                onClick={() => goTo(totalPages - 1)}
-                disabled={currentPage >= totalPages - 1}
-                title="Last page"
-                aria-label="Last page"
-              >
-                ⏭
-              </button>
-            </div>
+          {done && (
+            <p className={styles.feedEndNote}>
+              That is the whole feed — {total} pattern{total === 1 ? "" : "s"}.
+            </p>
           )}
         </div>
       )}
