@@ -162,6 +162,20 @@ anything.
 
 ---
 
+## Discussions
+
+Plain-text threads for everything that isn't a pattern. Bodies and comments
+are stored exactly as typed and escaped on output; the only markup in the
+whole board is a ``` fence, which renders as a code block — the long posts
+here are build logs and compiler output, and a log squashed into a paragraph
+is unreadable. The fence changes the font, never the trust model.
+
+One post can be **the notice**: moderator-pinned, always first in the list,
+marked as such. One slot — pinning a post un-pins the previous one, because
+two notices are a noticeboard and this is a welcome mat.
+
+---
+
 ## Moderation
 
 | Capability | Who |

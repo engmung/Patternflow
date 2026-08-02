@@ -272,6 +272,12 @@ export const posts = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     body: text("body").notNull(),
+    /**
+     * Set on THE notice — the one post moderators keep at the top of the
+     * list. One slot, not a flag: pinning a post un-pins the previous one,
+     * because two notices are a noticeboard and this is a welcome mat.
+     */
+    pinnedAt: integer("pinned_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },

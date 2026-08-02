@@ -38,6 +38,7 @@ export default async function CommunityDiscussionsPage(props: {
         id: post.id,
         title: post.title,
         body: post.body,
+        pinned: post.pinned,
         createdAt: post.createdAt.toISOString(),
         username: post.username,
         displayUsername: post.displayUsername,

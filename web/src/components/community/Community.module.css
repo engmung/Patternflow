@@ -2173,6 +2173,99 @@
   color: var(--pf-ink);
 }
 
+/* ── Discussions pagination ──
+   (The pattern feed scrolls forever; this list still pages — twenty text rows
+   at a time is plenty, and a pager is honest furniture for an archive.) */
+
+.paginationBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.pageBtn {
+  border: 1px solid rgba(20, 20, 20, 0.3);
+  border-radius: 0;
+  background: #ffffff;
+  color: var(--pf-ink);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 120ms ease;
+}
+
+.pageBtn:hover:not([data-disabled="true"]) {
+  background: var(--pf-ink);
+  border-color: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.pageBtn[data-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.pageIndicator {
+  color: var(--pf-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageIndicator strong {
+  color: var(--pf-ink);
+}
+
+.pageMetaTotal {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* ── Notice ──
+   One moderator-pinned post at the top of Discussions. Solid, like .hwChip —
+   the strongest chip in the family, because it is the one the site itself is
+   saying rather than reporting. */
+.noticeChip {
+  display: inline-block;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  background: var(--pf-ink);
+  border: 1px solid var(--pf-ink);
+  border-radius: 0;
+  padding: 1px 7px;
+  margin-right: 8px;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* ── Code fences ──
+   The one piece of markup the board has. Same dark ground as the code panel,
+   so pasted logs read as what they are. */
+.codeFence {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #09090b;
+  color: #e6e2d8;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  border-radius: 0;
+}
+
 /* ── Firmware ports ──
    Somebody else's board finishing the author's pattern. A quiet ledger, not a
    leaderboard: handle, date, state — and the author's Pin as the only verb. */

@@ -374,6 +374,8 @@ export type PostListItem = {
   id: string;
   title: string;
   body: string;
+  /** The notice — moderator-pinned, floats above everything. */
+  pinned: boolean;
   createdAt: Date;
   updatedAt: Date;
   username: string | null;
@@ -393,11 +395,12 @@ export async function listPosts({
   limit: number;
   offset?: number;
 }): Promise<PostListItem[]> {
-  return getDb()
+  const rows = await getDb()
     .select({
       id: posts.id,
       title: posts.title,
       body: posts.body,
+      pinnedAt: posts.pinnedAt,
       createdAt: posts.createdAt,
       updatedAt: posts.updatedAt,
       ...authorFields,
@@ -405,9 +408,11 @@ export async function listPosts({
     })
     .from(posts)
     .innerJoin(user, eq(posts.userId, user.id))
-    .orderBy(desc(posts.createdAt))
+    // The notice first (there is at most one), then newest.
+    .orderBy(sql`${posts.pinnedAt} IS NULL`, desc(posts.createdAt))
     .limit(limit)
     .offset(offset);
+  return rows.map(({ pinnedAt, ...row }) => ({ ...row, pinned: pinnedAt !== null }));
 }
 
 export async function getPost(id: string) {
@@ -417,6 +422,7 @@ export async function getPost(id: string) {
       userId: posts.userId,
       title: posts.title,
       body: posts.body,
+      pinnedAt: posts.pinnedAt,
       createdAt: posts.createdAt,
       updatedAt: posts.updatedAt,
       ...authorFields,
