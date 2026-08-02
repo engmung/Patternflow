@@ -1,11 +1,12 @@
 import LinkedText from "./LinkedText";
 import styles from "./Community.module.css";
 
-// Plain text plus exactly ONE piece of markup: ``` fences render as code
-// blocks. This board's long posts are build logs, compiler output and JS
-// fragments — prose markup would be ceremony, but a log squashed into a
-// paragraph is unreadable. Everything stays escaped-by-React, same as ever;
-// a fence changes the font, never the trust model.
+// Plain text plus exactly ONE render-time nicety: ``` fences render as code
+// blocks. The board is a free board — most posts are just ideas and talk —
+// but the odd pasted error log squashed into a paragraph is unreadable, and
+// this fixes that at zero cost to everyone who never types a fence.
+// Everything stays escaped-by-React, same as ever; a fence changes the font,
+// never the trust model.
 
 type Segment = { fence: boolean; text: string };
 

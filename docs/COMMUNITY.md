@@ -164,11 +164,12 @@ anything.
 
 ## Discussions
 
-Plain-text threads for everything that isn't a pattern. Bodies and comments
-are stored exactly as typed and escaped on output; the only markup in the
-whole board is a ``` fence, which renders as a code block — the long posts
-here are build logs and compiler output, and a log squashed into a paragraph
-is unreadable. The fence changes the font, never the trust model.
+The community's free board — ideas, questions, anything that isn't a
+pattern. Bodies and comments are stored exactly as typed and escaped on
+output. The one render-time nicety is the ``` fence, which shows its
+contents as a code block: most posts will never use it, but a pasted error
+log squashed into a paragraph is unreadable, and the fence costs nothing
+when unused. It changes the font, never the trust model.
 
 One post can be **the notice**: moderator-pinned, always first in the list,
 marked as such. One slot — pinning a post un-pins the previous one, because

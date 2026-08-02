@@ -90,7 +90,7 @@ export default function DiscussionsClient({
   return (
     <div className={styles.discussionWrap}>
       <div className={styles.introRow}>
-        <span>Questions, build logs and anything else that isn&apos;t a pattern.</span>
+        <span>Ideas, questions, and anything else on your mind — the free half of the community.</span>
         <span className={styles.headerSpacer} />
         {session ? (
           <button
@@ -121,7 +121,7 @@ export default function DiscussionsClient({
             className={styles.postBodyInput}
             value={body}
             maxLength={POST_BODY_MAX}
-            placeholder={"Write your post. Plain text — links become clickable on their own, and anything between ``` lines renders as code."}
+            placeholder="Write your post. Plain text — links become clickable on their own."
             aria-label="Post body"
             onChange={(event) => setBody(event.target.value)}
           />

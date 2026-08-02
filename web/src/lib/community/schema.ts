@@ -259,9 +259,10 @@ export const deckPatterns = sqliteTable(
 );
 
 // ── Discussions ────────────────────────────────────────────────────────────────────
-// Plain-text discussion, separate from patterns. A post is a title and a body;
-// that's the whole feature. No attachments, no markup — bodies are stored as
-// typed and escaped by React on output, same rule as comments.
+// The free board, separate from patterns. A post is a title and a body;
+// that's the whole feature. No attachments — bodies are stored as typed and
+// escaped by React on output, same rule as comments. (Rendering grants one
+// nicety, the ``` code fence; storage stays exactly what was typed.)
 
 export const posts = sqliteTable(
   "posts",
