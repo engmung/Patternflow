@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import {
   comments,
@@ -6,6 +6,7 @@ import {
   decks,
   likes,
   notifications,
+  patternHeaders,
   patterns,
   postComments,
   posts,
@@ -30,7 +31,13 @@ const authorFields = {
 // that can drift out of sync with reality.
 const likeCount = sql<number>`(SELECT COUNT(*) FROM ${likes} WHERE ${likes.patternId} = ${patterns.id})`;
 const forkCount = sql<number>`(SELECT COUNT(*) FROM ${patterns} AS child WHERE child.parent_id = ${patterns.id})`;
-const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL)`;
+// "Hardware ready" means an EFFECTIVE header exists: the author's own, or a
+// live community port (see lib/community/ports.ts). Which one wins is the
+// page's business; the feed only cares that a build has something to compile.
+const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL OR EXISTS (
+  SELECT 1 FROM ${patternHeaders} AS ph
+  WHERE ph.pattern_id = ${patterns.id} AND ph.stale = 0
+))`;
 // How many *other people* put this pattern in a public deck. Distinct owners,
 // not rows, and never the pattern's own author: a like costs a click, but this
 // costs one of somebody's two public deck slots spent on someone else's work —
@@ -95,12 +102,15 @@ function toFeedItems(rows: FeedRow[]): FeedItem[] {
 // same table, so EVERY listing query needs this — a miss here is a leak (#255).
 const feedVisible = eq(patterns.visibility, "public");
 
+// The hardware filter and the card chip must agree, so both read `hasCpp`.
+const hardwareReady = sql`${hasCpp} = 1`;
+
 /** How many patterns match the current filter — drives the page count. */
 export async function countFeed(hardwareOnly = false): Promise<number> {
   const rows = await getDb()
     .select({ count: sql<number>`COUNT(*)` })
     .from(patterns)
-    .where(and(feedVisible, hardwareOnly ? isNotNull(patterns.codeCpp) : undefined));
+    .where(and(feedVisible, hardwareOnly ? hardwareReady : undefined));
   return rows[0]?.count ?? 0;
 }
 
@@ -129,7 +139,7 @@ export async function listFeed({
     .select(feedColumns)
     .from(patterns)
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(and(feedVisible, hardwareOnly ? isNotNull(patterns.codeCpp) : undefined))
+    .where(and(feedVisible, hardwareOnly ? hardwareReady : undefined))
     .orderBy(...order)
     .limit(limit)
     .offset(offset);
@@ -151,6 +161,7 @@ export async function getPattern(id: string) {
       madeHow: patterns.madeHow,
       parentId: patterns.parentId,
       visibility: patterns.visibility,
+      pinnedHeaderId: patterns.pinnedHeaderId,
       createdAt: patterns.createdAt,
       updatedAt: patterns.updatedAt,
       ...authorFields,
@@ -710,6 +721,47 @@ export async function countPublicDecksByUser(
       ),
     );
   return rows[0]?.count ?? 0;
+}
+
+// ── Community ports ──────────────────────────────────────────────────────────
+
+/** A pattern's ports, oldest first — the order resolution reads them in. */
+export async function listPatternPorts(patternId: string) {
+  return getDb()
+    .select({
+      id: patternHeaders.id,
+      userId: patternHeaders.userId,
+      codeCpp: patternHeaders.codeCpp,
+      note: patternHeaders.note,
+      stale: sql<number>`${patternHeaders.stale}`,
+      createdAt: patternHeaders.createdAt,
+      ...authorFields,
+    })
+    .from(patternHeaders)
+    .innerJoin(user, eq(patternHeaders.userId, user.id))
+    .where(eq(patternHeaders.patternId, patternId))
+    .orderBy(patternHeaders.createdAt)
+    .then((rows) =>
+      // SQLite booleans come back 0/1 — normalise once, here.
+      rows.map((row) => ({ ...row, stale: Boolean(row.stale) })),
+    );
+}
+
+/** Ownership check for deleting a port — and the pin's validation, which
+ *  needs to know the port belongs to the pattern and is still live. */
+export async function getPortStub(id: string) {
+  const rows = await getDb()
+    .select({
+      id: patternHeaders.id,
+      userId: patternHeaders.userId,
+      patternId: patternHeaders.patternId,
+      stale: sql<number>`${patternHeaders.stale}`,
+    })
+    .from(patternHeaders)
+    .where(eq(patternHeaders.id, id))
+    .limit(1);
+  const row = rows[0];
+  return row ? { ...row, stale: Boolean(row.stale) } : null;
 }
 
 // ── Notifications ────────────────────────────────────────────────────────────

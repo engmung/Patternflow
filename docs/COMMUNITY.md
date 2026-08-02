@@ -42,11 +42,39 @@ database row on every save, never trusted from user input. Most people copy
 code out of the page rather than downloading a file, and a licence that only
 exists in the download is a licence most readers never see.
 
-**The firmware header (`.h`) is separate and optional.** It is the author's
-hand-verified C++ port, attached after the fact; a pattern that has one is
-"hardware ready" and can be flashed or built into a module directly. It is
-never auto-generated and never carried across a fork — the JavaScript may have
-changed, which would make the port a lie.
+**The firmware header (`.h`) is separate and optional.** It is a hand-verified
+C++ port, attached after the fact; a pattern that has one is "hardware ready"
+and can be flashed or built into a module directly. It is never auto-generated
+and never carried across a fork — the JavaScript may have changed, which would
+make the port a lie.
+
+### Community ports
+
+Some people make patterns without owning a board; some people own boards. A
+**port** is the second group finishing the first group's work: anyone can
+propose a verified `.h` for a pattern whose author has not attached their own
+("Port this pattern" on the pattern page).
+
+- **Live immediately** — no acceptance queue; a queue would rot on authors who
+  moved on. The author is notified instead, and moderation stays after the
+  fact, as everywhere else.
+- **Several can coexist** (the first may be wrong). Which one the pattern
+  ships: the **author's own header first**, else the **author's pinned pick**,
+  else the **oldest live port** — arrival order, because "latest wins" would
+  be hijackable.
+- **Credited, always**: the page says `port by @who`, and every port row names
+  its porter. The port is a derivative of the pattern, so it lives under the
+  pattern's licence — the work stays the author's; the porter's payment is
+  the credit.
+- **Version-bound**: when the pattern's JS changes, every port goes stale
+  ("for an older version") and stops resolving — the same rule that detaches
+  the author's own header on edit. Stale ports stay listed; a fresh
+  verification is a new port.
+- Porters can withdraw their own ports; moderators can remove any. The author
+  does not delete other people's ports — they out-rank them with a pin or
+  with their own header, same spirit as comments on their pattern.
+- The feed's `.h` chip and hardware filter mean "an effective header exists" —
+  the author's own or a live port, no distinction at that distance.
 
 **Untrusted code only ever runs inside a sandboxed iframe**
 (`web/public/pattern-sandbox.html`, `sandbox="allow-scripts"`, opaque origin,
@@ -268,7 +296,7 @@ first).
 | Unreferenced artifact files | Swept after a 24-hour grace window |
 | Notifications | **90 days**, read or not — and gone sooner if their subject is deleted |
 | Reports | Kept after the reported content is gone |
-| Patterns, decks, posts, comments | Until removed |
+| Patterns, decks, ports, posts, comments | Until removed |
 
 Changing a retention period means changing the constant in
 `web/src/lib/community/retention.ts` **and** the terms. Both, or the terms stop
@@ -288,6 +316,7 @@ npm run check:retention    # the sweep, against a throwaway database
 npm run check:deck         # deck cap, ordering, legacy migration
 npm run check:sharing      # visibility read paths, shared-deck rules, gaps
 npm run check:notify       # notification fan-out, cleanup, age-out
+npm run check:ports        # effective-header resolution, staleness, feed chip
 ```
 
 They exist for the failures that are silent. A sweep that deletes too little

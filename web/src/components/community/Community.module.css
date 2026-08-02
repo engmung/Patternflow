@@ -2173,6 +2173,95 @@
   color: var(--pf-ink);
 }
 
+/* ── Firmware ports ──
+   Somebody else's board finishing the author's pattern. A quiet ledger, not a
+   leaderboard: handle, date, state — and the author's Pin as the only verb. */
+
+.portsSection {
+  margin-top: 18px;
+  border-top: 1px solid var(--pf-rule-soft);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portsTitle {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+.portsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--pf-rule-soft);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.portRow[data-stale="true"] .portHandle {
+  color: var(--pf-ink-faint);
+}
+
+.portHandle {
+  font-weight: 500;
+  color: var(--pf-ink);
+  white-space: nowrap;
+}
+
+.portDate {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pf-ink-faint);
+  flex: none;
+}
+
+.portChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pf-led);
+  border: 1px solid rgba(232, 85, 46, 0.5);
+  padding: 0 6px;
+}
+
+.portStale {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--pf-ink-faint);
+  border: 1px dashed rgba(20, 20, 20, 0.3);
+  padding: 0 6px;
+}
+
+.portNote {
+  color: var(--pf-ink-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Alerts ──
    Delivery is the next page load — no polling, no sockets. The header link
    turns LED-orange while anything is unread, and goes quiet again. */

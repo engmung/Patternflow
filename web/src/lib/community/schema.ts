@@ -126,6 +126,13 @@ export const patterns = sqliteTable(
      * everything — visibility is not a shield from a report).
      */
     visibility: text("visibility").notNull().default("public"),
+    /**
+     * The community port the author chose, when they chose one. No foreign
+     * key (the delete path clears it): resolution falls back gracefully when
+     * the row it names is gone or stale. See lib/community/ports.ts for the
+     * order — the author's own header always outranks it.
+     */
+    pinnedHeaderId: text("pinned_header_id"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -134,6 +141,47 @@ export const patterns = sqliteTable(
     index("patterns_user_id_idx").on(table.userId),
     // The feed's exact shape: visible rows, newest first.
     index("patterns_visibility_created_idx").on(table.visibility, table.createdAt),
+  ],
+);
+
+// ── Community firmware ports ─────────────────────────────────────────────────
+// Some people make patterns without owning a board; some people own boards.
+// A port is the second group finishing the first group's work: a hand-verified
+// .h for somebody else's pattern, live the moment it is submitted — an
+// acceptance queue would rot on authors who moved on. Several can coexist
+// (the first may be wrong); arrival order breaks ties and the author's pick
+// overrides it (patterns.pinnedHeaderId). The author's own header, when they
+// attach one, outranks everything.
+//
+// A port is a derivative of the pattern, so it lives under the pattern's
+// licence with the porter credited — same rule as forks, applied to C++.
+
+export const patternHeaders = sqliteTable(
+  "pattern_headers",
+  {
+    id: text("id").primaryKey(),
+    patternId: text("pattern_id")
+      .notNull()
+      .references(() => patterns.id, { onDelete: "cascade" }),
+    /** The porter — the person whose board vouched for it. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    codeCpp: text("code_cpp").notNull(),
+    /** Porter's word on how it was verified — "tested on v2.1" etc. */
+    note: text("note"),
+    /**
+     * Set when the pattern's JS changes after this port was made: the port is
+     * of a SPECIFIC version, and once the source moves the guarantee is gone.
+     * Stale rows stay listed ("for an older version") but stop resolving —
+     * the same rule that detaches the author's own header, kept visible.
+     */
+    stale: integer("stale", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    // Resolution reads "oldest live port for this pattern".
+    index("pattern_headers_pattern_created_idx").on(table.patternId, table.createdAt),
   ],
 );
 

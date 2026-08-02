@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { isAdminSession } from "@/lib/community/admin";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
-import { getPattern, getPatternStub, hasLiked, listComments } from "@/lib/community/queries";
+import { getPattern, getPatternStub, hasLiked, listComments, listPatternPorts } from "@/lib/community/queries";
+import { resolveHeader } from "@/lib/community/ports";
 import { provenanceFor } from "@/lib/community/provenance";
 import { canView } from "@/lib/community/visibility";
 import type { CommentView } from "@/components/community/CommentSection";
@@ -59,6 +60,12 @@ export default async function CommunityPatternPage(props: RouteParams) {
 
   const liked = viewerId ? await hasLiked(viewerId, pattern.id) : false;
 
+  // Which .h this pattern actually ships: the author's own, or the winning
+  // community port (author's pin first, then arrival order).
+  const ports = await listPatternPorts(pattern.id);
+  const effective = resolveHeader(pattern, ports);
+  const effectivePortId = effective?.source === "port" ? effective.portId : null;
+
   const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
   const comments: CommentView[] = (await listComments(pattern.id)).map((comment) => ({
     id: comment.id,
@@ -80,7 +87,19 @@ export default async function CommunityPatternPage(props: RouteParams) {
         title: pattern.title,
         description: pattern.description,
         code: pattern.code,
-        codeCpp: pattern.codeCpp,
+        codeCpp: effective?.codeCpp ?? null,
+        ownCpp: pattern.codeCpp,
+        portedBy: effective?.source === "port" ? effective.handle : null,
+        ports: ports.map((port) => ({
+          id: port.id,
+          handle: port.displayUsername ?? port.username ?? null,
+          note: port.note,
+          stale: port.stale,
+          createdAt: port.createdAt.toISOString(),
+          mine: viewerId === port.userId,
+          pinned: pattern.pinnedHeaderId === port.id,
+          effective: effectivePortId === port.id,
+        })),
         license: pattern.license,
         madeOn: pattern.madeOn,
         madeHow: pattern.madeHow,
@@ -90,7 +109,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
         displayUsername: pattern.displayUsername,
         // Read out of the stored source, not stored separately — the source is
         // where Pattern Lab wrote these while the author worked.
-        provenance: provenanceFor(pattern.code, pattern.codeCpp !== null, pattern.madeHow),
+        provenance: provenanceFor(pattern.code, effective !== null, pattern.madeHow),
         parent: parent
           ? {
               id: parent.id,

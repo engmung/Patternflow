@@ -38,6 +38,10 @@ function describe(item: NotificationView): string {
       return `published a fork of “${item.targetTitle}”`;
     case "deck":
       return `put “${item.snippet ?? "your pattern"}” in their deck “${item.targetTitle}”`;
+    case "port":
+      return `added a firmware port to “${item.targetTitle}” — open it to pick or replace`;
+    case "pin":
+      return `pinned your port of “${item.targetTitle}”`;
     default:
       return `did something with “${item.targetTitle}”`;
   }
