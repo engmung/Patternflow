@@ -39,13 +39,31 @@ import styles from "@/components/community/Community.module.css";
 // boundary that makes that safe. Saving (fork-publishing) happens in Pattern
 // Lab via the sessionStorage handoff.
 
+export type PortView = {
+  id: string;
+  handle: string | null;
+  note: string | null;
+  stale: boolean;
+  createdAt: string; // ISO
+  mine: boolean;
+  pinned: boolean;
+  effective: boolean;
+};
+
 export type PatternView = {
   id: string;
   title: string;
   description: string | null;
   code: string;
-  /** Author-attached firmware port, if any. Read-only here. */
+  /** The EFFECTIVE header — the author's own, or the winning community port.
+   *  Everything that builds, downloads or collects reads this one. */
   codeCpp: string | null;
+  /** The author's own header only — what their Update/Remove modal edits. */
+  ownCpp: string | null;
+  /** Porter handle when the effective header is a community port. */
+  portedBy: string | null;
+  /** Every port on this pattern, oldest first. */
+  ports: PortView[];
   license: string;
   /** Author-stated creation date (YYYY-MM-DD), when it differs from the upload. */
   madeOn: string | null;
@@ -87,6 +105,7 @@ export default function PatternDetailClient({
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [codeTab, setCodeTab] = useState<"js" | "h">("js");
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
+  const [portModalOpen, setPortModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [buildOpen, setBuildOpen] = useState(false);
@@ -482,8 +501,16 @@ export default function PatternDetailClient({
             </span>
           )}
           {pattern.codeCpp && (
-            <span className={styles.hwNote} title="Ships a .h firmware header">
+            <span
+              className={styles.hwNote}
+              title={
+                pattern.portedBy
+                  ? `Ships a .h firmware header, ported by @${pattern.portedBy}`
+                  : "Ships a .h firmware header"
+              }
+            >
               <span className={styles.hwChip}>.h</span> hardware ready
+              {pattern.portedBy && <> · port by @{pattern.portedBy}</>}
             </span>
           )}
           {pattern.visibility !== "public" && (
@@ -544,9 +571,11 @@ export default function PatternDetailClient({
         {isOwner && (
           <div className={styles.ownerBar}>
             <span className={styles.formNote}>
-              {pattern.codeCpp
-                ? "Your pattern ships a firmware header."
-                : "Ported this to the board? Attach the .h so others can flash it."}
+              {pattern.ownCpp
+                ? "Your pattern ships your own firmware header."
+                : pattern.portedBy
+                  ? `Running on @${pattern.portedBy}'s port — pin your pick below, or attach your own to out-rank it.`
+                  : "Ported this to the board? Attach the .h so others can flash it."}
             </span>
             <button type="button" className={styles.btn} onClick={() => setDetailsModalOpen(true)}>
               Edit details
@@ -556,12 +585,14 @@ export default function PatternDetailClient({
               className={styles.btn}
               onClick={() => setHeaderModalOpen(true)}
             >
-              {pattern.codeCpp ? "Update .h" : "Add firmware header"}
+              {pattern.ownCpp ? "Update .h" : "Add firmware header"}
             </button>
             <span className={styles.ownerBarSpacer} />
             <DeletePatternButton patternId={pattern.id} forkCount={pattern.forkCount} />
           </div>
         )}
+
+        <PortsSection pattern={pattern} isOwner={isOwner} onPropose={() => setPortModalOpen(true)} />
       </div>
 
       <CommentSection target={{ kind: "pattern", id: pattern.id }} comments={comments} />
@@ -569,8 +600,17 @@ export default function PatternDetailClient({
       {headerModalOpen && (
         <AddHeaderModal
           patternId={pattern.id}
-          initialCpp={pattern.codeCpp}
+          initialCpp={pattern.ownCpp}
           onClose={() => setHeaderModalOpen(false)}
+        />
+      )}
+
+      {portModalOpen && (
+        <AddHeaderModal
+          patternId={pattern.id}
+          initialCpp={null}
+          mode="port"
+          onClose={() => setPortModalOpen(false)}
         />
       )}
 
@@ -612,6 +652,137 @@ export default function PatternDetailClient({
           onClose={() => setReportOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+// Community ports: who finished the hardware half, in arrival order. Visible
+// to everyone — a porter's credit is the whole payment. The author's pick
+// (pin) decides which one ships when they have no header of their own.
+function PortsSection({
+  pattern,
+  isOwner,
+  onPropose,
+}: {
+  pattern: PatternView;
+  isOwner: boolean;
+  onPropose: () => void;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canPropose = !isOwner && !pattern.ownCpp;
+  if (pattern.ports.length === 0 && !canPropose) return null;
+
+  const pin = async (portId: string | null) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(communityApiUrl(`/api/community/patterns/${pattern.id}`), {
+        method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinnedHeaderId: portId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not save.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (portId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(communityApiUrl(`/api/community/ports/${portId}`), {
+        method: "DELETE",
+        ...COMMUNITY_FETCH_INIT,
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not remove the port.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={styles.portsSection}>
+      <div className={styles.portsHead}>
+        <span className={styles.portsTitle}>
+          Firmware ports{pattern.ports.length > 0 ? ` (${pattern.ports.length})` : ""}
+        </span>
+        {canPropose && (
+          <button type="button" className={styles.btnSmall} onClick={onPropose}>
+            {pattern.ports.length === 0 ? "Port this pattern (.h)" : "Propose another"}
+          </button>
+        )}
+      </div>
+
+      {pattern.ports.length === 0 ? (
+        <p className={styles.formNote}>
+          No firmware header yet. If you ran this on your own board, propose the .h — it goes
+          live immediately, credited to you.
+        </p>
+      ) : (
+        <ul className={styles.portsList}>
+          {pattern.ports.map((port) => (
+            <li key={port.id} className={styles.portRow} data-stale={port.stale}>
+              <span className={styles.portHandle}>@{port.handle ?? "unknown"}</span>
+              <span className={styles.portDate}>{port.createdAt.slice(0, 10)}</span>
+              {port.effective && <span className={styles.portChip}>in use</span>}
+              {port.pinned && <span className={styles.portChip}>pinned</span>}
+              {port.stale && (
+                <span className={styles.portStale} title="The pattern's code changed after this port was made">
+                  for an older version
+                </span>
+              )}
+              {port.note && <span className={styles.portNote}>{port.note}</span>}
+              <span className={styles.ownerBarSpacer} />
+              {isOwner && !port.stale && !pattern.ownCpp && (
+                <button
+                  type="button"
+                  className={styles.btnSmall}
+                  disabled={busy}
+                  title={
+                    port.pinned
+                      ? "Stop pinning this port (arrival order decides again)"
+                      : "Make this the port your pattern ships"
+                  }
+                  onClick={() => void pin(port.pinned ? null : port.id)}
+                >
+                  {port.pinned ? "Unpin" : "Pin"}
+                </button>
+              )}
+              {port.mine && (
+                <button
+                  type="button"
+                  className={styles.btnSmall}
+                  disabled={busy}
+                  onClick={() => void remove(port.id)}
+                >
+                  remove
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && <div className={styles.formError}>{error}</div>}
     </div>
   );
 }

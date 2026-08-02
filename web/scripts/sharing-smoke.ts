@@ -244,16 +244,16 @@ async function main() {
   check("its snapshot title survives the row", afterDelete[0]?.titleSnapshot, "Pattern p-g1");
   check("the set is still two slots long", afterDelete.length, 2);
 
-  console.log("\n── the feed's deck signal ──");
+  console.log("\n── the deck signal on feed cards ──");
   // p-pub sits in alice's own deck (does not count), two decks by bob (one
-  // person), and cara's unlisted deck (not public, does not count) → 1.
-  const ranked = await queries.listFeed({ sort: "decks" });
-  const pPub = ranked.find((item) => item.id === "p-pub");
-  check("own decks and unlisted decks do not count", pPub?.deckCount, 1);
-  check("two decks by one person count once", ranked[0]?.id, "p-pub");
+  // person, counts once), and cara's unlisted deck (not public, does not
+  // count) → 1. Shown on the card as DCK; not a sort while decks are few.
+  const feedNow = await queries.listFeed();
+  const pPub = feedNow.find((item) => item.id === "p-pub");
+  check("own decks and unlisted decks do not count, one person counts once", pPub?.deckCount, 1);
   check(
     "everything else sits at zero",
-    ranked.filter((i) => i.id !== "p-pub").map((i) => i.deckCount),
+    feedNow.filter((i) => i.id !== "p-pub").map((i) => i.deckCount),
     [0],
   );
 }

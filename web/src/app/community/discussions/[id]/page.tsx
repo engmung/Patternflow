@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { isAdminSession } from "@/lib/community/admin";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
 import { getPost, listPostComments } from "@/lib/community/queries";
@@ -50,6 +51,7 @@ export default async function CommunityPostPage(props: RouteParams) {
         id: post.id,
         title: post.title,
         body: post.body,
+        pinned: post.pinnedAt !== null,
         createdAt: post.createdAt.toISOString(),
         updatedAt: post.updatedAt.toISOString(),
         username: post.username,
@@ -57,6 +59,7 @@ export default async function CommunityPostPage(props: RouteParams) {
       }}
       comments={comments}
       isOwner={session?.user.id === post.userId}
+      isAdmin={isAdminSession(session)}
     />
   );
 }

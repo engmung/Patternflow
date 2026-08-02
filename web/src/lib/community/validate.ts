@@ -71,9 +71,10 @@ export function cleanMadeOn(raw: unknown): string | null | undefined {
 }
 
 /**
- * Board post body. Roomier than a comment because a post is the long-form
- * side of the community — a build log or a question with output pasted in —
- * but still plain text with no markup.
+ * Board post body. Discussions is the community's free board — ideas,
+ * questions, whatever is on someone's mind — so a post gets room a comment
+ * does not. Plain text; the one render-time nicety is the ``` code fence
+ * (see FencedText), for the rare pasted log.
  */
 export const POST_BODY_MAX = 20_000;
 

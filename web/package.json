@@ -18,7 +18,8 @@
     "sweep": "tsx scripts/retention-sweep.ts",
     "check:deck": "tsx scripts/deck-smoke.ts",
     "check:sharing": "tsx scripts/sharing-smoke.ts",
-    "check:notify": "tsx scripts/notify-smoke.ts"
+    "check:notify": "tsx scripts/notify-smoke.ts",
+    "check:ports": "tsx scripts/ports-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

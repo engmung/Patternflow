@@ -3,10 +3,10 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
-import { clearNotificationsFor } from "@/lib/community/notify";
-import { getPattern, getPatternStub } from "@/lib/community/queries";
+import { clearNotificationsFor, notifyPortPinned } from "@/lib/community/notify";
+import { getPattern, getPatternStub, getPortStub } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { patterns } from "@/lib/community/schema";
+import { patternHeaders, patterns } from "@/lib/community/schema";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
   cleanCode,
@@ -174,6 +174,32 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     visibility = next;
   }
 
+  // The author's pick among community ports. Owner-only by virtue of being in
+  // this handler — picking the header that ships under the pattern's name is
+  // exactly the author's call and nobody else's.
+  let pinnedHeaderId = pattern.pinnedHeaderId;
+  let newlyPinnedPort: Awaited<ReturnType<typeof getPortStub>> = null;
+  if (raw.pinnedHeaderId !== undefined) {
+    if (raw.pinnedHeaderId === null || raw.pinnedHeaderId === "") {
+      pinnedHeaderId = null;
+    } else if (typeof raw.pinnedHeaderId === "string") {
+      const port = await getPortStub(raw.pinnedHeaderId);
+      if (!port || port.patternId !== id) {
+        return Response.json({ error: "No such port on this pattern." }, { status: 400 });
+      }
+      if (port.stale) {
+        return Response.json(
+          { error: "That port was made for an older version of the code — it cannot be pinned." },
+          { status: 400 },
+        );
+      }
+      if (port.id !== pattern.pinnedHeaderId) newlyPinnedPort = port;
+      pinnedHeaderId = port.id;
+    } else {
+      return Response.json({ error: "Unknown pinned port." }, { status: 400 });
+    }
+  }
+
   // Compare the bodies with any licence wrapping removed, so re-saving without
   // touching the code isn't mistaken for a code change.
   let bareCode = stripShareWrapping(pattern.code);
@@ -234,9 +260,30 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       }),
       codeCpp,
       visibility,
+      pinnedHeaderId,
       updatedAt: new Date(),
     })
     .where(eq(patterns.id, id));
+
+  // A port is of a SPECIFIC version of the JS. Once the source moves, every
+  // community port goes stale — same guarantee-expiry that just cleared the
+  // author's own header above, applied to everyone else's.
+  if (codeChanged) {
+    await getDb()
+      .update(patternHeaders)
+      .set({ stale: true })
+      .where(eq(patternHeaders.patternId, id));
+  }
+
+  if (newlyPinnedPort) {
+    await notifyPortPinned({
+      porterId: newlyPinnedPort.userId,
+      patternId: id,
+      patternTitle: title,
+      portId: newlyPinnedPort.id,
+      actorId: session.user.id,
+    });
+  }
 
   return Response.json({
     ok: true,

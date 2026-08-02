@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
 import CommentSection, { type CommentView } from "./CommentSection";
-import LinkedText from "./LinkedText";
+import FencedText from "./FencedText";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
@@ -16,6 +16,8 @@ export type PostView = {
   id: string;
   title: string;
   body: string;
+  /** Whether this post is THE notice. */
+  pinned: boolean;
   createdAt: string; // ISO
   updatedAt: string; // ISO
   username: string | null;
@@ -26,10 +28,12 @@ export default function PostDetailClient({
   post,
   comments,
   isOwner,
+  isAdmin = false,
 }: {
   post: PostView;
   comments: CommentView[];
   isOwner: boolean;
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -40,6 +44,31 @@ export default function PostDetailClient({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const edited = post.updatedAt !== post.createdAt;
+
+  // Moderator-only: make this post the notice (one slot — pinning it bumps
+  // whatever held the spot), or clear it.
+  const setPinned = async (pinned: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(communityApiUrl(`/api/community/posts/${post.id}/pin`), {
+        method: "POST",
+        ...COMMUNITY_FETCH_INIT,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinned }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setError(payload.error ?? "Could not save.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async () => {
     if (title.trim().length === 0 || body.trim().length === 0) return;
@@ -140,7 +169,10 @@ export default function PostDetailClient({
           </>
         ) : (
           <>
-            <h1 className={styles.postTitle}>{post.title}</h1>
+            <h1 className={styles.postTitle}>
+              {post.pinned && <span className={styles.noticeChip}>Notice</span>}
+              {post.title}
+            </h1>
             <div className={styles.postMeta}>
               <Link
                 href={`/community/u/${post.username ?? ""}`}
@@ -150,6 +182,21 @@ export default function PostDetailClient({
               </Link>
               <span className={styles.commentDate}>{formatDate(post.createdAt)}</span>
               {edited && <span className={styles.commentDate}>· edited</span>}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className={styles.btnSmall}
+                  disabled={busy}
+                  title={
+                    post.pinned
+                      ? "Remove this post from the top of Discussions"
+                      : "Keep this post at the top of Discussions (replaces the current notice)"
+                  }
+                  onClick={() => void setPinned(!post.pinned)}
+                >
+                  {post.pinned ? "Unpin notice" : "Pin as notice"}
+                </button>
+              )}
               {isOwner && (
                 <>
                   <span className={styles.headerSpacer} />
@@ -193,7 +240,7 @@ export default function PostDetailClient({
             </div>
             {error && <div className={styles.formError}>{error}</div>}
             <div className={styles.postBody}>
-              <LinkedText text={post.body} />
+              <FencedText text={post.body} />
             </div>
           </>
         )}

@@ -1,10 +1,18 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
+import { MAX_FEED_PAGE_SIZE } from "@/lib/community/feedView";
 import { notifyForkPublished } from "@/lib/community/notify";
-import { getPatternStub, newId } from "@/lib/community/queries";
+import {
+  countFeed,
+  getPatternStub,
+  listFeed,
+  newId,
+  parseFeedSort,
+} from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
+import { toCardItem } from "@/lib/community/serialize";
 import {
   cleanCode,
   cleanCpp,
@@ -17,7 +25,12 @@ import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
 
 // POST /api/community/patterns — publish (or fork-publish) a pattern.
-// Reads happen in server components; only mutations go through the API.
+// GET  /api/community/patterns — one batch of the feed, for infinite scroll.
+//
+// Reads otherwise happen in server components; this GET is the one exception,
+// because "load more as you scroll" is a client act by nature. Same filters
+// and ordering as the server-rendered first paint — it reads through the very
+// same listFeed, so the visibility rules cannot drift apart.
 //
 // Callable from the main site's Pattern Lab, which is a different origin, so
 // every response carries CORS headers and OPTIONS answers the preflight.
@@ -28,7 +41,38 @@ export async function POST(request: Request) {
   return withCors(request, await handlePost(request));
 }
 
+export async function GET(request: Request) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handleGet(request));
+}
+
 export const OPTIONS = preflight;
+
+function clampInt(raw: string | null, fallback: number, min: number, max: number) {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+async function handleGet(request: Request) {
+  if (!communityEnabled()) {
+    return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
+  }
+
+  const params = new URL(request.url).searchParams;
+  const sort = parseFeedSort(params.get("sort") ?? undefined);
+  const hardwareOnly = params.get("hw") === "1";
+  const offset = clampInt(params.get("offset"), 0, 0, 1_000_000);
+  const size = clampInt(params.get("size"), 12, 1, MAX_FEED_PAGE_SIZE);
+
+  const [items, total] = await Promise.all([
+    listFeed({ sort, hardwareOnly, limit: size, offset }),
+    countFeed(hardwareOnly),
+  ]);
+
+  return Response.json({ items: items.map(toCardItem), total });
+}
 
 async function handlePost(request: Request) {
   if (!communityEnabled()) {

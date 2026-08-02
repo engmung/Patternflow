@@ -154,7 +154,8 @@ export default function TermsPage() {
             reasonable to do so we will say why.
           </p>
           <p>
-            You can delete your own patterns, decks, posts and comments at any time. To close your account,
+            You can delete your own patterns, decks, firmware ports, posts and comments at any
+            time. To close your account,
             email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.
           </p>
           <p className={styles.callout}>
@@ -180,8 +181,8 @@ export default function TermsPage() {
               user-agent of the sign-in. This is for security and abuse handling, not analytics.
             </li>
             <li>
-              <strong>What you publish</strong> — patterns, decks, comments, posts, likes, and
-              firmware build requests.
+              <strong>What you publish</strong> — patterns, decks, firmware ports, comments,
+              posts, likes, and build requests.
             </li>
             <li>
               <strong>Alerts</strong> — a note when someone comments on your work, forks a pattern

@@ -3,9 +3,8 @@ import { communityEnabled } from "@/lib/community/db";
 import { countPosts, listPosts } from "@/lib/community/queries";
 import DiscussionsClient from "@/components/community/DiscussionsClient";
 
-// Discussions: plain-text threads that aren't attached to a pattern.
-//
-// Deliberately the boring half of the community. No previews, no sandboxes,
+// Discussions: the community's free board — ideas, questions, anything that
+// isn't a pattern. Deliberately the plain half: no previews, no sandboxes,
 // no thumbnails — a title, a body, and replies. That is why it can page in
 // twenty rows where the pattern feed can only afford a handful.
 
@@ -13,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Discussions / Patternflow Community",
-  description: "Questions, build logs and discussion from the Patternflow community.",
+  description: "Ideas, questions and open discussion from the Patternflow community.",
 };
 
 const PAGE_SIZE = 20;
@@ -38,6 +37,7 @@ export default async function CommunityDiscussionsPage(props: {
         id: post.id,
         title: post.title,
         body: post.body,
+        pinned: post.pinned,
         createdAt: post.createdAt.toISOString(),
         username: post.username,
         displayUsername: post.displayUsername,

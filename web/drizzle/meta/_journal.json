@@ -78,6 +78,20 @@
       "when": 1785537782506,
       "tag": "0010_add-notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1785648191733,
+      "tag": "0011_add-pattern-ports",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1785649158014,
+      "tag": "0012_add-post-notice",
+      "breakpoints": true
     }
   ]
 }

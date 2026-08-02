@@ -7,7 +7,7 @@ import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { COMMENT_MAX } from "@/lib/community/validate";
 import AuthModal from "./AuthModal";
-import LinkedText from "./LinkedText";
+import FencedText from "./FencedText";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
@@ -218,7 +218,7 @@ export default function CommentSection({
               </div>
             ) : (
               <div className={styles.commentBody}>
-                <LinkedText text={comment.body} />
+                <FencedText text={comment.body} />
               </div>
             )}
             {!editing && rowError && rowBusy === null && confirmDelete === comment.id && (

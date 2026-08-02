@@ -127,10 +127,46 @@ export default function PatternCard({
   };
 
   const thumbRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLAnchorElement | null>(null);
   // Mirrors `thumb` so the effect can ask "do we already have one?" without
   // depending on it — depending on the state would restart the render whenever
   // a thumbnail arrives, and reading it from the closure would read a stale one.
   const lastThumbRef = useRef<string | null>(null);
+
+  // A card is a dead zone for page scroll: the wheel belongs to the knobs
+  // there, and a feed that lurches while you are mid-turn is unusable. Scroll
+  // the page from the gaps between cards. Native and non-passive, because
+  // preventDefault is the whole point; Ctrl+wheel still passes through — that
+  // is the wall's resize gesture, handled above the card.
+  useEffect(() => {
+    if (!interactive) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey) return;
+      event.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [interactive]);
+
+  // The live sandbox iframe mounts only once the card has been near the
+  // viewport, and stays mounted after. An infinite feed accumulates hundreds
+  // of cards; pre-warming every one of them would be hundreds of iframes.
+  const [nearViewport, setNearViewport] = useState(false);
+  useEffect(() => {
+    if (!interactive || nearViewport) return;
+    const el = thumbRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) setNearViewport(true);
+      },
+      { rootMargin: "300px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [interactive, nearViewport]);
 
   // Initial static thumbnail
   useEffect(() => {
@@ -189,8 +225,10 @@ export default function PatternCard({
     }
   };
 
-  // Mouse wheel adjusts active knob value
+  // Mouse wheel adjusts active knob value. With Ctrl held it is the feed's
+  // zoom gesture instead — let it bubble to the wall.
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (e.ctrlKey) return;
     e.preventDefault();
 
     const [min, max] = knobSetup.ranges[activeKnobIdx] ?? [0, 1];
@@ -217,6 +255,7 @@ export default function PatternCard({
 
   return (
     <Link
+      ref={rootRef}
       href={detailUrl}
       className={styles.card}
       onMouseEnter={interactive ? handleCardMouseEnter : undefined}
@@ -239,8 +278,9 @@ export default function PatternCard({
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Pre-warmed Live Sandbox Preview (0ms instant playback while hovering on card) */}
-          {interactive && (
+          {/* Live sandbox, pre-warmed once the card nears the viewport so the
+              first hover still plays instantly. */}
+          {interactive && nearViewport && (
             <SandboxPreview
               code={item.code}
               knobValues={knobValues}

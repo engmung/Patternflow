@@ -20,6 +20,8 @@ export type PostListView = {
   id: string;
   title: string;
   body: string;
+  /** The notice — moderator-pinned, always first in the list. */
+  pinned: boolean;
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
@@ -88,7 +90,7 @@ export default function DiscussionsClient({
   return (
     <div className={styles.discussionWrap}>
       <div className={styles.introRow}>
-        <span>Questions, build logs and anything else that isn&apos;t a pattern.</span>
+        <span>Ideas, questions, and anything else on your mind — the free half of the community.</span>
         <span className={styles.headerSpacer} />
         {session ? (
           <button
@@ -150,6 +152,7 @@ export default function DiscussionsClient({
             <li key={post.id} className={styles.postRow}>
               <Link href={`/community/discussions/${post.id}`} className={styles.postRowLink}>
                 <span className={styles.postRowTitle}>
+                  {post.pinned && <span className={styles.noticeChip}>Notice</span>}
                   {post.title}
                   {post.commentCount > 0 && (
                     <span className={styles.postRowCount}>{post.commentCount}</span>

@@ -19,7 +19,7 @@ function snippetOf(body: string): string {
   return flat.length > SNIPPET_MAX ? `${flat.slice(0, SNIPPET_MAX - 1)}…` : flat;
 }
 
-export type NotificationType = "comment" | "thread" | "fork" | "deck";
+export type NotificationType = "comment" | "thread" | "fork" | "deck" | "port" | "pin";
 
 type Seed = {
   userId: string;
@@ -186,6 +186,54 @@ export async function notifyDeckInclusion(opts: {
     });
   }
   await insertAll(seeds);
+}
+
+/**
+ * A community port landed on the author's pattern — the one notification the
+ * whole feature leans on: ports go live without acceptance, so the author has
+ * to hear about it to exercise their pick.
+ */
+export async function notifyPortAdded(opts: {
+  patternOwnerId: string;
+  patternId: string;
+  patternTitle: string;
+  portId: string;
+  actorId: string;
+}): Promise<void> {
+  if (opts.patternOwnerId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.patternOwnerId,
+      type: "port",
+      actorId: opts.actorId,
+      targetType: "pattern",
+      targetId: opts.patternId,
+      targetTitle: opts.patternTitle,
+      sourceId: opts.portId,
+    },
+  ]);
+}
+
+/** The author pinned a port — told to the porter whose board earned it. */
+export async function notifyPortPinned(opts: {
+  porterId: string;
+  patternId: string;
+  patternTitle: string;
+  portId: string;
+  actorId: string;
+}): Promise<void> {
+  if (opts.porterId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.porterId,
+      type: "pin",
+      actorId: opts.actorId,
+      targetType: "pattern",
+      targetId: opts.patternId,
+      targetTitle: opts.patternTitle,
+      sourceId: opts.portId,
+    },
+  ]);
 }
 
 /**
