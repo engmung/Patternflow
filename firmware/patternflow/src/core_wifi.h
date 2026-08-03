@@ -202,6 +202,20 @@ inline void begin() {
   WiFi.setAutoReconnect(true);  // let the IDF re-join on transient drops
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
   lastBeginMs = millis();
+
+  // Cap transmit power (PF_WIFI_TX_POWER in net_config.h). Must come after
+  // begin() — setTxPower() refuses while neither STA nor AP is started. The
+  // cap lives in the driver, so the retry path's disconnect()/begin() cycle
+  // keeps it; only a full driver stop would clear it. Logged as a readback
+  // rather than the requested value because the IDF clamps to what the radio
+  // can actually do, and an RF test wants the achieved number.
+  if (WiFi.setTxPower(PF_WIFI_TX_POWER)) {
+    Serial.printf("[WiFi] max TX power set — radio reports %.1f dBm\n",
+                  WiFi.getTxPower() / 4.0f);
+  } else {
+    Serial.println("[WiFi] WARNING: TX power cap rejected; radio is at default");
+  }
+
   Serial.printf("[WiFi] connecting to \"%s\" (%s creds, non-blocking)...\n",
                 activeSsid.c_str(), credsFromNvs ? "provisioned" : "built-in");
 }
