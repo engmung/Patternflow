@@ -1,13 +1,24 @@
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
-import { newId } from "@/lib/community/queries";
+import { cleanPinNote, cleanTerritoryCode } from "@/lib/community/workshop";
+import { notifyNewThread } from "@/lib/community/notify";
+import { getTerritoryByCode, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { posts } from "@/lib/community/schema";
+import { posts, territoryPins } from "@/lib/community/schema";
 import { cleanPostBody, cleanTitle } from "@/lib/community/validate";
 
-// POST /api/community/posts — start a discussion thread (login required).
-// Title and body are plain text, escaped by React on output.
+// POST /api/community/posts — start a thread inside a territory (login
+// required). Title and body are plain text, escaped by React on output.
+//
+// A thread always belongs to a direction on the map: there is no general list
+// any more, because a question about a direction belongs beside that
+// direction. The caller names the territory by its map code ("A3").
+//
+// `pin` piggybacks on the same request — the new-thread modal has "also pin
+// me: I'm working here" checked by default, and starting a thread about
+// something IS the strongest evidence you are working on it. Pinning is
+// idempotent, so a second thread in the same territory changes nothing.
 
 export async function POST(request: Request) {
   const blocked = originBlocked(request);
@@ -49,10 +60,26 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Body is empty or too long." }, { status: 400 });
   }
 
+  const code = cleanTerritoryCode(raw.territoryCode);
+  if (!code) {
+    return Response.json({ error: "Pick a place on the map for this." }, { status: 400 });
+  }
+  const territory = await getTerritoryByCode(code);
+  if (!territory) {
+    return Response.json({ error: "That territory does not exist." }, { status: 404 });
+  }
+
+  const note = cleanPinNote(raw.pinNote);
+  if (note === undefined) {
+    return Response.json({ error: "That note is too long." }, { status: 400 });
+  }
+
   const id = newId();
   const now = new Date();
-  await getDb().insert(posts).values({
+  const db = getDb();
+  await db.insert(posts).values({
     id,
+    territoryId: territory.id,
     userId: session.user.id,
     title,
     body,
@@ -60,5 +87,33 @@ async function handlePost(request: Request) {
     updatedAt: now,
   });
 
-  return Response.json({ ok: true, id }, { status: 201 });
+  if (raw.pin === true) {
+    // Already pinned there? Leave the original "since" alone — the date is the
+    // point of the pin, and a new thread does not restart it.
+    await db
+      .insert(territoryPins)
+      .values({
+        id: newId(),
+        territoryId: territory.id,
+        userId: session.user.id,
+        note,
+        createdAt: now,
+      })
+      .onConflictDoNothing();
+  }
+
+  // The pin-as-subscription payoff: everyone working in this territory hears
+  // that something started in it. After the author's own pin above, so a
+  // brand-new pin does not change who gets told about THIS thread (the actor
+  // is excluded either way) — but ordering it here keeps that true by
+  // construction rather than by coincidence.
+  await notifyNewThread({
+    territoryId: territory.id,
+    territoryLabel: `${territory.code} · ${territory.title}`,
+    postId: id,
+    postTitle: title,
+    actorId: session.user.id,
+  });
+
+  return Response.json({ ok: true, id, territoryCode: territory.code }, { status: 201 });
 }

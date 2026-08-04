@@ -8,6 +8,7 @@ import { getUserByUsername, listDecksByUser, listPatternsByUser } from "@/lib/co
 import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
+import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import styles from "@/components/community/Community.module.css";
 
 // A person's shared patterns. Unlike the feed — which is one fixed row — a
@@ -59,6 +60,9 @@ export default async function CommunityUserPage(props: RouteParams) {
     `joined ${profile.createdAt.toISOString().slice(0, 10)}`,
   ].filter(Boolean) as string[];
 
+  const publicDecks = deckItems.filter((deck) => deck.visibility === "public").length;
+  const freeSlots = Math.max(0, PUBLIC_DECKS_MAX - publicDecks);
+
   return (
     <div className={styles.profilePage}>
       <header className={styles.profileHeader}>
@@ -72,17 +76,26 @@ export default async function CommunityUserPage(props: RouteParams) {
         <span className={styles.headerSpacer} />
         {isSelf && (
           <Link href="/pattern-lab" className={styles.btnAccent}>
-            Make one in Pattern Lab
+            Make &amp; publish ↗
           </Link>
         )}
       </header>
 
       {items.length === 0 ? (
-        <div className={styles.empty}>
-          {isSelf
-            ? "You haven't shared anything yet. Make something in Pattern Lab, then hit “Share to Community”."
-            : "No patterns shared yet."}
-        </div>
+        isSelf ? (
+          <div className={styles.emptyPanel}>
+            <span className={styles.emptyKicker}>Profile · no patterns</span>
+            <span className={styles.emptyTitle}>Nobody has seen your work yet.</span>
+            <span className={styles.emptyBody}>
+              Open Pattern Lab, make something, publish it here — it takes one button from there.
+            </span>
+            <Link href="/pattern-lab" className={styles.emptyCta}>
+              Make &amp; publish — Pattern Lab ↗
+            </Link>
+          </div>
+        ) : (
+          <div className={styles.empty}>No patterns shared yet.</div>
+        )
       ) : (
         <div className={styles.profileGrid}>
           {items.map((item) => (
@@ -91,21 +104,38 @@ export default async function CommunityUserPage(props: RouteParams) {
         </div>
       )}
 
-      {deckItems.length > 0 && (
+      {(deckItems.length > 0 || isSelf) && (
         <>
-          <h2 className={styles.profileSectionTitle}>Decks</h2>
+          <h2 className={styles.profileSectionTitle}>
+            Decks
+            {isSelf && (
+              <span className={styles.profileSlotNote}>
+                {publicDecks} of {PUBLIC_DECKS_MAX} public slots used
+              </span>
+            )}
+          </h2>
           <div className={styles.deckGrid}>
             {deckItems.map((deck) => (
               <DeckCard key={deck.id} deck={deck} />
             ))}
+            {/* The unused slot is drawn, not described: two is the whole
+                allowance, so an empty one is information about what this
+                person could still stand behind. */}
+            {isSelf && freeSlots > 0 && (
+              <span className={styles.deckSlotFree}>
+                {freeSlots === PUBLIC_DECKS_MAX
+                  ? `${freeSlots} public slots — share a deck from your tray`
+                  : "One public slot left — share a deck from your tray"}
+              </span>
+            )}
           </div>
         </>
       )}
 
       {isSelf && items.length > 0 && (
         <p className={styles.profileFootNote}>
-          Open any pattern to edit its details, attach a firmware header, or delete it. Patterns
-          marked unlisted or private are visible only to you here.
+          Open any pattern to edit its details, attach a firmware header, or delete it. Private
+          patterns are visible only to you here.
         </p>
       )}
     </div>

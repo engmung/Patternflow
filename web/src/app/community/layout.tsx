@@ -8,7 +8,9 @@ import { communityEnabled, communityHomeUrl } from "@/lib/community/db";
 import { countOpenReports, countUnreadNotifications } from "@/lib/community/queries";
 import AuthStatus from "@/components/community/AuthStatus";
 import CommunityNav from "@/components/community/CommunityNav";
+import DeckDock from "@/components/community/DeckDock";
 import DeckPanel from "@/components/community/DeckPanel";
+import MobileTabBar from "@/components/community/MobileTabBar";
 import styles from "@/components/community/Community.module.css";
 
 export const metadata: Metadata = {
@@ -58,6 +60,8 @@ export default async function CommunityLayout({ children }: { children: React.Re
   // Read fresh on every page load — that is the whole notification system's
   // idea of "delivery" on a server-rendered site.
   const unread = session ? await countUnreadNotifications(session.user.id) : 0;
+  const username =
+    (session?.user as { username?: string } | undefined)?.username ?? null;
 
   return (
     <main className={styles.page}>
@@ -74,29 +78,53 @@ export default async function CommunityLayout({ children }: { children: React.Re
           <CommunityNav isAdmin={isAdmin} openReports={openReports} />
           <div className={styles.headerSpacer} />
           <nav className={styles.headerNav}>
+            {/* One CTA, not two. Publishing happens in Pattern Lab — there is
+                no separate "share" flow here — so the link that makes and the
+                link that publishes are the same button. Signed out it drops to
+                a plain link: an account is for KEEPING things, and nothing on
+                the way to the editor needs one. */}
+            {session ? (
+              <Link
+                href="/pattern-lab"
+                className={styles.makeCta}
+                title="Open Pattern Lab — make a pattern and publish it here"
+              >
+                Make &amp; publish — Pattern Lab ↗
+              </Link>
+            ) : (
+              <Link href="/pattern-lab" title="Open Pattern Lab editor">
+                Pattern Lab ↗
+              </Link>
+            )}
             <DeckPanel />
-            <Link href="/pattern-lab" title="Open Pattern Lab editor">
-              Pattern Lab ↗
-            </Link>
             {session && (
               <Link
                 href="/community/notifications"
                 className={styles.notifyLink}
                 data-unread={unread > 0}
-                title="Comments on your work, forks, and decks your patterns joined"
+                title="Comments on your work, forks, ports, and decks your patterns joined"
               >
-                Alerts{unread > 0 ? ` (${unread})` : ""}
+                Alerts{unread > 0 ? ` ${unread}` : ""}
               </Link>
             )}
             <AuthStatus />
           </nav>
         </header>
-        {children}
+
+        <div className={styles.pageBody}>{children}</div>
+
         <footer className={styles.pageFooter}>
           <Link href="/terms">Terms &amp; Privacy</Link>
           <span>·</span>
           <a href="mailto:contact@patternflow.work">Report something</a>
         </footer>
+
+        {/* The deck is assembled while browsing, so it stays on screen while
+            you browse. Desktop only — a phone's bottom edge belongs to the
+            tab bar, and the header chip carries the count there. It hides
+            itself (spacer included) on surfaces with no patterns on them. */}
+        <DeckDock />
+        <MobileTabBar username={username} />
       </div>
     </main>
   );

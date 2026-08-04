@@ -10,11 +10,15 @@ import styles from "./Community.module.css";
 
 const SECTIONS = [
   {
-    href: "/community",
+    href: "/community/patterns",
     label: "Patterns",
-    // A profile page is a list of somebody's patterns, so it belongs here too.
+    // The home page is the wall with a marquee over it, and a profile is a
+    // list of somebody's patterns — both belong under this heading.
     match: (path: string) =>
-      path === "/community" || path.startsWith("/community/p/") || path.startsWith("/community/u/"),
+      path === "/community" ||
+      path.startsWith("/community/patterns") ||
+      path.startsWith("/community/p/") ||
+      path.startsWith("/community/u/"),
   },
   {
     href: "/community/decks",
@@ -23,9 +27,11 @@ const SECTIONS = [
       path.startsWith("/community/decks") || path.startsWith("/community/d/"),
   },
   {
-    href: "/community/discussions",
-    label: "Discussions",
-    match: (path: string) => path.startsWith("/community/discussions"),
+    href: "/community/workshop",
+    label: "Workshop",
+    // Threads live inside a territory, so a thread page is still the map.
+    match: (path: string) =>
+      path.startsWith("/community/workshop") || path.startsWith("/community/t/"),
   },
 ];
 
@@ -56,13 +62,23 @@ export default function CommunityNav({
       {/* Moderators only, and only worth a slot in the nav because an unread
           queue is the one thing here that goes stale by being ignored. */}
       {isAdmin && (
-        <Link
-          href="/community/reports"
-          data-active={pathname.startsWith("/community/reports")}
-          aria-current={pathname.startsWith("/community/reports") ? "page" : undefined}
-        >
-          Reports{openReports > 0 ? ` (${openReports})` : ""}
-        </Link>
+        <>
+          <Link
+            href="/community/reports"
+            data-active={pathname.startsWith("/community/reports")}
+            aria-current={pathname.startsWith("/community/reports") ? "page" : undefined}
+          >
+            Reports{openReports > 0 ? ` (${openReports})` : ""}
+          </Link>
+          <Link
+            href="/community/featured"
+            data-active={pathname.startsWith("/community/featured")}
+            aria-current={pathname.startsWith("/community/featured") ? "page" : undefined}
+            title="Choose the patterns across the top of the community home page"
+          >
+            Marquee
+          </Link>
+        </>
       )}
     </nav>
   );

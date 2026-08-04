@@ -75,8 +75,16 @@ async function main() {
       updatedAt: ago(10),
     },
   ]);
+  // Threads live on the map now, so the fixture needs somewhere to put one.
+  await db.insert(schema.territories).values({
+    id: "z1",
+    code: "A1",
+    title: "Somewhere",
+    createdAt: ago(20),
+  });
   await db.insert(schema.posts).values({
     id: "t1",
+    territoryId: "z1",
     userId: "alice",
     title: "Alice Thread",
     body: "hello",

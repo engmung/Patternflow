@@ -30,14 +30,17 @@ export default function AuthStatus() {
           <Link href={`/community/u/${username ?? ""}`} className={styles.userChip}>
             @{displayName}
           </Link>
+          {/* Signing out is necessary and almost never wanted, so it recedes to
+              a faint mono link beside the handle rather than taking a button's
+              weight next to the one CTA the header is built around. */}
           <button
             type="button"
-            className={styles.btn}
+            className={styles.signOutLink}
             onClick={() => {
               void authClient.signOut().then(() => router.refresh());
             }}
           >
-            Sign out
+            sign out
           </button>
         </div>
       ) : (

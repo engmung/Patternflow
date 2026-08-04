@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
-import { deckItems, deckReplace, type CollectedPattern } from "@/lib/community/deck";
+import {
+  deckItems,
+  deckReplace,
+  openDeckPanel,
+  type CollectedPattern,
+} from "@/lib/community/deck";
 import {
   VISIBILITY_LABELS,
   VISIBILITY_VALUES,
@@ -81,13 +86,7 @@ export default function DeckDetailClient({
   // Pull each pattern's CURRENT header (the deck stores ids, not code) and
   // load the lot into the working deck, keeping this deck's order. Patterns
   // that lost their header since — or went away — are skipped and counted.
-  const copyToMine = async () => {
-    if (deckItems().length > 0 && !confirmCopy) {
-      setConfirmCopy(true);
-      window.setTimeout(() => setConfirmCopy(false), 4000);
-      return;
-    }
-    setConfirmCopy(false);
+  const loadIntoWorkingDeck = async (): Promise<number> => {
     setBusy(true);
     setNote(null);
     setError(null);
@@ -113,6 +112,8 @@ export default function DeckDetailClient({
             patternId: item.pattern.id,
             title: item.pattern.title,
             code: payload.codeCpp,
+            // The slot's own source, so a copied deck draws in the dock too.
+            js: item.pattern.code,
           });
         } catch {
           skipped += 1;
@@ -120,7 +121,7 @@ export default function DeckDetailClient({
       }
       if (collected.length === 0) {
         setError("Nothing to copy — none of these patterns has a firmware header right now.");
-        return;
+        return 0;
       }
       deckReplace(collected);
       captureEvent("community_deck_copied", { deck_id: deck.id, patterns: collected.length });
@@ -128,10 +129,36 @@ export default function DeckDetailClient({
         `Loaded ${collected.length} pattern${collected.length === 1 ? "" : "s"} into your deck` +
           (skipped > 0 ? ` — ${skipped} skipped (missing or no firmware header).` : "."),
       );
+      return collected.length;
     } finally {
       setBusy(false);
     }
   };
+
+  /** Both buttons overwrite the visitor's own working deck, which may be an
+   *  arrangement they spent time on — so both ask twice. One shared latch:
+   *  confirming for one and then pressing the other still only replaces the
+   *  deck once, deliberately. */
+  const guarded = (run: () => Promise<void>) => async () => {
+    if (deckItems().length > 0 && !confirmCopy) {
+      setConfirmCopy(true);
+      window.setTimeout(() => setConfirmCopy(false), 4000);
+      return;
+    }
+    setConfirmCopy(false);
+    await run();
+  };
+
+  const copyToMine = guarded(async () => {
+    await loadIntoWorkingDeck();
+  });
+
+  // Copy, then hand straight to the builder. Two steps under the hood, because
+  // the build runs off the working deck — but one press from here, since "put
+  // this set on my board" is the reason a shared deck exists at all.
+  const sendToBoard = guarded(async () => {
+    if ((await loadIntoWorkingDeck()) > 0) openDeckPanel();
+  });
 
   const replaceFromWorkingDeck = async () => {
     const working = deckItems();
@@ -177,57 +204,72 @@ export default function DeckDetailClient({
 
   return (
     <div className={styles.deckPage}>
+      <Link href="/community/decks" className={styles.breadcrumb}>
+        ← Decks
+      </Link>
+
       <div className={styles.metaBlock}>
-        <div className={styles.metaTitleRow}>
-          <h1 className={styles.metaTitle}>{deck.title}</h1>
-          {deck.visibility !== "public" && (
-            <span
-              className={styles.visChip}
-              title={
-                deck.visibility === "private"
-                  ? "Private — only you can open this page"
-                  : "Unlisted — off the deck feed, anyone with this link can open it"
-              }
-            >
-              {deck.visibility}
+        <div className={styles.deckHead}>
+          <div className={styles.deckHeadTitle}>
+            <h1>{deck.title}</h1>
+            <span className={styles.deckByline}>
+              <span>
+                by{" "}
+                <Link href={`/community/u/${deck.username ?? ""}`}>
+                  @{deck.displayUsername ?? deck.username ?? "unknown"}
+                </Link>
+              </span>
+              <span>· {items.length} {items.length === 1 ? "slot" : "slots"}</span>
+              <span>· {deck.createdAt.slice(0, 10)}</span>
+              {deck.visibility !== "public" && (
+                <span
+                  className={styles.visChip}
+                  title={
+                    deck.visibility === "private"
+                      ? "Private — only you can open this page"
+                      : "Unlisted — off the deck feed, anyone with this link can open it"
+                  }
+                >
+                  {deck.visibility}
+                </span>
+              )}
+              {!isOwner && (
+                <button
+                  type="button"
+                  className={styles.reportLink}
+                  onClick={() => setReportOpen(true)}
+                >
+                  Report
+                </button>
+              )}
             </span>
-          )}
-        </div>
+          </div>
 
-        <div className={styles.metaByline}>
-          <span>
-            a deck by{" "}
-            <Link href={`/community/u/${deck.username ?? ""}`}>
-              @{deck.displayUsername ?? deck.username ?? "unknown"}
-            </Link>
-          </span>
-          <span>{deck.createdAt.slice(0, 10)}</span>
-          <span>
-            {items.length} {items.length === 1 ? "pattern" : "patterns"}
-          </span>
-          {!isOwner && (
-            <button type="button" className={styles.reportLink} onClick={() => setReportOpen(true)}>
-              Report
-            </button>
-          )}
-        </div>
+          <span className={styles.ownerBarSpacer} />
 
-        {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
-
-        <div className={styles.actionRow}>
           <button
             type="button"
-            className={styles.btnAccent}
+            className={styles.btn}
             disabled={busy || playable.length === 0}
             title="Load these patterns, in this order, into your own working deck"
             onClick={() => void copyToMine()}
           >
-            {confirmCopy ? "Press again to replace your deck" : "Copy to my deck"}
+            {confirmCopy ? "Press again — this replaces your deck" : "Copy into my deck"}
           </button>
-          <span className={styles.formNote}>
-            The order here is the order they cycle on the device.
-          </span>
+          {/* The deck's whole point: onto a board, in this order. Copying is
+              the editing gesture; this is the one it exists for. */}
+          <button
+            type="button"
+            className={styles.btnAccent}
+            disabled={busy || playable.length === 0}
+            title="Load this deck and build it as loadable modules for your board"
+            onClick={() => void sendToBoard()}
+          >
+            {confirmCopy ? "Press again" : "Send to my board"}
+          </button>
         </div>
+
+        {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 
         {isOwner && (
           <div className={styles.ownerBar}>
@@ -294,8 +336,8 @@ export default function DeckDetailClient({
       </ol>
 
       <p className={styles.profileFootNote}>
-        Every pattern belongs to its own author — the deck is the arrangement. Open a card for the
-        pattern&rsquo;s licence and credits.
+        A removed pattern keeps its slot — the arrangement is the deck author&rsquo;s work; the
+        pattern was its author&rsquo;s. Open a card for its licence and credits.
       </p>
 
       {reportOpen && (

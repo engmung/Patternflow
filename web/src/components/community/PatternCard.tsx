@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
@@ -15,7 +15,8 @@ import SandboxPreview from "@/components/community/SandboxPreview";
 import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
 import {
   COLLECTION_EVENT,
-  deckAdd,
+  DECK_DRAG_TYPE,
+  collectPattern,
   deckHas,
   deckRemove,
 } from "@/lib/community/deck";
@@ -38,7 +39,7 @@ export type PatternCardItem = {
   forkCount: number;
   /** Ships a verified firmware header — flashable as-is. */
   hasCpp: boolean;
-  /** "public" | "unlisted" | "private" — a chip appears when not public,
+  /** "public" | "private" — a chip appears when private,
    *  which only ever happens on the owner's own profile. */
   visibility: string;
   /** Distinct other people whose public decks carry this pattern. */
@@ -47,6 +48,36 @@ export type PatternCardItem = {
 
 export function formatDate(iso: string): string {
   return iso.slice(0, 10);
+}
+
+/** How long ago, but only while that is still news.
+ *
+ *  The wall is newest-first, so an age chip on every card would just be a
+ *  gradient nobody reads. Past five days the date in the byline says it
+ *  better, and the chip comes off. */
+const FRESH_MS = 5 * 24 * 60 * 60 * 1000;
+
+/** The age label has no external store behind it — it is read straight off the
+ *  clock — so there is nothing to subscribe to. */
+const NO_SUBSCRIPTION = () => () => {};
+
+export function freshAge(iso: string, now: number = Date.now()): string | null {
+  const age = now - new Date(iso).getTime();
+  if (!Number.isFinite(age) || age < 0 || age > FRESH_MS) return null;
+  const hours = Math.floor(age / 3_600_000);
+  if (hours < 1) return "new";
+  if (hours < 24) return `${hours} h`;
+  return `${Math.floor(hours / 24)} d`;
+}
+
+
+/** The deck needs a pattern's firmware header, which a card does not carry. */
+async function fetchPatternHeader(patternId: string) {
+  const response = await fetch(
+    communityApiUrl(`/api/community/patterns/${patternId}/header`),
+    COMMUNITY_FETCH_INIT,
+  );
+  return (await response.json()) as { codeCpp?: string; error?: string };
 }
 
 export default function PatternCard({
@@ -68,6 +99,19 @@ export default function PatternCard({
 
   const [thumb, setThumb] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
+
+  // "2 h" belongs to the browser's clock, not the server's — they are
+  // separated by however long the response spent in flight, and a card that
+  // says "1 h" on one side and "2 h" on the other is a hydration mismatch.
+  // The server snapshot is null, so the first paint simply has no chip and the
+  // client fills it in. (Nothing to subscribe to: the value is read from
+  // Date.now() on each render, and equal strings compare equal, so React only
+  // re-renders when the label actually changes.)
+  const age = useSyncExternalStore(
+    NO_SUBSCRIPTION,
+    () => freshAge(item.createdAt),
+    () => null,
+  );
 
   // Hover & Live state
   const [isHovered, setIsHovered] = useState(false);
@@ -106,24 +150,28 @@ export default function PatternCard({
     }
     setDeckBusy(true);
     setDeckNote(null);
-    try {
-      const response = await fetch(
-        communityApiUrl(`/api/community/patterns/${item.id}/header`),
-        COMMUNITY_FETCH_INIT,
-      );
-      const payload = (await response.json()) as { codeCpp?: string; error?: string };
-      if (!response.ok || !payload.codeCpp) {
-        setDeckNote(payload.error ?? "Could not read the header.");
-        return;
-      }
-      const added = deckAdd({ patternId: item.id, title: item.title, code: payload.codeCpp });
-      if (!added.ok) setDeckNote(added.reason ?? "Deck is full.");
-    } catch {
-      setDeckNote("Network error.");
-    } finally {
-      setDeckBusy(false);
-      window.setTimeout(() => setDeckNote(null), 2500);
-    }
+    // `code` is the .h the deck builds; `js` is the source this card is
+    // already rendering, carried so the dock can draw the slot.
+    const added = await collectPattern(
+      { patternId: item.id, title: item.title, js: item.code },
+      fetchPatternHeader,
+    );
+    if (!added.ok) setDeckNote(added.reason ?? "Deck is full.");
+    setDeckBusy(false);
+    window.setTimeout(() => setDeckNote(null), 2500);
+  };
+
+  // Dragging a card onto the dock is the same act as pressing its "+", so it
+  // carries the same three facts. Only patterns that ship a header can be
+  // built, so only those offer themselves — the rest drag as ordinary links.
+  const canCollect = buildsConfigured() && item.hasCpp;
+  const handleDragStart = (event: React.DragEvent) => {
+    if (!canCollect) return;
+    event.dataTransfer.setData(
+      DECK_DRAG_TYPE,
+      JSON.stringify({ patternId: item.id, title: item.title, js: item.code }),
+    );
+    event.dataTransfer.effectAllowed = "copy";
   };
 
   const thumbRef = useRef<HTMLDivElement | null>(null);
@@ -268,6 +316,18 @@ export default function PatternCard({
   // Dynamic detail page URL query carrying modified knob values
   const detailUrl = `/community/p/${item.id}?k=${knobValues.join(",")}`;
 
+  // The knob overlay only exists while the cursor is on the canvas. When it is
+  // not showing there is nothing to dodge, so the deck button stays where the
+  // design puts it — bottom-right, the same corner every time. It moves only
+  // for the one case the dodge was built for: the overlay sitting on top of it.
+  // (Previously it dodged off a state the overlay wasn't even using yet, so it
+  // opened at top-right — under the new age chip — and hopped corners as the
+  // cursor crossed the middle.)
+  const overlayShowing = interactive && isHovered && isScreenHovered;
+  const deckBtnEdge = overlayShowing && overlayPos === "bottom" ? styles.deckTop : styles.deckBottom;
+  const deckNoteEdge =
+    overlayShowing && overlayPos === "bottom" ? styles.deckNoteTop : styles.deckNoteBottom;
+
   return (
     <Link
       ref={rootRef}
@@ -275,6 +335,7 @@ export default function PatternCard({
       className={styles.card}
       onMouseEnter={interactive ? handleCardMouseEnter : undefined}
       onMouseLeave={interactive ? handleCardMouseLeave : undefined}
+      onDragStart={handleDragStart}
     >
       {/* 1:2 Vertical Matrix Display Screen */}
       <div
@@ -285,6 +346,19 @@ export default function PatternCard({
         onMouseMove={interactive ? handleMouseMove : undefined}
         onWheel={interactive ? handleWheel : undefined}
       >
+        {/* Badges live ON the canvas now: the card has no border and no
+            panel, so there is no furniture left to hang them from — and
+            "flashable" is a fact about the pattern, not about its caption. */}
+        {item.hasCpp && (
+          <span
+            className={styles.cardHwBadge}
+            title="Hardware ready — ships a .h firmware header"
+          >
+            .h
+          </span>
+        )}
+        {age && <span className={styles.ageChip}>{age}</span>}
+
         <div className={rotateThumb ? styles.screenRotator : styles.screenUpright}>
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -316,9 +390,9 @@ export default function PatternCard({
         {buildsConfigured() && item.hasCpp && (
           <button
             type="button"
-            className={`${styles.cardDeckBtn} ${
-              overlayPos === "top" ? styles.deckBottom : styles.deckTop
-            } ${inDeck ? styles.cardDeckBtnOn : ""}`}
+            className={`${styles.cardDeckBtn} ${deckBtnEdge} ${
+              inDeck ? styles.cardDeckBtnOn : ""
+            }`}
             title={inDeck ? "In your deck — click to remove" : "Add to your deck"}
             aria-label={inDeck ? "Remove from your deck" : "Add to your deck"}
             onClick={(event) => void toggleDeck(event)}
@@ -328,9 +402,7 @@ export default function PatternCard({
         )}
         {deckNote && (
           <span
-            className={`${styles.cardDeckNote} ${
-              overlayPos === "top" ? styles.deckNoteBottom : styles.deckNoteTop
-            }`}
+            className={`${styles.cardDeckNote} ${deckNoteEdge}`}
           >
             {deckNote}
           </span>
@@ -381,15 +453,11 @@ export default function PatternCard({
         )}
       </div>
 
-      {/* Card Footer / Meta Section (Clean Shot Mode: hides knob UI when hovered here!) */}
+      {/* Caption, under the canvas — no panel, no border. Title on one line,
+          handle and counts on the next. */}
       <div className={styles.cardMeta}>
         <div className={styles.cardTitle}>
           <span className={styles.cardTitleText}>{item.title}</span>
-          {item.hasCpp && (
-            <span className={styles.hwChip} title="Hardware ready — ships a .h firmware header">
-              .h
-            </span>
-          )}
           {item.visibility !== "public" && (
             <span
               className={styles.visChip}
@@ -437,7 +505,9 @@ export default function PatternCard({
                 DCK {String(item.deckCount).padStart(2, "0")}
               </span>
             )}
-            <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>
+            {/* The age chip on the canvas covers anything recent, so the date
+                only earns its place once the chip has gone. */}
+            {!age && <span className={styles.cardDate}>{formatDate(item.createdAt)}</span>}
           </span>
         </div>
       </div>

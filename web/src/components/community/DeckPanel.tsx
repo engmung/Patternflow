@@ -8,6 +8,7 @@ import { COMMUNITY_FETCH_INIT, buildsConfigured, communityApiUrl } from "@/lib/c
 import {
   COLLECTION_EVENT,
   DECK_MAX,
+  DECK_PANEL_EVENT,
   deckClear,
   deckItems,
   deckMove,
@@ -80,6 +81,20 @@ export default function DeckPanel() {
       window.removeEventListener(COLLECTION_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
+  }, []);
+
+  // The dock along the bottom of the page owns arranging the deck; this panel
+  // owns the two things it cannot do inline — building, and the saved list —
+  // so the dock asks for it by name and says which one it wants.
+  // See DECK_PANEL_EVENT in lib/community/deck.ts.
+  useEffect(() => {
+    const open = (event: Event) => {
+      const wanted = (event as CustomEvent<{ tab?: "deck" | "saved" }>).detail?.tab;
+      if (wanted) setTab(wanted);
+      setOpen(true);
+    };
+    window.addEventListener(DECK_PANEL_EVENT, open);
+    return () => window.removeEventListener(DECK_PANEL_EVENT, open);
   }, []);
 
   const pollRef = useRef<number | null>(null);
@@ -180,18 +195,21 @@ export default function DeckPanel() {
 
   // No builds configured (e.g. the Vercel mirror) → nothing here works.
   if (!buildsConfigured()) return null;
-  const total = deck.length + saved.length;
-  if (total === 0 && !open) return null;
 
   return (
     <>
+      {/* The deck's handle in the header. It stays even at 0/10 because on a
+          phone — where the dock is hidden behind the tab bar — this chip is
+          the deck's only way in. */}
       <button
         type="button"
-        className={styles.btn}
-        title="Your deck and saved patterns"
+        className={styles.deckChip}
+        title={`Your deck (${deck.length}/${DECK_MAX})${
+          saved.length > 0 ? ` · ${saved.length} saved` : ""
+        }`}
         onClick={() => setOpen(true)}
       >
-        ▦ Deck ({deck.length}){saved.length > 0 ? ` · ${saved.length} saved` : ""}
+        ▦ {deck.length}/{DECK_MAX}
       </button>
 
       {open && (

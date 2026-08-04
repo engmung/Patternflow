@@ -22,8 +22,21 @@ export type CollectedPattern = {
   /** Community pattern id — de-duplicates, and links back. */
   patternId: string;
   title: string;
-  /** The verified .h header the pattern ships. */
+  /** The verified .h header the pattern ships. This is what gets BUILT, and
+   *  for a long time it was the only thing stored here. */
   code: string;
+  /**
+   * The pattern's JavaScript — what it LOOKS like.
+   *
+   * Carried purely so the dock can draw the slots it is holding. Every caller
+   * already has this in hand (a card is rendering a thumbnail from it when you
+   * press +), so it costs a field rather than a request; the deck pages get the
+   * same thing from the database and have always been able to draw.
+   *
+   * Optional because decks collected before this existed have no copy, and a
+   * slot without one falls back to its number rather than emptying.
+   */
+  js?: string;
 };
 
 /** Mirrors MAX_MODULE_PATTERNS_PER_BUILD on the build API. */
@@ -35,13 +48,72 @@ export const DECK_MAX = 10;
  * A curation policy, not a technical limit — the opposite of DECK_MAX, which
  * is a fact about firmware. Publishing a deck spends one of two slots, so a
  * published deck is staked reputation rather than overflow storage: a shelf
- * you must ration is a shelf you curate. Private and unlisted decks are not
+ * you must ration is a shelf you curate. Private decks are not
  * rationed. Raising this is easy; lowering it would strand people over the
  * limit, which is why it starts small.
  */
 export const PUBLIC_DECKS_MAX = 2;
 
 export const COLLECTION_EVENT = "pf-collection-changed";
+
+/**
+ * The drag payload a wall card hands to the dock.
+ *
+ * A custom MIME type rather than `text/plain`, because the dock must be able
+ * to tell "a pattern is being dragged onto me" from "some text is" during
+ * dragover — where the DATA is unreadable but the type list is not.
+ */
+export const DECK_DRAG_TYPE = "application/x-patternflow-pattern";
+
+export type DeckDragPayload = { patternId: string; title: string; js: string };
+
+/**
+ * Put a pattern in the deck, fetching the header first.
+ *
+ * The deck builds firmware, so it needs the .h — and a card does not carry one
+ * (a header can be 200 KB and most cards are never collected), so it is
+ * fetched at the moment of collecting. Shared by the "+" on a card and by
+ * dropping a card on the dock: two gestures, one meaning, and the failure
+ * modes should not drift apart.
+ */
+export async function collectPattern(
+  item: DeckDragPayload,
+  fetchHeader: (patternId: string) => Promise<{ codeCpp?: string; error?: string }>,
+): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    const payload = await fetchHeader(item.patternId);
+    if (!payload.codeCpp) {
+      return { ok: false, reason: payload.error ?? "Could not read the header." };
+    }
+    return deckAdd({
+      patternId: item.patternId,
+      title: item.title,
+      code: payload.codeCpp,
+      js: item.js,
+    });
+  } catch {
+    return { ok: false, reason: "Network error." };
+  }
+}
+
+/**
+ * "Open the deck panel."
+ *
+ * The deck now has two faces — the dock along the bottom of every community
+ * page, and the panel that actually builds and sends it — and only one of them
+ * owns the build machinery. Rather than lift that state into a provider for a
+ * single button, the dock asks for the panel by name and the panel answers.
+ */
+export const DECK_PANEL_EVENT = "pf-open-deck-panel";
+
+/** Which list the panel should open on. The dock now owns arranging the deck,
+ *  so it mostly asks for the parts it does NOT do: building, and Saved. */
+export type DeckPanelTab = "deck" | "saved";
+
+export function openDeckPanel(tab: DeckPanelTab = "deck"): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(DECK_PANEL_EVENT, { detail: { tab } }));
+}
 
 const DECK_KEY = "pf-deck";
 const SAVED_KEY = "pf-saved";
@@ -140,6 +212,24 @@ export function deckClear(): void {
  */
 export function deckReplace(items: CollectedPattern[]): void {
   write(DECK_KEY, items.slice(0, DECK_MAX));
+}
+
+/**
+ * Drop the pattern at `from` into position `to`, shifting the rest along.
+ *
+ * What dragging a slot in the dock commits. Index-based rather than
+ * id-based because the dock has already worked out where the thing landed by
+ * counting slots, and asking it to translate that back into an id would be
+ * arithmetic in both directions.
+ */
+export function deckReorder(from: number, to: number): void {
+  const items = read(DECK_KEY);
+  if (from === to) return;
+  if (from < 0 || from >= items.length) return;
+  const target = Math.max(0, Math.min(items.length - 1, to));
+  const [moved] = items.splice(from, 1);
+  items.splice(target, 0, moved);
+  write(DECK_KEY, items);
 }
 
 /**

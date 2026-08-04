@@ -71,5 +71,7 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
     body: text,
   });
 
-  return Response.json({ ok: true }, { status: 201 });
+  // The id goes back because attachments are a second request: the reply
+  // composer uploads its files against this comment right after this returns.
+  return Response.json({ ok: true, id: commentId }, { status: 201 });
 }

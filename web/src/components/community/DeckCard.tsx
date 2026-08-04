@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { renderPatternThumb } from "@/lib/community/thumbs";
-import { knobSetupFromCode } from "@/lib/community/knobs";
-import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
+import PatternCanvas from "./PatternCanvas";
 import styles from "./Community.module.css";
 
-// One deck in a listing: a short strip of its first patterns, in running
-// order, because the order is the work. Static thumbnails only — a deck list
-// with live sandboxes per slot would be dozens of iframes for one page.
+// One deck in a listing: a panel — one of the few raised surfaces in the dark
+// room — carrying a strip of its first patterns in running order, because the
+// order is the work. Static thumbnails only: a page of decks with a live
+// sandbox per slot would be dozens of iframes.
 
 export type DeckCardItem = {
   id: string;
@@ -24,65 +22,54 @@ export type DeckCardItem = {
   preview: { id: string; title: string; code: string }[];
 };
 
-function StripThumb({ code, title }: { code: string; title: string }) {
-  const [thumb, setThumb] = useState<string | null>(null);
-  const rotate = describeMatrixShape(matrixFromCode(code)) === "landscape";
-
-  useEffect(() => {
-    let alive = true;
-    renderPatternThumb(code, knobSetupFromCode(code).values).then((result) => {
-      if (alive && result.ok && result.dataUrl) setThumb(result.dataUrl);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [code]);
-
-  return (
-    <div className={styles.deckStripSlot} title={title}>
-      <div className={rotate ? styles.screenRotator : styles.screenUpright}>
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt={`${title} preview`} />
-        ) : (
-          <div className={styles.cardThumbNote}>…</div>
-        )}
-      </div>
-    </div>
-  );
-}
+/** Cells in the strip — four patterns and an overflow count. */
+const STRIP_CELLS = 5;
 
 export default function DeckCard({ deck }: { deck: DeckCardItem }) {
-  const shown = deck.preview.slice(0, 3);
+  const shown = deck.preview.slice(0, STRIP_CELLS - 1);
   const more = deck.patternCount - shown.length;
+  // The strip is always five cells wide so every deck card is the same height
+  // and the grid stays a grid. A short deck fills the rest with empty wells —
+  // which is the truth about it: fewer slots, not a broken layout.
+  const blanks = Math.max(0, STRIP_CELLS - shown.length - (more > 0 ? 1 : 0));
 
   return (
     <Link href={`/community/d/${deck.id}`} className={styles.deckCard}>
       <div className={styles.deckStrip}>
         {shown.map((pattern) => (
-          <StripThumb key={pattern.id} code={pattern.code} title={pattern.title} />
+          <PatternCanvas
+            key={pattern.id}
+            code={pattern.code}
+            title={pattern.title}
+            className={styles.deckStripSlot}
+          />
         ))}
         {shown.length === 0 && <div className={styles.deckStripEmpty}>empty</div>}
+        {/* Sits a shade above the lit wells: it is a count, not a pattern. */}
         {more > 0 && <span className={styles.deckStripMore}>+{more}</span>}
+        {shown.length > 0 &&
+          Array.from({ length: blanks }, (_, index) => (
+            <span key={`blank-${index}`} className={styles.deckStripBlank} aria-hidden="true" />
+          ))}
       </div>
-      <div className={styles.cardMeta}>
-        <div className={styles.cardTitle}>
-          <span className={styles.cardTitleText}>{deck.title}</span>
+
+      <div className={styles.deckCardMeta}>
+        <span className={styles.deckCardTitleRow}>
+          <span className={styles.deckCardTitle}>{deck.title}</span>
+          <span className={styles.deckCardSlots}>
+            {deck.patternCount} slot{deck.patternCount === 1 ? "" : "s"}
+          </span>
           {deck.visibility !== "public" && (
             <span className={styles.visChip}>{deck.visibility}</span>
           )}
-        </div>
-        <div className={styles.cardByline}>
-          <span className={styles.userLink}>
+          <span className={styles.deckCardUser}>
             @{deck.displayUsername ?? deck.username ?? "unknown"}
           </span>
-          <span className={styles.cardStats}>
-            <span>
-              {deck.patternCount} {deck.patternCount === 1 ? "pattern" : "patterns"}
-            </span>
-            <span className={styles.cardDate}>{deck.createdAt.slice(0, 10)}</span>
-          </span>
-        </div>
+        </span>
+
+        {deck.description && <span className={styles.deckCardDesc}>{deck.description}</span>}
+
+        <span className={styles.deckCardStats}>{deck.createdAt.slice(0, 10)}</span>
       </div>
     </Link>
   );

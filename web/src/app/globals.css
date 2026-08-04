@@ -39,6 +39,36 @@
     /* Destructive/error only. Kept distinct from --pf-led so the accent stays
        reserved for "live" signals, per the style guide. */
     --pf-danger: #A02020;
+
+    /* ── Community: the dark room ──
+       The community — and ONLY the community — flips the site's cream ground
+       to near-black, so an LED pattern is the only light on the page. The
+       marketing site stays cream; these tokens are namespaced --pfc-* so the
+       two palettes can sit in one stylesheet without either one leaking.
+       The accent and the cream are the same two colours as the light site,
+       swapped in role: cream becomes the ink, and the ground becomes the
+       screen the panels are cut out of. */
+    --pfc-ground: #0B0B0C;
+    --pfc-panel: #101012;
+    /* Behind every pattern canvas — the unlit matrix itself. */
+    --pfc-well: #09090B;
+    /* A well that carries no pattern (an "+n" overflow cell). */
+    --pfc-well-2: #141416;
+    --pfc-ink: #F4EFE6;
+    --pfc-ink-2: #C6C0B4;
+    --pfc-ink-muted: #9A9488;
+    --pfc-ink-faint: #6B6558;
+    --pfc-led: #E8552E;
+    /* Text ON the accent: the ground, not white — orange/white is unreadable
+       at the mono label sizes this palette leans on. */
+    --pfc-on-led: #0B0B0C;
+    --pfc-hair: rgba(244, 239, 230, 0.12);
+    --pfc-hair-soft: rgba(244, 239, 230, 0.08);
+    --pfc-edge: rgba(244, 239, 230, 0.22);
+    --pfc-edge-strong: rgba(244, 239, 230, 0.3);
+    --pfc-led-edge: rgba(232, 85, 46, 0.5);
+    --pfc-led-wash: rgba(232, 85, 46, 0.08);
+    --pfc-danger: #E86B5E;
     --pf-sans: 'Inter', 'Pretendard', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --pf-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --pf-serif: 'Newsreader', Georgia, serif;

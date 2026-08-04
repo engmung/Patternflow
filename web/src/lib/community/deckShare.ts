@@ -31,10 +31,10 @@ export type DeckPatternCheck =
 /**
  * May this pattern sit in a deck with this visibility?
  *
- * A shared deck (public or unlisted) may carry public and unlisted patterns —
- * unlisted is exactly the state for "in a deck but not in the feed". It may
- * not carry private ones, which would either leak them or render as holes the
- * author never chose to publish.
+ * A shared deck may carry public patterns only. It may not carry private ones,
+ * which would either leak them or render as holes the author never chose to
+ * publish. A private deck may carry anything of its owner's — nobody else is
+ * looking at it.
  */
 export function checkDeckPattern(
   pattern: { title: string; userId: string; visibility: string } | undefined,

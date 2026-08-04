@@ -4,7 +4,14 @@ import type { Metadata } from "next";
 import { isAdminSession } from "@/lib/community/admin";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
-import { getPattern, getPatternStub, hasLiked, listComments, listPatternPorts } from "@/lib/community/queries";
+import {
+  getPattern,
+  getPatternStub,
+  hasLiked,
+  listComments,
+  listDecksWithPattern,
+  listPatternPorts,
+} from "@/lib/community/queries";
 import { resolveHeader } from "@/lib/community/ports";
 import { provenanceFor } from "@/lib/community/provenance";
 import { canView } from "@/lib/community/visibility";
@@ -67,6 +74,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
   const effectivePortId = effective?.source === "port" ? effective.portId : null;
 
   const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
+  const inDecks = await listDecksWithPattern(pattern.id);
   const comments: CommentView[] = (await listComments(pattern.id)).map((comment) => ({
     id: comment.id,
     userId: comment.userId,
@@ -128,6 +136,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
         forkCount: pattern.forkCount,
       }}
       comments={comments}
+      inDecks={inDecks}
       initialKnobs={initialKnobs}
       liked={liked}
       isOwner={viewerId === pattern.userId}

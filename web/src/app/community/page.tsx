@@ -1,21 +1,24 @@
 import { communityEnabled } from "@/lib/community/db";
-import { countFeed, listFeed, parseFeedSort } from "@/lib/community/queries";
+import { countFeed, listFeatured, listFeed, parseFeedSort } from "@/lib/community/queries";
 import { toCardItem } from "@/lib/community/serialize";
 import { FEED_FIRST_PAINT } from "@/lib/community/feedView";
 import CommunityFeedClient from "@/components/community/CommunityFeedClient";
+import Marquee from "@/components/community/Marquee";
 
-// The feed. Sort and the hardware filter live in the URL (?sort=, ?hw=) so a
-// view is shareable and the back button works. Card size does not — that is
-// the Ctrl+scroll zoom, remembered per browser.
+// The stage. Five panels of running pattern across the top — the first one
+// explaining the place, the rest just playing — and the wall underneath.
 //
-// Only the first batch is rendered here; scrolling loads the rest through
-// GET /api/community/patterns. Every card ships its full source (they render
-// and hover-play it client-side), so the feed pays for patterns as they come
-// into reach rather than all at once.
+// The marquee is the argument: this is a room where patterns are on, and you
+// can turn the knobs on any of them without an account. Everything below is
+// /community/patterns, unchanged, so a link into the feed still lands on a
+// feed.
 
 export const dynamic = "force-dynamic";
 
-export default async function CommunityFeedPage(props: {
+/** Panels in the marquee: one intro + four patterns. */
+const MARQUEE_SIZE = 5;
+
+export default async function CommunityHomePage(props: {
   searchParams: Promise<{
     sort?: string;
     hw?: string;
@@ -27,19 +30,36 @@ export default async function CommunityFeedPage(props: {
   const sort = parseFeedSort(rawSort);
   const hardwareOnly = hw === "1";
 
-  const [items, total] = await Promise.all([
+  const [items, total, picked, topLiked] = await Promise.all([
     listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT }),
     countFeed(hardwareOnly),
+    // What a moderator chose, in their order — see /community/featured.
+    listFeatured(MARQUEE_SIZE),
+    // The fallback, so the front page works with nobody curating it, and is
+    // never empty. Most-liked rather than newest: the marquee is front of
+    // house and the wall right below it is already the newest-first view.
+    listFeed({ sort: "top", limit: MARQUEE_SIZE }),
   ]);
 
+  // Picks first, topped up with liked work when fewer than a full row was
+  // chosen — a marquee with two panels and three holes is worse than one that
+  // quietly finishes itself.
+  const marquee = [
+    ...picked,
+    ...topLiked.filter((item) => !picked.some((pick) => pick.id === item.id)),
+  ].slice(0, MARQUEE_SIZE);
+
   return (
-    <CommunityFeedClient
-      // Remount on a sort/filter change so the accumulated list restarts.
-      key={`${sort}-${hardwareOnly}`}
-      items={items.map(toCardItem)}
-      sort={sort}
-      hardwareOnly={hardwareOnly}
-      total={total}
-    />
+    <>
+      <Marquee items={marquee.map(toCardItem)} />
+      <CommunityFeedClient
+        // Remount on a sort/filter change so the accumulated list restarts.
+        key={`${sort}-${hardwareOnly}`}
+        items={items.map(toCardItem)}
+        sort={sort}
+        hardwareOnly={hardwareOnly}
+        total={total}
+      />
+    </>
   );
 }

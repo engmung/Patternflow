@@ -63,8 +63,8 @@ export default function PublishModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [madeHow, setMadeHow] = useState<MadeHow>("ai-assisted");
-  // Public by default — the feed is the point. The quieter states are for
-  // work in progress (private) and "look before I post it" (unlisted).
+  // Public by default — the wall is the point. Private is for work that is
+  // not ready to be somebody else's business yet.
   const [visibility, setVisibility] = useState<Visibility>("public");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -240,13 +240,7 @@ export default function PublishModal({
               disabled={busy}
               onClick={() => void publish()}
             >
-              {busy
-                ? "Publishing…"
-                : visibility === "public"
-                  ? "Publish to feed"
-                  : visibility === "unlisted"
-                    ? "Publish unlisted"
-                    : "Save privately"}
+              {busy ? "Publishing…" : visibility === "public" ? "Publish to the wall" : "Save privately"}
             </button>
           </div>
         )}

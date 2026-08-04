@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "./db";
 import { newId } from "./queries";
-import { comments, notifications, postComments } from "./schema";
+import { comments, notifications, postComments, territoryPins } from "./schema";
 
 // Fan-out on write: the mutation that causes a notification also records it,
 // one row per recipient. Nothing here is real-time — the rows sit until the
@@ -19,7 +19,14 @@ function snippetOf(body: string): string {
   return flat.length > SNIPPET_MAX ? `${flat.slice(0, SNIPPET_MAX - 1)}…` : flat;
 }
 
-export type NotificationType = "comment" | "thread" | "fork" | "deck" | "port" | "pin";
+export type NotificationType =
+  | "comment"
+  | "thread"
+  | "fork"
+  | "deck"
+  | "port"
+  | "pin"
+  | "territory";
 
 type Seed = {
   userId: string;
@@ -111,6 +118,46 @@ export async function notifyCommentAdded(opts: {
   }
 
   await insertAll(seeds);
+}
+
+/**
+ * A new thread in a territory notifies everyone pinned there.
+ *
+ * This is what makes a pin a SUBSCRIPTION rather than a badge: "I'm working
+ * here" already names exactly the people who want to hear that something
+ * happened here, so the fan-out list costs no schema and no opt-in flow.
+ * The author is excluded as always — and being pinned themselves (the modal
+ * checks "also pin me" by default) must not earn them a row about their own
+ * thread.
+ */
+export async function notifyNewThread(opts: {
+  territoryId: string;
+  /** "A1 · Wired control — OSC" — rides in the snippet so the sentence can
+   *  say where without a join at read time. */
+  territoryLabel: string;
+  postId: string;
+  postTitle: string;
+  actorId: string;
+}): Promise<void> {
+  const pinned = await getDb()
+    .selectDistinct({ userId: territoryPins.userId })
+    .from(territoryPins)
+    .where(eq(territoryPins.territoryId, opts.territoryId));
+
+  await insertAll(
+    pinned
+      .filter((row) => row.userId !== opts.actorId)
+      .map((row) => ({
+        userId: row.userId,
+        type: "territory" as const,
+        actorId: opts.actorId,
+        targetType: "post" as const,
+        targetId: opts.postId,
+        targetTitle: opts.postTitle,
+        sourceId: opts.postId,
+        snippet: opts.territoryLabel,
+      })),
+  );
 }
 
 /**

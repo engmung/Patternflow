@@ -203,22 +203,23 @@ export default function CommunityFeedClient({
   }, [loadMore]);
 
   return (
-    <div ref={wrapperRef} className={styles.feedWrapper}>
-      <div className={styles.introRow}>
-        <span>
-          {isMobile
-            ? "Patterns shared by the community — tap any pattern to open it and play it live."
-            : "Patterns shared by the community — hover over any pattern to play live, scroll wheel to turn knobs!"}
-        </span>
-      </div>
-
-      <FeedControls sort={sort} hardwareOnly={hardwareOnly} />
+    <div ref={wrapperRef} className={styles.feedWrapper} id="wall">
+      <FeedControls sort={sort} hardwareOnly={hardwareOnly} total={total} />
 
       {total === 0 ? (
-        <div className={styles.empty}>
-          {hardwareOnly
-            ? "No hardware-ready patterns yet — these are the ones shipping a verified .h you can flash straight to a board."
-            : "Nothing here yet. Open Pattern Lab, make something, hit “Share to Community”."}
+        <div className={styles.emptyPanel}>
+          <span className={styles.emptyKicker}>Patterns · empty</span>
+          <span className={styles.emptyTitle}>
+            {hardwareOnly ? "Nothing flashable yet." : "Nobody has hung anything here yet."}
+          </span>
+          <span className={styles.emptyBody}>
+            {hardwareOnly
+              ? "These are the patterns shipping a verified .h you can flash straight to a board. Drop the filter to see everything."
+              : "Open Pattern Lab, make something, publish it here — it takes one button from there."}
+          </span>
+          <a className={styles.emptyCta} href="/pattern-lab">
+            Make &amp; publish — Pattern Lab ↗
+          </a>
         </div>
       ) : (
         <div ref={containerRef} className={styles.centeredFeedBody}>
@@ -248,11 +249,13 @@ export default function CommunityFeedClient({
             </button>
           )}
 
-          {done && (
-            <p className={styles.feedEndNote}>
-              That is the whole feed — {total} pattern{total === 1 ? "" : "s"}.
-            </p>
-          )}
+          {/* The wall never pages, so this line is the only place it says how
+              far down you are — and, at the bottom, that there is no further. */}
+          <p className={styles.feedEndNote}>
+            {done
+              ? `That is all of it — ${total} pattern${total === 1 ? "" : "s"}`
+              : `Loading more · ${items.length} of ${total}`}
+          </p>
         </div>
       )}
     </div>
