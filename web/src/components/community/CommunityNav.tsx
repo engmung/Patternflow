@@ -78,6 +78,14 @@ export default function CommunityNav({
           >
             Marquee
           </Link>
+          <Link
+            href="/community/territories"
+            data-active={pathname.startsWith("/community/territories")}
+            aria-current={pathname.startsWith("/community/territories") ? "page" : undefined}
+            title="Draw the directions the workshop is made of"
+          >
+            Territories
+          </Link>
         </>
       )}
     </nav>

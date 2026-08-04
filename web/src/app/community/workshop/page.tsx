@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
+import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
 import {
@@ -94,6 +95,7 @@ export default async function CommunityMapPage(props: {
       }))}
       viewerId={viewerId}
       myPinCodes={myPins.map((pin) => pin.code)}
+      isAdmin={isAdminSession(session)}
     />
   );
 }

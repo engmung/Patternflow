@@ -66,6 +66,7 @@ const NO_PATTERNS_HERE = [
   // candidates for the front page rather than things to collect.
   "/community/reports",
   "/community/featured",
+  "/community/territories",
 ];
 
 function dockBelongs(pathname: string): boolean {
