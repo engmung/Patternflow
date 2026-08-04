@@ -1,27 +1,32 @@
-// Visibility — three states, not two, shared by patterns and decks.
+// Visibility — two states, shared by patterns and decks.
 //
-// Public is in the feed. Private is the author alone. Unlisted is the one that
-// earns its keep: reachable by link but off the feed — "look at this before I
-// post it", and the state that lets a deck carry a pattern without that pattern
-// flooding the feed. Publishing still defaults to public: the community works
-// because things are shared, and the flood is handled by curation (decks as a
-// ranking signal), not by suppressing supply.
+// Shared, or not. Public is on the wall and openable by anyone; private is the
+// author alone.
+//
+// There used to be a third, `unlisted`: off the wall but openable by link.
+// It was doing two jobs — "look at this before I post it", and letting a deck
+// carry a pattern that was not on the wall — and neither survived contact with
+// the question "so who can see this?", which is the only question the picker is
+// really asking. Two states answer it; three made people guess.
+//
+// The consequence is deliberate and worth knowing: a shared deck can now only
+// carry PUBLIC patterns. Something private is yours, and putting it in
+// somebody else's running order is a contradiction rather than a feature.
+// Migration 0014 folded every existing `unlisted` row into `private`.
 //
 // Importable from client and server — no database access here.
 
-export const VISIBILITY_VALUES = ["public", "unlisted", "private"] as const;
+export const VISIBILITY_VALUES = ["public", "private"] as const;
 export type Visibility = (typeof VISIBILITY_VALUES)[number];
 
 export const VISIBILITY_LABELS: Record<Visibility, string> = {
   public: "Public",
-  unlisted: "Unlisted",
   private: "Private",
 };
 
 /** Shown under the picker — has to say what actually happens. */
 export const VISIBILITY_HINTS: Record<Visibility, string> = {
-  public: "In the community feed, for everyone.",
-  unlisted: "Off the feed — anyone with the link can open it.",
+  public: "On the wall, for everyone.",
   private: "Only you can open it.",
 };
 
@@ -52,7 +57,7 @@ export function canView(
 /**
  * A fork bakes a `Based on:` credit link into its source. If the parent is
  * private that link 404s for everyone (#255), so only the author may fork
- * their own private work. Unlisted parents are forkable — the link resolves.
+ * their own private work.
  */
 export function forkBlocked(
   parent: { visibility: string; userId: string },

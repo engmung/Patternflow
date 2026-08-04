@@ -1,16 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { ATTACHMENT_EXTENSIONS } from "@/lib/community/workshop";
+import type { AttachmentView } from "@/lib/community/queries";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
+import AttachmentList from "./AttachmentList";
 import CommentSection, { type CommentView } from "./CommentSection";
 import FencedText from "./FencedText";
+import type { WorkshopThread } from "./WorkshopClient";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
-// One discussion thread. Read-only for everyone; the author gets edit and delete.
+// One thread, inside a territory. Read-only for everyone; the author gets edit
+// and delete.
+//
+// The page is as much about the territory as about the thread — a reader who
+// arrived from a link should be able to see what this direction is, who is on
+// it, and what else is being discussed there, without going back to the map.
+// Hence the sidebar.
 
 export type PostView = {
   id: string;
@@ -24,16 +34,36 @@ export type PostView = {
   displayUsername: string | null;
 };
 
+export type ThreadTerritory = {
+  code: string;
+  title: string;
+  description: string | null;
+  pinCount: number;
+  threadCount: number;
+};
+
 export default function PostDetailClient({
   post,
   comments,
   isOwner,
   isAdmin = false,
+  territory,
+  attachments = [],
+  moreThreads = [],
+  pinnedHere = false,
+  workingUserIds = [],
 }: {
   post: PostView;
   comments: CommentView[];
   isOwner: boolean;
   isAdmin?: boolean;
+  territory: ThreadTerritory;
+  attachments?: AttachmentView[];
+  moreThreads?: WorkshopThread[];
+  /** Whether the viewer has already pinned themselves in this territory. */
+  pinnedHere?: boolean;
+  /** Everyone pinned here — replies from them get the "working here" tag. */
+  workingUserIds?: string[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -42,6 +72,37 @@ export default function PostDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  // Attaching more files after the thread exists (author only).
+  const attachRef = useRef<HTMLInputElement | null>(null);
+  const [attachBusy, setAttachBusy] = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
+  const uploadFiles = async (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    setAttachBusy(true);
+    setAttachError(null);
+    try {
+      const form = new FormData();
+      form.set("postId", post.id);
+      for (const file of Array.from(list)) form.append("files", file);
+      const response = await fetch(communityApiUrl("/api/community/attachments"), {
+        method: "POST",
+        ...COMMUNITY_FETCH_INIT,
+        body: form,
+      });
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string };
+        setAttachError(payload.error ?? "Upload failed.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setAttachError("Network error.");
+    } finally {
+      setAttachBusy(false);
+    }
+  };
 
   const edited = post.updatedAt !== post.createdAt;
 
@@ -108,7 +169,7 @@ export default function PostDetailClient({
         setError(payload.error ?? "Could not delete.");
         return;
       }
-      router.push("/community/discussions");
+      router.push(`/community/workshop?z=${territory.code}`);
       router.refresh();
     } catch {
       setError("Network error.");
@@ -117,15 +178,17 @@ export default function PostDetailClient({
     }
   };
 
-  return (
-    <div className={styles.discussionWrap}>
-      <div className={styles.introRow}>
-        <Link href="/community/discussions" className={styles.backLink}>
-          ← Discussions
-        </Link>
-      </div>
+  const bodyFiles = attachments.filter((file) => file.commentId === null);
+  const ACCEPT = ATTACHMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",");
 
-      <article className={styles.postArticle}>
+  return (
+    <div className={styles.threadLayout}>
+      <div className={styles.threadMain}>
+        <Link href={`/community/workshop?z=${territory.code}`} className={styles.backLink}>
+          ← The workshop · {territory.code} {territory.title}
+        </Link>
+
+        <article className={styles.postArticle}>
         {editing ? (
           <>
             <input
@@ -241,15 +304,100 @@ export default function PostDetailClient({
             {error && <div className={styles.formError}>{error}</div>}
             <div className={styles.postBody}>
               <FencedText text={post.body} />
+              {/* What was actually handed over: images inline, files as
+                  download chips — see AttachmentList. */}
+              <AttachmentList files={bodyFiles} />
+
+              {/* The author can keep attaching after posting. This is also
+                  what makes the modal's "the files did not attach — open it
+                  and try again" a real instruction instead of a hope. */}
+              {isOwner && (
+                <div className={styles.composerRow}>
+                  <input
+                    ref={attachRef}
+                    type="file"
+                    multiple
+                    accept={ACCEPT}
+                    hidden
+                    onChange={(event) => {
+                      void uploadFiles(event.target.files);
+                      event.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className={styles.composerLink}
+                    disabled={attachBusy}
+                    onClick={() => attachRef.current?.click()}
+                  >
+                    {attachBusy ? "uploading…" : "▤ attach files"}
+                  </button>
+                  {attachError && <span className={styles.confirmError}>{attachError}</span>}
+                </div>
+              )}
             </div>
           </>
         )}
-      </article>
+        </article>
 
-      <CommentSection
-        target={{ kind: "post", id: post.id }}
-        comments={comments}
-      />
+        <CommentSection
+          target={{ kind: "post", id: post.id }}
+          comments={comments}
+          attachments={attachments}
+          workingUserIds={workingUserIds}
+        />
+      </div>
+
+      <aside className={styles.threadAside}>
+        <div className={styles.territoryCard}>
+          <span className={styles.nodeHead}>
+            <span className={styles.nodeCode}>{territory.code}</span>
+            <span className={styles.drawerTitle}>{territory.title}</span>
+          </span>
+          {territory.description && (
+            <span className={styles.territoryCardDesc}>{territory.description}</span>
+          )}
+          <span className={styles.drawerCounts}>
+            {territory.pinCount} working · {territory.threadCount} thread
+            {territory.threadCount === 1 ? "" : "s"}
+          </span>
+          {pinnedHere ? (
+            <span className={styles.pinnedChip}>
+              <i aria-hidden="true" />
+              You&rsquo;re working here
+            </span>
+          ) : (
+            <Link href={`/community/workshop?z=${territory.code}`} className={styles.pinHereBtn}>
+              ▣ I&rsquo;m working here
+            </Link>
+          )}
+        </div>
+
+        {moreThreads.length > 0 && (
+          <div className={styles.asideList}>
+            <span className={styles.workingLabel}>More in {territory.code}</span>
+            {moreThreads.map((thread) => (
+              <Link
+                key={thread.id}
+                href={`/community/workshop/${territory.code.toLowerCase()}/t/${thread.id}`}
+                className={styles.asideRow}
+              >
+                <span className={styles.threadCardHead}>
+                  <span className={styles.threadCardTitle}>{thread.title}</span>
+                  <span className={styles.headerSpacer} />
+                  {thread.commentCount > 0 && (
+                    <span className={styles.threadCardCount}>{thread.commentCount}</span>
+                  )}
+                </span>
+                <span className={styles.threadCardByline}>
+                  @{thread.displayUsername ?? thread.username ?? "unknown"} ·{" "}
+                  {thread.createdAt.slice(0, 10)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+      </aside>
     </div>
   );
 }

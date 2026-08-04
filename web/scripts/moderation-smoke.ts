@@ -70,7 +70,10 @@ check("post is a valid target", isReportTargetType("post"), true);
 check("comment is a valid target", isReportTargetType("comment"), true);
 check("user is not a target", isReportTargetType("user"), false);
 check("non-string is not a target", isReportTargetType(42), false);
-check("reasons are the five expected", REPORT_REASONS.length, 5);
+// Strobing joined the list with the dark-room redesign — it leads the modal
+// because it is the one reason where the harm is to whoever is looking.
+check("reasons are the six expected", REPORT_REASONS.length, 6);
+check("strobing is offered first", REPORT_REASONS[0], "strobing");
 check("blank detail becomes null", cleanReportDetail("   "), null);
 check("missing detail becomes null", cleanReportDetail(undefined), null);
 check("over-long detail is rejected", cleanReportDetail("x".repeat(2001)), undefined);

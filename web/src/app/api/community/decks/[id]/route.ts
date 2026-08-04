@@ -116,7 +116,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   ) {
     return Response.json(
       {
-        error: `You already have ${PUBLIC_DECKS_MAX} public decks — that is the shelf. Make one of them unlisted or private to free a slot.`,
+        error: `You already have ${PUBLIC_DECKS_MAX} public decks — that is the shelf. Make one of them private to free a slot.`,
       },
       { status: 400 },
     );
@@ -159,7 +159,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       return check.reason === "private"
         ? Response.json(
             {
-              error: `"${check.title}" is private — make it public or unlisted before putting it in a shared deck.`,
+              error: `"${check.title}" is private — make it public before putting it in a shared deck.`,
             },
             { status: 400 },
           )

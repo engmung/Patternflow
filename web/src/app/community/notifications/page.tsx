@@ -40,7 +40,16 @@ export default async function CommunityNotificationsPage() {
     unread: row.readAt === null,
     createdAt: row.createdAt.toISOString(),
     actor: row.actorDisplayUsername ?? row.actorUsername ?? "unknown",
+    patternCode: row.patternCode,
   }));
 
-  return <NotificationsList items={items} />;
+  return (
+    <>
+      <div className={styles.notifyHead}>
+        <h1>Alerts</h1>
+        <p>Comments on your work, forks, ports, and decks your patterns joined.</p>
+      </div>
+      <NotificationsList items={items} />
+    </>
+  );
 }

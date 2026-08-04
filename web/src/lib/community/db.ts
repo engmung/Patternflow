@@ -27,9 +27,23 @@ export function communityHomeUrl(): string {
   return process.env.NEXT_PUBLIC_COMMUNITY_URL ?? "https://community.patternflow.work";
 }
 
+/** The SQLite file. Overridable so the Pi can keep data on a mounted disk. */
+function dbFile(): string {
+  return process.env.COMMUNITY_DB_PATH ?? path.join(process.cwd(), "data", "community.db");
+}
+
+/**
+ * Where anything that is not a database row lives — currently thread
+ * attachments. Beside the database on purpose: "back up the community" stays
+ * one directory, and a Pi with data on a mounted disk gets both without a
+ * second setting.
+ */
+export function communityDataDir(): string {
+  return path.dirname(dbFile());
+}
+
 function createDb() {
-  const file =
-    process.env.COMMUNITY_DB_PATH ?? path.join(process.cwd(), "data", "community.db");
+  const file = dbFile();
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
   const sqlite = new Database(file);

@@ -31,7 +31,7 @@ export default function ReportModal({
   onClose: () => void;
 }) {
   const { data: session, isPending } = authClient.useSession();
-  const [reason, setReason] = useState<ReportReason>("copyright");
+  const [reason, setReason] = useState<ReportReason>("strobing");
   const [detail, setDetail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,9 +65,10 @@ export default function ReportModal({
     <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
-          <span>Report</span>
+          <span className={styles.modalKicker}>Report</span>
+          <span>{targetLabel}</span>
           <button type="button" onClick={onClose} aria-label="Close">
-            ×
+            ✕
           </button>
         </div>
 
@@ -88,51 +89,63 @@ export default function ReportModal({
             </button>
           </div>
         ) : (
-          <div className={styles.modalBody}>
-            <p className={styles.formNote}>
-              Reporting <strong>{targetLabel}</strong>.
-            </p>
-
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Reason</span>
-              <select value={reason} onChange={(event) => setReason(event.target.value as ReportReason)}>
+          <>
+            <div className={styles.modalBody}>
+              {/* A list, not a dropdown: the reasons ARE the question, and one
+                  of them is a safety report that should not be hidden behind
+                  a closed select. */}
+              <fieldset className={styles.reasonList}>
+                <legend className={styles.srOnly}>Reason</legend>
                 {REPORT_REASONS.map((value) => (
-                  <option key={value} value={value}>
+                  <label
+                    key={value}
+                    className={styles.reasonOption}
+                    data-active={reason === value}
+                  >
+                    <input
+                      type="radio"
+                      name="report-reason"
+                      value={value}
+                      checked={reason === value}
+                      onChange={() => setReason(value)}
+                    />
+                    <span className={styles.reasonMark} aria-hidden="true" />
                     {REPORT_REASON_LABELS[value]}
-                  </option>
+                  </label>
                 ))}
-              </select>
-            </label>
+              </fieldset>
 
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>Details (optional)</span>
               <textarea
                 className={styles.textInput}
-                rows={4}
+                rows={3}
                 value={detail}
                 maxLength={REPORT_DETAIL_MAX}
-                placeholder="If this is a copyright report, a link to the original helps a lot."
+                placeholder="Anything that helps us look at the right thing (optional)"
                 onChange={(event) => setDetail(event.target.value)}
               />
-            </label>
 
-            {error && <div className={styles.formError}>{error}</div>}
+              {error && <div className={styles.formError}>{error}</div>}
 
-            <button
-              type="button"
-              className={styles.btnAccent}
-              disabled={busy}
-              onClick={() => void submit()}
-            >
-              {busy ? "Sending…" : "Send report"}
-            </button>
+              <span className={styles.formNote}>
+                Are you the rights holder and not a member here? Email{" "}
+                <a href="mailto:contact@patternflow.work">contact@patternflow.work</a> — see the{" "}
+                <a href="/terms">terms</a>.
+              </span>
+            </div>
 
-            <span className={styles.formNote}>
-              Are you the rights holder and not a member here? Email{" "}
-              <a href="mailto:contact@patternflow.work">contact@patternflow.work</a> — see the{" "}
-              <a href="/terms">terms</a>.
-            </span>
-          </div>
+            <div className={styles.modalFoot}>
+              <span className={styles.formNote}>Every report is read by a moderator.</span>
+              <span className={styles.ownerBarSpacer} />
+              <button
+                type="button"
+                className={styles.btnAccent}
+                disabled={busy}
+                onClick={() => void submit()}
+              >
+                {busy ? "Sending…" : "Send report"}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

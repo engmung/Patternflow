@@ -1,31 +1,52 @@
-/* Community surfaces — matches the site's cream/ink look (see globals.css). */
+/* Community — the dark room.
+   The rest of the site is cream on ink; here that inverts, so a running LED
+   pattern is the only light on the page. Tokens live in globals.css as
+   --pfc-* (see the "Community: the dark room" block there); nothing in this
+   file should hard-code a colour that has a token.
+   Radius is 0 everywhere, same as the light site. */
 
 .page {
   min-height: 100vh;
-  background: var(--pf-cream);
-  color: var(--pf-ink);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
   font-family: var(--pf-sans, ui-sans-serif, system-ui, sans-serif);
   display: flex;
   flex-direction: column;
+}
+
+/* globals.css underlines every link on hover. In here a link changes colour
+   instead — the wall is dense enough that underlines on hover read as noise. */
+.page a:hover {
+  text-decoration: none;
 }
 
 .inner {
   width: 100%;
   max-width: 100%;
   min-height: 100vh;
-  padding: 20px 36px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
+/* Page content sits inside this gutter; full-bleed sections (the marquee)
+   break out of it with a matching negative margin. */
+.pageBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 40px;
+  box-sizing: border-box;
+}
+
+/* ── Header ── */
+
 .pageHeader {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-bottom: 16px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.18);
+  gap: 18px;
+  padding: 16px 40px;
+  border-bottom: 1px solid var(--pfc-hair);
   flex: none;
 }
 
@@ -36,19 +57,24 @@
 }
 
 .brand {
-  color: inherit;
-  font-size: 17px;
+  color: var(--pfc-ink);
+  font-size: 16px;
   font-weight: 700;
   text-decoration: none;
   line-height: 1.15;
 }
 
+/* "COMMUNITY" under the wordmark, in the accent: the one place on the site
+   where the orange names a section rather than a live signal, because the
+   section IS the live one. */
 .pageTitle {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
   text-decoration: none;
-  letter-spacing: 0.02em;
 }
 
 .headerSpacer {
@@ -58,38 +84,399 @@
 .headerNav {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   font-size: 13px;
 }
 
 .headerNav a {
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   text-decoration: none;
 }
 
 .headerNav a:hover {
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
 }
 
-.introRow {
+/* The one CTA. Publishing happens in Pattern Lab, so this replaces both the
+   old "Pattern Lab ↗" link and any separate share button. */
+.makeCta {
+  border: 1px solid var(--pfc-led);
+  background: var(--pfc-led);
+  color: var(--pfc-on-led) !important;
+  font-weight: 500;
+  padding: 8px 16px;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.makeCta:hover {
+  color: var(--pfc-on-led) !important;
+  background: #f16c47;
+  border-color: #f16c47;
+}
+
+/* Section switch in the header: Patterns / Decks / Discussions. Underline
+   rather than a pill, so it reads as "where am I" and not as another filter —
+   the wall already has tab-shaped controls for sort. */
+.sectionNav {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: var(--pf-ink-muted);
-  flex: none;
+  align-items: baseline;
+  gap: 18px;
+  margin-left: 14px;
 }
 
-/* The feed flows with the document and grows as batches append — ONE
-   scrollbar, the page's own. (Its ancestor once locked itself to the viewport
-   for the paginated layout; that clipped the controls on short screens.) */
+.sectionNav a {
+  padding: 3px 0;
+  border-bottom: 2px solid transparent;
+  color: var(--pfc-ink-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.sectionNav a:hover {
+  color: var(--pfc-ink);
+}
+
+.sectionNav a[data-active="true"] {
+  color: var(--pfc-ink);
+  border-bottom-color: var(--pfc-led);
+}
+
+.userChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  color: var(--pfc-ink) !important;
+  text-decoration: none;
+}
+
+.signOutLink {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+}
+
+.signOutLink:hover {
+  color: var(--pfc-ink);
+}
+
+/* Deck size, in the header, as a chip — MOBILE ONLY.
+   On desktop the dock along the bottom carries the count and everything you
+   would do with it, so a second copy in the far corner was the same fact said
+   twice. A phone has no dock (the tab bar owns that edge), so there this chip
+   is the deck's only way in. */
+.deckChip {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--pfc-edge);
+  background: transparent;
+  color: var(--pfc-ink);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px), (hover: none) {
+  .deckChip {
+    display: inline-flex;
+  }
+}
+
+.deckChip:hover {
+  border-color: var(--pfc-led);
+  color: var(--pfc-led);
+}
+
+/* ── Footer ── */
+
+/* globals.css styles the bare `footer` element for the marketing site, cream
+   ground included — an element selector this module's single class does not
+   beat on any property it does not itself declare. The background has to be
+   named explicitly or the dark room gets a cream stripe across the bottom. */
+.pageFooter {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  padding: 26px 0 30px;
+  margin-top: 40px;
+  border-top: 1px solid var(--pfc-hair);
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.pageFooter a {
+  color: var(--pfc-ink-faint);
+  text-decoration: none;
+}
+
+.pageFooter a:hover {
+  color: var(--pfc-led);
+}
+
+/* ── Mobile tab bar ──
+   A phone has no header room for the section nav and no hover for the dock,
+   so navigation moves to the thumb. Desktop never sees it. */
+.tabBar {
+  display: none;
+}
+
+@media (max-width: 768px), (hover: none) {
+  .tabBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid rgba(244, 239, 230, 0.14);
+    background: var(--pfc-panel);
+  }
+}
+
+.tabBar a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  /* ≥44px of thumb, per the design's hit-target rule. */
+  padding: 12px 0 14px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-muted);
+  text-decoration: none;
+}
+
+.tabBar a[data-active="true"] {
+  color: var(--pfc-led);
+}
+
+/* Glyphs are drawn, not typeset: an icon font would be one more request for
+   four shapes that are literally squares. */
+.tabGlyphBars {
+  display: flex;
+  gap: 2px;
+}
+
+.tabGlyphBars i {
+  width: 4px;
+  height: 16px;
+  background: currentColor;
+  display: block;
+}
+
+.tabGlyphSquare {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+}
+
+.tabGlyphDiamond {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.tabGlyphFill {
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+}
+
+/* ── Marquee ──
+   Five equal panels, edge to edge. The first carries the intro; the rest are
+   patterns, playing. It is the stage: the first thing on /community is the
+   thing the site is for. */
+
+.marquee {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-bottom: 1px solid var(--pfc-hair);
+  /* Out of the page gutter, so the panels touch both edges. */
+  margin: 0 -40px;
+}
+
+.marqueePanel {
+  position: relative;
+  aspect-ratio: 1 / 2;
+  background: var(--pfc-well);
+  overflow: hidden;
+  border-right: 1px solid rgba(244, 239, 230, 0.1);
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.marqueePanel:last-child {
+  border-right: 0;
+}
+
+.marqueeIntro {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* The pattern behind the intro is scenery, not content — dimmed so the
+   headline stays the thing you read. */
+.marqueeIntroArt {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Scenery, not a preview: it should reach the panel's edges even when the
+   panel is not 1:2 (it goes wide and short on a phone). Cropping a backdrop
+   is fine; letterboxing one into a stripe down the middle is not.
+   The quarter-turn every other surface applies to landscape patterns is
+   dropped here too — its 200%×50% box is built for a 1:2 well and collapses
+   to a ribbon in a wide one, and which way up the wallpaper sits is not a
+   fact anyone reads. Two classes deep because `.screenUpright img` sets
+   `contain` further down this file. */
+.marqueeIntroArt .screenRotator {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
+}
+
+.marqueeIntroArt .screenUpright img,
+.marqueeIntroArt .screenRotator img {
+  object-fit: cover;
+}
+
+.marqueeIntroBody {
+  position: relative;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.marqueeKicker {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+}
+
+.marqueeTitle {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+
+.marqueeBody {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--pfc-ink-2);
+}
+
+.marqueeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pfc-ink);
+  text-decoration: none;
+}
+
+.marqueeLink span {
+  color: var(--pfc-led);
+}
+
+.marqueeCaption {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* The caption sits ON the pattern, so it carries its own contrast rather
+   than a scrim — a scrim would dim the one thing worth looking at. */
+.marqueeCaption b {
+  font-size: 13.5px;
+  font-weight: 500;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
+.marqueeCaption span {
+  font-size: 11.5px;
+  color: var(--pfc-ink-2);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
+@media (max-width: 1100px) {
+  .marquee {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .marqueePanel:nth-child(n + 4) {
+    display: none;
+  }
+
+  .marqueeTitle {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 768px), (hover: none) {
+  .marquee {
+    grid-template-columns: 1fr;
+  }
+
+  /* On a phone the intro panel alone says it; four silent thumbnails below
+     the fold do not earn a screen each. */
+  .marqueePanel:not(.marqueeIntro) {
+    display: none;
+  }
+
+  .marqueeIntro {
+    aspect-ratio: auto;
+    min-height: 300px;
+  }
+}
+
+/* ── Wall ──
+   The feed. Bare canvases in a grid, with their furniture underneath: no card
+   border, no panel — every rectangle on this page that has an edge is a
+   pattern. */
+
 .feedWrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-bottom: 60px;
+  padding: 28px 0 60px;
 }
 
 .centeredFeedBody {
@@ -99,13 +486,9 @@
   gap: 20px;
 }
 
-/* ── Feed grid ──
-   Column count and gap are set inline from the measured row width; the row
-   count comes from the active view (1 large row, or 2 small ones). */
-
 .feedGrid {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   width: 100%;
   max-width: 100%;
   justify-content: center;
@@ -120,71 +503,117 @@
 }
 
 .feedEndNote {
-  margin: 4px 0 0;
+  margin: 28px 0 0;
+  text-align: center;
   font-family: var(--pf-mono, monospace);
   font-size: 11px;
-  color: var(--pf-ink-faint);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
 }
 
-/* ── Small view ──
-   Half-size cards, two rows. The thumbnail keeps its 1:2 shape, so only the
-   text furniture needs to come down — at ~104px a 15px title and a full byline
-   would wrap into the next card's worth of height. */
-.feedGrid[data-view="small"] .cardMeta {
-  padding: 7px 8px;
-  gap: 3px;
-  min-height: 44px;
+/* ── Feed controls ── */
+
+.feedControls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 
-.feedGrid[data-view="small"] .cardTitle {
-  font-size: 11.5px;
-  gap: 4px;
+.feedCount {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  white-space: nowrap;
 }
 
-.feedGrid[data-view="small"] .cardByline {
-  font-size: 10px;
-  gap: 4px;
+.sortTabs {
+  display: flex;
+  gap: 18px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
-.feedGrid[data-view="small"] .cardDate,
-.feedGrid[data-view="small"] .frameChip {
-  display: none;
+.sortTabs a {
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+  color: var(--pfc-ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.feedGrid[data-view="small"] .hwChip,
-.feedGrid[data-view="small"] .forkChip {
-  font-size: 8.5px;
-  padding: 0 4px;
+.sortTabs a:hover {
+  color: var(--pfc-ink);
 }
 
-.feedGrid[data-view="small"] .knobOverlay {
-  left: 4px;
-  right: 4px;
-  gap: 4px;
-  padding: 5px 6px;
-  border-radius: 0;
+.sortTabs a[data-active="true"] {
+  color: var(--pfc-ink);
+  border-bottom-color: var(--pfc-led);
 }
+
+.controlRule {
+  width: 1px;
+  height: 16px;
+  background: rgba(244, 239, 230, 0.18);
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  color: var(--pfc-ink);
+}
+
+.filterChip[data-active="true"] {
+  color: var(--pfc-led);
+}
+
+/* Card size has no widget — Ctrl+scroll (or pinch) IS the control, so this
+   hint is its entire discoverability. Quiet on purpose. */
+.zoomHint {
+  margin-left: auto;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+}
+
+/* ── Pattern card ── */
 
 .card {
-  display: block;
-  border: 1px solid rgba(20, 20, 20, 0.18);
-  border-radius: 0;
-  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 0;
+  background: transparent;
   text-decoration: none;
   color: inherit;
-  overflow: hidden;
   box-sizing: border-box;
-}
-
-.card:hover {
-  border-color: rgba(20, 20, 20, 0.55);
 }
 
 .cardThumb {
   aspect-ratio: 1 / 2;
   position: relative;
-  background: #09090b;
+  background: var(--pfc-well);
   overflow: hidden;
+}
+
+/* A hovered card lifts by lighting its own edge — nothing moves, because the
+   grid is dense and a transform would shove its neighbours. */
+.card:hover .cardThumb {
+  outline: 1px solid var(--pfc-edge);
+  outline-offset: -1px;
 }
 
 .screenRotator {
@@ -195,7 +624,7 @@
   height: 50%;
   transform: translate(-50%, -50%) rotate(-90deg);
   transform-origin: center center;
-  background: #09090b;
+  background: var(--pfc-well);
   overflow: hidden;
   z-index: 1;
 }
@@ -207,7 +636,7 @@
 .screenUpright {
   position: absolute;
   inset: 0;
-  background: #09090b;
+  background: var(--pfc-well);
   overflow: hidden;
   z-index: 1;
 }
@@ -243,6 +672,24 @@
   pointer-events: none;
 }
 
+/* The default well for a bare PatternCanvas: its own 1:2 slot. */
+.canvasWell {
+  position: relative;
+  aspect-ratio: 1 / 2;
+  background: var(--pfc-well);
+  overflow: hidden;
+}
+
+/* …and the variant for a canvas dropped INTO an already-positioned well —
+   a card thumb, a marquee panel, an alert chip — where the parent owns the
+   shape and the badges sit beside the canvas as siblings. */
+.canvasFill {
+  position: absolute;
+  inset: 0;
+  background: var(--pfc-well);
+  overflow: hidden;
+}
+
 .cardThumbNote {
   position: absolute;
   inset: 0;
@@ -250,15 +697,155 @@
   align-items: center;
   justify-content: center;
   padding: 10px;
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-faint);
   font-family: var(--pf-mono, monospace);
   font-size: 11px;
   text-align: center;
 }
 
-/* ── Sleek Top Overlay Knob Control Bar (ZERO layout shift!) ── */
+/* Badges ON the canvas: the card has no furniture left to hang them from,
+   and "runs on hardware" belongs to the pattern, not to its caption. */
+.cardHwBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--pfc-on-led);
+  background: var(--pfc-led);
+  padding: 1px 5px;
+}
 
-/* ── Dynamic Dodging Knob Overlay Bar (Shifts Top/Bottom based on cursor!) ── */
+/* Only for patterns young enough that "when" is still news (<5 days). */
+.ageChip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink);
+  background: rgba(11, 11, 12, 0.72);
+  border: 1px solid rgba(244, 239, 230, 0.28);
+  padding: 1px 5px;
+}
+
+.cardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--pfc-ink);
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.cardTitleText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* One row: the handle takes what it needs and truncates, the stats are fixed
+   facts and keep their space at the right. */
+.cardByline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--pfc-ink-muted);
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.cardByline .userLink {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardStats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-left: auto;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.cardDate {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pfc-ink-faint);
+  flex: none;
+}
+
+/* ── Small view ──
+   Half-size cards. The canvas keeps its 1:2 shape, so only the text comes
+   down — at ~104px wide a 13.5px title and a full byline wrap into the next
+   card's worth of height. */
+.feedGrid[data-view="small"] .cardMeta {
+  gap: 2px;
+}
+
+.feedGrid[data-view="small"] .cardTitle {
+  font-size: 11.5px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardByline {
+  font-size: 10px;
+  gap: 4px;
+}
+
+.feedGrid[data-view="small"] .cardDate,
+.feedGrid[data-view="small"] .cardStats,
+.feedGrid[data-view="small"] .frameChip {
+  display: none;
+}
+
+.feedGrid[data-view="small"] .cardHwBadge,
+.feedGrid[data-view="small"] .ageChip {
+  font-size: 9px;
+  padding: 0 4px;
+  top: 6px;
+}
+
+.feedGrid[data-view="small"] .cardHwBadge {
+  left: 6px;
+}
+
+.feedGrid[data-view="small"] .ageChip {
+  right: 6px;
+}
+
+.feedGrid[data-view="small"] .knobOverlay {
+  left: 4px;
+  right: 4px;
+  gap: 4px;
+  padding: 5px 6px;
+}
+
+/* ── Knob overlay ──
+   Dodges to whichever half of the canvas the cursor is not in. */
 
 .knobOverlay {
   position: absolute;
@@ -270,7 +857,7 @@
   gap: 6px;
   background: rgba(9, 9, 11, 0.92);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(244, 239, 230, 0.2);
   border-radius: 0;
   padding: 8px 10px;
   transition: opacity 150ms ease, top 220ms cubic-bezier(0.16, 1, 0.3, 1), bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -288,10 +875,9 @@
 
 .knobZoneBarInMeta {
   display: flex;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 0;
+  background: rgba(244, 239, 230, 0.1);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(244, 239, 230, 0.2);
   width: 100%;
 }
 
@@ -302,8 +888,8 @@
   font-family: var(--pf-mono, monospace);
   font-size: 10px;
   font-weight: 500;
-  color: var(--pf-ink-faint);
-  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--pfc-ink-faint);
+  border-right: 1px solid rgba(244, 239, 230, 0.15);
   transition: all 120ms ease;
 }
 
@@ -312,8 +898,8 @@
 }
 
 .activeKnobSegment {
-  background: var(--pf-cream);
-  color: var(--pf-ink);
+  background: var(--pfc-ink);
+  color: var(--pfc-ground);
 }
 
 .metaKnobStatus {
@@ -332,123 +918,730 @@
 }
 
 .metaKnobLabel {
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-faint);
   white-space: nowrap;
 }
 
 .metaKnobVal {
-  color: #ffffff;
+  color: var(--pfc-ink);
   font-weight: 500;
 }
 
 .metaKnobTrack {
   width: 100%;
   height: 5px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 0;
+  background: rgba(244, 239, 230, 0.2);
   overflow: hidden;
 }
 
 .metaKnobFill {
   height: 100%;
-  background: #ffffff;
-  border-radius: 0;
+  background: var(--pfc-ink);
   transition: width 80ms ease-out;
 }
 
-/* ── Fixed Height Card Footer (Zero Layout Shift!) ── */
+/* Add-to-deck on a wall card.
+   The card is one big link, so this floats over the canvas rather than sitting
+   in the caption: it cannot reflow the grid, and it stays out of the knob
+   overlay's way (which dodges to whichever half the cursor is not in).
+   It is never fully hidden. On the old cream page a white-framed card made an
+   empty corner obviously empty, so revealing this on hover was enough; on a
+   frameless card in a dark room a hover-only, near-black square on a near-black
+   well is an affordance nobody finds. So it sits at rest, quiet, and comes up
+   to full weight when the card is hovered. */
+.cardDeckBtn {
+  position: absolute;
+  right: 6px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--pfc-ink);
+  /* Dense enough to read as an object against a lit pattern, not just against
+     the unlit well. */
+  background: rgba(11, 11, 12, 0.82);
+  border: 1px solid rgba(244, 239, 230, 0.45);
+  cursor: pointer;
+  opacity: 0.5;
+  /* Same easing as .knobOverlay, so the pair reads as one system moving. */
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s,
+    top 220ms cubic-bezier(0.16, 1, 0.3, 1), bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(2px);
+}
 
-.cardMeta {
-  padding: 12px 14px;
+.deckBottom {
+  bottom: 6px;
+  top: auto;
+}
+
+.deckTop {
+  top: 6px;
+  bottom: auto;
+}
+
+.card:hover .cardDeckBtn,
+.cardDeckBtn:focus-visible {
+  opacity: 1;
+}
+
+.cardDeckBtn:hover {
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+  color: var(--pfc-on-led);
+}
+
+.cardDeckBtnOn {
+  opacity: 1;
+  background: rgba(232, 85, 46, 0.92);
+  border-color: var(--pfc-led);
+  color: var(--pfc-on-led);
+}
+
+.cardDeckNote {
+  position: absolute;
+  right: 6px;
+  z-index: 3;
+  max-width: calc(100% - 12px);
+  padding: 3px 7px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--pfc-ink);
+  background: rgba(11, 11, 12, 0.86);
+}
+
+/* Sits just clear of the button, on whichever edge it went to. */
+.deckNoteBottom {
+  bottom: 40px;
+  top: auto;
+}
+
+.deckNoteTop {
+  top: 40px;
+  bottom: auto;
+}
+
+/* Coarse pointers have no hover, so the button has to be there already. */
+@media (hover: none) {
+  .cardDeckBtn {
+    opacity: 1;
+  }
+}
+
+/* ── Deck dock ──
+   Fixed to the bottom of the window across the community: the deck is the
+   running order you are assembling while you browse, so it has to stay where
+   you can see it filling up. */
+
+/* No vertical padding: the slots ARE the dock's height, so the patterns run
+   edge to edge and the bar is as short as the thing it is showing. */
+.deckDock {
+  /* Two rhythms, named so the bin can cancel one against the other below.
+     --slot-h is every box in the row AND the bar's own height: they are the
+     same number by definition, so it is written once. */
+  --dock-gap: 16px;
+  --slot-gap: 4px;
+  --slot-h: 68px;
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: #FFFFFF;
-  /* min-height, not height: the grid equalises row heights on its own, and a
-     hard 64px silently clipped the byline instead of letting it breathe. */
-  min-height: 64px;
+  align-items: center;
+  gap: var(--dock-gap);
+  padding: 0 40px 0 0;
+  height: var(--slot-h);
+  background: rgba(16, 16, 18, 0.96);
+  border-top: 1px solid rgba(244, 239, 230, 0.16);
+  backdrop-filter: blur(6px);
   box-sizing: border-box;
 }
 
-.cardTitle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--pf-ink);
-  line-height: 1.3;
+/* While a slot is in the air, nothing else on the bar should look clickable. */
+.deckDock[data-dragging="true"] {
+  cursor: grabbing;
+  user-select: none;
 }
 
-.cardTitleText {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* A card from the wall is being held over the bar: the whole bar is the
+   target, so the whole bar answers. */
+.deckDock[data-dropping="true"] {
+  border-top-color: var(--pfc-led);
+  background: rgba(232, 85, 46, 0.1);
 }
 
-/* One row. Stacking these clipped the date instead: .cardMeta is a fixed 64px
-   (44 in small view) so every card in the grid is the same height, and two rows
-   need 85. The row fits because the username is the only part that can be any
-   length, so it is the part that truncates — the counts and the date are fixed
-   facts and keep their space. */
-.cardByline {
-  font-size: 12px;
-  color: var(--pf-ink-muted);
+.deckDock[data-dropping="true"] .deckDockNext {
+  border-color: var(--pfc-led);
+  border-style: solid;
+  color: var(--pfc-led);
+}
+
+.deckDockLabel {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  min-width: 0;
-  line-height: 1.2;
+  gap: 2px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  flex: none;
+  padding-left: 40px;
 }
 
-/* Its own row, so it gets the full width before it has to truncate. */
-.cardByline .userLink {
-  max-width: 100%;
+/* The count that used to be a header chip. It belongs beside the thing it is
+   counting, not in the far corner of the screen. */
+.deckDockLabel b {
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--pfc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.deckDockSlots {
+  display: flex;
+  gap: var(--slot-gap);
+  align-items: stretch;
+  align-self: stretch;
+  flex: none;
+}
+
+/* A filled slot is the pattern itself; the next one is an invitation; the
+   rest are just the shape of the thing you are filling. */
+.deckDockSlot {
+  position: relative;
+  width: 34px;
+  height: var(--slot-h);
+  background: var(--pfc-well);
+  display: block;
+  overflow: visible;
+  flex: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* The step-aside motion. The slot being dragged turns this off (below) so
+     it tracks the pointer exactly. */
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.deckDockSlot > :first-child {
+  overflow: hidden;
+}
+
+/* The pattern is scenery for the drag, not a target. Left alone, the image
+   inside is a draggable object in its own right and the browser's own
+   drag-and-drop wins the gesture. */
+.deckDockSlot img,
+.deckDockSlot iframe {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Lifted: follows the pointer with no easing, and rides above its neighbours
+   so it reads as picked up rather than swapped. */
+.deckDockSlot[data-drag="true"] {
+  transition: none;
+  z-index: 2;
+  cursor: grabbing;
+  outline: 1px solid var(--pfc-led);
+  outline-offset: -1px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* The frame a finished drag is written back in. The DOM order changes and the
+   translates clear together; easing the second half would drag each slot a
+   whole step past where it belongs and walk it back. */
+.deckDock[data-settling="true"] .deckDockSlot {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckDockSlot {
+    transition: none;
+  }
+}
+
+/* Its position in the running order, bottom-left, on the pattern. The deck's
+   whole content is the sequence, so every slot says where it is in it. */
+.deckDockOrder {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 3;
+  padding: 0 3px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  line-height: 1.5;
+  color: var(--pfc-ink);
+  background: rgba(11, 11, 12, 0.72);
+  pointer-events: none;
+}
+
+/* A slot on its way to the bin: it stops pretending it is going to land. */
+.deckDockSlot[data-doomed="true"] {
+  outline-color: var(--pfc-danger);
+  opacity: 0.55;
+}
+
+/* The bin, at the end of the row it empties.
+   A target rather than a ✕ on every slot: ten hover-only buttons over ten
+   patterns is ten chances to delete the wrong one, and dragging is already the
+   gesture that moves them. Quiet until something is actually held over it. */
+/* The bin and the hint share one box, so the bin knows exactly how far it may
+   grow: over the hint, and not one pixel past it. No measuring, no magic
+   width — the area is the target's own parent. */
+/* The bin and the hint share one box, so the bin knows exactly how far it may
+   grow: over the hint, and not one pixel past it. No measuring, no magic
+   width — the area is the target's own parent. */
+.deckDockBinArea {
+  position: relative;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  /* The bin is the end of the slot row, but it is a SIBLING of that row, so
+     the dock's own 16px gap sits between them on top of anything set here.
+     Cancel it and put the row's gap back, so ✕ sits the same distance from +
+     as + sits from the slot before it. */
+  margin-left: calc(var(--slot-gap) - var(--dock-gap));
+  min-width: 0;
+}
+
+/* Taken out of the flow and given an explicit width, because `width` animates
+   and `inset: 0` does not: the bin has to GROW across the hint, not appear at
+   full size. The hint keeps its own place in the flex row and just gets
+   covered. */
+.deckDockTrash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* Stated, not inferred from top/bottom: as an absolutely positioned box its
+     height was whatever its parent happened to stretch to, which is one more
+     thing that can quietly disagree with the row it is supposed to match. */
+  height: var(--slot-h);
+  width: 34px;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--pfc-danger);
+  background: transparent;
+  border: 1px dashed rgba(232, 107, 94, 0.4);
+  cursor: default;
+  transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1), background 140ms ease,
+    border-color 140ms ease, color 140ms ease;
+}
+
+/* Clears the bin at its resting width. */
+.deckDockBinArea .deckDockCount {
+  margin-left: 44px;
+}
+
+/* In the air: the bin spreads across the hint, which has nothing to say
+   mid-drag. `visibility` rather than `display` so the hint keeps holding the
+   width the bin is expanding into. */
+.deckDock[data-dragging="true"] .deckDockTrash {
+  width: 100%;
+  border-style: solid;
+  border-color: rgba(232, 107, 94, 0.55);
+  background: rgba(232, 107, 94, 0.06);
+}
+
+.deckDock[data-dragging="true"] .deckDockCount {
+  visibility: hidden;
+}
+
+.deckDockTrash:enabled {
+  cursor: pointer;
+}
+
+.deckDockTrash:enabled:hover {
+  border-color: var(--pfc-danger);
+  border-style: solid;
+}
+
+.deckDockTrash:disabled {
+  opacity: 0.25;
+}
+
+/* Asked once, about the whole deck. Filled in, because the next press is not
+   reversible. */
+.deckDockTrash[data-confirm="true"] {
+  background: var(--pfc-danger);
+  border-color: var(--pfc-danger);
+  border-style: solid;
+  color: var(--pfc-ground);
+}
+
+.deckDockCount[data-warn="true"] {
+  color: var(--pfc-danger);
+}
+
+/* Held over it: the target fills in. Has to out-specify the dragging rule
+   above — that one is (0,3,0) and would otherwise keep its 6%-alpha wash no
+   matter what is hovering. */
+.deckDock[data-dragging="true"] .deckDockTrash[data-armed="true"],
+.deckDockTrash[data-armed="true"] {
+  background: var(--pfc-danger);
+  border-color: var(--pfc-danger);
+  border-style: solid;
+  color: var(--pfc-ground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deckDockTrash {
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+}
+
+/* The ordinal is the slot's content: without a canvas to show, the number IS
+   the information — this pattern plays third. */
+.deckDockSlotIndex {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  color: var(--pfc-led);
+}
+
+/* One box, three meanings. A filled slot, an empty place and the bin are the
+   same rectangle to the pixel — the row has a rhythm and nothing gets to sit
+   outside it. Only the border and what is inside them differ.
+   (The bin sets its own box just above: it is positioned, because it grows.) */
+.deckDockNext,
+.deckDockEmpty {
+  width: 34px;
+  height: var(--slot-h);
+  align-self: stretch;
+  flex: none;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  line-height: 1;
+  padding: 0;
+  background: transparent;
+}
+
+.deckDockNext {
+  border: 1px dashed rgba(244, 239, 230, 0.26);
+  color: var(--pfc-ink-faint);
+  /* Matched to the ✕ by eye rather than by number: a "+" carries far less
+     ink than a "✕" at the same size and reads as the smaller of the two. */
+  font-size: 17px;
+}
+
+.deckDockEmpty {
+  border: 1px dashed rgba(244, 239, 230, 0.16);
+}
+
+.deckDockCount {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-muted);
+  white-space: nowrap;
+  /* First to go when the row runs out of width: it is a hint, and everything
+     else on the bar is a control. */
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.deckDockSpacer {
+  flex: 1;
+}
+
+.deckDockLink {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
   white-space: nowrap;
+  flex: none;
 }
 
-.cardDate {
-  font-size: 10px;
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono, monospace);
-  flex: none;
-  margin-left: auto;
+.deckDockLink:hover {
+  color: var(--pfc-ink);
 }
 
-.forkChip {
-  flex: none;
+.deckDockSend {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--pfc-led);
+  background: var(--pfc-led);
+  color: var(--pfc-on-led);
   font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--pf-led);
-  border: 1px solid rgba(232, 85, 46, 0.5);
-  border-radius: 0;
-  padding: 1px 7px;
+  padding: 9px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+  text-decoration: none;
 }
 
-/* Shown only for patterns composed for something other than the stock panel. */
-.frameChip {
-  flex: none;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--pf-ink-muted);
-  border: 1px solid rgba(20, 20, 20, 0.28);
-  border-radius: 0;
-  padding: 1px 7px;
-  white-space: nowrap;
+.deckDockSend:hover {
+  color: var(--pfc-on-led);
 }
+
+.deckDockSend:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Build, reported in the bar ──
+   The build takes a couple of seconds and produces something you act on, so
+   it says so where the button was rather than opening a window to say it. */
+
+.buildRunningNote,
+.buildDoneNote,
+.buildFailNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex: none;
+}
+
+.buildRunningNote {
+  color: var(--pfc-ink-muted);
+}
+
+/* The expectation, set quieter than the clock beside it — it is context, not
+   news, right up until it becomes news. */
+.buildRunningNote em {
+  font-style: normal;
+  color: var(--pfc-ink-faint);
+}
+
+.buildRunningNote[data-slow="true"] em {
+  color: var(--pfc-led);
+}
+
+.buildDoneNote {
+  color: var(--pfc-led);
+}
+
+.buildFailNote {
+  color: var(--pfc-danger);
+}
+
+/* The one thing the bar has no room for. Opens directly above it, so it still
+   reads as part of the dock rather than as somewhere else. */
+.dockLog {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--slot-h, 68px);
+  z-index: 30;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 12px 40px;
+  background: rgba(16, 16, 18, 0.98);
+  border-top: 1px solid rgba(232, 107, 94, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.dockLog pre {
+  margin: 0;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--pfc-ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The dock overlaps the page, so the page has to end above it. */
+.dockSpacer {
+  height: 84px;
+  flex: none;
+}
+
+@media (max-width: 900px), (hover: none) {
+  /* No dock on a phone — the header chip and the deck panel carry it, and the
+     tab bar already owns the bottom edge. */
+  .deckDock,
+  .dockSpacer {
+    display: none;
+  }
+}
+
+/* ── Empty / notice ── */
 
 .empty {
   padding: 48px 0;
   text-align: center;
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   font-size: 14px;
+}
+
+/* The designed empty states: a titled panel, not a shrug. */
+.emptyPanel {
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  padding: 28px 28px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 620px;
+  margin: 24px 0;
+}
+
+.emptyKicker {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.emptyTitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--pfc-ink);
+}
+
+.emptyBody {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pfc-ink-muted);
+}
+
+.emptyCta {
+  font-size: 13px;
+  color: var(--pfc-led) !important;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.notice {
+  max-width: 560px;
+  margin: 80px auto;
+  padding: 28px;
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  background: var(--pfc-panel);
+  text-align: center;
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+
+.notice a {
+  color: var(--pfc-led);
+}
+
+/* ── Buttons ── */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--pfc-edge-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--pfc-ink);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Cream solid — the "this leaves the page and touches your board" weight. */
+.btnPrimary {
+  composes: btn;
+  background: var(--pfc-ink);
+  border-color: var(--pfc-ink);
+  color: var(--pfc-ground);
+  font-weight: 500;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #fffdf7;
+  border-color: #fffdf7;
+}
+
+.btnAccent {
+  composes: btn;
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+  color: var(--pfc-on-led);
+  font-weight: 500;
+}
+
+.btnAccent:hover:not(:disabled) {
+  background: #f16c47;
+  border-color: #f16c47;
+}
+
+.btnDanger {
+  composes: btn;
+  border-color: rgba(232, 107, 94, 0.55);
+  color: var(--pfc-danger);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: var(--pfc-danger);
+  border-color: var(--pfc-danger);
+  color: var(--pfc-ground);
+}
+
+.btnSmall {
+  appearance: none;
+  border: 1px solid var(--pfc-edge-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.btnSmall:hover:not(:disabled) {
+  border-color: var(--pfc-ink);
+}
+
+.btnSmall:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btnSmallDanger {
+  composes: btnSmall;
+  border-color: rgba(232, 107, 94, 0.55);
+  color: var(--pfc-danger);
+}
+
+.btnSmallDanger:hover:not(:disabled) {
+  background: var(--pfc-danger);
+  border-color: var(--pfc-danger);
+  color: var(--pfc-ground);
 }
 
 /* ── Detail page ── */
@@ -456,8 +1649,18 @@
 .detailWrap {
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  padding-bottom: 80px;
+  gap: 26px;
+  padding: 18px 0 60px;
+}
+
+.breadcrumb {
+  font-size: 13px;
+  color: var(--pfc-ink-muted);
+  text-decoration: none;
+}
+
+.breadcrumb:hover {
+  color: var(--pfc-ink);
 }
 
 .detailLayout {
@@ -465,44 +1668,6 @@
   grid-template-columns: minmax(0, 4.4fr) minmax(0, 4.6fr);
   gap: 24px;
   align-items: stretch;
-}
-
-@media (max-width: 900px) {
-  .detailWrap {
-    gap: 20px;
-    padding-bottom: 40px;
-  }
-
-  .detailLayout {
-    grid-template-columns: 1fr;
-    gap: 20px;
-  }
-
-  .matrixFrame {
-    max-width: 180px;
-    max-height: 360px;
-  }
-
-  .knobs {
-    margin-top: 14px;
-    max-width: 100%;
-    gap: 8px;
-  }
-
-  .knobLine {
-    grid-template-columns: 55px minmax(0, 1fr) 45px;
-    gap: 6px;
-  }
-
-  .actionRow {
-    max-width: 100%;
-    gap: 6px;
-  }
-
-  .actionRow button {
-    flex: 1 1 auto;
-    min-height: 36px;
-  }
 }
 
 .detailLeftCol {
@@ -517,10 +1682,9 @@
   aspect-ratio: 1 / 2;
   width: 100%;
   max-width: 320px;
-  background: #09090b;
-  border-radius: 0;
+  background: var(--pfc-well);
   overflow: hidden;
-  border: 1px solid rgba(20, 20, 20, 0.2);
+  border: 1px solid rgba(244, 239, 230, 0.2);
 }
 
 .matrixFrame iframe {
@@ -535,10 +1699,9 @@
   width: 100%;
   max-width: 320px;
   padding: 8px 12px;
-  border: 1px solid rgba(160, 32, 32, 0.5);
-  border-radius: 0;
-  background: rgba(160, 32, 32, 0.08);
-  color: var(--pf-danger);
+  border: 1px solid rgba(232, 107, 94, 0.5);
+  background: rgba(232, 107, 94, 0.08);
+  color: var(--pfc-danger);
   font-family: var(--pf-mono, monospace);
   font-size: 12px;
   white-space: pre-wrap;
@@ -562,7 +1725,7 @@
 }
 
 .knobLine span:first-child {
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   text-align: right;
   padding-right: 4px;
   overflow: hidden;
@@ -573,14 +1736,14 @@
 .knobLine input[type="range"] {
   width: 100%;
   margin: 0;
-  accent-color: var(--pf-led);
+  accent-color: var(--pfc-led);
   cursor: pointer;
 }
 
 .knobValue {
   text-align: left;
   font-weight: 500;
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
   font-variant-numeric: tabular-nums;
   padding-left: 4px;
 }
@@ -591,440 +1754,30 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   width: 100%;
-  max-width: 320px;
+  max-width: 440px;
 }
 
-.btn {
-  appearance: none;
-  border: 1px solid rgba(20, 20, 20, 0.35);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
-  font-size: 13px;
-  padding: 7px 14px;
-  cursor: pointer;
-}
-
-.btn:hover {
-  border-color: rgba(20, 20, 20, 0.7);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.btnPrimary {
-  composes: btn;
-  background: var(--pf-ink);
-  border-color: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.btnPrimary:hover {
-  background: var(--pf-ink-muted);
-  border-color: var(--pf-ink-muted);
-}
-
-.btnAccent {
-  composes: btn;
-  background: var(--pf-led);
-  border-color: var(--pf-led);
-  color: #fff;
-}
-
-/* Keep the fill — an accent button that empties on hover reads as disabled.
-   The border carries the state change so the palette stays at one orange. */
-.btnAccent:hover {
-  border-color: var(--pf-ink);
-}
+/* ── Code panel ── */
 
 .editorWrap {
-  border: 1px solid rgba(20, 20, 20, 0.25);
-  border-radius: 0;
+  border: 1px solid rgba(244, 239, 230, 0.16);
   overflow: hidden;
   height: 100%;
   /* Column so the tab bar sits above an editor that fills the rest. */
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: var(--pfc-panel);
 }
-
-/* ── Detail meta + comments ── */
-
-.metaBlock {
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid rgba(20, 20, 20, 0.18);
-  max-width: 100%;
-}
-
-.metaTitle {
-  font-size: 24px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.metaByline {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--pf-ink-muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-}
-
-.metaByline a {
-  color: var(--pf-ink);
-}
-
-.forkNote {
-  color: var(--pf-led);
-}
-
-.forkNote a {
-  color: var(--pf-led);
-}
-
-/* Sits in the meta row, styled to recede: reporting should be findable without
-   being an invitation. Inherits the row's font so it reads as one more fact,
-   not a call to action. */
-.reportLink {
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  color: var(--pf-ink-dim, inherit);
-  opacity: 0.55;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.reportLink:hover {
-  opacity: 1;
-}
-
-.metaDescription {
-  margin-top: 14px;
-  font-size: 14.5px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  color: var(--pf-ink);
-}
-
-.commentsBlock {
-  margin-top: 36px;
-  max-width: 760px;
-}
-
-.commentsTitle {
-  font-size: 15px;
-  font-weight: 500;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.18);
-}
-
-.commentItem {
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.1);
-  font-size: 14px;
-}
-
-.commentHead {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.commentAuthor {
-  font-weight: 500;
-  color: var(--pf-ink);
-  text-decoration: none;
-}
-
-.commentDate {
-  font-size: 12px;
-  color: var(--pf-ink-faint);
-}
-
-.commentBody {
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.commentForm {
-  margin-top: 16px;
-  display: grid;
-  gap: 10px;
-}
-
-.commentForm textarea {
-  min-height: 84px;
-  resize: vertical;
-}
-
-/* ── Forms / modals ── */
-
-.textInput,
-.commentForm textarea,
-.field select {
-  width: 100%;
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
-  font-size: 14px;
-  font-family: inherit;
-  padding: 8px 10px;
-}
-
-.textInput:focus,
-.commentForm textarea:focus,
-.field select:focus {
-  outline: 2px solid rgba(232, 85, 46, 0.5);
-  outline-offset: 1px;
-}
-
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(20, 20, 20, 0.45);
-}
-
-.modalCard {
-  width: min(420px, 100%);
-  max-height: 90vh;
-  overflow: auto;
-  border-radius: 0;
-  background: var(--pf-cream);
-  border: 1px solid rgba(20, 20, 20, 0.25);
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.15);
-  font-weight: 500;
-  font-size: 15px;
-}
-
-.modalHeader button {
-  appearance: none;
-  border: 0;
-  background: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--pf-ink-muted);
-}
-
-.modalBody {
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-}
-
-.field {
-  display: grid;
-  gap: 5px;
-  font-size: 13px;
-}
-
-.fieldLabel {
-  font-weight: 500;
-}
-
-.fieldHint {
-  font-size: 12px;
-  color: var(--pf-ink-muted);
-}
-
-.formError {
-  padding: 8px 10px;
-  border-radius: 0;
-  background: rgba(160, 32, 32, 0.1);
-  border: 1px solid rgba(160, 32, 32, 0.4);
-  color: var(--pf-danger);
-  font-size: 13px;
-}
-
-.formNote {
-  font-size: 12px;
-  color: var(--pf-ink-muted);
-  line-height: 1.5;
-}
-
-.authTabs {
-  display: flex;
-  gap: 6px;
-}
-
-.authTabs button {
-  flex: 1;
-  appearance: none;
-  border: 1px solid rgba(20, 20, 20, 0.25);
-  border-radius: 0;
-  background: transparent;
-  color: var(--pf-ink-muted);
-  font-size: 13px;
-  padding: 7px 0;
-  cursor: pointer;
-}
-
-.authTabs button[data-active="true"] {
-  background: var(--pf-ink);
-  border-color: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.userChip {
-  font-family: var(--pf-mono, monospace);
-  font-size: 12px;
-  color: var(--pf-ink);
-  text-decoration: none;
-}
-
-.notice {
-  max-width: 560px;
-  margin: 80px auto;
-  padding: 28px;
-  border: 1px solid rgba(20, 20, 20, 0.2);
-  border-radius: 0;
-  background: #FFFFFF;
-  text-align: center;
-  font-size: 14.5px;
-  line-height: 1.7;
-}
-
-.notice a {
-  color: var(--pf-led);
-}
-
-/* ── Feed sort + hardware filter ── */
-
-.feedControls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.sortTabs {
-  display: flex;
-  gap: 2px;
-  border: 1px solid rgba(20, 20, 20, 0.2);
-  border-radius: 0;
-  padding: 2px;
-}
-
-.sortTabs a {
-  padding: 5px 14px;
-  border-radius: 0;
-  color: var(--pf-ink-muted);
-  font-size: 12.5px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.sortTabs a:hover {
-  color: var(--pf-ink);
-}
-
-.sortTabs a[data-active="true"] {
-  background: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-/* Card size has no widget — Ctrl+scroll (or pinch) IS the control, so this
-   hint is its entire discoverability. Quiet on purpose. */
-.zoomHint {
-  margin-left: auto;
-  font-family: var(--pf-mono, monospace);
-  font-size: 11px;
-  color: var(--pf-ink-faint);
-  white-space: nowrap;
-}
-
-.filterChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: 1px solid rgba(20, 20, 20, 0.25);
-  border-radius: 0;
-  color: var(--pf-ink-muted);
-  font-size: 12.5px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.filterChip:hover {
-  border-color: rgba(20, 20, 20, 0.5);
-  color: var(--pf-ink);
-}
-
-.filterChip[data-active="true"] {
-  background: rgba(232, 85, 46, 0.12);
-  border-color: var(--pf-led);
-  color: var(--pf-led);
-}
-
-/* ── Card badges ── */
-
-/* Speaks the same visual language as .forkChip (mono micro-label in a pill),
-   but SOLID rather than outlined so "runs on hardware" reads as the stronger
-   of the two. No emoji: a colour glyph fights the typographic look and ate
-   half the card title's width. */
-.hwChip {
-  flex: none;
-  display: inline-block;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.5;
-  letter-spacing: 0.04em;
-  color: #FFFFFF;
-  background: var(--pf-led);
-  border: 1px solid var(--pf-led);
-  border-radius: 0;
-  padding: 0 6px;
-  white-space: nowrap;
-  vertical-align: 1px;
-}
-
-.cardStats {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  font-variant-numeric: tabular-nums;
-  /* One layer of mono meta, per the style guide — no glyphs, no pills. */
-  font-family: var(--pf-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-/* ── Code panel (JS / .h tabs) ── */
 
 .codeTabs {
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 6px 8px;
-  background: #09090B;
+  background: var(--pfc-well);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   flex: none;
 }
@@ -1037,7 +1790,6 @@
   font-family: var(--pf-mono, monospace);
   font-size: 11.5px;
   padding: 4px 10px;
-  border-radius: 0;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1057,7 +1809,7 @@
 }
 
 .codeTabAction {
-  color: var(--pf-led) !important;
+  color: var(--pfc-led) !important;
 }
 
 .codeTabAction:hover {
@@ -1066,14 +1818,14 @@
 
 .editorBody {
   flex: 1;
-  min-height: 0;
+  min-height: 480px;
 }
 
 .codeFootNote {
   flex: none;
   margin: 0;
-  padding: 7px 10px;
-  background: #09090B;
+  padding: 8px 12px;
+  background: var(--pfc-well);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.62);
   font-size: 11.5px;
@@ -1081,38 +1833,17 @@
 }
 
 .codeFootNote code {
-  color: var(--pf-led);
+  color: var(--pfc-led);
   font-family: var(--pf-mono, monospace);
 }
 
-/* ── Like button ── */
+/* ── Detail meta ── */
 
-.likeButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 14px;
-  border: 1px solid rgba(20, 20, 20, 0.25);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink-muted);
-  font-size: 13.5px;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
+.metaBlock {
+  padding-top: 20px;
+  border-top: 1px solid rgba(244, 239, 230, 0.14);
+  max-width: 100%;
 }
-
-.likeButton:hover {
-  border-color: var(--pf-led);
-  color: var(--pf-led);
-}
-
-.likeButtonOn {
-  background: rgba(232, 85, 46, 0.12);
-  border-color: var(--pf-led);
-  color: var(--pf-led);
-}
-
-/* ── Detail meta additions ── */
 
 .metaTitleRow {
   display: flex;
@@ -1123,11 +1854,95 @@
   flex-wrap: wrap;
 }
 
+.metaTitle {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.metaByline {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--pfc-ink-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.metaByline a {
+  color: var(--pfc-ink);
+}
+
+.forkNote {
+  color: var(--pfc-led);
+}
+
+.forkNote a {
+  color: var(--pfc-led) !important;
+}
+
 .hwNote {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--pf-led);
+  color: var(--pfc-led);
+}
+
+/* Sits in the meta row, styled to recede: reporting should be findable without
+   being an invitation. */
+.reportLink {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reportLink:hover {
+  color: var(--pfc-ink);
+}
+
+/* Which decks carry this pattern — the pattern's own record of being chosen,
+   which is a different fact from how many people liked it. */
+.inDecks {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.inDecksLabel {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+}
+
+.inDecksChip {
+  border: 1px solid rgba(244, 239, 230, 0.2);
+  padding: 2px 9px;
+  color: var(--pfc-ink);
+  text-decoration: none;
+}
+
+.inDecksChip:hover {
+  border-color: var(--pfc-led);
+  color: var(--pfc-led);
+}
+
+.metaDescription {
+  margin-top: 14px;
+  font-size: 14.5px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  color: var(--pfc-ink-2);
+  max-width: 72ch;
 }
 
 .ownerBar {
@@ -1137,15 +1952,557 @@
   gap: 12px;
   margin-top: 16px;
   padding: 12px 14px;
-  border: 1px dashed rgba(20, 20, 20, 0.28);
-  border-radius: 0;
-  background: rgba(20, 20, 20, 0.03);
+  border: 1px dashed rgba(244, 239, 230, 0.22);
+  background: rgba(244, 239, 230, 0.03);
 }
 
-/* ── Add-header modal ── */
+.ownerBarSpacer {
+  flex: 1;
+}
+
+/* ── Chips ── */
+
+.hwChip {
+  flex: none;
+  display: inline-block;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--pfc-on-led);
+  background: var(--pfc-led);
+  border: 1px solid var(--pfc-led);
+  padding: 0 6px;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.forkChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  border: 1px solid var(--pfc-led-edge);
+  padding: 1px 7px;
+}
+
+/* Shown only for patterns composed for something other than the stock panel. */
+.frameChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--pfc-ink-muted);
+  border: 1px solid rgba(244, 239, 230, 0.28);
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* Same family as .frameChip, dashed and muted rather than alarming:
+   unlisted/private are states the owner chose, not warnings. */
+.visChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-muted);
+  border: 1px dashed rgba(244, 239, 230, 0.35);
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.selfChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-muted);
+  border: 1px solid var(--pfc-edge-strong);
+  padding: 1px 7px;
+}
+
+/* One moderator-pinned post at the top of the board. Solid, like .hwChip —
+   the strongest chip in the family, because it is the one the site itself is
+   saying rather than reporting. */
+.noticeChip {
+  display: inline-block;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ground);
+  background: var(--pfc-ink);
+  border: 1px solid var(--pfc-ink);
+  padding: 1px 7px;
+  margin-right: 8px;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* ── Provenance ──
+   How the pattern came to exist. Quiet: this is a record, not a badge to
+   earn, and a pattern with none of it is not being accused of anything. */
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.provenanceMade,
+.provenanceSignal {
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid rgba(244, 239, 230, 0.18);
+  color: var(--pfc-ink-muted);
+  cursor: help;
+}
+
+/* The author's own declaration reads a shade stronger than the derived
+   signals, because it is a claim someone made rather than something we read. */
+.provenanceMade {
+  border-color: rgba(244, 239, 230, 0.4);
+  color: var(--pfc-ink);
+}
+
+/* ── Like button ── */
+
+.likeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid var(--pfc-edge-strong);
+  background: transparent;
+  color: var(--pfc-ink-muted);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.likeButton:hover {
+  border-color: var(--pfc-led);
+  color: var(--pfc-led);
+}
+
+.likeButtonOn {
+  background: rgba(232, 85, 46, 0.12);
+  border-color: var(--pfc-led);
+  color: var(--pfc-led);
+}
+
+/* ── Firmware ports ──
+   Somebody else's board finishing the author's pattern. A quiet ledger, not a
+   leaderboard: handle, date, state — and the author's Pin as the only verb. */
+
+.portsSection {
+  margin-top: 20px;
+  border-top: 1px solid rgba(244, 239, 230, 0.1);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 860px;
+}
+
+.portsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portsTitle {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-muted);
+}
+
+.portsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.portRow[data-stale="true"] .portHandle {
+  color: var(--pfc-ink-faint);
+}
+
+.portHandle {
+  font-weight: 500;
+  color: var(--pfc-ink);
+  white-space: nowrap;
+}
+
+.portDate {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pfc-ink-faint);
+  flex: none;
+}
+
+.portChip {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  border: 1px solid var(--pfc-led-edge);
+  padding: 0 6px;
+}
+
+.portStale {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--pfc-ink-faint);
+  border: 1px dashed rgba(244, 239, 230, 0.25);
+  padding: 0 6px;
+}
+
+.portNote {
+  color: var(--pfc-ink-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Comments ── */
+
+.commentsBlock {
+  margin-top: 30px;
+  max-width: 760px;
+}
+
+.commentsTitle {
+  font-size: 15px;
+  font-weight: 500;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.14);
+}
+
+.commentItem {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--pfc-hair-soft);
+  font-size: 14px;
+}
+
+.commentHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.commentAuthor {
+  font-weight: 500;
+  color: var(--pfc-ink);
+  text-decoration: none;
+}
+
+.commentDate {
+  font-size: 12px;
+  color: var(--pfc-ink-faint);
+}
+
+.commentBody {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--pfc-ink-2);
+}
+
+.commentForm {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.commentForm textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+/* Sit in the head row beside the date, muted: available to the person who
+   wrote it, invisible to everyone else, and never louder than the comment. */
+.commentActions {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.commentActions button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.commentActions button:hover:not(:disabled) {
+  color: var(--pfc-led);
+}
+
+.commentActions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* An edited comment says so. Replies sit under it, and one that quietly became
+   something else makes them read as answers to something never said. */
+.commentEdited {
+  font-size: 11px;
+  color: var(--pfc-ink-faint);
+  font-style: italic;
+}
+
+.commentEditRow {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Forms / modals ── */
+
+.textInput,
+.commentForm textarea,
+.field select {
+  width: 100%;
+  border: 1px solid var(--pfc-edge);
+  border-radius: 0;
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 9px 11px;
+  box-sizing: border-box;
+}
+
+.textInput::placeholder,
+.commentForm textarea::placeholder {
+  color: var(--pfc-ink-faint);
+}
+
+.textInput:focus,
+.commentForm textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--pfc-led);
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(9, 9, 11, 0.6);
+}
+
+.modalCard {
+  width: min(460px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  background: var(--pfc-panel);
+  border: 1px solid var(--pfc-edge);
+  color: var(--pfc-ink);
+}
 
 .modalCardWide {
   width: min(720px, 100%);
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--pfc-hair);
+  font-weight: 500;
+  font-size: 13.5px;
+}
+
+/* The modal's own name, in the accent — mono, uppercase, tiny: it labels the
+   dialog without competing with what the dialog is about. */
+.modalKicker {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+}
+
+.modalHeader button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--pfc-ink-faint);
+  margin-left: auto;
+}
+
+.modalHeader button:hover {
+  color: var(--pfc-ink);
+}
+
+.modalBody {
+  padding: 16px 20px 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.modalFoot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--pfc-hair);
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.fieldLabel {
+  font-weight: 500;
+}
+
+.fieldHint {
+  font-size: 12px;
+  color: var(--pfc-ink-muted);
+}
+
+.formError {
+  padding: 8px 10px;
+  background: rgba(232, 107, 94, 0.1);
+  border: 1px solid rgba(232, 107, 94, 0.4);
+  color: var(--pfc-danger);
+  font-size: 13px;
+}
+
+.formNote {
+  font-size: 12px;
+  color: var(--pfc-ink-muted);
+  line-height: 1.5;
+}
+
+.formNote a {
+  color: var(--pfc-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.authTabs {
+  display: flex;
+  gap: 6px;
+}
+
+.authTabs button {
+  flex: 1;
+  appearance: none;
+  border: 1px solid var(--pfc-edge);
+  border-radius: 0;
+  background: transparent;
+  color: var(--pfc-ink-muted);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 0;
+  cursor: pointer;
+}
+
+.authTabs button[data-active="true"] {
+  background: var(--pfc-ink);
+  border-color: var(--pfc-ink);
+  color: var(--pfc-ground);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.reasonList {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+/* A reason in the report modal: the whole row is the target, and the chosen
+   one takes the accent border + wash rather than a native radio dot. */
+.reasonOption {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  padding: 11px 13px;
+  font-size: 13.5px;
+  color: var(--pfc-ink-2);
+  cursor: pointer;
+}
+
+.reasonOption[data-active="true"] {
+  border-color: var(--pfc-led);
+  background: var(--pfc-led-wash);
+  color: var(--pfc-ink);
+}
+
+.reasonMark {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border: 1px solid rgba(244, 239, 230, 0.4);
+}
+
+.reasonOption[data-active="true"] .reasonMark {
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+.reasonOption input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .cppInput {
@@ -1162,93 +2519,15 @@
 .warnNote {
   margin: 10px 0 0;
   padding: 8px 12px;
-  border: 1px solid rgba(232, 85, 46, 0.45);
-  border-radius: 0;
-  background: rgba(232, 85, 46, 0.08);
-  color: var(--pf-led);
+  border: 1px solid var(--pfc-led-edge);
+  background: var(--pfc-led-wash);
+  color: var(--pfc-led);
   font-size: 12.5px;
   line-height: 1.5;
 }
 
 .warnNote code {
   font-family: var(--pf-mono, monospace);
-}
-
-/* ── Profile page ── */
-
-.profilePage {
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 64px;
-}
-
-.profileHeader {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-bottom: 16px;
-  margin-bottom: 22px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.18);
-}
-
-.profileName {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.selfChip {
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pf-ink-muted);
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  padding: 1px 7px;
-}
-
-.profileMeta {
-  margin-top: 6px;
-  font-family: var(--pf-mono, monospace);
-  font-size: 12px;
-  color: var(--pf-ink-muted);
-}
-
-/* A profile is an archive, so it wraps and scrolls — unlike the feed's row. */
-.profileGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 18px;
-}
-
-.profileFootNote {
-  margin-top: 22px;
-  font-size: 12.5px;
-  color: var(--pf-ink-muted);
-}
-
-/* ── Destructive actions ── */
-
-.btnDanger {
-  composes: btn;
-  border-color: rgba(160, 32, 32, 0.55);
-  color: var(--pf-danger);
-}
-
-.btnDanger:hover {
-  background: var(--pf-danger);
-  border-color: var(--pf-danger);
-  color: #FFFFFF;
-}
-
-.ownerBarSpacer {
-  flex: 1;
 }
 
 .confirmRow {
@@ -1260,20 +2539,675 @@
 
 .confirmText {
   font-size: 12.5px;
-  color: var(--pf-danger);
+  color: var(--pfc-danger);
   max-width: 46ch;
   line-height: 1.45;
 }
 
 .confirmError {
   font-size: 12.5px;
-  color: var(--pf-danger);
+  color: var(--pfc-danger);
   font-weight: 500;
 }
 
+/* ── Sign-in gate ──
+   Never a wall: everything plays without an account, so the prompt appears
+   inline at the moment something needs keeping, with the knobs left alone. */
+.gatePanel {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(244, 239, 230, 0.16);
+  background: var(--pfc-panel);
+  padding: 16px 18px;
+  max-width: 560px;
+}
+
+.gateText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.gateTitle {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gateSub {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+}
+
+/* ── Firmware build modal ── */
+
+.buildStatusLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--pfc-ink);
+}
+
+.buildSpinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(232, 85, 46, 0.25);
+  border-top-color: var(--pfc-led);
+  border-radius: 50%;
+  animation: buildSpin 700ms linear infinite;
+}
+
+@keyframes buildSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .buildSpinner { animation-duration: 2.4s; }
+}
+
+.buildLog {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--pfc-well);
+  color: var(--pfc-ink-2);
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── Decks ── */
+
+.decksPage,
+.deckPage {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 0 60px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sectionLede {
+  font-size: 13.5px;
+  color: var(--pfc-ink-muted);
+  max-width: 76ch;
+}
+
+.sectionKicker {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+}
+
+.sectionLink {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink);
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.sectionLink:hover {
+  color: var(--pfc-led);
+}
+
+.deckSection {
+  padding-bottom: 30px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--pfc-hair);
+}
+
+.deckSection:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+
+.deckGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* A deck is a panel — one of the few raised surfaces here — because it is an
+   arrangement somebody made, not a single pattern. */
+.deckCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  padding: 14px;
+  background: var(--pfc-panel);
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.deckCard:hover {
+  border-color: var(--pfc-edge-strong);
+}
+
+/* First patterns in running order, left to right — the card IS the order. */
+.deckStrip {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.deckStripSlot {
+  aspect-ratio: 1 / 2;
+  position: relative;
+  background: var(--pfc-well);
+  overflow: hidden;
+}
+
+/* The overflow cell: a well with no pattern in it, so it sits a shade above
+   the lit ones rather than pretending to be one. */
+.deckStripMore {
+  aspect-ratio: 1 / 2;
+  background: var(--pfc-well-2);
+  display: grid;
+  place-items: center;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: var(--pfc-ink-muted);
+}
+
+/* A slot this deck does not have. Darker than the wells, so the strip reads
+   as "three of five" rather than as a rendering failure. */
+.deckStripBlank {
+  aspect-ratio: 1 / 2;
+  background: rgba(244, 239, 230, 0.03);
+}
+
+.deckStripEmpty {
+  grid-column: 1 / -1;
+  aspect-ratio: 5 / 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pfc-well-2);
+  color: var(--pfc-ink-faint);
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+}
+
+.deckCardMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deckCardTitleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.deckCardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deckCardSlots {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+  flex: none;
+}
+
+.deckCardUser {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  margin-left: auto;
+  flex: none;
+}
+
+.deckCardDesc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--pfc-ink-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.deckCardStats {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+/* Fresh from the wall: a single dense row under the decks, so the newest work
+   is one glance away from the curated shelf. */
+.freshStrip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .freshStrip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px), (hover: none) {
+  .freshStrip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+/* ── Deck page ── */
+
+.deckHead {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.14);
+  margin-bottom: 20px;
+}
+
+.deckHeadTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deckHeadTitle h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.deckByline {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deckByline a {
+  color: var(--pfc-ink-muted);
+}
+
+.deckByline a:hover {
+  color: var(--pfc-ink);
+}
+
+/* The running order: numbered slots. The number sits above the card, not on
+   it — it belongs to the deck, not to the pattern. */
+.deckSlots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.deckSlot {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.deckSlotIndex {
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: var(--pfc-ink-faint);
+}
+
+/* A slot whose pattern is gone. The deck keeps the position and the name —
+   the arrangement is the deck author's work; the pattern was its author's. */
+.deckGap {
+  flex: 1;
+  aspect-ratio: 1 / 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed rgba(244, 239, 230, 0.3);
+  padding: 10px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.deckGapTitle {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  text-decoration: line-through;
+}
+
+.deckGapReason {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.deckVisControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+}
+
+.deckVisControl select {
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 5px 8px;
+}
+
+/* ── Deck panel (modal) ──
+   Two lists in one dialog: the deck (capped, ordered, buildable) and saved
+   (unbounded). */
+.deckTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--pfc-hair);
+}
+
+.deckTabs button {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 6px 10px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.deckTabs button[data-active="true"] {
+  color: var(--pfc-ink);
+  border-bottom-color: var(--pfc-led);
+}
+
+.deckList {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.deckRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--pfc-hair-soft);
+  font-size: 14px;
+}
+
+.deckRow a {
+  color: var(--pfc-ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deckRow a:hover {
+  color: var(--pfc-led);
+}
+
+/* The running order is the deck's whole reason to exist, so it is numbered. */
+.deckIndex {
+  flex: none;
+  width: 18px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  color: var(--pfc-ink-faint);
+  text-align: right;
+}
+
+/* ── Profile ── */
+
+.profilePage {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 0 60px;
+}
+
+.profileHeader {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.14);
+}
+
+.profileName {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.profileMeta {
+  margin-top: 8px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  color: var(--pfc-ink-muted);
+}
+
+/* A profile is an archive, so it wraps and scrolls — unlike the wall's
+   zoomable grid. */
+.profileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.profileSectionTitle {
+  margin: 30px 0 14px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--pfc-ink);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.profileSlotNote {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+/* The unused public deck slot, drawn rather than described: two is the whole
+   allowance, so the empty one is information. */
+.deckSlotFree {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(244, 239, 230, 0.2);
+  color: var(--pfc-ink-faint);
+  font-size: 13px;
+  min-height: 120px;
+  padding: 16px;
+  text-align: center;
+}
+
+.profileFootNote {
+  margin-top: 24px;
+  font-size: 12.5px;
+  color: var(--pfc-ink-faint);
+}
+
+/* ── Alerts ──
+   Delivery is the next page load — no polling, no sockets. The header link
+   turns LED-orange while anything is unread, and goes quiet again. */
+
+.notifyLink[data-unread="true"] {
+  color: var(--pfc-led) !important;
+}
+
+.notifyHead {
+  padding: 24px 0 18px;
+}
+
+.notifyHead h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.notifyHead p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--pfc-ink-muted);
+}
+
+.notifyList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 60px;
+  max-width: 820px;
+}
+
+.notifyRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 2px;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+  text-decoration: none;
+  color: var(--pfc-ink);
+}
+
+.notifyRow:hover {
+  background: rgba(244, 239, 230, 0.03);
+}
+
+/* The unread marker keeps its place when read, so rows do not shift as the
+   visit marks them — it just empties. */
+.notifyMark {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  align-self: center;
+  border: 1px solid transparent;
+}
+
+.notifyRow[data-unread="true"] .notifyMark {
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+/* The pattern the alert is about, at thumbnail scale: which one it happened
+   to is the first thing you want to know. */
+.notifyThumb {
+  position: relative;
+  flex: none;
+  width: 22px;
+  height: 44px;
+  background: var(--pfc-well);
+  overflow: hidden;
+}
+
+.notifyBody {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.notifySentence {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--pfc-ink-2);
+}
+
+.notifySentence strong {
+  font-weight: 500;
+  color: var(--pfc-ink);
+}
+
+.notifySnippet {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notifyDate {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pfc-ink-faint);
+}
+
 /* ── Discussions ──
-   Plain-text threads. Deliberately quiet next to the pattern feed: no
-   previews, no thumbnails, nothing that needs a sandbox. */
+   Plain-text threads. Deliberately quiet next to the wall: no previews, no
+   thumbnails, nothing that needs a sandbox. */
 
 .discussionWrap {
   display: flex;
@@ -1282,17 +3216,27 @@
   max-width: 860px;
   width: 100%;
   margin: 0 auto;
-  padding-bottom: 80px;
+  padding: 26px 0 60px;
 }
 
 .backLink {
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   font-size: 13px;
   text-decoration: none;
 }
 
 .backLink:hover {
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
+}
+
+.introRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--pfc-ink-muted);
+  flex: none;
 }
 
 .postComposer {
@@ -1300,21 +3244,24 @@
   flex-direction: column;
   gap: 10px;
   padding: 16px;
-  border: 1px solid rgba(20, 20, 20, 0.2);
-  border-radius: 0;
-  background: #FFFFFF;
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  background: var(--pfc-panel);
 }
 
 .postTitleInput,
 .postBodyInput {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid rgba(20, 20, 20, 0.25);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
   font-family: inherit;
-  padding: 9px 11px;
+  padding: 11px 12px;
+}
+
+.postTitleInput::placeholder,
+.postBodyInput::placeholder {
+  color: var(--pfc-ink-faint);
 }
 
 .postTitleInput {
@@ -1332,7 +3279,7 @@
 .postTitleInput:focus,
 .postBodyInput:focus {
   outline: none;
-  border-color: var(--pf-ink);
+  border-color: var(--pfc-led);
 }
 
 .composerActions {
@@ -1345,14 +3292,14 @@
   flex: 1;
   font-family: var(--pf-mono, monospace);
   font-size: 11px;
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-faint);
 }
 
 .postList {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid rgba(20, 20, 20, 0.18);
+  border-top: 1px solid rgba(244, 239, 230, 0.14);
 }
 
 .postRow {
@@ -1360,7 +3307,7 @@
   align-items: baseline;
   gap: 16px;
   padding: 13px 2px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.12);
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
 }
 
 .postRowLink {
@@ -1379,11 +3326,11 @@
   gap: 7px;
   font-size: 14.5px;
   font-weight: 500;
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
 }
 
 .postRowLink:hover .postRowTitle {
-  text-decoration: underline;
+  color: var(--pfc-led);
 }
 
 /* Reply count. Only rendered when there is one, so it never shows a bare 0. */
@@ -1392,12 +3339,12 @@
   font-family: var(--pf-mono, monospace);
   font-size: 10px;
   font-weight: 500;
-  color: var(--pf-led);
+  color: var(--pfc-led);
 }
 
 .postRowPreview {
   font-size: 12.5px;
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1408,6 +3355,8 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  font-size: 12px;
+  color: var(--pfc-ink-faint);
 }
 
 .postArticle {
@@ -1415,13 +3364,14 @@
   flex-direction: column;
   gap: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(20, 20, 20, 0.18);
+  border-bottom: 1px solid rgba(244, 239, 230, 0.14);
 }
 
 .postTitle {
-  font-size: 22px;
-  font-weight: 500;
+  font-size: 26px;
+  font-weight: 600;
   line-height: 1.3;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
@@ -1430,52 +3380,892 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+  font-size: 13px;
+  color: var(--pfc-ink-muted);
 }
 
 .postBody {
   font-size: 14.5px;
   line-height: 1.7;
-  color: var(--pf-ink);
+  color: var(--pfc-ink-2);
   padding-bottom: 20px;
+  max-width: 76ch;
 }
 
-.btnSmall {
+/* ── Marquee picker (admin) ── */
+
+.featuredRow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+}
+
+.featuredSlot {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.featuredControls {
+  display: flex;
+  gap: 6px;
+}
+
+.featuredControls button {
+  flex: 1;
+}
+
+/* ── The map ──
+   Directions the project could be taken in, and who is working on which.
+   Two views of the same facts: a constellation (everything hangs off the
+   device) and a floor plan (the same nodes as rooms you can walk into). */
+
+.mapPage {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 22px 0 60px;
+}
+
+.mapHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.mapTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.mapLede {
+  font-size: 13px;
+  color: var(--pfc-ink-muted);
+}
+
+.viewToggle {
+  display: flex;
+  border: 1px solid var(--pfc-edge);
+}
+
+.viewToggle button {
   appearance: none;
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  background: #FFFFFF;
-  color: var(--pf-ink);
-  font-family: inherit;
-  font-size: 11.5px;
-  padding: 3px 9px;
+  border: 0;
+  background: transparent;
+  color: var(--pfc-ink-muted);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 14px;
   cursor: pointer;
 }
 
-.btnSmall:hover:not(:disabled) {
-  border-color: var(--pf-ink);
+.viewToggle button[data-active="true"] {
+  background: var(--pfc-led);
+  color: var(--pfc-on-led);
 }
 
-.btnSmall:disabled {
+/* ── Latest strip ──
+   The newest threads anywhere, one line each, above the geography. */
+
+.recentStrip {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 14px;
+}
+
+.recentStrip > .workingLabel {
+  padding-bottom: 6px;
+}
+
+.recentRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--pfc-hair-soft);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.recentRow:hover .threadCardTitle {
+  color: var(--pfc-led);
+}
+
+.recentRow .threadCardByline {
+  margin-left: auto;
+  flex: none;
+}
+
+/* Sits beside the counts in the drawer head, quiet — a door, not a button. */
+.drawerAll {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+  text-decoration: none;
+}
+
+.drawerAll:hover {
+  color: var(--pfc-led);
+}
+
+/* ── Constellation ──
+   Node coordinates are stored against a 1440×640 stage and laid out here as
+   percentages, so one arrangement survives every viewport. */
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1440 / 640;
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--pfc-hair);
+  background-color: var(--pfc-ground);
+  background-image: radial-gradient(rgba(244, 239, 230, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+
+.stageLines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* The device in the middle. Everything on this map is a direction off it, so
+   it is drawn as the object rather than as another node. */
+.stageCore {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.coreScreen {
+  width: 84px;
+  height: 148px;
+  background: var(--pfc-well);
+  border: 1px solid rgba(244, 239, 230, 0.35);
+  box-shadow: 0 0 60px rgba(232, 85, 46, 0.25);
+}
+
+.stageCore span {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.stageNode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 196px;
+  padding: 12px 14px;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-panel);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stageNode:hover {
+  border-color: var(--pfc-edge-strong);
+}
+
+.stageNode[data-active="true"],
+.floorZone[data-active="true"] {
+  border-color: var(--pfc-led);
+  background: rgba(232, 85, 46, 0.1);
+}
+
+.nodeHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nodeCode {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  color: var(--pfc-ink-faint);
+  flex: none;
+}
+
+.nodeTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One orange square per person working here — the map's whole payload. */
+.nodeCounts {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nodeCounts i {
+  width: 8px;
+  height: 8px;
+  background: var(--pfc-led);
+  display: block;
+  flex: none;
+}
+
+.nodeCounts span {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+  margin-left: 5px;
+}
+
+/* Open questions, hanging off the selected node as dashed chips. */
+.nodeQuestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.nodeQuestions span {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pfc-led);
+  border: 1px dashed var(--pfc-led-edge);
+  padding: 2px 7px;
+}
+
+.stageLegend {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  gap: 16px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.stageLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSquare {
+  width: 8px;
+  height: 8px;
+  background: var(--pfc-led);
+}
+
+.legendLine {
+  width: 14px;
+  height: 2px;
+  background: var(--pfc-led);
+}
+
+.legendDashed {
+  width: 14px;
+  border-top: 1px dashed rgba(232, 85, 46, 0.6);
+}
+
+/* ── Floor plan ── */
+
+.floorPlan {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: 148px;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--pfc-hair);
+  background-image: repeating-linear-gradient(0deg, rgba(244, 239, 230, 0.03) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(90deg, rgba(244, 239, 230, 0.03) 0 1px, transparent 1px 28px);
+}
+
+.floorZone {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-panel);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.floorZone:hover {
+  border-color: var(--pfc-edge-strong);
+}
+
+.floorTitle {
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.floorDesc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--pfc-ink-muted);
+  max-width: 44ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nextChip {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  border: 1px solid var(--pfc-led-edge);
+  padding: 1px 6px;
+  flex: none;
+}
+
+/* ── Drawer ──
+   The selected territory, opened underneath whichever view is showing. */
+
+.mapDrawer {
+  border: 1px solid var(--pfc-hair);
+  border-top: 0;
+  background: var(--pfc-panel);
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.drawerHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.drawerCode {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--pfc-ink-faint);
+}
+
+.drawerTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.drawerCounts {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.pinnedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  border: 1px solid var(--pfc-led-edge);
+  padding: 3px 8px;
+}
+
+.pinnedChip i {
+  width: 7px;
+  height: 7px;
+  background: var(--pfc-led);
+}
+
+.mapGhostBtn {
+  appearance: none;
+  border: 1px solid var(--pfc-edge-strong);
+  background: transparent;
+  color: var(--pfc-ink-muted);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 15px;
+  cursor: pointer;
+}
+
+.mapGhostBtn:hover:not(:disabled) {
+  color: var(--pfc-ink);
+  border-color: var(--pfc-ink);
+}
+
+.mapGhostBtn:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.btnSmallDanger {
-  composes: btnSmall;
-  border-color: rgba(232, 85, 46, 0.55);
-  color: var(--pf-danger);
+.workingRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
-.btnSmallDanger:hover:not(:disabled) {
-  background: var(--pf-danger);
-  border-color: var(--pf-danger);
-  color: #FFFFFF;
+.workingLabel {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
 }
 
-/* Board pagination reuses .pageBtn, but as links — which can't be :disabled. */
-.pageBtn[data-disabled="true"] {
-  opacity: 0.4;
+.workingEmpty {
+  font-size: 12.5px;
+  color: var(--pfc-ink-faint);
+}
+
+.workingChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(244, 239, 230, 0.2);
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.workingChip i {
+  width: 7px;
+  height: 7px;
+  background: var(--pfc-led);
+  flex: none;
+}
+
+/* Your own pin reads a shade louder — on a row of handles, finding yourself
+   should not take a scan. */
+.workingChip[data-self="true"] {
+  border-color: rgba(232, 85, 46, 0.6);
+  color: var(--pfc-led);
+}
+
+.threadGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.threadCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--pfc-hair);
+  padding: 13px 15px;
+  background: var(--pfc-ground);
+  text-decoration: none;
+  color: inherit;
+}
+
+.threadCard:hover {
+  border-color: var(--pfc-edge-strong);
+}
+
+.threadCardHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.threadCardTitle {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.threadCardCount {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  color: var(--pfc-led);
+  flex: none;
+}
+
+.threadCardPreview {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--pfc-ink-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.threadCardByline {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+/* The lowest-effort way onto the map: say what you are doing, press the
+   button, you are on it. No thread required. */
+.pinComposer {
+  display: flex;
+  gap: 8px;
+}
+
+.pinComposer input {
+  flex: 1;
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.pinComposer input::placeholder {
+  color: var(--pfc-ink-faint);
+}
+
+.pinComposer input:focus {
+  border-color: var(--pfc-led);
+}
+
+/* ── New-thread modal ── */
+
+.modalCardThread {
+  width: min(560px, 100%);
+}
+
+.territorySelect {
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+}
+
+.composerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.composerLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+}
+
+.composerLink:hover {
+  color: var(--pfc-ink);
+}
+
+/* Checked by default: writing a thread about a direction IS working on it. */
+.pinCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  cursor: pointer;
+}
+
+.pinCheck input {
+  position: absolute;
+  opacity: 0;
   pointer-events: none;
+}
+
+.pinCheck span {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--pfc-edge-strong);
+  display: grid;
+  place-items: center;
+  color: var(--pfc-on-led);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.pinCheck input:checked + span {
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+.fileChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Attached images, shown in the thread. Capped in height, not width: a build
+   photo is landscape, a phone screenshot is portrait, and a row of mixed
+   shapes at one height reads as a contact sheet rather than a mess. */
+.attachImages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.attachImages a {
+  display: block;
+  line-height: 0;
+}
+
+.attachImages img {
+  max-height: 220px;
+  max-width: 100%;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-well);
+}
+
+.attachImages a:hover img {
+  border-color: var(--pfc-edge-strong);
+}
+
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--pfc-edge);
+  padding: 6px 10px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11px;
+  color: var(--pfc-ink);
+  text-decoration: none;
+}
+
+.fileChip:hover {
+  border-color: var(--pfc-led);
+}
+
+.fileChip span {
+  color: var(--pfc-ink-faint);
+}
+
+.fileChip button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+}
+
+.fileChip button:hover {
+  color: var(--pfc-danger);
+}
+
+.patternPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-ground);
+}
+
+.patternPicker button {
+  appearance: none;
+  border: 1px solid var(--pfc-edge);
+  background: transparent;
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.patternPicker button:hover {
+  border-color: var(--pfc-led);
+  color: var(--pfc-led);
+}
+
+/* ── Thread page ── */
+
+.threadLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  gap: 0;
+  padding: 20px 0 60px;
+}
+
+.threadMain {
+  padding-right: 32px;
+  border-right: 1px solid var(--pfc-hair);
+  display: flex;
+  flex-direction: column;
+}
+
+.threadAside {
+  padding: 0 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.territoryCard {
+  border: 1px solid var(--pfc-led);
+  background: var(--pfc-led-wash);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.territoryCardDesc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--pfc-ink-muted);
+}
+
+.pinHereBtn {
+  appearance: none;
+  border: 1px solid var(--pfc-led);
+  background: transparent;
+  color: var(--pfc-led);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 9px 0;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.pinHereBtn:hover:not(:disabled) {
+  background: var(--pfc-led);
+  color: var(--pfc-on-led);
+}
+
+.pinHereBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.asideList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.asideRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--pfc-hair-soft);
+  text-decoration: none;
+  color: inherit;
+}
+
+.asideRow:hover .threadCardTitle {
+  color: var(--pfc-led);
+}
+
+/* "▪ WORKING HERE" beside a reply's author — the reason to read it before the
+   others in the thread. */
+.workingTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+}
+
+.workingTag i {
+  width: 6px;
+  height: 6px;
+  background: var(--pfc-led);
+}
+
+@media (max-width: 900px) {
+  .threadLayout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .threadMain {
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .threadAside {
+    padding-left: 0;
+  }
+
+  /* A phone gets the list, not the stage — MapClient forces the floor plan
+     there, so the toggle would offer a view it will not honour. */
+  .viewToggle {
+    display: none;
+  }
+
+  .floorPlan {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    padding: 12px;
+  }
+
+  .floorZone {
+    grid-column: span 1 !important;
+  }
+
+  .mapDrawer {
+    border-top: 1px solid var(--pfc-hair);
+    padding: 16px;
+  }
 }
 
 /* ── Linkified plain text ──
@@ -1488,253 +4278,84 @@
 }
 
 .inlineLink {
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .inlineLink:hover {
-  color: var(--pf-led);
+  color: var(--pfc-led);
 }
 
-/* Section switch in the header: Patterns vs Discussions. Underline rather than
-   a pill, so it reads as "where am I" and not as another filter control — the
-   feed already has pill tabs for sort and card size. */
-.sectionNav {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  margin-left: 6px;
-}
-
-.sectionNav a {
-  padding: 2px 0;
-  border-bottom: 2px solid transparent;
-  color: var(--pf-ink-muted);
-  font-size: 13.5px;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.sectionNav a:hover {
-  color: var(--pf-ink);
-}
-
-.sectionNav a[data-active="true"] {
-  color: var(--pf-ink);
-  border-bottom-color: var(--pf-led);
-}
-
-/* ── Firmware build modal ── */
-
-.buildStatusLine {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--pf-ink);
-}
-
-.buildSpinner {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(232, 85, 46, 0.25);
-  border-top-color: var(--pf-led);
-  border-radius: 50%;
-  animation: buildSpin 700ms linear infinite;
-}
-
-@keyframes buildSpin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .buildSpinner { animation-duration: 2.4s; }
-}
-
-.buildLog {
-  margin: 0;
-  max-height: 260px;
-  overflow: auto;
+/* ── Code fences ──
+   The one piece of markup the board has. Same dark ground as the code panel,
+   so pasted logs read as what they are. */
+.codeFence {
+  margin: 10px 0;
   padding: 10px 12px;
-  border-radius: 0;
-  background: #09090B;
-  color: var(--pf-cream-2);
+  background: var(--pfc-well);
+  color: var(--pfc-ink-2);
   font-family: var(--pf-mono, monospace);
-  font-size: 11.5px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.55;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow-x: auto;
+  border: 1px solid var(--pfc-hair);
 }
 
-/* ── Deck / saved lists ── */
-/* ── Mobile feed ──
-   Static thumbnail wall: no hover exists, so cards drop their live sandboxes
-   and knob overlays (see PatternCard `interactive`) and the page itself
-   scrolls through several dense rows per page. Keep this media query in sync
-   with MOBILE_MEDIA_QUERY in lib/useMediaQuery.ts. */
-@media (max-width: 768px), (hover: none) {
-  .pageHeader {
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
-  }
+/* ── Pagination ──
+   (The wall scrolls forever; the board still pages — twenty text rows at a
+   time is plenty, and a pager is honest furniture for an archive.) */
 
-  .headerSpacer {
-    display: none;
-  }
-
-  .sectionNav {
-    order: 3;
-    width: 100%;
-    margin-left: 0;
-    margin-top: 4px;
-    justify-content: flex-start;
-    gap: 16px;
-  }
-
-  .headerNav {
-    margin-left: auto;
-  }
-
-  .inner {
-    padding: 14px 16px;
-    min-height: auto;
-  }
-
-  .centeredFeedBody {
-    gap: 14px;
-  }
-
-  .introRow {
-    font-size: 13px;
-    margin-bottom: 14px;
-  }
-
-  /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
-     on a phone — the hint would advertise a gesture that does not exist. */
-  .zoomHint {
-    display: none;
-  }
-}
-
-/* Add-to-deck on a feed card.
-   The card is one big link, so this floats over the thumbnail's corner rather
-   than sitting in the meta row: it cannot reflow the layout, and it stays out
-   of the knob overlay's way (which dodges to whichever half the cursor is
-   not in). Visible on hover, and always visible once the pattern is in the
-   deck, so a full deck is readable at a glance without hovering every card. */
-.cardDeckBtn {
-  position: absolute;
-  right: 8px;
-  z-index: 3;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  color: var(--pf-cream);
-  background: rgba(20, 20, 20, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 0;
-  cursor: pointer;
-  opacity: 0;
-  /* Same easing as .knobOverlay, so the pair reads as one system moving. */
-  transition: opacity 0.15s, background 0.15s, border-color 0.15s,
-    top 220ms cubic-bezier(0.16, 1, 0.3, 1), bottom 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(2px);
-  font-size: 16px;
-}
-
-.deckBottom {
-  bottom: 8px;
-  top: auto;
-}
-
-.deckTop {
-  top: 8px;
-  bottom: auto;
-}
-
-.card:hover .cardDeckBtn,
-.cardDeckBtn:focus-visible {
-  opacity: 1;
-}
-
-.cardDeckBtn:hover {
-  background: rgba(232, 85, 46, 0.9);
-  border-color: rgba(232, 85, 46, 1);
-}
-
-.cardDeckBtnOn {
-  opacity: 1;
-  background: rgba(232, 85, 46, 0.92);
-  border-color: rgba(232, 85, 46, 1);
-}
-
-.cardDeckNote {
-  position: absolute;
-  right: 8px;
-  z-index: 3;
-  max-width: calc(100% - 16px);
-  padding: 3px 7px;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  line-height: 1.4;
-  color: var(--pf-cream);
-  background: rgba(20, 20, 20, 0.86);
-  border-radius: 0;
-}
-
-/* Sits just clear of the button, on whichever edge it went to. */
-.deckNoteBottom {
-  bottom: 42px;
-  top: auto;
-}
-
-.deckNoteTop {
-  top: 42px;
-  bottom: auto;
-}
-
-/* Coarse pointers have no hover, so the button has to be there already. */
-@media (hover: none) {
-  .cardDeckBtn {
-    opacity: 1;
-  }
-}
-
-/* Community-wide footer: the terms link and the non-member reporting route.
-   Every page in the community needs to be one click from both. */
-.pageFooter {
+.paginationBar {
   display: flex;
-  gap: 10px;
-  justify-content: center;
   align-items: center;
-  padding: 32px 0 8px;
-  margin-top: 40px;
-  border-top: var(--pf-rule-w, 1px) solid var(--pf-rule);
-  font-family: var(--pf-mono);
-  font-size: 11px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  color: var(--pf-ink-faint);
+  justify-content: center;
+  gap: 16px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 13px;
+  margin-top: 8px;
 }
 
-.pageFooter a {
-  color: var(--pf-ink-faint);
+.pageBtn {
+  border: 1px solid var(--pfc-edge-strong);
+  background: transparent;
+  color: var(--pfc-ink);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
   text-decoration: none;
+  transition: all 120ms ease;
 }
 
-.pageFooter a:hover {
-  color: var(--pf-led);
+.pageBtn:hover:not([data-disabled="true"]) {
+  background: var(--pfc-ink);
+  border-color: var(--pfc-ink);
+  color: var(--pfc-ground);
+}
+
+.pageBtn[data-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.pageIndicator {
+  color: var(--pfc-ink-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pageIndicator strong {
+  color: var(--pfc-ink);
+}
+
+.pageMetaTotal {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 /* ── Moderation queue (/community/reports) ──
@@ -1742,7 +4363,7 @@
    dashboard. */
 .reportsPage {
   max-width: 780px;
-  padding: 8px 0 40px;
+  padding: 26px 0 60px;
 }
 
 .reportsHead {
@@ -1768,12 +4389,12 @@
 }
 
 .reportsTabs a {
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-faint);
   text-decoration: none;
 }
 
 .reportsTabs a[data-active="true"] {
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -1787,8 +4408,8 @@
 .reportRow {
   padding: 14px 16px;
   margin-bottom: 10px;
-  border: 1px solid rgba(20, 20, 20, 0.18);
-  background: #FFFFFF;
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  background: var(--pfc-panel);
 }
 
 /* A closed report stays legible but stops competing with the open ones. */
@@ -1808,11 +4429,11 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
 }
 
 .reportReason {
-  color: var(--pf-ink);
+  color: var(--pfc-ink);
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -1822,13 +4443,13 @@
 
 .reportRepeat {
   padding: 1px 6px;
-  background: var(--pf-danger);
-  color: #FFFFFF;
+  background: var(--pfc-danger);
+  color: var(--pfc-ground);
 }
 
 .reportStatus {
   padding: 1px 6px;
-  border: 1px solid var(--pf-rule);
+  border: 1px solid var(--pfc-hair);
 }
 
 .reportDate {
@@ -1845,18 +4466,18 @@
   font-size: 10px;
   letter-spacing: var(--pf-track-mono);
   text-transform: uppercase;
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-faint);
 }
 
 .reportQuote {
-  color: var(--pf-ink-muted);
+  color: var(--pfc-ink-muted);
   font-style: italic;
 }
 
 .reportDetail {
   margin: 0 0 10px;
   padding: 8px 12px;
-  background: var(--pf-cream-2);
+  background: var(--pfc-well);
   font-size: 13.5px;
   line-height: 1.55;
   white-space: pre-wrap;
@@ -1868,565 +4489,136 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--pf-ink-muted);
-}
-
-/* ── Provenance ──
-   How the pattern came to exist. Sits under the meta row, quiet: this is a
-   record, not a badge to earn, and a pattern with none of it is not being
-   accused of anything. */
-.provenance {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.provenanceMade,
-.provenanceSignal {
-  font-family: var(--pf-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border: 1px solid var(--pf-rule);
-  color: var(--pf-ink-muted);
-  cursor: help;
-}
-
-/* The author's own declaration reads a shade stronger than the derived
-   signals, because it is a claim someone made rather than something we read. */
-.provenanceMade {
-  border-color: rgba(20, 20, 20, 0.45);
-  color: var(--pf-ink);
-}
-
-/* ── Deck panel ──
-   Two lists in one modal: the deck (capped, ordered, buildable) and saved
-   (unbounded). */
-.deckTabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--pf-rule);
-}
-
-.deckTabs button {
-  appearance: none;
-  border: 0;
-  background: none;
-  padding: 6px 10px;
-  font-family: var(--pf-mono);
-  font-size: 11px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  color: var(--pf-ink-faint);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.deckTabs button[data-active="true"] {
-  color: var(--pf-ink);
-  border-bottom-color: var(--pf-led);
-}
-
-.deckList {
-  list-style: none;
-  margin: 0 0 14px;
-  padding: 0;
-  max-height: 46vh;
-  overflow-y: auto;
-}
-
-.deckRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--pf-rule-soft);
-  font-size: 14px;
-}
-
-.deckRow a {
-  color: var(--pf-ink);
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.deckRow a:hover {
-  color: var(--pf-led);
-}
-
-/* The running order is the deck's whole reason to exist, so it is numbered. */
-.deckIndex {
-  flex: none;
-  width: 18px;
-  font-family: var(--pf-mono);
-  font-size: 11px;
-  color: var(--pf-ink-faint);
-  text-align: right;
-}
-
-/* ── Comment author controls ──
-   Sit in the head row beside the date, muted: available to the person who
-   wrote it, invisible to everyone else, and never louder than the comment. */
-.commentActions {
-  display: inline-flex;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.commentActions button {
-  appearance: none;
-  border: 0;
-  padding: 0;
-  background: none;
-  font: inherit;
-  font-size: 11.5px;
-  color: var(--pf-ink-faint);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.commentActions button:hover:not(:disabled) {
-  color: var(--pf-led);
-}
-
-.commentActions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* An edited comment says so. Replies sit under it, and one that quietly became
-   something else makes them read as answers to something never said. */
-.commentEdited {
-  font-size: 11px;
-  color: var(--pf-ink-faint);
-  font-style: italic;
-}
-
-.commentEditRow {
-  display: flex;
-  gap: 8px;
-}
-
-/* ── Visibility ──
-   Same visual family as .frameChip (outlined mono micro-label), muted rather
-   than alarming: unlisted/private are states the owner chose, not warnings.
-   Only ever rendered when not public, so the feed never shows it. */
-.visChip {
-  flex: none;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pf-ink-muted);
-  border: 1px dashed rgba(20, 20, 20, 0.4);
-  border-radius: 0;
-  padding: 1px 7px;
-  white-space: nowrap;
-}
-
-/* ── Shared decks ── */
-
-.decksPage,
-.deckPage {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding-bottom: 80px;
-}
-
-/* Same rhythm as the profile grid; a deck card is wider than a pattern card
-   because it carries a strip, not a single screen. */
-.deckGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 18px;
-}
-
-.deckCard {
-  display: block;
-  border: 1px solid rgba(20, 20, 20, 0.18);
-  border-radius: 0;
-  background: #ffffff;
-  text-decoration: none;
-  color: inherit;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.deckCard:hover {
-  border-color: rgba(20, 20, 20, 0.55);
-}
-
-/* First patterns in running order, left to right — the card IS the order. */
-.deckStrip {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  background: #09090b;
-}
-
-.deckStripSlot {
-  aspect-ratio: 1 / 2;
-  position: relative;
-  background: #09090b;
-  overflow: hidden;
-}
-
-.deckStripEmpty {
-  grid-column: 1 / -1;
-  aspect-ratio: 3 / 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--pf-ink-faint);
-  font-family: var(--pf-mono, monospace);
-  font-size: 11px;
-}
-
-.deckStripMore {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  z-index: 2;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  color: #ffffff;
-  background: rgba(9, 9, 11, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 1px 6px;
-}
-
-/* The deck page's running order: numbered slots, wrapping like the profile
-   grid. The number sits above the card, not on it — it belongs to the deck,
-   not to the pattern. */
-.deckSlots {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 18px;
-}
-
-.deckSlot {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.deckSlotIndex {
-  font-family: var(--pf-mono, monospace);
-  font-size: 11px;
-  color: var(--pf-ink-faint);
-}
-
-/* A slot whose pattern is gone. The deck keeps the position and the name —
-   the arrangement is the deck author's work; the pattern was its author's. */
-.deckGap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 200px;
-  border: 1px dashed rgba(20, 20, 20, 0.35);
-  padding: 16px;
-  text-align: center;
-}
-
-.deckGapTitle {
-  font-size: 14px;
-  color: var(--pf-ink-muted);
-  text-decoration: line-through;
-}
-
-.deckGapReason {
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pf-ink-faint);
-}
-
-.deckVisControl {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--pf-ink-muted);
-}
-
-.profileSectionTitle {
-  margin: 34px 0 0;
-  font-size: 18px;
-  font-weight: 500;
-  color: var(--pf-ink);
-}
-
-/* ── Discussions pagination ──
-   (The pattern feed scrolls forever; this list still pages — twenty text rows
-   at a time is plenty, and a pager is honest furniture for an archive.) */
-
-.paginationBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  font-family: var(--pf-mono, monospace);
-  font-size: 13px;
-  margin-top: 8px;
-}
-
-.pageBtn {
-  border: 1px solid rgba(20, 20, 20, 0.3);
-  border-radius: 0;
-  background: #ffffff;
-  color: var(--pf-ink);
-  font-size: 12px;
-  font-family: inherit;
-  font-weight: 500;
-  padding: 6px 14px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 120ms ease;
-}
-
-.pageBtn:hover:not([data-disabled="true"]) {
-  background: var(--pf-ink);
-  border-color: var(--pf-ink);
-  color: var(--pf-cream);
-}
-
-.pageBtn[data-disabled="true"] {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.pageIndicator {
-  color: var(--pf-ink-muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pageIndicator strong {
-  color: var(--pf-ink);
-}
-
-.pageMetaTotal {
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-/* ── Notice ──
-   One moderator-pinned post at the top of Discussions. Solid, like .hwChip —
-   the strongest chip in the family, because it is the one the site itself is
-   saying rather than reporting. */
-.noticeChip {
-  display: inline-block;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #ffffff;
-  background: var(--pf-ink);
-  border: 1px solid var(--pf-ink);
-  border-radius: 0;
-  padding: 1px 7px;
-  margin-right: 8px;
-  vertical-align: 2px;
-  white-space: nowrap;
-}
-
-/* ── Code fences ──
-   The one piece of markup the board has. Same dark ground as the code panel,
-   so pasted logs read as what they are. */
-.codeFence {
-  margin: 10px 0;
-  padding: 10px 12px;
-  background: #09090b;
-  color: #e6e2d8;
-  font-family: var(--pf-mono, monospace);
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-  border-radius: 0;
-}
-
-/* ── Firmware ports ──
-   Somebody else's board finishing the author's pattern. A quiet ledger, not a
-   leaderboard: handle, date, state — and the author's Pin as the only verb. */
-
-.portsSection {
-  margin-top: 18px;
-  border-top: 1px solid var(--pf-rule-soft);
-  padding-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.portsHead {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.portsTitle {
-  font-family: var(--pf-mono, monospace);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pf-ink-muted);
-}
-
-.portsList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.portRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--pf-rule-soft);
-  font-size: 13px;
-  min-width: 0;
-}
-
-.portRow[data-stale="true"] .portHandle {
-  color: var(--pf-ink-faint);
-}
-
-.portHandle {
-  font-weight: 500;
-  color: var(--pf-ink);
-  white-space: nowrap;
-}
-
-.portDate {
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  color: var(--pf-ink-faint);
-  flex: none;
-}
-
-.portChip {
-  flex: none;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pf-led);
-  border: 1px solid rgba(232, 85, 46, 0.5);
-  padding: 0 6px;
-}
-
-.portStale {
-  flex: none;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--pf-ink-faint);
-  border: 1px dashed rgba(20, 20, 20, 0.3);
-  padding: 0 6px;
-}
-
-.portNote {
-  color: var(--pf-ink-muted);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Alerts ──
-   Delivery is the next page load — no polling, no sockets. The header link
-   turns LED-orange while anything is unread, and goes quiet again. */
-
-.notifyLink[data-unread="true"] {
-  color: var(--pf-led);
-}
-
-.notifyList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-width: 720px;
-}
-
-.notifyRow {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 12px 2px;
-  border-bottom: 1px solid var(--pf-rule-soft);
-  text-decoration: none;
-  color: var(--pf-ink);
-}
-
-.notifyRow:hover {
-  background: rgba(20, 20, 20, 0.03);
-}
-
-/* The unread marker keeps its place when read, so rows do not shift as the
-   visit marks them — it just empties. */
-.notifyMark {
-  flex: none;
-  width: 7px;
-  height: 7px;
-  align-self: center;
-  border: 1px solid transparent;
-}
-
-.notifyRow[data-unread="true"] .notifyMark {
-  background: var(--pf-led);
-  border-color: var(--pf-led);
-}
-
-.notifyBody {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.notifySentence {
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.notifySentence strong {
-  font-weight: 500;
-}
-
-.notifySnippet {
-  font-size: 12.5px;
-  color: var(--pf-ink-muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.notifyDate {
-  margin-left: auto;
-  flex: none;
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  color: var(--pf-ink-faint);
+  color: var(--pfc-ink-muted);
+}
+
+/* ── Narrow screens ──
+   Keep this media query in sync with MOBILE_MEDIA_QUERY in lib/useMediaQuery.ts. */
+
+@media (max-width: 900px) {
+  .detailLayout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .matrixFrame {
+    max-width: 190px;
+  }
+
+  .knobs {
+    margin-top: 14px;
+    max-width: 100%;
+    gap: 9px;
+  }
+
+  .knobLine {
+    grid-template-columns: 58px minmax(0, 1fr) 48px;
+    gap: 8px;
+    font-size: 10.5px;
+  }
+
+  /* A slider is a drag target before it is a control — 44px of thumb. */
+  .knobLine input[type="range"] {
+    height: 24px;
+  }
+
+  .actionRow {
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .actionRow .btnAccent {
+    grid-column: span 2;
+  }
+
+  .actionRow button,
+  .actionRow a {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .editorBody {
+    min-height: 320px;
+  }
+}
+
+@media (max-width: 768px), (hover: none) {
+  .pageHeader {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 14px 16px;
+  }
+
+  /* The section nav moves to the tab bar at the bottom of the screen. */
+  .sectionNav,
+  .headerSpacer {
+    display: none;
+  }
+
+  .makeCta {
+    margin-left: auto;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .pageBody {
+    padding: 0 16px;
+  }
+
+  .marquee {
+    margin: 0 -16px;
+  }
+
+  /* Clear of the tab bar. */
+  .pageFooter {
+    padding-bottom: 90px;
+  }
+
+  .feedWrapper {
+    padding: 16px 0 40px;
+  }
+
+  .feedGrid {
+    gap: 8px;
+  }
+
+  .introRow {
+    font-size: 13px;
+  }
+
+  .feedControls {
+    gap: 12px;
+  }
+
+  /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
+     on a phone — the hint would advertise a gesture that does not exist. */
+  .zoomHint,
+  .controlRule {
+    display: none;
+  }
+
+  .deckGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profileGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .deckSlots {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .sectionTitle {
+    font-size: 20px;
+  }
+
+  .metaTitle {
+    font-size: 22px;
+  }
 }

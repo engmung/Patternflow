@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, index, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  index,
+  primaryKey,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,12 +125,12 @@ export const patterns = sqliteTable(
       onDelete: "set null",
     }),
     /**
-     * "public" | "unlisted" | "private" — who can find it.
+     * "public" | "private" — shared, or the author alone.
      *
-     * Public is in the feed. Unlisted is reachable by link only — the "look at
-     * this before I post it" state, and what a shared deck can carry without
-     * flooding the feed. Private is the author alone (moderators keep sight of
-     * everything — visibility is not a shield from a report).
+     * Public is on the wall and openable by anyone. Private is the author
+     * alone, and cannot go into a shared deck — somebody else's running order
+     * is not a place a private thing belongs. Moderators keep sight of
+     * everything either way: visibility is not a shield from a report.
      */
     visibility: text("visibility").notNull().default("public"),
     /**
@@ -211,7 +218,7 @@ export const likes = sqliteTable(
 //
 // Publishing is deliberately scarce: two PUBLIC decks per account (see
 // PUBLIC_DECKS_MAX). That is a curation policy, not a technical limit — a
-// shelf you must ration is a shelf you curate. Private and unlisted decks are
+// shelf you must ration is a shelf you curate. Private decks are
 // not rationed.
 
 export const decks = sqliteTable(
@@ -223,7 +230,7 @@ export const decks = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
     description: text("description"),
-    /** "public" | "unlisted" | "private" — same three states as patterns. */
+    /** "public" | "private" — same two states as patterns. */
     visibility: text("visibility").notNull().default("private"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
@@ -264,10 +271,117 @@ export const deckPatterns = sqliteTable(
 // escaped by React on output, same rule as comments. (Rendering grants one
 // nicety, the ``` code fence; storage stays exactly what was typed.)
 
+/**
+ * The marquee: the handful of patterns across the top of /community.
+ *
+ * Moderator-chosen, because it is the first thing anyone sees and "most liked"
+ * is not the same question as "what should this place look like to someone who
+ * has never been here". Empty by default, and the home page falls back to
+ * most-liked when it is — so nothing breaks if nobody ever curates it.
+ *
+ * Position is the running order left to right. No foreign key on purpose is
+ * NOT the case here: a featured pattern that gets deleted should leave the
+ * marquee rather than leave a hole, so it cascades.
+ */
+export const featuredPatterns = sqliteTable(
+  "featured_patterns",
+  {
+    patternId: text("pattern_id")
+      .primaryKey()
+      .references(() => patterns.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    /** Who put it there, for the record. */
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("featured_patterns_position_idx").on(table.position)],
+);
+
+// ── The map ──────────────────────────────────────────────────────────────────
+// Where Patternflow could go, and who is working where.
+//
+// A territory is a DIRECTION, not a milestone: "OSC over a wire", "a laser-cut
+// version", "port it to a bigger panel". That is a different axis from
+// /roadmap, which is what the project ships and when — a direction can sit
+// open for a year with two people poking at it and still be worth a place on
+// the map. So the two are deliberately separate lists; do not try to derive
+// one from the other.
+//
+// Territories are authored by moderators. Everything else here — who is
+// working on what, and the threads — is written by whoever shows up.
+export const territories = sqliteTable(
+  "territories",
+  {
+    id: text("id").primaryKey(),
+    /** The short code on the node — "A1", "B3". Uppercase, unique, and part
+     *  of the URL, so it is also how a territory is linked to. */
+    code: text("code").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description"),
+    /** Floor plan: how many of the six columns this zone spans, and where it
+     *  falls in reading order. */
+    span: integer("span").notNull().default(2),
+    position: integer("position").notNull().default(0),
+    /** Constellation: where the node sits on the stage, in the design's
+     *  1440×640 coordinates. Scaled to whatever the viewport actually is. */
+    x: integer("x").notNull().default(720),
+    y: integer("y").notNull().default(320),
+    /** The one direction that is next off the bench, if any. */
+    shippingNext: integer("shipping_next", { mode: "boolean" }).notNull().default(false),
+    /** Open questions, one per line — they hang off the node as dashed spurs.
+     *  Labels, not records: "128×128?", "steel front". */
+    questions: text("questions"),
+    /** Retired rather than deleted: a direction nobody took is still a thing
+     *  that was considered, and its threads are still worth reading. */
+    archivedAt: integer("archived_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("territories_position_idx").on(table.position)],
+);
+
+/**
+ * "I'm working here."
+ *
+ * The cheapest possible contribution — one click, no artifact — and the whole
+ * point of the map: a direction with three names on it reads differently from
+ * the same direction with none. One pin per person per territory; the row's
+ * own createdAt is the "since" the UI shows.
+ */
+export const territoryPins = sqliteTable(
+  "territory_pins",
+  {
+    id: text("id").primaryKey(),
+    territoryId: text("territory_id")
+      .notNull()
+      .references(() => territories.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** What they are doing there, in a few words — "steel front", "128×128". */
+    note: text("note"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("territory_pins_unique").on(table.territoryId, table.userId),
+    index("territory_pins_user_idx").on(table.userId),
+  ],
+);
+
+/**
+ * A thread. Lives in a territory — the board no longer has an "everything"
+ * list, because a question about a direction belongs next to that direction.
+ *
+ * Still the `posts` table: a thread IS a post that knows where it is, and
+ * keeping the name means comments, reports, notifications and the moderation
+ * queue all carry over untouched.
+ */
 export const posts = sqliteTable(
   "posts",
   {
     id: text("id").primaryKey(),
+    territoryId: text("territory_id")
+      .notNull()
+      .references(() => territories.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
@@ -285,7 +399,38 @@ export const posts = sqliteTable(
   (table) => [
     index("posts_created_at_idx").on(table.createdAt),
     index("posts_user_id_idx").on(table.userId),
+    index("posts_territory_idx").on(table.territoryId, table.createdAt),
   ],
+);
+
+/**
+ * Files hung on a thread or one of its replies — the DXF, the tolerance notes.
+ * This is what makes a territory somewhere work actually happens rather than
+ * somewhere it is described.
+ *
+ * The uploaded name is kept for display only; on disk the file is named by an
+ * opaque id, and it is always served as an attachment with a generic type, so
+ * nothing here can ever be rendered by the browser as a document.
+ */
+export const postAttachments = sqliteTable(
+  "post_attachments",
+  {
+    id: text("id").primaryKey(),
+    postId: text("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    /** Set when the file belongs to a reply rather than the thread's body. */
+    commentId: text("comment_id").references((): AnySQLiteColumn => postComments.id, {
+      onDelete: "cascade",
+    }),
+    /** The file outlives its uploader's account — the thread still needs it. */
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    /** Display name, sanitised on upload. Never used as a path. */
+    filename: text("filename").notNull(),
+    bytes: integer("bytes").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [index("post_attachments_post_idx").on(table.postId)],
 );
 
 /**
@@ -382,10 +527,13 @@ export const notifications = sqliteTable(
       .references(() => user.id, { onDelete: "cascade" }),
     /**
      * What happened:
-     *   "comment" — on something the recipient made
-     *   "thread"  — on something the recipient commented on earlier
-     *   "fork"    — their pattern was forked
-     *   "deck"    — their pattern entered someone's public deck
+     *   "comment"   — on something the recipient made
+     *   "thread"    — on something the recipient commented on earlier
+     *   "fork"      — their pattern was forked
+     *   "deck"      — their pattern entered someone's public deck
+     *   "port"      — a firmware port landed on their pattern
+     *   "pin"       — the author pinned the recipient's port
+     *   "territory" — a thread started where the recipient is pinned
      */
     type: text("type").notNull(),
     /** Who did it. Cascades: a deleted account takes its acts with it. */

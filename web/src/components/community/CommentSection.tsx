@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import {
+  ATTACHMENT_EXTENSIONS,
+  ATTACHMENT_MAX_PER_PARENT,
+  formatBytes,
+} from "@/lib/community/workshop";
+import type { AttachmentView } from "@/lib/community/queries";
 import { COMMENT_MAX } from "@/lib/community/validate";
+import AttachmentList from "./AttachmentList";
 import AuthModal from "./AuthModal";
 import FencedText from "./FencedText";
 import { formatDate } from "./PatternCard";
@@ -31,12 +38,21 @@ export type CommentView = {
 /** What the thread hangs off. The two have separate tables and endpoints. */
 export type CommentTarget = { kind: "pattern" | "post"; id: string };
 
+const ACCEPT = ATTACHMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",");
+
 export default function CommentSection({
   target,
   comments,
+  attachments = [],
+  workingUserIds = [],
 }: {
   target: CommentTarget;
   comments: CommentView[];
+  /** Files hung on this thread, body and replies together. */
+  attachments?: AttachmentView[];
+  /** Everyone pinned in the thread's territory: their replies get a tag, so a
+   *  reader can tell "someone who has actually built this" from a passer-by. */
+  workingUserIds?: string[];
 }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -44,6 +60,10 @@ export default function CommentSection({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  // Files waiting to ride on the next reply. Workshop threads only — pattern
+  // comments have no attachment table, and test results live in replies.
+  const [files, setFiles] = useState<File[]>([]);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   // Which comment is open for editing, and the draft inside it.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -123,12 +143,40 @@ export default function CommentSection({
           body: JSON.stringify({ body: text }),
         },
       );
+      const payload = (await response.json()) as { error?: string; id?: string };
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
         setError(payload.error ?? "Comment failed.");
         return;
       }
+
+      // Files ride on the reply that was just created. Second request on
+      // purpose (same shape as the new-thread modal): a rejected file must not
+      // cost the words, which are already saved by the time this runs.
+      if (target.kind === "post" && files.length > 0 && payload.id) {
+        const form = new FormData();
+        form.set("postId", target.id);
+        form.set("commentId", payload.id);
+        for (const file of files) form.append("files", file);
+        const upload = await fetch(communityApiUrl("/api/community/attachments"), {
+          method: "POST",
+          ...COMMUNITY_FETCH_INIT,
+          body: form,
+        });
+        if (!upload.ok) {
+          const detail = (await upload.json()) as { error?: string };
+          // The reply is up — say exactly that, not "it failed".
+          setError(
+            `Reply posted, but the files did not attach: ${detail.error ?? "upload failed"}.`,
+          );
+          setBody("");
+          setFiles([]);
+          router.refresh();
+          return;
+        }
+      }
+
       setBody("");
+      setFiles([]);
       router.refresh();
     } catch {
       setError("Network error.");
@@ -153,6 +201,14 @@ export default function CommentSection({
               >
                 @{comment.displayUsername ?? comment.username ?? "unknown"}
               </Link>
+              {/* Somebody who has actually put hands on this direction, not a
+                  passer-by. Worth knowing before you read the reply. */}
+              {workingUserIds.includes(comment.userId) && (
+                <span className={styles.workingTag}>
+                  <i aria-hidden="true" />
+                  working here
+                </span>
+              )}
               <span className={styles.commentDate}>{formatDate(comment.createdAt)}</span>
               {comment.editedAt && <span className={styles.commentEdited}>edited</span>}
               {mine && !editing && (
@@ -219,6 +275,9 @@ export default function CommentSection({
             ) : (
               <div className={styles.commentBody}>
                 <FencedText text={comment.body} />
+                <AttachmentList
+                  files={attachments.filter((file) => file.commentId === comment.id)}
+                />
               </div>
             )}
             {!editing && rowError && rowBusy === null && confirmDelete === comment.id && (
@@ -233,18 +292,69 @@ export default function CommentSection({
           <textarea
             value={body}
             maxLength={COMMENT_MAX}
-            placeholder="Leave a comment…"
+            placeholder={
+              target.kind === "post" ? "Reply — where are you with it?" : "Leave a comment…"
+            }
             onChange={(event) => setBody(event.target.value)}
           />
+
+          {files.length > 0 && (
+            <div className={styles.fileChips}>
+              {files.map((file, index) => (
+                <span key={`${file.name}-${index}`} className={styles.fileChip}>
+                  ▤ {file.name} <span>{formatBytes(file.size)}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${file.name}`}
+                    onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
           {error && <div className={styles.formError}>{error}</div>}
-          <div>
+          <div className={styles.composerRow}>
+            {/* Workshop replies carry files — the DXF that finally fit, the
+                photo of it on the bench. Pattern comments have nowhere to put
+                one, so they don't offer. */}
+            {target.kind === "post" && (
+              <>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept={ACCEPT}
+                  hidden
+                  onChange={(event) => {
+                    const list = event.target.files;
+                    if (list) {
+                      setFiles((current) =>
+                        [...current, ...Array.from(list)].slice(0, ATTACHMENT_MAX_PER_PARENT),
+                      );
+                    }
+                    event.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  className={styles.composerLink}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  ▤ attach a file
+                </button>
+              </>
+            )}
+            <span className={styles.headerSpacer} />
             <button
               type="button"
               className={styles.btnPrimary}
               disabled={busy || body.trim().length === 0}
               onClick={() => void submit()}
             >
-              {busy ? "Posting…" : "Post comment"}
+              {busy ? "Posting…" : "Post"}
             </button>
           </div>
         </div>

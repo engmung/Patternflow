@@ -1,9 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { lt, isNotNull, sql } from "drizzle-orm";
+import { attachmentDir } from "./attachments";
 import { artifactDir } from "./builds";
 import { getDb } from "./db";
-import { builds, notifications, session, verification } from "./schema";
+import { builds, notifications, postAttachments, session, verification } from "./schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Retention sweep.
@@ -44,6 +45,7 @@ export type SweepResult = {
   oldNotifications: number;
   artifactFilesDeleted: number;
   orphanFilesDeleted: number;
+  orphanAttachmentsDeleted: number;
   artifactBytesFreed: number;
   errors: string[];
 };
@@ -56,7 +58,59 @@ export function describeSweep(result: SweepResult): string {
     `builds: ${result.oldBuilds} over ${BUILD_MAX_AGE_DAYS}d`,
     `notifications: ${result.oldNotifications} over ${NOTIFICATION_MAX_AGE_DAYS}d`,
     `files: ${result.artifactFilesDeleted} artifacts + ${result.orphanFilesDeleted} orphans (${mb} MB)`,
+    `attachments: ${result.orphanAttachmentsDeleted} orphans`,
   ].join(" · ");
+}
+
+/**
+ * Attachment files whose row is gone.
+ *
+ * Deleting a thread cascades its attachment ROWS away (foreign keys), but
+ * nothing in that transaction touches the disk — so every deleted thread
+ * leaves its bytes behind, invisibly, on a Pi's SD card. This walks the
+ * directory against the table and removes the difference, behind the same
+ * grace window the artifact sweep uses so an upload mid-flight (file written,
+ * row not yet) is never mistaken for garbage.
+ */
+export async function sweepOrphanAttachments(now = new Date()): Promise<{
+  deleted: number;
+  errors: string[];
+}> {
+  const db = getDb();
+  const dir = attachmentDir();
+  const result = { deleted: 0, errors: [] as string[] };
+
+  let entries;
+  try {
+    entries = await fs.readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    // No attachments directory yet is normal until the first upload.
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      result.errors.push(`attachment dir: ${String(error)}`);
+    }
+    return result;
+  }
+
+  const referenced = new Set(
+    (await db.select({ id: postAttachments.id }).from(postAttachments)).map((row) => row.id),
+  );
+
+  for (const entry of entries) {
+    if (!entry.isFile() || referenced.has(entry.name)) continue;
+    const file = path.join(dir, entry.name);
+    try {
+      const stat = await fs.stat(file);
+      if (now.getTime() - stat.mtimeMs < ORPHAN_GRACE_MS) continue;
+      await fs.unlink(file);
+      result.deleted += 1;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        result.errors.push(`attachment ${entry.name}: ${String(error)}`);
+      }
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -78,6 +132,7 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
     oldNotifications: 0,
     artifactFilesDeleted: 0,
     orphanFilesDeleted: 0,
+    orphanAttachmentsDeleted: 0,
     artifactBytesFreed: 0,
     errors: [],
   };
@@ -203,6 +258,11 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
       result.errors.push(`artifact dir: ${String(error)}`);
     }
   }
+
+  // ── Orphaned thread attachments ────────────────────────────────────────────
+  const attachments = await sweepOrphanAttachments(now);
+  result.orphanAttachmentsDeleted = attachments.deleted;
+  result.errors.push(...attachments.errors);
 
   return result;
 }

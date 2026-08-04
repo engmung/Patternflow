@@ -141,20 +141,29 @@ export function isReportTargetType(raw: unknown): raw is ReportTargetType {
  * executable code that other people run in their browser and flash to their
  * board — a category the usual report menus have no word for.
  */
+/** Reasons, in the order they are offered.
+ *
+ *  Strobing leads: it is the only one where the harm is to the person looking
+ *  at the page RIGHT NOW rather than to an author or to the site, and a
+ *  photosensitive visitor should not have to read past three property disputes
+ *  to find it. The rest keep their existing values — reports already filed
+ *  carry them, and the moderation queue renders from this map. */
 export const REPORT_REASONS = [
+  "strobing",
   "copyright",
+  "malicious",
   "inappropriate",
   "spam",
-  "malicious",
   "other",
 ] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
 export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
-  copyright: "Copyright — this is someone else's work, or the license is wrong",
+  strobing: "Strobing / photosensitive risk",
+  copyright: "Stolen work / missing credit",
+  malicious: "Malicious code",
   inappropriate: "Inappropriate or abusive content",
   spam: "Spam or junk",
-  malicious: "Malicious code",
   other: "Something else",
 };
 

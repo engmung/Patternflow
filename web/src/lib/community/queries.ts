@@ -4,13 +4,17 @@ import {
   comments,
   deckPatterns,
   decks,
+  featuredPatterns,
   likes,
   notifications,
   patternHeaders,
   patterns,
+  postAttachments,
   postComments,
   posts,
   reports,
+  territories,
+  territoryPins,
   user,
 } from "./schema";
 
@@ -29,14 +33,21 @@ const authorFields = {
 // Counts stay as correlated subqueries rather than denormalized columns: at
 // this scale SQLite does them for free, and a stored counter is one more thing
 // that can drift out of sync with reality.
-const likeCount = sql<number>`(SELECT COUNT(*) FROM ${likes} WHERE ${likes.patternId} = ${patterns.id})`;
-const forkCount = sql<number>`(SELECT COUNT(*) FROM ${patterns} AS child WHERE child.parent_id = ${patterns.id})`;
+//
+// TRAP, learned the hard way: `${table.column}` renders as an UNQUALIFIED
+// column name, and SQLite binds a bare name to the innermost table that owns
+// one — `(SELECT COUNT(*) FROM posts WHERE territory_id = id)` counts posts
+// whose territory_id equals THEIR OWN id, which is zero, forever, without
+// erroring. So every subquery here aliases its inner tables and writes outer
+// references as `${table}.column`, which renders qualified.
+const likeCount = sql<number>`(SELECT COUNT(*) FROM ${likes} AS lk WHERE lk.pattern_id = ${patterns}.id)`;
+const forkCount = sql<number>`(SELECT COUNT(*) FROM ${patterns} AS child WHERE child.parent_id = ${patterns}.id)`;
 // "Hardware ready" means an EFFECTIVE header exists: the author's own, or a
 // live community port (see lib/community/ports.ts). Which one wins is the
 // page's business; the feed only cares that a build has something to compile.
 const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL OR EXISTS (
   SELECT 1 FROM ${patternHeaders} AS ph
-  WHERE ph.pattern_id = ${patterns.id} AND ph.stale = 0
+  WHERE ph.pattern_id = ${patterns}.id AND ph.stale = 0
 ))`;
 // How many *other people* put this pattern in a public deck. Distinct owners,
 // not rows, and never the pattern's own author: a like costs a click, but this
@@ -45,15 +56,20 @@ const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL OR EXISTS (
 const deckCount = sql<number>`(
   SELECT COUNT(DISTINCT d.user_id) FROM ${deckPatterns} AS dp
   JOIN ${decks} AS d ON d.id = dp.deck_id
-  WHERE dp.pattern_id = ${patterns.id}
+  WHERE dp.pattern_id = ${patterns}.id
     AND d.visibility = 'public'
-    AND d.user_id != ${patterns.userId}
+    AND d.user_id != ${patterns}.user_id
 )`;
 
-/** Feed ordering. "top"/"forks" are all-time; add a time window once volume justifies it.
- *  The deck-inclusion count rides on every card (DCK) but is not a sort yet —
- *  with a handful of decks it would reorder the feed on almost no signal. */
-export const FEED_SORTS = ["new", "top", "forks"] as const;
+/** Feed ordering. All of them are all-time; add a time window once volume
+ *  justifies it.
+ *
+ *  "decks" was deliberately left out while decks were a side feature — with a
+ *  handful of them it would have reordered the wall on almost no signal. The
+ *  redesign makes a deck the thing the community is FOR (two public slots a
+ *  person, a curated shelf on the decks page), so the signal is now the
+ *  scarcest one on the site and earns its tab. */
+export const FEED_SORTS = ["new", "top", "forks", "decks"] as const;
 export type FeedSort = (typeof FEED_SORTS)[number];
 
 export function parseFeedSort(raw: string | undefined): FeedSort {
@@ -71,7 +87,7 @@ export type FeedItem = {
   likeCount: number;
   forkCount: number;
   hasCpp: boolean;
-  /** "public" | "unlisted" | "private" — always "public" in the feed itself. */
+  /** "public" | "private" — always "public" in the feed itself. */
   visibility: string;
   /** Distinct other people whose public decks carry this pattern. */
   deckCount: number;
@@ -98,8 +114,8 @@ function toFeedItems(rows: FeedRow[]): FeedItem[] {
   return rows.map((row) => ({ ...row, hasCpp: Boolean(row.hasCpp) }));
 }
 
-// The feed shows public patterns only. Unlisted and private rows exist in the
-// same table, so EVERY listing query needs this — a miss here is a leak (#255).
+// The feed shows public patterns only. Private rows live in the same table, so
+// EVERY listing query needs this — a miss here is a leak (#255).
 const feedVisible = eq(patterns.visibility, "public");
 
 // The hardware filter and the card chip must agree, so both read `hasCpp`.
@@ -133,7 +149,9 @@ export async function listFeed({
       ? [desc(likeCount), desc(patterns.createdAt)]
       : sort === "forks"
         ? [desc(forkCount), desc(patterns.createdAt)]
-        : [desc(patterns.createdAt)];
+        : sort === "decks"
+          ? [desc(deckCount), desc(patterns.createdAt)]
+          : [desc(patterns.createdAt)];
 
   const rows = await db
     .select(feedColumns)
@@ -144,6 +162,34 @@ export async function listFeed({
     .limit(limit)
     .offset(offset);
   return toFeedItems(rows);
+}
+
+/**
+ * The marquee's patterns, in the order a moderator put them.
+ *
+ * Anything that has stopped being public since it was featured drops out
+ * silently rather than 404-ing on the front page — the same `feedVisible` rule
+ * every other listing obeys.
+ */
+export async function listFeatured(limit = 8): Promise<FeedItem[]> {
+  const rows = await getDb()
+    .select(feedColumns)
+    .from(featuredPatterns)
+    .innerJoin(patterns, eq(featuredPatterns.patternId, patterns.id))
+    .innerJoin(user, eq(patterns.userId, user.id))
+    .where(feedVisible)
+    .orderBy(featuredPatterns.position, desc(featuredPatterns.createdAt))
+    .limit(limit);
+  return toFeedItems(rows);
+}
+
+/** Ids only — for the admin page's "already in the marquee" marks. */
+export async function listFeaturedIds(): Promise<string[]> {
+  const rows = await getDb()
+    .select({ patternId: featuredPatterns.patternId })
+    .from(featuredPatterns)
+    .orderBy(featuredPatterns.position);
+  return rows.map((row) => row.patternId);
 }
 
 export async function getPattern(id: string) {
@@ -368,7 +414,7 @@ export async function countLikes(patternId: string): Promise<number> {
 
 // ── Discussions ────────────────────────────────────────────────────────────────────
 
-const postCommentCount = sql<number>`(SELECT COUNT(*) FROM ${postComments} WHERE ${postComments.postId} = ${posts.id})`;
+const postCommentCount = sql<number>`(SELECT COUNT(*) FROM ${postComments} AS pc WHERE pc.post_id = ${posts}.id)`;
 
 export type PostListItem = {
   id: string;
@@ -383,15 +429,21 @@ export type PostListItem = {
   commentCount: number;
 };
 
-export async function countPosts(): Promise<number> {
-  const rows = await getDb().select({ count: sql<number>`COUNT(*)` }).from(posts);
+export async function countPosts(territoryId?: string): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(posts)
+    .where(territoryId ? eq(posts.territoryId, territoryId) : undefined);
   return rows[0]?.count ?? 0;
 }
 
+/** Threads in one territory, newest first, the notice (if any) on top. */
 export async function listPosts({
+  territoryId,
   limit,
   offset = 0,
 }: {
+  territoryId?: string;
   limit: number;
   offset?: number;
 }): Promise<PostListItem[]> {
@@ -408,11 +460,199 @@ export async function listPosts({
     })
     .from(posts)
     .innerJoin(user, eq(posts.userId, user.id))
+    .where(territoryId ? eq(posts.territoryId, territoryId) : undefined)
     // The notice first (there is at most one), then newest.
     .orderBy(sql`${posts.pinnedAt} IS NULL`, desc(posts.createdAt))
     .limit(limit)
     .offset(offset);
   return rows.map(({ pinnedAt, ...row }) => ({ ...row, pinned: pinnedAt !== null }));
+}
+
+// ── The map ──────────────────────────────────────────────────────────────────
+
+const pinCount = sql<number>`(SELECT COUNT(*) FROM ${territoryPins} AS tp WHERE tp.territory_id = ${territories}.id)`;
+const threadCount = sql<number>`(SELECT COUNT(*) FROM ${posts} AS th WHERE th.territory_id = ${territories}.id)`;
+
+export type TerritoryListItem = {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  span: number;
+  position: number;
+  x: number;
+  y: number;
+  shippingNext: boolean;
+  questions: string | null;
+  pinCount: number;
+  threadCount: number;
+};
+
+const territoryColumns = {
+  id: territories.id,
+  code: territories.code,
+  title: territories.title,
+  description: territories.description,
+  span: territories.span,
+  position: territories.position,
+  x: territories.x,
+  y: territories.y,
+  shippingNext: territories.shippingNext,
+  questions: territories.questions,
+  pinCount,
+  threadCount,
+};
+
+/** Every live direction, in map order. Archived ones drop off the map but keep
+ *  their threads readable by link. */
+export async function listTerritories(): Promise<TerritoryListItem[]> {
+  return getDb()
+    .select(territoryColumns)
+    .from(territories)
+    .where(isNull(territories.archivedAt))
+    .orderBy(territories.position, territories.code);
+}
+
+export async function getTerritoryByCode(code: string): Promise<TerritoryListItem | null> {
+  const rows = await getDb()
+    .select(territoryColumns)
+    .from(territories)
+    .where(eq(territories.code, code.toUpperCase()))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export type TerritoryPin = {
+  userId: string;
+  username: string | null;
+  displayUsername: string | null;
+  note: string | null;
+  createdAt: Date;
+};
+
+/** Who is working here, longest-standing first — the map's whole payload. */
+export async function listTerritoryPins(territoryId: string): Promise<TerritoryPin[]> {
+  return getDb()
+    .select({
+      userId: territoryPins.userId,
+      ...authorFields,
+      note: territoryPins.note,
+      createdAt: territoryPins.createdAt,
+    })
+    .from(territoryPins)
+    .innerJoin(user, eq(territoryPins.userId, user.id))
+    .where(eq(territoryPins.territoryId, territoryId))
+    .orderBy(territoryPins.createdAt);
+}
+
+/** The viewer's own pins — drives "You're pinned here" on the map and the
+ *  "working on …" line on their profile. */
+export async function listPinsByUser(
+  userId: string,
+): Promise<{ territoryId: string; code: string; title: string; note: string | null; createdAt: Date }[]> {
+  return getDb()
+    .select({
+      territoryId: territoryPins.territoryId,
+      code: territories.code,
+      title: territories.title,
+      note: territoryPins.note,
+      createdAt: territoryPins.createdAt,
+    })
+    .from(territoryPins)
+    .innerJoin(territories, eq(territoryPins.territoryId, territories.id))
+    .where(eq(territoryPins.userId, userId))
+    .orderBy(territoryPins.createdAt);
+}
+
+export type RecentThread = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: Date;
+  username: string | null;
+  displayUsername: string | null;
+  commentCount: number;
+  territoryCode: string;
+  territoryTitle: string;
+};
+
+/**
+ * The newest threads across every territory — the workshop's proof of life.
+ * Pure recency, no notice-first ordering: this strip answers "is anything
+ * happening here", not "what should I read first".
+ */
+export async function listRecentThreads(limit = 4): Promise<RecentThread[]> {
+  return getDb()
+    .select({
+      id: posts.id,
+      title: posts.title,
+      body: posts.body,
+      createdAt: posts.createdAt,
+      ...authorFields,
+      commentCount: postCommentCount,
+      territoryCode: territories.code,
+      territoryTitle: territories.title,
+    })
+    .from(posts)
+    .innerJoin(user, eq(posts.userId, user.id))
+    .innerJoin(territories, eq(posts.territoryId, territories.id))
+    .orderBy(desc(posts.createdAt))
+    .limit(limit);
+}
+
+export type AttachmentView = {
+  id: string;
+  postId: string;
+  commentId: string | null;
+  filename: string;
+  bytes: number;
+};
+
+/** Files on a thread — the body's and every reply's, in one read. */
+export async function listAttachments(postId: string): Promise<AttachmentView[]> {
+  return getDb()
+    .select({
+      id: postAttachments.id,
+      postId: postAttachments.postId,
+      commentId: postAttachments.commentId,
+      filename: postAttachments.filename,
+      bytes: postAttachments.bytes,
+    })
+    .from(postAttachments)
+    .where(eq(postAttachments.postId, postId))
+    .orderBy(postAttachments.createdAt);
+}
+
+export async function getAttachment(id: string) {
+  const rows = await getDb()
+    .select({
+      id: postAttachments.id,
+      postId: postAttachments.postId,
+      filename: postAttachments.filename,
+      bytes: postAttachments.bytes,
+    })
+    .from(postAttachments)
+    .where(eq(postAttachments.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function countAttachments(
+  postId: string,
+  commentId: string | null,
+): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(postAttachments)
+    .where(
+      and(
+        eq(postAttachments.postId, postId),
+        commentId === null
+          ? isNull(postAttachments.commentId)
+          : eq(postAttachments.commentId, commentId),
+      ),
+    );
+  return rows[0]?.count ?? 0;
 }
 
 export async function getPost(id: string) {
@@ -426,9 +666,15 @@ export async function getPost(id: string) {
       createdAt: posts.createdAt,
       updatedAt: posts.updatedAt,
       ...authorFields,
+      // Where it lives. The thread page is a page ABOUT a territory as much as
+      // about the thread — breadcrumb, sidebar card, "more in A3".
+      territoryId: posts.territoryId,
+      territoryCode: territories.code,
+      territoryTitle: territories.title,
     })
     .from(posts)
     .innerJoin(user, eq(posts.userId, user.id))
+    .innerJoin(territories, eq(posts.territoryId, territories.id))
     .where(eq(posts.id, id))
     .limit(1);
   return rows[0] ?? null;
@@ -441,6 +687,17 @@ export async function getPostStub(id: string) {
     .select({ id: posts.id, userId: posts.userId, title: posts.title })
     .from(posts)
     .where(eq(posts.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/** Ownership check for a reply, without loading its body — used to decide who
+ *  may hang a file on it. */
+export async function getPostCommentStub(id: string) {
+  const rows = await getDb()
+    .select({ id: postComments.id, postId: postComments.postId, userId: postComments.userId })
+    .from(postComments)
+    .where(eq(postComments.id, id))
     .limit(1);
   return rows[0] ?? null;
 }
@@ -478,7 +735,7 @@ export async function getUserByUsername(usernameLower: string) {
 
 /**
  * A profile is the complete archive only to its owner. Everyone else sees the
- * public rows — unlisted stays reachable by link, not by browsing the author.
+ * public rows.
  */
 export async function listPatternsByUser(
   userId: string,
@@ -503,7 +760,7 @@ export async function listPatternsByUser(
 // deck in localStorage (lib/community/deck.ts). Reads follow the same
 // visibility rules as patterns.
 
-const deckPatternCount = sql<number>`(SELECT COUNT(*) FROM ${deckPatterns} WHERE ${deckPatterns.deckId} = ${decks.id})`;
+const deckPatternCount = sql<number>`(SELECT COUNT(*) FROM ${deckPatterns} AS dpn WHERE dpn.deck_id = ${decks}.id)`;
 
 export type DeckListItem = {
   id: string;
@@ -537,7 +794,7 @@ type DeckListRow = Omit<DeckListItem, "preview">;
  * scale (two public decks per account) a join-and-regroup would be more code
  * than the problem.
  */
-async function withPreviews(rows: DeckListRow[], perDeck = 3): Promise<DeckListItem[]> {
+async function withPreviews(rows: DeckListRow[], perDeck = 4): Promise<DeckListItem[]> {
   const db = getDb();
   const result: DeckListItem[] = [];
   for (const row of rows) {
@@ -571,6 +828,27 @@ export async function listPublicDecks(limit = 60): Promise<DeckListItem[]> {
     .orderBy(desc(decks.createdAt))
     .limit(limit);
   return withPreviews(rows);
+}
+
+/**
+ * Public decks this pattern was picked into — the other half of the DCK count
+ * on its card, named rather than tallied.
+ *
+ * Being chosen for somebody's running order is a scarcer compliment than a
+ * like (two public slots per account), so the pattern's own page says who did
+ * the choosing. Only the shelf, never someone's private arrangement.
+ */
+export async function listDecksWithPattern(
+  patternId: string,
+  limit = 6,
+): Promise<{ id: string; title: string }[]> {
+  return getDb()
+    .select({ id: decks.id, title: decks.title })
+    .from(deckPatterns)
+    .innerJoin(decks, eq(deckPatterns.deckId, decks.id))
+    .where(and(eq(deckPatterns.patternId, patternId), eq(decks.visibility, "public")))
+    .orderBy(desc(decks.createdAt))
+    .limit(limit);
 }
 
 /** A profile's decks: all of them to the owner, public ones to everyone else. */
@@ -792,6 +1070,9 @@ export type NotificationRow = {
   createdAt: Date;
   actorUsername: string | null;
   actorDisplayUsername: string | null;
+  /** Source of the pattern this alert is about, for the row's mini canvas.
+   *  Null when the target is a deck or a post. */
+  patternCode: string | null;
 };
 
 /**
@@ -819,6 +1100,9 @@ export async function listNotifications(
       actorDisplayUsername: user.displayUsername,
       patternVisibility: patterns.visibility,
       patternUserId: patterns.userId,
+      // The row draws the pattern it is about, so it needs the source. Null
+      // for deck and post alerts, which have no canvas to show.
+      patternCode: patterns.code,
       deckVisibility: decks.visibility,
       deckUserId: decks.userId,
       postId: posts.id,
@@ -865,6 +1149,7 @@ export async function listNotifications(
       createdAt: row.createdAt,
       actorUsername: row.actorUsername,
       actorDisplayUsername: row.actorDisplayUsername,
+      patternCode: row.patternCode,
     }));
 }
 

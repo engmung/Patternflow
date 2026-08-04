@@ -69,7 +69,7 @@ export type PatternView = {
   madeOn: string | null;
   /** Author's declaration of how it was made, when they gave one. */
   madeHow: string | null;
-  /** "public" | "unlisted" | "private" — the page is already gated server-side. */
+  /** "public" | "private" — the page is already gated server-side. */
   visibility: string;
   provenance: Provenance;
   createdAt: string; // ISO
@@ -89,12 +89,15 @@ export type PatternView = {
 export default function PatternDetailClient({
   pattern,
   comments,
+  inDecks = [],
   initialKnobs,
   liked = false,
   isOwner = false,
 }: {
   pattern: PatternView;
   comments: CommentView[];
+  /** Public decks that picked this pattern up. */
+  inDecks?: { id: string; title: string }[];
   initialKnobs?: number[];
   liked?: boolean;
   isOwner?: boolean;
@@ -132,7 +135,14 @@ export default function PatternDetailClient({
       setCollectNote(null);
       return;
     }
-    const added = deckAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp });
+    // The published source, not the in-page edit: the deck holds the pattern
+    // as it exists, and the slot should look like what everyone else sees.
+    const added = deckAdd({
+      patternId: pattern.id,
+      title: pattern.title,
+      code: pattern.codeCpp,
+      js: pattern.code,
+    });
     setCollectNote(added.ok ? null : (added.reason ?? null));
   };
 
@@ -144,7 +154,12 @@ export default function PatternDetailClient({
       savedRemove(pattern.id);
       return;
     }
-    savedAdd({ patternId: pattern.id, title: pattern.title, code: pattern.codeCpp ?? "" });
+    savedAdd({
+      patternId: pattern.id,
+      title: pattern.title,
+      code: pattern.codeCpp ?? "",
+      js: pattern.code,
+    });
     setCollectNote(null);
   };
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -235,6 +250,10 @@ export default function PatternDetailClient({
 
   return (
     <div className={styles.detailWrap}>
+      <Link href="/community/patterns" className={styles.breadcrumb}>
+        ← Patterns
+      </Link>
+
       <div className={styles.detailLayout}>
         <div className={styles.detailLeftCol}>
           <div className={styles.matrixFrame}>
@@ -544,6 +563,21 @@ export default function PatternDetailClient({
             </button>
           )}
         </div>
+
+        {/* Being picked into somebody's running order costs one of their two
+            public slots, so it is worth naming rather than counting. */}
+        {inDecks.length > 0 && (
+          <div className={styles.inDecks}>
+            <span className={styles.inDecksLabel}>
+              In {inDecks.length} deck{inDecks.length === 1 ? "" : "s"}
+            </span>
+            {inDecks.map((deck) => (
+              <Link key={deck.id} href={`/community/d/${deck.id}`} className={styles.inDecksChip}>
+                {deck.title}
+              </Link>
+            ))}
+          </div>
+        )}
 
         {(pattern.provenance.madeHowLabel || pattern.provenance.signals.length > 0) && (
           <div className={styles.provenance}>
