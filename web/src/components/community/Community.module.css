@@ -3474,6 +3474,102 @@
   color: var(--pfc-on-led);
 }
 
+/* ── Territory editor (admin) ──
+   A miniature of the constellation you can click, and a list you expand in
+   place. Editing the map inside a modal would mean not seeing the map. */
+
+.adminStage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1440 / 640;
+  min-height: 220px;
+  border: 1px solid var(--pfc-hair);
+  background-color: var(--pfc-ground);
+  background-image: radial-gradient(rgba(244, 239, 230, 0.05) 1px, transparent 1px);
+  background-size: 26px 26px;
+  overflow: hidden;
+}
+
+/* Armed = a territory is open, so a click means "put it here". */
+.adminStage[data-armed="true"] {
+  cursor: crosshair;
+  border-color: var(--pfc-led-edge);
+}
+
+.adminStageCore {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 46px;
+  transform: translate(-50%, -50%);
+  background: var(--pfc-well);
+  border: 1px solid rgba(244, 239, 230, 0.35);
+  box-shadow: 0 0 30px rgba(232, 85, 46, 0.25);
+}
+
+.adminStageNode {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 3px 7px;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pfc-ink-muted);
+  background: var(--pfc-panel);
+  border: 1px solid var(--pfc-hair);
+  pointer-events: none;
+  transition: left 160ms ease, top 160ms ease;
+}
+
+.adminStageNode[data-active="true"] {
+  color: var(--pfc-on-led);
+  background: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+.adminList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adminRow {
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-panel);
+}
+
+.adminRow[data-open="true"] {
+  border-color: var(--pfc-edge-strong);
+}
+
+.adminRowHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+
+.adminRowBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--pfc-hair-soft);
+  margin-top: 2px;
+  padding-top: 14px;
+}
+
+/* Inside a row, a field takes what it needs; the title one takes the rest. */
+.fieldWide {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── Latest strip ──
    The newest threads anywhere, one line each, above the geography. */
 

@@ -513,6 +513,22 @@ export async function listTerritories(): Promise<TerritoryListItem[]> {
     .orderBy(territories.position, territories.code);
 }
 
+/**
+ * Every territory including archived ones, for the editor.
+ *
+ * The public list hides archived rows because they are not places to go any
+ * more; the editor must show them because "un-retire this" is one of the
+ * things it exists to let you do.
+ */
+export async function listTerritoriesForAdmin(): Promise<
+  (TerritoryListItem & { archivedAt: Date | null })[]
+> {
+  return getDb()
+    .select({ ...territoryColumns, archivedAt: territories.archivedAt })
+    .from(territories)
+    .orderBy(territories.position, territories.code);
+}
+
 export async function getTerritoryByCode(code: string): Promise<TerritoryListItem | null> {
   const rows = await getDb()
     .select(territoryColumns)

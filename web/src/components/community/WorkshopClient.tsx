@@ -81,6 +81,7 @@ export default function WorkshopClient({
   viewerId,
   myPinCodes,
   recent = [],
+  isAdmin = false,
 }: {
   territories: TerritoryListItem[];
   selected: TerritoryListItem | null;
@@ -90,6 +91,8 @@ export default function WorkshopClient({
   myPinCodes: string[];
   /** Newest threads anywhere — rendered as the strip under the header. */
   recent?: RecentThreadView[];
+  /** Moderators get a way out of the empty state. */
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -219,6 +222,13 @@ export default function WorkshopClient({
             take Patternflow in, like putting it on a bigger panel or driving it over a wire.
             Once there are some, this is where you say which one you are working on.
           </span>
+          {/* If the person reading this is the one who can fix it, say so. It
+              used to be a dead end for exactly the wrong audience. */}
+          {isAdmin && (
+            <Link href="/community/territories" className={styles.emptyCta}>
+              Draw the first one →
+            </Link>
+          )}
         </div>
       </div>
     );

@@ -115,6 +115,58 @@ export function cleanTerritoryCode(raw: unknown): string | null {
   return TERRITORY_CODE_RE.test(code) ? code : null;
 }
 
+/** Every cleaner below returns `undefined` for "the caller sent something
+ *  unusable" and a value (or null, where null is legal) otherwise — same
+ *  convention as validate.ts, so route handlers read the same way. */
+
+export function cleanTerritoryTitle(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const title = raw.trim().replace(/\s+/g, " ");
+  if (title.length === 0 || title.length > TERRITORY_TITLE_MAX) return undefined;
+  return title;
+}
+
+export function cleanTerritoryDescription(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const description = raw.trim();
+  if (description.length === 0) return null;
+  return description.length <= TERRITORY_DESC_MAX ? description : undefined;
+}
+
+/** Floor-plan width, in columns of six. */
+export function cleanSpan(raw: unknown): number | undefined {
+  const span = Math.round(Number(raw));
+  if (!Number.isFinite(span) || span < SPAN_MIN || span > SPAN_MAX) return undefined;
+  return span;
+}
+
+/**
+ * A constellation coordinate, clamped rather than rejected: the editor places
+ * nodes by clicking a stage, and a click a pixel outside it is a slip, not an
+ * error worth refusing a save over.
+ */
+export function cleanStageCoord(raw: unknown, axis: "x" | "y"): number | undefined {
+  const value = Math.round(Number(raw));
+  if (!Number.isFinite(value)) return undefined;
+  const max = axis === "x" ? STAGE_WIDTH : STAGE_HEIGHT;
+  return Math.max(0, Math.min(max, value));
+}
+
+/** The open-questions textarea: one per line, at most four (parseQuestions
+ *  reads the same cap, so anything beyond it would be silently invisible). */
+export function cleanQuestions(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const lines = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 4);
+  if (lines.some((line) => line.length > 40)) return undefined;
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
 export function cleanPinNote(raw: unknown): string | null | undefined {
   if (raw === undefined || raw === null) return null;
   if (typeof raw !== "string") return undefined;
