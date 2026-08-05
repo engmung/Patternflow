@@ -6,6 +6,25 @@ const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   // Native module — must stay a runtime require, not a bundled dependency.
   serverExternalPackages: ["better-sqlite3"],
+  // Testing anything touch-shaped means opening `next dev` from a phone, at
+  // this machine's address on the network rather than at localhost. Next
+  // blocks cross-origin requests to /_next/* by default, and the symptom is
+  // not an error page: the HTML server-renders, the bundle loads, React never
+  // hydrates, and every pattern card sits at "rendering…" forever with no
+  // clue why. Private ranges are allowed here so that just works; add a
+  // tunnel host or anything else with NEXT_DEV_ORIGINS=a.example,b.example.
+  // Development only — this has no effect on a production build.
+  allowedDevOrigins: [
+    "192.168.*.*",
+    "10.*.*.*",
+    "172.16.*.*",
+    "100.*.*.*", // Tailscale
+    "*.local",
+    ...(process.env.NEXT_DEV_ORIGINS ?? "")
+      .split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
+  ],
   async redirects() {
     return [
       {

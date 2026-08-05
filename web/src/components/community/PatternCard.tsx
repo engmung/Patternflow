@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
@@ -202,13 +203,14 @@ export default function PatternCard({
   // viewport. An infinite feed accumulates hundreds of cards, and an iframe
   // is a whole document with a canvas — warming all of them would be
   // hundreds of live frames. Two thresholds with a wide gap between them:
-  // approach within 300px and the iframe boots (cheap — the sandbox document
-  // is immutable-cached); fall more than ~2 screens behind and it is torn
-  // down. The gap is hysteresis, so a card at the boundary does not flap
-  // while you scroll past it.
+  // approach and the iframe boots (cheap — the sandbox document is
+  // immutable-cached); fall far enough behind and it is torn down. The gap is
+  // hysteresis, so a card at the boundary does not flap while you scroll past
+  // it. A phone keeps a shorter tail: its cards are a third the size, so the
+  // desktop's two-and-a-bit screens of slack would be thirty live documents
+  // on the device least able to hold them.
   const [warm, setWarm] = useState(false);
   useEffect(() => {
-    if (!interactive) return;
     const el = thumbRef.current;
     if (!el) return;
     const warmObserver = new IntersectionObserver(
@@ -221,7 +223,7 @@ export default function PatternCard({
       (entries) => {
         if (entries.some((entry) => !entry.isIntersecting)) setWarm(false);
       },
-      { rootMargin: "2400px 0px" },
+      { rootMargin: interactive ? "2400px 0px" : "900px 0px" },
     );
     warmObserver.observe(el);
     coolObserver.observe(el);
@@ -230,6 +232,39 @@ export default function PatternCard({
       coolObserver.disconnect();
     };
   }, [interactive]);
+
+  // ── On screen, playing ──
+  // A phone has no hover, and asking for a gesture first (hold, tap, whatever)
+  // means the feature has to be advertised before anybody meets it. So the
+  // wall simply plays: a card runs while it is actually on screen and pauses
+  // the moment it leaves. That bounds the cost to what the screen can show —
+  // measured at 375x812, three columns of 109x257 cards, about nine to twelve
+  // at once — rather than to how far the feed has been scrolled.
+  //
+  // Paused, not unmounted: leaving the iframe up means scrolling back is
+  // instant, and a paused sandbox costs nothing per frame. Unmounting is the
+  // cool observer's job, further out.
+  const [onScreen, setOnScreen] = useState(false);
+  useEffect(() => {
+    if (interactive) return; // the desktop's cue is the cursor
+    const el = thumbRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const last = entries[entries.length - 1];
+        if (last) setOnScreen(last.isIntersecting);
+      },
+      // No margin: "on screen" means on screen. A card half out of frame is
+      // still worth playing, hence a zero threshold rather than a fraction.
+      { rootMargin: "0px", threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [interactive]);
+
+  // Someone who has asked the OS for less motion has asked for less of this.
+  const stillPreferred = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const playing = interactive ? isHovered : onScreen && !stillPreferred;
 
   // Initial static thumbnail
   useEffect(() => {
@@ -367,14 +402,15 @@ export default function PatternCard({
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Live sandbox, pre-warmed while the card is near the viewport so
-              a hover plays instantly. */}
-          {interactive && warm && (
+          {/* Live sandbox, booted while the card is near the viewport so that
+              a hover — or, on a phone, simply scrolling it into frame —
+              plays instantly rather than after a document load. */}
+          {warm && (
             <SandboxPreview
               code={item.code}
               knobValues={knobValues}
               knobRanges={knobSetup.ranges}
-              running={isHovered}
+              running={playing}
               className={styles.cardHoverIframe}
             />
           )}

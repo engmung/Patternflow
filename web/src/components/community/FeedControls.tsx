@@ -86,6 +86,9 @@ export default function FeedControls({
       <span className={styles.zoomHint}>
         Ctrl + scroll to resize · scroll on a screen to turn its knobs · hover to play
       </span>
+
+      {/* No mobile twin: on a phone every card on screen is already playing,
+          so there is no gesture left to advertise. */}
     </div>
   );
 }

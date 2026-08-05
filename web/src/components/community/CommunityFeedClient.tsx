@@ -31,6 +31,27 @@ import styles from "./Community.module.css";
 // de-duplicated by id: the feed is newest-first, so anything published while
 // you scroll shifts the offsets and would otherwise repeat a card.
 
+// ── Coming back ──
+// The feed is grown by the client, so a back navigation gets the first batch
+// again: the document is suddenly short, whatever scroll position the browser
+// remembered is clamped to its new bottom, and you land near the top. So the
+// feed remembers how far it had grown and where you were reading, rebuilds
+// that much, and puts you back.
+//
+// The moment it records is opening a pattern — not scrolling. That is what
+// makes it a RETURN rather than a visit: tapping "Patterns" in the tab bar
+// still gives a feed at the top, because nothing was recorded on the way in.
+// (popstate looks like the obvious signal and is not: it fired correctly in
+// testing and the restore still never ran, so the flag it set was not the one
+// the remounted component read. A click is unambiguous and needs no ordering
+// to be true.) The note is consumed on arrival, so it restores exactly once.
+const PLACE_KEY_PREFIX = "pf-feed-place";
+
+/** Don't rebuild an unbounded feed to restore a position in it. */
+const MAX_RESTORED_ITEMS = 300;
+
+type FeedPlace = { count: number; y: number };
+
 function useResponsiveCardsPerRow(
   containerRef: React.RefObject<HTMLDivElement | null>,
   slot: number,
@@ -169,6 +190,104 @@ export default function CommunityFeedClient({
     }
   }, [cardsPerRow, batchRows, sort, hardwareOnly]);
 
+  // Where you were, per view: sort and filter each make a different feed, and
+  // a position in one means nothing in another.
+  const placeKey = `${PLACE_KEY_PREFIX}:${sort}:${hardwareOnly ? "hw" : "all"}`;
+
+  // Opening a pattern is the only thing that writes a place. Captured on the
+  // way down so it runs before the router leaves, and read off the event
+  // rather than bound per card — the grid is rebuilt on every append.
+  const rememberPlace = (event: React.MouseEvent) => {
+    const link = (event.target as HTMLElement).closest?.("a[href]");
+    if (!link?.getAttribute("href")?.startsWith("/community/p/")) return;
+    const place: FeedPlace = { count: itemsRef.current.length, y: window.scrollY };
+    try {
+      if (place.y > 0) sessionStorage.setItem(placeKey, JSON.stringify(place));
+      else sessionStorage.removeItem(placeKey);
+    } catch {
+      // Private mode, quota, whatever — losing your place is not an error
+      // worth showing anybody.
+    }
+  };
+
+  // …and put it back, once.
+  //
+  // Held in a ref because loadMore's identity changes the moment the grid
+  // measures itself (cardsPerRow 6 -> 3 on a phone). Depending on it here
+  // re-ran this effect mid-restore, whose cleanup cancelled the rebuild it
+  // had just started — the feed stopped a batch or two short and the scroll
+  // landed clamped, which looked exactly like "restore doesn't work".
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  });
+
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    let place: FeedPlace | null = null;
+    try {
+      const raw = sessionStorage.getItem(placeKey);
+      // Consumed on arrival: coming back restores, and everything after that
+      // — a reload, a later visit — starts at the top like any other feed.
+      sessionStorage.removeItem(placeKey);
+      place = raw ? (JSON.parse(raw) as FeedPlace) : null;
+    } catch {
+      place = null;
+    }
+    if (!place || !(place.y > 0)) return;
+    const want = Math.min(place.count, MAX_RESTORED_ITEMS);
+
+    // No cleanup flag, deliberately. React runs an effect, tears it down and
+    // runs it again on every mount in development — so a rebuild that aborts
+    // in its own cleanup aborts every single time, while the note it had
+    // already consumed is gone. That is what "restore does nothing" was. The
+    // ref guard is enough: this runs once per mount either way, and the only
+    // thing it touches after a real unmount is a scroll position, so it
+    // checks the feed is still on screen instead.
+    void (async () => {
+      // Rebuild to the length the feed had.
+      //
+      // The sentinel is loading at the same time, and loadMore refuses to run
+      // while a batch is in flight — so a call that returns with nothing added
+      // usually means "somebody else is fetching", not "there is no more".
+      // Reading that as a dead end stopped the feed a batch or two short and
+      // left the scroll clamped. Wait it out; give up only on a real stall.
+      const deadline = Date.now() + 6000;
+      let stalls = 0;
+      while (!doneRef.current && itemsRef.current.length < want) {
+        if (Date.now() > deadline) break;
+        const before = itemsRef.current.length;
+        if (busyRef.current) await new Promise((resolve) => setTimeout(resolve, 60));
+        else await loadMoreRef.current();
+        if (itemsRef.current.length === before) {
+          stalls += 1;
+          if (stalls > 40) break;
+        } else {
+          stalls = 0;
+        }
+      }
+      // Two frames: one for React to commit the appended cards, one for the
+      // grid to lay them out. Scrolling before that lands short. And the
+      // browser has its own idea about this history entry — it restores a
+      // position clamped to the short document it arrived at — so this has to
+      // come after that, and then once more in case the last batch was still
+      // committing.
+      const settle = () => {
+        if (wrapperRef.current?.isConnected) window.scrollTo(0, place.y);
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          settle();
+          window.setTimeout(settle, 120);
+          window.setTimeout(settle, 400);
+        });
+      });
+    })();
+  }, [placeKey]);
+
   // The sentinel drives loading. One subtlety: after an append the sentinel
   // can STILL be inside the viewport (short feed, tall screen), and an
   // observer only fires on crossings — so keep loading while it shows.
@@ -203,7 +322,12 @@ export default function CommunityFeedClient({
   }, [loadMore]);
 
   return (
-    <div ref={wrapperRef} className={styles.feedWrapper} id="wall">
+    <div
+      ref={wrapperRef}
+      className={styles.feedWrapper}
+      id="wall"
+      onClickCapture={rememberPlace}
+    >
       <FeedControls sort={sort} hardwareOnly={hardwareOnly} total={total} />
 
       {total === 0 ? (
