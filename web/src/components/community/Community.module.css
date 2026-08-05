@@ -2407,6 +2407,12 @@
   color: var(--pfc-ink-muted);
 }
 
+/* A hint that has turned into "this will not save". Same slot, so the field
+   does not reflow when it flips — only the colour changes. */
+.fieldHint[data-trouble="true"] {
+  color: var(--pfc-danger);
+}
+
 .formError {
   padding: 8px 10px;
   background: rgba(232, 107, 94, 0.1);
@@ -3579,6 +3585,16 @@
   padding-top: 14px;
 }
 
+/* Refusals live in the row that caused them, not in a banner at the top of a
+   list you have already scrolled past. */
+.adminRow .formError {
+  margin: 0 14px 14px;
+}
+
+.adminRow[data-open="true"] .formError {
+  margin-top: -2px;
+}
+
 /* Inside a row, a field takes what it needs; the title one takes the rest. */
 .fieldWide {
   flex: 1;
@@ -3762,6 +3778,7 @@
   flex-wrap: wrap;
   gap: 5px;
   margin-top: 2px;
+  min-width: 0;
 }
 
 .nodeQuestions span {
@@ -3771,6 +3788,13 @@
   color: var(--pfc-led);
   border: 1px dashed var(--pfc-led-edge);
   padding: 2px 7px;
+  /* The node is a fixed 196px and flex-wrap only breaks BETWEEN chips, so a
+     real question ("128×128 without a frame buffer?") used to hang out over
+     its neighbours. It wraps inside its own dashes instead — the node grows a
+     line, and only while it is the selected one. */
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
 .stageLegend {

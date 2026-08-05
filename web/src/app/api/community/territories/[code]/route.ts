@@ -4,12 +4,15 @@ import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import {
+  QUESTION_MAX,
+  TERRITORY_DESC_MAX,
   cleanQuestions,
   cleanSpan,
   cleanStageCoord,
   cleanTerritoryCode,
   cleanTerritoryDescription,
   cleanTerritoryTitle,
+  overlongQuestion,
 } from "@/lib/community/workshop";
 import { getTerritoryByCode } from "@/lib/community/queries";
 import { territories } from "@/lib/community/schema";
@@ -95,14 +98,34 @@ async function handlePatch(request: Request, context: Context) {
   if (raw.description !== undefined) {
     const description = cleanTerritoryDescription(raw.description);
     if (description === undefined) {
-      return Response.json({ error: "That description is too long." }, { status: 400 });
+      return Response.json(
+        {
+          error:
+            `A description is at most ${TERRITORY_DESC_MAX} characters — that one is ` +
+            `${typeof raw.description === "string" ? raw.description.trim().length : "?"}.`,
+        },
+        { status: 400 },
+      );
     }
     patch.description = description;
   }
   if (raw.questions !== undefined) {
     const questions = cleanQuestions(raw.questions);
     if (questions === undefined) {
-      return Response.json({ error: "Questions are one short line each." }, { status: 400 });
+      // Say WHICH line. The editor sends every field in one body, so a refusal
+      // here takes the description edit down with it, and "questions are one
+      // short line each" leaves you re-reading four lines to find the culprit.
+      const offender = overlongQuestion(raw.questions);
+      return Response.json(
+        {
+          error: offender
+            ? `“${offender.slice(0, 24)}…” is ${offender.length} characters. ` +
+              `A question hangs off the node as a chip, so it has to fit in ${QUESTION_MAX} — ` +
+              "put the long version in a thread."
+            : `Questions are one line each, ${QUESTION_MAX} characters at most.`,
+        },
+        { status: 400 },
+      );
     }
     patch.questions = questions;
   }

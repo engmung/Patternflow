@@ -17,6 +17,12 @@ export const TERRITORY_DESC_MAX = 240;
  *  on purpose — the thread is where the explaining goes. */
 export const PIN_NOTE_MAX = 60;
 
+/** Open questions: dashed chips hanging off a node, so they stay label-length.
+ *  Exported because the editor has to enforce the same cap the route does — a
+ *  limit only the server knows about is a limit that shows up as a 400. */
+export const QUESTIONS_MAX = 4;
+export const QUESTION_MAX = 60;
+
 /** The constellation stage, in the design's coordinates. Node positions are
  *  stored against this and scaled to whatever the viewport turns out to be. */
 export const STAGE_WIDTH = 1440;
@@ -153,8 +159,15 @@ export function cleanStageCoord(raw: unknown, axis: "x" | "y"): number | undefin
   return Math.max(0, Math.min(max, value));
 }
 
-/** The open-questions textarea: one per line, at most four (parseQuestions
- *  reads the same cap, so anything beyond it would be silently invisible). */
+/**
+ * The open-questions textarea: one per line, at most four (parseQuestions reads
+ * the same cap, so anything beyond it would be silently invisible).
+ *
+ * Extra lines are DROPPED but a long line is REFUSED, and the asymmetry is
+ * deliberate: the fifth question is still there in the textarea to be moved into
+ * a thread, whereas silently trimming a sentence to fit a chip would publish
+ * half of what somebody wrote under their name.
+ */
 export function cleanQuestions(raw: unknown): string | null | undefined {
   if (raw === undefined || raw === null) return null;
   if (typeof raw !== "string") return undefined;
@@ -162,9 +175,22 @@ export function cleanQuestions(raw: unknown): string | null | undefined {
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .slice(0, 4);
-  if (lines.some((line) => line.length > 40)) return undefined;
+    .slice(0, QUESTIONS_MAX);
+  if (lines.some((line) => line.length > QUESTION_MAX)) return undefined;
   return lines.length > 0 ? lines.join("\n") : null;
+}
+
+/** The over-long question, for an error message that says which one. Kept next
+ *  to the cleaner so the two cannot drift apart. */
+export function overlongQuestion(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  return (
+    raw
+      .split("\n")
+      .map((line) => line.trim())
+      .slice(0, QUESTIONS_MAX)
+      .find((line) => line.length > QUESTION_MAX) ?? null
+  );
 }
 
 export function cleanPinNote(raw: unknown): string | null | undefined {
@@ -183,7 +209,7 @@ export function parseQuestions(raw: string | null): string[] {
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .slice(0, 4);
+    .slice(0, QUESTIONS_MAX);
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
