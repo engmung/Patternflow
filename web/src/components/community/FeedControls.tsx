@@ -87,9 +87,8 @@ export default function FeedControls({
         Ctrl + scroll to resize · scroll on a screen to turn its knobs · hover to play
       </span>
 
-      {/* Its mobile twin. A press-and-hold has no widget either, and a wall of
-          stills gives nobody a reason to try one. */}
-      <span className={styles.touchHint}>Hold a pattern to play it</span>
+      {/* No mobile twin: on a phone every card on screen is already playing,
+          so there is no gesture left to advertise. */}
     </div>
   );
 }

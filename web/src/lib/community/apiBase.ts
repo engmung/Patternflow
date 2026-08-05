@@ -68,6 +68,18 @@ export function crossOriginCommunityBase(): string | null {
   if (typeof window === "undefined") return null;
   const origin = configuredOrigin();
   if (!origin || origin === window.location.origin) return null;
+  // A dev env file names localhost because that is where the dev server runs.
+  // Open the same server from a phone on the network and the page is not on
+  // localhost — so this rewrite would send its API calls to the phone itself,
+  // and the feed stops loading after the first batch with nothing in the UI to
+  // explain it. In development a localhost target means "wherever this page
+  // came from". Production is untouched: there the two origins are real.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(origin)
+  ) {
+    return null;
+  }
   return origin;
 }
 

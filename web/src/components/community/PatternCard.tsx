@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
@@ -71,24 +72,6 @@ export function freshAge(iso: string, now: number = Date.now()): string | null {
 }
 
 
-/* ── Press and hold ──
-   What hover is on a desktop, a long press is on a phone: the pattern starts
-   playing where it sits instead of making you open it to find out what it
-   does. Held cards stay playing after you lift — a thumb covers half a card,
-   so "live only while pressed" would mean never actually seeing it — and go
-   back to a still when another card takes over, when you press them again, or
-   when they scroll away.
-
-   Only one plays at a time. Each live card is a whole sandboxed document with
-   a canvas in it, and a feed is infinite. */
-const HOLD_EVENT = "pf-card-hold";
-
-/** Long enough not to fire on a tap, short enough not to feel broken. */
-const HOLD_MS = 350;
-
-/** Past this the finger is scrolling, not pressing. */
-const HOLD_SLOP_PX = 10;
-
 /** The deck needs a pattern's firmware header, which a card does not carry. */
 async function fetchPatternHeader(patternId: string) {
   const response = await fetch(
@@ -133,8 +116,6 @@ export default function PatternCard({
 
   // Hover & Live state
   const [isHovered, setIsHovered] = useState(false);
-  // The phone's answer to hover — see HOLD_EVENT above.
-  const [held, setHeld] = useState(false);
   const [isScreenHovered, setIsScreenHovered] = useState(false);
   const [overlayPos, setOverlayPos] = useState<"bottom" | "top">("bottom");
 
@@ -222,13 +203,14 @@ export default function PatternCard({
   // viewport. An infinite feed accumulates hundreds of cards, and an iframe
   // is a whole document with a canvas — warming all of them would be
   // hundreds of live frames. Two thresholds with a wide gap between them:
-  // approach within 300px and the iframe boots (cheap — the sandbox document
-  // is immutable-cached); fall more than ~2 screens behind and it is torn
-  // down. The gap is hysteresis, so a card at the boundary does not flap
-  // while you scroll past it.
+  // approach and the iframe boots (cheap — the sandbox document is
+  // immutable-cached); fall far enough behind and it is torn down. The gap is
+  // hysteresis, so a card at the boundary does not flap while you scroll past
+  // it. A phone keeps a shorter tail: its cards are a third the size, so the
+  // desktop's two-and-a-bit screens of slack would be thirty live documents
+  // on the device least able to hold them.
   const [warm, setWarm] = useState(false);
   useEffect(() => {
-    if (!interactive) return;
     const el = thumbRef.current;
     if (!el) return;
     const warmObserver = new IntersectionObserver(
@@ -241,7 +223,7 @@ export default function PatternCard({
       (entries) => {
         if (entries.some((entry) => !entry.isIntersecting)) setWarm(false);
       },
-      { rootMargin: "2400px 0px" },
+      { rootMargin: interactive ? "2400px 0px" : "900px 0px" },
     );
     warmObserver.observe(el);
     coolObserver.observe(el);
@@ -251,83 +233,38 @@ export default function PatternCard({
     };
   }, [interactive]);
 
-  // ── Press and hold (phones) ──
-  const holdTimer = useRef<number | null>(null);
-  const holdFrom = useRef<{ x: number; y: number } | null>(null);
-  // A long press ends in a click like any other press. That click must not
-  // open the pattern — you asked to watch it here.
-  const swallowClick = useRef(false);
-
-  // `held` also lives in a ref, so the toggle can read the current value
-  // without a setState updater. Updaters run during render and React calls
-  // them more than once — putting the "tell everyone else" broadcast inside
-  // one fired it mid-render, which both warned ("cannot update a component
-  // while rendering a different component") and re-ran the toggle, so the
-  // gesture worked exactly once per page.
-  const heldRef = useRef(false);
-  const setHeldTo = useCallback((next: boolean) => {
-    heldRef.current = next;
-    setHeld(next);
-  }, []);
-
-  const cancelHold = () => {
-    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-    holdFrom.current = null;
-  };
-
-  const handlePointerDown = (event: React.PointerEvent) => {
-    // Desktop already has hover; a mouse press here is someone dragging a card
-    // to the dock or reaching for the "+".
-    if (interactive || event.pointerType === "mouse") return;
-    if ((event.target as HTMLElement).closest("button")) return;
-    swallowClick.current = false;
-    // Clear first: cancelHold() drops the origin too, so recording it before
-    // this call left nothing for the move handler to measure against and the
-    // press survived being scrolled away from.
-    cancelHold();
-    holdFrom.current = { x: event.clientX, y: event.clientY };
-    holdTimer.current = window.setTimeout(() => {
-      holdTimer.current = null;
-      swallowClick.current = true;
-      // Pressing a playing card again puts it back to a still — the same
-      // gesture both ways, so there is nothing extra to learn.
-      const next = !heldRef.current;
-      setHeldTo(next);
-      if (next) window.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: item.id }));
-    }, HOLD_MS);
-  };
-
-  const handlePointerMove = (event: React.PointerEvent) => {
-    const from = holdFrom.current;
-    if (!from) return;
-    if (Math.hypot(event.clientX - from.x, event.clientY - from.y) > HOLD_SLOP_PX) cancelHold();
-  };
-
-  // Everyone else stands down when a card starts playing.
+  // ── On screen, playing ──
+  // A phone has no hover, and asking for a gesture first (hold, tap, whatever)
+  // means the feature has to be advertised before anybody meets it. So the
+  // wall simply plays: a card runs while it is actually on screen and pauses
+  // the moment it leaves. That bounds the cost to what the screen can show —
+  // measured at 375x812, three columns of 109x257 cards, about nine to twelve
+  // at once — rather than to how far the feed has been scrolled.
+  //
+  // Paused, not unmounted: leaving the iframe up means scrolling back is
+  // instant, and a paused sandbox costs nothing per frame. Unmounting is the
+  // cool observer's job, further out.
+  const [onScreen, setOnScreen] = useState(false);
   useEffect(() => {
-    const onOther = (event: Event) => {
-      if ((event as CustomEvent<string>).detail !== item.id) setHeldTo(false);
-    };
-    window.addEventListener(HOLD_EVENT, onOther);
-    return () => window.removeEventListener(HOLD_EVENT, onOther);
-  }, [item.id, setHeldTo]);
-
-  // Nothing on a phone reports that the finger left, so the viewport does it:
-  // a card you have scrolled past is not one you are watching.
-  useEffect(() => {
-    if (!held) return;
+    if (interactive) return; // the desktop's cue is the cursor
     const el = thumbRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.every((entry) => !entry.isIntersecting)) setHeldTo(false);
+        const last = entries[entries.length - 1];
+        if (last) setOnScreen(last.isIntersecting);
       },
-      { rootMargin: "200px 0px" },
+      // No margin: "on screen" means on screen. A card half out of frame is
+      // still worth playing, hence a zero threshold rather than a fraction.
+      { rootMargin: "0px", threshold: 0 },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [held, setHeldTo]);
+  }, [interactive]);
+
+  // Someone who has asked the OS for less motion has asked for less of this.
+  const stillPreferred = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const playing = interactive ? isHovered : onScreen && !stillPreferred;
 
   // Initial static thumbnail
   useEffect(() => {
@@ -431,15 +368,9 @@ export default function PatternCard({
       ref={rootRef}
       href={detailUrl}
       className={styles.card}
-      data-held={held || undefined}
       onMouseEnter={interactive ? handleCardMouseEnter : undefined}
       onMouseLeave={interactive ? handleCardMouseLeave : undefined}
       onDragStart={handleDragStart}
-      onClick={(event) => {
-        if (!swallowClick.current) return;
-        swallowClick.current = false;
-        event.preventDefault();
-      }}
     >
       {/* 1:2 Vertical Matrix Display Screen */}
       <div
@@ -449,14 +380,6 @@ export default function PatternCard({
         onMouseLeave={interactive ? handleThumbMouseLeave : undefined}
         onMouseMove={interactive ? handleMouseMove : undefined}
         onWheel={interactive ? handleWheel : undefined}
-        onPointerDown={interactive ? undefined : handlePointerDown}
-        onPointerMove={interactive ? undefined : handlePointerMove}
-        onPointerUp={interactive ? undefined : cancelHold}
-        onPointerCancel={interactive ? undefined : cancelHold}
-        // Android offers to open the link in a new tab on a long press, and
-        // iOS opens its own preview sheet. Both are this gesture's answer to
-        // the wrong question. (The callout is CSS — see .cardThumb.)
-        onContextMenu={interactive ? undefined : (event) => event.preventDefault()}
       >
         {/* Badges live ON the canvas now: the card has no border and no
             panel, so there is no furniture left to hang them from — and
@@ -479,15 +402,15 @@ export default function PatternCard({
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Live sandbox, pre-warmed while the card is near the viewport so
-              a hover plays instantly. On a phone nothing is warmed in advance
-              — the press is the request, and it is one card, not a screenful. */}
-          {((interactive && warm) || held) && (
+          {/* Live sandbox, booted while the card is near the viewport so that
+              a hover — or, on a phone, simply scrolling it into frame —
+              plays instantly rather than after a document load. */}
+          {warm && (
             <SandboxPreview
               code={item.code}
               knobValues={knobValues}
               knobRanges={knobSetup.ranges}
-              running={isHovered || held}
+              running={playing}
               className={styles.cardHoverIframe}
             />
           )}
