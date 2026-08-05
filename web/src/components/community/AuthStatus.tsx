@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import AuthModal from "./AuthModal";
+import SignOutLink from "./SignOutLink";
 import styles from "./Community.module.css";
 
 // Header widget: signed-out → "Sign in" button; signed-in → username link
@@ -30,18 +31,9 @@ export default function AuthStatus() {
           <Link href={`/community/u/${username ?? ""}`} className={styles.userChip}>
             @{displayName}
           </Link>
-          {/* Signing out is necessary and almost never wanted, so it recedes to
-              a faint mono link beside the handle rather than taking a button's
-              weight next to the one CTA the header is built around. */}
-          <button
-            type="button"
-            className={styles.signOutLink}
-            onClick={() => {
-              void authClient.signOut().then(() => router.refresh());
-            }}
-          >
-            sign out
-          </button>
+          {/* Hidden on a phone, where it lives on your own profile instead —
+              see SignOutLink. */}
+          <SignOutLink />
         </div>
       ) : (
         <button type="button" className={styles.btn} onClick={() => setAuthOpen(true)}>

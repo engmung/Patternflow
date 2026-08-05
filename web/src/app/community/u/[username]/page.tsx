@@ -8,6 +8,7 @@ import { getUserByUsername, listDecksByUser, listPatternsByUser } from "@/lib/co
 import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
+import SignOutLink from "@/components/community/SignOutLink";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import styles from "@/components/community/Community.module.css";
 
@@ -75,9 +76,13 @@ export default async function CommunityUserPage(props: RouteParams) {
         </div>
         <span className={styles.headerSpacer} />
         {isSelf && (
-          <Link href="/pattern-lab" className={styles.btnAccent}>
-            Make &amp; publish ↗
-          </Link>
+          <div className={styles.profileSelfActions}>
+            <Link href="/pattern-lab" className={styles.btnAccent}>
+              Make &amp; publish ↗
+            </Link>
+            {/* Phone only — the header carries it everywhere else. */}
+            <SignOutLink className={styles.profileSignOut} />
+          </div>
         )}
       </header>
 
