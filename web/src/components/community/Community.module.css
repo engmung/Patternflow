@@ -589,6 +589,16 @@
   white-space: nowrap;
 }
 
+/* The same line for the other pointer. Exactly one of the two is ever on. */
+.touchHint {
+  display: none;
+  margin-left: auto;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+}
+
 /* ── Pattern card ── */
 
 .card {
@@ -614,6 +624,25 @@
 .card:hover .cardThumb {
   outline: 1px solid var(--pfc-edge);
   outline-offset: -1px;
+}
+
+/* Held on a phone: the same lit edge hover uses, in the accent. One card plays
+   at a time, and this is what says which. */
+.card[data-held] .cardThumb {
+  outline: 1px solid var(--pfc-led);
+  outline-offset: -1px;
+}
+
+/* Same definition of "mobile" the feed uses to drop the hover preview
+   (MOBILE_MEDIA_QUERY) — the two must not drift apart. */
+@media (max-width: 768px), (hover: none) {
+  /* A press long enough to start the pattern is also long enough for iOS to
+     offer its link preview and for the text magnifier to appear over the
+     badges. Neither is what the press meant. */
+  .cardThumb {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
 }
 
 .screenRotator {
@@ -4744,10 +4773,15 @@
   }
 
   /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
-     on a phone — the hint would advertise a gesture that does not exist. */
+     on a phone — the hint would advertise a gesture that does not exist. The
+     press-and-hold one takes its place. */
   .zoomHint,
   .controlRule {
     display: none;
+  }
+
+  .touchHint {
+    display: inline;
   }
 
   .deckGrid {
