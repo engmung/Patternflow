@@ -89,7 +89,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
                 className={styles.makeCta}
                 title="Open Pattern Lab — make a pattern and publish it here"
               >
-                Make &amp; publish — Pattern Lab ↗
+                Make<span className={styles.ctaRest}> &amp; publish — Pattern Lab</span> ↗
               </Link>
             ) : (
               <Link href="/pattern-lab" title="Open Pattern Lab editor">

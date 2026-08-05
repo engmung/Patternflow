@@ -3052,6 +3052,20 @@
   color: var(--pfc-ink-muted);
 }
 
+/* Your own profile's right-hand side: the CTA, and on a phone the sign-out
+   that the header cannot fit. */
+.profileSelfActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* Off by default — the header's copy is the one you see on a desktop. */
+.profileSignOut {
+  display: none;
+}
+
 /* A profile is an archive, so it wraps and scrolls — unlike the wall's
    zoomable grid. */
 .profileGrid {
@@ -4654,10 +4668,50 @@
     display: none;
   }
 
-  .makeCta {
+  /* Signed in this row carries five things — CTA, deck chip, Alerts, handle,
+     sign out — and it used to be an unwrappable 461px against a 343px content
+     box, which scrolled the whole page sideways on a phone. Wrapping is the
+     structural fix: no combination of labels can push the page wider than the
+     screen again. The measures below are what keep it to one line anyway. */
+  .headerNav {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 12px;
+    min-width: 0;
+    /* Right-aligned as a group. This used to be `margin-left: auto` on the CTA
+       itself, which was fine while the row could not wrap and disastrous once
+       it could: an auto margin swallows the line's free space, so the CTA sat
+       alone on row one and pushed everything else onto row two. */
     margin-left: auto;
+  }
+
+  .makeCta {
     font-size: 12px;
     padding: 8px 12px;
+  }
+
+  /* "Make ↗". The full sentence is a desktop measure — on a phone it alone was
+     212px, over half the screen. The title attribute still says the rest. */
+  .ctaRest {
+    display: none;
+  }
+
+  /* A handle can be any length; a header row cannot. */
+  .userChip {
+    max-width: 96px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The fifth item is what tipped the row onto a second line, and it is the
+     one the "You" tab already leads to. It moves to your own profile. */
+  .headerNav .signOutLink {
+    display: none;
+  }
+
+  .profileSignOut {
+    display: inline-block;
   }
 
   .pageBody {
