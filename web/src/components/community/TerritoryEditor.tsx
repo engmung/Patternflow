@@ -5,12 +5,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
+  QUESTIONS_MAX,
+  QUESTION_MAX,
   SPAN_MAX,
   SPAN_MIN,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   TERRITORY_DESC_MAX,
   TERRITORY_TITLE_MAX,
+  overlongQuestion,
 } from "@/lib/community/workshop";
 import styles from "./Community.module.css";
 
@@ -51,6 +54,12 @@ type Draft = {
   shippingNext: boolean;
 };
 
+/** A refusal, and which block on the page it belongs under. A single
+ *  page-level banner sat above a list tall enough to scroll: the save you were
+ *  looking at went quiet and the reason was off-screen, which reads as a
+ *  broken button rather than as an answer. */
+type Trouble = { scope: string; message: string } | null;
+
 const draftOf = (row: TerritoryRow): Draft => ({
   title: row.title,
   description: row.description ?? "",
@@ -67,7 +76,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
   const [openCode, setOpenCode] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [trouble, setTrouble] = useState<Trouble>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // The add form, closed until asked for.
@@ -78,15 +87,25 @@ export default function TerritoryEditor({ territories }: { territories: Territor
   const live = territories.filter((row) => !row.archived);
   const archived = territories.filter((row) => row.archived);
 
+  // The one field the route can refuse that a maxLength cannot prevent, so the
+  // editor has to work it out for itself.
+  const overlong = draft ? overlongQuestion(draft.questions) : null;
+  const extraQuestions = draft
+    ? Math.max(
+        0,
+        draft.questions.split("\n").filter((line) => line.trim().length > 0).length - QUESTIONS_MAX,
+      )
+    : 0;
+
   const open = (row: TerritoryRow) => {
     setOpenCode(row.code);
     setDraft(draftOf(row));
-    setError(null);
+    setTrouble(null);
   };
 
   const patch = async (code: string, body: Record<string, unknown>) => {
     setBusy(true);
-    setError(null);
+    setTrouble(null);
     try {
       const response = await fetch(communityApiUrl(`/api/community/territories/${code}`), {
         method: "PATCH",
@@ -96,13 +115,13 @@ export default function TerritoryEditor({ territories }: { territories: Territor
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(payload.error ?? "Could not save.");
+        setTrouble({ scope: code, message: payload.error ?? "Could not save." });
         return false;
       }
       router.refresh();
       return true;
     } catch {
-      setError("Network error.");
+      setTrouble({ scope: code, message: "Network error." });
       return false;
     } finally {
       setBusy(false);
@@ -116,7 +135,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
 
   const create = async () => {
     setBusy(true);
-    setError(null);
+    setTrouble(null);
     try {
       const response = await fetch(communityApiUrl("/api/community/territories"), {
         method: "POST",
@@ -126,7 +145,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
       });
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(payload.error ?? "Could not add it.");
+        setTrouble({ scope: "new", message: payload.error ?? "Could not add it." });
         return;
       }
       setNewCode("");
@@ -134,7 +153,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
       setAdding(false);
       router.refresh();
     } catch {
-      setError("Network error.");
+      setTrouble({ scope: "new", message: "Network error." });
     } finally {
       setBusy(false);
     }
@@ -142,7 +161,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
 
   const remove = async (code: string) => {
     setBusy(true);
-    setError(null);
+    setTrouble(null);
     try {
       const response = await fetch(communityApiUrl(`/api/community/territories/${code}`), {
         method: "DELETE",
@@ -151,14 +170,14 @@ export default function TerritoryEditor({ territories }: { territories: Territor
       const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
         // The route refuses when threads or pins hang off it, and says why.
-        setError(payload.error ?? "Could not remove it.");
+        setTrouble({ scope: code, message: payload.error ?? "Could not remove it." });
         return;
       }
       setConfirmDelete(null);
       setOpenCode(null);
       router.refresh();
     } catch {
-      setError("Network error.");
+      setTrouble({ scope: code, message: "Network error." });
     } finally {
       setBusy(false);
     }
@@ -189,8 +208,6 @@ export default function TerritoryEditor({ territories }: { territories: Territor
           See the workshop →
         </Link>
       </div>
-
-      {error && <div className={styles.formError}>{error}</div>}
 
       {/* Where the constellation puts things. Clicking sets the open
           territory's position; with nothing open it is just the picture. */}
@@ -247,7 +264,7 @@ export default function TerritoryEditor({ territories }: { territories: Territor
             className={styles.btn}
             onClick={() => {
               setAdding((was) => !was);
-              setError(null);
+              setTrouble(null);
             }}
           >
             {adding ? "Cancel" : "Add a direction"}
@@ -283,6 +300,9 @@ export default function TerritoryEditor({ territories }: { territories: Territor
               A letter and a number, like A1 or B3. The code goes in every thread URL under this
               direction, so it cannot be changed later — the rest can.
             </span>
+            {trouble?.scope === "new" && (
+              <div className={styles.formError}>{trouble.message}</div>
+            )}
             <div className={styles.composerActions}>
               <span className={styles.headerSpacer} />
               <button
@@ -358,6 +378,12 @@ export default function TerritoryEditor({ territories }: { territories: Territor
                       placeholder="What this direction is, in a sentence somebody could act on."
                       onChange={(event) => setDraft({ ...draft, description: event.target.value })}
                     />
+                    {/* maxLength stops the keystrokes silently, which feels like a
+                        broken keyboard unless you can see why. */}
+                    <span className={styles.fieldHint}>
+                      {draft.description.length} / {TERRITORY_DESC_MAX}
+                      {draft.description.length >= TERRITORY_DESC_MAX ? " — that is the lot" : ""}
+                    </span>
                   </label>
 
                   <label className={styles.field}>
@@ -369,10 +395,24 @@ export default function TerritoryEditor({ territories }: { territories: Territor
                       placeholder={"128×128?\nsteel front"}
                       onChange={(event) => setDraft({ ...draft, questions: event.target.value })}
                     />
-                    <span className={styles.fieldHint}>
-                      One per line, four at most — they hang off the node as dashed chips when it
-                      is selected.
-                    </span>
+                    {/* Checked here as well as in the route, because the whole
+                        draft goes up in one body: a question three characters
+                        too long used to take the description edit down with it,
+                        and say so in a banner three screens up. */}
+                    {overlong ? (
+                      <span className={styles.fieldHint} data-trouble="true">
+                        “{overlong.slice(0, 24)}…” is {overlong.length} characters. These hang off
+                        the node as chips, so {QUESTION_MAX} is the limit — the long version wants
+                        to be a thread.
+                      </span>
+                    ) : (
+                      <span className={styles.fieldHint}>
+                        One per line, {QUESTIONS_MAX} at most, {QUESTION_MAX} characters each —
+                        they hang off the node as dashed chips when it is selected.
+                        {extraQuestions > 0 &&
+                          ` Only the first ${QUESTIONS_MAX} will show; the rest stay here.`}
+                      </span>
+                    )}
                   </label>
 
                   <div className={styles.composerRow}>
@@ -449,13 +489,20 @@ export default function TerritoryEditor({ territories }: { territories: Territor
                     <button
                       type="button"
                       className={styles.btnAccent}
-                      disabled={busy || draft.title.trim().length === 0}
+                      disabled={busy || draft.title.trim().length === 0 || overlong !== null}
+                      title={overlong ? "One of the questions is too long to fit on the map" : undefined}
                       onClick={() => void save()}
                     >
                       {busy ? "Saving…" : "Save"}
                     </button>
                   </div>
                 </div>
+              )}
+
+              {/* Under the buttons that caused it — closed or open, this is the
+                  part of the row you were looking at. */}
+              {trouble?.scope === row.code && (
+                <div className={styles.formError}>{trouble.message}</div>
               )}
             </li>
           ))}
@@ -500,6 +547,9 @@ export default function TerritoryEditor({ territories }: { territories: Territor
                     Put it back
                   </button>
                 </div>
+                {trouble?.scope === row.code && (
+                  <div className={styles.formError}>{trouble.message}</div>
+                )}
               </li>
             ))}
           </ul>
