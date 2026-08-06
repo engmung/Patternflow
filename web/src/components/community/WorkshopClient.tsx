@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -34,6 +34,13 @@ import styles from "./Community.module.css";
 // browser — it is a reading preference and a shared link should not impose it.
 
 const VIEW_KEY = "pf-map-view";
+
+/** The constellation stops shrinking here and overflows into the pan instead —
+ *  below this, node labels stop being readable and the map stops being a map. */
+const MIN_SCALE = 0.8;
+/** And stops growing here: past it, extra width becomes quiet letterbox rather
+ *  than comedy-sized cards on an ultrawide. */
+const MAX_SCALE = 1.25;
 
 export type WorkshopPin = {
   userId: string;
@@ -458,14 +465,52 @@ function Constellation({
   const cx = STAGE_WIDTH / 2;
   const cy = STAGE_HEIGHT / 2;
 
+  // ── One picture, every viewport ────────────────────────────────────────────
+  // Everything on the map lives on a fixed 1440×640 WORLD, laid out in plain
+  // pixels, and the world is scaled uniformly to fit whatever box the page
+  // gives it — a game viewport, not a fluid layout.
+  //
+  // The previous approach positioned by percentage of the real box, and the
+  // real box does not keep the design's shape: min-height bends its aspect
+  // ratio, and the node cards are fixed-size while their spacing was not. So
+  // every viewport composed a different picture — cards overlapping here,
+  // hiding each other there. Uniform scale makes it the SAME picture, merely
+  // larger or smaller.
+  //
+  // Below MIN_SCALE the map stops shrinking (labels have to stay readable) and
+  // overflows instead; the pan bounds grow to exactly cover the overflow, so
+  // the hidden part is a drag away and the camera can still follow a walker
+  // into it.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageBox, setStageBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () => setStageBox({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = stageBox
+    ? Math.min(MAX_SCALE, Math.max(MIN_SCALE, stageBox.w / STAGE_WIDTH))
+    : 1;
+  const overflowX = stageBox ? Math.max(0, (STAGE_WIDTH * scale - stageBox.w) / 2) : 0;
+  const overflowY = stageBox ? Math.max(0, (STAGE_HEIGHT * scale - stageBox.h) / 2) : 0;
+
   // A node is 196px wide and centred on its coordinate, so one placed at the
-  // edge hangs half of itself outside the box. This is roughly that overhang,
-  // which is all the room the map needs to be fully readable — and little
-  // enough that you cannot push it somewhere you have to hunt for it.
-  const { surfaceRef, handlers, panning, didPan, follow } = useDragPan({ x: 140, y: 90 });
+  // edge hangs half of itself outside the world. The overhang allowance is
+  // that, scaled; the overflow term is the part of the world the viewport
+  // cannot show at once.
+  const { surfaceRef, handlers, panning, didPan, follow } = useDragPan({
+    x: overflowX + 140 * scale,
+    y: overflowY + 90 * scale,
+  });
 
   return (
     <div
+      ref={stageRef}
       className={styles.stage}
       data-panning={panning}
       {...handlers}
@@ -474,10 +519,13 @@ function Constellation({
       {/* Everything that moves. The legend stays outside it — it labels the
           map rather than living on it. */}
       <div className={styles.stagePan} ref={surfaceRef}>
+        <div
+          className={styles.stageWorld}
+          style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+        >
         <svg
           className={styles.stageLines}
           viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
-          preserveAspectRatio="none"
           aria-hidden="true"
         >
           {territories.map((territory) => (
@@ -508,9 +556,12 @@ function Constellation({
               type="button"
               className={styles.stageNode}
               data-active={active}
+              // The visible text is split across styled spans, which screen
+              // readers and the accessibility tree render as an unnamed button.
+              aria-label={`${territory.code} — ${territory.title}`}
               style={{
-                left: `${(territory.x / STAGE_WIDTH) * 100}%`,
-                top: `${(territory.y / STAGE_HEIGHT) * 100}%`,
+                left: `${territory.x}px`,
+                top: `${territory.y}px`,
               }}
               // Dragging the map from a node is the natural thing to do, so the
               // click that ends the drag must not also pick that node.
@@ -554,6 +605,7 @@ function Constellation({
           didPan={didPan}
           onWalk={follow}
         />
+        </div>
       </div>
 
       <div className={styles.stageLegend}>

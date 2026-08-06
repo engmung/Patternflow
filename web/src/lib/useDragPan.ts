@@ -56,19 +56,27 @@ export function useDragPan(bounds: Bounds) {
   // Set when a gesture turns out to be a pan, read by the click that follows.
   const panned = useRef(false);
 
-  // Synced in an effect rather than assigned during render: a ref written while
-  // rendering is a ref that can hold a value from a render that got thrown away.
-  const boundsRef = useRef(bounds);
-  useEffect(() => {
-    boundsRef.current = bounds;
-  }, [bounds]);
-
   const paint = useCallback(() => {
     const el = surface.current;
     if (!el) return;
     const { x, y } = offsetRef.current;
     el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   }, []);
+
+  // Synced in an effect rather than assigned during render: a ref written while
+  // rendering is a ref that can hold a value from a render that got thrown away.
+  // Bounds can SHRINK (the viewport grew, the world's overflow went away), so
+  // the offset is pulled back inside the new walls at the same moment.
+  const boundsRef = useRef(bounds);
+  useEffect(() => {
+    boundsRef.current = bounds;
+    const clampedX = Math.max(-bounds.x, Math.min(bounds.x, offsetRef.current.x));
+    const clampedY = Math.max(-bounds.y, Math.min(bounds.y, offsetRef.current.y));
+    if (clampedX !== offsetRef.current.x || clampedY !== offsetRef.current.y) {
+      offsetRef.current = { x: clampedX, y: clampedY };
+      paint();
+    }
+  }, [bounds, paint]);
 
   /** Move by a delta, clamped. Returns which axes hit the wall. */
   const nudge = useCallback(

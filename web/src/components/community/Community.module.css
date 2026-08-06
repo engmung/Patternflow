@@ -3700,6 +3700,19 @@
   will-change: transform;
 }
 
+/* The world: a fixed 1440×640 canvas everything on the map is laid out on in
+   plain pixels, scaled uniformly to the box (transform set inline). One
+   composition at every viewport — percentages of a box whose aspect bends
+   (min-height) made each screen size a different picture, with fixed-size
+   cards crowding on narrow ones. */
+.stageWorld {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1440px;
+  height: 640px;
+}
+
 .stageLines {
   position: absolute;
   inset: 0;

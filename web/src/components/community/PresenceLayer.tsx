@@ -122,8 +122,10 @@ export default function PresenceLayer({
   const paint = useCallback(() => {
     const el = meRef.current;
     if (!el) return;
-    el.style.left = `${(pos.current.x / STAGE_WIDTH) * 100}%`;
-    el.style.top = `${(pos.current.y / STAGE_HEIGHT) * 100}%`;
+    // World pixels: the layer lives on the fixed 1440x640 world and the
+    // world itself is what scales, so a position is just its coordinate.
+    el.style.left = `${pos.current.x}px`;
+    el.style.top = `${pos.current.y}px`;
   }, []);
 
   const persist = useCallback(
@@ -320,8 +322,8 @@ export default function PresenceLayer({
             key={`seed-${index}`}
             className={styles.presenceSeed}
             style={{
-              left: `${((cx + Math.cos(angle) * rx) / STAGE_WIDTH) * 100}%`,
-              top: `${((cy + Math.sin(angle) * ry) / STAGE_HEIGHT) * 100}%`,
+              left: `${cx + Math.cos(angle) * rx}px`,
+              top: `${cy + Math.sin(angle) * ry}px`,
             }}
           />
         );
@@ -329,7 +331,7 @@ export default function PresenceLayer({
       {unmoved > 0 && (
         <span
           className={styles.presenceCount}
-          style={{ left: "50%", top: `${((cy + 150) / STAGE_HEIGHT) * 100}%` }}
+          style={{ left: `${cx}px`, top: `${cy + 150}px` }}
         >
           {unmoved} at the core · {total} member{total === 1 ? "" : "s"}
         </span>
@@ -346,10 +348,7 @@ export default function PresenceLayer({
             {person.status && <span className={styles.presenceStatus}>{person.status}</span>}
           </>
         );
-        const style = {
-          left: `${(person.x / STAGE_WIDTH) * 100}%`,
-          top: `${(person.y / STAGE_HEIGHT) * 100}%`,
-        };
+        const style = { left: `${person.x}px`, top: `${person.y}px` };
         const title = `${handle}${person.status ? ` — ${person.status}` : ""} · ${formatSince(person.updatedAt)}`;
         return person.username ? (
           <Link
@@ -381,10 +380,7 @@ export default function PresenceLayer({
           ref={meRef}
           className={styles.presencePerson}
           data-me="true"
-          style={{
-            left: `${(spawnPoint.x / STAGE_WIDTH) * 100}%`,
-            top: `${(spawnPoint.y / STAGE_HEIGHT) * 100}%`,
-          }}
+          style={{ left: `${spawnPoint.x}px`, top: `${spawnPoint.y}px` }}
           title="wasd to walk · enter to say something"
           onClick={() => {
             if (didPan()) return;
@@ -403,10 +399,7 @@ export default function PresenceLayer({
       {editorOpen && (
         <div
           className={styles.statusEditor}
-          style={{
-            left: `${(editorAt.x / STAGE_WIDTH) * 100}%`,
-            top: `${(editorAt.y / STAGE_HEIGHT) * 100}%`,
-          }}
+          style={{ left: `${editorAt.x}px`, top: `${editorAt.y}px` }}
         >
           <input
             autoFocus
