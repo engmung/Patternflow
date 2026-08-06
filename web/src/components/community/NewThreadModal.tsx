@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { useAutoGrow } from "@/lib/useAutoGrow";
 import { deckItems, savedItems } from "@/lib/community/deck";
 import { communityPatternUrl } from "@/lib/community/license";
 import {
@@ -43,6 +44,8 @@ export default function NewThreadModal({
   const [pin, setPin] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [picking, setPicking] = useState(false);
+
+  const bodyRef = useAutoGrow<HTMLTextAreaElement>(body);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -152,7 +155,9 @@ export default function NewThreadModal({
             onChange={(event) => setTitle(event.target.value)}
           />
           <textarea
+            ref={bodyRef}
             className={styles.postBodyInput}
+            data-grow="modal"
             value={body}
             maxLength={POST_BODY_MAX}
             placeholder="What are you making, what happened, what do you need?"

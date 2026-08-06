@@ -2246,6 +2246,9 @@
 .commentForm textarea {
   min-height: 84px;
   resize: vertical;
+  /* Grown by useAutoGrow; this is the ceiling. Replies sit in a list of other
+     people's replies, so one long one should not push the thread off screen. */
+  max-height: 60vh;
 }
 
 /* Sit in the head row beside the date, muted: available to the person who
@@ -3295,6 +3298,19 @@
   line-height: 1.6;
   min-height: 180px;
   resize: vertical;
+}
+
+/* useAutoGrow sets an inline height from scrollHeight; these caps are what
+   stops it. It reports the full content height regardless, so max-height wins
+   and the textarea starts scrolling — which is the right ceiling in each case:
+   an editor that owns the page can take most of the viewport, one inside a
+   modal has to leave room for the buttons under it. */
+.postBodyInput[data-grow="page"] {
+  max-height: 75vh;
+}
+
+.postBodyInput[data-grow="modal"] {
+  max-height: 42vh;
 }
 
 .postTitleInput:focus,

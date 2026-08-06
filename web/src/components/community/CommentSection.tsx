@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { useAutoGrow } from "@/lib/useAutoGrow";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -72,6 +73,11 @@ export default function CommentSection({
   // Deleting is one click away but takes two, because there is no undo and the
   // button sits right beside "edit".
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // One ref, not one per row: `editingId` is a single value, so exactly one of
+  // these textareas exists at a time.
+  const draftRef = useAutoGrow<HTMLTextAreaElement>(editingId ? draft : "");
+  const bodyRef = useAutoGrow<HTMLTextAreaElement>(body);
 
   const viewerId = session?.user.id ?? null;
   const on = target.kind === "post" ? "post" : "pattern";
@@ -245,6 +251,7 @@ export default function CommentSection({
             {editing ? (
               <div className={styles.commentForm}>
                 <textarea
+                  ref={draftRef}
                   value={draft}
                   maxLength={COMMENT_MAX}
                   autoFocus
@@ -290,6 +297,7 @@ export default function CommentSection({
       {session ? (
         <div className={styles.commentForm}>
           <textarea
+            ref={bodyRef}
             value={body}
             maxLength={COMMENT_MAX}
             placeholder={
