@@ -4,9 +4,11 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
 import {
+  countUnmoved,
   getTerritoryByCode,
   listPinsByUser,
   listPosts,
+  listPresence,
   listRecentThreads,
   listTerritories,
   listTerritoryPins,
@@ -53,7 +55,7 @@ export default async function CommunityMapPage(props: {
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
 
-  const [pins, threads, myPins, recent] = await Promise.all([
+  const [pins, threads, myPins, recent, presence, unmoved] = await Promise.all([
     selected ? listTerritoryPins(selected.id) : Promise.resolve([]),
     selected
       ? listPosts({ territoryId: selected.id, limit: DRAWER_THREADS })
@@ -61,6 +63,9 @@ export default async function CommunityMapPage(props: {
     viewerId ? listPinsByUser(viewerId) : Promise.resolve([]),
     // Proof of life across all territories, not just the selected one.
     listRecentThreads(),
+    // Who is standing where, and how many accounts never moved off the core.
+    listPresence(),
+    countUnmoved(),
   ]);
 
   return (
@@ -96,6 +101,16 @@ export default async function CommunityMapPage(props: {
       viewerId={viewerId}
       myPinCodes={myPins.map((pin) => pin.code)}
       isAdmin={isAdminSession(session)}
+      presence={presence.map((person) => ({
+        userId: person.userId,
+        username: person.username,
+        displayUsername: person.displayUsername,
+        x: person.x,
+        y: person.y,
+        status: person.status,
+        updatedAt: person.updatedAt.toISOString(),
+      }))}
+      unmoved={unmoved}
     />
   );
 }

@@ -195,6 +195,40 @@ async function main() {
   );
   check("the editor's cap is the route's cap", workshop.QUESTION_MAX, 60);
 
+  // ── Presence ──────────────────────────────────────────────────────────────
+  // The map's people layer. Presence is not a pin — walking somewhere must
+  // never touch subscriptions — so it gets its own table and its own checks.
+  await db.insert(schema.presence).values({
+    userId: "alice",
+    x: 900,
+    y: 200,
+    status: "soldering",
+    updatedAt: NOW,
+  });
+  const standing = await queries.listPresence();
+  check("presence carries the handle", standing[0]?.username, "alice");
+  check("…and the spot", [standing[0]?.x, standing[0]?.y], [900, 200]);
+  check("…and the words", standing[0]?.status, "soldering");
+  check("the unmoved are everyone else", await queries.countUnmoved(), 2);
+
+  // Moving again is an update, not a second body.
+  await db
+    .insert(schema.presence)
+    .values({ userId: "alice", x: 300, y: 500, status: null, updatedAt: NOW })
+    .onConflictDoUpdate({
+      target: schema.presence.userId,
+      set: { x: 300, y: 500, updatedAt: NOW },
+    });
+  const walked = await queries.listPresence();
+  check("walking moves the one square", walked.length, 1);
+  check("…to the new spot", [walked[0]?.x, walked[0]?.y], [300, 500]);
+  check("…without dropping the words", walked[0]?.status, "soldering");
+
+  check("status collapses whitespace", workshop.cleanStatus("  taking   a walk "), "taking a walk");
+  check("empty status clears to null", workshop.cleanStatus("   "), null);
+  check("a long status is refused", workshop.cleanStatus("x".repeat(61)), undefined);
+  check("at the cap it fits", workshop.cleanStatus("x".repeat(60)), "x".repeat(60));
+
   // ── Markdown links ────────────────────────────────────────────────────────
   // Posts render as markdown now, so every href in one was typed by a member.
   // react-markdown has its own urlTransform; this is ours, and it is the one

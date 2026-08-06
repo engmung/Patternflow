@@ -3837,6 +3837,131 @@
   line-height: 1.4;
 }
 
+/* ── People on the map ──
+   One small square per person, walked around with WASD. The layer itself takes
+   no pointer events — the map underneath still pans — only the bodies do. */
+.presenceLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.presencePerson {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  text-decoration: none;
+  cursor: pointer;
+  /* A poll landing moves people in one jump; the glide is what makes that
+     read as strolling rather than teleporting. */
+  transition: left 900ms ease, top 900ms ease;
+}
+
+/* My square is painted per frame by the walk loop — a transition here would
+   turn WASD into steering a boat. */
+.presencePerson[data-me="true"] {
+  transition: none;
+}
+
+.presenceSquare {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  background: var(--pfc-ink-muted);
+}
+
+.presencePerson[data-me="true"] .presenceSquare {
+  background: var(--pfc-led);
+}
+
+.presenceName {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--pfc-ink-muted);
+  white-space: nowrap;
+}
+
+.presencePerson:hover .presenceName {
+  color: var(--pfc-ink);
+}
+
+.presencePerson[data-me="true"] .presenceName {
+  color: var(--pfc-led);
+}
+
+/* The said-thing, hanging under the name like a quiet speech bubble. */
+.presenceStatus {
+  position: absolute;
+  top: 100%;
+  left: 15px;
+  margin-top: 1px;
+  font-size: 10px;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An account that exists and has never walked: a fleck in the ring around the
+   core. The pile is the member count, before anyone has done anything. */
+.presenceSeed {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 5px;
+  height: 5px;
+  background: var(--pfc-ink-faint);
+  opacity: 0.55;
+}
+
+.presenceCount {
+  position: absolute;
+  transform: translate(-50%, 0);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+}
+
+/* Enter's little input, floating above the square that asked for it. */
+.statusEditor {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  background: var(--pfc-panel);
+  border: 1px solid var(--pfc-led-edge);
+  pointer-events: auto;
+}
+
+.statusEditor input {
+  width: 200px;
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 7px;
+}
+
+.statusEditor input:focus {
+  outline: none;
+  border-color: var(--pfc-led);
+}
+
+.statusEditor span {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  color: var(--pfc-ink-faint);
+}
+
 .stageLegend {
   position: absolute;
   right: 16px;
@@ -3848,6 +3973,29 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--pfc-ink-faint);
+}
+
+/* The walking hint — and, signed out, the invitation. Same type as the legend
+   it sits in; the button variant only adds the underline that says "click". */
+.legendWalk {
+  color: var(--pfc-ink-muted);
+}
+
+button.legendWalk {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.legendWalk:hover {
+  color: var(--pfc-led);
 }
 
 .stageLegend span {

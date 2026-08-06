@@ -12,6 +12,7 @@ import {
   postAttachments,
   postComments,
   posts,
+  presence,
   reports,
   territories,
   territoryPins,
@@ -578,6 +579,46 @@ export async function listPinsByUser(
     .innerJoin(territories, eq(territoryPins.territoryId, territories.id))
     .where(eq(territoryPins.userId, userId))
     .orderBy(territoryPins.createdAt);
+}
+
+/** Somebody standing on the constellation. */
+export type PresencePerson = {
+  userId: string;
+  username: string | null;
+  displayUsername: string | null;
+  x: number;
+  y: number;
+  status: string | null;
+  updatedAt: Date;
+};
+
+/** Everyone who has walked somewhere, for the map's people layer. */
+export async function listPresence(): Promise<PresencePerson[]> {
+  return getDb()
+    .select({
+      userId: presence.userId,
+      ...authorFields,
+      x: presence.x,
+      y: presence.y,
+      status: presence.status,
+      updatedAt: presence.updatedAt,
+    })
+    .from(presence)
+    .innerJoin(user, eq(presence.userId, user.id))
+    .orderBy(presence.updatedAt);
+}
+
+/**
+ * Accounts that have never moved — rendered as the cluster of squares at the
+ * core, which doubles as "how many people signed up". Same aliasing rule as
+ * the count subqueries at the top of this file.
+ */
+export async function countUnmoved(): Promise<number> {
+  const rows = await getDb()
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(user)
+    .where(sql`${user}.id NOT IN (SELECT pr.user_id FROM ${presence} AS pr)`);
+  return rows[0]?.count ?? 0;
 }
 
 export type RecentThread = {

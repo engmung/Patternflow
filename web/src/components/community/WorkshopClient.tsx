@@ -17,6 +17,7 @@ import { useDragPan } from "@/lib/useDragPan";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import AuthModal from "./AuthModal";
 import NewThreadModal from "./NewThreadModal";
+import PresenceLayer, { type PresenceView } from "./PresenceLayer";
 import styles from "./Community.module.css";
 
 // The map, and the drawer under it.
@@ -83,6 +84,8 @@ export default function WorkshopClient({
   myPinCodes,
   recent = [],
   isAdmin = false,
+  presence = [],
+  unmoved = 0,
 }: {
   territories: TerritoryListItem[];
   selected: TerritoryListItem | null;
@@ -94,10 +97,21 @@ export default function WorkshopClient({
   recent?: RecentThreadView[];
   /** Moderators get a way out of the empty state. */
   isAdmin?: boolean;
+  /** Who is standing where on the constellation. */
+  presence?: PresenceView[];
+  /** Accounts that have never walked — the ring of squares at the core. */
+  unmoved?: number;
 }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isMobile = useIsMobile();
+
+  // The name on my square. The session's user shape depends on Better Auth's
+  // username plugin, so it is read defensively rather than typed as certain.
+  const sessionUser = session?.user as
+    | { username?: string | null; displayUsername?: string | null }
+    | undefined;
+  const viewerHandle = sessionUser?.displayUsername ?? sessionUser?.username ?? "you";
 
   // The grid is the default, not the constellation.
   //
@@ -284,7 +298,16 @@ export default function WorkshopClient({
       {/* A constellation needs room to be read and a pointer to be explored;
           a phone has neither, so it always gets the list. */}
       {view === "constellation" && !isMobile ? (
-        <Constellation territories={territories} selected={selected} onSelect={select} />
+        <Constellation
+          territories={territories}
+          selected={selected}
+          onSelect={select}
+          presence={presence}
+          unmoved={unmoved}
+          viewerId={viewerId}
+          viewerHandle={viewerHandle}
+          onNeedAuth={() => setAuthOpen(true)}
+        />
       ) : (
         <FloorPlan territories={territories} selected={selected} onSelect={select} />
       )}
@@ -417,10 +440,20 @@ function Constellation({
   territories,
   selected,
   onSelect,
+  presence,
+  unmoved,
+  viewerId,
+  viewerHandle,
+  onNeedAuth,
 }: {
   territories: TerritoryListItem[];
   selected: TerritoryListItem | null;
   onSelect: (code: string) => void;
+  presence: PresenceView[];
+  unmoved: number;
+  viewerId: string | null;
+  viewerHandle: string;
+  onNeedAuth: () => void;
 }) {
   const cx = STAGE_WIDTH / 2;
   const cy = STAGE_HEIGHT / 2;
@@ -510,6 +543,15 @@ function Constellation({
             </button>
           );
         })}
+
+        {/* People, on top of everything — a body can stand on a node. */}
+        <PresenceLayer
+          initialPeople={presence}
+          initialUnmoved={unmoved}
+          viewerId={viewerId}
+          viewerHandle={viewerHandle}
+          didPan={didPan}
+        />
       </div>
 
       <div className={styles.stageLegend}>
@@ -525,6 +567,15 @@ function Constellation({
           <i className={styles.legendDashed} aria-hidden="true" />
           open question
         </span>
+        {viewerId ? (
+          <span className={styles.legendWalk}>wasd walk · ↵ status</span>
+        ) : (
+          // The one interactive thing in the legend: the map has people on it,
+          // and this is how you become one.
+          <button type="button" className={styles.legendWalk} onClick={onNeedAuth}>
+            sign in to stand here
+          </button>
+        )}
       </div>
     </div>
   );
