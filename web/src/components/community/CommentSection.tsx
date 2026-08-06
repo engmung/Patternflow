@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useAutoGrow } from "@/lib/useAutoGrow";
+import BodyComposer from "./BodyComposer";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -15,7 +15,7 @@ import type { AttachmentView } from "@/lib/community/queries";
 import { COMMENT_MAX } from "@/lib/community/validate";
 import AttachmentList from "./AttachmentList";
 import AuthModal from "./AuthModal";
-import FencedText from "./FencedText";
+import PostBody from "./PostBody";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
 
@@ -74,10 +74,6 @@ export default function CommentSection({
   // button sits right beside "edit".
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  // One ref, not one per row: `editingId` is a single value, so exactly one of
-  // these textareas exists at a time.
-  const draftRef = useAutoGrow<HTMLTextAreaElement>(editingId ? draft : "");
-  const bodyRef = useAutoGrow<HTMLTextAreaElement>(body);
 
   const viewerId = session?.user.id ?? null;
   const on = target.kind === "post" ? "post" : "pattern";
@@ -250,12 +246,13 @@ export default function CommentSection({
             </div>
             {editing ? (
               <div className={styles.commentForm}>
-                <textarea
-                  ref={draftRef}
+                <BodyComposer
                   value={draft}
+                  onChange={setDraft}
                   maxLength={COMMENT_MAX}
+                  label="Edit comment"
+                  grow="comment"
                   autoFocus
-                  onChange={(event) => setDraft(event.target.value)}
                 />
                 {rowError && <div className={styles.formError}>{rowError}</div>}
                 <div className={styles.commentEditRow}>
@@ -281,7 +278,7 @@ export default function CommentSection({
               </div>
             ) : (
               <div className={styles.commentBody}>
-                <FencedText text={comment.body} />
+                <PostBody text={comment.body} />
                 <AttachmentList
                   files={attachments.filter((file) => file.commentId === comment.id)}
                 />
@@ -296,14 +293,15 @@ export default function CommentSection({
 
       {session ? (
         <div className={styles.commentForm}>
-          <textarea
-            ref={bodyRef}
+          <BodyComposer
             value={body}
+            onChange={setBody}
             maxLength={COMMENT_MAX}
             placeholder={
               target.kind === "post" ? "Reply — where are you with it?" : "Leave a comment…"
             }
-            onChange={(event) => setBody(event.target.value)}
+            label={target.kind === "post" ? "Reply" : "Comment"}
+            grow="comment"
           />
 
           {files.length > 0 && (

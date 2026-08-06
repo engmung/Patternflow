@@ -4438,9 +4438,221 @@
   color: var(--pfc-led);
 }
 
+/* ── Post bodies ──
+   Markdown, but a closed set of it (see PostBody.tsx). Everything here is a
+   descendant selector on .postBody rather than a class per element, because
+   react-markdown emits plain tags and there is nowhere to hang a class.
+   Sizes stay close to the body text: a thread is somebody talking, and an <h2>
+   that looks like a landing-page headline makes a build log read as a brochure. */
+.postBody {
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.postBody > *:first-child {
+  margin-top: 0;
+}
+
+.postBody > *:last-child {
+  margin-bottom: 0;
+}
+
+.postBody p {
+  margin: 0 0 12px;
+}
+
+.postBody h1,
+.postBody h2,
+.postBody h3,
+.postBody h4,
+.postBody h5,
+.postBody h6 {
+  margin: 20px 0 8px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.postBody h1,
+.postBody h2 {
+  font-size: 16px;
+}
+
+.postBody h3,
+.postBody h4,
+.postBody h5,
+.postBody h6 {
+  font-size: 14.5px;
+}
+
+.postBody ul,
+.postBody ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.postBody li {
+  margin: 3px 0;
+}
+
+.postBody li::marker {
+  color: var(--pfc-ink-faint);
+}
+
+.postBody blockquote {
+  margin: 12px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--pfc-edge);
+  color: var(--pfc-ink-2);
+}
+
+.postBody hr {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--pfc-hair);
+}
+
+.postBody strong {
+  font-weight: 600;
+  color: var(--pfc-ink);
+}
+
+.postBody del {
+  color: var(--pfc-ink-faint);
+}
+
+/* Says why the picture is a link and not a picture, without a sentence of
+   explanation next to every one. */
+.imageLinkTag {
+  font-family: var(--pf-mono, monospace);
+  font-size: 0.82em;
+  color: var(--pfc-ink-faint);
+  text-decoration: none;
+}
+
+/* Inline code — a register name or a pin, mid-sentence. Quiet enough to sit in
+   a paragraph, distinct enough to not be read as prose. */
+.inlineCode {
+  padding: 1px 5px;
+  background: var(--pfc-well);
+  border: 1px solid var(--pfc-hair);
+  font-family: var(--pf-mono, monospace);
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+
+/* Measurement tables. Narrow columns and a hard scroll boundary — a wide table
+   must never be the reason the page scrolls sideways. */
+.postBody table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.postBody th,
+.postBody td {
+  padding: 5px 10px;
+  border: 1px solid var(--pfc-hair);
+  text-align: left;
+}
+
+.postBody th {
+  background: var(--pfc-well);
+  font-weight: 600;
+}
+
+/* ── Composing ──
+   Write / Preview, rendered through the same PostBody the thread uses. */
+.bodyComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composerTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.composerTabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: none;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+}
+
+.composerTabs button[data-active="true"] {
+  border-color: var(--pfc-edge);
+  background: var(--pfc-well);
+  color: var(--pfc-ink);
+}
+
+.composerTabs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.composerHint {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-faint);
+}
+
+/* Same box as the textarea it replaces, so switching tabs doesn't move the
+   page under the person typing. */
+.previewPane {
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 11px 12px;
+  border: 1px dashed var(--pfc-edge);
+  background: var(--pfc-ground);
+  overflow-y: auto;
+}
+
+.previewPane[data-grow="page"] {
+  max-height: 75vh;
+}
+
+.previewPane[data-grow="modal"] {
+  max-height: 42vh;
+}
+
+/* A reply sits in a list of other people's replies, so it matches the comment
+   textarea's own floor rather than the post editor's. */
+.previewPane[data-grow="comment"] {
+  min-height: 84px;
+  max-height: 60vh;
+}
+
+.postBodyInput[data-grow="comment"] {
+  max-height: 60vh;
+}
+
+/* BodyComposer brings .postBodyInput with it, but inside a comment form the
+   more specific `.commentForm textarea` still owns the box — which is what we
+   want (84px floor, not 180). Stated here so the interaction is on purpose. */
+.commentForm .bodyComposer .postBodyInput {
+  min-height: 84px;
+}
+
+@media (max-width: 560px) {
+  /* The hint is the first thing to go — the tabs have to stay tappable. */
+  .composerHint {
+    display: none;
+  }
+}
+
 /* ── Code fences ──
-   The one piece of markup the board has. Same dark ground as the code panel,
-   so pasted logs read as what they are. */
+   Same dark ground as the code panel, so pasted logs read as what they are. */
 .codeFence {
   margin: 10px 0;
   padding: 10px 12px;

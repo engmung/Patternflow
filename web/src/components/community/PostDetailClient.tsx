@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
-import { useAutoGrow } from "@/lib/useAutoGrow";
+import BodyComposer from "./BodyComposer";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/community/workshop";
 import type { AttachmentView } from "@/lib/community/queries";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
 import AttachmentList from "./AttachmentList";
 import CommentSection, { type CommentView } from "./CommentSection";
-import FencedText from "./FencedText";
+import PostBody from "./PostBody";
 import type { WorkshopThread } from "./WorkshopClient";
 import { formatDate } from "./PatternCard";
 import styles from "./Community.module.css";
@@ -73,10 +73,6 @@ export default function PostDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-
-  // Editing opens on a post that already exists, so the box arrives at the
-  // length of what is in it rather than showing eight lines of forty.
-  const bodyRef = useAutoGrow<HTMLTextAreaElement>(editing ? body : "");
 
   // Attaching more files after the thread exists (author only).
   const attachRef = useRef<HTMLInputElement | null>(null);
@@ -203,14 +199,11 @@ export default function PostDetailClient({
               aria-label="Post title"
               onChange={(event) => setTitle(event.target.value)}
             />
-            <textarea
-              ref={bodyRef}
-              className={styles.postBodyInput}
-              data-grow="page"
+            <BodyComposer
               value={body}
+              onChange={setBody}
               maxLength={POST_BODY_MAX}
-              aria-label="Post body"
-              onChange={(event) => setBody(event.target.value)}
+              label="Post body"
             />
             {error && <div className={styles.formError}>{error}</div>}
             <div className={styles.composerActions}>
@@ -310,7 +303,7 @@ export default function PostDetailClient({
             </div>
             {error && <div className={styles.formError}>{error}</div>}
             <div className={styles.postBody}>
-              <FencedText text={post.body} />
+              <PostBody text={post.body} />
               {/* What was actually handed over: images inline, files as
                   download chips — see AttachmentList. */}
               <AttachmentList files={bodyFiles} />
