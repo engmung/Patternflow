@@ -70,6 +70,7 @@ export default function PresenceLayer({
   viewerId,
   viewerHandle,
   didPan,
+  onWalk,
 }: {
   initialPeople: PresenceView[];
   initialUnmoved: number;
@@ -77,6 +78,10 @@ export default function PresenceLayer({
   viewerHandle: string;
   /** From useDragPan — a click that ends a map-drag must not follow a link. */
   didPan: () => boolean;
+  /** Called each movement frame with the pan offset that would centre my
+   *  square — the camera. The pan clamps and damps it; walking near the middle
+   *  asks for ~0 and nothing visibly moves, which is the right feel. */
+  onWalk?: (offsetX: number, offsetY: number) => void;
 }) {
   const [people, setPeople] = useState(initialPeople);
   const [unmoved, setUnmoved] = useState(initialUnmoved);
@@ -102,6 +107,17 @@ export default function PresenceLayer({
   const frame = useRef<number | null>(null);
   const saveTimer = useRef<number | null>(null);
   const spawnedRef = useRef(spawned);
+
+  // The stage's box, for turning my stage position into a camera offset.
+  // Measured when a walk starts rather than per frame — the walk loop already
+  // dirties layout by writing left/top, and a synchronous rect read on top of
+  // that would force a reflow every frame for a number that only changes on
+  // window resize.
+  const stageBox = useRef<{ width: number; height: number } | null>(null);
+  const onWalkRef = useRef(onWalk);
+  useEffect(() => {
+    onWalkRef.current = onWalk;
+  }, [onWalk]);
 
   const paint = useCallback(() => {
     const el = meRef.current;
@@ -155,6 +171,15 @@ export default function PresenceLayer({
         pos.current.x = clamp(pos.current.x + (dx / length) * WALK_SPEED * dt, STAGE_WIDTH);
         pos.current.y = clamp(pos.current.y + (dy / length) * WALK_SPEED * dt, STAGE_HEIGHT);
         paint();
+
+        // Point the camera at where I am now.
+        const box = stageBox.current;
+        if (box && onWalkRef.current) {
+          onWalkRef.current(
+            box.width / 2 - (pos.current.x / STAGE_WIDTH) * box.width,
+            box.height / 2 - (pos.current.y / STAGE_HEIGHT) * box.height,
+          );
+        }
       }
       if (keys.current.size > 0) {
         frame.current = requestAnimationFrame((next) => step(next, now));
@@ -175,6 +200,14 @@ export default function PresenceLayer({
         }
         keys.current.add(key);
         if (frame.current === null) {
+          // Fresh walk: re-measure the stage (the layer spans it exactly).
+          // meRef can be null for one frame on first spawn; the next keydown
+          // or the spawn effect below fills it in.
+          const surface = meRef.current?.parentElement;
+          if (surface) {
+            const rect = surface.getBoundingClientRect();
+            if (rect.width > 0) stageBox.current = { width: rect.width, height: rect.height };
+          }
           frame.current = requestAnimationFrame((now) => step(now, now));
         }
       } else if (key === "enter") {
@@ -207,9 +240,16 @@ export default function PresenceLayer({
   }, [viewerId, paint, scheduleSave, myStatus]);
 
   // The square exists the moment React mounts it — put it where the walk
-  // already is, since keys may have been held through the state flip.
+  // already is, since keys may have been held through the state flip. Also the
+  // first chance to measure the stage for the camera.
   useEffect(() => {
-    if (spawned) paint();
+    if (!spawned) return;
+    paint();
+    const surface = meRef.current?.parentElement;
+    if (surface) {
+      const rect = surface.getBoundingClientRect();
+      if (rect.width > 0) stageBox.current = { width: rect.width, height: rect.height };
+    }
   }, [spawned, paint]);
 
   // A final flush when the tab goes — keepalive lets it outlive the page.

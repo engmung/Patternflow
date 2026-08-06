@@ -462,7 +462,7 @@ function Constellation({
   // edge hangs half of itself outside the box. This is roughly that overhang,
   // which is all the room the map needs to be fully readable — and little
   // enough that you cannot push it somewhere you have to hunt for it.
-  const { surfaceRef, handlers, panning, didPan } = useDragPan({ x: 140, y: 90 });
+  const { surfaceRef, handlers, panning, didPan, follow } = useDragPan({ x: 140, y: 90 });
 
   return (
     <div
@@ -544,13 +544,15 @@ function Constellation({
           );
         })}
 
-        {/* People, on top of everything — a body can stand on a node. */}
+        {/* People, on top of everything — a body can stand on a node. The
+            walk loop steers the camera; a hand on the map still wins. */}
         <PresenceLayer
           initialPeople={presence}
           initialUnmoved={unmoved}
           viewerId={viewerId}
           viewerHandle={viewerHandle}
           didPan={didPan}
+          onWalk={follow}
         />
       </div>
 

@@ -33,6 +33,9 @@ const MIN_INTERVAL = 4;
  *  distance is a fraction of the range rather than a lap of it: a flick should
  *  carry you across part of the map, never pin you to the far edge. */
 const FLING_REACH = 0.66;
+/** Per-60fps-frame approach factor toward a follow target. ~0.5s to close most
+ *  of the gap — a camera that trails the walker, not one bolted to it. */
+const FOLLOW = 0.08;
 
 export type Bounds = { x: number; y: number };
 
@@ -117,11 +120,70 @@ export function useDragPan(bounds: Bounds) {
     frame.current = requestAnimationFrame(step);
   }, [nudge]);
 
+  // ── Camera follow ──────────────────────────────────────────────────────────
+  // Something else (the presence walk loop) can hand the pan a target offset to
+  // drift toward. The drift is damped — the map trails the walker rather than
+  // being welded to it — and a hand on the map always wins: pointerdown drops
+  // the target outright, and it only comes back when the walker moves again.
+  const followTarget = useRef<{ x: number; y: number } | null>(null);
+  const followFrame = useRef<number | null>(null);
+
+  const stopFollow = useCallback(() => {
+    followTarget.current = null;
+    if (followFrame.current !== null) cancelAnimationFrame(followFrame.current);
+    followFrame.current = null;
+  }, []);
+
+  const followLoop = useCallback(() => {
+    let previous = performance.now();
+    const step = (now: number) => {
+      const target = followTarget.current;
+      // A live gesture owns the offset; the walker will re-request afterwards.
+      if (!target || gesture.current !== null) {
+        followFrame.current = null;
+        return;
+      }
+      const frames = Math.min((now - previous) / (1000 / 60), 4);
+      previous = now;
+      const k = 1 - Math.pow(1 - FOLLOW, frames);
+
+      const dx = target.x - offsetRef.current.x;
+      const dy = target.y - offsetRef.current.y;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+        followFrame.current = null;
+        return;
+      }
+      nudge(dx * k, dy * k);
+      followFrame.current = requestAnimationFrame(step);
+    };
+    followFrame.current = requestAnimationFrame(step);
+  }, [nudge]);
+
+  /** Ask the camera to drift until `offset` (clamped to bounds) is reached.
+   *  Call it per movement frame — restating the target is what keeps the
+   *  follow alive after a drag interrupted it. */
+  const follow = useCallback(
+    (x: number, y: number) => {
+      const limit = boundsRef.current;
+      followTarget.current = {
+        x: Math.max(-limit.x, Math.min(limit.x, x)),
+        y: Math.max(-limit.y, Math.min(limit.y, y)),
+      };
+      if (followFrame.current === null && gesture.current === null) {
+        // A leftover flick glide would fight the camera for the same offset.
+        stopGlide();
+        followLoop();
+      }
+    },
+    [followLoop, stopGlide],
+  );
+
   const onPointerDown = useCallback(
     (event: React.PointerEvent) => {
       // Left button / touch / pen only — a right-click is a context menu.
       if (event.button !== 0) return;
       stopGlide();
+      stopFollow();
       panned.current = false;
       gesture.current = {
         id: event.pointerId,
@@ -140,7 +202,7 @@ export function useDragPan(bounds: Bounds) {
       }
       setPanning(true);
     },
-    [stopGlide],
+    [stopGlide, stopFollow],
   );
 
   const onPointerMove = useCallback(
@@ -202,7 +264,13 @@ export function useDragPan(bounds: Bounds) {
     [glide],
   );
 
-  useEffect(() => stopGlide, [stopGlide]);
+  useEffect(
+    () => () => {
+      stopGlide();
+      stopFollow();
+    },
+    [stopGlide, stopFollow],
+  );
 
   /**
    * Put this on the element that moves. A callback ref rather than a RefObject:
@@ -238,5 +306,5 @@ export function useDragPan(bounds: Bounds) {
   };
 
   // `panning` is state, for the cursor.
-  return { surfaceRef, handlers, panning, didPan, reset };
+  return { surfaceRef, handlers, panning, didPan, follow, reset };
 }
