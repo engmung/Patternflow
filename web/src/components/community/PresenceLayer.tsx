@@ -358,6 +358,10 @@ export default function PresenceLayer({
             className={styles.presencePerson}
             style={style}
             title={title}
+            // An anchor is natively draggable, and a native drag starting on a
+            // dot would steal the map pan mid-gesture (the deck dock's <img>
+            // taught this lesson once already).
+            draggable={false}
             onClick={(event) => {
               if (didPan()) event.preventDefault();
             }}

@@ -192,14 +192,14 @@ export function useDragPan(bounds: Bounds) {
         lastAt: event.timeStamp,
         travelled: 0,
       };
-      // Capture on the stage, so a fast drag that leaves the box keeps coming.
-      // Guarded: capture throws if the pointer is already gone, and losing the
-      // capture is survivable — losing the gesture to an exception is not.
-      try {
-        (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-      } catch {
-        // Without capture the drag still works inside the box.
-      }
+      // NO pointer capture here, and that is load-bearing: with capture held,
+      // the browser retargets pointerup — and the click it synthesizes — to the
+      // capturing element, so a plain click on a node never reached the node's
+      // onClick and selecting a territory silently died. Capture is taken in
+      // onPointerMove, the moment the gesture crosses SLOP and is definitely a
+      // pan rather than a click. (Found with a real input pipeline; synthetic
+      // clicks dispatched straight at the node sail past retargeting, which is
+      // how the original test missed it.)
       setPanning(true);
     },
     [stopGlide, stopFollow],
@@ -215,7 +215,18 @@ export function useDragPan(bounds: Bounds) {
       const dt = Math.max(event.timeStamp - held.lastAt, MIN_INTERVAL);
 
       held.travelled += Math.abs(dx) + Math.abs(dy);
-      if (held.travelled > SLOP) panned.current = true;
+      if (held.travelled > SLOP && !panned.current) {
+        panned.current = true;
+        // Now it is a pan, not a click — take capture so a fast drag that
+        // leaves the box keeps coming. The click this retargets to the stage
+        // is one we wanted suppressed anyway. Guarded: capture throws if the
+        // pointer is already gone, and losing capture is survivable.
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          // Without capture the drag still works inside the box.
+        }
+      }
 
       // The drag itself is always exact — the smoothing below is only about
       // what happens after you let go.
