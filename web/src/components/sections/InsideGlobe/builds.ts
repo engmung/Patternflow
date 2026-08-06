@@ -172,6 +172,21 @@ export const builds: Build[] = [
       { src: '/builds/simonepda/5.jpg', alt: "SimonePDA's Patternflow build, view 5" },
     ],
   },
+  {
+    id: 'usa-nick',
+    slug: 'nick-usa',
+    kind: 'build',
+    location: { lat: 32.7157, lng: -117.1611, label: 'San Diego, USA' },
+    maker: 'Nick',
+    date: '2026-08',
+    description:
+      'One of the earliest people in the Discord, here since May. The build was finished in July and then reworked into this final version — it now runs in a DJ booth, above the turntables.',
+    images: [
+      { src: '/builds/nick/decks.jpg', alt: "A rainbow pattern on Nick's Patternflow, on the shelf above a turntable" },
+      { src: '/builds/nick/setup.jpg', alt: "Nick's Patternflow lighting a whole DJ booth — turntables, a Xone:92 mixer and shelves of records" },
+      { src: '/builds/nick/booth.jpg', alt: "Nick's Patternflow glowing blue above the mixer in a dark DJ booth" },
+    ],
+  },
 ];
 
 export function buildBySlug(slug: string): Build | undefined {
