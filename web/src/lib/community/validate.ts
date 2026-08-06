@@ -71,10 +71,13 @@ export function cleanMadeOn(raw: unknown): string | null | undefined {
 }
 
 /**
- * Board post body. Discussions is the community's free board — ideas,
- * questions, whatever is on someone's mind — so a post gets room a comment
- * does not. Plain text; the one render-time nicety is the ``` code fence
- * (see FencedText), for the rare pasted log.
+ * Thread body. A thread in the workshop is a build log — what you tried, what
+ * it measured, what broke — so it gets room a comment does not.
+ *
+ * Stored exactly as typed. It renders as a closed subset of markdown (see
+ * PostBody), and NOTHING is stripped on the way in: the text somebody wrote is
+ * the text that comes back out of the database, so changing what renders never
+ * silently rewrites what was already posted.
  */
 export const POST_BODY_MAX = 20_000;
 

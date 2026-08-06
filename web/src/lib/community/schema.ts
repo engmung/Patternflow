@@ -368,6 +368,31 @@ export const territoryPins = sqliteTable(
 );
 
 /**
+ * Where somebody is STANDING on the constellation — one square per person,
+ * walked around with WASD like a tiny game.
+ *
+ * Deliberately not a pin and never merged with one. A pin is a subscription
+ * with notification side effects, scoped to a territory, and you can hold
+ * several; you have exactly one body, it can stand anywhere (including between
+ * territories, which is half the fun), and walking it somewhere must never
+ * quietly change what you get notified about.
+ *
+ * No row yet = the account stands at the core with everyone else who has not
+ * moved — which doubles as the visible count of people who signed up.
+ */
+export const presence = sqliteTable("presence", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** Stage coordinates, same 1440×640 space as territories. */
+  x: integer("x").notNull(),
+  y: integer("y").notNull(),
+  /** What they felt like saying — "soldering", "lurking". Not a pin note. */
+  status: text("status"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/**
  * A thread. Lives in a territory — the board no longer has an "everything"
  * list, because a question about a direction belongs next to that direction.
  *

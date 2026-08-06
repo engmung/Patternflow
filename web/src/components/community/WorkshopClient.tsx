@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -13,9 +13,11 @@ import {
   parseQuestions,
 } from "@/lib/community/workshop";
 import type { TerritoryListItem } from "@/lib/community/queries";
+import { useDragPan } from "@/lib/useDragPan";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import AuthModal from "./AuthModal";
 import NewThreadModal from "./NewThreadModal";
+import PresenceLayer, { type PresenceView } from "./PresenceLayer";
 import styles from "./Community.module.css";
 
 // The map, and the drawer under it.
@@ -32,6 +34,13 @@ import styles from "./Community.module.css";
 // browser — it is a reading preference and a shared link should not impose it.
 
 const VIEW_KEY = "pf-map-view";
+
+/** The constellation stops shrinking here and overflows into the pan instead —
+ *  below this, node labels stop being readable and the map stops being a map. */
+const MIN_SCALE = 0.8;
+/** And stops growing here: past it, extra width becomes quiet letterbox rather
+ *  than comedy-sized cards on an ultrawide. */
+const MAX_SCALE = 1.25;
 
 export type WorkshopPin = {
   userId: string;
@@ -82,6 +91,8 @@ export default function WorkshopClient({
   myPinCodes,
   recent = [],
   isAdmin = false,
+  presence = [],
+  unmoved = 0,
 }: {
   territories: TerritoryListItem[];
   selected: TerritoryListItem | null;
@@ -93,10 +104,21 @@ export default function WorkshopClient({
   recent?: RecentThreadView[];
   /** Moderators get a way out of the empty state. */
   isAdmin?: boolean;
+  /** Who is standing where on the constellation. */
+  presence?: PresenceView[];
+  /** Accounts that have never walked — the ring of squares at the core. */
+  unmoved?: number;
 }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const isMobile = useIsMobile();
+
+  // The name on my square. The session's user shape depends on Better Auth's
+  // username plugin, so it is read defensively rather than typed as certain.
+  const sessionUser = session?.user as
+    | { username?: string | null; displayUsername?: string | null }
+    | undefined;
+  const viewerHandle = sessionUser?.displayUsername ?? sessionUser?.username ?? "you";
 
   // The grid is the default, not the constellation.
   //
@@ -283,7 +305,16 @@ export default function WorkshopClient({
       {/* A constellation needs room to be read and a pointer to be explored;
           a phone has neither, so it always gets the list. */}
       {view === "constellation" && !isMobile ? (
-        <Constellation territories={territories} selected={selected} onSelect={select} />
+        <Constellation
+          territories={territories}
+          selected={selected}
+          onSelect={select}
+          presence={presence}
+          unmoved={unmoved}
+          viewerId={viewerId}
+          viewerHandle={viewerHandle}
+          onNeedAuth={() => setAuthOpen(true)}
+        />
       ) : (
         <FloorPlan territories={territories} selected={selected} onSelect={select} />
       )}
@@ -416,80 +447,166 @@ function Constellation({
   territories,
   selected,
   onSelect,
+  presence,
+  unmoved,
+  viewerId,
+  viewerHandle,
+  onNeedAuth,
 }: {
   territories: TerritoryListItem[];
   selected: TerritoryListItem | null;
   onSelect: (code: string) => void;
+  presence: PresenceView[];
+  unmoved: number;
+  viewerId: string | null;
+  viewerHandle: string;
+  onNeedAuth: () => void;
 }) {
   const cx = STAGE_WIDTH / 2;
   const cy = STAGE_HEIGHT / 2;
 
+  // ── One picture, every viewport ────────────────────────────────────────────
+  // Everything on the map lives on a fixed 1440×640 WORLD, laid out in plain
+  // pixels, and the world is scaled uniformly to fit whatever box the page
+  // gives it — a game viewport, not a fluid layout.
+  //
+  // The previous approach positioned by percentage of the real box, and the
+  // real box does not keep the design's shape: min-height bends its aspect
+  // ratio, and the node cards are fixed-size while their spacing was not. So
+  // every viewport composed a different picture — cards overlapping here,
+  // hiding each other there. Uniform scale makes it the SAME picture, merely
+  // larger or smaller.
+  //
+  // Below MIN_SCALE the map stops shrinking (labels have to stay readable) and
+  // overflows instead; the pan bounds grow to exactly cover the overflow, so
+  // the hidden part is a drag away and the camera can still follow a walker
+  // into it.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [stageBox, setStageBox] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () => setStageBox({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = stageBox
+    ? Math.min(MAX_SCALE, Math.max(MIN_SCALE, stageBox.w / STAGE_WIDTH))
+    : 1;
+  const overflowX = stageBox ? Math.max(0, (STAGE_WIDTH * scale - stageBox.w) / 2) : 0;
+  const overflowY = stageBox ? Math.max(0, (STAGE_HEIGHT * scale - stageBox.h) / 2) : 0;
+
+  // A node is 196px wide and centred on its coordinate, so one placed at the
+  // edge hangs half of itself outside the world. The overhang allowance is
+  // that, scaled; the overflow term is the part of the world the viewport
+  // cannot show at once.
+  const { surfaceRef, handlers, panning, didPan, follow } = useDragPan({
+    x: overflowX + 140 * scale,
+    y: overflowY + 90 * scale,
+  });
+
   return (
-    <div className={styles.stage}>
-      <svg
-        className={styles.stageLines}
-        viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        {territories.map((territory) => (
-          <line
-            key={territory.id}
-            x1={cx}
-            y1={cy}
-            x2={territory.x}
-            y2={territory.y}
-            stroke={selected?.id === territory.id ? "#E8552E" : "rgba(244,239,230,0.18)"}
-            strokeWidth={selected?.id === territory.id ? 1.5 : 1}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-      </svg>
+    <div
+      ref={stageRef}
+      className={styles.stage}
+      data-panning={panning}
+      {...handlers}
+      role="presentation"
+    >
+      {/* Everything that moves. The legend stays outside it — it labels the
+          map rather than living on it. */}
+      <div className={styles.stagePan} ref={surfaceRef}>
+        <div
+          className={styles.stageWorld}
+          style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+        >
+        <svg
+          className={styles.stageLines}
+          viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
+          aria-hidden="true"
+        >
+          {territories.map((territory) => (
+            <line
+              key={territory.id}
+              x1={cx}
+              y1={cy}
+              x2={territory.x}
+              y2={territory.y}
+              stroke={selected?.id === territory.id ? "#E8552E" : "rgba(244,239,230,0.18)"}
+              strokeWidth={selected?.id === territory.id ? 1.5 : 1}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
 
-      <div className={styles.stageCore} style={{ left: "50%", top: "50%" }}>
-        <div className={styles.coreScreen} />
-        <span>Patternflow</span>
-      </div>
+        <div className={styles.stageCore} style={{ left: "50%", top: "50%" }}>
+          <div className={styles.coreScreen} />
+          <span>Patternflow</span>
+        </div>
 
-      {territories.map((territory) => {
-        const questions = parseQuestions(territory.questions);
-        const active = selected?.id === territory.id;
-        return (
-          <button
-            key={territory.id}
-            type="button"
-            className={styles.stageNode}
-            data-active={active}
-            style={{
-              left: `${(territory.x / STAGE_WIDTH) * 100}%`,
-              top: `${(territory.y / STAGE_HEIGHT) * 100}%`,
-            }}
-            onClick={() => onSelect(territory.code)}
-          >
-            <span className={styles.nodeHead}>
-              <span className={styles.nodeCode}>{territory.code}</span>
-              <span className={styles.nodeTitle}>{territory.title}</span>
-            </span>
-            <span className={styles.nodeCounts}>
-              {Array.from({ length: Math.min(territory.pinCount, 8) }, (_, index) => (
-                <i key={index} aria-hidden="true" />
-              ))}
-              <span>
-                {territory.pinCount} · {territory.threadCount} th
+        {territories.map((territory) => {
+          const questions = parseQuestions(territory.questions);
+          const active = selected?.id === territory.id;
+          return (
+            <button
+              key={territory.id}
+              type="button"
+              className={styles.stageNode}
+              data-active={active}
+              // The visible text is split across styled spans, which screen
+              // readers and the accessibility tree render as an unnamed button.
+              aria-label={`${territory.code} — ${territory.title}`}
+              style={{
+                left: `${territory.x}px`,
+                top: `${territory.y}px`,
+              }}
+              // Dragging the map from a node is the natural thing to do, so the
+              // click that ends the drag must not also pick that node.
+              onClick={() => {
+                if (didPan()) return;
+                onSelect(territory.code);
+              }}
+            >
+              <span className={styles.nodeHead}>
+                <span className={styles.nodeCode}>{territory.code}</span>
+                <span className={styles.nodeTitle}>{territory.title}</span>
               </span>
-            </span>
-            {/* Open questions only hang off the node you are looking at —
-                every node showing its own would be a thicket. */}
-            {active && questions.length > 0 && (
-              <span className={styles.nodeQuestions}>
-                {questions.map((question) => (
-                  <span key={question}>{question}</span>
+              <span className={styles.nodeCounts}>
+                {Array.from({ length: Math.min(territory.pinCount, 8) }, (_, index) => (
+                  <i key={index} aria-hidden="true" />
                 ))}
+                <span>
+                  {territory.pinCount} · {territory.threadCount} th
+                </span>
               </span>
-            )}
-          </button>
-        );
-      })}
+              {/* Open questions only hang off the node you are looking at —
+                  every node showing its own would be a thicket. */}
+              {active && questions.length > 0 && (
+                <span className={styles.nodeQuestions}>
+                  {questions.map((question) => (
+                    <span key={question}>{question}</span>
+                  ))}
+                </span>
+              )}
+            </button>
+          );
+        })}
+
+        {/* People, on top of everything — a body can stand on a node. The
+            walk loop steers the camera; a hand on the map still wins. */}
+        <PresenceLayer
+          initialPeople={presence}
+          initialUnmoved={unmoved}
+          viewerId={viewerId}
+          viewerHandle={viewerHandle}
+          didPan={didPan}
+          onWalk={follow}
+        />
+        </div>
+      </div>
 
       <div className={styles.stageLegend}>
         <span>
@@ -504,6 +621,15 @@ function Constellation({
           <i className={styles.legendDashed} aria-hidden="true" />
           open question
         </span>
+        {viewerId ? (
+          <span className={styles.legendWalk}>wasd walk · ↵ status</span>
+        ) : (
+          // The one interactive thing in the legend: the map has people on it,
+          // and this is how you become one.
+          <button type="button" className={styles.legendWalk} onClick={onNeedAuth}>
+            sign in to stand here
+          </button>
+        )}
       </div>
     </div>
   );

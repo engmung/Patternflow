@@ -113,6 +113,13 @@
       "when": 1785878534343,
       "tag": "0015_add-featured",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1786338000000,
+      "tag": "0016_add-presence",
+      "breakpoints": true
     }
   ]
 }

@@ -17,6 +17,10 @@ export const TERRITORY_DESC_MAX = 240;
  *  on purpose — the thread is where the explaining goes. */
 export const PIN_NOTE_MAX = 60;
 
+/** A presence status — the speech-bubble line beside somebody's square on the
+ *  constellation. Same register as a pin note, deliberately the same cap. */
+export const STATUS_MAX = 60;
+
 /** Open questions: dashed chips hanging off a node, so they stay label-length.
  *  Exported because the editor has to enforce the same cap the route does — a
  *  limit only the server knows about is a limit that shows up as a 400. */
@@ -199,6 +203,15 @@ export function cleanPinNote(raw: unknown): string | null | undefined {
   const note = raw.trim().replace(/\s+/g, " ");
   if (note.length === 0) return null;
   return note.length <= PIN_NOTE_MAX ? note : undefined;
+}
+
+/** Same convention: null clears it, undefined means "refuse the save". */
+export function cleanStatus(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const status = raw.trim().replace(/\s+/g, " ");
+  if (status.length === 0) return null;
+  return status.length <= STATUS_MAX ? status : undefined;
 }
 
 /** Open questions are stored one per line — they are labels on the map, not

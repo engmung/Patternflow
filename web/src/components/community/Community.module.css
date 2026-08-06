@@ -3679,6 +3679,38 @@
   background-color: var(--pfc-ground);
   background-image: radial-gradient(rgba(244, 239, 230, 0.05) 1px, transparent 1px);
   background-size: 26px 26px;
+  /* Draggable. Without this a drag across the map selects the node labels
+     instead of moving anything, which is the usual way a pan feels broken. */
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.stage[data-panning="true"] {
+  cursor: grabbing;
+}
+
+/* The layer that actually moves. useDragPan writes transform straight to this
+   element from an animation frame — going through React state would queue a
+   render per pointermove, which is the difference between following your hand
+   and lagging behind it. */
+.stagePan {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+/* The world: a fixed 1440×640 canvas everything on the map is laid out on in
+   plain pixels, scaled uniformly to the box (transform set inline). One
+   composition at every viewport — percentages of a box whose aspect bends
+   (min-height) made each screen size a different picture, with fixed-size
+   cards crowding on narrow ones. */
+.stageWorld {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1440px;
+  height: 640px;
 }
 
 .stageLines {
@@ -3735,10 +3767,15 @@
   border-color: var(--pfc-edge-strong);
 }
 
+/* Selected. The tint is LAYERED over the panel rather than replacing it: as a
+   plain rgba() it made the node 10%-opaque, and on the constellation that meant
+   every line in the map showed through the node you had just picked — all of
+   them visibly converging on the core behind it. */
 .stageNode[data-active="true"],
 .floorZone[data-active="true"] {
   border-color: var(--pfc-led);
-  background: rgba(232, 85, 46, 0.1);
+  background-color: var(--pfc-panel);
+  background-image: linear-gradient(rgba(232, 85, 46, 0.1), rgba(232, 85, 46, 0.1));
 }
 
 .nodeHead {
@@ -3813,6 +3850,131 @@
   line-height: 1.4;
 }
 
+/* ── People on the map ──
+   One small square per person, walked around with WASD. The layer itself takes
+   no pointer events — the map underneath still pans — only the bodies do. */
+.presenceLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.presencePerson {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+  text-decoration: none;
+  cursor: pointer;
+  /* A poll landing moves people in one jump; the glide is what makes that
+     read as strolling rather than teleporting. */
+  transition: left 900ms ease, top 900ms ease;
+}
+
+/* My square is painted per frame by the walk loop — a transition here would
+   turn WASD into steering a boat. */
+.presencePerson[data-me="true"] {
+  transition: none;
+}
+
+.presenceSquare {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  background: var(--pfc-ink-muted);
+}
+
+.presencePerson[data-me="true"] .presenceSquare {
+  background: var(--pfc-led);
+}
+
+.presenceName {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--pfc-ink-muted);
+  white-space: nowrap;
+}
+
+.presencePerson:hover .presenceName {
+  color: var(--pfc-ink);
+}
+
+.presencePerson[data-me="true"] .presenceName {
+  color: var(--pfc-led);
+}
+
+/* The said-thing, hanging under the name like a quiet speech bubble. */
+.presenceStatus {
+  position: absolute;
+  top: 100%;
+  left: 15px;
+  margin-top: 1px;
+  font-size: 10px;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An account that exists and has never walked: a fleck in the ring around the
+   core. The pile is the member count, before anyone has done anything. */
+.presenceSeed {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 5px;
+  height: 5px;
+  background: var(--pfc-ink-faint);
+  opacity: 0.55;
+}
+
+.presenceCount {
+  position: absolute;
+  transform: translate(-50%, 0);
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+}
+
+/* Enter's little input, floating above the square that asked for it. */
+.statusEditor {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  background: var(--pfc-panel);
+  border: 1px solid var(--pfc-led-edge);
+  pointer-events: auto;
+}
+
+.statusEditor input {
+  width: 200px;
+  border: 1px solid var(--pfc-edge);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink);
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 7px;
+}
+
+.statusEditor input:focus {
+  outline: none;
+  border-color: var(--pfc-led);
+}
+
+.statusEditor span {
+  font-family: var(--pf-mono, monospace);
+  font-size: 9px;
+  color: var(--pfc-ink-faint);
+}
+
 .stageLegend {
   position: absolute;
   right: 16px;
@@ -3824,6 +3986,29 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--pfc-ink-faint);
+}
+
+/* The walking hint — and, signed out, the invitation. Same type as the legend
+   it sits in; the button variant only adds the underline that says "click". */
+.legendWalk {
+  color: var(--pfc-ink-muted);
+}
+
+button.legendWalk {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button.legendWalk:hover {
+  color: var(--pfc-led);
 }
 
 .stageLegend span {
@@ -4210,6 +4395,11 @@
   line-height: 0;
 }
 
+/* Holds the × in the corner of the thumbnail. */
+.attachImage {
+  position: relative;
+}
+
 .attachImages img {
   max-height: 220px;
   max-width: 100%;
@@ -4235,6 +4425,62 @@
 
 .fileChip:hover {
   border-color: var(--pfc-led);
+}
+
+/* ── Taking a file back off ──
+   Both removes are two-step: × arms, "sure?" commits. There is no undo behind
+   this — the bytes go — so a single misclick must not be enough, in exactly
+   the way a single misclick used to be enough to publish the wrong file. */
+.attachImageRemove,
+.fileChipRemove {
+  appearance: none;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink-faint);
+  font: inherit;
+  font-family: var(--pf-mono, monospace);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attachImageRemove:hover,
+.fileChipRemove:hover,
+.attachImageRemove[data-confirming="true"],
+.fileChipRemove[data-confirming="true"] {
+  border-color: var(--pfc-danger);
+  color: var(--pfc-danger);
+}
+
+/* On a thumbnail: top-right, and only once you are looking at the image —
+   a row of × marks over a contact sheet is noise. Always visible on touch,
+   where there is no hover to reveal it. */
+.attachImageRemove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 3px 7px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.attachImage:hover .attachImageRemove,
+.attachImageRemove:focus-visible,
+.attachImageRemove[data-confirming="true"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .attachImageRemove {
+    opacity: 1;
+  }
+}
+
+/* On a chip: inline at the end, after the size. */
+.fileChipRemove {
+  padding: 1px 6px;
+  font-size: 11px;
+  margin-left: 2px;
 }
 
 .fileChip span {
@@ -4438,9 +4684,221 @@
   color: var(--pfc-led);
 }
 
+/* ── Post bodies ──
+   Markdown, but a closed set of it (see PostBody.tsx). Everything here is a
+   descendant selector on .postBody rather than a class per element, because
+   react-markdown emits plain tags and there is nowhere to hang a class.
+   Sizes stay close to the body text: a thread is somebody talking, and an <h2>
+   that looks like a landing-page headline makes a build log read as a brochure. */
+.postBody {
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.postBody > *:first-child {
+  margin-top: 0;
+}
+
+.postBody > *:last-child {
+  margin-bottom: 0;
+}
+
+.postBody p {
+  margin: 0 0 12px;
+}
+
+.postBody h1,
+.postBody h2,
+.postBody h3,
+.postBody h4,
+.postBody h5,
+.postBody h6 {
+  margin: 20px 0 8px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.postBody h1,
+.postBody h2 {
+  font-size: 16px;
+}
+
+.postBody h3,
+.postBody h4,
+.postBody h5,
+.postBody h6 {
+  font-size: 14.5px;
+}
+
+.postBody ul,
+.postBody ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+
+.postBody li {
+  margin: 3px 0;
+}
+
+.postBody li::marker {
+  color: var(--pfc-ink-faint);
+}
+
+.postBody blockquote {
+  margin: 12px 0;
+  padding: 2px 0 2px 12px;
+  border-left: 2px solid var(--pfc-edge);
+  color: var(--pfc-ink-2);
+}
+
+.postBody hr {
+  margin: 18px 0;
+  border: 0;
+  border-top: 1px solid var(--pfc-hair);
+}
+
+.postBody strong {
+  font-weight: 600;
+  color: var(--pfc-ink);
+}
+
+.postBody del {
+  color: var(--pfc-ink-faint);
+}
+
+/* Says why the picture is a link and not a picture, without a sentence of
+   explanation next to every one. */
+.imageLinkTag {
+  font-family: var(--pf-mono, monospace);
+  font-size: 0.82em;
+  color: var(--pfc-ink-faint);
+  text-decoration: none;
+}
+
+/* Inline code — a register name or a pin, mid-sentence. Quiet enough to sit in
+   a paragraph, distinct enough to not be read as prose. */
+.inlineCode {
+  padding: 1px 5px;
+  background: var(--pfc-well);
+  border: 1px solid var(--pfc-hair);
+  font-family: var(--pf-mono, monospace);
+  font-size: 0.88em;
+  overflow-wrap: anywhere;
+}
+
+/* Measurement tables. Narrow columns and a hard scroll boundary — a wide table
+   must never be the reason the page scrolls sideways. */
+.postBody table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  margin: 0 0 12px;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.postBody th,
+.postBody td {
+  padding: 5px 10px;
+  border: 1px solid var(--pfc-hair);
+  text-align: left;
+}
+
+.postBody th {
+  background: var(--pfc-well);
+  font-weight: 600;
+}
+
+/* ── Composing ──
+   Write / Preview, rendered through the same PostBody the thread uses. */
+.bodyComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.composerTabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.composerTabs button {
+  appearance: none;
+  border: 1px solid transparent;
+  background: none;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--pfc-ink-faint);
+  cursor: pointer;
+}
+
+.composerTabs button[data-active="true"] {
+  border-color: var(--pfc-edge);
+  background: var(--pfc-well);
+  color: var(--pfc-ink);
+}
+
+.composerTabs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.composerHint {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  color: var(--pfc-ink-faint);
+}
+
+/* Same box as the textarea it replaces, so switching tabs doesn't move the
+   page under the person typing. */
+.previewPane {
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 11px 12px;
+  border: 1px dashed var(--pfc-edge);
+  background: var(--pfc-ground);
+  overflow-y: auto;
+}
+
+.previewPane[data-grow="page"] {
+  max-height: 75vh;
+}
+
+.previewPane[data-grow="modal"] {
+  max-height: 42vh;
+}
+
+/* A reply sits in a list of other people's replies, so it matches the comment
+   textarea's own floor rather than the post editor's. */
+.previewPane[data-grow="comment"] {
+  min-height: 84px;
+  max-height: 60vh;
+}
+
+.postBodyInput[data-grow="comment"] {
+  max-height: 60vh;
+}
+
+/* BodyComposer brings .postBodyInput with it, but inside a comment form the
+   more specific `.commentForm textarea` still owns the box — which is what we
+   want (84px floor, not 180). Stated here so the interaction is on purpose. */
+.commentForm .bodyComposer .postBodyInput {
+  min-height: 84px;
+}
+
+@media (max-width: 560px) {
+  /* The hint is the first thing to go — the tabs have to stay tappable. */
+  .composerHint {
+    display: none;
+  }
+}
+
 /* ── Code fences ──
-   The one piece of markup the board has. Same dark ground as the code panel,
-   so pasted logs read as what they are. */
+   Same dark ground as the code panel, so pasted logs read as what they are. */
 .codeFence {
   margin: 10px 0;
   padding: 10px 12px;

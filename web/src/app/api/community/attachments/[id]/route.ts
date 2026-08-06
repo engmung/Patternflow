@@ -1,9 +1,15 @@
 import fs from "node:fs/promises";
+import { eq } from "drizzle-orm";
+import { isAdminSession } from "@/lib/community/admin";
 import { attachmentPath, sniffImage } from "@/lib/community/attachments";
-import { communityEnabled } from "@/lib/community/db";
+import { getAuth } from "@/lib/community/auth";
+import { originBlocked, preflight, withCors } from "@/lib/community/cors";
+import { communityEnabled, getDb } from "@/lib/community/db";
 import { getAttachment } from "@/lib/community/queries";
+import { postAttachments } from "@/lib/community/schema";
 
 // GET /api/community/attachments/[id] — hand back a file from a thread.
+// DELETE the same — take one back off.
 //
 // Two paths out, decided by the BYTES rather than the uploaded name:
 //
@@ -61,4 +67,53 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       "Content-Security-Policy": "sandbox",
     },
   });
+}
+
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const blocked = originBlocked(request);
+  if (blocked) return blocked;
+  return withCors(request, await handleDelete(request, context));
+}
+
+export const OPTIONS = preflight;
+
+/**
+ * Unattach a file.
+ *
+ * Attaching used to be one-way: pick the wrong file and it was on the thread
+ * for good, under your name, with a permanent URL. That is a bad thing to do to
+ * somebody over a misclick, and worse when the wrong file is one they did not
+ * mean to publish at all.
+ *
+ * Only the person who uploaded it, or a moderator. The uploader is always the
+ * author of the thread or reply it hangs on (the POST route enforces that), so
+ * this is the same permission as editing the thing it is attached to.
+ *
+ * Row first, then bytes. A row pointing at a missing file already 404s
+ * gracefully above; bytes with no row are invisible and permanent, so if the
+ * unlink fails the sweep is what cleans up — never the other way round.
+ */
+async function handleDelete(request: Request, context: { params: Promise<{ id: string }> }) {
+  if (!communityEnabled()) {
+    return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
+  }
+
+  const session = await getAuth().api.getSession({ headers: request.headers });
+  if (!session) {
+    return Response.json({ error: "Sign in first." }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+  const row = await getAttachment(id);
+  if (!row) {
+    return Response.json({ error: "File not found." }, { status: 404 });
+  }
+  if (row.userId !== session.user.id && !isAdminSession(session)) {
+    return Response.json({ error: "That is not your file." }, { status: 403 });
+  }
+
+  await getDb().delete(postAttachments).where(eq(postAttachments.id, row.id));
+  await fs.rm(attachmentPath(row.id), { force: true }).catch(() => undefined);
+
+  return Response.json({ ok: true });
 }
