@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { useAutoGrow } from "@/lib/useAutoGrow";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/community/workshop";
 import type { AttachmentView } from "@/lib/community/queries";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
@@ -72,6 +73,10 @@ export default function PostDetailClient({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  // Editing opens on a post that already exists, so the box arrives at the
+  // length of what is in it rather than showing eight lines of forty.
+  const bodyRef = useAutoGrow<HTMLTextAreaElement>(editing ? body : "");
 
   // Attaching more files after the thread exists (author only).
   const attachRef = useRef<HTMLInputElement | null>(null);
@@ -199,7 +204,9 @@ export default function PostDetailClient({
               onChange={(event) => setTitle(event.target.value)}
             />
             <textarea
+              ref={bodyRef}
               className={styles.postBodyInput}
+              data-grow="page"
               value={body}
               maxLength={POST_BODY_MAX}
               aria-label="Post body"
