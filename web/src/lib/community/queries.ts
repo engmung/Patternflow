@@ -644,6 +644,9 @@ export async function getAttachment(id: string) {
     .select({
       id: postAttachments.id,
       postId: postAttachments.postId,
+      commentId: postAttachments.commentId,
+      // Who hung it there — the DELETE route's whole authorisation check.
+      userId: postAttachments.userId,
       filename: postAttachments.filename,
       bytes: postAttachments.bytes,
     })

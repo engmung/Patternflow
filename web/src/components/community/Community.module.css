@@ -3679,6 +3679,25 @@
   background-color: var(--pfc-ground);
   background-image: radial-gradient(rgba(244, 239, 230, 0.05) 1px, transparent 1px);
   background-size: 26px 26px;
+  /* Draggable. Without this a drag across the map selects the node labels
+     instead of moving anything, which is the usual way a pan feels broken. */
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.stage[data-panning="true"] {
+  cursor: grabbing;
+}
+
+/* The layer that actually moves. useDragPan writes transform straight to this
+   element from an animation frame — going through React state would queue a
+   render per pointermove, which is the difference between following your hand
+   and lagging behind it. */
+.stagePan {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
 }
 
 .stageLines {
@@ -3735,10 +3754,15 @@
   border-color: var(--pfc-edge-strong);
 }
 
+/* Selected. The tint is LAYERED over the panel rather than replacing it: as a
+   plain rgba() it made the node 10%-opaque, and on the constellation that meant
+   every line in the map showed through the node you had just picked — all of
+   them visibly converging on the core behind it. */
 .stageNode[data-active="true"],
 .floorZone[data-active="true"] {
   border-color: var(--pfc-led);
-  background: rgba(232, 85, 46, 0.1);
+  background-color: var(--pfc-panel);
+  background-image: linear-gradient(rgba(232, 85, 46, 0.1), rgba(232, 85, 46, 0.1));
 }
 
 .nodeHead {
@@ -4210,6 +4234,11 @@
   line-height: 0;
 }
 
+/* Holds the × in the corner of the thumbnail. */
+.attachImage {
+  position: relative;
+}
+
 .attachImages img {
   max-height: 220px;
   max-width: 100%;
@@ -4235,6 +4264,62 @@
 
 .fileChip:hover {
   border-color: var(--pfc-led);
+}
+
+/* ── Taking a file back off ──
+   Both removes are two-step: × arms, "sure?" commits. There is no undo behind
+   this — the bytes go — so a single misclick must not be enough, in exactly
+   the way a single misclick used to be enough to publish the wrong file. */
+.attachImageRemove,
+.fileChipRemove {
+  appearance: none;
+  border: 1px solid var(--pfc-hair);
+  background: var(--pfc-ground);
+  color: var(--pfc-ink-faint);
+  font: inherit;
+  font-family: var(--pf-mono, monospace);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attachImageRemove:hover,
+.fileChipRemove:hover,
+.attachImageRemove[data-confirming="true"],
+.fileChipRemove[data-confirming="true"] {
+  border-color: var(--pfc-danger);
+  color: var(--pfc-danger);
+}
+
+/* On a thumbnail: top-right, and only once you are looking at the image —
+   a row of × marks over a contact sheet is noise. Always visible on touch,
+   where there is no hover to reveal it. */
+.attachImageRemove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 3px 7px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.attachImage:hover .attachImageRemove,
+.attachImageRemove:focus-visible,
+.attachImageRemove[data-confirming="true"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .attachImageRemove {
+    opacity: 1;
+  }
+}
+
+/* On a chip: inline at the end, after the size. */
+.fileChipRemove {
+  padding: 1px 6px;
+  font-size: 11px;
+  margin-left: 2px;
 }
 
 .fileChip span {

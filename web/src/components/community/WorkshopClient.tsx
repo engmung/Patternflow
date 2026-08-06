@@ -13,6 +13,7 @@ import {
   parseQuestions,
 } from "@/lib/community/workshop";
 import type { TerritoryListItem } from "@/lib/community/queries";
+import { useDragPan } from "@/lib/useDragPan";
 import { useIsMobile } from "@/lib/useMediaQuery";
 import AuthModal from "./AuthModal";
 import NewThreadModal from "./NewThreadModal";
@@ -424,72 +425,92 @@ function Constellation({
   const cx = STAGE_WIDTH / 2;
   const cy = STAGE_HEIGHT / 2;
 
+  // A node is 196px wide and centred on its coordinate, so one placed at the
+  // edge hangs half of itself outside the box. This is roughly that overhang,
+  // which is all the room the map needs to be fully readable — and little
+  // enough that you cannot push it somewhere you have to hunt for it.
+  const { surfaceRef, handlers, panning, didPan } = useDragPan({ x: 140, y: 90 });
+
   return (
-    <div className={styles.stage}>
-      <svg
-        className={styles.stageLines}
-        viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        {territories.map((territory) => (
-          <line
-            key={territory.id}
-            x1={cx}
-            y1={cy}
-            x2={territory.x}
-            y2={territory.y}
-            stroke={selected?.id === territory.id ? "#E8552E" : "rgba(244,239,230,0.18)"}
-            strokeWidth={selected?.id === territory.id ? 1.5 : 1}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-      </svg>
+    <div
+      className={styles.stage}
+      data-panning={panning}
+      {...handlers}
+      role="presentation"
+    >
+      {/* Everything that moves. The legend stays outside it — it labels the
+          map rather than living on it. */}
+      <div className={styles.stagePan} ref={surfaceRef}>
+        <svg
+          className={styles.stageLines}
+          viewBox={`0 0 ${STAGE_WIDTH} ${STAGE_HEIGHT}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {territories.map((territory) => (
+            <line
+              key={territory.id}
+              x1={cx}
+              y1={cy}
+              x2={territory.x}
+              y2={territory.y}
+              stroke={selected?.id === territory.id ? "#E8552E" : "rgba(244,239,230,0.18)"}
+              strokeWidth={selected?.id === territory.id ? 1.5 : 1}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
 
-      <div className={styles.stageCore} style={{ left: "50%", top: "50%" }}>
-        <div className={styles.coreScreen} />
-        <span>Patternflow</span>
-      </div>
+        <div className={styles.stageCore} style={{ left: "50%", top: "50%" }}>
+          <div className={styles.coreScreen} />
+          <span>Patternflow</span>
+        </div>
 
-      {territories.map((territory) => {
-        const questions = parseQuestions(territory.questions);
-        const active = selected?.id === territory.id;
-        return (
-          <button
-            key={territory.id}
-            type="button"
-            className={styles.stageNode}
-            data-active={active}
-            style={{
-              left: `${(territory.x / STAGE_WIDTH) * 100}%`,
-              top: `${(territory.y / STAGE_HEIGHT) * 100}%`,
-            }}
-            onClick={() => onSelect(territory.code)}
-          >
-            <span className={styles.nodeHead}>
-              <span className={styles.nodeCode}>{territory.code}</span>
-              <span className={styles.nodeTitle}>{territory.title}</span>
-            </span>
-            <span className={styles.nodeCounts}>
-              {Array.from({ length: Math.min(territory.pinCount, 8) }, (_, index) => (
-                <i key={index} aria-hidden="true" />
-              ))}
-              <span>
-                {territory.pinCount} · {territory.threadCount} th
+        {territories.map((territory) => {
+          const questions = parseQuestions(territory.questions);
+          const active = selected?.id === territory.id;
+          return (
+            <button
+              key={territory.id}
+              type="button"
+              className={styles.stageNode}
+              data-active={active}
+              style={{
+                left: `${(territory.x / STAGE_WIDTH) * 100}%`,
+                top: `${(territory.y / STAGE_HEIGHT) * 100}%`,
+              }}
+              // Dragging the map from a node is the natural thing to do, so the
+              // click that ends the drag must not also pick that node.
+              onClick={() => {
+                if (didPan()) return;
+                onSelect(territory.code);
+              }}
+            >
+              <span className={styles.nodeHead}>
+                <span className={styles.nodeCode}>{territory.code}</span>
+                <span className={styles.nodeTitle}>{territory.title}</span>
               </span>
-            </span>
-            {/* Open questions only hang off the node you are looking at —
-                every node showing its own would be a thicket. */}
-            {active && questions.length > 0 && (
-              <span className={styles.nodeQuestions}>
-                {questions.map((question) => (
-                  <span key={question}>{question}</span>
+              <span className={styles.nodeCounts}>
+                {Array.from({ length: Math.min(territory.pinCount, 8) }, (_, index) => (
+                  <i key={index} aria-hidden="true" />
                 ))}
+                <span>
+                  {territory.pinCount} · {territory.threadCount} th
+                </span>
               </span>
-            )}
-          </button>
-        );
-      })}
+              {/* Open questions only hang off the node you are looking at —
+                  every node showing its own would be a thicket. */}
+              {active && questions.length > 0 && (
+                <span className={styles.nodeQuestions}>
+                  {questions.map((question) => (
+                    <span key={question}>{question}</span>
+                  ))}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div className={styles.stageLegend}>
         <span>

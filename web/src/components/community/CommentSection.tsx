@@ -281,6 +281,7 @@ export default function CommentSection({
                 <PostBody text={comment.body} />
                 <AttachmentList
                   files={attachments.filter((file) => file.commentId === comment.id)}
+                  canRemove={mine}
                 />
               </div>
             )}

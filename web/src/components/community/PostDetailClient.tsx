@@ -306,7 +306,7 @@ export default function PostDetailClient({
               <PostBody text={post.body} />
               {/* What was actually handed over: images inline, files as
                   download chips — see AttachmentList. */}
-              <AttachmentList files={bodyFiles} />
+              <AttachmentList files={bodyFiles} canRemove={isOwner || isAdmin} />
 
               {/* The author can keep attaching after posting. This is also
                   what makes the modal's "the files did not attach — open it
