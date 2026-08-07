@@ -88,7 +88,16 @@ function pump() {
       code: job.code,
       knobValues,
       knobRanges: setup.ranges,
-      seconds: 0.0,
+      // Not frame zero. A still at t=0 is the pattern before anything has
+      // happened in it — particles unspawned, trails empty, most of the screen
+      // dark — so the card advertised a picture the pattern never shows. This
+      // is the sandbox's own default: enough frames for a pattern to become
+      // itself, few enough to stay cheap (the whole feed shares one hidden
+      // iframe, rendering these one at a time, and each result is cached).
+      //
+      // It was 0.9 until b3419cd changed it to 0.0 inside a large unrelated
+      // commit that never mentions thumbnails.
+      seconds: 0.9,
       fps: 15,
     },
     "*",
