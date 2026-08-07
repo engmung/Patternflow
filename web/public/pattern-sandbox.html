@@ -349,6 +349,16 @@ function resizeLive(frame) {
   imageData = context.createImageData(frame.width, frame.height);
 }
 
+// The longest single step a pattern is ever handed. A frame that took longer
+// than this is split into several of these rather than delivered as one jump:
+// handing a whole stall to a pattern that integrates by dt teleports
+// everything in it.
+var MAX_STEP = 0.05;
+// …and the most real time worth catching up on. Past this the frames are
+// simply lost, which is what you want: returning to a tab that was hidden for
+// a minute should resume, not fast-forward through a minute of simulation.
+var MAX_CATCHUP = 0.25;
+
 var live = {
   runtime: null,
   running: true,
@@ -364,7 +374,10 @@ var live = {
   // something changes what should be on screen, so a paused preview still
   // redraws exactly once instead of either freezing stale or spinning at
   // 60fps. See tick().
-  painted: false
+  painted: false,
+  // The pending requestAnimationFrame handle, or 0 when this sandbox is
+  // asleep. A paused preview schedules NOTHING — see tick().
+  frame: 0
 };
 
 function paint(runtime) {
@@ -376,27 +389,24 @@ function post(message) {
   parent.postMessage(message, "*");
 }
 
-function tick(now) {
-  requestAnimationFrame(tick);
-  var runtime = live.runtime;
-  if (!runtime || live.failed) return;
-  var dt = live.running ? Math.min(Math.max(0, (now - live.lastNow) / 1000), 0.05) : 0;
-  live.lastNow = now;
-
-  // A paused preview keeps its runtime loaded so hovering plays instantly, but
-  // it has nothing new to draw. The community feed mounts one of these per
-  // card, so without this bail-out a page of idle previews each burned a full
-  // renderFrame + putImageData sixty times a second to reproduce a picture
-  // that never changed. Paint once after loading, then go quiet until the
-  // pattern resumes or its knobs move.
-  if (!live.running && live.painted) return;
+/**
+ * One simulation step. Returns false once the pattern has thrown.
+ *
+ * `withKnobDeltas` is true for the first step of a frame only: a knob turn is
+ * one event, and replaying it across the catch-up steps below would multiply
+ * the turn by however far behind the preview had fallen.
+ */
+function step(dt, withKnobDeltas) {
   live.simTime += dt;
 
-  var prev = live.prevKnobs || live.knobValues;
-  var deltas = live.knobValues.map(function (v, i) {
-    return knobDelta(prev[i], v, live.knobWrap[i], live.knobUnitsPerTurn[i]);
-  });
-  live.prevKnobs = live.knobValues.slice();
+  var deltas = null;
+  if (withKnobDeltas) {
+    var prev = live.prevKnobs || live.knobValues;
+    deltas = live.knobValues.map(function (v, i) {
+      return knobDelta(prev[i], v, live.knobWrap[i], live.knobUnitsPerTurn[i]);
+    });
+    live.prevKnobs = live.knobValues.slice();
+  }
 
   var input = makeInput(
     deltas,
@@ -404,19 +414,72 @@ function tick(now) {
     normalize(live.knobValues, live.knobRanges),
     live.knobRanges
   );
-  var result = runtime.renderFrame(dt, live.simTime, input);
-  if (result.ok) {
-    paint(runtime);
-    live.painted = true;
-  } else {
+  var result = live.runtime.renderFrame(dt, live.simTime, input);
+  if (!result.ok) {
     live.failed = true;
     post({ type: "pf-status", ok: false, error: result.error });
+    return false;
   }
+  return true;
 }
-requestAnimationFrame(function (now) {
+
+/** Schedule a frame, unless one is already pending or this sandbox is dead. */
+function wake() {
+  if (live.frame !== 0 || live.failed || !live.runtime) return;
+  // A sandbox that has been asleep has a stale lastNow; without this the first
+  // frame back would bill the pattern for the whole pause.
+  live.lastNow = performance.now();
+  live.frame = requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  live.frame = 0;
+  var runtime = live.runtime;
+  if (!runtime || live.failed) return;
+
+  var elapsed = Math.min(Math.max(0, (now - live.lastNow) / 1000), MAX_CATCHUP);
   live.lastNow = now;
-  requestAnimationFrame(tick);
-});
+
+  // A paused preview keeps its runtime loaded so hovering plays instantly, but
+  // it has nothing new to draw. Paint once — a fresh load, or a knob turned
+  // while stopped — and then stop scheduling frames ENTIRELY.
+  //
+  // It used to re-arm rAF forever and bail out inside the callback. That is
+  // cheap per call and expensive in aggregate: a feed mounts one sandbox per
+  // nearby card (thirteen of them on a full wall), and thirteen documents each
+  // holding a live animation callback share the frame budget with the one card
+  // the cursor is actually on. pf-run/pf-knobs/pf-load call wake() instead.
+  if (!live.running) {
+    if (!live.painted && step(0, true)) {
+      paint(runtime);
+      live.painted = true;
+    }
+    return;
+  }
+
+  // Slow frames must not become slow motion.
+  //
+  // dt used to be clamped to MAX_STEP and handed over once, so a preview
+  // rendering at 10fps advanced the simulation by 50ms per 100ms of wall
+  // clock: a pattern that integrates velocity by dt physically moved at half
+  // speed. That reads as the pattern dying rather than stuttering, and it only
+  // showed up on the wall — the detail page runs one sandbox and never falls
+  // far enough behind to notice. The clamp now bounds each STEP, and whatever
+  // real time is left over is stepped again (at most MAX_CATCHUP/MAX_STEP
+  // times, so a long stall cannot turn into an unbounded burst).
+  var remaining = elapsed;
+  var first = true;
+  do {
+    var slice = remaining > MAX_STEP ? MAX_STEP : remaining;
+    if (!step(slice, first)) return;
+    remaining -= slice;
+    first = false;
+  } while (remaining > 1e-5);
+
+  paint(runtime);
+  live.painted = true;
+  live.frame = requestAnimationFrame(tick);
+}
 
 // ── Still rendering (feed thumbnails) ────────────────────────────────────────
 function renderStill(request) {
@@ -472,6 +535,7 @@ window.addEventListener("message", function (event) {
     if (load.ok) {
       paint(live.runtime);
       post({ type: "pf-status", ok: true });
+      wake();
     } else {
       live.failed = true;
       post({ type: "pf-status", ok: false, error: load.error });
@@ -481,8 +545,12 @@ window.addEventListener("message", function (event) {
     if (Array.isArray(msg.ranges)) live.knobRanges = msg.ranges;
     // Knobs can be turned on a card that is not playing — redraw that once.
     live.painted = false;
+    wake();
   } else if (msg.type === "pf-run") {
     live.running = Boolean(msg.running);
+    // Starting is the whole point of waking; stopping needs it too, so the
+    // paused branch of tick gets a chance to settle the final frame.
+    wake();
   } else if (msg.type === "pf-still") {
     var result;
     try {

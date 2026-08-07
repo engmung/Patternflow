@@ -1,6 +1,6 @@
 ---
 title: Build your own.
-subtitle: About US$100 and an hour of hands-on work.
+subtitle: Around US$100–200 and an hour of hands-on work.
 meta:
   - label: Available now
     value: "3D print + PCB · breadboard"

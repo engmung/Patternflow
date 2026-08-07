@@ -7,4 +7,4 @@
 // immutable Cache-Control (every feed card boots an iframe from it, and
 // without the cache each boot is a round trip to the Pi). An edit without a
 // bump ships to nobody who has ever visited.
-export const PATTERN_SANDBOX_URL = "/pattern-sandbox.html?v=4";
+export const PATTERN_SANDBOX_URL = "/pattern-sandbox.html?v=5";

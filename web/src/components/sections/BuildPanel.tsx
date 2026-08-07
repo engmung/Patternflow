@@ -15,11 +15,18 @@ interface BuildPanelProps {
 // 3D print, see BUILD_GUIDE.md BOM).
 const FACTS = [
   {
-    value: '~$100',
+    // A range, not the floor. The breakdown below adds up to about $100, and
+    // that is the well-sourced, nothing-goes-wrong build — the figure people
+    // who have actually built one report is higher. Shipping, minimum order
+    // quantities on the small parts, and a reprint or two are the difference,
+    // and quoting only the best case makes the project look cheaper than it
+    // is to the one person it matters to: whoever is deciding to start.
+    value: '$100–200',
     name: 'All parts',
     // Printing, not filament: most people order the case rather than owning a
     // printer, and $30 is what that costs.
-    detail: '3D printing ~$30 · panel ~$20 · ESP32-S3 ~$15 · PCB & rest ~$35',
+    detail:
+      'At best: 3D printing ~$30 · panel ~$20 · ESP32-S3 ~$15 · PCB & rest ~$35. Shipping, minimum order quantities and a reprint or two take it up from there.',
   },
   {
     value: '~1 hr',
