@@ -41,7 +41,7 @@
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Everything from the browser (Chrome/Edge) — stock firmware, and custom patterns compiled by the build server; after the first USB flash, new builds can go over Wi-Fi. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
-| **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · around US$100 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
+| **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 
 ### Power & runtime

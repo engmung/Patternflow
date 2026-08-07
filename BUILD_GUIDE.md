@@ -32,7 +32,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. No prio
 
 The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v3.0.csv) — every part specified by manufacturer part number. Read the [BOM README](hardware/bom/README.md) for sourcing notes before ordering.
 
-Rough breakdown of the ~US$100 total: 3D printing filament ~$30, LED matrix panel ~$20, ESP32-S3 ~$13, PCB + remaining parts (encoders, connectors, etc.) ~$35.
+Budget **US$100–200**. The lower end is the well-sourced build where nothing goes wrong: 3D printing filament ~$30, LED matrix panel ~$20, ESP32-S3 ~$13, PCB + remaining parts (encoders, connectors, etc.) ~$35. Shipping, minimum order quantities on the small parts, and a reprint or two are what take it up from there — so treat ~$100 as the floor rather than the estimate.
 
 ### On the board
 
