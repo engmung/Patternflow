@@ -187,6 +187,21 @@ export const builds: Build[] = [
       { src: '/builds/nick/booth.jpg', alt: "Nick's Patternflow glowing blue above the mixer in a dark DJ booth" },
     ],
   },
+  {
+    id: 'usa-jon',
+    slug: 'jon-usa',
+    kind: 'build',
+    location: { lat: 39.5296, lng: -119.8138, label: 'Reno, USA' },
+    maker: 'Jon',
+    date: '2026-08',
+    description:
+      'A raspberry case with the Burning Man emblem inlaid in orange into the front panel. Printed D-ring anchors take a shoulder strap, so it can be worn to a festival. The juiciest one on the map yet.',
+    images: [
+      { src: '/builds/jon/man.jpg', alt: "Jon's Patternflow powered down, the Burning Man figure inlaid in orange into the front battery panel and the strap clipped to both sides" },
+      { src: '/builds/jon/front.jpg', alt: "A blue pattern on Jon's raspberry-and-orange Patternflow, a shoulder strap running off one side" },
+      { src: '/builds/jon/anchor.jpg', alt: "Close-up of the printed D-ring anchor carrying the shoulder strap on Jon's Patternflow" },
+    ],
+  },
 ];
 
 export function buildBySlug(slug: string): Build | undefined {
