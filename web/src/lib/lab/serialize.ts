@@ -36,6 +36,36 @@ import { matchMatrixAnnotation } from "@/lib/patternMatrix";
 
 export const PROJECT_STORAGE = "patternflow_lab_project_v2";
 export const LAYOUT_STORAGE = "patternflow_lab_layout_v1";
+
+/**
+ * How many panels a serialized dockview layout actually PLACES.
+ *
+ * Not `Object.keys(layout.panels).length` — that is a registry, and not the
+ * leaf count either. The blank-workspace layout this exists to catch has all
+ * seven panels registered, five grid leaves at the right sizes, an activeView
+ * named on each… and `views: []` in every one of them. dockview restores it
+ * without complaining and you get a lab with every panel closed and no way
+ * back but Reset layout.
+ *
+ * So the only honest question is how many views are placed in the grid, which
+ * is what this counts. Both the save and the restore ask it: a layout that
+ * places nothing is never written, and never restored if an older one is
+ * already stored.
+ */
+export function layoutViewCount(layout: unknown): number {
+  const walk = (node: unknown): number => {
+    if (!node || typeof node !== "object") return 0;
+    const branch = node as { type?: unknown; data?: unknown };
+    if (branch.type === "leaf") {
+      const views = (branch.data as { views?: unknown } | undefined)?.views;
+      return Array.isArray(views) ? views.length : 0;
+    }
+    if (!Array.isArray(branch.data)) return 0;
+    return branch.data.reduce<number>((sum, child) => sum + walk(child), 0);
+  };
+  const grid = (layout as { grid?: { root?: unknown } } | null | undefined)?.grid;
+  return walk(grid?.root);
+}
 /** Old single-pattern lab keys, read once for migration. */
 const LEGACY_RAMP_STORAGE = "patternflow_ramp_v1";
 

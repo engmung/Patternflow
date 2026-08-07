@@ -32,7 +32,7 @@ import PublishModal from "@/components/community/PublishModal";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
-import { LAYOUT_STORAGE } from "@/lib/lab/serialize";
+import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
 import { buildStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
@@ -247,6 +247,19 @@ export default function PatternLabClient() {
     setMounted(true);
   }, [hydrate]);
 
+  // A queued layout save must not outlive the dock it describes: leaving the
+  // lab tears the dock down, and a save that lands afterwards writes whatever
+  // the half-disposed dock happened to serialise to.
+  useEffect(
+    () => () => {
+      if (layoutSaveTimer.current !== null) {
+        clearTimeout(layoutSaveTimer.current);
+        layoutSaveTimer.current = null;
+      }
+    },
+    [],
+  );
+
   const syncOpenPanels = useCallback((api: DockviewApi) => {
     setOpenPanels(new Set(api.panels.map((panel) => panel.id)));
   }, []);
@@ -260,14 +273,31 @@ export default function PatternLabClient() {
       try {
         const raw = window.localStorage.getItem(LAYOUT_STORAGE);
         if (raw) {
-          api.fromJSON(JSON.parse(raw));
-          restored = true;
+          const parsed = JSON.parse(raw);
+          // Restoring a layout that places nothing gives you an empty
+          // workspace: every panel gone, and Reset layout the only way out.
+          // dockview will happily do it, so the check has to happen here.
+          if (layoutViewCount(parsed) > 0) {
+            api.fromJSON(parsed);
+            restored = true;
+          }
         }
       } catch {
         restored = false;
       }
       if (!restored) {
+        // Drop the unusable one rather than leaving it to be rejected again on
+        // every future load — onDidLayoutChange is subscribed below, so
+        // nothing overwrites it until the first panel is moved.
         try {
+          window.localStorage.removeItem(LAYOUT_STORAGE);
+        } catch {
+          // Private mode — nothing was persisted anyway.
+        }
+        try {
+          // Whatever a failed fromJSON managed to add is still in there, and
+          // building the default on top of it collides on panel ids.
+          api.clear();
           buildDefaultLayout(api);
         } catch {
           // A half-built layout is still usable; panels can be opened manually.
@@ -281,7 +311,13 @@ export default function PatternLabClient() {
         layoutSaveTimer.current = setTimeout(() => {
           layoutSaveTimer.current = null;
           try {
-            window.localStorage.setItem(LAYOUT_STORAGE, JSON.stringify(api.toJSON()));
+            const next = api.toJSON();
+            // This is where the blank workspace got in. A dock is momentarily
+            // empty while it is being cleared or torn down, and a snapshot
+            // taken then is a layout that restores as nothing at all. It is
+            // never a state worth remembering, so it is never written.
+            if (layoutViewCount(next) === 0) return;
+            window.localStorage.setItem(LAYOUT_STORAGE, JSON.stringify(next));
           } catch {
             // Quota/private mode — layout just won't persist.
           }
