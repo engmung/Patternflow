@@ -20,7 +20,7 @@
 import { buildRampLUTRGBA } from "@/lib/patternHarness";
 import { withMatrixAnnotation, type MatrixSize } from "@/lib/patternMatrix";
 import { codeUsesValueField } from "@/lib/patternRamp";
-import { KNOBS_ANNOTATION_RE, defaultKnobState } from "./annotations";
+import { KNOBS_ANNOTATION_RE, buildKnobsAnnotationLine, defaultKnobState } from "./annotations";
 import { rampStateToHarness } from "./engine";
 import { bytesToBase64 } from "./serialize";
 import type { CodeLayer, KnobRange, Layer } from "./types";
@@ -262,15 +262,8 @@ export function draw(display, params, time) {
     labels: defaultKnobState().labels,
     ranges: defaultKnobState().ranges,
   };
-  const trim = (value: number) => `${Math.round(value * 1000) / 1000}`;
   const knobsLine = hasCode
-    ? `// @knobs ${knobState.labels
-        .map((label, index) => {
-          const range = knobState.ranges[index] ?? [0, 1];
-          const name = label.replace(/[,=]/g, " ").trim() || "-";
-          return `${name}=${trim(range[0])}..${trim(range[1])}`;
-        })
-        .join(", ")}`
+    ? buildKnobsAnnotationLine(knobState.labels, knobState.ranges)
     : null;
 
   const body = parts.join("\n");

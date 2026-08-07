@@ -30,6 +30,7 @@ import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
 import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
+import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
@@ -178,6 +179,12 @@ async function buildExportCode(): Promise<string> {
     (entry) => entry.visible && entry.opacity > 0 && entry.type === "code",
   ) as CodeLayer;
   let code = withMatrixAnnotation(layer.code, state.matrix);
+  // Knob ranges live in the lab, not in the layer's text, so retuning a
+  // slider's min/max left the code saying whatever it was imported with. The
+  // flattened path has always written this line; a single code layer — the
+  // common case — published the original ranges and the retune had to be
+  // redone by hand in the community editor afterwards.
+  code = withKnobsAnnotation(code, state.knobLabels, state.ranges);
   if (codeUsesValueField(layer.code) || layer.recolor) {
     code = withRampAnnotation(code, {
       stops: layer.ramp.stops.map((stop) => ({
