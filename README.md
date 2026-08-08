@@ -72,25 +72,9 @@ On the device, the firmware bundles **34 curated presets** in a single image, sw
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
 
-## Community
-
-<p align="center">
-  <img src="./docs/images/pattern-guide/02-community-home.png" width="100%" alt="The community wall — patterns people made, playing live" />
-</p>
-
-The **[Community](https://community.patternflow.work/community)** is where patterns live — and the wall plays them **live**. Hover a card and the pattern runs; scroll on it and its knobs turn, the same four knobs as the hardware. Open one to read its code, take it into Pattern Lab to remix, and publish it back — the fork is recorded, so you can always see what grew out of what. All of this works without an account.
-
-**From the wall to your device in seconds.** Collect patterns into a **deck** — a setlist of up to ten — and `SEND TO MY BOARD` builds them into Wi-Fi modules and installs them with no cable, no reflash. Decks can be shared too: browse the sets other people curated and send one straight to your own device. Patterns carrying a hardware-verified `.h` header are badged, with a filter for when you want something to flash right now. The **[Pattern Guide](PATTERN_GUIDE.md)** walks every step.
-
-**The Workshop is where the project's future is worked out — in the open.** It's a map of directions Patternflow could take — a wired OSC version, laser-cut enclosures, bigger panels — and anyone can pin themselves to a direction, say what they're working on, and start a thread. Not a roadmap handed down; a map people stand on. It's young and evolving fast, and it matters more than its size suggests: it's how this project decides where to go next.
-
-Signing in is username and password only — no email — so it never routes through a service that might be blocked where you are.
-
-New pattern studies also go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel remains a good place to hang around and talk about them. **Come for a pattern you saw on a post, stay to share your own.**
-
 ## Make your own patterns
 
-Patternflow ships with prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.), and the whole journey from idea to hardware runs in the browser — no toolchain. The **Live Editor** is where you start, **Pattern Lab** is where a pattern becomes firmware, and the **[Community](https://community.patternflow.work/community)** is where it goes when it's done.
+[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. The whole journey from idea to hardware runs in the browser, no toolchain: prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.) do the writing, you do the deciding. The **Live Editor** is where you start, **Pattern Lab** is where a pattern becomes firmware, and the **[Community](https://community.patternflow.work/community)** is where it goes when it's done.
 
 <p align="center">
   <img src="./docs/media/web-live-editor.png" width="100%" alt="Live Editor — a full Patternflow simulator in the browser, code beside the device" />
@@ -116,9 +100,25 @@ No GLSL or rendering pipeline knowledge needed. The template handles the encoder
 
 Both full-firmware paths — Pattern Lab's build and the Arduino IDE — flash a whole image, and the preset library always comes along. Patterns installed as `.pfm` modules sit on a separate partition and survive any reflash.
 
-## The website
+## Community
 
-[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. The tools above live there. So do the two records that show the project working in the open.
+<p align="center">
+  <img src="./docs/images/pattern-guide/02-community-home.png" width="100%" alt="The community wall — patterns people made, playing live" />
+</p>
+
+The **[Community](https://community.patternflow.work/community)** is where patterns live — and the wall plays them **live**. Hover a card and the pattern runs; scroll on it and its knobs turn, the same four knobs as the hardware. Open one to read its code, take it into Pattern Lab to remix, and publish it back — the fork is recorded, so you can always see what grew out of what. All of this works without an account.
+
+**From the wall to your device in seconds.** Collect patterns into a **deck** — a setlist of up to ten — and `SEND TO MY BOARD` builds them into Wi-Fi modules and installs them with no cable, no reflash. Decks can be shared too: browse the sets other people curated and send one straight to your own device. Patterns carrying a hardware-verified `.h` header are badged, with a filter for when you want something to flash right now. The **[Pattern Guide](PATTERN_GUIDE.md)** walks every step.
+
+**The Workshop is where the project's future is worked out — in the open.** It's a map of directions Patternflow could take — a wired OSC version, laser-cut enclosures, bigger panels — and anyone can pin themselves to a direction, say what they're working on, and start a thread. Not a roadmap handed down; a map people stand on. It's young and evolving fast, and it matters more than its size suggests: it's how this project decides where to go next.
+
+Signing in is username and password only — no email — so it never routes through a service that might be blocked where you are.
+
+New pattern studies also go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel remains a good place to hang around and talk about them. **Come for a pattern you saw on a post, stay to share your own.**
+
+## Built in the open
+
+Two public records show the project working — who is building, and what it costs to keep alive.
 
 <p align="center">
   <img src="./docs/media/web-build-map.png" width="100%" alt="Build map — a globe of Patternflows built around the world, with the story of every build" />
