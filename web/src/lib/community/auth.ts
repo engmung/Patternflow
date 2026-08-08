@@ -29,6 +29,26 @@ function createAuth() {
     // origin has to be named explicitly or every cross-origin auth call is
     // rejected. Same list the CORS layer uses — see lib/community/cors.ts.
     trustedOrigins: trustedOrigins(),
+    // Better Auth throttles by default — but its default for the credential
+    // endpoints is 3 tries per 10 seconds, which is a burst brake rather than
+    // a guess budget: left alone it allows about 26,000 attempts a day against
+    // one account, and the floor here is an 8-character password.
+    //
+    // The window goes to an hour, which turns the same rule into a budget: 10
+    // wrong passwords an hour per IP. A person who mistypes theirs twice never
+    // meets this; someone working a list gets 240 guesses a day instead of
+    // 26,000. `enabled` is forced on because the default only switches it on
+    // in production, and a staging box with real accounts on it is exactly
+    // where nobody is watching.
+    rateLimit: {
+      enabled: true,
+      customRules: {
+        "/sign-in/*": { window: 3600, max: 10 },
+        "/sign-up/*": { window: 3600, max: 10 },
+        "/change-password": { window: 3600, max: 10 },
+        "/change-email": { window: 3600, max: 10 },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
