@@ -5,9 +5,19 @@
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/Hardware-CC_BY--SA_4.0-orange?style=flat-square)](./LICENSE-CC-BY-SA)
 [![Release](https://img.shields.io/github/v/release/engmung/Patternflow?style=flat-square&color=purple&label=Release)](../../releases)
 [![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Launching_Q4_2026-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
+[![Discord](https://img.shields.io/discord/1497757947827327067?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/Vr9QtsxeTk)
 
 > ⚠️ **Photosensitivity Warning**
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
+
+<p align="center">
+  <a href="https://www.instagram.com/p/DbD2z1VSG09/">
+    <img src="./docs/media/hero-loop.webp" width="44%" alt="Patternflow — a hand turns a knob and the light reshapes" />
+  </a>
+</p>
+<p align="center">
+  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the full reel on Instagram</a></sub>
+</p>
 
 <p align="center">
   <a href="https://youtu.be/BPMhTChY9vg">
@@ -46,7 +56,12 @@
 
 ### Power & runtime
 
-Patternflow runs off any standard USB power bank that can supply a couple of amps at 5 V — no wall adapter needed, so it stays portable. In testing, a 40,000 mAh bank dropped about 13% over 2 hours at **full brightness**, which is roughly **15 hours on a full charge**, or about **4 hours per 10,000 mAh**:
+Patternflow runs off any standard USB power bank that can supply a couple of amps at 5 V — no wall adapter needed, so it stays portable. Rule of thumb: **about 4 hours per 10,000 mAh at maximum brightness**, and most patterns draw less.
+
+<details>
+<summary>Measured runtimes</summary>
+
+In testing, a 40,000 mAh bank dropped about 13% over 2 hours at **full brightness**, which is roughly **15 hours on a full charge**:
 
 | Power bank | Approx. runtime (max brightness) |
 | :--- | :--- |
@@ -54,7 +69,9 @@ Patternflow runs off any standard USB power bank that can supply a couple of amp
 | 20,000 mAh | ~8 hours |
 | 40,000 mAh | ~15 hours |
 
-These are worst-case numbers measured with a bright pattern at maximum brightness. Most patterns draw less, and lowering the brightness (long-press encoder 1) extends runtime well beyond these figures.
+These are worst-case numbers measured with a bright pattern at maximum brightness. Lowering the brightness (long-press encoder 1) extends runtime well beyond these figures.
+
+</details>
 
 ## Patterns
 
@@ -85,6 +102,10 @@ New pattern studies also go up on [Instagram](https://www.instagram.com/patternf
 
 Patternflow ships with prompt templates designed for AI coding assistants (Claude, ChatGPT, Gemini, etc.), and the whole journey from idea to hardware runs in the browser — no toolchain. The **Live Editor** is where you start, **Pattern Lab** is where a pattern becomes firmware, and the **[Community](https://community.patternflow.work/community)** is where it goes when it's done.
 
+<p align="center">
+  <img src="./docs/media/web-live-editor.png" width="100%" alt="Live Editor — a full Patternflow simulator in the browser, code beside the device" />
+</p>
+
 **Start in the [Live Editor](https://patternflow.work/pattern)** — a full Patternflow simulator, and the quick taste. Turn the virtual knobs and the on-screen device behaves exactly like the real one, down to the encoder detents. You don't need the hardware to begin:
 
 1. Click **Copy creation prompt** and paste it into your AI assistant along with a description of the look you want.
@@ -107,14 +128,13 @@ Both full-firmware paths — Pattern Lab's build and the Arduino IDE — flash a
 
 ## The website
 
-[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. The three tools above live there. So do the two records that show the project working in the open.
+[patternflow.work](https://patternflow.work) is not a companion page — it's half the instrument. The tools above live there. So do the two records that show the project working in the open.
 
 <p align="center">
-  <img src="./docs/media/web-live-editor.png" width="49%" alt="Live Editor — a full Patternflow simulator in the browser" />
-  <img src="./docs/media/web-build-map.png" width="49%" alt="Build map — a globe of Patternflows built around the world" />
+  <img src="./docs/media/web-build-map.png" width="100%" alt="Build map — a globe of Patternflows built around the world, with the story of every build" />
 </p>
 
-**[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, and the goal is simple: cover it with pins. The build map is also what *we* means in "every pattern we make": every pin is a person who built one from these files, in their own material, wherever they are. If you've made one, share it in Discord and it goes on the map.
+**[Build map](https://patternflow.work/inside)** — a globe of Patternflows built around the world, each pin carrying its build's story, and the goal is simple: cover it with pins. The build map is also what *we* means in "every pattern we make": every pin is a person who built one from these files, in their own material, wherever they are. If you've made one, share it in Discord and it goes on the map.
 
 **[Journal](https://patternflow.work/journal)** — Patternflow is treated as art, so the whole process is documented transparently: the events, the emotions, and the thinking behind every step, written up at least once a week since the beginning. Including the parts that went badly. If you want to know why this project exists — and what it costs to keep it alive — start there.
 
