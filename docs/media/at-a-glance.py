@@ -82,7 +82,9 @@ px, py, pw, ph = dx + 0.16, dy + 0.16, dw * 0.60, dh - 0.32
 ax.add_patch(Rectangle((px, py), pw, ph, fc=INK, ec=INK, lw=1.2))
 # knobs: a 2×2 block at the top-right, like the real thing
 knob_r = 0.19
-kx1, kx2 = px + pw + 0.42, px + pw + 0.92
+# centre the 2x2 block in the zone between the panel edge and the case edge
+zone_mid = (px + pw + (dx + dw)) / 2
+kx1, kx2 = zone_mid - 0.23, zone_mid + 0.23
 ky1, ky2 = dy + dh - 0.5, dy + dh - 1.0
 for kx, ky in [(kx1, ky1), (kx2, ky1), (kx1, ky2), (kx2, ky2)]:
     ax.add_patch(Circle((kx, ky), knob_r, fc=CREAM, ec=INK, lw=2.0))
