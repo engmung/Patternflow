@@ -29,6 +29,14 @@
 
 > **Moving fast.** [**v3.2.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) — patterns now install over Wi-Fi as `.pfm` modules, no reflash. The v3 generation also brought hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
+## At a glance
+
+Hardware, website, community, and where people actually talk — the whole ecosystem on one napkin:
+
+<p align="center">
+  <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub Discussions; and the Workshop, where project talk is gathering" />
+</p>
+
 ## Quick facts
 
 | | |
