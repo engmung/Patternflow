@@ -15,7 +15,7 @@ The `web/` app is the Patternflow site at [patternflow.work](https://patternflow
 | `/roadmap` | Roadmap rendered from GitHub issues via `/api/roadmap` |
 | `/api/roadmap` | Server route that pulls open issues + sub-issue progress (10 min revalidate; optional `GITHUB_TOKEN` for rate limit) |
 | `/pattern-lab` | **Internal, noindex.** Pattern authoring/curation workspace: Monaco editor, preset library, BYOK Gemini generation, JS→C++ conversion prompt |
-| `/community/*` | The pattern community — feed, pattern pages, discussions, moderation queue. Only active where `COMMUNITY_ENABLED=1`; see [docs/COMMUNITY.md](../docs/COMMUNITY.md) |
+| `/community/*` | The pattern community — the wall, pattern pages, decks, the Workshop, moderation queue. Only active where `COMMUNITY_ENABLED=1` |
 | `/terms` | Terms of use + privacy notice |
 | `/business` · `/contact` | Static pages |
 | `feed.xml` · `sitemap.ts` · `robots.ts` | Feeds and SEO plumbing |

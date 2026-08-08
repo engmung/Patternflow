@@ -300,6 +300,6 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 
 ---
 
-**Want custom patterns?** You no longer need the Arduino IDE for this — Pattern Lab's **Build firmware** button compiles a firmware image containing your pattern on the server and flashes it from the browser over USB, in about fifteen seconds. The Arduino IDE route above stays for firmware development. See [`firmware/CUSTOM_PATTERNS.md`](firmware/CUSTOM_PATTERNS.md) and the Live Editor at [patternflow.work](https://patternflow.work).
+**Device built? Now fill it.** The **[Pattern Guide](PATTERN_GUIDE.md)** covers everything that comes next — pulling community patterns onto your device over Wi-Fi (a few seconds, no cable), generating your own in Pattern Lab, verifying them on hardware, and sharing them back. The Arduino IDE route above stays for firmware development; see [`firmware/CUSTOM_PATTERNS.md`](firmware/CUSTOM_PATTERNS.md) for the low-level pattern format.
 
 *Licenses: firmware & web MIT; hardware & designs CC-BY-SA 4.0.*
