@@ -6,11 +6,16 @@ import { attachmentDir, attachmentPath } from "@/lib/community/attachments";
 import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_PER_PARENT,
+  ATTACHMENT_MAX_PER_USER_BYTES,
+  ATTACHMENT_MAX_REQUEST_BYTES,
+  ATTACHMENT_MAX_TOTAL_BYTES,
   attachmentAllowed,
   cleanFilename,
   formatBytes,
 } from "@/lib/community/workshop";
 import {
+  attachmentBytesByUser,
+  attachmentBytesTotal,
   countAttachments,
   getPostCommentStub,
   getPostStub,
@@ -50,6 +55,19 @@ async function handlePost(request: Request) {
 
   if (!rateLimit(`attach:${session.user.id}`, 20, 60_000)) {
     return Response.json({ error: "Too many uploads — wait a minute." }, { status: 429 });
+  }
+
+  // Before parsing anything. formData() pulls the entire multipart body into
+  // memory, and every size check below runs on what it produces — so without
+  // this the per-file cap is enforced only after a gigabyte has already been
+  // read. A reverse proxy usually also caps this, but the app cannot see
+  // whether one is in front of it today, let alone after the next move.
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > ATTACHMENT_MAX_REQUEST_BYTES) {
+    return Response.json(
+      { error: `That request is ${formatBytes(declared)}; the limit is ${formatBytes(ATTACHMENT_MAX_REQUEST_BYTES)}.` },
+      { status: 413 },
+    );
   }
 
   let form: FormData;
@@ -125,6 +143,32 @@ async function handlePost(request: Request) {
       filename,
       bytes: Buffer.from(await file.arrayBuffer()),
     });
+  }
+
+  // Quotas, checked once the real sizes are known. The per-parent count above
+  // bounds a thread; these bound an account and the disk.
+  const incoming = accepted.reduce((sum, item) => sum + item.bytes.length, 0);
+  const [mine, everyone] = await Promise.all([
+    attachmentBytesByUser(session.user.id),
+    attachmentBytesTotal(),
+  ]);
+  if (mine + incoming > ATTACHMENT_MAX_PER_USER_BYTES) {
+    return Response.json(
+      {
+        error:
+          `You are storing ${formatBytes(mine)} of ${formatBytes(ATTACHMENT_MAX_PER_USER_BYTES)}. ` +
+          "Remove a file from an older thread to make room — the × on any attachment.",
+      },
+      { status: 413 },
+    );
+  }
+  if (everyone + incoming > ATTACHMENT_MAX_TOTAL_BYTES) {
+    // Nothing the uploader can do about this one, so it says so plainly
+    // rather than blaming them.
+    return Response.json(
+      { error: "The community's file storage is full. This is being looked at — try again later." },
+      { status: 507 },
+    );
   }
 
   await fs.mkdir(attachmentDir(), { recursive: true });
