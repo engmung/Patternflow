@@ -11,21 +11,11 @@
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
 
 <p align="center">
-  <a href="https://www.instagram.com/p/DbD2z1VSG09/">
-    <img src="./docs/media/hero-loop.webp" width="44%" alt="Patternflow — a hand turns a knob and the light reshapes" />
-  </a>
+  <a href="https://www.instagram.com/p/DbD2z1VSG09/"><img src="./docs/media/hero-loop.webp" width="23%" alt="Patternflow — a hand turns a knob and the light reshapes" /></a>
+  <a href="https://youtu.be/BPMhTChY9vg"><img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="72%" alt="Patternflow demo video" /></a>
 </p>
 <p align="center">
-  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the full reel on Instagram</a></sub>
-</p>
-
-<p align="center">
-  <a href="https://youtu.be/BPMhTChY9vg">
-    <img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="100%" alt="Patternflow demo video" />
-  </a>
-</p>
-<p align="center">
-  <a href="https://youtu.be/BPMhTChY9vg"><b>▶ Watch the demo on YouTube</b></a>
+  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the reel — <b>400k+ views</b> on Instagram</a> &nbsp;·&nbsp; <a href="https://youtu.be/BPMhTChY9vg">▶ <b>watch the full demo</b> on YouTube</a></sub>
 </p>
 
 **Patternflow is an open-source LED synthesizer.** Play light patterns with your fingertips — four physical knobs reshape generative light on an LED matrix in real time. A pattern is just a small file, so **every Patternflow plays every pattern we make.**
