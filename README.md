@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/Code-MIT-green?style=flat-square)](./LICENSE-MIT)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/Hardware-CC_BY--SA_4.0-orange?style=flat-square)](./LICENSE-CC-BY-SA)
 [![Release](https://img.shields.io/github/v/release/engmung/Patternflow?style=flat-square&color=purple&label=Release)](../../releases)
-[![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Pre--launch-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
+[![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Launching_Q4_2026-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
 
 > ⚠️ **Photosensitivity Warning**
 > Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
@@ -23,8 +23,8 @@
 ### Four ways in
 
 - 🔨 **Build it** — the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. Every other route is in the **[Assembly Map](docs/assembly/README.md)**.
+- 📦 **Get one ready-made** — the **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** launches **Q4 2026**. Subscribe on the page and you'll hear the moment it opens.
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** is a working Patternflow in your browser. No hardware, no install, no account.
-- 📦 **Get one ready-made** — **[pre-launch on Crowd Supply](https://www.crowdsupply.com/engmung/patternflow)**. Subscribe to hear the moment the campaign opens.
 - 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop: make a pattern, verify it on your device, share it back.
 
 > **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
@@ -39,7 +39,7 @@
 | **Power** | 5 V over USB from any power bank — about **4 h per 10,000 mAh** at max brightness (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
-| **Flashing** | Everything from the browser (Chrome/Edge) — stock firmware, and custom patterns compiled by the build server; after the first USB flash, new builds can go over Wi-Fi. Arduino IDE only for firmware development or other matrix resolutions |
+| **Flashing** | Everything from the browser — one USB flash the first time, then it's all Wi-Fi: patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
@@ -65,11 +65,19 @@ On the device, the firmware bundles **34 curated presets** in a single image, sw
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
 
-### Where patterns are shared
+## Community
 
-The **[Community](https://community.patternflow.work/community)** is the home for patterns people make. Open anyone's pattern, turn its knobs, edit the code and watch it change — all without an account. Take one into Pattern Lab to remix it — publishing it back records the fork, so you can see what grew out of what. Patterns that carry a hardware-tested `.h` header are marked, and you can filter for them when you want something to flash right now.
+<p align="center">
+  <img src="./docs/images/pattern-guide/02-community-home.png" width="100%" alt="The community wall — patterns people made, playing live" />
+</p>
 
-Signing in is username and password only, with email optional — it never routes through a service that might be blocked where you are.
+The **[Community](https://community.patternflow.work/community)** is where patterns live — and the wall plays them **live**. Hover a card and the pattern runs; scroll on it and its knobs turn, the same four knobs as the hardware. Open one to read its code, take it into Pattern Lab to remix, and publish it back — the fork is recorded, so you can always see what grew out of what. All of this works without an account.
+
+**From the wall to your device in seconds.** Collect patterns into a **deck** — a setlist of up to ten — and `SEND TO MY BOARD` builds them into Wi-Fi modules and installs them with no cable, no reflash. Decks can be shared too: browse the sets other people curated and send one straight to your own device. Patterns carrying a hardware-verified `.h` header are badged, with a filter for when you want something to flash right now. The **[Pattern Guide](PATTERN_GUIDE.md)** walks every step.
+
+**The Workshop is where the project's future is worked out — in the open.** It's a map of directions Patternflow could take — a wired OSC version, laser-cut enclosures, bigger panels — and anyone can pin themselves to a direction, say what they're working on, and start a thread. Not a roadmap handed down; a map people stand on. It's young and evolving fast, and it matters more than its size suggests: it's how this project decides where to go next.
+
+Signing in is username and password only — no email — so it never routes through a service that might be blocked where you are.
 
 New pattern studies also go up on [Instagram](https://www.instagram.com/patternflow.work) almost daily, and the [Discord](https://discord.gg/Vr9QtsxeTk) **patterns** channel remains a good place to hang around and talk about them. **Come for a pattern you saw on a post, stay to share your own.**
 
@@ -84,18 +92,18 @@ Patternflow ships with prompt templates designed for AI coding assistants (Claud
 
 The Live Editor is where you find out you want to make patterns. It stays deliberately light — the stock firmware flashes straight from it, and everything below is where the making happens.
 
-**Go deeper in [Pattern Lab](https://patternflow.work/pattern-lab)** — the full studio, and where patterns become firmware:
+**Go deeper in [Pattern Lab](https://patternflow.work/pattern-lab)** — the full studio, and where patterns reach the hardware:
 
 - Generate variations **in batches**, in-app (bring your own free Gemini key) or via copy-paste prompts.
-- Shape **color ramps**, retune knob ranges, and compose for **custom matrix sizes**.
-- **Build firmware** — the build server compiles a complete firmware image with your pattern in it (about 30 seconds) and your browser writes it to the board over USB (desktop Chrome/Edge, Web Serial). Nothing to install: no IDE, no board package, no editing the pattern registry by hand. The first flash sets up Wi-Fi too, and from then on **Send over Wi-Fi** pushes new builds to the device without a cable.
-- **Share to Community** — publish it; remixes and forks get recorded, so you can see what grew out of what. Community patterns marked `.h` skip conversion entirely and offer **Flash to my board** directly.
+- Shape **color ramps**, retune knob ranges, and compose for **custom matrix sizes** — the ranges you set ride along into the device and the shared code.
+- **Send to your device in seconds** — a pattern builds into a small `.pfm` module on the server and installs **over Wi-Fi**: no cable, no reflash, no IDE. The full-firmware path is still there for when you want a firmware update to come along with it (about a minute, and it's how the device stays current).
+- **Verify, then share** — try the pattern on your own device first, then publish it with its hardware header attached. It lands on the wall wearing the `.h` badge, and the next person can flash it without thinking. The **[Pattern Guide](PATTERN_GUIDE.md)** covers the whole flow.
 
 **From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, drop the C++ into `presets/preset_<name>.h` **as-is**, add the namespace from the bottom of the file to `presetPatterns[]` in `pattern_registry.h`, and flash. (For just adding a pattern you don't need this at all — build it as a `.pfm` module and send it over Wi-Fi.) See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
-Either way you are flashing a whole firmware image, and the preset library always comes along. Patterns you installed as `.pfm` modules sit on a separate partition and survive the reflash.
+Both full-firmware paths — Pattern Lab's build and the Arduino IDE — flash a whole image, and the preset library always comes along. Patterns installed as `.pfm` modules sit on a separate partition and survive any reflash.
 
 ## The website
 
@@ -139,7 +147,7 @@ So Patternflow is not a single luminous object. It is a living system in which a
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
 | `integrations/` | Host-software bridges — Ableton Live / Max for Live (OSC knob mapping) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Community](docs/COMMUNITY.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
@@ -159,7 +167,8 @@ Patterns go to the **[Community](https://community.patternflow.work/community)**
 | **May 2026** | Reached **100 GitHub stars** · the first collaborator joined · Crowd Supply agreement · Discord community growing |
 | **Jun 2026** | [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live, backed by countless refinements toward mass production · Instagram passed **1,000 followers** · first community-made pattern shared |
 | **Jul 2026** | Refining the design for mass production · growing an active community · outreach and promotion |
-| **Next** | Run the Crowd Supply campaign at the lowest sustainable price · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
+| **Aug 2026** | Community rebuilt end to end — the live wall, decks, and the Workshop — patterns now install as Wi-Fi modules, and the [Pattern Guide](PATTERN_GUIDE.md) documents the whole loop · Crowd Supply launch prep in full swing |
+| **Next** | Launch the Crowd Supply campaign (**Q4 2026**) at the lowest sustainable price · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
 | **2028** | Grow Patternflow into a self-sustaining community and ecosystem — then move on to the next project |
 
 📖 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**.
