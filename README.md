@@ -22,12 +22,12 @@
 
 ### Four ways in
 
-- 🔨 **Build it** — the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. Every other route is in the **[Assembly Map](docs/assembly/README.md)**.
+- 🔨 **Build it** — the **[Full Build Guide](BUILD_GUIDE.md)** (official PCB + 3D-printed enclosure), or solder-free with the **[Breadboard Build Guide](https://patternflow.work/build/breadboard)**. Every other route is in the **[Assembly Map](docs/assembly/README.md)**. **Never soldered before? You'll be fine** — it's all big through-hole joints, every first-timer who has built one finished it without trouble, and most of them came back saying the soldering was the fun part. One build on the map was its maker's first-ever soldering job.
 - 📦 **Get one ready-made** — the **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** launches **Q4 2026**. Subscribe on the page and you'll hear the moment it opens.
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** is a working Patternflow in your browser. No hardware, no install, no account.
 - 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop: make a pattern, verify it on your device, share it back.
 
-> **Moving fast.** [**v3.0.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.0.0) — hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure with no more panel trimming, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+> **Moving fast.** [**v3.2.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) — patterns now install over Wi-Fi as `.pfm` modules, no reflash. The v3 generation also brought hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 ## Quick facts
 
@@ -58,7 +58,7 @@ These are worst-case numbers measured with a bright pattern at maximum brightnes
 
 ## Patterns
 
-The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes go into a custom slot (see below).
+The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes travel through Pattern Lab and land on the device as Wi-Fi modules (see below).
 
 On the device, the firmware bundles **34 curated presets** in a single image, switchable without reflashing — and your own patterns install alongside them as **`.pfm` modules over Wi-Fi**, up to 128 of them, no reflash needed. The device carries fewer presets than the browser because the on-board set is a curated showcase, not the whole library; anything left out is one Pattern Lab build away.
 
