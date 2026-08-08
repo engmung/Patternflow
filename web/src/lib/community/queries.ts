@@ -715,6 +715,29 @@ export async function countAttachments(
   return rows[0]?.count ?? 0;
 }
 
+/**
+ * Bytes this person is already storing, and bytes everyone is storing.
+ *
+ * The per-parent cap (five files a thread) bounds a single thread and nothing
+ * else: a determined account just makes more threads, and the only ceiling
+ * left is the disk the Pi boots from. These two are what the upload route
+ * checks its quotas against.
+ */
+export async function attachmentBytesByUser(userId: string): Promise<number> {
+  const rows = await getDb()
+    .select({ total: sql<number>`COALESCE(SUM(${postAttachments.bytes}), 0)` })
+    .from(postAttachments)
+    .where(eq(postAttachments.userId, userId));
+  return rows[0]?.total ?? 0;
+}
+
+export async function attachmentBytesTotal(): Promise<number> {
+  const rows = await getDb()
+    .select({ total: sql<number>`COALESCE(SUM(${postAttachments.bytes}), 0)` })
+    .from(postAttachments);
+  return rows[0]?.total ?? 0;
+}
+
 export async function getPost(id: string) {
   const rows = await getDb()
     .select({

@@ -49,6 +49,36 @@ export const ATTACHMENT_MAX_PER_PARENT = 5;
 export const ATTACHMENT_MAX_BYTES = 2 * 1024 * 1024;
 export const ATTACHMENT_FILENAME_MAX = 80;
 
+/**
+ * How much one person may store, in total, and how much everyone may.
+ *
+ * The per-parent cap bounds one thread; it does not bound an account, because
+ * an account can make more threads. Without these two the only ceiling is the
+ * disk the server boots from, and when that fills SQLite stops being able to
+ * write — the community does not degrade, it stops.
+ *
+ * 100 MB is roomy for the real case (a build log with photos is a few MB a
+ * thread) and small enough that filling the box takes a deliberate campaign
+ * across many accounts rather than one afternoon on one.
+ */
+export const ATTACHMENT_MAX_PER_USER_BYTES = 100 * 1024 * 1024;
+
+/** The whole community's ceiling. Override per deployment — a Pi on an SD card
+ *  and a box with a spare terabyte want different numbers. */
+export const ATTACHMENT_MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024;
+
+/**
+ * The largest multipart body worth reading at all.
+ *
+ * Size is checked per file, but only AFTER formData() has parsed the whole
+ * request into memory — so the per-file cap does nothing about a single
+ * enormous body. This is the number the route checks against Content-Length
+ * before it starts parsing: the most a legitimate upload can be, plus slack
+ * for multipart framing.
+ */
+export const ATTACHMENT_MAX_REQUEST_BYTES =
+  ATTACHMENT_MAX_PER_PARENT * ATTACHMENT_MAX_BYTES + 1024 * 1024;
+
 /** Extensions that get through. An allowlist rather than a blocklist: the set
  *  of things a maker actually attaches is small and knowable, and the set of
  *  things a browser can be talked into executing is not. */

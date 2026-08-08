@@ -50,6 +50,34 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // ── Baseline security headers ──
+        // The community has one-click destructive actions behind a session
+        // cookie — delete a pattern, remove somebody's comment, publish, work
+        // the moderation queue — and nothing stopped another site from
+        // framing those buttons under a transparent overlay and borrowing a
+        // logged-in visitor's clicks. frame-ancestors is the fix;
+        // X-Frame-Options is the same statement for anything that predates it.
+        //
+        // 'self' rather than 'none' because the pattern sandbox is an iframe
+        // this site serves to itself (see /pattern-sandbox.html). Embedding
+        // YouTube is unaffected: this controls who may frame US.
+        //
+        // Deliberately NOT a full CSP yet. script-src on a Next app needs
+        // nonces threaded through the framework's inline bootstrap, and a
+        // half-right script-src fails closed — a blank site. That is its own
+        // piece of work; these four are the ones that are safe today.
+        source: "/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Nothing here asks for these, and the YouTube embed is granted
+          // what it needs through its own allow= attribute.
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+      {
         // The flasher manifest names the image paths for a given release, so a
         // cached copy keeps handing out the previous firmware long after a new
         // one ships. The images themselves live at version-stamped paths and

@@ -250,6 +250,42 @@ async function main() {
   check("empty is nothing", safeHref(""), null);
   check("undefined is nothing", safeHref(undefined), null);
 
+  // ── Storage quotas ────────────────────────────────────────────────────────
+  // The per-parent cap bounds one thread and nothing else — an account just
+  // makes more threads. Without a per-user and a whole-community ceiling the
+  // only limit is the disk the server boots from, and when that fills SQLite
+  // stops writing: the community does not degrade, it stops.
+  check("a fresh account is storing nothing", await queries.attachmentBytesByUser("cara"), 0);
+  await db.insert(schema.posts).values({
+    id: "quota-thread",
+    territoryId: "z1",
+    userId: "cara",
+    title: "Quota",
+    body: "x",
+    createdAt: NOW,
+    updatedAt: NOW,
+  });
+  await db.insert(schema.postAttachments).values([
+    { id: "cccccccccccccccc", postId: "quota-thread", commentId: null, userId: "cara",
+      filename: "a.png", bytes: 900_000, createdAt: NOW },
+    { id: "dddddddddddddddd", postId: "quota-thread", commentId: null, userId: "cara",
+      filename: "b.png", bytes: 100_000, createdAt: NOW },
+  ]);
+  check("a person's usage is the sum of their files", await queries.attachmentBytesByUser("cara"), 1_000_000);
+  check("…and is not charged to anybody else", await queries.attachmentBytesByUser("bob"), 0);
+  check("the community total counts everyone", await queries.attachmentBytesTotal(), 1_000_000);
+
+  check("per-user ceiling is 100 MB", workshop.ATTACHMENT_MAX_PER_USER_BYTES, 100 * 1024 * 1024);
+  check("community ceiling is 2 GB", workshop.ATTACHMENT_MAX_TOTAL_BYTES, 2 * 1024 * 1024 * 1024);
+  // The body cap has to leave room for the largest legitimate upload, or a
+  // valid five-file post gets a 413 instead of an attachment.
+  check(
+    "the request cap admits a full five-file upload",
+    workshop.ATTACHMENT_MAX_REQUEST_BYTES >
+      workshop.ATTACHMENT_MAX_PER_PARENT * workshop.ATTACHMENT_MAX_BYTES,
+    true,
+  );
+
   // ── Byte sniffing ─────────────────────────────────────────────────────────
   const png = Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -277,8 +313,20 @@ async function main() {
 
   // Deleting the thread takes its attachment ROW with it (foreign keys)…
   await db.delete(schema.posts).where(eq(schema.posts.id, "t1"));
-  const remainingRows = await db.select().from(schema.postAttachments);
+  // Scoped to the thread that was deleted: this is asking whether ITS rows went
+  // with it, not whether the table is empty — other threads' files are supposed
+  // to survive, and asserting on the whole table quietly made this test depend
+  // on nothing else in the fixture ever having an attachment.
+  const remainingRows = await db
+    .select()
+    .from(schema.postAttachments)
+    .where(eq(schema.postAttachments.postId, "t1"));
   check("deleting the thread cascades the attachment row", remainingRows.length, 0);
+  check(
+    "…and leaves another thread's files alone",
+    (await db.select().from(schema.postAttachments).where(eq(schema.postAttachments.postId, "quota-thread"))).length,
+    2,
+  );
 
   // …and the sweep takes the BYTES, once they are past the grace window.
   // The files' mtimes are pinned to the fixture clock — the real clock is
