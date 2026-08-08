@@ -104,13 +104,22 @@ ax.text(2.0, 6.95, "the proving ground —\nevery pattern meets the\npublic with
         ha="center", va="center", color=FAINT)
 arrow((3.35, 7.1), (4.05, 7.35), rad=-0.2, color=FAINT, dashed=True, lw=1.6)
 
-# ── The scale ray: the same panel, growing ───────────────────────────────────
+# ── The scale ray: the same panel, growing — and growing sideways ───────────
 # medium: variants and modules — directions already drawn in the Workshop
 mx, my, mw, mh = 9.4, 4.9, 1.9, 2.6
 ax.add_patch(Rectangle((mx, my), mw, mh, fc="white", ec=INK, lw=2.0, ls=(0, (6, 3))))
 ax.add_patch(Rectangle((mx + 0.14, my + 0.14), mw - 0.28, mh - 0.28, fc=INK, ec="none"))
-ax.text(mx + mw / 2, my - 0.38, "bigger panels · laser-cut\nwired OSC — the Workshop's\ndirections", fontsize=10,
-        ha="center", va="top", color=INK)
+
+# a speaker snapped onto its side: the family is modular, not just bigger —
+# audio, sensors, whatever docks on. Dashed like everything not yet real.
+sx, sy, sw, sh = mx + mw, 5.2, 0.82, 1.62
+ax.add_patch(Rectangle((sx, sy), sw, sh, fc="white", ec=INK, lw=2.0, ls=(0, (6, 3))))
+ax.add_patch(Circle((sx + sw / 2, sy + 0.55), 0.27, fc="none", ec=INK, lw=1.8))
+ax.add_patch(Circle((sx + sw / 2, sy + 1.25), 0.13, fc="none", ec=INK, lw=1.8))
+
+ax.text(10.55, my - 0.38,
+        "bigger panels · laser-cut\nwired OSC · snap-on modules\n(speakers, audio, …)\n— the Workshop's directions",
+        fontsize=10, ha="center", va="top", color=INK)
 
 # large: installations — the long view
 lx, ly, lw_, lh = 12.4, 4.3, 3.1, 3.9
@@ -121,7 +130,7 @@ ax.text(lx + lw_ / 2, ly - 0.9, "installations · commissioned\nworks · B2B spa
 ax.text(lx + lw_ / 2, ly + lh + 0.3, "the long view", fontsize=11, ha="center", color=FAINT)
 
 # a person, for scale, beside the big wall
-hx, hy = 11.95, 4.35
+hx, hy = 12.2, 4.35
 ax.add_patch(Circle((hx, hy + 0.62), 0.11, fc="none", ec=INK, lw=1.8))
 line((hx, hy + 0.51), (hx, hy + 0.18), lw=1.8)                    # body
 line((hx, hy + 0.44), (hx - 0.14, hy + 0.28), lw=1.8)             # arms
@@ -130,7 +139,7 @@ line((hx, hy + 0.18), (hx - 0.11, hy), lw=1.8)                    # legs
 line((hx, hy + 0.18), (hx + 0.11, hy), lw=1.8)
 
 arrow((5.65, 5.6), (9.2, 6.0), rad=-0.15, dashed=True, color=ORANGE, lw=2.2)
-arrow((11.5, 6.2), (12.2, 6.25), rad=-0.1, dashed=True, color=ORANGE, lw=2.2)
+arrow((11.55, 7.15), (12.3, 7.3), rad=-0.15, dashed=True, color=ORANGE, lw=2.2)
 ax.text(7.4, 6.6, "the same pattern,\nany surface", fontsize=11, ha="center", color=ORANGE)
 
 # ── The research line, underneath everything ────────────────────────────────

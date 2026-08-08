@@ -153,7 +153,7 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 This is a contemporary reinterpretation of Nam June Paik's *Participation TV* (1963). Paik let the audience change the image; Patternflow lets you make it — and give it away. That is the step after participation: from intervening in a work to making, modifying, and sharing it.
 
 <p align="center">
-  <img src="./docs/media/the-lab.png" width="100%" alt="Hand-drawn map of the long view: sound, light and touch meeting in one instrument — sound artists, visual artists and makers each entering through their own sense — with Instagram as the proving ground, and the same patterns scaling from the device through bigger panels to installations and commissioned spaces" />
+  <img src="./docs/media/the-lab.png" width="100%" alt="Hand-drawn map of the long view: sound, light and touch meeting in one instrument — sound artists, visual artists and makers each entering through their own sense — with Instagram as the proving ground, and the same patterns scaling from the device through bigger panels and snap-on modules to installations and commissioned spaces" />
 </p>
 
 The device is instrument no. 1 of a longer practice — a lab for interactive visual patterns. The same pattern that runs on a hand-built device can run on a bigger panel, a laser-cut variant, an installation wall: **the same pattern, any surface.** Solid lines exist today; the dashed ones are directions, drawn in the open on the [Workshop](https://community.patternflow.work/community/workshop).
