@@ -13,6 +13,7 @@
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
 #include "src/core_status_http.h"
+#include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
@@ -166,6 +167,9 @@ void setup() {
   for (int i = 0; i < NUM_PATTERNS; i++) {
     if (!patterns[i].modulePath) patterns[i].setup();
   }
+  // The calibration test card lives outside the pattern list (it is an overlay
+  // summoned by /api/display, not art) but still bakes its tables once here.
+  CalibPattern::setup();
   activatePattern(currentPatternIdx);
 
   Serial.printf("Current Pattern: %s\n", patterns[currentPatternIdx].name);
@@ -670,6 +674,7 @@ void loop() {
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
+    PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
@@ -872,6 +877,9 @@ void loop() {
     if (currentMode == MODE_RUNNING) {
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
+      // Physical escape hatch for the calibration overlay: whoever is at the
+      // device outranks a browser tab that may no longer exist.
+      CalibPattern::overrideOn = false;
       Serial.printf(">>> SELECT MODE ENTERED: %s\n", patterns[currentPatternIdx].name);
     } else {
       currentMode = MODE_RUNNING;
@@ -907,7 +915,20 @@ void loop() {
     currentPatternIdx = oscPatternIdx;
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+    CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
+  }
+
+  // Same contract as the OSC path above, fed by GET /api/patterns/select.
+  int httpPatternIdx;
+  if (PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
+      httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
+      activatePattern(httpPatternIdx)) {
+    currentPatternIdx = httpPatternIdx;
+    currentMode = MODE_RUNNING;
+    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+    CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
+    Serial.printf(">>> HTTP pattern → %s\n", patterns[currentPatternIdx].name);
   }
   bool frameDrawn = true;
   if (oscInfoShowing) {
@@ -944,6 +965,18 @@ void loop() {
       updateDirty = false;
     } else {
       frameDrawn = false;
+    }
+  } else if (currentMode == MODE_RUNNING && CalibPattern::overrideOn) {
+    // Calibration overlay: the test card draws instead of the pattern, which
+    // freezes underneath (not updated) and resumes exactly where it was once
+    // the tuner dismisses the card. Runs even while the console has the module
+    // evicted — the card is compiled in and needs none of the module's RAM.
+    // K1/K2 still work on the card for whoever is standing at the panel.
+    pausedDirty = true;
+    CalibPattern::update(dt, input);
+    CalibPattern::draw();
+    if (brightnessAdjusting) {
+      drawBrightnessNotice();
     }
   } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
     // Same throttled-redraw scheme as the info screens: this is static text and
