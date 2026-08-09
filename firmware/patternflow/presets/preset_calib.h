@@ -31,6 +31,7 @@
 #include "../src/core_display.h"
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
+#include "../src/core_mem.h"
 
 namespace CalibPattern {
   const char* NAME = "Calibration";
@@ -87,8 +88,11 @@ namespace CalibPattern {
   }
 
   // RAMPS screen tables: [0] b→y sRGB, [1] b→y OKLab, [2] r→b sRGB,
-  // [3] r→b OKLab. 1.5 KB of DRAM, filled once in setup().
-  uint8_t ramps[4][PANEL_RES_W][3];
+  // [3] r→b OKLab. Allocated in setup() via PFMem (PSRAM-preferred), NOT a
+  // namespace static: a static locks 1.5 KB of internal DRAM from boot, and
+  // internal DRAM is exactly what the web server's page delivery starves on
+  // — that mistake shipped once and truncated every console page.
+  uint8_t (*ramps)[PANEL_RES_W][3] = nullptr;
 
   inline void bakeRampPair(int srgbRow, int oklabRow,
                            uint8_t r0, uint8_t g0, uint8_t b0,
@@ -111,6 +115,10 @@ namespace CalibPattern {
   }
 
   void setup() {
+    if (!ramps) {
+      ramps = (uint8_t (*)[PANEL_RES_W][3])PFMem::alloc(4 * PANEL_RES_W * 3);
+    }
+    if (!ramps) return;  // no PSRAM and no heap: RAMPS degrades to black
     bakeRampPair(0, 1, 0, 0, 255, 255, 255, 0);   // blue → yellow
     bakeRampPair(2, 3, 255, 0, 0, 0, 0, 255);     // red → blue
   }
@@ -174,6 +182,12 @@ namespace CalibPattern {
   }
 
   inline void drawRamps() {
+    if (!ramps) {
+      for (int y = 0; y < PANEL_RES_H; y++)
+        for (int x = 0; x < PANEL_RES_W; x++)
+          PFCanvas::setPixel(x, y, 0, 0, 0);
+      return;
+    }
     for (int y = 0; y < PANEL_RES_H; y++) {
       int band = y / (PANEL_RES_H / 4);
       if (band > 3) band = 3;
