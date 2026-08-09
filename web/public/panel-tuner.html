@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patternflow Panel Tuner</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 24px; background: #121110; color: #e8e2d6;
+    font: 13px/1.5 "JetBrains Mono", Consolas, monospace;
+    max-width: 580px; margin-inline: auto;
+  }
+  h1 { font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; }
+  h1 .dot { color: #e8552e; }
+  fieldset { border: 1px solid #3a362f; border-radius: 4px; margin: 0 0 14px; padding: 12px 14px; }
+  legend { padding: 0 6px; font-size: 11px; text-transform: uppercase; color: #a89f8d; }
+  label { display: block; margin: 8px 0 2px; font-size: 11px; color: #a89f8d; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .row input[type=range] { flex: 1; accent-color: #e8552e; }
+  .val { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  button {
+    background: #1e1c19; color: #e8e2d6; border: 1px solid #3a362f; border-radius: 3px;
+    padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  button:hover { border-color: #e8552e; }
+  button.primary { border-color: #e8552e; color: #ffb59e; }
+  button.active { background: #3a2119; border-color: #e8552e; color: #ffb59e; }
+  input[type=text] {
+    background: #1e1c19; color: #e8e2d6; border: 1px solid #3a362f; border-radius: 3px;
+    padding: 6px 8px; font: inherit; width: 100%; box-sizing: border-box;
+  }
+  #status { font-size: 11px; color: #a89f8d; min-height: 1.3em; }
+  #status .ok { color: #7fdc8a; } #status .err { color: #ff7a6e; }
+  pre {
+    background: #1a1815; border: 1px solid #3a362f; border-radius: 4px;
+    padding: 10px 12px; font-size: 11px; overflow-x: auto; user-select: all;
+  }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .hint { font-size: 11px; color: #6d675c; margin: 6px 0 0; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-size: 11px; color: #a89f8d; text-transform: uppercase; }
+  #ref {
+    display: block; width: 100%; aspect-ratio: 2 / 1; image-rendering: pixelated;
+    border: 1px solid #3a362f; border-radius: 2px; background: #000; margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<h1><span class="dot">●</span> Panel Tuner</h1>
+
+<fieldset>
+  <legend>Device</legend>
+  <div class="row">
+    <input type="text" id="base" value="http://192.168.0.180">
+    <button id="connect" class="primary">Connect</button>
+  </div>
+  <p id="status">not connected</p>
+  <p class="hint">Works from a plain-http origin (localhost dev server) on the same LAN as the
+  device. An https origin cannot reach a http device — browsers block mixed content.</p>
+</fieldset>
+
+<fieldset>
+  <legend>Reference (this canvas = sRGB intent) ↔ LED</legend>
+  <canvas id="ref" width="512" height="256"></canvas>
+  <div class="btnrow">
+    <button data-screen="0">WHITE</button>
+    <button data-screen="1">GRAYS</button>
+    <button data-screen="2">COLORS</button>
+    <button data-screen="3">RAMPS</button>
+    <button id="dismiss" class="primary">Resume pattern</button>
+  </div>
+  <label>White level (WHITE screen only)</label>
+  <div class="row"><input type="range" id="level" min="8" max="255" step="1" value="255"><span class="val" id="level_v">255</span></div>
+  <p class="hint">A screen button overlays the test card on the panel — the running pattern
+  freezes underneath and resumes on <b>Resume pattern</b> (or via K4-hold at the device).
+  This canvas shows the same frame in raw sRGB: your monitor is the design intent, so tune
+  the sliders until the LED gives the same <b>impression</b>. Absolute brightness will differ —
+  match tint, saturation and tonal steps, not nits.</p>
+</fieldset>
+
+<fieldset>
+  <legend>White balance</legend>
+  <label>WB R</label>
+  <div class="row"><input type="range" id="wb_r" min="0.40" max="1.00" step="0.005" value="1"><span class="val" id="wb_r_v">1.000</span></div>
+  <label>WB G</label>
+  <div class="row"><input type="range" id="wb_g" min="0.40" max="1.00" step="0.005" value="1"><span class="val" id="wb_g_v">1.000</span></div>
+  <label>WB B</label>
+  <div class="row"><input type="range" id="wb_b" min="0.40" max="1.00" step="0.005" value="1"><span class="val" id="wb_b_v">1.000</span></div>
+  <div class="btnrow">
+    <button id="wbIdentity">identity (1/1/1)</button>
+  </div>
+  <p class="hint">Judge on WHITE. Also drop the white level and check the tint holds at low drive.</p>
+</fieldset>
+
+<fieldset>
+  <legend>Saturation</legend>
+  <div class="row"><input type="range" id="sat" min="0.00" max="2.00" step="0.01" value="1"><span class="val" id="sat_v">1.00</span></div>
+  <p class="hint">Mathematically a no-op on white and gray — judge on COLORS (the 50%-drive
+  bottom row), RAMPS, or a real pattern. 1.00 = identity; this panel family tends to need a
+  strong boost to match a monitor side by side.</p>
+</fieldset>
+
+<details>
+  <summary>Gamma (advanced — the driver already applies CIE1931; leave at 1.0 unless you know why)</summary>
+  <fieldset style="margin-top:8px">
+    <label>Gamma R</label>
+    <div class="row"><input type="range" id="gamma_r" min="0.50" max="3.00" step="0.01" value="1"><span class="val" id="gamma_r_v">1.00</span></div>
+    <label>Gamma G</label>
+    <div class="row"><input type="range" id="gamma_g" min="0.50" max="3.00" step="0.01" value="1"><span class="val" id="gamma_g_v">1.00</span></div>
+    <label>Gamma B</label>
+    <div class="row"><input type="range" id="gamma_b" min="0.50" max="3.00" step="0.01" value="1"><span class="val" id="gamma_b_v">1.00</span></div>
+  </fieldset>
+</details>
+
+<fieldset>
+  <legend>config.h snippet (copy this once the values converge)</legend>
+  <pre id="snippet">—</pre>
+  <p class="hint">Values set here are session-only — a reboot restores the config.h defaults.
+  To make them permanent, paste this block into firmware/patternflow/config.h and reflash.</p>
+</fieldset>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const PARAMS = ["wb_r", "wb_g", "wb_b", "sat", "gamma_r", "gamma_g", "gamma_b"];
+const W = 128, H = 64;
+
+let base = $("base").value;
+let screenIdx = 0;
+let overlayOn = false;
+let whiteLevel = 255;
+
+// ── Reference rendering: pixel-for-pixel the same logic as the firmware's
+// preset_calib.h, drawn in raw sRGB — the monitor shows the design intent.
+
+function srgbToLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+function linToSrgb(c) {
+  const v = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(1, v));
+}
+function srgbToOklab(r, g, b) {
+  const lr = srgbToLin(r), lg = srgbToLin(g), lb = srgbToLin(b);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+function oklabToSrgb(lab) {
+  const l_ = lab[0] + 0.3963377774 * lab[1] + 0.2158037573 * lab[2];
+  const m_ = lab[0] - 0.1055613458 * lab[1] - 0.0638541728 * lab[2];
+  const s_ = lab[0] - 0.0894841775 * lab[1] - 1.291485548 * lab[2];
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+  return [
+    Math.round(linToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s) * 255),
+    Math.round(linToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s) * 255),
+    Math.round(linToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s) * 255),
+  ];
+}
+
+// ramps[band][x] = [r,g,b] — bands 0/1: blue→yellow in sRGB/OKLab, 2/3: red→blue.
+const ramps = [[], [], [], []];
+(function bake() {
+  const pairs = [
+    [0, 1, [0, 0, 255], [255, 255, 0]],
+    [2, 3, [255, 0, 0], [0, 0, 255]],
+  ];
+  for (const [si, oi, a, b] of pairs) {
+    const la = srgbToOklab(a[0] / 255, a[1] / 255, a[2] / 255);
+    const lb = srgbToOklab(b[0] / 255, b[1] / 255, b[2] / 255);
+    for (let x = 0; x < W; x++) {
+      const t = x / (W - 1);
+      ramps[si][x] = [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t));
+      ramps[oi][x] = oklabToSrgb([0, 1, 2].map((i) => la[i] + (lb[i] - la[i]) * t));
+    }
+  }
+})();
+
+const off = document.createElement("canvas");
+off.width = W; off.height = H;
+
+function renderRef() {
+  const octx = off.getContext("2d");
+  const img = octx.createImageData(W, H);
+  const d = img.data;
+  const put = (x, y, r, g, b) => {
+    const i = (y * W + x) * 4;
+    d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+  };
+  const BARS = [
+    [255, 0, 0], [0, 255, 0], [0, 0, 255], [0, 255, 255],
+    [255, 0, 255], [255, 255, 0], [255, 255, 255], [0, 0, 0],
+  ];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (screenIdx === 0) {
+        put(x, y, whiteLevel, whiteLevel, whiteLevel);
+      } else if (screenIdx === 1) {
+        const v = y < H / 2 ? Math.floor(x / 8) * 17 : Math.round((x * 255) / (W - 1));
+        put(x, y, v, v, v);
+      } else if (screenIdx === 2) {
+        const c = BARS[Math.floor(x / 16) & 7];
+        const s = y >= H / 2 ? 1 : 0;
+        put(x, y, c[0] >> s, c[1] >> s, c[2] >> s);
+      } else {
+        const band = Math.min(3, Math.floor(y / (H / 4)));
+        const rule = y % (H / 4) === 0 && y !== 0;
+        const c = rule ? [0, 0, 0] : ramps[band][x];
+        put(x, y, c[0], c[1], c[2]);
+      }
+    }
+  }
+  octx.putImageData(img, 0, 0);
+  const ctx = $("ref").getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, 512, 256);
+}
+
+// ── Serialized request queue: the device is a single-threaded WebServer that
+// answers between frames. One request in flight, latest state wins, 150ms gap.
+let inFlight = false;
+let queued = null;
+let lastSentAt = 0;
+
+async function pump() {
+  if (inFlight || queued === null) return;
+  const gap = Date.now() - lastSentAt;
+  if (gap < 150) { setTimeout(pump, 150 - gap); return; }
+  const url = queued;
+  queued = null;
+  inFlight = true;
+  lastSentAt = Date.now();
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.wb_r !== undefined) reflect(json, false);
+    setStatus(`<span class="ok">ok</span> ${url.replace(base, "")}`);
+  } catch (err) {
+    setStatus(`<span class="err">FAIL</span> ${err.message} — check device power / Wi-Fi, then Connect again`);
+  }
+  inFlight = false;
+  pump();
+}
+
+function send(query) {
+  queued = `${base}/api/display${query}`;
+  pump();
+}
+
+function setStatus(html) { $("status").innerHTML = html; }
+function fmt(id, v) { return id.startsWith("wb") ? Number(v).toFixed(3) : Number(v).toFixed(2); }
+
+function setScreenButtons() {
+  document.querySelectorAll("[data-screen]").forEach((b) =>
+    b.classList.toggle("active", overlayOn && Number(b.dataset.screen) === screenIdx));
+}
+
+// adoptView: on connect, take the device's current overlay/screen/level into
+// the page; during slider echoes leave the view alone (the page is authoritative).
+function reflect(json, adoptView) {
+  for (const p of PARAMS) {
+    if (json[p] === undefined) continue;
+    $(p).value = json[p];
+    $(`${p}_v`).textContent = fmt(p, json[p]);
+  }
+  if (adoptView && json.screen !== undefined) {
+    screenIdx = json.screen;
+    overlayOn = json.calib === 1;
+    whiteLevel = json.level;
+    $("level").value = whiteLevel;
+    $("level_v").textContent = whiteLevel;
+    setScreenButtons();
+    renderRef();
+  }
+  $("snippet").textContent =
+    `#define LED_GAMMA_R ${Number(json.gamma_r).toFixed(2)}f\n` +
+    `#define LED_GAMMA_G ${Number(json.gamma_g).toFixed(2)}f\n` +
+    `#define LED_GAMMA_B ${Number(json.gamma_b).toFixed(2)}f\n\n` +
+    `#define LED_WB_R ${Number(json.wb_r).toFixed(3)}f\n` +
+    `#define LED_WB_G ${Number(json.wb_g).toFixed(3)}f\n` +
+    `#define LED_WB_B ${Number(json.wb_b).toFixed(3)}f\n\n` +
+    `#define LED_SAT_BOOST ${Number(json.sat).toFixed(2)}f\n\n` +
+    `// brightness (knob-set, NVS): ${json.brightness}`;
+}
+
+for (const p of PARAMS) {
+  $(p).addEventListener("input", () => {
+    $(`${p}_v`).textContent = fmt(p, $(p).value);
+    send(`?${p}=${$(p).value}`);
+  });
+}
+
+$("level").addEventListener("input", () => {
+  whiteLevel = Number($("level").value);
+  $("level_v").textContent = whiteLevel;
+  if (screenIdx === 0) renderRef();
+  send(`?level=${whiteLevel}`);
+});
+
+// A screen button summons the overlay on the panel and paints the same frame
+// here; Resume dismisses it and the pattern underneath carries on.
+document.querySelectorAll("[data-screen]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    screenIdx = Number(btn.dataset.screen);
+    overlayOn = true;
+    setScreenButtons();
+    renderRef();
+    send(`?screen=${screenIdx}`);
+  });
+});
+
+$("dismiss").addEventListener("click", () => {
+  overlayOn = false;
+  setScreenButtons();
+  send("?screen=-1");
+});
+
+$("wbIdentity").addEventListener("click", () => send("?wb_r=1&wb_g=1&wb_b=1"));
+
+$("connect").addEventListener("click", async () => {
+  base = $("base").value.replace(/\/+$/, "");
+  try {
+    const d = await fetch(`${base}/api/display`);
+    const json = await d.json();
+    reflect(json, true);
+    setStatus(`<span class="ok">connected</span> · brightness ${json.brightness}/255 · test card ${json.calib === 1 ? "on" : "off"}`);
+  } catch (err) {
+    setStatus(`<span class="err">FAIL</span> ${err.message}`);
+  }
+});
+
+renderRef();
+</script>
+</body>
+</html>
