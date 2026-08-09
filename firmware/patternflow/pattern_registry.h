@@ -56,6 +56,10 @@
 #include "presets/preset_0718.h"
 #include "presets/preset_0719.h"
 #include "presets/preset_a_big_hit.h"
+// NOT in presetPatterns[] below on purpose: the calibration test card is an
+// overlay the tuner summons via /api/display, never a knob-browsable pattern.
+// See the header's own comment for the full story.
+#include "presets/preset_calib.h"
 
 struct PatternEntry {
   const char* name;

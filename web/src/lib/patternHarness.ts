@@ -67,8 +67,25 @@ function clampByte(value: number) {
 // draw with display.setValue() produce a pure value field; the ramp is the
 // user's color decision, applied by the runtime (and baked in on C++ export).
 
-export type RampMode = "linear" | "smooth" | "step" | "hsvShort" | "hsvLong";
-export const RAMP_MODES: RampMode[] = ["linear", "smooth", "step", "hsvShort", "hsvLong"];
+export type RampMode =
+  | "linear"
+  | "smooth"
+  | "step"
+  | "hsvShort"
+  | "hsvLong"
+  | "oklab"
+  | "oklchShort"
+  | "oklchLong";
+export const RAMP_MODES: RampMode[] = [
+  "linear",
+  "smooth",
+  "step",
+  "hsvShort",
+  "hsvLong",
+  "oklab",
+  "oklchShort",
+  "oklchLong",
+];
 
 export type RampStop = {
   position: number; // 0..1
@@ -126,6 +143,78 @@ function hsvToRgbTuple(h: number, s: number, v: number): [number, number, number
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+// ── OKLab / OKLCH ───────────────────────────────────────────────────────────
+// Perceptually uniform interpolation (Björn Ottosson's OKLab, 2020). sRGB and
+// HSV blends drift in lightness — complementary stops meet in a muddy gray,
+// hue sweeps pulse bright and dark. Interpolating in OKLab keeps lightness
+// honest; OKLCH additionally follows the hue arc at steady chroma.
+
+function srgbChannelToLinear(c: number): number {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function linearChannelToSrgb(c: number): number {
+  const v = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(1, v)) * 255;
+}
+
+export function srgbToOklab(r: number, g: number, b: number): [number, number, number] {
+  const lr = srgbChannelToLinear(r);
+  const lg = srgbChannelToLinear(g);
+  const lb = srgbChannelToLinear(b);
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+function oklabToLinearRgb(L: number, A: number, B: number): [number, number, number] {
+  const l_ = L + 0.3963377774 * A + 0.2158037573 * B;
+  const m_ = L - 0.1055613458 * A - 0.0638541728 * B;
+  const s_ = L - 0.0894841775 * A - 1.291485548 * B;
+  const l = l_ * l_ * l_;
+  const m = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ];
+}
+
+// A blend between two in-gamut colors can leave sRGB (OKLCH hue arcs cross the
+// gamut boundary routinely). Clipping per channel would bend hue and lightness;
+// instead walk chroma down at constant L and hue until the color fits.
+const GAMUT_EPS = 1e-4;
+
+function inLinearGamut(rgb: [number, number, number]): boolean {
+  return (
+    rgb[0] >= -GAMUT_EPS && rgb[0] <= 1 + GAMUT_EPS &&
+    rgb[1] >= -GAMUT_EPS && rgb[1] <= 1 + GAMUT_EPS &&
+    rgb[2] >= -GAMUT_EPS && rgb[2] <= 1 + GAMUT_EPS
+  );
+}
+
+export function oklabToSrgb(L: number, A: number, B: number): [number, number, number] {
+  let rgb = oklabToLinearRgb(L, A, B);
+  if (!inLinearGamut(rgb)) {
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 16; i++) {
+      const mid = (lo + hi) / 2;
+      if (inLinearGamut(oklabToLinearRgb(L, A * mid, B * mid))) lo = mid;
+      else hi = mid;
+    }
+    rgb = oklabToLinearRgb(L, A * lo, B * lo);
+  }
+  return [linearChannelToSrgb(rgb[0]), linearChannelToSrgb(rgb[1]), linearChannelToSrgb(rgb[2])];
+}
+
 function mixRampColors(
   a: [number, number, number],
   b: [number, number, number],
@@ -133,6 +222,37 @@ function mixRampColors(
   mode: RampMode,
 ): [number, number, number] {
   if (mode === "smooth") t = t * t * (3 - 2 * t);
+  if (mode === "oklab" || mode === "oklchShort" || mode === "oklchLong") {
+    const [La, Aa, Ba] = srgbToOklab(a[0], a[1], a[2]);
+    const [Lb, Ab, Bb] = srgbToOklab(b[0], b[1], b[2]);
+    const L = La + (Lb - La) * t;
+    if (mode === "oklab") {
+      return oklabToSrgb(L, Aa + (Ab - Aa) * t, Ba + (Bb - Ba) * t);
+    }
+    // OKLCH: polar form. Hue in turns, mirroring the hsv logic below — a
+    // near-gray endpoint has no meaningful hue, so borrow the other side's.
+    const CHROMA_EPS = 1e-4;
+    const TWO_PI = Math.PI * 2;
+    const Ca = Math.sqrt(Aa * Aa + Ba * Ba);
+    const Cb = Math.sqrt(Ab * Ab + Bb * Bb);
+    let hueA = Math.atan2(Ba, Aa) / TWO_PI;
+    if (hueA < 0) hueA += 1;
+    let hueB = Math.atan2(Bb, Ab) / TWO_PI;
+    if (hueB < 0) hueB += 1;
+    const h1 = Ca < CHROMA_EPS ? (Cb < CHROMA_EPS ? 0 : hueB) : hueA;
+    const h2 = Cb < CHROMA_EPS ? h1 : hueB;
+    let dh = h2 - h1;
+    if (mode === "oklchShort") {
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+    } else {
+      if (dh > 0 && dh < 0.5) dh -= 1;
+      else if (dh <= 0 && dh > -0.5) dh += 1;
+    }
+    const C = Ca + (Cb - Ca) * t;
+    const H = (h1 + dh * t) * TWO_PI;
+    return oklabToSrgb(L, Math.cos(H) * C, Math.sin(H) * C);
+  }
   if (mode === "hsvShort" || mode === "hsvLong") {
     const ha = rgbToHsv(a[0], a[1], a[2]);
     const hb = rgbToHsv(b[0], b[1], b[2]);

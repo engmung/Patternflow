@@ -216,12 +216,14 @@ constexpr float EULER      = 2.71828182845904523536f;
 // able to set colour precisely, and were written believing the driver did no
 // curve of its own.
 //
-// STILL OPEN, and deliberately left to whoever wants it: the fine tuning on
-// top of this baseline. Nobody has chosen numbers for it. If that is you —
-// change DEFAULT_BRIGHTNESS for overall level (it scales PWM without bending
-// colour), LED_SAT_BOOST if highlights collapse toward white, LED_WB_* for a
-// colour cast. Gamma is the driver's job and almost never yours: putting a
-// curve back here is how the stack above happened.
+// The fine tuning on top of this baseline was done 2026-08-09 on the
+// maintainer's v2.x panel, by eye against a monitor showing the same test
+// frames (GET /api/display tunes all of these live; the panel tuner page in
+// web/public/panel-tuner.html drives it). The WB and saturation defaults
+// below are that panel's converged numbers. Panels vary — if yours reads
+// differently, tune live and land your own numbers here. Gamma is the
+// driver's job and almost never yours: putting a curve back here is how the
+// stack above happened.
 
 // OPEN: matching panel colour to a monitor properly.
 // Per-channel gain is an approximation. The real difference is that the LED
@@ -248,21 +250,32 @@ constexpr float EULER      = 2.71828182845904523536f;
 #define LED_GAMMA_B 1.0f
 #endif
 
+// Tuned by eye against the Calibration preset's WHITE screen (2026-08-09,
+// maintainer's v2.x panel): this panel leans warm, so red is trimmed hardest.
+// Tune live via /api/display, then land the converged numbers here.
 #ifndef LED_WB_R
-#define LED_WB_R 1.00f
+#define LED_WB_R 0.930f
 #endif
 #ifndef LED_WB_G
-#define LED_WB_G 1.00f
+#define LED_WB_G 1.000f
 #endif
 #ifndef LED_WB_B
-#define LED_WB_B 1.00f
+#define LED_WB_B 0.975f
 #endif
 
 // Saturation boost is applied before gamma in present(). Gray stays gray
 // (mathematically a no-op when r==g==b), saturated colors get pulled
-// further away from gray. 1.10 = +10%; 1.0 disables.
+// further away from gray. 1.0 disables.
+//
+// 1.62 was tuned by eye (2026-08-09) against the Calibration preset's
+// side-by-side sRGB reference in the panel tuner, and held across the
+// brightness range (checked at 14% and 100%). Counter to the wide-gamut
+// theory that predicted a CUT: in practice the panel reads washed-out next
+// to a monitor showing the same frame, so matching the design intent takes
+// a strong boost. Strongly saturated colors clip a channel under it —
+// acceptable; the match is judged on real patterns, not on test bars.
 #ifndef LED_SAT_BOOST
-#define LED_SAT_BOOST 1.00f
+#define LED_SAT_BOOST 1.62f
 #endif
 
 // --- Network features (Wi-Fi, OTA, OSC, audio-react) ---

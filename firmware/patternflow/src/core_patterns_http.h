@@ -539,6 +539,51 @@ inline void handleUploadDone() {
   sendJsonAndClose(200, body);
 }
 
+// ── Remote pattern selection ─────────────────────────────────────────
+// GET /api/patterns/select?index=N  (or ?name=<display name>) queues a switch;
+// the sketch's loop() consumes it exactly like an OSC pattern-index command.
+// Deferred on principle rather than measured need: a module activation reads
+// FATFS and runs the relocator, and this file's own history says never to do
+// filesystem work inside an HTTP transaction.
+inline int pendingSelectIdx = -1;
+
+inline bool consumeSelectIdx(int& out) {
+  if (pendingSelectIdx < 0) return false;
+  out = pendingSelectIdx;
+  pendingSelectIdx = -1;
+  return true;
+}
+
+inline void handleSelect() {
+  int index = -1;
+  if (server().hasArg("index")) {
+    index = server().arg("index").toInt();
+  } else if (server().hasArg("name")) {
+    String name = server().arg("name");
+    for (int i = 0; i < NUM_PATTERNS; i++) {
+      if (name.equals(patterns[i].name)) {
+        index = i;
+        break;
+      }
+    }
+  }
+
+  server().sendHeader("Cache-Control", "no-store");
+  server().sendHeader("Access-Control-Allow-Origin", "*");
+  if (index < 0 || index >= NUM_PATTERNS) {
+    server().send(404, "application/json", "{\"ok\":false,\"error\":\"no such pattern\"}");
+    return;
+  }
+
+  pendingSelectIdx = index;
+  String body = "{\"ok\":true,\"index\":";
+  body += index;
+  body += ",\"name\":\"";
+  body += patterns[index].name;
+  body += "\"}";
+  server().send(200, "application/json", body);
+}
+
 inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
@@ -549,6 +594,7 @@ inline void begin() {
   server().collectHeaders(headerKeys, 2);
 
   server().on("/patterns", HTTP_GET, handleIndex);
+  server().on("/api/patterns/select", HTTP_GET, handleSelect);
   server().on("/api/patterns", HTTP_GET, handleList);
   server().on("/api/patterns", HTTP_POST, handleUploadDone, handleUpload);
   // Raw-body PUT is what the page actually uses: the WebServer's multipart
@@ -574,6 +620,7 @@ inline void begin() {
 inline bool isCompiledIn() { return false; }
 inline void begin() {}
 inline void tick() {}
+inline bool consumeSelectIdx(int&) { return false; }
 
 #endif  // PF_PATTERNS_HTTP_ENABLED
 

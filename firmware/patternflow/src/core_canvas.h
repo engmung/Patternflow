@@ -52,18 +52,36 @@ inline uint8_t gammaLUT_G[256];
 inline uint8_t gammaLUT_B[256];
 inline bool gammaLUTReady = false;
 
+// Runtime copies of the config.h calibration constants. /api/display (see
+// core_display_http.h) edits these live so white balance and saturation can be
+// tuned by eye against the physical panel instead of by reflashing per guess;
+// the converged numbers then become the config.h defaults. Setters only clear
+// gammaLUTReady — present() already rebuilds the LUT lazily, so a handler
+// never does the powf work itself. Values reset to config.h on reboot.
+inline float gammaR = LED_GAMMA_R;
+inline float gammaG = LED_GAMMA_G;
+inline float gammaB = LED_GAMMA_B;
+inline float wbR = LED_WB_R;
+inline float wbG = LED_WB_G;
+inline float wbB = LED_WB_B;
+inline float satBoost = LED_SAT_BOOST;
 
-
-// Saturation boost as 8.8 fixed-point. 256 = identity (no boost). Built
-// once from LED_SAT_BOOST so present()'s inner loop avoids floats.
+// Saturation boost as 8.8 fixed-point. 256 = identity; below 256 desaturates
+// toward luma (the blit's math is y + (c - y) * q8 >> 8, so both directions
+// work). Built once from LED_SAT_BOOST so present()'s inner loop avoids floats.
 inline int satBoostQ8 = (int)(LED_SAT_BOOST * 256.0f + 0.5f);
+
+inline void setSatBoost(float boost) {
+  satBoost = boost;
+  satBoostQ8 = (int)(boost * 256.0f + 0.5f);
+}
 
 inline void buildGammaLUT() {
   for (int i = 0; i < 256; i++) {
     float n = i / 255.0f;
-    float rOut = powf(n, LED_GAMMA_R) * 255.0f * LED_WB_R + 0.5f;
-    float gOut = powf(n, LED_GAMMA_G) * 255.0f * LED_WB_G + 0.5f;
-    float bOut = powf(n, LED_GAMMA_B) * 255.0f * LED_WB_B + 0.5f;
+    float rOut = powf(n, gammaR) * 255.0f * wbR + 0.5f;
+    float gOut = powf(n, gammaG) * 255.0f * wbG + 0.5f;
+    float bOut = powf(n, gammaB) * 255.0f * wbB + 0.5f;
     gammaLUT_R[i] = (uint8_t)(rOut > 255.0f ? 255.0f : (rOut < 0.0f ? 0.0f : rOut));
     gammaLUT_G[i] = (uint8_t)(gOut > 255.0f ? 255.0f : (gOut < 0.0f ? 0.0f : gOut));
     gammaLUT_B[i] = (uint8_t)(bOut > 255.0f ? 255.0f : (bOut < 0.0f ? 0.0f : bOut));

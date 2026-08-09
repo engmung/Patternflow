@@ -5,11 +5,13 @@
 // a checkerboard, which is what lets a value field fade out and reveal the
 // layers underneath.
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   RAMP_MODES,
   buildRampLUTRGBA,
+  oklabToSrgb,
   sampleRampRGBA,
+  srgbToOklab,
   type RampMode,
 } from "@/lib/patternHarness";
 import { codeUsesValueField } from "@/lib/patternRamp";
@@ -23,6 +25,20 @@ function rgbToHex(r: number, g: number, b: number): string {
   const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
   return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
 }
+
+/** "hsvShort" → "hsv short" — camelCase mode ids read as plain words. */
+function modeLabel(mode: string): string {
+  return mode.replace(/([A-Z])/g, " $1").toLowerCase();
+}
+
+type LumaTrend = "up" | "down" | "flat" | "mixed";
+
+const LUMA_TREND_LABEL: Record<LumaTrend, string> = {
+  up: "monotonic ↑",
+  down: "monotonic ↓",
+  flat: "flat",
+  mixed: "non-monotonic",
+};
 
 export default function RampPanel() {
   const layer = useFocusCodeLayer();
@@ -38,6 +54,7 @@ export default function RampPanel() {
   const setRampSelection = useLabStore((state) => state.setRampSelection);
 
   const rampBarRef = useRef<HTMLCanvasElement | null>(null);
+  const lumaBarRef = useRef<HTMLCanvasElement | null>(null);
   const rampTrackRef = useRef<HTMLDivElement | null>(null);
   const stopDragRef = useRef<{ index: number } | null>(null);
   const layerIdRef = useRef<string | null>(null);
@@ -48,13 +65,49 @@ export default function RampPanel() {
 
   const ramp = layer?.ramp ?? null;
 
+  // LUT + perceptual-lightness read of the ramp, shared by both preview strips.
+  // OKLab L of the RGB only — alpha is layering, not color — with the trend
+  // (the "squint test": does the palette keep its structure in grayscale?).
+  const rampAnalysis = useMemo(() => {
+    if (!ramp) return null;
+    const lut = buildRampLUTRGBA(rampStateToHarness(ramp));
+    const luma = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      luma[i] = srgbToOklab(lut[i * 4], lut[i * 4 + 1], lut[i * 4 + 2])[0];
+    }
+    // Cumulative drawup/drawdown, not per-step deltas: a gentle full-range ramp
+    // moves ~0.002 L per LUT step, far below any noise floor a step test could
+    // use, while byte rounding wiggles adjacent entries. Track how far L climbs
+    // above its running minimum and falls below its running maximum instead.
+    const EPS = 0.02;
+    let runningMin = luma[0];
+    let runningMax = luma[0];
+    let drawup = 0;
+    let drawdown = 0;
+    for (let i = 1; i < 256; i++) {
+      runningMin = Math.min(runningMin, luma[i]);
+      runningMax = Math.max(runningMax, luma[i]);
+      drawup = Math.max(drawup, luma[i] - runningMin);
+      drawdown = Math.max(drawdown, runningMax - luma[i]);
+    }
+    const trend: LumaTrend =
+      drawup > EPS && drawdown > EPS
+        ? "mixed"
+        : drawup > EPS
+          ? "up"
+          : drawdown > EPS
+            ? "down"
+            : "flat";
+    return { lut, luma, trend };
+  }, [ramp]);
+
   // Paint the gradient bar: checkerboard first, then the RGBA LUT over it, so
   // transparent stops are visibly transparent.
   useEffect(() => {
     const canvas = rampBarRef.current;
     const context = canvas?.getContext("2d");
-    if (!canvas || !context || !ramp) return;
-    const lut = buildRampLUTRGBA(rampStateToHarness(ramp));
+    if (!canvas || !context || !rampAnalysis) return;
+    const lut = rampAnalysis.lut;
     const width = 256;
     const height = 14;
     context.clearRect(0, 0, width, height);
@@ -80,7 +133,26 @@ export default function RampPanel() {
       }
     }
     context.putImageData(imageData, 0, 0);
-  }, [ramp]);
+
+    // Luminance strip: each column is the perceptual gray of that LUT entry.
+    const lumaCanvas = lumaBarRef.current;
+    const lumaContext = lumaCanvas?.getContext("2d");
+    if (!lumaCanvas || !lumaContext) return;
+    const lumaHeight = 8;
+    const lumaImage = lumaContext.createImageData(width, lumaHeight);
+    const lumaData = lumaImage.data;
+    for (let x = 0; x < width; x++) {
+      const gray = Math.round(oklabToSrgb(rampAnalysis.luma[x], 0, 0)[0]);
+      for (let y = 0; y < lumaHeight; y++) {
+        const index = (y * width + x) * 4;
+        lumaData[index] = gray;
+        lumaData[index + 1] = gray;
+        lumaData[index + 2] = gray;
+        lumaData[index + 3] = 255;
+      }
+    }
+    lumaContext.putImageData(lumaImage, 0, 0);
+  }, [rampAnalysis]);
 
   const rampPositionFromClientX = useCallback((clientX: number) => {
     const track = rampTrackRef.current;
@@ -171,7 +243,7 @@ export default function RampPanel() {
         >
           {RAMP_MODES.map((mode) => (
             <option key={mode} value={mode}>
-              {mode === "hsvShort" ? "hsv short" : mode === "hsvLong" ? "hsv long" : mode}
+              {modeLabel(mode)}
             </option>
           ))}
         </select>
@@ -233,6 +305,26 @@ export default function RampPanel() {
             </button>
           ))}
         </div>
+
+        <canvas
+          ref={lumaBarRef}
+          className={styles.rampLuma}
+          width={256}
+          height={8}
+          aria-label="Ramp luminance preview"
+          title="Perceptual lightness (OKLab L) of the ramp — the squint test: structure should survive in grayscale"
+        />
+        {rampAnalysis && (
+          <div className={styles.rampLumaRow}>
+            <span>luminance</span>
+            <span
+              className={`${styles.rampLumaBadge}${rampAnalysis.trend === "mixed" && !ramp.wrap ? ` ${styles.rampLumaMixed}` : ""}`}
+              title="Lightness trend across the ramp. Monotonic reads as ordered values on the panel; non-monotonic is a stylistic choice, not an error."
+            >
+              {ramp.wrap ? "cyclic" : LUMA_TREND_LABEL[rampAnalysis.trend]}
+            </span>
+          </div>
+        )}
 
         {activeStop && (
           <>
