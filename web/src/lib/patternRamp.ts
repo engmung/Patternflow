@@ -10,8 +10,10 @@
 // tolerates any order). Parsed by this module (lab, community pages) AND by
 // public/pattern-sandbox.html (plain-JS port) — keep the two in sync.
 
-export const RAMP_MODES = ["linear", "smooth", "step", "hsvShort", "hsvLong"] as const;
-export type RampAnnotationMode = (typeof RAMP_MODES)[number];
+import { RAMP_MODES, type RampMode } from "@/lib/patternHarness";
+
+export { RAMP_MODES };
+export type RampAnnotationMode = RampMode;
 
 export type RampAnnotation = {
   stops: { position: number; color: string }[];
