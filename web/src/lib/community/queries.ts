@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { getDb } from "./db";
 import {
+  atlasPins,
   comments,
   deckPatterns,
   decks,
@@ -606,6 +607,30 @@ export async function listPresence(): Promise<PresencePerson[]> {
     .from(presence)
     .innerJoin(user, eq(presence.userId, user.id))
     .orderBy(presence.updatedAt);
+}
+
+/**
+ * Patterns placed on the atlas (/community/atlas), with enough of the pattern
+ * row to render a live tile. Only public patterns appear — an unlisted work is
+ * link-only everywhere else, and a spot on the shared map would un-unlist it.
+ */
+export async function listAtlasPins() {
+  return getDb()
+    .select({
+      patternId: atlasPins.patternId,
+      x: atlasPins.x,
+      y: atlasPins.y,
+      entryId: atlasPins.entryId,
+      title: patterns.title,
+      code: patterns.code,
+      userId: patterns.userId,
+      ...authorFields,
+    })
+    .from(atlasPins)
+    .innerJoin(patterns, eq(atlasPins.patternId, patterns.id))
+    .innerJoin(user, eq(patterns.userId, user.id))
+    .where(eq(patterns.visibility, "public"))
+    .orderBy(atlasPins.updatedAt);
 }
 
 /**

@@ -33,6 +33,13 @@ const SECTIONS = [
     match: (path: string) =>
       path.startsWith("/community/workshop") || path.startsWith("/community/t/"),
   },
+  {
+    href: "/community/atlas",
+    label: "Atlas",
+    // The other map: workshop charts the hardware's directions, this charts
+    // pattern-technique space — with a generation prompt on every point.
+    match: (path: string) => path.startsWith("/community/atlas"),
+  },
 ];
 
 export default function CommunityNav({
