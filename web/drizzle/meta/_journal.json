@@ -120,6 +120,20 @@
       "when": 1786338000000,
       "tag": "0016_add-presence",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1786830000000,
+      "tag": "0017_add-atlas-pins",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1786833000000,
+      "tag": "0018_atlas-pin-entry",
+      "breakpoints": true
     }
   ]
 }

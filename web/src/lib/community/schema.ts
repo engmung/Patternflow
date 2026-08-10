@@ -393,6 +393,31 @@ export const presence = sqliteTable("presence", {
 });
 
 /**
+ * A pattern placed on the atlas — the map of pattern-technique space
+ * (/community/atlas). One pin per pattern, placed and moved by the pattern's
+ * author (or a moderator). Coordinates are the atlas's own 0..100 data space:
+ * x = order → chaos, y = wire → field.
+ *
+ * This is deliberately NOT presence and NOT a territory pin: it says "this
+ * work lives at this spot of pattern space", nothing about people or threads.
+ */
+export const atlasPins = sqliteTable("atlas_pins", {
+  patternId: text("pattern_id")
+    .primaryKey()
+    .references(() => patterns.id, { onDelete: "cascade" }),
+  x: integer("x").notNull(),
+  y: integer("y").notNull(),
+  /**
+   * The atlas entry (technique point in lib/atlas/data.ts) whose prompt this
+   * pattern was explored from — its lineage on the map, drawn as a thread.
+   * Set by the author: dropping a pattern near a point adopts it, and the pin
+   * panel can retarget it. Null = placed in open water, tied to nothing.
+   */
+  entryId: text("entry_id"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+/**
  * A thread. Lives in a territory — the board no longer has an "everything"
  * list, because a question about a direction belongs next to that direction.
  *

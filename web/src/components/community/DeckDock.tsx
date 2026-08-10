@@ -67,6 +67,8 @@ const NO_PATTERNS_HERE = [
   "/community/reports",
   "/community/featured",
   "/community/territories",
+  // The atlas maps techniques, not collectable patterns.
+  "/community/atlas",
 ];
 
 function dockBelongs(pathname: string): boolean {
