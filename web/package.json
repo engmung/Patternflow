@@ -17,6 +17,7 @@
     "check:retention": "tsx scripts/retention-smoke.ts",
     "sweep": "tsx scripts/retention-sweep.ts",
     "check:deck": "tsx scripts/deck-smoke.ts",
+    "check:pack": "tsx scripts/deck-pack-smoke.ts",
     "check:sharing": "tsx scripts/sharing-smoke.ts",
     "check:notify": "tsx scripts/notify-smoke.ts",
     "check:ports": "tsx scripts/ports-smoke.ts",

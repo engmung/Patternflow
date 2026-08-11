@@ -55,8 +55,49 @@ export default function DeckDetailClient({
   const [confirmCopy, setConfirmCopy] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [packNote, setPackNote] = useState<string | null>(null);
 
   const playable = items.filter((item) => item.pattern !== null);
+
+  // The pack endpoint answers 202 while the compile runs — the first person
+  // to want a given running order pays a few seconds for it and everyone
+  // after that gets a file immediately. Poll rather than spin: a deck that
+  // has never been downloaded is exactly the case this handles.
+  const packUrl = communityApiUrl(`/api/community/decks/${deck.id}/zip`);
+  const downloadPack = async () => {
+    setError(null);
+    setPackNote("Preparing…");
+    const deadline = Date.now() + 90_000;
+    try {
+      for (;;) {
+        const response = await fetch(packUrl, COMMUNITY_FETCH_INIT);
+        if (response.ok) {
+          setPackNote(null);
+          captureEvent("deck_pack_downloaded", { deckId: deck.id, patterns: playable.length });
+          // Hand it to the browser as a navigation so it lands in Downloads
+          // with the filename the route sets, instead of a blob we name here.
+          window.location.href = packUrl;
+          return;
+        }
+        if (response.status !== 202) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          setPackNote(null);
+          setError(body?.error ?? "The pack could not be built.");
+          return;
+        }
+        if (Date.now() > deadline) {
+          setPackNote(null);
+          setError("The pack is taking unusually long to build. Try again in a moment.");
+          return;
+        }
+        setPackNote("Building the pack…");
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    } catch {
+      setPackNote(null);
+      setError("Network error — could not reach the community.");
+    }
+  };
 
   const patch = async (body: Record<string, unknown>): Promise<boolean> => {
     setBusy(true);
@@ -256,6 +297,20 @@ export default function DeckDetailClient({
           >
             {confirmCopy ? "Press again — this replaces your deck" : "Copy into my deck"}
           </button>
+          {/* No sign-in, no working deck, no build queue of your own: the
+              pack is built once for the deck and served from a stable URL,
+              so this is also the link you paste somewhere. */}
+          {deck.visibility === "public" && (
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={busy || playable.length === 0}
+              title="Download this deck as a .zip you can drop on your device's Patterns page"
+              onClick={() => void downloadPack()}
+            >
+              {packNote ?? "Download pack (.zip)"}
+            </button>
+          )}
           {/* The deck's whole point: onto a board, in this order. Copying is
               the editing gesture; this is the one it exists for. */}
           <button

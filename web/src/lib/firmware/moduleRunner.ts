@@ -244,6 +244,17 @@ export async function runModuleBuildZipped(
       entries[`${artifact.slug}.json`] = new Uint8Array(await fs.readFile(artifact.sidecarPath));
     }
 
+    // The running order, in the format pattern_registry.h reads. Submission
+    // order IS deck order, and without this file the device falls back to
+    // sorting modules alphabetically — which quietly throws away the one
+    // thing the person arranging a deck was actually doing.
+    const catalog =
+      "# Patternflow running order — one module slug per line.\n" +
+      "# Written by the deck export; the device reads it at boot.\n" +
+      built.artifacts.map((artifact) => artifact.slug).join("\n") +
+      "\n";
+    entries["catalog.txt"] = new TextEncoder().encode(catalog);
+
     const zipped = zipSync(entries);
     await fs.mkdir(path.dirname(zipPath), { recursive: true });
     await fs.writeFile(zipPath, zipped);

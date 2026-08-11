@@ -82,8 +82,18 @@ const nextConfig: NextConfig = {
         // cached copy keeps handing out the previous firmware long after a new
         // one ships. The images themselves live at version-stamped paths and
         // may be cached freely; only this pointer must always be fetched fresh.
+        //
+        // It is also the file a device's own console checks its version
+        // against. That page is served BY the device, from a LAN address, so
+        // the read is cross-origin and needs saying so — without this the
+        // browser blocks it and the "newer firmware exists" banner simply
+        // never appears. The manifest is public release metadata; there is
+        // nothing here to keep from anyone.
         source: "/flash/manifest.json",
-        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
       },
       {
         // Every pattern card boots its own sandboxed iframe from this one
