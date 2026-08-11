@@ -33,7 +33,6 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
     : null;
 
   const done = build.status === "done";
-  const isModules = build.format === "pfm";
   return Response.json(
     {
       id: build.id,
@@ -45,12 +44,9 @@ async function handleGet(context: { params: Promise<{ id: string }> }) {
       elapsedMs,
       bytes: build.artifactBytes ?? null,
       error: build.error ?? null,
-      // Only meaningful once done; the client uses these directly. Which set is
-      // non-null tells it what it got: an image to flash, or modules to drop
-      // onto the device's /patterns page.
-      firmwareUrl: done && !isModules ? `/api/community/builds/${build.id}/firmware` : null,
-      manifestUrl: done && !isModules ? `/api/community/builds/${build.id}/manifest` : null,
-      modulesUrl: done && isModules ? `/api/community/builds/${build.id}/modules` : null,
+      // Only meaningful once done. Every build is modules now — the
+      // whole-image fields (firmwareUrl, manifestUrl) went with that path.
+      modulesUrl: done ? `/api/community/builds/${build.id}/modules` : null,
     },
     // A finished build never changes; a running one must not be cached at all.
     { headers: { "Cache-Control": done ? "private, max-age=60" : "no-store" } },

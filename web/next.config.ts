@@ -96,6 +96,18 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The release images, read cross-origin by the device's own /update
+        // page during a wireless update: the browser fetches the .bin from
+        // here and POSTs it to the board on the LAN, so the device never
+        // needs TLS (it has nowhere near the heap for a handshake). Paths
+        // carry the version, so they never change under a cached copy.
+        source: "/flash/bin/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
         // Every pattern card boots its own sandboxed iframe from this one
         // document, so the feed loads it dozens of times per visit. Without
         // this header each load is a round trip to the origin (a Raspberry

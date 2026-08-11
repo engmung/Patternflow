@@ -1,0 +1,183 @@
+/* Firmware update. Arrived at from a banner on the device's own console, so
+   it opens with the one action that brought you here and keeps every fallback
+   below it — the project's paper tokens, since this is the site and not the
+   device. */
+
+.wrap {
+  min-height: 100vh;
+  max-width: 60ch;
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.kicker {
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+.title {
+  margin: 10px 0 14px;
+  font-family: var(--pretendard);
+  font-size: clamp(32px, 6vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 44ch;
+  color: var(--pf-ink-muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.bad {
+  margin-top: 20px;
+  color: var(--pf-led);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.card {
+  margin-top: 40px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--pf-rule);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--pf-rule);
+}
+
+.version {
+  font-family: var(--pf-mono);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--pf-ink);
+}
+
+.hostRow {
+  display: block;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--pf-ink-muted);
+}
+
+.hostRow input {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+  padding: 11px 12px;
+  font-family: var(--pf-mono);
+  font-size: 14px;
+  color: var(--pf-ink);
+  background: var(--pf-cream);
+  border: 1px solid var(--pf-rule);
+  border-radius: 2px;
+}
+
+.hostRow input:focus {
+  outline: none;
+  border-color: var(--pf-ink);
+}
+
+.hostNote {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pf-ink-faint);
+}
+
+.hostNote code,
+.fallback code {
+  font-family: var(--pf-mono);
+  font-size: 0.92em;
+  color: var(--pf-ink-muted);
+}
+
+.go,
+.goDisabled {
+  display: block;
+  margin-top: 22px;
+  padding: 15px 18px;
+  text-align: center;
+  text-decoration: none;
+  font-family: var(--pf-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  border: 1px solid var(--pf-ink);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.go:hover {
+  background: transparent;
+  color: var(--pf-ink);
+}
+
+.goDisabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.goNote {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--pf-ink-muted);
+}
+
+.goNote b {
+  color: var(--pf-ink);
+  font-weight: 500;
+}
+
+.fallback {
+  display: block;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--pf-rule);
+}
+
+.fallback ul {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fallback li {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--pf-rule-soft);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--pf-ink-muted);
+}
+
+.fallback li:last-child {
+  border-bottom: none;
+}
+
+.fallback b {
+  color: var(--pf-ink);
+  font-weight: 500;
+}
+
+.fallback a,
+.bad a {
+  color: var(--pf-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

@@ -13,7 +13,6 @@ import AddHeaderModal from "@/components/community/AddHeaderModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
-import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
 import {
@@ -111,7 +110,6 @@ export default function PatternDetailClient({
   const [portModalOpen, setPortModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [buildOpen, setBuildOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
   // Deck and saved membership are shared state (header chip, other tabs), so read
@@ -310,18 +308,9 @@ export default function PatternDetailClient({
             </button>
             {/* Only for patterns that ship a verified header — this is the
                 zero-friction path: nothing to convert, nothing to install. */}
-            {buildsConfigured() && pattern.codeCpp && (
-              <button
-                type="button"
-                className={styles.btnPrimary}
-                title="Compile a firmware image with this pattern and flash it over USB"
-                onClick={() => setBuildOpen(true)}
-              >
-                ⚡ Flash to my board
-              </button>
-            )}
-            {/* The common case: one pattern, onto the board, no USB. Builds a
-                single .pfm and hands it to the device over Wi-Fi. */}
+            {/* One pattern, onto the board, no USB. Builds a single .pfm and
+                hands it to the device over Wi-Fi — the only path there is now
+                that whole-image builds are gone. */}
             {buildsConfigured() && pattern.codeCpp && (
               <button
                 type="button"
@@ -471,8 +460,8 @@ export default function PatternDetailClient({
             <p className={styles.codeFootNote}>
               {buildsConfigured() ? (
                 <>
-                  Use <strong>Flash to my board</strong> below to compile and install this without
-                  an Arduino IDE. Provided by the author and not verified by us.
+                  Use <strong>Send to my Patternflow</strong> below to compile and install this
+                  without an Arduino IDE. Provided by the author and not verified by us.
                 </>
               ) : (
                 <>
@@ -653,14 +642,6 @@ export default function PatternDetailClient({
           patternTitle={pattern.title}
           code={pattern.codeCpp}
           onClose={() => setSendOpen(false)}
-        />
-      )}
-
-      {buildOpen && pattern.codeCpp && (
-        <BuildFirmwareModal
-          initialHeader={pattern.codeCpp}
-          patternLabel={pattern.title}
-          onClose={() => setBuildOpen(false)}
         />
       )}
 

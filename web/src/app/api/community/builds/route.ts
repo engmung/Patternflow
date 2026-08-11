@@ -1,4 +1,3 @@
-import fs from "node:fs/promises";
 import { getAuth } from "@/lib/community/auth";
 import {
   countActiveBuilds,
@@ -11,24 +10,21 @@ import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled } from "@/lib/community/db";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { CPP_MAX } from "@/lib/community/validate";
-import {
-  assembleFirmwareSource,
-  validateCustomPattern,
-  MAX_CUSTOM_SLOTS,
-} from "@/lib/firmware/assemble";
-import { registryPath } from "@/lib/firmware/paths";
+import { validateCustomPattern } from "@/lib/firmware/assemble";
 
-// POST /api/community/builds — queue a firmware build.
+// POST /api/community/builds — queue a module build.
 //
 // The compile itself happens in the worker process (see scripts/build-worker),
 // so this returns as soon as the job is on the queue. What it does do is run
-// the same validation the worker will: a namespace that collides with a bundled
-// pattern is worth reporting now rather than after a fifteen second wait.
+// the same validation the worker will: a header that will not compile is worth
+// reporting now rather than after the wait.
 //
-// `format` selects what comes out. "bin" (default) is a whole flashable image,
-// limited to the firmware's custom slots. "pfm" is loadable modules — one .pfm
-// per pattern, zipped — where the slot limit does not apply because nothing is
-// compiled into the image; the cap there is only queue hygiene.
+// Modules only. Baking a pattern INTO the firmware used to be the other half
+// of this endpoint, and its one justification was that the rebuild came off
+// the latest sources, so it doubled as a firmware update. Updating is its own
+// thing now — the device's console says when a release is newer and
+// patternflow.work/update hands it over Wi-Fi — which leaves whole-image
+// builds as a slow way to do what a 6 KB .pfm does in seconds.
 
 const MAX_MODULE_PATTERNS_PER_BUILD = 10;
 
@@ -78,9 +74,21 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const rawFormat = (body as Record<string, unknown>).format ?? "bin";
-  if (rawFormat !== "bin" && rawFormat !== "pfm") {
-    return Response.json({ error: 'format must be "bin" or "pfm".' }, { status: 400 });
+  // "bin" is still accepted as a word so an older page gets an explanation
+  // rather than a validation error it cannot act on.
+  const rawFormat = (body as Record<string, unknown>).format ?? "pfm";
+  if (rawFormat === "bin") {
+    return Response.json(
+      {
+        error:
+          "Whole-firmware builds are gone. Patterns install as modules in seconds; " +
+          "to update the firmware itself, open patternflow.work/update.",
+      },
+      { status: 410 },
+    );
+  }
+  if (rawFormat !== "pfm") {
+    return Response.json({ error: 'format must be "pfm".' }, { status: 400 });
   }
   const format: BuildFormat = rawFormat;
 
@@ -88,13 +96,7 @@ async function handlePost(request: Request) {
   if (!Array.isArray(raw) || raw.length === 0) {
     return Response.json({ error: "Send at least one pattern to build." }, { status: 400 });
   }
-  if (format === "bin" && raw.length > MAX_CUSTOM_SLOTS) {
-    return Response.json(
-      { error: `The firmware has ${MAX_CUSTOM_SLOTS} custom slots.` },
-      { status: 400 },
-    );
-  }
-  if (format === "pfm" && raw.length > MAX_MODULE_PATTERNS_PER_BUILD) {
+  if (raw.length > MAX_MODULE_PATTERNS_PER_BUILD) {
     return Response.json(
       { error: `At most ${MAX_MODULE_PATTERNS_PER_BUILD} modules per build.` },
       { status: 400 },
@@ -117,35 +119,16 @@ async function handlePost(request: Request) {
     patterns.push({ label, code });
   }
 
-  // Dry-run so bad submissions fail here, with a readable reason.
-  let namespaces: string[];
-  if (format === "pfm") {
-    // A module never enters the firmware image, so preset-namespace collisions
-    // and the registry itself are irrelevant — shape-check each header alone.
-    namespaces = [];
-    for (const pattern of patterns) {
-      const verdict = validateCustomPattern(pattern.code);
-      if (!verdict.ok) {
-        return Response.json({ error: `${pattern.label}: ${verdict.error}` }, { status: 400 });
-      }
-      namespaces.push(verdict.namespace);
+  // Dry-run so bad submissions fail here, with a readable reason. A module
+  // never enters the firmware image, so preset-namespace collisions and the
+  // registry itself are irrelevant — shape-check each header alone.
+  const namespaces: string[] = [];
+  for (const pattern of patterns) {
+    const verdict = validateCustomPattern(pattern.code);
+    if (!verdict.ok) {
+      return Response.json({ error: `${pattern.label}: ${verdict.error}` }, { status: 400 });
     }
-  } else {
-    let registry: string;
-    try {
-      registry = await fs.readFile(registryPath(), "utf8");
-    } catch {
-      return Response.json(
-        { error: "Firmware sources are not available on this deployment." },
-        { status: 503 },
-      );
-    }
-
-    const assembled = assembleFirmwareSource(patterns, registry);
-    if (!assembled.ok) {
-      return Response.json({ error: assembled.error }, { status: 400 });
-    }
-    namespaces = assembled.namespaces;
+    namespaces.push(verdict.namespace);
   }
 
   // Iterating on a pattern means re-submitting fast, and the newest submission

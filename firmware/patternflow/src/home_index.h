@@ -139,8 +139,12 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
     </div>
   </div>
 
-  <a id="upd" href="/update"><span class="tag">update</span>
-    <span id="updtext"></span><span class="go">/update &rarr;</span></a>
+  <!-- Points at the SITE, not this device's own /update: that page reads the
+       release manifest and hands the new image to this board over Wi-Fi, so
+       there is no .bin to find and nothing to download by hand. -->
+  <a id="upd" href="https://patternflow.work/update" target="_blank" rel="noopener">
+    <span class="tag">update</span>
+    <span id="updtext"></span><span class="go">how to update &rarr;</span></a>
   </div>
 
   <div class="rows">
