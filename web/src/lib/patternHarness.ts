@@ -379,6 +379,67 @@ function normalizePatternCode(code: string) {
     .replace(/\bexport\s+function\b/g, "function");
 }
 
+// ── Error locations ─────────────────────────────────────────────────────────
+// A pattern that throws used to report the message and nothing else. "Cannot
+// read properties of undefined (reading '0')" is unactionable on its own, and
+// badly misleading in the common case: a typed array returns `undefined` for an
+// out-of-range read instead of throwing, that `undefined` turns the arithmetic
+// into NaN, and the NaN only throws later when it is used as an index — tens of
+// lines from the mistake. One author read that message as "the harness cannot
+// handle 2D arrays" and abandoned a working pattern. The stack knows the line;
+// this digs it back out and quotes the source.
+
+/** The wrapper's leading newline + `"use strict";` sit above user line 1. */
+const WRAPPER_LINES_BEFORE_CODE = 2;
+
+// `new Function` prepends its own signature lines, and how many is an engine
+// detail — measure it once rather than hard-code a guess that breaks silently.
+let functionPreambleLines: number | null = null;
+
+function stackLocation(error: unknown): { line: number; column: number } | null {
+  const stack = error instanceof Error ? error.stack : null;
+  if (!stack) return null;
+  // V8/Safari report `<anonymous>:12:5`; Firefox reports `Function:12:5`.
+  const match = stack.match(/(?:<anonymous>|Function|eval):(\d+):(\d+)/);
+  if (!match) return null;
+  return { line: Number(match[1]), column: Number(match[2]) };
+}
+
+function getFunctionPreambleLines(): number {
+  if (functionPreambleLines !== null) return functionPreambleLines;
+  functionPreambleLines = 2;
+  try {
+    new Function("throw new Error('probe');")();
+  } catch (error) {
+    // The probe throws from body line 1, so whatever line the stack reports is
+    // exactly the preamble height plus one.
+    const location = stackLocation(error);
+    if (location) functionPreambleLines = location.line - 1;
+  }
+  return functionPreambleLines;
+}
+
+/**
+ * Message plus, when the stack allows it, the pattern's own line number and the
+ * source of that line. Falls back to the bare message — a syntax error carries
+ * no usable frame, and a wrong line number would be worse than none.
+ */
+export function describePatternError(error: unknown, code: string | null): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!code) return message;
+
+  const location = stackLocation(error);
+  if (!location) return message;
+
+  const line = location.line - getFunctionPreambleLines() - WRAPPER_LINES_BEFORE_CODE;
+  const sourceLines = code.split("\n");
+  if (line < 1 || line > sourceLines.length) return message;
+
+  const source = sourceLines[line - 1].trim();
+  const quoted = source.length > 80 ? `${source.slice(0, 79)}…` : source;
+  return `${message}\nline ${line}: ${quoted}`;
+}
+
 export function compilePatternCode(code: string): PatternModule {
   const normalized = normalizePatternCode(code);
   const wrapper = `
@@ -415,6 +476,7 @@ export class PatternRuntime {
   private rampLUTA: Uint8Array | null = null; // 256×4 RGBA (setValue path)
   private module: PatternModule | null = null;
   private params: PatternParams = {};
+  private source: string | null = null;
   private display: PatternDisplay;
 
   constructor(width = PATTERN_MATRIX_WIDTH, height = PATTERN_MATRIX_HEIGHT) {
@@ -482,6 +544,9 @@ export class PatternRuntime {
   }
 
   public loadCode(code: string): PatternRenderResult {
+    // Kept so a throw from update()/draw() can quote the line too, not just the
+    // one that setup() died on.
+    this.source = code;
     try {
       this.module = compilePatternCode(code);
       this.params = {};
@@ -490,10 +555,7 @@ export class PatternRuntime {
       return { ok: true };
     } catch (error) {
       this.module = null;
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { ok: false, error: describePatternError(error, code) };
     }
   }
 
@@ -537,10 +599,7 @@ export class PatternRuntime {
       }
       return { ok: true };
     } catch (error) {
-      return {
-        ok: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return { ok: false, error: describePatternError(error, this.source) };
     }
   }
 

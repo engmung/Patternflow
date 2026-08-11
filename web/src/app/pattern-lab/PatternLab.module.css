@@ -334,6 +334,10 @@
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
   line-height: 1.5;
+  /* A runtime error carries the failing source line on its own line below the
+     message; without this the newline collapses and the two run together. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .controls {
