@@ -110,8 +110,10 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
 
   // The slot check runs whenever the result is public — countPublicDecksByUser
   // excludes this deck, so an already-public deck editing its title passes.
+  // Moderators are exempt, same as on create.
   if (
     visibility === "public" &&
+    !isAdminSession(session) &&
     (await countPublicDecksByUser(session.user.id, id)) >= PUBLIC_DECKS_MAX
   ) {
     return Response.json(

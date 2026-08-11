@@ -9,6 +9,7 @@ import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
 import SignOutLink from "@/components/community/SignOutLink";
+import { isAdminUsername } from "@/lib/community/admin";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import styles from "@/components/community/Community.module.css";
 
@@ -62,7 +63,9 @@ export default async function CommunityUserPage(props: RouteParams) {
   ].filter(Boolean) as string[];
 
   const publicDecks = deckItems.filter((deck) => deck.visibility === "public").length;
-  const freeSlots = Math.max(0, PUBLIC_DECKS_MAX - publicDecks);
+  // Moderators have no public-deck cap; drawing empty slots at them is a lie.
+  const unlimitedSlots = isAdminUsername(profile.username);
+  const freeSlots = unlimitedSlots ? 0 : Math.max(0, PUBLIC_DECKS_MAX - publicDecks);
 
   return (
     <div className={styles.profilePage}>
@@ -115,7 +118,9 @@ export default async function CommunityUserPage(props: RouteParams) {
             Decks
             {isSelf && (
               <span className={styles.profileSlotNote}>
-                {publicDecks} of {PUBLIC_DECKS_MAX} public slots used
+                {unlimitedSlots
+                  ? `${publicDecks} public — no limit`
+                  : `${publicDecks} of ${PUBLIC_DECKS_MAX} public slots used`}
               </span>
             )}
           </h2>
@@ -123,14 +128,14 @@ export default async function CommunityUserPage(props: RouteParams) {
             {deckItems.map((deck) => (
               <DeckCard key={deck.id} deck={deck} />
             ))}
-            {/* The unused slot is drawn, not described: two is the whole
-                allowance, so an empty one is information about what this
-                person could still stand behind. */}
+            {/* The unused slot is drawn, not described: the allowance is
+                small, so an empty one is information about what this person
+                could still stand behind. */}
             {isSelf && freeSlots > 0 && (
               <span className={styles.deckSlotFree}>
-                {freeSlots === PUBLIC_DECKS_MAX
-                  ? `${freeSlots} public slots — share a deck from your tray`
-                  : "One public slot left — share a deck from your tray"}
+                {freeSlots === 1
+                  ? "One public slot left — share a deck from your tray"
+                  : `${freeSlots} public slots — share a deck from your tray`}
               </span>
             )}
           </div>

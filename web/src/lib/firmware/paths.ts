@@ -26,9 +26,9 @@ export function registryPath(): string {
  * silently rather than loudly.
  */
 export const STATIC_FLASH_PARTS = [
-  { path: "/flash/bin/v3.2.0/patternflow.ino.bootloader.bin", offset: 0 },
-  { path: "/flash/bin/v3.2.0/patternflow.ino.partitions.bin", offset: 0x8000 },
-  { path: "/flash/bin/v3.2.0/boot_app0.bin", offset: 0xe000 },
+  { path: "/flash/bin/v3.3.0/patternflow.ino.bootloader.bin", offset: 0 },
+  { path: "/flash/bin/v3.3.0/patternflow.ino.partitions.bin", offset: 0x8000 },
+  { path: "/flash/bin/v3.3.0/boot_app0.bin", offset: 0xe000 },
 ] as const;
 
 /** Offset the application image is written to (app0 in the partition table). */

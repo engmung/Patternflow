@@ -53,7 +53,7 @@ const hasCpp = sql<number>`(${patterns.codeCpp} IS NOT NULL OR EXISTS (
 ))`;
 // How many *other people* put this pattern in a public deck. Distinct owners,
 // not rows, and never the pattern's own author: a like costs a click, but this
-// costs one of somebody's two public deck slots spent on someone else's work —
+// costs one of somebody's few public deck slots spent on someone else's work —
 // which is why it ranks better than likes (#256).
 const deckCount = sql<number>`(
   SELECT COUNT(DISTINCT d.user_id) FROM ${deckPatterns} AS dp
@@ -68,7 +68,7 @@ const deckCount = sql<number>`(
  *
  *  "decks" was deliberately left out while decks were a side feature — with a
  *  handful of them it would have reordered the wall on almost no signal. The
- *  redesign makes a deck the thing the community is FOR (two public slots a
+ *  redesign makes a deck the thing the community is FOR (a handful of public slots a
  *  person, a curated shelf on the decks page), so the signal is now the
  *  scarcest one on the site and earns its tab. */
 export const FEED_SORTS = ["new", "top", "forks", "decks"] as const;
@@ -899,7 +899,7 @@ type DeckListRow = Omit<DeckListItem, "preview">;
 
 /**
  * Attach each deck's first few visible patterns. One query per deck — at this
- * scale (two public decks per account) a join-and-regroup would be more code
+ * scale (a handful of public decks per account) a join-and-regroup would be more code
  * than the problem.
  */
 async function withPreviews(rows: DeckListRow[], perDeck = 4): Promise<DeckListItem[]> {
@@ -925,7 +925,7 @@ async function withPreviews(rows: DeckListRow[], perDeck = 4): Promise<DeckListI
   return result;
 }
 
-/** The deck feed: published decks, newest first. No pager yet — two public
+/** The deck feed: published decks, newest first. No pager yet — the public
  *  decks per account keeps this list countable for a long while. */
 export async function listPublicDecks(limit = 60): Promise<DeckListItem[]> {
   const rows = await getDb()
@@ -943,7 +943,7 @@ export async function listPublicDecks(limit = 60): Promise<DeckListItem[]> {
  * on its card, named rather than tallied.
  *
  * Being chosen for somebody's running order is a scarcer compliment than a
- * like (two public slots per account), so the pattern's own page says who did
+ * like (a few public slots per account), so the pattern's own page says who did
  * the choosing. Only the shelf, never someone's private arrangement.
  */
 export async function listDecksWithPattern(

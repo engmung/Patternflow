@@ -1,3 +1,4 @@
+import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
@@ -15,7 +16,8 @@ import { cleanVisibility } from "@/lib/community/visibility";
 // act of publishing a snapshot of it (#256).
 //
 // Two rules with teeth:
-//   - at most PUBLIC_DECKS_MAX public decks per account — the curation cap
+//   - at most PUBLIC_DECKS_MAX public decks per account — the curation cap,
+//     which moderators are exempt from
 //   - no private patterns in a deck others can see
 
 export async function POST(request: Request) {
@@ -90,8 +92,11 @@ async function handlePost(request: Request) {
     }
   }
 
+  // Moderators are exempt: the cap keeps the shelf curated, and curating the
+  // shelf is their job.
   if (
     visibility === "public" &&
+    !isAdminSession(session) &&
     (await countPublicDecksByUser(session.user.id)) >= PUBLIC_DECKS_MAX
   ) {
     return Response.json(

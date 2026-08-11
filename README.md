@@ -27,7 +27,7 @@
 - 🎛️ **Try it right now** — the **[Live Editor](https://patternflow.work/pattern)** is a working Patternflow in your browser. No hardware, no install, no account.
 - 🌀 **Share what you make** — the **[Community](https://community.patternflow.work/community)** is where patterns get published, remixed and forked. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop: make a pattern, verify it on your device, share it back.
 
-> **Moving fast.** [**v3.2.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) — patterns now install over Wi-Fi as `.pfm` modules, no reflash. The v3 generation also brought hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+> **Moving fast.** [**v3.3.0 is out**](https://github.com/engmung/Patternflow/releases/tag/v3.3.0) — the panel's color is tunable while you look at it, and ramps interpolate in OKLab instead of collapsing to grey. [v3.2.0](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) made patterns install over Wi-Fi as `.pfm` modules, no reflash. The v3 generation also brought hybrid USB-C / screw-terminal power, zero SMD passives, a snap-fit enclosure, and a [video-first build guide](BUILD_GUIDE.md). On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 ## At a glance
 
