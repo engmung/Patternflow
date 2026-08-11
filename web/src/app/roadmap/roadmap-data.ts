@@ -574,6 +574,24 @@ export const NODES: RoadmapNode[] = [
     links: [{ label: 'PR #262', href: `${REPO}/pull/262` }],
   },
   {
+    id: 'fw-color-calibration',
+    lane: 'firmware',
+    date: '2026-08-09',
+    title: 'Panel color calibration',
+    titleKo: '패널 색 보정',
+    status: 'done',
+    level: 1,
+    detail:
+      'v3.3.0: white balance, gamma and saturation stopped being compile-time constants. They are runtime state now, tunable live over GET /api/display while looking at the panel, so finding a number no longer costs a reflash per guess. The shipped defaults are one physical panel\'s measured numbers rather than plausible ones — WB 0.930/1.000/0.975, because that panel leans warm and red needed trimming hardest, and a saturation boost of 1.62. The boost reversed the theory that predicted it: narrow-band LED primaries cover more than sRGB, which should mean cutting saturation, but placed beside a monitor showing the same frame the panel reads washed out, and the boost held at both 14% and 100% brightness. Panels vary, so the tuning loop ships with the firmware: a test card overlay (white, greyscale staircase, color bars, and sRGB-versus-OKLab ramp pairs) that draws over the running pattern and dismisses without disturbing it.',
+    detailKo:
+      'v3.3.0에서 화이트 밸런스·감마·채도가 컴파일 타임 상수에서 벗어났습니다. 이제 런타임 값이라 패널을 보면서 GET /api/display로 실시간 조정할 수 있고, 값 하나 찾자고 추측할 때마다 다시 플래싱할 필요가 없습니다. 기본값도 그럴듯한 숫자가 아니라 실제 패널에서 측정한 값입니다. WB는 0.930/1.000/0.975 — 그 패널이 따뜻한 쪽으로 치우쳐 빨강을 가장 많이 깎아야 했습니다. 채도는 1.62배입니다. 이 값은 예측을 뒤집었습니다. LED의 좁은 대역 원색은 sRGB보다 넓은 색역을 가지므로 채도를 낮춰야 한다는 것이 이론이었지만, 같은 화면을 띄운 모니터 옆에 두고 보면 패널 쪽이 오히려 물이 빠져 보였고, 밝기 14%와 100% 양쪽에서 같은 결론이 나왔습니다. 패널마다 다르므로 보정 도구를 펌웨어에 함께 넣었습니다. 흰 화면, 그레이 계단, 컬러 바, 그리고 sRGB와 OKLab 램프를 위아래로 비교하는 테스트 카드가 돌아가는 패턴 위에 겹쳐 떴다가 패턴을 건드리지 않고 사라집니다.',
+    issues: [287, 288],
+    links: [
+      { label: 'PR #287', href: `${REPO}/pull/287` },
+      { label: 'Panel tuner', href: 'https://patternflow.work/panel-tuner.html' },
+    ],
+  },
+  {
     id: 'fw-resolution',
     lane: 'firmware',
     date: '2026-09-15',
@@ -729,6 +747,21 @@ export const NODES: RoadmapNode[] = [
     detailKo:
       '패턴랩을 레이어 기반의 도킹 가능한 에디터 플랫폼으로 다시 만들었습니다. 코드 레이어와 픽셀아트 레이어가 아래에서 위로 합성되며 불투명도와 블렌드 모드를 갖고, 어떤 레이어든 바로 아래 레이어를 마스킹하는 역할로 전환할 수 있으며, 코드 레이어마다 알파를 포함한 자기 컬러 램프를 갖습니다. 픽셀 패널에서는 매트릭스에 직접 그림을 그릴 수 있습니다. 패널들은 포토샵처럼 도킹하고 띄울 수 있습니다. 게시하면 보이는 스택이 하나의 독립 패턴으로 평탄화되는데, 동시에 편집 가능한 전체 프로젝트가 압축된 // @stack 주석 한 줄에 실려 함께 나갑니다. 공유받은 패턴을 다시 레이어 상태로 열 수 있다는 뜻입니다.',
     links: [{ label: 'Pattern Lab', href: 'https://patternflow.work/pattern-lab' }],
+  },
+  {
+    id: 'tools-oklab',
+    lane: 'tools',
+    date: '2026-08-09',
+    title: 'Perceptual color ramps',
+    titleKo: '지각 기반 색 램프',
+    status: 'done',
+    level: 2,
+    detail:
+      'Ramps can interpolate in OKLab and OKLCH, not only sRGB and HSV. The two failures this removes are the ones that make generative color look amateur: blending complementary stops in sRGB collapses the middle into grey, and sweeping hue in HSV makes lightness pulse because HSV is a rearranged monitor signal rather than a model of vision. Blends that leave the panel\'s gamut are pulled back by lowering chroma at constant lightness and hue instead of clipping channels, which is what bends a color toward the nearest primary. The ramp panel also draws the ramp\'s lightness as a grey strip with a monotonicity read-out — the squint test as a permanent instrument. Because a ramp is baked to a 256-entry lookup table on the web side, the new modes reached the firmware, the C++ conversion and loadable modules without a single device-side change.',
+    detailKo:
+      '램프를 sRGB와 HSV뿐 아니라 OKLab·OKLCH 공간에서 보간할 수 있게 했습니다. 이걸로 사라지는 두 가지 실패가 제너러티브 색이 아마추어처럼 보이는 주된 이유입니다. sRGB에서 보색 정지점을 섞으면 중간이 회색으로 죽고, HSV에서 색상만 돌리면 명도가 요동칩니다. HSV는 인간 시각의 모델이 아니라 모니터 신호를 원기둥으로 재배열한 것이기 때문입니다. 색역을 벗어나는 보간은 채널을 잘라내는 대신 명도와 색상을 고정한 채 채도만 낮춰 되돌립니다. 채널을 자르면 색이 가장 가까운 원색 쪽으로 휘어버립니다. 램프 패널에는 램프의 명도를 회색 띠로 그리고 단조성을 함께 표시합니다. 눈을 가늘게 뜨고 확인하던 테스트를 상시 계기로 만든 것입니다. 램프는 웹에서 256칸 룩업 테이블로 구워지기 때문에, 새 모드는 기기 쪽 코드를 한 줄도 고치지 않고 펌웨어·C++ 변환·로더블 모듈까지 그대로 도달했습니다.',
+    issues: [287],
+    links: [{ label: 'PR #287', href: `${REPO}/pull/287` }],
   },
   {
     id: 'tools-multiagent',
