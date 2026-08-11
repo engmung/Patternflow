@@ -5,6 +5,9 @@
 // The broker is compile-time, so the only control here is the role. When
 // no broker is configured the page says so and points at the secrets file
 // rather than leaving you watching a connect loop fail.
+//
+// The role picker is Simone Majocchi's (@SimonePDA), from his Patternflow
+// fork; restyled here to the device console's palette.
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once

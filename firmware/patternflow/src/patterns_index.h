@@ -15,6 +15,8 @@
 // A .zip of .pfm + .json (a pattern pack, as the community Deck export
 // produces) is unpacked in the browser and its members join that same
 // queue — the device only ever receives ordinary single-file uploads.
+// That approach — unpack in the browser, leave the device's upload path
+// alone — is Simone Majocchi's (@SimonePDA), from his Patternflow fork.
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once

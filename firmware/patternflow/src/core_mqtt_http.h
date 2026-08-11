@@ -13,6 +13,8 @@
 // Rides the patterns manager's WebServer, the same way core_display_http.h
 // rides the status one, so the device still runs a single server on port 80.
 //
+// From Simone Majocchi's (@SimonePDA) Patternflow fork — see core_mqtt.h.
+//
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once

@@ -4,6 +4,20 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Install a whole pattern pack from one `.zip`**, contributed by **Simone Majocchi ([@SimonePDA](https://github.com/SimonePDA))**. A pack of `.pfm` + `.json` — what a community deck export produces — is unpacked **in the browser** by a vendored [fflate](https://github.com/101arrowz/fflate) and its members join the ordinary upload queue, so the device never sees an archive and its upload path is untouched. `catalog.txt` may ride along as the running order. Entry names are split on both `/` and `\`: Windows-made zips use backslashes, and without that the junk filter and the duplicate check silently stop matching, files upload under their full path, and the device accepts them, lists them, and loses them on reboot.
+- **MQTT sidechannel** (`/mqtt`), also from **[@SimonePDA](https://github.com/SimonePDA)** — his protocol design, role model and topic layout. Knob clicks and the pattern name go out as retained topics (`<prefix>/knob/1..4`, `<prefix>/pattern`); a panel set to Subscriber follows them, so two panels stay in sync and Home Assistant sees plain values on plain topics. The role (Off / Publisher / Subscriber) is chosen at runtime and kept in NVS; compiling it in dials nothing until a broker host is set in `patternflow_secrets.h`.
+- **Play a pattern from the list** — click a name on `/patterns`. **Arrange the running order** by dragging rows, then `Save order`, which writes the `catalog.txt` the registry reads. **`Select all`** beside the existing bulk delete.
+
+### Changed
+- **Origin is the only pattern compiled into the firmware.** Every preset costs internal DRAM, and with 34 of them a 128×64 board had roughly 1 KB of headroom — `/patterns` returned a truncated page as soon as anything else wanted RAM, which is what made MQTT look impossible to fit. Dropping them frees ~6 KB of DRAM and 49 KB of flash: internal heap goes 11,052 → 16,648 and `/patterns` 1.98 s → 0.03 s. The sources stay in `presets/` as the editable originals and ship as a pattern pack instead. **Updating loses the built-in showcase until you install a pack.**
+- **The device console is dark**, and reorganised around what each page is for. The home page leads with a device card (now playing, patterns, storage, network, memory, MQTT, uptime) over grouped rows, two columns on a desktop screen, and tells you when a newer firmware exists — the check runs in your browser against the public flasher manifest, so the device still never talks to the internet. Audio sync is honestly labelled Early. The marketing site stays on paper cream; the device is the thing glowing in a dark room.
+- **Pattern names on the panel wrap instead of running off the edge.** The SELECT screen is 64 px wide in portrait — about ten characters — so a community pattern called "Retro Digital Tapestry" was clipped at both ends, and the old size-2 branch clipped from six characters on. Names now word-wrap in the stock 5×7 font. (A narrower bitmap font fits more characters and could not be read at this pixel pitch.)
+
+### Fixed
+- **An unreachable MQTT broker no longer looks like a dead device.** Resolving the host and opening the socket ran synchronously in the render loop every 5 s, so a broker that stopped answering held the loop for seconds at a time — the panel still pinged and still accepted TCP, but served nothing. The address is resolved once and cached, the TCP connect and socket reads are bounded, and retries back off 5 s → 15 s → 60 s.
+- **A subscriber no longer jumps when it joins.** A retained knob value was added to the local count rather than differenced against it, so a panel whose knob was not at zero landed at local + remote instead of matching the publisher.
+
 ## [3.3.0] - 2026-08-09
 
 Color, end to end: perceptual ramps in the editor and a panel you can actually calibrate. **Hardware unchanged** — v3.0 board and case carry over as-is.

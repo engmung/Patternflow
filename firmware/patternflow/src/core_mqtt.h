@@ -29,6 +29,11 @@
 // Include AFTER pattern_registry.h: name lookup walks patterns[], the same
 // arrangement core_patterns_http.h uses.
 //
+// Originally written by Simone Majocchi (@SimonePDA) for his Patternflow
+// fork and contributed upstream. Adapted here to this tree's pattern
+// registry and given a non-blocking connect path; the protocol design,
+// the role model, and the topic layout are his.
+//
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once

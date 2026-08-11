@@ -1,6 +1,12 @@
-// Auto-vendored fflate 0.8.2 UMD (~32 KB). Served at /patterns/fflate.js for
-// offline Community ZIP unpack on the patterns page. Do not edit by hand —
-// replace from https://unpkg.com/fflate@0.8.2/umd/index.js
+// Auto-vendored fflate 0.8.2 UMD (~32 KB), MIT, © Arjun Barrett.
+// https://github.com/101arrowz/fflate
+//
+// Served at /patterns/fflate.js for offline Community ZIP unpack on the
+// patterns page. Do not edit by hand — replace from
+// https://unpkg.com/fflate@0.8.2/umd/index.js
+//
+// Vendoring it, and the browser-side unpack it powers, are Simone Majocchi's
+// (@SimonePDA) design from his Patternflow fork.
 #pragma once
 #include <pgmspace.h>
 
