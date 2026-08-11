@@ -29,6 +29,8 @@
 #include "core_audio_ws.h"
 #endif
 #include "core_canvas.h"   // presentUs
+#include "core_mqtt.h"     // role/state for the network section
+#include "core_send.h"
 #include "status_index.h"
 #endif
 
@@ -135,19 +137,28 @@ inline void handleStatus() {
   json += PFModuleLoader::lastRelocateUs;
   json += ",\"setup\":";
   json += PFModuleLoader::lastSetupUs;
-  json += "}}";
+  json += "}";
+
+  // MQTT, so "why is the other panel not following?" is answerable from
+  // one page instead of two. Role and state only — never the credentials.
+  json += ",\"mqttRole\":\"";
+  json += PatternflowMqtt::roleName(PatternflowMqtt::currentRole());
+  json += "\",\"mqttState\":\"";
+  json += PatternflowMqtt::stateText();
+  json += "\",\"mqttConnected\":";
+  json += PatternflowMqtt::isConnected() ? "true" : "false";
+  json += "}";
 
   server().sendHeader("Cache-Control", "no-store");
   server().send(200, "application/json", json);
 }
 
 inline void handleIndex() {
-  server().sendHeader("Cache-Control", "no-store");
   if (PatternflowPatternsHttp::noteConsolePageOpened()) {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  server().send_P(200, "text/html", STATUS_INDEX_HTML);
+  PFSend::progmem(server(), STATUS_INDEX_HTML);
 }
 
 inline void begin() {

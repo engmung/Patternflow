@@ -31,7 +31,9 @@
 #if PF_AUDIO_ENABLED
 #include "core_audio_ws.h"
 #endif
+#include "core_send.h"     // low-heap page sender — pages serve WITHOUT pausing the pattern
 #include "patterns_index.h"
+#include "fflate_js.h"
 #endif
 
 namespace PatternflowPatternsHttp {
@@ -125,29 +127,21 @@ constexpr uint32_t CONSOLE_IDLE_RESTORE_MS = 25000;
 
 inline void requestReload() { reloadRequestedAtMs = millis(); }
 
-// True while a console page has the pattern module evicted. The sketch draws a
-// CONSOLE PAUSED screen instead of a torn frame when this is set.
+// True while a console page or an upload batch has the pattern module
+// evicted. The sketch draws a PAUSED screen instead of a torn frame.
 inline bool isConsolePaused() { return restorePending; }
 
 // A resident module and the web console cannot both have the RAM they need.
-//
-// Measured on a 128x64 board: with a module loaded, internal heap sits at
-// ~4.9 KB and the server can only push ~5.6 KB of a response — /patterns
-// (15.9 KB) arrives truncated, its script cut mid-statement, and the page
-// renders blank while every API underneath answers fine. Unload the module and
-// the same page arrives whole in 0.47 s at ~11.9 KB free.
-//
-// So opening a console page pauses the pattern: the module is evicted, the
-// panel falls back to a preset, and tick() brings the module back once the
-// console has been idle. Loading a module costs 6-11 ms, so the churn is
-// invisible. Tried and rejected first: spilling module data to PSRAM (reboots
-// the device) and chunked page sends (delivers less, not more).
-// Returns true when this call is what evicted the module — the caller should
-// then serve the interstitial below rather than the real page.
-//
-// Freeing the module's RAM does not help the request that triggered it: that
-// connection's send path is already constrained and still truncates. One tiny
-// page and one reload later, the heap is back and everything serves normally.
+// Opening a console page evicts the module (pausing the pattern); tick()
+// restores it once the console has been idle. This was removed for one day
+// — Origin-only freed enough DRAM that a stall-tolerant sender could deliver
+// whole pages at module-resident heap in sequential tests — and put back the
+// same day: under a real browser's PARALLEL requests on this one-connection
+// server, page loads at ~7 KB heap captured the render loop back-to-back and
+// the device locked up within seconds. Sequential benchmarks passed; browsing
+// killed it. The pause is the honest price of the console.
+// Returns true when this call is what evicted the module — the caller then
+// serves the interstitial below rather than the real page.
 inline bool noteConsolePageOpened() {
   lastConsoleActivityMs = millis();
   const bool hadModule = PFModuleLoader::active != nullptr;
@@ -155,17 +149,18 @@ inline bool noteConsolePageOpened() {
   return hadModule;
 }
 
-// Deliberately tiny — it has to fit in the ~5.6 KB a starved send can manage.
+// Deliberately tiny — it has to fit through the starved send that triggered
+// the eviction in the first place.
 inline void sendConsoleWakePage() {
   server().sendHeader("Cache-Control", "no-store");
   server().send(200, "text/html",
                 F("<!doctype html><meta charset=utf-8>"
                   "<meta name=viewport content='width=device-width,initial-scale=1'>"
                   "<title>Patternflow</title>"
-                  "<style>body{background:#F4EFE6;color:#6B655A;font:14px/1.5 "
+                  "<style>body{background:#0C0B09;color:#8A8272;font:14px/1.5 "
                   "ui-sans-serif,system-ui,sans-serif;display:flex;height:100vh;"
                   "margin:0;align-items:center;justify-content:center;text-align:center}"
-                  "b{color:#141414;font-weight:600}</style>"
+                  "b{color:#EDE7DB;font-weight:600}</style>"
                   "<div><b>Pausing the pattern&hellip;</b><br>"
                   "freeing memory for the console<br>"
                   "<small>the pattern resumes when you are done</small></div>"
@@ -252,8 +247,17 @@ inline void handleFormat() {
 
 inline void handleIndex() {
   if (noteConsolePageOpened()) { sendConsoleWakePage(); return; }
-  server().sendHeader("Cache-Control", "no-store");
-  server().send_P(200, "text/html", PATTERNS_INDEX_HTML);
+  PFSend::progmem(server(), PATTERNS_INDEX_HTML);
+}
+
+// The unzip library for dropping a whole pattern pack on the page (see the
+// ZIP note in patterns_index.h). Served from flash rather than a CDN so a
+// device on a LAN with no internet still unpacks; the page only asks for it
+// when a .zip is actually dropped, so the 32 KB costs nothing otherwise.
+inline void handleFflateJs() {
+  noteConsoleApiCall();
+  PFSend::progmem(server(), FFLATE_JS, "application/javascript",
+                  "public, max-age=86400");
 }
 
 inline void handleList() {
@@ -339,12 +343,17 @@ inline void handleUpload() {
     String name = upload.filename;
     name.toLowerCase();
     bool isJson = name.endsWith(".json");
-    if (!isJson && !name.endsWith(".pfm")) {
+    // catalog.txt is the running order (see pattern_registry.h) — a deck pack
+    // ships it beside the modules so the deck's order survives the trip.
+    bool isCatalog = name.equals("catalog.txt");
+    if (!isJson && !isCatalog && !name.endsWith(".pfm")) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "only .pfm or .json accepted");
+      snprintf(uploadError, sizeof(uploadError), "only .pfm, .json or catalog.txt accepted");
       return;
     }
-    if (!slugFromFilename(upload.filename, uploadSlug, sizeof(uploadSlug))) {
+    if (isCatalog) {
+      snprintf(uploadSlug, sizeof(uploadSlug), "catalog");
+    } else if (!slugFromFilename(upload.filename, uploadSlug, sizeof(uploadSlug))) {
       uploadFailed = true;
       snprintf(uploadError, sizeof(uploadError), "invalid filename");
       return;
@@ -359,8 +368,12 @@ inline void handleUpload() {
       snprintf(uploadError, sizeof(uploadError), "cannot create %s", MODULE_DIR);
       return;
     }
-    snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
-             isJson ? "json" : "pfm");
+    if (isCatalog) {
+      snprintf(uploadPath, sizeof(uploadPath), "%s/catalog.txt", MODULE_DIR);
+    } else {
+      snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
+               isJson ? "json" : "pfm");
+    }
 
     // Evict the resident module for the whole batch — see captureSelectionOnce.
     captureSelectionOnce();
@@ -418,12 +431,15 @@ inline void handlePutBody() {
     String lowered = name;
     lowered.toLowerCase();
     bool isJson = lowered.endsWith(".json");
-    if (!isJson && !lowered.endsWith(".pfm")) {
+    bool isCatalog = lowered.equals("catalog.txt");  // running order, see above
+    if (!isJson && !isCatalog && !lowered.endsWith(".pfm")) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "only .pfm or .json accepted");
+      snprintf(uploadError, sizeof(uploadError), "only .pfm, .json or catalog.txt accepted");
       return;
     }
-    if (!slugFromFilename(name, uploadSlug, sizeof(uploadSlug))) {
+    if (isCatalog) {
+      snprintf(uploadSlug, sizeof(uploadSlug), "catalog");
+    } else if (!slugFromFilename(name, uploadSlug, sizeof(uploadSlug))) {
       uploadFailed = true;
       snprintf(uploadError, sizeof(uploadError), "invalid X-PF-Name");
       return;
@@ -438,8 +454,12 @@ inline void handlePutBody() {
       snprintf(uploadError, sizeof(uploadError), "cannot create %s", MODULE_DIR);
       return;
     }
-    snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
-             isJson ? "json" : "pfm");
+    if (isCatalog) {
+      snprintf(uploadPath, sizeof(uploadPath), "%s/catalog.txt", MODULE_DIR);
+    } else {
+      snprintf(uploadPath, sizeof(uploadPath), "%s/%s.%s", MODULE_DIR, uploadSlug,
+               isJson ? "json" : "pfm");
+    }
 
     captureSelectionOnce();
 
@@ -576,6 +596,14 @@ inline void handleSelect() {
   }
 
   pendingSelectIdx = index;
+  // An explicit pick supersedes a pending console restore: without this, the
+  // pattern chosen from the page ran until the console went idle and then
+  // snapped back to whatever was playing before the page was opened. Left
+  // alone only while an upload batch still owns the eviction.
+  if (restorePending &&
+      (!lastUploadActivityMs || millis() - lastUploadActivityMs > 3000)) {
+    restorePending = false;
+  }
   String body = "{\"ok\":true,\"index\":";
   body += index;
   body += ",\"name\":\"";
@@ -594,6 +622,14 @@ inline void begin() {
   server().collectHeaders(headerKeys, 2);
 
   server().on("/patterns", HTTP_GET, handleIndex);
+  server().on("/patterns/fflate.js", HTTP_GET, handleFflateJs);
+  // NOTE deliberately absent: a device-streamed frame preview (/api/frame,
+  // 24 KB per poll) was built, shipped, and REMOVED the same day. Polling it
+  // from the console at module-resident heap captured the render loop for
+  // seconds at a time and piled requests up on this single-connection server
+  // until the device read as dead. If a live preview returns, it renders in
+  // the browser from the pattern's JS (shipped inside packs) — the device
+  // never streams pixels. (/remote and /api/knob went with it — unused.)
   server().on("/api/patterns/select", HTTP_GET, handleSelect);
   server().on("/api/patterns", HTTP_GET, handleList);
   server().on("/api/patterns", HTTP_POST, handleUploadDone, handleUpload);

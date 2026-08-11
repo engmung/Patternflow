@@ -128,9 +128,9 @@ and report it in [#259](https://github.com/engmung/Patternflow/issues/259).)
 `pattern_registry.h` assembles the device's pattern list from two sources:
 
 ```cpp
-// compiled into firmware.bin — the curated showcase
+// compiled into firmware.bin — the failsafe, and nothing else
 PatternEntry presetPatterns[] = {
-  PATTERN_ENTRY(Origin), PATTERN_ENTRY(WaveSaw), ...
+  PATTERN_ENTRY(Origin),
 };
 
 // .pfm modules discovered on FATFS at boot, appended after the presets
@@ -142,6 +142,18 @@ void buildPatternList() { /* copy presets, then modules, into patterns[] */ }
 
 So on the device **pattern 1 = Origin** (the boot default) and your uploaded
 modules come **last** — turn back from pattern 1 to reach them.
+
+Origin is the only compiled-in pattern. The showcase that used to live here
+ships as a pack of `.pfm` modules instead, which you drop on `/patterns` as a
+single `.zip`. That is a memory decision, not housekeeping: each compiled-in
+preset costs internal DRAM, and the web console needs roughly 10 KB of
+internal heap free to send a page. With the old 34-preset list a 128x64 board
+had about 1 KB of margin, and `/patterns` would return a truncated page as
+soon as anything else wanted RAM. One preset plus a pack you choose leaves
+~16 KB free and the console answers in milliseconds.
+
+The preset sources are still in `presets/` as the editable originals —
+`toolchain/port_preset.py` is what turns one back into a module.
 
 > **The `custom1..3` slots are gone.** They were the hand-edited way to get a
 > pattern on a device, and uploading a `.pfm` replaced them. `PF_CUSTOM_SLOT_COUNT`

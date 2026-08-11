@@ -12,8 +12,9 @@ static const char WIFI_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Wi-Fi</title>
 <style>
-:root{--cream:#F4EFE6;--ink:#141414;--muted:#6B655A;--faint:#A69F90;
---rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;--ok:#2E8B57;
+/* Dark instrument tokens — see patterns_index.h for the note. */
+:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
+--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--panel:#131110;
 --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
 --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}
@@ -44,7 +45,7 @@ button.del:hover{border-color:var(--led);color:var(--led)}
 form{margin:0;display:grid;gap:10px;max-width:380px}
 label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
 input{width:100%;font:inherit;font-family:var(--mono);font-size:13px;padding:7px 9px;
-background:#fff;color:var(--ink);border:1px solid var(--rule);border-radius:2px}
+background:var(--card);color:var(--fg);border:1px solid var(--rule);border-radius:2px}
 input:focus{outline:none;border-color:var(--led)}
 .actions{display:flex;gap:8px;align-items:center;margin-top:2px}
 button.primary{background:var(--ink);color:var(--cream);border:1px solid var(--ink);
@@ -66,7 +67,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Wi-Fi</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi" class="here">Wi-Fi</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi" class="here">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
 
 <section>
   <h2>Saved networks</h2>

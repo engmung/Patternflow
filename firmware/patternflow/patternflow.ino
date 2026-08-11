@@ -2,6 +2,7 @@
 #include <Preferences.h>
 #include "config.h"
 #include "src/core_display.h"
+#include "src/core_ui_text.h"
 #include "src/core_encoders.h"
 #include "src/core_wifi.h"
 #include "src/core_improv.h"
@@ -15,6 +16,9 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
+// Also after the registry: MQTT resolves inbound pattern names against it.
+#include "src/core_mqtt.h"
+#include "src/core_mqtt_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -134,6 +138,10 @@ void setup() {
   // into whatever the K2 info screen was last set to.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
   PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
+  // Same idea for the MQTT role picked on /mqtt. Defaults to Off, so a
+  // device that has never been told otherwise never dials a broker.
+  PatternflowMqtt::setRole(
+      (PatternflowMqtt::Role)prefs.getUChar("mqtt_role", PatternflowMqtt::ROLE_OFF));
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -556,18 +564,23 @@ void drawSelectingMode() {
     dma_display->fillRect(mx, ty - 1, 3, 3, pfLedC());
   }
 
+  // The name is the whole point of this screen, and with patterns arriving
+  // from a community it is as likely to be "Chromatic Aberration Vortex" as
+  // "Origin". The stock font puts ~10 characters on this 64px-wide portrait
+  // line, so both used to run off the edges — the old size-2 branch was 12px
+  // per character, clipped from six characters on. Org_01 plus word wrap
+  // fits the long ones and still reads.
   char name[MODULE_NAME_BYTES];
   asciiFold(patterns[currentPatternIdx].name, name, sizeof(name));
-  int nameSize = strlen(name) > 8 ? 1 : 2;
-  int16_t x1, y1;
-  uint16_t w, h;
-  dma_display->setTextSize(nameSize);
-  dma_display->getTextBounds(name, 0, 0, &x1, &y1, &w, &h);
-  drawCenteredTextScrim(name, (screenH / 2) - (h / 2),
-                        dma_display->color565(255, 255, 255), nameSize);
+  PatternflowUiText::drawWrappedName(name, screenH / 2,
+                                     dma_display->color565(255, 255, 255));
 
-  drawCenteredTextScrim("HOLD TO SELECT", screenH - 22,
-                        dma_display->color565(200, 200, 200), 1);
+  PatternflowUiText::drawChromeLine("HOLD TO SELECT", screenH - 22,
+                                    dma_display->color565(200, 200, 200));
+
+  // Every later draw — the brightness notice, the next frame's pattern —
+  // assumes the built-in font's top-left placement.
+  PatternflowUiText::useDefaultFont();
 }
 
 void readInputFrame(InputFrame& input) {
@@ -601,11 +614,12 @@ void readInputFrame(InputFrame& input) {
     input.btnHeld[i] = button->isDown();
   }
 
-  // OSC-driven virtual knob motion (no-op when PF_OSC_ENABLED is 0).
-  // Added after acceleration so external automation moves at the raw
-  // 1×-per-detent rate, not amplified by the fast-spin curve.
+  // Remote-driven virtual knob motion (each a no-op when its feature is
+  // compiled out). Added after acceleration so external automation moves at
+  // the raw 1×-per-detent rate, not amplified by the fast-spin curve.
   for (int i = 0; i < 4; i++) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
+    input.knobDeltas[i] += PatternflowMqtt::consumeKnobDelta(i);
   }
 
   // Audio-react direct delta messages. New browser/extension clients send
@@ -676,6 +690,8 @@ void loop() {
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
+    PatternflowMqttHttp::begin();
+    PatternflowMqtt::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
   }
@@ -696,6 +712,10 @@ void loop() {
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
   PatternflowPatternsHttp::tick();
+
+  // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
+  // an unreachable broker costs one comparison per loop, not a stall.
+  PatternflowMqtt::handle();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -905,6 +925,12 @@ void loop() {
     (int)currentMode
   );
 
+  // MQTT mirrors the same frame: knob values as they move, and the pattern
+  // name only when it actually changes (notePattern dedupes, so this does
+  // not republish every frame).
+  PatternflowMqtt::update(input, currentContentName());
+  PatternflowMqtt::notePattern(currentContentName());
+
   // Apply OSC-driven pattern / content changes from the most recent
   // received packet. Knob deltas were already merged into the input
   // frame inside readInputFrame().
@@ -917,6 +943,20 @@ void loop() {
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
+  }
+
+  // Same contract again, fed by a retained <prefix>/pattern message. The
+  // name was already resolved to an index inside core_mqtt.h, so a rename
+  // on the broker side cannot select the wrong slot here.
+  int mqttPatternIdx;
+  if (PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
+      mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
+      activatePattern(mqttPatternIdx)) {
+    currentPatternIdx = mqttPatternIdx;
+    currentMode = MODE_RUNNING;
+    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+    CalibPattern::overrideOn = false;
+    Serial.printf(">>> MQTT pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.

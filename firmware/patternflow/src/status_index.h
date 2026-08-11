@@ -12,8 +12,9 @@ static const char STATUS_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Status</title>
 <style>
-:root{--cream:#F4EFE6;--ink:#141414;--muted:#6B655A;--faint:#A69F90;
---rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;--ok:#2E8B57;--warn:#C77B1F;
+:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
+--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
+--panel:#131110;
 --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
 --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}
@@ -49,7 +50,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Status</h1><span class="sub" id="up">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
 
 <section><h2>Render</h2><dl>
   <div class="row"><dt>Frame rate</dt><dd class="big" id="fps">-</dd></div>
@@ -80,6 +81,7 @@ live there. Below ~10 KB this page itself stops loading.</p></section>
   <div class="row"><dt>Network</dt><dd id="ss">-</dd></div>
   <div class="row"><dt>Signal</dt><dd id="rs">-</dd></div>
   <div class="row"><dt>Address</dt><dd id="ip">-</dd></div>
+  <div class="row"><dt>MQTT</dt><dd id="mq">-</dd></div>
 </dl></section>
 
 <footer>Firmware <span id="fw">-</span> &middot; panel <span id="pn">-</span>
@@ -134,6 +136,12 @@ function tick(){
     $('ss').className=d.wifi?'ok':'bad';
     $('rs').textContent=d.wifi?d.rssi+' dBm':'-';
     $('ip').textContent=d.wifi?d.ip:'-';
+
+    // "off" is a choice, not a fault — only a role that is trying and
+    // failing gets the red treatment.
+    var role=d.mqttRole||'off';
+    $('mq').textContent=role==='off'?'off':(role+' · '+(d.mqttState||'-'));
+    $('mq').className=role==='off'?'':(d.mqttConnected?'ok':'bad');
   }).catch(function(){$('up').textContent='disconnected'});
 }
 tick();setInterval(tick,2000);

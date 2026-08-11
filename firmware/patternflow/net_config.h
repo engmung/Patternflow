@@ -169,3 +169,60 @@
 #ifndef PF_AUDIO_VIRTUAL_KNOB_SCALE
 #define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
 #endif
+
+// ── MQTT (mirror one panel onto another, or into home automation) ──
+// A second sidechannel next to OSC, aimed at brokers rather than DAWs:
+// knob clicks and the pattern name go out as retained topics, and a panel
+// set to Subscriber follows them. Two panels on one broker stay in sync;
+// Home Assistant sees plain values on plain topics.
+//
+// The role (Off / Publisher / Subscriber) is chosen at runtime on /mqtt
+// and kept in NVS — compiling this in does NOT make the device talk to
+// anything. Nothing connects until a role is picked AND a broker host is
+// set, so the default build is inert.
+//
+// Broker credentials belong in patternflow_secrets.h (gitignored), never
+// here: this file ships in the repo and lands in every published .bin.
+//
+// This costs internal DRAM: ~600 B of statics, plus ~1.8 KB for the socket
+// while a role is connected. That is worth knowing because the web console
+// needs roughly 10 KB of internal heap free to send a page — below that it
+// enters the truncated "starved send" state core_patterns_http.h describes.
+//
+// Measured on a 128x64 board, 2026-08-11 (free internal heap):
+//
+//     34 compiled-in presets              11,052   1 KB of margin
+//       + MQTT, role off                   9,756   /patterns truncates
+//       + MQTT connected                   7,972   /patterns returns nothing
+//     Origin only, 47 modules on FATFS    16,648   /patterns in 0.55 s
+//
+// So the cost that mattered was never MQTT, it was the preset list: modules
+// on FATFS take PSRAM slots and no internal heap at all (47 of them moved the
+// figure by 0 bytes), while every compiled-in preset takes DRAM. With Origin
+// as the only preset there is room for this and change to spare.
+#ifndef PF_MQTT_ENABLED
+#define PF_MQTT_ENABLED 1
+#endif
+#ifndef PF_MQTT_HTTP_ENABLED
+#define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
+#endif
+// Empty (the default) = no broker configured; the role picker says so and
+// nothing is dialled. Set it in patternflow_secrets.h.
+#ifndef PF_MQTT_HOST
+#define PF_MQTT_HOST ""
+#endif
+#ifndef PF_MQTT_PORT
+#define PF_MQTT_PORT 1883
+#endif
+// Empty user = connect anonymously (brokers on a trusted LAN often allow it).
+#ifndef PF_MQTT_USER
+#define PF_MQTT_USER ""
+#endif
+#ifndef PF_MQTT_PASS
+#define PF_MQTT_PASS ""
+#endif
+// Topic root: <prefix>/knob/1..4 and <prefix>/pattern. Give each panel its
+// own prefix when several share a broker and should NOT mirror each other.
+#ifndef PF_MQTT_PREFIX
+#define PF_MQTT_PREFIX "patternflow"
+#endif

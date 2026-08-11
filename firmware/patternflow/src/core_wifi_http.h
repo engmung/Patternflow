@@ -30,6 +30,7 @@
 #if PF_AUDIO_ENABLED
 #include "core_audio_ws.h"
 #endif
+#include "core_send.h"
 #include "core_wifi.h"
 #include "wifi_index.h"
 #endif
@@ -151,12 +152,11 @@ inline void handleDelete() {
 }
 
 inline void handleIndex() {
-  server().sendHeader("Cache-Control", "no-store");
   if (PatternflowPatternsHttp::noteConsolePageOpened()) {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  server().send_P(200, "text/html", WIFI_INDEX_HTML);
+  PFSend::progmem(server(), WIFI_INDEX_HTML);
 }
 
 inline void begin() {

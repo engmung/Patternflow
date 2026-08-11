@@ -40,3 +40,16 @@
 // ── Audio-react WebSocket ──
 // On by default. Uncomment to disable.
 // #define PF_AUDIO_ENABLED 0
+
+// ── MQTT (panel-to-panel sync / home automation) ──
+// Compiled in by default but inert: the role (Off / Publisher / Subscriber)
+// is chosen at http://<device-ip>/mqtt, and nothing is dialled until a broker
+// host is set here. It does cost internal heap while connected — see the
+// measurements in net_config.h if you also compile presets back in.
+// #define PF_MQTT_HOST "broker.example.lan"
+// #define PF_MQTT_PORT 1883
+// #define PF_MQTT_USER "patternflow"
+// #define PF_MQTT_PASS "your-broker-password"
+// Topic root — <prefix>/knob/1..4 and <prefix>/pattern. Give each panel its
+// own prefix when several share a broker and should not mirror each other.
+// #define PF_MQTT_PREFIX "patternflow"

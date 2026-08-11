@@ -6,14 +6,17 @@
 #include "src/core_encoders.h"
 #include "src/core_module_loader.h"
 
-// The pattern list has two halves.
+// The pattern list has two halves, but they are no longer the same size.
 //
-//   PRESETS  compiled into firmware.bin, exactly as they always were. Switching
-//            between them is instant and they keep working whether or not the
-//            filesystem mounts.
+//   PRESETS  compiled into firmware.bin. Origin alone, as the failsafe: it
+//            runs whether or not the filesystem mounts, so a board with an
+//            empty or broken FATFS still lights up instead of showing
+//            nothing. Everything else moved out — see the note by the
+//            includes below for why that is a memory decision.
 //   MODULES  .pfm files on the FATFS partition, discovered at boot and appended
-//            after the presets. This is where a pattern from the community site
-//            lands — a ~6 KB upload instead of a 1 MB reflash.
+//            after the preset. This is where a pattern from the community site
+//            lands — a ~6 KB upload instead of a 1 MB reflash — and where the
+//            old showcase now lives, as a pack you drop on /patterns.
 //
 // The hand-edited custom1..3 slots are gone: uploading a module is what they
 // were for, and it no longer costs a rebuild. Their patterns live on under
@@ -21,41 +24,19 @@
 // build service, which needs to compile a pattern in for devices running
 // firmware older than the module loader — see CUSTOM SLOTS below.
 
-// ── PRESETS (curated showcase, in presets/) ──
+// ── PRESETS (the failsafe only) ──
+// Origin alone is compiled in. The rest of the showcase moved out to .pfm
+// modules on FATFS — their sources are still here under presets/ as the
+// editable originals, and port_preset.py turns them back into modules.
+//
+// This is not a tidy-up, it is a memory decision. Every compiled-in preset
+// costs internal DRAM, and the web console needs roughly 10 KB of internal
+// heap free to send a page: with the full 34-preset list a 128x64 board sat
+// at ~11 KB, so three extra modules — or any new feature — pushed /patterns
+// into the truncated "starved send" state core_patterns_http.h describes.
+// Shipping one preset and letting people choose the rest is what makes the
+// console reliable, and it is why the pack/deck flow exists.
 #include "presets/preset_origin.h"
-#include "presets/preset_wave_saw.h"
-#include "presets/preset_0510.h"
-#include "presets/preset_0511.h"
-#include "presets/preset_0512.h"
-#include "presets/preset_0513.h"
-#include "presets/preset_0514.h"
-#include "presets/preset_0515_3.h"
-#include "presets/preset_0515_4.h"
-#include "presets/preset_0515.h"
-#include "presets/preset_0518.h"
-#include "presets/preset_0519_1.h"
-#include "presets/preset_0520.h"
-#include "presets/preset_0521.h"
-#include "presets/preset_0522.h"
-#include "presets/preset_0527.h"
-#include "presets/preset_0528.h"
-#include "presets/preset_0531.h"
-#include "presets/preset_0601.h"
-#include "presets/preset_0602.h"
-#include "presets/preset_0628.h"
-#include "presets/preset_0629.h"
-#include "presets/preset_0629_2.h"
-#include "presets/preset_0701.h"
-#include "presets/preset_0707.h"
-#include "presets/preset_0710.h"
-#include "presets/preset_0712.h"
-#include "presets/preset_0712_2.h"
-#include "presets/preset_0713.h"
-#include "presets/preset_0715.h"
-#include "presets/preset_0716.h"
-#include "presets/preset_0718.h"
-#include "presets/preset_0719.h"
-#include "presets/preset_a_big_hit.h"
 // NOT in presetPatterns[] below on purpose: the calibration test card is an
 // overlay the tuner summons via /api/display, never a knob-browsable pattern.
 // See the header's own comment for the full story.
@@ -85,42 +66,11 @@ struct PatternEntry {
 // Pattern 1 stays Origin; modules are appended after the last preset, so
 // turning back from pattern 1 reaches them.
 
-// ── PRESETS (curated showcase) ──
+// ── PRESETS (the failsafe only) ──
+// Pattern 1 is Origin and nothing else is compiled in — see the note by the
+// includes above. A board with an empty or unmountable FATFS still lights up.
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
-  PATTERN_ENTRY(WaveSaw),
-  PATTERN_ENTRY(Pattern0510),
-  PATTERN_ENTRY(Pattern0511),
-  PATTERN_ENTRY(Pattern0512),
-  PATTERN_ENTRY(Pattern0513),
-  PATTERN_ENTRY(Pattern0514),
-  PATTERN_ENTRY(Pattern05153),
-  PATTERN_ENTRY(Pattern05154),
-  PATTERN_ENTRY(Pattern0515),
-  PATTERN_ENTRY(Pattern0518),
-  PATTERN_ENTRY(Pattern05191),
-  PATTERN_ENTRY(Pattern0520),
-  PATTERN_ENTRY(Pattern0521),
-  PATTERN_ENTRY(Pattern0522),
-  PATTERN_ENTRY(Pattern0527),
-  PATTERN_ENTRY(Pattern0528),
-  PATTERN_ENTRY(Pattern0531),
-  PATTERN_ENTRY(Pattern0601),
-  PATTERN_ENTRY(Pattern0602),
-  PATTERN_ENTRY(RetroDigitalTapestry),
-  PATTERN_ENTRY(ChromaticAberrationVortexPattern),
-  PATTERN_ENTRY(VectorFieldParticleFlowPattern),
-  PATTERN_ENTRY(LissajousWeave),
-  PATTERN_ENTRY(UntitledPattern),
-  PATTERN_ENTRY(TileWaves),
-  PATTERN_ENTRY(MidsummerSea),
-  PATTERN_ENTRY(BreakoutArcade),
-  PATTERN_ENTRY(FireflyHollow),
-  PATTERN_ENTRY(PoincareSphere),
-  PATTERN_ENTRY(TriMarch),
-  PATTERN_ENTRY(WarpedWave),
-  PATTERN_ENTRY(MagVortex),
-  PATTERN_ENTRY(PatternABigHit),
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 
@@ -316,6 +266,56 @@ inline bool formatModuleStorage() {
   return ok && moduleStorageMounted;
 }
 
+// ── Running order (/patterns/catalog.txt) ────────────────────────────
+// One module slug per line, in the order the device should cycle them; a
+// missing file or an unlisted module falls back to the alphabetical sort
+// below. This is how a deck keeps its arrangement: the deck export writes
+// the file into the pack, the /patterns page writes it on drag-reorder, and
+// either way the order is data on FATFS rather than a property of filenames.
+//
+// Listed modules come first, in file order; unlisted ones keep their
+// alphabetical order after them — a pack installed on top of an existing
+// library must not scramble what was already arranged.
+inline void applyCatalogOrder() {
+  if (numModules < 2) return;
+  char catalogPath[MODULE_PATH_BYTES];
+  snprintf(catalogPath, sizeof(catalogPath), "%s/catalog.txt", MODULE_DIR);
+  File catalog = FFat.open(catalogPath, FILE_READ);
+  if (!catalog) return;
+
+  int placed = 0;  // modules already moved into their catalog position
+  while (catalog.available() && placed < numModules) {
+    String line = catalog.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0 || line.startsWith("#")) continue;
+
+    for (int i = placed; i < numModules; i++) {
+      const char* filename = strrchr(modulePaths[i], '/');
+      filename = filename ? filename + 1 : modulePaths[i];
+      size_t stem = strlen(filename);
+      const char* dot = strrchr(filename, '.');
+      if (dot) stem = (size_t)(dot - filename);
+      if (line.length() != (int)stem || strncmp(filename, line.c_str(), stem) != 0) {
+        continue;
+      }
+      // Rotate [placed..i] one step right so i lands at `placed` and the
+      // slots between keep their relative order.
+      char name[MODULE_NAME_BYTES], path[MODULE_PATH_BYTES];
+      snprintf(name, sizeof(name), "%s", moduleNames[i]);
+      snprintf(path, sizeof(path), "%s", modulePaths[i]);
+      for (int j = i; j > placed; j--) {
+        snprintf(moduleNames[j], MODULE_NAME_BYTES, "%s", moduleNames[j - 1]);
+        snprintf(modulePaths[j], MODULE_PATH_BYTES, "%s", modulePaths[j - 1]);
+      }
+      snprintf(moduleNames[placed], MODULE_NAME_BYTES, "%s", name);
+      snprintf(modulePaths[placed], MODULE_PATH_BYTES, "%s", path);
+      placed++;
+      break;
+    }
+  }
+  catalog.close();
+}
+
 inline void scanModules() {
   numModules = 0;
   if (moduleCapacity == 0) return;
@@ -367,6 +367,8 @@ inline void scanModules() {
     snprintf(moduleNames[j + 1], MODULE_NAME_BYTES, "%s", name);
     snprintf(modulePaths[j + 1], MODULE_PATH_BYTES, "%s", path);
   }
+
+  applyCatalogOrder();
 
   Serial.printf("[PATTERNS] %d module(s) on FATFS\n", numModules);
 }
