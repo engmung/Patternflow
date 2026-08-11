@@ -211,6 +211,7 @@ export default function PatternCard({
   // on the device least able to hold them.
   const [warm, setWarm] = useState(false);
   useEffect(() => {
+    if (!interactive) return; // a phone never plays, so it never boots one
     const el = thumbRef.current;
     if (!el) return;
     const warmObserver = new IntersectionObserver(
@@ -233,38 +234,16 @@ export default function PatternCard({
     };
   }, [interactive]);
 
-  // ── On screen, playing ──
-  // A phone has no hover, and asking for a gesture first (hold, tap, whatever)
-  // means the feature has to be advertised before anybody meets it. So the
-  // wall simply plays: a card runs while it is actually on screen and pauses
-  // the moment it leaves. That bounds the cost to what the screen can show —
-  // measured at 375x812, three columns of 109x257 cards, about nine to twelve
-  // at once — rather than to how far the feed has been scrolled.
+  // ── Playing ──
+  // Desktop plays on hover: one card at a time, the cursor says which, and
+  // because it is asked for it overrides a reduced-motion preference.
   //
-  // Paused, not unmounted: leaving the iframe up means scrolling back is
-  // instant, and a paused sandbox costs nothing per frame. Unmounting is the
-  // cool observer's job, further out.
-  const [onScreen, setOnScreen] = useState(false);
-  useEffect(() => {
-    if (interactive) return; // the desktop's cue is the cursor
-    const el = thumbRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const last = entries[entries.length - 1];
-        if (last) setOnScreen(last.isIntersecting);
-      },
-      // No margin: "on screen" means on screen. A card half out of frame is
-      // still worth playing, hence a zero threshold rather than a fraction.
-      { rootMargin: "0px", threshold: 0 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [interactive]);
-
-  // Someone who has asked the OS for less motion has asked for less of this.
-  const stillPreferred = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const playing = interactive ? isHovered : onScreen && !stillPreferred;
+  // A phone does not play at all. The wall used to run every card that was on
+  // screen — nine to twelve sandboxes at 375x812 — which is nine to twelve
+  // whole documents rendering 60fps canvases on the device least able to
+  // afford it, and it dropped frames while scrolling. The still is the card
+  // there; tapping through to the pattern is where it moves.
+  const playing = interactive && isHovered;
 
   // Initial static thumbnail
   useEffect(() => {
@@ -402,10 +381,10 @@ export default function PatternCard({
             <div className={styles.cardThumbNote}>{failed ? "render error" : "rendering…"}</div>
           )}
 
-          {/* Live sandbox, booted while the card is near the viewport so that
-              a hover — or, on a phone, simply scrolling it into frame —
-              plays instantly rather than after a document load. */}
-          {warm && (
+          {/* Live sandbox, booted while the card is near the viewport so a
+              hover plays instantly rather than after a document load. Desktop
+              only: on a phone the card is the still. */}
+          {interactive && warm && (
             <SandboxPreview
               code={item.code}
               knobValues={knobValues}
