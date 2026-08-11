@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
+import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
 import { listDecksByUser, listPublicDecks } from "@/lib/community/queries";
@@ -34,6 +35,8 @@ export default async function CommunityDecksPage() {
 
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
+  // Moderators have no public-deck cap, so counting slots at them is a lie.
+  const unlimitedSlots = isAdminSession(session);
 
   const [publicDecks, ownDecks] = await Promise.all([
     listPublicDecks(),
@@ -63,7 +66,9 @@ export default async function CommunityDecksPage() {
           <div className={styles.sectionHead}>
             <span className={styles.sectionKicker}>Your decks</span>
             <span className={styles.profileSlotNote}>
-              {publicSlotsUsed} of {PUBLIC_DECKS_MAX} public slots used
+              {unlimitedSlots
+                ? `${publicSlotsUsed} public — no limit`
+                : `${publicSlotsUsed} of ${PUBLIC_DECKS_MAX} public slots used`}
             </span>
           </div>
 
@@ -71,7 +76,7 @@ export default async function CommunityDecksPage() {
             {mine.map((deck) => (
               <DeckCard key={deck.id} deck={deck} />
             ))}
-            {publicSlotsUsed < PUBLIC_DECKS_MAX && (
+            {!unlimitedSlots && publicSlotsUsed < PUBLIC_DECKS_MAX && (
               <span className={styles.deckSlotFree}>
                 {PUBLIC_DECKS_MAX - publicSlotsUsed === 1
                   ? "One public slot left — share a deck from the bar below"

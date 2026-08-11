@@ -46,13 +46,16 @@ export const DECK_MAX = 10;
  * How many PUBLIC decks one account may share at once.
  *
  * A curation policy, not a technical limit — the opposite of DECK_MAX, which
- * is a fact about firmware. Publishing a deck spends one of two slots, so a
- * published deck is staked reputation rather than overflow storage: a shelf
- * you must ration is a shelf you curate. Private decks are not
- * rationed. Raising this is easy; lowering it would strand people over the
- * limit, which is why it starts small.
+ * is a fact about firmware. Publishing a deck spends a slot, so a published
+ * deck is staked reputation rather than overflow storage: a shelf you must
+ * ration is a shelf you curate. Private decks are not rationed. Raising this
+ * is easy; lowering it would strand people over the limit, which is why it
+ * started at two.
+ *
+ * Moderators are exempt (see isAdminSession at the enforcement points): the
+ * cap exists to keep the shelf curated, and curating the shelf is their job.
  */
-export const PUBLIC_DECKS_MAX = 2;
+export const PUBLIC_DECKS_MAX = 5;
 
 export const COLLECTION_EVENT = "pf-collection-changed";
 
