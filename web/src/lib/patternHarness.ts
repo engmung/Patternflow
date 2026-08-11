@@ -477,6 +477,10 @@ export class PatternRuntime {
   private module: PatternModule | null = null;
   private params: PatternParams = {};
   private source: string | null = null;
+  // Why the last load failed. Retained because the render loop keeps calling
+  // renderFrame afterwards, and a generic "No pattern loaded." would otherwise
+  // overwrite the one message that says what actually went wrong.
+  private loadError: string | null = null;
   private display: PatternDisplay;
 
   constructor(width = PATTERN_MATRIX_WIDTH, height = PATTERN_MATRIX_HEIGHT) {
@@ -552,16 +556,21 @@ export class PatternRuntime {
       this.params = {};
       this.data.fill(0);
       this.module.setup?.(this.params);
+      this.loadError = null;
       return { ok: true };
     } catch (error) {
       this.module = null;
-      return { ok: false, error: describePatternError(error, code) };
+      this.loadError = describePatternError(error, code);
+      return { ok: false, error: this.loadError };
     }
   }
 
   public renderFrame(dt: number, time: number, input: PatternInput): PatternRenderResult {
     if (!this.module) {
-      return { ok: false, error: "No pattern loaded." };
+      // A pattern that threw inside setup() leaves nothing to render, and the
+      // caller redraws every frame. Keep answering with the reason it failed
+      // rather than the symptom.
+      return { ok: false, error: this.loadError ?? "No pattern loaded." };
     }
 
     try {
