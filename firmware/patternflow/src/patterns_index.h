@@ -94,6 +94,20 @@ font-family:var(--mono);font-size:11.5px}
 #msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
 #msg.err{color:var(--led)}
 #msg.good{color:var(--ok)}
+/* Clearing a big library is ONE request the device answers only once it has
+   finished, so there is no progress to report from inside it — a percentage
+   here would be invented. This is deliberately indeterminate: it says "still
+   working", which is the only true thing available, and it moves, which is
+   what stops several motionless seconds from reading as a hang. */
+.sweep{height:2px;background:var(--rule-soft);margin-top:8px;overflow:hidden;display:none}
+.sweep.on{display:block}
+.sweep i{display:block;height:100%;width:34%;background:var(--led);
+animation:sweep 1.1s ease-in-out infinite}
+@keyframes sweep{from{transform:translateX(-110%)}to{transform:translateX(400%)}}
+/* Rows on their way out, dimmed the instant you confirm rather than when the
+   reply lands — the click needs an answer now, not in five seconds. */
+li.going{opacity:.3}
+li.going button.del{visibility:hidden}
 .actions{display:flex;gap:8px;margin-top:8px;align-items:center}
 input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
 #bulk{display:none}
@@ -131,6 +145,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   </label>
   <ul class="queue" id="q"></ul>
   <div id="msg"></div>
+  <div class="sweep" id="sweep"><i></i></div>
   <div class="actions">
     <button class="del" id="retry" style="display:none">Retry failed</button>
     <button class="del" id="fmt" style="display:none">Format storage</button>
@@ -193,6 +208,27 @@ selAll.onclick=function(){
 };
 
 function say(t,cls){msg.textContent=t;msg.className=cls||''}
+
+// A wait with a moving bar and a seconds count. Used for the requests the
+// device answers only when it is done — the page cannot show real progress
+// for those, but it can show that time is being counted rather than lost.
+// The count starts at 2s so a fast reply never flashes a number.
+var sweepEl=$('sweep'),busyTimer=null;
+function busy(text){
+  var t0=Date.now();
+  sweepEl.classList.add('on');
+  var tick=function(){
+    var s=Math.round((Date.now()-t0)/1000);
+    say(s>=2?text+' — '+s+'s':text+'…');
+  };
+  tick();
+  if(busyTimer)clearInterval(busyTimer);
+  busyTimer=setInterval(tick,500);
+}
+function busyDone(){
+  if(busyTimer){clearInterval(busyTimer);busyTimer=null}
+  sweepEl.classList.remove('on');
+}
 
 function load(){
   fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
@@ -318,13 +354,30 @@ $('saveOrd').onclick=function(){
 // whatever .pfm files are actually on disk, which also catches modules the
 // loader rejected at boot and that therefore never appear in this list.
 function deleteSlugs(slugs, label){
-  say('deleting ' + label + '…');
+  // The rows go dim on the click, not on the reply. Removing fifty modules
+  // takes the device a few seconds and it cannot say how far along it is, so
+  // the page answers the part it does know immediately: these are the ones
+  // going away.
+  var all=slugs.length===1&&slugs[0]==='*';
+  listEl.querySelectorAll('input.sel').forEach(function(c){
+    if(all||slugs.indexOf(c.dataset.slug)>=0){
+      var row=c.closest('li');
+      if(row)row.classList.add('going');
+    }
+  });
+
+  busy('deleting ' + label);
   bulkDel.disabled = true;
   fetch('/api/patterns/delete',{method:'POST',body:slugs.join('\n')})
     .then(function(r){return r.json()})
     .then(function(d){
+      busyDone();
       bulkDel.disabled=false;
-      if(!d.ok){say(d.error||'delete failed','err');return}
+      if(!d.ok){
+        // It stayed: undim, or the list looks emptier than the device is.
+        listEl.querySelectorAll('li.going').forEach(function(r){r.classList.remove('going')});
+        say(d.error||'delete failed','err');return;
+      }
       var msg=d.removed+' module'+(d.removed===1?'':'s')+' removed';
       if(d.missing)msg+=', '+d.missing+' not found';
       say(msg,d.missing?'err':'good');
@@ -332,7 +385,11 @@ function deleteSlugs(slugs, label){
       // list is only right a moment after the reply.
       setTimeout(load,900);
     })
-    .catch(function(){bulkDel.disabled=false;say('no reply from device','err')});
+    .catch(function(){
+      busyDone();
+      listEl.querySelectorAll('li.going').forEach(function(r){r.classList.remove('going')});
+      bulkDel.disabled=false;say('no reply from device','err');
+    });
 }
 
 bulkDel.onclick=function(){
@@ -531,13 +588,16 @@ function startBatch(fileList){
 
 $('fmt').onclick=function(){
   if(!confirm('Format pattern storage? This erases every module on the device.'))return;
-  say('formatting...');
+  // Same shape as the bulk delete: one call, no progress from inside it, and
+  // long enough that a still page looks broken.
+  busy('formatting');
   fetch('/api/patterns/format',{method:'POST'})
     .then(function(r){return r.json()}).then(function(d){
+      busyDone();
       say(d.ok?'storage ready - upload patterns now':(d.error||'format failed'),
           d.ok?'good':'err');
       setTimeout(load,900);
-    }).catch(function(){say('format failed','err')});
+    }).catch(function(){busyDone();say('format failed','err')});
 };
 
 retryBtn.onclick=function(){
