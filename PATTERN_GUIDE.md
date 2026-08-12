@@ -8,7 +8,7 @@ Assembly and the first flash are [BUILD_GUIDE.md](BUILD_GUIDE.md). This guide
 is what comes after.
 
 - [0. Before you start](#0-before-you-start)
-- [1. One concept: the two ways a pattern reaches the device](#1-one-concept-the-two-ways-a-pattern-reaches-the-device)
+- [1. One concept: a pattern is a small file](#1-one-concept-a-pattern-is-a-small-file)
 - [2. A look around the community](#2-a-look-around-the-community)
 - [3. Putting someone else's pattern on your device](#3-putting-someone-elses-pattern-on-your-device)
 - [4. Making your own in Pattern Lab](#4-making-your-own-in-pattern-lab)
@@ -44,23 +44,28 @@ K2)** instead.
 
 ---
 
-## 1. One concept: the two ways a pattern reaches the device
+## 1. One concept: a pattern is a small file
 
-Understand this one thing and everything else falls into place. There are two
-ways to put a pattern on the device. The buttons wear slightly different names
-on different screens, but they are the same two paths — and **both are
-wireless.**
+Understand this one thing and everything else falls into place. **A pattern
+travels to the device as a module — a `.pfm` file of a few KB — and arrives
+over Wi-Fi in seconds.** The firmware is not rebuilt and nothing is reflashed.
 
-| | **Send a pattern module** (recommended) | **Bake full firmware** |
-| --- | --- | --- |
-| What it's called | `Send to my Patternflow` · `SEND TO MY BOARD` · `APPLY TO MY PATTERNFLOW` | `Flash to my board` · `BUILD FIRMWARE` |
-| What it does | Bakes just that pattern into a small module (`.pfm`) and drops it on over Wi-Fi | Rebuilds the entire firmware and installs the whole image over Wi-Fi |
-| How long | **A few seconds** | **A minute or more** |
-| When to use it | **Almost always** | When you want to update the firmware itself |
+The buttons wear slightly different names on different screens —
+`Send to my Patternflow`, `SEND TO MY BOARD`, `APPLY TO MY PATTERNFLOW` — but
+they are all the same thing: compile this pattern into a module, hand it to
+the board.
 
-The full bake exists for one reason: it always bakes your patterns **on top of
-the latest firmware**, so it doubles as a firmware update you get for free
-along the way. For everyday use, sending modules is overwhelmingly faster.
+Only **Origin** is built into the firmware, as the failsafe that lights the
+panel when storage is empty. Everything else you see on your device is a
+module you (or a deck) put there, and anything you install you can also
+delete.
+
+> **Updating the firmware is a separate thing**, and the device tells you when
+> it matters: open `patternflow.local`, and if a newer release exists the
+> console says so and links to
+> [patternflow.work/update](https://patternflow.work/update), which hands the
+> new build to your board over Wi-Fi. Your patterns, Wi-Fi networks and
+> storage are untouched by it.
 
 ---
 
@@ -143,9 +148,15 @@ patterns in order, so think of it as a setlist.
 > off, or on a different network than your computer. Power it on, check it's
 > on the same Wi-Fi, and press again.
 
-**Deleting works on the same page**: tick the checkboxes and press
-`Delete selected`. The built-in presets (PRESET) can't be deleted — only
-modules (MODULE) you uploaded.
+**The Patterns page is also where you tidy up**: tick the checkboxes and press
+`Delete selected`, or `Select all` first to clear the lot. Only **Origin** is
+built in (PRESET) and cannot be removed; everything else is a module you can
+delete freely.
+
+**Click a name to play it** — the device switches immediately, which is the
+fastest way to remember what a pattern actually looks like. **Drag rows to
+rearrange them**, then `Save order`: that order is what the device's knob
+cycles through, and it survives a reboot.
 
 ![Deleting modules](docs/images/pattern-guide/09-delete-modules.png)
 
@@ -154,14 +165,18 @@ publishes your selection to the community — and under **Decks** in the top
 nav you can browse the sets other people have curated and send one straight
 to your own device.
 
+A published deck also gets a **`Download pack (.zip)`** button, and that is
+the link you can hand to anyone: no account, no build queue. The `.zip` holds
+the modules *and* the running order, so dropping it on a device's Patterns
+page installs the whole set arranged exactly as its author left it. Keep a few
+on a USB stick and you have your sets with you whether or not there is
+internet in the room.
+
 ### 3-2. One pattern, from its detail page
 
-The two buttons on a pattern's detail page are exactly the two paths from
-[chapter 1](#1-one-concept-the-two-ways-a-pattern-reaches-the-device):
-
-- **`Send to my Patternflow`** — a module, done in seconds. **Use this one.**
-- **`Flash to my board`** — rebuilds the full firmware and installs it. Slow,
-  so save it for when you want the firmware update that comes with it.
+**`Send to my Patternflow`** on a pattern's detail page does the same thing a
+deck does, for one pattern: builds the module, then offers `Send over Wi-Fi`.
+Seconds, no reflash.
 
 ---
 
@@ -269,10 +284,8 @@ to **try it on the board first.**
 
 ![On to hardware](docs/images/pattern-guide/16-on-to-hardware.png)
 
-1. Press **`APPLY TO MY PATTERNFLOW`** — it's the module path, so it takes
-   seconds. (`BUILD FIRMWARE` is the full bake from
-   [chapter 1](#1-one-concept-the-two-ways-a-pattern-reaches-the-device) —
-   you don't need it right now.)
+1. Press **`APPLY TO MY PATTERNFLOW`** — it builds the module and takes
+   seconds.
 2. In the dialog, press **`Send over Wi-Fi`** — with the device on and
    connected, it uploads immediately.
 
@@ -325,8 +338,9 @@ onto their device. The loop has come all the way around.
 | The device's Patterns page won't open | Same as above — try typing `patternflow.local` into the address bar directly |
 | A card has no `+` (add to deck) | Not a bug — the author shared it without an `.h` header (not hardware-verified) |
 | The `.h` conversion looks wrong on the device | Ask the AI to convert again (a plain retry often fixes it) · simplify the pattern code · try a different model |
-| Modules uploaded but don't appear in the list | Firmware older than v3.2.0 — run one `BUILD FIRMWARE` (full bake) to update |
-| `BUILD FIRMWARE` takes forever | It genuinely does — it rebuilds everything, so a minute or more is normal |
+| Modules uploaded but don't appear in the list | Firmware older than v3.2.0 — update it at [patternflow.work/update](https://patternflow.work/update) |
+| A `.zip` pack was dropped but nothing installed | The pack has to contain `.pfm` modules. A zip of `.js` patterns is not a pack — build them first |
+| The deck's order came out wrong on the device | Re-download the pack: the running order ships inside it, and a pack built before the deck was rearranged carries the old one |
 | The device is out of storage | The Patterns page shows free space (KB free) at the top right — delete modules you don't use |
 | The build button asks you to sign in | Baking modules/firmware happens on a server, so it needs a community account (username + password only — no email asked) |
 
