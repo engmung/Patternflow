@@ -5,6 +5,7 @@ import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
+import ShareDeckPackModal from "@/components/community/ShareDeckPackModal";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
   deckItems,
@@ -57,7 +58,7 @@ export default function DeckDetailClient({
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [packNote, setPackNote] = useState<string | null>(null);
-  const [linkNote, setLinkNote] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const { patternsUrl } = useDeviceHost();
 
   // patternsUrl needs `window` and answers "#" without it. The other callers
@@ -79,6 +80,9 @@ export default function DeckDetailClient({
   // after that gets a file immediately. Poll rather than spin: a deck that
   // has never been downloaded is exactly the case this handles.
   const packUrl = communityApiUrl(`/api/community/decks/${deck.id}/zip`);
+  // The share panel shows this, so it has to be the whole address rather than
+  // a path — it is going into somebody else's Discord, not back into this app.
+  const absolutePackUrl = hydrated ? new URL(packUrl, window.location.origin).toString() : packUrl;
   const downloadPack = async () => {
     setError(null);
     setPackNote("Preparing…");
@@ -125,20 +129,21 @@ export default function DeckDetailClient({
   // Copying also kicks the build off. A deck nobody has downloaded compiles
   // on first request, and that first request should be the person who chose
   // to share it rather than the stranger who clicked their link.
-  const copyPackLink = async () => {
-    setError(null);
+  const copyPackLink = async (): Promise<boolean> => {
+    let copied = false;
     try {
-      await navigator.clipboard.writeText(new URL(packUrl, window.location.origin).toString());
-      setLinkNote("Copied");
+      await navigator.clipboard.writeText(absolutePackUrl);
+      copied = true;
       captureEvent("deck_pack_link_copied", { deckId: deck.id });
     } catch {
-      setError("Could not reach the clipboard — copy the address bar link instead.");
-      return;
+      // The modal shows the address as selectable text, so a refused
+      // clipboard is a smaller failure here than it looks.
+      copied = false;
     }
-    // Fire-and-forget: the link is already on the clipboard and works either
-    // way. This only decides whether the recipient waits for a compile.
+    // Fire-and-forget either way: the address is on screen and works
+    // regardless. This only decides whether the recipient waits for a compile.
     void fetch(packUrl, COMMUNITY_FETCH_INIT).catch(() => {});
-    setTimeout(() => setLinkNote(null), 2000);
+    return copied;
   };
 
   const patch = async (body: Record<string, unknown>): Promise<boolean> => {
@@ -348,6 +353,21 @@ export default function DeckDetailClient({
               goes the long way — into your working deck, where the panel can
               build it once you are signed in. Offering both at once was three
               buttons for one intention. */}
+          {/* Sharing is one button, not a row of them: the author does it
+              once and a visitor never does it at all, so the two ways out
+              (a link, a file) belong behind it rather than beside the
+              action people came for. */}
+          {deck.visibility === "public" && (
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={playable.length === 0}
+              title="Get a link to this deck's pack, or download it as a .zip"
+              onClick={() => setShareOpen(true)}
+            >
+              Share
+            </button>
+          )}
           {deck.visibility === "public" ? (
             <a
               className={styles.btnAccentLink}
@@ -374,25 +394,6 @@ export default function DeckDetailClient({
           )}
         </div>
 
-        {/* Sharing, kept off the main row: it is what the deck's author does
-            once, not what a visitor does. The pack itself needs no action —
-            it is built on first request and rebuilt whenever the running
-            order changes — so this says so rather than implying a button
-            somewhere bakes it. */}
-        {deck.visibility === "public" && playable.length > 0 && (
-          <p className={styles.deckShareRow}>
-            <span className={styles.deckShareLabel}>Share this deck</span>
-            <button type="button" className={styles.btnSmall} onClick={() => void copyPackLink()}>
-              {linkNote ?? "Copy pack link"}
-            </button>
-            <button type="button" className={styles.btnSmall} onClick={() => void downloadPack()}>
-              {packNote ?? "Download .zip"}
-            </button>
-            <span className={styles.deckShareNote}>
-              The pack is built automatically and rebuilt whenever you reorder.
-            </span>
-          </p>
-        )}
 
         {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 
@@ -471,6 +472,21 @@ export default function DeckDetailClient({
           targetId={deck.id}
           targetLabel={deck.title}
           onClose={() => setReportOpen(false)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareDeckPackModal
+          packUrl={absolutePackUrl}
+          installUrl={
+            hydrated && playable.length > 0
+              ? patternsUrl(`/api/community/decks/${deck.id}/zip`)
+              : null
+          }
+          onCopyLink={copyPackLink}
+          onDownload={() => void downloadPack()}
+          downloadNote={packNote}
+          onClose={() => setShareOpen(false)}
         />
       )}
 

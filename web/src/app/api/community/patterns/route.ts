@@ -66,8 +66,15 @@ async function handleGet(request: Request) {
   const offset = clampInt(params.get("offset"), 0, 0, 1_000_000);
   const size = clampInt(params.get("size"), 12, 1, MAX_FEED_PAGE_SIZE);
 
+  // The infinite scroll refills through here, so `liked` needs the same viewer
+  // the first page was rendered for — without it page two of your liked list
+  // would come back as the whole wall.
+  const session =
+    sort === "liked" ? await getAuth().api.getSession({ headers: request.headers }) : null;
+  const viewerId = session?.user.id ?? null;
+
   const [items, total] = await Promise.all([
-    listFeed({ sort, hardwareOnly, limit: size, offset }),
+    listFeed({ sort, hardwareOnly, limit: size, offset, viewerId }),
     countFeed(hardwareOnly),
   ]);
 

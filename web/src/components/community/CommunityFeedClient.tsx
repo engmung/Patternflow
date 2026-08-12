@@ -83,11 +83,14 @@ export default function CommunityFeedClient({
   sort = "new",
   hardwareOnly = false,
   total: initialTotal = 0,
+  signedIn = false,
 }: {
   items: PatternCardItem[];
   sort?: string;
   hardwareOnly?: boolean;
   total?: number;
+  /** Whether to offer the "Liked" tab — it lists the viewer's own likes. */
+  signedIn?: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -328,7 +331,7 @@ export default function CommunityFeedClient({
       id="wall"
       onClickCapture={rememberPlace}
     >
-      <FeedControls sort={sort} hardwareOnly={hardwareOnly} total={total} />
+      <FeedControls sort={sort} hardwareOnly={hardwareOnly} total={total} signedIn={signedIn} />
 
       {total === 0 ? (
         <div className={styles.emptyPanel}>

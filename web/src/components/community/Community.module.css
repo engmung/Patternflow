@@ -2847,7 +2847,8 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  line-height: 1;
+  /* No line-height override: the buttons beside it inherit the body's, and
+     resetting it here made the link 6px shorter than everything in the row. */
 }
 
 .btnLink[aria-disabled="true"] {
@@ -2865,7 +2866,6 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  line-height: 1;
 }
 
 .btnAccentLink[aria-disabled="true"] {
@@ -2873,28 +2873,67 @@
   pointer-events: none;
 }
 
-/* Sharing sits under the action row, not in it: the author does this once,
-   a visitor never does it at all. Quieter type and small buttons say that
-   without needing a heading. */
-.deckShareRow {
+/* ── Share panel ──────────────────────────────────────────────────────────
+   The link is shown, not just copied: a button that says "Copied" about an
+   address you never saw asks for trust it has not earned, and the field is
+   also the fallback when the clipboard API refuses. */
+.shareLead {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--pfc-ink-muted);
+}
+
+.shareLinkRow {
+  display: flex;
+  gap: 8px;
+}
+
+.shareLinkField {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 1px solid var(--pfc-edge-strong);
+  border-radius: 0;
+  background: var(--pfc-well);
+  color: var(--pfc-ink);
+  font-family: var(--pf-mono, monospace);
+  font-size: 12px;
+  padding: 8px 10px;
+  /* Long URLs scroll rather than stretching the dialog. */
+  text-overflow: ellipsis;
+}
+
+.shareLinkField:focus {
+  outline: none;
+  border-color: var(--pfc-ink);
+}
+
+.shareNote {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--pfc-ink-faint);
+}
+
+.shareAlt {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  margin: 10px 0 0;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pfc-hair);
 }
 
-.deckShareLabel {
-  font-family: var(--pf-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--pfc-ink-faint);
+.shareAltLink {
+  font-size: 12.5px;
+  color: var(--pfc-ink-muted);
+  text-decoration: none;
 }
 
-.deckShareNote {
-  font-size: 11.5px;
-  color: var(--pfc-ink-faint);
+.shareAltLink:hover {
+  color: var(--pfc-led);
 }
 
 /* The shipped pack carries its own actions, because unlike a deck card it is
