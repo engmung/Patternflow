@@ -51,6 +51,12 @@ _autosave-*
 # Large binaries
 *.zip
 !hardware/pcb/gerber/**/*.zip
+# Pattern packs that ship with Patternflow. Built from firmware presets by
+# firmware/toolchain/make_pack.py and committed on purpose: a board with an
+# empty Patterns page has to have somewhere to get patterns from, and that
+# cannot depend on a database or a build queue. Rebuilds are byte-identical,
+# so an unchanged pattern set produces no diff.
+!web/public/packs/*.zip
 *.rar
 *.7z
 

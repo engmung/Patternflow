@@ -108,6 +108,23 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Pattern packs, read cross-origin by a device's own /patterns page:
+        // the browser fetches the .zip from here, unpacks it, and posts the
+        // modules to the board on the LAN. Same reason as the firmware images
+        // above — the device has nowhere near the heap for a TLS handshake, so
+        // the browser is what reaches the internet.
+        //
+        // Revalidated rather than cached hard, unlike /flash/bin: those paths
+        // carry a version and these do not. A pack sits at a stable address
+        // and is rebuilt in place when its patterns change, which is exactly
+        // the case `immutable` would get wrong.
+        source: "/packs/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
+      {
         // Every pattern card boots its own sandboxed iframe from this one
         // document, so the feed loads it dozens of times per visit. Without
         // this header each load is a round trip to the origin (a Raspberry

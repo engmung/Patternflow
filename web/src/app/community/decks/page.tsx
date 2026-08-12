@@ -7,6 +7,8 @@ import { listDecksByUser, listPublicDecks } from "@/lib/community/queries";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
+import ShippedPackCard from "@/components/community/ShippedPackCard";
+import { SHIPPED_PACKS } from "@/lib/packs";
 import styles from "@/components/community/Community.module.css";
 
 // The shelf. Decks are ordered sets somebody staked a public slot on — two per
@@ -56,10 +58,30 @@ export default async function CommunityDecksPage() {
       <div className={styles.sectionHead}>
         <h1 className={styles.sectionTitle}>Sets people stood behind.</h1>
         <span className={styles.sectionLede}>
-          A deck is an ordered set — the order it cycles on the device. Two public decks per
-          person; publishing takes everything, a deck takes a decision.
+          A deck is an ordered set — the order it cycles on the device. {PUBLIC_DECKS_MAX} public
+          decks per person; publishing takes everything, a deck takes a decision.
         </span>
       </div>
+
+      {/* First, because the visitor most likely to need it is the one who just
+          got a board working and has an empty Patterns page. It is not a deck
+          — no owner, no slot, not counted in anyone's cap — so it sits in its
+          own section rather than being ranked among sets people staked a slot
+          on. */}
+      <section className={styles.deckSection}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionKicker}>Ships with Patternflow</span>
+          <span className={styles.sectionLede}>
+            Start here if your board is empty.
+          </span>
+        </div>
+
+        <div className={styles.deckGrid}>
+          {SHIPPED_PACKS.map((pack) => (
+            <ShippedPackCard key={pack.id} pack={pack} />
+          ))}
+        </div>
+      </section>
 
       {viewerId && mine.length > 0 && (
         <section className={styles.deckSection}>

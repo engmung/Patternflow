@@ -2838,6 +2838,29 @@
   color: var(--pfc-ink-faint);
 }
 
+/* The shipped pack carries its own actions, because unlike a deck card it is
+   not a link to a detail page — there is nowhere else for it to go. Pushed to
+   the bottom of the panel so its height still matches the deck cards beside
+   it whatever the description wraps to. */
+.packActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.packActions a {
+  text-decoration: none;
+  text-align: center;
+}
+
+.packHint {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--pfc-ink-faint);
+}
+
 /* Fresh from the wall: a single dense row under the decks, so the newest work
    is one glance away from the curated shelf. */
 .freshStrip {

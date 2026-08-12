@@ -584,11 +584,46 @@ function installFromUrl(src){
     say('could not fetch modules from the link — is the build still available?','err');
   });
 }
+// One-click install of a PACK: /patterns?src=<url of a .zip>.
+//
+// The same ferrying as above, one file instead of a listing — a deck's
+// download address and the site's own pattern packs are both plain zips, so
+// sharing a set becomes a link rather than "download this, then drag it
+// here". The archive goes through pickFiles, so it is unpacked by exactly
+// the code a dropped zip uses; nothing here knows what a .pfm is.
+//
+// A deck nobody has downloaded yet has to be compiled first, and that route
+// says so with 202 rather than blocking. Polling is capped: if a build is
+// wedged, saying so beats a spinner that never resolves.
+function installZipFromUrl(src,tries){
+  tries=tries||0;
+  say(tries?'building the pack…':'fetching the pack…');
+  fetch(src,{cache:'no-store'}).then(function(r){
+    if(r.status===202){
+      if(tries>=40)throw new Error('the pack is still building — try again in a minute');
+      return new Promise(function(res){setTimeout(res,2000)})
+        .then(function(){return installZipFromUrl(src,tries+1)});
+    }
+    if(!r.ok)throw new Error('could not fetch that pack ('+r.status+')');
+    return r.blob().then(function(b){
+      say('');
+      pickFiles([new File([b],'pack.zip')]);
+    });
+  }).catch(function(e){
+    say((e&&e.message)||'could not fetch that pack','err');
+  });
+}
+
 var srcParam=new URLSearchParams(location.search).get('src');
 if(srcParam&&/^https?:\/\//.test(srcParam)){
   // Strip the query so a reload doesn't reinstall.
   history.replaceState(null,'',location.pathname);
-  installFromUrl(srcParam);
+  // Match on the path only: a listing URL carrying "?…=x.zip" must not be
+  // mistaken for a pack. Both shapes count — a file named "basics.zip" and
+  // a deck's route, which ends in "/zip" with no extension at all.
+  var srcPath=srcParam.split('?')[0].split('#')[0];
+  if(/[./]zip$/i.test(srcPath))installZipFromUrl(srcParam);
+  else installFromUrl(srcParam);
 }
 
 load();
