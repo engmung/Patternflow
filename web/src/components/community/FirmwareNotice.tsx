@@ -61,9 +61,11 @@ export default function FirmwareNotice() {
   return (
     <div className={styles.fwNotice}>
       <span className={styles.fwNoticeTag}>Firmware</span>
+      {/* Describes the current firmware rather than one release's diff, so a
+          patch bump does not advertise the previous version's changes as new. */}
       <span className={styles.fwNoticeText}>
-        <strong>{LATEST}</strong> is out — patterns install from a link, and a set now ships with
-        the board.
+        <strong>{LATEST}</strong> is out — pattern packs install from a link, a set ships with the
+        board, and MQTT has a broker ready to use.
       </span>
       <Link href="/update" className={styles.fwNoticeLink}>
         Update over Wi-Fi →

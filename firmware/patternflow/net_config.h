@@ -72,7 +72,7 @@
 // Firmware version string reported to the flasher (Improv device-info RPC).
 // Keep in sync with web/public/flash/manifest.json.
 #ifndef PF_IMPROV_FW_VERSION
-#define PF_IMPROV_FW_VERSION "3.4.0"
+#define PF_IMPROV_FW_VERSION "3.4.1"
 #endif
 
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
@@ -181,8 +181,7 @@
 // anything. Nothing connects until a role is picked AND a broker host is
 // set, so the default build is inert.
 //
-// Broker credentials belong in patternflow_secrets.h (gitignored), never
-// here: this file ships in the repo and lands in every published .bin.
+// A shared broker ships with the firmware — see the block further down.
 //
 // This costs internal DRAM: ~600 B of statics, plus ~1.8 KB for the socket
 // while a role is connected. That is worth knowing because the web console
@@ -206,20 +205,48 @@
 #ifndef PF_MQTT_HTTP_ENABLED
 #define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
 #endif
-// Empty (the default) = no broker configured; the role picker says so and
-// nothing is dialled. Set it in patternflow_secrets.h.
+// ── The shared Patternflow broker ────────────────────────────
+// A broker anyone with a Patternflow may use, run and paid for by
+// @SimonePDA (Simone Majocchi), who contributed the MQTT work and opened it
+// for exactly this. It ships so that two panels can mirror each other, or a
+// panel can join a home setup, without first standing up a server.
+//
+// These are PUBLISHED DEFAULTS, not secrets, and the login below is scoped
+// to match: it can read and write the `patternflow` topic and nothing else
+// on that server. That is what makes shipping it sound rather than reckless
+// — the account cannot be used to reach anything private, so publishing it
+// costs its owner a topic, not a broker.
+//
+// Stated plainly because it is in the repo and readable in every .bin we
+// release. A credential that ships to everyone is public from the first
+// download; writing it here rather than hiding it in the gitignored secrets
+// file only means the people reading the source can see what their board is
+// configured to talk to. The release credential scan treats anything in this
+// file as public for the same reason.
+//
+// Terms confirmed by @SimonePDA, 2026-08-12: "the MQTT broker data can be
+// currently shared with other users as the broker is secured and allows just
+// the patternflow topic to be read/written".
+//
+// It still dials nothing on its own. The role (Off / Publisher /
+// Subscriber) lives in NVS and starts at Off, so shipping a broker arms the
+// option rather than the radio — a board that is never told to publish
+// never connects.
+//
+// Running your own broker, or want off this one entirely? Override any of
+// these in patternflow_secrets.h; that file is included first and wins.
 #ifndef PF_MQTT_HOST
-#define PF_MQTT_HOST ""
+#define PF_MQTT_HOST "Simonehome.xyz"
 #endif
 #ifndef PF_MQTT_PORT
 #define PF_MQTT_PORT 1883
 #endif
 // Empty user = connect anonymously (brokers on a trusted LAN often allow it).
 #ifndef PF_MQTT_USER
-#define PF_MQTT_USER ""
+#define PF_MQTT_USER "patternflow"
 #endif
 #ifndef PF_MQTT_PASS
-#define PF_MQTT_PASS ""
+#define PF_MQTT_PASS "pattern_pw_01"
 #endif
 // Topic root: <prefix>/knob/1..4 and <prefix>/pattern. Give each panel its
 // own prefix when several share a broker and should NOT mirror each other.

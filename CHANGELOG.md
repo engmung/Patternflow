@@ -4,6 +4,11 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-08-12
+
+### Changed
+- **A broker ships with the firmware, so MQTT works without standing up a server first.** The host and login move out of the gitignored secrets header and into `net_config.h` as published defaults — they are in the repo and readable in every release image, which is the honest place for a credential that goes to everybody. The account is scoped to match: it can read and write the `patternflow` topic and nothing else on that server, so publishing it costs its owner a topic rather than a broker. Run by **[@SimonePDA](https://github.com/SimonePDA)**, who contributed the MQTT work and confirmed the terms. Nothing dials on its own — the role still lives in NVS and starts at Off, so this arms the option rather than the radio. Point a board somewhere else by overriding `PF_MQTT_HOST` (and friends) in `patternflow_secrets.h`, which is included first and wins.
+
 ## [3.4.0] - 2026-08-12
 
 Patterns leave the firmware and live on the filesystem, so a board ships nearly empty — and a pack ships with it. **Hardware unchanged**; v3.0 board and case carry over as-is.
