@@ -307,39 +307,48 @@ $('saveOrd').onclick=function(){
   xhr.send(new Blob([text]));
 };
 
-// Bulk delete rides the same visible queue as uploads: one row per module,
-// deleting… → ✓ removed / ✗ failed, and the batch never stops at a failure.
-// Server-side this is just the existing per-slug DELETE, called sequentially;
-// the device captures the running pattern once and restores it 150ms after
-// the last call, exactly as for uploads.
-function delSeq(i){
-  while(i<items.length&&items[i].st!=='wait')i++;
-  if(i>=items.length){
-    var ok=0,fail=0;
-    items.forEach(function(it){if(it.st==='ok')ok++;else if(it.st==='fail')fail++});
-    say(fail?ok+' removed, '+fail+' failed':(ok+' module'+(ok===1?'':'s')+' removed'),
-        fail?'err':'good');
-    setTimeout(load,700);return;
-  }
-  var it=items[i];it.st='del';renderQ();
-  fetch('/api/patterns?slug='+encodeURIComponent(it.slug),{method:'DELETE'})
+// ── Bulk delete ──────────────────────────────────────────────────
+// ONE request for the whole selection. This used to walk the per-slug
+// DELETE with a breather between each, and every one of those calls made
+// the device rescan FATFS and reload the running module — so clearing a
+// library of fifty was a minute of watching the list redraw. The device
+// now takes the list, removes the files in one pass, and rescans once.
+//
+// Sending "*" instead of the list is the whole library: the device clears
+// whatever .pfm files are actually on disk, which also catches modules the
+// loader rejected at boot and that therefore never appear in this list.
+function deleteSlugs(slugs, label){
+  say('deleting ' + label + '…');
+  bulkDel.disabled = true;
+  fetch('/api/patterns/delete',{method:'POST',body:slugs.join('\n')})
     .then(function(r){return r.json()})
     .then(function(d){
-      if(d.ok)it.st='ok';else{it.st='fail';it.err=d.error||'delete failed'}
-      renderQ();setTimeout(function(){delSeq(i+1)},250);
+      bulkDel.disabled=false;
+      if(!d.ok){say(d.error||'delete failed','err');return}
+      var msg=d.removed+' module'+(d.removed===1?'':'s')+' removed';
+      if(d.missing)msg+=', '+d.missing+' not found';
+      say(msg,d.missing?'err':'good');
+      // The rescan is deferred on the device (see requestReload), so the
+      // list is only right a moment after the reply.
+      setTimeout(load,900);
     })
-    .catch(function(){it.st='fail';it.err='no reply from device';
-      renderQ();setTimeout(function(){delSeq(i+1)},250)});
+    .catch(function(){bulkDel.disabled=false;say('no reply from device','err')});
 }
 
 bulkDel.onclick=function(){
   var slugs=selectedSlugs();
   if(!slugs.length)return;
+  var total=selBoxes().length;
+  // Clearing everything is the common case behind a big selection, and the
+  // device can do it without being told fifty names.
+  if(slugs.length===total&&total>2){
+    if(!confirm('Delete all '+total+' modules? Origin stays.'))return;
+    deleteSlugs(['*'],'every module');
+    return;
+  }
   if(!confirm('Delete '+slugs.length+' module'+(slugs.length===1?'':'s')+
               ' -- '+slugs.join(', ')+'?'))return;
-  items=slugs.map(function(s){return {slug:s,name:s,st:'wait',pct:0,tries:0}});
-  retryBtn.style.display='none';
-  say('');renderQ();delSeq(0);
+  deleteSlugs(slugs,slugs.length+' module'+(slugs.length===1?'':'s'));
 };
 
 function del(slug,name){
@@ -356,7 +365,9 @@ function del(slug,name){
 // items: {f:File|null, name, st:'get'|'wait'|'up'|'retry'|'ok'|'fail', pct, err}
 var items=[];
 
-var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',del:'deleting…',
+// Upload states only — deleting is one request now and reports as a single
+// line, so it no longer borrows this queue.
+var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',
                  ver:'verifying…',retry:'retrying…',ok:'✓ done',fail:'✗ failed'};
 
 function renderQ(){

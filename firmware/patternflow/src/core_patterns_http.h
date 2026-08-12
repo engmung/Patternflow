@@ -10,6 +10,7 @@
 //   GET    /api/patterns      JSON list (presets + modules)
 //   POST   /api/patterns      multipart upload of a .pfm / .json
 //   DELETE /api/patterns?slug=<slug>
+//   POST   /api/patterns/delete   body: one slug per line, or "*" for all
 //
 // Presets are listed but never deletable — they live in firmware.bin.
 // License: MIT
@@ -296,6 +297,113 @@ inline void handleList() {
   sendJson(200, json);
 }
 
+// Remove one module's files. Shared by the single and the batch delete; the
+// caller owns the eviction and the rescan, because doing either per file is
+// what made clearing a library take a minute.
+inline bool removeModuleFiles(const char* slug) {
+  char path[MODULE_PATH_BYTES];
+  snprintf(path, sizeof(path), "%s/%s.pfm", MODULE_DIR, slug);
+  if (!FFat.exists(path)) return false;
+  FFat.remove(path);
+
+  char sidecar[MODULE_PATH_BYTES];
+  snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
+  if (FFat.exists(sidecar)) FFat.remove(sidecar);
+  return true;
+}
+
+// POST /api/patterns/delete — body is one slug per line, or a single "*" to
+// clear every module.
+//
+// Exists because the per-slug DELETE below rescans FATFS and reloads the
+// active module on EVERY call: fine for one, and about a minute of watching a
+// list redraw for fifty. Here the eviction happens once, the files go in one
+// pass, and the rescan is requested once at the end through tick() — the same
+// deferral uploads use, so no filesystem work happens inside the transaction.
+//
+// Not folded into DELETE with a comma-separated query: fifty slugs is over a
+// kilobyte of URI, and this server's query parsing is the part of the stack
+// with the longest history of quietly mangling long inputs.
+inline void handleDeleteMany() {
+  if (!moduleStorageMounted) {
+    sendJson(409, "{\"ok\":false,\"error\":\"storage not mounted\"}");
+    return;
+  }
+  String body = server().hasArg("plain") ? server().arg("plain") : String();
+  body.trim();
+  if (body.length() == 0) {
+    sendJson(400, "{\"ok\":false,\"error\":\"no slugs given\"}");
+    return;
+  }
+
+  captureSelectionOnce();
+
+  int removed = 0;
+  int missing = 0;
+
+  if (body == "*") {
+    // Whatever is on disk, not whatever the registry currently lists — a
+    // module the loader rejected at boot is exactly the one worth clearing.
+    //
+    // One name at a time, re-opening the directory each pass. Collecting all
+    // of them first would be the obvious loop, but the array has to be sized
+    // for MAX_MODULE_PATTERNS (128) and this runs in an HTTP handler with a
+    // module resident, where there is no 5 KB of stack to spend on a list.
+    // Removing entries while holding the directory handle open is the other
+    // obvious shortcut, and it makes FAT skip files.
+    for (int pass = 0; pass < MAX_MODULE_PATTERNS; pass++) {
+      char victim[MODULE_PATH_BYTES] = {};
+      File directory = FFat.open(MODULE_DIR);
+      if (directory && directory.isDirectory()) {
+        File entry = directory.openNextFile();
+        while (entry) {
+          String name = entry.path();
+          if (!entry.isDirectory() && name.endsWith(".pfm")) {
+            snprintf(victim, sizeof(victim), "%s", name.c_str());
+            break;
+          }
+          entry = directory.openNextFile();
+        }
+      }
+      if (directory) directory.close();
+      if (!victim[0]) break;
+
+      char slug[MODULE_NAME_BYTES];
+      if (slugFromFilename(victim, slug, sizeof(slug)) && removeModuleFiles(slug)) {
+        removed++;
+      } else {
+        break;  // cannot name it, so the next pass would find it again
+      }
+      yield();
+    }
+  } else {
+    int start = 0;
+    while (start < (int)body.length()) {
+      int cut = body.indexOf('\n', start);
+      String line = cut < 0 ? body.substring(start) : body.substring(start, cut);
+      start = cut < 0 ? body.length() : cut + 1;
+      line.trim();
+      if (line.length() == 0) continue;
+
+      char slug[MODULE_NAME_BYTES];
+      if (!slugFromFilename(line + ".pfm", slug, sizeof(slug))) { missing++; continue; }
+      removeModuleFiles(slug) ? removed++ : missing++;
+      // Fifty file removals in one handler is long enough to starve the
+      // watchdog and the network stack if nothing yields.
+      yield();
+    }
+  }
+
+  requestReload();
+  String json = "{\"ok\":true,\"removed\":";
+  json += removed;
+  json += ",\"missing\":";
+  json += missing;
+  json += "}";
+  Serial.printf("[PATTERNS-HTTP] batch delete — %d removed, %d missing\n", removed, missing);
+  sendJson(200, json);
+}
+
 inline void handleDelete() {
   if (!server().hasArg("slug")) {
     sendJson(400, "{\"ok\":false,\"error\":\"missing slug\"}");
@@ -307,20 +415,18 @@ inline void handleDelete() {
     return;
   }
 
-  char path[MODULE_PATH_BYTES];
-  snprintf(path, sizeof(path), "%s/%s.pfm", MODULE_DIR, slug);
-  if (!moduleStorageMounted || !FFat.exists(path)) {
+  if (!moduleStorageMounted) {
     sendJson(404, "{\"ok\":false,\"error\":\"no such module\"}");
     return;
   }
 
   // Drop it out of executable RAM before the file goes, in case it is running.
   captureSelectionOnce();
-  FFat.remove(path);
-
-  char sidecar[MODULE_PATH_BYTES];
-  snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
-  if (FFat.exists(sidecar)) FFat.remove(sidecar);
+  if (!removeModuleFiles(slug)) {
+    restoreSelection();
+    sendJson(404, "{\"ok\":false,\"error\":\"no such module\"}");
+    return;
+  }
 
   restoreSelection();
   Serial.printf("[PATTERNS-HTTP] deleted %s (%d patterns)\n", slug, NUM_PATTERNS);
@@ -640,6 +746,7 @@ inline void begin() {
   // above stays for curl and older pages.
   server().on("/api/patterns", HTTP_PUT, handleUploadDone, handlePutBody);
   server().on("/api/patterns", HTTP_DELETE, handleDelete);
+  server().on("/api/patterns/delete", HTTP_POST, handleDeleteMany);
   server().on("/api/patterns/format", HTTP_POST, handleFormat);
 
 #if !PF_AUDIO_ENABLED
