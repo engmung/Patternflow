@@ -339,60 +339,60 @@ export default function DeckDetailClient({
           >
             {confirmCopy ? "Press again — this replaces your deck" : "Copy into my deck"}
           </button>
-          {/* No sign-in, no working deck, no build queue of your own: the
-              pack is built once for the deck and served from a stable URL.
-              Three ways to reach it — the link to hand out, the file, and
-              the one that puts it on a board without any of the above. */}
-          {deck.visibility === "public" && (
-            <>
-              <button
-                type="button"
-                className={styles.btn}
-                disabled={busy || playable.length === 0}
-                title="Copy this deck's pack address — the link to paste where you're sharing it"
-                onClick={() => void copyPackLink()}
-              >
-                {linkNote ?? "Copy pack link"}
-              </button>
-              <button
-                type="button"
-                className={styles.btn}
-                disabled={busy || playable.length === 0}
-                title="Download this deck as a .zip you can drop on your device's Patterns page"
-                onClick={() => void downloadPack()}
-              >
-                {packNote ?? "Download pack (.zip)"}
-              </button>
-              {/* Straight onto a board with no account and no build queue:
-                  the device fetches the pack itself. "Send to my board"
-                  below builds into YOUR queue, which a visitor arriving from
-                  a shared link has no reason to have. */}
-              <a
-                className={styles.btnLink}
-                href={
-                  hydrated && playable.length > 0
-                    ? patternsUrl(`/api/community/decks/${deck.id}/zip`)
-                    : undefined
-                }
-                aria-disabled={!hydrated || playable.length === 0}
-                title="Open your board's Patterns page with this deck queued — no sign-in needed"
-              >
-                Install to my board
-              </a>
-            </>
+          {/* Onto a board, in this order — the thing a deck exists for.
+              Two routes to it, and only ever one of them shown.
+
+              A public deck has a pack already built and served from a stable
+              URL, so the board fetches it directly: no sign-in, no working
+              deck, no build queue. Anything else has no pack to fetch, so it
+              goes the long way — into your working deck, where the panel can
+              build it once you are signed in. Offering both at once was three
+              buttons for one intention. */}
+          {deck.visibility === "public" ? (
+            <a
+              className={styles.btnAccentLink}
+              href={
+                hydrated && playable.length > 0
+                  ? patternsUrl(`/api/community/decks/${deck.id}/zip`)
+                  : undefined
+              }
+              aria-disabled={!hydrated || playable.length === 0}
+              title="Open your board's Patterns page with this deck queued — no sign-in needed"
+            >
+              Install to my board
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={styles.btnAccent}
+              disabled={busy || playable.length === 0}
+              title="Load this deck and build it as loadable modules for your board"
+              onClick={() => void sendToBoard()}
+            >
+              {confirmCopy ? "Press again" : "Send to my board"}
+            </button>
           )}
-          {/* The deck's whole point: onto a board, in this order. Copying is
-              the editing gesture; this is the one it exists for. */}
-          <button
-            type="button"
-            className={styles.btnAccent}
-            disabled={busy || playable.length === 0}
-            title="Load this deck and build it as loadable modules for your board"
-            onClick={() => void sendToBoard()}
-          >
-            {confirmCopy ? "Press again" : "Send to my board"}
-          </button>
         </div>
+
+        {/* Sharing, kept off the main row: it is what the deck's author does
+            once, not what a visitor does. The pack itself needs no action —
+            it is built on first request and rebuilt whenever the running
+            order changes — so this says so rather than implying a button
+            somewhere bakes it. */}
+        {deck.visibility === "public" && playable.length > 0 && (
+          <p className={styles.deckShareRow}>
+            <span className={styles.deckShareLabel}>Share this deck</span>
+            <button type="button" className={styles.btnSmall} onClick={() => void copyPackLink()}>
+              {linkNote ?? "Copy pack link"}
+            </button>
+            <button type="button" className={styles.btnSmall} onClick={() => void downloadPack()}>
+              {packNote ?? "Download .zip"}
+            </button>
+            <span className={styles.deckShareNote}>
+              The pack is built automatically and rebuilt whenever you reorder.
+            </span>
+          </p>
+        )}
 
         {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 

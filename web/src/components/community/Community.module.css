@@ -2855,6 +2855,48 @@
   pointer-events: none;
 }
 
+/* The accent weight of the same thing — "this leaves the page and touches
+   your board", which is exactly what it does.
+   `composes: btn btnAccent` names both on purpose: composing btnAccent alone
+   emits only two classes here, dropping the btn underneath it, so the fill
+   arrives without the padding or border that make it a button shape. */
+.btnAccentLink {
+  composes: btn btnAccent;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.btnAccentLink[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Sharing sits under the action row, not in it: the author does this once,
+   a visitor never does it at all. Quieter type and small buttons say that
+   without needing a heading. */
+.deckShareRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.deckShareLabel {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.deckShareNote {
+  font-size: 11.5px;
+  color: var(--pfc-ink-faint);
+}
+
 /* The shipped pack carries its own actions, because unlike a deck card it is
    not a link to a detail page — there is nowhere else for it to go. Pushed to
    the bottom of the panel so its height still matches the deck cards beside
