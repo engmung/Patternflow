@@ -108,7 +108,8 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
     The choice survives a reboot.</p>
   <p class="note">Publish to <code id="msgtopic">patternflow/message</code> and the text appears
     over the running pattern for ten seconds — any connected role, empty payload clears it.
-    On a broker shared with other people, every panel using this prefix sees it.</p>
+    It is a <b>broadcast</b>: every panel subscribed on this prefix shows it. Use your own
+    prefix if you want messages that only reach your own panels.</p>
 </section>
 
 <section>
