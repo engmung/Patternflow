@@ -613,14 +613,14 @@ void drawMqttMessageOverlay() {
   // bright pattern and is unreadable exactly when it matters most.
   int16_t x1, y1;
   uint16_t tw, th;
-  PatternflowUiText::boundsWith(PatternflowUiText::useNameFont, text, &x1, &y1, &tw, &th);
+  PatternflowUiText::boundsWith(PatternflowUiText::useMessageFont, text, &x1, &y1, &tw, &th);
   const int plateH = th + 24;
   const int plateY = (screenH - plateH) / 2;
   dma_display->fillRect(0, plateY, screenW, plateH, dma_display->color565(0, 0, 0));
   dma_display->drawRect(0, plateY, screenW, plateH, pfLedC());
 
-  PatternflowUiText::drawWrappedName(text, screenH / 2,
-                                     dma_display->color565(255, 255, 255));
+  PatternflowUiText::drawWrappedMessage(text, screenH / 2,
+                                       dma_display->color565(255, 255, 255));
   PatternflowUiText::useDefaultFont();
   dma_display->setRotation(0);
 #endif
