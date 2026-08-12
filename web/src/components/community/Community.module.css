@@ -2838,6 +2838,23 @@
   color: var(--pfc-ink-faint);
 }
 
+/* An anchor that has to sit in a row of buttons and match them. It is a real
+   link rather than a button because it leaves for the device's own origin —
+   middle-click and "open in new tab" should work, and a click handler would
+   take those away. */
+.btnLink {
+  composes: btn;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.btnLink[aria-disabled="true"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 /* The shipped pack carries its own actions, because unlike a deck card it is
    not a link to a detail page — there is nowhere else for it to go. Pushed to
    the bottom of the panel so its height still matches the deck cards beside
