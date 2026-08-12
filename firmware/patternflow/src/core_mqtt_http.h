@@ -81,6 +81,12 @@ inline void sendStatus(int code) {
   json += PatternflowMqtt::isConnected() ? "true" : "false";
   json += ",\"configured\":";
   json += PatternflowMqtt::hasBroker() ? "true" : "false";
+  // Whether a password is set, never the password. The page shows an empty
+  // field either way and sending it back would put a credential on the
+  // network on every poll for no benefit — nothing on the page needs to
+  // read it, only to replace it.
+  json += ",\"hasPassword\":";
+  json += PatternflowMqtt::hasPassword() ? "true" : "false";
   json += ",\"knobs\":[";
   for (int i = 0; i < 4; ++i) {
     if (i) json += ',';
@@ -128,6 +134,52 @@ inline void handlePost() {
   sendStatus(200);
 }
 
+/**
+ * Save the broker settings typed on /mqtt.
+ *
+ * The password is the only field with a rule of its own: it is never sent to
+ * the page, so the form always posts it empty unless somebody typed a new
+ * one. An empty field therefore means "unchanged", not "blank it" — clearing
+ * is what the separate forget button is for. Without that, opening the page
+ * and pressing Save would silently drop a working login.
+ */
+inline void handleConfig() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+
+  String host = server().hasArg("host") ? server().arg("host") : String();
+  host.trim();
+
+  long port = server().hasArg("port") ? server().arg("port").toInt() : 1883;
+  if (port <= 0 || port > 65535) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"port must be 1-65535\"}");
+    return;
+  }
+
+  String user = server().hasArg("user") ? server().arg("user") : String();
+  user.trim();
+  String prefix = server().hasArg("prefix") ? server().arg("prefix") : String();
+  prefix.trim();
+  if (prefix.length() == 0) prefix = "patternflow";
+
+  const bool sentPassword = server().hasArg("pass") && server().arg("pass").length() > 0;
+  String pass = sentPassword ? server().arg("pass") : String();
+
+  PatternflowMqtt::saveConfig(host.c_str(), (uint16_t)port, user.c_str(),
+                              sentPassword ? pass.c_str() : nullptr, prefix.c_str());
+  sendStatus(200);
+}
+
+inline void handleForget() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+  PatternflowMqtt::clearConfig();
+  // A forgotten broker with a role still set would retry an empty host
+  // forever, so the role goes back to Off with it.
+  PatternflowMqtt::setRole(PatternflowMqtt::ROLE_OFF);
+  persistRole(PatternflowMqtt::ROLE_OFF);
+  sendStatus(200);
+}
+
 inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
@@ -135,6 +187,8 @@ inline void begin() {
   server().on("/mqtt", HTTP_GET, handleIndex);
   server().on("/api/mqtt", HTTP_GET, handleGet);
   server().on("/api/mqtt", HTTP_POST, handlePost);
+  server().on("/api/mqtt/config", HTTP_POST, handleConfig);
+  server().on("/api/mqtt/forget", HTTP_POST, handleForget);
 
   initialized = true;
   Serial.printf("[MQTT-HTTP] role picker http://%s/mqtt\n",

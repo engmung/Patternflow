@@ -57,6 +57,29 @@ font-size:12px;color:var(--muted);line-height:1.45;display:none}
 .banner code{font-family:var(--mono);font-size:11px;color:var(--ink)}
 #msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
 #msg.err{color:var(--led)}#msg.good{color:var(--ok)}
+/* Broker form. Labels sit beside their field on a desktop and stack on a
+   phone, which is where this page is most likely to be opened — the board is
+   across the room and the address is on a sticker. */
+#cfg{margin:0 0 14px}
+.field{display:flex;align-items:center;gap:12px;padding:6px 0}
+.field label{flex:0 0 74px;font-size:13px;color:var(--muted)}
+.field input{flex:1;min-width:0;font:inherit;font-family:var(--mono);font-size:12px;
+padding:7px 9px;background:var(--panel);color:var(--ink);
+border:1px solid var(--rule);border-radius:2px}
+.field input:focus{outline:none;border-color:var(--led)}
+.field input::placeholder{color:var(--faint)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
+.save,.forget{font:inherit;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer}
+.save{border:1px solid var(--led);background:var(--led);color:var(--panel);font-weight:600}
+.save:disabled{opacity:.5;cursor:default}
+.forget{border:1px solid var(--rule);background:none;color:var(--muted)}
+.forget:hover{border-color:var(--led);color:var(--led)}
+#cfgmsg{margin:0}
+#cfgmsg.err{color:var(--led)}#cfgmsg.good{color:var(--ok)}
+@media(max-width:420px){
+.field{display:block}
+.field label{display:block;margin-bottom:4px}
+.field input{width:100%;box-sizing:border-box}}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
@@ -72,9 +95,8 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 
 <section>
   <h2>Role</h2>
-  <div class="banner" id="unset">No broker is configured in this build, so nothing will connect
-    whichever role you pick. Set <code>PF_MQTT_HOST</code> (and user / password if the broker
-    wants them) in <code>patternflow_secrets.h</code> and reflash.</div>
+  <div class="banner" id="unset">No broker set yet, so nothing will connect whichever role you
+    pick. Fill in <b>Broker</b> below — it is saved on the device, not in the firmware.</div>
   <div class="roles">
     <button class="role" id="r-off" data-role="off"><b>Off</b><p>Disconnect from the broker. Knobs stay local.</p></button>
     <button class="role" id="r-publisher" data-role="publisher"><b>Publisher</b><p>Send the four knob values and the current pattern name.</p></button>
@@ -88,11 +110,29 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 
 <section>
   <h2>Broker</h2>
+  <!-- Typed in here rather than compiled into the firmware, so a broker
+       address and its login never travel in a public image. Saved on this
+       device; a reflash keeps them. -->
+  <form id="cfg" autocomplete="off">
+    <div class="field"><label for="f-host">Host</label>
+      <input id="f-host" name="host" placeholder="broker.example.com or 192.168.1.10" maxlength="63"></div>
+    <div class="field"><label for="f-port">Port</label>
+      <input id="f-port" name="port" type="number" min="1" max="65535" value="1883"></div>
+    <div class="field"><label for="f-user">User</label>
+      <input id="f-user" name="user" placeholder="leave empty for anonymous" maxlength="31"></div>
+    <div class="field"><label for="f-pass">Password</label>
+      <input id="f-pass" name="pass" type="password" placeholder="unchanged" maxlength="47"></div>
+    <div class="field"><label for="f-prefix">Prefix</label>
+      <input id="f-prefix" name="prefix" placeholder="patternflow" maxlength="31"></div>
+    <div class="actions">
+      <button type="submit" class="save" id="save">Save broker</button>
+      <button type="button" class="forget" id="forget">Forget</button>
+      <span class="note" id="cfgmsg"></span>
+    </div>
+  </form>
+  <p class="note">The password is stored on the device and never sent back to this page —
+    leave it empty to keep the one already saved.</p>
   <dl>
-    <div class="row"><dt>Host</dt><dd id="host">-</dd></div>
-    <div class="row"><dt>Port</dt><dd id="port">-</dd></div>
-    <div class="row"><dt>User</dt><dd id="user">-</dd></div>
-    <div class="row"><dt>Prefix</dt><dd id="prefix">-</dd></div>
     <div class="row"><dt>State</dt><dd id="state">-</dd></div>
   </dl>
 </section>
@@ -114,13 +154,27 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 function $(i){return document.getElementById(i)}
 function say(t,cls){$('msg').textContent=t;$('msg').className=cls||''}
 
+// The form is filled once, and again only after a save. This page polls
+// every two seconds, and a poll that writes into the inputs would erase
+// whatever was half-typed — so once the fields are populated the status
+// updates leave them alone.
+var cfgFilled=false;
+function fillConfig(d){
+  $('f-host').value=d.host||'';
+  $('f-port').value=d.port||1883;
+  $('f-user').value=d.user||'';
+  $('f-prefix').value=d.prefix||'';
+  // Never populated: the device does not send it back. The placeholder says
+  // which of the two empty-field meanings applies.
+  $('f-pass').value='';
+  $('f-pass').placeholder=d.hasPassword?'unchanged':'none set';
+  cfgFilled=true;
+}
+
 function paint(d){
   var prefix=d.prefix||'patternflow';
   $('st').textContent=d.connected?'connected':(d.state||'offline');
-  $('host').textContent=d.host||'(not set)';
-  $('port').textContent=d.port||'-';
-  $('user').textContent=d.user||'(anonymous)';
-  $('prefix').textContent=prefix;
+  if(!cfgFilled)fillConfig(d);
   $('state').textContent=d.state||'-';
   // Only red when it is actually trying and failing: "off" and an
   // unconfigured build are resting states, not faults.
@@ -157,6 +211,43 @@ Array.prototype.forEach.call(document.querySelectorAll('.role'),function(btn){
       }).catch(function(){say('no reply from device','err')});
   };
 });
+
+function cfgSay(t,cls){var e=$('cfgmsg');e.textContent=t;e.className='note'+(cls?' '+cls:'')}
+
+$('cfg').onsubmit=function(ev){
+  ev.preventDefault();
+  var host=$('f-host').value.trim();
+  if(!host){cfgSay('a host is required — or press Forget','err');return}
+  cfgSay('saving…');
+  $('save').disabled=true;
+  // The password rides only when something was typed. An empty field means
+  // "keep what is stored", so sending it would blank a working login.
+  var body='host='+encodeURIComponent(host)+
+    '&port='+encodeURIComponent($('f-port').value||1883)+
+    '&user='+encodeURIComponent($('f-user').value.trim())+
+    '&prefix='+encodeURIComponent($('f-prefix').value.trim());
+  if($('f-pass').value)body+='&pass='+encodeURIComponent($('f-pass').value);
+  fetch('/api/mqtt/config',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+    .then(function(r){return r.json()}).then(function(d){
+      $('save').disabled=false;
+      if(d.ok===false){cfgSay(d.error||'could not save','err');return}
+      cfgSay('saved — reconnecting','good');
+      fillConfig(d);
+      paint(d);
+    }).catch(function(){$('save').disabled=false;cfgSay('no reply from device','err')});
+};
+
+$('forget').onclick=function(){
+  if(!confirm('Forget this broker, including the saved password?'))return;
+  cfgSay('clearing…');
+  fetch('/api/mqtt/forget',{method:'POST'})
+    .then(function(r){return r.json()}).then(function(d){
+      cfgSay('broker forgotten','good');
+      fillConfig(d);
+      paint(d);
+    }).catch(function(){cfgSay('no reply from device','err')});
+};
 
 load();
 setInterval(load,2000);

@@ -44,6 +44,7 @@
 
 #if PF_MQTT_ENABLED
 #include <WiFi.h>
+#include <Preferences.h>
 #include "pubsubclient/PubSubClient.h"
 #endif
 
@@ -99,7 +100,28 @@ inline IPAddress brokerIp;
 inline bool brokerResolved = false;
 inline uint8_t failures = 0;
 
-inline bool hasBroker() { return PF_MQTT_HOST[0] != '\0'; }
+// ── Broker settings, entered on /mqtt and kept in NVS ────────────────────
+//
+// Typed in rather than compiled in, for the same reason Wi-Fi is: a broker
+// is per-owner, and the alternative is either everybody sharing one set of
+// credentials in the public source or nobody having a broker at all. The
+// PF_MQTT_* macros remain as build-time defaults for people who do want to
+// bake their own in; anything saved here wins over them.
+//
+// Sizes are deliberate — this is internal DRAM, which is the scarce thing on
+// this board (see the measurements in net_config.h). 176 bytes total.
+constexpr size_t HOST_BYTES = 64;
+constexpr size_t USER_BYTES = 32;
+constexpr size_t PASS_BYTES = 48;
+constexpr size_t PREFIX_BYTES = 32;
+
+inline char cfgHost[HOST_BYTES] = PF_MQTT_HOST;
+inline char cfgUser[USER_BYTES] = PF_MQTT_USER;
+inline char cfgPass[PASS_BYTES] = PF_MQTT_PASS;
+inline char cfgPrefix[PREFIX_BYTES] = PF_MQTT_PREFIX;
+inline uint16_t cfgPort = PF_MQTT_PORT;
+
+inline bool hasBroker() { return cfgHost[0] != '\0'; }
 
 // Back off as failures pile up: a broker that is down stays down, and each
 // attempt costs the loop up to CONNECT_TIMEOUT_MS.
@@ -141,11 +163,11 @@ inline const char* stateText() {
 }
 
 inline void topicKnob(char* buf, size_t n, int index) {
-  snprintf(buf, n, "%s/knob/%d", PF_MQTT_PREFIX, index + 1);
+  snprintf(buf, n, "%s/knob/%d", cfgPrefix, index + 1);
 }
 
 inline void topicPattern(char* buf, size_t n) {
-  snprintf(buf, n, "%s/pattern", PF_MQTT_PREFIX);
+  snprintf(buf, n, "%s/pattern", cfgPrefix);
 }
 
 inline bool topicIsPattern(const char* topic) {
@@ -270,7 +292,7 @@ inline void ensureClientId() {
 
 inline void subscribeAll() {
   char topic[48];
-  snprintf(topic, sizeof(topic), "%s/knob/+", PF_MQTT_PREFIX);
+  snprintf(topic, sizeof(topic), "%s/knob/+", cfgPrefix);
   client.subscribe(topic);
   topicPattern(topic, sizeof(topic));
   client.subscribe(topic);
@@ -281,14 +303,14 @@ inline void subscribeAll() {
 // Do it once and hand it the address.
 inline bool resolveBroker() {
   if (brokerResolved) return true;
-  if (brokerIp.fromString(PF_MQTT_HOST)) {
+  if (brokerIp.fromString(cfgHost)) {
     brokerResolved = true;
     return true;
   }
-  if (WiFi.hostByName(PF_MQTT_HOST, brokerIp) == 1) {
+  if (WiFi.hostByName(cfgHost, brokerIp) == 1) {
     brokerResolved = true;
     Serial.printf("[MQTT] %s resolved to %s\n",
-                  PF_MQTT_HOST, brokerIp.toString().c_str());
+                  cfgHost, brokerIp.toString().c_str());
     return true;
   }
   setError("cannot resolve broker");
@@ -318,11 +340,11 @@ inline bool tryConnect() {
     if (++failures == 0) failures = RERESOLVE_AFTER;  // never wrap to "healthy"
     return false;
   }
-  client.setServer(brokerIp, PF_MQTT_PORT);
+  client.setServer(brokerIp, cfgPort);
 
   bool ok;
-  if (PF_MQTT_USER[0] != '\0') {
-    ok = client.connect(clientId, PF_MQTT_USER, PF_MQTT_PASS);
+  if (cfgUser[0] != '\0') {
+    ok = client.connect(clientId, cfgUser, cfgPass);
   } else {
     ok = client.connect(clientId);
   }
@@ -340,7 +362,7 @@ inline bool tryConnect() {
   failures = 0;
   setError("");
   Serial.printf("[MQTT] connected as %s (%s) to %s:%d\n",
-                clientId, roleName(role), PF_MQTT_HOST, PF_MQTT_PORT);
+                clientId, roleName(role), cfgHost, cfgPort);
   if (role == ROLE_SUBSCRIBER) {
     // Forget remote baselines: the retained snapshot about to arrive is
     // what we resync against.
@@ -374,11 +396,94 @@ inline Role currentRole() { return role; }
 inline bool isCompiledIn() { return true; }
 inline bool isConnected() { return client.connected(); }
 inline const char* error() { return lastError; }
-inline const char* host() { return PF_MQTT_HOST; }
-inline uint16_t port() { return PF_MQTT_PORT; }
-inline const char* user() { return PF_MQTT_USER; }
-inline const char* prefix() { return PF_MQTT_PREFIX; }
+inline const char* host() { return cfgHost; }
+inline uint16_t port() { return cfgPort; }
+inline const char* user() { return cfgUser; }
+inline const char* prefix() { return cfgPrefix; }
+/** Whether a password is set — the value itself never leaves the device. */
+inline bool hasPassword() { return cfgPass[0] != '\0'; }
 inline const char* lastPatternName() { return lastPattern; }
+
+// ── Settings persistence ─────────────────────────────────────────────────
+
+inline void copyField(char* dest, size_t size, const char* src) {
+  if (!src) src = "";
+  strncpy(dest, src, size - 1);
+  dest[size - 1] = '\0';
+}
+
+/**
+ * Load saved settings over the compiled-in defaults.
+ *
+ * Each key is read only if it exists, so a device that has saved a host but
+ * never touched the prefix keeps the built-in prefix rather than being handed
+ * an empty string.
+ */
+inline void loadConfig() {
+  Preferences prefs;
+  if (!prefs.begin("patternflow", true)) return;
+  if (prefs.isKey("mq_host")) prefs.getString("mq_host", cfgHost, sizeof(cfgHost));
+  if (prefs.isKey("mq_user")) prefs.getString("mq_user", cfgUser, sizeof(cfgUser));
+  if (prefs.isKey("mq_pass")) prefs.getString("mq_pass", cfgPass, sizeof(cfgPass));
+  if (prefs.isKey("mq_prefix")) prefs.getString("mq_prefix", cfgPrefix, sizeof(cfgPrefix));
+  if (prefs.isKey("mq_port")) cfgPort = prefs.getUShort("mq_port", cfgPort);
+  prefs.end();
+}
+
+/** Drop the connection so the next attempt uses the new settings. */
+inline void applyConfigChange() {
+  brokerResolved = false;
+  failures = 0;
+  lastReconnectMs = 0;
+  lastError[0] = '\0';
+  for (int i = 0; i < 4; ++i) haveKnob[i] = false;
+  if (client.connected()) client.disconnect();
+}
+
+/**
+ * Save what was entered on /mqtt.
+ *
+ * A null password means "leave it alone", which is what lets the page show a
+ * form without ever having been sent the current one — the field arrives
+ * empty and an empty field must not wipe a working login. Clearing is a
+ * separate, explicit act (see the clear route).
+ */
+inline void saveConfig(const char* newHost, uint16_t newPort, const char* newUser,
+                       const char* newPass, const char* newPrefix) {
+  copyField(cfgHost, sizeof(cfgHost), newHost);
+  copyField(cfgUser, sizeof(cfgUser), newUser);
+  copyField(cfgPrefix, sizeof(cfgPrefix), newPrefix);
+  cfgPort = newPort ? newPort : 1883;
+  if (newPass) copyField(cfgPass, sizeof(cfgPass), newPass);
+
+  Preferences prefs;
+  if (prefs.begin("patternflow", false)) {
+    prefs.putString("mq_host", cfgHost);
+    prefs.putString("mq_user", cfgUser);
+    prefs.putString("mq_prefix", cfgPrefix);
+    prefs.putUShort("mq_port", cfgPort);
+    if (newPass) prefs.putString("mq_pass", cfgPass);
+    prefs.end();
+  }
+  applyConfigChange();
+}
+
+/** Forget the broker entirely, including the password. */
+inline void clearConfig() {
+  cfgHost[0] = '\0';
+  cfgUser[0] = '\0';
+  cfgPass[0] = '\0';
+  cfgPort = 1883;
+  Preferences prefs;
+  if (prefs.begin("patternflow", false)) {
+    prefs.remove("mq_host");
+    prefs.remove("mq_user");
+    prefs.remove("mq_pass");
+    prefs.remove("mq_port");
+    prefs.end();
+  }
+  applyConfigChange();
+}
 
 inline void lastKnobsCopy(long out[4]) {
   for (int i = 0; i < 4; ++i) out[i] = lastKnobs[i];
@@ -393,7 +498,7 @@ inline void begin() {
   lastReconnectMs = 0;
   if (hasBroker()) {
     Serial.printf("[MQTT] ready — broker %s:%d  page /mqtt\n",
-                  PF_MQTT_HOST, PF_MQTT_PORT);
+                  cfgHost, cfgPort);
   } else {
     Serial.println("[MQTT] compiled in, no broker set — see /mqtt");
   }
