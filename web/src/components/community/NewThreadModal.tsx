@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import BodyComposer from "./BodyComposer";
-import { deckItems, savedItems } from "@/lib/community/deck";
+import { deckItems } from "@/lib/community/deck";
 import { communityPatternUrl } from "@/lib/community/license";
 import {
   ATTACHMENT_EXTENSIONS,
@@ -47,9 +47,9 @@ export default function NewThreadModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Whatever this person has collected — the deck and the saved list are the
-  // only pattern index the browser has without a round trip.
-  const linkable = picking ? [...deckItems(), ...savedItems()] : [];
+  // Whatever this person has collected — the working deck is the only pattern
+  // index the browser has without a round trip.
+  const linkable = picking ? deckItems() : [];
 
   const canSubmit = title.trim().length > 0 && body.trim().length > 0;
 

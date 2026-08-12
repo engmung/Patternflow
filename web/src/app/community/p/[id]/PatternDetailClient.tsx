@@ -15,15 +15,7 @@ import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
-import {
-  COLLECTION_EVENT,
-  deckAdd,
-  deckHas,
-  deckRemove,
-  savedAdd,
-  savedHas,
-  savedRemove,
-} from "@/lib/community/deck";
+import { COLLECTION_EVENT, deckAdd, deckHas, deckRemove } from "@/lib/community/deck";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
@@ -112,15 +104,13 @@ export default function PatternDetailClient({
   const [reportOpen, setReportOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [savingCode, setSavingCode] = useState(false);
-  // Deck and saved membership are shared state (header chip, other tabs), so read
-  // from the store and refreshed on the change event rather than mirrored.
+  // Deck membership is shared state (header chip, other tabs), so read from the
+  // store and refreshed on the change event rather than mirrored.
   const [inDeck, setInDeck] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
   const [collectNote, setCollectNote] = useState<string | null>(null);
   useEffect(() => {
     const sync = () => {
       setInDeck(deckHas(pattern.id));
-      setIsSaved(savedHas(pattern.id));
     };
     sync();
     window.addEventListener(COLLECTION_EVENT, sync);
@@ -144,22 +134,6 @@ export default function PatternDetailClient({
     setCollectNote(added.ok ? null : (added.reason ?? null));
   };
 
-  // Saving works with or without a firmware header: it is a bookmark, not a
-  // build slot. The stored `code` is only used when a saved pattern is later
-  // promoted into the deck, which the deck itself re-checks.
-  const toggleSaved = () => {
-    if (isSaved) {
-      savedRemove(pattern.id);
-      return;
-    }
-    savedAdd({
-      patternId: pattern.id,
-      title: pattern.title,
-      code: pattern.codeCpp ?? "",
-      js: pattern.code,
-    });
-    setCollectNote(null);
-  };
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const knobSetup = useMemo(() => knobSetupFromCode(pattern.code), [pattern.code]);
@@ -321,17 +295,10 @@ export default function PatternDetailClient({
                 ↗ Send to my Patternflow
               </button>
             )}
-            {/* Two different gestures. Saving is "I might want this", and has
-                no limit. The deck is the short ordered list that becomes one
-                build, so it is capped at what a build holds. */}
-            <button
-              type="button"
-              className={styles.btn}
-              title={isSaved ? "Remove from your saved patterns" : "Save for later — no limit"}
-              onClick={toggleSaved}
-            >
-              {isSaved ? "★ Saved" : "☆ Save"}
-            </button>
+            {/* "Save" used to sit here as a second keeping gesture beside the
+                like. It is gone: the like was already the same intention, kept
+                per-account instead of per-browser, and now has the feed's
+                "Liked" tab to read it back from. */}
             {buildsConfigured() && pattern.codeCpp && (
               <button
                 type="button"

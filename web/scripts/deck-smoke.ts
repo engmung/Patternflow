@@ -84,38 +84,18 @@ async function main() {
   deck.deckMove("nope", 1);
   check("unknown id is a no-op", deck.deckItems().length, 3);
 
-  console.log("\n── saved has no cap ──");
-  deck.savedClear();
-  for (let n = 1; n <= deck.DECK_MAX + 15; n += 1) deck.savedAdd(item(n));
-  check("holds more than a deck", deck.savedItems().length, deck.DECK_MAX + 15);
-  check("newest first", deck.savedItems()[0].patternId, `p${deck.DECK_MAX + 15}`);
-  deck.savedAdd(item(1, "#pragma once // updated"));
-  check("re-saving updates in place", deck.savedItems().length, deck.DECK_MAX + 15);
-
-  console.log("\n── promoting a saved pattern ──");
+  // Saved is gone - the like replaced it, and the feed's "Liked" tab is where
+  // it is read back from. What survives from those tests is the rule that
+  // guarded the boundary between the two lists: a pattern whose author has not
+  // shipped a firmware header cannot enter a deck, because building one would
+  // hand the compiler an empty file.
+  console.log("\n── a deck refuses what cannot be built ──");
   deck.deckClear();
-  deck.savedClear();
-  deck.savedAdd(item(7));
-  check("promotes into the deck", deck.savedToDeck("p7").ok, true);
-  check("and stays saved", deck.savedHas("p7"), true);
-  check("now in the deck too", deck.deckHas("p7"), true);
-  check("unknown id is refused", deck.savedToDeck("nope").ok, false);
-
-  // A pattern can be saved before its author has ported it to firmware. Letting
-  // that into a deck would send an empty file to the compiler.
-  deck.savedAdd(item(8, ""));
-  const noHeader = deck.savedToDeck("p8");
+  const noHeader = deck.deckAdd(item(8, ""));
   check("refuses a pattern with no header", noHeader.ok, false);
-  check("explains why", noHeader.reason?.includes("firmware header"), true);
   check("and it never reaches the deck", deck.deckHas("p8"), false);
-  check("buildable check agrees", deck.savedIsBuildable(item(8, "")), false);
-  check("a real header is buildable", deck.savedIsBuildable(item(9)), true);
-
-  console.log("\n── the two lists are independent ──");
-  deck.deckClear();
-  check("clearing the deck leaves saved alone", deck.savedItems().length > 0, true);
-  deck.savedClear();
-  check("and clearing saved empties it", deck.savedItems().length, 0);
+  check("buildable check agrees", deck.deckIsBuildable(item(8, "")), false);
+  check("a real header is buildable", deck.deckIsBuildable(item(9)), true);
 }
 
 main()
