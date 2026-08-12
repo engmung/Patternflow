@@ -10,6 +10,7 @@ import AuthStatus from "@/components/community/AuthStatus";
 import CommunityNav from "@/components/community/CommunityNav";
 import DeckDock from "@/components/community/DeckDock";
 import DeckPanel from "@/components/community/DeckPanel";
+import FirmwareNotice from "@/components/community/FirmwareNotice";
 import MobileTabBar from "@/components/community/MobileTabBar";
 import styles from "@/components/community/Community.module.css";
 
@@ -66,6 +67,10 @@ export default async function CommunityLayout({ children }: { children: React.Re
   return (
     <main className={styles.page}>
       <div className={styles.inner}>
+        {/* Above the header on purpose. A board owner needs to see this once;
+            putting it below the nav would let it sit under the fold on the
+            page they actually came for. */}
+        <FirmwareNotice />
         <header className={styles.pageHeader}>
           <div className={styles.brandBlock}>
             <Link href="/" className={styles.brand}>
