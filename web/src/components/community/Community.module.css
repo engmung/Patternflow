@@ -2873,6 +2873,79 @@
   pointer-events: none;
 }
 
+/* ── Firmware notice ──────────────────────────────────────────────────────
+   A thin strip above the header. Deliberately quiet: it is news, not an
+   error, and the person reading it came here to look at patterns. It uses
+   the LED accent only on the tag and the link, so it registers without
+   turning the top of every page into a warning. */
+.fwNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(255, 92, 46, 0.28);
+  background: rgba(255, 92, 46, 0.06);
+  font-size: 12.5px;
+}
+
+.fwNoticeTag {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-led);
+  flex: none;
+}
+
+.fwNoticeText {
+  color: var(--pfc-ink-muted);
+  min-width: 0;
+}
+
+.fwNoticeText strong {
+  color: var(--pfc-ink);
+  font-weight: 600;
+}
+
+.fwNoticeLink {
+  color: var(--pfc-led);
+  text-decoration: none;
+  white-space: nowrap;
+  flex: none;
+}
+
+.fwNoticeLink:hover {
+  text-decoration: underline;
+}
+
+.fwNoticeClose {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--pfc-ink-faint);
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  margin-left: auto;
+  flex: none;
+}
+
+.fwNoticeClose:hover {
+  color: var(--pfc-ink);
+}
+
+@media (max-width: 640px) {
+  /* The close button keeps its place; the link drops below the text rather
+     than squeezing it to two words a line. */
+  .fwNoticeText {
+    flex: 1 1 100%;
+    order: 3;
+  }
+}
+
 /* ── Share panel ──────────────────────────────────────────────────────────
    The link is shown, not just copied: a button that says "Copied" about an
    address you never saw asks for trust it has not earned, and the field is
