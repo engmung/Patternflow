@@ -37,6 +37,8 @@
 #include "home_index.h"
 #endif
 
+#include "core_send.h"
+
 // Forward declaration: the home page pauses a loaded pattern module the same
 // way the other console pages do (see core_patterns_http.h for why), but this
 // header is included first, so only the declaration is available here. The
@@ -149,21 +151,16 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
   }
 }
 
-// no-store on every console page: the HTML ships inside the firmware, so
-// it changes exactly when the firmware does — a cached copy (or a partial
-// one from a load interrupted by the post-flash reboot) must never stick.
 inline void handleRoot() {
-  httpServer.sendHeader("Cache-Control", "no-store");
   if (PatternflowPatternsHttp::noteConsolePageOpened()) {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  httpServer.send_P(200, "text/html", HOME_INDEX_HTML);
+  PFSend::progmem(httpServer, HOME_INDEX_HTML);
 }
 
 inline void handleAudio() {
-  httpServer.sendHeader("Cache-Control", "no-store");
-  httpServer.send_P(200, "text/html", AUDIO_INDEX_HTML);
+  PFSend::progmem(httpServer, AUDIO_INDEX_HTML);
 }
 
 #endif  // PF_AUDIO_ENABLED

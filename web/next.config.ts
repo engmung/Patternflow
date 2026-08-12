@@ -82,8 +82,47 @@ const nextConfig: NextConfig = {
         // cached copy keeps handing out the previous firmware long after a new
         // one ships. The images themselves live at version-stamped paths and
         // may be cached freely; only this pointer must always be fetched fresh.
+        //
+        // It is also the file a device's own console checks its version
+        // against. That page is served BY the device, from a LAN address, so
+        // the read is cross-origin and needs saying so — without this the
+        // browser blocks it and the "newer firmware exists" banner simply
+        // never appears. The manifest is public release metadata; there is
+        // nothing here to keep from anyone.
         source: "/flash/manifest.json",
-        headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+        headers: [
+          { key: "Cache-Control", value: "no-store, must-revalidate" },
+          { key: "Access-Control-Allow-Origin", value: "*" },
+        ],
+      },
+      {
+        // The release images, read cross-origin by the device's own /update
+        // page during a wireless update: the browser fetches the .bin from
+        // here and POSTs it to the board on the LAN, so the device never
+        // needs TLS (it has nowhere near the heap for a handshake). Paths
+        // carry the version, so they never change under a cached copy.
+        source: "/flash/bin/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        // Pattern packs, read cross-origin by a device's own /patterns page:
+        // the browser fetches the .zip from here, unpacks it, and posts the
+        // modules to the board on the LAN. Same reason as the firmware images
+        // above — the device has nowhere near the heap for a TLS handshake, so
+        // the browser is what reaches the internet.
+        //
+        // Revalidated rather than cached hard, unlike /flash/bin: those paths
+        // carry a version and these do not. A pack sits at a stable address
+        // and is rebuilt in place when its patterns change, which is exactly
+        // the case `immutable` would get wrong.
+        source: "/packs/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
       },
       {
         // Every pattern card boots its own sandboxed iframe from this one

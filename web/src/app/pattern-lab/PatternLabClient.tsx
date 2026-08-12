@@ -29,15 +29,13 @@ import { codeUsesValueField, withRampAnnotation } from "@/lib/patternRamp";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
-import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
-import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
 import { buildStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
-import { isCodeLayer, type CodeLayer } from "@/lib/lab/types";
+import type { CodeLayer } from "@/lib/lab/types";
 import HardwareModal from "./HardwareModal";
 
 import PreviewPanel from "./panels/PreviewPanel";
@@ -206,7 +204,6 @@ export default function PatternLabClient() {
   const [recent, setRecent] = useState<SessionMeta[]>([]);
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
   const [shareCode, setShareCode] = useState<string | null>(null);
-  const [firmwarePrompt, setFirmwarePrompt] = useState<string | null>(null);
   const [hardwareOpen, setHardwareOpen] = useState(false);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -232,6 +232,19 @@ export const decks = sqliteTable(
     description: text("description"),
     /** "public" | "private" — same two states as patterns. */
     visibility: text("visibility").notNull().default("private"),
+    /**
+     * The deck's downloadable pack, cached.
+     *
+     * A deck's whole point is being handed to someone else, and the honest
+     * form of that is a `.zip` of `.pfm` + `.json` + `catalog.txt` you drop
+     * on a device's /patterns page. Building one costs a compile, so it is
+     * built once and reused: `zipBuildId` points at the builds row holding
+     * the artifact, and `zipFingerprint` records WHICH running order it was
+     * built from. Reorder or swap a pattern and the fingerprint stops
+     * matching, which is the invalidation — no cache-busting, no TTL.
+     */
+    zipBuildId: text("zip_build_id"),
+    zipFingerprint: text("zip_fingerprint"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },

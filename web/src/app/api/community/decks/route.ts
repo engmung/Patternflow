@@ -2,7 +2,7 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
-import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
+import { DECK_MAX, PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
 import { notifyDeckInclusion } from "@/lib/community/notify";
 import { countPublicDecksByUser, getPatternsForDeck, newId } from "@/lib/community/queries";
@@ -68,7 +68,7 @@ async function handlePost(request: Request) {
   const patternIds = cleanPatternIds(raw.patternIds);
   if (!patternIds) {
     return Response.json(
-      { error: "A deck is 1 to 10 patterns, in order, with no duplicates." },
+      { error: `A deck is 1 to ${DECK_MAX} patterns, in order, with no duplicates.` },
       { status: 400 },
     );
   }

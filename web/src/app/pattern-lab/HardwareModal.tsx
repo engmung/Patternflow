@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
-import BuildFirmwareModal from "@/components/community/BuildFirmwareModal";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import PublishModal from "@/components/community/PublishModal";
 import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
@@ -13,12 +12,11 @@ import styles from "./PatternLab.module.css";
 
 // Getting a composition onto hardware, in the order the work actually happens.
 //
-// The old "Build firmware" button jumped straight to a build and left the
-// conversion as a thing you discovered you needed. But nothing can happen
-// until the JavaScript is a C++ header: the firmware compiles C++, a .pfm is
-// compiled C++, and the community's "hardware ready" badge means a header
-// exists. So conversion is step one for everything, and the three things you
-// might do with a header are offered together once you have one.
+// Conversion is step one for everything, and used to be the step people
+// discovered they needed. Nothing can happen until the JavaScript is a C++
+// header: a .pfm is compiled C++, and the community's "hardware ready" badge
+// means a header exists. So conversion comes first, and what you can do with
+// a header is offered once you have one.
 //
 // The conversion itself is unavoidably manual — translating a pattern is a
 // model's job, not a regex's. One layer gets one prompt; a stack gets the
@@ -49,7 +47,6 @@ export default function HardwareModal({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("convert");
 
-  const [buildOpen, setBuildOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   const [publishCode, setPublishCode] = useState<string | null>(null);
 
@@ -255,15 +252,6 @@ export default function HardwareModal({
                     ↗ Apply to my Patternflow
                   </button>
                 )}
-                {buildsConfigured() && (
-                  <button
-                    type="button"
-                    title="Compile a whole firmware image with this pattern and flash it over USB"
-                    onClick={() => setBuildOpen(true)}
-                  >
-                    ⚡ Build firmware
-                  </button>
-                )}
               </div>
 
               {communityConfigured() && (
@@ -294,14 +282,6 @@ export default function HardwareModal({
           )}
         </div>
       </div>
-
-      {buildOpen && (
-        <BuildFirmwareModal
-          initialHeader={assembled}
-          patternLabel={label}
-          onClose={() => setBuildOpen(false)}
-        />
-      )}
 
       {sendOpen && (
         <SendModuleModal

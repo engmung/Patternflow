@@ -31,7 +31,7 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   /* patternflow.work design system tokens (web/docs/patternflow-styleguide.html):
      cream + ink + LED accent. --accent doubles as the alert color; healthy
      states read as ink, meters and attention states as the LED orange. */
-  :root{--bg:#F4EFE6;--card:#ffffff;--card2:#EDE7DB;--fg:#141414;--mut:#6B655A;--faint:#A69F90;--ln:#D9D1C0;--accent:#E8552E;--bad:#E8552E;--bar:#E5DDC9;--bar-on:#E8552E}
+  :root{--bg:#0C0B09;--card:#131110;--card2:#1B1914;--fg:#EDE7DB;--mut:#8A8272;--faint:#5A5546;--ln:#242118;--accent:#FF5C2E;--bad:#FF5C2E;--bar:#1B1914;--bar-on:#FF5C2E}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;-webkit-font-smoothing:antialiased;padding:20px;max-width:720px;margin:0 auto}
   h1{font-size:11px;letter-spacing:.4em;opacity:.6;font-weight:normal;margin:0 0 4px}
@@ -83,7 +83,7 @@ font-family:inherit;font-size:11px;letter-spacing:.04em}
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
 <div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
 <div id="status" class="bad">DISCONNECTED</div>
 

@@ -141,7 +141,7 @@ Please:
 
 Six names, **four distinct behaviours** — verified in the library's `shiftDriver()`. `FM6126A`, `FM6124` and `ICN2038S` dispatch to one identical function with no per-chip branch, so picking between those three changes nothing.
 
-The **browser flasher** ships `PANEL_STANDARD`, since one image serves everyone. A panel that genuinely needs another profile needs one custom build — Arduino IDE, or Pattern Lab's **Build firmware** ([`firmware/README.md`](../firmware/README.md)).
+The **browser flasher** ships `PANEL_STANDARD`, since one image serves everyone. `PANEL_PROFILE` is a compile-time setting, so a panel that genuinely needs another profile needs a local build — Arduino IDE, following [`firmware/README.md`](../firmware/README.md). (Loadable modules cannot help here: they carry patterns, not driver configuration.)
 
 ## 7. Reading the chip off a board you own
 

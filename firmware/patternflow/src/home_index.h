@@ -1,17 +1,26 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - Device web console home (PROGMEM HTML bundle)
 //
-// Served at http://patternflow.local/ by core_audio_ws.h. A landing page
-// with one ghost-numeral row per device feature:
-//   01  AUDIO SYNC       → /audio   (audio_index.h)
-//   02  FIRMWARE UPDATE  → /update  (web_update_index.h)
-//   03  REMOTE COMPUTE   — placeholder, external computing link planned
+// Served at http://patternflow.local/ by core_audio_ws.h. A live status line
+// (pattern, fps, heap, signal — one small JSON poll) above the feature rows,
+// grouped by what they are for:
 //
-// Styled to the patternflow.work design system (web/docs/
-// patternflow-styleguide.html): cream + ink + one LED accent, thin rules,
-// Pretendard wordmark, JetBrains Mono kickers, pf-row ghost numerals.
-// Webfonts load from Google/jsDelivr exactly like the styleguide; on an
-// offline LAN the system font stacks take over and nothing breaks.
+//   PATTERNS      01  the library            → /patterns
+//   SETUP         02  Wi-Fi, 03 MQTT         → /wifi, /mqtt
+//   DEVICE        04  update, 05 status      → /update, /status
+//   EXPERIMENTAL  06  audio sync             → /audio
+//
+// The look is the device's own, not the marketing site's: near-black,
+// cream type, the LED orange doing the accent work — the console is opened
+// next to a glowing panel in a dark room, and a live LED frame reads right
+// on black in a way it never did on paper cream. patternflow.work stays
+// paper; the instrument is dark.
+//
+// The update banner is the browser's doing: it fetches the public flasher
+// manifest over HTTPS and compares against this device's version. The
+// device never talks to the internet — same ferrying trick as the community
+// installer — so the check costs the firmware nothing. Silently absent when
+// the site is unreachable (offline LAN) or CORS says no.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -23,50 +32,86 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230C0B09'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%23FF5C2E'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  @font-face{font-family:'Pretendard';font-weight:400;font-style:normal;font-display:swap;
-    src:url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2') format('woff2')}
   @font-face{font-family:'Pretendard';font-weight:700;font-style:normal;font-display:swap;
     src:url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2')}
-  :root{--cream:#F4EFE6;--cream2:#EDE7DB;--ink:#141414;--muted:#6B655A;--faint:#A69F90;--ghost:#C9C2B0;--rule:#D9D1C0;--led:#E8552E;
-        --sans:'Inter','Pretendard',ui-sans-serif,system-ui,sans-serif;
+  :root{--bg:#0C0B09;--panel:#131110;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
+        --ghost:#221F18;--rule:#242118;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
+        --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
         --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
         --pretendard:'Pretendard',ui-sans-serif,system-ui,sans-serif}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{min-height:100vh;background:var(--cream);color:var(--ink);
-       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;
-       display:flex;align-items:center;justify-content:center;padding:72px 24px}
+  body{min-height:100vh;background:var(--bg);color:var(--ink);
+       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
+       display:flex;justify-content:center;padding:64px 24px}
   .version-tag{position:fixed;top:24px;left:32px;z-index:40;font-family:var(--mono);font-size:10px;
        letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none}
   .version-tag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--led);
        margin-right:8px;vertical-align:1px;box-shadow:0 0 6px var(--led)}
-  .panel{width:100%;max-width:560px;background:#ffffff;padding:56px 48px 44px}
-  h1{font-family:var(--pretendard);font-size:44px;font-weight:700;letter-spacing:-.035em;line-height:1;margin-bottom:10px}
-  .kicker{font-family:var(--pretendard);font-size:20px;font-weight:400;letter-spacing:-.015em;margin-bottom:44px}
+  .panel{width:100%;max-width:560px}
+  h1{font-family:var(--pretendard);font-size:40px;font-weight:700;letter-spacing:-.035em;line-height:1;margin-bottom:8px}
+  .kicker{font-size:17px;font-weight:300;color:var(--muted);letter-spacing:-.01em;margin-bottom:34px}
+
+  /* ── Device card (one small status poll — the device never streams pixels) ── */
+  .screen{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 6px}
+  .now-k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .now{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:7px 0 3px;min-height:29px;overflow-wrap:anywhere}
+  .now-sub{font-family:var(--mono);font-size:11px;color:var(--muted);min-height:15px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:16px}
+  .stat{padding:10px 0 9px;border-top:1px solid var(--rule)}
+  .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .stat .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);margin-top:4px;
+       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .stat .bar{height:3px;background:var(--ghost);margin-top:7px}
+  .stat .bar i{display:block;height:100%;width:0;background:var(--led);transition:width .3s}
+
+  /* ── Update banner (hidden until the browser proves it) ───── */
+  #upd{display:none;margin-top:14px;border:1px solid var(--led);padding:11px 14px;
+       font-size:13px;color:var(--ink);text-decoration:none;
+       display:none;align-items:baseline;gap:10px}
+  #upd .tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--led);
+       text-transform:uppercase;white-space:nowrap}
+  #upd:hover{background:rgba(255,92,46,.06)}
+  #upd .go{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+
+  /* ── Feature rows ─────────────────────────────────────────── */
+  .rows{margin-top:36px}
   .pf-kicker{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-       color:var(--muted);margin-bottom:6px}
-  .pf-row{display:block;position:relative;padding:18px 96px 18px 0;border-bottom:1px solid var(--rule);
+       color:var(--faint);margin-bottom:6px}
+  .pf-kicker + nav{margin-bottom:28px}
+  nav{border-top:1px solid var(--rule)}
+  nav:last-of-type{margin-bottom:0}
+  .pf-row{display:block;position:relative;padding:16px 92px 16px 0;border-bottom:1px solid var(--rule);
        color:var(--muted);text-decoration:none;overflow:hidden;transition:color .15s ease}
-  .pf-row:first-of-type{border-top:1px solid var(--rule)}
   a.pf-row:hover{color:var(--ink)}
-  a.pf-row:hover .pf-ghost{color:var(--ink)}
+  a.pf-row:hover .pf-ghost{color:var(--muted)}
   .pf-ghost{position:absolute;right:-2px;top:50%;transform:translateY(-50%);color:var(--ghost);
-       font-size:56px;font-weight:300;letter-spacing:-.04em;line-height:1;pointer-events:none;transition:color .15s ease}
-  .pf-row-t{font-size:18px;font-weight:500;letter-spacing:-.01em;line-height:1.3;color:inherit}
-  .pf-row-d{max-width:34ch;margin-top:3px;color:var(--muted);font-size:14px;line-height:1.45}
+       font-size:52px;font-weight:300;letter-spacing:-.04em;line-height:1;pointer-events:none;transition:color .15s ease}
+  .pf-row-t{font-size:17px;font-weight:500;letter-spacing:-.01em;line-height:1.3;color:var(--ink)}
+  .pf-row.soon .pf-row-t{color:var(--muted)}
+  .pf-row-d{max-width:36ch;margin-top:3px;color:var(--muted);font-size:13px;line-height:1.45}
   .pf-row.soon,.pf-row.soon .pf-row-d{color:var(--faint)}
   .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
        border:1px solid var(--faint);color:var(--muted);padding:3px 8px 2px;margin-left:10px;vertical-align:2px}
-  footer{margin-top:36px;display:flex;justify-content:space-between;gap:16px;
+  footer{margin-top:34px;display:flex;justify-content:space-between;gap:16px;
        font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   footer a{color:var(--muted);text-decoration:none}
-  footer a:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
-  @media(max-width:560px){body{padding:56px 16px}.panel{padding:40px 24px 36px}
-       h1{font-size:36px}.kicker{font-size:18px;margin-bottom:36px}
-       .pf-ghost{font-size:44px}.pf-row{padding-right:72px}}
+  footer a:hover{color:var(--ink)}
+  @media(max-width:560px){body{padding:52px 14px}
+       h1{font-size:33px}.kicker{font-size:16px;margin-bottom:28px}
+       .pf-ghost{font-size:42px}.pf-row{padding-right:70px}
+       .version-tag{position:absolute;top:18px;left:18px}}
+  /* Desktop: the whole console on one screen — panel pinned left, rows
+     right — instead of a phone column floating in empty space. */
+  @media(min-width:960px){
+       .panel{max-width:1120px}
+       .grid{display:grid;grid-template-columns:500px minmax(0,1fr);gap:60px;align-items:start}
+       .left{position:sticky;top:44px}
+       .rows{margin-top:0}}
 </style></head><body>
 
 <div class="version-tag"><span class="dot"></span>device &middot; <span id="ver">console</span></div>
@@ -75,48 +120,149 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   <h1>Patternflow</h1>
   <div class="kicker">Device console.</div>
 
-  <span class="pf-kicker">Console</span>
+  <div class="grid">
+  <div class="left">
+  <div class="screen">
+    <span class="now-k">Now playing</span>
+    <div class="now" id="now">&mdash;</div>
+    <div class="now-sub" id="nowsub"></div>
+    <div class="stats">
+      <div class="stat"><span class="k">Patterns</span><div class="v" id="s-pat">&mdash;</div></div>
+      <div class="stat"><span class="k">Storage</span><div class="v" id="s-fs">&mdash;</div>
+        <div class="bar"><i id="s-fsbar"></i></div></div>
+      <div class="stat"><span class="k">Wi-Fi</span><div class="v" id="s-wifi">&mdash;</div></div>
+      <div class="stat"><span class="k">Address</span><div class="v" id="s-ip">&mdash;</div></div>
+      <div class="stat"><span class="k">Memory</span><div class="v" id="s-heap">&mdash;</div></div>
+      <div class="stat"><span class="k">MQTT</span><div class="v" id="s-mqtt">&mdash;</div></div>
+      <div class="stat"><span class="k">Uptime</span><div class="v" id="s-up">&mdash;</div></div>
+      <div class="stat"><span class="k">Firmware</span><div class="v" id="s-fw">&mdash;</div></div>
+    </div>
+  </div>
+
+  <!-- Points at the SITE, not this device's own /update: that page reads the
+       release manifest and hands the new image to this board over Wi-Fi, so
+       there is no .bin to find and nothing to download by hand. -->
+  <a id="upd" href="https://patternflow.work/update" target="_blank" rel="noopener">
+    <span class="tag">update</span>
+    <span id="updtext"></span><span class="go">how to update &rarr;</span></a>
+  </div>
+
+  <div class="rows">
+  <span class="pf-kicker">Patterns</span>
   <nav>
     <a class="pf-row" href="/patterns">
       <span class="pf-ghost">01</span>
-      <div class="pf-row-t">Patterns</div>
-      <div class="pf-row-d">Drop in a pattern module &mdash; it appears in the list without reflashing.</div>
+      <div class="pf-row-t">Pattern library</div>
+      <div class="pf-row-d">Drop in a <b>.pfm</b> module or a whole <b>.zip</b> pack &mdash; play, arrange, delete.</div>
     </a>
-    <a class="pf-row" href="/audio">
-      <span class="pf-ghost">02</span>
-      <div class="pf-row-t">Audio sync</div>
-      <div class="pf-row-d">Stream music from this browser &mdash; four FFT bands drive the four knobs.</div>
-    </a>
-    <a class="pf-row" href="/status">
-      <span class="pf-ghost">03</span>
-      <div class="pf-row-t">Status</div>
-      <div class="pf-row-d">Frame rate, memory, storage and network &mdash; what the device is actually doing.</div>
-    </a>
+  </nav>
+
+  <span class="pf-kicker">Setup</span>
+  <nav>
     <a class="pf-row" href="/wifi">
-      <span class="pf-ghost">04</span>
+      <span class="pf-ghost">02</span>
       <div class="pf-row-t">Wi-Fi</div>
       <div class="pf-row-d">Remember several networks &mdash; the device joins whichever one it finds.</div>
     </a>
-    <a class="pf-row" href="/update">
-      <span class="pf-ghost">05</span>
-      <div class="pf-row-t">Firmware update</div>
-      <div class="pf-row-d">Drop a .bin &mdash; the device flashes itself over the LAN and reboots.</div>
+    <a class="pf-row" href="/mqtt">
+      <span class="pf-ghost">03</span>
+      <div class="pf-row-t">MQTT</div>
+      <div class="pf-row-d">Mirror one panel onto another, or hand the knobs to home automation.</div>
     </a>
-    <div class="pf-row soon">
-      <span class="pf-ghost">06</span>
-      <div class="pf-row-t">Remote compute<span class="tag">Soon</span></div>
-      <div class="pf-row-d">Link an external computer to drive patterns with more horsepower.</div>
-    </div>
   </nav>
+
+  <span class="pf-kicker">Device</span>
+  <nav>
+    <a class="pf-row" href="/update">
+      <span class="pf-ghost">04</span>
+      <div class="pf-row-t">Firmware update</div>
+      <div class="pf-row-d">Drop a .bin &mdash; the device flashes itself over the LAN and reboots. Patterns and Wi-Fi are untouched.</div>
+    </a>
+    <a class="pf-row" href="/status">
+      <span class="pf-ghost">05</span>
+      <div class="pf-row-t">Status</div>
+      <div class="pf-row-d">Frame rate, memory, storage and network &mdash; what the device is actually doing.</div>
+    </a>
+  </nav>
+
+  <span class="pf-kicker">Experimental</span>
+  <nav>
+    <a class="pf-row" href="/audio">
+      <span class="pf-ghost">06</span>
+      <div class="pf-row-t">Audio sync<span class="tag">Early</span></div>
+      <div class="pf-row-d">Stream music from this browser &mdash; four FFT bands drive the four knobs. Rough, and due a rework.</div>
+    </a>
+  </nav>
+  </div>
+  </div>
 
   <footer><span id="host"></span><a href="https://patternflow.work" target="_blank" rel="noopener">patternflow.work</a></footer>
 </main>
 
 <script>
-document.getElementById('host').textContent=location.hostname;
-fetch('/update/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
-  if(s.version)document.getElementById('ver').textContent='v'+s.version;
-}).catch(function(){});
+function $(i){return document.getElementById(i)}
+$('host').textContent=location.hostname;
+
+// ── Device card ───────────────────────────────────────────────
+// One status JSON, ~1.7 KB every 3 s — everything on the card comes out of
+// it. The device streams no pixels: a frame-preview endpoint existed for one
+// day and captured the render loop — see the note in core_patterns_http.h.
+function dur(s){
+  var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
+  if(d)return d+'d '+h+'h';if(h)return h+'h '+m+'m';
+  if(m)return m+'m';return s+'s';
+}
+function tick(){
+  if(document.hidden)return;
+  fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
+    if(s.version)$('ver').textContent='v'+s.version;
+    // While this page is open the pattern is deliberately paused (the
+    // console borrows its RAM) — say so instead of showing a make-believe
+    // frame rate from the paused loop.
+    if(s.consolePaused){
+      $('now').textContent='Paused';
+      $('nowsub').textContent='resumes when you close the console';
+    }else{
+      $('now').textContent=s.active||'—';
+      $('nowsub').textContent=(s.frameUs?Math.round(1e6/s.frameUs)+' fps · ':'')+
+        (s.activeIsModule?'module':'built in');
+    }
+    $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
+    if(s.fsMounted){
+      $('s-fs').textContent=Math.round((s.fsTotal-s.fsUsed)/1048576*10)/10+' MB free';
+      $('s-fsbar').style.width=(s.fsTotal?s.fsUsed/s.fsTotal*100:0)+'%';
+    }else{$('s-fs').textContent='not mounted'}
+    $('s-wifi').textContent=s.wifi?(s.ssid+' · '+s.rssi+' dBm'):'offline';
+    $('s-ip').textContent=s.wifi?s.ip:'—';
+    $('s-heap').textContent=Math.round(s.heapInternal/1024)+'K + '+
+      Math.round(s.heapPsram/1048576)+'M psram';
+    $('s-mqtt').textContent=(s.mqttRole&&s.mqttRole!=='off')?
+      (s.mqttRole+' · '+s.mqttState):'off';
+    $('s-up').textContent=dur(s.uptime);
+    $('s-fw').textContent='v'+s.version;
+    checkUpdate(s.version);
+  }).catch(function(){$('nowsub').textContent='cannot reach device'});
+}
+
+// ── Update check (runs in the browser, never on the device) ───
+var updChecked=false;
+function checkUpdate(deviceVersion){
+  if(updChecked||!deviceVersion)return;
+  updChecked=true;
+  fetch('https://patternflow.work/flash/manifest.json',{cache:'no-store'})
+    .then(function(r){if(!r.ok)throw 0;return r.json()})
+    .then(function(m){
+      var latest=String(m.version||'').replace(/^v/,'');
+      if(latest&&latest!==deviceVersion){
+        $('updtext').textContent='v'+latest+' is out — this device runs v'+deviceVersion+'.';
+        $('upd').style.display='flex';
+      }
+    }).catch(function(){/* offline LAN or no CORS — say nothing */});
+}
+
+tick();
+setInterval(tick,3000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
 </script>
 </body></html>
 )HTML";

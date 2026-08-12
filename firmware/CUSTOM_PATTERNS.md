@@ -52,13 +52,13 @@ When you're happy with how it looks:
 2. Paste into your AI assistant again. It returns C++ in Patternflow's namespace format.
 3. Put it on the device. **Two routes, same result** — pick either:
 
-#### Route A — from the browser (nothing to install)
+#### Route A — from the browser (nothing to install, no cable)
 
-In **Pattern Lab**, press **Build firmware**, paste the C++ your assistant returned, and press build. A server compiles a complete firmware image with your pattern in it — about fifteen seconds — and the browser writes it to the board over USB.
+In **Pattern Lab**, press **To hardware**, paste the C++ your assistant returned, then press **Apply to my Patternflow**. A server compiles just that pattern into a loadable module (`.pfm`, a few KB, about half a second) and your browser hands it to the board over Wi-Fi. It appears in the pattern list immediately — no reflash, no reboot, no USB.
 
-No Arduino IDE, no board package, no editing `pattern_registry.h`: the registry entry is generated from the namespace in your header. A community pattern already marked `.h` skips steps 1–2 entirely and offers **Flash to my board**.
+No Arduino IDE, no board package, no editing `pattern_registry.h`. A community pattern already marked `.h` skips steps 1–2 entirely and offers **Send to my Patternflow**.
 
-Requirements: desktop **Chrome or Edge** (browser flashing needs Web Serial, which Firefox and Safari do not implement) and a USB cable. Wireless updates are [planned but not built](../../issues/232).
+Requirements: the device powered on and on the same Wi-Fi as your computer. (Baking a pattern into a whole firmware image used to be the route here; it took fifteen seconds and a cable to do what this does in one, and it is gone. Updating the firmware itself is now its own flow — the device's console tells you when a release is newer and links to [patternflow.work/update](https://patternflow.work/update).)
 
 If the build fails you get the compiler's own error. The usual causes are a helper the firmware already provides being redefined, or a type that differs from the JavaScript original.
 

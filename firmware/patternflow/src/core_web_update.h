@@ -46,6 +46,7 @@
 #include <Update.h>
 #include <ESPmDNS.h>
 #include <esp_ota_ops.h>
+#include "core_send.h"
 #include "web_update_index.h"
 #if PF_AUDIO_ENABLED
 #include "core_audio_ws.h"
@@ -259,10 +260,7 @@ inline void begin() {
   MDNS.addService("http", "tcp", HTTP_PORT);
 
   server().on("/update", HTTP_GET, []() {
-    // no-store: the page ships inside the firmware and changes with it; a
-    // cached (or reboot-truncated) copy must never stick in the browser.
-    server().sendHeader("Cache-Control", "no-store");
-    server().send_P(200, "text/html", WEB_UPDATE_HTML);
+    PFSend::progmem(server(), WEB_UPDATE_HTML);
   });
   server().on("/update", HTTP_POST, handleUploadDone, handleUpload);
   server().on("/update/status", HTTP_GET, handleStatus);

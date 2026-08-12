@@ -1,10 +1,10 @@
 // Two collections, not one.
 //
 // This started as a single "cart" capped at ten, which conflated two different
-// things because they happened to share a button. Ten is a *build* limit
+// things because they happened to share a button. The cap is a *build* limit
 // (MAX_MODULE_PATTERNS_PER_BUILD) and has nothing to do with how many patterns
 // somebody wants to keep. Telling a person they may only like ten things is
-// absurd; telling them a firmware build fits ten is a fact about firmware.
+// absurd; telling them how many a build carries is a fact about the builder.
 //
 //   Saved — unbounded, unordered. The "I might want this" gesture. A pin.
 //   Deck  — capped, ORDERED, and buildable. What goes on the board tonight.
@@ -39,8 +39,14 @@ export type CollectedPattern = {
   js?: string;
 };
 
-/** Mirrors MAX_MODULE_PATTERNS_PER_BUILD on the build API. */
-export const DECK_MAX = 10;
+/**
+ * Patterns in one deck. Mirrors MAX_MODULE_PATTERNS_PER_BUILD on the build
+ * API — the two must move together or a deck fills past what it can build.
+ *
+ * Not a device limit: the firmware holds 128 modules. This is how much work
+ * one build job takes on, at roughly half a second per pattern.
+ */
+export const DECK_MAX = 20;
 
 /**
  * How many PUBLIC decks one account may share at once.

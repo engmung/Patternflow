@@ -30,7 +30,7 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{--cream:#F4EFE6;--cream2:#EDE7DB;--ink:#141414;--muted:#6B655A;--faint:#A69F90;--rule:#D9D1C0;--rule-soft:#E5DDC9;--led:#E8552E;
+  :root{--cream:#0C0B09;--cream2:#1B1914;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;
         --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
         --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -41,7 +41,7 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
        letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none}
   .version-tag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--led);
        margin-right:8px;vertical-align:1px;box-shadow:0 0 6px var(--led)}
-  .panel{width:100%;max-width:560px;background:#ffffff;padding:48px 48px 44px}
+  .panel{width:100%;max-width:560px;background:#131110;padding:48px 48px 44px}
   .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:36px}
   .back{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
        color:var(--muted);text-decoration:none}
@@ -94,7 +94,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 
 <main class="panel">
   <div class="top">
-    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/update" class="here">Update</a></nav>
+    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update" class="here">Update</a></nav>
     <span id="pill">&hellip;</span>
   </div>
 
