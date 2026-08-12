@@ -30,6 +30,7 @@
 #include <Arduino.h>
 #include "core_display.h"   // brings in the panel type
 #include <Fonts/TomThumb.h>
+#include <Fonts/Org_01.h>
 
 // Owned by the sketch.
 extern MatrixPanel_I2S_DMA* dma_display;
@@ -40,6 +41,8 @@ namespace PatternflowUiText {
 // from touching. The built-in font is 7 px tall; TomThumb is 6.
 constexpr int NAME_PITCH = 9;
 constexpr int CHROME_PITCH = 7;
+// Org_01 is 8 px tall and sits tight; 9 keeps stacked lines apart.
+constexpr int MESSAGE_PITCH = 9;
 // Three lines is 27 px — about a fifth of the portrait screen, which is as
 // much as the SELECT overlay can give up without burying the live preview it
 // exists to show. At ~10 characters a line that is 30 characters, more than
@@ -51,6 +54,14 @@ constexpr size_t LINE_BUF = 48;
 // The stock 5x7. Legibility beats density here: see the note at the top.
 inline void useNameFont() {
   dma_display->setFont();
+  dma_display->setTextSize(1);
+}
+
+// Org_01 — about twice the characters per line. Only the message banner
+// uses it; see drawWrappedMessage for why that is not a contradiction of the
+// note at the top of this file.
+inline void useMessageFont() {
+  dma_display->setFont(&Org_01);
   dma_display->setTextSize(1);
 }
 
@@ -95,15 +106,16 @@ inline void drawChromeLine(const char* text, int yTop, uint16_t color) {
 //
 // A single word too wide to fit is drawn in the chrome font instead of being
 // clipped: smaller and still readable beats half a word.
-inline int drawWrappedName(const char* name, int yMiddle, uint16_t color) {
+inline int drawWrapped(void (*chooseFont)(), int pitch, const char* name,
+                       int yMiddle, uint16_t color) {
   const int maxW = dma_display->width() - 4;
   int16_t x1, y1;
   uint16_t w, h;
 
-  boundsWith(useNameFont, name, &x1, &y1, &w, &h);
+  boundsWith(chooseFont, name, &x1, &y1, &w, &h);
   if ((int)w <= maxW) {
-    drawLine(useNameFont, name, yMiddle - NAME_PITCH / 2, color);
-    return NAME_PITCH;
+    drawLine(chooseFont, name, yMiddle - pitch / 2, color);
+    return pitch;
   }
 
   char buf[NAME_BUF];
@@ -128,7 +140,7 @@ inline int drawWrappedName(const char* name, int yMiddle, uint16_t color) {
       if (*p == ' ') lastSpace = p;
       char saved = p[1];
       p[1] = '\0';
-      boundsWith(useNameFont, lineStart, &x1, &y1, &w, &h);
+      boundsWith(chooseFont, lineStart, &x1, &y1, &w, &h);
       p[1] = saved;
       if ((int)w > maxW) break;
       p++;
@@ -148,12 +160,33 @@ inline int drawWrappedName(const char* name, int yMiddle, uint16_t color) {
     cursor = (*cut == ' ') ? cut + 1 : cut;
   }
 
-  int blockH = nLines * NAME_PITCH;
+  int blockH = nLines * pitch;
   int startY = yMiddle - blockH / 2;
   for (int i = 0; i < nLines; i++) {
-    drawLine(useNameFont, lines[i], startY + i * NAME_PITCH, color);
+    drawLine(chooseFont, lines[i], startY + i * pitch, color);
   }
   return blockH;
+}
+
+/** Pattern names and OS text: the stock 5x7, chosen for legibility. */
+inline int drawWrappedName(const char* name, int yMiddle, uint16_t color) {
+  return drawWrapped(useNameFont, NAME_PITCH, name, yMiddle, color);
+}
+
+/**
+ * A banner from <prefix>/message, in Org_01.
+ *
+ * The denser font, deliberately, and only here. A pattern name is one or two
+ * words you glance at and must recognise, which is why the SELECT screen
+ * stayed on the stock 5x7 after Org_01 was tried and found to blur at this
+ * pixel pitch. A message is a sentence somebody wrote to be read, so fitting
+ * it wins over per-character crispness — "Dinner is ready" at ~20 characters
+ * a line is one line here and three in the stock font.
+ *
+ * @SimonePDA asked for this font for exactly that reason.
+ */
+inline int drawWrappedMessage(const char* text, int yMiddle, uint16_t color) {
+  return drawWrapped(useMessageFont, MESSAGE_PITCH, text, yMiddle, color);
 }
 
 }  // namespace PatternflowUiText

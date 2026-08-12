@@ -54,11 +54,30 @@ inline void persistRole(PatternflowMqtt::Role role) {
   prefs.end();
 }
 
+// Escaped, because not every value here is ours any more. The banner text
+// arrives from whoever can publish to <prefix>/message, and a single quote
+// character in it would otherwise end the string early and hand the console a
+// JSON parse error — which looks like the device being broken rather than
+// somebody having typed an apostrophe. Pattern names get the same treatment;
+// they come from a community and nothing stops one containing a quote.
 inline void appendJsonString(String& json, const char* key, const char* value) {
   json += "\"";
   json += key;
   json += "\":\"";
-  json += value ? value : "";
+  for (const char* p = value; p && *p; ++p) {
+    const unsigned char c = (unsigned char)*p;
+    if (c == '"' || c == '\\') {
+      json += '\\';
+      json += (char)c;
+    } else if (c < 0x20) {
+      // Control characters are not legal raw in a JSON string. None of them
+      // mean anything on a 64px panel, so they become spaces rather than
+      // \u00xx escapes nobody will read.
+      json += ' ';
+    } else {
+      json += (char)c;
+    }
+  }
   json += "\",";
 }
 
@@ -74,6 +93,7 @@ inline void sendStatus(int code) {
   appendJsonString(json, "user", PatternflowMqtt::user());
   appendJsonString(json, "prefix", PatternflowMqtt::prefix());
   appendJsonString(json, "pattern", PatternflowMqtt::lastPatternName());
+  appendJsonString(json, "message", PatternflowMqtt::overlayMessage());
   appendJsonString(json, "error", PatternflowMqtt::error());
   json += "\"port\":";
   json += PatternflowMqtt::port();
@@ -87,6 +107,10 @@ inline void sendStatus(int code) {
   // read it, only to replace it.
   json += ",\"hasPassword\":";
   json += PatternflowMqtt::hasPassword() ? "true" : "false";
+  // The banner currently on the panel, so the page can show what a message
+  // did without anyone having to be in the room.
+  json += ",\"messageMs\":";
+  json += PatternflowMqtt::overlayRemainingMs();
   json += ",\"knobs\":[";
   for (int i = 0; i < 4; ++i) {
     if (i) json += ',';

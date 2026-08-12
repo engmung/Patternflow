@@ -106,6 +106,9 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   <p class="note">Pick one panel as publisher and another as subscriber to keep them in sync.
     Values are retained on the broker, so a subscriber that joins late still catches up.
     The choice survives a reboot.</p>
+  <p class="note">Publish to <code id="msgtopic">patternflow/message</code> and the text appears
+    over the running pattern for ten seconds — any connected role, empty payload clears it.
+    On a broker shared with other people, every panel using this prefix sees it.</p>
 </section>
 
 <section>
@@ -141,6 +144,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   <h2>Last values</h2>
   <dl>
     <div class="row"><dt>Pattern</dt><dd id="pat">-</dd></div>
+    <div class="row"><dt>Banner</dt><dd id="banner">-</dd></div>
     <div class="row"><dt>K1</dt><dd id="k1">-</dd></div>
     <div class="row"><dt>K2</dt><dd id="k2">-</dd></div>
     <div class="row"><dt>K3</dt><dd id="k3">-</dd></div>
@@ -182,9 +186,15 @@ function paint(d){
     (d.role==='off'||!d.configured?'':'bad');
   $('unset').style.display=d.configured?'none':'block';
   $('pat').textContent=d.pattern||'-';
+  // Counts down while it is on the panel, so you can tell a banner that just
+  // arrived from one that is about to go.
+  $('banner').textContent=d.messageMs>0
+    ?(d.message||'(blank)')+'  ·  '+Math.ceil(d.messageMs/1000)+'s'
+    :'-';
   var k=d.knobs||[0,0,0,0];
   for(var i=0;i<4;i++)$('k'+(i+1)).textContent=k[i];
-  $('topics').textContent=prefix+'/knob/1..4  ·  '+prefix+'/pattern';
+  $('topics').textContent=prefix+'/knob/1..4  ·  '+prefix+'/pattern  ·  '+prefix+'/message';
+  $('msgtopic').textContent=prefix+'/message';
   ['off','publisher','subscriber'].forEach(function(r){
     var el=$('r-'+r);
     if(el)el.className='role'+(d.role===r?' on':'');

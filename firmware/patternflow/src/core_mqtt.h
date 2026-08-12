@@ -121,6 +121,20 @@ inline char cfgPass[PASS_BYTES] = PF_MQTT_PASS;
 inline char cfgPrefix[PREFIX_BYTES] = PF_MQTT_PREFIX;
 inline uint16_t cfgPort = PF_MQTT_PORT;
 
+// ── Message banner (@SimonePDA) ──────────────────────────────────────────
+//
+// Anything published to <prefix>/message is drawn over the running pattern
+// for a few seconds. Receive-only: a panel never publishes here, so the
+// sender is Home Assistant, a script, or somebody with MQTT Explorer open.
+//
+// Shown per receipt rather than held. A retained payload — which is how you
+// would leave a note for a panel that is currently off — otherwise comes
+// back on every reconnect and every reboot, and a banner you cannot clear by
+// power-cycling is a fault, not a feature.
+constexpr size_t MESSAGE_BYTES = 80;
+inline char overlayText[MESSAGE_BYTES] = {};
+inline uint32_t overlayUntilMs = 0;
+
 inline bool hasBroker() { return cfgHost[0] != '\0'; }
 
 // Back off as failures pile up: a broker that is down stays down, and each
@@ -168,6 +182,16 @@ inline void topicKnob(char* buf, size_t n, int index) {
 
 inline void topicPattern(char* buf, size_t n) {
   snprintf(buf, n, "%s/pattern", cfgPrefix);
+}
+
+inline void topicMessage(char* buf, size_t n) {
+  snprintf(buf, n, "%s/message", cfgPrefix);
+}
+
+inline bool topicIsMessage(const char* topic) {
+  char expected[48];
+  topicMessage(expected, sizeof(expected));
+  return topic && strcmp(topic, expected) == 0;
 }
 
 inline bool topicIsPattern(const char* topic) {
@@ -242,8 +266,42 @@ inline void applyRemotePattern(const char* name) {
   if (index >= 0) pendingPatternIdx = index;
 }
 
+/**
+ * Show a banner, or clear it.
+ *
+ * An empty payload clears — which is also how you retract a retained one, so
+ * "publish empty with retain" both wipes the topic and takes the banner off
+ * every panel watching it.
+ */
+inline void applyRemoteMessage(const char* text) {
+  if (!text || !text[0]) {
+    overlayText[0] = '\0';
+    overlayUntilMs = 0;
+    return;
+  }
+  snprintf(overlayText, sizeof(overlayText), "%s", text);
+  overlayUntilMs = millis() + PF_MQTT_MESSAGE_DURATION_MS;
+}
+
+inline bool overlayActive() {
+  if (!overlayText[0]) return false;
+  // millis() wraps after ~49 days; the subtraction is what makes that safe.
+  if ((int32_t)(millis() - overlayUntilMs) >= 0) {
+    overlayText[0] = '\0';
+    return false;
+  }
+  return true;
+}
+
+inline const char* overlayMessage() { return overlayText; }
+
+/** Milliseconds left on the banner, for the console. */
+inline uint32_t overlayRemainingMs() {
+  if (!overlayActive()) return 0;
+  return overlayUntilMs - millis();
+}
+
 inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
-  if (role != ROLE_SUBSCRIBER) return;
   char body[96];
   unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
   memcpy(body, payload, n);
@@ -251,6 +309,17 @@ inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
   while (n && (body[n - 1] == '\n' || body[n - 1] == '\r' || body[n - 1] == ' ')) {
     body[--n] = '\0';
   }
+
+  // Before the subscriber gate on purpose: a banner is worth having on a
+  // one-panel setup, where the panel is the publisher and Home Assistant is
+  // the only thing talking back. Mirroring knobs is the part that only makes
+  // sense as a subscriber.
+  if (topicIsMessage(topic)) {
+    applyRemoteMessage(body);
+    return;
+  }
+
+  if (role != ROLE_SUBSCRIBER) return;
 
   if (topicIsPattern(topic)) {
     applyRemotePattern(body);
@@ -290,12 +359,29 @@ inline void ensureClientId() {
            (unsigned)((mac >> 24) & 0xFFFFFF));
 }
 
+// Each knob topic by name, rather than one `knob/+` subscription.
+//
+// A wildcard needs the broker to grant the wildcard. An ACL written as the
+// exact list of topics a device may touch — which is how you would lock down
+// a broker shared with strangers, and how @SimonePDA's is configured —
+// refuses `patternflow/knob/+` outright, and the failure is silent: the
+// device connects, reports "connected", and simply never receives a knob.
+// Four subscriptions cost four small packets once per connect.
+inline void subscribeMessage() {
+  char topic[48];
+  topicMessage(topic, sizeof(topic));
+  client.subscribe(topic);
+}
+
 inline void subscribeAll() {
   char topic[48];
-  snprintf(topic, sizeof(topic), "%s/knob/+", cfgPrefix);
-  client.subscribe(topic);
+  for (int i = 0; i < 4; ++i) {
+    topicKnob(topic, sizeof(topic), i);
+    client.subscribe(topic);
+  }
   topicPattern(topic, sizeof(topic));
   client.subscribe(topic);
+  subscribeMessage();
 }
 
 // A literal address costs nothing to "resolve"; a hostname costs a blocking
@@ -370,6 +456,10 @@ inline bool tryConnect() {
     subscribeAll();
   } else if (role == ROLE_PUBLISHER) {
     publishSnapshot();
+    // A publisher subscribes to exactly one thing: banners. It mirrors
+    // nobody's knobs, but there is no reason it should not be able to be
+    // told something.
+    subscribeMessage();
   }
   return true;
 }
