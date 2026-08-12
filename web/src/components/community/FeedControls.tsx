@@ -12,6 +12,9 @@ import styles from "./Community.module.css";
 // not here: that is the Ctrl+scroll zoom, a per-browser preference, and the
 // hint on the right is its only UI.
 
+// "Liked" is a filter rather than an ordering, and it only means anything to
+// someone signed in — so it is the one tab that appears conditionally. It is
+// last because it is about you, not about the wall.
 const SORTS = [
   { id: "new", label: "Newest" },
   { id: "top", label: "Most liked" },
@@ -23,10 +26,13 @@ export default function FeedControls({
   sort,
   hardwareOnly,
   total,
+  signedIn = false,
 }: {
   sort: string;
   hardwareOnly: boolean;
   total?: number;
+  /** Adds the "Liked" tab. Without a viewer there is nothing for it to list. */
+  signedIn?: boolean;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -65,6 +71,16 @@ export default function FeedControls({
             {option.label}
           </Link>
         ))}
+        {signedIn && (
+          <Link
+            href={hrefWith({ sort: "liked" })}
+            data-active={sort === "liked"}
+            scroll={false}
+            title="The patterns you liked — your list, on any device you sign in from"
+          >
+            Liked
+          </Link>
+        )}
       </div>
 
       <span className={styles.controlRule} aria-hidden="true" />

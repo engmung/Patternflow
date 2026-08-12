@@ -12,8 +12,6 @@ import {
   deckItems,
   deckRemove,
   deckReorder,
-  openDeckPanel,
-  savedItems,
   type CollectedPattern,
   type DeckDragPayload,
 } from "@/lib/community/deck";
@@ -36,7 +34,7 @@ import styles from "./Community.module.css";
 // It used to hand off to a dialog for the last of those, which meant pressing
 // a button to be shown the same ten thumbnails again and a second button to
 // actually build. The dialog is now only what the bar genuinely has no room
-// for: the saved list, and a failed build's log.
+// for: a failed build's log.
 //
 // The slots draw their patterns. That took a stored field rather than a
 // request: the deck keeps each pattern's firmware header (what gets built) and
@@ -124,7 +122,6 @@ export default function DeckDock() {
   const { patternsUrl } = useDeviceHost();
 
   const [deck, setDeck] = useState<CollectedPattern[]>([]);
-  const [savedCount, setSavedCount] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmEmpty, setConfirmEmpty] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
@@ -157,7 +154,6 @@ export default function DeckDock() {
   useEffect(() => {
     const sync = () => {
       setDeck(deckItems());
-      setSavedCount(savedItems().length);
     };
     sync();
     window.addEventListener(COLLECTION_EVENT, sync);
@@ -484,18 +480,6 @@ export default function DeckDock() {
             {deck.length} / {DECK_MAX}
           </b>
         </span>
-
-        {/* A list switcher, not an action — so it sits with the label rather
-            than among the buttons at the other end. */}
-        {savedCount > 0 && !running && (
-          <button
-            type="button"
-            className={styles.deckDockLink}
-            onClick={() => openDeckPanel("saved")}
-          >
-            Saved {savedCount}
-          </button>
-        )}
 
         <div className={styles.deckDockSlots} ref={slotsRef}>
           {slots.map((item, index) =>

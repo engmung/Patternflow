@@ -71,7 +71,13 @@ const deckCount = sql<number>`(
  *  redesign makes a deck the thing the community is FOR (a handful of public slots a
  *  person, a curated shelf on the decks page), so the signal is now the
  *  scarcest one on the site and earns its tab. */
-export const FEED_SORTS = ["new", "top", "forks", "decks"] as const;
+/* "liked" is the odd one out: a filter wearing a sort's clothes. It shows only
+ * what the viewer has liked, newest first, and it exists because a like was
+ * write-only — you could press it and never find the pattern again. It replaces
+ * a separate "Saved" list that lived in localStorage, so it was per-browser and
+ * gone the moment you cleared site data. A like was already server-side and
+ * per-account; the list was the only part missing. */
+export const FEED_SORTS = ["new", "top", "forks", "decks", "liked"] as const;
 export type FeedSort = (typeof FEED_SORTS)[number];
 
 export function parseFeedSort(raw: string | undefined): FeedSort {
@@ -137,13 +143,21 @@ export async function listFeed({
   hardwareOnly = false,
   limit = 60,
   offset = 0,
+  viewerId = null,
 }: {
   sort?: FeedSort;
   hardwareOnly?: boolean;
   limit?: number;
   offset?: number;
+  /** Required by `sort: "liked"` — whose likes to list. */
+  viewerId?: string | null;
 } = {}): Promise<FeedItem[]> {
   const db = getDb();
+
+  // A signed-out visitor has no likes, and answering with the whole wall
+  // would be worse than answering with nothing: the tab says "the ones you
+  // liked". Empty is the honest reply.
+  if (sort === "liked" && !viewerId) return [];
   // Every ordering falls back to newest-first so results are stable when the
   // primary key ties (which it does constantly while counts are near zero).
   const order =
@@ -155,11 +169,20 @@ export async function listFeed({
           ? [desc(deckCount), desc(patterns.createdAt)]
           : [desc(patterns.createdAt)];
 
+  // Still subject to feedVisible, like every other listing. Having liked
+  // something is not a standing right to keep reading it: if the author takes
+  // it private afterwards, it leaves your list too. The alternative would turn
+  // a like into a way to hold a copy of work somebody withdrew.
+  const likedByViewer =
+    sort === "liked"
+      ? sql`EXISTS (SELECT 1 FROM ${likes} WHERE ${likes.patternId} = ${patterns.id} AND ${likes.userId} = ${viewerId})`
+      : undefined;
+
   const rows = await db
     .select(feedColumns)
     .from(patterns)
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(and(feedVisible, hardwareOnly ? hardwareReady : undefined))
+    .where(and(feedVisible, likedByViewer, hardwareOnly ? hardwareReady : undefined))
     .orderBy(...order)
     .limit(limit)
     .offset(offset);

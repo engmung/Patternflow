@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import type { Metadata } from "next";
+import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
 import { countFeed, listFeed, parseFeedSort } from "@/lib/community/queries";
 import { toCardItem } from "@/lib/community/serialize";
@@ -38,8 +40,11 @@ export default async function CommunityWallPage(props: {
   const sort = parseFeedSort(rawSort);
   const hardwareOnly = hw === "1";
 
+  const session = await getAuth().api.getSession({ headers: await headers() });
+  const viewerId = session?.user.id ?? null;
+
   const [items, total] = await Promise.all([
-    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT }),
+    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT, viewerId }),
     countFeed(hardwareOnly),
   ]);
 
@@ -50,7 +55,9 @@ export default async function CommunityWallPage(props: {
       items={items.map(toCardItem)}
       sort={sort}
       hardwareOnly={hardwareOnly}
-      total={total}
+      // The liked list is a subset, so the wall's total would overstate it.
+      total={sort === "liked" ? items.length : total}
+      signedIn={viewerId !== null}
     />
   );
 }

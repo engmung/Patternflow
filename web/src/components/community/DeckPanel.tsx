@@ -13,10 +13,6 @@ import {
   deckItems,
   deckMove,
   deckRemove,
-  savedItems,
-  savedIsBuildable,
-  savedRemove,
-  savedToDeck,
   type CollectedPattern,
 } from "@/lib/community/deck";
 import { useDeviceHost } from "@/lib/community/deviceHost";
@@ -25,12 +21,15 @@ import AuthModal from "./AuthModal";
 import ShareDeckModal from "./ShareDeckModal";
 import styles from "./Community.module.css";
 
-// The deck and the saved list, in one panel.
+// The deck, in one panel.
 //
 // A deck is what goes on the board: capped at what one build holds, and
 // ORDERED, because the device cycles patterns in sequence — arranging one is
-// the same decision as ordering a setlist. Saved is everything else you liked,
-// uncapped, waiting to be promoted.
+// the same decision as ordering a setlist.
+//
+// A second list used to live here — Saved, uncapped, everything you might
+// want later. The like already was that gesture and kept it per-account
+// rather than per-browser, so this panel is one list now.
 //
 // Building turns the deck into loadable .pfm modules: ~½ s per pattern, one
 // zip, installed from the device's own /patterns page with no reflash.
@@ -51,8 +50,6 @@ export default function DeckPanel() {
   const { data: session } = authClient.useSession();
 
   const [deck, setDeck] = useState<CollectedPattern[]>([]);
-  const [saved, setSaved] = useState<CollectedPattern[]>([]);
-  const [tab, setTab] = useState<"deck" | "saved">("deck");
   const [open, setOpen] = useState(false);
   const [build, setBuild] = useState<ModuleBuildState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +60,8 @@ export default function DeckPanel() {
   // dialogs would fight over the overlay click.
   const [shareOpen, setShareOpen] = useState(false);
   // Sign-in is asked for at the moment it is needed — building — and never for
-  // looking at your own lists. Saving is a local bookmark; gating the panel on
-  // an account would mean a signed-out visitor cannot see what they saved.
+  // looking at your own deck, which is local to this browser and none of the
+  // server's business until something is built from it.
   const [needsAuth, setNeedsAuth] = useState(false);
 
   const { deviceHost, changeDeviceHost, patternsUrl } = useDeviceHost();
@@ -72,7 +69,6 @@ export default function DeckPanel() {
   useEffect(() => {
     const sync = () => {
       setDeck(deckItems());
-      setSaved(savedItems());
     };
     sync();
     window.addEventListener(COLLECTION_EVENT, sync);
@@ -84,13 +80,10 @@ export default function DeckPanel() {
   }, []);
 
   // The dock along the bottom of the page owns arranging the deck; this panel
-  // owns the two things it cannot do inline — building, and the saved list —
-  // so the dock asks for it by name and says which one it wants.
-  // See DECK_PANEL_EVENT in lib/community/deck.ts.
+  // owns the one thing it cannot do inline — building — so the dock asks for
+  // it by name. See DECK_PANEL_EVENT in lib/community/deck.ts.
   useEffect(() => {
-    const open = (event: Event) => {
-      const wanted = (event as CustomEvent<{ tab?: "deck" | "saved" }>).detail?.tab;
-      if (wanted) setTab(wanted);
+    const open = () => {
       setOpen(true);
     };
     window.addEventListener(DECK_PANEL_EVENT, open);
@@ -187,12 +180,6 @@ export default function DeckPanel() {
     setOpen(false);
   };
 
-  const promote = (patternId: string) => {
-    const result = savedToDeck(patternId);
-    setNote(result.ok ? null : (result.reason ?? null));
-    if (result.ok) setTab("deck");
-  };
-
   // No builds configured (e.g. the Vercel mirror) → nothing here works.
   if (!buildsConfigured()) return null;
 
@@ -204,9 +191,7 @@ export default function DeckPanel() {
       <button
         type="button"
         className={styles.deckChip}
-        title={`Your deck (${deck.length}/${DECK_MAX})${
-          saved.length > 0 ? ` · ${saved.length} saved` : ""
-        }`}
+        title={`Your deck (${deck.length}/${DECK_MAX})`}
         onClick={() => setOpen(true)}
       >
         ▦ {deck.length}/{DECK_MAX}
@@ -312,27 +297,17 @@ export default function DeckPanel() {
               </div>
             ) : (
               <div className={styles.modalBody}>
+                {/* One list now, so the tab strip is a label. Saved lived in
+                    the other tab; the like replaced it. */}
                 <nav className={styles.deckTabs}>
-                  <button
-                    type="button"
-                    data-active={tab === "deck"}
-                    onClick={() => setTab("deck")}
-                  >
+                  <button type="button" data-active disabled>
                     Deck ({deck.length}/{DECK_MAX})
-                  </button>
-                  <button
-                    type="button"
-                    data-active={tab === "saved"}
-                    onClick={() => setTab("saved")}
-                  >
-                    Saved ({saved.length})
                   </button>
                 </nav>
 
                 {note && <div className={styles.formError}>{note}</div>}
 
-                {tab === "deck" ? (
-                  deck.length === 0 ? (
+                {deck.length === 0 ? (
                     <p className={styles.formNote}>
                       Your deck is empty. On any pattern that ships a firmware header, use
                       &ldquo;Add to deck&rdquo; — then build them all as loadable modules in one
@@ -428,44 +403,7 @@ export default function DeckPanel() {
                           {confirmEmpty ? "Press again to empty" : `Empty deck (${deck.length})`}
                         </button>
                       </div>
-                    </>
-                  )
-                ) : saved.length === 0 ? (
-                  <p className={styles.formNote}>
-                    Nothing saved yet. Save anything you might want later — there is no limit
-                    here. The deck is the short list you actually build.
-                  </p>
-                ) : (
-                  <ul className={styles.deckList}>
-                    {saved.map((item) => (
-                      <li key={item.patternId} className={styles.deckRow}>
-                        <Link href={`/community/p/${item.patternId}`} onClick={close}>
-                          {item.title}
-                        </Link>
-                        <span className={styles.headerSpacer} />
-                        <button
-                          type="button"
-                          className={styles.btnSmall}
-                          disabled={!savedIsBuildable(item)}
-                          title={
-                            savedIsBuildable(item)
-                              ? "Add to the deck"
-                              : "No firmware header yet — nothing to build"
-                          }
-                          onClick={() => promote(item.patternId)}
-                        >
-                          → deck
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btnSmall}
-                          onClick={() => savedRemove(item.patternId)}
-                        >
-                          remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  </>
                 )}
               </div>
             )}
