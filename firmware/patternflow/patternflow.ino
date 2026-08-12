@@ -142,6 +142,10 @@ void setup() {
   // device that has never been told otherwise never dials a broker.
   PatternflowMqtt::setRole(
       (PatternflowMqtt::Role)prefs.getUChar("mqtt_role", PatternflowMqtt::ROLE_OFF));
+  // And the broker itself, typed in on the same page. Left at the compiled-in
+  // defaults (empty, unless someone set PF_MQTT_* in their secrets header)
+  // when nothing has been saved.
+  PatternflowMqtt::loadConfig();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
