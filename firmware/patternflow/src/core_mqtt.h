@@ -127,6 +127,11 @@ inline uint16_t cfgPort = PF_MQTT_PORT;
 // for a few seconds. Receive-only: a panel never publishes here, so the
 // sender is Home Assistant, a script, or somebody with MQTT Explorer open.
 //
+// Deliberately a broadcast — every panel on the prefix shows it. There is no
+// per-device topic on purpose: addressing one panel would need a wildcard in
+// the broker's ACL, and a fixed topic list is what keeps a shared broker
+// from becoming somewhere anyone can invent topics.
+//
 // Shown per receipt rather than held. A retained payload — which is how you
 // would leave a note for a panel that is currently off — otherwise comes
 // back on every reconnect and every reboot, and a banner you cannot clear by

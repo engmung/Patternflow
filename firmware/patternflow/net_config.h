@@ -228,9 +228,17 @@
 #define PF_MQTT_MESSAGE_DURATION_MS 10000
 #endif
 // Topic root: <prefix>/knob/1..4, <prefix>/pattern and <prefix>/message.
+//
+// A banner is a BROADCAST — every panel subscribed on this prefix shows it.
+// That is the design, not a leak (@SimonePDA, who runs the shared broker):
+// the topic list is fixed and short precisely so a broker can be locked to
+// it, and a per-device topic like <prefix>/<id>/message would need a
+// wildcard ACL, which is the thing that lets anyone invent topics. Broadcast
+// is what a tight ACL costs, and for "tell the panels something" it is also
+// what you want.
+//
 // Give each panel its own prefix when several share a broker and should NOT
-// mirror each other — and note that on a SHARED broker the default prefix
-// means every panel on it sees every banner.
+// mirror each other.
 #ifndef PF_MQTT_PREFIX
 #define PF_MQTT_PREFIX "patternflow"
 #endif
