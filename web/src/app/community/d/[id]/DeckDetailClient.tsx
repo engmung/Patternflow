@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
@@ -18,6 +18,7 @@ import {
   type Visibility,
 } from "@/lib/community/visibility";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
+import { useDeviceHost } from "@/lib/community/deviceHost";
 import type { DeckPageItem } from "@/lib/community/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
@@ -56,6 +57,20 @@ export default function DeckDetailClient({
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [packNote, setPackNote] = useState<string | null>(null);
+  const [linkNote, setLinkNote] = useState<string | null>(null);
+  const { patternsUrl } = useDeviceHost();
+
+  // patternsUrl needs `window` and answers "#" without it. The other callers
+  // only render after a build has finished, so they are always past that;
+  // this button is in the server-rendered markup, where "#" is what gets
+  // written into the HTML and hydration has no state change to correct it.
+  // This subscribes to nothing and only differs between server and client,
+  // which is precisely the re-render that fills the address in.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const playable = items.filter((item) => item.pattern !== null);
 
@@ -97,6 +112,33 @@ export default function DeckDetailClient({
       setPackNote(null);
       setError("Network error — could not reach the community.");
     }
+  };
+
+  // What a person sharing a deck actually needs: the address, not the file.
+  //
+  // The pack has lived at a stable URL since it was built, and the comment on
+  // the download button has said "this is also the link you paste somewhere"
+  // the whole time — but there was no way to get it out of the page. You
+  // could only download the .zip and re-upload it wherever you were sharing,
+  // which is the thing hosting it was supposed to remove.
+  //
+  // Copying also kicks the build off. A deck nobody has downloaded compiles
+  // on first request, and that first request should be the person who chose
+  // to share it rather than the stranger who clicked their link.
+  const copyPackLink = async () => {
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(new URL(packUrl, window.location.origin).toString());
+      setLinkNote("Copied");
+      captureEvent("deck_pack_link_copied", { deckId: deck.id });
+    } catch {
+      setError("Could not reach the clipboard — copy the address bar link instead.");
+      return;
+    }
+    // Fire-and-forget: the link is already on the clipboard and works either
+    // way. This only decides whether the recipient waits for a compile.
+    void fetch(packUrl, COMMUNITY_FETCH_INIT).catch(() => {});
+    setTimeout(() => setLinkNote(null), 2000);
   };
 
   const patch = async (body: Record<string, unknown>): Promise<boolean> => {
@@ -298,18 +340,46 @@ export default function DeckDetailClient({
             {confirmCopy ? "Press again — this replaces your deck" : "Copy into my deck"}
           </button>
           {/* No sign-in, no working deck, no build queue of your own: the
-              pack is built once for the deck and served from a stable URL,
-              so this is also the link you paste somewhere. */}
+              pack is built once for the deck and served from a stable URL.
+              Three ways to reach it — the link to hand out, the file, and
+              the one that puts it on a board without any of the above. */}
           {deck.visibility === "public" && (
-            <button
-              type="button"
-              className={styles.btn}
-              disabled={busy || playable.length === 0}
-              title="Download this deck as a .zip you can drop on your device's Patterns page"
-              onClick={() => void downloadPack()}
-            >
-              {packNote ?? "Download pack (.zip)"}
-            </button>
+            <>
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={busy || playable.length === 0}
+                title="Copy this deck's pack address — the link to paste where you're sharing it"
+                onClick={() => void copyPackLink()}
+              >
+                {linkNote ?? "Copy pack link"}
+              </button>
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={busy || playable.length === 0}
+                title="Download this deck as a .zip you can drop on your device's Patterns page"
+                onClick={() => void downloadPack()}
+              >
+                {packNote ?? "Download pack (.zip)"}
+              </button>
+              {/* Straight onto a board with no account and no build queue:
+                  the device fetches the pack itself. "Send to my board"
+                  below builds into YOUR queue, which a visitor arriving from
+                  a shared link has no reason to have. */}
+              <a
+                className={styles.btnLink}
+                href={
+                  hydrated && playable.length > 0
+                    ? patternsUrl(`/api/community/decks/${deck.id}/zip`)
+                    : undefined
+                }
+                aria-disabled={!hydrated || playable.length === 0}
+                title="Open your board's Patterns page with this deck queued — no sign-in needed"
+              >
+                Install to my board
+              </a>
+            </>
           )}
           {/* The deck's whole point: onto a board, in this order. Copying is
               the editing gesture; this is the one it exists for. */}
