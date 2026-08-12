@@ -36,7 +36,7 @@ async function main() {
   const queries = await import("../src/lib/community/queries");
   const { canView, forkBlocked } = await import("../src/lib/community/visibility");
   const { checkDeckPattern, cleanPatternIds } = await import("../src/lib/community/deckShare");
-  const { PUBLIC_DECKS_MAX } = await import("../src/lib/community/deck");
+  const { DECK_MAX, PUBLIC_DECKS_MAX } = await import("../src/lib/community/deck");
 
   const db = getDb();
 
@@ -124,8 +124,20 @@ async function main() {
   check("unlisted is forkable — its credit link resolves", forkBlocked({ visibility: "unlisted", userId: "alice" }, "bob"), false);
 
   console.log("\n── what a deck submission accepts ──");
+  // Written against DECK_MAX rather than a literal: these assertions used to
+  // spell the cap out ("eleven patterns"), so raising it turned a passing
+  // suite red and said nothing about what had actually broken.
   check("no patterns is not a deck", cleanPatternIds([]), null);
-  check("eleven patterns is not a deck", cleanPatternIds(Array.from({ length: 11 }, (_, i) => `p${i}`)), null);
+  check(
+    "a full deck is accepted",
+    cleanPatternIds(Array.from({ length: DECK_MAX }, (_, i) => `p${i}`))?.length,
+    DECK_MAX,
+  );
+  check(
+    "one past the cap is not a deck",
+    cleanPatternIds(Array.from({ length: DECK_MAX + 1 }, (_, i) => `p${i}`)),
+    null,
+  );
   check("duplicates are refused", cleanPatternIds(["a", "a"]), null);
   check("a real list passes through", cleanPatternIds(["a", "b"]), ["a", "b"]);
 
@@ -209,12 +221,20 @@ async function main() {
     ["p-pub", "p-unl"],
   );
 
-  console.log("\n── the two-slot arithmetic ──");
-  check("bob has spent both public slots", await queries.countPublicDecksByUser("bob"), PUBLIC_DECKS_MAX);
+  console.log("\n── the public-slot arithmetic ──");
+  // These counted against PUBLIC_DECKS_MAX itself, which only held while the
+  // cap happened to equal the two decks bob is seeded with — raising it broke
+  // both. What is actually being tested is the counting, so count.
+  check("bob's public decks are counted", await queries.countPublicDecksByUser("bob"), 2);
   check(
     "editing an already-public deck does not count itself",
     await queries.countPublicDecksByUser("bob", "d-bob-1"),
-    PUBLIC_DECKS_MAX - 1,
+    1,
+  );
+  check(
+    "a spent shelf is what blocks publishing, not the count alone",
+    (await queries.countPublicDecksByUser("bob")) >= PUBLIC_DECKS_MAX,
+    false,
   );
   check("private decks cost nothing", await queries.countPublicDecksByUser("alice"), 2);
 

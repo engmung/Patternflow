@@ -1,4 +1,5 @@
 import { getAuth } from "@/lib/community/auth";
+import { DECK_MAX } from "@/lib/community/deck";
 import {
   countActiveBuilds,
   enqueueBuild,
@@ -26,7 +27,9 @@ import { validateCustomPattern } from "@/lib/firmware/assemble";
 // patternflow.work/update hands it over Wi-Fi — which leaves whole-image
 // builds as a slow way to do what a 6 KB .pfm does in seconds.
 
-const MAX_MODULE_PATTERNS_PER_BUILD = 10;
+// One source of truth with the deck: a deck that fills to DECK_MAX must be
+// buildable, so these cannot drift apart.
+const MAX_MODULE_PATTERNS_PER_BUILD = DECK_MAX;
 
 export async function POST(request: Request) {
   const blocked = originBlocked(request);

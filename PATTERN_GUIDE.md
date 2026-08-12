@@ -124,7 +124,7 @@ A **deck** is a set of patterns bound for the device. The device cycles
 patterns in order, so think of it as a setlist.
 
 1. Press **`+`** on any pattern card you like, or drag the card down into the
-   deck bar at the bottom of the screen. Up to 10.
+   deck bar at the bottom of the screen. Up to 20.
 2. Inside the deck, **drag to rearrange**, **×** to remove.
 
    ![The deck](docs/images/pattern-guide/05-deck.png)

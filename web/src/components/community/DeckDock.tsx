@@ -82,17 +82,25 @@ const MIN_PLACES = 3;
 /**
  * What a build is told to expect, and when to stop believing it.
  *
- * A module build is about two seconds in practice — each pattern compiles
- * alone and there is no firmware image to link. Ten is the number people are
- * given: it covers a cold compiler and a Pi that is also serving the site,
- * without promising something the machine cannot keep.
+ * Both scale with the deck, because both used to be flat numbers sized for a
+ * ten-pattern cap — and a full deck at the current cap would have hit the
+ * timeout while the server was still working perfectly well, which reads as a
+ * failure and is not one.
  *
- * Fifteen is where waiting stops being waiting. The build may well still be
- * running on the server — this is the browser giving up on hearing back, not
- * a cancellation — so the message says that rather than claiming it failed.
+ * Each pattern compiles alone in about half a second and there is no firmware
+ * image to link. The per-pattern allowance is far more than that on purpose:
+ * it covers a cold compiler and a Pi that is also serving the site, without
+ * promising something the machine cannot keep.
+ *
+ * The timeout is the browser giving up on hearing back, not a cancellation —
+ * the build may well still be running — so the message says that rather than
+ * claiming it failed.
  */
-const BUILD_EXPECTED_S = 10;
-const BUILD_TIMEOUT_MS = 15_000;
+const BUILD_BASE_S = 6;
+const BUILD_PER_PATTERN_S = 1.5;
+const buildExpectedS = (patterns: number) =>
+  Math.ceil(BUILD_BASE_S + BUILD_PER_PATTERN_S * Math.max(1, patterns));
+const buildTimeoutMs = (patterns: number) => (buildExpectedS(patterns) + 5) * 1000;
 
 /** A drag in progress: which slot is moving, how far the pointer has taken it,
  *  and how wide one step is (measured, so it cannot drift from the CSS). */
@@ -398,13 +406,13 @@ export default function DeckDock() {
       pollRef.current = window.setInterval(() => {
         const elapsed = Date.now() - startedAtRef.current;
         setWaited(Math.floor(elapsed / 1000));
-        if (elapsed > BUILD_TIMEOUT_MS) {
+        if (elapsed > buildTimeoutMs(items.length)) {
           stopPolling();
           setBuild(null);
           setBuildError(
-            `The build server has not answered in ${Math.round(BUILD_TIMEOUT_MS / 1000)} seconds. ` +
-              "This usually takes about two. The build may still be running — give it a moment " +
-              "and try again, and if it keeps happening the build worker is probably down.",
+            `The build server has not answered in ${Math.round(buildTimeoutMs(items.length) / 1000)} seconds. ` +
+              "The build may still be running — give it a moment and try again, and if it keeps " +
+              "happening the build worker is probably down.",
           );
           captureEvent("module_build_finished", { status: "timeout", patterns: items.length });
           return;
@@ -650,11 +658,11 @@ export default function DeckDock() {
             {running && (
               <span
                 className={styles.buildRunningNote}
-                data-slow={waited >= BUILD_EXPECTED_S}
+                data-slow={waited >= buildExpectedS(deck.length)}
                 // The clock is the honest part; the promise is the reassuring
                 // one. Both, so a build that is taking its time does not look
                 // like a build that has died.
-                title={`Usually about two seconds, and under ${BUILD_EXPECTED_S} on a busy server.`}
+                title={`About half a second per pattern, and under ${buildExpectedS(deck.length)} on a busy server.`}
               >
                 <span className={styles.buildSpinner} aria-hidden="true" />
                 {build?.status === "queued" && build.queuePosition && build.queuePosition > 1
@@ -664,9 +672,9 @@ export default function DeckDock() {
                     : `Building ${deck.length} module${deck.length === 1 ? "" : "s"}`}
                 {waited > 0 && ` · ${waited} s`}
                 <em>
-                  {waited >= BUILD_EXPECTED_S
+                  {waited >= buildExpectedS(deck.length)
                     ? "longer than usual"
-                    : `usually under ${BUILD_EXPECTED_S} s`}
+                    : `usually under ${buildExpectedS(deck.length)} s`}
                 </em>
               </span>
             )}

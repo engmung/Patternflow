@@ -1106,12 +1106,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A full deck is 20 slots — 754px at full width — so the row is the one
+   thing on this bar allowed to give: it narrows its slots rather than
+   pushing the send button off the end.
+   NOT a scroll container, deliberately. Scrolling one axis makes the other
+   compute to auto, which would clip the lifted slot's shadow mid-drag, and
+   dragging is what this row is for. Narrowing is free instead: the drag
+   measures one step off the live DOM (see DeckDock's startDrag), so the
+   maths follows whatever width the slots actually end up at. */
 .deckDockSlots {
   display: flex;
   gap: var(--slot-gap);
   align-items: stretch;
   align-self: stretch;
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 /* A filled slot is the pattern itself; the next one is an invitation; the
@@ -1123,7 +1132,10 @@
   background: var(--pfc-well);
   display: block;
   overflow: visible;
-  flex: none;
+  /* Shrinks toward 20px on a narrow screen with a long deck, and sits at 34
+     the rest of the time. Below 20 a thumbnail stops being a thumbnail. */
+  flex: 0 1 34px;
+  min-width: 20px;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -1326,7 +1338,11 @@
   width: 34px;
   height: var(--slot-h);
   align-self: stretch;
-  flex: none;
+  /* Same give as a filled slot, or the row loses its rhythm the moment it
+     starts to narrow — the empty places would stay wide while the patterns
+     shrank around them. */
+  flex: 0 1 34px;
+  min-width: 20px;
   box-sizing: border-box;
   display: grid;
   place-items: center;
