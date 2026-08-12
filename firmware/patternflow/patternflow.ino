@@ -587,6 +587,45 @@ void drawSelectingMode() {
   PatternflowUiText::useDefaultFont();
 }
 
+// A banner from <prefix>/message, over whatever is running.
+//
+// Contributed by @SimonePDA. Drawn on top rather than instead of the pattern:
+// the pattern keeps animating underneath, so a message is an interruption you
+// can read and wait out, not a mode you have to leave.
+//
+// Uses the same wrapped-name helper the SELECT screen does, so a long message
+// breaks the same way a long pattern name does — the panel is 64 px wide in
+// portrait, which is about ten characters a line.
+void drawMqttMessageOverlay() {
+#if PF_MQTT_ENABLED
+  if (!PatternflowMqtt::overlayActive()) return;
+
+  char text[PatternflowMqtt::MESSAGE_BYTES];
+  asciiFold(PatternflowMqtt::overlayMessage(), text, sizeof(text));
+  if (!text[0]) return;
+
+  // Portrait, like every other overlay; the caller is drawing in landscape.
+  dma_display->setRotation(1);
+  const int screenW = dma_display->width();
+  const int screenH = dma_display->height();
+
+  // A dim plate behind the words. Without it the message sits on top of a
+  // bright pattern and is unreadable exactly when it matters most.
+  int16_t x1, y1;
+  uint16_t tw, th;
+  PatternflowUiText::boundsWith(PatternflowUiText::useNameFont, text, &x1, &y1, &tw, &th);
+  const int plateH = th + 24;
+  const int plateY = (screenH - plateH) / 2;
+  dma_display->fillRect(0, plateY, screenW, plateH, dma_display->color565(0, 0, 0));
+  dma_display->drawRect(0, plateY, screenW, plateH, pfLedC());
+
+  PatternflowUiText::drawWrappedName(text, screenH / 2,
+                                     dma_display->color565(255, 255, 255));
+  PatternflowUiText::useDefaultFont();
+  dma_display->setRotation(0);
+#endif
+}
+
 void readInputFrame(InputFrame& input) {
   static long prevKnobs[4] = {0, 0, 0, 0};
 
@@ -1036,6 +1075,7 @@ void loop() {
     pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
+    drawMqttMessageOverlay();
 
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();

@@ -221,8 +221,16 @@
 #ifndef PF_MQTT_PASS
 #define PF_MQTT_PASS ""
 #endif
-// Topic root: <prefix>/knob/1..4 and <prefix>/pattern. Give each panel its
-// own prefix when several share a broker and should NOT mirror each other.
+// How long a banner published to <prefix>/message stays on the panel.
+// Counted from each receipt, so a new message restarts it and a retained one
+// shows once per connect rather than sticking forever.
+#ifndef PF_MQTT_MESSAGE_DURATION_MS
+#define PF_MQTT_MESSAGE_DURATION_MS 10000
+#endif
+// Topic root: <prefix>/knob/1..4, <prefix>/pattern and <prefix>/message.
+// Give each panel its own prefix when several share a broker and should NOT
+// mirror each other — and note that on a SHARED broker the default prefix
+// means every panel on it sees every banner.
 #ifndef PF_MQTT_PREFIX
 #define PF_MQTT_PREFIX "patternflow"
 #endif
