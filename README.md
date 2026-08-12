@@ -48,7 +48,7 @@ Hardware, website, community, and where people actually talk — the whole ecosy
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Everything from the browser — one USB flash the first time, then it's all Wi-Fi: patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
-| **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner) and audio-react WebSocket · USB |
+| **Connectivity** | Wi-Fi — bidirectional OSC (Ableton/Max/TouchDesigner), MQTT, and audio-react WebSocket · USB |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly — first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 
@@ -73,9 +73,11 @@ These are worst-case numbers measured with a bright pattern at maximum brightnes
 
 ## Patterns
 
-The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware, presets included, flashes to the device straight from the browser; your own remixes travel through Pattern Lab and land on the device as Wi-Fi modules (see below).
+The **[Live Editor](https://patternflow.work/pattern)** opens with a preset library of **42 patterns** — months of daily pattern-making, each loadable in one click and remixable right in the browser. The stock firmware flashes to the device straight from the browser; your own remixes travel through Pattern Lab and land on the device as Wi-Fi modules (see below).
 
-On the device, the firmware bundles **34 curated presets** in a single image, switchable without reflashing — and your own patterns install alongside them as **`.pfm` modules over Wi-Fi**, up to 128 of them, no reflash needed. The device carries fewer presets than the browser because the on-board set is a curated showcase, not the whole library; anything left out is one Pattern Lab build away.
+On the device, patterns live on the filesystem rather than inside the program. The firmware compiles in **Origin alone**, as the failsafe a board can always boot into, and everything else installs as **`.pfm` modules over Wi-Fi** — up to 128 of them, no reflash needed. Keeping the set out of the image is what freed the internal memory the rest of the firmware needed, and it means adding a pattern never costs a firmware update.
+
+A new board is therefore nearly empty, so a set ships with it: the **Basics pack**, 33 patterns, at the top of the [decks shelf](https://community.patternflow.work/community/decks). One click installs the lot — no account and no build queue. Drop the `.zip` on your board's Patterns page yourself if you'd rather, and any deck someone publishes installs the same way.
 
 - It boots into **Origin** — concentric sine waves sampled by an emergent grid.
 - **Long-press encoder 4** to cycle through the patterns on the device.
@@ -99,14 +101,14 @@ The Live Editor is where you find out you want to make patterns. It stays delibe
 
 - Generate variations **in batches**, in-app (bring your own free Gemini key) or via copy-paste prompts.
 - Shape **color ramps**, retune knob ranges, and compose for **custom matrix sizes** — the ranges you set ride along into the device and the shared code.
-- **Send to your device in seconds** — a pattern builds into a small `.pfm` module on the server and installs **over Wi-Fi**: no cable, no reflash, no IDE. The full-firmware path is still there for when you want a firmware update to come along with it (about a minute, and it's how the device stays current).
+- **Send to your device in seconds** — a pattern builds into a small `.pfm` module on the server and installs **over Wi-Fi**: no cable, no reflash, no IDE. Firmware updates are their own thing now, at [patternflow.work/update](https://patternflow.work/update) — a pattern never needs one.
 - **Verify, then share** — try the pattern on your own device first, then publish it with its hardware header attached. It lands on the wall wearing the `.h` badge, and the next person can flash it without thinking. The **[Pattern Guide](PATTERN_GUIDE.md)** covers the whole flow.
 
-**From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, drop the C++ into `presets/preset_<name>.h` **as-is**, add the namespace from the bottom of the file to `presetPatterns[]` in `pattern_registry.h`, and flash. (For just adding a pattern you don't need this at all — build it as a `.pfm` module and send it over Wi-Fi.) See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
+**From the Arduino IDE** — only needed for firmware feature development or targeting an LED matrix with a different resolution. Open `firmware/patternflow/patternflow.ino`, drop the C++ into `presets/preset_<name>.h` **as-is**, add the namespace to `presetPatterns[]` in `pattern_registry.h`, and flash — that compiles the pattern into the image, which is now reserved for the failsafe rather than the usual way in. (For just adding a pattern you don't need any of this — build it as a `.pfm` module and send it over Wi-Fi.) See [`firmware/patternflow/README.md`](firmware/patternflow/README.md).
 
 No GLSL or rendering pipeline knowledge needed. The template handles the encoder mapping, brightness curve, and HUB75 buffer interface; you describe the visuals.
 
-Both full-firmware paths — Pattern Lab's build and the Arduino IDE — flash a whole image, and the preset library always comes along. Patterns installed as `.pfm` modules sit on a separate partition and survive any reflash.
+Patterns installed as `.pfm` modules sit on their own partition and survive any reflash — a firmware update rewrites the program and leaves your patterns, your Wi-Fi and your storage untouched. To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
 
 ## Community
 
@@ -136,9 +138,11 @@ Two public records show the project working — who is building, and what it cos
 
 **[Journal](https://patternflow.work/journal)** — Patternflow is treated as art, so the whole process is documented transparently: the events, the emotions, and the thinking behind every step, written up at least once a week since the beginning. Including the parts that went badly. If you want to know why this project exists — and what it costs to keep it alive — start there.
 
-## OSC & audio-react
+## OSC, MQTT & audio-react
 
 **Bidirectional OSC.** Over Wi-Fi, Patternflow speaks OSC in both directions: knob turns, button presses, and pattern switches stream out to a remote host (Ableton Live, Max/MSP, TouchDesigner — anything that speaks OSC), and incoming OSC messages drive the device exactly like physical encoder motion. Play Patternflow as a controller for your set, let your set drive the light, or both at once. If you play MIDI instruments, this will feel like home. For Ableton Live Suite there's a ready-made Max for Live bridge in [`integrations/ableton`](integrations/ableton) — click Connect, map the four knobs to any Live parameters, done. The wire protocol is documented in [`docs/osc-spec.md`](docs/osc-spec.md).
+
+**MQTT.** Patternflow also speaks MQTT, both ways, on the broker you already run. Knob turns and pattern changes publish as they happen; messages coming the other way move the knobs and switch patterns exactly as a hand on the encoder would. Two boards pointed at the same broker follow each other, which is the short version of why it exists — and it puts the device on the same bus as the rest of a home or venue setup, so Home Assistant, Node-RED or a lighting desk can drive it without anything Patternflow-specific in the middle. Point it at a broker on the device's own **MQTT** page; a pattern can be addressed by name or by slug. Contributed by **[@SimonePDA](https://github.com/SimonePDA)** (Simone Majocchi), along with the browser-side zip unpacking that makes pattern packs install in one click.
 
 **Audio-react.** Patternflow can also react to browser audio: the experimental Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension) captures the current tab's audio, analyzes four FFT bands, and sends lightweight WebSocket knob values to the device. The firmware converts those into virtual encoder motion, so every encoder-driven pattern responds — no audio code needed in the patterns themselves.
 
@@ -164,7 +168,7 @@ So Patternflow is not a single luminous object. It is a living system in which a
 
 | Folder | Contents |
 | :--- | :--- |
-| `firmware/` | Arduino code for ESP32-S3, plus the custom pattern template |
+| `firmware/` | Arduino code for ESP32-S3, the custom pattern template, and the toolchain that builds patterns into `.pfm` modules and packs |
 | `hardware/` | Enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF) |
 | `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal) |
 | `docs/` | Assembly map, build-guide media, manifesto, license summary |
