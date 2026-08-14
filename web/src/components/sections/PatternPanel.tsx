@@ -100,9 +100,15 @@ const EDITOR_HEIGHT = 480;
 // with the `.presetNumbers` column count in the 720px media query.
 const MOBILE_PRESET_WINDOW = 7;
 
-// Curated presets baked into the official flash image — keep in sync with
-// presetPatterns[] in firmware/patternflow/pattern_registry.h.
-const NUM_FIRMWARE_PRESETS = 34;
+// Patterns in the Basics pack, which a freshly flashed board installs in one
+// click from the community's decks shelf. Keep in sync with
+// web/public/packs/basics.json.
+//
+// This used to be the count of presets baked into the image, and said 34 long
+// after the firmware kept only Origin — which read as a promise the flash did
+// not deliver, and got filed as a bug. The image ships one pattern on purpose
+// now; the rest arrive as modules.
+const NUM_BASICS_PATTERNS = 33;
 
 export default function PatternPanel({ content }: PatternPanelProps) {
   // Start with Origin selected; the effect below loads it into the editor.
@@ -365,9 +371,26 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   Browser flashing works in desktop Chrome or Edge.
                 </div>
               </EspWebInstallButton>
+              {/* Three things in order, because a first install went wrong at
+                  each of them. The port matters (the right-hand one goes
+                  through a UART bridge the flasher cannot see), the image
+                  carries one pattern rather than the whole library, and the
+                  rest arrive from the community rather than from here. */}
               <p className={styles.hardwareNote}>
-                Plug the ESP32-S3 in over USB. Brings {NUM_FIRMWARE_PRESETS} presets and sets up
-                Wi-Fi. After that your own patterns go over the air.
+                Connect the ESP32-S3 to your computer with the <b>left</b> USB-C port, the one
+                marked <code>USB</code>. Flashing sets up Wi-Fi and the board boots into Origin.
+                Then{' '}
+                <a href="https://community.patternflow.work/community/decks">the Basics pack</a>{' '}
+                adds {NUM_BASICS_PATTERNS} more patterns in one click, and after that your own go
+                over the air.
+              </p>
+              {/* The single most common failure is a module that is already
+                  running firmware and so never appears in the port picker. The
+                  flasher's own troubleshooting screen goes straight to drivers
+                  and cables, which is the wrong first guess. */}
+              <p className={styles.hardwareNote}>
+                Board not in the port list? Hold <b>BOOT</b>, tap <b>RST</b>, release <b>BOOT</b>,
+                then try again.
               </p>
               <span className={styles.hardwareReq}>Chrome / Edge only</span>
             </div>

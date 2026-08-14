@@ -382,7 +382,7 @@ No installation required. Works on any desktop with Chrome or Edge.
 
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
 2. Connect your ESP32-S3 to your computer via a USB-C **data cable**, using the **left port** (see above) — do not insert it into the PCB yet.
-3. Scroll to the **Patterns** section and click **"Flash Patternflow OS"**.
+3. Scroll to the **Patterns** section and click **"Flash Patternflow"**.
 4. Select the correct serial port when prompted and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
 
 <img src="docs/build-guide/images/web_flash.jpg" width="33%">

@@ -252,8 +252,18 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 
 1. Visit **[patternflow.work](https://patternflow.work)** on a desktop browser.
 2. Connect the ESP32-S3 to your computer with a USB-C **data cable**, using the **left port** (see above).
-3. Scroll to the **Patterns** section, click **"Flash Patternflow OS"**, pick the serial port, and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
+3. Scroll to the **Patterns** section, click **"Flash Patternflow"**, pick the serial port, and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
 4. Disconnect, seat the module back into the board sockets (orientation per silkscreen), and connect power.
+
+> 🔍 **Nothing in the port list?** A module that is running its own firmware does not always announce itself, so put it into download mode by hand before you look again:
+>
+> 1. Press and **hold BOOT**
+> 2. **Tap and release EN / RST** (the reset button)
+> 3. **Release BOOT**
+>
+> The picker should now offer a line like `USB JTAG/serial debug unit (COM4) – Paired`. The number depends on which USB port you used.
+>
+> Still nothing? On this port it is almost always the **cable** — a charge-only USB-C cable enumerates nothing at all. The ESP32-S3 drives its native port from a USB-Serial/JTAG controller built into the chip, so there is no bridge chip and **no CP2102 / CH34x driver to install**; Windows 10 and later, macOS and Linux all recognise it on their own. The driver links on the flasher's "No port selected" screen are for the *right-hand* `UART` port (§8.2), and chasing them here is a dead end.
 
 > 📶 **Changing Wi-Fi later.** The network you set during flashing is **saved on the device and reused on every boot** — it stays until you overwrite it. To move Patternflow to a different Wi-Fi, either **re-flash from the browser** (you'll set the new network during Improv provisioning), or in Arduino IDE do a **full erase** (Tools → *Erase All Flash Before Sketch Upload* → *Enabled*) and re-upload. A plain re-upload does **not** clear the stored credentials.
 
