@@ -326,6 +326,18 @@
   line-height: 1.5;
 }
 
+/* Underlined, because these two are the way out of this block and the note
+   sits on a dark panel where a colour shift alone is easy to miss. */
+.hardwareNote a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.hardwareNote a:hover {
+  color: var(--pf-led);
+}
+
 .hardwareReq {
   color: var(--pf-cream);
   opacity: 0.55;
