@@ -138,7 +138,7 @@ export default function BreadboardBuildPage() {
             </div>
             <p style={{ margin: '8px 0 0 0', fontSize: '13.5px', lineHeight: 1.55, color: 'var(--pf-ink-muted)' }}>
               Flashing is fiddly once everything is wired into a tangle of jumpers. Connect the bare ESP32-S3 to your computer via USB-C, visit{' '}
-              <Link href="/" style={{ color: 'var(--pf-led)', fontWeight: 600, textDecoration: 'underline' }}>patternflow.work</Link>, and click <strong>“Flash Patternflow OS”</strong> in the Patterns section (Chrome / Edge desktop). Confirm it boots — <strong>then</strong> start the build.
+              <Link href="/" style={{ color: 'var(--pf-led)', fontWeight: 600, textDecoration: 'underline' }}>patternflow.work</Link>, and click <strong>“Flash Patternflow”</strong> in the Patterns section (Chrome / Edge desktop). Confirm it boots — <strong>then</strong> start the build.
             </p>
             <p style={{ margin: '6px 0 0 0', fontSize: '12px', lineHeight: 1.5, color: 'var(--pf-ink-faint)' }}>
               Prefer Arduino IDE? See{' '}

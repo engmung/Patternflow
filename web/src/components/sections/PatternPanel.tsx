@@ -100,9 +100,15 @@ const EDITOR_HEIGHT = 480;
 // with the `.presetNumbers` column count in the 720px media query.
 const MOBILE_PRESET_WINDOW = 7;
 
-// Curated presets baked into the official flash image — keep in sync with
-// presetPatterns[] in firmware/patternflow/pattern_registry.h.
-const NUM_FIRMWARE_PRESETS = 34;
+// Patterns in the Basics pack, which a freshly flashed board installs in one
+// click from the community's decks shelf. Keep in sync with
+// web/public/packs/basics.json.
+//
+// This used to be the count of presets baked into the image, and said 34 long
+// after the firmware kept only Origin — which read as a promise the flash did
+// not deliver, and got filed as a bug. The image ships one pattern on purpose
+// now; the rest arrive as modules.
+const NUM_BASICS_PATTERNS = 33;
 
 export default function PatternPanel({ content }: PatternPanelProps) {
   // Start with Origin selected; the effect below loads it into the editor.
@@ -365,9 +371,25 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   Browser flashing works in desktop Chrome or Edge.
                 </div>
               </EspWebInstallButton>
+              {/* Kept to one line. A first install can go wrong at the port,
+                  at the pattern count and at Wi-Fi, but a note under a button
+                  is the wrong place to answer all three — the guide holds it,
+                  and the link is how you get there. */}
               <p className={styles.hardwareNote}>
-                Plug the ESP32-S3 in over USB. Brings {NUM_FIRMWARE_PRESETS} presets and sets up
-                Wi-Fi. After that your own patterns go over the air.
+                Plug the ESP32-S3 into the <b>left</b> USB-C port. Sets up Wi-Fi and boots into
+                Origin, then{' '}
+                <a href="https://community.patternflow.work/community/decks">the Basics pack</a>{' '}
+                adds {NUM_BASICS_PATTERNS} more in one click.
+              </p>
+              <p className={styles.hardwareNote}>
+                <a
+                  href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#8-firmware"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Flashing guide ↗
+                </a>{' '}
+                for the steps, the port, and what to do if the board doesn&rsquo;t show up.
               </p>
               <span className={styles.hardwareReq}>Chrome / Edge only</span>
             </div>
