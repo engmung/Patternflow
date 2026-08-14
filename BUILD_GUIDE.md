@@ -254,6 +254,9 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 2. Connect the ESP32-S3 to your computer with a USB-C **data cable**, using the **left port** (see above).
 3. Scroll to the **Patterns** section, click **"Flash Patternflow"**, pick the serial port, and follow the on-screen steps. Wi-Fi can be provisioned right there too (Improv-Serial).
 4. Disconnect, seat the module back into the board sockets (orientation per silkscreen), and connect power.
+5. **Load the patterns.** The image ships with **Origin only** — the rest live on the device's filesystem instead of inside the firmware, which is what freed the memory for everything else. Open **[the decks shelf](https://community.patternflow.work/community/decks)** and press **Install to my board** on the **Basics** pack: 33 patterns, one click, no account. Your browser fetches the pack and hands it to the board over your Wi-Fi, so the board is never talking to the internet itself.
+
+> 🎛️ **One pattern after flashing is correct, not a failed install.** It used to be 34 baked into the image. They moved out so that patterns can be added and removed without reflashing, which is also how anything you make yourself reaches the panel.
 
 > 🔍 **Nothing in the port list?** A module that is running its own firmware does not always announce itself, so put it into download mode by hand before you look again:
 >

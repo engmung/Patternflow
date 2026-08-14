@@ -371,26 +371,25 @@ export default function PatternPanel({ content }: PatternPanelProps) {
                   Browser flashing works in desktop Chrome or Edge.
                 </div>
               </EspWebInstallButton>
-              {/* Three things in order, because a first install went wrong at
-                  each of them. The port matters (the right-hand one goes
-                  through a UART bridge the flasher cannot see), the image
-                  carries one pattern rather than the whole library, and the
-                  rest arrive from the community rather than from here. */}
+              {/* Kept to one line. A first install can go wrong at the port,
+                  at the pattern count and at Wi-Fi, but a note under a button
+                  is the wrong place to answer all three — the guide holds it,
+                  and the link is how you get there. */}
               <p className={styles.hardwareNote}>
-                Connect the ESP32-S3 to your computer with the <b>left</b> USB-C port, the one
-                marked <code>USB</code>. Flashing sets up Wi-Fi and the board boots into Origin.
-                Then{' '}
+                Plug the ESP32-S3 into the <b>left</b> USB-C port. Sets up Wi-Fi and boots into
+                Origin, then{' '}
                 <a href="https://community.patternflow.work/community/decks">the Basics pack</a>{' '}
-                adds {NUM_BASICS_PATTERNS} more patterns in one click, and after that your own go
-                over the air.
+                adds {NUM_BASICS_PATTERNS} more in one click.
               </p>
-              {/* The single most common failure is a module that is already
-                  running firmware and so never appears in the port picker. The
-                  flasher's own troubleshooting screen goes straight to drivers
-                  and cables, which is the wrong first guess. */}
               <p className={styles.hardwareNote}>
-                Board not in the port list? Hold <b>BOOT</b>, tap <b>RST</b>, release <b>BOOT</b>,
-                then try again.
+                <a
+                  href="https://github.com/engmung/Patternflow/blob/main/BUILD_GUIDE.md#8-firmware"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Flashing guide ↗
+                </a>{' '}
+                for the steps, the port, and what to do if the board doesn&rsquo;t show up.
               </p>
               <span className={styles.hardwareReq}>Chrome / Edge only</span>
             </div>
