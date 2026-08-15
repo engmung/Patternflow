@@ -906,16 +906,16 @@ function PerformancesSection({
                   href={communityApiUrl(
                     `/api/community/performances/${recording.id}?format=pfs`,
                   )}
-                  title="Show table for the panel — drop it on the device's Sequences page"
+                  title="The performance itself — open it in the Director to keep working on the ride, or drop it on the panel's Sequences page to play it"
                 >
                   .pfs
                 </a>
                 <a
                   className={`${styles.btnSmall} ${styles.perfLink}`}
                   href={communityApiUrl(`/api/community/performances/${recording.id}`)}
-                  title="The editable Director JSON — open it to keep working on the ride"
+                  title="The same cues as JSON — for reading or scripting, not for the Director"
                 >
-                  .json
+                  raw
                 </a>
                 {isOwner && !recording.byAuthor && !pattern.hasAuthorPerformance && (
                   <button

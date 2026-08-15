@@ -1,13 +1,21 @@
 // Performance JSON (proposal §7.1) + the packed PFST v1 show table.
 //
-// A deck may carry one performance: a timed cue list (pattern / four
-// absolute params 0..1000 / banner) authored in the Director PWA. The JSON
-// is the editable source and travels in the pack for re-editing; the device
-// itself plays only the packed little-endian .pfs table — it has no JSON
-// parser on purpose. This module is the server-side twin of the Director's
-// performance.js + show-table.js (Simone Majocchi's performance-director
-// branch): same normalization, same byte layout, so a .pfs encoded here is
-// indistinguishable from one saved out of the Director.
+// A performance is a timed cue list (pattern / four absolute params 0..1000 /
+// banner) authored in the Director PWA. **The `.pfs` table is the document**:
+// the Director opens and saves it, the panel plays it, and it is what the site
+// hands anyone who wants to edit or install one. It carries everything a
+// recording is, sparse param patches included, because the cue flags record
+// which channels each cue set.
+//
+// The JSON here is the site's own canonical form — what the database stores,
+// what summaries and validation read, and what regenerates the table on the
+// way out. It is not a second document to keep in step with the first; it has
+// no life outside this server. (It was briefly the editable source, back when
+// the Director edited JSON.)
+//
+// Byte layout matches the Director's show-table.js exactly — verified against
+// all four of its demo tables in both directions — so a table encoded here is
+// indistinguishable from one it saved.
 //
 // Layout (device: firmware/patternflow/src/core_show.h):
 //   header 76 bytes
@@ -234,13 +242,12 @@ export function validatePerformance(
 /**
  * Read a PFST table back into a performance.
  *
- * The Director saves both halves — the JSON it edits and the .pfs it sends to
- * a panel — and people reach for whichever is in front of them, so publishing
- * accepts either. The table is close to lossless for what a recording IS: the
- * cue flags record exactly which param channels a cue set, so a sparse patch
- * survives the round trip. What it does not carry is show-management dressing
- * (utcStart, channel, patternsZip and its hash, the required list); those come
- * back empty, which is what they are for a recording published here anyway.
+ * This is the import path, since `.pfs` is what the Director saves and what
+ * people therefore have. It is lossless for what a recording IS: the cue flags
+ * record exactly which param channels a cue set, so even a sparse patch
+ * survives. What it does not carry is show-management dressing (utcStart,
+ * channel, patternsZip and its hash, the required list); those come back
+ * empty, which is what they are for a recording published here anyway.
  *
  * Round-tripped in performance-smoke against the Director's own saves:
  * decode → encode reproduces the original bytes.

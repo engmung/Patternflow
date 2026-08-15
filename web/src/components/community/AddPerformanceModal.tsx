@@ -30,9 +30,10 @@ export default function AddPerformanceModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Either half of a Director save: the .json it edits, or the .pfs it sends
-  // to a panel. A packed table is decoded back to the editable form here, so
-  // what gets published is always the source and the .pfs is regenerated.
+  // The Director saves .pfs and the panel plays it, so that is what people
+  // have. It is decoded here into the canonical form the site stores, which
+  // is also what regenerates the table on the way back out. JSON still loads
+  // because Directors from before the format settled saved it.
   const pickFile = (file: File | undefined) => {
     if (!file) return;
     setError(null);
@@ -94,20 +95,21 @@ export default function AddPerformanceModal({
             <p className={styles.formNote}>
               A performance is a timed ride through this pattern&apos;s knobs — cues of absolute
               values (0..1000) the panel replays exactly. Record it in the Director tool and
-              load either half of its save: the <code>.pfs</code> table you send to a panel, or
-              the <code>.json</code> it edits. It goes live immediately, credited to you; the
-              pattern&apos;s author can pin or out-rank it with their own recording.
+              load the <code>.pfs</code> it saves; that same file is what a panel plays. It
+              goes live immediately, credited to you; the pattern&apos;s author can pin or
+              out-rank it with their own recording.
             </p>
 
             <label className={styles.field}>
-              <span className={styles.fieldLabel}>Load a .pfs or .json</span>
+              <span className={styles.fieldLabel}>Load a .pfs table</span>
               <input
                 type="file"
                 accept=".pfs,.json,application/json,application/octet-stream"
                 onChange={(event) => pickFile(event.target.files?.[0])}
               />
               <span className={styles.fieldHint}>
-                A <code>.pfs</code> is unpacked back into the editable timeline below.
+                Unpacked into the timeline below so you can see what you are publishing.
+                Older <code>.json</code> exports still load.
               </span>
             </label>
 

@@ -138,9 +138,9 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
 
   // Optional attached performance (Director timeline). null detaches; a
   // string is validated against the same limits the device's .pfs player
-  // enforces, and stored in canonical form so the pack's performance.json
-  // is stable across re-serializations. Serve-time zip decoration means no
-  // rebuild is queued either way.
+  // enforces, and stored canonically so the table the pack ships is stable
+  // across re-serializations. Serve-time zip decoration means no rebuild is
+  // queued either way.
   let performanceJson: string | null | undefined;
   if (raw.performanceJson !== undefined) {
     if (raw.performanceJson === null || raw.performanceJson === "") {
