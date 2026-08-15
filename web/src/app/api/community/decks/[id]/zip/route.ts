@@ -1,14 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { unzipSync, zipSync } from "fflate";
 import { artifactDir } from "@/lib/community/builds";
 import { communityEnabled } from "@/lib/community/db";
-import { deckZipFilename, ensureDeckZip, invalidateDeckZip } from "@/lib/community/deckZip";
 import {
-  encodePfst,
-  normalizePerformance,
-  pfsFilename,
-} from "@/lib/community/performance";
+  decoratePackWithPerformance,
+  deckZipFilename,
+  ensureDeckZip,
+  invalidateDeckZip,
+} from "@/lib/community/deckZip";
 import { getDeck } from "@/lib/community/queries";
 
 // GET /api/community/decks/[id]/zip — the deck as an installable pack.
@@ -104,29 +103,8 @@ async function handleGet(_request: Request, context: { params: Promise<{ id: str
     );
   }
 
-  // An attached performance rides the pack: performance.json (the editable
-  // Director source) plus the encoded .pfs the device's /show player eats.
-  // Added here at serve time rather than baked into the build artifact, so
-  // attaching or editing a performance updates downloads instantly without
-  // queueing a compile. The .pfs joins the device install (the /patterns
-  // unpack routes it to /api/shows); performance.json deliberately does not.
-  let bytes: Uint8Array = new Uint8Array(zip);
-  if (deck.performanceJson) {
-    try {
-      const perf = normalizePerformance(JSON.parse(deck.performanceJson));
-      const entries = unzipSync(bytes);
-      entries["performance.json"] = new TextEncoder().encode(deck.performanceJson);
-      entries[pfsFilename(perf)] = encodePfst(perf);
-      // Fixed timestamp, same reasoning as make_pack.py: identical inputs
-      // must produce identical bytes across requests.
-      bytes = zipSync(entries, { level: 6, mtime: new Date("2026-01-01T00:00:00Z") });
-    } catch {
-      // A performance that stopped encoding must not take the pattern pack
-      // down with it — serve the plain pack and let the deck page surface
-      // the attachment error.
-      bytes = new Uint8Array(zip);
-    }
-  }
+  // An attached performance rides the pack — see decoratePackWithPerformance.
+  const bytes = decoratePackWithPerformance(new Uint8Array(zip), deck.performanceJson);
 
   return new Response(Buffer.from(bytes), {
     headers: {

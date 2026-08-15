@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { unzipSync, zipSync } from "fflate";
 import { enqueueBuild, getBuild } from "./builds";
 import { getDb } from "./db";
+import { encodePfst, normalizePerformance, pfsFilename } from "./performance";
 import { deckPatterns, decks, patterns as patternsTable } from "./schema";
 
 // A deck's downloadable pack.
@@ -147,6 +149,37 @@ export async function invalidateDeckZip(deckId: string): Promise<void> {
     .update(decks)
     .set({ zipBuildId: null, zipFingerprint: null })
     .where(eq(decks.id, deckId));
+}
+
+/**
+ * Add a deck's attached performance to its pack, in the two forms the two
+ * audiences need: `performance.json` so the recording can be re-opened in the
+ * Director, and the encoded `.pfs` so the panel can play it.
+ *
+ * Done at serve time rather than baked into the build artifact, so attaching
+ * or editing a performance updates downloads immediately and never queues a
+ * compile — the modules in the pack did not change.
+ *
+ * Returns the pack untouched if there is no performance, or if the stored JSON
+ * will not encode: a broken attachment must not take the pattern pack down
+ * with it.
+ */
+export function decoratePackWithPerformance(
+  pack: Uint8Array,
+  performanceJson: string | null,
+): Uint8Array {
+  if (!performanceJson) return pack;
+  try {
+    const perf = normalizePerformance(JSON.parse(performanceJson));
+    const entries = unzipSync(pack);
+    entries["performance.json"] = new TextEncoder().encode(performanceJson);
+    entries[pfsFilename(perf)] = encodePfst(perf);
+    // Fixed timestamp, same reasoning as make_pack.py: identical inputs must
+    // produce identical bytes across requests.
+    return zipSync(entries, { level: 6, mtime: new Date("2026-01-01T00:00:00Z") });
+  } catch {
+    return pack;
+  }
 }
 
 /** `patternflow-deck-my-set.zip` — a filename that says what it is. */
