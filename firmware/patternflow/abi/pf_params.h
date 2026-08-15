@@ -23,12 +23,18 @@
 #include <math.h>
 #include <stdint.h>
 
-#include "pf_abi.h"
+// Deliberately NOT including pf_abi.h: the firmware reaches this header
+// through src/core_params.h while pf_abi.h arrives by another path, and the
+// two spellings defeat its include guard. The macro is all that is needed,
+// and every route that matters already sets it — pf_abi.h when a module
+// builds, -D from build_module.py when it targets the older host. This
+// default is what the firmware itself, which always has the fields, gets.
+#ifndef PF_ABI_MODULE_VERSION
+#define PF_ABI_MODULE_VERSION 2
+#endif
 
 // PF_ABI_MODULE_VERSION >= 2 means "this build's host has the absolute
-// fields". pf_abi.h defaults it to 2 (firmware, and any module build that
-// did not ask otherwise); build_module.py passes 1 when targeting the older
-// host. Kept as one named test so no helper below can drift from the rest.
+// fields". Kept as one named test so no helper below can drift from the rest.
 #if PF_ABI_MODULE_VERSION >= 2
 #define PF_PARAMS_HAS_ABSOLUTE 1
 #else

@@ -430,6 +430,12 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
   const uint8_t depth = m_cfg.getPixelColorDepthBits();
   const uint8_t rows = ROWS_PER_FRAME;
 
+  // Total LED on-time this frame asks for, summed as we go. The per-pixel
+  // linear values are computed below anyway and live in registers when we add
+  // them, so this rides along for six adds per pixel pair — nothing next to
+  // the bitplane writes underneath it. See lastFrameOnTime().
+  uint64_t onTime = 0;
+
   // A two-scan panel lights row `r` and row `r + ROWS_PER_FRAME` together, and
   // both live in the same uint16_t. Walk the pairs, not the rows.
   for (uint8_t row = 0; row < rows; row++)
@@ -463,6 +469,11 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
       const uint16_t r1 = lumConvTab[t[0]], g1 = lumConvTab[t[1]], b1 = lumConvTab[t[2]];
       const uint16_t r2 = lumConvTab[m[0]], g2 = lumConvTab[m[1]], b2 = lumConvTab[m[2]];
 #endif
+
+      // Post-CIE, so this is the duty each channel will actually be driven at
+      // — the thing current is proportional to, rather than the raw byte the
+      // pattern wrote.
+      onTime += (uint32_t)r1 + g1 + b1 + (uint32_t)r2 + g2 + b2;
 
       uint8_t d = depth;
       do
@@ -498,6 +509,12 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
       } while (d);
     }
   }
+
+  _lastFrameOnTime = onTime;
+  // What an all-white frame would have summed to: every pixel, every channel,
+  // at the top of the CIE table. Recomputed rather than cached because panel
+  // geometry and colour depth are both configurable.
+  _maxFrameOnTime = (uint64_t)w * rows * 2ULL * 3ULL * lumConvTab[255];
 } // blitRGB888
 
 
