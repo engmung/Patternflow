@@ -152,9 +152,13 @@ export async function invalidateDeckZip(deckId: string): Promise<void> {
 }
 
 /**
- * Add a deck's attached performance to its pack, in the two forms the two
- * audiences need: `performance.json` so the recording can be re-opened in the
- * Director, and the encoded `.pfs` so the panel can play it.
+ * Add a deck's attached performance to its pack, as the `.pfs` table.
+ *
+ * One file, because upstream made `.pfs` the whole document: the Director
+ * opens and saves it, and the panel plays it. An earlier cut also shipped a
+ * `performance.json` beside it as "the editable source" — that was true when
+ * the Director edited JSON and stopped being true when it did not, and a file
+ * nothing opens is just weight in someone's download.
  *
  * Done at serve time rather than baked into the build artifact, so attaching
  * or editing a performance updates downloads immediately and never queues a
@@ -172,7 +176,6 @@ export function decoratePackWithPerformance(
   try {
     const perf = normalizePerformance(JSON.parse(performanceJson));
     const entries = unzipSync(pack);
-    entries["performance.json"] = new TextEncoder().encode(performanceJson);
     entries[pfsFilename(perf)] = encodePfst(perf);
     // Fixed timestamp, same reasoning as make_pack.py: identical inputs must
     // produce identical bytes across requests.

@@ -15,7 +15,7 @@
  *
  * The PERFORMANCE decoration runs on every download of a deck that has one,
  * and it rewrites the archive — so a mistake there breaks the pack itself,
- * not just the performance. It must add both forms, leave the modules alone,
+ * not just the performance. It must add the table, leave the modules alone,
  * and refuse to fail loudly: a broken attachment may cost its own file and
  * nothing else.
  */
@@ -146,13 +146,10 @@ const names = Object.keys(decorated).sort();
 
 check("the modules survive untouched", names.includes("wave_saw.pfm"), true);
 check("so does the running order", names.includes("catalog.txt"), true);
-check("the editable source is added", names.includes("performance.json"), true);
 check("the packed table is added, named from the id", names.includes("sunset_set.pfs"), true);
-check(
-  "performance.json is stored verbatim",
-  new TextDecoder().decode(decorated["performance.json"]),
-  performanceJson,
-);
+// The Director opens and saves .pfs, so the table IS the document — a JSON
+// beside it would be a file nothing opens.
+check("no JSON rides along", names.includes("performance.json"), false);
 
 // The .pfs is what the panel plays, so it has to be a table, not bytes that
 // merely exist — decode it back and check the timeline survived the trip.

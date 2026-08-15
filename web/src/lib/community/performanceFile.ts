@@ -1,10 +1,10 @@
 // Reading a performance out of whatever file the person has.
 //
-// The Director saves two halves of the same recording — the JSON it edits and
-// the .pfs table it sends to a panel — and people reach for whichever is in
-// front of them. Both land here and leave as canonical JSON, which is the one
-// shape the API stores: it is the editable form, and the .pfs is regenerated
-// from it on download, so nothing is lost by normalising on the way in.
+// The Director saves `.pfs`, so that is what people have; `.json` still loads
+// because Directors from before the format settled saved that instead. Either
+// leaves here as the canonical JSON the API stores, and the table is
+// regenerated from it on the way out — nothing is lost by normalising on the
+// way in, since the table carries everything a recording is.
 
 import { decodePfst, normalizePerformance, serializePerformance } from "./performance";
 

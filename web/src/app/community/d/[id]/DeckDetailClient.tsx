@@ -438,7 +438,7 @@ export default function DeckDetailClient({
             <button
               type="button"
               className={styles.btn}
-              title="Attach a Director performance JSON — it ships inside the pack as performance.json + .pfs"
+              title="Attach a Director performance — the .pfs table ships inside this deck's pack and installs with it"
               onClick={() => setPerfOpen(true)}
             >
               {deck.performanceJson ? "Performance…" : "Attach performance"}
@@ -545,11 +545,10 @@ export default function DeckDetailClient({
   );
 }
 
-// A Director performance rides the deck's pack: performance.json (editable
-// source) + the packed .pfs the device's Sequences page plays. Author it in
-// the Director PWA (Save JSON), paste or drop the file here. The server
-// re-validates against the device's limits, so a save that succeeds is one
-// the panel will actually load.
+// A Director performance rides the deck's pack as the .pfs table — the file
+// the Director opens and saves, and the file the panel's Sequences page
+// plays. Author it there, drop it here. The server re-validates against the
+// device's limits, so a save that succeeds is one the panel will load.
 function PerformanceModal({
   deckId,
   initialJson,
@@ -610,15 +609,16 @@ function PerformanceModal({
         </div>
         <div className={styles.modalBody}>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Load a .pfs or .json</span>
+            <span className={styles.fieldLabel}>Load a .pfs table</span>
             <input
               type="file"
               accept=".pfs,.json,application/json,application/octet-stream"
               onChange={(event) => pickFile(event.target.files?.[0])}
             />
             <span className={styles.fieldHint}>
-              Either half of a Director save — a <code>.pfs</code> table is unpacked back into
-              the editable timeline below.
+              Unpacked into the timeline below so you can see what you are attaching. It
+              ships in this deck&apos;s pack and installs with it. Older <code>.json</code>{" "}
+              exports still load.
             </span>
           </label>
           <label className={styles.field}>
