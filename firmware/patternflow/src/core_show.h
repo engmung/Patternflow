@@ -338,12 +338,6 @@ inline void applyFromStart(uint16_t elapsed) {
 
 inline void stop() {
   playing = false;
-  // A local show that ends — or is stopped — must hand the knobs back. The
-  // MQTT channel flow clears its holds with the end-of-show retained sweep;
-  // this player has no broker, so the release lives here. Without it the
-  // final cue's absolute values keep pinning the pattern (and zeroing those
-  // channels' knob deltas) until something else releases them.
-  PatternflowMqtt::clearAbsoluteAll();
 }
 
 inline bool playLoaded() {
