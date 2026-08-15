@@ -13,11 +13,13 @@
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
+#include "../src/core_params.h"
 
 namespace TileWaves {
 
 const char* NAME = "TileWaves";
 const char* const KNOB_LABELS[4] = {"Quantize", "Speed", "PhaseShift", "Sharpness"};
+constexpr bool ABSOLUTE_READY = true;
 
 static const uint8_t RAMP_LUT[256][3] = {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -116,21 +118,13 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    quantizeState += input.knobDeltas[0] * TILE_QUANTIZE_STEP;
-    if (quantizeState < TILE_QUANTIZE_MIN) quantizeState = TILE_QUANTIZE_MIN;
-    if (quantizeState > TILE_QUANTIZE_MAX) quantizeState = TILE_QUANTIZE_MAX;
+    PFParams::apply(input, 0, &quantizeState, TILE_QUANTIZE_MIN, TILE_QUANTIZE_MAX, TILE_QUANTIZE_STEP);
 
-    speedState += input.knobDeltas[1] * TILE_SPEED_STEP;
-    if (speedState < TILE_SPEED_MIN) speedState = TILE_SPEED_MIN;
-    if (speedState > TILE_SPEED_MAX) speedState = TILE_SPEED_MAX;
+    PFParams::apply(input, 1, &speedState, TILE_SPEED_MIN, TILE_SPEED_MAX, TILE_SPEED_STEP);
 
-    phaseShiftState += input.knobDeltas[2] * TILE_PHASESHIFT_STEP;
-    if (phaseShiftState < TILE_PHASESHIFT_MIN) phaseShiftState = TILE_PHASESHIFT_MIN;
-    if (phaseShiftState > TILE_PHASESHIFT_MAX) phaseShiftState = TILE_PHASESHIFT_MAX;
+    PFParams::apply(input, 2, &phaseShiftState, TILE_PHASESHIFT_MIN, TILE_PHASESHIFT_MAX, TILE_PHASESHIFT_STEP);
 
-    sharpnessState += input.knobDeltas[3] * TILE_SHARPNESS_STEP;
-    if (sharpnessState < TILE_SHARPNESS_MIN) sharpnessState = TILE_SHARPNESS_MIN;
-    if (sharpnessState > TILE_SHARPNESS_MAX) sharpnessState = TILE_SHARPNESS_MAX;
+    PFParams::apply(input, 3, &sharpnessState, TILE_SHARPNESS_MIN, TILE_SHARPNESS_MAX, TILE_SHARPNESS_STEP);
 
     timeAcc += dt * speedState;
     // timeAcc feeds fastSin with integer multiplier (3.0) and floorf for quantization.

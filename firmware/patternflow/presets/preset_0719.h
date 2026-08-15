@@ -13,6 +13,7 @@
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
 #include "../src/core_mem.h"
+#include "../src/core_params.h"
 
 namespace MagVortex {
 
@@ -23,6 +24,7 @@ const char* const KNOB_LABELS[4] = {
     "SpinPull",
     "InflowPitch"
 };
+constexpr bool ABSOLUTE_READY = true;
 
 // Parameter state
 static float trailDecay = 0.924f;
@@ -124,30 +126,22 @@ void update(float dt, const InputFrame& input) {
     if (!densityMap) return;  // allocation failed — degrade to a blank pattern
 
     // Knob 0: TrailDecay
-    trailDecay += input.knobDeltas[0] * 0.05f;
-    if (trailDecay < 0.5f) trailDecay = 0.5f;
-    if (trailDecay > 0.98f) trailDecay = 0.98f;
+    PFParams::apply(input, 0, &trailDecay, 0.5f, 0.98f, 0.05f);
 
     // Knob 1: Velocity
-    velocity += input.knobDeltas[1] * 0.1f;
-    if (velocity < -3.0f) velocity = -3.0f;
-    if (velocity > 5.0f) velocity = 5.0f;
+    PFParams::apply(input, 1, &velocity, -3.0f, 5.0f, 0.1f);
 
     // Knob 2: SpinPull
-    spin += input.knobDeltas[2] * 0.05f;
-    if (spin < 0.0f) spin = 0.0f;
-    if (spin > 3.0f) spin = 3.0f;
+    PFParams::apply(input, 2, &spin, 0.0f, 3.0f, 0.05f);
 
     // Knob 3: InflowPitch
-    pitch += input.knobDeltas[3] * 0.05f;
-    if (pitch < -20.0f) pitch = -20.0f;
-    if (pitch > 20.0f) pitch = 20.0f;
+    PFParams::apply(input, 3, &pitch, -20.0f, 20.0f, 0.05f);
 
     // Button resets
-    if (input.btnPressed[0]) trailDecay = 0.924f;
-    if (input.btnPressed[1]) velocity = 2.013f;
-    if (input.btnPressed[2]) spin = 0.746f;
-    if (input.btnPressed[3]) pitch = -2.203f;
+    if (input.btnPressed[0] && !input.paramAbsoluteActive[0] && !input.knobAudioActive[0]) trailDecay = 0.924f;
+    if (input.btnPressed[1] && !input.paramAbsoluteActive[1] && !input.knobAudioActive[1]) velocity = 2.013f;
+    if (input.btnPressed[2] && !input.paramAbsoluteActive[2] && !input.knobAudioActive[2]) spin = 0.746f;
+    if (input.btnPressed[3] && !input.paramAbsoluteActive[3] && !input.knobAudioActive[3]) pitch = -2.203f;
 
     // Decay the density map
     for (int i = 0; i < PANEL_RES_W * PANEL_RES_H; i++) {

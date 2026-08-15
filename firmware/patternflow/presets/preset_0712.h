@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace MidsummerSea {
 
 const char* NAME = "Midsummer Sea";
 const char* const KNOB_LABELS[4] = {"Waves", "Speed", "Sun", "Glitter"};
+constexpr bool ABSOLUTE_READY = true;
 
 static const uint8_t RAMP_LUT[256][3] = {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -66,21 +68,13 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    waves += input.knobDeltas[0] * 0.05f;
-    if (waves < 0.0f) waves = 0.0f;
-    if (waves > 1.0f) waves = 1.0f;
+    PFParams::apply(input, 0, &waves, 0.0f, 1.0f, 0.05f);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < 0.1f) speed = 0.1f;
-    if (speed > 3.0f) speed = 3.0f;
+    PFParams::apply(input, 1, &speed, 0.1f, 3.0f, 0.1f);
 
-    sun += input.knobDeltas[2] * 0.05f;
-    if (sun < 0.0f) sun = 0.0f;
-    if (sun > 1.0f) sun = 1.0f;
+    PFParams::apply(input, 2, &sun, 0.0f, 1.0f, 0.05f);
 
-    glit += input.knobDeltas[3] * 0.05f;
-    if (glit < 0.0f) glit = 0.0f;
-    if (glit > 1.0f) glit = 1.0f;
+    PFParams::apply(input, 3, &glit, 0.0f, 1.0f, 0.05f);
 
     t += dt * speed;
     // common period for all sine multipliers: 2000π

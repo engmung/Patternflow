@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_mem.h"
+#include "../src/core_params.h"
 
 namespace BreakoutArcade {
 
 const char* NAME = "Breakout Arcade";
 const char* const KNOB_LABELS[4] = {"Paddle", "Speed", "Luck", "Glow"};
+constexpr bool ABSOLUTE_READY = true;
 
 static const uint8_t RAMP_LUT[256][3] = {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -169,33 +171,25 @@ void update(float dt, const InputFrame& input) {
     if (!glow) return;  // allocation failed — degrade to a blank pattern
 
     // --- Knob Paddle (encoder driven, used only for manual mode and idle detection) ---
-    knobPaddle += input.knobDeltas[0] * 0.05f;
-    if (knobPaddle < 2.0f) knobPaddle = 2.0f;
-    if (knobPaddle > 62.0f) knobPaddle = 62.0f;
+    PFParams::apply(input, 0, &knobPaddle, 2.0f, 62.0f, 0.05f);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < 25.0f) speed = 25.0f;
-    if (speed > 200.0f) speed = 200.0f;
+    PFParams::apply(input, 1, &speed, 25.0f, 200.0f, 0.1f);
 
-    luck += input.knobDeltas[2] * 0.05f;
-    if (luck < 0.0f) luck = 0.0f;
-    if (luck > 1.0f) luck = 1.0f;
+    PFParams::apply(input, 2, &luck, 0.0f, 1.0f, 0.05f);
 
-    glowK += input.knobDeltas[3] * 0.05f;
-    if (glowK < 0.0f) glowK = 0.0f;
-    if (glowK > 1.0f) glowK = 1.0f;
+    PFParams::apply(input, 3, &glowK, 0.0f, 1.0f, 0.05f);
 
-    if (input.btnPressed[0]) {
+    if (input.btnPressed[0] && !input.paramAbsoluteActive[0] && !input.knobAudioActive[0]) {
         memset(dead, 0, sizeof(dead));
     }
-    if (input.btnPressed[1]) {
+    if (input.btnPressed[1] && !input.paramAbsoluteActive[1] && !input.knobAudioActive[1]) {
         multiball();
         flash = 1.0f;
     }
-    if (input.btnPressed[2]) {
+    if (input.btnPressed[2] && !input.paramAbsoluteActive[2] && !input.knobAudioActive[2]) {
         wideT = 6.0f;
     }
-    if (input.btnPressed[3]) {
+    if (input.btnPressed[3] && !input.paramAbsoluteActive[3] && !input.knobAudioActive[3]) {
         fireT = 4.0f;
         flash = 0.8f;
     }

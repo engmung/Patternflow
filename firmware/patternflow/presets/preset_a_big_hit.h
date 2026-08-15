@@ -15,10 +15,12 @@
 #include "../src/core_math.h"
 #include "../src/core_color.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace PatternABigHit {
   const char* NAME = "a big hit";
   const char* const KNOB_LABELS[4] = {"hueBase", "speed", "scale", "chaos"};
+constexpr bool ABSOLUTE_READY = true;
 
   struct Params {
     float hueBase = 0.0f;
@@ -49,11 +51,11 @@ void setup() {
   }
 
 void update(float dt, const InputFrame& input) {
-    params.hueBase = fmodf((float)((params.hueBase + input.knobDeltas[0] * 0.05f)), (float)(1.0f));
+    PFParams::applyUnit(input, 0, &params.hueBase, 0.05f);
     if (params.hueBase < 0) params.hueBase += 1.0f;
-    params.speed = max(0.0f, params.speed + input.knobDeltas[1] * 0.05f);
-    params.scale = constrain(params.scale + input.knobDeltas[2] * 0.01f, 0.02f, 0.2f);
-    params.chaos = constrain(params.chaos + input.knobDeltas[3] * 0.1f, 0.0f, 3.0f);
+    PFParams::apply(input, 1, &params.speed, 0.0f, 10.0f, 0.05f);
+    PFParams::apply(input, 2, &params.scale, 0.02f, 0.2f, 0.01f);
+    PFParams::apply(input, 3, &params.chaos, 0.0f, 3.0f, 0.1f);
     params.timeAcc += dt * params.speed;
   }
 

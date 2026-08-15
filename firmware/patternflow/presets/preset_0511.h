@@ -15,10 +15,12 @@
 #include "../src/core_math.h"
 #include "../src/core_color.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace Pattern0511 {
   const char* NAME = "0511";
   const char* const KNOB_LABELS[4] = {"hueBase", "speed", "rowHeight", "segWidth"};
+constexpr bool ABSOLUTE_READY = true;
 
   struct Params {
     float hueBase = 0.0f;
@@ -49,11 +51,11 @@ void setup() {
   }
 
 void update(float dt, const InputFrame& input) {
-    params.hueBase = fmodf((float)((params.hueBase + input.knobDeltas[0] * 0.05f)), (float)(1.0f));
+    PFParams::applyUnit(input, 0, &params.hueBase, 0.05f);
     if (params.hueBase < 0) params.hueBase += 1.0f;
-    params.speed = max(0.0f, params.speed + input.knobDeltas[1] * 0.05f);
-    params.rowHeight = constrain(params.rowHeight + input.knobDeltas[2] * 0.5f, 4.0f, 16.0f);
-    params.segWidth = constrain(params.segWidth + input.knobDeltas[3] * 1.0f, 8.0f, 48.0f);
+    PFParams::apply(input, 1, &params.speed, 0.0f, 10.0f, 0.05f);
+    PFParams::apply(input, 2, &params.rowHeight, 4.0f, 16.0f, 0.5f);
+    PFParams::apply(input, 3, &params.segWidth, 8.0f, 48.0f, 1.0f);
     params.timeAcc += dt * params.speed;
   }
 

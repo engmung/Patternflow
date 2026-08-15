@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace FireflyHollow {
 
 const char* NAME = "Firefly Hollow";
 const char* const KNOB_LABELS[4] = {"Flies", "Speed", "Glow", "Wind"};
+constexpr bool ABSOLUTE_READY = true;
 
 // Ramp LUT – DO NOT EDIT (generated from user ramp, 256 entries)
 static const uint8_t RAMP_LUT[256][3] = {
@@ -120,21 +122,13 @@ void setup() {
 
 void update(float dt, const InputFrame& input) {
     // ----- knobs -----
-    knobFlies += input.knobDeltas[0] * 0.05f;
-    if (knobFlies < 2.0f)  knobFlies = 2.0f;
-    if (knobFlies > 34.0f) knobFlies = 34.0f;
+    PFParams::apply(input, 0, &knobFlies, 2.0f, 34.0f, 0.05f);
 
-    knobSpeed += input.knobDeltas[1] * 0.1f;
-    if (knobSpeed < 0.2f) knobSpeed = 0.2f;
-    if (knobSpeed > 5.0f) knobSpeed = 5.0f;
+    PFParams::apply(input, 1, &knobSpeed, 0.2f, 5.0f, 0.1f);
 
-    knobGlow += input.knobDeltas[2] * 0.05f;
-    if (knobGlow < 0.0f) knobGlow = 0.0f;
-    if (knobGlow > 2.0f) knobGlow = 2.0f;
+    PFParams::apply(input, 2, &knobGlow, 0.0f, 2.0f, 0.05f);
 
-    knobWind += input.knobDeltas[3] * 0.05f;
-    if (knobWind < 0.0f) knobWind = 0.0f;
-    if (knobWind > 2.0f) knobWind = 2.0f;
+    PFParams::apply(input, 3, &knobWind, 0.0f, 2.0f, 0.05f);
 
     int flies = (int)lroundf(knobFlies);
     if (flies < 2)  flies = 2;

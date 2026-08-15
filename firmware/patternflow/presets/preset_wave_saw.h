@@ -11,10 +11,12 @@
 #include "../src/core_math.h"
 #include "../src/core_noise.h"
 #include "../src/core_canvas.h"
+#include "../src/core_params.h"
 
 namespace WaveSaw {
   const char* NAME = "Wave Saw";
   const char* KNOB_LABELS[4] = {"angle", "scale", "dist", "dscale"};
+constexpr bool ABSOLUTE_READY = true;
 
   // --- Wave / 매핑 상수 ---
   const float DETAIL_ROUGHNESS = 0.22f;
@@ -51,35 +53,17 @@ namespace WaveSaw {
   }
 
   void update(float dt, const InputFrame& input) {
-    // Enc1: Angle (방향)
-    int d0 = input.knobDeltas[0];
-    if (d0 != 0) {
-      angle += d0 * 0.1f; // 회전 속도 조절 
-      if (angle > PI * 2) angle -= PI * 2;
-      if (angle < 0) angle += PI * 2;
-    }
-    if (input.btnPressed[0]) { angle = 0.0f; Serial.println("[WaveSaw] Angle -> 0"); }
+    PFParams::apply(input, 0, &angle, 0.0f, (float)(PI * 2), 0.1f);
+    if (input.btnPressed[0] && !input.paramAbsoluteActive[0] && !input.knobAudioActive[0]) { angle = 0.0f; Serial.println("[WaveSaw] Angle -> 0"); }
 
-    // Enc2: Scale (밀도)
-    int d1 = input.knobDeltas[1];
-    if (d1 != 0) {
-      scale = constrain(scale + d1 * 0.2f, SCALE_MIN, SCALE_MAX);
-    }
-    if (input.btnPressed[1]) { scale = 3.0f; Serial.println("[WaveSaw] Scale -> 3.0"); }
+    PFParams::apply(input, 1, &scale, SCALE_MIN, SCALE_MAX, 0.2f);
+    if (input.btnPressed[1] && !input.paramAbsoluteActive[1] && !input.knobAudioActive[1]) { scale = 3.0f; Serial.println("[WaveSaw] Scale -> 3.0"); }
 
-    // Enc3: Distortion (왜곡 정도)
-    int d2 = input.knobDeltas[2];
-    if (d2 != 0) {
-      dist = constrain(dist + d2 * 0.1f, DIST_MIN, DIST_MAX);
-    }
-    if (input.btnPressed[2]) { dist = 0.0f; Serial.println("[WaveSaw] Dist -> 0.0"); }
+    PFParams::apply(input, 2, &dist, DIST_MIN, DIST_MAX, 0.1f);
+    if (input.btnPressed[2] && !input.paramAbsoluteActive[2] && !input.knobAudioActive[2]) { dist = 0.0f; Serial.println("[WaveSaw] Dist -> 0.0"); }
 
-    // Enc4: Detail Scale (노이즈 디테일 크기)
-    int d3 = input.knobDeltas[3];
-    if (d3 != 0) {
-      dScale = constrain(dScale + d3 * 0.2f, DSCALE_MIN, DSCALE_MAX);
-    }
-    if (input.btnPressed[3]) { dScale = 1.0f; Serial.println("[WaveSaw] DScale -> 1.0"); }
+    PFParams::apply(input, 3, &dScale, DSCALE_MIN, DSCALE_MAX, 0.2f);
+    if (input.btnPressed[3] && !input.paramAbsoluteActive[3] && !input.knobAudioActive[3]) { dScale = 1.0f; Serial.println("[WaveSaw] DScale -> 1.0"); }
 
     // 애니메이션 페이즈 업데이트
     phase += dt * PHASE_PER_SEC;

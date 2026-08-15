@@ -1,6 +1,5 @@
 {
   "name": "Basics",
-  "publisher": "Patternflow",
   "patterns": 33,
   "authors": [
     "Seunghun LEE"
@@ -83,5 +82,5 @@
     "magvortex": 719.0,
     "a_big_hit": 9999.0
   },
-  "bytes": 115598
+  "bytes": 126012
 }

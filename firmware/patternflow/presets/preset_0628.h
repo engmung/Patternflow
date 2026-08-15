@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_color.h"
+#include "../src/core_params.h"
 
 namespace RetroDigitalTapestry {
 
 const char* NAME = "Retro Digital Tapestry";
 const char* const KNOB_LABELS[4] = {"Cell Scale", "Speed", "Logic Mode", "Wave Mod"};
+constexpr bool ABSOLUTE_READY = true;
 
 float cellScale = -0.101f;
 float speed = 1.99f;
@@ -36,21 +38,13 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    cellScale += input.knobDeltas[0] * 0.05f;
-    if (cellScale < -0.101f) cellScale = -0.101f;
-    if (cellScale > 0.5f) cellScale = 0.5f;
+    PFParams::apply(input, 0, &cellScale, -0.101f, 0.5f, 0.05f);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < 0.1f) speed = 0.1f;
-    if (speed > 5.0f) speed = 5.0f;
+    PFParams::apply(input, 1, &speed, 0.1f, 5.0f, 0.1f);
 
-    logicMode += input.knobDeltas[2] * 0.05f;
-    if (logicMode < 0.0f) logicMode = 0.0f;
-    if (logicMode > 1.001f) logicMode = 1.001f;
+    PFParams::apply(input, 2, &logicMode, 0.0f, 1.001f, 0.05f);
 
-    waveMod += input.knobDeltas[3] * 0.05f;
-    if (waveMod < 0.0f) waveMod = 0.0f;
-    if (waveMod > 3.0f) waveMod = 3.0f;
+    PFParams::apply(input, 3, &waveMod, 0.0f, 3.0f, 0.05f);
 
     timeAcc += dt * speed * 2.0f;
 }
