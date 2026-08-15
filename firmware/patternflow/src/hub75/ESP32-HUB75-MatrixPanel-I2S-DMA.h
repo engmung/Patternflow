@@ -629,6 +629,23 @@ public:
                   const uint8_t *lutR, const uint8_t *lutG, const uint8_t *lutB,
                   int satBoostQ8);
 
+  /**
+   * Total LED on-time the last blit asked for, and the largest value that
+   * total could have been (an all-white frame).
+   *
+   * Summed from the post-CIE linear values — the numbers that actually become
+   * PWM duty — so the ratio between them is the fraction of full-white current
+   * the frame draws. Accumulated inside the blit's existing pixel loop from
+   * values already in registers, which is why it costs nothing worth
+   * measuring; see core_power.h for what reads it.
+   *
+   * Brightness is applied later, in OE timing, so this is deliberately
+   * independent of it: the limiter measures demand and sets brightness, and
+   * cannot end up chasing its own tail.
+   */
+  uint64_t lastFrameOnTime() const { return _lastFrameOnTime; }
+  uint64_t maxFrameOnTime() const { return _maxFrameOnTime; }
+
 #ifdef USE_GFX_LITE
   // 24bpp FASTLED CRGB colour struct support
   void fillScreen(CRGB color);
@@ -928,6 +945,10 @@ private:
   // Other private variables
   bool initialized = false;
   bool config_set = false;
+
+  // Power demand of the last blitted frame — see lastFrameOnTime().
+  uint64_t _lastFrameOnTime = 0;
+  uint64_t _maxFrameOnTime = 0;
 
 }; // end Class header
 

@@ -38,6 +38,7 @@
 
 #if PF_STATUS_HTTP_ENABLED && PF_DISPLAY_HTTP_ENABLED
 #include "core_canvas.h"
+#include "core_power.h"             // total power clamp: budget + telemetry
 #include "core_status_http.h"       // shared WebServer
 #include "../presets/preset_calib.h"  // absolute screen/level control
 #endif
@@ -96,18 +97,34 @@ inline void handleDisplay() {
     CalibPattern::requestedLevel = (int)server().arg("level").toInt();
   }
 
+  // Power clamp: budget is settable here, the rest is read-only telemetry.
+  if (server().hasArg("power_budget")) {
+    PatternflowPower::setBudgetMa((int)server().arg("power_budget").toInt());
+  }
+  if (server().hasArg("power_limit")) {
+    PatternflowPower::setEnabled(server().arg("power_limit") != "0");
+  }
+
   // snprintf, not String: this endpoint is hit continuously while somebody
   // drags a slider, and the shared heap is the scarcest thing on the board.
-  char json[256];
+  char json[384];
   snprintf(json, sizeof(json),
            "{\"wb_r\":%.3f,\"wb_g\":%.3f,\"wb_b\":%.3f,"
            "\"gamma_r\":%.3f,\"gamma_g\":%.3f,\"gamma_b\":%.3f,"
-           "\"sat\":%.3f,\"brightness\":%u,\"calib\":%d,\"screen\":%d,\"level\":%d}",
+           "\"sat\":%.3f,\"brightness\":%u,\"calib\":%d,\"screen\":%d,\"level\":%d,"
+           "\"power_limit\":%d,\"power_budget\":%u,\"power_ma\":%u,"
+           "\"power_demand\":%u,\"power_limiting\":%d,\"power_applied\":%u}",
            PFCanvas::wbR, PFCanvas::wbG, PFCanvas::wbB,
            PFCanvas::gammaR, PFCanvas::gammaG, PFCanvas::gammaB,
            PFCanvas::satBoost, (unsigned)currentBrightness,
            CalibPattern::overrideOn ? 1 : 0,
-           CalibPattern::screen, CalibPattern::whiteLevel);
+           CalibPattern::screen, CalibPattern::whiteLevel,
+           PatternflowPower::enabled ? 1 : 0,
+           (unsigned)PatternflowPower::budgetMa,
+           (unsigned)PatternflowPower::estimateMa,
+           (unsigned)PatternflowPower::demandPercent(),
+           PatternflowPower::limiting ? 1 : 0,
+           (unsigned)PatternflowPower::allowedBrightness);
 
   server().sendHeader("Cache-Control", "no-store");
   server().sendHeader("Access-Control-Allow-Origin", "*");

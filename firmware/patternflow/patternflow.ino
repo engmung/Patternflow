@@ -10,6 +10,9 @@
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
 #include "src/core_web_update.h"
+// Reads the demand the display driver measured while blitting, so it comes
+// after core_display.h and before anything that sets brightness.
+#include "src/core_power.h"
 #include "pattern_registry.h"
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
@@ -44,6 +47,10 @@ float contentNoticeTimer = 0.0f;
 // which state you were in.) Value persists in NVS.
 Preferences prefs;
 uint8_t currentBrightness = DEFAULT_BRIGHTNESS;
+// What the panel is actually running at. Equal to currentBrightness unless the
+// power clamp is holding it down (core_power.h) — kept separately so the
+// clamp never rewrites the person's own setting.
+uint8_t appliedBrightness = DEFAULT_BRIGHTNESS;
 bool brightnessAdjusting = false;
 uint32_t brightnessIdleAtMs = 0;
 bool brightnessDirty = false;
@@ -133,6 +140,9 @@ void setup() {
   prefs.begin("patternflow", false);
   currentBrightness = prefs.getUChar("brightness", DEFAULT_BRIGHTNESS);
   dma_display->setBrightness8(currentBrightness);
+  // The clamp needs a frame's demand before it can say anything, so it starts
+  // out of the way and takes over from the first present().
+  PatternflowPower::load();
 
   // OSC + audio-react runtime flags, restored from NVS so the device boots
   // into whatever the K2 info screen was last set to.
@@ -321,6 +331,25 @@ void drawBrightnessNotice() {
   dma_display->drawFastHLine(x, by, w, pfDimC());
   int fw = ((int)w * pct) / 100;
   if (fw > 0) dma_display->drawFastHLine(x, by, fw, pfLedC());
+
+  // While the power clamp is holding brightness down, turning the knob up
+  // moves this bar and changes nothing on the panel. Say so, or it reads as
+  // a broken control: the dim segment is the part the clamp is withholding.
+  if (PatternflowPower::limiting) {
+    int allowedPct = (int)((PatternflowPower::allowedBrightness * 100 + 127) / 255);
+    int aw = ((int)w * allowedPct) / 100;
+    if (aw < fw) dma_display->drawFastHLine(x + aw, by, fw - aw, pfDimC());
+    char lim[20];
+    snprintf(lim, sizeof(lim), "PWR %umA", (unsigned)PatternflowPower::estimateMa);
+    uint16_t lw, lh;
+    dma_display->getTextBounds(lim, 0, 0, &x1, &y1, &lw, &lh);
+    int lx = (dma_display->width() - (int)lw) / 2;
+    int ly = y - (int)lh - 3;
+    dma_display->fillRect(lx - 2, ly - 2, lw + 4, lh + 4, 0);
+    dma_display->setTextColor(pfLedC());
+    dma_display->setCursor(lx, ly);
+    dma_display->print(lim);
+  }
 }
 
 // NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi / OSC / audio
@@ -1156,5 +1185,19 @@ void loop() {
     dma_display->flipDMABuffer();
     uint32_t frameUs = micros() - frameStartedUs;
     renderFrameUs = renderFrameUs ? (renderFrameUs * 7 + frameUs) / 8 : frameUs;
+
+    // Total power clamp. The frame that just went out is the one whose demand
+    // was measured, so the answer lands on the next one — invisible at this
+    // frame rate, and it costs no second pass over the pixels.
+    //
+    // currentBrightness stays exactly what the person chose: only the value
+    // handed to the panel is capped, so turning the clamp off (or pointing a
+    // pattern at something darker) restores their setting with no further
+    // input from them.
+    uint8_t allowed = PatternflowPower::allow(currentBrightness);
+    if (allowed != appliedBrightness) {
+      appliedBrightness = allowed;
+      dma_display->setBrightness8(allowed);
+    }
   }
 }
