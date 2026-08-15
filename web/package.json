@@ -22,7 +22,8 @@
     "check:ports": "tsx scripts/ports-smoke.ts",
     "seed:map": "tsx scripts/seed-territories.ts",
     "check:workshop": "tsx scripts/workshop-smoke.ts",
-    "check:sandbox": "tsx scripts/sandbox-smoke.ts"
+    "check:sandbox": "tsx scripts/sandbox-smoke.ts",
+    "check:performance": "tsx scripts/performance-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

@@ -245,6 +245,15 @@ export const decks = sqliteTable(
      */
     zipBuildId: text("zip_build_id"),
     zipFingerprint: text("zip_fingerprint"),
+    /**
+     * Optional attached performance (Director timeline, proposal §7.1),
+     * stored as canonical JSON. When present, the deck's pack also carries
+     * `performance.json` (the editable source) and the encoded `.pfs` show
+     * table — added at serve time in the zip route, so attaching or editing
+     * a performance never queues a rebuild. Null means "no performance",
+     * and the pack is exactly what it was before this column existed.
+     */
+    performanceJson: text("performance_json"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },

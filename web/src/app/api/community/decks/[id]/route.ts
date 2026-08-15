@@ -8,6 +8,7 @@ import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
 import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/notify";
 import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
+import { serializePerformance, validatePerformance } from "@/lib/community/performance";
 import { deckPatterns, decks } from "@/lib/community/schema";
 import { cleanDescription, cleanTitle } from "@/lib/community/validate";
 import { cleanVisibility, type Visibility } from "@/lib/community/visibility";
@@ -135,6 +136,28 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     }
   }
 
+  // Optional attached performance (Director timeline). null detaches; a
+  // string is validated against the same limits the device's .pfs player
+  // enforces, and stored in canonical form so the pack's performance.json
+  // is stable across re-serializations. Serve-time zip decoration means no
+  // rebuild is queued either way.
+  let performanceJson: string | null | undefined;
+  if (raw.performanceJson !== undefined) {
+    if (raw.performanceJson === null || raw.performanceJson === "") {
+      performanceJson = null;
+    } else if (typeof raw.performanceJson !== "string") {
+      return Response.json({ error: "performanceJson must be a JSON string or null." }, { status: 400 });
+    } else if (raw.performanceJson.length > 64 * 1024) {
+      return Response.json({ error: "Performance JSON is too large (max 64 KB)." }, { status: 400 });
+    } else {
+      const verdict = validatePerformance(raw.performanceJson);
+      if (!verdict.ok) {
+        return Response.json({ error: `Performance: ${verdict.error}` }, { status: 400 });
+      }
+      performanceJson = JSON.stringify(serializePerformance(verdict.perf), null, 2);
+    }
+  }
+
   const db = getDb();
 
   // The list as it stands — the fallback when no replacement came, and the
@@ -177,6 +200,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     .set({
       title,
       ...(description !== undefined ? { description } : {}),
+      ...(performanceJson !== undefined ? { performanceJson } : {}),
       visibility,
       updatedAt: new Date(),
     })

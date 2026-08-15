@@ -55,6 +55,7 @@ export default async function CommunityDeckPage(props: RouteParams) {
         title: deck.title,
         description: deck.description,
         visibility: deck.visibility,
+        performanceJson: deck.performanceJson,
         createdAt: deck.createdAt.toISOString(),
         username: deck.username,
         displayUsername: deck.displayUsername,

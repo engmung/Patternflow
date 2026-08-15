@@ -1008,6 +1008,7 @@ export async function getDeck(id: string) {
       title: decks.title,
       description: decks.description,
       visibility: decks.visibility,
+      performanceJson: decks.performanceJson,
       createdAt: decks.createdAt,
       updatedAt: decks.updatedAt,
       ...authorFields,

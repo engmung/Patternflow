@@ -4,6 +4,20 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+Timed performances land, from **Simone Majocchi's ([@SimonePDA](https://github.com/SimonePDA)) performance-director branch**: a deterministic absolute-parameter bus, an on-device show player, and packs that carry a performance with them.
+
+### Added
+- **Absolute parameter bus (0..1000).** MQTT `​<prefix>/param/1..4` can pin any knob of an absolute-ready pattern to an exact value — a timed show or the Director tool reproduces a look instead of nudging deltas and hoping. Physical encoder motion releases the hold (hands outrank the timeline), audio/weather sit between, and plain deltas keep working exactly as before. Patterns opt in through one `PFParams::apply` line per knob; every preset, the Basics pack, and all convertible community headers are already converted, and everything the site generates from now on is absolute-ready from birth.
+- **MQTT channels + snapshots.** `/mqtt` grew channel presets — Broadcast, Ch 1–4 (subscriber-only, for timed shows), Live, Custom — and a retained per-channel `snapshot` so a panel joining mid-show lands on the current look instead of silence. A **Director mode** points the panel at a local authoring broker (PC LAN IP, no password) without disturbing the saved community broker.
+- **On-device show player** (`/show`, "Sequences"). The Director saves a performance as a packed `.pfs` cue table; the panel stores those on its filesystem and plays them locally — pattern switches, absolute params, banners — with **no broker required**. Includes a night/wake schedule: panel goes dark (optional dim clock) at a set hour and plays a chosen sequence at wake, dismissed by any knob or click. Time comes from NTP with the UTC offset set on the same page.
+- **Packs carry performances.** A deck owner can attach a Director performance JSON to their deck; the pack zip then includes `performance.json` (the editable source) and the encoded `.pfs`, and the device's `/patterns` unpack installs the `.pfs` to Sequences alongside the modules — nothing to pick, nothing extra to click. The server-side PFST encoder is byte-identical to the Director's own saves.
+- **Download ZIP from the device.** `/patterns` multi-select → Download ZIP packs installed modules (+ sidecars) in the browser, so "I designed on this panel, share the set" needs no PC library.
+
+### Changed
+- **Module ABI descriptor is now 2** (the appended absolute-param fields). The loader accepts 1 and 2, so every existing `.pfm` keeps loading; **pre-absolute firmware refuses new modules cleanly** instead of misreading them — update firmware to install newly built packs.
+- **MQTT retention now follows the show policy**: knob/pattern topics publish non-retained (no stale look pushed at a fresh subscriber); the broadcast banner and channel snapshots are the retained exceptions. The old "second panel catches up from retained knobs" behaviour is replaced by snapshots on channels.
+- Black (panel dark, still powered) joins Origin as a compiled-in preset — it is the scheduler's night face.
+
 ## [3.4.0] - 2026-08-12
 
 Patterns leave the firmware and live on the filesystem, so a board ships nearly empty — and a pack ships with it. **Hardware unchanged**; v3.0 board and case carry over as-is.

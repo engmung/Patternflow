@@ -34,10 +34,33 @@ export type DeckView = {
   title: string;
   description: string | null;
   visibility: string;
+  /** Attached Director performance (canonical JSON), or null. */
+  performanceJson: string | null;
   createdAt: string; // ISO
   username: string | null;
   displayUsername: string | null;
 };
+
+/** What the page says about an attached performance without re-validating it. */
+function summarizePerformance(json: string | null): { title: string; cues: number; seconds: number } | null {
+  if (!json) return null;
+  try {
+    const perf = JSON.parse(json) as { title?: unknown; length?: unknown; timeline?: unknown[] };
+    const timeline = Array.isArray(perf.timeline) ? perf.timeline : [];
+    let last = 0;
+    for (const cue of timeline) {
+      const t = Number((cue as { t?: unknown }).t) || 0;
+      if (t > last) last = t;
+    }
+    return {
+      title: String(perf.title || "Untitled"),
+      cues: timeline.length,
+      seconds: Math.max(Math.round(Number(perf.length) || 0), last),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export default function DeckDetailClient({
   deck,
@@ -54,6 +77,7 @@ export default function DeckDetailClient({
   const [busy, setBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [perfOpen, setPerfOpen] = useState(false);
   const [confirmCopy, setConfirmCopy] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -397,6 +421,20 @@ export default function DeckDetailClient({
 
         {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 
+        {(() => {
+          const perf = summarizePerformance(deck.performanceJson);
+          if (!perf) return null;
+          const m = Math.floor(perf.seconds / 60);
+          const s = perf.seconds % 60;
+          return (
+            <p className={styles.metaDescription}>
+              ♦ Includes a timed performance — “{perf.title}” ({perf.cues} cues,{" "}
+              {m}:{s < 10 ? `0${s}` : s}). It installs with the pack and plays from the
+              device&rsquo;s Sequences page.
+            </p>
+          );
+        })()}
+
         {isOwner && (
           <div className={styles.ownerBar}>
             <label className={styles.deckVisControl}>
@@ -415,6 +453,14 @@ export default function DeckDetailClient({
             </label>
             <button type="button" className={styles.btn} onClick={() => setEditOpen(true)}>
               Edit details
+            </button>
+            <button
+              type="button"
+              className={styles.btn}
+              title="Attach a Director performance JSON — it ships inside the pack as performance.json + .pfs"
+              onClick={() => setPerfOpen(true)}
+            >
+              {deck.performanceJson ? "Performance…" : "Attach performance"}
             </button>
             <button
               type="button"
@@ -502,6 +548,120 @@ export default function DeckDetailClient({
           onClose={() => setEditOpen(false)}
         />
       )}
+
+      {perfOpen && (
+        <PerformanceModal
+          deckId={deck.id}
+          initialJson={deck.performanceJson}
+          onSaved={() => {
+            setPerfOpen(false);
+            router.refresh();
+          }}
+          onClose={() => setPerfOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// A Director performance rides the deck's pack: performance.json (editable
+// source) + the packed .pfs the device's Sequences page plays. Author it in
+// the Director PWA (Save JSON), paste or drop the file here. The server
+// re-validates against the device's limits, so a save that succeeds is one
+// the panel will actually load.
+function PerformanceModal({
+  deckId,
+  initialJson,
+  onSaved,
+  onClose,
+}: {
+  deckId: string;
+  initialJson: string | null;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const [json, setJson] = useState(initialJson ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const send = async (value: string | null) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(communityApiUrl(`/api/community/decks/${deckId}`), {
+        method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ performanceJson: value }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not save.");
+        return;
+      }
+      onSaved();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pickFile = (file: File | undefined) => {
+    if (!file) return;
+    file
+      .text()
+      .then((text) => setJson(text))
+      .catch(() => setError("Could not read that file."));
+  };
+
+  return (
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+      <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <span>Deck performance</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div className={styles.modalBody}>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>
+              Performance JSON (Director → Save JSON)
+            </span>
+            <textarea
+              className={styles.textInput}
+              rows={10}
+              value={json}
+              spellCheck={false}
+              placeholder='{"version":1,"title":"Sunset Set","timeline":[{"t":0,"pattern":"Origin"},{"t":0,"param":[500,500,500,500]}]}'
+              onChange={(event) => setJson(event.target.value)}
+            />
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>…or load a .json file</span>
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => pickFile(event.target.files?.[0])}
+            />
+          </label>
+          {error && <div className={styles.formError}>{error}</div>}
+          <button
+            type="button"
+            className={styles.btnAccent}
+            disabled={busy || json.trim().length === 0}
+            onClick={() => void send(json)}
+          >
+            {busy ? "Saving…" : "Save performance"}
+          </button>
+          {initialJson && (
+            <button type="button" className={styles.btnDanger} disabled={busy} onClick={() => void send(null)}>
+              Detach performance
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

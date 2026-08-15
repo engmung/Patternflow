@@ -193,7 +193,9 @@ def main() -> None:
         "patterns": len(slugs),
         "authors": authors,
         "licenses": licences,
-        "abi": 1,
+        # The highest descriptor version in the pack — what a firmware must
+        # accept to load everything here (2 since the absolute-param bus).
+        "abi": max((int(m[2].get("abi", 1)) for m in modules), default=1),
         "panel": {"w": 128, "h": 64},
         "order": slugs,
         # slug -> pattern number, for the modules that came from a repo preset.
