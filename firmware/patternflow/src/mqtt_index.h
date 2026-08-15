@@ -86,7 +86,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 #rolebox.hidden{display:none}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>MQTT</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt" class="here">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt" class="here">MQTT</a><a href="/update">Update</a></nav>
 
 <section>
   <h2>Mode</h2>
