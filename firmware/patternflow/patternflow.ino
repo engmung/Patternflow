@@ -138,14 +138,26 @@ void setup() {
   // into whatever the K2 info screen was last set to.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
   PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
-  // Same idea for the MQTT role picked on /mqtt. Defaults to Off, so a
-  // device that has never been told otherwise never dials a broker.
-  PatternflowMqtt::setRole(
-      (PatternflowMqtt::Role)prefs.getUChar("mqtt_role", PatternflowMqtt::ROLE_OFF));
-  // And the broker itself, typed in on the same page. Left at the compiled-in
-  // defaults (empty, unless someone set PF_MQTT_* in their secrets header)
-  // when nothing has been saved.
+  // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
+  // channel), then apply the saved role under the channel's constraints
+  // (Ch1–4 force Subscriber). Defaults stay Off, so a device that has never
+  // been told otherwise never dials a broker.
   PatternflowMqtt::loadConfig();
+  {
+    auto savedRole = (PatternflowMqtt::Role)prefs.getUChar(
+        "mqtt_role", PatternflowMqtt::ROLE_OFF);
+    auto ch = PatternflowMqtt::currentChannel();
+    if (savedRole == PatternflowMqtt::ROLE_OFF ||
+        ch == PatternflowMqtt::CHANNEL_OFF) {
+      PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF,
+                                    PatternflowMqtt::ROLE_OFF);
+    } else {
+      PatternflowMqtt::applyChannel(ch, savedRole);
+    }
+    // Director mode (local authoring broker) survives reboots the same way
+    // the normal broker does.
+    PatternflowMqtt::applySavedMode();
+  }
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -651,6 +663,14 @@ void readInputFrame(InputFrame& input) {
     prevKnobs[i] = input.knobs[i];
   }
 
+  // Physical encoder motion releases an absolute MQTT hold on that channel
+  // (Director / Show manager yield to hands-on control). Checked here, before
+  // OSC/MQTT/audio deltas are merged in, so only real knobs release — and
+  // core_mqtt's grace window ignores chatter right after an absolute set.
+  for (int i = 0; i < 4; i++) {
+    if (input.knobDeltas[i] != 0) PatternflowMqtt::releaseAbsolute(i);
+  }
+
   for (int i = 0; i < 4; i++) {
     Button* button = logicalButton(i);
     input.btnPressed[i] = button->pressed();
@@ -680,6 +700,11 @@ void readInputFrame(InputFrame& input) {
     input.knobAudioActive[i] = PatternflowAudio::isActive(i);
     input.knobAudioValue[i]  = PatternflowAudio::value(i);
   }
+
+  // Absolute MQTT bus last, so it outranks everything above: held channels
+  // get their 0..1000 value and their deltas / audio flags cleared, which is
+  // what lets PFParams::apply pin the mapped parameter deterministically.
+  PatternflowMqtt::fillAbsolute(input);
 }
 
 // Legacy absolute audio-react path for older clients that still send k=N,v=F.

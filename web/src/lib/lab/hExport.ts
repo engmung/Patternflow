@@ -227,12 +227,16 @@ ${stack.map((layer, i) => `//   L${i}. ${layer.name.replace(/\n/g, " ")} (${laye
 #include "src/core_mem.h"
 #include "src/core_math.h"
 #include "src/core_color.h"
-#include "src/core_noise.h"${isPanelFrame ? `\n#include "src/core_tables.h"` : ""}
+#include "src/core_noise.h"
+#include "src/core_params.h"${isPanelFrame ? `\n#include "src/core_tables.h"` : ""}
 
 namespace ${ns} {
 
 const char* NAME = "${name.replace(/"/g, "'").slice(0, 24)}";
 const char* const KNOB_LABELS[4] = {${knobLabels.map((label) => `"${label.replace(/"/g, "'").slice(0, 14)}"`).join(", ")}};
+// Knobs run through PFParams: the MQTT absolute bus (Director / Show
+// manager, 0..1000) can pin any of them deterministically.
+constexpr bool ABSOLUTE_READY = true;
 
 constexpr int FRAME_W = ${matrix.width};
 constexpr int FRAME_H = ${matrix.height};
@@ -370,9 +374,9 @@ ${pixelDecodes ? `${pixelDecodes}\n` : ""}${layerSetups}
 
 void update(float dt, const InputFrame& input) {
   for (int i = 0; i < 4; i++) {
-    knobVal[i] += input.knobDeltas[i] * KNOB_STEP[i];
-    if (knobVal[i] < KNOB_MIN[i]) knobVal[i] = KNOB_MIN[i];
-    if (knobVal[i] > KNOB_MAX[i]) knobVal[i] = KNOB_MAX[i];
+    // Absolute bus (when held) > audio/weather > encoder deltas — one call,
+    // same clamping the old delta loop did.
+    PFParams::apply(input, i, &knobVal[i], KNOB_MIN[i], KNOB_MAX[i], KNOB_STEP[i]);
     knobNorm[i] = (knobVal[i] - KNOB_MIN[i]) / (KNOB_MAX[i] - KNOB_MIN[i]);
   }
 ${layerUpdates}

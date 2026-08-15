@@ -15,10 +15,12 @@
 #include "../src/core_math.h"
 #include "../src/core_color.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace Pattern0513 {
   const char* NAME = "0513";
   const char* const KNOB_LABELS[4] = {"Knob 1", "Knob 2", "Knob 3", "Knob 4"};
+constexpr bool ABSOLUTE_READY = true;
 
   struct Params {
     float hue = 0.0f;
@@ -74,15 +76,10 @@ void setup() {
   }
 
 void update(float dt, const InputFrame& input) {
-    float d0 = 0.0f, d1 = 0.0f, d2 = 0.0f, d3 = 0.0f;
-    if (true) {
-        d0 = input.knobDeltas[0]; d1 = input.knobDeltas[1];
-        d2 = input.knobDeltas[2]; d3 = input.knobDeltas[3];
-    }
-    params.hueT = wrap01(params.hueT + d0 * 0.012f);
-    params.speedT = constrain(params.speedT + d1 * 0.018f, 0.0f, 1.0f);
-    params.modeT = constrain(params.modeT + d2 * 0.018f, 0.0f, 1.0f);
-    params.freqT = constrain(params.freqT + d3 * 0.018f, 0.0f, 1.0f);
+    PFParams::applyUnit(input, 0, &params.hueT, 0.012f);
+    PFParams::apply(input, 1, &params.speedT, 0.0f, 1.0f, 0.018f);
+    PFParams::apply(input, 2, &params.modeT, 0.0f, 1.0f, 0.018f);
+    PFParams::apply(input, 3, &params.freqT, 0.0f, 1.0f, 0.018f);
     float s = constrain(dt * 7.5f, 0.0f, 1.0f);
     params.hue = mixHue(params.hue, params.hueT, s);
     params.speed = mix(params.speed, params.speedT, s);

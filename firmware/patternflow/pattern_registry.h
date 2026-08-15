@@ -52,10 +52,14 @@ struct PatternEntry {
   // The four members above are meaningless for a module: its code is not in
   // firmware.bin, so the loader dispatches instead.
   const char* modulePath;
+  // Pattern maps the MQTT absolute 0..1000 bus via PFParams (Director /
+  // Show manager). Presets declare it as ns::ABSOLUTE_READY; modules carry
+  // it in their sidecar .json.
+  bool absoluteReady;
 };
 
 #define PATTERN_ENTRY(ns) \
-  { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr }
+  { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr, ns::ABSOLUTE_READY }
 
 // To add a pattern:
 // - Module (the usual way now): build a .pfm and upload it — no rebuild.
@@ -218,6 +222,30 @@ inline void readSidecarName(const char* modulePath, char* out, size_t outSize) {
   int close = open < 0 ? -1 : json.indexOf('"', open + 1);
   if (open < 0 || close <= open + 1) return;
   snprintf(out, outSize, "%s", json.substring(open + 1, close).c_str());
+}
+
+// Same sidecar, different key: whether the module was built against the
+// absolute-param helpers. Missing sidecar or missing key both mean "no" —
+// every module built before the bus existed is delta-only by definition.
+inline bool readSidecarAbsoluteReady(const char* modulePath) {
+  char jsonPath[MODULE_PATH_BYTES];
+  snprintf(jsonPath, sizeof(jsonPath), "%s", modulePath);
+  char* extension = strrchr(jsonPath, '.');
+  if (!extension) return false;
+  snprintf(extension, sizeof(jsonPath) - (extension - jsonPath), ".json");
+
+  File metadata = FFat.open(jsonPath, FILE_READ);
+  if (!metadata) return false;
+  String json = metadata.readString();
+  metadata.close();
+
+  int key = json.indexOf("\"absoluteReady\"");
+  if (key < 0) return false;
+  int colon = json.indexOf(':', key + 15);
+  if (colon < 0) return false;
+  String tail = json.substring(colon + 1);
+  tail.trim();
+  return tail.startsWith("true");
 }
 
 // Mount the partition the presets never needed. Label "ffat" is what the
@@ -386,6 +414,7 @@ inline void buildPatternList() {
   for (int i = 0; i < numModules; i++) {
     patterns[NUM_PATTERNS++] = {
       moduleNames[i], MODULE_KNOB_LABELS, nullptr, nullptr, nullptr, modulePaths[i],
+      readSidecarAbsoluteReady(modulePaths[i]),
     };
   }
 }

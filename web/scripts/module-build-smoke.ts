@@ -88,7 +88,11 @@ async function main() {
         `got ${JSON.stringify(sidecar.name)}`);
   check("sidecar knob labels", Array.isArray(sidecar.knobs) && sidecar.knobs.length === 4);
   check("sidecar panel size", sidecar.panel_w === 128 && sidecar.panel_h === 64);
-  check("sidecar ABI version", sidecar.abi === 1);
+  // This smoke pattern integrates deltas by hand, so it neither claims to be
+  // absolute-ready nor needs the newer host: it must stamp ABI 1 and stay
+  // installable on pre-absolute firmware. A converted source flips both.
+  check("sidecar absoluteReady flag", sidecar.absoluteReady === false);
+  check("delta-only pattern stamps ABI 1", sidecar.abi === 1);
 
   console.log("\nrejects a malformed header");
   const bad = await runModuleBuild([{ code: "not a pattern", label: "bad.h" }], { artifactDir });

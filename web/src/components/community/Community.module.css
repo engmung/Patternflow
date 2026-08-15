@@ -954,13 +954,15 @@
   position: absolute;
   right: 6px;
   z-index: 3;
-  width: 26px;
-  height: 26px;
+  width: 29px;
+  height: 29px;
   display: grid;
   place-items: center;
   font: inherit;
-  font-size: 15px;
-  line-height: 1;
+  /* The marks are SVG (see PatternCard's ICON), so nothing here depends on
+     font metrics: a viewBox is centred by geometry and the pair cannot drift
+     apart the way ♥ and + did when they were glyphs. */
+  line-height: 0;
   color: var(--pfc-ink);
   /* Dense enough to read as an object against a lit pattern, not just against
      the unlit well. */
@@ -999,6 +1001,38 @@
   opacity: 1;
   background: rgba(232, 85, 46, 0.92);
   border-color: var(--pfc-led);
+  color: var(--pfc-on-led);
+}
+
+/* The card's corner marks: block so the grid centres the box itself rather
+   than sitting it on a text baseline. */
+.cardDeckBtn svg {
+  display: block;
+}
+
+/* Busy stand-in for the deck button — a dot that keeps the box the same size
+   as the mark it replaces, so nothing jumps while a header is fetched. */
+.cardBtnBusy {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* The card heart: same object as the deck button, one slot to its left when
+   the + is present, the corner itself when it is not. */
+.cardLikeBtnBeside {
+  right: 41px;
+}
+
+.cardLikeBtnOn {
+  opacity: 1;
+  color: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+.cardLikeBtnOn:hover {
   color: var(--pfc-on-led);
 }
 
@@ -2206,6 +2240,71 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A performance row carries more than a port does — a title, a shape (cues,
+   duration) and prose — so it stacks instead of competing for one line. */
+.perfRow {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.perfMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.perfSub {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The recording's identity: never truncated, because it is what tells two
+   rides apart. The note beside it is what gives way. */
+.perfSummary {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 11.5px;
+  color: var(--pfc-ink);
+  white-space: nowrap;
+}
+
+.perfNote {
+  min-width: 0;
+  color: var(--pfc-ink-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* btnSmall is built for <button>; as an <a> it needs the box behaviour back. */
+.perfLink {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  /* The note is the first thing worth losing on a phone — the title, cue
+     count and duration still fit. */
+  .perfSub {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .perfNote {
+    max-width: 100%;
+  }
 }
 
 /* ── Comments ── */

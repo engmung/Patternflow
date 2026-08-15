@@ -266,7 +266,7 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 >
 > The picker should now offer a line like `USB JTAG/serial debug unit (COM4) – Paired`. The number depends on which USB port you used.
 >
-> Still nothing? On this port it is almost always the **cable** — a charge-only USB-C cable enumerates nothing at all. The ESP32-S3 drives its native port from a USB-Serial/JTAG controller built into the chip, so there is no bridge chip and **no CP2102 / CH34x driver to install**; Windows 10 and later, macOS and Linux all recognise it on their own. The driver links on the flasher's "No port selected" screen are for the *right-hand* `UART` port (§8.2), and chasing them here is a dead end.
+> Still nothing? It is almost always the cable — a charge-only USB-C one enumerates nothing at all. **There is no driver to install on this port**: the ESP32-S3 handles USB itself, so the CP2102 / CH34x links on the flasher's troubleshooting screen do not apply here.
 
 > 📶 **Changing Wi-Fi later.** The network you set during flashing is **saved on the device and reused on every boot** — it stays until you overwrite it. To move Patternflow to a different Wi-Fi, either **re-flash from the browser** (you'll set the new network during Improv provisioning), or in Arduino IDE do a **full erase** (Tools → *Erase All Flash Before Sketch Upload* → *Enabled*) and re-upload. A plain re-upload does **not** clear the stored credentials.
 

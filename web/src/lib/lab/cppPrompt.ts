@@ -129,6 +129,7 @@ Define one unique namespace. Inside it expose exactly these symbols:
 
     const char* NAME = "Short Name";
     const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};
+    constexpr bool ABSOLUTE_READY = true;
     void setup();
     void update(float dt, const InputFrame& input);
     void draw();
@@ -140,6 +141,7 @@ Always-required includes:
     #include "src/core_display.h"
     #include "src/core_encoders.h"
     #include "src/core_canvas.h"
+    #include "src/core_params.h"
 
 Conditional includes — only when actually used in your code:
 
@@ -151,6 +153,10 @@ Conditional includes — only when actually used in your code:
 
 Helper signatures — these are the FULL argument lists. Call them exactly like this; do not add size arguments, reorder parameters, or invent overloads:
 
+    PFParams::apply(input, i, &floatParam, minF, maxF, stepF);            // absolute-bus/audio/delta priority, clamped
+    PFParams::applyUnit(input, i, &floatParam, stepF);                    // 0..1 wrapping (hue/phase)
+    PFParams::applyInt(input, i, &intParam, minI, maxI, stepI, wrap);     // wrap defaults to false
+    PFParams::applyIndex(input, i, &intParam, count, stepI);              // discrete 0..count-1, stepI defaults to 1
     PFMath::buildSinLUT();                               // in setup(); idempotent
     float s  = PFMath::fastSin(angleRadians);
     float c  = PFMath::fastCos(angleRadians);
@@ -215,13 +221,18 @@ Last resort — half-resolution rendering: if the pattern is genuinely smooth/lo
 
 ## Knob conversion
 - The JS preview uses input.knobValues as absolute values (after the Pattern Lab min/max ranges are applied).
-- The firmware receives input.knobDeltas — the per-frame change in detents.
+- The firmware receives input.knobDeltas — plus an absolute override bus. Never integrate deltas by hand; the PFParams helpers (src/core_params.h) do delta accumulation, clamping, AND the absolute-bus override in one call.
 - For each knob, store the parameter as state initialized to its current Pattern Lab value below.
-- In update(): param += input.knobDeltas[i] * STEP[i]; then constrain to the min/max range.
+- In update(), one helper call per knob — pick by the parameter's shape:
+    PFParams::apply(input, i, &param, MIN, MAX, STEP[i]);        // float with a min/max range (the common case)
+    PFParams::applyUnit(input, i, &param, STEP[i]);              // float 0..1 that WRAPS (hue, phase)
+    PFParams::applyInt(input, i, &param, MIN, MAX, STEP, wrap);  // int range; wrap=true cycles (e.g. hue 0..359)
+    PFParams::applyIndex(input, i, &param, COUNT, STEP);         // discrete index 0..COUNT-1 (mode pickers)
 - Use the calibrated encoder step below as STEP so physical encoders match the live editor and one detent feels the same on both.
+- Declare constexpr bool ABSOLUTE_READY = true; right after KNOB_LABELS — it marks the pattern as driveable by the absolute bus (timed shows / Director).
 - If the JS reads input.knobNormalized[i] (e.g. generated layer-stack patterns), keep the raw knob state exactly as above and compute the normalized value from it each frame: (raw - min) / (max - min). Do NOT store the normalized value as the knob state itself.
 - Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS. Knobs the comments mark as unused get the label "-" and no update logic.
-- Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that. Never consume long-press; that gesture is reserved for the firmware mode switcher.
+- Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that — but guard resets so they cannot fight an absolute hold: if (input.btnPressed[i] && !input.paramAbsoluteActive[i] && !input.knobAudioActive[i]) { ... }. Never consume long-press; that gesture is reserved for the firmware mode switcher.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}
@@ -241,7 +252,7 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 2. Did I write my own hsvToRgb, sin LUT, atan2 approximation, noise function, or a sin-based hash — or build a hash from PFMath::fastSin? If yes, replace with the PFColor / PFMath / PFNoise helpers.
 3. Does draw() end with PFCanvas::present();?
 4. Are all pixel writes via PFCanvas::setPixel? Did I avoid touching dma_display?
-5. Do my knob parameters consume input.knobDeltas (not input.knobValues), constrained to the documented range?
+5. Does every knob go through a PFParams:: helper (no hand-written "param += input.knobDeltas[i] * step" accumulation, no reading input.knobValues), is ABSOLUTE_READY declared, and is every button reset guarded with !input.paramAbsoluteActive[i]?
 6. Does every time accumulator wrap at its period (TWO_PI or a common multiple — see Performance)? An unbounded accumulator is a bug even if the preview looks fine.
 7. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.
 8. Did I declare any static array bigger than ~2 KB (e.g. float buf[PANEL_RES_W * PANEL_RES_H])? If yes, convert it to a PFMem::allocFloats pointer per the Memory rules. Did I call PFTables::init() without reading rT/thetaT anywhere? If yes, remove the call.${

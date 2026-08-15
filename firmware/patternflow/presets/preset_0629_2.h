@@ -16,11 +16,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_color.h"
+#include "../src/core_params.h"
 
 namespace VectorFieldParticleFlowPattern {
 
 const char* NAME = "Vector Field Flow";
 const char* const KNOB_LABELS[4] = {"Turbulence", "Velocity", "Density", "Palette"};
+constexpr bool ABSOLUTE_READY = true;
 
 const float VECTOR_FIELD_TURB_MIN = 0.0f;
 const float VECTOR_FIELD_TURB_MAX = 1.0f;
@@ -69,23 +71,25 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    // Knob 1: Turbulence (Wrap)
-    params.turbulence += input.knobDeltas[0] * VECTOR_FIELD_TURB_STEP;
-    while (params.turbulence < VECTOR_FIELD_TURB_MIN) params.turbulence += (VECTOR_FIELD_TURB_MAX - VECTOR_FIELD_TURB_MIN);
-    while (params.turbulence > VECTOR_FIELD_TURB_MAX) params.turbulence -= (VECTOR_FIELD_TURB_MAX - VECTOR_FIELD_TURB_MIN);
+    // Real ranges live in the apply calls so the 0..1000 absolute bus spans
+    // the whole usable sweep. Turbulence and palette wrap over exactly 0..1,
+    // which is applyUnit's contract.
+
+    // Knob 1: Turbulence (Wrap 0..1)
+    PFParams::applyUnit(input, 0, &params.turbulence, VECTOR_FIELD_TURB_STEP);
 
     // Knob 2: Speed (Clamp)
-    params.speed += input.knobDeltas[1] * VECTOR_FIELD_SPEED_STEP;
-    params.speed = constrain(params.speed, VECTOR_FIELD_SPEED_MIN, VECTOR_FIELD_SPEED_MAX);
+    PFParams::apply(input, 1, &params.speed,
+                    VECTOR_FIELD_SPEED_MIN, VECTOR_FIELD_SPEED_MAX,
+                    VECTOR_FIELD_SPEED_STEP);
 
     // Knob 3: Density (Clamp)
-    params.density += input.knobDeltas[2] * VECTOR_FIELD_DENSITY_STEP;
-    params.density = constrain(params.density, VECTOR_FIELD_DENSITY_MIN, VECTOR_FIELD_DENSITY_MAX);
+    PFParams::apply(input, 2, &params.density,
+                    VECTOR_FIELD_DENSITY_MIN, VECTOR_FIELD_DENSITY_MAX,
+                    VECTOR_FIELD_DENSITY_STEP);
 
-    // Knob 4: Palette (Wrap)
-    params.palette += input.knobDeltas[3] * VECTOR_FIELD_PALETTE_STEP;
-    while (params.palette < VECTOR_FIELD_PALETTE_MIN) params.palette += (VECTOR_FIELD_PALETTE_MAX - VECTOR_FIELD_PALETTE_MIN);
-    while (params.palette > VECTOR_FIELD_PALETTE_MAX) params.palette -= (VECTOR_FIELD_PALETTE_MAX - VECTOR_FIELD_PALETTE_MIN);
+    // Knob 4: Palette (Wrap 0..1)
+    PFParams::applyUnit(input, 3, &params.palette, VECTOR_FIELD_PALETTE_STEP);
 
     params.timeAcc += dt * params.speed;
 }

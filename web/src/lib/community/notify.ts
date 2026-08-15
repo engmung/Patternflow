@@ -26,6 +26,8 @@ export type NotificationType =
   | "deck"
   | "port"
   | "pin"
+  | "performance"
+  | "perf-pin"
   | "territory";
 
 type Seed = {
@@ -257,6 +259,50 @@ export async function notifyPortAdded(opts: {
       targetId: opts.patternId,
       targetTitle: opts.patternTitle,
       sourceId: opts.portId,
+    },
+  ]);
+}
+
+/** Somebody published a performance recording for the author's pattern. */
+export async function notifyPerformanceAdded(opts: {
+  patternOwnerId: string;
+  patternId: string;
+  patternTitle: string;
+  performanceId: string;
+  actorId: string;
+}): Promise<void> {
+  if (opts.patternOwnerId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.patternOwnerId,
+      type: "performance",
+      actorId: opts.actorId,
+      targetType: "pattern",
+      targetId: opts.patternId,
+      targetTitle: opts.patternTitle,
+      sourceId: opts.performanceId,
+    },
+  ]);
+}
+
+/** The author pinned a recording — told to whoever recorded it. */
+export async function notifyPerformancePinned(opts: {
+  recorderId: string;
+  patternId: string;
+  patternTitle: string;
+  performanceId: string;
+  actorId: string;
+}): Promise<void> {
+  if (opts.recorderId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.recorderId,
+      type: "perf-pin",
+      actorId: opts.actorId,
+      targetType: "pattern",
+      targetId: opts.patternId,
+      targetTitle: opts.patternTitle,
+      sourceId: opts.performanceId,
     },
   ]);
 }

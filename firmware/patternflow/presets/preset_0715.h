@@ -13,11 +13,13 @@
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
+#include "../src/core_params.h"
 
 namespace PoincareSphere {
 
 const char* NAME = "Poincaré Sphere";
 const char* const KNOB_LABELS[4] = {"Color Tone", "Speed", "Grid Density", "Curvature"};
+constexpr bool ABSOLUTE_READY = true;
 
 static float hueParam   = 1.0f;          // Knob 1, range 0..1
 static float speed      = 8.62f;         // Knob 2, range 0.1..10
@@ -31,20 +33,16 @@ void setup() {
 
 void update(float dt, const InputFrame& input) {
     // Knob 1: color tone
-    hueParam += input.knobDeltas[0] * 0.05f;
-    hueParam = fmaxf(0.0f, fminf(1.0f, hueParam));
+    PFParams::apply(input, 0, &hueParam, 0.0f, 1.0f, 0.05f);
 
     // Knob 2: rotation speed
-    speed += input.knobDeltas[1] * 0.1f;
-    speed = fmaxf(0.1f, fminf(10.0f, speed));
+    PFParams::apply(input, 1, &speed, 0.1f, 10.0f, 0.1f);
 
     // Knob 3: grid density
-    density += input.knobDeltas[2] * 0.05f;
-    density = fmaxf(0.0f, fminf(5.0f, density));
+    PFParams::apply(input, 2, &density, 0.0f, 5.0f, 0.05f);
 
     // Knob 4: projection curvature
-    curve += input.knobDeltas[3] * 0.05f;
-    curve = fmaxf(0.0f, fminf(5.0f, curve));
+    PFParams::apply(input, 3, &curve, 0.0f, 5.0f, 0.05f);
 
     t += dt * speed;
     // Wrap at common period 20π to avoid float precision loss over days.

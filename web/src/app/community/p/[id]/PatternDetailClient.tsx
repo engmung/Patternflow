@@ -10,6 +10,7 @@ import LinkedText from "@/components/community/LinkedText";
 import { formatDate } from "@/components/community/PatternCard";
 import LikeButton from "@/components/community/LikeButton";
 import AddHeaderModal from "@/components/community/AddHeaderModal";
+import AddPerformanceModal from "@/components/community/AddPerformanceModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
@@ -41,6 +42,19 @@ export type PortView = {
   effective: boolean;
 };
 
+export type PerformanceView = {
+  id: string;
+  handle: string | null;
+  note: string | null;
+  createdAt: string; // ISO
+  mine: boolean;
+  /** Recorded by the pattern's author — outranks pins and arrival order. */
+  byAuthor: boolean;
+  pinned: boolean;
+  effective: boolean;
+  summary: { title: string; cues: number; seconds: number } | null;
+};
+
 export type PatternView = {
   id: string;
   title: string;
@@ -55,6 +69,10 @@ export type PatternView = {
   portedBy: string | null;
   /** Every port on this pattern, oldest first. */
   ports: PortView[];
+  /** Every performance recording, oldest first — same social shape as ports. */
+  performances: PerformanceView[];
+  /** True when the author has a recording of their own (pins become moot). */
+  hasAuthorPerformance: boolean;
   license: string;
   /** Author-stated creation date (YYYY-MM-DD), when it differs from the upload. */
   madeOn: string | null;
@@ -100,6 +118,7 @@ export default function PatternDetailClient({
   const [codeTab, setCodeTab] = useState<"js" | "h">("js");
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
   const [portModalOpen, setPortModalOpen] = useState(false);
+  const [performanceModalOpen, setPerformanceModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
@@ -583,6 +602,12 @@ export default function PatternDetailClient({
         )}
 
         <PortsSection pattern={pattern} isOwner={isOwner} onPropose={() => setPortModalOpen(true)} />
+
+        <PerformancesSection
+          pattern={pattern}
+          isOwner={isOwner}
+          onPublish={() => setPerformanceModalOpen(true)}
+        />
       </div>
 
       <CommentSection target={{ kind: "pattern", id: pattern.id }} comments={comments} />
@@ -601,6 +626,13 @@ export default function PatternDetailClient({
           initialCpp={null}
           mode="port"
           onClose={() => setPortModalOpen(false)}
+        />
+      )}
+
+      {performanceModalOpen && (
+        <AddPerformanceModal
+          patternId={pattern.id}
+          onClose={() => setPerformanceModalOpen(false)}
         />
       )}
 
@@ -759,6 +791,169 @@ function PortsSection({
                   remove
                 </button>
               )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && <div className={styles.formError}>{error}</div>}
+    </div>
+  );
+}
+
+// Performance recordings: timed knob rides for this pattern, on the same
+// social rails as ports — anyone publishes, the author outranks or pins,
+// arrival order breaks ties (lib/community/performances.ts). Made in the
+// Director tool; stored and picked here; played by the performance firmware.
+function PerformancesSection({
+  pattern,
+  isOwner,
+  onPublish,
+}: {
+  pattern: PatternView;
+  isOwner: boolean;
+  onPublish: () => void;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pin = async (performanceId: string | null) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(communityApiUrl(`/api/community/patterns/${pattern.id}`), {
+        method: "PATCH",
+        ...COMMUNITY_FETCH_INIT,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pinnedPerformanceId: performanceId }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not save.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (performanceId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        communityApiUrl(`/api/community/performances/${performanceId}`),
+        { method: "DELETE", ...COMMUNITY_FETCH_INIT },
+      );
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        setError(payload.error ?? "Could not remove the performance.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const fmt = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? `0${s}` : s}`;
+  };
+
+  return (
+    <div className={styles.portsSection}>
+      <div className={styles.portsHead}>
+        <span className={styles.portsTitle}>
+          Performances{pattern.performances.length > 0 ? ` (${pattern.performances.length})` : ""}
+        </span>
+        <button type="button" className={styles.btnSmall} onClick={onPublish}>
+          {pattern.performances.length === 0 ? "Publish a performance" : "Publish another"}
+        </button>
+      </div>
+
+      {pattern.performances.length === 0 ? (
+        <p className={styles.formNote}>
+          No recordings yet. A performance is a timed ride through the knobs (Director&apos;s
+          Save-JSON) that a panel replays exactly — publish one and it is live immediately,
+          credited to you.
+        </p>
+      ) : (
+        <ul className={styles.portsList}>
+          {pattern.performances.map((recording) => (
+            <li key={recording.id} className={styles.perfRow}>
+              {/* Who and what you can do with it on the first line; what the
+                  recording IS on the second, where a long note can run out
+                  of room without squeezing the title beside it. */}
+              <div className={styles.perfMain}>
+                <span className={styles.portHandle}>@{recording.handle ?? "unknown"}</span>
+                <span className={styles.portDate}>{recording.createdAt.slice(0, 10)}</span>
+                {recording.effective && <span className={styles.portChip}>in use</span>}
+                {recording.byAuthor && <span className={styles.portChip}>author</span>}
+                {recording.pinned && !recording.byAuthor && (
+                  <span className={styles.portChip}>pinned</span>
+                )}
+                <span className={styles.ownerBarSpacer} />
+                <a
+                  className={`${styles.btnSmall} ${styles.perfLink}`}
+                  href={communityApiUrl(
+                    `/api/community/performances/${recording.id}?format=pfs`,
+                  )}
+                  title="Show table for the panel — drop it on the device's Sequences page"
+                >
+                  .pfs
+                </a>
+                <a
+                  className={`${styles.btnSmall} ${styles.perfLink}`}
+                  href={communityApiUrl(`/api/community/performances/${recording.id}`)}
+                  title="The editable Director JSON — open it to keep working on the ride"
+                >
+                  .json
+                </a>
+                {isOwner && !recording.byAuthor && !pattern.hasAuthorPerformance && (
+                  <button
+                    type="button"
+                    className={styles.btnSmall}
+                    disabled={busy}
+                    title={
+                      recording.pinned
+                        ? "Stop pinning this recording (arrival order decides again)"
+                        : "Make this the recording your pattern leads with"
+                    }
+                    onClick={() => void pin(recording.pinned ? null : recording.id)}
+                  >
+                    {recording.pinned ? "Unpin" : "Pin"}
+                  </button>
+                )}
+                {recording.mine && (
+                  <button
+                    type="button"
+                    className={styles.btnSmall}
+                    disabled={busy}
+                    onClick={() => void remove(recording.id)}
+                  >
+                    remove
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.perfSub}>
+                {recording.summary && (
+                  <span className={styles.perfSummary}>
+                    “{recording.summary.title}” · {recording.summary.cues} cue
+                    {recording.summary.cues === 1 ? "" : "s"} ·{" "}
+                    {fmt(recording.summary.seconds)}
+                  </span>
+                )}
+                {recording.note && <span className={styles.perfNote}>{recording.note}</span>}
+              </div>
             </li>
           ))}
         </ul>

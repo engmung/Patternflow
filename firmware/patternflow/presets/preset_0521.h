@@ -15,10 +15,12 @@
 #include "../src/core_math.h"
 #include "../src/core_color.h"
 #include "../src/core_noise.h"
+#include "../src/core_params.h"
 
 namespace Pattern0521 {
   const char* NAME = "0521";
   const char* const KNOB_LABELS[4] = {"Knob 1", "Knob 2", "Knob 3", "Knob 4"};
+constexpr bool ABSOLUTE_READY = true;
 
   struct Params {
     float rawKnob0 = 0.0f;
@@ -61,17 +63,10 @@ void setup() {
   }
 
 void update(float dt, const InputFrame& input) {
-    params.rawKnob0 += input.knobDeltas[0] * 0.05f;
-    if (params.rawKnob0 < 0.0f) params.rawKnob0 += 1.0f;
-    params.rawKnob0 = fmodf(params.rawKnob0, 1.0f);
-
-    params.rawKnob1 = constrain(params.rawKnob1 + input.knobDeltas[1] * 0.1f, 0.1f, 10.0f);
-
-    params.rawKnob2 = constrain(params.rawKnob2 + input.knobDeltas[2] * 0.05f, 0.0f, 4.9f);
-
-    params.rawKnob3 += input.knobDeltas[3] * 0.05f;
-    if (params.rawKnob3 < 0.0f) params.rawKnob3 += 1.0f;
-    params.rawKnob3 = fmodf(params.rawKnob3, 1.0f);
+    PFParams::applyUnit(input, 0, &params.rawKnob0, 0.05f);
+    PFParams::apply(input, 1, &params.rawKnob1, 0.1f, 10.0f, 0.1f);
+    PFParams::apply(input, 2, &params.rawKnob2, 0.0f, 4.9f, 0.05f);
+    PFParams::applyUnit(input, 3, &params.rawKnob3, 0.05f);
 
     const float knobs[4] = { params.rawKnob0, params.rawKnob1, params.rawKnob2, params.rawKnob3 };
 

@@ -13,11 +13,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_color.h"
+#include "../src/core_params.h"
 
 namespace WarpedWave {
 
 const char* NAME = "Warped Wave";
 const char* const KNOB_LABELS[4] = {"Hue", "Speed", "Warp Amp", "Warp Freq"};
+constexpr bool ABSOLUTE_READY = true;
 
 static float s_hue = 0.0f;
 static float s_speed = 2.0f;
@@ -31,23 +33,18 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    // Accumulate knob deltas
-    s_hue      += input.knobDeltas[0] * 0.05f;
-    s_speed    += input.knobDeltas[1] * 0.1f;
-    s_warpAmp  += input.knobDeltas[2] * 0.05f;
-    s_warpFreq += input.knobDeltas[3] * 0.05f;
-
-    // Clamp to documented ranges
-    s_hue      = fmaxf(0.0f, fminf(1.0f, s_hue));
-    s_speed    = fmaxf(-20.0f, fminf(20.0f, s_speed));
-    s_warpAmp  = fmaxf(0.1f, fminf(1.0f, s_warpAmp));
-    s_warpFreq = fmaxf(0.0f, fminf(30.0f, s_warpFreq));
+    // Documented ranges in the apply calls so the 0..1000 absolute bus spans
+    // the whole usable sweep (clamping included — no second clamp needed).
+    PFParams::apply(input, 0, &s_hue, 0.0f, 1.0f, 0.05f);
+    PFParams::apply(input, 1, &s_speed, -20.0f, 20.0f, 0.1f);
+    PFParams::apply(input, 2, &s_warpAmp, 0.1f, 1.0f, 0.05f);
+    PFParams::apply(input, 3, &s_warpFreq, 0.0f, 30.0f, 0.05f);
 
     // Button resets (press, not long-press)
-    if (input.btnPressed[0]) s_hue = 0.0f;
-    if (input.btnPressed[1]) s_speed = 2.0f;
-    if (input.btnPressed[2]) s_warpAmp = 0.2f;
-    if (input.btnPressed[3]) s_warpFreq = 0.5f;
+    if (input.btnPressed[0] && !input.paramAbsoluteActive[0] && !input.knobAudioActive[0]) s_hue = 0.0f;
+    if (input.btnPressed[1] && !input.paramAbsoluteActive[1] && !input.knobAudioActive[1]) s_speed = 2.0f;
+    if (input.btnPressed[2] && !input.paramAbsoluteActive[2] && !input.knobAudioActive[2]) s_warpAmp = 0.2f;
+    if (input.btnPressed[3] && !input.paramAbsoluteActive[3] && !input.knobAudioActive[3]) s_warpFreq = 0.5f;
 
     // Map warpAmp from raw 0.1..1 to 0..1.225 (as in JS: v[2]*0.25)
     // We store raw and convert on use, preserving the JS mapping.

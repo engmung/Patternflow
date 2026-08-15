@@ -12,9 +12,18 @@
  * The CATALOG is the running order the device reads. Written wrong — extra
  * blanks, missing trailing newline, wrong order — and the device falls back
  * to sorting alphabetically, silently discarding the arrangement.
+ *
+ * The PERFORMANCE decoration runs on every download of a deck that has one,
+ * and it rewrites the archive — so a mistake there breaks the pack itself,
+ * not just the performance. It must add both forms, leave the modules alone,
+ * and refuse to fail loudly: a broken attachment may cost its own file and
+ * nothing else.
  */
 
-import { fingerprintDeck } from "../src/lib/community/deckZip";
+import { unzipSync, zipSync } from "fflate";
+
+import { decoratePackWithPerformance, fingerprintDeck } from "../src/lib/community/deckZip";
+import { decodePfst } from "../src/lib/community/performance";
 
 let failures = 0;
 function check(label: string, actual: unknown, expected: unknown) {
@@ -108,6 +117,70 @@ check("comments are '#'-prefixed", lines.slice(0, 2).every((l) => l.startsWith("
 // One module is the common case for a single-pattern deck and the one most
 // likely to produce a stray empty line.
 check("a one-module pack is well formed", buildCatalog(["origin"]).split("\n").filter((l) => l.trim() && !l.startsWith("#")), ["origin"]);
+
+// ── performance decoration ───────────────────────────────────────────────
+console.log("\nperformance rides the pack");
+
+const basePack = zipSync({
+  "wave_saw.pfm": new Uint8Array([0x7f, 0x45, 0x4c, 0x46, 1, 2, 3, 4]),
+  "wave_saw.json": new TextEncoder().encode('{"slug":"wave_saw","abi":1}'),
+  "catalog.txt": new TextEncoder().encode("wave_saw\n"),
+});
+
+const performanceJson = JSON.stringify({
+  version: 1,
+  id: "sunset-set",
+  title: "Sunset Set",
+  length: 24,
+  loop: true,
+  timeline: [
+    { t: 0, pattern: "Wave Saw" },
+    { t: 0, param: [200, 500, 500, 800] },
+    { t: 12, param: [800, 500, 200, 100] },
+    { t: 20, message: "encore" },
+  ],
+});
+
+const decorated = unzipSync(decoratePackWithPerformance(basePack, performanceJson));
+const names = Object.keys(decorated).sort();
+
+check("the modules survive untouched", names.includes("wave_saw.pfm"), true);
+check("so does the running order", names.includes("catalog.txt"), true);
+check("the editable source is added", names.includes("performance.json"), true);
+check("the packed table is added, named from the id", names.includes("sunset_set.pfs"), true);
+check(
+  "performance.json is stored verbatim",
+  new TextDecoder().decode(decorated["performance.json"]),
+  performanceJson,
+);
+
+// The .pfs is what the panel plays, so it has to be a table, not bytes that
+// merely exist — decode it back and check the timeline survived the trip.
+const table = decodePfst(decorated["sunset_set.pfs"]);
+check("the .pfs decodes to the same show", table.title, "Sunset Set");
+check("its cues are all there", table.timeline.length, 4);
+check("its pattern cue points at the pattern", table.timeline[0].pattern, "Wave Saw");
+check("loop survives", table.loop, true);
+check("a sparse param patch survives", table.timeline[2].param, [800, 500, 200, 100]);
+
+// A deck with no performance must get byte-identical bytes back, or every
+// download of every plain deck pays for a pointless repack.
+check(
+  "no performance means the pack is not touched at all",
+  decoratePackWithPerformance(basePack, null) === basePack,
+  true,
+);
+
+// Broken attachments are the case that must not cascade: the pack is what
+// people came for.
+for (const [label, bad] of [
+  ["not JSON", "{{{"],
+  ["no timeline", '{"version":1,"title":"Empty"}'],
+] as const) {
+  const out = decoratePackWithPerformance(basePack, bad);
+  const entries = Object.keys(unzipSync(out));
+  check(`a performance that is ${label} still leaves an installable pack`, entries.includes("wave_saw.pfm"), true);
+}
 
 console.log(failures ? `\n${failures} FAILED\n` : "\nall passed\n");
 process.exit(failures ? 1 : 0);

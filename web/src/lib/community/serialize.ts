@@ -2,8 +2,9 @@ import type { DeckCardItem } from "@/components/community/DeckCard";
 import type { PatternCardItem } from "@/components/community/PatternCard";
 import type { DeckItem, DeckListItem, FeedItem } from "./queries";
 
-/** Server → client boundary: Dates become ISO strings. */
-export function toCardItem(item: FeedItem): PatternCardItem {
+/** Server → client boundary: Dates become ISO strings. `likedIds` (from
+ *  likedPatternIds, one query per page) lights the card hearts. */
+export function toCardItem(item: FeedItem, likedIds?: Set<string>): PatternCardItem {
   return {
     id: item.id,
     title: item.title,
@@ -17,6 +18,7 @@ export function toCardItem(item: FeedItem): PatternCardItem {
     hasCpp: item.hasCpp,
     visibility: item.visibility,
     deckCount: item.deckCount,
+    viewerLiked: likedIds?.has(item.id) ?? false,
   };
 }
 

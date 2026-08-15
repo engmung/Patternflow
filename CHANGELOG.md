@@ -4,6 +4,18 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+Groundwork for timed performances, built to meet **Simone Majocchi's ([@SimonePDA](https://github.com/SimonePDA)) performance-director work** — he is continuing the firmware side (the on-device show player and scheduler live on the `fw/performance-director` branch awaiting his delivery); this tree carries the web side and the shared foundations, **releasing together with that firmware**.
+
+### Added
+- **Performances live under patterns**, on the same social rails as firmware ports: anyone records a timed knob ride in the Director tool and publishes the Save-JSON on the pattern's page — live immediately, credited to the recorder, with the author's own recording (or their pin) deciding which one represents the pattern. Each recording downloads as the editable `.json` or the packed `.pfs` the panel's player reads.
+- **Like from the wall.** Every pattern card grew a heart beside its add-to-deck button — the count updates in place, and signed-out visitors get the sign-in modal at the moment they click, same rule as everywhere else.
+- **Packs carry performances.** A deck owner can attach a Director performance JSON to their deck; the pack zip then includes `performance.json` (the editable source) and the encoded `.pfs` show table. Today's firmware simply ignores the `.pfs` on install — the pack stays a normal pattern pack — and the performance firmware picks it up the day it ships. The server-side PFST encoder is byte-identical to the Director's own saves.
+- **Absolute parameter bus (0..1000), prepared.** MQTT `​<prefix>/param/1..4` can pin any knob of an absolute-ready pattern to an exact value; physical encoder motion releases the hold, and plain deltas keep working exactly as before. Patterns opt in through one `PFParams::apply` line per knob — every preset, the Basics pack, and all convertible community headers are converted, and everything the site generates is absolute-ready from birth. `/mqtt` grew channel presets (Broadcast / Ch 1–4 / Live) with retained per-channel snapshots, and a **Director mode** that points the panel at a local authoring broker without disturbing the saved one.
+
+### Changed
+- **Module ABI descriptor is now 2** (the appended absolute-param fields). The loader accepts 1 and 2, so every existing `.pfm` keeps loading; **pre-absolute firmware refuses new modules cleanly** instead of misreading them. This is the gate that ties the release to the performance firmware: it ships when devices can update to a loader that accepts it.
+- **MQTT retention now follows the show policy**: knob/pattern topics publish non-retained; the broadcast banner and channel snapshots are the retained exceptions.
+
 ## [3.4.0] - 2026-08-12
 
 Patterns leave the firmware and live on the filesystem, so a board ships nearly empty — and a pack ships with it. **Hardware unchanged**; v3.0 board and case carry over as-is.

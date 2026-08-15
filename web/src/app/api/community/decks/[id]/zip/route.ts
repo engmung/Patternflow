@@ -2,7 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { artifactDir } from "@/lib/community/builds";
 import { communityEnabled } from "@/lib/community/db";
-import { deckZipFilename, ensureDeckZip, invalidateDeckZip } from "@/lib/community/deckZip";
+import {
+  decoratePackWithPerformance,
+  deckZipFilename,
+  ensureDeckZip,
+  invalidateDeckZip,
+} from "@/lib/community/deckZip";
 import { getDeck } from "@/lib/community/queries";
 
 // GET /api/community/decks/[id]/zip — the deck as an installable pack.
@@ -98,10 +103,13 @@ async function handleGet(_request: Request, context: { params: Promise<{ id: str
     );
   }
 
-  return new Response(new Uint8Array(zip), {
+  // An attached performance rides the pack — see decoratePackWithPerformance.
+  const bytes = decoratePackWithPerformance(new Uint8Array(zip), deck.performanceJson);
+
+  return new Response(Buffer.from(bytes), {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Length": String(zip.byteLength),
+      "Content-Length": String(bytes.byteLength),
       "Content-Disposition": `attachment; filename="${deckZipFilename(deck.title)}"`,
       // The URL is stable and the contents are not: a deck can be rearranged
       // under the same address, so this is revalidated rather than kept.

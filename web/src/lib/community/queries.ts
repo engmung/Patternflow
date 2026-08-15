@@ -9,6 +9,7 @@ import {
   likes,
   notifications,
   patternHeaders,
+  patternPerformances,
   patterns,
   postAttachments,
   postComments,
@@ -233,6 +234,7 @@ export async function getPattern(id: string) {
       parentId: patterns.parentId,
       visibility: patterns.visibility,
       pinnedHeaderId: patterns.pinnedHeaderId,
+      pinnedPerformanceId: patterns.pinnedPerformanceId,
       createdAt: patterns.createdAt,
       updatedAt: patterns.updatedAt,
       ...authorFields,
@@ -408,15 +410,23 @@ export async function listComments(patternId: string) {
     .orderBy(comments.createdAt);
 }
 
-/** Which of these patterns the viewer has already liked (empty when signed out). */
+/** Which of these patterns the viewer has already liked (empty when signed
+ *  out). Pass the page's pattern ids to keep it one small indexed IN query —
+ *  omitted, it returns the viewer's whole liked set. */
 export async function likedPatternIds(
   userId: string | null | undefined,
+  patternIds?: string[],
 ): Promise<Set<string>> {
   if (!userId) return new Set();
+  if (patternIds && patternIds.length === 0) return new Set();
   const rows = await getDb()
     .select({ patternId: likes.patternId })
     .from(likes)
-    .where(eq(likes.userId, userId));
+    .where(
+      patternIds
+        ? and(eq(likes.userId, userId), inArray(likes.patternId, patternIds))
+        : eq(likes.userId, userId),
+    );
   return new Set(rows.map((row) => row.patternId));
 }
 
@@ -1008,6 +1018,7 @@ export async function getDeck(id: string) {
       title: decks.title,
       description: decks.description,
       visibility: decks.visibility,
+      performanceJson: decks.performanceJson,
       createdAt: decks.createdAt,
       updatedAt: decks.updatedAt,
       ...authorFields,
@@ -1160,6 +1171,37 @@ export async function listPatternPorts(patternId: string) {
       // SQLite booleans come back 0/1 — normalise once, here.
       rows.map((row) => ({ ...row, stale: Boolean(row.stale) })),
     );
+}
+
+/** A pattern's recordings, oldest first — the order resolvePerformance reads. */
+export async function listPatternPerformances(patternId: string) {
+  return getDb()
+    .select({
+      id: patternPerformances.id,
+      userId: patternPerformances.userId,
+      performanceJson: patternPerformances.performanceJson,
+      note: patternPerformances.note,
+      createdAt: patternPerformances.createdAt,
+      ...authorFields,
+    })
+    .from(patternPerformances)
+    .innerJoin(user, eq(patternPerformances.userId, user.id))
+    .where(eq(patternPerformances.patternId, patternId))
+    .orderBy(patternPerformances.createdAt);
+}
+
+/** Ownership check for deleting a recording — and the pin's validation. */
+export async function getPerformanceStub(id: string) {
+  const rows = await getDb()
+    .select({
+      id: patternPerformances.id,
+      userId: patternPerformances.userId,
+      patternId: patternPerformances.patternId,
+    })
+    .from(patternPerformances)
+    .where(eq(patternPerformances.id, id))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
 /** Ownership check for deleting a port — and the pin's validation, which

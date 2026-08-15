@@ -1,5 +1,13 @@
+import { headers } from "next/headers";
+import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
-import { countFeed, listFeatured, listFeed, parseFeedSort } from "@/lib/community/queries";
+import {
+  countFeed,
+  likedPatternIds,
+  listFeatured,
+  listFeed,
+  parseFeedSort,
+} from "@/lib/community/queries";
 import { toCardItem } from "@/lib/community/serialize";
 import { FEED_FIRST_PAINT } from "@/lib/community/feedView";
 import CommunityFeedClient from "@/components/community/CommunityFeedClient";
@@ -49,13 +57,21 @@ export default async function CommunityHomePage(props: {
     ...topLiked.filter((item) => !picked.some((pick) => pick.id === item.id)),
   ].slice(0, MARQUEE_SIZE);
 
+  // Which of these the viewer already liked — one indexed query, so the card
+  // hearts start lit where they should be.
+  const session = await getAuth().api.getSession({ headers: await headers() });
+  const likedIds = await likedPatternIds(
+    session?.user.id ?? null,
+    [...items, ...marquee].map((item) => item.id),
+  );
+
   return (
     <>
-      <Marquee items={marquee.map(toCardItem)} />
+      <Marquee items={marquee.map((item) => toCardItem(item, likedIds))} />
       <CommunityFeedClient
         // Remount on a sort/filter change so the accumulated list restarts.
         key={`${sort}-${hardwareOnly}`}
-        items={items.map(toCardItem)}
+        items={items.map((item) => toCardItem(item, likedIds))}
         sort={sort}
         hardwareOnly={hardwareOnly}
         total={total}

@@ -159,6 +159,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   <h2>Installed</h2>
   <div class="actions bulkTop" id="bulk">
     <button class="del" id="selAll">Select all</button>
+    <button class="del" id="bulkZip">Download ZIP</button>
     <button class="del" id="bulkDel">Delete selected</button>
     <button class="del" id="saveOrd" style="display:none">Save order</button>
     <span class="bulkNote" id="bulkN"></span>
@@ -175,7 +176,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 function $(i){return document.getElementById(i)}
 var msg=$('msg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
     qEl=$('q'),retryBtn=$('retry'),bulk=$('bulk'),bulkDel=$('bulkDel'),bulkN=$('bulkN'),
-    selAll=$('selAll');
+    selAll=$('selAll'),bulkZip=$('bulkZip');
 
 // Only modules get a checkbox — presets live in firmware.bin and are not
 // deletable — so these are also the count of what bulk actions can touch.
@@ -196,6 +197,8 @@ function updateBulk(){
   bulk.style.display=total?'flex':'none';
   bulkDel.textContent='Delete selected ('+n+')';
   bulkDel.disabled=n===0;
+  bulkZip.textContent='Download ZIP ('+n+')';
+  bulkZip.disabled=n===0;
   selAll.textContent=(n===total&&total>0)?'Clear selection':'Select all';
   bulkN.textContent=total?(n?'presets cannot be deleted':total+' module'+(total===1?'':'s')):'';
 }
@@ -206,6 +209,35 @@ selAll.onclick=function(){
   boxes.forEach(function(c){c.checked=want});
   updateBulk();
 };
+
+// Director MQTT select marks modules here. Rev changes when a new list arrives.
+var pendingRev=-1;
+function applyPendingSlugs(slugs,rev,announce,force){
+  if(!force && rev===pendingRev)return;
+  var revChanged=rev!==pendingRev;
+  pendingRev=rev;
+  var set={};
+  (slugs||[]).forEach(function(s){set[String(s).toLowerCase()]=1});
+  var n=0;
+  selBoxes().forEach(function(c){
+    var on=!!set[String(c.dataset.slug||'').toLowerCase()];
+    c.checked=on;
+    if(on)n++;
+  });
+  updateBulk();
+  if(announce!==false && revChanged && (slugs||[]).length){
+    var missed=(slugs||[]).length-n;
+    var msg='Director marked '+n+' module'+(n===1?'':'s')+' for download';
+    if(missed>0)msg+=', '+missed+' not on this list';
+    say(msg,n?'good':'err');
+  }
+}
+function pollPending(){
+  fetch('/api/patterns/pending',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    applyPendingSlugs(d.slugs||[], d.rev||0, true);
+  }).catch(function(){});
+}
+setInterval(pollPending,2500);
 
 function say(t,cls){msg.textContent=t;msg.className=cls||''}
 
@@ -268,6 +300,7 @@ function load(){
       }
       listEl.appendChild(li);
     });
+    applyPendingSlugs(d.pending||[], d.pendingRev||0, false, true);
     updateBulk();
   }).catch(function(){say('cannot reach device','err')});
 }
@@ -406,6 +439,62 @@ bulkDel.onclick=function(){
   if(!confirm('Delete '+slugs.length+' module'+(slugs.length===1?'':'s')+
               ' -- '+slugs.join(', ')+'?'))return;
   deleteSlugs(slugs,slugs.length+' module'+(slugs.length===1?'':'s'));
+};
+
+function fetchPatternFile(slug,ext){
+  return fetch('/api/patterns/file?slug='+encodeURIComponent(slug)+'&ext='+ext,{cache:'no-store'})
+    .then(function(r){
+      if(r.status===404)return null;
+      if(!r.ok)throw new Error('could not read '+slug+'.'+ext);
+      return r.arrayBuffer().then(function(b){return new Uint8Array(b)});
+    });
+}
+
+// Sequential on purpose: this HTTP server is one-connection. Parallel
+// fetches pile up the same way a live preview once locked the panel.
+bulkZip.onclick=function(){
+  var slugs=selectedSlugs();
+  if(!slugs.length)return;
+  busy('packing zip');
+  bulkZip.disabled=true;
+  loadFflate().then(function(){
+    var files={};
+    var chain=Promise.resolve();
+    slugs.forEach(function(slug,i){
+      chain=chain.then(function(){
+        say('packing zip — '+(i+1)+'/'+slugs.length);
+        return fetchPatternFile(slug,'pfm').then(function(pfm){
+          if(!pfm)throw new Error(slug+'.pfm not on device');
+          files[slug+'.pfm']=pfm;
+          return fetchPatternFile(slug,'json');
+        }).then(function(js){
+          if(js)files[slug+'.json']=js;
+        });
+      });
+    });
+    return chain.then(function(){
+      if(!window.fflate||typeof fflate.zipSync!=='function')
+        throw new Error('zip library missing zipSync');
+      var zipped=fflate.zipSync(files,{level:6});
+      var blob=new Blob([zipped],{type:'application/zip'});
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='patternflow-pack.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function(){URL.revokeObjectURL(a.href)},2000);
+      busyDone();
+      bulkZip.disabled=false;
+      updateBulk();
+      say('downloaded '+slugs.length+' module'+(slugs.length===1?'':'s'),'good');
+    });
+  }).catch(function(e){
+    busyDone();
+    bulkZip.disabled=false;
+    updateBulk();
+    say((e&&e.message)||'zip failed','err');
+  });
 };
 
 function del(slug,name){

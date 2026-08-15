@@ -13,11 +13,13 @@
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
+#include "../src/core_params.h"
 
 namespace UntitledPattern {
 
 const char* NAME = "Untitled pattern";
 const char* const KNOB_LABELS[4] = {"Glitch", "Speed", "Freq", "Quantize"};
+constexpr bool ABSOLUTE_READY = true;
 
 static const uint8_t RAMP_LUT[256][3] = {
   {0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},{0,0,0},
@@ -70,26 +72,10 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    if (input.knobDeltas[0] != 0) {
-        glitch += input.knobDeltas[0] * UNTITLED_GLITCH_STEP;
-        if (glitch < 0.0f) glitch = 0.0f;
-        if (glitch > 2.0f) glitch = 2.0f;
-    }
-    if (input.knobDeltas[1] != 0) {
-        speed += input.knobDeltas[1] * UNTITLED_SPEED_STEP;
-        if (speed < 0.05f) speed = 0.05f;
-        if (speed > 2.0f) speed = 2.0f;
-    }
-    if (input.knobDeltas[2] != 0) {
-        freq += input.knobDeltas[2] * UNTITLED_FREQ_STEP;
-        if (freq < 2.0f) freq = 2.0f;
-        if (freq > 10.0f) freq = 10.0f;
-    }
-    if (input.knobDeltas[3] != 0) {
-        quantize += input.knobDeltas[3] * UNTITLED_QUANTIZE_STEP;
-        if (quantize < 2.0f) quantize = 2.0f;
-        if (quantize > 10.0f) quantize = 10.0f;
-    }
+    PFParams::apply(input, 0, &glitch, 0.0f, 2.0f, UNTITLED_GLITCH_STEP);
+    PFParams::apply(input, 1, &speed, 0.05f, 2.0f, UNTITLED_SPEED_STEP);
+    PFParams::apply(input, 2, &freq, 2.0f, 10.0f, UNTITLED_FREQ_STEP);
+    PFParams::apply(input, 3, &quantize, 2.0f, 10.0f, UNTITLED_QUANTIZE_STEP);
 
     timeAcc += dt * speed;
     if (timeAcc > TWO_PI) timeAcc -= TWO_PI;

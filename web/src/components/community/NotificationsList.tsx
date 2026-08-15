@@ -47,6 +47,10 @@ function describe(item: NotificationView): string {
       return `added a firmware port to “${item.targetTitle}” — open it to pick or replace`;
     case "pin":
       return `pinned your port of “${item.targetTitle}”`;
+    case "performance":
+      return `published a performance of “${item.targetTitle}” — open it to pick or replace`;
+    case "perf-pin":
+      return `pinned your performance of “${item.targetTitle}”`;
     case "territory":
       // The snippet carries where ("A1 · Wired control — OSC"), because that
       // is the reason this row exists: you are pinned there.

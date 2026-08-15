@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_color.h"
+#include "../src/core_params.h"
 
 namespace TriMarch {
 
 const char* NAME = "Tri March";
 const char* const KNOB_LABELS[4] = {"Triangle size", "Speed", "March angle", "Color palette"};
+constexpr bool ABSOLUTE_READY = true;
 
 static float tsize   = 0.0f;
 static float speed   = 3.931f;
@@ -31,21 +33,13 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    tsize += input.knobDeltas[0] * 0.05f;
-    if (tsize < 0.0f) tsize = 0.0f;
-    if (tsize > 1.0f) tsize = 1.0f;
+    PFParams::apply(input, 0, &tsize, 0.0f, 1.0f, 0.05f);
 
-    speed += input.knobDeltas[1] * 0.1f;
-    if (speed < -3.0f) speed = -3.0f;
-    if (speed > 4.0f)  speed = 4.0f;
+    PFParams::apply(input, 1, &speed, -3.0f, 4.0f, 0.1f);
 
-    angle += input.knobDeltas[2] * 0.05f;
-    if (angle < -0.001f) angle = -0.001f;
-    if (angle > 5.0f)    angle = 5.0f;
+    PFParams::apply(input, 2, &angle, -0.001f, 5.0f, 0.05f);
 
-    palette += input.knobDeltas[3] * 0.05f;
-    if (palette < 0.0f) palette = 0.0f;
-    if (palette > 4.0f) palette = 4.0f;
+    PFParams::apply(input, 3, &palette, 0.0f, 4.0f, 0.05f);
 
     t += dt * speed;
     // Period needed for multipliers 10, 2, 0.05 = 40π = 20*TWO_PI

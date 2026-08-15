@@ -44,9 +44,9 @@ export default async function FeaturedPage() {
       // The chosen list comes back in marquee order; anything featured but no
       // longer public is dropped by listFeatured, so the editor never shows a
       // slot the front page would not render.
-      initial={chosen.map(toCardItem)}
+      initial={chosen.map((item) => toCardItem(item))}
       initialIds={chosenIds}
-      candidates={recent.map(toCardItem)}
+      candidates={recent.map((item) => toCardItem(item))}
     />
   );
 }

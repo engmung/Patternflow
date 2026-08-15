@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { getAuth } from "@/lib/community/auth";
 import { communityEnabled } from "@/lib/community/db";
-import { countFeed, listFeed, parseFeedSort } from "@/lib/community/queries";
+import { countFeed, likedPatternIds, listFeed, parseFeedSort } from "@/lib/community/queries";
 import { toCardItem } from "@/lib/community/serialize";
 import { FEED_FIRST_PAINT } from "@/lib/community/feedView";
 import CommunityFeedClient from "@/components/community/CommunityFeedClient";
@@ -47,12 +47,13 @@ export default async function CommunityWallPage(props: {
     listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT, viewerId }),
     countFeed(hardwareOnly),
   ]);
+  const likedIds = await likedPatternIds(viewerId, items.map((item) => item.id));
 
   return (
     <CommunityFeedClient
       // Remount on a sort/filter change so the accumulated list restarts.
       key={`${sort}-${hardwareOnly}`}
-      items={items.map(toCardItem)}
+      items={items.map((item) => toCardItem(item, likedIds))}
       sort={sort}
       hardwareOnly={hardwareOnly}
       // The liked list is a subset, so the wall's total would overstate it.

@@ -6,6 +6,7 @@ import { notifyForkPublished } from "@/lib/community/notify";
 import {
   countFeed,
   getPatternStub,
+  likedPatternIds,
   listFeed,
   newId,
   parseFeedSort,
@@ -66,19 +67,19 @@ async function handleGet(request: Request) {
   const offset = clampInt(params.get("offset"), 0, 0, 1_000_000);
   const size = clampInt(params.get("size"), 12, 1, MAX_FEED_PAGE_SIZE);
 
-  // The infinite scroll refills through here, so `liked` needs the same viewer
-  // the first page was rendered for — without it page two of your liked list
-  // would come back as the whole wall.
-  const session =
-    sort === "liked" ? await getAuth().api.getSession({ headers: request.headers }) : null;
+  // The infinite scroll refills through here, so every page needs the same
+  // viewer the first paint had: `liked` for the subset itself, and the card
+  // hearts on any sort — without it page two would arrive unlit.
+  const session = await getAuth().api.getSession({ headers: request.headers });
   const viewerId = session?.user.id ?? null;
 
   const [items, total] = await Promise.all([
     listFeed({ sort, hardwareOnly, limit: size, offset, viewerId }),
     countFeed(hardwareOnly),
   ]);
+  const likedIds = await likedPatternIds(viewerId, items.map((item) => item.id));
 
-  return Response.json({ items: items.map(toCardItem), total });
+  return Response.json({ items: items.map((item) => toCardItem(item, likedIds)), total });
 }
 
 async function handlePost(request: Request) {

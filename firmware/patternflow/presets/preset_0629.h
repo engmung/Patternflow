@@ -15,11 +15,13 @@
 #include "../src/core_encoders.h"
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
+#include "../src/core_params.h"
 
 namespace ChromaticAberrationVortexPattern {
 
 const char* NAME = "Chromatic Vortex";
 const char* const KNOB_LABELS[4] = {"Split Dist", "Swirl Speed", "Wave Density", "Color Shift"};
+constexpr bool ABSOLUTE_READY = true;
 
 const float CHROMATIC_VORTEX_SPLIT_MIN = 0.0f;
 const float CHROMATIC_VORTEX_SPLIT_MAX = 1.0f;
@@ -57,19 +59,19 @@ void setup() {
 }
 
 void update(float dt, const InputFrame& input) {
-    params.split += input.knobDeltas[0] * CHROMATIC_VORTEX_SPLIT_STEP;
-    params.split = fmodf(params.split, 1.0f);
-    if (params.split < 0.0f) params.split += 1.0f;
+    PFParams::applyUnit(input, 0, &params.split, CHROMATIC_VORTEX_SPLIT_STEP);
 
-    params.speed += input.knobDeltas[1] * CHROMATIC_VORTEX_SPEED_STEP;
-    params.speed = constrain(params.speed, CHROMATIC_VORTEX_SPEED_MIN, CHROMATIC_VORTEX_SPEED_MAX);
+    // Real ranges in the apply call so the 0..1000 absolute bus spans the
+    // whole usable sweep instead of clipping against a second clamp.
+    PFParams::apply(input, 1, &params.speed,
+                    CHROMATIC_VORTEX_SPEED_MIN, CHROMATIC_VORTEX_SPEED_MAX,
+                    CHROMATIC_VORTEX_SPEED_STEP);
 
-    params.density += input.knobDeltas[2] * CHROMATIC_VORTEX_DENSITY_STEP;
-    params.density = constrain(params.density, CHROMATIC_VORTEX_DENSITY_MIN, CHROMATIC_VORTEX_DENSITY_MAX);
+    PFParams::apply(input, 2, &params.density,
+                    CHROMATIC_VORTEX_DENSITY_MIN, CHROMATIC_VORTEX_DENSITY_MAX,
+                    CHROMATIC_VORTEX_DENSITY_STEP);
 
-    params.colorBias += input.knobDeltas[3] * CHROMATIC_VORTEX_COLOR_BIAS_STEP;
-    params.colorBias = fmodf(params.colorBias, 1.0f);
-    if (params.colorBias < 0.0f) params.colorBias += 1.0f;
+    PFParams::applyUnit(input, 3, &params.colorBias, CHROMATIC_VORTEX_COLOR_BIAS_STEP);
 
     params.timeAcc += dt * params.speed;
 }

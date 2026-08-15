@@ -14,11 +14,13 @@
 #include "../src/core_canvas.h"
 #include "../src/core_math.h"
 #include "../src/core_color.h"
+#include "../src/core_params.h"
 
 namespace LissajousWeave {
 
     const char* NAME = "Lissajous Weave";
     const char* const KNOB_LABELS[4] = {"X Frequency", "Speed", "Y Frequency", "Phase Offset"};
+constexpr bool ABSOLUTE_READY = true;
 
     // Knob state tracking initialized to the specified Pattern Lab current values
     float knob1 = 1.586f;  // min 0,  max 2.8, step 0.05
@@ -46,24 +48,16 @@ namespace LissajousWeave {
 
     void update(float dt, const InputFrame& input) {
         // Update Knob 1
-        knob1 += input.knobDeltas[0] * 0.05f;
-        if (knob1 < 0.0f) knob1 = 0.0f;
-        if (knob1 > 2.8f) knob1 = 2.8f;
+        PFParams::apply(input, 0, &knob1, 0.0f, 2.8f, 0.05f);
 
         // Update Knob 2
-        knob2 += input.knobDeltas[1] * 0.1f;
-        if (knob2 < 0.0f) knob2 = 0.0f;
-        if (knob2 > 2.0f) knob2 = 2.0f;
+        PFParams::apply(input, 1, &knob2, 0.0f, 2.0f, 0.1f);
 
         // Update Knob 3
-        knob3 += input.knobDeltas[2] * 0.05f;
-        if (knob3 < 0.0f) knob3 = 0.0f;
-        if (knob3 > 7.0f) knob3 = 7.0f;
+        PFParams::apply(input, 2, &knob3, 0.0f, 7.0f, 0.05f);
 
         // Update Knob 4
-        knob4 += input.knobDeltas[3] * 0.05f;
-        if (knob4 < -3.0f) knob4 = -3.0f;
-        if (knob4 > 3.0f)  knob4 = 3.0f;
+        PFParams::apply(input, 3, &knob4, -3.0f, 3.0f, 0.05f);
 
         // Recompute parameters based on updated knob positions
         freqX = 1.0f + floorf(knob1 * 7.0f);

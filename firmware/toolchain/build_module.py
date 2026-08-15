@@ -22,6 +22,7 @@ import concurrent.futures
 import contextlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -156,12 +157,33 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
     obj_dir.mkdir(parents=True, exist_ok=True)
     obj = obj_dir / "pattern.o"
 
+    # Which firmware generation this build targets — NOT a property of the
+    # pattern. A converted source builds either way (pf_params.h compiles the
+    # absolute tier out at target 1), so the whole catalogue can be converted
+    # long before the fleet has updated: builds keep coming out installable,
+    # and the day the absolute firmware is the norm, PF_TARGET_ABI=2 turns the
+    # bus on for everything at once with no second migration.
+    #
+    # Default 1 because the wrong guess is not symmetric: target 1 on new
+    # firmware costs a feature nobody has asked for yet, target 2 on old
+    # firmware is a module that refuses to install.
+    target_abi = 2 if os.environ.get("PF_TARGET_ABI") == "2" else 1
+    source_text = (src_dir / "pattern.cpp").read_text(encoding="utf-8", errors="replace")
+    source_absolute = bool(re.search(r"\bABSOLUTE_READY\s*=\s*true\b", source_text))
+    # A delta-only source gains nothing from the newer host, so it stays at 1
+    # and stays installable everywhere regardless of the target.
+    module_abi = 2 if (source_absolute and target_abi == 2) else 1
+    # What this BUILD can do, which is what the device's registry reads —
+    # a converted source built for the old host is honestly not absolute-ready.
+    absolute_ready = source_absolute and module_abi == 2
+
     cmd = [
         str(gxx),
         f"-O{opt}",
         *CXXFLAGS,
         f"-DPF_PANEL_W={PANEL_W}",
         f"-DPF_PANEL_H={PANEL_H}",
+        f"-DPF_ABI_MODULE_VERSION={module_abi}",
         f"-I{abi}",
         f"-I{SKETCH / 'src'}",
         f"-I{src_dir}",
@@ -201,10 +223,13 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
 
     meta_src = src_dir / "module.json"
     meta = json.loads(meta_src.read_text(encoding="utf-8")) if meta_src.is_file() else {}
+    # The sidecar reports what the descriptor was actually stamped with (see
+    # module_abi above), so the device's registry scan and the loader agree.
     meta.update(
         {
             "slug": slug,
-            "abi": 1,
+            "abi": module_abi,
+            "absoluteReady": absolute_ready,
             "panel_w": PANEL_W,
             "panel_h": PANEL_H,
             "module": f"{slug}.pfm",
