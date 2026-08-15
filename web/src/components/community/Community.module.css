@@ -1002,6 +1002,26 @@
   color: var(--pfc-on-led);
 }
 
+/* The card heart: same object as the deck button, one slot to its left when
+   the + is present, the corner itself when it is not. */
+.cardLikeBtn {
+  font-size: 13px;
+}
+
+.cardLikeBtnBeside {
+  right: 36px;
+}
+
+.cardLikeBtnOn {
+  opacity: 1;
+  color: var(--pfc-led);
+  border-color: var(--pfc-led);
+}
+
+.cardLikeBtnOn:hover {
+  color: var(--pfc-on-led);
+}
+
 .cardDeckNote {
   position: absolute;
   right: 6px;

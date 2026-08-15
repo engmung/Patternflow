@@ -140,6 +140,12 @@ export const patterns = sqliteTable(
      * order — the author's own header always outranks it.
      */
     pinnedHeaderId: text("pinned_header_id"),
+    /**
+     * Same picking rule for performances (lib/community/performances.ts):
+     * the author's own recording outranks, this pin overrides arrival order
+     * among everyone else's. Same no-FK reasoning as pinnedHeaderId.
+     */
+    pinnedPerformanceId: text("pinned_performance_id"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
   },
@@ -189,6 +195,43 @@ export const patternHeaders = sqliteTable(
   (table) => [
     // Resolution reads "oldest live port for this pattern".
     index("pattern_headers_pattern_created_idx").on(table.patternId, table.createdAt),
+  ],
+);
+
+// ── Pattern performances ─────────────────────────────────────────────────────
+// A performance is a timed knob ride for one pattern — a Director timeline
+// (proposal §7.1 JSON) recorded against it. Authoring happens in the Director
+// PWA; this table is where a finished recording gets published, exactly the
+// way firmware ports work: anyone may propose one for any public pattern,
+// it is live immediately, several can coexist, and the author's own recording
+// (or their pin) decides which one represents the pattern
+// (patterns.pinnedPerformanceId, lib/community/performances.ts).
+//
+// Deck-level performances are the bigger stage for the same data — a deck
+// already carries its owner's attached performance (decks.performanceJson,
+// bundled into the pack zip). When deck proposals arrive they follow this
+// table's shape and rules.
+
+export const patternPerformances = sqliteTable(
+  "pattern_performances",
+  {
+    id: text("id").primaryKey(),
+    patternId: text("pattern_id")
+      .notNull()
+      .references(() => patterns.id, { onDelete: "cascade" }),
+    /** Who recorded it. */
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Canonical §7.1 JSON (validated + re-serialized on the way in). */
+    performanceJson: text("performance_json").notNull(),
+    /** Recorder's word — "30s ride through all four knobs", device used, etc. */
+    note: text("note"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    // Resolution reads "oldest recording for this pattern".
+    index("pattern_performances_pattern_created_idx").on(table.patternId, table.createdAt),
   ],
 );
 

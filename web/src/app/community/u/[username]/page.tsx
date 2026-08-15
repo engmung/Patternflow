@@ -4,7 +4,12 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { communityEnabled } from "@/lib/community/db";
 import { getAuth } from "@/lib/community/auth";
-import { getUserByUsername, listDecksByUser, listPatternsByUser } from "@/lib/community/queries";
+import {
+  getUserByUsername,
+  likedPatternIds,
+  listDecksByUser,
+  listPatternsByUser,
+} from "@/lib/community/queries";
 import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
@@ -46,7 +51,9 @@ export default async function CommunityUserPage(props: RouteParams) {
 
   // The owner sees their whole archive, badges marking what is not public;
   // visitors see the public rows only. Same rule for patterns and decks.
-  const items = (await listPatternsByUser(profile.id, viewerId)).map(toCardItem);
+  const profileRows = await listPatternsByUser(profile.id, viewerId);
+  const likedIds = await likedPatternIds(viewerId, profileRows.map((row) => row.id));
+  const items = profileRows.map((item) => toCardItem(item, likedIds));
   const deckItems = (await listDecksByUser(profile.id, viewerId)).map(toDeckCardItem);
 
   const handle = profile.displayUsername ?? profile.username;

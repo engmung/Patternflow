@@ -10,8 +10,11 @@ import {
   hasLiked,
   listComments,
   listDecksWithPattern,
+  listPatternPerformances,
   listPatternPorts,
 } from "@/lib/community/queries";
+import { summarizePerformanceJson } from "@/lib/community/performance";
+import { resolvePerformance } from "@/lib/community/performances";
 import { resolveHeader } from "@/lib/community/ports";
 import { provenanceFor } from "@/lib/community/provenance";
 import { canView } from "@/lib/community/visibility";
@@ -73,6 +76,12 @@ export default async function CommunityPatternPage(props: RouteParams) {
   const effective = resolveHeader(pattern, ports);
   const effectivePortId = effective?.source === "port" ? effective.portId : null;
 
+  // Which recording represents the pattern — author's own, their pin, or the
+  // first arrival (lib/community/performances.ts). Rows travel as summaries;
+  // the JSON itself is served by the download routes.
+  const performances = await listPatternPerformances(pattern.id);
+  const effectivePerformance = resolvePerformance(pattern, performances);
+
   const parent = pattern.parentId ? await getPatternStub(pattern.parentId) : null;
   const inDecks = await listDecksWithPattern(pattern.id);
   const comments: CommentView[] = (await listComments(pattern.id)).map((comment) => ({
@@ -108,6 +117,20 @@ export default async function CommunityPatternPage(props: RouteParams) {
           pinned: pattern.pinnedHeaderId === port.id,
           effective: effectivePortId === port.id,
         })),
+        performances: performances.map((recording) => ({
+          id: recording.id,
+          handle: recording.displayUsername ?? recording.username ?? null,
+          note: recording.note,
+          createdAt: recording.createdAt.toISOString(),
+          mine: viewerId === recording.userId,
+          byAuthor: recording.userId === pattern.userId,
+          pinned: pattern.pinnedPerformanceId === recording.id,
+          effective: effectivePerformance?.row.id === recording.id,
+          summary: summarizePerformanceJson(recording.performanceJson),
+        })),
+        hasAuthorPerformance: performances.some(
+          (recording) => recording.userId === pattern.userId,
+        ),
         license: pattern.license,
         madeOn: pattern.madeOn,
         madeHow: pattern.madeHow,

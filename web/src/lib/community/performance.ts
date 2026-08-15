@@ -312,6 +312,33 @@ export function encodePfst(perf: Performance): Uint8Array {
   return out;
 }
 
+/**
+ * What a listing says about a stored performance without re-validating it.
+ * Client-safe (no node imports) — pages and cards share this so "5 cues,
+ * 0:30" means the same thing everywhere.
+ */
+export function summarizePerformanceJson(
+  json: string | null,
+): { title: string; cues: number; seconds: number } | null {
+  if (!json) return null;
+  try {
+    const perf = JSON.parse(json) as { title?: unknown; length?: unknown; timeline?: unknown[] };
+    const timeline = Array.isArray(perf.timeline) ? perf.timeline : [];
+    let last = 0;
+    for (const cue of timeline) {
+      const t = Number((cue as { t?: unknown }).t) || 0;
+      if (t > last) last = t;
+    }
+    return {
+      title: String(perf.title || "Untitled"),
+      cues: timeline.length,
+      seconds: Math.max(Math.round(Number(perf.length) || 0), last),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** `<id-or-title>.pfs`, slugged the way the Director names its saves. */
 export function pfsFilename(perf: Performance): string {
   const raw = perf.id || perf.title || "performance";

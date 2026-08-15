@@ -3,8 +3,17 @@ import { isAdminSession } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
-import { clearNotificationsFor, notifyPortPinned } from "@/lib/community/notify";
-import { getPattern, getPatternStub, getPortStub } from "@/lib/community/queries";
+import {
+  clearNotificationsFor,
+  notifyPerformancePinned,
+  notifyPortPinned,
+} from "@/lib/community/notify";
+import {
+  getPattern,
+  getPatternStub,
+  getPerformanceStub,
+  getPortStub,
+} from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { patternHeaders, patterns } from "@/lib/community/schema";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
@@ -200,6 +209,25 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     }
   }
 
+  // Same picking rule for performance recordings — the author's call which
+  // ride represents the pattern (lib/community/performances.ts).
+  let pinnedPerformanceId = pattern.pinnedPerformanceId;
+  let newlyPinnedPerformance: Awaited<ReturnType<typeof getPerformanceStub>> | null = null;
+  if (raw.pinnedPerformanceId !== undefined) {
+    if (raw.pinnedPerformanceId === null || raw.pinnedPerformanceId === "") {
+      pinnedPerformanceId = null;
+    } else if (typeof raw.pinnedPerformanceId === "string") {
+      const recording = await getPerformanceStub(raw.pinnedPerformanceId);
+      if (!recording || recording.patternId !== id) {
+        return Response.json({ error: "No such performance on this pattern." }, { status: 400 });
+      }
+      if (recording.id !== pattern.pinnedPerformanceId) newlyPinnedPerformance = recording;
+      pinnedPerformanceId = recording.id;
+    } else {
+      return Response.json({ error: "Unknown pinned performance." }, { status: 400 });
+    }
+  }
+
   // Compare the bodies with any licence wrapping removed, so re-saving without
   // touching the code isn't mistaken for a code change.
   let bareCode = stripShareWrapping(pattern.code);
@@ -261,6 +289,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       codeCpp,
       visibility,
       pinnedHeaderId,
+      pinnedPerformanceId,
       updatedAt: new Date(),
     })
     .where(eq(patterns.id, id));
@@ -281,6 +310,16 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       patternId: id,
       patternTitle: title,
       portId: newlyPinnedPort.id,
+      actorId: session.user.id,
+    });
+  }
+
+  if (newlyPinnedPerformance) {
+    await notifyPerformancePinned({
+      recorderId: newlyPinnedPerformance.userId,
+      patternId: id,
+      patternTitle: title,
+      performanceId: newlyPinnedPerformance.id,
       actorId: session.user.id,
     });
   }

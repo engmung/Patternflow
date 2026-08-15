@@ -148,6 +148,13 @@
       "when": 1786840000000,
       "tag": "0020_deck-performance",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1786860000000,
+      "tag": "0021_pattern-performances",
+      "breakpoints": true
     }
   ]
 }

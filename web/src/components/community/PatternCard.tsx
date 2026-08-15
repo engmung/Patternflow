@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { authClient } from "@/lib/community/auth-client";
+import AuthModal from "@/components/community/AuthModal";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
@@ -45,6 +48,9 @@ export type PatternCardItem = {
   visibility: string;
   /** Distinct other people whose public decks carry this pattern. */
   deckCount: number;
+  /** Whether the signed-in viewer already liked it — lights the card heart.
+   *  Optional: surfaces that don't compute it get a heart that assumes no. */
+  viewerLiked?: boolean;
 };
 
 export function formatDate(iso: string): string {
@@ -140,6 +146,49 @@ export default function PatternCard({
 
   // The deck holds the .h, which the feed does not carry — a header can be
   // 200 KB and most cards are never added. Fetch it on the press instead.
+  // Liking straight off the card — the count is public, the act needs a
+  // session, and the card must stay one link, so the heart swallows its
+  // click and the sign-in modal renders through a portal (a modal inside
+  // the <Link> would navigate on backdrop clicks).
+  const { data: session } = authClient.useSession();
+  const [likeCount, setLikeCount] = useState(item.likeCount);
+  const [liked, setLiked] = useState(item.viewerLiked ?? false);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+
+  const toggleLike = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!session) {
+      setAuthOpen(true);
+      return;
+    }
+    if (likeBusy) return;
+    const previous = { liked, likeCount };
+    setLiked(!liked);
+    setLikeCount(likeCount + (liked ? -1 : 1));
+    setLikeBusy(true);
+    try {
+      const response = await fetch(
+        communityApiUrl(`/api/community/patterns/${item.id}/like`),
+        { method: "POST", ...COMMUNITY_FETCH_INIT },
+      );
+      if (!response.ok) {
+        setLiked(previous.liked);
+        setLikeCount(previous.likeCount);
+        return;
+      }
+      const payload = (await response.json()) as { liked: boolean; count: number };
+      setLiked(payload.liked);
+      setLikeCount(payload.count);
+    } catch {
+      setLiked(previous.liked);
+      setLikeCount(previous.likeCount);
+    } finally {
+      setLikeBusy(false);
+    }
+  };
+
   const toggleDeck = async (event: React.MouseEvent) => {
     // The whole card is a link to the detail page.
     event.preventDefault();
@@ -343,6 +392,7 @@ export default function PatternCard({
     overlayShowing && overlayPos === "bottom" ? styles.deckNoteTop : styles.deckNoteBottom;
 
   return (
+    <>
     <Link
       ref={rootRef}
       href={detailUrl}
@@ -415,6 +465,22 @@ export default function PatternCard({
             {deckBusy ? "…" : inDeck ? "−" : "+"}
           </button>
         )}
+
+        {/* The heart lives beside the deck button (same dodging edge) so both
+            card actions read as one cluster; when there is no deck button it
+            takes the corner itself. */}
+        <button
+          type="button"
+          className={`${styles.cardDeckBtn} ${styles.cardLikeBtn} ${
+            buildsConfigured() && item.hasCpp ? styles.cardLikeBtnBeside : ""
+          } ${deckBtnEdge} ${liked ? styles.cardLikeBtnOn : ""}`}
+          title={liked ? "Liked — click to unlike" : "Like this pattern"}
+          aria-pressed={liked}
+          aria-label={liked ? "Unlike this pattern" : "Like this pattern"}
+          onClick={(event) => void toggleLike(event)}
+        >
+          ♥
+        </button>
         {deckNote && (
           <span
             className={`${styles.cardDeckNote} ${deckNoteEdge}`}
@@ -502,12 +568,12 @@ export default function PatternCard({
           <span className={styles.userLink}>
             @{item.displayUsername ?? item.username ?? "unknown"}
           </span>
-          {/* Counts only — liking happens on the detail page, so the card stays
-              a single link and its hover/knob interactions are unaffected. */}
+          {/* The count mirrors the heart on the thumbnail, so a like lands in
+              both places without a refresh. */}
           <span className={styles.cardStats}>
-            {item.likeCount > 0 && (
-              <span title={`${item.likeCount} likes`}>
-                LIK {String(item.likeCount).padStart(2, "0")}
+            {likeCount > 0 && (
+              <span title={`${likeCount} likes`}>
+                LIK {String(likeCount).padStart(2, "0")}
               </span>
             )}
             {item.forkCount > 0 && (
@@ -527,5 +593,12 @@ export default function PatternCard({
         </div>
       </div>
     </Link>
+      {authOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <AuthModal onClose={() => setAuthOpen(false)} />,
+          document.body,
+        )}
+    </>
   );
 }
