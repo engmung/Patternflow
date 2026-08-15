@@ -5,11 +5,35 @@
 //   2. knobAudioActive      → lerp(min, max, 0..1)  (Weather / audio)
 //   3. knobDeltas           → integrate with step
 //
+// ── One source, two builds ───────────────────────────────────────────────
+// Reading paramAbsoluteActive on a host that predates those fields means
+// reading past the end of its InputFrame, so a converted pattern cannot
+// simply be installed on old firmware. Rather than fork the catalogue, the
+// absolute tier compiles out when a module is built for the older host
+// (-DPF_ABI_MODULE_VERSION=1): the same converted source then behaves as it
+// always did — audio, then knob deltas — and stamps a descriptor those
+// loaders accept. Build it for the newer host and the absolute tier is there.
+//
+// So converting a pattern is never a decision about which firmware its
+// author's audience runs; that is the build's business, not the source's.
+//
 // License: MIT
 #pragma once
 
 #include <math.h>
 #include <stdint.h>
+
+#include "pf_abi.h"
+
+// PF_ABI_MODULE_VERSION >= 2 means "this build's host has the absolute
+// fields". pf_abi.h defaults it to 2 (firmware, and any module build that
+// did not ask otherwise); build_module.py passes 1 when targeting the older
+// host. Kept as one named test so no helper below can drift from the rest.
+#if PF_ABI_MODULE_VERSION >= 2
+#define PF_PARAMS_HAS_ABSOLUTE 1
+#else
+#define PF_PARAMS_HAS_ABSOLUTE 0
+#endif
 
 namespace PFParams {
 
@@ -32,10 +56,12 @@ inline float clampf(float v, float lo, float hi) {
 template <typename Frame>
 inline void apply(const Frame& input, int i, float* param, float lo, float hi, float step) {
   if (!param || i < 0 || i > 3) return;
+#if PF_PARAMS_HAS_ABSOLUTE
   if (input.paramAbsoluteActive[i]) {
     *param = clampf(lerp(lo, hi, unit1000(input.paramAbsolute[i])), lo, hi);
     return;
   }
+#endif
   if (input.knobAudioActive[i]) {
     *param = clampf(lerp(lo, hi, input.knobAudioValue[i]), lo, hi);
     return;
@@ -50,6 +76,7 @@ template <typename Frame>
 inline void applyInt(const Frame& input, int i, int* param, int lo, int hi, int step,
                      bool wrap = false) {
   if (!param || i < 0 || i > 3) return;
+#if PF_PARAMS_HAS_ABSOLUTE
   if (input.paramAbsoluteActive[i]) {
     float u = unit1000(input.paramAbsolute[i]);
     if (wrap) {
@@ -69,6 +96,7 @@ inline void applyInt(const Frame& input, int i, int* param, int lo, int hi, int 
     }
     return;
   }
+#endif
   if (input.knobAudioActive[i]) {
     float u = input.knobAudioValue[i];
     if (u < 0.0f) u = 0.0f;
@@ -107,12 +135,14 @@ inline void applyInt(const Frame& input, int i, int* param, int lo, int hi, int 
 template <typename Frame>
 inline void applyIndex(const Frame& input, int i, int* param, int count, int step = 1) {
   if (!param || count <= 0 || i < 0 || i > 3) return;
+#if PF_PARAMS_HAS_ABSOLUTE
   if (input.paramAbsoluteActive[i]) {
     int idx = (int)(unit1000(input.paramAbsolute[i]) * (float)count);
     if (idx >= count) idx = count - 1;
     *param = idx;
     return;
   }
+#endif
   if (input.knobAudioActive[i]) {
     int idx = (int)(input.knobAudioValue[i] * (float)count);
     if (idx >= count) idx = count - 1;
@@ -131,10 +161,12 @@ inline void applyIndex(const Frame& input, int i, int* param, int count, int ste
 template <typename Frame>
 inline void applyUnit(const Frame& input, int i, float* param, float step = 0.05f) {
   if (!param || i < 0 || i > 3) return;
+#if PF_PARAMS_HAS_ABSOLUTE
   if (input.paramAbsoluteActive[i]) {
     *param = unit1000(input.paramAbsolute[i]);
     return;
   }
+#endif
   if (input.knobAudioActive[i]) {
     float u = input.knobAudioValue[i];
     if (u < 0.0f) u = 0.0f;

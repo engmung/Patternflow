@@ -30,7 +30,13 @@
 #include <stdint.h>
 
 #define PF_ABI_VERSION 1
+// Overridable per build (-DPF_ABI_MODULE_VERSION=1): a module whose source
+// never touches the absolute-param fields does not need the newer host, so
+// build_module.py stamps it 1 and it keeps installing on pre-absolute
+// firmware. Only converted patterns claim 2 and accept being refused there.
+#ifndef PF_ABI_MODULE_VERSION
 #define PF_ABI_MODULE_VERSION 2
+#endif
 
 // Mirrors src/core_encoders.h::InputFrame exactly. Both sides are built with
 // the same GCC for the same target, so layout matches field-for-field and

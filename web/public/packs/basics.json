@@ -8,7 +8,7 @@
   "licenses": [
     "CC-BY-SA-4.0"
   ],
-  "abi": 2,
+  "abi": 1,
   "panel": {
     "w": 128,
     "h": 64
@@ -83,5 +83,5 @@
     "magvortex": 719.0,
     "a_big_hit": 9999.0
   },
-  "bytes": 126025
+  "bytes": 121705
 }
