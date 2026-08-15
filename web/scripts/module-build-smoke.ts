@@ -88,7 +88,12 @@ async function main() {
         `got ${JSON.stringify(sidecar.name)}`);
   check("sidecar knob labels", Array.isArray(sidecar.knobs) && sidecar.knobs.length === 4);
   check("sidecar panel size", sidecar.panel_w === 128 && sidecar.panel_h === 64);
-  check("sidecar ABI version", sidecar.abi === 1);
+  // 2 since the absolute-param bus: descriptors stamp PF_ABI_MODULE_VERSION
+  // so pre-absolute loaders refuse new modules instead of misreading them.
+  check("sidecar ABI version", sidecar.abi === 2);
+  // This smoke pattern integrates deltas by hand, so the detector must NOT
+  // call it absolute-ready — converted sources flip this to true.
+  check("sidecar absoluteReady flag", sidecar.absoluteReady === false);
 
   console.log("\nrejects a malformed header");
   const bad = await runModuleBuild([{ code: "not a pattern", label: "bad.h" }], { artifactDir });

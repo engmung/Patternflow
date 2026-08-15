@@ -22,6 +22,7 @@ import concurrent.futures
 import contextlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -201,10 +202,18 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
 
     meta_src = src_dir / "module.json"
     meta = json.loads(meta_src.read_text(encoding="utf-8")) if meta_src.is_file() else {}
+    # A module built from PFParams-converted source reads the appended
+    # absolute-param InputFrame fields, so its descriptor (and this sidecar,
+    # which the device's registry scan reads) says ABI 2. The flag mirrors
+    # the source's own declaration rather than assuming: a hand-written
+    # pattern that still integrates raw deltas stays delta-only.
+    source_text = (src_dir / "pattern.cpp").read_text(encoding="utf-8", errors="replace")
+    absolute_ready = bool(re.search(r"\bABSOLUTE_READY\s*=\s*true\b", source_text))
     meta.update(
         {
             "slug": slug,
-            "abi": 1,
+            "abi": 2,
+            "absoluteReady": absolute_ready,
             "panel_w": PANEL_W,
             "panel_h": PANEL_H,
             "module": f"{slug}.pfm",
