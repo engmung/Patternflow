@@ -75,7 +75,7 @@ You don't need hardware to start. The **[Live Editor](https://patternflow.work/p
 When it looks right, publish it to the **[Community](https://community.patternflow.work/community)**. More than a hundred patterns are up already and the range keeps widening, from quiet waves to chaos-theory studies, every one written as code and every one playable under the same four knobs. Visuals you can hold while they run are young territory; there is still room for real invention here. Collect patterns into a deck and send it to your board in one click. Browsing needs no account, and publishing asks a username and password, no email. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop.
 
 <p align="center">
-  <img src="./docs/images/pattern-guide/02-community-home.png" width="100%" alt="The community wall: patterns people made, playing live" />
+  <img src="./docs/media/community-library.png" width="100%" alt="The community wall: dozens of patterns by different authors, each one playing, with a deck being assembled along the bottom" />
 </p>
 
 Patterns don't stay on the wall, either. New pattern studies go up on **[Instagram](https://www.instagram.com/patternflow.work)** almost daily. Publish something that stands out and it can get featured there, or ask for a collab on Instagram and we'll post yours together.
@@ -139,6 +139,10 @@ A new board is therefore nearly empty, so a set ships with it: the **Basics pack
 The Arduino IDE is only needed for firmware feature development or targeting an LED matrix with a different resolution; see [`firmware/patternflow/README.md`](firmware/patternflow/README.md) and [Custom Patterns](firmware/CUSTOM_PATTERNS.md). To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
 
 ## OSC, MQTT & audio-react
+
+<p align="center">
+  <img src="./docs/media/daw-ableton.jpg" width="100%" alt="Patternflow beside an Ableton Live session, with the Patternflow Bridge Max for Live device open and the four knobs mapped to Live parameters" />
+</p>
 
 **Bidirectional OSC.** Over Wi-Fi, Patternflow speaks OSC in both directions: knob turns, button presses, and pattern switches stream out to a remote host (Ableton Live, Max/MSP, TouchDesigner, anything that speaks OSC), and incoming OSC messages drive the device exactly like physical encoder motion. Play Patternflow as a controller for your set, let your set drive the light, or both at once. If you play MIDI instruments, this will feel like home. For Ableton Live Suite there's a ready-made Max for Live bridge in [`integrations/ableton`](integrations/ableton). Click Connect, map the four knobs to any Live parameters, done. The wire protocol is documented in [`docs/osc-spec.md`](docs/osc-spec.md).
 
