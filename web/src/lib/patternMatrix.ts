@@ -28,6 +28,18 @@ export type MatrixSize = { width: number; height: number };
 /** The stock Patternflow panel. Used whenever a pattern carries no @matrix. */
 export const DEFAULT_MATRIX: MatrixSize = { width: 128, height: 64 };
 
+/**
+ * The stock panel in either orientation — the board is mounted whichever way
+ * up its owner likes, so 128×64 and 64×128 are the same hardware and the same
+ * assumption a reader already holds. Only a genuinely different frame (64×64,
+ * a chained wall) is worth telling them about.
+ */
+export function isStockPanelFrame(size: MatrixSize): boolean {
+  const long = Math.max(size.width, size.height);
+  const short = Math.min(size.width, size.height);
+  return long === DEFAULT_MATRIX.width && short === DEFAULT_MATRIX.height;
+}
+
 // Small enough to stay honest about being an LED matrix, large enough for the
 // panels people actually chain together.
 export const MATRIX_MIN = 8;

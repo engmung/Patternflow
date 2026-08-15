@@ -9,11 +9,10 @@ import { useMediaQuery } from "@/lib/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
-  DEFAULT_MATRIX,
   describeMatrixShape,
   formatMatrix,
+  isStockPanelFrame,
   matrixFromCode,
-  matrixesEqual,
 } from "@/lib/patternMatrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
@@ -586,9 +585,10 @@ export default function PatternCard({
             </span>
           )}
           {item.parentId && <span className={styles.forkChip}>fork</span>}
-          {/* Only worth the space when it isn't the stock panel — that is the
-              assumption a reader already has. */}
-          {!matrixesEqual(cardMatrix, DEFAULT_MATRIX) && (
+          {/* Only worth the space when it isn't the stock panel in either
+              orientation — that is the assumption a reader already has, and
+              nearly every pattern here is composed portrait. */}
+          {!isStockPanelFrame(cardMatrix) && (
             <span
               className={styles.frameChip}
               title={`Composed for a ${formatMatrix(cardMatrix)} frame`}
