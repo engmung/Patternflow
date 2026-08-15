@@ -42,10 +42,7 @@ constexpr size_t PUT_MAX =
     PatternflowShow::HEADER_BYTES + PatternflowShow::MAX_POOL +
     (size_t)PatternflowShow::MAX_CUES * PatternflowShow::CUE_BYTES;
 
-// 8.3 KB — same rule as the player's cue table: never a static array.
-// Internal DRAM is the console's lifeline (~15 KB at runtime), and this
-// buffer is touched only while a .pfs upload is in flight. PSRAM, lazily.
-inline uint8_t* putBuf = nullptr;
+inline uint8_t putBuf[PUT_MAX];
 inline size_t putLen = 0;
 inline bool putFailed = false;
 inline char putError[80] = {};
@@ -337,12 +334,6 @@ inline void handlePutBody() {
     putError[0] = '\0';
     putLen = 0;
     putSlug[0] = '\0';
-    if (!putBuf) putBuf = (uint8_t*)PFMem::alloc(PUT_MAX);
-    if (!putBuf) {
-      putFailed = true;
-      snprintf(putError, sizeof(putError), "no memory for upload");
-      return;
-    }
     String name = server().header("X-PF-Name");
     String lowered = name;
     lowered.toLowerCase();
