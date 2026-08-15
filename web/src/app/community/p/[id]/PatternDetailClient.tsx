@@ -888,63 +888,72 @@ function PerformancesSection({
       ) : (
         <ul className={styles.portsList}>
           {pattern.performances.map((recording) => (
-            <li key={recording.id} className={styles.portRow}>
-              <span className={styles.portHandle}>@{recording.handle ?? "unknown"}</span>
-              <span className={styles.portDate}>{recording.createdAt.slice(0, 10)}</span>
-              {recording.summary && (
-                <span className={styles.portNote}>
-                  “{recording.summary.title}” · {recording.summary.cues} cues ·{" "}
-                  {fmt(recording.summary.seconds)}
-                </span>
-              )}
-              {recording.effective && <span className={styles.portChip}>in use</span>}
-              {recording.byAuthor && <span className={styles.portChip}>author</span>}
-              {recording.pinned && !recording.byAuthor && (
-                <span className={styles.portChip}>pinned</span>
-              )}
-              {recording.note && <span className={styles.portNote}>{recording.note}</span>}
-              <span className={styles.ownerBarSpacer} />
-              <a
-                className={styles.btnSmall}
-                href={communityApiUrl(
-                  `/api/community/performances/${recording.id}?format=pfs`,
+            <li key={recording.id} className={styles.perfRow}>
+              {/* Who and what you can do with it on the first line; what the
+                  recording IS on the second, where a long note can run out
+                  of room without squeezing the title beside it. */}
+              <div className={styles.perfMain}>
+                <span className={styles.portHandle}>@{recording.handle ?? "unknown"}</span>
+                <span className={styles.portDate}>{recording.createdAt.slice(0, 10)}</span>
+                {recording.effective && <span className={styles.portChip}>in use</span>}
+                {recording.byAuthor && <span className={styles.portChip}>author</span>}
+                {recording.pinned && !recording.byAuthor && (
+                  <span className={styles.portChip}>pinned</span>
                 )}
-                title="The packed show table the panel's Sequences page plays"
-              >
-                .pfs
-              </a>
-              <a
-                className={styles.btnSmall}
-                href={communityApiUrl(`/api/community/performances/${recording.id}`)}
-                title="The editable Director JSON"
-              >
-                .json
-              </a>
-              {isOwner && !recording.byAuthor && !pattern.hasAuthorPerformance && (
-                <button
-                  type="button"
-                  className={styles.btnSmall}
-                  disabled={busy}
-                  title={
-                    recording.pinned
-                      ? "Stop pinning this recording (arrival order decides again)"
-                      : "Make this the recording your pattern leads with"
-                  }
-                  onClick={() => void pin(recording.pinned ? null : recording.id)}
+                <span className={styles.ownerBarSpacer} />
+                <a
+                  className={`${styles.btnSmall} ${styles.perfLink}`}
+                  href={communityApiUrl(
+                    `/api/community/performances/${recording.id}?format=pfs`,
+                  )}
+                  title="Show table for the panel — drop it on the device's Sequences page"
                 >
-                  {recording.pinned ? "Unpin" : "Pin"}
-                </button>
-              )}
-              {recording.mine && (
-                <button
-                  type="button"
-                  className={styles.btnSmall}
-                  disabled={busy}
-                  onClick={() => void remove(recording.id)}
+                  .pfs
+                </a>
+                <a
+                  className={`${styles.btnSmall} ${styles.perfLink}`}
+                  href={communityApiUrl(`/api/community/performances/${recording.id}`)}
+                  title="The editable Director JSON — open it to keep working on the ride"
                 >
-                  remove
-                </button>
-              )}
+                  .json
+                </a>
+                {isOwner && !recording.byAuthor && !pattern.hasAuthorPerformance && (
+                  <button
+                    type="button"
+                    className={styles.btnSmall}
+                    disabled={busy}
+                    title={
+                      recording.pinned
+                        ? "Stop pinning this recording (arrival order decides again)"
+                        : "Make this the recording your pattern leads with"
+                    }
+                    onClick={() => void pin(recording.pinned ? null : recording.id)}
+                  >
+                    {recording.pinned ? "Unpin" : "Pin"}
+                  </button>
+                )}
+                {recording.mine && (
+                  <button
+                    type="button"
+                    className={styles.btnSmall}
+                    disabled={busy}
+                    onClick={() => void remove(recording.id)}
+                  >
+                    remove
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.perfSub}>
+                {recording.summary && (
+                  <span className={styles.perfSummary}>
+                    “{recording.summary.title}” · {recording.summary.cues} cue
+                    {recording.summary.cues === 1 ? "" : "s"} ·{" "}
+                    {fmt(recording.summary.seconds)}
+                  </span>
+                )}
+                {recording.note && <span className={styles.perfNote}>{recording.note}</span>}
+              </div>
             </li>
           ))}
         </ul>

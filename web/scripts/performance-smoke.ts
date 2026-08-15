@@ -5,12 +5,17 @@
 // contract pinned without needing those files. Run:
 //   npx tsx scripts/performance-smoke.ts
 
+import fs from "node:fs";
+import path from "node:path";
+
 import {
   PFST_HEADER_BYTES,
   PFST_CUE_BYTES,
+  decodePfst,
   encodePfst,
   normalizePerformance,
   pfsFilename,
+  serializePerformance,
   validatePerformance,
 } from "../src/lib/community/performance";
 
@@ -76,6 +81,62 @@ const patternName = new TextDecoder().decode(
 );
 check('cue0 pattern resolves to "Origin" through the pool', patternName === "Origin");
 check("pool offset 0 is the empty string", pool[0] === 0);
+
+console.log("\n.pfs → performance (publishing accepts either half of a save)");
+{
+  // Round-trip our own encode first: decode must reproduce the timeline, and
+  // re-encoding must reproduce the bytes.
+  const back = decodePfst(bytes);
+  check("decode keeps the cue count", back.timeline.length === perf.timeline.length);
+  check("decode keeps title / loop / length",
+    back.title === "Smoke Set" && back.loop === true && back.length === 30);
+  check("decode keeps the pattern cue", back.timeline[0].pattern === "Origin");
+  check("decode keeps a SPARSE param patch (flags carry which channels)",
+    JSON.stringify(back.timeline.find((cue) => cue.t === 5)?.param) ===
+      JSON.stringify([null, 800, null, null]));
+  check("decode keeps an empty message cue",
+    back.timeline.some((cue) => cue.t === 20 && cue.message === ""));
+  check("re-encode reproduces the bytes",
+    Buffer.from(encodePfst(back)).equals(Buffer.from(bytes)));
+
+  // And against the Director's own saves, which is the real contract: these
+  // .pfs files were written by Simone's tool, not by us.
+  const demos = path.resolve(
+    process.cwd(),
+    "..",
+    "_temp",
+    "patternflow-SimonePDA-feature-performance-director",
+    "director",
+    "demos",
+  );
+  if (fs.existsSync(demos)) {
+    let checked = 0;
+    for (const file of fs.readdirSync(demos)) {
+      if (!file.endsWith(".pfs")) continue;
+      const raw = fs.readFileSync(path.join(demos, file));
+      const decoded = decodePfst(new Uint8Array(raw));
+      const reencoded = Buffer.from(encodePfst(decoded));
+      check(`${file}: decode → encode is byte-identical`, reencoded.equals(raw));
+      // And the decoded form must survive the same validation a paste does.
+      const verdict2 = validatePerformance(JSON.stringify(serializePerformance(decoded)));
+      check(`${file}: decoded form validates`, verdict2.ok);
+      checked++;
+    }
+    if (checked === 0) console.log("  --    no demo .pfs found (skipped)");
+  } else {
+    console.log("  --    Director demos not in this checkout (skipped)");
+  }
+
+  check("rejects a file that is not a PFST table",
+    (() => {
+      try {
+        decodePfst(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]));
+        return false;
+      } catch {
+        return true;
+      }
+    })());
+}
 
 console.log("\nrefusals");
 check("rejects non-JSON", !validatePerformance("not json").ok);

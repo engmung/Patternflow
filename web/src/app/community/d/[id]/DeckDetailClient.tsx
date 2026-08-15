@@ -7,6 +7,8 @@ import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
 import ShareDeckPackModal from "@/components/community/ShareDeckPackModal";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { summarizePerformanceJson } from "@/lib/community/performance";
+import { readPerformanceFile } from "@/lib/community/performanceFile";
 import {
   deckItems,
   deckReplace,
@@ -40,27 +42,6 @@ export type DeckView = {
   username: string | null;
   displayUsername: string | null;
 };
-
-/** What the page says about an attached performance without re-validating it. */
-function summarizePerformance(json: string | null): { title: string; cues: number; seconds: number } | null {
-  if (!json) return null;
-  try {
-    const perf = JSON.parse(json) as { title?: unknown; length?: unknown; timeline?: unknown[] };
-    const timeline = Array.isArray(perf.timeline) ? perf.timeline : [];
-    let last = 0;
-    for (const cue of timeline) {
-      const t = Number((cue as { t?: unknown }).t) || 0;
-      if (t > last) last = t;
-    }
-    return {
-      title: String(perf.title || "Untitled"),
-      cues: timeline.length,
-      seconds: Math.max(Math.round(Number(perf.length) || 0), last),
-    };
-  } catch {
-    return null;
-  }
-}
 
 export default function DeckDetailClient({
   deck,
@@ -422,7 +403,7 @@ export default function DeckDetailClient({
         {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 
         {(() => {
-          const perf = summarizePerformance(deck.performanceJson);
+          const perf = summarizePerformanceJson(deck.performanceJson);
           if (!perf) return null;
           const m = Math.floor(perf.seconds / 60);
           const s = perf.seconds % 60;
@@ -607,12 +588,15 @@ function PerformanceModal({
     }
   };
 
+  // Either half of a Director save — the packed .pfs is decoded back to the
+  // editable timeline, which is what the deck stores and re-encodes for packs.
   const pickFile = (file: File | undefined) => {
     if (!file) return;
-    file
-      .text()
-      .then((text) => setJson(text))
-      .catch(() => setError("Could not read that file."));
+    setError(null);
+    void readPerformanceFile(file).then((result) => {
+      if (result.ok) setJson(result.json);
+      else setError(result.error);
+    });
   };
 
   return (
@@ -626,9 +610,19 @@ function PerformanceModal({
         </div>
         <div className={styles.modalBody}>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>
-              Performance JSON (Director → Save JSON)
+            <span className={styles.fieldLabel}>Load a .pfs or .json</span>
+            <input
+              type="file"
+              accept=".pfs,.json,application/json,application/octet-stream"
+              onChange={(event) => pickFile(event.target.files?.[0])}
+            />
+            <span className={styles.fieldHint}>
+              Either half of a Director save — a <code>.pfs</code> table is unpacked back into
+              the editable timeline below.
             </span>
+          </label>
+          <label className={styles.field}>
+            <span className={styles.fieldLabel}>Performance JSON</span>
             <textarea
               className={styles.textInput}
               rows={10}
@@ -636,14 +630,6 @@ function PerformanceModal({
               spellCheck={false}
               placeholder='{"version":1,"title":"Sunset Set","timeline":[{"t":0,"pattern":"Origin"},{"t":0,"param":[500,500,500,500]}]}'
               onChange={(event) => setJson(event.target.value)}
-            />
-          </label>
-          <label className={styles.field}>
-            <span className={styles.fieldLabel}>…or load a .json file</span>
-            <input
-              type="file"
-              accept="application/json,.json"
-              onChange={(event) => pickFile(event.target.files?.[0])}
             />
           </label>
           {error && <div className={styles.formError}>{error}</div>}

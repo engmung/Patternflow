@@ -27,6 +27,8 @@ export const PFST_OFF_NONE = 0xffff;
 
 const FLAG_PATTERN = 1;
 const FLAG_PARAM1 = 2;
+/** PARAM1|PARAM2|PARAM3|PARAM4 — "this cue touches at least one channel". */
+const FLAG_PARAM_ANY = 2 | 4 | 8 | 16;
 const FLAG_MESSAGE = 32;
 
 /** Sparse per-channel values: null = this cue does not touch that channel. */
@@ -227,6 +229,97 @@ export function validatePerformance(
     return { ok: false, error: error instanceof Error ? error.message : "Cannot encode show table." };
   }
   return { ok: true, perf };
+}
+
+/**
+ * Read a PFST table back into a performance.
+ *
+ * The Director saves both halves — the JSON it edits and the .pfs it sends to
+ * a panel — and people reach for whichever is in front of them, so publishing
+ * accepts either. The table is close to lossless for what a recording IS: the
+ * cue flags record exactly which param channels a cue set, so a sparse patch
+ * survives the round trip. What it does not carry is show-management dressing
+ * (utcStart, channel, patternsZip and its hash, the required list); those come
+ * back empty, which is what they are for a recording published here anyway.
+ *
+ * Round-tripped in performance-smoke against the Director's own saves:
+ * decode → encode reproduces the original bytes.
+ */
+export function decodePfst(bytes: Uint8Array): Performance {
+  if (bytes.length < PFST_HEADER_BYTES) throw new Error("not a PFST table (too short)");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x46 || bytes[2] !== 0x53 || bytes[3] !== 0x54) {
+    throw new Error("not a PFST table (bad magic)");
+  }
+  if (bytes[4] !== PFST_VERSION) {
+    throw new Error(`unsupported PFST version ${bytes[4]}`);
+  }
+
+  const loop = (bytes[5] & 1) === 1;
+  const length = view.getUint16(6, true);
+  const cueCount = view.getUint16(8, true);
+  const poolLength = view.getUint16(10, true);
+  if (cueCount > PFST_MAX_CUES) throw new Error(`too many cues (${cueCount})`);
+  if (poolLength > PFST_MAX_POOL) throw new Error(`string pool too large (${poolLength})`);
+
+  const expected = PFST_HEADER_BYTES + poolLength + cueCount * PFST_CUE_BYTES;
+  if (bytes.length < expected) throw new Error("PFST table is truncated");
+
+  const readFixed = (at: number, size: number): string => {
+    let end = at;
+    while (end < at + size && bytes[end] !== 0) end++;
+    return new TextDecoder().decode(bytes.subarray(at, end));
+  };
+  const title = readFixed(12, 32);
+  const id = readFixed(44, 32);
+
+  const pool = bytes.subarray(PFST_HEADER_BYTES, PFST_HEADER_BYTES + poolLength);
+  const poolString = (offset: number): string => {
+    if (offset === PFST_OFF_NONE || offset >= pool.length) return "";
+    let end = offset;
+    while (end < pool.length && pool[end] !== 0) end++;
+    return new TextDecoder().decode(pool.subarray(offset, end));
+  };
+
+  const timeline: PerformanceCue[] = [];
+  const cueBase = PFST_HEADER_BYTES + poolLength;
+  for (let i = 0; i < cueCount; i++) {
+    const at = cueBase + i * PFST_CUE_BYTES;
+    const flags = bytes[at + 2];
+    const cue: PerformanceCue = { t: view.getUint16(at, true) };
+    if (flags & FLAG_PATTERN) {
+      const name = poolString(view.getUint16(at + 4, true));
+      if (name) cue.pattern = name;
+    }
+    if (flags & FLAG_PARAM_ANY) {
+      const param: SparseParam = [null, null, null, null];
+      for (let c = 0; c < 4; c++) {
+        if (flags & (FLAG_PARAM1 << c)) param[c] = view.getUint16(at + 6 + c * 2, true);
+      }
+      cue.param = param;
+    }
+    if (flags & FLAG_MESSAGE) {
+      cue.message = poolString(view.getUint16(at + 14, true));
+    }
+    if (cue.pattern == null && cue.param == null && cue.message == null) continue;
+    timeline.push(cue);
+  }
+
+  // Through normalize so a decoded table lands in exactly the shape a pasted
+  // JSON would — same defaults, same cue ordering.
+  return normalizePerformance({
+    version: 1,
+    id,
+    title,
+    length,
+    loop,
+    timeline: timeline.map((cue) => ({
+      t: cue.t,
+      ...(cue.pattern != null ? { pattern: cue.pattern } : {}),
+      ...(cue.message != null ? { message: cue.message } : {}),
+      ...(cue.param ? { param: cue.param } : {}),
+    })),
+  });
 }
 
 /** Pack a performance into the PFST v1 bytes the device's /show player reads. */

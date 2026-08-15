@@ -57,6 +57,40 @@ export function formatDate(iso: string): string {
   return iso.slice(0, 10);
 }
 
+// The card's two corner controls draw their marks as SVG rather than as text.
+// A glyph is positioned by its font's metrics — ♥ and + carry different
+// ascents and sit at different heights inside an identical box, which is
+// exactly the misalignment this pair had — while a viewBox is centred by
+// geometry and stays centred in any font, at any size, at any DPI.
+const ICON = { viewBox: "0 0 16 16", width: 15, height: 15 } as const;
+
+function HeartIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg {...ICON} aria-hidden="true" focusable="false">
+      <path
+        d="M8 13.55 3.05 8.6a3.05 3.05 0 0 1 4.31-4.31L8 4.93l.64-.64a3.05 3.05 0 0 1 4.31 4.31z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function PlusMinusIcon({ minus }: { minus: boolean }) {
+  return (
+    <svg {...ICON} aria-hidden="true" focusable="false">
+      <path
+        d={minus ? "M3.6 8h8.8" : "M3.6 8h8.8M8 3.6v8.8"}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** How long ago, but only while that is still news.
  *
  *  The wall is newest-first, so an age chip on every card would just be a
@@ -462,7 +496,7 @@ export default function PatternCard({
             aria-label={inDeck ? "Remove from your deck" : "Add to your deck"}
             onClick={(event) => void toggleDeck(event)}
           >
-            {deckBusy ? "…" : inDeck ? "−" : "+"}
+            {deckBusy ? <span className={styles.cardBtnBusy} /> : <PlusMinusIcon minus={inDeck} />}
           </button>
         )}
 
@@ -471,7 +505,7 @@ export default function PatternCard({
             takes the corner itself. */}
         <button
           type="button"
-          className={`${styles.cardDeckBtn} ${styles.cardLikeBtn} ${
+          className={`${styles.cardDeckBtn} ${
             buildsConfigured() && item.hasCpp ? styles.cardLikeBtnBeside : ""
           } ${deckBtnEdge} ${liked ? styles.cardLikeBtnOn : ""}`}
           title={liked ? "Liked — click to unlike" : "Like this pattern"}
@@ -479,7 +513,7 @@ export default function PatternCard({
           aria-label={liked ? "Unlike this pattern" : "Like this pattern"}
           onClick={(event) => void toggleLike(event)}
         >
-          ♥
+          <HeartIcon filled={liked} />
         </button>
         {deckNote && (
           <span

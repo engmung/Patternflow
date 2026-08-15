@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { captureEvent } from "@/lib/posthogEvents";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { readPerformanceFile } from "@/lib/community/performanceFile";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
 
@@ -29,12 +30,16 @@ export default function AddPerformanceModal({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // Either half of a Director save: the .json it edits, or the .pfs it sends
+  // to a panel. A packed table is decoded back to the editable form here, so
+  // what gets published is always the source and the .pfs is regenerated.
   const pickFile = (file: File | undefined) => {
     if (!file) return;
-    file
-      .text()
-      .then((text) => setJson(text))
-      .catch(() => setError("Could not read that file."));
+    setError(null);
+    void readPerformanceFile(file).then((result) => {
+      if (result.ok) setJson(result.json);
+      else setError(result.error);
+    });
   };
 
   const save = async () => {
@@ -88,11 +93,23 @@ export default function AddPerformanceModal({
           <div className={styles.modalBody}>
             <p className={styles.formNote}>
               A performance is a timed ride through this pattern&apos;s knobs — cues of absolute
-              values (0..1000) the panel replays exactly. Record it in the Director tool, use{" "}
-              <strong>Save JSON</strong>, and paste or drop the file here. It goes live
-              immediately, credited to you; the pattern&apos;s author can pin or out-rank it with
-              their own recording.
+              values (0..1000) the panel replays exactly. Record it in the Director tool and
+              load either half of its save: the <code>.pfs</code> table you send to a panel, or
+              the <code>.json</code> it edits. It goes live immediately, credited to you; the
+              pattern&apos;s author can pin or out-rank it with their own recording.
             </p>
+
+            <label className={styles.field}>
+              <span className={styles.fieldLabel}>Load a .pfs or .json</span>
+              <input
+                type="file"
+                accept=".pfs,.json,application/json,application/octet-stream"
+                onChange={(event) => pickFile(event.target.files?.[0])}
+              />
+              <span className={styles.fieldHint}>
+                A <code>.pfs</code> is unpacked back into the editable timeline below.
+              </span>
+            </label>
 
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Performance JSON</span>
@@ -102,15 +119,6 @@ export default function AddPerformanceModal({
                 spellCheck={false}
                 value={json}
                 onChange={(event) => setJson(event.target.value)}
-              />
-            </label>
-
-            <label className={styles.field}>
-              <span className={styles.fieldLabel}>…or load the saved .json</span>
-              <input
-                type="file"
-                accept="application/json,.json"
-                onChange={(event) => pickFile(event.target.files?.[0])}
               />
             </label>
 
