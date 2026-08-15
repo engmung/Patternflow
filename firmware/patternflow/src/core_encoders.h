@@ -131,6 +131,14 @@ struct InputFrame {
   // need audio-specific code.
   bool knobAudioActive[4];
   float knobAudioValue[4];
+
+  // Absolute Director / Show-manager bus (MQTT param/1..4). Wire scale
+  // is integer 0..1000. When active, patterns that use PFParams::apply
+  // set mapped params from this instead of integrating deltas.
+  // Appended so older modules that only read the fields above still work
+  // — this struct is mirrored byte-for-byte by abi/pf_abi.h::PFInputFrame.
+  bool paramAbsoluteActive[4];
+  uint16_t paramAbsolute[4];
 };
 
 Button btn1, btn2, btn3, btn4;

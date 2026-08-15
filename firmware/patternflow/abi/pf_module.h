@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include "pf_abi.h"
+#include "pf_params.h"
 
 #ifndef PF_PANEL_W
 #error "PF_PANEL_W not defined - build modules with -DPF_PANEL_W=<panel width>"
@@ -269,13 +270,16 @@ inline void init() {
   void pf__update_thunk(float dt, const PFInputFrame* input) {               \
     ns::update(dt, *input);                                                  \
   }                                                                          \
+  /* Descriptor carries PF_ABI_MODULE_VERSION: this build reads the appended \
+     absolute-param fields, and stamping 2 is what makes a pre-absolute      \
+     loader (exact-match on 1) refuse it instead of feeding it garbage. */   \
   PFPatternModule pf__descriptor = {                                         \
-      PF_ABI_VERSION, PF_PANEL_W, PF_PANEL_H, nullptr, nullptr,              \
-      nullptr,        nullptr,    nullptr,                                   \
+      PF_ABI_MODULE_VERSION, PF_PANEL_W, PF_PANEL_H, nullptr, nullptr,       \
+      nullptr,               nullptr,    nullptr,                            \
   };                                                                         \
   }                                                                          \
   extern "C" const PFPatternModule* pf_module_entry(const PFHostAPI* api) {  \
-    if (!api || api->abi_version != PF_ABI_VERSION) return nullptr;          \
+    if (!api || api->abi_version < PF_ABI_VERSION) return nullptr;           \
     if (api->panel_w != PF_PANEL_W || api->panel_h != PF_PANEL_H) return nullptr; \
     PFHost::api = api;                                                       \
     pf__descriptor.name = ns::NAME;                                          \

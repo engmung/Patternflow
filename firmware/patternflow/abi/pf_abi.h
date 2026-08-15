@@ -4,8 +4,25 @@
 //   - firmware  (src/core_module_api.h fills PFHostAPI)
 //   - modules   (abi/pf_module.h wraps it in the familiar PF* namespaces)
 //
-// Bump PF_ABI_VERSION whenever any struct layout, field order, or calling
-// convention below changes. The loader refuses modules whose version differs.
+// Versioning, two numbers with different jobs:
+//
+//   PF_ABI_VERSION          the HOST API generation, passed to the module in
+//                           PFHostAPI.abi_version. Frozen at 1: every module
+//                           ever shipped checks it with `!=`, so raising it
+//                           would refuse the entire installed catalog.
+//   PF_ABI_MODULE_VERSION   what a freshly built module stamps into its
+//                           descriptor. Raised to 2 when the absolute-param
+//                           fields were APPENDED to PFInputFrame — the layout
+//                           prefix is unchanged, so the new host still runs
+//                           v1 modules, but a v2 module on a pre-absolute
+//                           host would read past the host's InputFrame and
+//                           see garbage in paramAbsoluteActive[]. The old
+//                           loader's exact-match check (`!= 1`) is what turns
+//                           that silent corruption into a clean refusal.
+//
+// The loader accepts descriptor versions PF_ABI_VERSION..PF_ABI_MODULE_VERSION.
+// Only ever APPEND fields to these structs; reordering or resizing existing
+// members breaks the v1 prefix contract and needs a real generation bump.
 #pragma once
 
 #include <stdarg.h>
@@ -13,6 +30,7 @@
 #include <stdint.h>
 
 #define PF_ABI_VERSION 1
+#define PF_ABI_MODULE_VERSION 2
 
 // Mirrors src/core_encoders.h::InputFrame exactly. Both sides are built with
 // the same GCC for the same target, so layout matches field-for-field and
@@ -25,6 +43,11 @@ typedef struct PFInputFrame {
   uint32_t now;
   bool knobAudioActive[4];
   float knobAudioValue[4];
+  // Absolute bus 0..1000 (Director / Show manager). Appended — older
+  // modules that never read these fields keep working without a rebuild.
+  // Modules that DO read them must be built as PF_ABI_MODULE_VERSION 2.
+  bool paramAbsoluteActive[4];
+  uint16_t paramAbsolute[4];
 } PFInputFrame;
 
 // Services the firmware provides to a loaded module.

@@ -1,39 +1,32 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - MQTT sidechannel (knobs + pattern name over a broker)
+// PatternFlow - MQTT sidechannel (knobs + pattern + absolute params)
 //
-// The same shape as core_osc.h, pointed at brokers instead of DAWs. Where
-// OSC talks to Ableton over UDP in device-local terms (indices, deltas),
-// this publishes plain retained values on plain topics, so the other end
-// can be a second panel, Home Assistant, or a shell one-liner:
+// Topics per prefix (no wildcards — ACL-friendly exact list):
 //
-//   <prefix>/knob/1..4   absolute click count, retained
-//   <prefix>/pattern     display name, retained
+//   <prefix>/knob/1..4   absolute click counts (live; non-retain)
+//   <prefix>/pattern     display name (live; non-retain)
+//   <prefix>/message     banner text (broadcast: retain; channels: live)
+//   <prefix>/param/1..4  absolute 0..1000 (live; non-retain)
+//   <prefix>/snapshot    compact JSON mid-join state (channels 1–5 only; retain)
+//   Director-only (local broker, not the public ACL):
+//   <prefix>/query       panel → inventory
+//   <prefix>/select      Director → mark modules on /patterns for ZIP export
+//   <prefix>/select/ack  panel → {matched,presets,missing,rev}
 //
-// Retained is the point. A Subscriber that joins late still gets the
-// current state — hence "turn on the second panel and it catches up"
-// rather than "wait for the first knob to move".
+// Retention policy (Performance Director proposal):
+//   Broadcast message          retain
+//   Channel/Live snapshot      retain
+//   Everything else            non-retain
 //
-// Roles, chosen on /mqtt and kept in NVS:
-//   Off         socket closed, nothing published
-//   Publisher   sends knob clicks + pattern name as they change
-//   Subscriber  applies the retained snapshot, then follows live changes
+// Roles on /mqtt:
+//   Off         socket closed
+//   Publisher   sends knobs + pattern (+ Live snapshot heartbeat)
+//   Subscriber  applies snapshot (on channels) then follows live topics
 //
-// Inbound values are absolute, but patterns only understand deltas, so
-// applyRemoteKnob() differences against the previous value and queues the
-// result. consumeKnobDelta() then reads exactly like the OSC one, which is
-// why the sketch merges both with adjacent lines.
+// Channel presets set the prefix: patternflow / patternflow1..4 / patternflow5.
+// Channels 1–4 force Subscriber; Broadcast and Live allow Pub or Sub.
 //
-// Compiled in by default, but inert until a role is picked AND a broker
-// host is configured — see the MQTT block in net_config.h.
-//
-// Include AFTER pattern_registry.h: name lookup walks patterns[], the same
-// arrangement core_patterns_http.h uses.
-//
-// Originally written by Simone Majocchi (@SimonePDA) for his Patternflow
-// fork and contributed upstream. Adapted here to this tree's pattern
-// registry and given a non-blocking connect path; the protocol design,
-// the role model, and the topic layout are his.
-//
+// Include AFTER pattern_registry.h.
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
@@ -46,6 +39,7 @@
 #include <WiFi.h>
 #include <Preferences.h>
 #include "pubsubclient/PubSubClient.h"
+#include "core_pack_select.h"
 #endif
 
 namespace PatternflowMqtt {
@@ -56,36 +50,45 @@ enum Role : uint8_t {
   ROLE_SUBSCRIBER = 2
 };
 
+// UI / NVS channel preset. Off is role-only; Custom means freeform prefix.
+enum Channel : uint8_t {
+  CHANNEL_OFF = 0,
+  CHANNEL_BROADCAST = 1,
+  CHANNEL_1 = 2,
+  CHANNEL_2 = 3,
+  CHANNEL_3 = 4,
+  CHANNEL_4 = 5,
+  CHANNEL_LIVE = 6,
+  CHANNEL_CUSTOM = 7
+};
+
+// Normal = saved community/HA broker. Director = local anonymous overlay
+// (host = PC LAN IP, port 1883, prefix patternflow, Subscriber). Normal
+// credentials stay in NVS and come back when leaving Director mode.
+enum MqttMode : uint8_t {
+  MQTT_MODE_NORMAL = 0,
+  MQTT_MODE_DIRECTOR = 1
+};
+
 #if PF_MQTT_ENABLED
 
-// Long enough for any preset name or module slug; nothing in the registry
-// is allowed to be longer on the wire.
 constexpr size_t NAME_BYTES = 48;
+constexpr size_t MESSAGE_BYTES = 80;
+constexpr size_t SNAPSHOT_BYTES = 384;
 
-// Everything below exists because this runs in the single loop that also
-// renders the panel and answers the web console. A broker that stops
-// answering must cost that loop a bounded, occasional pause — never a
-// multi-second stall every few seconds, which reads from outside as "the
-// device is up (it pings, it accepts TCP) but the console is dead".
-//
-// Three things could block, and all three are now capped:
-//   DNS       resolved once and cached, not on every attempt
-//   TCP       setConnectionTimeout below
-//   handshake setSocketTimeout below
 constexpr uint32_t CONNECT_TIMEOUT_MS = 1500;
 constexpr uint32_t SOCKET_TIMEOUT_S = 1;
-// Retry pacing. A broker that is simply gone should be retried rarely.
 constexpr uint32_t RECONNECT_MIN_MS = 5000;
 constexpr uint32_t RECONNECT_MID_MS = 15000;
 constexpr uint32_t RECONNECT_MAX_MS = 60000;
-// After this many consecutive failures the cached address is dropped, in
-// case the broker moved rather than went away.
 constexpr uint8_t RERESOLVE_AFTER = 4;
+constexpr uint32_t SNAPSHOT_HEARTBEAT_MS = 8000;
 
 inline WiFiClient net;
 inline PubSubClient client(net);
 inline bool started = false;
 inline Role role = ROLE_OFF;
+inline Channel channel = CHANNEL_BROADCAST;
 inline uint32_t lastReconnectMs = 0;
 inline char clientId[20] = {};
 inline char lastError[80] = {};
@@ -96,20 +99,21 @@ inline bool haveKnob[4] = {false, false, false, false};
 inline long lastRemoteKnob[4] = {0, 0, 0, 0};
 inline int32_t pendingKnobDelta[4] = {0, 0, 0, 0};
 inline int pendingPatternIdx = -1;
+inline char overlayText[MESSAGE_BYTES] = {};
+inline uint32_t overlayExpiresMs = 0;
+inline bool overlaySticky = false;
 inline IPAddress brokerIp;
 inline bool brokerResolved = false;
 inline uint8_t failures = 0;
 
-// ── Broker settings, entered on /mqtt and kept in NVS ────────────────────
-//
-// Typed in rather than compiled in, for the same reason Wi-Fi is: a broker
-// is per-owner, and the alternative is either everybody sharing one set of
-// credentials in the public source or nobody having a broker at all. The
-// PF_MQTT_* macros remain as build-time defaults for people who do want to
-// bake their own in; anything saved here wins over them.
-//
-// Sizes are deliberate — this is internal DRAM, which is the scarce thing on
-// this board (see the measurements in net_config.h). 176 bytes total.
+// Absolute param bus (held until physical encoder motion releases a channel).
+inline bool paramHeld[4] = {false, false, false, false};
+inline uint16_t paramValue[4] = {500, 500, 500, 500};
+inline uint32_t paramHeldAtMs[4] = {0, 0, 0, 0};
+inline uint32_t lastSnapshotPubMs = 0;
+// Ignore encoder chatter briefly after an absolute set (Director spam / noise).
+constexpr uint32_t ABSOLUTE_RELEASE_GRACE_MS = 250;
+
 constexpr size_t HOST_BYTES = 64;
 constexpr size_t USER_BYTES = 32;
 constexpr size_t PASS_BYTES = 48;
@@ -120,30 +124,27 @@ inline char cfgUser[USER_BYTES] = PF_MQTT_USER;
 inline char cfgPass[PASS_BYTES] = PF_MQTT_PASS;
 inline char cfgPrefix[PREFIX_BYTES] = PF_MQTT_PREFIX;
 inline uint16_t cfgPort = PF_MQTT_PORT;
+inline MqttMode mqttMode = MQTT_MODE_NORMAL;
+inline char dirHost[HOST_BYTES] = {};
+// -2 idle, -1 header, 0..n-1 items, n end
+inline int inventorySendIdx = -2;
 
-// ── Message banner (@SimonePDA) ──────────────────────────────────────────
-//
-// Anything published to <prefix>/message is drawn over the running pattern
-// for a few seconds. Receive-only: a panel never publishes here, so the
-// sender is Home Assistant, a script, or somebody with MQTT Explorer open.
-//
-// Deliberately a broadcast — every panel on the prefix shows it. There is no
-// per-device topic on purpose: addressing one panel would need a wildcard in
-// the broker's ACL, and a fixed topic list is what keeps a shared broker
-// from becoming somewhere anyone can invent topics.
-//
-// Shown per receipt rather than held. A retained payload — which is how you
-// would leave a note for a panel that is currently off — otherwise comes
-// back on every reconnect and every reboot, and a banner you cannot clear by
-// power-cycling is a fault, not a feature.
-constexpr size_t MESSAGE_BYTES = 80;
-inline char overlayText[MESSAGE_BYTES] = {};
-inline uint32_t overlayUntilMs = 0;
+inline bool isDirectorMode() { return mqttMode == MQTT_MODE_DIRECTOR; }
 
-inline bool hasBroker() { return cfgHost[0] != '\0'; }
+inline const char* livePrefix() {
+  return isDirectorMode() ? "patternflow" : cfgPrefix;
+}
 
-// Back off as failures pile up: a broker that is down stays down, and each
-// attempt costs the loop up to CONNECT_TIMEOUT_MS.
+inline const char* connectHost() {
+  return isDirectorMode() ? dirHost : cfgHost;
+}
+
+inline uint16_t connectPort() {
+  return isDirectorMode() ? (uint16_t)1883 : cfgPort;
+}
+
+inline bool hasBroker() { return connectHost()[0] != '\0'; }
+
 inline uint32_t reconnectDelayMs() {
   if (failures == 0) return RECONNECT_MIN_MS;
   if (failures < RERESOLVE_AFTER) return RECONNECT_MID_MS;
@@ -162,9 +163,81 @@ inline const char* roleName(Role r) {
   }
 }
 
+inline const char* channelName(Channel c) {
+  switch (c) {
+    case CHANNEL_OFF: return "off";
+    case CHANNEL_BROADCAST: return "broadcast";
+    case CHANNEL_1: return "ch1";
+    case CHANNEL_2: return "ch2";
+    case CHANNEL_3: return "ch3";
+    case CHANNEL_4: return "ch4";
+    case CHANNEL_LIVE: return "live";
+    case CHANNEL_CUSTOM: return "custom";
+    default: return "custom";
+  }
+}
+
+inline Channel channelFromName(const char* name) {
+  if (!name || !name[0]) return CHANNEL_CUSTOM;
+  if (strcasecmp(name, "off") == 0 || strcasecmp(name, "none") == 0) return CHANNEL_OFF;
+  if (strcasecmp(name, "broadcast") == 0 || strcasecmp(name, "bc") == 0) return CHANNEL_BROADCAST;
+  if (strcasecmp(name, "ch1") == 0 || strcmp(name, "1") == 0) return CHANNEL_1;
+  if (strcasecmp(name, "ch2") == 0 || strcmp(name, "2") == 0) return CHANNEL_2;
+  if (strcasecmp(name, "ch3") == 0 || strcmp(name, "3") == 0) return CHANNEL_3;
+  if (strcasecmp(name, "ch4") == 0 || strcmp(name, "4") == 0) return CHANNEL_4;
+  if (strcasecmp(name, "live") == 0 || strcasecmp(name, "ch5") == 0 || strcmp(name, "5") == 0) {
+    return CHANNEL_LIVE;
+  }
+  if (strcasecmp(name, "custom") == 0) return CHANNEL_CUSTOM;
+  return CHANNEL_CUSTOM;
+}
+
+inline const char* prefixForChannel(Channel c) {
+  switch (c) {
+    case CHANNEL_BROADCAST: return "patternflow";
+    case CHANNEL_1: return "patternflow1";
+    case CHANNEL_2: return "patternflow2";
+    case CHANNEL_3: return "patternflow3";
+    case CHANNEL_4: return "patternflow4";
+    case CHANNEL_LIVE: return "patternflow5";
+    default: return nullptr;
+  }
+}
+
+inline Channel channelFromPrefix(const char* prefix) {
+  if (!prefix || !prefix[0]) return CHANNEL_CUSTOM;
+  if (strcmp(prefix, "patternflow") == 0) return CHANNEL_BROADCAST;
+  if (strcmp(prefix, "patternflow1") == 0) return CHANNEL_1;
+  if (strcmp(prefix, "patternflow2") == 0) return CHANNEL_2;
+  if (strcmp(prefix, "patternflow3") == 0) return CHANNEL_3;
+  if (strcmp(prefix, "patternflow4") == 0) return CHANNEL_4;
+  if (strcmp(prefix, "patternflow5") == 0) return CHANNEL_LIVE;
+  return CHANNEL_CUSTOM;
+}
+
+inline bool channelForcesSubscriber(Channel c) {
+  return c >= CHANNEL_1 && c <= CHANNEL_4;
+}
+
+inline bool isBroadcastPrefix(const char* prefix) {
+  return prefix && strcmp(prefix, "patternflow") == 0;
+}
+
+// patternflow1..5 — timed shows + Live (snapshot retain applies).
+inline bool isChannelShowPrefix(const char* prefix) {
+  if (!prefix) return false;
+  if (strncmp(prefix, "patternflow", 11) != 0) return false;
+  char digit = prefix[11];
+  return digit >= '1' && digit <= '5' && prefix[12] == '\0';
+}
+
+inline bool retainMessageTopic() { return isBroadcastPrefix(livePrefix()); }
+inline bool retainSnapshotTopic() { return isChannelShowPrefix(livePrefix()); }
+inline bool retainLeafTopic() { return false; }
+
 inline const char* stateText() {
   if (!hasBroker()) return "no broker configured";
-  if (role == ROLE_OFF) return "off";
+  if (role == ROLE_OFF || channel == CHANNEL_OFF) return "off";
   if (WiFi.status() != WL_CONNECTED) return "wifi down";
   if (client.connected()) return "connected";
   switch (client.state()) {
@@ -182,15 +255,53 @@ inline const char* stateText() {
 }
 
 inline void topicKnob(char* buf, size_t n, int index) {
-  snprintf(buf, n, "%s/knob/%d", cfgPrefix, index + 1);
+  snprintf(buf, n, "%s/knob/%d", livePrefix(), index + 1);
 }
 
 inline void topicPattern(char* buf, size_t n) {
-  snprintf(buf, n, "%s/pattern", cfgPrefix);
+  snprintf(buf, n, "%s/pattern", livePrefix());
 }
 
 inline void topicMessage(char* buf, size_t n) {
-  snprintf(buf, n, "%s/message", cfgPrefix);
+  snprintf(buf, n, "%s/message", livePrefix());
+}
+
+inline void topicParam(char* buf, size_t n, int index) {
+  snprintf(buf, n, "%s/param/%d", livePrefix(), index + 1);
+}
+
+inline void topicSnapshot(char* buf, size_t n) {
+  snprintf(buf, n, "%s/snapshot", livePrefix());
+}
+
+inline void topicQuery(char* buf, size_t n) {
+  snprintf(buf, n, "%s/query", livePrefix());
+}
+
+inline void topicInventory(char* buf, size_t n) {
+  snprintf(buf, n, "%s/inventory", livePrefix());
+}
+
+inline void topicInventoryItem(char* buf, size_t n, int index) {
+  snprintf(buf, n, "%s/inventory/%d", livePrefix(), index);
+}
+
+inline void topicInventoryEnd(char* buf, size_t n) {
+  snprintf(buf, n, "%s/inventory/end", livePrefix());
+}
+
+inline void topicSelect(char* buf, size_t n) {
+  snprintf(buf, n, "%s/select", livePrefix());
+}
+
+inline void topicSelectAck(char* buf, size_t n) {
+  snprintf(buf, n, "%s/select/ack", livePrefix());
+}
+
+inline bool topicIsPattern(const char* topic) {
+  char expected[48];
+  topicPattern(expected, sizeof(expected));
+  return topic && strcmp(topic, expected) == 0;
 }
 
 inline bool topicIsMessage(const char* topic) {
@@ -199,9 +310,21 @@ inline bool topicIsMessage(const char* topic) {
   return topic && strcmp(topic, expected) == 0;
 }
 
-inline bool topicIsPattern(const char* topic) {
+inline bool topicIsSnapshot(const char* topic) {
   char expected[48];
-  topicPattern(expected, sizeof(expected));
+  topicSnapshot(expected, sizeof(expected));
+  return topic && strcmp(topic, expected) == 0;
+}
+
+inline bool topicIsQuery(const char* topic) {
+  char expected[48];
+  topicQuery(expected, sizeof(expected));
+  return topic && strcmp(topic, expected) == 0;
+}
+
+inline bool topicIsSelect(const char* topic) {
+  char expected[48];
+  topicSelect(expected, sizeof(expected));
   return topic && strcmp(topic, expected) == 0;
 }
 
@@ -216,8 +339,17 @@ inline int topicKnobIndex(const char* topic) {
   return strcmp(topic, expected) == 0 ? (n - 1) : -1;
 }
 
-// "/patterns/cell_ripple.pfm" → "cell_ripple". Empty for a preset, whose
-// modulePath is null because its code lives in firmware.bin.
+inline int topicParamIndex(const char* topic) {
+  if (!topic) return -1;
+  const char* slash = strrchr(topic, '/');
+  if (!slash || !slash[1]) return -1;
+  int n = atoi(slash + 1);
+  if (n < 1 || n > 4) return -1;
+  char expected[48];
+  topicParam(expected, sizeof(expected), n - 1);
+  return strcmp(topic, expected) == 0 ? (n - 1) : -1;
+}
+
 inline void slugFromModulePath(const char* path, char* out, size_t n) {
   if (!path || !path[0]) { out[0] = '\0'; return; }
   const char* filename = strrchr(path, '/');
@@ -226,9 +358,161 @@ inline void slugFromModulePath(const char* path, char* out, size_t n) {
   if (extension) *extension = '\0';
 }
 
-// Display name first (that is what we publish), then a case-insensitive
-// pass, then the on-disk slug — so both "Cell Ripple" and "cell_ripple"
-// select the same pattern from a shell or an automation rule.
+inline void patternSlugAt(int index, char* out, size_t n) {
+  out[0] = '\0';
+  if (index < 0 || index >= NUM_PATTERNS || !patterns) return;
+  slugFromModulePath(patterns[index].modulePath, out, n);
+  if (out[0]) return;
+  const char* name = patterns[index].name ? patterns[index].name : "";
+  size_t j = 0;
+  for (size_t i = 0; name[i] && j + 1 < n; ++i) {
+    char c = name[i];
+    if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+    if (c == ' ' || c == '-') c = '_';
+    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+      out[j++] = c;
+    }
+  }
+  out[j] = '\0';
+}
+
+inline void jsonEscape(const char* in, char* out, size_t n) {
+  size_t j = 0;
+  for (size_t i = 0; in && in[i] && j + 2 < n; ++i) {
+    unsigned char c = (unsigned char)in[i];
+    if (c == '"' || c == '\\') {
+      if (j + 3 >= n) break;
+      out[j++] = '\\';
+      out[j++] = (char)c;
+    } else if (c >= 0x20) {
+      out[j++] = (char)c;
+    }
+  }
+  out[j] = '\0';
+}
+
+inline void requestInventory() {
+  if (!isDirectorMode()) return;
+  inventorySendIdx = -1;
+}
+
+inline int findPatternByName(const char* name);
+
+inline void publishSelectAck(uint8_t matched, uint8_t presets, uint8_t missing) {
+  if (!client.connected()) return;
+  char topic[56];
+  char payload[128];
+  topicSelectAck(topic, sizeof(topic));
+  snprintf(payload, sizeof(payload),
+           "{\"matched\":%u,\"presets\":%u,\"missing\":%u,\"rev\":%lu,\"total\":%u}",
+           (unsigned)matched, (unsigned)presets, (unsigned)missing,
+           (unsigned long)PatternflowPackSelect::rev,
+           (unsigned)PatternflowPackSelect::count);
+  client.publish(topic, payload, false);
+}
+
+// Director → panel: newline-separated names or slugs. "clear" empties the
+// list. A leading '+' appends (chunked sends). Only installed .pfm modules
+// are marked — presets live in firmware and are not ZIP-exported.
+inline void applyPackSelectPayload(uint8_t* payload, unsigned int length) {
+  if (!isDirectorMode()) return;
+  char body[481];
+  unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
+  memcpy(body, payload, n);
+  body[n] = '\0';
+  while (n && (body[n - 1] == '\n' || body[n - 1] == '\r' || body[n - 1] == ' ')) {
+    body[--n] = '\0';
+  }
+  char* start = body;
+  while (*start == ' ' || *start == '\n' || *start == '\r') start++;
+
+  if (!start[0] || strcasecmp(start, "clear") == 0) {
+    PatternflowPackSelect::clear();
+    publishSelectAck(0, 0, 0);
+    return;
+  }
+
+  bool append = false;
+  if (start[0] == '+') {
+    append = true;
+    start++;
+  }
+  if (!append) PatternflowPackSelect::clear();
+
+  uint8_t matched = 0, presets = 0, missing = 0;
+  char* p = start;
+  while (*p) {
+    while (*p == '\n' || *p == '\r' || *p == ',') p++;
+    if (!*p) break;
+    char* tok = p;
+    while (*p && *p != '\n' && *p != '\r' && *p != ',') p++;
+    char saved = *p;
+    *p = '\0';
+    while (*tok == ' ') tok++;
+    char* end = tok + strlen(tok);
+    while (end > tok && end[-1] == ' ') *--end = '\0';
+    if (tok[0] && strcasecmp(tok, "clear") != 0) {
+      int idx = findPatternByName(tok);
+      if (idx < 0) {
+        missing++;
+      } else if (!patterns[idx].modulePath) {
+        presets++;
+      } else {
+        char slug[MODULE_NAME_BYTES];
+        patternSlugAt(idx, slug, sizeof(slug));
+        if (slug[0] && PatternflowPackSelect::add(slug)) matched++;
+        else missing++;
+      }
+    }
+    *p = saved;
+    if (saved) p++;
+  }
+  PatternflowPackSelect::bump();
+  Serial.printf("[MQTT] pack select matched=%u presets=%u missing=%u\n",
+                (unsigned)matched, (unsigned)presets, (unsigned)missing);
+  publishSelectAck(matched, presets, missing);
+}
+
+inline void publishInventoryItem(int index) {
+  if (index < 0 || index >= NUM_PATTERNS || !patterns) return;
+  char topic[56];
+  topicInventoryItem(topic, sizeof(topic), index);
+  char nameEsc[NAME_BYTES * 2];
+  char slug[NAME_BYTES];
+  jsonEscape(patterns[index].name ? patterns[index].name : "", nameEsc, sizeof(nameEsc));
+  patternSlugAt(index, slug, sizeof(slug));
+  char payload[256];
+  snprintf(payload, sizeof(payload),
+           "{\"i\":%d,\"name\":\"%s\",\"slug\":\"%s\",\"absoluteReady\":%s}",
+           index, nameEsc, slug,
+           patterns[index].absoluteReady ? "true" : "false");
+  client.publish(topic, payload, false);
+}
+
+inline void pumpInventory() {
+  if (inventorySendIdx < -1 || !isDirectorMode() || !client.connected()) return;
+  if (inventorySendIdx == -1) {
+    char topic[48];
+    char payload[40];
+    topicInventory(topic, sizeof(topic));
+    snprintf(payload, sizeof(payload), "{\"count\":%d}", NUM_PATTERNS);
+    client.publish(topic, payload, false);
+    inventorySendIdx = 0;
+    return;
+  }
+  if (inventorySendIdx < NUM_PATTERNS) {
+    publishInventoryItem(inventorySendIdx);
+    inventorySendIdx++;
+    return;
+  }
+  char topic[48];
+  char payload[40];
+  topicInventoryEnd(topic, sizeof(topic));
+  snprintf(payload, sizeof(payload), "{\"count\":%d}", NUM_PATTERNS);
+  client.publish(topic, payload, false);
+  inventorySendIdx = -2;
+}
+
 inline int findPatternByName(const char* name) {
   if (!name || !name[0] || !patterns) return -1;
   for (int i = 0; i < NUM_PATTERNS; ++i) {
@@ -245,14 +529,6 @@ inline int findPatternByName(const char* name) {
   return -1;
 }
 
-// Remote knobs arrive as absolute counts; patterns consume deltas.
-//
-// The first value after (re)subscribing is the retained snapshot, and
-// catching up to it means closing the gap against OUR knob, not adding the
-// publisher's number to ours: a panel sitting at 100 receiving a retained
-// 417 has to move +317. (Taking the remote value as the delta only looks
-// right from a fresh boot, where the local count happens to be 0.)
-// Afterwards it is ordinary differencing between successive remotes.
 inline void applyRemoteKnob(int index, long remote) {
   if (index < 0 || index > 3) return;
   int32_t delta;
@@ -271,28 +547,154 @@ inline void applyRemotePattern(const char* name) {
   if (index >= 0) pendingPatternIdx = index;
 }
 
-/**
- * Show a banner, or clear it.
- *
- * An empty payload clears — which is also how you retract a retained one, so
- * "publish empty with retain" both wipes the topic and takes the banner off
- * every panel watching it.
- */
-inline void applyRemoteMessage(const char* text) {
+inline void applyRemoteParam(int index, long value) {
+  if (index < 0 || index > 3) return;
+  if (value < 0) value = 0;
+  if (value > 1000) value = 1000;
+  paramHeld[index] = true;
+  paramValue[index] = (uint16_t)value;
+  paramHeldAtMs[index] = millis();
+}
+
+inline void releaseAbsolute(int index) {
+  if (index < 0 || index > 3) return;
+  // Physical release only after grace — avoids encoder noise dropping Director holds.
+  if (paramHeld[index] &&
+      (millis() - paramHeldAtMs[index]) < ABSOLUTE_RELEASE_GRACE_MS) {
+    return;
+  }
+  paramHeld[index] = false;
+}
+
+inline void clearAbsoluteAll() {
+  for (int i = 0; i < 4; ++i) {
+    paramHeld[i] = false;
+    paramHeldAtMs[i] = 0;
+  }
+}
+
+// Copy held absolute values into the frame. Call after physical release.
+// When absolute is active, clear deltas / audio flags on that channel so
+// legacy paths cannot fight the Director set-point.
+inline void fillAbsolute(InputFrame& input) {
+  for (int i = 0; i < 4; ++i) {
+    input.paramAbsoluteActive[i] = paramHeld[i];
+    input.paramAbsolute[i] = paramValue[i];
+    if (paramHeld[i]) {
+      input.knobDeltas[i] = 0;
+      input.knobAudioActive[i] = false;
+    }
+  }
+}
+
+inline void applyRemoteMessage(uint8_t* payload, unsigned int length) {
+  overlaySticky = false;
+  char body[MESSAGE_BYTES];
+  unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
+  memcpy(body, payload, n);
+  body[n] = '\0';
+  while (n && (body[n - 1] == '\n' || body[n - 1] == '\r' || body[n - 1] == ' ')) {
+    body[--n] = '\0';
+  }
+  if (!body[0]) {
+    overlayText[0] = '\0';
+    overlayExpiresMs = 0;
+    return;
+  }
+  snprintf(overlayText, sizeof(overlayText), "%s", body);
+  overlayExpiresMs = millis() + PF_MQTT_MESSAGE_DURATION_MS;
+}
+
+// Show player: banner holds until the next message cue (empty clears).
+inline void applyHeldMessage(const char* text) {
   if (!text || !text[0]) {
     overlayText[0] = '\0';
-    overlayUntilMs = 0;
+    overlayExpiresMs = 0;
+    overlaySticky = false;
     return;
   }
   snprintf(overlayText, sizeof(overlayText), "%s", text);
-  overlayUntilMs = millis() + PF_MQTT_MESSAGE_DURATION_MS;
+  overlaySticky = true;
+  overlayExpiresMs = 0;
+}
+
+// Minimal snapshot parser — looks for "pattern", "param":[a,b,c,d], "message".
+// Empty payload clears absolute holds and the banner (end-of-show sweep).
+inline void applyRemoteSnapshot(uint8_t* payload, unsigned int length) {
+  if (!payload || length == 0) {
+    clearAbsoluteAll();
+    overlayText[0] = '\0';
+    overlayExpiresMs = 0;
+    return;
+  }
+
+  char body[SNAPSHOT_BYTES];
+  unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
+  memcpy(body, payload, n);
+  body[n] = '\0';
+
+  const char* patKey = strstr(body, "\"pattern\"");
+  if (patKey) {
+    const char* colon = strchr(patKey + 9, ':');
+    if (colon) {
+      const char* q1 = strchr(colon + 1, '"');
+      if (q1) {
+        const char* q2 = strchr(q1 + 1, '"');
+        if (q2 && q2 > q1 + 1) {
+          char name[NAME_BYTES];
+          size_t len = (size_t)(q2 - (q1 + 1));
+          if (len >= sizeof(name)) len = sizeof(name) - 1;
+          memcpy(name, q1 + 1, len);
+          name[len] = '\0';
+          applyRemotePattern(name);
+        }
+      }
+    }
+  }
+
+  const char* paramKey = strstr(body, "\"param\"");
+  if (paramKey) {
+    const char* bracket = strchr(paramKey + 7, '[');
+    if (bracket) {
+      const char* p = bracket + 1;
+      for (int i = 0; i < 4; ++i) {
+        while (*p == ' ' || *p == '\t' || *p == ',') ++p;
+        char* end = nullptr;
+        long v = strtol(p, &end, 10);
+        if (end == p) break;
+        applyRemoteParam(i, v);
+        p = end;
+      }
+    }
+  }
+
+  const char* msgKey = strstr(body, "\"message\"");
+  if (msgKey) {
+    const char* colon = strchr(msgKey + 9, ':');
+    if (colon) {
+      const char* q1 = strchr(colon + 1, '"');
+      if (q1) {
+        const char* q2 = strchr(q1 + 1, '"');
+        if (q2) {
+          char msg[MESSAGE_BYTES];
+          size_t len = (size_t)(q2 - (q1 + 1));
+          if (len >= sizeof(msg)) len = sizeof(msg) - 1;
+          memcpy(msg, q1 + 1, len);
+          msg[len] = '\0';
+          applyRemoteMessage((uint8_t*)msg, (unsigned int)len);
+        }
+      }
+    }
+  }
 }
 
 inline bool overlayActive() {
   if (!overlayText[0]) return false;
-  // millis() wraps after ~49 days; the subtraction is what makes that safe.
-  if ((int32_t)(millis() - overlayUntilMs) >= 0) {
+  if (overlaySticky) return true;
+  if (overlayExpiresMs == 0) return false;
+  if ((int32_t)(millis() - overlayExpiresMs) >= 0) {
     overlayText[0] = '\0';
+    overlayExpiresMs = 0;
     return false;
   }
   return true;
@@ -300,13 +702,31 @@ inline bool overlayActive() {
 
 inline const char* overlayMessage() { return overlayText; }
 
-/** Milliseconds left on the banner, for the console. */
 inline uint32_t overlayRemainingMs() {
   if (!overlayActive()) return 0;
-  return overlayUntilMs - millis();
+  return overlayExpiresMs - millis();
 }
 
 inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
+  if (isDirectorMode() && topicIsQuery(topic)) {
+    requestInventory();
+    return;
+  }
+  if (isDirectorMode() && topicIsSelect(topic)) {
+    applyPackSelectPayload(payload, length);
+    return;
+  }
+  if (topicIsMessage(topic)) {
+    applyRemoteMessage(payload, length);
+    return;
+  }
+  if (topicIsSnapshot(topic)) {
+    // Snapshot is useful for any connected role on a channel (mid-join).
+    applyRemoteSnapshot(payload, length);
+    return;
+  }
+  if (role != ROLE_SUBSCRIBER) return;
+
   char body[96];
   unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
   memcpy(body, payload, n);
@@ -315,19 +735,17 @@ inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
     body[--n] = '\0';
   }
 
-  // Before the subscriber gate on purpose: a banner is worth having on a
-  // one-panel setup, where the panel is the publisher and Home Assistant is
-  // the only thing talking back. Mirroring knobs is the part that only makes
-  // sense as a subscriber.
-  if (topicIsMessage(topic)) {
-    applyRemoteMessage(body);
-    return;
-  }
-
-  if (role != ROLE_SUBSCRIBER) return;
-
   if (topicIsPattern(topic)) {
     applyRemotePattern(body);
+    return;
+  }
+  int param = topicParamIndex(topic);
+  if (param >= 0) {
+    if (!body[0]) {
+      releaseAbsolute(param);
+    } else {
+      applyRemoteParam(param, atol(body));
+    }
     return;
   }
   int knob = topicKnobIndex(topic);
@@ -339,22 +757,58 @@ inline void publishKnob(int index, long clicks) {
   char payload[16];
   topicKnob(topic, sizeof(topic), index);
   snprintf(payload, sizeof(payload), "%ld", clicks);
-  client.publish(topic, payload, true);
+  client.publish(topic, payload, retainLeafTopic());
 }
 
 inline void publishPatternName(const char* name) {
   char topic[48];
   topicPattern(topic, sizeof(topic));
-  client.publish(topic, name ? name : "", true);
+  client.publish(topic, name ? name : "", retainLeafTopic());
 }
 
-inline void publishSnapshot() {
+inline void publishParam(int index, uint16_t value) {
+  char topic[48];
+  char payload[8];
+  topicParam(topic, sizeof(topic), index);
+  if (value > 1000) value = 1000;
+  snprintf(payload, sizeof(payload), "%u", (unsigned)value);
+  client.publish(topic, payload, retainLeafTopic());
+}
+
+inline void publishChannelSnapshot(bool force) {
+  if (!retainSnapshotTopic()) return;
+  if (role != ROLE_PUBLISHER || !client.connected()) return;
+  uint32_t now = millis();
+  if (!force && lastSnapshotPubMs != 0 &&
+      (now - lastSnapshotPubMs) < SNAPSHOT_HEARTBEAT_MS) {
+    return;
+  }
+  lastSnapshotPubMs = now;
+
+  char topic[48];
+  char payload[SNAPSHOT_BYTES];
+  topicSnapshot(topic, sizeof(topic));
+  snprintf(payload, sizeof(payload),
+           "{\"pattern\":\"%s\",\"param\":[%u,%u,%u,%u],\"message\":\"\"}",
+           lastPattern[0] ? lastPattern : "",
+           (unsigned)paramValue[0], (unsigned)paramValue[1],
+           (unsigned)paramValue[2], (unsigned)paramValue[3]);
+  client.publish(topic, payload, true);
+}
+
+// Live leaf burst for currently connected peers (non-retain). Channel
+// mid-join uses retained snapshot instead.
+inline void publishLiveBurst() {
   if (!client.connected() || role != ROLE_PUBLISHER) return;
   for (int i = 0; i < 4; ++i) publishKnob(i, lastKnobs[i]);
   if (lastPattern[0]) {
     publishPatternName(lastPattern);
     snprintf(publishedPattern, sizeof(publishedPattern), "%s", lastPattern);
   }
+  for (int i = 0; i < 4; ++i) {
+    if (paramHeld[i]) publishParam(i, paramValue[i]);
+  }
+  publishChannelSnapshot(true);
 }
 
 inline void ensureClientId() {
@@ -364,14 +818,6 @@ inline void ensureClientId() {
            (unsigned)((mac >> 24) & 0xFFFFFF));
 }
 
-// Each knob topic by name, rather than one `knob/+` subscription.
-//
-// A wildcard needs the broker to grant the wildcard. An ACL written as the
-// exact list of topics a device may touch — which is how you would lock down
-// a broker shared with strangers, and how @SimonePDA's is configured —
-// refuses `patternflow/knob/+` outright, and the failure is silent: the
-// device connects, reports "connected", and simply never receives a knob.
-// Four subscriptions cost four small packets once per connect.
 inline void subscribeMessage() {
   char topic[48];
   topicMessage(topic, sizeof(topic));
@@ -379,29 +825,70 @@ inline void subscribeMessage() {
 }
 
 inline void subscribeAll() {
+  subscribeMessage();
   char topic[48];
   for (int i = 0; i < 4; ++i) {
     topicKnob(topic, sizeof(topic), i);
     client.subscribe(topic);
+    topicParam(topic, sizeof(topic), i);
+    client.subscribe(topic);
   }
   topicPattern(topic, sizeof(topic));
   client.subscribe(topic);
-  subscribeMessage();
+  if (isChannelShowPrefix(livePrefix())) {
+    topicSnapshot(topic, sizeof(topic));
+    client.subscribe(topic);
+  }
+  if (isDirectorMode()) {
+    topicQuery(topic, sizeof(topic));
+    client.subscribe(topic);
+    topicSelect(topic, sizeof(topic));
+    client.subscribe(topic);
+  }
 }
 
-// A literal address costs nothing to "resolve"; a hostname costs a blocking
-// DNS query, and PubSubClient would pay it again on every connect attempt.
-// Do it once and hand it the address.
+// Publisher on a channel also listens for snapshot (ops clear) + message.
+inline void subscribePublisherExtras() {
+  subscribeMessage();
+  if (isChannelShowPrefix(livePrefix())) {
+    char topic[48];
+    topicSnapshot(topic, sizeof(topic));
+    client.subscribe(topic);
+  }
+}
+
+inline void unsubscribeAll() {
+  if (!client.connected() || livePrefix()[0] == '\0') return;
+  char topic[48];
+  topicMessage(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  topicPattern(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  topicSnapshot(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  topicQuery(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  topicSelect(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  for (int i = 0; i < 4; ++i) {
+    topicKnob(topic, sizeof(topic), i);
+    client.unsubscribe(topic);
+    topicParam(topic, sizeof(topic), i);
+    client.unsubscribe(topic);
+  }
+}
+
 inline bool resolveBroker() {
   if (brokerResolved) return true;
-  if (brokerIp.fromString(cfgHost)) {
+  const char* host = connectHost();
+  if (brokerIp.fromString(host)) {
     brokerResolved = true;
     return true;
   }
-  if (WiFi.hostByName(cfgHost, brokerIp) == 1) {
+  if (WiFi.hostByName(host, brokerIp) == 1) {
     brokerResolved = true;
     Serial.printf("[MQTT] %s resolved to %s\n",
-                  cfgHost, brokerIp.toString().c_str());
+                  host, brokerIp.toString().c_str());
     return true;
   }
   setError("cannot resolve broker");
@@ -409,9 +896,14 @@ inline bool resolveBroker() {
 }
 
 inline void applyClientSettings() {
+#if defined(ESP_ARDUINO_VERSION) && \
+    ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
   net.setConnectionTimeout(CONNECT_TIMEOUT_MS);
+#else
+  net.setTimeout((CONNECT_TIMEOUT_MS + 999U) / 1000U);
+#endif
   client.setCallback(onMessage);
-  client.setBufferSize(256);
+  client.setBufferSize(512);
   client.setKeepAlive(15);
   client.setSocketTimeout(SOCKET_TIMEOUT_S);
 }
@@ -428,21 +920,19 @@ inline bool tryConnect() {
   ensureClientId();
   applyClientSettings();
   if (!resolveBroker()) {
-    if (++failures == 0) failures = RERESOLVE_AFTER;  // never wrap to "healthy"
+    if (++failures == 0) failures = RERESOLVE_AFTER;
     return false;
   }
-  client.setServer(brokerIp, cfgPort);
+  client.setServer(brokerIp, connectPort());
 
   bool ok;
-  if (cfgUser[0] != '\0') {
+  if (!isDirectorMode() && cfgUser[0] != '\0') {
     ok = client.connect(clientId, cfgUser, cfgPass);
   } else {
     ok = client.connect(clientId);
   }
   if (!ok) {
     if (++failures == 0) failures = RERESOLVE_AFTER;
-    // Enough refusals in a row and the address itself is suspect — drop it so
-    // the next attempt looks the name up again.
     if (failures >= RERESOLVE_AFTER) brokerResolved = false;
     snprintf(lastError, sizeof(lastError), "connect state %d", client.state());
     Serial.printf("[MQTT] connect failed (%s), retry in %lus\n",
@@ -452,54 +942,106 @@ inline bool tryConnect() {
 
   failures = 0;
   setError("");
-  Serial.printf("[MQTT] connected as %s (%s) to %s:%d\n",
-                clientId, roleName(role), cfgHost, cfgPort);
+  Serial.printf("[MQTT] connected as %s (%s) mode=%s ch=%s prefix=%s to %s:%d\n",
+                clientId, roleName(role),
+                isDirectorMode() ? "director" : "normal",
+                channelName(channel), livePrefix(),
+                connectHost(), connectPort());
   if (role == ROLE_SUBSCRIBER) {
-    // Forget remote baselines: the retained snapshot about to arrive is
-    // what we resync against.
     for (int i = 0; i < 4; ++i) haveKnob[i] = false;
     subscribeAll();
   } else if (role == ROLE_PUBLISHER) {
-    publishSnapshot();
-    // A publisher subscribes to exactly one thing: banners. It mirrors
-    // nobody's knobs, but there is no reason it should not be able to be
-    // told something.
-    subscribeMessage();
+    subscribePublisherExtras();
+    publishLiveBurst();
   }
   return true;
 }
 
-inline void setRole(Role next) {
-  if (next > ROLE_SUBSCRIBER) next = ROLE_OFF;
-  if (role == next) return;
-  role = next;
+inline void resetSessionState() {
   for (int i = 0; i < 4; ++i) {
     haveKnob[i] = false;
     pendingKnobDelta[i] = 0;
   }
   pendingPatternIdx = -1;
   publishedPattern[0] = '\0';
-  if (client.connected()) client.disconnect();
-  // Picking a role on /mqtt is a deliberate "try now": clear the backoff so
-  // the user is not left waiting out a minute earned by an earlier outage.
+  overlayText[0] = '\0';
+  overlayExpiresMs = 0;
+  overlaySticky = false;
+  lastSnapshotPubMs = 0;
+}
+
+inline void setRole(Role next) {
+  if (next > ROLE_SUBSCRIBER) next = ROLE_OFF;
+  if (channelForcesSubscriber(channel) && next == ROLE_PUBLISHER) {
+    next = ROLE_SUBSCRIBER;
+  }
+  if (role == next) return;
+  if (client.connected()) {
+    unsubscribeAll();
+    client.disconnect();
+  }
+  role = next;
+  if (next == ROLE_OFF) channel = CHANNEL_OFF;
+  else if (channel == CHANNEL_OFF) channel = channelFromPrefix(cfgPrefix);
+  resetSessionState();
   failures = 0;
   lastReconnectMs = 0;
   Serial.printf("[MQTT] role → %s\n", roleName(role));
 }
 
+inline void applyChannel(Channel next, Role preferredRole) {
+  Channel prev = channel;
+  char prevPrefix[PREFIX_BYTES];
+  snprintf(prevPrefix, sizeof(prevPrefix), "%s", cfgPrefix);
+
+  if (next == CHANNEL_OFF) {
+    channel = CHANNEL_OFF;
+    role = ROLE_OFF;
+  } else {
+    channel = next;
+    const char* preset = prefixForChannel(next);
+    if (preset) {
+      snprintf(cfgPrefix, sizeof(cfgPrefix), "%s", preset);
+    }
+    if (channelForcesSubscriber(next)) {
+      role = ROLE_SUBSCRIBER;
+    } else if (preferredRole == ROLE_OFF) {
+      role = ROLE_SUBSCRIBER;
+    } else {
+      role = preferredRole;
+    }
+  }
+
+  if (client.connected()) {
+    unsubscribeAll();
+    client.disconnect();
+  }
+  resetSessionState();
+  failures = 0;
+  lastReconnectMs = 0;
+  Serial.printf("[MQTT] channel → %s (was %s) prefix %s→%s role=%s\n",
+                channelName(channel), channelName(prev),
+                prevPrefix, cfgPrefix, roleName(role));
+}
+
 inline Role currentRole() { return role; }
+inline Channel currentChannel() { return channel; }
 inline bool isCompiledIn() { return true; }
 inline bool isConnected() { return client.connected(); }
 inline const char* error() { return lastError; }
-inline const char* host() { return cfgHost; }
-inline uint16_t port() { return cfgPort; }
-inline const char* user() { return cfgUser; }
-inline const char* prefix() { return cfgPrefix; }
-/** Whether a password is set — the value itself never leaves the device. */
-inline bool hasPassword() { return cfgPass[0] != '\0'; }
+inline const char* host() { return connectHost(); }
+inline uint16_t port() { return connectPort(); }
+inline const char* user() { return isDirectorMode() ? "" : cfgUser; }
+inline const char* prefix() { return livePrefix(); }
+inline bool hasPassword() { return !isDirectorMode() && cfgPass[0] != '\0'; }
 inline const char* lastPatternName() { return lastPattern; }
-
-// ── Settings persistence ─────────────────────────────────────────────────
+inline const char* normalHost() { return cfgHost; }
+inline const char* directorHost() { return dirHost; }
+inline const char* modeName() { return isDirectorMode() ? "director" : "normal"; }
+inline uint16_t normalPort() { return cfgPort; }
+inline const char* normalUser() { return cfgUser; }
+inline const char* normalPrefix() { return cfgPrefix; }
+inline bool normalHasPassword() { return cfgPass[0] != '\0'; }
 
 inline void copyField(char* dest, size_t size, const char* src) {
   if (!src) src = "";
@@ -507,13 +1049,83 @@ inline void copyField(char* dest, size_t size, const char* src) {
   dest[size - 1] = '\0';
 }
 
-/**
- * Load saved settings over the compiled-in defaults.
- *
- * Each key is read only if it exists, so a device that has saved a host but
- * never touched the prefix keeps the built-in prefix rather than being handed
- * an empty string.
- */
+inline void applyConfigChange();
+
+inline void persistMqttMode() {
+  Preferences prefs;
+  if (!prefs.begin("patternflow", false)) return;
+  prefs.putUChar("mq_mode", (uint8_t)mqttMode);
+  prefs.putString("mq_dirhost", dirHost);
+  prefs.end();
+}
+
+inline void applyDirectorOverlay() {
+  channel = CHANNEL_BROADCAST;
+  role = ROLE_SUBSCRIBER;
+}
+
+inline void restoreNormalChannelAndRole() {
+  Preferences prefs;
+  Channel ch = CHANNEL_OFF;
+  Role savedRole = ROLE_OFF;
+  if (prefs.begin("patternflow", true)) {
+    ch = (Channel)prefs.getUChar("mq_channel", (uint8_t)CHANNEL_OFF);
+    savedRole = (Role)prefs.getUChar("mqtt_role", (uint8_t)ROLE_OFF);
+    prefs.end();
+  }
+  if (savedRole == ROLE_OFF || ch == CHANNEL_OFF) {
+    applyChannel(CHANNEL_OFF, ROLE_OFF);
+  } else {
+    applyChannel(ch, savedRole);
+  }
+}
+
+inline bool setDirectorHost(const char* host) {
+  copyField(dirHost, sizeof(dirHost), host);
+  persistMqttMode();
+  if (isDirectorMode()) applyConfigChange();
+  return dirHost[0] != '\0';
+}
+
+inline void setMqttMode(MqttMode next) {
+  if (next == MQTT_MODE_DIRECTOR && dirHost[0] == '\0') {
+    mqttMode = MQTT_MODE_DIRECTOR;
+    persistMqttMode();
+    applyDirectorOverlay();
+    applyConfigChange();
+    setError("set Director PC IP");
+    return;
+  }
+  if (mqttMode == next) {
+    if (next == MQTT_MODE_DIRECTOR) applyDirectorOverlay();
+    return;
+  }
+  mqttMode = next;
+  persistMqttMode();
+  if (next == MQTT_MODE_DIRECTOR) {
+    applyDirectorOverlay();
+    applyConfigChange();
+  } else {
+    restoreNormalChannelAndRole();
+    applyConfigChange();
+  }
+  Serial.printf("[MQTT] mode → %s\n", modeName());
+}
+
+inline void applySavedMode() {
+  if (mqttMode == MQTT_MODE_DIRECTOR) applyDirectorOverlay();
+}
+
+inline void persistChannelAndRole() {
+  if (isDirectorMode()) return;
+  Preferences prefs;
+  if (!prefs.begin("patternflow", false)) return;
+  prefs.putUChar("mqtt_role", (uint8_t)role);
+  prefs.putUChar("mq_channel", (uint8_t)channel);
+  prefs.putString("mq_prefix", cfgPrefix);
+  prefs.end();
+}
+
 inline void loadConfig() {
   Preferences prefs;
   if (!prefs.begin("patternflow", true)) return;
@@ -522,27 +1134,35 @@ inline void loadConfig() {
   if (prefs.isKey("mq_pass")) prefs.getString("mq_pass", cfgPass, sizeof(cfgPass));
   if (prefs.isKey("mq_prefix")) prefs.getString("mq_prefix", cfgPrefix, sizeof(cfgPrefix));
   if (prefs.isKey("mq_port")) cfgPort = prefs.getUShort("mq_port", cfgPort);
+  if (prefs.isKey("mq_dirhost")) prefs.getString("mq_dirhost", dirHost, sizeof(dirHost));
+  if (prefs.isKey("mq_mode")) {
+    mqttMode = (MqttMode)prefs.getUChar("mq_mode", (uint8_t)MQTT_MODE_NORMAL);
+  }
+  if (prefs.isKey("mq_channel")) {
+    channel = (Channel)prefs.getUChar("mq_channel", (uint8_t)CHANNEL_BROADCAST);
+  } else {
+    channel = channelFromPrefix(cfgPrefix);
+  }
   prefs.end();
+  if (channel == CHANNEL_OFF) {
+    role = ROLE_OFF;
+  } else if (channelForcesSubscriber(channel)) {
+    // Role may still be loaded separately; force Sub on timed channels.
+  }
 }
 
-/** Drop the connection so the next attempt uses the new settings. */
 inline void applyConfigChange() {
   brokerResolved = false;
   failures = 0;
   lastReconnectMs = 0;
   lastError[0] = '\0';
   for (int i = 0; i < 4; ++i) haveKnob[i] = false;
-  if (client.connected()) client.disconnect();
+  if (client.connected()) {
+    unsubscribeAll();
+    client.disconnect();
+  }
 }
 
-/**
- * Save what was entered on /mqtt.
- *
- * A null password means "leave it alone", which is what lets the page show a
- * form without ever having been sent the current one — the field arrives
- * empty and an empty field must not wipe a working login. Clearing is a
- * separate, explicit act (see the clear route).
- */
 inline void saveConfig(const char* newHost, uint16_t newPort, const char* newUser,
                        const char* newPass, const char* newPrefix) {
   copyField(cfgHost, sizeof(cfgHost), newHost);
@@ -551,30 +1171,45 @@ inline void saveConfig(const char* newHost, uint16_t newPort, const char* newUse
   cfgPort = newPort ? newPort : 1883;
   if (newPass) copyField(cfgPass, sizeof(cfgPass), newPass);
 
+  Channel detected = channelFromPrefix(cfgPrefix);
+  if (detected != CHANNEL_CUSTOM) {
+    channel = detected;
+    if (channelForcesSubscriber(channel) && role == ROLE_PUBLISHER) {
+      role = ROLE_SUBSCRIBER;
+    }
+  } else if (channel != CHANNEL_OFF) {
+    channel = CHANNEL_CUSTOM;
+  }
+
   Preferences prefs;
   if (prefs.begin("patternflow", false)) {
     prefs.putString("mq_host", cfgHost);
     prefs.putString("mq_user", cfgUser);
     prefs.putString("mq_prefix", cfgPrefix);
     prefs.putUShort("mq_port", cfgPort);
+    prefs.putUChar("mq_channel", (uint8_t)channel);
+    prefs.putUChar("mqtt_role", (uint8_t)role);
     if (newPass) prefs.putString("mq_pass", cfgPass);
     prefs.end();
   }
   applyConfigChange();
 }
 
-/** Forget the broker entirely, including the password. */
 inline void clearConfig() {
   cfgHost[0] = '\0';
   cfgUser[0] = '\0';
   cfgPass[0] = '\0';
   cfgPort = 1883;
+  snprintf(cfgPrefix, sizeof(cfgPrefix), "%s", "patternflow");
+  channel = CHANNEL_BROADCAST;
   Preferences prefs;
   if (prefs.begin("patternflow", false)) {
     prefs.remove("mq_host");
     prefs.remove("mq_user");
     prefs.remove("mq_pass");
     prefs.remove("mq_port");
+    prefs.putString("mq_prefix", cfgPrefix);
+    prefs.putUChar("mq_channel", (uint8_t)channel);
     prefs.end();
   }
   applyConfigChange();
@@ -582,6 +1217,13 @@ inline void clearConfig() {
 
 inline void lastKnobsCopy(long out[4]) {
   for (int i = 0; i < 4; ++i) out[i] = lastKnobs[i];
+}
+
+inline void lastParamsCopy(uint16_t out[4], bool activeOut[4]) {
+  for (int i = 0; i < 4; ++i) {
+    out[i] = paramValue[i];
+    activeOut[i] = paramHeld[i];
+  }
 }
 
 inline void begin() {
@@ -592,15 +1234,16 @@ inline void begin() {
   applyClientSettings();
   lastReconnectMs = 0;
   if (hasBroker()) {
-    Serial.printf("[MQTT] ready — broker %s:%d  page /mqtt\n",
-                  cfgHost, cfgPort);
+    Serial.printf("[MQTT] ready — %s broker %s:%d  page /mqtt\n",
+                  isDirectorMode() ? "director" : "normal",
+                  connectHost(), connectPort());
   } else {
     Serial.println("[MQTT] compiled in, no broker set — see /mqtt");
   }
 }
 
 inline void handle() {
-  if (!started || role == ROLE_OFF || !hasBroker()) {
+  if (!started || role == ROLE_OFF || channel == CHANNEL_OFF || !hasBroker()) {
     if (client.connected()) client.disconnect();
     return;
   }
@@ -614,6 +1257,8 @@ inline void handle() {
     return;
   }
   client.loop();
+  pumpInventory();
+  if (role == ROLE_PUBLISHER) publishChannelSnapshot(false);
 }
 
 inline int32_t consumeKnobDelta(int idx) {
@@ -630,8 +1275,6 @@ inline bool consumePatternIdx(int& outIdx) {
   return true;
 }
 
-// Called every frame: keeps the status page honest even when off, and
-// publishes only the knobs that actually moved.
 inline void update(const InputFrame& input, const char* contentName) {
   for (int i = 0; i < 4; ++i) lastKnobs[i] = input.knobs[i];
   if (contentName) snprintf(lastPattern, sizeof(lastPattern), "%s", contentName);
@@ -642,14 +1285,13 @@ inline void update(const InputFrame& input, const char* contentName) {
   }
 }
 
-// Separate from update() because the pattern name changes far less often
-// than the knobs, and republishing it every frame would hammer the broker.
 inline void notePattern(const char* contentName) {
   if (contentName) snprintf(lastPattern, sizeof(lastPattern), "%s", contentName);
   if (role != ROLE_PUBLISHER || !client.connected() || !lastPattern[0]) return;
   if (strcmp(publishedPattern, lastPattern) == 0) return;
   snprintf(publishedPattern, sizeof(publishedPattern), "%s", lastPattern);
   publishPatternName(lastPattern);
+  publishChannelSnapshot(true);
 }
 
 #else
@@ -659,11 +1301,25 @@ inline void handle() {}
 inline void update(const InputFrame&, const char*) {}
 inline void notePattern(const char*) {}
 inline void setRole(Role) {}
+inline void applyChannel(Channel, Role) {}
+inline void loadConfig() {}
+inline void saveConfig(const char*, uint16_t, const char*, const char*, const char*) {}
+inline void clearConfig() {}
+inline void persistChannelAndRole() {}
+inline void setMqttMode(MqttMode) {}
+inline bool setDirectorHost(const char*) { return false; }
+inline void applySavedMode() {}
 inline Role currentRole() { return ROLE_OFF; }
+inline Channel currentChannel() { return CHANNEL_OFF; }
 inline bool isCompiledIn() { return false; }
 inline bool isConnected() { return false; }
 inline bool hasBroker() { return false; }
+inline bool hasPassword() { return false; }
+inline bool isDirectorMode() { return false; }
 inline const char* roleName(Role) { return "off"; }
+inline const char* channelName(Channel) { return "off"; }
+inline Channel channelFromName(const char*) { return CHANNEL_OFF; }
+inline bool channelForcesSubscriber(Channel) { return false; }
 inline const char* stateText() { return "off (compile-time)"; }
 inline const char* error() { return ""; }
 inline const char* host() { return ""; }
@@ -671,11 +1327,37 @@ inline uint16_t port() { return 0; }
 inline const char* user() { return ""; }
 inline const char* prefix() { return ""; }
 inline const char* lastPatternName() { return ""; }
+inline const char* normalHost() { return ""; }
+inline const char* directorHost() { return ""; }
+inline const char* modeName() { return "normal"; }
+inline uint16_t normalPort() { return 0; }
+inline const char* normalUser() { return ""; }
+inline const char* normalPrefix() { return ""; }
+inline bool normalHasPassword() { return false; }
 inline void lastKnobsCopy(long out[4]) {
   for (int i = 0; i < 4; ++i) out[i] = 0;
 }
+inline void lastParamsCopy(uint16_t out[4], bool activeOut[4]) {
+  for (int i = 0; i < 4; ++i) {
+    out[i] = 0;
+    activeOut[i] = false;
+  }
+}
 inline int32_t consumeKnobDelta(int) { return 0; }
-inline bool consumePatternIdx(int&) { return false; }
+inline bool consumePatternIdx(int& outIdx) { return false; }
+inline void applyRemoteParam(int, long) {}
+inline void applyHeldMessage(const char*) {}
+inline void clearAbsoluteAll() {}
+inline bool overlayActive() { return false; }
+inline const char* overlayMessage() { return ""; }
+inline uint32_t overlayRemainingMs() { return 0; }
+inline void releaseAbsolute(int) {}
+inline void fillAbsolute(InputFrame& input) {
+  for (int i = 0; i < 4; ++i) {
+    input.paramAbsoluteActive[i] = false;
+    input.paramAbsolute[i] = 0;
+  }
+}
 
 #endif
 

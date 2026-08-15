@@ -8,6 +8,8 @@
 // Routes (shares the audio-react server, so one port-80 server total):
 //   GET    /patterns          management page
 //   GET    /api/patterns      JSON list (presets + modules)
+//   GET    /api/patterns/pending  Director-marked slugs for ZIP export
+//   GET    /api/patterns/file?slug=&ext=pfm|json
 //   POST   /api/patterns      multipart upload of a .pfm / .json
 //   DELETE /api/patterns?slug=<slug>
 //   POST   /api/patterns/delete   body: one slug per line, or "*" for all
@@ -33,6 +35,7 @@
 #include "core_audio_ws.h"
 #endif
 #include "core_send.h"     // low-heap page sender — pages serve WITHOUT pausing the pattern
+#include "core_pack_select.h"
 #include "patterns_index.h"
 #include "fflate_js.h"
 #endif
@@ -81,21 +84,37 @@ inline char restorePath[MODULE_PATH_BYTES] = {};
 inline int restorePresetIdx = -1;
 inline bool restorePending = false;
 
+inline void evictResidentModule() {
+  if (!PFModuleLoader::active) return;
+  PFModuleLoader::unload();
+  if (activePatternIdx >= 0 && patterns && patterns[activePatternIdx].modulePath) {
+    activePatternIdx = -1;
+  }
+}
+
 inline void captureSelectionOnce() {
-  if (restorePending) return;
+  if (restorePending) {
+    // Show / night schedule / MQTT may reload a module while the console
+    // still holds the pause. Evict again or the wake page loops forever.
+    evictResidentModule();
+    return;
+  }
   restorePending = true;
   restorePath[0] = '\0';
   restorePresetIdx = -1;
   if (activePatternIdx >= 0 && patterns) {
     if (patterns[activePatternIdx].modulePath) {
       snprintf(restorePath, sizeof(restorePath), "%s", patterns[activePatternIdx].modulePath);
+      // Free the module's executable+data RAM before any body bytes arrive.
+      evictResidentModule();
     } else {
+      // Compiled-in presets (Origin, Weather, …) keep running — the console
+      // pause exists to reclaim module DRAM, which they do not use.
       restorePresetIdx = activePatternIdx;
     }
+  } else {
+    evictResidentModule();
   }
-  // Free the module's executable+data RAM before any body bytes arrive.
-  PFModuleLoader::unload();
-  activePatternIdx = -1;
 }
 
 inline void restoreSelection() {
@@ -132,6 +151,13 @@ inline void requestReload() { reloadRequestedAtMs = millis(); }
 // evicted. The sketch draws a PAUSED screen instead of a torn frame.
 inline bool isConsolePaused() { return restorePending; }
 
+// Play Now / wake alarm owns the panel. Do not snap back to whatever was
+// running before the console opened.
+inline void releaseConsolePause() {
+  restorePending = false;
+  lastConsoleActivityMs = 0;
+}
+
 // A resident module and the web console cannot both have the RAM they need.
 // Opening a console page evicts the module (pausing the pattern); tick()
 // restores it once the console has been idle. This was removed for one day
@@ -147,6 +173,9 @@ inline bool noteConsolePageOpened() {
   lastConsoleActivityMs = millis();
   const bool hadModule = PFModuleLoader::active != nullptr;
   captureSelectionOnce();
+  // If something put a module back before this return, drop it again so the
+  // wake reload can actually serve the console.
+  if (PFModuleLoader::active) evictResidentModule();
   return hadModule;
 }
 
@@ -293,8 +322,77 @@ inline void handleList() {
     }
     json += '}';
   }
+  json += "],\"pendingRev\":";
+  json += PatternflowPackSelect::rev;
+  json += ",\"pending\":[";
+  for (uint8_t i = 0; i < PatternflowPackSelect::count; i++) {
+    if (i) json += ',';
+    json += '"';
+    json += PatternflowPackSelect::slugs[i];
+    json += '"';
+  }
   json += "]}";
   sendJson(200, json);
+}
+
+inline void handlePendingSelect() {
+  noteConsoleApiCall();
+  String json = "{\"rev\":";
+  json += PatternflowPackSelect::rev;
+  json += ",\"slugs\":[";
+  for (uint8_t i = 0; i < PatternflowPackSelect::count; i++) {
+    if (i) json += ',';
+    json += '"';
+    json += PatternflowPackSelect::slugs[i];
+    json += '"';
+  }
+  json += "]}";
+  sendJson(200, json);
+}
+
+// Browser ZIP export fetches one file at a time (this server is
+// one-connection). Slug is sanitized the same way uploads are.
+inline void handleFile() {
+  noteConsoleApiCall();
+  if (!moduleStorageMounted) {
+    sendJson(409, "{\"ok\":false,\"error\":\"storage not mounted\"}");
+    return;
+  }
+  if (!server().hasArg("slug")) {
+    sendJson(400, "{\"ok\":false,\"error\":\"missing slug\"}");
+    return;
+  }
+  char slug[MODULE_NAME_BYTES];
+  if (!slugFromFilename(server().arg("slug") + ".pfm", slug, sizeof(slug))) {
+    sendJson(400, "{\"ok\":false,\"error\":\"invalid slug\"}");
+    return;
+  }
+  String ext = server().hasArg("ext") ? server().arg("ext") : String("pfm");
+  ext.toLowerCase();
+  if (ext != "pfm" && ext != "json") {
+    sendJson(400, "{\"ok\":false,\"error\":\"ext must be pfm or json\"}");
+    return;
+  }
+  char path[MODULE_PATH_BYTES];
+  snprintf(path, sizeof(path), "%s/%s.%s", MODULE_DIR, slug, ext.c_str());
+  if (!FFat.exists(path)) {
+    sendJson(404, "{\"ok\":false,\"error\":\"not found\"}");
+    return;
+  }
+  File file = FFat.open(path, "r");
+  if (!file) {
+    sendJson(500, "{\"ok\":false,\"error\":\"cannot open\"}");
+    return;
+  }
+  char disposition[80];
+  snprintf(disposition, sizeof(disposition),
+           "attachment; filename=\"%s.%s\"", slug, ext.c_str());
+  server().sendHeader("Content-Disposition", disposition);
+  server().sendHeader("Cache-Control", "no-store");
+  const char* ctype =
+      ext == "json" ? "application/json" : "application/octet-stream";
+  server().streamFile(file, ctype);
+  file.close();
 }
 
 // Remove one module's files. Shared by the single and the batch delete; the
@@ -737,6 +835,8 @@ inline void begin() {
   // the browser from the pattern's JS (shipped inside packs) — the device
   // never streams pixels. (/remote and /api/knob went with it — unused.)
   server().on("/api/patterns/select", HTTP_GET, handleSelect);
+  server().on("/api/patterns/pending", HTTP_GET, handlePendingSelect);
+  server().on("/api/patterns/file", HTTP_GET, handleFile);
   server().on("/api/patterns", HTTP_GET, handleList);
   server().on("/api/patterns", HTTP_POST, handleUploadDone, handleUpload);
   // Raw-body PUT is what the page actually uses: the WebServer's multipart

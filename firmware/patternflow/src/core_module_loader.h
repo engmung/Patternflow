@@ -689,7 +689,11 @@ inline bool load(fs::FS& filesystem, const char* path) {
   using Entry = const PFPatternModule* (*)(const PFHostAPI*);
   Entry entry = reinterpret_cast<Entry>(entryAddress);
   active = entry(&hostAPI);
-  if (!active || active->abi_version != PF_ABI_VERSION ||
+  // Descriptor version 1 (pre-absolute) and 2 (reads the appended
+  // absolute-param InputFrame fields) both run here — the host always fills
+  // the extended frame. Anything else is a layout we do not provide.
+  if (!active || active->abi_version < PF_ABI_VERSION ||
+      active->abi_version > PF_ABI_MODULE_VERSION ||
       active->panel_w != PANEL_RES_W || active->panel_h != PANEL_RES_H ||
       !active->name || !active->knob_labels || !active->setup ||
       !active->update || !active->draw) {

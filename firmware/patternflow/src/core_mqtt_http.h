@@ -1,36 +1,25 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - MQTT role page (/mqtt)
+// PatternFlow - MQTT role + channel page (/mqtt)
 //
-//   GET  /mqtt        role picker + live connection state
+//   GET  /mqtt        channel picker + role + broker form
 //   GET  /api/mqtt    status JSON
-//   POST /api/mqtt    role=off|publisher|subscriber   (persisted in NVS)
-//
-// The broker itself is compile-time (patternflow_secrets.h): this page only
-// chooses what the device DOES with it. Credentials are never sent to the
-// browser — the JSON reports the host and user so you can confirm which
-// broker is configured, and nothing else.
-//
-// Rides the patterns manager's WebServer, the same way core_display_http.h
-// rides the status one, so the device still runs a single server on port 80.
-//
-// From Simone Majocchi's (@SimonePDA) Patternflow fork — see core_mqtt.h.
+//   POST /api/mqtt    role=… and/or channel=…
+//   POST /api/mqtt/config   broker fields (Normal mode)
+//   POST /api/mqtt/director host=LAN-IP  (Director mode overlay)
+//   POST /api/mqtt/mode     mode=normal|director
+//   POST /api/mqtt/forget
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
 #include "../net_config.h"
-// Pulled in BEFORE the gate below, not inside it: PF_PATTERNS_HTTP_ENABLED is
-// defined by that header rather than by net_config.h, so testing it first
-// would read an undefined macro as 0 and silently drop this whole page.
-#include "core_patterns_http.h"  // shared WebServer + console-wake helpers
+#include "core_patterns_http.h"
 
 #ifndef PF_MQTT_HTTP_ENABLED
 #define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
 #endif
 
-// No patterns manager means no server to ride and no console-wake helpers,
-// so the page cannot exist on its own.
 #if PF_MQTT_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <Preferences.h>
 #include <WebServer.h>
@@ -54,12 +43,14 @@ inline void persistRole(PatternflowMqtt::Role role) {
   prefs.end();
 }
 
-// Escaped, because not every value here is ours any more. The banner text
-// arrives from whoever can publish to <prefix>/message, and a single quote
-// character in it would otherwise end the string early and hand the console a
-// JSON parse error — which looks like the device being broken rather than
-// somebody having typed an apostrophe. Pattern names get the same treatment;
-// they come from a community and nothing stops one containing a quote.
+inline void persistChannelAndRole() {
+  PatternflowMqtt::persistChannelAndRole();
+}
+
+// Escaped, because not every value here is ours. Pattern names come from a
+// community and nothing stops one containing a quote — unescaped it would end
+// the JSON string early and hand the page a parse error that looks like the
+// device being broken.
 inline void appendJsonString(String& json, const char* key, const char* value) {
   json += "\"";
   json += key;
@@ -70,9 +61,6 @@ inline void appendJsonString(String& json, const char* key, const char* value) {
       json += '\\';
       json += (char)c;
     } else if (c < 0x20) {
-      // Control characters are not legal raw in a JSON string. None of them
-      // mean anything on a 64px panel, so they become spaces rather than
-      // \u00xx escapes nobody will read.
       json += ' ';
     } else {
       json += (char)c;
@@ -84,37 +72,56 @@ inline void appendJsonString(String& json, const char* key, const char* value) {
 inline void sendStatus(int code) {
   long knobs[4];
   PatternflowMqtt::lastKnobsCopy(knobs);
+  uint16_t params[4];
+  bool paramActive[4];
+  PatternflowMqtt::lastParamsCopy(params, paramActive);
 
   String json = "{\"ok\":true,";
   appendJsonString(json, "role",
                    PatternflowMqtt::roleName(PatternflowMqtt::currentRole()));
+  appendJsonString(json, "channel",
+                   PatternflowMqtt::channelName(PatternflowMqtt::currentChannel()));
   appendJsonString(json, "state", PatternflowMqtt::stateText());
   appendJsonString(json, "host", PatternflowMqtt::host());
   appendJsonString(json, "user", PatternflowMqtt::user());
   appendJsonString(json, "prefix", PatternflowMqtt::prefix());
   appendJsonString(json, "pattern", PatternflowMqtt::lastPatternName());
-  appendJsonString(json, "message", PatternflowMqtt::overlayMessage());
   appendJsonString(json, "error", PatternflowMqtt::error());
-  json += "\"port\":";
+  appendJsonString(json, "mode", PatternflowMqtt::modeName());
+  appendJsonString(json, "directorHost", PatternflowMqtt::directorHost());
+  appendJsonString(json, "normalHost", PatternflowMqtt::normalHost());
+  appendJsonString(json, "normalUser", PatternflowMqtt::normalUser());
+  appendJsonString(json, "normalPrefix", PatternflowMqtt::normalPrefix());
+  json += "\"normalPort\":";
+  json += PatternflowMqtt::normalPort();
+  json += ",\"normalHasPassword\":";
+  json += PatternflowMqtt::normalHasPassword() ? "true" : "false";
+  json += ",\"port\":";
   json += PatternflowMqtt::port();
   json += ",\"connected\":";
   json += PatternflowMqtt::isConnected() ? "true" : "false";
   json += ",\"configured\":";
   json += PatternflowMqtt::hasBroker() ? "true" : "false";
-  // Whether a password is set, never the password. The page shows an empty
-  // field either way and sending it back would put a credential on the
-  // network on every poll for no benefit — nothing on the page needs to
-  // read it, only to replace it.
   json += ",\"hasPassword\":";
   json += PatternflowMqtt::hasPassword() ? "true" : "false";
-  // The banner currently on the panel, so the page can show what a message
-  // did without anyone having to be in the room.
-  json += ",\"messageMs\":";
-  json += PatternflowMqtt::overlayRemainingMs();
+  json += ",\"forcesSub\":";
+  json += PatternflowMqtt::channelForcesSubscriber(PatternflowMqtt::currentChannel())
+              ? "true"
+              : "false";
   json += ",\"knobs\":[";
   for (int i = 0; i < 4; ++i) {
     if (i) json += ',';
     json += knobs[i];
+  }
+  json += "],\"params\":[";
+  for (int i = 0; i < 4; ++i) {
+    if (i) json += ',';
+    json += params[i];
+  }
+  json += "],\"paramActive\":[";
+  for (int i = 0; i < 4; ++i) {
+    if (i) json += ',';
+    json += paramActive[i] ? "true" : "false";
   }
   json += "]}";
 
@@ -137,38 +144,80 @@ inline void handleGet() {
 
 inline void handlePost() {
   PatternflowPatternsHttp::noteConsoleApiCall();
-  String roleArg = server().hasArg("role") ? server().arg("role") : String();
-  roleArg.toLowerCase();
 
+  if (PatternflowMqtt::isDirectorMode()) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"leave Director mode to change channel or role\"}");
+    return;
+  }
+
+  const bool hasChannel = server().hasArg("channel");
+  const bool hasRole = server().hasArg("role");
+
+  if (!hasChannel && !hasRole) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"channel or role required\"}");
+    return;
+  }
+
+  if (hasChannel) {
+    String chArg = server().arg("channel");
+    chArg.toLowerCase();
+    PatternflowMqtt::Channel ch = PatternflowMqtt::channelFromName(chArg.c_str());
+    PatternflowMqtt::Role preferred = PatternflowMqtt::currentRole();
+    if (hasRole) {
+      String roleArg = server().arg("role");
+      roleArg.toLowerCase();
+      if (roleArg == "publisher" || roleArg == "pub") {
+        preferred = PatternflowMqtt::ROLE_PUBLISHER;
+      } else if (roleArg == "subscriber" || roleArg == "sub") {
+        preferred = PatternflowMqtt::ROLE_SUBSCRIBER;
+      } else if (roleArg == "off" || roleArg == "none") {
+        preferred = PatternflowMqtt::ROLE_OFF;
+      }
+    }
+    if (ch == PatternflowMqtt::CHANNEL_CUSTOM && preferred == PatternflowMqtt::ROLE_OFF) {
+      preferred = PatternflowMqtt::ROLE_SUBSCRIBER;
+    }
+    PatternflowMqtt::applyChannel(ch, preferred);
+    persistChannelAndRole();
+    sendStatus(200);
+    return;
+  }
+
+  String roleArg = server().arg("role");
+  roleArg.toLowerCase();
   PatternflowMqtt::Role next;
   if (roleArg == "publisher" || roleArg == "pub") {
     next = PatternflowMqtt::ROLE_PUBLISHER;
   } else if (roleArg == "subscriber" || roleArg == "sub") {
     next = PatternflowMqtt::ROLE_SUBSCRIBER;
   } else if (roleArg == "off" || roleArg == "none" || roleArg.length() == 0) {
-    next = PatternflowMqtt::ROLE_OFF;
+    PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF, PatternflowMqtt::ROLE_OFF);
+    persistChannelAndRole();
+    sendStatus(200);
+    return;
   } else {
     server().send(400, "application/json",
                   "{\"ok\":false,\"error\":\"role must be off, publisher, or subscriber\"}");
     return;
   }
 
-  PatternflowMqtt::setRole(next);
-  persistRole(next);
+  PatternflowMqtt::Channel ch = PatternflowMqtt::currentChannel();
+  if (ch == PatternflowMqtt::CHANNEL_OFF) ch = PatternflowMqtt::CHANNEL_BROADCAST;
+  PatternflowMqtt::applyChannel(ch, next);
+  persistChannelAndRole();
   sendStatus(200);
 }
 
-/**
- * Save the broker settings typed on /mqtt.
- *
- * The password is the only field with a rule of its own: it is never sent to
- * the page, so the form always posts it empty unless somebody typed a new
- * one. An empty field therefore means "unchanged", not "blank it" — clearing
- * is what the separate forget button is for. Without that, opening the page
- * and pressing Save would silently drop a working login.
- */
 inline void handleConfig() {
   PatternflowPatternsHttp::noteConsoleApiCall();
+
+  if (PatternflowMqtt::isDirectorMode()) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"leave Director mode to edit the Normal broker\"}");
+    return;
+  }
 
   String host = server().hasArg("host") ? server().arg("host") : String();
   host.trim();
@@ -191,16 +240,47 @@ inline void handleConfig() {
 
   PatternflowMqtt::saveConfig(host.c_str(), (uint16_t)port, user.c_str(),
                               sentPassword ? pass.c_str() : nullptr, prefix.c_str());
+  persistChannelAndRole();
   sendStatus(200);
+}
+
+inline void handleDirector() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+  String host = server().hasArg("host") ? server().arg("host") : String();
+  host.trim();
+  if (!host.length()) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"Director PC IP is required\"}");
+    return;
+  }
+  PatternflowMqtt::setDirectorHost(host.c_str());
+  PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_DIRECTOR);
+  sendStatus(200);
+}
+
+inline void handleMode() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+  String mode = server().hasArg("mode") ? server().arg("mode") : String();
+  mode.toLowerCase();
+  if (mode == "director") {
+    PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_DIRECTOR);
+    sendStatus(200);
+    return;
+  }
+  if (mode == "normal") {
+    PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_NORMAL);
+    sendStatus(200);
+    return;
+  }
+  server().send(400, "application/json",
+                "{\"ok\":false,\"error\":\"mode must be director or normal\"}");
 }
 
 inline void handleForget() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   PatternflowMqtt::clearConfig();
-  // A forgotten broker with a role still set would retry an empty host
-  // forever, so the role goes back to Off with it.
-  PatternflowMqtt::setRole(PatternflowMqtt::ROLE_OFF);
-  persistRole(PatternflowMqtt::ROLE_OFF);
+  PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF, PatternflowMqtt::ROLE_OFF);
+  persistChannelAndRole();
   sendStatus(200);
 }
 
@@ -212,6 +292,8 @@ inline void begin() {
   server().on("/api/mqtt", HTTP_GET, handleGet);
   server().on("/api/mqtt", HTTP_POST, handlePost);
   server().on("/api/mqtt/config", HTTP_POST, handleConfig);
+  server().on("/api/mqtt/director", HTTP_POST, handleDirector);
+  server().on("/api/mqtt/mode", HTTP_POST, handleMode);
   server().on("/api/mqtt/forget", HTTP_POST, handleForget);
 
   initialized = true;
