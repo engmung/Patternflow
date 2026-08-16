@@ -489,12 +489,14 @@ export default function AtlasClient({
   );
 
   const newCount = ENTRIES.filter(isNewEntry).length;
+  // A chip nobody can fill is a button that empties the map — statuses with no
+  // entries stay off the bar until something moves into them.
   const chipList: Array<[Filter, string]> = [
     ["all", t.allChip],
     ...(newCount > 0 ? ([["new", t.newChip(newCount)]] as Array<[Filter, string]>) : []),
-    ...(Object.keys(STATUSES) as AtlasStatusId[]).map(
-      (s) => [s, statusLabel(s)] as [Filter, string],
-    ),
+    ...(Object.keys(STATUSES) as AtlasStatusId[])
+      .filter((s) => ENTRIES.some((e) => e.st === s))
+      .map((s) => [s, statusLabel(s)] as [Filter, string]),
   ];
 
   const passesFilter = (e: AtlasEntry) =>
