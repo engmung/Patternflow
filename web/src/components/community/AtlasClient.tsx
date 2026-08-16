@@ -25,6 +25,7 @@ import {
   FAMILIES,
   STATUSES,
   buildPrompt,
+  isNewEntry,
   type AtlasEntry,
   type AtlasStatusId,
 } from "@/lib/atlas/data";
@@ -56,7 +57,9 @@ const MAX_ZOOM = 8;
 const LINK_RADIUS = 80;
 
 type Lang = "en" | "ko";
-type Filter = AtlasStatusId | "all";
+/** Status chips, plus "all" and "new" — the latest batch, which cuts across
+ *  statuses and is the only way to find an import in a map this size. */
+type Filter = AtlasStatusId | "all" | "new";
 type Selection = { kind: "entry"; id: string } | { kind: "pin"; id: string } | null;
 
 export type AtlasPinData = {
@@ -86,6 +89,8 @@ const UI = {
     copyLayout: "Copy layout",
     copiedLayout: "Copied (JSON)",
     allChip: "All",
+    newChip: (n: number) => `New · ${n}`,
+    newBadge: "new",
     pinChip: "Pinned",
     axisOrder: "ORDER →",
     axisChaos: "→ CHAOS",
@@ -132,6 +137,8 @@ const UI = {
     copyLayout: "배치 복사",
     copiedLayout: "복사됨 (JSON)",
     allChip: "전체",
+    newChip: (n: number) => `새로 추가 · ${n}`,
+    newBadge: "새로 추가",
     pinChip: "핀",
     axisOrder: "질서 ORDER →",
     axisChaos: "→ 혼돈 CHAOS",
@@ -481,12 +488,17 @@ export default function AtlasClient({
     (pattern) => query === "" || pattern.title.toLowerCase().includes(query),
   );
 
+  const newCount = ENTRIES.filter(isNewEntry).length;
   const chipList: Array<[Filter, string]> = [
     ["all", t.allChip],
+    ...(newCount > 0 ? ([["new", t.newChip(newCount)]] as Array<[Filter, string]>) : []),
     ...(Object.keys(STATUSES) as AtlasStatusId[]).map(
       (s) => [s, statusLabel(s)] as [Filter, string],
     ),
   ];
+
+  const passesFilter = (e: AtlasEntry) =>
+    filter === "all" || (filter === "new" ? isNewEntry(e) : e.st === filter);
 
   const worldTransform = `translate(${view.tx} ${view.ty}) scale(${view.k})`;
   const inv = 1 / view.k;
@@ -686,12 +698,23 @@ export default function AtlasClient({
                 })}
               </g>
 
-              {ENTRIES.filter((e) => filter === "all" || e.st === filter).map((e) => {
+              {ENTRIES.filter(passesFilter).map((e) => {
                 const [px, py] = entryPos(e);
                 const color = FAMILIES[e.f].color;
-                const dim = e.st === "unexplored" ? 0.45 : e.st === "hold" ? 0.6 : e.st === "invented" ? 0.8 : 1;
-                const dash = e.st === "unexplored" ? "2.5 2.5" : e.st === "invented" ? "1 3" : undefined;
-                const glow = e.st === "verified" ? 7 : e.st === "invented" ? 5 : 3;
+                // Abandoned ground is drawn faintest of all — it stays on the
+                // chart as a record, not as an invitation.
+                const dim =
+                  e.st === "retired" ? 0.22
+                  : e.st === "unexplored" ? 0.55
+                  : e.st === "hold" ? 0.6
+                  : e.st === "invented" ? 0.8
+                  : 1;
+                const dash =
+                  e.st === "retired" ? "1 4"
+                  : e.st === "unexplored" ? "2.5 2.5"
+                  : e.st === "invented" ? "1 3"
+                  : undefined;
+                const glow = e.st === "verified" ? 7 : e.st === "invented" ? 5 : e.st === "retired" ? 0 : 3;
                 const isSelected = selection?.kind === "entry" && selection.id === e.id;
                 return (
                   <g
@@ -725,16 +748,22 @@ export default function AtlasClient({
                     )}
                     <circle
                       className={styles.core}
-                      r={6.5}
+                      r={e.st === "retired" ? 4.5 : 6.5}
                       fill={color}
                       fillOpacity={dim}
                       stroke={e.st === "verified" ? "none" : color}
                       strokeOpacity={Math.min(1, dim + 0.2)}
                       strokeDasharray={dash}
                       strokeWidth={e.st === "verified" ? 0 : 1.4}
-                      style={{ filter: `drop-shadow(0 0 ${glow}px ${color})` }}
+                      style={glow > 0 ? { filter: `drop-shadow(0 0 ${glow}px ${color})` } : undefined}
                     />
-                    <text x={10} y={4} className={styles.nodeLabel}>{entryName(e)}</text>
+                    <text
+                      x={10} y={4}
+                      className={styles.nodeLabel}
+                      opacity={e.st === "retired" ? 0.4 : 1}
+                    >
+                      {entryName(e)}
+                    </text>
                   </g>
                 );
               })}
@@ -909,6 +938,9 @@ export default function AtlasClient({
                 <span className={styles.badge} data-live={selectedEntry.st === "active"}>
                   {statusLabel(selectedEntry.st)}
                 </span>
+                {isNewEntry(selectedEntry) && (
+                  <span className={styles.badge} data-live>{t.newBadge}</span>
+                )}
                 <span className={styles.badge}>
                   x {entryPos(selectedEntry)[0]} · y {entryPos(selectedEntry)[1]}
                 </span>

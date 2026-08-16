@@ -22,7 +22,7 @@ export type AtlasFamilyId =
   | "feedback" | "pde" | "life" | "critical" | "invent";
 
 export type AtlasStatusId =
-  | "verified" | "active" | "hold" | "unexplored" | "invented";
+  | "verified" | "active" | "hold" | "unexplored" | "retired" | "invented";
 
 export type AtlasEntry = {
   id: string;
@@ -50,6 +50,13 @@ export type AtlasEntry = {
   riskEn?: string;
   impl?: string;
   implEn?: string;
+  /**
+   * The batch this entry joined the map with (YYYY-MM-DD). The original chart
+   * carries none. The newest tag present is what the map calls "new" — past
+   * fifty points, "which ones did I just add?" stops being answerable by
+   * looking, and a research import will only make that worse.
+   */
+  added?: string;
   /** Prompt subject line (English). */
   topic?: string;
   /** Prompt implementation hints (English). */
@@ -88,8 +95,13 @@ export const STATUSES: Record<AtlasStatusId, {
   },
   unexplored: {
     label: "미탐사", labelEn: "Uncharted",
-    legend: "해도에만 있는 땅",
-    legendEn: "land that exists only on the chart",
+    legend: "해도에만 있는 땅 — 아직 아무도 안 걸어봤다",
+    legendEn: "land that exists only on the chart — nobody has walked it yet",
+  },
+  retired: {
+    label: "버려짐", labelEn: "Abandoned",
+    legend: "걸어보고 접은 땅 — 별로였거나 기기에 너무 무거웠다",
+    legendEn: "walked and dropped — it disappointed, or it was too heavy for the device",
   },
   invented: {
     label: "발명", labelEn: "Invented",
@@ -158,7 +170,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "Damped harmonograph curves accumulated into fading ink",
     hints: ["this sits at the order end of the map — morphing is mandatory or it freezes into a dead picture"] },
 
-  { id: "sprott", nm: "미사용 어트랙터 군도", nmEn: "Uncharted attractor archipelago", en: "UNCHARTED ATTRACTORS", f: "ink", st: "unexplored", x: 74, y: 30,
+  { id: "sprott", nm: "미사용 어트랙터 군도", nmEn: "Uncharted attractor archipelago", en: "UNCHARTED ATTRACTORS", f: "ink", st: "retired", x: 74, y: 30,
     tex: "Ikeda · Tinkerbell · Svensson · Aizawa · Sprott 수십 종 — 각각 결이 다른 필라멘트.",
     texEn: "Ikeda · Tinkerbell · Svensson · Aizawa · dozens of Sprott systems — each with a different filament grain.",
     knob: "각 계의 급소 계수 (사전 스캔으로 좋은 유역부터 찾기).",
@@ -193,7 +205,7 @@ export const ENTRIES: AtlasEntry[] = [
     implEn: "ParabolicWavefront · DualLenseQuadrupole (pinned 2026-08-10) — ~4 trig per pixel in a single pass sits near the hardware ceiling.",
     topic: "Reflection caustics off a curved mirror, or gravitational-lens style deflection — photon landing accumulation" },
 
-  { id: "interf", nm: "이동 광원 간섭 누적", nmEn: "Slow interference accumulation", en: "SLOW INTERFERENCE", f: "optics", st: "unexplored", x: 30, y: 52,
+  { id: "interf", nm: "이동 광원 간섭 누적", nmEn: "Slow interference accumulation", en: "SLOW INTERFERENCE", f: "optics", st: "retired", x: 30, y: 52,
     tex: "천천히 움직이는 광원들의 위상 간섭이 시간으로 쌓이는 모아레 장.",
     texEn: "Phase interference of slowly moving sources, accumulated over time into a drifting moiré field.",
     knob: "광원 수/파장비 — 정상파 격자 ↔ 유동 간섭.",
@@ -219,14 +231,14 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "A Physarum transport network — agents plus a pheromone trail field, self-organizing into living vein webs",
     hints: ["thousands of agents + a diffusing, decaying trail grid"] },
 
-  { id: "mphysarum", nm: "다종 점균", nmEn: "Two-species slime", en: "TERRITORY WAR", f: "advect", st: "unexplored", x: 66, y: 47,
+  { id: "mphysarum", nm: "다종 점균", nmEn: "Two-species slime", en: "TERRITORY WAR", f: "advect", st: "retired", x: 66, y: 47,
     tex: "서로 밀어내는 두 페로몬 종의 영토 전쟁 — 경계 필라멘트가 요동.",
     texEn: "A territorial war between two mutually repelling pheromone species — the boundary filaments quiver.",
     knob: "종간 반발 계수 — 공존 ↔ 영토 분리 전이.",
     knobEn: "cross-species repulsion — coexistence ↔ territorial segregation",
     topic: "Two-species Physarum with mutually repelling pheromone fields — a territorial war of transport networks" },
 
-  { id: "smoke", nm: "curl noise 연기", nmEn: "Curl-noise smoke", en: "RISING SMOKE", f: "advect", st: "unexplored", x: 62, y: 78,
+  { id: "smoke", nm: "curl noise 연기", nmEn: "Curl-noise smoke", en: "RISING SMOKE", f: "advect", st: "retired", x: 62, y: 78,
     tex: "비압축 curl 장 + 부력 — 솔버 없이 피어오르는 연기 기둥.",
     texEn: "A divergence-free curl field plus buoyancy — smoke columns rising without a solver.",
     knob: "부력/난류 스케일 — 층류 기둥 ↔ 말려 올라가는 난류.",
@@ -239,7 +251,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["no solver needed: the curl of a noise potential is already incompressible",
             "advect a few hundred particles through the curl field and deposit ink — do NOT synthesize the velocity field per pixel per frame, and no semi-Lagrangian density resampling (both failed on hardware)"] },
 
-  { id: "lic", nm: "LIC 유선 직물", nmEn: "LIC streamline fabric", en: "LINE INTEGRAL CONVOLUTION", f: "advect", st: "unexplored", x: 43, y: 50,
+  { id: "lic", nm: "LIC 유선 직물", nmEn: "LIC streamline fabric", en: "LINE INTEGRAL CONVOLUTION", f: "advect", st: "retired", x: 43, y: 50,
     tex: "벡터장 전체를 노이즈로 문질러 얻는 조밀한 유선 직물 — 철가루 자기장의 질감. 플로우필드 클리셰의 비클리셰 상위호환. (연구 수입)",
     texEn: "Noise smeared along an entire vector field — a dense woven streamline fabric, the iron-filings texture. The non-cliché upgrade of the flow field. (research import)",
     knob: "장의 위상 구조(소용돌이 수/배치) — 결이 갈라지는 임계.",
@@ -259,7 +271,7 @@ export const ENTRIES: AtlasEntry[] = [
     riskEn: "Ambiguous on its own — and both 8/14 warp-resample attempts failed hardware. Per-pixel bilinear feedback is device-hostile; feedback must move by whole-pixel integer shifts (row-copy scroll/rotate) or at tile level.",
     topic: "Recursive frame feedback via integer-pixel shifts — the frame re-composited onto itself through whole-pixel scroll/rotate steps and decay, never per-pixel resampling" },
 
-  { id: "hybrid", nm: "피드백 교배", nmEn: "Feedback crossbreed", en: "CROSSBREED", f: "feedback", st: "unexplored", x: 82, y: 56,
+  { id: "hybrid", nm: "피드백 교배", nmEn: "Feedback crossbreed", en: "CROSSBREED", f: "feedback", st: "retired", x: 82, y: 56,
     tex: "검증된 소스(커스틱·잉크)를 피드백 기계에 씨앗으로 — 소스의 질감이 재귀로 증폭된다.",
     texEn: "A proven source (caustic ink, attractor ink) fed as the seed of the feedback machine — its texture amplified by recursion.",
     knob: "피드백 게인 × 소스 강도 — 소스 지배 ↔ 재귀 지배.",
@@ -297,7 +309,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "Swift-Hohenberg pattern formation, focused on crawling defect dynamics near onset",
     hints: ["stay near onset where defects crawl — deep in the patterned phase it freezes into a dead picture"] },
 
-  { id: "cahn", nm: "Cahn-Hilliard 상분리", nmEn: "Cahn-Hilliard separation", en: "SPINODAL", f: "pde", st: "unexplored", x: 38, y: 80,
+  { id: "cahn", nm: "Cahn-Hilliard 상분리", nmEn: "Cahn-Hilliard separation", en: "SPINODAL", f: "pde", st: "retired", x: 38, y: 80,
     tex: "기름과 물이 갈라지며 굵어지는 미로 — 성장·병합의 서사가 내장돼 있다.",
     texEn: "Oil and water unmixing into a coarsening labyrinth — a narrative of growth and merging built into the physics.",
     knob: "혼합비 — 미로(스피노달) ↔ 방울(핵생성) 위상.",
@@ -317,7 +329,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["checkerboard update for parallel-friendly sweeps",
             "render local magnetization averages, not raw spins (raw spins are pixel noise)"] },
 
-  { id: "potts", nm: "Potts 결정립 조대화", nmEn: "Potts grain growth", en: "GRAIN GROWTH", f: "pde", st: "unexplored", x: 33, y: 85,
+  { id: "potts", nm: "Potts 결정립 조대화", nmEn: "Potts grain growth", en: "GRAIN GROWTH", f: "pde", st: "unexplored", x: 33, y: 85, added: "2026-08-16",
     tex: "수십 결정립이 서로를 삼키며 굵어지는 거품 — 입계의 그물이 느리게 흐르고, 위에서 새 립이 내려와 조대화가 끝나지 않는다.",
     texEn: "Dozens of grains swallowing one another into a coarsening foam — a slow-flowing net of boundary walls, fresh grains fed from above so it never finishes.",
     knob: "온도 T = 0..1.2 (J 단위) — 동결된 각진 립 ↔ 배회하는 부드러운 입계 ↔ 끓는 무질서.",
@@ -327,7 +339,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render boundary density (how many neighbors disagree) bright over a dim per-grain shade (state * constant mod 1)",
             "coarsening stalls at equilibrium: keep feeding fresh random grains into the top rows and let renewal flow down the tall axis"] },
 
-  { id: "rps", nm: "가위바위보 나선", nmEn: "Rock-paper-scissors spirals", en: "CYCLIC COMPETITION", f: "pde", st: "unexplored", x: 66, y: 80,
+  { id: "rps", nm: "가위바위보 나선", nmEn: "Rock-paper-scissors spirals", en: "CYCLIC COMPETITION", f: "pde", st: "unexplored", x: 66, y: 80, added: "2026-08-16",
     tex: "세 종이 순환하며 서로를 먹는다 — 영토가 영원히 뒤집히고, 침공 전선이 감겨 도는 나선 팔이 된다.",
     texEn: "Three species each devouring the next in a cycle — territory forever overturning, invasion fronts winding into rotating spiral arms.",
     knob: "이동도 = 0.5..8 — 얽힌 스펙클 ↔ 맑은 회전 나선 ↔ 한 종의 석권(멸종 전이).",
@@ -337,7 +349,7 @@ export const ENTRIES: AtlasEntry[] = [
             "thousands of single-site events per frame; render species as three fixed tones with an invasion-age EMA so fresh fronts glow",
             "the knob is the exchange-to-reaction ratio: past a critical mobility spirals outgrow the box and one species wins — reseed on extinction"] },
 
-  { id: "xy", nm: "XY 소용돌이 해리", nmEn: "XY vortex unbinding", en: "KOSTERLITZ-THOULESS", f: "pde", st: "unexplored", x: 57, y: 89,
+  { id: "xy", nm: "XY 소용돌이 해리", nmEn: "XY vortex unbinding", en: "KOSTERLITZ-THOULESS", f: "pde", st: "unexplored", x: 57, y: 89, added: "2026-08-16",
     tex: "위상 스핀 장의 비단결 — 소용돌이 쌍이 묶였다 풀렸다 하며, 결이 흐르는 천과 그 결함이 한 화면에.",
     texEn: "The silk grain of a phase-spin field — vortex pairs binding and unbinding, flowing cloth and its defects in one frame.",
     knob: "온도 T = 0.3..1.6 — 묶인 소용돌이 쌍의 매끈한 비단 ↔ T_KT≈0.89 ↔ 자유 소용돌이 플라즈마.",
@@ -347,7 +359,7 @@ export const ENTRIES: AtlasEntry[] = [
             "checkerboard Metropolis; proposal = current angle ± a small random step",
             "render local alignment (mean table-cosine of the four neighbor differences) so silk reads bright and vortex cores dark; warm up below T_KT in setup"] },
 
-  { id: "schrod", nm: "Schrödinger 파속", nmEn: "Schrödinger packet", en: "QUANTUM CAUSTICS", f: "pde", st: "unexplored", x: 56, y: 82,
+  { id: "schrod", nm: "Schrödinger 파속", nmEn: "Schrödinger packet", en: "QUANTUM CAUSTICS", f: "pde", st: "retired", x: 56, y: 82,
     tex: "복소 파동함수 |ψ|²의 간섭·터널링·산란 — 양자 커스틱.",
     texEn: "|ψ|² of a complex wavefunction — interference, tunneling, scattering. Quantum caustics.",
     knob: "퍼텐셜 지형 — 속박 ↔ 산란 전이.",
@@ -377,7 +389,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["render the recurrence distance, not spatial roughness — the laminar zigzag dithers into 1px stripes otherwise",
             "a slow EMA plus 3-tap smoothing fuses period-2 flicker into continuous filaments"] },
 
-  { id: "logistic", nm: "로지스틱 분기 스캔", nmEn: "Logistic bifurcation scan", en: "BIFURCATION FALLS", f: "waterfall", st: "unexplored", x: 66, y: 20,
+  { id: "logistic", nm: "로지스틱 분기 스캔", nmEn: "Logistic bifurcation scan", en: "BIFURCATION FALLS", f: "waterfall", st: "retired", x: 66, y: 20,
     tex: "r을 훑으며 흘러내리는 분기 다이어그램 — 갈라지는 궤도 밀도의 폭포.",
     texEn: "The bifurcation diagram flowing down as r scans — a waterfall of splitting orbit density.",
     knob: "r 중심/폭 — 주기배가 계단 ↔ 혼돈 띠 ↔ 주기 창.",
@@ -387,7 +399,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "A logistic-map bifurcation waterfall — each row a histogram of orbit density while the scanned r range drifts and breathes",
     hints: ["the bifurcation diagram is a textbook image: it only earns its place as a living, scanning, ink-dense waterfall"] },
 
-  { id: "kdv", nm: "KdV 솔리톤 궤적", nmEn: "KdV soliton worldlines", en: "SOLITON WORLDLINES", f: "waterfall", st: "unexplored", x: 22, y: 24,
+  { id: "kdv", nm: "KdV 솔리톤 궤적", nmEn: "KdV soliton worldlines", en: "SOLITON WORLDLINES", f: "waterfall", st: "retired", x: 22, y: 24,
     tex: "솔리톤들이 서로를 통과하는 세로 월드라인 직조.",
     texEn: "Solitons passing through one another — a weave of vertical worldlines.",
     knob: "분산 계수 — 솔리톤 분해 ↔ 파열.",
@@ -397,7 +409,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "KdV soliton worldlines woven downward — solitons passing through each other in a vertical history waterfall",
     hints: ["danger: countable worldlines — keep enough solitons and ink that it reads as weave, not lines"] },
 
-  { id: "cgl1d", nm: "1D CGL 폭포", nmEn: "1D CGL waterfall", en: "PHASE DEFECT FALLS", f: "waterfall", st: "unexplored", x: 81, y: 47,
+  { id: "cgl1d", nm: "1D CGL 폭포", nmEn: "1D CGL waterfall", en: "PHASE DEFECT FALLS", f: "waterfall", st: "retired", x: 81, y: 47,
     tex: "1차원 위상 결함들의 생멸이 흘러내리는 시공간 얼룩.",
     texEn: "Phase defects born and dying as spacetime stains flowing down the frame.",
     knob: "α·β — 위상 난류 ↔ 결함 난류.",
@@ -405,7 +417,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "A vertical waterfall of 1D complex Ginzburg-Landau — phase defects born and dying as spacetime stains",
     hints: ["complex field: use an amplitude ceiling as the divergence guard"] },
 
-  { id: "kpz", nm: "KPZ 계면 성장", nmEn: "KPZ interface growth", en: "ROUGHENING FRONT", f: "waterfall", st: "unexplored", x: 69, y: 28,
+  { id: "kpz", nm: "KPZ 계면 성장", nmEn: "KPZ interface growth", en: "ROUGHENING FRONT", f: "waterfall", st: "unexplored", x: 69, y: 28, added: "2026-08-16",
     tex: "자라는 계면의 기울기 장이 지층으로 쌓인다 — 매끈함이 보편류 거칠기로 무너지는 기록.",
     texEn: "A growing interface's slope field laid down as strata — the record of smoothness collapsing into universal roughness.",
     knob: "비선형 λ = 0..4 — Edwards-Wilkinson 매끈한 이완 ↔ KPZ 탄도 거칠어짐 (보편류 전이).",
@@ -415,7 +427,7 @@ export const ENTRIES: AtlasEntry[] = [
             "raw height drifts unboundedly — subtract the mean height every step and render SLOPE or curvature, never raw h",
             "64 cells on a ring; multiple substeps per frame scroll multiple rows"] },
 
-  { id: "traffic", nm: "유령 정체 시공간", nmEn: "Phantom-jam spacetime", en: "NAGEL-SCHRECKENBERG", f: "waterfall", st: "unexplored", x: 50, y: 18,
+  { id: "traffic", nm: "유령 정체 시공간", nmEn: "Phantom-jam spacetime", en: "NAGEL-SCHRECKENBERG", f: "waterfall", st: "unexplored", x: 50, y: 18, added: "2026-08-16",
     tex: "아무도 브레이크를 밟지 않았는데 태어나는 정체 — 밝은 자유류 직조를 거슬러 오르는 어두운 사선 충격파들.",
     texEn: "Jams born from nothing — dark diagonal shockwaves climbing upstream through a bright free-flow weave.",
     knob: "차량 밀도 ρ = 0.05..0.5 — 자유류 ↔ 임계 ↔ 스톱앤고 정체파.",
@@ -427,7 +439,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render local mean VELOCITY smoothed over ~3 cells with an EMA — raw occupancy is countable-car pixel noise",
             "integer state only; several update sweeps per frame scroll several rows"] },
 
-  { id: "oslo", nm: "Oslo 쌀더미 지층", nmEn: "Oslo rice-pile strata", en: "STICK-SLIP AVALANCHES", f: "waterfall", st: "unexplored", x: 71, y: 22,
+  { id: "oslo", nm: "Oslo 쌀더미 지층", nmEn: "Oslo rice-pile strata", en: "STICK-SLIP AVALANCHES", f: "waterfall", st: "unexplored", x: 71, y: 22, added: "2026-08-16",
     tex: "한 알씩 먹인 더미가 미끄러질 때만 흐른다 — 사태 활동이 지층으로 쌓이는 멱법칙의 기록.",
     texEn: "A pile fed one grain at a time, flowing only when it slips — stick-slip activity laid down as power-law strata.",
     knob: "구동률 = 프레임당 낟알 1..12 — 고립된 사태 펄스 ↔ 임계 겹침 ↔ 연속 요동 (시간척도 분리가 급소).",
@@ -437,7 +449,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render topple ACTIVITY with an EMA afterglow, layered over dim local slope — never raw heights",
             "all integer arithmetic; feed grains at the top-left region so avalanches run down-slope"] },
 
-  { id: "voter", nm: "합의의 월드라인", nmEn: "Consensus worldlines", en: "COALESCING WALLS", f: "waterfall", st: "unexplored", x: 36, y: 16,
+  { id: "voter", nm: "합의의 월드라인", nmEn: "Consensus worldlines", en: "COALESCING WALLS", f: "waterfall", st: "unexplored", x: 36, y: 16, added: "2026-08-16",
     tex: "수십 의견의 경계 벽들이 랜덤워크하다 만나면 소멸한다 — 합쳐지기만 하는 실들의 직조, 돌연변이가 새 실을 뿌린다.",
     texEn: "Walls between dozens of opinions random-walking until they meet and annihilate — a weave of threads that only ever merge, mutation seeding new ones.",
     knob: "돌연변이율 = 0..0.02 — 순수 병합(합의로 수렴) ↔ 정상 상태 다양성 (흡수 상전이).",
@@ -449,7 +461,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render CHANGE: a wall glows where neighbors differ, with an EMA trail — the state values themselves stay invisible",
             "random sequential updates: a site copies a random neighbor; mutation assigns a fresh state"] },
 
-  { id: "lenia", nm: "Lenia", nmEn: "Lenia", en: "CONTINUOUS LIFE", f: "life", st: "unexplored", x: 60, y: 72,
+  { id: "lenia", nm: "Lenia", nmEn: "Lenia", en: "CONTINUOUS LIFE", f: "life", st: "retired", x: 60, y: 72,
     tex: "연속 커널 CA — 부드러운 생명 형태가 헤엄치는 장.",
     texEn: "The continuous-kernel cellular automaton — soft life forms swimming as a field.",
     knob: "커널 반경 / 성장함수 중심·폭 — 종(species)이 바뀌는 파라미터 공간.",
@@ -460,7 +472,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["separable or small kernels to fit the ESP32 convolution budget",
             "if it reads as one countable creature the pattern is dead — stay at colony/field scale"] },
 
-  { id: "nca", nm: "Neural CA", nmEn: "Neural CA", en: "LEARNED RULES", f: "life", st: "unexplored", x: 52, y: 76,
+  { id: "nca", nm: "Neural CA", nmEn: "Neural CA", en: "LEARNED RULES", f: "life", st: "retired", x: 52, y: 76,
     tex: "학습된 국소 규칙이 씨앗에서 텍스처를 길러냄 — 규칙 vs 학습의 단층선 위. (연구 수입)",
     texEn: "A learned local rule growing texture from a seed — sitting on the rules-vs-learning fault line. (research import)",
     knob: "학습 후엔 급소가 약함 — 노이즈 주입/스텝률 정도. 급소 노브 요건과 긴장 관계.",
@@ -470,7 +482,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "Neural CA texture growth — train the local update rule offline, bake the small weights into the pattern code",
     hints: ["long shot: training happens outside; inference must fit a tiny net within the per-frame budget"] },
 
-  { id: "fluid", nm: "Stable Fluids 잉크", nmEn: "Stable Fluids ink", en: "REAL FLUID", f: "critical", st: "unexplored", x: 70, y: 86,
+  { id: "fluid", nm: "Stable Fluids 잉크", nmEn: "Stable Fluids ink", en: "REAL FLUID", f: "critical", st: "retired", x: 70, y: 86,
     tex: "속도장이 스스로 진화(이류·압력투영)하며 잉크를 실어나름 — 소용돌이의 실제 상호작용.",
     texEn: "A velocity field evolving itself (advection, pressure projection) while carrying ink — vortices that truly interact.",
     knob: "점성 / vorticity confinement — 끈적한 흐름 ↔ 격렬한 난류.",
@@ -493,7 +505,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["render avalanche wavefronts with fade; hide the raw lattice values",
             "power-law sizes: mostly small flickers, occasionally a screen-swallowing collapse"] },
 
-  { id: "forestfire", nm: "산불 임계 순환", nmEn: "Forest-fire criticality", en: "DROSSEL-SCHWABL", f: "critical", st: "unexplored", x: 85, y: 60,
+  { id: "forestfire", nm: "산불 임계 순환", nmEn: "Forest-fire criticality", en: "DROSSEL-SCHWABL", f: "critical", st: "unexplored", x: 85, y: 60, added: "2026-08-16",
     tex: "자라는 숲, 벼락, 지도를 먹어치우는 화선 — 태우고 다시 자라며 스스로 임계로 돌아오는 모자이크.",
     texEn: "A regrowing forest, lightning, fronts that eat the map — a mosaic burning and regrowing its way back to criticality.",
     knob: "성장/벼락 비 p/f = 50..2000 — 잔불 반짝임 ↔ 척도 없는 화재 모자이크 ↔ 화면을 삼키는 대화재.",
@@ -503,7 +515,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render fire bright over dim forest, with an EMA afterglow buffer so scars fade like rivers of ash",
             "the timescale separation f << p is what self-organizes criticality; keep both under one ratio knob"] },
 
-  { id: "dla", nm: "DLA 응집 확률장", nmEn: "DLA probability field", en: "AGGREGATION FIELD", f: "critical", st: "unexplored", x: 52, y: 33,
+  { id: "dla", nm: "DLA 응집 확률장", nmEn: "DLA probability field", en: "AGGREGATION FIELD", f: "critical", st: "retired", x: 52, y: 33,
     tex: "확산 응집을 개체 없는 확률장으로 — 서리 가지가 자라는 장.",
     texEn: "Diffusive aggregation as an object-free probability field — frost branches growing as a field.",
     knob: "부착 확률 / DBM η — 성긴 가지 ↔ 조밀 덩어리 (연속 조절).",
@@ -613,7 +625,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render u as the soft body plus |du/dx| (normalized) as bright crease seams",
             "shock mergers are the narrative — keep forcing gentle so mergers stay readable"] },
 
-  { id: "chladni", nm: "Chladni 고유모드 모핑", nmEn: "Chladni eigenmode morphing", en: "STANDING WAVE MODES", f: "pde", st: "unexplored", x: 22, y: 48,
+  { id: "chladni", nm: "Chladni 고유모드 모핑", nmEn: "Chladni eigenmode morphing", en: "STANDING WAVE MODES", f: "pde", st: "retired", x: 22, y: 48,
     tex: "판 진동의 고유모드들 사이를 연속 보간 — 마디선 그물이 접히고 재배열된다. 재현이 아니라 추상 정상파의 기하.",
     texEn: "Continuous interpolation between plate-vibration eigenmodes — the web of nodal lines folds and rearranges. Not a depiction: the geometry of abstract standing waves.",
     knob: "모드 지수쌍 (m,n)의 사다리 위치 — 단계마다 마디선 위상이 재배열되는 전이.",
@@ -782,3 +794,20 @@ export function buildPrompt(entry: AtlasEntry): string {
 export const ENTRY_BY_ID: ReadonlyMap<string, AtlasEntry> = new Map(
   ENTRIES.map((entry) => [entry.id, entry]),
 );
+
+/**
+ * The latest batch tag on the map — what the "new" filter shows.
+ *
+ * Derived rather than declared: tag an import with today's date and it becomes
+ * the new arrivals while the previous batch ages out on its own. Nothing to
+ * remember to switch off.
+ */
+export const NEWEST_BATCH: string | null = ENTRIES.reduce<string | null>(
+  (newest, entry) =>
+    entry.added && (newest === null || entry.added > newest) ? entry.added : newest,
+  null,
+);
+
+export function isNewEntry(entry: AtlasEntry): boolean {
+  return NEWEST_BATCH !== null && entry.added === NEWEST_BATCH;
+}
