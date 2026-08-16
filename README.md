@@ -27,7 +27,7 @@ In January 2026 I stopped by the Nam June Paik Art Center, which happened to be 
 
 Two months later I connected an LED matrix and a potentiometer for the first time.
 
-**Paik invited audiences to experience art. Patternflow invites you to make it.**
+Where Paik brought the audience into the work, Patternflow hands over the making of it.
 
 I put that first pattern, *Patternflow: Origin*, on an LED matrix with four knobs and posted it online. Some people asked how to buy it; far more asked how to build it. So everything went public: schematics, firmware, 3D models, the build guide, and the whole workflow for making new patterns.
 
@@ -42,11 +42,11 @@ I put that first pattern, *Patternflow: Origin*, on an LED matrix with four knob
 
 Builders from around the world keep adding pins to the **[build map](https://patternflow.work/inside)**. Someone built theirs as a Raspberry Pi port with a 64 × 32 matrix, another layered paper and acrylic into a diffuser, others cut their own enclosures. Two of them live in DJ booths.
 
-I started this alone. It hasn't worked that way for a while now. The web-upload feature wasn't mine: someone suggested it, built a proof of concept, and shared the code, and two days later it shipped as a main feature. The `.pfm` pattern modules came the same way. A contributor designed the loader, built it, and proved it on hardware before proposing it. They're core to the instrument now, and you couldn't take them out.
+I started this alone. It hasn't worked that way for a while now. The web-upload feature wasn't mine: someone suggested it, built a proof of concept, and shared the code, and two days later it shipped as a main feature. The `.pfm` pattern modules came the same way. A contributor designed the loader, built it, and proved it on hardware before proposing it. They're core to the instrument now.
 
-The clearest case started on the other side of the world. A media art collective took Patternflow's pattern modules, added MIDI control and a microphone, and built a browser-based instrument of their own: **[MOTIFLOW](https://azmano.art/portfolio-item/motiflow/)**, recently shown in a gallery. Patternflow stopped being only an instrument people play. It became a work that makes other works.
+The clearest case started on the other side of the world. A media art collective took Patternflow's pattern modules, added MIDI control and a microphone, and built a browser-based instrument of their own: **[MOTIFLOW](https://azmano.art/portfolio-item/motiflow/)**, recently shown in a gallery. Patternflow had become something people build their own instruments out of.
 
-**Patternflow isn't a thing one person made anymore. It's a thing we're all making.**
+**Patternflow is a thing we're all making now.**
 
 ## Make it yours
 
@@ -60,19 +60,19 @@ The **[Full Build Guide](BUILD_GUIDE.md)** covers the official route: the custom
   <img src="./docs/media/web-build-map.png" width="100%" alt="Build map: a globe of Patternflows built around the world, with the story of every build" />
 </p>
 
-Rather have it arrive assembled, tested, and flashed? The **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** launches **Q4 2026**. Subscribe on the page and you'll hear the moment it opens.
+If you'd rather have one arrive assembled, tested, and flashed, the **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** launches **Q4 2026**. Subscribe on the page and you'll hear the moment it opens.
 
 ### 2. Patterns
 
-You don't need hardware to start. The **[Live Editor](https://patternflow.work/pattern)** is a full Patternflow simulator: turn the virtual knobs and it behaves like the real thing. Patterns start as JavaScript in the browser, and you don't have to write it yourself. Click **Copy creation prompt**, paste it into your AI assistant with a description of the look you want, paste back the code it returns, and play. No GLSL, no rendering pipeline: the template handles the encoder mapping, brightness curve and pixel buffer, and you describe the visuals.
+You don't need hardware to start. The **[Live Editor](https://patternflow.work/pattern)** is a full Patternflow simulator: turn the virtual knobs and it behaves like the real thing. Patterns start as JavaScript in the browser, and you don't have to write it yourself. Click **Copy creation prompt**, paste it into your AI assistant with a description of the look you want, paste back the code it returns, and play. You don't write GLSL or touch a rendering pipeline: the template handles the encoder mapping, brightness curve and pixel buffer, and you describe the visuals.
 
 <p align="center">
   <img src="./docs/media/web-live-editor.png" width="100%" alt="Live Editor: a full Patternflow simulator in the browser, code beside the device" />
 </p>
 
-**[Pattern Lab](https://patternflow.work/pattern-lab)** is the full studio, and where a pattern reaches the hardware. Generate variations in batches, shape color ramps, retune knob ranges, then send it to your device: it builds into a small `.pfm` module and installs over Wi-Fi, about ten seconds start to finish. No cable, no reflash, no IDE.
+**[Pattern Lab](https://patternflow.work/pattern-lab)** is the full studio, and where a pattern reaches the hardware. Generate variations in batches, shape color ramps, retune knob ranges, then send it to your device: it builds into a small `.pfm` module and installs over Wi-Fi, about ten seconds start to finish. You never plug in a cable, reflash the board, or open an IDE.
 
-When it looks right, publish it to the **[Community](https://community.patternflow.work/community)**. More than a hundred patterns are up already and the range keeps widening, from quiet waves to chaos-theory studies, every one written as code and every one playable under the same four knobs. Visuals you can hold while they run are young territory; there is still room for real invention here. Collect patterns into a deck and send it to your board in one click. Browsing needs no account, and publishing asks a username and password, no email. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop.
+When it looks right, publish it to the **[Community](https://community.patternflow.work/community)**. More than a hundred patterns are up already and the range keeps widening, from quiet waves to chaos-theory studies, every one written as code and every one playable under the same four knobs. Collect patterns into a deck and send it to your board in one click. Browsing needs no account, and publishing asks a username and password, no email. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop.
 
 <p align="center">
   <img src="./docs/media/community-library.png" width="100%" alt="The community wall: dozens of patterns by different authors, each one playing, with a deck being assembled along the bottom" />
@@ -88,7 +88,7 @@ Patterns are the surface. Underneath is an instrument still being designed, in t
   <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub Discussions; and the Workshop, where project talk is gathering" />
 </p>
 
-The **[Workshop](https://community.patternflow.work/community/workshop)** is where the project's future is worked out. It's a map of directions Patternflow could take: a wired OSC version, laser-cut enclosures, bigger panels. Anyone can pin themselves to a direction, say what they're working on, and start a thread. Not a roadmap handed down; a map people stand on.
+The **[Workshop](https://community.patternflow.work/community/workshop)** is where the project's future is worked out. It's a map of directions Patternflow could take: a wired OSC version, laser-cut enclosures, bigger panels. Anyone can pin themselves to a direction, say what they're working on, and start a thread.
 
 It's already moving in directions I didn't choose. One contributor is building out MQTT further than I've had time to follow: units reaching each other across a network, one person's playing coming out of somebody else's device. Another is working on sound on the board itself. Another is taking the TouchDesigner link further than I did. None of it was assigned.
 
@@ -111,7 +111,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 
 ### Power & runtime
 
-Patternflow runs off any standard USB power bank that can supply a couple of amps at 5 V. No wall adapter needed, so it stays portable. Rule of thumb: **about 4 hours per 10,000 mAh** at maximum brightness with a typical pattern.
+Patternflow runs off any standard USB power bank that can supply a couple of amps at 5 V. You don't need a wall adapter, so it stays portable. Rule of thumb: **about 4 hours per 10,000 mAh** at maximum brightness with a typical pattern.
 
 <details>
 <summary>Measured runtimes</summary>
