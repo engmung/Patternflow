@@ -205,6 +205,13 @@
   color: var(--pfc-ink);
 }
 
+/* Private patterns in the picker can only become research notes — the tag
+   says where the drop will land before anything is dropped. */
+.researchTag {
+  color: var(--pfc-led, #e8552e);
+  opacity: 0.85;
+}
+
 .pickerHead {
   font-family: var(--pf-mono, monospace);
   font-size: 9.5px;

@@ -9,17 +9,21 @@ import { rateLimit } from "@/lib/community/ratelimit";
 import { atlasPins, patterns } from "@/lib/community/schema";
 
 // GET    /api/community/atlas — every pattern pinned on the atlas.
-// POST   — place or move a pin: { patternId, x, y } in the atlas's 0..100
-//          data space. Only the pattern's author (or a moderator) may.
+// POST   — place or move a pin: { patternId, x, y, entryId?, kind? } in the
+//          atlas's 0..100 data space. Only the pattern's author (or a
+//          moderator) may. kind "pin" (default) is an exemplar tile on the
+//          shared map; kind "research" files the pattern against an entry as a
+//          field note — failures stay on record where they happened, without
+//          occupying the map.
 // DELETE — take a pin off the map: { patternId }. Same permission.
 //
 // A pin says "this work lives at this spot of pattern space". One per
-// pattern; placing again just moves it.
+// pattern; placing again just moves it (and can change its kind).
 
 export async function GET(request: Request) {
   const blocked = originBlocked(request);
   if (blocked) return blocked;
-  return withCors(request, await handleGet());
+  return withCors(request, await handleGet(request));
 }
 
 export async function POST(request: Request) {
@@ -36,17 +40,21 @@ export async function DELETE(request: Request) {
 
 export const OPTIONS = preflight;
 
-async function handleGet() {
+async function handleGet(request: Request) {
   if (!communityEnabled()) {
     return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
   }
-  const pins = await listAtlasPins();
+  const session = await getAuth().api.getSession({ headers: request.headers });
+  const pins = await listAtlasPins(
+    session ? { id: session.user.id, isAdmin: isAdminSession(session) } : null,
+  );
   return Response.json({
     pins: pins.map((pin) => ({
       patternId: pin.patternId,
       x: pin.x,
       y: pin.y,
       entryId: pin.entryId,
+      kind: pin.kind,
       title: pin.title,
       userId: pin.userId,
       username: pin.username,
@@ -107,7 +115,15 @@ async function handleWrite(request: Request, mode: "place" | "remove") {
     return Response.json({ ok: true });
   }
 
-  if (pattern.visibility !== "public") {
+  const kind = payload.kind === undefined ? "pin" : payload.kind;
+  if (kind !== "pin" && kind !== "research") {
+    return Response.json({ error: "Unknown pin kind." }, { status: 400 });
+  }
+
+  // A map pin is a tile everyone sees, so it must be public. A research row is
+  // a field note — private failures are allowed, because the read path already
+  // shows those only to their author and moderators.
+  if (kind === "pin" && pattern.visibility !== "public") {
     return Response.json(
       { error: "Only public patterns can sit on the shared map." },
       { status: 400 },
@@ -131,13 +147,22 @@ async function handleWrite(request: Request, mode: "place" | "remove") {
     return Response.json({ error: "No such point on the map." }, { status: 400 });
   }
 
+  // A research row exists to remember where an attempt happened — unmoored
+  // from any entry it would be invisible everywhere, so refuse the no-op.
+  if (kind === "research" && entryId === null) {
+    return Response.json(
+      { error: "Research notes attach to a point — drop it closer to one." },
+      { status: 400 },
+    );
+  }
+
   const now = new Date();
   await getDb()
     .insert(atlasPins)
-    .values({ patternId, x, y, entryId, updatedAt: now })
+    .values({ patternId, x, y, entryId, kind, updatedAt: now })
     .onConflictDoUpdate({
       target: atlasPins.patternId,
-      set: { x, y, entryId, updatedAt: now },
+      set: { x, y, entryId, kind, updatedAt: now },
     });
 
   return Response.json({ ok: true });

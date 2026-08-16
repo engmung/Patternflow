@@ -35,16 +35,23 @@ export default async function AtlasPage() {
   const viewerId = session?.user.id ?? null;
   const isAdmin = isAdminSession(session);
 
-  const pins = await listAtlasPins();
+  const pins = await listAtlasPins(viewerId ? { id: viewerId, isAdmin } : null);
 
-  // The picker: the viewer's own public patterns that are not on the map yet,
-  // newest first (listPatternsByUser already orders that way) and carrying
-  // their code — you pick by looking at the pattern, not by reading a title.
+  // The picker: the viewer's own patterns that are not on the map yet, newest
+  // first (listPatternsByUser already orders that way) and carrying their code
+  // — you pick by looking at the pattern, not by reading a title. Private ones
+  // ride along flagged: they can only be filed as research notes, never as
+  // map tiles, and the client routes them there.
   const pinned = new Set(pins.map((pin) => pin.patternId));
   const myPatterns = viewerId
     ? (await listPatternsByUser(viewerId, viewerId))
-        .filter((pattern) => pattern.visibility === "public" && !pinned.has(pattern.id))
-        .map((pattern) => ({ id: pattern.id, title: pattern.title, code: pattern.code }))
+        .filter((pattern) => !pinned.has(pattern.id))
+        .map((pattern) => ({
+          id: pattern.id,
+          title: pattern.title,
+          code: pattern.code,
+          isPublic: pattern.visibility === "public",
+        }))
     : [];
 
   return (
@@ -54,6 +61,8 @@ export default async function AtlasPage() {
         x: pin.x,
         y: pin.y,
         entryId: pin.entryId,
+        kind: pin.kind === "research" ? ("research" as const) : ("pin" as const),
+        isPublic: pin.visibility === "public",
         title: pin.title,
         code: pin.code,
         userId: pin.userId,
