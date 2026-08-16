@@ -25,6 +25,7 @@ import {
   FAMILIES,
   STATUSES,
   buildPrompt,
+  isNewEntry,
   type AtlasEntry,
   type AtlasStatusId,
 } from "@/lib/atlas/data";
@@ -56,7 +57,9 @@ const MAX_ZOOM = 8;
 const LINK_RADIUS = 80;
 
 type Lang = "en" | "ko";
-type Filter = AtlasStatusId | "all";
+/** Status chips, plus "all" and "new" — the latest batch, which cuts across
+ *  statuses and is the only way to find an import in a map this size. */
+type Filter = AtlasStatusId | "all" | "new";
 type Selection = { kind: "entry"; id: string } | { kind: "pin"; id: string } | null;
 
 export type AtlasPinData = {
@@ -64,6 +67,13 @@ export type AtlasPinData = {
   x: number;
   y: number;
   entryId: string | null;
+  /** "pin" = an exemplar tile on the map. "research" = a field note filed
+   *  against an entry — kept as data, revealed from the entry panel, never
+   *  drawn as a tile. Failures are worth remembering where they happened. */
+  kind: "pin" | "research";
+  /** Whether the pattern itself is public — a research note is allowed to be
+   *  private, and a private note can never be promoted to a map tile. */
+  isPublic: boolean;
   title: string;
   code: string;
   userId: string;
@@ -79,6 +89,8 @@ const UI = {
     copyLayout: "Copy layout",
     copiedLayout: "Copied (JSON)",
     allChip: "All",
+    newChip: (n: number) => `New · ${n}`,
+    newBadge: "new",
     pinChip: "Pinned",
     axisOrder: "ORDER →",
     axisChaos: "→ CHAOS",
@@ -105,6 +117,14 @@ const UI = {
     madeFrom: "Made from prompt",
     linkNone: "— none —",
     patternsFrom: "Patterns from this prompt",
+    researchFrom: (n: number) => `Research attempts · ${n}`,
+    researchBadge: "research note",
+    researchHint: "Kept as data against this point — not drawn on the map.",
+    fileResearch: "File as research (hide the tile)",
+    promotePin: "Put on the map as a tile",
+    placeBannerResearch: (title: string) =>
+      `Filing “${title}” as research — drop it on the point it came from`,
+    privateTag: "private → research",
     knobs: "Knobs",
     addPattern: "Add my pattern",
     pickerHead: (n: number) => `Your patterns · newest first (${n})`,
@@ -117,6 +137,8 @@ const UI = {
     copyLayout: "배치 복사",
     copiedLayout: "복사됨 (JSON)",
     allChip: "전체",
+    newChip: (n: number) => `새로 추가 · ${n}`,
+    newBadge: "새로 추가",
     pinChip: "핀",
     axisOrder: "질서 ORDER →",
     axisChaos: "→ 혼돈 CHAOS",
@@ -143,6 +165,13 @@ const UI = {
     madeFrom: "출신 프롬프트",
     linkNone: "— 없음 —",
     patternsFrom: "이 프롬프트에서 나온 패턴",
+    researchFrom: (n: number) => `연구 기록 · ${n}`,
+    researchBadge: "연구 기록",
+    researchHint: "이 포인트에 데이터로만 남음 — 지도에는 그려지지 않는다.",
+    fileResearch: "연구 기록으로 내리기 (타일 숨김)",
+    promotePin: "지도 타일로 올리기",
+    placeBannerResearch: (title: string) => `“${title}” 연구 기록 중 — 출신 포인트 위에 놓기`,
+    privateTag: "비공개 → 연구 기록",
     knobs: "노브",
     addPattern: "내 패턴 올리기",
     pickerHead: (n: number) => `내 패턴 · 최신순 (${n})`,
@@ -159,8 +188,10 @@ export default function AtlasClient({
   pins: AtlasPinData[];
   viewerId: string | null;
   isAdmin: boolean;
-  /** The viewer's own public patterns not yet on the map — the picker. */
-  myPatterns: Array<{ id: string; title: string; code: string }>;
+  /** The viewer's own patterns not yet on the map — the picker. Private ones
+   *  can only be filed as research notes, and the placement flow routes them
+   *  there. */
+  myPatterns: Array<{ id: string; title: string; code: string; isPublic: boolean }>;
 }) {
   const router = useRouter();
   // Reading straight from the store (rather than syncing state in an effect)
@@ -180,7 +211,12 @@ export default function AtlasClient({
   const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
   // "Add my pattern": pick from the toolbar, then click the map to drop.
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [placing, setPlacing] = useState<{ id: string; title: string; code: string } | null>(null);
+  const [placing, setPlacing] = useState<{
+    id: string;
+    title: string;
+    code: string;
+    isPublic: boolean;
+  } | null>(null);
   // While placing: the entry the cursor would link to (nearest within radius).
   const [placingNear, setPlacingNear] = useState<string | null>(null);
   // The picker lists your own patterns newest first, as thumbnails — you
@@ -231,6 +267,10 @@ export default function AtlasClient({
   // grows, and a missing id must never take the whole map down.
   const entryPos = (e: AtlasEntry): [number, number] => positions[e.id] ?? [e.x, e.y];
   const canEditPin = (pin: AtlasPinData) => isAdmin || (viewerId !== null && viewerId === pin.userId);
+
+  // Only exemplars are drawn on the map; research rows surface from the entry
+  // panel. Both live in `pins`, so selecting either opens the same panel.
+  const mapPins = pins.filter((pin) => pin.kind === "pin");
 
   const selectedEntry =
     selection?.kind === "entry" ? ENTRIES.find((e) => e.id === selection.id) ?? null : null;
@@ -342,7 +382,7 @@ export default function AtlasClient({
     if (!placing || dragMovedRef.current) return;
     const coords = toDataCoords(ev.clientX, ev.clientY);
     if (!coords) return;
-    void placePattern(placing.id, coords);
+    void placePattern(placing, coords);
   };
 
   /* ── server writes ── */
@@ -351,7 +391,7 @@ export default function AtlasClient({
     await fetch("/api/community/atlas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patternId: pin.patternId, x, y, entryId: pin.entryId }),
+      body: JSON.stringify({ patternId: pin.patternId, x, y, entryId: pin.entryId, kind: pin.kind }),
     });
     router.refresh();
   };
@@ -361,25 +401,42 @@ export default function AtlasClient({
     await fetch("/api/community/atlas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patternId: pin.patternId, x, y, entryId }),
+      body: JSON.stringify({ patternId: pin.patternId, x, y, entryId, kind: pin.kind }),
     });
     router.refresh();
   };
 
-  const placePattern = async (patternId: string, coords: [number, number]) => {
+  /** Demote a tile to a research note, or promote a note back to a tile. */
+  const setPinKind = async (pin: AtlasPinData, kind: "pin" | "research") => {
+    const [x, y] = pinPos(pin);
+    await fetch("/api/community/atlas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patternId: pin.patternId, x, y, entryId: pin.entryId, kind }),
+    });
+    router.refresh();
+  };
+
+  const placePattern = async (pattern: NonNullable<typeof placing>, coords: [number, number]) => {
     // Dropping NEAR a prompt point is pointing at it — the nearest entry
     // within LINK_RADIUS becomes the lineage. Dropping in open sea links to
     // nothing; the pin panel's select stays for corrections either way.
+    //
+    // A private pattern files as a research note, and a note without a point
+    // would be invisible everywhere — so that drop must land near an entry
+    // (the banner says so; a miss is a no-op, not an error).
     const entryId = nearestEntry(coords);
+    const kind = pattern.isPublic ? "pin" : "research";
+    if (kind === "research" && !entryId) return;
     const res = await fetch("/api/community/atlas", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ patternId, x: coords[0], y: coords[1], entryId }),
+      body: JSON.stringify({ patternId: pattern.id, x: coords[0], y: coords[1], entryId, kind }),
     });
     if (res.ok) {
       setPlacing(null);
       setPlacingNear(null);
-      setSelection({ kind: "pin", id: patternId });
+      setSelection({ kind: "pin", id: pattern.id });
       router.refresh();
     }
   };
@@ -431,12 +488,17 @@ export default function AtlasClient({
     (pattern) => query === "" || pattern.title.toLowerCase().includes(query),
   );
 
+  const newCount = ENTRIES.filter(isNewEntry).length;
   const chipList: Array<[Filter, string]> = [
     ["all", t.allChip],
+    ...(newCount > 0 ? ([["new", t.newChip(newCount)]] as Array<[Filter, string]>) : []),
     ...(Object.keys(STATUSES) as AtlasStatusId[]).map(
       (s) => [s, statusLabel(s)] as [Filter, string],
     ),
   ];
+
+  const passesFilter = (e: AtlasEntry) =>
+    filter === "all" || (filter === "new" ? isNewEntry(e) : e.st === filter);
 
   const worldTransform = `translate(${view.tx} ${view.ty}) scale(${view.k})`;
   const inv = 1 / view.k;
@@ -490,7 +552,12 @@ export default function AtlasClient({
                           className={styles.pinWell}
                         />
                       </span>
-                      <span className={styles.pickerCaption}>{pattern.title}</span>
+                      <span className={styles.pickerCaption}>
+                        {pattern.title}
+                        {!pattern.isPublic && (
+                          <span className={styles.researchTag}> {t.privateTag}</span>
+                        )}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -533,7 +600,7 @@ export default function AtlasClient({
           {placing && (
             <div className={styles.placeBanner}>
               <span>
-                {t.placeBanner(placing.title)}
+                {placing.isPublic ? t.placeBanner(placing.title) : t.placeBannerResearch(placing.title)}
                 {placingNear && ENTRY_BY_ID.has(placingNear) && (
                   <span className={styles.bannerLink}>
                     {" "}→ {entryName(ENTRY_BY_ID.get(placingNear)!)}
@@ -612,7 +679,7 @@ export default function AtlasClient({
 
               {/* Lineage threads: a pin hangs from the prompt that made it. */}
               <g pointerEvents="none">
-                {pins.map((pin) => {
+                {mapPins.map((pin) => {
                   if (!pin.entryId) return null;
                   const entry = ENTRY_BY_ID.get(pin.entryId);
                   if (!entry) return null;
@@ -631,12 +698,23 @@ export default function AtlasClient({
                 })}
               </g>
 
-              {ENTRIES.filter((e) => filter === "all" || e.st === filter).map((e) => {
+              {ENTRIES.filter(passesFilter).map((e) => {
                 const [px, py] = entryPos(e);
                 const color = FAMILIES[e.f].color;
-                const dim = e.st === "unexplored" ? 0.45 : e.st === "hold" ? 0.6 : e.st === "invented" ? 0.8 : 1;
-                const dash = e.st === "unexplored" ? "2.5 2.5" : e.st === "invented" ? "1 3" : undefined;
-                const glow = e.st === "verified" ? 7 : e.st === "invented" ? 5 : 3;
+                // Abandoned ground is drawn faintest of all — it stays on the
+                // chart as a record, not as an invitation.
+                const dim =
+                  e.st === "retired" ? 0.22
+                  : e.st === "unexplored" ? 0.55
+                  : e.st === "hold" ? 0.6
+                  : e.st === "invented" ? 0.8
+                  : 1;
+                const dash =
+                  e.st === "retired" ? "1 4"
+                  : e.st === "unexplored" ? "2.5 2.5"
+                  : e.st === "invented" ? "1 3"
+                  : undefined;
+                const glow = e.st === "verified" ? 7 : e.st === "invented" ? 5 : e.st === "retired" ? 0 : 3;
                 const isSelected = selection?.kind === "entry" && selection.id === e.id;
                 return (
                   <g
@@ -670,21 +748,27 @@ export default function AtlasClient({
                     )}
                     <circle
                       className={styles.core}
-                      r={6.5}
+                      r={e.st === "retired" ? 4.5 : 6.5}
                       fill={color}
                       fillOpacity={dim}
                       stroke={e.st === "verified" ? "none" : color}
                       strokeOpacity={Math.min(1, dim + 0.2)}
                       strokeDasharray={dash}
                       strokeWidth={e.st === "verified" ? 0 : 1.4}
-                      style={{ filter: `drop-shadow(0 0 ${glow}px ${color})` }}
+                      style={glow > 0 ? { filter: `drop-shadow(0 0 ${glow}px ${color})` } : undefined}
                     />
-                    <text x={10} y={4} className={styles.nodeLabel}>{entryName(e)}</text>
+                    <text
+                      x={10} y={4}
+                      className={styles.nodeLabel}
+                      opacity={e.st === "retired" ? 0.4 : 1}
+                    >
+                      {entryName(e)}
+                    </text>
                   </g>
                 );
               })}
 
-              {pins.map((pin) => {
+              {mapPins.map((pin) => {
                 const [px, py] = pinPos(pin);
                 const isSelected = selection?.kind === "pin" && selection.id === pin.patternId;
                 const draggable = editMode && canEditPin(pin);
@@ -752,6 +836,13 @@ export default function AtlasClient({
               <div className={styles.panelEn}>
                 {t.pinBy} {selectedPin.displayUsername ?? selectedPin.username ?? "?"}
               </div>
+              {selectedPin.kind === "research" && (
+                <div className={styles.badges}>
+                  <span className={styles.badge} title={t.researchHint}>
+                    {t.researchBadge}
+                  </span>
+                </div>
+              )}
 
               <section className={styles.sec}>
                 <div className={styles.secK}>{t.madeFrom}</div>
@@ -761,7 +852,9 @@ export default function AtlasClient({
                     value={selectedPin.entryId ?? ""}
                     onChange={(ev) => void setPinLink(selectedPin, ev.target.value || null)}
                   >
-                    <option value="">{t.linkNone}</option>
+                    {/* A research note without a point would be invisible
+                        everywhere, so that one option disappears for them. */}
+                    {selectedPin.kind === "pin" && <option value="">{t.linkNone}</option>}
                     {ENTRIES.map((entry) => (
                       <option key={entry.id} value={entry.id}>
                         {entryName(entry)}
@@ -803,7 +896,27 @@ export default function AtlasClient({
               </Link>
               {canEditPin(selectedPin) && (
                 <>
-                  <p className={styles.moveHint}>{t.moveHint}</p>
+                  {selectedPin.kind === "pin" && <p className={styles.moveHint}>{t.moveHint}</p>}
+                  {/* Demote needs a point to file against; promote needs the
+                      pattern to be public (a private tile would leak). */}
+                  {selectedPin.kind === "pin" && selectedPin.entryId && (
+                    <button
+                      type="button"
+                      className={styles.toolBtn}
+                      onClick={() => void setPinKind(selectedPin, "research")}
+                    >
+                      {t.fileResearch}
+                    </button>
+                  )}
+                  {selectedPin.kind === "research" && selectedPin.isPublic && (
+                    <button
+                      type="button"
+                      className={styles.toolBtn}
+                      onClick={() => void setPinKind(selectedPin, "pin")}
+                    >
+                      {t.promotePin}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className={styles.removeBtn}
@@ -825,6 +938,9 @@ export default function AtlasClient({
                 <span className={styles.badge} data-live={selectedEntry.st === "active"}>
                   {statusLabel(selectedEntry.st)}
                 </span>
+                {isNewEntry(selectedEntry) && (
+                  <span className={styles.badge} data-live>{t.newBadge}</span>
+                )}
                 <span className={styles.badge}>
                   x {entryPos(selectedEntry)[0]} · y {entryPos(selectedEntry)[1]}
                 </span>
@@ -863,11 +979,11 @@ export default function AtlasClient({
                 </section>
               )}
 
-              {pins.some((pin) => pin.entryId === selectedEntry.id) && (
+              {mapPins.some((pin) => pin.entryId === selectedEntry.id) && (
                 <section className={styles.sec}>
                   <div className={styles.secK}>{t.patternsFrom}</div>
                   <div className={styles.miniRow}>
-                    {pins
+                    {mapPins
                       .filter((pin) => pin.entryId === selectedEntry.id)
                       .map((pin) => (
                         <button
@@ -889,6 +1005,44 @@ export default function AtlasClient({
                       ))}
                   </div>
                 </section>
+              )}
+
+              {/* Field notes filed against this point — the attempts that did
+                  not earn a tile. Kept behind a click: the data matters when
+                  you are about to walk the same ground, and only then. */}
+              {pins.some((pin) => pin.kind === "research" && pin.entryId === selectedEntry.id) && (
+                <details className={styles.sec}>
+                  <summary className={styles.secK} style={{ cursor: "pointer" }}>
+                    {t.researchFrom(
+                      pins.filter(
+                        (pin) => pin.kind === "research" && pin.entryId === selectedEntry.id,
+                      ).length,
+                    )}
+                  </summary>
+                  <div className={styles.secV}>{t.researchHint}</div>
+                  <div className={styles.miniRow}>
+                    {pins
+                      .filter((pin) => pin.kind === "research" && pin.entryId === selectedEntry.id)
+                      .map((pin) => (
+                        <button
+                          key={pin.patternId}
+                          type="button"
+                          className={styles.miniItem}
+                          onClick={() => setSelection({ kind: "pin", id: pin.patternId })}
+                          title={pin.title}
+                        >
+                          <span className={styles.miniTile}>
+                            <PatternCanvas
+                              code={pin.code}
+                              title={pin.title}
+                              className={styles.pinWell}
+                            />
+                          </span>
+                          <span className={styles.miniCaption}>{pin.title}</span>
+                        </button>
+                      ))}
+                  </div>
+                </details>
               )}
 
               <section className={styles.sec}>

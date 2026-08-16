@@ -644,16 +644,21 @@ export async function listPresence(): Promise<PresencePerson[]> {
 
 /**
  * Patterns placed on the atlas (/community/atlas), with enough of the pattern
- * row to render a live tile. Only public patterns appear — an unlisted work is
- * link-only everywhere else, and a spot on the shared map would un-unlist it.
+ * row to render a live tile. Map pins ("pin") are public patterns only — an
+ * unlisted work is link-only everywhere else, and a spot on the shared map
+ * would un-unlist it. Research rows ("research") may be private: everyone sees
+ * the public ones, but a private failure is shown only to its author (or a
+ * moderator) — pass the viewer so the filter can tell.
  */
-export async function listAtlasPins() {
-  return getDb()
+export async function listAtlasPins(viewer?: { id: string; isAdmin: boolean } | null) {
+  const rows = await getDb()
     .select({
       patternId: atlasPins.patternId,
       x: atlasPins.x,
       y: atlasPins.y,
       entryId: atlasPins.entryId,
+      kind: atlasPins.kind,
+      visibility: patterns.visibility,
       title: patterns.title,
       code: patterns.code,
       userId: patterns.userId,
@@ -662,8 +667,12 @@ export async function listAtlasPins() {
     .from(atlasPins)
     .innerJoin(patterns, eq(atlasPins.patternId, patterns.id))
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(eq(patterns.visibility, "public"))
     .orderBy(atlasPins.updatedAt);
+  return rows.filter((row) => {
+    if (row.visibility === "public") return true;
+    if (row.kind !== "research") return false; // a map pin never carries a non-public pattern
+    return Boolean(viewer && (viewer.isAdmin || viewer.id === row.userId));
+  });
 }
 
 /**

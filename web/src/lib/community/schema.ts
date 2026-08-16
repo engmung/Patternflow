@@ -479,6 +479,14 @@ export const atlasPins = sqliteTable("atlas_pins", {
    * panel can retarget it. Null = placed in open water, tied to nothing.
    */
   entryId: text("entry_id"),
+  /**
+   * "pin" = an exemplar tile on the shared map. "research" = a field note: an
+   * attempt filed against an entry, kept as data but not drawn as a tile —
+   * failures are worth remembering exactly where they happened. Research rows
+   * may reference private patterns (a failure often is); the read path only
+   * shows those to their author and moderators, so nothing private leaks.
+   */
+  kind: text("kind").notNull().default("pin"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
