@@ -87,8 +87,8 @@ export const STATUSES: Record<AtlasStatusId, {
   },
   active: {
     label: "탐사중", labelEn: "Exploring",
-    legend: "s01 — 기술검증 통과, 판정 대기",
-    legendEn: "s01 — passed tech verification, awaiting verdict",
+    legend: "지금 걷고 있는 땅 — 패턴은 있고 판정은 아직",
+    legendEn: "ground being walked right now — a pattern exists, the verdict does not",
   },
   hold: {
     label: "유보", labelEn: "On hold",
@@ -102,8 +102,8 @@ export const STATUSES: Record<AtlasStatusId, {
   },
   retired: {
     label: "버려짐", labelEn: "Abandoned",
-    legend: "걸어보고 접은 땅 — 대개는 그냥 재미없어서, 가끔은 너무 무거워서",
-    legendEn: "walked and dropped — usually because it simply was not interesting, sometimes because it was too heavy",
+    legend: "접은 땅 — 걸어봤더니 별로였거나, 볼 것 없어 보이거나, 기기에 무겁거나",
+    legendEn: "dropped — it disappointed when walked, or does not look worth the walk, or the device cannot hold it",
   },
   invented: {
     label: "발명", labelEn: "Invented",
@@ -413,7 +413,7 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "2D Schrödinger wave-packet evolution rendered as |psi|² — interference, tunneling, scattering",
     hints: ["split-step spectral method", "use norm conservation as the divergence guard"] },
 
-  { id: "lineage", nm: "Lineage — KS 폭포", nmEn: "Lineage — KS waterfall", en: "KURAMOTO-SIVASHINSKY", f: "waterfall", st: "active", x: 58, y: 38,
+  { id: "lineage", nm: "Lineage — KS 폭포", nmEn: "Lineage — KS waterfall", en: "KURAMOTO-SIVASHINSKY", f: "waterfall", st: "retired", x: 58, y: 38,
     tex: "화염면 혼돈의 계보도 — 세포가 태어나고 합쳐지고 갈라지는 직조가 아래로 흐른다.",
     texEn: "A genealogy of flame-front chaos — cells born, merging and splitting, woven downward.",
     knob: "Domain(L)=16..64 — 동결 기둥 ↔ 세포 병합 ↔ 땋임 난류.",
@@ -424,7 +424,7 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["spectral IMEX + Hermitian projection every step — roundoff otherwise grows a non-Hermitian ghost that blows up every ~300 time units",
             "an N=64 dealiased grid only resolves dissipation up to L≈64"] },
 
-  { id: "blight", nm: "Blight — CML 간헐성", nmEn: "Blight — CML intermittency", en: "DIRECTED PERCOLATION", f: "waterfall", st: "active", x: 76, y: 42,
+  { id: "blight", nm: "Blight — CML 간헐성", nmEn: "Blight — CML intermittency", en: "DIRECTED PERCOLATION", f: "waterfall", st: "retired", x: 76, y: 42,
     tex: "어두운 층류 들판을 밝은 난류 레이스가 잠식 — 감염 전선의 폭포.",
     texEn: "Bright turbulent lace eating through a dark laminar field — a waterfall of infection fronts.",
     knob: "Chaos(a)=1.44..2.0 — 층류 ↔ 퍼콜레이션 ↔ 전면 난류.",
@@ -606,7 +606,7 @@ export const ENTRIES: AtlasEntry[] = [
 
   // ── Invented experiments — AI-authored hypotheses (real mechanisms, unverified) ──
 
-  { id: "cascade", nm: "Cascade — 셸 난류", nmEn: "Cascade — shell turbulence", en: "SHELL-MODEL TURBULENCE", f: "invent", st: "invented", x: 79, y: 35,
+  { id: "cascade", nm: "Cascade — 셸 난류", nmEn: "Cascade — shell turbulence", en: "SHELL-MODEL TURBULENCE", f: "invent", st: "retired", x: 79, y: 35,
     tex: "세로축이 공간이 아니라 '스케일'이다: 맨 위가 큰 소용돌이, 아래로 갈수록 잔결 — 난류 에너지가 옥타브 사다리를 타고 쏟아지는 폭포. 간헐적 버스트가 위에서 아래로 번개처럼 전파된다.",
     texEn: "The vertical axis is SCALE, not space: big eddies on top, fine grain below — turbulent energy pouring down an octave ladder, intermittent bursts propagating downward like lightning.",
     knob: "레이놀즈(강제/점성비) — 층류 트리클 ↔ 간헐 캐스케이드 폭발.",
@@ -620,7 +620,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render row band for shell n as v(x) = |u_n| * (0.5 + 0.5*sin(k_n * x / width + arg(u_n))) — the phase makes each octave a moving texture",
             "normalize each shell by an EMA of its own |u_n| so deep shells stay visible; guard with isFinite + amplitude ceiling"] },
 
-  { id: "kneaded", nm: "Kneaded — 휘저어진 반응장", nmEn: "Kneaded — stirred reaction field", en: "STRANGE EIGENMODE", f: "invent", st: "invented", x: 68, y: 73,
+  { id: "kneaded", nm: "Kneaded — 휘저어진 반응장", nmEn: "Kneaded — stirred reaction field", en: "STRANGE EIGENMODE", f: "invent", st: "retired", x: 68, y: 73,
     tex: "반응-확산 무늬가 혼돈 흐름에 반죽된다 — 나선이 실처럼 늘여지고 접히고, 반응이 다시 뭉친다. 두 검증 대륙(PDE × 필드 이류)의 교배.",
     texEn: "Reaction-diffusion kneaded by a chaotic flow — spirals stretched into threads, folded, and re-formed by the reaction. A crossbreed of two verified continents (PDE × advection).",
     knob: "담쾰러 수(반응속도/젓기속도) — 나선 생존 ↔ 스트리에이션(실무늬) ↔ 완전 혼합 소멸.",
@@ -630,7 +630,7 @@ export const ENTRIES: AtlasEntry[] = [
             "keep the flow divergence-free (curl of a slow noise potential) so nothing drains or piles up",
             "Gray-Scott around f=0.03..0.06, k~0.06 as the reactive backbone; advection speed is the other half of the critical ratio"] },
 
-  { id: "curtain", nm: "Phase Curtain — 상전이 커튼", nmEn: "Phase Curtain — graded criticality", en: "GRADED CRITICALITY", f: "invent", st: "invented", x: 50, y: 80,
+  { id: "curtain", nm: "Phase Curtain — 상전이 커튼", nmEn: "Phase Curtain — graded criticality", en: "GRADED CRITICALITY", f: "invent", st: "retired", x: 50, y: 80,
     tex: "제어 파라미터를 세로로 기울여 화면 자체가 상도표의 단면이 된다: 위는 얼고 아래는 끓는데, 그 사이 임계 띠가 프랙탈로 반짝인다. 노브가 그 임계선을 위아래로 민다.",
     texEn: "Tilt the control parameter along the height and the screen becomes a slice of the phase diagram: frozen above, boiling below, the critical band scintillating between. The knob slides that horizon.",
     knob: "임계 띠의 위치(파라미터 전역 오프셋) — 상전이 자체가 풍경으로 걸려 있고, 노브가 지평선을 옮긴다.",
@@ -664,7 +664,7 @@ export const ENTRIES: AtlasEntry[] = [
             "divergence guard = norm conservation (total |psi|^2 must stay constant; renormalize or reseed on drift)",
             "soft-knee tone so rogue peaks read as flashes without crushing the breather texture underneath"] },
 
-  { id: "tongues", nm: "Locked Tongues — 악마의 계단", nmEn: "Locked Tongues — devil's staircase", en: "ARNOLD TONGUES", f: "invent", st: "invented", x: 33, y: 63,
+  { id: "tongues", nm: "Locked Tongues — 악마의 계단", nmEn: "Locked Tongues — devil's staircase", en: "ARNOLD TONGUES", f: "invent", st: "retired", x: 33, y: 63,
     tex: "결합된 원사상 격자의 모드록 영토들 — 회전수가 유리수에 잠긴 평평한 판(플래토)들이 모자이크를 이루고, 판의 경계에서 위상 미끄러짐이 필라멘트로 새어나온다. 톤 플래토가 물리 그 자체.",
     texEn: "Mode-locked territories of a coupled circle-map lattice — flat plateaus locked to rational winding numbers, phase slips leaking through the seams as filaments. Tonal plateaus as physics itself.",
     knob: "킥 강도 K — 준주기 바다 ↔ 혀(tongue)들의 확장 ↔ 겹침 혼돈.",
@@ -684,7 +684,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render |grad theta| (each difference wrapped to [-pi, pi]) smoothed by an EMA — defect cores glow, synced domains go dark",
             "grade the omega spread along y so the defect population drifts vertically"] },
 
-  { id: "ftle", nm: "FTLE — 흐름의 뼈대", nmEn: "FTLE — the flow's skeleton", en: "LAGRANGIAN SKELETON", f: "invent", st: "invented", x: 51, y: 57,
+  { id: "ftle", nm: "FTLE — 흐름의 뼈대", nmEn: "FTLE — the flow's skeleton", en: "LAGRANGIAN SKELETON", f: "invent", st: "retired", x: 51, y: 57,
     tex: "바람(벡터장)의 보이지 않는 골격 — 이웃한 추적자들이 얼마나 찢어지는지(늘임률)를 렌더하면 흐름이 갈라지는 능선이 유령 필라멘트로 떠오른다. Gale Ink의 X-레이. (연구 수입 + 변형)",
     texEn: "The invisible skeleton of the wind — render how violently neighboring tracers tear apart, and the ridges where the flow splits surface as ghost filaments. An X-ray of gale ink. (research import + twist)",
     knob: "적분 지평 T — 부드러운 그라디언트 ↔ 날카로운 프랙탈 능선. curl 비율은 골격 자체를 재편한다.",
@@ -748,7 +748,7 @@ export const ENTRIES: AtlasEntry[] = [
             "render the local order parameter (|mean of e^(i*theta)| over a small window) — silk vs boil",
             "a 1D ring rendered as a history waterfall also works beautifully"] },
 
-  { id: "fpu", nm: "FPU — 유령 회귀", nmEn: "FPU — ghost recurrence", en: "FERMI-PASTA-ULAM", f: "invent", st: "invented", x: 33, y: 28,
+  { id: "fpu", nm: "FPU — 유령 회귀", nmEn: "FPU — ghost recurrence", en: "FERMI-PASTA-ULAM", f: "invent", st: "retired", x: 33, y: 28,
     tex: "비선형 사슬에 부은 에너지가 모드들로 흩어졌다가, 오랜 방황 끝에 유령처럼 처음 형태로 되돌아온다 — 흩어짐과 회귀의 긴 호흡이 폭포로 흐른다.",
     texEn: "Energy poured into a nonlinear chain scatters across its modes — then, after a long wander, returns like a ghost to its original shape. The long breath of dispersal and recurrence, flowing as a waterfall.",
     risk: "외부 서베이 판정(8/16): 변위 폭포는 매끈한 전역 정상파 — 국소 구조가 없어 지루함. 모드 에너지 밴드 렌더로만 승산이 있다.",
@@ -760,7 +760,7 @@ export const ENTRIES: AtlasEntry[] = [
             "seed the lowest mode and let the recurrence be the narrative — its period is the slow heartbeat",
             "two renders both work: the displacement waterfall, or mode-energy bands (a small scale-ladder like a mini cascade)"] },
 
-  { id: "resonance", nm: "Resonance — 노이즈가 그리는 신호", nmEn: "Resonance — noise draws the signal", en: "STOCHASTIC RESONANCE", f: "invent", st: "invented", x: 44, y: 70,
+  { id: "resonance", nm: "Resonance — 노이즈가 그리는 신호", nmEn: "Resonance — noise draws the signal", en: "STOCHASTIC RESONANCE", f: "invent", st: "retired", x: 44, y: 70,
     tex: "문턱 아래 숨은 희미한 형상이, 노이즈를 알맞게 부으면 떠오르고 지나치면 다시 익사한다 — 노이즈가 최적일 때만 그림이 존재하는 역설의 장.",
     texEn: "A faint shape hidden below threshold surfaces when just enough noise is poured on, and drowns again in excess — a field where the picture exists only at the optimal noise. The paradox is the material.",
     knob: "노이즈 진폭 — 침묵 ↔ 공명(형상 출현) ↔ 익사. 비단조 급소 노브.",
