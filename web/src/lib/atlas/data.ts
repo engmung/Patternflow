@@ -100,8 +100,8 @@ export const STATUSES: Record<AtlasStatusId, {
   },
   retired: {
     label: "버려짐", labelEn: "Abandoned",
-    legend: "걸어보고 접은 땅 — 별로였거나 기기에 너무 무거웠다",
-    legendEn: "walked and dropped — it disappointed, or it was too heavy for the device",
+    legend: "걸어보고 접은 땅 — 대개는 그냥 재미없어서, 가끔은 너무 무거워서",
+    legendEn: "walked and dropped — usually because it simply was not interesting, sometimes because it was too heavy",
   },
   invented: {
     label: "발명", labelEn: "Invented",
