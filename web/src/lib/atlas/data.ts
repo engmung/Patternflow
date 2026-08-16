@@ -51,10 +51,12 @@ export type AtlasEntry = {
   impl?: string;
   implEn?: string;
   /**
-   * The batch this entry joined the map with (YYYY-MM-DD). The original chart
-   * carries none. The newest tag present is what the map calls "new" — past
-   * fifty points, "which ones did I just add?" stops being answerable by
-   * looking, and a research import will only make that worse.
+   * The batch this entry joined the map with (YYYY-MM-DD; a second batch the
+   * same day appends a letter, e.g. 2026-08-16b — the tags compare
+   * lexicographically). The original chart carries none. The newest tag
+   * present is what the map calls "new" — past fifty points, "which ones did
+   * I just add?" stops being answerable by looking, and a research import
+   * only makes that worse.
    */
   added?: string;
   /** Prompt subject line (English). */
@@ -299,7 +301,8 @@ export const ENTRIES: AtlasEntry[] = [
     risk: "전선만 보이면 저밀도 — 유보였음. breakup 레짐 위주로 재도전.",
     riskEn: "Lone fronts read as low density — held. Retry in the breakup regime.",
     topic: "A FitzHugh-Nagumo excitable medium in its spiral-wave breakup regime",
-    hints: ["only the breakup regime has enough density; lone traveling fronts read as low-density props"] },
+    hints: ["only the breakup regime has enough density; lone traveling fronts read as low-density props",
+            "use Barkley kinetics for the retry — u(1-u)(u-(v+b)/a) is piecewise-cheap with zero transcendentals, and near a ≈ 0.75, b ≈ 0.06 the spiral tips MEANDER, tracing epicyclic flowers instead of closed circles (the extra drama the first attempt lacked)"] },
 
   { id: "sh", nm: "Swift-Hohenberg", nmEn: "Swift-Hohenberg", en: "FREEZING", f: "pde", st: "hold", x: 27, y: 72,
     tex: "줄무늬/육각 패턴이 굳어가는 장 — '굳는 것'.",
@@ -349,7 +352,8 @@ export const ENTRIES: AtlasEntry[] = [
     topic: "May-Leonard rock-paper-scissors on a lattice — cyclic invasion fronts winding into rotating spiral arms, territory forever overturning",
     hints: ["states empty/A/B/C in a Uint8Array; random sequential pair events: selection (A kills B leaving empty), reproduction into empty, and neighbor exchange (mobility) — zero transcendentals",
             "thousands of single-site events per frame; render species as three fixed tones with an invasion-age EMA so fresh fronts glow",
-            "the knob is the exchange-to-reaction ratio: past a critical mobility spirals outgrow the box and one species wins — reseed on extinction"] },
+            "the knob is the exchange-to-reaction ratio: past a critical mobility spirals outgrow the box and one species wins — reseed on extinction",
+            "all-integer fallback with the same spiral engine: the cyclic cellular automaton (Griffeath) — N states, advance when ≥ kappa neighbors hold your successor; kappa 1..3 crosses turbulent ↔ crystalline spirals"] },
 
   { id: "xy", nm: "XY 소용돌이 해리", nmEn: "XY vortex unbinding", en: "KOSTERLITZ-THOULESS", f: "pde", st: "unexplored", x: 57, y: 89, added: "2026-08-16",
     tex: "위상 스핀 장의 비단결 — 소용돌이 쌍이 묶였다 풀렸다 하며, 결이 흐르는 천과 그 결함이 한 화면에.",
@@ -360,6 +364,46 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["quantize angles to 256 bins (Uint8Array) and precompute a 256-entry cosine table in setup — the microcontroller cannot afford per-site trig, and with the table every energy evaluation is a lookup",
             "checkerboard Metropolis; proposal = current angle ± a small random step",
             "render local alignment (mean table-cosine of the four neighbor differences) so silk reads bright and vortex cores dark; warm up below T_KT in setup"] },
+
+  { id: "nematic", nm: "활성 네마틱 결함 난류", nmEn: "Active nematic defect turbulence", en: "COMET DEFECTS", f: "pde", st: "unexplored", x: 78, y: 76, added: "2026-08-16b",
+    tex: "스스로 에너지를 태우는 액정 — +1/2 혜성 결함이 제 발로 달리며 매질을 휘젓고, -1/2 세잎 결함과 만나 소멸한다. 결함이 엔진인 난류. (연구 수입)",
+    texEn: "A liquid crystal burning its own fuel — +1/2 comet defects self-propel, stirring the medium, annihilating on -1/2 trefoils. Turbulence whose engines are the defects themselves. (research import)",
+    knob: "활성 응력 α — 정지 네마틱 ↔ 결함 해리 난류 (실재하는 활성 전이).",
+    knobEn: "active stress alpha — quiescent nematic ↔ defect-unbinding turbulence (a genuine activity transition)",
+    topic: "Active nematic defect turbulence — a Q-tensor orientation field driven by active stress, +1/2 comet defects self-propelling and annihilating on -1/2 trefoils; render orientational order so comets read as darting bright wakes",
+    hints: ["evolve the two Q-tensor components with a 5-point stencil relaxation plus active terms; skip the full Stokes solve — the local approximation u ∝ -alpha * div(Q) keeps the comets motile with no Poisson iteration (loses exact incompressibility, keeps the phenomenon)",
+            "render the local nematic order S (or |Q|) with an EMA: defect cores read dark, comet wakes bright",
+            "15-35 defects on screen in the good regime; annihilation balances pair creation, so it runs forever"] },
+
+  { id: "ks2d", nm: "2D 화염면 끓는 지형", nmEn: "2D flame-front boiling terrain", en: "KURAMOTO-SIVASHINSKY 2D", f: "pde", st: "unexplored", x: 76, y: 84, added: "2026-08-16b",
+    tex: "포물선 첨점 세포들이 태어나고 갈라지고 합쳐지는 끓는 지형 — lineage 폭포의 2차원 본토. 능선과 첨점이 끝없이 재배열된다. (연구 수입)",
+    texEn: "A boiling terrain of parabolic cusp cells — the 2D homeland of the lineage waterfall. Ridges and cusps born, splitting, merging, forever rearranging. (research import)",
+    knob: "영역 크기 / 첨점 파장 비 — 동결 세포 격자 ↔ 시공간 혼돈.",
+    knobEn: "domain-to-wavelength ratio — frozen cell lattice ↔ full spatiotemporal chaos",
+    topic: "The 2D Kuramoto-Sivashinsky equation — h_t = -lap(h) - biharm(h) + |grad h|^2/2 — a boiling terrain of cusp cells splitting and merging; render curvature or mean-subtracted height",
+    hints: ["explicit stepping is stable at dt ≈ 0.02 with unit grid spacing — 6-10 substeps per frame is enough motion; the 13-point biharmonic is two nested 5-point Laplacians, zero transcendentals",
+            "raw h drifts unboundedly: subtract the mean every step, and render curvature (the Laplacian you already computed) or mean-subtracted height through an EMA-normalized smoothstep",
+            "the instability wavelength is ~9 px, so 64x128 holds ~7x14 cells — 25-50 cusps live at once"] },
+
+  { id: "lle", nm: "공진기 소산 솔리톤", nmEn: "Cavity dissipative solitons", en: "LUGIATO-LEFEVER", f: "pde", st: "unexplored", x: 44, y: 78, added: "2026-08-16b",
+    tex: "어두운 공진기 바다 위의 빛 핀들 — 진동하는 꼬리로 서로를 붙잡아 분자를 이루고, 떠다니고, 숨쉬고, 흩어진다. (연구 수입)",
+    texEn: "Pinpoints of light on a dark cavity sea — locking one another through oscillating tails into molecules that drift, breathe, and scatter. (research import)",
+    knob: "공진기 이조 α ≈ 1.7..2.5 — 균질 배경 ↔ 솔리톤 존재 창 ↔ 붕괴 (실재하는 존재 경계).",
+    knobEn: "cavity detuning alpha ≈ 1.7..2.5 — homogeneous background ↔ the soliton existence window ↔ collapse (a genuine existence boundary)",
+    topic: "Lugiato-Lefever cavity solitons — a driven damped nonlinear Schrödinger field, E_t = -(1+i*alpha)E + i|E|^2 E + i*lap(E) + F; sharp bright solitons on a dark background, binding into molecules through their oscillatory tails",
+    hints: ["split E into real/imaginary Float32 fields with 5-point Laplacians — the same machinery as CGL, canonical F ≈ 1.3",
+            "render |E|^2 with a peak EMA; the dark homogeneous background is part of the picture — do not normalize it away",
+            "inject weak seeded noise continuously so fresh solitons keep nucleating as others drift off or merge"] },
+
+  { id: "sinegordon", nm: "구동 사인-고든 플럭손 기체", nmEn: "Driven sine-Gordon fluxon gas", en: "BALLISTIC SOLITONS", f: "pde", st: "unexplored", x: 38, y: 68, added: "2026-08-16b",
+    tex: "위상장의 국소 매듭들이 탄도로 달리며 부딪힌다 — 퍼지지 않고, 뭉개지지 않고, 정확히 충돌하고 소멸하는 입자 같은 파동. (연구 수입)",
+    texEn: "Localized knots of a phase field running ballistically — waves that behave like particles: no dispersion, no smearing, exact collisions and annihilations. (research import)",
+    knob: "감쇠 α × 바이어스 γ — 정지 격자 ↔ 플럭손 증식 혼돈 (탈피닝 전이). 무구동 적분가능계는 지루함이 판정된 땅 — 구동·감쇠가 생명이다.",
+    knobEn: "damping alpha × bias gamma — pinned lattice ↔ chaotic fluxon proliferation (a depinning transition). The undriven integrable system is verdict-dull — drive and damping are what make it live",
+    topic: "The damped driven 2D sine-Gordon equation — phi_tt = lap(phi) - sin(phi) - alpha*phi_t + gamma — a gas of ballistic fluxon solitons colliding and annihilating; canonical alpha ≈ 0.05, gamma ≈ 0.4",
+    hints: ["leapfrog the wave equation with sin from a 256-entry table — two Float32 fields, ~15 flops per site, no library trig",
+            "render sin^2(phi/2) so kinks read as bright cores on dark ground; an energy-density render also works",
+            "gamma feeds energy that annihilations spend — modulate gamma slowly (harmless axis) so the population breathes"] },
 
   { id: "schrod", nm: "Schrödinger 파속", nmEn: "Schrödinger packet", en: "QUANTUM CAUSTICS", f: "pde", st: "retired", x: 56, y: 82,
     tex: "복소 파동함수 |ψ|²의 간섭·터널링·산란 — 양자 커스틱.",
@@ -462,6 +506,38 @@ export const ENTRIES: AtlasEntry[] = [
     hints: ["init every cell to a distinct opinion (Uint8Array, up to 255 states) so the weave starts saturated",
             "render CHANGE: a wall glows where neighbors differ, with an EMA trail — the state values themselves stay invisible",
             "random sequential updates: a site copies a random neighbor; mutation assigns a fresh state"] },
+
+  { id: "rule54", nm: "Rule 54 글라이더 기체", nmEn: "Rule 54 glider gas", en: "SOLITONIC LATTICE GAS", f: "waterfall", st: "unexplored", x: 57, y: 15, added: "2026-08-16b",
+    tex: "이진 격자의 결정질 배경 위를 달리는 글라이더 입자들 — 산란하고, 위상이 밀리고, 소멸하는 이산 솔리톤의 땋임. (연구 수입)",
+    texEn: "Glider particles running over a binary lattice's crystalline background — scattering, phase-shifting, annihilating: a braid of discrete solitons. (research import)",
+    knob: "경계 주입률 — 성긴 탄도 기체 ↔ 조밀한 산란 땋임 ↔ 포화 (입자 수지가 급소).",
+    knobEn: "boundary injection rate — sparse ballistic gas ↔ dense scattering braid ↔ saturation (the particle budget is the dial)",
+    risk: "원시 상태는 주기-4 배경이 지배해 무늬로만 보인다 — 배경을 XOR로 벗겨내야 월드라인만 남는다.",
+    riskEn: "The raw state is dominated by the period-4 background and reads as wallpaper — XOR the background away so only the worldlines remain.",
+    topic: "Elementary cellular automaton Rule 54 as a history waterfall — a deterministic lattice gas of glider particles over a period-4 background, scattering and annihilating; render the state XOR the unperturbed background, with an EMA glow",
+    hints: ["one 8-entry rule lookup per cell — the cheapest simulation on this map; run many rows per frame",
+            "the essential render trick: XOR each cell against the deterministic period-4 background pattern, then glow worldlines with an EMA — raw states hide everything",
+            "on 64 cells collisions eventually thin the gas: inject gliders at the boundaries (or rare seeded bit flips) to hold a steady population"] },
+
+  { id: "mitosis", nm: "분열 펄스 계보", nmEn: "Splitting-pulse genealogy", en: "PULSE MITOSIS FALLS", f: "waterfall", st: "unexplored", x: 60, y: 25, added: "2026-08-16b",
+    tex: "펄스가 제 심장을 굶겨 둘로 갈라진다 — Y자 분기들이 폭포를 채우는 가계도. 가지끼리 만나면 굶주린 쪽이 죽는다. (연구 수입)",
+    texEn: "A pulse starves its own core and splits in two — Y-forks filling the fall like a family tree. Where branches meet, the hungrier one dies. (research import)",
+    knob: "공급률 F — 붕괴 ↔ 자기복제 분열 ↔ 정지 튜링 배열 (실재하는 분열 문턱).",
+    knobEn: "feed rate F — decay ↔ self-replicating splitting ↔ frozen Turing array (a genuine splitting threshold)",
+    topic: "1D Gray-Scott in its pulse-splitting regime, drawn as a history waterfall — activator pulses that starve centrally and split into diverging children, a branching genealogy; canonical F ≈ 0.030, k ≈ 0.062, Du ≈ 1.0, Dv ≈ 0.5",
+    hints: ["64-cell explicit stepping, ~50 substeps per frame at dt ≈ 0.2 — two Float32 arrays and a 3-point Laplacian",
+            "render the activator's spatial gradient (or v^2), not raw concentration — the substrate background must stay invisible",
+            "the frozen-Turing-array endgame is the boredom risk: breathe F slowly across the splitting threshold so lattices keep collapsing and reseeding"] },
+
+  { id: "zrp", nm: "응축 강줄기", nmEn: "Condensation rivers", en: "ZERO-RANGE PROCESS", f: "waterfall", st: "unexplored", x: 26, y: 20, added: "2026-08-16b",
+    tex: "확률 도약하는 질량이 스스로 응축한다 — 가는 지류들이 빛나는 본류로 모여들고, 본류는 부스러기를 흘리며 떠돈다. (연구 수입)",
+    texEn: "Stochastically hopping mass condensing on its own — faint tributaries feeding glowing trunks that drift and shed grains. (research import)",
+    knob: "도약 지수 b (u(n)=1+b/n) — b<2 균질 흐름 ↔ b>2 실공간 응축 (엄밀한 응축 상전이).",
+    knobEn: "hop exponent b in u(n)=1+b/n — b<2 homogeneous flow ↔ b>2 real-space condensation (a rigorous condensation transition)",
+    topic: "A zero-range process with chipping, drawn as a history waterfall — site masses hopping at rate u(n)=1+b/n, condensing into drifting trunk rivers fed by tributary showers; canonical b ≈ 5, density ≈ 3",
+    hints: ["integer masses in one array; per step pick random sites, move one unit to a neighbor with probability ∝ 1 + b/n — all integer arithmetic",
+            "occupancies span orders of magnitude: render log2(1 + n), or the trunks whiteout and the tributaries vanish",
+            "total coarsening into one eternal trunk is the boredom end — cap site mass and burst-split any site that hits the cap, so rivers keep being born"] },
 
   { id: "lenia", nm: "Lenia", nmEn: "Lenia", en: "CONTINUOUS LIFE", f: "life", st: "retired", x: 60, y: 72,
     tex: "연속 커널 CA — 부드러운 생명 형태가 헤엄치는 장.",
@@ -675,6 +751,8 @@ export const ENTRIES: AtlasEntry[] = [
   { id: "fpu", nm: "FPU — 유령 회귀", nmEn: "FPU — ghost recurrence", en: "FERMI-PASTA-ULAM", f: "invent", st: "invented", x: 33, y: 28,
     tex: "비선형 사슬에 부은 에너지가 모드들로 흩어졌다가, 오랜 방황 끝에 유령처럼 처음 형태로 되돌아온다 — 흩어짐과 회귀의 긴 호흡이 폭포로 흐른다.",
     texEn: "Energy poured into a nonlinear chain scatters across its modes — then, after a long wander, returns like a ghost to its original shape. The long breath of dispersal and recurrence, flowing as a waterfall.",
+    risk: "외부 서베이 판정(8/16): 변위 폭포는 매끈한 전역 정상파 — 국소 구조가 없어 지루함. 모드 에너지 밴드 렌더로만 승산이 있다.",
+    riskEn: "External survey verdict (8/16): the displacement waterfall is smooth global standing waves — no localized structures, monotonous. Only the mode-energy-band render has a chance.",
     knob: "비선형 강도 β — 완전 회귀 ↔ 준회귀 ↔ 열화(에르고딕)의 문턱.",
     knobEn: "nonlinearity beta — clean recurrence ↔ partial recurrence ↔ the thermalization threshold",
     topic: "Fermi-Pasta-Ulam-Tsingou recurrence as a vertical history waterfall — a nonlinear oscillator chain seeded in its lowest mode, energy spreading through the spectrum and ghost-returning; render the displacement field, or the per-mode energies as vertical bands",
@@ -770,7 +848,7 @@ Rendering craft — most attempts die here, read carefully:
 - Simulate in the display's own orientation. Internal buffers are 64 wide × 128 tall (index = y * 64 + x), matching // @matrix 64x128. Do NOT build a 128×64 landscape simulation and rotate or remap it inside draw() — no axis swaps, no dispX = y tricks. If you catch yourself writing const w = 128, h = 64, stop: swap them. (Most LED-matrix code online is landscape; this device stands tall.)
 - Choose @knobs ranges so the pattern is at its best near the MIDDLE of every range, with nobody touching anything. Knob extremes may be calm or violent; the default position is the show.
 - Simulations must sit in their interesting regime at those defaults — use the canonical parameter values from the hints below when given; do not invent your own.
-- This code is also compiled for a 240 MHz microcontroller, where sin/cos/exp/pow/atan2 each cost hundreds of cycles. Budget transcendentals: keep them OUT of the per-pixel loop — per-agent, per-row, or per-timestep math is fine, and integer/add/multiply lattice rules are free. At most one full-resolution pass per frame, carrying no more than a couple of trig calls per pixel. Never resample the previous frame per pixel (no warp/zoom/bilinear feedback), never do O(n²) all-pairs interactions, and use Float32Array only — never Float64Array (doubles are software-emulated).
+- This code is also compiled for a 240 MHz microcontroller, where sin/cos/exp/pow/atan2 each cost hundreds of cycles. Budget transcendentals: keep them OUT of the per-pixel loop — per-agent, per-row, per-timestep math is fine, expensive fields can be computed on a coarse control grid (a few hundred nodes) and interpolated up, and integer/add/multiply lattice rules are free. At most one full-resolution pass per frame, carrying no more than a couple of trig calls per pixel. Never resample the previous frame per pixel (no warp/zoom/bilinear feedback), never do O(n²) all-pairs interactions, and use Float32Array only — never Float64Array (doubles are software-emulated).
 
 Taste direction (settled by experiment on this device — treat as hard constraints, on top of everything above):
 - No countable objects. Thousands of accumulated operations must read as one continuous "material". The moment dots/creatures/cars can be counted, the pattern is dead.
