@@ -269,7 +269,9 @@ export const ENTRIES: AtlasEntry[] = [
     knobEn: "the zoom≈1 boundary — the knife edge between convergence and blow-up",
     risk: "단독 평가는 애매했음. 그리고 8/14 워프-리샘플 시도 2건 전패 — 픽셀당 바이리니어 피드백은 실기 적대적. 정수 시프트(행 복사 스크롤/회전)나 타일 단위 재귀로만.",
     riskEn: "Ambiguous on its own — and both 8/14 warp-resample attempts failed hardware. Per-pixel bilinear feedback is device-hostile; feedback must move by whole-pixel integer shifts (row-copy scroll/rotate) or at tile level.",
-    topic: "Recursive frame feedback via integer-pixel shifts — the frame re-composited onto itself through whole-pixel scroll/rotate steps and decay, never per-pixel resampling" },
+    topic: "Recursive frame feedback via integer-pixel shifts — the frame re-composited onto itself through whole-pixel scroll/rotate steps and decay, never per-pixel resampling",
+    hints: ["integer shifts alone pin the image to the grid and look mechanical — follow every shift with a cheap 3x3 blur, which redistributes brightness across neighbours and reads as viscosity. That blur is what buys back the continuity bilinear sampling was there to provide",
+            "decay by bit-shift equivalent (v -= v/32) rather than a float multiply"] },
 
   { id: "hybrid", nm: "피드백 교배", nmEn: "Feedback crossbreed", en: "CROSSBREED", f: "feedback", st: "retired", x: 82, y: 56,
     tex: "검증된 소스(커스틱·잉크)를 피드백 기계에 씨앗으로 — 소스의 질감이 재귀로 증폭된다.",
@@ -469,7 +471,8 @@ export const ENTRIES: AtlasEntry[] = [
     risk: "'생명체'가 개체로 보이는 순간 사망 — 군집/장 스케일 레짐으로만.",
     riskEn: "The moment a creature is countable it dies — colony/field-scale regimes only.",
     topic: "Lenia, the continuous cellular automaton — tuned to colony/field-scale regimes (tissues and blooms, never a single creature)",
-    hints: ["separable or small kernels to fit the ESP32 convolution budget",
+    hints: ["the wide radial kernel is the whole cost problem, and a sliding-window box sum solves it: a running sum along each scanline (S += in - out) computes any radius in O(1) per pixel, independent of radius, and three cascaded box passes approximate a Gaussian. Approximate the ring kernel as the difference of two such blurs",
+            "cheaper cousin worth trying first: multiscale Turing (McCabe) — 2-4 scales of activator/inhibitor built from those same box sums, each site stepping toward whichever scale has the least local variation",
             "if it reads as one countable creature the pattern is dead — stay at colony/field scale"] },
 
   { id: "nca", nm: "Neural CA", nmEn: "Neural CA", en: "LEARNED RULES", f: "life", st: "retired", x: 52, y: 76,
