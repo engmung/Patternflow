@@ -227,7 +227,8 @@
 #ifndef PF_MQTT_MESSAGE_DURATION_MS
 #define PF_MQTT_MESSAGE_DURATION_MS 10000
 #endif
-// Topic root: <prefix>/knob/1..4, <prefix>/pattern and <prefix>/message.
+// Topic root: <prefix>/knob/1..4, <prefix>/pattern, <prefix>/message and
+// <prefix>/sleep (plus <prefix>/sleep/state outbound).
 //
 // A banner is a BROADCAST — every panel subscribed on this prefix shows it.
 // That is the design, not a leak (@SimonePDA, who runs the shared broker):
@@ -236,6 +237,13 @@
 // wildcard ACL, which is the thing that lets anyone invent topics. Broadcast
 // is what a tight ACL costs, and for "tell the panels something" it is also
 // what you want.
+//
+// <prefix>/sleep is a broadcast for the same reason and with the same reach:
+// one "1" on the shared prefix puts EVERY panel on it to sleep. That is the
+// right behaviour for a venue at the end of a night and the wrong one if you
+// only meant your own device — which is what the per-panel prefix below is
+// for. Send it non-retained unless you genuinely want panels to come back
+// asleep after every reconnect.
 //
 // Give each panel its own prefix when several share a broker and should NOT
 // mirror each other.

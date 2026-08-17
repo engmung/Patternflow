@@ -188,6 +188,39 @@ constexpr float EULER      = 2.71828182845904523536f;
 
 #define DEFAULT_BRIGHTNESS 204  // 80% (0-255)
 
+// --- Sleep mode ---
+// Turns the panel off and idles the ESP32 without unplugging anything. The
+// device stays on the network throughout — that is the whole point, because
+// waking it over MQTT is impossible otherwise. See src/core_sleep.h.
+#ifndef PF_SLEEP_ENABLED
+#define PF_SLEEP_ENABLED 1
+#endif
+
+// Stop the HUB75 DMA engine while asleep, on top of blanking the framebuffer.
+// Blanking alone turns the LEDs off, which is most of the draw, but the panel's
+// driver ICs keep being clocked at 15 MHz for as long as the transfer runs —
+// this is what stops that too.
+//
+// Needs the vendored driver's resumeDMAoutput() (src/hub75/VENDORED.md). Set
+// this to 0 if the panel comes back black or garbled after waking on your
+// hardware: sleep then blanks only, which is safe on any panel and still saves
+// the LED current.
+#ifndef PF_SLEEP_STOP_DMA
+#define PF_SLEEP_STOP_DMA 1
+#endif
+
+// CPU clock while asleep. 80 MHz is the floor at which the Wi-Fi radio still
+// works, so it is as low as a network-awake sleep can go; 0 disables the
+// switch entirely.
+#ifndef PF_SLEEP_CPU_MHZ
+#define PF_SLEEP_CPU_MHZ 80
+#endif
+
+// CPU clock restored on wake — the ESP32-S3's normal full speed.
+#ifndef PF_AWAKE_CPU_MHZ
+#define PF_AWAKE_CPU_MHZ 240
+#endif
+
 // --- LED Panel Color Calibration ---
 // Override these per panel; the defaults are a mild correction tuned for
 // a typical HUB75 (red LED brighter than blue, slight green dominance in

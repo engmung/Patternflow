@@ -31,6 +31,8 @@
 #include "core_canvas.h"   // presentUs
 #include "core_mqtt.h"     // role/state for the network section
 #include "core_send.h"
+#include "core_sleep.h"    // panel-off state
+
 #include "status_index.h"
 #endif
 
@@ -107,6 +109,13 @@ inline void handleStatus() {
   json += "\",\"activeIsModule\":";
   json += (activePatternIdx >= 0 && patterns && patterns[activePatternIdx].modulePath)
               ? "true" : "false";
+  json += ',';
+
+  // Sleep. Worth a field of its own rather than leaving it to be inferred: a
+  // sleeping device answers every other question here looking perfectly
+  // healthy, and "the panel is dark" is the one thing the page can't show.
+  json += "\"sleep\":";
+  json += PatternflowSleep::isSleeping() ? "true" : "false";
   json += ',';
 
   // Render + last module load

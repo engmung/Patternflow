@@ -217,7 +217,8 @@ function paint(d){
   var p=d.params||[0,0,0,0];
   var pa=d.paramActive||[false,false,false,false];
   $('params').textContent=p.map(function(v,i){return (pa[i]?v:'—')}).join(' · ');
-  var topics=prefix+'/knob/1..4  ·  '+prefix+'/pattern  ·  '+prefix+'/param/1..4';
+  var topics=prefix+'/knob/1..4  ·  '+prefix+'/pattern  ·  '+prefix+'/param/1..4'
+             +'  ·  '+prefix+'/sleep  ·  '+prefix+'/sleep/state';
   if(ch==='ch1'||ch==='ch2'||ch==='ch3'||ch==='ch4'||ch==='live')
     topics+='  ·  '+prefix+'/snapshot';
   if(mode==='director')

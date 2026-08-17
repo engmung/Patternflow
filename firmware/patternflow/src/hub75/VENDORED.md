@@ -7,7 +7,9 @@ copied into the sketch rather than installed through the Arduino Library Manager
 
 ## Why it is vendored
 
-One addition: **`blitRGB888()`**, which paints a whole frame in a single call.
+Two additions.
+
+### 1. `blitRGB888()` — paints a whole frame in a single call
 
 Upstream's per-pixel entry point cannot be made to do this. It takes one `(x, y)`
 at a time, so for every pixel it bounds-checks, decides which half of the panel
@@ -28,12 +30,30 @@ RAM is the scarce resource on this part).
 Colour output is identical to the per-pixel path: same `lumConvTab` CIE1931
 curve, same bit masks.
 
+### 2. `resumeDMAoutput()` — the way back from `stopDMAoutput()`
+
+Upstream's `stopDMAoutput()` is a one-way trip ("Screen will forever be black
+until next ESP reboot"), so there was no way to stop clocking the panel and
+later carry on. The firmware's sleep mode needs exactly that: blanking the
+framebuffer turns the LEDs off, but the driver ICs keep being clocked at 15 MHz
+and that draw stays on the meter.
+
+The underlying bus calls are already symmetric on both supported platforms —
+`dma_transfer_stop()` resets the LCD peripheral and halts the GDMA channel,
+`dma_transfer_start()` starts it again — so the addition is a four-line public
+wrapper. It has to live in the driver because `dma_bus` is `protected`.
+
+Caller's side of the contract: the restart resumes at descriptor chain A while
+`back_buffer_id` is wherever it was left, so blank BOTH buffers before resuming
+or one stale frame can show. `../core_sleep.h` does that.
+
 ## What this costs
 
 - Upstream updates are manual. Diff a new release against this tree and re-apply
-  the addition.
-- The addition is marked `PATTERNFLOW ADDITION (not upstream)` in both
-  `ESP32-HUB75-MatrixPanel-I2S-DMA.h` and `.cpp`. Nothing else is modified.
+  the additions.
+- Both additions are marked `PATTERNFLOW ADDITION (not upstream)` —
+  `blitRGB888()` in `ESP32-HUB75-MatrixPanel-I2S-DMA.h` and `.cpp`,
+  `resumeDMAoutput()` in the `.h` only. Nothing else is modified.
 - The build server compiles the sketch folder, so it picks this up with no
   separate configuration.
 - If the Library Manager copy is still installed it is simply unused: the sketch
