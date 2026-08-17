@@ -1,8 +1,16 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - Device status page
 //
-//   GET /status       human page, refreshes itself
-//   GET /api/status   the same numbers as JSON
+//   GET  /status       human page, refreshes itself
+//   GET  /api/status   the same numbers as JSON
+//   POST /api/sleep    on=1|0|toggle — the console's panel switch
+//
+// Sleep control lives here rather than on /api/display, where the plumbing
+// first landed, for two reasons: it is a power state and not a display
+// calibration, and /api/display is independently compile-out-able
+// (-DPF_DISPLAY_HTTP_ENABLED=0), which would leave the console's switch dead in
+// a build that otherwise has a complete console. This endpoint is gated by the
+// same flag as the server that serves that console.
 //
 // Exists because these are the numbers that actually explain the device when
 // something is off. Internal heap in particular: HUB75's DMA buffers take most
@@ -118,6 +126,13 @@ inline void handleStatus() {
   json += PatternflowSleep::isSleeping() ? "true" : "false";
   json += ',';
 
+  // The other reason the panel can be dark while everything here reads fine:
+  // this very page is what paused it. The console has always had a branch for
+  // this state — it just never received the field to trigger it.
+  json += "\"consolePaused\":";
+  json += PatternflowPatternsHttp::isConsolePaused() ? "true" : "false";
+  json += ',';
+
   // Render + last module load
   json += "\"frameUs\":";
   json += renderFrameUs;
@@ -170,12 +185,51 @@ inline void handleIndex() {
   PFSend::progmem(server(), STATUS_INDEX_HTML);
 }
 
+// POST /api/sleep  on=1|0|toggle
+//
+// The reply reports the state BEFORE the transition, because request() only
+// queues it — the actual work (stopping the DMA engine, reclocking the CPU)
+// belongs in loop(), not inside an open HTTP response. That is a deliberate
+// property, not a rough edge: the console sets its switch optimistically and
+// lets the next poll confirm.
+inline void handleSleep() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+
+  String on = server().hasArg("on") ? server().arg("on") : String("1");
+  on.toLowerCase();
+  on.trim();
+
+  bool wanted;
+  if (on == "toggle") {
+    wanted = !PatternflowSleep::isSleeping();
+  } else if (on == "1" || on == "true" || on == "sleep") {
+    wanted = true;
+  } else if (on == "0" || on == "false" || on == "wake") {
+    wanted = false;
+  } else {
+    server().sendHeader("Cache-Control", "no-store");
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"on must be 1, 0, or toggle\"}");
+    return;
+  }
+  PatternflowSleep::request(wanted);
+
+  String body = "{\"ok\":true,\"requested\":";
+  body += wanted ? "true" : "false";
+  body += ",\"sleep\":";
+  body += PatternflowSleep::isSleeping() ? "true" : "false";
+  body += "}";
+  server().sendHeader("Cache-Control", "no-store");
+  server().send(200, "application/json", body);
+}
+
 inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
   server().on("/status", HTTP_GET, handleIndex);
   server().on("/api/status", HTTP_GET, handleStatus);
+  server().on("/api/sleep", HTTP_POST, handleSleep);
 
 #if !PF_AUDIO_ENABLED
   server().begin();

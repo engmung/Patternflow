@@ -53,10 +53,12 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
 
 <section><h2>Render</h2><dl>
+  <div class="row"><dt>Panel</dt><dd id="pwr">-</dd></div>
   <div class="row"><dt>Frame rate</dt><dd class="big" id="fps">-</dd></div>
   <div class="row"><dt>Frame time</dt><dd id="ft">-</dd></div>
   <div class="row"><dt>Active pattern</dt><dd id="act">-</dd></div>
-</dl></section>
+</dl>
+<p class="note" id="pwrnote"></p></section>
 
 <section><h2>Patterns</h2><dl>
   <div class="row"><dt>Total</dt><dd id="pt">-</dd></div>
@@ -103,10 +105,21 @@ function tick(){
     $('up').textContent='up '+dur(d.uptime);
     $('fw').textContent=d.version;$('pn').textContent=d.panel;
 
+    // Read-only here; the switch lives on the console home page. Both dark
+    // states are worth naming, because the numbers below them look identical
+    // either way — and asleep or paused, the frame rate is from before the
+    // panel went dark.
+    var dark=d.sleep||d.consolePaused;
+    $('pwr').textContent=d.sleep?'asleep':d.consolePaused?'paused by console':'awake';
+    $('pwr').className=d.sleep?'warn':'';
+    $('pwrnote').textContent=d.sleep
+      ?'Panel off, still on the network. Any knob or button wakes it, as does the switch on the console home page.'
+      :d.consolePaused?'This console is holding the pattern paused to free memory. It resumes when you are done.':'';
+
     var fps=d.frameUs?1e6/d.frameUs:0;
-    $('fps').textContent=d.frameUs?fps.toFixed(1)+' fps':'-';
-    cls($('fps'),fps>=45?'ok':fps>=25?'warn':'bad');
-    $('ft').textContent=d.frameUs?(d.frameUs/1000).toFixed(2)+' ms':'-';
+    $('fps').textContent=d.frameUs?(dark?'—':fps.toFixed(1)+' fps'):'-';
+    cls($('fps'),dark?'':fps>=45?'ok':fps>=25?'warn':'bad');
+    $('ft').textContent=d.frameUs&&!dark?(d.frameUs/1000).toFixed(2)+' ms':'-';
     $('act').textContent=d.active+(d.activeIsModule?'  (module)':'  (built in)');
 
     $('pt').textContent=d.patterns;$('pp').textContent=d.presets;

@@ -973,6 +973,16 @@ void loop() {
         if (b->isDown()) b->longPressFired = true;
         b->clicked();
       }
+      // A console tab open somewhere has the resident module evicted, and with
+      // Origin the only compiled-in preset that is the ordinary case, not an
+      // exotic one. Left alone, waking would land on the CONSOLE PAUSED card
+      // until the 25 s idle timer fired — so a wake, from any of the three
+      // sources, counts as "give me the panel back". Same request the Play Now
+      // path makes: tick() does the reload from loop(), never from inside an
+      // HTTP transaction.
+      if (PatternflowPatternsHttp::isConsolePaused()) {
+        PatternflowPatternsHttp::requestReload();
+      }
       // Every throttled screen redraws from scratch on the next frame; their
       // "drawn at" timestamps are from before the sleep.
       pausedDirty = true;

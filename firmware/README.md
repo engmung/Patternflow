@@ -552,9 +552,10 @@ The yield is not politeness either: without it the sleeping loop polls sockets f
 
 | Enter | Leave |
 | :--- | :--- |
+| the **On / Sleep** switch on the console home page (`/`) | the same switch |
 | NETWORK screen (hold K2) → turn K1 | any **physical** knob turn or button press |
 | MQTT `<prefix>/sleep` ← `1` / `on` / `true` / `sleep` / `toggle` | same topic ← `0` / `off` / `false` / `wake` |
-| `GET /api/display?sleep=1` | `GET /api/display?sleep=0` |
+| `POST /api/sleep` ← `on=1` (also `on=toggle`) | `POST /api/sleep` ← `on=0` |
 | | a firmware image starting to arrive (web update or `espota`) |
 
 "Physical" is meant literally: waking checks the raw encoder counters, not `input.knobDeltas`, because remote OSC/MQTT/audio deltas are merged into that field by the time the input frame exists. A show still streaming knob values at a sleeping panel must not switch the lights back on. Input is ignored for the first 800 ms so the second detent of the K1 turn that started the sleep doesn't end it.
@@ -562,6 +563,20 @@ The yield is not politeness either: without it the sleeping loop polls sockets f
 Sleep is never entered while an image is being written to flash, and a device already asleep wakes when one starts arriving — whoever is flashing wants the UPDATE screen anyway.
 
 The state is **not** persisted: a device unplugged while asleep boots awake, because a panel that stays dark after you plug it in reads as broken.
+
+### Waking gives the pattern back
+
+Opening any console page evicts the resident module to free DRAM (`noteConsolePageOpened()`), and with Origin the only compiled-in preset, the pattern you are running is almost always a module — so this is the ordinary case, not an exotic one. Left alone, waking with a console tab open would land the panel on the `CONSOLE PAUSED` card until the 25-second idle timer fired.
+
+So a wake — from *any* of the three sources, not just the web switch — asks for the pattern back via `PatternflowPatternsHttp::requestReload()`, the same path the console's Play Now button uses. The reload happens in `tick()` from `loop()`, never inside an HTTP transaction.
+
+### The switch, and why `/api/sleep` is its own endpoint
+
+The console home page carries an **On / Sleep** pair in the device card, styled like `/mqtt`'s channel buttons — the console's existing way of picking between states. It is a *view* of the device's state: K1 and MQTT change the same thing, and the page's 3-second `/api/status` poll follows them within a beat.
+
+`POST /api/sleep` only *queues* the transition (`PatternflowSleep::request()`), so its reply reports the state as it stands, not as it will be — stopping a DMA engine and reclocking the CPU belong in `loop()`, not inside an open response. The page therefore paints optimistically and suppresses the poll for 1.5 s, or the reply would snap the switch back under the cursor.
+
+Sleep control deliberately does **not** live on `/api/display`, where the plumbing first landed. That endpoint is independently compile-out-able (`-DPF_DISPLAY_HTTP_ENABLED=0`), which would leave the switch dead in a build with an otherwise complete console — and sleep is a power state, not a display calibration. `/api/display` still *reports* `sleep`, read-only, because a dark panel is the first thing to rule out while tuning.
 
 ### MQTT
 

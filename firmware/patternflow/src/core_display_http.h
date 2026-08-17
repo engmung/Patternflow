@@ -6,8 +6,12 @@
 //
 // Params: wb_r wb_g wb_b (0..1.5) · gamma_r gamma_g gamma_b (0.2..5) ·
 //         sat (0..4) · screen (0..3 summons the test-card overlay, -1
-//         dismisses it) · level (8..255, WHITE screen drive) ·
-//         sleep (1 sleeps the device, 0 wakes it — see core_sleep.h).
+//         dismisses it) · level (8..255, WHITE screen drive).
+//
+// Reports "sleep" read-only, because a dark panel is the first thing to rule
+// out while tuning. SETTING it lives on POST /api/sleep (core_status_http.h) —
+// this endpoint is independently compile-out-able, and the console's switch
+// must not disappear with it.
 //         Color values land in PFCanvas's runtime calibration
 //         state; present() rebuilds its LUT lazily, so the handler does no
 //         per-pixel work. Values are session-only — reboot restores the
@@ -51,7 +55,13 @@ extern uint8_t currentBrightness;
 
 namespace PatternflowDisplayHttp {
 
-#if PF_STATUS_HTTP_ENABLED
+// Both flags, as the #else and #endif below have always claimed. This guard
+// had lost the second one, so -DPF_DISPLAY_HTTP_ENABLED=0 — documented at the
+// top of this file as a supported build — skipped the includes and then
+// compiled the endpoint anyway, because everything it needs also arrives
+// through the sketch's other headers. The flag produced a byte-identical
+// binary and the endpoint stayed live.
+#if PF_STATUS_HTTP_ENABLED && PF_DISPLAY_HTTP_ENABLED
 
 inline WebServer& server() { return PatternflowStatusHttp::server(); }
 
@@ -99,13 +109,6 @@ inline void handleDisplay() {
     CalibPattern::requestedLevel = (int)server().arg("level").toInt();
   }
 
-  // Sleep. Queued, not applied — the transition stops the DMA engine and
-  // reclocks the CPU, neither of which belongs inside an open HTTP response.
-  // The sketch's loop() picks it up on the next pass.
-  if (server().hasArg("sleep")) {
-    PatternflowSleep::request(server().arg("sleep") != "0");
-  }
-
   // Power clamp: budget is settable here, the rest is read-only telemetry.
   if (server().hasArg("power_budget")) {
     PatternflowPower::setBudgetMa((int)server().arg("power_budget").toInt());
@@ -116,10 +119,6 @@ inline void handleDisplay() {
 
   // snprintf, not String: this endpoint is hit continuously while somebody
   // drags a slider, and the shared heap is the scarcest thing on the board.
-  //
-  // "sleep" is the state as it stands right now, so a response to ?sleep=1
-  // still reads 0 — the transition happens on the next pass of loop(), well
-  // inside the next poll.
   char json[448];
   snprintf(json, sizeof(json),
            "{\"wb_r\":%.3f,\"wb_g\":%.3f,\"wb_b\":%.3f,"
