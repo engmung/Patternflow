@@ -1,0 +1,298 @@
+/* Compliance — the regulatory document behind the URL printed in the box.
+   Set as plain prose in the project's own tokens, the same shape as /terms:
+   one column, real hierarchy, no decoration. The audience is a market
+   surveillance officer or a customs desk, and half of them will print it. */
+
+.page {
+  min-height: 100vh;
+  padding: 48px 24px 96px;
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.doc {
+  max-width: 68ch;
+  margin: 0 auto;
+  /* Long identifiers — FCC IDs, module part numbers, the fccid.io URL — must
+     wrap rather than push the page sideways on a phone. */
+  overflow-wrap: break-word;
+}
+
+.head {
+  padding-bottom: 28px;
+  margin-bottom: 32px;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.brand {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--pf-led);
+}
+
+.head h1 {
+  margin: 0;
+  font-size: var(--pf-fs-h2);
+  letter-spacing: var(--pf-track-tight);
+  font-weight: 600;
+}
+
+.lede {
+  margin: 12px 0 0;
+  font-size: var(--pf-fs-sub);
+  line-height: 1.6;
+  color: var(--pf-ink-muted);
+}
+
+.doc section {
+  margin-bottom: 36px;
+}
+
+.doc h2 {
+  margin: 0 0 14px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: var(--pf-track-tight);
+}
+
+.doc h3 {
+  margin: 24px 0 10px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--pf-ink-muted);
+}
+
+.doc p,
+.doc li {
+  font-size: var(--pf-fs-body);
+  line-height: 1.7;
+  color: var(--pf-ink);
+}
+
+.doc p {
+  margin: 0 0 12px;
+}
+
+.doc ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.doc li {
+  margin-bottom: 7px;
+}
+
+.doc a {
+  color: var(--pf-led);
+  text-underline-offset: 2px;
+}
+
+/* ── Product specification ──
+   A definition list on a two-column grid, collapsing to stacked rows under
+   560px. Nothing here is wide enough to need horizontal scrolling. */
+.specs {
+  margin: 0;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.specRow {
+  display: grid;
+  grid-template-columns: 15em minmax(0, 1fr);
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule-soft);
+}
+
+.specRow dt {
+  padding: 11px 16px 11px 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  line-height: 1.6;
+  color: var(--pf-ink-muted);
+}
+
+.specRow dd {
+  margin: 0;
+  padding: 11px 0;
+  font-size: var(--pf-fs-body);
+  line-height: 1.6;
+  color: var(--pf-ink);
+}
+
+/* ── Document list ──
+   Sized to hold more rows than the one it currently has: as certifications
+   land, each becomes a name on the left and a link or a status on the right. */
+.docs {
+  margin: 0 0 12px;
+  padding-left: 0;
+  list-style: none;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.docRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  padding: 11px 0;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule-soft);
+}
+
+.docName {
+  color: var(--pf-ink);
+}
+
+.docStatus {
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+  white-space: nowrap;
+}
+
+/* The FCC marking statement. It is a mandated wording that has to match the
+   label on the product, so it is framed rather than left to blend into prose. */
+.marking {
+  margin: 0 0 16px;
+  padding: 14px 18px;
+  border-left: 2px solid var(--pf-led);
+  background: var(--pf-cream-2);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-body);
+  letter-spacing: 0.02em;
+}
+
+.address {
+  font-style: normal;
+  font-size: var(--pf-fs-body);
+  line-height: 1.7;
+  color: var(--pf-ink);
+}
+
+.foot {
+  padding-top: 28px;
+  margin-top: 8px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.foot p {
+  margin: 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 32px 20px 72px;
+  }
+
+  .head h1 {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 560px) {
+  /* Stack the spec rows. The label keeps its own line above the value, which
+     is what keeps a 320px-wide screen free of sideways scroll. */
+  .specRow {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 0;
+  }
+
+  .specRow dt {
+    padding: 0 0 2px;
+  }
+
+  .specRow dd {
+    padding: 0;
+  }
+}
+
+/* ── Print ──
+   Authorities print this. Cream ground and orange links become ink and paper,
+   headings stay with the section they introduce, and no row splits across a
+   page break. The browser's own print footer carries the source URL. */
+@media print {
+  .page {
+    min-height: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+
+  .doc {
+    max-width: none;
+  }
+
+  .doc a,
+  .brand,
+  .brand:hover,
+  .lede,
+  .specRow dt,
+  .specRow dd,
+  .docStatus,
+  .foot p {
+    color: #000;
+  }
+
+  .marking {
+    background: transparent;
+    border-left: 2px solid #000;
+  }
+
+  .head,
+  .foot,
+  .specs,
+  .docs,
+  .specRow,
+  .docRow {
+    border-color: #000;
+  }
+
+  .doc p,
+  .doc li,
+  .specRow dd,
+  .address {
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
+
+  .head h1 {
+    font-size: 20pt;
+  }
+
+  .doc h2 {
+    font-size: 12pt;
+  }
+
+  .doc h2,
+  .doc h3 {
+    break-after: avoid;
+  }
+
+  .doc section,
+  .specRow,
+  .docRow,
+  .address {
+    break-inside: avoid;
+  }
+}
