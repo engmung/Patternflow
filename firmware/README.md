@@ -413,6 +413,12 @@ costs zero CPU and the render loop effectively owns a core.
 
 ### The Arduino WebServer will hurt you. Known landmines:
 
+> **Writing a client rather than a route?** The endpoints, their JSON shapes and
+> the rules that follow from this section are specified in
+> **[docs/rest-api.md](../docs/rest-api.md)**. Build against that file; this one
+> explains *why* the server behaves as it does, which is what you need when
+> adding to it.
+
 The console shares **one** synchronous, single-client `WebServer` on port 80
 (owned by `core_audio_ws.h`; other features attach routes to it). Learned so
 far, each confirmed by A/B on hardware:
