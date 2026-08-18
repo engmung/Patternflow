@@ -21,7 +21,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <pgmspace.h>
 
 namespace PFSend {

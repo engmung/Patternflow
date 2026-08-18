@@ -22,7 +22,7 @@
 
 #if PF_MQTT_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <Preferences.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include "core_mqtt.h"
 #include "mqtt_index.h"

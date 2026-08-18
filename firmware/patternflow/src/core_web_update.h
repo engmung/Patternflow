@@ -42,7 +42,7 @@
 
 #if PF_WEBUPDATE_ENABLED
 #include <WiFi.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <Update.h>
 #include <ESPmDNS.h>
 #include <esp_ota_ops.h>
