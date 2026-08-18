@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a Patternflow device",
+        "description": "The device answers to patternflow.local out of the box. If mDNS is unreliable on your network, use the IP address shown on the device's NETWORK screen (hold K2).\n\nRunning more than one panel? Each needs its own PF_OTA_HOSTNAME in net_config.h — there is no serial number to tell two boards apart, so the hostname is the identity.",
+        "data": {
+          "host": "Hostname or IP address"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Add this Patternflow device",
+        "description": "Found a Patternflow panel at {host}. Add it to Home Assistant?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Nothing answered as a Patternflow device at that address. Check that the panel is powered, on the same network, and that the address is right."
+    },
+    "abort": {
+      "already_configured": "This device is already set up.",
+      "cannot_connect": "Nothing answered as a Patternflow device at that address.",
+      "duplicate_hostname": "Another device is already set up under this hostname. Two panels cannot share one — give this one its own PF_OTA_HOSTNAME in net_config.h, reflash it, and try again. Adding it as it is would take over the existing device's entry."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Patternflow options",
+        "description": "The panel's web server takes one connection at a time, and drawing pauses while it answers. Polling faster is not free — leave this alone unless you have a reason.",
+        "data": {
+          "scan_interval": "Seconds between polls"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "pattern": {
+        "name": "Pattern"
+      }
+    },
+    "sensor": {
+      "rssi": { "name": "Wi-Fi signal" },
+      "heap_internal": { "name": "Free internal memory" },
+      "storage_free": { "name": "Free storage" },
+      "fps": { "name": "Frame rate" },
+      "last_boot": { "name": "Last boot" }
+    },
+    "binary_sensor": {
+      "console_paused": { "name": "Console paused" },
+      "mqtt_connected": { "name": "MQTT connected" },
+      "storage_mounted": { "name": "Storage mounted" }
+    }
+  }
+}

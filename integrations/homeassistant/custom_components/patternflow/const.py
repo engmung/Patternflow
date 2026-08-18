@@ -1,0 +1,53 @@
+"""Constants for the Patternflow integration."""
+
+from __future__ import annotations
+
+from typing import Final
+
+DOMAIN: Final = "patternflow"
+
+# The device answers to this out of the box. Anyone running two boards has to
+# give each a distinct PF_OTA_HOSTNAME anyway — mDNS cannot resolve the same
+# name to two addresses — so this is both the default and the assumption.
+DEFAULT_HOST: Final = "patternflow.local"
+
+# Seconds between polls. The device's web server takes ONE connection and its
+# render loop is paused while a response is being sent, so this is not a knob to
+# turn down for a livelier dashboard. See docs/rest-api.md, "Rules that will
+# bite you"; a device-streamed preview at high poll rates is what got the
+# /api/frame endpoint removed on the day it shipped.
+DEFAULT_SCAN_INTERVAL: Final = 10
+MIN_SCAN_INTERVAL: Final = 5
+MAX_SCAN_INTERVAL: Final = 60
+
+CONF_SCAN_INTERVAL: Final = "scan_interval"
+
+# The pattern list only changes when somebody installs or deletes a module, so
+# it rides along every Nth tick instead of every one. A select() also refreshes
+# it out of band, which is the case that actually matters.
+PATTERNS_EVERY_N_TICKS: Final = 6
+
+# One HTTP request budget. Five seconds is generous for a LAN device answering
+# from PROGMEM, and stingy enough that a wedged socket does not stall the
+# coordinator for a whole poll interval.
+REQUEST_TIMEOUT: Final = 5.0
+
+# How long a locally-set value outranks what the device reports. POST /api/sleep
+# only *queues* the transition — loop() performs it — so the reply and the next
+# poll can still carry the old state. Without this the switch visibly snaps back
+# under the cursor, which is exactly what the device's own console page works
+# around by suppressing its poll for 1.5 s.
+OPTIMISTIC_WINDOW: Final = 2.5
+
+# Endpoints. Only /api/* appears here on purpose: fetching an HTML console page
+# (/, /status, /patterns, /wifi, /mqtt) evicts the running pattern module to
+# free internal DRAM and leaves the panel dark for 25 s. An automated client
+# must never touch those.
+API_STATUS: Final = "/api/status"
+API_SLEEP: Final = "/api/sleep"
+API_PATTERNS: Final = "/api/patterns"
+API_PATTERNS_SELECT: Final = "/api/patterns/select"
+API_PATTERNS_FILE: Final = "/api/patterns/file"
+API_MQTT: Final = "/api/mqtt"
+
+MANUFACTURER: Final = "Patternflow"

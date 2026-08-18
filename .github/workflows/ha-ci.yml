@@ -1,0 +1,54 @@
+name: Home Assistant CI
+
+# Lint + test the Home Assistant integration so broken code can't reach main.
+# Only runs when something under integrations/homeassistant/ (or this workflow)
+# changes — same shape as web-ci.yml.
+on:
+  pull_request:
+    paths:
+      - "integrations/homeassistant/**"
+      - ".github/workflows/ha-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "integrations/homeassistant/**"
+      - ".github/workflows/ha-ci.yml"
+
+# Cancel an in-progress run if newer commits are pushed to the same ref.
+concurrency:
+  group: ha-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/homeassistant
+    steps:
+      - uses: actions/checkout@v4
+
+      # Home Assistant's own floor. The integration runs inside HA, so there is
+      # no older interpreter to stay compatible with.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: integrations/homeassistant/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install ".[dev]"
+
+      # Lint is a hard gate: lint errors can't reach main.
+      - name: Lint
+        run: ruff check .
+
+      - name: Format
+        run: ruff format --check .
+
+      # The suite deliberately does not need Home Assistant installed — it
+      # covers the REST client, the pure translations, and the metadata that
+      # `hassfest` would check for an integration living in core. Entity and
+      # config-flow behaviour needs the full harness and is a follow-up.
+      - name: Test
+        run: pytest -q

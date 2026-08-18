@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Patternflow-Gerät hinzufügen",
+        "description": "Das Gerät ist ab Werk unter patternflow.local erreichbar. Wenn mDNS im Netz unzuverlässig ist, nimm die IP-Adresse vom NETWORK-Screen des Geräts (K2 halten).\n\nMehr als ein Panel? Jedes braucht seinen eigenen PF_OTA_HOSTNAME in net_config.h — es gibt keine Seriennummer, an der sich zwei Boards unterscheiden ließen, der Hostname ist die Identität.",
+        "data": {
+          "host": "Hostname oder IP-Adresse"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Dieses Patternflow-Gerät hinzufügen",
+        "description": "Ein Patternflow-Panel unter {host} gefunden. Zu Home Assistant hinzufügen?"
+      }
+    },
+    "error": {
+      "cannot_connect": "Unter dieser Adresse hat nichts als Patternflow-Gerät geantwortet. Prüfe, ob das Panel Strom hat, im selben Netz hängt und die Adresse stimmt."
+    },
+    "abort": {
+      "already_configured": "Dieses Gerät ist bereits eingerichtet.",
+      "cannot_connect": "Unter dieser Adresse hat nichts als Patternflow-Gerät geantwortet.",
+      "duplicate_hostname": "Unter diesem Hostnamen ist bereits ein anderes Gerät eingerichtet. Zwei Panels können sich einen nicht teilen — gib diesem einen eigenen PF_OTA_HOSTNAME in net_config.h, flashe es neu und versuche es erneut. So wie es ist, würde es den Eintrag des vorhandenen Geräts übernehmen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Patternflow-Optionen",
+        "description": "Der Webserver des Panels nimmt eine Verbindung gleichzeitig, und während er antwortet, pausiert das Zeichnen. Häufiger abzufragen ist nicht umsonst — lass das in Ruhe, solange du keinen Grund hast.",
+        "data": {
+          "scan_interval": "Sekunden zwischen zwei Abfragen"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "pattern": {
+        "name": "Pattern"
+      }
+    },
+    "sensor": {
+      "rssi": { "name": "WLAN-Signal" },
+      "heap_internal": { "name": "Freier interner Speicher" },
+      "storage_free": { "name": "Freier Speicherplatz" },
+      "fps": { "name": "Bildrate" },
+      "last_boot": { "name": "Letzter Start" }
+    },
+    "binary_sensor": {
+      "console_paused": { "name": "Konsole pausiert" },
+      "mqtt_connected": { "name": "MQTT verbunden" },
+      "storage_mounted": { "name": "Speicher eingebunden" }
+    }
+  }
+}
