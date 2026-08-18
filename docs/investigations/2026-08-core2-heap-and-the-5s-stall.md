@@ -4,6 +4,33 @@
 panel), one day, three root causes. Everything below was measured on hardware;
 nothing is inferred from documentation alone. Outcomes: PRs #318, #320, #321.*
 
+## How it surfaced
+
+The signal was months old and entirely qualitative.
+
+**Simone Majocchi ([@SimonePDA](https://github.com/SimonePDA))** has been
+building the firmware side continuously — the loadable `.pfm` module design,
+the MQTT sidechannel, the `.pfs` show tables and the performance director, and
+work still in progress — which means a lot of time spent running *his* builds
+next to ours. His felt more comfortable. Ours had internal-heap trouble
+constantly: patterns that would not install, a console that stopped answering
+under a heavy pattern, features rejected during review for costing 7 KB.
+
+That difference had no explanation and an easy excuse: different feature set,
+different test conditions, different panel, different day. A vague "his feels
+better" is not a bug report, so it sat unexamined.
+
+It became concrete on 18 August. A pattern made at the office, on Simone's
+build, running fine. Brought home, installed on a board running our own
+release — **refused**. Same pattern file, two builds, opposite outcomes.
+
+That is a controlled experiment arrived at by accident, and it moves the
+question from *the pattern* to *the build*. It is worth being blunt about how
+much that mattered: the investigation had started by dissecting the pattern's
+ELF, looking for what made *it* special. Nothing in that file would ever have
+explained anything. The build comparison is what cracked it open, and it came
+from someone noticing that the same thing behaved differently in two places.
+
 ## The symptoms
 
 Three complaints that looked like one:
@@ -177,6 +204,12 @@ wearing one coat.
 
 ## Method notes (the parts worth stealing)
 
+- **A persistent "theirs feels better" is a measurement waiting to be taken.**
+  This one went unexamined for months because it had no number attached and a
+  dozen plausible excuses. The moment it was pinned to one artefact behaving
+  two ways — same pattern, two builds — it took a day to close. If two builds
+  of the same project keep *feeling* different, that is the finding; go and
+  weigh it.
 - **Same board, same day, same network, or the comparison lies.** The
   remembered 165 KB/s was a different day's number; today's core 3 managed 75.
 - **A falsifiable prediction beats ten plausible theories.** The
@@ -198,3 +231,15 @@ wearing one coat.
 - On this Windows machine the xtensa linker cannot write outputs under the
   non-ASCII repo path — build from an ASCII work copy or redirect
   `PLATFORMIO_BUILD_DIR`.
+
+---
+
+*I had been building on whatever the board manager called latest, so this was
+the water I swam in — every heap number I ever measured was the degraded one,
+and I tuned the project's expectations to it. [@SimonePDA](https://github.com/SimonePDA)
+was building the same firmware the whole time and simply never had the problem,
+which is the only reason there was anything to compare against. Months of "his
+feels more comfortable" turned out to be exactly right, and precisely
+measurable, the moment one pattern refused to install in one place and not the
+other. The control group nobody set up on purpose is what found this. Thank
+you.*
