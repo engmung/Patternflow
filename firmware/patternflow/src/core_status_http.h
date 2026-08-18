@@ -29,7 +29,7 @@
 
 #if PF_STATUS_HTTP_ENABLED
 #include <FFat.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include <esp_heap_caps.h>
 

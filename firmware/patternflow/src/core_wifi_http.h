@@ -24,7 +24,7 @@
 #endif
 
 #if PF_WIFI_HTTP_ENABLED
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 
 #if PF_AUDIO_ENABLED

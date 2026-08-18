@@ -31,7 +31,7 @@
 
 #if PF_AUDIO_ENABLED
 #include <WiFi.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WebSocketsServer.h>
 #include "audio_index.h"
 #include "home_index.h"
