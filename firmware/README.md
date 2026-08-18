@@ -9,7 +9,46 @@ The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads fou
 ## Setup
 
 ### Required board package
-- ESP32 by Espressif Systems (latest)
+- ESP32 by Espressif Systems — **2.0.x, not the latest 3.x** (see below)
+
+> ⚠️ **The core version decides how much RAM your patterns get.** Core 3.x
+> ships ESP-IDF 5.5, which occupies about **71 KB more internal RAM before the
+> sketch even starts** than core 2.x / IDF 4.4 — the gap is already there at the
+> first heap reading in `setup()`, before Wi-Fi is up, and no sdkconfig setting
+> reverses it (the Wi-Fi buffer flags are identical between the two prebuilts).
+> Measured on the same board with the same source, free internal heap once the
+> network services are up:
+>
+> | | free | largest block |
+> |---|---|---|
+> | core 3.3.8 (IDF 5.5) | 15,320 B | 7,668 B |
+> | core 2.0.17 (IDF 4.4) | **98,708 B** | **90,100 B** |
+>
+> That largest-block number is the hard ceiling on a loadable module: a `.pfm`'s
+> `.text` has to land in one contiguous internal executable block, because the
+> S3 cannot execute loaded code from PSRAM. On core 3.x a 12 KB pattern is
+> simply refused; on core 2.x it loads and runs. See
+> [Internal RAM is the budget](#internal-ram-is-the-budget-everything-else-is-roomy).
+
+### Build with PlatformIO (recommended)
+
+`platformio.ini` in `patternflow/` pins core 2.x and is what the measurements
+above come from. It also builds in ~90 s against the IDE's several minutes.
+
+```bash
+cd firmware/patternflow
+pio run                       # → .pio/build/firmware/firmware.bin
+pio run -t upload             # or flash it yourself at 0x10000
+```
+
+`toolchain/sync_ino_to_src.py` copies the sketch into `pio_src/` and clones the
+libraries below into `lib/` on first run, so there is nothing to install by
+hand. On Windows, build from a path with no non-ASCII characters, or point
+`PLATFORMIO_BUILD_DIR` at one — the xtensa linker cannot write outputs
+underneath a path it cannot encode.
+
+The Arduino IDE path still works and is documented below; it is what the older
+guides describe. Just install core **2.0.x** rather than the latest.
 
 ### Arduino IDE board settings
 - **Board:** ESP32S3 Dev Module
@@ -28,9 +67,16 @@ The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads fou
 > appears on the other socket.
 
 ### Required libraries
-Install these via the Arduino Library Manager:
+PlatformIO clones these for you. For the Arduino IDE, install them via the
+Library Manager:
 - `ESP32-HUB75-MatrixPanel-DMA` (for driving the matrix)
 - `Adafruit GFX Library` (dependency)
+
+> The HUB75 library is also **vendored** under `patternflow/src/hub75/`, and that
+> copy is the one that compiles — it carries Patternflow's additions
+> (`resumeDMAoutput()` for sleep, the brightness hook the power clamp uses). The
+> installed/cloned copy only needs to satisfy headers, so its exact version does
+> not matter. See `src/hub75/VENDORED.md`.
 
 The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `WiFiUdp` libraries, so it does not require an extra OSC library.
 
@@ -288,7 +334,11 @@ console page pause the pattern (see the constraints section below).
 Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
 largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
 
-### Current state (v3.1.0, measured on hardware)
+### Current state (v3.1.0, measured on hardware, core 3.x build)
+
+> Heap rows here are core 3.x figures. The same board on a core 2.x build has
+> ~98 KB free / ~90 KB largest with a preset resident, and ~79 KB free with a
+> module resident — the difference between a module loading and being refused.
 
 | | |
 |---|---|
@@ -314,11 +364,19 @@ claim is far smaller:
 ```
 ≈320 KB   Arduino data region (of 512 KB SRAM; rest is cache/ROM/RTOS)
  −92 KB   this firmware's globals (24 KB canvas, fonts, module state…)
- =213 KB  free heap at boot                          ← measured
+ =213 KB  free heap at boot                          ← measured, core 2.x
  −150 KB  HUB75 DMA framebuffers (see below)
  −49 KB   Wi-Fi socket buffers, HTTP, OSC, mDNS…
- ≈ 15 KB  steady-state free internal heap            ← your budget
+ ≈ 15 KB  steady-state free internal heap
 ```
+
+**That last line is a build choice, not a hardware limit.** The figures above
+are the core 3.x picture. Core 2.x gives back roughly 71 KB that IDF 5 takes
+before `setup()` even runs, so the same firmware idles at **~98 KB free,
+90 KB largest block** — see [Required board package](#required-board-package).
+Build on core 2.x and the numbers below stop being the constraint they were.
+Build on core 3.x and they are real, so know which one you measured on before
+concluding a feature is too expensive.
 
 Below roughly **10 KB free**, the web console starts failing in a maddening
 way: every endpoint returns its status line and then hangs, while Wi-Fi, OSC

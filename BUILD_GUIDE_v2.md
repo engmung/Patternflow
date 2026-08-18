@@ -398,7 +398,25 @@ Use this method if you want to modify the firmware source, add custom patterns, 
 #### Prerequisites
 
 - Arduino IDE (latest version)
-- ESP32 board package installed (Tools → Board → Boards Manager → search "esp32")
+- ESP32 board package installed (Tools → Board → Boards Manager → search "esp32") —
+  choose version **2.0.x**, not the latest 3.x
+
+> ⚠️ **Pick core 2.0.x on purpose.** The 3.x core ships a newer ESP-IDF that
+> takes about 71 KB more internal RAM before your sketch starts. On this board
+> that is the difference between a downloaded pattern loading and being refused
+> outright, and between a heavy pattern running smoothly and the web console
+> going unreachable. Measured on the same board, same source: 15 KB free heap on
+> core 3.3.8 versus 99 KB on core 2.0.17.
+>
+> If you would rather not think about it, build with PlatformIO instead —
+> `firmware/patternflow/platformio.ini` pins the right core and fetches the
+> libraries itself:
+>
+> ```bash
+> cd firmware/patternflow && pio run -t upload
+> ```
+>
+> Full detail in [firmware/README.md](firmware/README.md#required-board-package).
 
 #### Board Settings
 
