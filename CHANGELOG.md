@@ -18,6 +18,21 @@ Groundwork for timed performances, built to meet **Simone Majocchi's ([@SimonePD
 - **Module ABI descriptor is now 2** (the appended absolute-param fields). The loader accepts 1 and 2, so every existing `.pfm` keeps loading; **pre-absolute firmware refuses new modules cleanly** instead of misreading them. This is the gate that ties the release to the performance firmware: it ships when devices can update to a loader that accepts it.
 - **MQTT retention now follows the show policy**: knob/pattern topics publish non-retained; the broadcast banner and channel snapshots are the retained exceptions.
 
+## [3.5.1] - 2026-08-19
+
+### Fixed
+- **Every wireless upload was paying a fixed five-second stall.** The core 2.x `WebServer` raw-body loop asks `readBytes()` for a full buffer even on the final chunk, so every pattern install, sidecar and catalog write sat out the 5 s stream timeout (a 447-byte file took 5.4 s; a body of exactly 1,436 bytes took 0.4 s — that probe is what convicted it). The library is now vendored under `src/webserver/` with the core 3.x read-exactly-remaining behaviour; a 29 KB pattern installs in 0.8 s and `/update` doubled to ~107 KB/s. The full investigation — where the core 3 heap went, the dead ends, the probe method — is written up in [docs/investigations/2026-08-core2-heap-and-the-5s-stall.md](docs/investigations/2026-08-core2-heap-and-the-5s-stall.md).
+
+## [3.5.0] - 2026-08-18
+
+### Changed
+- **Releases build on Arduino core 2.x (IDF 4.4) via PlatformIO** (`firmware/patternflow/platformio.ini`). Core 3.x occupies ~71 KB more internal RAM before the sketch starts — mostly cache carve-out — and on this board that was the difference between a large community pattern loading and being refused, and between a heavy pattern running and the console dying. Measured after services: 15,320 B free / 7,668 B largest block on core 3.3.8 against **98,708 / 90,100** on core 2.0.17. No firmware source changed; a `.pfm` needs one contiguous internal executable block, so the largest-block number is the ceiling on pattern size. Local builds should install ESP32 board package **2.0.x**, not latest — the build guides now say so.
+
+## [3.4.9] - 2026-08-18
+
+### Fixed
+- **The browser flasher was still serving v3.4.0, which predates the power clamp** — units flashed from the site between 08-12 and 08-18 could pull ~4.8 A at full white against the "max 2.4 A" printed on the box. This release moves the served image to a build that carries the clamp (`BUDGET_DEFAULT_MA = 2400`, enabled by default), the 13 dBm Wi-Fi TX cap, sleep mode (#314) and the boot latch (#316). Devices flashed from the site in that window need a reflash to pick the clamp up.
+
 ## [3.4.0] - 2026-08-12
 
 Patterns leave the firmware and live on the filesystem, so a board ships nearly empty — and a pack ships with it. **Hardware unchanged**; v3.0 board and case carry over as-is.
