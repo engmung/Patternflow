@@ -756,13 +756,39 @@ public:
   }
 
   /**
-   * Stop the ESP32 DMA Engine. Screen will forever be black until next ESP reboot.
+   * Stop the ESP32 DMA Engine. Upstream says "forever ... until next ESP
+   * reboot" — see resumeDMAoutput() below, which is Patternflow's way back.
    */
   void stopDMAoutput()
   {
     resetbuffers();
     // i2s_parallel_stop_dma(ESP32_I2S_DEVICE);
     dma_bus.dma_transfer_stop();
+  }
+
+  /**
+   * PATTERNFLOW ADDITION (not upstream)
+   *
+   * Restart the DMA engine after stopDMAoutput(), so a stop is a sleep rather
+   * than a one-way trip. This is what makes the firmware's sleep mode possible:
+   * with the transfer stopped the panel's driver ICs stop being clocked at
+   * 15 MHz, which is the part of the idle draw that blanking the framebuffer
+   * cannot touch.
+   *
+   * The pair is symmetric on both supported platforms — dma_transfer_stop()
+   * resets the LCD peripheral and halts the GDMA channel, and this starts the
+   * same channel again from the head of descriptor chain A. It has to live in
+   * the driver because dma_bus is protected.
+   *
+   * Note the restart always resumes at chain A while back_buffer_id is
+   * wherever it was left, so the caller should blank BOTH buffers before
+   * resuming or a stale frame can show for one flip. core_sleep.h does that.
+   */
+  void resumeDMAoutput()
+  {
+    if (!initialized)
+      return;
+    dma_bus.dma_transfer_start();
   }
 
   // ------- PROTECTED -------

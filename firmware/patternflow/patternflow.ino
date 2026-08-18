@@ -13,6 +13,9 @@
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
 #include "src/core_power.h"
+// Drives the panel and the CPU down for sleep mode. Needs core_display.h only,
+// so it sits here rather than tangling with anything on the network side.
+#include "src/core_sleep.h"
 #include "pattern_registry.h"
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
@@ -80,6 +83,23 @@ uint32_t knobMapDrawnAtMs = 0;
 bool knobMapDirty = false;
 uint32_t knobMapActiveAtMs[4] = {0, 0, 0, 0};
 
+// SLEEP: panel off, board idle, still on the network (src/core_sleep.h).
+// Entered by turning K1 on the NETWORK screen, by <prefix>/sleep over MQTT, or
+// by GET /api/display?sleep=1. Woken by any PHYSICAL knob turn or button press
+// — sleepKnobSnapshot is the reference the turn is measured against, because
+// input.knobDeltas has remote deltas merged into it by then and a show still
+// streaming knob values must not switch the lights back on.
+long sleepKnobSnapshot[4] = {0, 0, 0, 0};
+
+// The selected pattern, remembered across sleep and across power-off. Stored as
+// a SLUG rather than an index: installing or deleting one .pfm renumbers the
+// list, so an index would come back as somebody else's pattern. Written on a
+// debounce for the same reason brightness is — spinning K4 through fifty
+// patterns should not be fifty NVS writes.
+bool patternDirty = false;
+uint32_t patternChangedAtMs = 0;
+const uint32_t PATTERN_SAVE_DELAY_MS = 3000;
+
 // Shown whenever no pattern is resident: the web console paused it, or a module
 // refused to load. Before this the render loop simply drew nothing and flipped
 // the buffer anyway, so the panel showed a torn, flickering leftover frame —
@@ -126,6 +146,50 @@ Button* logicalButton(int logicalIdx) {
 // Defined below with the other screens; declared here because setup()
 // installs it as the upload progress callback.
 void drawUpdateScreen(int uploadPct);
+
+// ── Remembering the selected pattern ─────────────────────────────────
+// Mark on every path that moves currentPatternIdx (knob, OSC, MQTT, HTTP); the
+// write itself happens later, from loop(), once the choice has settled.
+void notePatternChanged() {
+  patternDirty = true;
+  patternChangedAtMs = millis();
+}
+
+void savePatternIfSettled() {
+  if (!patternDirty) return;
+  // Not while browsing: in SELECT mode the highlighted pattern is a question,
+  // not an answer.
+  if (currentMode == MODE_SELECTING) return;
+  if ((millis() - patternChangedAtMs) < PATTERN_SAVE_DELAY_MS) return;
+
+  char slug[MODULE_NAME_BYTES];
+  patternSlugAt(currentPatternIdx, slug, sizeof(slug));
+  patternDirty = false;
+  if (!slug[0]) return;
+  prefs.putString("pattern", slug);
+  Serial.printf("[NVS] pattern saved: %s\n", slug);
+}
+
+// Resolve the remembered slug back to a position in the list built this boot.
+// Returns 0 (Origin) whenever that cannot be done — a module the owner deleted
+// since, a pack that was replaced, a first boot. Origin is compiled in
+// precisely so there is always something to fall back to.
+int restoreSavedPatternIdx() {
+  char slug[MODULE_NAME_BYTES] = {};
+  prefs.getString("pattern", slug, sizeof(slug));
+  if (!slug[0]) return 0;
+
+  // findPatternByName matches display name AND slug, so a pattern that was
+  // saved before it had a sidecar name still resolves.
+  int idx = findPatternByName(slug);
+  if (idx < 0) {
+    Serial.printf("[NVS] saved pattern \"%s\" is gone - starting at %s\n",
+                  slug, patterns[0].name);
+    return 0;
+  }
+  Serial.printf("[NVS] restoring pattern: %s\n", patterns[idx].name);
+  return idx;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -204,7 +268,21 @@ void setup() {
   // The calibration test card lives outside the pattern list (it is an overlay
   // summoned by /api/display, not art) but still bakes its tables once here.
   CalibPattern::setup();
-  activatePattern(currentPatternIdx);
+
+  // Back to whatever was running before the power went away. Only meaningful
+  // once the list exists, hence after buildPatternList().
+  currentPatternIdx = restoreSavedPatternIdx();
+  if (!activatePattern(currentPatternIdx) && currentPatternIdx != 0) {
+    // A remembered module that no longer loads (corrupt upload, half-finished
+    // write). The PATTERN FAILED screen is the right answer for a pattern
+    // somebody just picked, and the wrong one for a boot — nobody asked for
+    // this pattern in this session, so fall back rather than greet them with
+    // an error.
+    Serial.printf("[NVS] saved pattern failed to load (%s) - falling back\n",
+                  PFModuleLoader::error());
+    currentPatternIdx = 0;
+    activatePattern(currentPatternIdx);
+  }
 
   Serial.printf("Current Pattern: %s\n", patterns[currentPatternIdx].name);
   lastMs = millis();
@@ -404,15 +482,19 @@ void drawNetworkInfo() {
     drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
   }
 
-  // Hints under a hairline rule — turn to toggle, K4 for the update
-  // screen, click (or hold) K2 to leave.
+  // Hints under a hairline rule — turn to toggle, K1 to sleep, K4 for the
+  // update screen, click (or hold) K2 to leave. Five lines at 9px pitch
+  // instead of the old four at 10: adding SLEEP is what made it tight.
   dma_display->drawFastHLine(4, 82, w - 8, pfRuleC());
-  drawCenteredText("TURN K2/K3", 87, pfDimC(), 1);
-  drawCenteredText("OSC / AUD", 97, pfDimC(), 1);
-  if (PatternflowWebUpdate::isCompiledIn()) {
-    drawCenteredText("K4=UPDATE", 107, pfDimC(), 1);
+  drawCenteredText("TURN K2/K3", 86, pfDimC(), 1);
+  drawCenteredText("OSC / AUD", 95, pfDimC(), 1);
+  if (PatternflowSleep::isCompiledIn()) {
+    drawCenteredText("K1 = SLEEP", 105, pfLedC(), 1);
   }
-  drawCenteredText("K2 = EXIT", 118, pfDimC(), 1);
+  if (PatternflowWebUpdate::isCompiledIn()) {
+    drawCenteredText("K4=UPDATE", 114, pfDimC(), 1);
+  }
+  drawCenteredText("K2 = EXIT", 123, pfDimC(), 1);
 
   dma_display->setRotation(0);
 }
@@ -834,6 +916,98 @@ void loop() {
   bool k3Clicked = logicalButton(2)->clicked();
   bool k4Clicked = logicalButton(3)->clicked();
 
+  // ── SLEEP ──────────────────────────────────────────────────────────
+  // Remote requests land here, not in the MQTT callback that produced them:
+  // stopping a DMA engine and reclocking the CPU inside client.loop() is the
+  // kind of thing this file's history warns about.
+  {
+    bool wantSleep;
+    if (PatternflowMqtt::consumeSleepRequest(wantSleep)) {
+      PatternflowSleep::request(wantSleep);
+    }
+  }
+  // Flashing beats sleeping, in both directions: a device that is being
+  // reflashed does not fall asleep underneath the upload, and one that is
+  // already asleep when an image starts arriving wakes up for it. Sleep stops
+  // the DMA engine, drops the CPU to 80 MHz and paces the loop — none of which
+  // an image being written to flash should have to put up with, and whoever is
+  // flashing wants the UPDATE screen anyway.
+  const bool flashInFlight = PatternflowWebUpdate::isUploading() ||
+                             PatternflowWebUpdate::isRebootPending() ||
+                             PatternflowOta::isInProgress();
+  if (!flashInFlight && PatternflowSleep::applyPending() &&
+      PatternflowSleep::isSleeping()) {
+    // Whatever the knobs read at this moment is "not touched since".
+    for (int i = 0; i < 4; i++) sleepKnobSnapshot[i] = input.knobs[i];
+  }
+  PatternflowMqtt::noteSleep(PatternflowSleep::isSleeping());
+
+  if (PatternflowSleep::isSleeping()) {
+    // input.knobs is the raw physical click count — the one field readInputFrame
+    // never merges OSC/MQTT/audio into. Comparing against the snapshot is what
+    // makes "a hand on the knob wakes it, a show streaming knob values does
+    // not" true rather than approximately true.
+    bool woke = flashInFlight;
+    if (PatternflowSleep::wakeableByInput()) {
+      for (int i = 0; i < 4; i++) {
+        if (input.knobs[i] != sleepKnobSnapshot[i] || input.btnPressed[i]) woke = true;
+      }
+    } else if (!woke) {
+      // Still inside the guard window: keep the snapshot moving with the hand,
+      // so the rest of the K1 turn that asked for sleep doesn't undo it.
+      for (int i = 0; i < 4; i++) sleepKnobSnapshot[i] = input.knobs[i];
+    }
+    if (woke) {
+      PatternflowSleep::wake();
+      // wake() put the panel back to currentBrightness, so the clamp's idea of
+      // what the panel is running at has to agree — otherwise the comparison
+      // below ("allowed != appliedBrightness") sees no change and the panel
+      // sits at full brightness while the clamp believes it is holding it down.
+      appliedBrightness = currentBrightness;
+      // Waking with a press means a button is still down, and it will cross the
+      // long-press threshold about a second from now — opening BRIGHTNESS or
+      // NETWORK on the way out of sleep. Retire the gesture: whatever is held
+      // has already been spent on waking up.
+      for (int i = 0; i < 4; i++) {
+        Button* b = logicalButton(i);
+        if (b->isDown()) b->longPressFired = true;
+        b->clicked();
+      }
+      // A console tab open somewhere has the resident module evicted, and with
+      // Origin the only compiled-in preset that is the ordinary case, not an
+      // exotic one. Left alone, waking would land on the CONSOLE PAUSED card
+      // until the 25 s idle timer fired — so a wake, from any of the three
+      // sources, counts as "give me the panel back". Same request the Play Now
+      // path makes: tick() does the reload from loop(), never from inside an
+      // HTTP transaction.
+      if (PatternflowPatternsHttp::isConsolePaused()) {
+        PatternflowPatternsHttp::requestReload();
+      }
+      // Every throttled screen redraws from scratch on the next frame; their
+      // "drawn at" timestamps are from before the sleep.
+      pausedDirty = true;
+      netInfoDirty = true;
+      knobMapDirty = true;
+      updateDirty = true;
+    }
+    // Asleep: no render, no flip, no power clamp. Everything above this point
+    // — Wi-Fi, OTA, HTTP, MQTT, web update — has already run, which is what
+    // keeps the device reachable while it sleeps.
+    //
+    // The delay is not politeness, it is most of the ESP-side saving: without
+    // it this becomes a busy loop polling sockets flat out at 80 MHz and the
+    // core never idles, so neither modem sleep nor the IDF's clock gating gets
+    // a chance to do anything. Yielding hands the time to the idle task
+    // instead. It costs up to SLEEP_LOOP_DELAY_MS of wake latency on a knob,
+    // which is well under what a hand can notice, and nothing at all on a
+    // flash — that wakes the device outright, just above.
+    if (!woke) delay(PatternflowSleep::LOOP_DELAY_MS);
+    return;
+  }
+
+  // Deferred NVS write for the selected pattern; no-op until the choice settles.
+  savePatternIfSettled();
+
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(0)->longPressed(MODE_HOLD_MS)) {
     brightnessAdjusting = !brightnessAdjusting;
     brightnessIdleAtMs = now;
@@ -890,6 +1064,16 @@ void loop() {
   }
 
   if (oscInfoShowing) {
+    // Turn K1 → sleep. Either direction: the screen is about to go dark, so
+    // "turn right for on" has nothing to mean here, and a person reaching for
+    // the wrong direction should still get what they asked for. Waking is any
+    // knob or button, handled at the top of the loop.
+    if (input.knobDeltas[0] != 0 && PatternflowSleep::isCompiledIn()) {
+      oscInfoShowing = false;
+      PatternflowSleep::request(true);
+      Serial.println(">>> SLEEP requested (K1 on NETWORK screen)");
+    }
+
     // Turn K4 → hand off to the UPDATE screen, which arms the /update
     // endpoint (see core_web_update.h — the arming IS the security model).
     if (input.knobDeltas[3] != 0 && PatternflowWebUpdate::isCompiledIn()) {
@@ -1039,6 +1223,7 @@ void loop() {
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
+    notePatternChanged();
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
@@ -1053,6 +1238,7 @@ void loop() {
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     CalibPattern::overrideOn = false;
+    notePatternChanged();
     Serial.printf(">>> MQTT pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
@@ -1065,6 +1251,7 @@ void loop() {
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
     CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
+    notePatternChanged();
     Serial.printf(">>> HTTP pattern → %s\n", patterns[currentPatternIdx].name);
   }
   bool frameDrawn = true;
@@ -1152,6 +1339,9 @@ void loop() {
       // module costs a read + relocate + setup(). Measure that before deciding
       // whether browsing needs to defer the load until the knob settles.
       activatePattern(currentPatternIdx);
+      // Marked, not written: savePatternIfSettled() holds off until SELECT is
+      // left and the choice has stopped moving.
+      notePatternChanged();
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
     }
 

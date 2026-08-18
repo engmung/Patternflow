@@ -61,6 +61,26 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   .now-k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
   .now{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:7px 0 3px;min-height:29px;overflow-wrap:anywhere}
   .now-sub{font-family:var(--mono);font-size:11px;color:var(--muted);min-height:15px}
+  /* ── Panel switch ─────────────────────────────────────────────
+     A segmented pair, not a sliding toggle: /mqtt already picks between
+     states this way (.ch / .role with an .on class) and this is the same
+     gesture, so the console keeps one vocabulary. It also shows which state
+     you are in rather than asking you to read a label and infer it. */
+  .pwr{display:flex;align-items:center;gap:12px;margin-top:16px;
+       padding-top:13px;border-top:1px solid var(--rule)}
+  .pwr-k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+       text-transform:uppercase;color:var(--faint);flex:1}
+  .pwr-btns{display:flex;gap:6px}
+  .pwr-b{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+       text-transform:uppercase;padding:6px 14px;cursor:pointer;
+       background:transparent;color:var(--muted);border:1px solid var(--rule);
+       transition:color .15s ease,border-color .15s ease}
+  .pwr-b:hover{color:var(--ink);border-color:var(--muted)}
+  .pwr-b.on{color:var(--ink);border-color:var(--led);box-shadow:inset 0 0 0 1px var(--led)}
+  .pwr-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);
+       min-height:14px;margin-top:7px}
+  .pwr-note.err{color:var(--led)}
+
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:16px}
   .stat{padding:10px 0 9px;border-top:1px solid var(--rule)}
   .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -126,6 +146,16 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
     <span class="now-k">Now playing</span>
     <div class="now" id="now">&mdash;</div>
     <div class="now-sub" id="nowsub"></div>
+
+    <div class="pwr">
+      <span class="pwr-k">Panel</span>
+      <div class="pwr-btns">
+        <button class="pwr-b" id="p-on" type="button">On</button>
+        <button class="pwr-b" id="p-sleep" type="button">Sleep</button>
+      </div>
+    </div>
+    <div class="pwr-note" id="pwrnote"></div>
+
     <div class="stats">
       <div class="stat"><span class="k">Patterns</span><div class="v" id="s-pat">&mdash;</div></div>
       <div class="stat"><span class="k">Storage</span><div class="v" id="s-fs">&mdash;</div>
@@ -216,10 +246,17 @@ function tick(){
   if(document.hidden)return;
   fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
     if(s.version)$('ver').textContent='v'+s.version;
-    // While this page is open the pattern is deliberately paused (the
-    // console borrows its RAM) — say so instead of showing a make-believe
-    // frame rate from the paused loop.
-    if(s.consolePaused){
+    // Three states, in the order the device resolves them. Asleep outranks
+    // paused: a sleeping device is asleep whatever this page is doing to its
+    // memory, and the frame rate below would be a number from before it went
+    // dark either way.
+    if(s.sleep){
+      $('now').textContent='Asleep';
+      $('nowsub').textContent=s.active?(s.active+' resumes on wake'):'panel off';
+    }else if(s.consolePaused){
+      // While this page is open the pattern is deliberately paused (the
+      // console borrows its RAM) — say so instead of showing a make-believe
+      // frame rate from the paused loop.
       $('now').textContent='Paused';
       $('nowsub').textContent='resumes when you close the console';
     }else{
@@ -227,6 +264,7 @@ function tick(){
       $('nowsub').textContent=(s.frameUs?Math.round(1e6/s.frameUs)+' fps · ':'')+
         (s.activeIsModule?'module':'built in');
     }
+    paintPower(s.sleep);
     $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
     if(s.fsMounted){
       $('s-fs').textContent=Math.round((s.fsTotal-s.fsUsed)/1048576*10)/10+' MB free';
@@ -243,6 +281,45 @@ function tick(){
     checkUpdate(s.version);
   }).catch(function(){$('nowsub').textContent='cannot reach device'});
 }
+
+// ── Panel switch ──────────────────────────────────────────────
+// The switch is a VIEW of the device's state, not its own truth: K1 on the
+// device and an MQTT message change the same thing, and the 3 s poll is what
+// keeps this honest when they do.
+//
+// The one exception is the moment after a click. POST /api/sleep only queues
+// the transition — loop() performs it on its next pass — so a poll landing in
+// between still reports the old value and would snap the switch back under the
+// cursor. settleUntil suppresses that for a beat, which is long enough for the
+// device to have actually moved.
+var settleUntil=0;
+function paintPower(asleep,force){
+  if(!force&&Date.now()<settleUntil)return;
+  $('p-on').className='pwr-b'+(asleep?'':' on');
+  $('p-sleep').className='pwr-b'+(asleep?' on':'');
+}
+function note(t,cls){$('pwrnote').textContent=t||'';$('pwrnote').className='pwr-note'+(cls?' '+cls:'')}
+function setPower(asleep){
+  settleUntil=Date.now()+1500;
+  paintPower(asleep,true);
+  note(asleep?'sleeping…':'waking…');
+  fetch('/api/sleep',{method:'POST',cache:'no-store',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'on='+(asleep?'1':'0')})
+    .then(function(r){if(!r.ok)throw 0;return r.json()})
+    .then(function(){
+      note(asleep?'panel off — any knob or button wakes it':'');
+      // Confirm from the device rather than trusting the optimistic paint.
+      setTimeout(function(){settleUntil=0;tick()},600);
+    })
+    .catch(function(){
+      settleUntil=0;
+      note('cannot reach device','err');
+      tick();
+    });
+}
+$('p-on').addEventListener('click',function(){setPower(false)});
+$('p-sleep').addEventListener('click',function(){setPower(true)});
 
 // ── Update check (runs in the browser, never on the device) ───
 var updChecked=false;

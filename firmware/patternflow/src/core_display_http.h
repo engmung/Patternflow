@@ -7,6 +7,11 @@
 // Params: wb_r wb_g wb_b (0..1.5) · gamma_r gamma_g gamma_b (0.2..5) ·
 //         sat (0..4) · screen (0..3 summons the test-card overlay, -1
 //         dismisses it) · level (8..255, WHITE screen drive).
+//
+// Reports "sleep" read-only, because a dark panel is the first thing to rule
+// out while tuning. SETTING it lives on POST /api/sleep (core_status_http.h) —
+// this endpoint is independently compile-out-able, and the console's switch
+// must not disappear with it.
 //         Color values land in PFCanvas's runtime calibration
 //         state; present() rebuilds its LUT lazily, so the handler does no
 //         per-pixel work. Values are session-only — reboot restores the
@@ -39,6 +44,7 @@
 #if PF_STATUS_HTTP_ENABLED && PF_DISPLAY_HTTP_ENABLED
 #include "core_canvas.h"
 #include "core_power.h"             // total power clamp: budget + telemetry
+#include "core_sleep.h"             // panel-off / low-power state
 #include "core_status_http.h"       // shared WebServer
 #include "../presets/preset_calib.h"  // absolute screen/level control
 #endif
@@ -49,7 +55,13 @@ extern uint8_t currentBrightness;
 
 namespace PatternflowDisplayHttp {
 
-#if PF_STATUS_HTTP_ENABLED
+// Both flags, as the #else and #endif below have always claimed. This guard
+// had lost the second one, so -DPF_DISPLAY_HTTP_ENABLED=0 — documented at the
+// top of this file as a supported build — skipped the includes and then
+// compiled the endpoint anyway, because everything it needs also arrives
+// through the sketch's other headers. The flag produced a byte-identical
+// binary and the endpoint stayed live.
+#if PF_STATUS_HTTP_ENABLED && PF_DISPLAY_HTTP_ENABLED
 
 inline WebServer& server() { return PatternflowStatusHttp::server(); }
 
@@ -107,11 +119,12 @@ inline void handleDisplay() {
 
   // snprintf, not String: this endpoint is hit continuously while somebody
   // drags a slider, and the shared heap is the scarcest thing on the board.
-  char json[384];
+  char json[448];
   snprintf(json, sizeof(json),
            "{\"wb_r\":%.3f,\"wb_g\":%.3f,\"wb_b\":%.3f,"
            "\"gamma_r\":%.3f,\"gamma_g\":%.3f,\"gamma_b\":%.3f,"
            "\"sat\":%.3f,\"brightness\":%u,\"calib\":%d,\"screen\":%d,\"level\":%d,"
+           "\"sleep\":%d,"
            "\"power_limit\":%d,\"power_budget\":%u,\"power_ma\":%u,"
            "\"power_demand\":%u,\"power_limiting\":%d,\"power_applied\":%u}",
            PFCanvas::wbR, PFCanvas::wbG, PFCanvas::wbB,
@@ -119,6 +132,7 @@ inline void handleDisplay() {
            PFCanvas::satBoost, (unsigned)currentBrightness,
            CalibPattern::overrideOn ? 1 : 0,
            CalibPattern::screen, CalibPattern::whiteLevel,
+           PatternflowSleep::isSleeping() ? 1 : 0,
            PatternflowPower::enabled ? 1 : 0,
            (unsigned)PatternflowPower::budgetMa,
            (unsigned)PatternflowPower::estimateMa,

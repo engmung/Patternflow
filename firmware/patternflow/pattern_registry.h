@@ -453,6 +453,62 @@ inline bool activatePattern(int index) {
   return true;
 }
 
+// ── Naming a pattern from outside the list ───────────────────────────
+// Two callers need to talk about a pattern by something other than its index:
+// MQTT (which addresses patterns by name or slug on the wire) and the sketch's
+// pattern persistence (which writes a slug to NVS, because an index means a
+// different pattern the moment a module is installed or deleted). These used
+// to live in core_mqtt.h, which made persistence depend on MQTT being compiled
+// in — they are registry knowledge, so they live with the registry.
+
+// "/patterns/cell_ripple.pfm" -> "cell_ripple". Empty for a preset.
+inline void slugFromModulePath(const char* path, char* out, size_t n) {
+  if (!path || !path[0]) { out[0] = '\0'; return; }
+  const char* filename = strrchr(path, '/');
+  snprintf(out, n, "%s", filename ? filename + 1 : path);
+  char* extension = strrchr(out, '.');
+  if (extension) *extension = '\0';
+}
+
+// A module's slug, or a slugified display name for a preset (which has no file
+// to take one from).
+inline void patternSlugAt(int index, char* out, size_t n) {
+  out[0] = '\0';
+  if (index < 0 || index >= NUM_PATTERNS || !patterns) return;
+  slugFromModulePath(patterns[index].modulePath, out, n);
+  if (out[0]) return;
+  const char* name = patterns[index].name ? patterns[index].name : "";
+  size_t j = 0;
+  for (size_t i = 0; name[i] && j + 1 < n; ++i) {
+    char c = name[i];
+    if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+    if (c == ' ' || c == '-') c = '_';
+    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+      out[j++] = c;
+    }
+  }
+  out[j] = '\0';
+}
+
+// Exact display name, then case-insensitive display name, then slug. The order
+// matters: a pattern whose name happens to match another's slug should still
+// resolve to itself.
+inline int findPatternByName(const char* name) {
+  if (!name || !name[0] || !patterns) return -1;
+  for (int i = 0; i < NUM_PATTERNS; ++i) {
+    if (patterns[i].name && strcmp(patterns[i].name, name) == 0) return i;
+  }
+  for (int i = 0; i < NUM_PATTERNS; ++i) {
+    if (patterns[i].name && strcasecmp(patterns[i].name, name) == 0) return i;
+  }
+  char slug[MODULE_NAME_BYTES];
+  for (int i = 0; i < NUM_PATTERNS; ++i) {
+    slugFromModulePath(patterns[i].modulePath, slug, sizeof(slug));
+    if (slug[0] && strcasecmp(slug, name) == 0) return i;
+  }
+  return -1;
+}
+
 inline void updateActivePattern(float dt, const InputFrame& input) {
   if (activePatternIdx < 0) return;
   const PatternEntry& entry = patterns[activePatternIdx];

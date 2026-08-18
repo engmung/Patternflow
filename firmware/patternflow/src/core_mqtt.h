@@ -7,6 +7,8 @@
 //   <prefix>/pattern     display name (live; non-retain)
 //   <prefix>/message     banner text (broadcast: retain; channels: live)
 //   <prefix>/param/1..4  absolute 0..1000 (live; non-retain)
+//   <prefix>/sleep       in: 1/on/true/sleep · 0/off/false/wake · toggle
+//   <prefix>/sleep/state out: 0 or 1, published on every change (non-retain)
 //   <prefix>/snapshot    compact JSON mid-join state (channels 1–5 only; retain)
 //   Director-only (local broker, not the public ACL):
 //   <prefix>/query       panel → inventory
@@ -22,6 +24,11 @@
 //   Off         socket closed
 //   Publisher   sends knobs + pattern (+ Live snapshot heartbeat)
 //   Subscriber  applies snapshot (on channels) then follows live topics
+//
+// /message and /sleep are obeyed in EITHER role, unlike the knob and pattern
+// topics. Both are "tell the panels something" rather than "mirror this panel",
+// and a panel that publishes its knobs is still a panel you want to be able to
+// switch off from home automation.
 //
 // Channel presets set the prefix: patternflow / patternflow1..4 / patternflow5.
 // Channels 1–4 force Subscriber; Broadcast and Live allow Pub or Sub.
@@ -99,6 +106,12 @@ inline bool haveKnob[4] = {false, false, false, false};
 inline long lastRemoteKnob[4] = {0, 0, 0, 0};
 inline int32_t pendingKnobDelta[4] = {0, 0, 0, 0};
 inline int pendingPatternIdx = -1;
+// -1 nothing pending, 0 wake, 1 sleep — consumed by the sketch, which owns the
+// actual transition (see core_sleep.h on why a callback must not do it).
+inline int8_t pendingSleep = -1;
+// Last sleep state published, so noteSleep() can dedupe the same way
+// notePattern() does. -1 = nothing published on this connection yet.
+inline int8_t publishedSleep = -1;
 inline char overlayText[MESSAGE_BYTES] = {};
 inline uint32_t overlayExpiresMs = 0;
 inline bool overlaySticky = false;
@@ -270,6 +283,14 @@ inline void topicParam(char* buf, size_t n, int index) {
   snprintf(buf, n, "%s/param/%d", livePrefix(), index + 1);
 }
 
+inline void topicSleep(char* buf, size_t n) {
+  snprintf(buf, n, "%s/sleep", livePrefix());
+}
+
+inline void topicSleepState(char* buf, size_t n) {
+  snprintf(buf, n, "%s/sleep/state", livePrefix());
+}
+
 inline void topicSnapshot(char* buf, size_t n) {
   snprintf(buf, n, "%s/snapshot", livePrefix());
 }
@@ -307,6 +328,12 @@ inline bool topicIsPattern(const char* topic) {
 inline bool topicIsMessage(const char* topic) {
   char expected[48];
   topicMessage(expected, sizeof(expected));
+  return topic && strcmp(topic, expected) == 0;
+}
+
+inline bool topicIsSleep(const char* topic) {
+  char expected[48];
+  topicSleep(expected, sizeof(expected));
   return topic && strcmp(topic, expected) == 0;
 }
 
@@ -350,31 +377,10 @@ inline int topicParamIndex(const char* topic) {
   return strcmp(topic, expected) == 0 ? (n - 1) : -1;
 }
 
-inline void slugFromModulePath(const char* path, char* out, size_t n) {
-  if (!path || !path[0]) { out[0] = '\0'; return; }
-  const char* filename = strrchr(path, '/');
-  snprintf(out, n, "%s", filename ? filename + 1 : path);
-  char* extension = strrchr(out, '.');
-  if (extension) *extension = '\0';
-}
-
-inline void patternSlugAt(int index, char* out, size_t n) {
-  out[0] = '\0';
-  if (index < 0 || index >= NUM_PATTERNS || !patterns) return;
-  slugFromModulePath(patterns[index].modulePath, out, n);
-  if (out[0]) return;
-  const char* name = patterns[index].name ? patterns[index].name : "";
-  size_t j = 0;
-  for (size_t i = 0; name[i] && j + 1 < n; ++i) {
-    char c = name[i];
-    if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
-    if (c == ' ' || c == '-') c = '_';
-    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
-      out[j++] = c;
-    }
-  }
-  out[j] = '\0';
-}
+// slugFromModulePath(), patternSlugAt() and findPatternByName() used to live
+// here. They are registry knowledge and pattern persistence needs them without
+// MQTT, so they moved to pattern_registry.h — which this file is included
+// after, so the unqualified calls below still resolve.
 
 inline void jsonEscape(const char* in, char* out, size_t n) {
   size_t j = 0;
@@ -395,8 +401,6 @@ inline void requestInventory() {
   if (!isDirectorMode()) return;
   inventorySendIdx = -1;
 }
-
-inline int findPatternByName(const char* name);
 
 inline void publishSelectAck(uint8_t matched, uint8_t presets, uint8_t missing) {
   if (!client.connected()) return;
@@ -513,22 +517,6 @@ inline void pumpInventory() {
   inventorySendIdx = -2;
 }
 
-inline int findPatternByName(const char* name) {
-  if (!name || !name[0] || !patterns) return -1;
-  for (int i = 0; i < NUM_PATTERNS; ++i) {
-    if (patterns[i].name && strcmp(patterns[i].name, name) == 0) return i;
-  }
-  for (int i = 0; i < NUM_PATTERNS; ++i) {
-    if (patterns[i].name && strcasecmp(patterns[i].name, name) == 0) return i;
-  }
-  char slug[NAME_BYTES];
-  for (int i = 0; i < NUM_PATTERNS; ++i) {
-    slugFromModulePath(patterns[i].modulePath, slug, sizeof(slug));
-    if (slug[0] && strcasecmp(slug, name) == 0) return i;
-  }
-  return -1;
-}
-
 inline void applyRemoteKnob(int index, long remote) {
   if (index < 0 || index > 3) return;
   int32_t delta;
@@ -616,6 +604,39 @@ inline void applyHeldMessage(const char* text) {
   snprintf(overlayText, sizeof(overlayText), "%s", text);
   overlaySticky = true;
   overlayExpiresMs = 0;
+}
+
+// <prefix>/sleep. Accepts the spellings a person or an automation actually
+// sends: 1/0, on/off, true/false, sleep/wake, and toggle. Anything else is
+// ignored rather than guessed at — a typo should not black out a panel.
+inline void applyRemoteSleep(uint8_t* payload, unsigned int length) {
+  char body[16];
+  unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
+  memcpy(body, payload, n);
+  body[n] = '\0';
+  while (n && (body[n - 1] == '\n' || body[n - 1] == '\r' || body[n - 1] == ' ')) {
+    body[--n] = '\0';
+  }
+  const char* value = body;
+  while (*value == ' ') value++;
+  if (!value[0]) return;
+
+  if (strcasecmp(value, "toggle") == 0) {
+    // Against the last state we published, which is the one the sender saw.
+    pendingSleep = publishedSleep == 1 ? 0 : 1;
+    return;
+  }
+  if (strcmp(value, "1") == 0 || strcasecmp(value, "on") == 0 ||
+      strcasecmp(value, "true") == 0 || strcasecmp(value, "sleep") == 0) {
+    pendingSleep = 1;
+    return;
+  }
+  if (strcmp(value, "0") == 0 || strcasecmp(value, "off") == 0 ||
+      strcasecmp(value, "false") == 0 || strcasecmp(value, "wake") == 0) {
+    pendingSleep = 0;
+    return;
+  }
+  Serial.printf("[MQTT] ignoring sleep payload \"%s\"\n", value);
 }
 
 // Minimal snapshot parser — looks for "pattern", "param":[a,b,c,d], "message".
@@ -720,6 +741,12 @@ inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
     applyRemoteMessage(payload, length);
     return;
   }
+  if (topicIsSleep(topic)) {
+    // Above the role check on purpose: a Publisher is still a panel somebody
+    // wants to be able to switch off. See the roles note in the header.
+    applyRemoteSleep(payload, length);
+    return;
+  }
   if (topicIsSnapshot(topic)) {
     // Snapshot is useful for any connected role on a channel (mid-join).
     applyRemoteSnapshot(payload, length);
@@ -775,6 +802,12 @@ inline void publishParam(int index, uint16_t value) {
   client.publish(topic, payload, retainLeafTopic());
 }
 
+inline void publishSleepState(bool asleep) {
+  char topic[56];
+  topicSleepState(topic, sizeof(topic));
+  client.publish(topic, asleep ? "1" : "0", retainLeafTopic());
+}
+
 inline void publishChannelSnapshot(bool force) {
   if (!retainSnapshotTopic()) return;
   if (role != ROLE_PUBLISHER || !client.connected()) return;
@@ -818,9 +851,13 @@ inline void ensureClientId() {
            (unsigned)((mac >> 24) & 0xFFFFFF));
 }
 
+// The two topics both roles obey. Kept together so a role path cannot end up
+// listening for a banner but not for "lights out".
 inline void subscribeMessage() {
   char topic[48];
   topicMessage(topic, sizeof(topic));
+  client.subscribe(topic);
+  topicSleep(topic, sizeof(topic));
   client.subscribe(topic);
 }
 
@@ -861,6 +898,8 @@ inline void unsubscribeAll() {
   if (!client.connected() || livePrefix()[0] == '\0') return;
   char topic[48];
   topicMessage(topic, sizeof(topic));
+  client.unsubscribe(topic);
+  topicSleep(topic, sizeof(topic));
   client.unsubscribe(topic);
   topicPattern(topic, sizeof(topic));
   client.unsubscribe(topic);
@@ -963,6 +1002,11 @@ inline void resetSessionState() {
     pendingKnobDelta[i] = 0;
   }
   pendingPatternIdx = -1;
+  pendingSleep = -1;
+  // Forget what was published so the sketch's next noteSleep() re-announces on
+  // this connection. Cheaper and less fragile than a burst that has to know
+  // the sleep state itself.
+  publishedSleep = -1;
   publishedPattern[0] = '\0';
   overlayText[0] = '\0';
   overlayExpiresMs = 0;
@@ -1275,6 +1319,13 @@ inline bool consumePatternIdx(int& outIdx) {
   return true;
 }
 
+inline bool consumeSleepRequest(bool& outSleep) {
+  if (pendingSleep < 0) return false;
+  outSleep = pendingSleep == 1;
+  pendingSleep = -1;
+  return true;
+}
+
 inline void update(const InputFrame& input, const char* contentName) {
   for (int i = 0; i < 4; ++i) lastKnobs[i] = input.knobs[i];
   if (contentName) snprintf(lastPattern, sizeof(lastPattern), "%s", contentName);
@@ -1294,12 +1345,28 @@ inline void notePattern(const char* contentName) {
   publishChannelSnapshot(true);
 }
 
+// Mirror of notePattern() for the sleep state, with two differences: it runs in
+// EITHER role (a Subscriber panel is exactly the one an automation wants a
+// state from), and the first call after a connect always publishes, because
+// resetSessionState() clears what was published.
+//
+// Called every loop; the dedupe is what keeps that from being a publish per
+// frame.
+inline void noteSleep(bool asleep) {
+  const int8_t next = asleep ? 1 : 0;
+  if (!client.connected() || role == ROLE_OFF) return;
+  if (publishedSleep == next) return;
+  publishedSleep = next;
+  publishSleepState(asleep);
+}
+
 #else
 
 inline void begin() {}
 inline void handle() {}
 inline void update(const InputFrame&, const char*) {}
 inline void notePattern(const char*) {}
+inline void noteSleep(bool) {}
 inline void setRole(Role) {}
 inline void applyChannel(Channel, Role) {}
 inline void loadConfig() {}
@@ -1345,6 +1412,7 @@ inline void lastParamsCopy(uint16_t out[4], bool activeOut[4]) {
 }
 inline int32_t consumeKnobDelta(int) { return 0; }
 inline bool consumePatternIdx(int& outIdx) { return false; }
+inline bool consumeSleepRequest(bool& outSleep) { return false; }
 inline void applyRemoteParam(int, long) {}
 inline void applyHeldMessage(const char*) {}
 inline void clearAbsoluteAll() {}

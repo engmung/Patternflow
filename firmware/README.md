@@ -62,9 +62,12 @@ firmware/
 │       ├── core_mem.h           # PSRAM-first allocator (PFMem)
 │       ├── core_tables.h        # Panel-space polar tables (host-owned, 32 KB each)
 │       ├── core_module_loader.h # ELF loader/relocator for .pfm modules
+│       ├── core_power.h         # Total power clamp (measures demand, caps brightness)
+│       ├── core_sleep.h         # Sleep mode: panel off, board idle, still on the network
 │       ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
 │       ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
 │       ├── core_osc.h           # OSC sidechannel (UDP)
+│       ├── core_mqtt.h          # MQTT sidechannel (knobs, pattern, params, sleep)
 │       ├── core_audio_ws.h      # Shared port-80 WebServer + audio-react WebSocket
 │       ├── core_web_update.h    # Browser self-update (/update)
 │       ├── core_patterns_http.h # Module manager (/patterns + /api/patterns)
@@ -509,6 +512,7 @@ For the original defaults:
 - **Encoder 2 longpress (≥1s)** — enter/exit the NETWORK screen (portrait status view: Wi-Fi state, local IP, OSC on/off and its remote host/port, audio-react on/off). Inside the screen, settings are toggled by **knob rotation, not clicks** — right = ON, left = OFF — so that holding K2 to leave can't flip anything on the way out:
   - **turn K2** → OSC send/receive on/off (persists in NVS, so the device reboots into the same state). Wi-Fi stays connected either way; the toggle only enables/disables traffic. If the firmware was built with `PF_OSC_ENABLED 0` the row still shows but the toggle is inert ("REBUILD WITH PF_OSC_ENABLED=1").
   - **turn K3** → audio-react on/off (also persisted).
+  - **turn K1** → sleep (see [Sleep mode](#sleep-mode) below). Either direction, unlike the toggles above: the screen is about to go dark, so "right = on" has nothing to mean.
   - **turn K4** → hand off to the UPDATE screen, which arms the `/update` endpoint (the arming *is* the security model — see `core_web_update.h`).
 
   Exits on a second K2 longpress, a **K2 click**, or after 8 seconds of idle.
@@ -526,6 +530,85 @@ There used to be a fast-spin multiplier here (×2 to ×5 as the gap between dete
 There is no global short-press handler. Each pattern decides what `K1..K4 short press` does for itself, by reading `input.btnPressed[i]` inside its `update()`. The built-in patterns (`Origin`, `Wave Saw`) use short press to reset the corresponding parameter to its default. A pattern that does not handle `btnPressed` — most of the curated presets — simply ignores short presses.
 
 When you generate a new pattern from the Live Editor, the conversion prompt does not force a particular short-press convention — if you want one, either ask for it in the prompt ("K1 short press resets hue") or add the line by hand in `update()`.
+
+## Sleep mode
+
+`src/core_sleep.h`. The panel goes dark and the board idles, without anything being unplugged, and it stays **on the network** the whole time.
+
+That last part is the design decision. `esp_deep_sleep` would take the draw to microamps, but it takes the radio with it, and then the only way back is a button — which is exactly what "switch the lights off from the sofa" needs not to be true. So sleep here means:
+
+| | |
+| :--- | :--- |
+| **Panel** | framebuffer blanked, brightness 0, HUB75 DMA transfer stopped |
+| **Wi-Fi** | modem sleep — still associated, wakes on its DTIM beacon |
+| **CPU** | 80 MHz, the floor at which the radio still works |
+| **`loop()`** | returns early and yields 20 ms; no render, no flip, no power clamp |
+
+Stopping the DMA transfer is what makes this worth more than blanking. The LEDs are most of the draw and blanking collects that, but with the transfer running the panel's driver ICs are clocked at 15 MHz forever, lit or not. `core_power.h` puts that idle floor at ~550 mA against ~1900 mA for a bright pattern.
+
+The yield is not politeness either: without it the sleeping loop polls sockets flat out and the core never idles, so neither modem sleep nor the IDF's clock gating gets a chance.
+
+### Entering and leaving
+
+| Enter | Leave |
+| :--- | :--- |
+| the **On / Sleep** switch on the console home page (`/`) | the same switch |
+| NETWORK screen (hold K2) → turn K1 | any **physical** knob turn or button press |
+| MQTT `<prefix>/sleep` ← `1` / `on` / `true` / `sleep` / `toggle` | same topic ← `0` / `off` / `false` / `wake` |
+| `POST /api/sleep` ← `on=1` (also `on=toggle`) | `POST /api/sleep` ← `on=0` |
+| | a firmware image starting to arrive (web update or `espota`) |
+
+"Physical" is meant literally: waking checks the raw encoder counters, not `input.knobDeltas`, because remote OSC/MQTT/audio deltas are merged into that field by the time the input frame exists. A show still streaming knob values at a sleeping panel must not switch the lights back on. Input is ignored for the first 800 ms so the second detent of the K1 turn that started the sleep doesn't end it.
+
+Sleep is never entered while an image is being written to flash, and a device already asleep wakes when one starts arriving — whoever is flashing wants the UPDATE screen anyway.
+
+The state is **not** persisted: a device unplugged while asleep boots awake, because a panel that stays dark after you plug it in reads as broken.
+
+### Waking gives the pattern back
+
+Opening any console page evicts the resident module to free DRAM (`noteConsolePageOpened()`), and with Origin the only compiled-in preset, the pattern you are running is almost always a module — so this is the ordinary case, not an exotic one. Left alone, waking with a console tab open would land the panel on the `CONSOLE PAUSED` card until the 25-second idle timer fired.
+
+So a wake — from *any* of the three sources, not just the web switch — asks for the pattern back via `PatternflowPatternsHttp::requestReload()`, the same path the console's Play Now button uses. The reload happens in `tick()` from `loop()`, never inside an HTTP transaction.
+
+### The switch, and why `/api/sleep` is its own endpoint
+
+The console home page carries an **On / Sleep** pair in the device card, styled like `/mqtt`'s channel buttons — the console's existing way of picking between states. It is a *view* of the device's state: K1 and MQTT change the same thing, and the page's 3-second `/api/status` poll follows them within a beat.
+
+`POST /api/sleep` only *queues* the transition (`PatternflowSleep::request()`), so its reply reports the state as it stands, not as it will be — stopping a DMA engine and reclocking the CPU belong in `loop()`, not inside an open response. The page therefore paints optimistically and suppresses the poll for 1.5 s, or the reply would snap the switch back under the cursor.
+
+Sleep control deliberately does **not** live on `/api/display`, where the plumbing first landed. That endpoint is independently compile-out-able (`-DPF_DISPLAY_HTTP_ENABLED=0`), which would leave the switch dead in a build with an otherwise complete console — and sleep is a power state, not a display calibration. `/api/display` still *reports* `sleep`, read-only, because a dark panel is the first thing to rule out while tuning.
+
+### MQTT
+
+`<prefix>/sleep` is obeyed in **either** role, unlike the knob and pattern topics — a panel set to Publisher is still a panel you want to be able to switch off. It is a broadcast for the same reason `<prefix>/message` is: one `1` on a shared prefix sleeps every panel on it. Give a panel its own prefix if that is not what you want, and send the command non-retained unless you really do want panels coming back asleep after every reconnect.
+
+The device publishes `<prefix>/sleep/state` (`0` or `1`, non-retained) on every change and once per connection — enough for a Home Assistant switch.
+
+```bash
+mosquitto_pub -h <broker> -t patternflow/sleep -m 1
+mosquitto_sub -h <broker> -t 'patternflow/sleep/state'
+```
+
+Unrecognised payloads are ignored rather than guessed at; a typo should not black out a panel.
+
+### Compile-time flags (`config.h`)
+
+| Flag | Default | Meaning |
+| :--- | :--- | :--- |
+| `PF_SLEEP_ENABLED` | `1` | compile the feature in at all |
+| `PF_SLEEP_STOP_DMA` | `1` | stop the HUB75 transfer, not just blank. **Set to 0 if the panel comes back black or garbled after waking** — sleep then blanks only, which is safe on any panel and still saves the LED current |
+| `PF_SLEEP_CPU_MHZ` | `80` | clock while asleep; `0` disables the switch |
+| `PF_AWAKE_CPU_MHZ` | `240` | clock restored on wake |
+
+`PF_SLEEP_STOP_DMA` depends on `resumeDMAoutput()`, a Patternflow addition to the vendored HUB75 driver — upstream's `stopDMAoutput()` is a one-way trip. See `src/hub75/VENDORED.md`.
+
+## Remembering the selected pattern
+
+The pattern you left running comes back after a sleep and after a full power cut. It is stored in NVS as a **slug**, not an index: installing or deleting one `.pfm` renumbers the whole list, so an index would come back as somebody else's pattern. Resolution on boot goes through `findPatternByName()` in `pattern_registry.h`, which matches display name and slug alike.
+
+The write is debounced — it waits until SELECT mode is left and the choice has been still for 3 seconds — so spinning K4 through fifty patterns is one NVS write, not fifty. Brightness has used the same shape for longer.
+
+A remembered pattern that is gone, or that no longer loads, falls back to Origin with a log line. The PATTERN FAILED screen is the right answer for a pattern somebody just picked and the wrong one for a boot: nobody asked for it in this session.
 
 ## Audio-react WebSocket Control
 
@@ -719,7 +802,7 @@ This hardcodes the OTA port to 3232 (which is what ArduinoOTA always listens on 
 Things that fit cleanly on top of the current foundation. Not promises — just a record of what becomes easy once `PFCanvas`, `PFMath`, `PFColor`, `PFNoise`, and the OSC sidechannel are in place. Roughly ordered by value-per-effort.
 
 ### D. NVS preset save / restore (per pattern)
-Each pattern's last knob values are lost on reboot. Save them to NVS on change (debounced), load them in each pattern's `setup()`. Patterns wake up where they left off. The brightness slot already proves the NVS plumbing.
+*Which* pattern was running now survives a reboot, but its knob values do not — patterns integrate `knobDeltas` into their own namespace statics and nothing can read those back out generically. Doing this properly means each pattern saving its own values on change (debounced) and loading them in `setup()`. The brightness and pattern slots already prove the NVS plumbing; the absolute param bus (`PFParams`) is the one existing path that could carry values in the other direction, for `absoluteReady` patterns.
 
 ### E. Merge `patternflow_stream` into the main firmware
 `patternflow_stream/` is a separate sketch that receives pixels over WebSocket. With the new `ContentMode` shape it could be a third mode (`CONTENT_STREAM`) inside the main sketch, so one firmware build serves patterns, video, and live streaming. Larger change; worth it once a use case actually wants both.
