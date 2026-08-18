@@ -100,6 +100,24 @@ bool patternDirty = false;
 uint32_t patternChangedAtMs = 0;
 const uint32_t PATTERN_SAVE_DELAY_MS = 3000;
 
+// Restoring a module at boot is not the same risk as picking one by hand.
+// Loading any .pfm drops internal heap from ~14 KB to ~5 KB (measured), which
+// is under what the console needs to send a page and low enough that a printf
+// can fail to allocate its lock and abort() — so a pattern that is merely
+// marginal can take the board down a few seconds after it starts. Picked by
+// hand that is a crash you reboot out of; remembered, the reboot restores the
+// same pattern and does it again, every 4 seconds, with the console alive too
+// briefly to fix anything. Only a full NVS erase gets out of that, which no
+// owner can do.
+//
+// So the restore arms a latch first and disarms it once the pattern has run
+// long enough to be trusted. A boot that finds the latch still armed knows the
+// previous boot did not survive its own remembered pattern, and forgets it.
+// Origin is compiled in and cannot fail this way, so remembering it costs no
+// NVS traffic at all.
+bool patternLatchArmed = false;
+const uint32_t PATTERN_LATCH_CLEAR_MS = 15000;
+
 // Shown whenever no pattern is resident: the web console paused it, or a module
 // refused to load. Before this the render loop simply drew nothing and flipped
 // the buffer anyway, so the panel showed a torn, flickering leftover frame —
@@ -187,8 +205,38 @@ int restoreSavedPatternIdx() {
                   slug, patterns[0].name);
     return 0;
   }
+
+  // Presets cannot exhaust the heap the way a module can, so pattern 0 skips
+  // the latch entirely and a default board never writes NVS on boot.
+  if (idx != 0) {
+    if (prefs.getBool("pat_trying", false)) {
+      // Armed from the previous boot and never disarmed: that boot died with
+      // this pattern resident. Forget it rather than repeat the crash — the
+      // owner can pick it again, and if it was a one-off nothing is lost but
+      // the memory of it.
+      prefs.remove("pattern");
+      prefs.putBool("pat_trying", false);
+      Serial.printf("[NVS] \"%s\" did not survive the last boot - forgetting it, "
+                    "starting at %s\n",
+                    slug, patterns[0].name);
+      return 0;
+    }
+    prefs.putBool("pat_trying", true);
+    patternLatchArmed = true;
+  }
+
   Serial.printf("[NVS] restoring pattern: %s\n", patterns[idx].name);
   return idx;
+}
+
+// Disarm once the restored pattern has run long enough that the crash this
+// guards against would already have happened. Runs from loop(); costs one NVS
+// write per boot, and only on a board that remembers a module.
+void clearPatternLatchIfStable() {
+  if (!patternLatchArmed) return;
+  if (millis() < PATTERN_LATCH_CLEAR_MS) return;
+  patternLatchArmed = false;
+  prefs.putBool("pat_trying", false);
 }
 
 void setup() {
@@ -857,6 +905,11 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
 }
 
 void loop() {
+  // Above the sleep block on purpose: a board that is asleep still has to be
+  // able to disarm the latch, or a device told to sleep within the first few
+  // seconds of boot would forget a pattern that never misbehaved.
+  clearPatternLatchIfStable();
+
   // Maintain Wi-Fi (non-blocking): retries while down, and on each fresh
   // (re)connection starts the network services. begin() is idempotent.
   PatternflowWifi::tick();
