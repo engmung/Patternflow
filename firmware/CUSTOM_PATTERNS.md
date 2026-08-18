@@ -70,6 +70,8 @@ If the build fails you get the compiler's own error. The usual causes are a help
 
 Still the route for changing anything beyond a pattern — firmware development, config edits, working offline, or building for a board you cannot plug into this machine.
 
+> Install the ESP32 board package at **2.0.x**, not the latest 3.x: the newer core takes ~71 KB more internal RAM before your sketch starts, which is enough to stop large patterns loading. `firmware/patternflow/platformio.ini` pins the right core and installs the libraries for you (`cd firmware/patternflow && pio run -t upload`). See [firmware/README.md](README.md#required-board-package).
+
 Long-press encoder 4 on the device to cycle to your new pattern.
 
 > Either route flashes a **whole firmware image**, replacing the firmware and the presets compiled into it. Any `.pfm` modules you've installed live on a separate FATFS partition and **survive a normal reflash** — they only go away if you enable *Erase All Flash Before Sketch Upload*, or format the partition from `/patterns`.

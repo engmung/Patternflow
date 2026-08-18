@@ -27,8 +27,10 @@ Needs the device powered on and on the same Wi-Fi as your computer. A community 
 4. Save the generated C++ as a new `pattern_*.h` file in `firmware/patternflow/`.
 5. Register the pattern in `firmware/patternflow/pattern_registry.h`.
 6. Open `firmware/patternflow/patternflow.ino` in Arduino IDE.
-7. Select the ESP32-S3 board settings described in `firmware/README.md`.
+7. Select the ESP32-S3 board settings described in `firmware/README.md` — and install the ESP32 board package at **2.0.x**, not the latest 3.x. The newer core takes ~71 KB more internal RAM before the sketch starts, which is enough to stop large patterns loading.
 8. Compile and upload the sketch to your ESP32-S3.
+
+Or skip the board-settings step entirely: `firmware/patternflow/platformio.ini` pins the right core and fetches the libraries itself — `cd firmware/patternflow && pio run -t upload`.
 
 The full custom pattern guide is here:
 
