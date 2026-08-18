@@ -100,3 +100,8 @@ firmware/patternflow/data/patterns/
 
 # Python bytecode from the firmware toolchain scripts
 __pycache__/
+
+# PlatformIO (firmware/patternflow) — generated/cloned, never committed
+.pio/
+firmware/patternflow/pio_src/
+firmware/patternflow/lib/
