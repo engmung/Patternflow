@@ -540,7 +540,7 @@ ${knobLines}
     void setup() { if (!trail) trail = PFMem::allocFloats(FRAME_W * FRAME_H); }
 
 - Guard update() with \`if (!trail) return;\` and draw() with \`if (!trail) return;\` so a failed allocation degrades to a blank layer (the scaffold still presents).
-- Small fixed state (particle arrays, a 256-entry LUT, anything under ~2 KB) stays as plain statics.
+- Fixed-size state (particle arrays, lookup tables of any shape) stays as plain statics — up to about 32 KB total per layer is comfortable, and a table costs memory without costing frame rate. Prefer precomputing anything that depends only on x, y or a constant in setup() over recomputing it per pixel.
 
 ## DO NOT reimplement existing helpers
 - DO NOT write your own HSV→RGB. Call PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8) — h is 0..1, outputs are uint8_t&.
