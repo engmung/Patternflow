@@ -3,7 +3,9 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <esp_heap_caps.h>
+#include <ctype.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -46,6 +48,21 @@ int __ledf2(double, double);
 int __gtdf2(double, double);
 int __gedf2(double, double);
 int __unorddf2(double, double);
+// 64-bit integer helpers. A pattern doing arithmetic on long long — a
+// microsecond timestamp, a large LCG state — emits these, and the S3 has no
+// 64-bit divide either.
+long long __divdi3(long long, long long);
+long long __moddi3(long long, long long);
+unsigned long long __udivdi3(unsigned long long, unsigned long long);
+unsigned long long __umoddi3(unsigned long long, unsigned long long);
+long long __fixsfdi(float);
+long long __fixdfdi(double);
+unsigned long long __fixunssfdi(float);
+unsigned long long __fixunsdfdi(double);
+float __floatdisf(long long);
+double __floatdidf(long long);
+float __floatundisf(unsigned long long);
+double __floatundidf(unsigned long long);
 }
 
 namespace PFModuleLoader {
@@ -210,6 +227,8 @@ inline void* moduleAlloc(size_t bytes);  // defined below
 inline void* pfModuleMalloc(size_t bytes) { return moduleAlloc(bytes); }
 inline void* pfModuleCalloc(size_t count, size_t size) { return moduleAlloc(count * size); }
 inline void pfModuleFree(void*) {}
+// Report success, register nothing — see the atexit note in resolveSymbol().
+inline int pfModuleAtexit(void (*)(void)) { return 0; }
 
 #define PF_HOST_SYMBOL(name) \
   if (strcmp(symbol, #name) == 0) return (uintptr_t)(void*)(&name)
@@ -247,11 +266,36 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(asinf);
   PF_HOST_SYMBOL(acosf);
   PF_HOST_SYMBOL(atanf);
-  PF_HOST_SYMBOL(tanhf);
   PF_HOST_SYMBOL(hypotf);
   PF_HOST_SYMBOL(copysignf);
   PF_HOST_SYMBOL(truncf);
   PF_HOST_SYMBOL(fabsf);
+  PF_HOST_SYMBOL(cbrtf);
+  PF_HOST_SYMBOL(expm1f);
+  PF_HOST_SYMBOL(log1pf);
+  PF_HOST_SYMBOL(ldexpf);
+  PF_HOST_SYMBOL(frexpf);
+  PF_HOST_SYMBOL(modff);
+
+  // Hyperbolics. tanhf was here alone, which turns out to be the worst
+  // possible subset: sech(x) = 1/cosh(x) is the closed form of a soliton, so
+  // every wave/soliton/lattice pattern reaches for coshf and hit a hard load
+  // failure ("unresolved symbol: coshf") that reads as the pattern being too
+  // heavy for the board. It was never too heavy — it never ran.
+  PF_HOST_SYMBOL(sinhf);
+  PF_HOST_SYMBOL(coshf);
+  PF_HOST_SYMBOL(tanhf);
+  PF_HOST_SYMBOL(asinhf);
+  PF_HOST_SYMBOL(acoshf);
+  PF_HOST_SYMBOL(atanhf);
+  PF_HOST_SYMBOL(rintf);
+  PF_HOST_SYMBOL(nearbyintf);
+  PF_HOST_SYMBOL(lrintf);
+  PF_HOST_SYMBOL(remainderf);
+  PF_HOST_SYMBOL(fdimf);
+  PF_HOST_SYMBOL(scalbnf);
+  PF_HOST_SYMBOL(erff);
+  PF_HOST_SYMBOL(erfcf);
 
   // Double soft-float + libm, so a pattern written with bare sin()/pow()
   // loads instead of failing on an unresolved symbol.
@@ -272,6 +316,18 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(__gtdf2);
   PF_HOST_SYMBOL(__gedf2);
   PF_HOST_SYMBOL(__unorddf2);
+  PF_HOST_SYMBOL(__divdi3);
+  PF_HOST_SYMBOL(__moddi3);
+  PF_HOST_SYMBOL(__udivdi3);
+  PF_HOST_SYMBOL(__umoddi3);
+  PF_HOST_SYMBOL(__fixsfdi);
+  PF_HOST_SYMBOL(__fixdfdi);
+  PF_HOST_SYMBOL(__fixunssfdi);
+  PF_HOST_SYMBOL(__fixunsdfdi);
+  PF_HOST_SYMBOL(__floatdisf);
+  PF_HOST_SYMBOL(__floatdidf);
+  PF_HOST_SYMBOL(__floatundisf);
+  PF_HOST_SYMBOL(__floatundidf);
   PF_HOST_FN(sin, double (*)(double));
   PF_HOST_FN(cos, double (*)(double));
   PF_HOST_FN(tan, double (*)(double));
@@ -290,6 +346,16 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_FN(round, double (*)(double));
   PF_HOST_FN(fmod, double (*)(double, double));
   PF_HOST_FN(fabs, double (*)(double));
+  PF_HOST_FN(sinh, double (*)(double));
+  PF_HOST_FN(cosh, double (*)(double));
+  PF_HOST_FN(tanh, double (*)(double));
+  PF_HOST_FN(asinh, double (*)(double));
+  PF_HOST_FN(acosh, double (*)(double));
+  PF_HOST_FN(atanh, double (*)(double));
+  PF_HOST_FN(hypot, double (*)(double, double));
+  PF_HOST_FN(cbrt, double (*)(double));
+  PF_HOST_FN(expm1, double (*)(double));
+  PF_HOST_FN(log1p, double (*)(double));
 
   // String/memory helpers a pattern can pull in without meaning to.
   PF_HOST_SYMBOL(memmove);
@@ -306,6 +372,44 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(srand);
   PF_HOST_FN(abs, int (*)(int));
   PF_HOST_FN(labs, long (*)(long));
+  PF_HOST_SYMBOL(qsort);
+  PF_HOST_SYMBOL(bsearch);
+  PF_HOST_SYMBOL(strtof);
+  PF_HOST_SYMBOL(strtod);
+  PF_HOST_SYMBOL(strtol);
+  PF_HOST_SYMBOL(strtoul);
+  PF_HOST_SYMBOL(atoi);
+  PF_HOST_SYMBOL(atol);
+  PF_HOST_SYMBOL(atof);
+
+  // More string/ctype. Same bulk-removal rationale: a pattern parsing its own
+  // little config string, or classifying characters for a text effect, should
+  // not die on the device for a name this ordinary.
+  PF_HOST_SYMBOL(strcpy);
+  PF_HOST_SYMBOL(strncpy);
+  PF_HOST_SYMBOL(strcat);
+  PF_HOST_SYMBOL(strncat);
+  PF_HOST_SYMBOL(strchr);
+  PF_HOST_SYMBOL(strrchr);
+  PF_HOST_SYMBOL(strstr);
+  PF_HOST_SYMBOL(memchr);
+  PF_HOST_SYMBOL(strcasecmp);
+  PF_HOST_SYMBOL(strncasecmp);
+  PF_HOST_SYMBOL(toupper);
+  PF_HOST_SYMBOL(tolower);
+  PF_HOST_SYMBOL(isalpha);
+  PF_HOST_SYMBOL(isdigit);
+  PF_HOST_SYMBOL(isalnum);
+  PF_HOST_SYMBOL(isspace);
+  PF_HOST_SYMBOL(isupper);
+  PF_HOST_SYMBOL(islower);
+
+  // atexit: -fno-use-cxa-atexit turns a local static's destructor
+  // registration into a plain atexit() call. Nothing on this board ever
+  // exits, and a module is dropped wholesale rather than destructed (see the
+  // /DISCARD/ note in module.ld), so registering the pointer would only store
+  // a reference into memory that may later be reused. Accept and forget.
+  if (strcmp(symbol, "atexit") == 0) return (uintptr_t)(void*)(&pfModuleAtexit);
 
   // Allocators, routed through the module's tracked heap (see the shims above).
   if (strcmp(symbol, "malloc") == 0) return (uintptr_t)(void*)(&pfModuleMalloc);

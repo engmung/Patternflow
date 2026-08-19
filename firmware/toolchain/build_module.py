@@ -150,6 +150,40 @@ def resolve_source(argument: Path) -> Path:
     raise SystemExit(f"No pattern.cpp under {argument}")
 
 
+_HOST_SYMBOLS: set[str] | None = None
+
+
+def host_symbol_table() -> set[str]:
+    """Names the on-device loader can resolve, parsed from its source.
+
+    core_module_loader.h is the single source of truth: PF_HOST_SYMBOL /
+    PF_HOST_FN entries plus the hand-routed special cases (allocators, atexit).
+    Parsing the header keeps this checker honest — adding a symbol to the
+    firmware automatically teaches the build about it.
+    """
+    global _HOST_SYMBOLS
+    if _HOST_SYMBOLS is None:
+        header = (ROOT / "patternflow" / "src" / "core_module_loader.h").read_text(
+            encoding="utf-8"
+        )
+        names = set(re.findall(r"PF_HOST_(?:SYMBOL|FN)\((\w+)", header))
+        names |= set(re.findall(r'strcmp\(symbol,\s*"(\w+)"\)\s*==\s*0', header))
+        _HOST_SYMBOLS = names
+    return _HOST_SYMBOLS
+
+
+def check_host_symbols(pfm: Path, gxx: Path) -> set[str]:
+    """Undefined symbols in the .pfm that the device loader will NOT resolve."""
+    nm = gxx.parent / gxx.name.replace("g++", "nm")
+    proc = subprocess.run([str(nm), "-u", str(pfm)], capture_output=True, text=True)
+    if proc.returncode != 0:
+        return set()  # nm unavailable: don't block the build on the checker
+    undefined = {
+        line.split()[-1] for line in proc.stdout.splitlines() if line.strip()
+    }
+    return undefined - host_symbol_table()
+
+
 def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
               build_dir: Path, out_dir: Path, opt: str = DEFAULT_OPT) -> tuple[str, bool, str]:
     slug = src_dir.name
@@ -220,6 +254,22 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
     proc = subprocess.run(link_cmd, capture_output=True, text=True)
     if proc.returncode != 0:
         return slug, False, proc.stdout + proc.stderr
+
+    # Every undefined symbol left in the .pfm must be one the on-device loader
+    # can resolve, or the pattern builds fine here and dies on the device with
+    # "unresolved symbol: X" — which reads as the pattern being too heavy, not
+    # as a missing name. That exact misread wrote off a whole genre once
+    # (soliton patterns need coshf; the table had only tanhf). Check at build
+    # time, against the loader source itself so there is one list to maintain.
+    unresolved = check_host_symbols(pfm, gxx)
+    if unresolved:
+        return slug, False, (
+            "device loader cannot resolve: " + ", ".join(sorted(unresolved)) + "\n"
+            "  These names are not in the firmware's host symbol table\n"
+            "  (firmware/patternflow/src/core_module_loader.h, resolveSymbol).\n"
+            "  Either avoid them, or add them to the table and ship a firmware\n"
+            "  release first — a module using them needs that firmware anyway."
+        )
 
     meta_src = src_dir / "module.json"
     meta = json.loads(meta_src.read_text(encoding="utf-8")) if meta_src.is_file() else {}
