@@ -247,11 +247,28 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_SYMBOL(asinf);
   PF_HOST_SYMBOL(acosf);
   PF_HOST_SYMBOL(atanf);
-  PF_HOST_SYMBOL(tanhf);
   PF_HOST_SYMBOL(hypotf);
   PF_HOST_SYMBOL(copysignf);
   PF_HOST_SYMBOL(truncf);
   PF_HOST_SYMBOL(fabsf);
+  PF_HOST_SYMBOL(cbrtf);
+  PF_HOST_SYMBOL(expm1f);
+  PF_HOST_SYMBOL(log1pf);
+  PF_HOST_SYMBOL(ldexpf);
+  PF_HOST_SYMBOL(frexpf);
+  PF_HOST_SYMBOL(modff);
+
+  // Hyperbolics. tanhf was here alone, which turns out to be the worst
+  // possible subset: sech(x) = 1/cosh(x) is the closed form of a soliton, so
+  // every wave/soliton/lattice pattern reaches for coshf and hit a hard load
+  // failure ("unresolved symbol: coshf") that reads as the pattern being too
+  // heavy for the board. It was never too heavy — it never ran.
+  PF_HOST_SYMBOL(sinhf);
+  PF_HOST_SYMBOL(coshf);
+  PF_HOST_SYMBOL(tanhf);
+  PF_HOST_SYMBOL(asinhf);
+  PF_HOST_SYMBOL(acoshf);
+  PF_HOST_SYMBOL(atanhf);
 
   // Double soft-float + libm, so a pattern written with bare sin()/pow()
   // loads instead of failing on an unresolved symbol.
@@ -290,6 +307,16 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
   PF_HOST_FN(round, double (*)(double));
   PF_HOST_FN(fmod, double (*)(double, double));
   PF_HOST_FN(fabs, double (*)(double));
+  PF_HOST_FN(sinh, double (*)(double));
+  PF_HOST_FN(cosh, double (*)(double));
+  PF_HOST_FN(tanh, double (*)(double));
+  PF_HOST_FN(asinh, double (*)(double));
+  PF_HOST_FN(acosh, double (*)(double));
+  PF_HOST_FN(atanh, double (*)(double));
+  PF_HOST_FN(hypot, double (*)(double, double));
+  PF_HOST_FN(cbrt, double (*)(double));
+  PF_HOST_FN(expm1, double (*)(double));
+  PF_HOST_FN(log1p, double (*)(double));
 
   // String/memory helpers a pattern can pull in without meaning to.
   PF_HOST_SYMBOL(memmove);
