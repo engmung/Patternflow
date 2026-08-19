@@ -335,13 +335,15 @@ installed modules and 128 installed modules use exactly the same RAM. Only the
 |---|---|---|
 | Installed modules | **128** (`MAX_MODULE_PATTERNS`) | The only real cap, and it is a UX choice — 136 B of PSRAM per slot, 17 KB total |
 | Storage | ~1,500 modules (10.2 MB partition, 5.9 KB median) | No — 12× the count cap |
-| Per-module RAM | ≲ 8 KB of data comfortable | Yes, for that module's own frame rate |
+| Per-module RAM | ~32 KB of statics comfortable on a core 2.x build (0–64 KB measured at identical fps; the old ≲ 8 KB figure was the core 3.x heap talking) | Heap only — frame rate does not move |
 | Concurrent modules | 1 | By design — one pattern is selected at a time |
 
 A large module only costs while it is the selected pattern; it has no effect
-on the presets or on any other module. The one way it is not self-contained:
-while resident it drops `heapLargest` to ~3 KB, which is what makes opening a
-console page pause the pattern (see the constraints section below).
+on the presets or on any other module. On the core 3.x build a resident
+module dropped `heapLargest` to ~3 KB — which is what made opening a console
+page pause the pattern; on the core 2.x release build the same module leaves
+~65 KB and the console stays comfortable (the pause-on-open mechanism remains,
+see the constraints section below).
 
 Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
 largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
