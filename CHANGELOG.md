@@ -18,6 +18,11 @@ Groundwork for timed performances, built to meet **Simone Majocchi's ([@SimonePD
 - **Module ABI descriptor is now 2** (the appended absolute-param fields). The loader accepts 1 and 2, so every existing `.pfm` keeps loading; **pre-absolute firmware refuses new modules cleanly** instead of misreading them. This is the gate that ties the release to the performance firmware: it ships when devices can update to a loader that accepts it.
 - **MQTT retention now follows the show policy**: knob/pattern topics publish non-retained; the broadcast banner and channel snapshots are the retained exceptions.
 
+## [3.5.2] - 2026-08-19
+
+### Fixed
+- **`cosh` and its relatives now resolve, so soliton patterns stop reading as impossible.** The module loader's host-symbol table carried `tanhf` but not `sinhf`/`coshf` — and sech(x) = 1/cosh(x) is the closed form of a soliton, so an entire genre of wave patterns failed to load with `unresolved symbol: coshf`, which looks exactly like "too heavy for the board". A systematic audit (every Basics-pack module plus a synthetic probe of the full libc/libm surface) added 40+ names in bulk: both hyperbolic families, `erff`/`erfcf`, the `rintf` family, 64-bit integer helpers, `qsort`/`bsearch`/`strto*`, string/ctype, and an `atexit` shim. `build_module.py` now checks every `.pfm` against the loader's own table at build time, so a pattern that the device would refuse fails on the build machine with the missing names spelled out. The Pattern Lab C++ prompt learned the new reality too: lookup tables are the house style (measured: 0–64 KB of static LUTs all render at 62 fps; a 4 KB sech² table took a soliton from 18 to 33 fps), and the old ~2 KB static ceiling — set when the largest free block was 7.7 KB — is now ~32 KB.
+
 ## [3.5.1] - 2026-08-19
 
 ### Fixed
