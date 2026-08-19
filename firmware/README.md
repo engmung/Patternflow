@@ -291,17 +291,29 @@ surface — the math headers are literally the same files, included with
 | Switch latency (7.5 KB module) | 6.0 ms = read 4.4 + relocate 0.6 + setup 1.0 |
 | Switch latency (22 KB module) | 10.9 ms — still under one 60 fps frame |
 | Runtime speed vs the same source compiled in | **~20 % slower** (Origin: 53.4 → 43.5 fps) — the cost of relocatable code (`-mlongcalls`); not fixable by `-O2` (~2 %) or memory placement |
-| Comfortable module size | ≲ 8 KB of data; a 22 KB module pushes `.rodata` to PSRAM and drops to ~14 fps |
+| Comfortable module size | ~32 KB of statics on a core 2.x build — measured: 0–64 KB of static tables all render at the same 62 fps, they just spend heap. (The old "≲ 8 KB, then `.rodata` spills to PSRAM and ~14 fps" figure was the core 3.x build's 7.7 KB largest block talking; see [Required board package](#required-board-package).) |
 | Panel size | Baked in at build (`-DPF_PANEL_W/H`); the loader rejects a mismatch |
 | ABI | `PF_ABI_VERSION` must match; bump it on ANY layout change in `pf_abi.h` and rebuild every module |
 
 If a module fails to load, nothing else is affected — the presets and other
 modules keep working, the panel shows a `PATTERN FAILED` screen with the
-reason, and `/api/status` reports it as `loadError`. The usual cause is a
-libc/libm symbol the host does not export yet: the message names it
-(`unresolved symbol: rand`), and the fix is one line in `resolveHostSymbol()`
-in `core_module_loader.h`. Check `loadError` first for any "this pattern is
-broken" report — it turns a vague complaint into a specific one.
+reason, and `/api/status` reports it as `loadError`. Check `loadError` first
+for any "this pattern is broken" report — it turns a vague complaint into a
+specific one.
+
+`unresolved symbol: X` used to be the usual cause, and it is worth knowing
+what it cost before it was closed: the table carried `tanhf` but not `coshf`,
+and since sech(x) = 1/cosh(x) is the closed form of a soliton, an entire
+genre of wave patterns failed to load in a way that read as "too heavy for
+the board". As of **v3.5.2** the table was audited in bulk — every shipped
+module's demand plus a synthetic probe of the whole libc/libm surface
+(hyperbolics, erf, the rintf family, 64-bit integer helpers, qsort/strto*,
+string/ctype, an atexit shim) — and `build_module.py` now checks every
+`.pfm` it links against the loader's own table, so a pattern the device
+would refuse fails **on the build machine with the missing names spelled
+out**. If a new name ever does surface, the fix is still one
+`PF_HOST_SYMBOL` line in `resolveHostSymbol()` — add it there and the build
+checker learns it automatically, since it parses that header.
 
 **Pattern names are UTF-8.** "Dynamic Moiré" and "Poincaré Sphere" are real
 entries in the library, and an accent used to break three layers at once: the
