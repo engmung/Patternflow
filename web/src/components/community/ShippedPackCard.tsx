@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { livePresets } from "@/lib/presets";
 import { packInstallUrl, packZipPath, type PatternPack } from "@/lib/packs";
+import { useDeviceHost } from "@/lib/community/deviceHost";
 import PatternCanvas from "./PatternCanvas";
 import styles from "./Community.module.css";
 
@@ -38,6 +39,13 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
     () => window.location.origin,
     () => undefined,
   );
+
+  // Same remembered address every other handoff uses. This card used to hard-
+  // code patternflow.local, which is the one name a phone on Android cannot
+  // resolve — and this is the card a new owner reaches first, with no account
+  // and nothing on the board yet. Telling us the IP once, anywhere, should be
+  // enough for all of them.
+  const { deviceHost, changeDeviceHost } = useDeviceHost();
 
   const shown = pack.order
     .slice(0, STRIP_CELLS - 1)
@@ -92,7 +100,10 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
             firmware update flow relies on the same thing); it is only
             SUBRESOURCE loads that get blocked. The board's page then fetches
             the pack back over https and posts it to the device itself. */}
-        <a className={styles.btnPrimary} href={packInstallUrl(pack, "patternflow.local", origin)}>
+        <a
+          className={styles.btnPrimary}
+          href={packInstallUrl(pack, deviceHost.trim() || "patternflow.local", origin)}
+        >
           Install to my board
         </a>
         <a className={styles.btn} href={packZipPath(pack)} download>
@@ -101,8 +112,25 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
       </div>
 
       <span className={styles.packHint}>
-        Board on a different address? Download it and drop the .zip on your device’s Patterns
-        page — same result.
+        Device address:{" "}
+        <input
+          type="text"
+          value={deviceHost}
+          onChange={(event) => changeDeviceHost(event.target.value)}
+          spellCheck={false}
+          aria-label="Device address"
+          style={{
+            font: "inherit",
+            width: "16ch",
+            padding: "1px 6px",
+            border: "1px solid var(--pf-rule, #D9D1C0)",
+            background: "transparent",
+            color: "inherit",
+          }}
+        />{" "}
+        (Android can’t resolve <code>.local</code> — use the IP from the device’s NETWORK
+        screen, hold K2.) Or download the .zip and drop it on your device’s Patterns page —
+        same result.
       </span>
     </div>
   );
