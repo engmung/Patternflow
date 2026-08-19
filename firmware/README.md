@@ -348,22 +348,23 @@ see the constraints section below).
 Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
 largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
 
-### Current state (v3.1.0, measured on hardware, core 3.x build)
-
-> Heap rows here are core 3.x figures. The same board on a core 2.x build has
-> ~98 KB free / ~90 KB largest with a preset resident, and ~79 KB free with a
-> module resident — the difference between a module loading and being refused.
+### Current state (v3.5.2, measured on hardware, core 2.x build)
 
 | | |
 |---|---|
-| Frame time, preset (Origin) | 18,717 µs = **53.4 fps** |
-| Internal heap, preset resident | 11,692 B free, largest block 7,668 B |
-| Internal heap, module resident | ~4,550 B free, largest block ~3,060 B |
-| PSRAM | 8.28 MB idle |
-| Flash | 1,292,519 B = **41 %** of the app partition |
-| Globals | 92,760 B = **28 %**, 234 KB left for locals |
-| Pattern storage | 73,728 / 10,235,904 B with 5 modules installed |
-| Leak check | 48 consecutive page loads: **−8 B** net, largest block unchanged |
+| Frame time, preset (Origin) | ~16,270 µs = **61.5 fps** |
+| Internal heap, preset resident | 96,324 B free, largest block 86,004 B |
+| Internal heap, module resident (Muybridge 35mm, 29 KB `.pfm`) | 76,668 B free, largest block 65,524 B — 48.5 fps |
+| PSRAM | 8.33 MB idle |
+| Flash | 1,148,960 B = **37 %** of the app partition |
+| Globals | 84,660 B = **26 %**, 243 KB left for locals |
+| Pattern storage | 131,072 / 10,235,904 B with 13 modules installed |
+| Leak check | 48 consecutive page loads: **−8 B** net, largest block unchanged *(v3.1.0 measurement; not re-run since)* |
+
+The v3.1.0 / core 3.x numbers this table used to carry — 53.4 fps, 11.7 KB
+free, 7.7 KB largest block — are what the constraints section below calls the
+other build. Anyone comparing a measurement against this table should first
+check which core their firmware was built with.
 
 ## Adding features — the constraints that matter
 
