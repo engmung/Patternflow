@@ -180,8 +180,10 @@ ${frameSection}- Never hardcode pixel dimensions as literals. Use the frame cons
 - The last line of draw() must be PFCanvas::present();. Without it nothing reaches the panel.
 - Macro collisions: Arduino.h and config.h define macros that will preprocessor-mangle same-named declarations into compile errors. Do NOT define your own variables, constants, or functions named PI, TWO_PI, HALF_PI, DEG_TO_RAD, RAD_TO_DEG, EULER, min, max, abs, sq, round, radians, degrees, constrain, MAX_HUE, MAX_SPEED, SPEED_STEP, MAX_FREQ, or FREQ_STEP. Use the existing PI / TWO_PI constants directly, use fminf/fmaxf/fabsf for your own helpers, and prefix pattern constants with the pattern name (e.g. CELLS_TWO_PI, CELLS_SPEED_STEP).
 
-## Memory rules — big buffers must never be static arrays
-All patterns compile into one firmware image, so every namespace static array occupies internal DRAM from boot even while the pattern is inactive — and internal DRAM is shared with the Wi-Fi stack and the HUB75 DMA driver. Two 32 KB static arrays were enough to boot-loop a real device.
+## Memory rules — lookup tables are cheap, framebuffer-scale buffers are not
+A pattern is a loadable module: its statics are allocated when the pattern loads and freed when it unloads, so they cost nothing while another pattern is running. They come out of internal RAM, which is shared with the Wi-Fi stack and the HUB75 DMA driver — but there is real room now. Measured on a 128×64 board with the pattern resident: **86 KB free with no table, 63 KB left after a 16 KB table, 47 KB after 32 KB, and frame rate identical in every case (62 fps).** A lookup table costs memory and does not cost speed.
+
+So **prefer a table over per-pixel math**. Precompute anything that depends only on x, y, or a constant — radial falloffs, palettes, easing curves, per-column phases, powf with a fixed exponent — in setup(), and index it in draw().
 
 - Any per-pixel buffer (trail map, glow/density accumulator, feedback field — anything sized by PANEL_RES_W * PANEL_RES_H or similar) must be a POINTER allocated once in setup() with PFMem::allocFloats (include src/core_mem.h). PFMem allocates from PSRAM when available and returns zeroed memory:
 
@@ -189,7 +191,7 @@ All patterns compile into one firmware image, so every namespace static array oc
     void setup() { if (!trail) trail = PFMem::allocFloats(PANEL_RES_W * PANEL_RES_H); }
 
 - Guard update() with \`if (!trail) return;\` and start draw() with \`if (!trail) { PFCanvas::present(); return; }\` so a failed allocation degrades to a blank pattern instead of crashing.
-- Small fixed state (particle arrays, knob params, 256-entry LUTs — anything under ~2 KB) stays as plain statics; this rule is only for framebuffer-scale buffers.
+- Fixed-size state — particle arrays, knob params, and lookup tables of any shape — stays as plain statics. **Up to about 32 KB total across all of a pattern's statics is comfortable** (a 4,096-entry float table is 16 KB); that leaves ~47 KB free, well clear of the ~10 KB the web console needs to stay responsive. Past ~48 KB the console starts to feel it, so treat that as the ceiling rather than a target.
 - Call PFTables::init() ONLY if the code actually reads PFTables::rT or PFTables::thetaT. Never call it "just in case" — it allocates two 32 KB tables.
 
 ## DO NOT reimplement existing helpers
@@ -202,7 +204,7 @@ The firmware ships tested, optimized versions of these. Using your own breaks sh
 - DO NOT translate sin-based hash formulas literally. If the JS contains fract(sin(x * 127.1 + y * 311.7) * 43758.5453) or similar, replace it with PFNoise::cellHash(gx, gy) (add a seed argument to decorrelate multiple uses). NEVER build a hash from PFMath::fastSin — the sin LUT's tiny error is amplified ~44,000× by the big multiplier and destroys the hash with visible banding.
 
 ## Expensive math — pick the tool by situation
-The board has abundant flash and PSRAM, so the firmware trades memory for per-pixel math. Choose per this table; it overrides any literal translation of the JS:
+The board trades memory for per-pixel math, and memory is the plentiful side of that trade (see the measurements in Memory rules). Choose per this table; it overrides any literal translation of the JS. When a situation is not listed and the value depends only on x, y, or a constant, **bake a table in setup() rather than computing it per pixel** — that is the house style, not a last resort:
 
 | Situation in the pattern | Use this |
 |---|---|
@@ -212,6 +214,7 @@ The board has abundant flash and PSRAM, so the firmware trades memory for per-pi
 | Random value per grid cell (voronoi seeds, cell colors/phases) | PFNoise::cellHash(gx, gy) or cellHash(gx, gy, seed). |
 | Smooth organic field | PFNoise::valueNoise2D (cheapest) or perlin2D / fractal2D (richer). |
 | powf(v, CONSTANT) | v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT (byte out) / buildPowLUTf (float out) and index it in draw(). |
+| cosh/sinh/tanh (soliton sech² profiles, gaussian-ish falloffs, erf) inside the pixel loop | Bake a LUT in setup() over the argument range and index it — measured on hardware, replacing two coshf per pixel with a 4 KB sech² table took the same pattern from 18 to 33 fps. Calling coshf/erff directly is fine outside the loop (needs firmware ≥ 3.5.2; older loaders refuse the module with "unresolved symbol"). |
 | powf(v, e) where e VARIES per pixel or per frame | PFMath::fastPow(v, e) — never call libm powf inside the pixel loop. fastPow returns 0 for v <= 0; if the JS relied on Math.pow(0, negative) → Infinity → clamp-to-max, branch on v <= 0 explicitly and output that clamped value. |
 | sin/cos inside the pixel loop | PFMath::fastSin / fastCos (call buildSinLUT() in setup()). Full-precision sinf/cosf only for one-shot computations outside the loop — and for hash inputs, use cellHash instead entirely. |
 
@@ -255,7 +258,8 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 5. Does every knob go through a PFParams:: helper (no hand-written "param += input.knobDeltas[i] * step" accumulation, no reading input.knobValues), is ABSOLUTE_READY declared, and is every button reset guarded with !input.paramAbsoluteActive[i]?
 6. Does every time accumulator wrap at its period (TWO_PI or a common multiple — see Performance)? An unbounded accumulator is a bug even if the preview looks fine.
 7. Is every line valid C++ that will compile — no stray tokens, no placeholder text, no truncated statements? Re-read the block once before finalizing.
-8. Did I declare any static array bigger than ~2 KB (e.g. float buf[PANEL_RES_W * PANEL_RES_H])? If yes, convert it to a PFMem::allocFloats pointer per the Memory rules. Did I call PFTables::init() without reading rT/thetaT anywhere? If yes, remove the call.${
+8. Is every per-pixel buffer (anything sized by PANEL_RES_W * PANEL_RES_H) a PFMem::allocFloats pointer rather than a static array, with the null guards in place? Fixed-size lookup tables are fine as statics — check they total under ~32 KB. Did I call PFTables::init() without reading rT/thetaT anywhere? If yes, remove the call.
+8b. Is there per-pixel math whose result depends only on x, y, or a constant? If yes, move it into a table built in setup() — memory is cheap here and the pixel loop is not.${
     usesValueField
       ? "\n9. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
       : ""
