@@ -3324,9 +3324,17 @@ export function draw(display, params, time) {
             display.setPixel(x, y, rgb[0], rgb[1], rgb[2]);
         }
     }
-}`};function E(i){return(i[1]-i[0])/2}var m=[[0,1],[.1,10],[0,4.9],[0,1]];var x=[!0,!1,!1,!0];function v(i=m){return m.map((a,n)=>E(i[n]??a))}var V=/^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m,D=["Knob 1","Knob 2","Knob 3","Knob 4"];function w(i){let a=[...D],n=m.map(([r,o])=>[r,o]),e=n.map(([r,o])=>Number(((r+o)/2).toFixed(3))),t=i.match(V);return t&&t[1].split(",").slice(0,4).forEach((r,o)=>{let s=r.trim();if(!s||s==="-")return;let l=s.match(/^(.+?)\s*=\s*(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/);if(!l)return;let c=Number(l[2]),h=Number(l[3]);!Number.isFinite(c)||!Number.isFinite(h)||h<=c||(a[o]=l[1].trim().slice(0,14),n[o]=[c,h],e[o]=Number(((c+h)/2).toFixed(3)))}),{labels:a,ranges:n,values:e}}var I={width:128,height:64};var q=8,K=512,_=/^[ \t]*\/\/[ \t]*@matrix[ \t]+(\d{1,4})[ \t]*[x×*][ \t]*(\d{1,4})[ \t]*$/m;function M(i){if(!Number.isFinite(i))return null;let a=Math.round(i);return a<q||a>K?null:a}var O=8192*4;function B(i){let a=i.match(_);if(!a)return null;let n=M(Number(a[1])),e=M(Number(a[2]));return n===null||e===null?null:{width:n,height:e}}function k(i){return B(i)??I}function S(i){return i.width>i.height?"landscape":i.height>i.width?"portrait":"square"}var A=typeof p>"u"?{}:p;var u=class{constructor(a,n){this.code="";this.values=[.5,.5,.5,.5];this.ranges=[[0,1],[0,1],[0,1],[0,1]];this.wrap=[!1,!1,!1,!1];this.unitsPerTurn=[1,1,1,1];this.running=!1;this.timers=[];this.onStatus=n,this.frame=document.createElement("iframe"),this.frame.src=a,this.frame.setAttribute("sandbox","allow-scripts"),this.frame.setAttribute("title","Pattern preview"),this.frame.setAttribute("scrolling","no"),this.frame.style.cssText="border:0;width:100%;height:100%;display:block;pointer-events:none;background:#000",this.frame.addEventListener("load",()=>this.sendLoad())}get element(){return this.frame}connect(){this.listener=a=>{if(a.source!==this.frame.contentWindow)return;let n=a.data;n?.type==="pf-ready"?this.sendLoad():n?.type==="pf-status"&&this.onStatus?.({ok:!!n.ok,error:n.error})},window.addEventListener("message",this.listener),this.timers=[0,50,200].map(a=>window.setTimeout(()=>this.sendLoad(),a))}disconnect(){this.listener&&window.removeEventListener("message",this.listener),this.listener=void 0,this.timers.forEach(a=>window.clearTimeout(a)),this.timers=[]}load(a,n,e,t,r){if(a===this.code){this.setKnobs(n,e);return}this.code=a,this.values=n,this.ranges=e,this.wrap=t,this.unitsPerTurn=r,this.sendLoad()}setKnobs(a,n){this.values=a,this.ranges=n,this.post({type:"pf-knobs",values:a,ranges:n})}setRunning(a){a!==this.running&&(this.running=a,this.post({type:"pf-run",running:a}))}sendLoad(){this.code&&this.post({type:"pf-load",code:this.code,knobValues:this.values,knobRanges:this.ranges,knobWrap:this.wrap,knobUnitsPerTurn:this.unitsPerTurn,running:this.running})}post(a){this.frame.contentWindow?.postMessage(a,"*")}};var P=`
+}`};function E(o){return(o[1]-o[0])/2}var m=[[0,1],[.1,10],[0,4.9],[0,1]];var v=[!0,!1,!1,!0];function x(o=m){return m.map((r,n)=>E(o[n]??r))}var V=/^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m,D=["Knob 1","Knob 2","Knob 3","Knob 4"];function w(o){let r=[...D],n=m.map(([a,i])=>[a,i]),e=n.map(([a,i])=>Number(((a+i)/2).toFixed(3))),t=o.match(V);return t&&t[1].split(",").slice(0,4).forEach((a,i)=>{let s=a.trim();if(!s||s==="-")return;let l=s.match(/^(.+?)\s*=\s*(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/);if(!l)return;let c=Number(l[2]),h=Number(l[3]);!Number.isFinite(c)||!Number.isFinite(h)||h<=c||(r[i]=l[1].trim().slice(0,14),n[i]=[c,h],e[i]=Number(((c+h)/2).toFixed(3)))}),{labels:r,ranges:n,values:e}}var I={width:128,height:64};var q=8,K=512,_=/^[ \t]*\/\/[ \t]*@matrix[ \t]+(\d{1,4})[ \t]*[x×*][ \t]*(\d{1,4})[ \t]*$/m;function M(o){if(!Number.isFinite(o))return null;let r=Math.round(o);return r<q||r>K?null:r}var G=8192*4;function B(o){let r=o.match(_);if(!r)return null;let n=M(Number(r[1])),e=M(Number(r[2]));return n===null||e===null?null:{width:n,height:e}}function k(o){return B(o)??I}function S(o){return o.width>o.height?"landscape":o.height>o.width?"portrait":"square"}var A=typeof p>"u"?{}:p;var u=class{constructor(r,n){this.code="";this.values=[.5,.5,.5,.5];this.ranges=[[0,1],[0,1],[0,1],[0,1]];this.wrap=[!1,!1,!1,!1];this.unitsPerTurn=[1,1,1,1];this.running=!1;this.timers=[];this.onStatus=n,this.frame=document.createElement("iframe"),this.frame.src=r,this.frame.setAttribute("sandbox","allow-scripts"),this.frame.setAttribute("title","Pattern preview"),this.frame.setAttribute("scrolling","no"),this.frame.style.cssText="border:0;width:100%;height:100%;display:block;pointer-events:none;background:#000",this.frame.addEventListener("load",()=>this.sendLoad())}get element(){return this.frame}connect(){this.listener=r=>{if(r.source!==this.frame.contentWindow)return;let n=r.data;n?.type==="pf-ready"?this.sendLoad():n?.type==="pf-status"&&this.onStatus?.({ok:!!n.ok,error:n.error})},window.addEventListener("message",this.listener),this.timers=[0,50,200].map(r=>window.setTimeout(()=>this.sendLoad(),r))}disconnect(){this.listener&&window.removeEventListener("message",this.listener),this.listener=void 0,this.timers.forEach(r=>window.clearTimeout(r)),this.timers=[]}load(r,n,e,t,a){if(r===this.code){this.setKnobs(n,e);return}this.code=r,this.values=n,this.ranges=e,this.wrap=t,this.unitsPerTurn=a,this.sendLoad()}setKnobs(r,n){this.values=r,this.ranges=n,this.post({type:"pf-knobs",values:r,ranges:n})}setRunning(r){r!==this.running&&(this.running=r,this.post({type:"pf-run",running:r}))}sendLoad(){this.code&&this.post({type:"pf-load",code:this.code,knobValues:this.values,knobRanges:this.ranges,knobWrap:this.wrap,knobUnitsPerTurn:this.unitsPerTurn,running:this.running})}post(r){this.frame.contentWindow?.postMessage(r,"*")}};var P=`
 :host {
   display: block;
+}
+
+/* The hidden attribute works by setting display:none in the UA stylesheet,
+   which ANY author display rule outranks. Several elements here are grids and
+   flex rows, so without this they ignore being hidden \u2014 which is how the
+   preview's "loading\u2026" placeholder sat on top of a perfectly good picture. */
+[hidden] {
+  display: none !important;
 }
 
 ha-card {
@@ -3340,10 +3348,13 @@ ha-card {
   max-height: 420px;
   margin: 0 auto;
   background: #000;
-  /* The preview is the only part that swallows gestures. Making the whole card
-     a dead zone would turn it into a scroll trap on a phone, which is exactly
-     what the community site's wall had to solve with its own wheel handler. */
-  touch-action: none;
+  /* pan-y, not none. A finger dragging up the preview has to scroll the
+     dashboard \u2014 the preview is the tallest thing on the card, and making it
+     swallow vertical touches turned it into a scroll trap you could not get
+     past on a phone. Touch control lives on the knob strip below instead.
+     touch-action does not apply to a mouse, so dragging with one still
+     turns knobs here, which is the gesture the community wall taught. */
+  touch-action: pan-y;
   cursor: ns-resize;
   user-select: none;
 }
@@ -3483,6 +3494,78 @@ ha-card {
   pointer-events: none;
 }
 
+/* The four knobs as a strip of their own, under the preview.
+   This is the touch control surface \u2014 small and deliberate, so giving it the
+   whole vertical gesture costs nothing, unlike the preview above it. With a
+   mouse it doubles as a readout of all four at once, which the hover overlay
+   cannot do because it only ever shows the one under the cursor. */
+.knobs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--divider-color, rgba(0, 0, 0, 0.12));
+  border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+  touch-action: none;
+  user-select: none;
+}
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.4rem 0.55rem;
+  border: 0;
+  background: var(--card-background-color, #fff);
+  color: var(--primary-text-color);
+  font: inherit;
+  text-align: left;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.knob:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.knob.active {
+  background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+}
+
+.knob-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.knob-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--secondary-text-color);
+}
+
+.knob-value {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.knob-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--divider-color, rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+}
+
+.knob-fill {
+  height: 100%;
+  background: var(--primary-color, #ede7db);
+  transition: width 80ms linear;
+}
+
 .head {
   display: flex;
   align-items: center;
@@ -3506,9 +3589,11 @@ ha-card {
   font-weight: 400;
 }
 
+/* No inner scrolling, deliberately. A scroll container inside a dashboard is a
+   trap on touch: a swipe over it scrolls the list instead of the page, and on a
+   long list there is no way past the card. A tall card is the honest trade \u2014
+   show_patterns: false is there for anyone who does not want it. */
 .patterns {
-  max-height: 13rem;
-  overflow-y: auto;
   border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
 }
 
@@ -3539,7 +3624,7 @@ ha-card {
   color: var(--error-color, #b3261e);
   font-size: 0.8rem;
 }
-`;var d=4,T=150,z="/patternflow_static/pattern-sandbox.html";function b(i,a){if(a.switch_entity||a.select_entity||a.knob_entities)return{switchId:a.switch_entity,selectId:a.select_entity,knobIds:a.knob_entities??[]};let n=i.entities??{},e=Object.values(n).filter(s=>s.platform==="patternflow"),t=a.device_id??e.find(s=>s.device_id)?.device_id,r=e.filter(s=>!t||s.device_id===t),o=r.filter(s=>s.entity_id.startsWith("number.")).sort((s,l)=>C(i,s.entity_id)-C(i,l.entity_id)).map(s=>s.entity_id);return{switchId:r.find(s=>s.entity_id.startsWith("switch."))?.entity_id,selectId:r.find(s=>s.entity_id.startsWith("select."))?.entity_id,knobIds:o}}function C(i,a){let n=i.states[a]?.attributes?.knob;return typeof n=="number"?n:Number.MAX_SAFE_INTEGER}function R(i){if(!i)return null;let a=Number(i.state);return Number.isFinite(a)?a:null}var f=class extends HTMLElement{constructor(){super();this.config={type:"custom:patternflow-card"};this.zones=[];this.mounted=!1;this.code="";this.slug=null;this.labels=["K1","K2","K3","K4"];this.ranges=[[0,1],[0,1],[0,1],[0,1]];this.local=[50,50,50,50];this.dragging=null;this.dragStartValue=0;this.dragStartY=0;this.active=0;this.lastSentAt=[0,0,0,0];this.pending=[null,null,null,null];this.timers=[null,null,null,null];this.root=this.attachShadow({mode:"open"})}setConfig(n){this.config={preview:!0,show_patterns:!0,...n},this.mounted=!1,this.root.innerHTML=""}set hass(n){this.hassRef=n,this.mounted||this.build(),this.update()}getCardSize(){return this.config.show_patterns?12:8}static getStubConfig(n){return{type:"custom:patternflow-card",device_id:Object.values(n.entities??{}).find(t=>t.platform==="patternflow"&&t.device_id)?.device_id}}static getConfigElement(){return document.createElement("patternflow-card-editor")}disconnectedCallback(){this.sandbox?.disconnect(),this.timers.forEach(n=>n!==null&&window.clearTimeout(n))}build(){let n=document.createElement("style");n.textContent=P;let e=document.createElement("ha-card");e.innerHTML=`
+`;var d=4,T=150,z=160,R="/patternflow_static/pattern-sandbox.html";function b(o,r){if(r.switch_entity||r.select_entity||r.knob_entities)return{switchId:r.switch_entity,selectId:r.select_entity,knobIds:r.knob_entities??[]};let n=o.entities??{},e=Object.values(n).filter(s=>s.platform==="patternflow"),t=r.device_id??e.find(s=>s.device_id)?.device_id,a=e.filter(s=>!t||s.device_id===t),i=a.filter(s=>s.entity_id.startsWith("number.")).sort((s,l)=>C(o,s.entity_id)-C(o,l.entity_id)).map(s=>s.entity_id);return{switchId:a.find(s=>s.entity_id.startsWith("switch."))?.entity_id,selectId:a.find(s=>s.entity_id.startsWith("select."))?.entity_id,knobIds:i}}function C(o,r){let n=o.states[r]?.attributes?.knob;return typeof n=="number"?n:Number.MAX_SAFE_INTEGER}function X(o){if(!o)return null;let r=Number(o.state);return Number.isFinite(r)?r:null}var f=class extends HTMLElement{constructor(){super();this.config={type:"custom:patternflow-card"};this.zones=[];this.knobButtons=[];this.mounted=!1;this.code="";this.slug=null;this.labels=["K1","K2","K3","K4"];this.ranges=[[0,1],[0,1],[0,1],[0,1]];this.local=[50,50,50,50];this.dragging=null;this.dragStartValue=0;this.dragStartY=0;this.active=0;this.lastSentAt=[0,0,0,0];this.pending=[null,null,null,null];this.timers=[null,null,null,null];this.root=this.attachShadow({mode:"open"})}setConfig(n){this.config={preview:!0,show_patterns:!0,...n},this.mounted=!1,this.root.innerHTML=""}set hass(n){this.hassRef=n,this.mounted||this.build(),this.update()}getCardSize(){return this.config.show_patterns?12:8}static getStubConfig(n){return{type:"custom:patternflow-card",device_id:Object.values(n.entities??{}).find(t=>t.platform==="patternflow"&&t.device_id)?.device_id}}static getConfigElement(){return document.createElement("patternflow-card-editor")}disconnectedCallback(){this.sandbox?.disconnect(),this.timers.forEach(n=>n!==null&&window.clearTimeout(n))}build(){let n=document.createElement("style");n.textContent=P;let e=document.createElement("ha-card");e.innerHTML=`
       <div class="stage" part="stage">
         <div class="still">loading\u2026</div>
         <div class="zones">
@@ -3554,13 +3639,23 @@ ha-card {
         </div>
         <span class="badge" hidden></span>
       </div>
+      <div class="knobs">
+        ${Array.from({length:d},(t,a)=>`
+          <button class="knob" type="button" data-knob="${a}">
+            <span class="knob-head">
+              <span class="knob-name">K${a+1}</span>
+              <span class="knob-value">\u2014</span>
+            </span>
+            <span class="knob-track"><span class="knob-fill"></span></span>
+          </button>`).join("")}
+      </div>
       <div class="head">
         <span class="title"></span>
         <ha-switch class="power"></ha-switch>
       </div>
       <div class="patterns"></div>
       <div class="notice" hidden></div>
-    `,this.root.append(n,e),this.stage=e.querySelector(".stage"),this.zones=Array.from(e.querySelectorAll(".zone")),this.readout=e.querySelector(".readout"),this.attachGestures(),this.attachPower(e),this.mounted=!0}attachPower(n){n.querySelector(".power").addEventListener("change",()=>{let{switchId:t}=b(this.hassRef,this.config);t&&this.hassRef?.callService("switch","toggle",{entity_id:t})})}attachGestures(){let n=this.stage;n.addEventListener("pointerdown",t=>{this.knobsUsable()&&(n.setPointerCapture(t.pointerId),n.classList.add("touched"),this.active=this.zoneAt(t),this.dragging=this.active,this.dragStartValue=this.local[this.active],this.dragStartY=t.clientY,this.dodge(t),this.paintOverlay())}),n.addEventListener("pointermove",t=>{if(this.dragging===null){t.pointerType==="mouse"&&(n.classList.add("touched"),this.active=this.zoneAt(t),this.dodge(t),this.paintOverlay());return}let r=(this.dragStartY-t.clientY)/n.clientHeight;this.setLocal(this.dragging,this.dragStartValue+r*100),this.dodge(t)});let e=t=>{if(this.dragging===null)return;let r=this.dragging;this.dragging=null,n.hasPointerCapture(t.pointerId)&&n.releasePointerCapture(t.pointerId),this.flush(r,!0),t.pointerType!=="mouse"&&n.classList.remove("touched")};n.addEventListener("pointerup",e),n.addEventListener("pointercancel",e),n.addEventListener("pointerleave",()=>{this.dragging===null&&n.classList.remove("touched")}),n.addEventListener("wheel",t=>{this.knobsUsable()&&(t.preventDefault(),this.active=this.zoneAt(t),this.setLocal(this.active,this.local[this.active]+(t.deltaY<0?4:-4)))},{passive:!1}),n.addEventListener("dblclick",t=>{if(!this.knobsUsable())return;let r=this.zoneAt(t);this.setLocal(r,50),this.flush(r,!0)})}zoneAt(n){let e=this.stage.getBoundingClientRect(),t=(n.clientX-e.left)/e.width;return Math.max(0,Math.min(d-1,Math.floor(t*d)))}dodge(n){let e=this.stage.getBoundingClientRect(),t=(n.clientY-e.top)/e.height;t>.55?this.readout.classList.replace("bottom","top"):t<.45&&this.readout.classList.replace("top","bottom")}knobsUsable(){let{knobIds:n}=b(this.hassRef,this.config);return n.length===d}setLocal(n,e){this.local[n]=Math.max(0,Math.min(100,e)),this.paintOverlay(),this.pushKnobsToSandbox(),this.scheduleWrite(n)}scheduleWrite(n){this.pending[n]=this.local[n];let e=performance.now()-this.lastSentAt[n];if(e>=T){this.flush(n);return}this.timers[n]===null&&(this.timers[n]=window.setTimeout(()=>this.flush(n),T-e))}flush(n,e=!1){let t=this.timers[n];t!==null&&(window.clearTimeout(t),this.timers[n]=null);let r=e?this.local[n]:this.pending[n];if(r===null)return;this.pending[n]=null,this.lastSentAt[n]=performance.now();let{knobIds:o}=b(this.hassRef,this.config),s=o[n];s&&this.hassRef?.callService("number","set_value",{entity_id:s,value:Math.round(r)}).catch(l=>this.showNotice(String(l)))}update(){let n=this.hassRef;if(!n||!this.mounted)return;let{switchId:e,selectId:t,knobIds:r}=b(n,this.config),o=t?n.states[t]:void 0,s=e?n.states[e]:void 0;if(!o&&!s){this.showNotice("No Patternflow entities found. Set device_id, or the entities, in the card configuration.");return}this.showNotice(null),this.dragging===null&&r.forEach((c,h)=>{let y=R(n.states[c]);y!==null&&this.pending[h]===null&&(this.local[h]=y)}),this.applyPattern(o),this.paintHead(o,s),this.paintOverlay(),this.paintPatterns(o);let l=s?.state==="off";this.stage?.classList.toggle("asleep",l),this.sandbox?.setRunning(!l&&this.config.preview!==!1)}applyPattern(n){let e=n?.attributes?.slug??null,t=n?.attributes?.knob_labels;if(Array.isArray(t)&&t.length===d&&(this.labels=t.map(String)),e===this.slug)return;this.slug=e;let r=e?A[e]??"":"";if(this.code=r,!r||this.config.preview===!1){this.sandbox?.disconnect(),this.sandbox?.element.remove(),this.sandbox=void 0,this.setStill(e?"No preview bundled for this pattern":"Presets have no preview \u2014 the controls still work");return}let o=w(r);this.ranges=o.ranges,this.labels=o.labels;let s=S(k(r))==="landscape";this.stage?.classList.toggle("landscape",s),this.sandbox||(this.sandbox=new u(z,l=>{l.ok||this.setStill(l.error??"This pattern did not load")}),this.sandbox.element.classList.add("frame"),this.stage?.prepend(this.sandbox.element),this.sandbox.connect()),this.setStill(null),this.sandbox.load(r,this.patternUnits(),this.ranges,[...x],v(this.ranges))}patternUnits(){return this.local.map((n,e)=>{let[t,r]=this.ranges[e]??[0,1];return t+n/100*(r-t)})}pushKnobsToSandbox(){this.sandbox?.setKnobs(this.patternUnits(),this.ranges)}paintHead(n,e){let t=this.root.querySelector(".title"),r=this.root.querySelector(".power"),o=this.root.querySelector(".badge"),s=n?.state??"\u2014";t.textContent=s,e&&(r.checked=e.state==="on");let l=!!n?.attributes?.absolute_ready;o.hidden=!n,o.textContent=l?"absolute":"relative"}paintOverlay(){this.zones.forEach((o,s)=>o.classList.toggle("active",s===this.active));let n=this.root.querySelector(".readout-label"),e=this.root.querySelector(".readout-value"),t=this.root.querySelector(".fill"),r=this.labels[this.active]??`K${this.active+1}`;n.textContent=r===`K${this.active+1}`?r:`K${this.active+1} ${r}`,e.textContent=`${Math.round(this.local[this.active])}%`,t.style.width=`${Math.round(this.local[this.active])}%`}paintPatterns(n){let e=this.root.querySelector(".patterns");if(this.config.show_patterns===!1||!n){e.hidden=!0;return}e.hidden=!1;let t=n.attributes.options??[],r=n.state,o=`${t.join("\0")}${r}`;e.dataset.signature!==o&&(e.dataset.signature=o,e.innerHTML="",t.forEach(s=>{let l=document.createElement("button");l.type="button",l.className=s===r?"pattern current":"pattern",l.textContent=s,l.addEventListener("click",()=>{this.hassRef?.callService("select","select_option",{entity_id:n.entity_id,option:s})}),e.append(l)}))}setStill(n){let e=this.root.querySelector(".still");e.hidden=n===null,n!==null&&(e.textContent=n)}showNotice(n){let e=this.root.querySelector(".notice");e.hidden=n===null,n!==null&&(e.textContent=n)}};var g=class extends HTMLElement{constructor(){super();this.config={type:"custom:patternflow-card"};this.root=this.attachShadow({mode:"open"})}setConfig(n){this.config=n,this.render()}set hass(n){this.hassRef=n,this.render()}devices(){let n=this.hassRef;if(!n)return[];let e=new Set;for(let t of Object.values(n.entities??{}))t.platform==="patternflow"&&t.device_id&&e.add(t.device_id);return[...e].map(t=>({id:t,label:n.devices?.[t]?.name_by_user??n.devices?.[t]?.name??t}))}emit(n){this.config={...this.config,...n},this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this.config},bubbles:!0,composed:!0}))}render(){let n=this.devices(),e=this.config.device_id??n[0]?.id??"";this.root.innerHTML=`
+    `,this.root.append(n,e),this.stage=e.querySelector(".stage"),this.zones=Array.from(e.querySelectorAll(".zone")),this.readout=e.querySelector(".readout"),this.knobButtons=Array.from(e.querySelectorAll(".knob")),this.attachGestures(),this.attachStripGestures(),this.attachPower(e),this.mounted=!0}attachPower(n){n.querySelector(".power").addEventListener("change",()=>{let{switchId:t}=b(this.hassRef,this.config);t&&this.hassRef?.callService("switch","toggle",{entity_id:t})})}attachGestures(){let n=this.stage;n.addEventListener("pointerdown",t=>{this.knobsUsable()&&t.pointerType==="mouse"&&(n.setPointerCapture(t.pointerId),n.classList.add("touched"),this.active=this.zoneAt(t),this.dragging=this.active,this.dragStartValue=this.local[this.active],this.dragStartY=t.clientY,this.dodge(t),this.paintOverlay())}),n.addEventListener("pointermove",t=>{if(this.dragging===null){t.pointerType==="mouse"&&(n.classList.add("touched"),this.active=this.zoneAt(t),this.dodge(t),this.paintOverlay());return}let a=(this.dragStartY-t.clientY)/n.clientHeight;this.setLocal(this.dragging,this.dragStartValue+a*100),this.dodge(t)});let e=t=>{if(this.dragging===null)return;let a=this.dragging;this.dragging=null,n.hasPointerCapture(t.pointerId)&&n.releasePointerCapture(t.pointerId),this.flush(a,!0),t.pointerType!=="mouse"&&n.classList.remove("touched")};n.addEventListener("pointerup",e),n.addEventListener("pointercancel",e),n.addEventListener("pointerleave",()=>{this.dragging===null&&n.classList.remove("touched")}),n.addEventListener("wheel",t=>{this.knobsUsable()&&(t.preventDefault(),this.active=this.zoneAt(t),this.setLocal(this.active,this.local[this.active]+(t.deltaY<0?4:-4)))},{passive:!1}),n.addEventListener("dblclick",t=>{if(!this.knobsUsable())return;let a=this.zoneAt(t);this.setLocal(a,50),this.flush(a,!0)})}attachStripGestures(){this.knobButtons.forEach((n,e)=>{n.addEventListener("pointerdown",a=>{this.knobsUsable()&&(a.preventDefault(),n.setPointerCapture(a.pointerId),this.active=e,this.dragging=e,this.dragStartValue=this.local[e],this.dragStartY=a.clientY,this.paintOverlay())}),n.addEventListener("pointermove",a=>{if(this.dragging!==e)return;let i=(this.dragStartY-a.clientY)/z;this.setLocal(e,this.dragStartValue+i*100)});let t=a=>{this.dragging===e&&(this.dragging=null,n.hasPointerCapture(a.pointerId)&&n.releasePointerCapture(a.pointerId),this.flush(e,!0))};n.addEventListener("pointerup",t),n.addEventListener("pointercancel",t),n.addEventListener("dblclick",()=>{this.knobsUsable()&&(this.setLocal(e,50),this.flush(e,!0))})})}zoneAt(n){let e=this.stage.getBoundingClientRect(),t=(n.clientX-e.left)/e.width;return Math.max(0,Math.min(d-1,Math.floor(t*d)))}dodge(n){let e=this.stage.getBoundingClientRect(),t=(n.clientY-e.top)/e.height;t>.55?this.readout.classList.replace("bottom","top"):t<.45&&this.readout.classList.replace("top","bottom")}knobsUsable(){let{knobIds:n}=b(this.hassRef,this.config);return n.length===d}setLocal(n,e){this.local[n]=Math.max(0,Math.min(100,e)),this.paintOverlay(),this.pushKnobsToSandbox(),this.scheduleWrite(n)}scheduleWrite(n){this.pending[n]=this.local[n];let e=performance.now()-this.lastSentAt[n];if(e>=T){this.flush(n);return}this.timers[n]===null&&(this.timers[n]=window.setTimeout(()=>this.flush(n),T-e))}flush(n,e=!1){let t=this.timers[n];t!==null&&(window.clearTimeout(t),this.timers[n]=null);let a=e?this.local[n]:this.pending[n];if(a===null)return;this.pending[n]=null,this.lastSentAt[n]=performance.now();let{knobIds:i}=b(this.hassRef,this.config),s=i[n];s&&this.hassRef?.callService("number","set_value",{entity_id:s,value:Math.round(a)}).catch(l=>this.showNotice(String(l)))}update(){let n=this.hassRef;if(!n||!this.mounted)return;let{switchId:e,selectId:t,knobIds:a}=b(n,this.config),i=t?n.states[t]:void 0,s=e?n.states[e]:void 0;if(!i&&!s){this.showNotice("No Patternflow entities found. Set device_id, or the entities, in the card configuration.");return}this.showNotice(null),this.dragging===null&&a.forEach((c,h)=>{let y=X(n.states[c]);y!==null&&this.pending[h]===null&&(this.local[h]=y)}),this.applyPattern(i),this.paintHead(i,s),this.paintOverlay(),this.paintPatterns(i);let l=s?.state==="off";this.stage?.classList.toggle("asleep",l),this.sandbox?.setRunning(!l&&this.config.preview!==!1)}applyPattern(n){let e=n?.attributes?.slug??null,t=n?.attributes?.knob_labels;if(Array.isArray(t)&&t.length===d&&(this.labels=t.map(String)),e===this.slug)return;this.slug=e;let a=e?A[e]??"":"";if(this.code=a,!a||this.config.preview===!1){this.sandbox?.disconnect(),this.sandbox?.element.remove(),this.sandbox=void 0,this.setStill(e?"No preview bundled for this pattern":"Presets have no preview \u2014 the controls still work");return}let i=w(a);this.ranges=i.ranges,this.labels=i.labels;let s=S(k(a))==="landscape";this.stage?.classList.toggle("landscape",s),this.sandbox||(this.sandbox=new u(R,l=>{l.ok||this.setStill(l.error??"This pattern did not load")}),this.sandbox.element.classList.add("frame"),this.stage?.prepend(this.sandbox.element),this.sandbox.connect()),this.setStill(null),this.sandbox.load(a,this.patternUnits(),this.ranges,[...v],x(this.ranges))}patternUnits(){return this.local.map((n,e)=>{let[t,a]=this.ranges[e]??[0,1];return t+n/100*(a-t)})}pushKnobsToSandbox(){this.sandbox?.setKnobs(this.patternUnits(),this.ranges)}paintHead(n,e){let t=this.root.querySelector(".title"),a=this.root.querySelector(".power"),i=this.root.querySelector(".badge"),s=n?.state??"\u2014";t.textContent=s,e&&(a.checked=e.state==="on");let l=!!n?.attributes?.absolute_ready;i.hidden=!n,i.textContent=l?"absolute":"relative"}paintOverlay(){this.zones.forEach((i,s)=>i.classList.toggle("active",s===this.active)),this.paintStrip();let n=this.root.querySelector(".readout-label"),e=this.root.querySelector(".readout-value"),t=this.root.querySelector(".fill"),a=this.labels[this.active]??`K${this.active+1}`;n.textContent=a===`K${this.active+1}`?a:`K${this.active+1} ${a}`,e.textContent=`${Math.round(this.local[this.active])}%`,t.style.width=`${Math.round(this.local[this.active])}%`}paintStrip(){let n=this.knobsUsable();this.knobButtons.forEach((e,t)=>{let a=Math.round(this.local[t]),i=this.labels[t]??`K${t+1}`,s=i===`K${t+1}`;e.classList.toggle("active",t===this.active),e.disabled=!n,e.title=s?i:`K${t+1} ${i}`;let l=e.querySelector(".knob-name"),c=e.querySelector(".knob-value"),h=e.querySelector(".knob-fill");l.textContent=s?i:`${t+1} ${i}`,c.textContent=n?`${a}%`:"\u2014",h.style.width=`${a}%`})}paintPatterns(n){let e=this.root.querySelector(".patterns");if(this.config.show_patterns===!1||!n){e.hidden=!0;return}e.hidden=!1;let t=n.attributes.options??[],a=n.state,i=`${t.join("\0")}${a}`;e.dataset.signature!==i&&(e.dataset.signature=i,e.innerHTML="",t.forEach(s=>{let l=document.createElement("button");l.type="button",l.className=s===a?"pattern current":"pattern",l.textContent=s,l.addEventListener("click",()=>{this.hassRef?.callService("select","select_option",{entity_id:n.entity_id,option:s})}),e.append(l)}))}setStill(n){let e=this.root.querySelector(".still");e.hidden=n===null,n!==null&&(e.textContent=n)}showNotice(n){let e=this.root.querySelector(".notice");e.hidden=n===null,n!==null&&(e.textContent=n)}};var g=class extends HTMLElement{constructor(){super();this.config={type:"custom:patternflow-card"};this.root=this.attachShadow({mode:"open"})}setConfig(n){this.config=n,this.render()}set hass(n){this.hassRef=n,this.render()}devices(){let n=this.hassRef;if(!n)return[];let e=new Set;for(let t of Object.values(n.entities??{}))t.platform==="patternflow"&&t.device_id&&e.add(t.device_id);return[...e].map(t=>({id:t,label:n.devices?.[t]?.name_by_user??n.devices?.[t]?.name??t}))}emit(n){this.config={...this.config,...n},this.dispatchEvent(new CustomEvent("config-changed",{detail:{config:this.config},bubbles:!0,composed:!0}))}render(){let n=this.devices(),e=this.config.device_id??n[0]?.id??"";this.root.innerHTML=`
       <style>
         .row { display: flex; align-items: center; gap: .75rem; padding: .5rem 0; }
         label { flex: 1; color: var(--primary-text-color); }

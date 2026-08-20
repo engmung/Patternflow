@@ -77,12 +77,28 @@ preview: true             # run the pattern in the card
 show_patterns: true       # list the installed patterns underneath
 ```
 
-**The gesture is one gesture, mouse or touch.** Where your pointer is
+**Two ways in, because a phone and a mouse do not want the same thing.**
+
+With a **mouse**, the preview itself is the control: where the cursor is
 horizontally picks the encoder — four zones, left to right, K1 to K4 — and
-dragging up and down turns it. The wheel still works on a desktop, because that
-is the muscle memory from the community site's wall. A double tap puts a knob
-back to the middle of its range. Only the preview area takes the gesture, so the
-card is not a scroll trap on a phone.
+dragging up and down turns it. The wheel works too, which is the muscle memory
+from the community site's wall.
+
+With a **finger**, the preview is just a picture and scrolls the page like
+anything else. The knobs live in the strip under it: tap one, drag up or down.
+A double tap puts a knob back to the middle of its range.
+
+That split is deliberate. The preview is the tallest thing on the card, and
+having it swallow vertical swipes made it a scroll trap you could not get past.
+`touch-action` does not apply to a mouse, so the desktop gesture is unaffected.
+The strip is small enough that giving it the whole vertical axis costs nobody
+anything — and with a mouse it doubles as a readout of all four knobs at once,
+which the hover overlay cannot do because it only ever shows the one under the
+cursor.
+
+The pattern list does not scroll inside itself either, for the same reason: a
+scroll container inside a dashboard eats the swipe meant for the page. The card
+just gets as tall as it needs to be; `show_patterns: false` turns it off.
 
 **The preview is not a video of your panel.** It is the pattern's own JavaScript
 running in a sandboxed iframe in the browser you are looking at, driven by the

@@ -11,6 +11,14 @@ export const CARD_STYLES = `
   display: block;
 }
 
+/* The hidden attribute works by setting display:none in the UA stylesheet,
+   which ANY author display rule outranks. Several elements here are grids and
+   flex rows, so without this they ignore being hidden — which is how the
+   preview's "loading…" placeholder sat on top of a perfectly good picture. */
+[hidden] {
+  display: none !important;
+}
+
 ha-card {
   overflow: hidden;
 }
@@ -22,10 +30,13 @@ ha-card {
   max-height: 420px;
   margin: 0 auto;
   background: #000;
-  /* The preview is the only part that swallows gestures. Making the whole card
-     a dead zone would turn it into a scroll trap on a phone, which is exactly
-     what the community site's wall had to solve with its own wheel handler. */
-  touch-action: none;
+  /* pan-y, not none. A finger dragging up the preview has to scroll the
+     dashboard — the preview is the tallest thing on the card, and making it
+     swallow vertical touches turned it into a scroll trap you could not get
+     past on a phone. Touch control lives on the knob strip below instead.
+     touch-action does not apply to a mouse, so dragging with one still
+     turns knobs here, which is the gesture the community wall taught. */
+  touch-action: pan-y;
   cursor: ns-resize;
   user-select: none;
 }
@@ -165,6 +176,78 @@ ha-card {
   pointer-events: none;
 }
 
+/* The four knobs as a strip of their own, under the preview.
+   This is the touch control surface — small and deliberate, so giving it the
+   whole vertical gesture costs nothing, unlike the preview above it. With a
+   mouse it doubles as a readout of all four at once, which the hover overlay
+   cannot do because it only ever shows the one under the cursor. */
+.knobs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--divider-color, rgba(0, 0, 0, 0.12));
+  border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+  touch-action: none;
+  user-select: none;
+}
+
+.knob {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.4rem 0.55rem;
+  border: 0;
+  background: var(--card-background-color, #fff);
+  color: var(--primary-text-color);
+  font: inherit;
+  text-align: left;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.knob:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.knob.active {
+  background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+}
+
+.knob-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.3rem;
+}
+
+.knob-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--secondary-text-color);
+}
+
+.knob-value {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.knob-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--divider-color, rgba(0, 0, 0, 0.12));
+  overflow: hidden;
+}
+
+.knob-fill {
+  height: 100%;
+  background: var(--primary-color, #ede7db);
+  transition: width 80ms linear;
+}
+
 .head {
   display: flex;
   align-items: center;
@@ -188,9 +271,11 @@ ha-card {
   font-weight: 400;
 }
 
+/* No inner scrolling, deliberately. A scroll container inside a dashboard is a
+   trap on touch: a swipe over it scrolls the list instead of the page, and on a
+   long list there is no way past the card. A tall card is the honest trade —
+   show_patterns: false is there for anyone who does not want it. */
 .patterns {
-  max-height: 13rem;
-  overflow-y: auto;
   border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
 }
 

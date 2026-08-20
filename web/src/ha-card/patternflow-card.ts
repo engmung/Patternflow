@@ -34,6 +34,9 @@ const KNOB_COUNT = 4;
  *  paced would leave the panel somewhere in the middle of the gesture. */
 const WRITE_INTERVAL_MS = 150;
 
+/** Pixels of vertical drag on the knob strip that cross a knob's whole range. */
+const STRIP_TRAVEL_PX = 160;
+
 /** Where the sandbox document is served from — the integration's static path. */
 const SANDBOX_URL = "/patternflow_static/pattern-sandbox.html";
 
@@ -117,6 +120,7 @@ export class PatternflowCard extends HTMLElement {
   private sandbox?: SandboxDriver;
   private stage?: HTMLElement;
   private zones: HTMLElement[] = [];
+  private knobButtons: HTMLElement[] = [];
   private readout?: HTMLElement;
   private mounted = false;
 
@@ -201,6 +205,19 @@ export class PatternflowCard extends HTMLElement {
         </div>
         <span class="badge" hidden></span>
       </div>
+      <div class="knobs">
+        ${Array.from(
+          { length: KNOB_COUNT },
+          (_unused, index) => `
+          <button class="knob" type="button" data-knob="${index}">
+            <span class="knob-head">
+              <span class="knob-name">K${index + 1}</span>
+              <span class="knob-value">—</span>
+            </span>
+            <span class="knob-track"><span class="knob-fill"></span></span>
+          </button>`,
+        ).join("")}
+      </div>
       <div class="head">
         <span class="title"></span>
         <ha-switch class="power"></ha-switch>
@@ -213,8 +230,10 @@ export class PatternflowCard extends HTMLElement {
     this.stage = card.querySelector(".stage") as HTMLElement;
     this.zones = Array.from(card.querySelectorAll(".zone"));
     this.readout = card.querySelector(".readout") as HTMLElement;
+    this.knobButtons = Array.from(card.querySelectorAll(".knob"));
 
     this.attachGestures();
+    this.attachStripGestures();
     this.attachPower(card);
     this.mounted = true;
   }
@@ -240,6 +259,10 @@ export class PatternflowCard extends HTMLElement {
 
     stage.addEventListener("pointerdown", (event: PointerEvent) => {
       if (!this.knobsUsable()) return;
+      // Mouse only. A finger here has to be free to scroll the dashboard —
+      // the preview is the tallest thing on the card, and swallowing vertical
+      // touches made it a trap. Touch turns knobs on the strip below.
+      if (event.pointerType !== "mouse") return;
       stage.setPointerCapture(event.pointerId);
       stage.classList.add("touched");
       this.active = this.zoneAt(event);
@@ -307,6 +330,53 @@ export class PatternflowCard extends HTMLElement {
       const index = this.zoneAt(event);
       this.setLocal(index, 50);
       this.flush(index, true);
+    });
+  }
+
+  /** The knob strip: four buttons, and the only thing touch may grab.
+   *
+   *  Tap picks a knob, a vertical drag turns it — the same gesture as on the
+   *  preview with a mouse, on a surface small enough that giving it the whole
+   *  vertical axis costs nobody a scroll. */
+  private attachStripGestures(): void {
+    this.knobButtons.forEach((button, index) => {
+      button.addEventListener("pointerdown", (event: PointerEvent) => {
+        if (!this.knobsUsable()) return;
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        this.active = index;
+        this.dragging = index;
+        this.dragStartValue = this.local[index];
+        this.dragStartY = event.clientY;
+        this.paintOverlay();
+      });
+
+      button.addEventListener("pointermove", (event: PointerEvent) => {
+        if (this.dragging !== index) return;
+        // A fixed travel rather than the element's own height: the strip is
+        // deliberately short, and tying the range to it would make every
+        // pixel worth several percent.
+        const travel = (this.dragStartY - event.clientY) / STRIP_TRAVEL_PX;
+        this.setLocal(index, this.dragStartValue + travel * 100);
+      });
+
+      const release = (event: PointerEvent) => {
+        if (this.dragging !== index) return;
+        this.dragging = null;
+        if (button.hasPointerCapture(event.pointerId)) {
+          button.releasePointerCapture(event.pointerId);
+        }
+        this.flush(index, true);
+      };
+
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+
+      button.addEventListener("dblclick", () => {
+        if (!this.knobsUsable()) return;
+        this.setLocal(index, 50);
+        this.flush(index, true);
+      });
     });
   }
 
@@ -506,6 +576,7 @@ export class PatternflowCard extends HTMLElement {
 
   private paintOverlay(): void {
     this.zones.forEach((zone, index) => zone.classList.toggle("active", index === this.active));
+    this.paintStrip();
 
     const label = this.root.querySelector(".readout-label") as HTMLElement;
     const value = this.root.querySelector(".readout-value") as HTMLElement;
@@ -515,6 +586,32 @@ export class PatternflowCard extends HTMLElement {
     label.textContent = name === `K${this.active + 1}` ? name : `K${this.active + 1} ${name}`;
     value.textContent = `${Math.round(this.local[this.active])}%`;
     fill.style.width = `${Math.round(this.local[this.active])}%`;
+  }
+
+  /** All four knobs at once — the readout the hover overlay cannot give. */
+  private paintStrip(): void {
+    const usable = this.knobsUsable();
+
+    this.knobButtons.forEach((button, index) => {
+      const value = Math.round(this.local[index]);
+      const label = this.labels[index] ?? `K${index + 1}`;
+      const generic = label === `K${index + 1}`;
+
+      button.classList.toggle("active", index === this.active);
+      (button as HTMLButtonElement).disabled = !usable;
+      button.title = generic ? label : `K${index + 1} ${label}`;
+
+      const name = button.querySelector(".knob-name") as HTMLElement;
+      const shown = button.querySelector(".knob-value") as HTMLElement;
+      const fill = button.querySelector(".knob-fill") as HTMLElement;
+
+      // The pattern's own label when it has one, the encoder number when it
+      // does not — a preset keeps its labels in C++ where nothing can read
+      // them, and "K3" beats inventing a name for it.
+      name.textContent = generic ? label : `${index + 1} ${label}`;
+      shown.textContent = usable ? `${value}%` : "—";
+      fill.style.width = `${value}%`;
+    });
   }
 
   private paintPatterns(select?: HassEntity): void {

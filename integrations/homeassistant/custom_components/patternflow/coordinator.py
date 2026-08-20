@@ -34,6 +34,7 @@ from .const import (
     OPTIMISTIC_WINDOW,
     PATTERNS_EVERY_N_TICKS,
     RETAINED_ISSUE,
+    SELECT_CONFIRM_INTERVALS,
 )
 from .helpers import active_option, active_slug, build_pattern_options, knob_labels
 from .knobs import (
@@ -126,6 +127,11 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         self._last_active_slug: str | None = None
         self._scan_interval = scan_interval
 
+        # The pattern index last asked for, held until the device reports it as
+        # active. See async_select_option.
+        self._pending_select: int | None = None
+        self._pending_select_until = 0.0
+
         # Watches the panel's own command topics for retained messages, which
         # are standing orders it re-obeys on every reconnect. See retained.py.
         self.retained = RetainedWatcher(hass)
@@ -174,7 +180,11 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
                         self._mqtt_available = False
                         self._mqtt = None
 
-                if self._patterns is None or self._tick % PATTERNS_EVERY_N_TICKS == 0:
+                if (
+                    self._patterns is None
+                    or self._pending_select is not None
+                    or self._tick % PATTERNS_EVERY_N_TICKS == 0
+                ):
                     self._patterns = await self.client.get_patterns()
 
         except PatternflowConnectionError as err:
@@ -193,6 +203,11 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         options, options_to_index = build_pattern_options(entries)
 
         active = patterns.get("active")
+        if self._pending_select is not None and (
+            active == self._pending_select or time.monotonic() >= self._pending_select_until
+        ):
+            self._pending_select = None
+
         slug = active_slug(entries, active if isinstance(active, int) else None)
 
         # A new pattern has its own parameters at its own defaults, so whatever
@@ -290,10 +305,19 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
 
     @property
     def current_option(self) -> str | None:
-        """The running pattern's option label, if a pattern is loaded."""
+        """The running pattern's option label, if a pattern is loaded.
+
+        Shows the pattern just asked for while the device is still getting to
+        it. Without that the dropdown snaps back to the old pattern for as long
+        as the switch takes, which reads as the click not having worked.
+        """
         entries = self.data.patterns.get("patterns")
         entries = entries if isinstance(entries, list) else []
+
         active = self.data.patterns.get("active")
+        if self._pending_select is not None:
+            active = self._pending_select
+
         return active_option(
             self.data.options, entries, active if isinstance(active, int) else None
         )
@@ -482,11 +506,25 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         await self.async_request_refresh()
 
     async def async_select_option(self, option: str) -> None:
-        """Switch to the pattern behind this option label."""
+        """Switch to the pattern behind this option label.
+
+        Like sleep, the device only queues this — activating a module reads
+        FATFS and runs the relocator, so `loop()` does it. Asking for the list
+        again straight away therefore reads back the pattern that is still
+        running, and caching *that* was the bug: the answer looked settled, and
+        the truth did not arrive until the staggered re-read a minute later.
+
+        So the target is held and the list is re-read every tick until the
+        device agrees, the same shape as the knob confirmation.
+        """
         index = self.data.options_to_index.get(option)
         if index is None:
             raise PatternflowError(f"{option} is not on this device")
+
         await self.client.select_pattern(index)
-        # The list itself does not change, but `active` does, and it is only
-        # re-read on the staggered tick — so ask for it now.
-        await self.async_refresh_patterns()
+        self._pending_select = index
+        self._pending_select_until = time.monotonic() + (
+            self._scan_interval * SELECT_CONFIRM_INTERVALS
+        )
+        self.async_update_listeners()
+        await self.async_request_refresh()

@@ -106,3 +106,9 @@ KNOB_CONFIRM_TOLERANCE: Final = 0.6
 # Give up waiting for confirmation after this many poll intervals, and show
 # what the device says instead. Only reached when a write did not land.
 KNOB_CONFIRM_INTERVALS: Final = 3
+
+# Same idea for a pattern change, which is also queued and applied in loop().
+# Activating a module reads the filesystem and runs the ELF relocator, so it
+# takes appreciably longer than a knob — but not this long, and reaching this
+# means the switch was refused rather than slow.
+SELECT_CONFIRM_INTERVALS: Final = 3
