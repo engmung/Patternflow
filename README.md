@@ -100,7 +100,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | :--- | :--- |
 | **Display** | 128 × 64 HUB75 RGB LED matrix, P2.5 (320 × 160 mm) |
 | **Brain** | ESP32-S3-WROOM-1 **N16R8** (16 MB flash, 8 MB PSRAM) · standalone, no sending card |
-| **Input** | 4× EC11 rotary encoders with push-switch; long-press encoder 4 to switch patterns |
+| **Input** | 4× EC11 rotary encoders with push-switch; long-press encoder 4 to switch patterns ([controls](#playing-it)) |
 | **Power** | 5 V over USB from any power bank; about **4 h per 10,000 mAh** at max brightness with a typical pattern (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
@@ -132,9 +132,21 @@ These were measured with a bright generative pattern at maximum brightness, whic
 
 </details>
 
+## Playing it
+
+Every encoder does two jobs. Turn it, or give it a short press, and you are moving the pattern that's running. Hold it down and a device function opens instead, and a second long-press closes it again.
+
+<p align="center">
+  <img src="./docs/media/device-card.png" width="100%" alt="Patternflow controls: encoder 1 brightness, 2 network, 3 knob numbers, 4 patterns; turn or short-press to move the running pattern, long-press for device functions" />
+</p>
+
+What a knob does to a running pattern is the pattern's own decision, so the same knob feels different on every one of them. That is what encoder 3 is for: hold it and each knob puts its own number on the panel, which saves counting around the front.
+
+The device functions themselves are fixed. Encoder 1 is brightness. Encoder 4 opens the pattern list, where you turn to browse the names and long-press again to load one, choosing from whatever is installed at the time. Encoder 2 puts the board's IP address on the panel, and typing that into a browser opens the web console, which carries every feature the device has and works from a phone.
+
 ## On the device
 
-A new board boots into **Origin**, concentric sine waves sampled by an emergent grid, and long-pressing encoder 4 cycles through whatever else is installed. Patterns live on the filesystem rather than inside the program. The firmware compiles in Origin alone, as the failsafe a board can always boot into, and everything else installs as **`.pfm` modules over Wi-Fi**, up to 128 of them, no reflash. Adding a pattern never costs a firmware update, and a firmware update never touches your patterns, your Wi-Fi, or your storage.
+A new board boots into **Origin**, concentric sine waves sampled by an emergent grid, and long-pressing encoder 4 opens the list of whatever else is installed. Patterns live on the filesystem rather than inside the program. The firmware compiles in Origin alone, as the failsafe a board can always boot into, and everything else installs as **`.pfm` modules over Wi-Fi**, up to 128 of them, no reflash. Adding a pattern never costs a firmware update, and a firmware update never touches your patterns, your Wi-Fi, or your storage.
 
 A new board is therefore nearly empty, so a set ships with it: the **Basics pack**, 33 patterns, at the top of the [decks shelf](https://community.patternflow.work/community/decks). One click installs the lot, no account and no build queue, or drop the `.zip` on your board's Patterns page yourself. The [Live Editor](https://patternflow.work/pattern) opens with its own preset library of 42 patterns, each loadable and remixable in the browser.
 
