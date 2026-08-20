@@ -53,9 +53,19 @@ async def _async_register_static_files(hass: HomeAssistant) -> None:
             StaticPathConfig(
                 STATIC_URL,
                 str(Path(__file__).parent / "www"),
-                # The bundle changes only when the integration is updated, and
-                # then its whole directory changes with it.
-                cache_headers=True,
+                # No long-lived cache headers, deliberately.
+                #
+                # The URL never changes, so a browser told to cache this for a
+                # year has no way to find out the integration was updated —
+                # which turned "install the new version" into "and now go and
+                # clear your browser's cache", on every device, including a
+                # phone app where that is genuinely awkward.
+                #
+                # Off, aiohttp still sends Last-Modified and ETag, so an
+                # unchanged file costs a conditional request answered with 304.
+                # Over a LAN that is nothing, and an updated card simply
+                # appears on the next reload.
+                cache_headers=False,
             )
         ]
     )
