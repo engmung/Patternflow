@@ -35,6 +35,10 @@ class PatternflowPanelSwitch(PatternflowEntity, SwitchEntity):
     """
 
     _attr_name = None
+    # Set here rather than in icons.json, which is keyed by translation key —
+    # and this entity deliberately has none. `_attr_name = None` is what makes
+    # it the device's own entity, carrying the device's name; giving it a
+    # translation key to hang an icon off would put a second name on it.
     _attr_icon = "mdi:television-ambient-light"
 
     def __init__(self, coordinator: Any) -> None:

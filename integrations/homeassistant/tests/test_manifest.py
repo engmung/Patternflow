@@ -134,6 +134,29 @@ class TestTranslations:
 
         assert declared <= available
 
+    def test_every_icon_belongs_to_an_entity_that_exists(self, strings):
+        # icons.json is keyed by translation key, and a key nothing uses is not
+        # an error anywhere — it just silently shows no icon. Same for a
+        # platform name that does not match one this integration provides.
+        icons = read_json(PACKAGE / "icons.json")
+
+        for platform, entries in icons.get("entity", {}).items():
+            assert platform in strings["entity"], f"icons.json names platform {platform}"
+            for key in entries:
+                assert key in strings["entity"][platform], (
+                    f"icons.json has {platform}.{key}, which no entity declares"
+                )
+
+    def test_the_brand_icons_are_there_and_are_pngs(self):
+        # Without these a custom integration shows the generic puzzle piece.
+        # They live in brand/ because that is where Home Assistant looks since
+        # 2026.3; both themes, because the mark is near-black.
+        brand = PACKAGE / "brand"
+        for name in ("icon.png", "icon@2x.png", "dark_icon.png", "dark_icon@2x.png"):
+            path = brand / name
+            assert path.is_file(), f"{name} is missing"
+            assert path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", f"{name} is not a PNG"
+
     def test_the_repair_issue_has_a_title_and_a_flow(self, strings):
         # Raised with `translation_key=RETAINED_ISSUE`, a constant rather than a
         # literal, so the scan above cannot see it. Without these strings the

@@ -34,7 +34,6 @@ class PatternflowPatternSelect(PatternflowEntity, SelectEntity):
     """
 
     _attr_translation_key = "pattern"
-    _attr_icon = "mdi:animation-play"
 
     def __init__(self, coordinator: PatternflowCoordinator) -> None:
         """Set up the select."""

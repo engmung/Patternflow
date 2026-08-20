@@ -263,6 +263,20 @@ behaviour needs `pytest-homeassistant-custom-component` and the full harness;
 that is a follow-up, and its absence is why nothing in `tests/` imports
 `homeassistant`.
 
+The integration's brand icons are rendered from the site's own favicon, so the
+two cannot drift into slightly different logos:
+
+```bash
+python3 scripts/make_brand.py   # → custom_components/patternflow/brand/
+```
+
+They are committed, and `brand/` is where Home Assistant looks for a custom
+integration's own images (2026.3 and later) — local ones win over the brands
+CDN, and nothing goes in the manifest. Both themes, because the mark is
+near-black and would vanish on a dark one. The mark is a rectangle and four
+circles, which is why that script rasterises it with the standard library
+instead of pulling in a renderer.
+
 The dashboard card is built from `web/`, not from here, because it imports the
 knob scale constants and the `@knobs` parser from `web/src/lib` — a copy of
 those would go quietly wrong the next time a knob range is refactored:

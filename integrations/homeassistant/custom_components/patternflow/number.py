@@ -62,6 +62,10 @@ class PatternflowKnob(PatternflowEntity, NumberEntity):
     _attr_native_step = 1
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_mode = NumberMode.SLIDER
+    # Not in icons.json for the same reason as the switch: these take their
+    # names from the running pattern's sidecar, so they have no translation key
+    # to key an icon off.
+    _attr_icon = "mdi:knob"
 
     def __init__(self, coordinator: PatternflowCoordinator, index: int) -> None:
         """Set up one knob."""

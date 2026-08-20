@@ -1,0 +1,37 @@
+{
+  "entity": {
+    "select": {
+      "pattern": {
+        "default": "mdi:animation-play"
+      }
+    },
+    "sensor": {
+      "rssi": {
+        "default": "mdi:wifi"
+      },
+      "heap_internal": {
+        "default": "mdi:memory"
+      },
+      "storage_free": {
+        "default": "mdi:sd"
+      },
+      "fps": {
+        "default": "mdi:speedometer"
+      },
+      "last_boot": {
+        "default": "mdi:clock-start"
+      }
+    },
+    "binary_sensor": {
+      "console_paused": {
+        "default": "mdi:pause-octagon-outline",
+        "state": {
+          "on": "mdi:pause-octagon"
+        }
+      },
+      "storage_mounted": {
+        "default": "mdi:sd"
+      }
+    }
+  }
+}
