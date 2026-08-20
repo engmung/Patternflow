@@ -94,5 +94,18 @@
         "name": "Storage mounted"
       }
     }
+  },
+  "issues": {
+    "retained_commands": {
+      "title": "A retained MQTT message keeps re-commanding this panel",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Clear the retained messages?",
+            "description": "A retained MQTT message is redelivered every time somebody subscribes — and the panel resubscribes on every reconnect. So these are not old messages, they are standing orders the panel obeys again and again:\n\n{topics}\n\nOn `pattern` that means the panel reloads the module and the pattern starts over from its first frame, every few minutes, with nothing in any log. On `knob` or `param` the knobs snap back to a value nobody set today.\n\nCurrent Patternflow firmware never publishes these retained; earlier versions did, and a retained message outlives the firmware that wrote it.\n\nClearing publishes an empty retained payload, which is the only way to delete one. If this broker is shared, be aware that it removes the message for everything else listening too."
+          }
+        }
+      }
+    }
   }
 }

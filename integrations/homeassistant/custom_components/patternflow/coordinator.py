@@ -16,6 +16,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -32,6 +33,7 @@ from .const import (
     MANUFACTURER,
     OPTIMISTIC_WINDOW,
     PATTERNS_EVERY_N_TICKS,
+    RETAINED_ISSUE,
 )
 from .helpers import active_option, active_slug, build_pattern_options, knob_labels
 from .knobs import (
@@ -42,6 +44,8 @@ from .knobs import (
     param_to_percent,
     unavailable_reason,
 )
+from .retained import RetainedWatcher
+from .retained import issue_id as retained_issue_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,6 +125,10 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         self._knob_residual: list[float] = [0.0, 0.0, 0.0, 0.0]
         self._last_active_slug: str | None = None
         self._scan_interval = scan_interval
+
+        # Watches the panel's own command topics for retained messages, which
+        # are standing orders it re-obeys on every reconnect. See retained.py.
+        self.retained = RetainedWatcher(hass)
 
     # ── Polling ──────────────────────────────────────────────────────────
 
@@ -203,6 +211,8 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         if slug and slug not in self._sidecars and not self._console_paused:
             await self.async_fetch_sidecar(slug)
 
+        await self._async_check_retained(mqtt)
+
         return PatternflowData(
             status=status,
             patterns=patterns,
@@ -210,6 +220,36 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
             options=options,
             options_to_index=options_to_index,
         )
+
+    async def _async_check_retained(self, mqtt: dict[str, Any] | None) -> None:
+        """Keep the retained-message watch pointed at the right prefix, and warn.
+
+        The prefix is read off the device, so it follows a channel change
+        without anyone having to tell us. The warning only goes up when the
+        panel is in the role that obeys these topics — a retained command on a
+        Publisher's prefix is real and inert, and raising it would be noise.
+        """
+        prefix = str((mqtt or {}).get("prefix") or "")
+        if prefix:
+            await self.retained.async_watch(prefix)
+
+        issue = retained_issue_id(self.unique_id)
+        if self.retained.bites(mqtt):
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue,
+                is_fixable=True,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=RETAINED_ISSUE,
+                translation_placeholders={
+                    "count": str(len(self.retained.found)),
+                    "topics": ", ".join(sorted(self.retained.found)),
+                },
+                data={"entry_id": self.config_entry.entry_id},
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue)
 
     async def async_refresh_patterns(self) -> None:
         """Drop the cached pattern list so the next poll re-reads it."""

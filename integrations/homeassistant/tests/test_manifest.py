@@ -134,6 +134,17 @@ class TestTranslations:
 
         assert declared <= available
 
+    def test_the_repair_issue_has_a_title_and_a_flow(self, strings):
+        # Raised with `translation_key=RETAINED_ISSUE`, a constant rather than a
+        # literal, so the scan above cannot see it. Without these strings the
+        # issue renders as a bare identifier and its fix button has no text.
+        from patternflow.const import RETAINED_ISSUE
+
+        issue = strings.get("issues", {}).get(RETAINED_ISSUE)
+        assert issue is not None
+        assert issue.get("title")
+        assert issue["fix_flow"]["step"]["confirm"]["description"]
+
 
 def _keys(node: dict, prefix: str = "") -> set[str]:
     """Every dotted key path in a nested dict."""

@@ -160,6 +160,39 @@ healthy, nothing reports an error, and the slider simply will not stay put.
 Broadcast has no snapshot subscription at all. When the panel is on one of the
 other five, each knob's `channel_overwrites` attribute says so.
 
+### Retained messages, and the pattern that keeps restarting
+
+A retained MQTT message is redelivered every time somebody subscribes — and the
+panel resubscribes on every reconnect and every role change. So a retained
+message on one of its command topics is not an old message. It is a standing
+order, re-issued forever.
+
+The one that hurts is `<prefix>/pattern`: the firmware has no "already running"
+check, so it reloads the module and the pattern starts over from its first
+frame. A pattern that has been playing for minutes stutters and restarts, at
+whatever interval the broker connection happens to drop. Retained values on
+`knob/N` or `param/N` do the same to the knobs. Nothing appears in any log — the
+panel is doing exactly what it was told.
+
+Current firmware never publishes these retained. Earlier versions did, and a
+retained message outlives the firmware that wrote it.
+
+The integration watches those topics and raises a **repair** when it finds one
+that the panel would obey, with a button that clears it. Only when the panel is
+a Subscriber — on a Publisher the same message is real and inert, and warning
+about it would be noise. `<prefix>/snapshot` is deliberately not watched: it is
+retained by design on the show channels, and flagging it would mean crying wolf
+at a correctly configured setup.
+
+To clear one by hand instead:
+
+```yaml
+# Developer tools → Actions → mqtt.publish
+topic: patternflow/pattern
+payload: ""
+retain: true
+```
+
 Setup offers to make the role change for you when that is the only thing
 missing, and says what it costs: a Subscriber stops publishing its own knob
 turns, because Publisher and Subscriber are exclusive. You still see the knobs

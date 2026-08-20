@@ -94,5 +94,18 @@
     "knob_write_failed": {
       "message": "Die Knob-Änderung konnte nicht gesendet werden."
     }
+  },
+  "issues": {
+    "retained_commands": {
+      "title": "Eine retained MQTT-Nachricht kommandiert dieses Panel immer wieder",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Retained Nachrichten löschen?",
+            "description": "Eine retained MQTT-Nachricht wird bei jedem Abonnieren erneut zugestellt — und das Panel abonniert bei jedem Reconnect neu. Das sind also keine alten Nachrichten, sondern Daueraufträge, die das Panel immer wieder befolgt:\n\n{topics}\n\nAuf `pattern` heißt das: das Panel lädt das Modul neu und das Pattern beginnt von vorn — alle paar Minuten, ohne Eintrag in irgendeinem Log. Auf `knob` oder `param` springen die Knobs auf einen Wert zurück, den heute niemand gesetzt hat.\n\nDie aktuelle Patternflow-Firmware veröffentlicht diese Topics nie retained; ältere Versionen taten es, und eine retained Nachricht überlebt die Firmware, die sie geschrieben hat.\n\nDas Löschen veröffentlicht eine leere retained Nachricht — anders lässt sich eine solche nicht entfernen. Wenn der Broker geteilt wird: sie ist damit auch für alle anderen Mithörer weg."
+          }
+        }
+      }
+    }
   }
 }
