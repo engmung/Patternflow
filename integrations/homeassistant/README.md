@@ -109,6 +109,27 @@ pattern at the same settings, not a mirror. A pattern nobody has turned in a
 while will match; one that has just been turned by hand at the device catches up
 on the next poll.
 
+**How closely it follows the panel.** The knob values do: setting one from
+here holds it and the device reports it back, and turning a real encoder moves
+the value here too, because the raw encoder count is in `/api/mqtt` and a
+change in it can only have come from a hand. So the preview stays on the same
+settings as the panel rather than drifting away the moment somebody touches it.
+
+What cannot be matched is the *frame*. The preview starts its clock at zero
+when the card loads; the panel has been running since it was switched on, and
+plenty of patterns accumulate state as they go rather than being a pure
+function of time. Nothing in the API carries a pattern's elapsed time or its
+internal state, and streaming the panel's own pixels is the thing this device
+cannot afford. Same settings, then — not the same picture.
+
+One honest gap inside that: the panel never reports what a pattern's
+parameters actually *are*. There is no endpoint for "Hue is 0.42". So the
+starting point is assumed to be the pattern's own defaults — which is right on
+a pattern nobody has touched, since both sides derive them from the same
+annotation — and everything after that is tracked as change. Set a knob from
+Home Assistant once and it becomes exact, because a held value is reported
+back.
+
 That also bounds what can be previewed. The card bundles the JavaScript of the
 **Basics pack** — the 33 patterns that ship with Patternflow — matched to the
 modules on your device by slug. A community pattern or a hand-built module has

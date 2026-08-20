@@ -27,6 +27,7 @@ from .api import (
     PatternflowNotFound,
 )
 from .const import (
+    DETENTS_PER_RANGE,
     DOMAIN,
     KNOB_CONFIRM_INTERVALS,
     KNOB_CONFIRM_TOLERANCE,
@@ -124,6 +125,9 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         # Sub-detent remainder on the delta path, so small moves accumulate
         # instead of rounding to nothing. See knobs.detents_with_residual.
         self._knob_residual: list[float] = [0.0, 0.0, 0.0, 0.0]
+        # Last seen physical encoder counts, for following a hand on the knobs.
+        # See _apply_physical_turns.
+        self._knob_clicks: list[int | None] = [None, None, None, None]
         self._last_active_slug: str | None = None
         self._scan_interval = scan_interval
 
@@ -196,6 +200,7 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         # somebody opened its web page.
         mqtt = self._mqtt
         self.knob_writer.note_connection(mqtt)
+        self._apply_physical_turns(mqtt)
 
         patterns = self._patterns or {"patterns": [], "active": -1}
         entries = patterns.get("patterns")
@@ -235,6 +240,56 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
             options=options,
             options_to_index=options_to_index,
         )
+
+    def _apply_physical_turns(self, mqtt: dict[str, Any] | None) -> None:
+        """Follow the encoders when somebody turns them by hand.
+
+        The device never reports what a pattern's parameters actually are —
+        there is no endpoint for "Hue is 0.42". What it does report is the raw
+        encoder counter, and that moves *only* under a hand: the firmware
+        computes `knobDeltas` from it and adds remote deltas on top afterwards,
+        so an injected turn never appears in it.
+
+        A change there is therefore a physical turn, and a detent is a known
+        fraction of a parameter's range — 48 of them cross it. Carrying that
+        onto the value keeps Home Assistant, and the card's preview, following
+        the panel instead of drifting away from it the moment anyone touches
+        the real thing.
+
+        Dead reckoning, and honest about it: the *starting* point is still
+        unknown, so this tracks changes rather than establishing truth. It
+        assumes the conventional step, which is what the repo's own conversion
+        toolchain emits. And it clamps rather than wrapping — a value that
+        jumped from 0 to 100 because somebody kept turning would be a worse lie
+        than one that sits at the end.
+        """
+        counts = (mqtt or {}).get("knobs")
+        held = (mqtt or {}).get("paramActive")
+        if not isinstance(counts, list):
+            return
+
+        for index in range(min(4, len(counts))):
+            count = counts[index]
+            if not isinstance(count, int):
+                continue
+
+            previous = self._knob_clicks[index]
+            self._knob_clicks[index] = count
+            if previous is None or count == previous:
+                continue
+
+            # A held channel reports its own value, which outranks anything
+            # inferred. The firmware releases that hold on physical motion, so
+            # this only skips the poll the turn lands on.
+            if isinstance(held, list) and index < len(held) and held[index]:
+                continue
+
+            moved = (count - previous) * 100 / DETENTS_PER_RANGE
+            self._knob_percent[index] = max(0.0, min(100.0, self._knob_percent[index] + moved))
+            # Whatever we were waiting to have confirmed is now history: a hand
+            # on the encoder wins, and the firmware agrees — it drops the hold.
+            self._knob_target[index] = None
+            self._knob_residual[index] = 0.0
 
     async def _async_check_retained(self, mqtt: dict[str, Any] | None) -> None:
         """Keep the retained-message watch pointed at the right prefix, and warn.
