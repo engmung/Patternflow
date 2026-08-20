@@ -21,6 +21,7 @@ MIN_SCAN_INTERVAL: Final = 5
 MAX_SCAN_INTERVAL: Final = 60
 
 CONF_SCAN_INTERVAL: Final = "scan_interval"
+CONF_ENABLE_KNOBS: Final = "enable_knobs"
 
 # The pattern list only changes when somebody installs or deletes a module, so
 # it rides along every Nth tick instead of every one. A select() also refreshes
@@ -51,3 +52,29 @@ API_PATTERNS_FILE: Final = "/api/patterns/file"
 API_MQTT: Final = "/api/mqtt"
 
 MANUFACTURER: Final = "Patternflow"
+
+# ── Knobs ────────────────────────────────────────────────────────────────
+#
+# Reading them is HTTP (see api.py: /api/mqtt reports positions in any role).
+# Writing them is MQTT only — the HTTP API has no knob endpoint, and the two
+# that existed were removed as unused.
+
+#: Absolute parameter bus, `<prefix>/param/1..4`. Wire scale is 0..1000.
+PARAM_SCALE: Final = 1000
+
+# Detents across a parameter's entire declared range.
+#
+# Mirrors web/src/lib/patternflowControls.ts, which is the source of truth for
+# both halves of this: ENCODER_CLICKS_PER_TURN = 24 (the reference Bourns
+# PEC11R encoder) and TURNS_PER_FULL_RANGE = 2. A pattern converted by the
+# repo's own toolchain gets a step constant derived from exactly these numbers,
+# so 48 detents crossing 0 to 100% is the same feel as two turns of the physical
+# knob. A hand-written pattern with its own step will differ, which is why the
+# delta path is documented as relative rather than absolute.
+ENCODER_CLICKS_PER_TURN: Final = 24
+TURNS_PER_FULL_RANGE: Final = 2
+DETENTS_PER_RANGE: Final = ENCODER_CLICKS_PER_TURN * TURNS_PER_FULL_RANGE
+
+#: The MQTT role in which the device obeys knob, param and pattern topics.
+#: Sleep and message are obeyed in any role; these three are not.
+ROLE_SUBSCRIBER: Final = "subscriber"

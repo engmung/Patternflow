@@ -11,6 +11,10 @@
       "zeroconf_confirm": {
         "title": "Dieses Patternflow-Gerät hinzufügen",
         "description": "Ein Patternflow-Panel unter {host} gefunden. Zu Home Assistant hinzufügen?"
+      },
+      "knob_control": {
+        "title": "Knobs von Home Assistant aus drehen?",
+        "description": "Knob-Positionen sind immer lesbar. Sie zu ändern nicht: die HTTP-API des Panels hat keinen Knob-Endpoint, ein Knob-Schreibvorgang muss also über MQTT raus — und das Panel befolgt Knob- und Pattern-Topics nur als Subscriber. Aktuell ist es \"{role}\" auf {broker}.\n\nDas Umstellen kostet etwas, das du wissen solltest: als Subscriber veröffentlicht das Panel seine eigenen Knob-Drehungen nicht mehr, denn die beiden Rollen schließen sich aus. Du siehst die Knobs in Home Assistant trotzdem, weil diese Anzeige über HTTP kommt und nicht aus den Topics.\n\nDu kannst das später auf der /mqtt-Seite des Panels ändern."
       }
     },
     "error": {
@@ -40,16 +44,55 @@
       }
     },
     "sensor": {
-      "rssi": { "name": "WLAN-Signal" },
-      "heap_internal": { "name": "Freier interner Speicher" },
-      "storage_free": { "name": "Freier Speicherplatz" },
-      "fps": { "name": "Bildrate" },
-      "last_boot": { "name": "Letzter Start" }
+      "rssi": {
+        "name": "WLAN-Signal"
+      },
+      "heap_internal": {
+        "name": "Freier interner Speicher"
+      },
+      "storage_free": {
+        "name": "Freier Speicherplatz"
+      },
+      "fps": {
+        "name": "Bildrate"
+      },
+      "last_boot": {
+        "name": "Letzter Start"
+      }
     },
     "binary_sensor": {
-      "console_paused": { "name": "Konsole pausiert" },
-      "mqtt_connected": { "name": "MQTT verbunden" },
-      "storage_mounted": { "name": "Speicher eingebunden" }
+      "console_paused": {
+        "name": "Konsole pausiert"
+      },
+      "mqtt_connected": {
+        "name": "MQTT verbunden"
+      },
+      "storage_mounted": {
+        "name": "Speicher eingebunden"
+      }
+    }
+  },
+  "exceptions": {
+    "mqtt_compiled_out": {
+      "message": "Die Firmware dieses Panels wurde ohne MQTT gebaut, seine Knobs lassen sich also gar nicht fernsteuern."
+    },
+    "no_broker": {
+      "message": "Das Panel hat keinen MQTT-Broker konfiguriert, und seine HTTP-API hat keinen Knob-Endpoint. Richte den Broker auf der /mqtt-Seite des Panels ein und setze die Rolle auf Subscriber."
+    },
+    "not_subscriber": {
+      "message": "Das Panel befolgt Knob-Topics nur als MQTT-Subscriber. Ändere die Rolle auf seiner /mqtt-Seite — beachte, dass ein Subscriber seine eigenen Knob-Drehungen nicht mehr veröffentlicht."
+    },
+    "broker_unreachable": {
+      "message": "Das Panel ist nicht mit seinem MQTT-Broker verbunden, eine Knob-Änderung ginge also ins Leere."
+    },
+    "mqtt_not_set_up": {
+      "message": "In Home Assistant ist keine MQTT-Integration eingerichtet — die verschickt die Knob-Änderung aber. Richte sie ein, auf denselben Broker wie das Panel."
+    },
+    "mqtt_publish_failed": {
+      "message": "Das Veröffentlichen der Knob-Änderung über MQTT ist fehlgeschlagen."
+    },
+    "knob_write_failed": {
+      "message": "Die Knob-Änderung konnte nicht gesendet werden."
     }
   }
 }

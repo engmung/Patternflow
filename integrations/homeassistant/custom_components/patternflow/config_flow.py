@@ -16,14 +16,16 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
-from .api import PatternflowClient, PatternflowError
+from .api import PatternflowClient, PatternflowError, PatternflowNotFound
 from .const import (
+    CONF_ENABLE_KNOBS,
     CONF_SCAN_INTERVAL,
     DEFAULT_HOST,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
     MIN_SCAN_INTERVAL,
+    ROLE_SUBSCRIBER,
 )
 from .coordinator import PatternflowConfigEntry
 from .helpers import looks_like_patternflow
@@ -40,6 +42,50 @@ class PatternflowConfigFlow(ConfigFlow, domain=DOMAIN):
         """Start with nothing discovered."""
         self._host: str | None = None
         self._unique_id: str | None = None
+        self._mqtt: dict[str, Any] | None = None
+
+    async def _async_finish(self) -> ConfigFlowResult:
+        """Create the entry, after offering knob control if it is one step away.
+
+        The offer is only made when it would actually change something: the
+        device already has a broker, and is simply not in the role that obeys
+        knob topics. With no broker there is nothing this flow can fix — the
+        device has to be pointed at one from its own /mqtt page first — and
+        asking about it here would be a dead end with an explanation attached.
+        """
+        if (
+            self._mqtt
+            and self._mqtt.get("configured")
+            and self._mqtt.get("role") != ROLE_SUBSCRIBER
+            and not self._mqtt.get("forcesSub")
+        ):
+            return await self.async_step_knob_control()
+
+        return self.async_create_entry(title="Patternflow", data={CONF_HOST: self._host})
+
+    async def async_step_knob_control(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Offer to put the device in the role where knob writes are obeyed."""
+        if user_input is not None:
+            if user_input.get(CONF_ENABLE_KNOBS):
+                client = PatternflowClient(async_get_clientsession(self.hass), self._host or "")
+                try:
+                    await client.set_mqtt_role(ROLE_SUBSCRIBER)
+                except PatternflowError:
+                    # Not fatal. Everything else works, and the role can be
+                    # changed later from the device's own /mqtt page.
+                    _LOGGER.warning("Could not switch %s to Subscriber", self._host)
+            return self.async_create_entry(title="Patternflow", data={CONF_HOST: self._host})
+
+        return self.async_show_form(
+            step_id="knob_control",
+            data_schema=vol.Schema({vol.Required(CONF_ENABLE_KNOBS, default=False): bool}),
+            description_placeholders={
+                "role": str((self._mqtt or {}).get("role", "off")),
+                "broker": str((self._mqtt or {}).get("host", "")),
+            },
+        )
 
     async def _async_probe(self, host: str) -> str:
         """Confirm a Patternflow device is at `host` and return its unique id.
@@ -55,6 +101,14 @@ class PatternflowConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if not looks_like_patternflow(status):
             raise PatternflowError("that is not a Patternflow device")
+
+        # Read once, here, so the flow knows whether knob control is one
+        # question away or not available at all. Absent on a PF_MQTT_ENABLED 0
+        # build, which is a fine device with no knob writing.
+        try:
+            self._mqtt = await client.get_mqtt()
+        except PatternflowNotFound:
+            self._mqtt = None
 
         # There is no MAC, serial or other hardware identifier on any endpoint.
         # The mDNS hostname is what is left: unique in practice, because two
@@ -89,7 +143,8 @@ class PatternflowConfigFlow(ConfigFlow, domain=DOMAIN):
                         return self.async_abort(reason="already_configured")
                     return self.async_abort(reason="duplicate_hostname")
 
-                return self.async_create_entry(title="Patternflow", data={CONF_HOST: host})
+                self._host = host
+                return await self._async_finish()
 
         return self.async_show_form(
             step_id="user",
@@ -138,7 +193,7 @@ class PatternflowConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Ask before adding a discovered device."""
         if user_input is not None:
-            return self.async_create_entry(title="Patternflow", data={CONF_HOST: self._host})
+            return await self._async_finish()
 
         return self.async_show_form(
             step_id="zeroconf_confirm",

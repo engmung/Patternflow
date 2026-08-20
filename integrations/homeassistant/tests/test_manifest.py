@@ -104,6 +104,21 @@ class TestTranslations:
         available = set(strings["config"]["abort"]) | set(strings["config"]["error"])
         assert used <= available
 
+    def test_every_knob_failure_reason_has_a_message(self, strings):
+        # These reach a person as a dialog when a knob write is refused, and
+        # they are the difference between "MQTT is not set up" and a shrug.
+        # The two modules that produce them are not the one that holds them.
+        knobs = (PACKAGE / "knobs.py").read_text(encoding="utf-8")
+        produced = set(re.findall(r'return "([a-z_]+)"', knobs))
+        produced |= set(re.findall(r'KnobWriteUnavailable\("([a-z_]+)"\)', knobs))
+
+        number = (PACKAGE / "number.py").read_text(encoding="utf-8")
+        produced |= set(re.findall(r'or "([a-z_]+)"', number))
+
+        # A regex that stops matching would make this pass by finding nothing.
+        assert len(produced) >= 7
+        assert produced <= set(strings["exceptions"])
+
     def test_every_translation_key_used_by_an_entity_has_a_string(self, strings):
         # `_attr_translation_key` / `translation_key=` with nothing behind it
         # gives the entity no name at all.

@@ -139,6 +139,15 @@ class PatternflowClient:
         """
         return await self._request("GET", API_PATTERNS_FILE, params={"slug": slug, "ext": "json"})
 
+    async def set_mqtt_role(self, role: str) -> dict[str, Any]:
+        """Put the device into an MQTT role, and return its new MQTT state.
+
+        Only a Subscriber obeys knob, param and pattern topics. The cost is
+        real and belongs in whatever asks for this: a Subscriber stops
+        publishing its own knob turns, because the two roles are exclusive.
+        """
+        return await self._request("POST", API_MQTT, params={"role": role})
+
     async def set_sleep(self, sleep: bool) -> None:
         """Put the panel to sleep, or wake it.
 

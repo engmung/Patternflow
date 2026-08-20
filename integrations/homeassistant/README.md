@@ -14,6 +14,7 @@ is the thing to check first.
 | --- | --- |
 | **Switch** | The panel, on or asleep. On means lit. |
 | **Select** | Every installed pattern; picking one switches the panel to it. |
+| **Numbers** | The four knobs, as a percentage of whatever the running pattern maps them to. Named after the pattern's own labels. |
 | **Sensors** | Free internal memory, free storage, Wi-Fi signal, frame rate, last boot. |
 | **Binary sensors** | MQTT connected, storage mounted, console paused. |
 
@@ -81,28 +82,53 @@ The same lesson applies to any client, including this one.
 Everything this integration touches is under `/api/`. It never fetches a console
 page, because that would pause the pattern every poll.
 
-## Knobs
+## Knobs, and the one asymmetry in this integration
 
-The four knobs are **readable but not writable** from this integration today.
+**Reading is HTTP and always works.** `/api/mqtt` reports live knob positions in
+any MQTT role, and with no broker configured at all, because the firmware copies
+the input frame into that state before it looks at its role. If the endpoint is
+missing entirely — a build with `PF_MQTT_ENABLED 0` — the knob entities are not
+created, rather than sitting there permanently unknown.
 
-Reading works over plain HTTP: `/api/mqtt` reports live knob positions and
-parameter values in any MQTT role, and with no broker configured at all, because
-the firmware copies the input frame into that state before it checks the role.
-
-Writing does not, and cannot. The HTTP API has no knob endpoint — `/api/knob` and
-`/remote` existed once and were removed as unused — so a knob write has to go out
-over MQTT or OSC. That path needs three things at once: MQTT set up in Home
+**Writing is MQTT, and needs three things at once:** MQTT set up in Home
 Assistant, the panel pointed at a broker Home Assistant can also reach, and the
-panel in **Subscriber** role, because `param` and `knob` topics are only obeyed
-in that role. Sleep, notably, is obeyed in either.
+panel in **Subscriber** role. There is no HTTP alternative — `/api/knob` and
+`/remote` existed once and were removed as unused. Sleep and pattern selection
+are unaffected; they are HTTP.
 
-Knob entities and that setup flow are the next piece of work. Until then, the
-knobs move from the encoders, from OSC, and from MQTT if you publish to it
-yourself.
+Setup offers to make the role change for you when that is the only thing
+missing, and says what it costs: a Subscriber stops publishing its own knob
+turns, because Publisher and Subscriber are exclusive. You still see the knobs
+move, since that reading comes over HTTP rather than from the topics.
+
+When a write cannot land, the slider says why — no broker, wrong role, broker
+unreachable, or no MQTT in Home Assistant — instead of failing quietly.
+
+### Absolute and relative, and why the difference shows
+
+Each knob carries an `absolute` attribute, and it changes with the pattern.
+
+`absolute: true` — the pattern was built against the firmware's absolute
+parameter bus. The slider is a **set-point**: the device pins the parameter
+there, reports it back, and a physical turn of the encoder takes it back. What
+you see is what the device is doing.
+
+`absolute: false` — a pattern from before that bus existed, or any preset. The
+slider is then a **relative** control. Moving it sends detents; the pattern
+integrates them through its own step constant; nothing reads back. The number
+shown is what Home Assistant believes, not what the device confirms — the count
+in `/api/mqtt` is the physical encoder, and an injected turn never appears
+there. Two turns of the knob cross the whole range, matching the encoder, so the
+feel is right even though the loop is open.
+
+Presets land in the second category for an unavoidable reason: a preset's
+`ABSOLUTE_READY` flag is a C++ constant on the pattern entry and no endpoint
+exposes it. Assuming `false` costs a closed loop on one pattern; assuming `true`
+would send set-points into a pattern that ignores them, which looks exactly like
+a broken integration.
 
 ## Not here yet
 
-- **Knob entities** — see above.
 - **A dashboard card** with the live pattern preview and the four hover/touch
   zones, like the cards on the community site.
 - **Brightness.** `/api/display` reports it but has no way to set it; the value

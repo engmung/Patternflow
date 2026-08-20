@@ -11,6 +11,10 @@
       "zeroconf_confirm": {
         "title": "Add this Patternflow device",
         "description": "Found a Patternflow panel at {host}. Add it to Home Assistant?"
+      },
+      "knob_control": {
+        "title": "Turn the knobs from Home Assistant?",
+        "description": "Knob positions are always readable. Changing them is not: the panel's HTTP API has no knob endpoint, so a knob write has to go out over MQTT — and the panel only obeys knob and pattern topics while it is a Subscriber. It is currently \"{role}\" on {broker}.\n\nSwitching it costs something worth knowing: a Subscriber stops publishing its own knob turns, because the two roles are exclusive. You will still see the knobs move in Home Assistant, since that reading comes over HTTP and not from the topics.\n\nYou can change this later on the panel's own /mqtt page."
       }
     },
     "error": {
@@ -31,6 +35,29 @@
           "scan_interval": "Seconds between polls"
         }
       }
+    }
+  },
+  "exceptions": {
+    "mqtt_compiled_out": {
+      "message": "This panel's firmware was built without MQTT, so its knobs cannot be set remotely at all."
+    },
+    "no_broker": {
+      "message": "The panel has no MQTT broker configured, and its HTTP API has no knob endpoint. Point it at your broker on its own /mqtt page, then set its role to Subscriber."
+    },
+    "not_subscriber": {
+      "message": "The panel only obeys knob topics while it is an MQTT Subscriber. Change its role on its own /mqtt page — note that a Subscriber stops publishing its own knob turns."
+    },
+    "broker_unreachable": {
+      "message": "The panel is not connected to its MQTT broker, so a knob change would go nowhere."
+    },
+    "mqtt_not_set_up": {
+      "message": "Home Assistant has no MQTT integration set up, which is what actually sends the knob change. Add it, pointed at the same broker as the panel."
+    },
+    "mqtt_publish_failed": {
+      "message": "Publishing the knob change to MQTT failed."
+    },
+    "knob_write_failed": {
+      "message": "The knob change could not be sent."
     }
   },
   "entity": {

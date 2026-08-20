@@ -85,6 +85,21 @@ def active_option(
     return None
 
 
+def active_slug(patterns: list[dict[str, Any]], active_index: int | None) -> str | None:
+    """Return the running pattern's module slug, if it is a module at all.
+
+    None for a preset compiled into the firmware, which has no slug and no
+    sidecar — and therefore no knob labels and no readable `absoluteReady`.
+    """
+    if active_index is None or active_index < 0:
+        return None
+    for entry in patterns:
+        if entry.get("index") == active_index:
+            module = entry.get("module")
+            return str(module) if module else None
+    return None
+
+
 def fps_from_frame_us(frame_us: Any) -> float | None:
     """Frames per second from the smoothed frame time.
 

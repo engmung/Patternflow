@@ -31,7 +31,14 @@ from .const import (
     OPTIMISTIC_WINDOW,
     PATTERNS_EVERY_N_TICKS,
 )
-from .helpers import active_option, build_pattern_options
+from .helpers import active_option, active_slug, build_pattern_options, knob_labels
+from .knobs import (
+    KnobWriter,
+    is_writable,
+    param_to_percent,
+    percent_delta_to_detents,
+    unavailable_reason,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,6 +95,19 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         self._sleep_override: bool | None = None
         self._sleep_override_until = 0.0
 
+        self.knob_writer = KnobWriter(hass)
+        # What we believe each knob is at, as a percentage of its range.
+        #
+        # For an absolute-ready pattern this is only used until the device
+        # confirms the hold; after that `params[]` is the truth. For a
+        # delta-driven one it is the ONLY value there is — the device's knob
+        # counts are the physical encoder and never reflect an injected turn —
+        # so it is a belief, not a reading. Starts at the middle, which is where
+        # the firmware's own parameter bus and the web previews both start.
+        self._knob_percent: list[float] = [50.0, 50.0, 50.0, 50.0]
+        self._knob_override_until: list[float] = [0.0, 0.0, 0.0, 0.0]
+        self._last_active_slug: str | None = None
+
     # ── Polling ──────────────────────────────────────────────────────────
 
     async def _async_update_data(self) -> PatternflowData:
@@ -114,11 +134,28 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
             raise UpdateFailed(str(err)) from err
 
         self._tick += 1
+        self.knob_writer.note_connection(mqtt)
 
         patterns = self._patterns or {"patterns": [], "active": -1}
         entries = patterns.get("patterns")
         entries = entries if isinstance(entries, list) else []
         options, options_to_index = build_pattern_options(entries)
+
+        active = patterns.get("active")
+        slug = active_slug(entries, active if isinstance(active, int) else None)
+
+        # A new pattern has its own parameters at its own defaults, so whatever
+        # we believed about the old one's knobs is now wrong. The device's
+        # absolute holds survive a pattern change; our guesses must not.
+        if slug != self._last_active_slug:
+            self._last_active_slug = slug
+            self._knob_percent = [50.0, 50.0, 50.0, 50.0]
+            self._knob_override_until = [0.0, 0.0, 0.0, 0.0]
+
+        # One extra request, once per slug, and only for the pattern actually
+        # running — this is what carries the knob labels and `absoluteReady`.
+        if slug and slug not in self._sidecars:
+            await self.async_fetch_sidecar(slug)
 
         return PatternflowData(
             status=status,
@@ -194,6 +231,109 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
             return None
         self._sidecars[slug] = sidecar
         return sidecar
+
+    # ── Knobs ────────────────────────────────────────────────────────────
+
+    @property
+    def knobs_readable(self) -> bool:
+        """True when the device reports knob state at all.
+
+        False only on a build with `PF_MQTT_ENABLED 0`, where `/api/mqtt` does
+        not exist. Note this has nothing to do with having a broker: the
+        firmware fills that state from the input frame before it looks at its
+        MQTT role, so positions are readable with MQTT switched off entirely.
+        """
+        return self.data.mqtt is not None
+
+    @property
+    def knobs_writable(self) -> bool:
+        """True when a knob write would actually reach the device."""
+        return is_writable(self.data.mqtt)
+
+    @property
+    def knob_block_reason(self) -> str | None:
+        """Why knob writes would not land, or None when they would."""
+        return unavailable_reason(self.data.mqtt)
+
+    @property
+    def mqtt_prefix(self) -> str:
+        """The device's MQTT topic prefix, read from the device itself."""
+        prefix = (self.data.mqtt or {}).get("prefix")
+        return str(prefix) if prefix else "patternflow"
+
+    @property
+    def active_sidecar(self) -> dict[str, Any] | None:
+        """The running pattern's sidecar, if it is a module and we have it."""
+        return self._sidecars.get(self._last_active_slug) if self._last_active_slug else None
+
+    @property
+    def absolute_ready(self) -> bool:
+        """Whether the running pattern can be pinned to absolute values.
+
+        False for a preset, always — `ABSOLUTE_READY` is a C++ constant on the
+        pattern entry and no endpoint exposes it. Assuming False costs a
+        closed loop on one pattern; assuming True would send set-points into a
+        pattern that ignores them, which looks like the integration is broken.
+        """
+        return bool((self.active_sidecar or {}).get("absoluteReady"))
+
+    @property
+    def knob_labels(self) -> list[str]:
+        """The running pattern's four knob labels, in logical order."""
+        return knob_labels(self.active_sidecar)
+
+    def knob_percent(self, index: int) -> float | None:
+        """Return what knob `index` is at, as a percentage of its range."""
+        if time.monotonic() < self._knob_override_until[index]:
+            return self._knob_percent[index]
+
+        mqtt = self.data.mqtt or {}
+        held = mqtt.get("paramActive")
+        if isinstance(held, list) and index < len(held) and held[index]:
+            params = mqtt.get("params")
+            if isinstance(params, list) and index < len(params):
+                confirmed = param_to_percent(params[index])
+                if confirmed is not None:
+                    self._knob_percent[index] = confirmed
+                    return confirmed
+
+        return self._knob_percent[index]
+
+    def knob_clicks(self, index: int) -> int | None:
+        """Return the raw physical encoder count for knob `index`.
+
+        This is what the encoder has been turned, and only that: an injected
+        remote turn is merged into the frame's deltas after this counter is
+        read, so it never appears here.
+        """
+        knobs = (self.data.mqtt or {}).get("knobs")
+        if isinstance(knobs, list) and index < len(knobs) and isinstance(knobs[index], int):
+            return knobs[index]
+        return None
+
+    async def async_set_knob(self, index: int, percent: float) -> None:
+        """Move knob `index` to a percentage of its range.
+
+        Absolute where the pattern supports it, a relative nudge where it does
+        not — see knobs.py for why those are genuinely different things rather
+        than two spellings of the same one.
+        """
+        prefix = self.mqtt_prefix
+
+        if self.absolute_ready:
+            await self.knob_writer.async_set_absolute(prefix, index, percent)
+        else:
+            detents = percent_delta_to_detents(self._knob_percent[index], percent)
+            await self.knob_writer.async_nudge(prefix, index, detents, self.knob_clicks(index) or 0)
+
+        self._knob_percent[index] = percent
+        self._knob_override_until[index] = time.monotonic() + OPTIMISTIC_WINDOW
+        await self.async_request_refresh()
+
+    async def async_set_role(self, role: str) -> None:
+        """Change the device's MQTT role, then re-read what it says it is."""
+        await self.client.set_mqtt_role(role)
+        await self.async_request_refresh()
 
     # ── Writing ──────────────────────────────────────────────────────────
 
