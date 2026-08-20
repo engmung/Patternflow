@@ -36,9 +36,15 @@ Copy the integration into your Home Assistant configuration directory and
 restart:
 
 ```bash
-cp -r integrations/homeassistant/custom_components/patternflow \
-      /path/to/homeassistant/config/custom_components/
+rsync -a --exclude='__pycache__' \
+      integrations/homeassistant/custom_components/patternflow/ \
+      /path/to/homeassistant/config/custom_components/patternflow/
 ```
+
+That directory carries the dashboard card and the pattern runtime in `www/`, so
+there is nothing else to copy. Twenty files should arrive; if `manifest.json` is
+missing Home Assistant will not see the integration at all, and if `www/` is
+missing the card 404s.
 
 Then **Settings → Devices & services → Add integration → Patternflow**.
 
@@ -57,15 +63,21 @@ device's NETWORK screen — hold K2.
 ## The dashboard card
 
 The integration ships a Lovelace card: the running pattern playing live, the
-four encoders laid over it as zones you drag, the panel switch, and the list of
-installed patterns.
+four encoders under it, the panel switch, and the list of installed patterns.
 
-Add it once as a resource — **Settings → Dashboards → ⋮ → Resources → Add**:
+**Set the device up first.** The card is served from a path the integration
+registers when it loads a device, so adding the resource before there is one
+gives a 404 and looks like the file is missing.
+
+Then add it once as a resource — **Settings → Dashboards → ⋮ → Resources → Add**:
 
 | | |
 | --- | --- |
 | URL | `/patternflow_static/patternflow-card.js` |
 | Type | JavaScript module |
+
+A hard reload of the browser afterwards saves some confusion; Home Assistant
+holds on to Lovelace resources.
 
 Then **Add card → Patternflow** on any dashboard. It finds the device's entities
 itself; the only thing worth setting is which device, if you have more than one.
