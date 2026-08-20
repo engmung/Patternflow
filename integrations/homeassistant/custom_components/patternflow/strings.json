@@ -14,7 +14,7 @@
       },
       "knob_control": {
         "title": "Turn the knobs from Home Assistant?",
-        "description": "Knob positions are always readable. Changing them is not: the panel's HTTP API has no knob endpoint, so a knob write has to go out over MQTT — and the panel only obeys knob and pattern topics while it is a Subscriber. It is currently \"{role}\" on {broker}.\n\nSwitching it costs something worth knowing: a Subscriber stops publishing its own knob turns, because the two roles are exclusive. You will still see the knobs move in Home Assistant, since that reading comes over HTTP and not from the topics.\n\nYou can change this later on the panel's own /mqtt page."
+        "description": "Knob positions are always readable. Changing them is not: the panel's HTTP API has no knob endpoint, so a knob change goes out over MQTT — and the panel only obeys knob and pattern topics while it is a **Subscriber**. It is currently \"{role}\" on channel \"{channel}\", broker {broker}.\n\nFor this to work the panel needs **channel Broadcast** and **role Subscriber**, both on its own /mqtt page. Broadcast is the channel whose prefix is plain `patternflow`; typing any other prefix selects a different channel, and channels 1-4 and Live carry a retained snapshot that overwrites the knobs every few seconds — a slider that will not stay put, with no error anywhere.\n\nSwitching the role costs something worth knowing: a Subscriber stops publishing its own knob turns, because the two roles are exclusive. You will still see the knobs move, since that reading comes over HTTP and not from the topics."
       }
     },
     "error": {
@@ -42,10 +42,10 @@
       "message": "This panel's firmware was built without MQTT, so its knobs cannot be set remotely at all."
     },
     "no_broker": {
-      "message": "The panel has no MQTT broker configured, and its HTTP API has no knob endpoint. Point it at your broker on its own /mqtt page, then set its role to Subscriber."
+      "message": "The panel has no MQTT broker configured, and its HTTP API has no knob endpoint. On its own /mqtt page, point it at the same broker Home Assistant uses, then set channel Broadcast and role Subscriber."
     },
     "not_subscriber": {
-      "message": "The panel only obeys knob topics while it is an MQTT Subscriber. Change its role on its own /mqtt page — note that a Subscriber stops publishing its own knob turns."
+      "message": "The panel only obeys knob topics while it is an MQTT Subscriber. On its own /mqtt page, set channel to Broadcast and role to Subscriber — note that a Subscriber stops publishing its own knob turns."
     },
     "broker_unreachable": {
       "message": "The panel is not connected to its MQTT broker, so a knob change would go nowhere."
@@ -67,16 +67,32 @@
       }
     },
     "sensor": {
-      "rssi": { "name": "Wi-Fi signal" },
-      "heap_internal": { "name": "Free internal memory" },
-      "storage_free": { "name": "Free storage" },
-      "fps": { "name": "Frame rate" },
-      "last_boot": { "name": "Last boot" }
+      "rssi": {
+        "name": "Wi-Fi signal"
+      },
+      "heap_internal": {
+        "name": "Free internal memory"
+      },
+      "storage_free": {
+        "name": "Free storage"
+      },
+      "fps": {
+        "name": "Frame rate"
+      },
+      "last_boot": {
+        "name": "Last boot"
+      }
     },
     "binary_sensor": {
-      "console_paused": { "name": "Console paused" },
-      "mqtt_connected": { "name": "MQTT connected" },
-      "storage_mounted": { "name": "Storage mounted" }
+      "console_paused": {
+        "name": "Console paused"
+      },
+      "mqtt_connected": {
+        "name": "MQTT connected"
+      },
+      "storage_mounted": {
+        "name": "Storage mounted"
+      }
     }
   }
 }

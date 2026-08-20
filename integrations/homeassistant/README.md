@@ -135,11 +135,30 @@ the input frame into that state before it looks at its role. If the endpoint is
 missing entirely — a build with `PF_MQTT_ENABLED 0` — the knob entities are not
 created, rather than sitting there permanently unknown.
 
-**Writing is MQTT, and needs three things at once:** MQTT set up in Home
-Assistant, the panel pointed at a broker Home Assistant can also reach, and the
-panel in **Subscriber** role. There is no HTTP alternative — `/api/knob` and
-`/remote` existed once and were removed as unused. Sleep and pattern selection
-are unaffected; they are HTTP.
+**Writing is MQTT.** There is no HTTP alternative — `/api/knob` and `/remote`
+existed once and were removed as unused. Sleep and pattern selection are
+unaffected; they are HTTP.
+
+On the panel's own **/mqtt** page it needs, all at once:
+
+| | |
+| --- | --- |
+| **Broker** | the same one Home Assistant uses |
+| **Channel** | **Broadcast** |
+| **Role** | **Subscriber** |
+
+Role, because only a Subscriber obeys knob and pattern topics — sleep is obeyed
+in either. Channel, for a reason that is easy to lose an evening to: the prefix
+*is* the channel. Broadcast is the prefix `patternflow` exactly; typing
+`patternflow5` selects **Live**, and `patternflow1`–`4` select channels 1–4.
+Those five all subscribe to a **retained** `<prefix>/snapshot` that carries the
+four parameter values, and the firmware applies it straight onto the knobs — a
+Publisher on the channel re-sends one every 8 seconds. A knob set from Home
+Assistant is then quietly reverted a moment later. The write succeeds, MQTT is
+healthy, nothing reports an error, and the slider simply will not stay put.
+
+Broadcast has no snapshot subscription at all. When the panel is on one of the
+other five, each knob's `channel_overwrites` attribute says so.
 
 Setup offers to make the role change for you when that is the only thing
 missing, and says what it costs: a Subscriber stops publishing its own knob
@@ -165,6 +184,11 @@ shown is what Home Assistant believes, not what the device confirms — the coun
 in `/api/mqtt` is the physical encoder, and an injected turn never appears
 there. Two turns of the knob cross the whole range, matching the encoder, so the
 feel is right even though the loop is open.
+
+A one-percent nudge is 0.48 of a detent, and there is no such thing as half a
+click — so the remainder is carried into the next move rather than discarded.
+Without that, small adjustments send nothing at all and the slider feels dead
+until it is dragged hard.
 
 Presets land in the second category for an unavoidable reason: a preset's
 `ABSOLUTE_READY` flag is a C++ constant on the pattern entry and no endpoint

@@ -83,6 +83,7 @@ class PatternflowConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema({vol.Required(CONF_ENABLE_KNOBS, default=False): bool}),
             description_placeholders={
                 "role": str((self._mqtt or {}).get("role", "off")),
+                "channel": str((self._mqtt or {}).get("channel", "off")),
                 "broker": str((self._mqtt or {}).get("host", "")),
             },
         )

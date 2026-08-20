@@ -14,7 +14,7 @@
       },
       "knob_control": {
         "title": "Knobs von Home Assistant aus drehen?",
-        "description": "Knob-Positionen sind immer lesbar. Sie zu ändern nicht: die HTTP-API des Panels hat keinen Knob-Endpoint, ein Knob-Schreibvorgang muss also über MQTT raus — und das Panel befolgt Knob- und Pattern-Topics nur als Subscriber. Aktuell ist es \"{role}\" auf {broker}.\n\nDas Umstellen kostet etwas, das du wissen solltest: als Subscriber veröffentlicht das Panel seine eigenen Knob-Drehungen nicht mehr, denn die beiden Rollen schließen sich aus. Du siehst die Knobs in Home Assistant trotzdem, weil diese Anzeige über HTTP kommt und nicht aus den Topics.\n\nDu kannst das später auf der /mqtt-Seite des Panels ändern."
+        "description": "Knob-Positionen sind immer lesbar. Sie zu ändern nicht: die HTTP-API des Panels hat keinen Knob-Endpoint, eine Änderung geht also über MQTT raus — und das Panel befolgt Knob- und Pattern-Topics nur als **Subscriber**. Aktuell ist es \"{role}\" auf Kanal \"{channel}\", Broker {broker}.\n\nDamit das funktioniert, braucht das Panel **Kanal Broadcast** und **Rolle Subscriber**, beides auf seiner eigenen /mqtt-Seite. Broadcast ist der Kanal mit dem Präfix `patternflow`; jeder andere Präfix wählt einen anderen Kanal, und die Kanäle 1–4 sowie Live führen einen retained Snapshot mit, der die Knobs alle paar Sekunden überschreibt — ein Regler, der nicht stehen bleibt, ohne dass irgendwo ein Fehler erscheint.\n\nDer Rollenwechsel kostet etwas, das du wissen solltest: als Subscriber veröffentlicht das Panel seine eigenen Knob-Drehungen nicht mehr, denn die beiden Rollen schließen sich aus. Du siehst die Knobs trotzdem, weil diese Anzeige über HTTP kommt und nicht aus den Topics."
       }
     },
     "error": {
@@ -77,10 +77,10 @@
       "message": "Die Firmware dieses Panels wurde ohne MQTT gebaut, seine Knobs lassen sich also gar nicht fernsteuern."
     },
     "no_broker": {
-      "message": "Das Panel hat keinen MQTT-Broker konfiguriert, und seine HTTP-API hat keinen Knob-Endpoint. Richte den Broker auf der /mqtt-Seite des Panels ein und setze die Rolle auf Subscriber."
+      "message": "Das Panel hat keinen MQTT-Broker konfiguriert, und seine HTTP-API hat keinen Knob-Endpoint. Richte auf seiner /mqtt-Seite denselben Broker ein, den Home Assistant benutzt, und setze dann Kanal Broadcast und Rolle Subscriber."
     },
     "not_subscriber": {
-      "message": "Das Panel befolgt Knob-Topics nur als MQTT-Subscriber. Ändere die Rolle auf seiner /mqtt-Seite — beachte, dass ein Subscriber seine eigenen Knob-Drehungen nicht mehr veröffentlicht."
+      "message": "Das Panel befolgt Knob-Topics nur als MQTT-Subscriber. Setze auf seiner /mqtt-Seite den Kanal auf Broadcast und die Rolle auf Subscriber — beachte, dass ein Subscriber seine eigenen Knob-Drehungen nicht mehr veröffentlicht."
     },
     "broker_unreachable": {
       "message": "Das Panel ist nicht mit seinem MQTT-Broker verbunden, eine Knob-Änderung ginge also ins Leere."

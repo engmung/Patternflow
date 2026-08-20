@@ -27,6 +27,8 @@ from .api import (
 )
 from .const import (
     DOMAIN,
+    KNOB_CONFIRM_INTERVALS,
+    KNOB_CONFIRM_TOLERANCE,
     MANUFACTURER,
     OPTIMISTIC_WINDOW,
     PATTERNS_EVERY_N_TICKS,
@@ -34,9 +36,10 @@ from .const import (
 from .helpers import active_option, active_slug, build_pattern_options, knob_labels
 from .knobs import (
     KnobWriter,
+    detents_with_residual,
+    fights_snapshot,
     is_writable,
     param_to_percent,
-    percent_delta_to_detents,
     unavailable_reason,
 )
 
@@ -109,8 +112,15 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         # so it is a belief, not a reading. Starts at the middle, which is where
         # the firmware's own parameter bus and the web previews both start.
         self._knob_percent: list[float] = [50.0, 50.0, 50.0, 50.0]
-        self._knob_override_until: list[float] = [0.0, 0.0, 0.0, 0.0]
+        # The value last written on the absolute path, held until the device
+        # reports it back. None once settled.
+        self._knob_target: list[float | None] = [None, None, None, None]
+        self._knob_deadline: list[float] = [0.0, 0.0, 0.0, 0.0]
+        # Sub-detent remainder on the delta path, so small moves accumulate
+        # instead of rounding to nothing. See knobs.detents_with_residual.
+        self._knob_residual: list[float] = [0.0, 0.0, 0.0, 0.0]
         self._last_active_slug: str | None = None
+        self._scan_interval = scan_interval
 
     # ── Polling ──────────────────────────────────────────────────────────
 
@@ -183,7 +193,8 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         if slug != self._last_active_slug:
             self._last_active_slug = slug
             self._knob_percent = [50.0, 50.0, 50.0, 50.0]
-            self._knob_override_until = [0.0, 0.0, 0.0, 0.0]
+            self._knob_target = [None, None, None, None]
+            self._knob_residual = [0.0, 0.0, 0.0, 0.0]
 
         # One extra request, once per slug, and only for the pattern actually
         # running — this is what carries the knob labels and `absoluteReady`.
@@ -291,6 +302,16 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         return unavailable_reason(self.data.mqtt)
 
     @property
+    def knobs_fight_snapshot(self) -> bool:
+        """True when the channel's retained snapshot will undo what we set."""
+        return fights_snapshot(self.data.mqtt)
+
+    @property
+    def mqtt_channel(self) -> str:
+        """The device's MQTT channel preset — broadcast, ch1-4, live, custom."""
+        return str((self.data.mqtt or {}).get("channel", ""))
+
+    @property
     def mqtt_prefix(self) -> str:
         """The device's MQTT topic prefix, read from the device itself."""
         prefix = (self.data.mqtt or {}).get("prefix")
@@ -322,20 +343,45 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         """The running pattern's four knob labels, in logical order."""
         return knob_labels(self.active_sidecar)
 
-    def knob_percent(self, index: int) -> float | None:
-        """Return what knob `index` is at, as a percentage of its range."""
-        if time.monotonic() < self._knob_override_until[index]:
-            return self._knob_percent[index]
-
+    def _device_percent(self, index: int) -> float | None:
+        """Return what the device says this knob is held at, if it holds one."""
         mqtt = self.data.mqtt or {}
         held = mqtt.get("paramActive")
-        if isinstance(held, list) and index < len(held) and held[index]:
-            params = mqtt.get("params")
-            if isinstance(params, list) and index < len(params):
-                confirmed = param_to_percent(params[index])
-                if confirmed is not None:
-                    self._knob_percent[index] = confirmed
-                    return confirmed
+        if not (isinstance(held, list) and index < len(held) and held[index]):
+            return None
+        params = mqtt.get("params")
+        if not (isinstance(params, list) and index < len(params)):
+            return None
+        return param_to_percent(params[index])
+
+    def knob_percent(self, index: int) -> float | None:
+        """Return what knob `index` is at, as a percentage of its range.
+
+        A written value is held until the device *reports it back*, not for a
+        fixed moment. The difference matters: a poll landing between the write
+        and the device applying it carries the previous value, and trusting it
+        made the slider snap back to where it had been and then jump forward
+        again on the following poll. Waiting for the value to match is the only
+        thing that distinguishes "not applied yet" from "somebody turned the
+        physical knob".
+        """
+        target = self._knob_target[index]
+        device = self._device_percent(index)
+
+        if target is not None:
+            if device is not None and abs(device - target) <= KNOB_CONFIRM_TOLERANCE:
+                self._knob_target[index] = None
+                self._knob_percent[index] = device
+                return device
+            if time.monotonic() < self._knob_deadline[index]:
+                return target
+            # Never confirmed. The write did not land — stop insisting and show
+            # whatever the device actually reports.
+            self._knob_target[index] = None
+
+        if device is not None:
+            self._knob_percent[index] = device
+            return device
 
         return self._knob_percent[index]
 
@@ -362,13 +408,24 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
 
         if self.absolute_ready:
             await self.knob_writer.async_set_absolute(prefix, index, percent)
+            self._knob_target[index] = percent
+            self._knob_deadline[index] = time.monotonic() + (
+                self._scan_interval * KNOB_CONFIRM_INTERVALS
+            )
         else:
-            detents = percent_delta_to_detents(self._knob_percent[index], percent)
+            # Relative, and nothing ever reads back, so there is no target to
+            # confirm — only a remainder to carry, or small moves vanish.
+            detents, self._knob_residual[index] = detents_with_residual(
+                self._knob_percent[index], percent, self._knob_residual[index]
+            )
             await self.knob_writer.async_nudge(prefix, index, detents, self.knob_clicks(index) or 0)
 
         self._knob_percent[index] = percent
-        self._knob_override_until[index] = time.monotonic() + OPTIMISTIC_WINDOW
-        await self.async_request_refresh()
+        # Deliberately no refresh here. It would read the device back before it
+        # has applied the write — exactly the stale value the confirmation logic
+        # in knob_percent() exists to ignore — and would spend one of this
+        # single-connection server's requests in the middle of a drag.
+        self.async_update_listeners()
 
     async def async_set_role(self, role: str) -> None:
         """Change the device's MQTT role, then re-read what it says it is."""

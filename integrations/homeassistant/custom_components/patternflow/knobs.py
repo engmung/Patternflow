@@ -31,7 +31,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from .const import DETENTS_PER_RANGE, PARAM_SCALE, ROLE_SUBSCRIBER
+from .const import DETENTS_PER_RANGE, PARAM_SCALE, ROLE_SUBSCRIBER, SHOW_CHANNELS
 
 if TYPE_CHECKING:
     # Type-only, so the arithmetic in this module — the part most worth
@@ -60,11 +60,31 @@ def param_to_percent(value: Any) -> float | None:
 def percent_delta_to_detents(from_percent: float, to_percent: float) -> int:
     """Detents that move a parameter from one percentage of its range to another.
 
-    48 detents cross the whole range, so one percent is roughly half a detent;
-    small drags round to zero and send nothing, which is correct — there is no
-    such thing as half a click.
+    48 detents cross the whole range, so one percent is a little under half a
+    detent. Prefer `detents_with_residual` for anything a person drives: this
+    one throws the remainder away.
     """
     return round((to_percent - from_percent) * DETENTS_PER_RANGE / 100)
+
+
+def detents_with_residual(
+    from_percent: float, to_percent: float, residual: float
+) -> tuple[int, float]:
+    """Detents to send, and the sub-detent remainder to carry into the next call.
+
+    There is no such thing as half a click, and 48 detents cross a whole range —
+    so a one-percent nudge is 0.48 of a detent and rounds to nothing. Without
+    carrying the remainder, every small movement is silently discarded and the
+    slider feels dead until it is dragged hard. Two one-percent steps now add up
+    to a click instead of vanishing twice.
+
+    The firmware carries a residual through its own audio path for exactly this
+    reason; this is the same idea on the other side of the wire.
+    """
+    wanted = (to_percent - from_percent) + residual
+    detents = round(wanted * DETENTS_PER_RANGE / 100)
+    remainder = wanted - detents * 100 / DETENTS_PER_RANGE
+    return detents, remainder
 
 
 def is_writable(mqtt_state: dict[str, Any] | None) -> bool:
@@ -90,6 +110,25 @@ def unavailable_reason(mqtt_state: dict[str, Any] | None) -> str | None:
     if not mqtt_state.get("connected"):
         return "broker_unreachable"
     return None
+
+
+def fights_snapshot(mqtt_state: dict[str, Any] | None) -> bool:
+    """Return True when the channel will overwrite what Home Assistant sets.
+
+    Channels 1-4 and Live subscribe to a **retained** `<prefix>/snapshot` that
+    carries `param:[a,b,c,d]`, and the firmware applies those straight onto the
+    knobs. A Publisher on the same channel re-sends one every 8 seconds. So a
+    knob set from here is quietly reverted to whatever that snapshot last said,
+    which reads as a slider that will not stay where it is put — a write that
+    succeeds and then undoes itself, with nothing anywhere reporting an error.
+
+    Broadcast (`patternflow`) has no snapshot subscription at all. It is the
+    channel to be on for this, and saying so is cheaper than letting somebody
+    find it the hard way.
+    """
+    if not mqtt_state:
+        return False
+    return str(mqtt_state.get("channel", "")) in SHOW_CHANNELS
 
 
 class KnobWriter:

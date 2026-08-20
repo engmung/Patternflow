@@ -99,6 +99,11 @@ class PatternflowKnob(PatternflowEntity, NumberEntity):
             "absolute": self.coordinator.absolute_ready,
             "held": self._is_held,
             "encoder_clicks": self.coordinator.knob_clicks(self._index),
+            # True when the panel's MQTT channel carries a retained snapshot
+            # that will quietly revert whatever is set here. Surfaced as an
+            # attribute because the write itself succeeds — there is no error
+            # to raise, only a value that does not stay put.
+            "channel_overwrites": self.coordinator.knobs_fight_snapshot,
         }
 
     @property

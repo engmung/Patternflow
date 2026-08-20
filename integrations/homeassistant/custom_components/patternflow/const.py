@@ -82,3 +82,24 @@ DETENTS_PER_RANGE: Final = ENCODER_CLICKS_PER_TURN * TURNS_PER_FULL_RANGE
 #: The MQTT role in which the device obeys knob, param and pattern topics.
 #: Sleep and message are obeyed in any role; these three are not.
 ROLE_SUBSCRIBER: Final = "subscriber"
+
+#: The channel whose prefix is plain `patternflow`, and the only one without a
+#: retained snapshot bus. See SHOW_CHANNELS.
+CHANNEL_BROADCAST: Final = "broadcast"
+
+# Channels 1-4 and Live carry a *retained* `<prefix>/snapshot` holding
+# `param:[a,b,c,d]`, which the firmware applies straight onto the knobs — and a
+# Publisher on the channel re-sends one every 8 s. A knob set from Home
+# Assistant is therefore overwritten by whatever that snapshot last said, which
+# reads as a slider that will not stay put. Broadcast has no snapshot
+# subscription at all, which is why it is the channel to be on for this.
+SHOW_CHANNELS: Final = frozenset({"ch1", "ch2", "ch3", "ch4", "live"})
+
+# How close a device-reported value has to be to the one we wrote before it
+# counts as confirmation. The wire scale is 0..1000 against a 0..100 percentage,
+# so anything that round-trips lands well inside this.
+KNOB_CONFIRM_TOLERANCE: Final = 0.6
+
+# Give up waiting for confirmation after this many poll intervals, and show
+# what the device says instead. Only reached when a write did not land.
+KNOB_CONFIRM_INTERVALS: Final = 3
