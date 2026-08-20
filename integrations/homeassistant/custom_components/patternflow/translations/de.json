@@ -1,0 +1,111 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Patternflow-Gerät hinzufügen",
+        "description": "Das Gerät ist ab Werk unter patternflow.local erreichbar. Wenn mDNS im Netz unzuverlässig ist, nimm die IP-Adresse vom NETWORK-Screen des Geräts (K2 halten).\n\nMehr als ein Panel? Jedes braucht seinen eigenen PF_OTA_HOSTNAME in net_config.h — es gibt keine Seriennummer, an der sich zwei Boards unterscheiden ließen, der Hostname ist die Identität.",
+        "data": {
+          "host": "Hostname oder IP-Adresse"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "Dieses Patternflow-Gerät hinzufügen",
+        "description": "Ein Patternflow-Panel unter {host} gefunden. Zu Home Assistant hinzufügen?"
+      },
+      "knob_control": {
+        "title": "Knobs von Home Assistant aus drehen?",
+        "description": "Knob-Positionen sind immer lesbar. Sie zu ändern nicht: die HTTP-API des Panels hat keinen Knob-Endpoint, eine Änderung geht also über MQTT raus — und das Panel befolgt Knob- und Pattern-Topics nur als **Subscriber**. Aktuell ist es \"{role}\" auf Kanal \"{channel}\", Broker {broker}.\n\nDamit das funktioniert, braucht das Panel **Kanal Broadcast** und **Rolle Subscriber**, beides auf seiner eigenen /mqtt-Seite. Broadcast ist der Kanal mit dem Präfix `patternflow`; jeder andere Präfix wählt einen anderen Kanal, und die Kanäle 1–4 sowie Live führen einen retained Snapshot mit, der die Knobs alle paar Sekunden überschreibt — ein Regler, der nicht stehen bleibt, ohne dass irgendwo ein Fehler erscheint.\n\nDer Rollenwechsel kostet etwas, das du wissen solltest: als Subscriber veröffentlicht das Panel seine eigenen Knob-Drehungen nicht mehr, denn die beiden Rollen schließen sich aus. Du siehst die Knobs trotzdem, weil diese Anzeige über HTTP kommt und nicht aus den Topics."
+      }
+    },
+    "error": {
+      "cannot_connect": "Unter dieser Adresse hat nichts als Patternflow-Gerät geantwortet. Prüfe, ob das Panel Strom hat, im selben Netz hängt und die Adresse stimmt."
+    },
+    "abort": {
+      "already_configured": "Dieses Gerät ist bereits eingerichtet.",
+      "cannot_connect": "Unter dieser Adresse hat nichts als Patternflow-Gerät geantwortet.",
+      "duplicate_hostname": "Unter diesem Hostnamen ist bereits ein anderes Gerät eingerichtet. Zwei Panels können sich einen nicht teilen — gib diesem einen eigenen PF_OTA_HOSTNAME in net_config.h, flashe es neu und versuche es erneut. So wie es ist, würde es den Eintrag des vorhandenen Geräts übernehmen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Patternflow-Optionen",
+        "description": "Der Webserver des Panels nimmt eine Verbindung gleichzeitig, und während er antwortet, pausiert das Zeichnen. Häufiger abzufragen ist nicht umsonst — lass das in Ruhe, solange du keinen Grund hast.",
+        "data": {
+          "scan_interval": "Sekunden zwischen zwei Abfragen"
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "pattern": {
+        "name": "Pattern"
+      }
+    },
+    "sensor": {
+      "rssi": {
+        "name": "WLAN-Signal"
+      },
+      "heap_internal": {
+        "name": "Freier interner Speicher"
+      },
+      "storage_free": {
+        "name": "Freier Speicherplatz"
+      },
+      "fps": {
+        "name": "Bildrate"
+      },
+      "last_boot": {
+        "name": "Letzter Start"
+      }
+    },
+    "binary_sensor": {
+      "console_paused": {
+        "name": "Konsole pausiert"
+      },
+      "mqtt_connected": {
+        "name": "MQTT verbunden"
+      },
+      "storage_mounted": {
+        "name": "Speicher eingebunden"
+      }
+    }
+  },
+  "exceptions": {
+    "mqtt_compiled_out": {
+      "message": "Die Firmware dieses Panels wurde ohne MQTT gebaut, seine Knobs lassen sich also gar nicht fernsteuern."
+    },
+    "no_broker": {
+      "message": "Das Panel hat keinen MQTT-Broker konfiguriert, und seine HTTP-API hat keinen Knob-Endpoint. Richte auf seiner /mqtt-Seite denselben Broker ein, den Home Assistant benutzt, und setze dann Kanal Broadcast und Rolle Subscriber."
+    },
+    "not_subscriber": {
+      "message": "Das Panel befolgt Knob-Topics nur als MQTT-Subscriber. Setze auf seiner /mqtt-Seite den Kanal auf Broadcast und die Rolle auf Subscriber — beachte, dass ein Subscriber seine eigenen Knob-Drehungen nicht mehr veröffentlicht."
+    },
+    "broker_unreachable": {
+      "message": "Das Panel ist nicht mit seinem MQTT-Broker verbunden, eine Knob-Änderung ginge also ins Leere."
+    },
+    "mqtt_not_set_up": {
+      "message": "In Home Assistant ist keine MQTT-Integration eingerichtet — die verschickt die Knob-Änderung aber. Richte sie ein, auf denselben Broker wie das Panel."
+    },
+    "mqtt_publish_failed": {
+      "message": "Das Veröffentlichen der Knob-Änderung über MQTT ist fehlgeschlagen."
+    },
+    "knob_write_failed": {
+      "message": "Die Knob-Änderung konnte nicht gesendet werden."
+    }
+  },
+  "issues": {
+    "retained_commands": {
+      "title": "Eine retained MQTT-Nachricht kommandiert dieses Panel immer wieder",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Retained Nachrichten löschen?",
+            "description": "Eine retained MQTT-Nachricht wird bei jedem Abonnieren erneut zugestellt — und das Panel abonniert bei jedem Reconnect neu. Das sind also keine alten Nachrichten, sondern Daueraufträge, die das Panel immer wieder befolgt:\n\n{topics}\n\nAuf `pattern` heißt das: das Panel lädt das Modul neu und das Pattern beginnt von vorn — alle paar Minuten, ohne Eintrag in irgendeinem Log. Auf `knob` oder `param` springen die Knobs auf einen Wert zurück, den heute niemand gesetzt hat.\n\nDie aktuelle Patternflow-Firmware veröffentlicht diese Topics nie retained; ältere Versionen taten es, und eine retained Nachricht überlebt die Firmware, die sie geschrieben hat.\n\nDas Löschen veröffentlicht eine leere retained Nachricht — anders lässt sich eine solche nicht entfernen. Wenn der Broker geteilt wird: sie ist damit auch für alle anderen Mithörer weg."
+          }
+        }
+      }
+    }
+  }
+}

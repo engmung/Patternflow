@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Patternflow sandbox</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    object-fit: contain;
+  }
+</style>
+</head>
+<body>
+<canvas id="screen" width="128" height="64"></canvas>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Sandboxed pattern runtime.
+//
+// This page is embedded with <iframe sandbox="allow-scripts"> (NO
+// allow-same-origin), so user-submitted pattern code runs under an opaque
+// origin: no cookies, no localStorage, no parent DOM. All communication is
+// postMessage. This is the community's XSS boundary — never embed this page
+// with allow-same-origin, and never eval community code outside this page.
+//
+// The runtime mirrors web/src/lib/patternHarness.ts (compile semantics,
+// setPixel/setValue, knob input shape). Keep the two in sync when the pattern
+// contract changes.
+// ─────────────────────────────────────────────────────────────────────────────
+"use strict";
+
+// Default frame for patterns that declare none (everything written before the
+// @matrix annotation existed). The live view resizes itself per pattern.
+var DEFAULT_WIDTH = 128;
+var DEFAULT_HEIGHT = 64;
+var KNOB_COUNT = 4;
+var DETENTS_PER_TURN = 20;
+
+// ── @matrix ─────────────────────────────────────────────────────────────────
+// A pattern carries the pixel grid it was composed for as a comment line (see
+// web/src/lib/patternMatrix.ts — keep the two parsers in sync). Without this,
+// a 64×128 pattern would be rendered into a 128×64 canvas and come out cropped.
+var MATRIX_LINE_RE = /^[ \t]*\/\/[ \t]*@matrix[ \t]+(\d{1,4})[ \t]*[x×*][ \t]*(\d{1,4})[ \t]*$/m;
+var MATRIX_MIN = 8;
+var MATRIX_MAX = 512;
+
+function frameFor(code) {
+  var match = String(code).match(MATRIX_LINE_RE);
+  if (match) {
+    var w = Number(match[1]);
+    var h = Number(match[2]);
+    if (w >= MATRIX_MIN && w <= MATRIX_MAX && h >= MATRIX_MIN && h <= MATRIX_MAX) {
+      return { width: w, height: h };
+    }
+  }
+  return { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT };
+}
+
+function clampByte(v) {
+  if (!isFinite(v)) return 0;
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
+// ── Color ramp ──────────────────────────────────────────────────────────────
+// Full port of the harness ramp (patternHarness.ts): 5 interpolation modes,
+// cyclic wrap, and the recolor post-pass. Shared patterns carry their ramp as
+// a `// @ramp …` comment line (see web/src/lib/patternRamp.ts — keep the two
+// parsers in sync); without one, a default lab ramp keeps setValue()
+// output presentable.
+
+function rgbToHsv(r, g, b) {
+  var rf = r / 255, gf = g / 255, bf = b / 255;
+  var max = Math.max(rf, gf, bf), min = Math.min(rf, gf, bf);
+  var delta = max - min;
+  var h = 0;
+  if (delta > 0) {
+    if (max === rf) h = ((gf - bf) / delta) % 6;
+    else if (max === gf) h = (bf - rf) / delta + 2;
+    else h = (rf - gf) / delta + 4;
+    h /= 6;
+    if (h < 0) h += 1;
+  }
+  return [h, max === 0 ? 0 : delta / max, max];
+}
+
+function hsvToRgbTuple(h, s, v) {
+  h = h - Math.floor(h);
+  var i = Math.floor(h * 6);
+  var f = h * 6 - i;
+  var p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+  var r, g, b;
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    default: r = v; g = p; b = q; break;
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+// ── OKLab / OKLCH (port of patternHarness.ts — keep in sync) ────────────────
+// Perceptual interpolation: sRGB/HSV blends drift in lightness; OKLab keeps it
+// honest, OKLCH follows the hue arc. Out-of-gamut blends are pulled back by
+// reducing chroma at constant L and hue (never per-channel clipping).
+
+function srgbChannelToLinear(c) {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function linearChannelToSrgb(c) {
+  var v = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+  return Math.max(0, Math.min(1, v)) * 255;
+}
+
+function srgbToOklab(r, g, b) {
+  var lr = srgbChannelToLinear(r);
+  var lg = srgbChannelToLinear(g);
+  var lb = srgbChannelToLinear(b);
+  var l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb);
+  var m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb);
+  var s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  ];
+}
+
+function oklabToLinearRgb(L, A, B) {
+  var l_ = L + 0.3963377774 * A + 0.2158037573 * B;
+  var m_ = L - 0.1055613458 * A - 0.0638541728 * B;
+  var s_ = L - 0.0894841775 * A - 1.291485548 * B;
+  var l = l_ * l_ * l_;
+  var m = m_ * m_ * m_;
+  var s = s_ * s_ * s_;
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
+  ];
+}
+
+var GAMUT_EPS = 1e-4;
+
+function inLinearGamut(rgb) {
+  return (
+    rgb[0] >= -GAMUT_EPS && rgb[0] <= 1 + GAMUT_EPS &&
+    rgb[1] >= -GAMUT_EPS && rgb[1] <= 1 + GAMUT_EPS &&
+    rgb[2] >= -GAMUT_EPS && rgb[2] <= 1 + GAMUT_EPS
+  );
+}
+
+function oklabToSrgb(L, A, B) {
+  var rgb = oklabToLinearRgb(L, A, B);
+  if (!inLinearGamut(rgb)) {
+    var lo = 0;
+    var hi = 1;
+    for (var i = 0; i < 16; i++) {
+      var mid = (lo + hi) / 2;
+      if (inLinearGamut(oklabToLinearRgb(L, A * mid, B * mid))) lo = mid;
+      else hi = mid;
+    }
+    rgb = oklabToLinearRgb(L, A * lo, B * lo);
+  }
+  return [linearChannelToSrgb(rgb[0]), linearChannelToSrgb(rgb[1]), linearChannelToSrgb(rgb[2])];
+}
+
+function mixRampColors(a, b, t, mode) {
+  if (mode === "smooth") t = t * t * (3 - 2 * t);
+  if (mode === "oklab" || mode === "oklchShort" || mode === "oklchLong") {
+    var oa = srgbToOklab(a[0], a[1], a[2]);
+    var ob = srgbToOklab(b[0], b[1], b[2]);
+    var L = oa[0] + (ob[0] - oa[0]) * t;
+    if (mode === "oklab") {
+      return oklabToSrgb(L, oa[1] + (ob[1] - oa[1]) * t, oa[2] + (ob[2] - oa[2]) * t);
+    }
+    var CHROMA_EPS = 1e-4;
+    var TWO_PI = Math.PI * 2;
+    var Ca = Math.sqrt(oa[1] * oa[1] + oa[2] * oa[2]);
+    var Cb = Math.sqrt(ob[1] * ob[1] + ob[2] * ob[2]);
+    var hueA = Math.atan2(oa[2], oa[1]) / TWO_PI;
+    if (hueA < 0) hueA += 1;
+    var hueB = Math.atan2(ob[2], ob[1]) / TWO_PI;
+    if (hueB < 0) hueB += 1;
+    var h1 = Ca < CHROMA_EPS ? (Cb < CHROMA_EPS ? 0 : hueB) : hueA;
+    var h2 = Cb < CHROMA_EPS ? h1 : hueB;
+    var dh = h2 - h1;
+    if (mode === "oklchShort") {
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+    } else {
+      if (dh > 0 && dh < 0.5) dh -= 1;
+      else if (dh <= 0 && dh > -0.5) dh += 1;
+    }
+    var C = Ca + (Cb - Ca) * t;
+    var H = (h1 + dh * t) * TWO_PI;
+    return oklabToSrgb(L, Math.cos(H) * C, Math.sin(H) * C);
+  }
+  if (mode === "hsvShort" || mode === "hsvLong") {
+    var ha = rgbToHsv(a[0], a[1], a[2]);
+    var hb = rgbToHsv(b[0], b[1], b[2]);
+    var h1 = ha[1] === 0 ? hb[0] : ha[0];
+    var h2 = hb[1] === 0 ? h1 : hb[0];
+    var dh = h2 - h1;
+    if (mode === "hsvShort") {
+      if (dh > 0.5) dh -= 1;
+      if (dh < -0.5) dh += 1;
+    } else {
+      if (dh > 0 && dh < 0.5) dh -= 1;
+      else if (dh <= 0 && dh > -0.5) dh += 1;
+    }
+    return hsvToRgbTuple(h1 + dh * t, ha[1] + (hb[1] - ha[1]) * t, ha[2] + (hb[2] - ha[2]) * t);
+  }
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t
+  ];
+}
+
+function sampleSortedRamp(stops, mode, wrap, t) {
+  if (stops.length === 0) return [255, 255, 255];
+  if (stops.length === 1) return stops[0].color;
+  t = Math.max(0, Math.min(1, t));
+  var first = stops[0], last = stops[stops.length - 1];
+
+  if (t <= first.position || t >= last.position) {
+    if (!wrap) return t <= first.position ? first.color : last.color;
+    var span = 1 - last.position + first.position;
+    var local = span <= 0
+      ? 0
+      : ((t >= last.position ? t - last.position : t + 1 - last.position) / span);
+    if (mode === "step") return last.color;
+    return mixRampColors(last.color, first.color, local, mode);
+  }
+
+  for (var i = 0; i < stops.length - 1; i++) {
+    var a = stops[i], b = stops[i + 1];
+    if (t > b.position) continue;
+    if (mode === "step") return a.color;
+    var segSpan = b.position - a.position;
+    var segLocal = segSpan <= 0 ? 0 : (t - a.position) / segSpan;
+    return mixRampColors(a.color, b.color, segLocal, mode);
+  }
+  return last.color;
+}
+
+function buildRampLUT(stops, mode, wrap) {
+  var sorted = stops.slice().sort(function (a, b) { return a.position - b.position; });
+  var lut = new Uint8Array(256 * 3);
+  for (var i = 0; i < 256; i++) {
+    var color = sampleSortedRamp(sorted, mode, wrap, i / 255);
+    lut[i * 3] = clampByte(color[0]);
+    lut[i * 3 + 1] = clampByte(color[1]);
+    lut[i * 3 + 2] = clampByte(color[2]);
+  }
+  return lut;
+}
+
+var RAMP_LINE_RE = /^[ \t]*\/\/[ \t]*@ramp[ \t]+(.+)$/m;
+var RAMP_STOP_RE = /^(\d*\.?\d+):(#[0-9a-fA-F]{6})$/;
+var RAMP_MODES = ["linear", "smooth", "step", "hsvShort", "hsvLong", "oklab", "oklchShort", "oklchLong"];
+
+function parseRampAnnotation(code) {
+  var match = String(code).match(RAMP_LINE_RE);
+  if (!match) return null;
+  var tokens = match[1].trim().split(/\s+/);
+  if (RAMP_MODES.indexOf(tokens[0]) < 0) return null;
+  var result = { stops: [], mode: tokens[0], wrap: false, recolor: false };
+  for (var i = 1; i < tokens.length; i++) {
+    var token = tokens[i];
+    if (token === "wrap") { result.wrap = true; continue; }
+    if (token === "recolor") { result.recolor = true; continue; }
+    var stop = token.match(RAMP_STOP_RE);
+    if (!stop || result.stops.length >= 8) continue;
+    var position = Number(stop[1]);
+    if (!isFinite(position)) continue;
+    var value = parseInt(stop[2].slice(1), 16);
+    result.stops.push({
+      position: Math.max(0, Math.min(1, position)),
+      color: [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+    });
+  }
+  return result.stops.length > 0 ? result : null;
+}
+
+var DEFAULT_RAMP_LUT = buildRampLUT(
+  [
+    { position: 0.0, color: [8, 24, 64] },
+    { position: 0.55, color: [255, 77, 0] },
+    { position: 1.0, color: [255, 232, 154] }
+  ],
+  "linear",
+  false
+);
+
+function compilePattern(code) {
+  var normalized = String(code)
+    .replace(/^\s*import\s+.*?;?\s*$/gm, "")
+    .replace(/\bexport\s+function\b/g, "function");
+  var wrapper =
+    '"use strict";\n' + normalized + '\n' +
+    'return { setup: typeof setup === "function" ? setup : undefined,' +
+    ' update: typeof update === "function" ? update : undefined,' +
+    ' draw: typeof draw === "function" ? draw : undefined };';
+  var mod = new Function(wrapper)();
+  if (typeof mod.draw !== "function") {
+    throw new Error("Pattern must define draw(display, params, time).");
+  }
+  return mod;
+}
+
+function Runtime(width, height) {
+  var self = this;
+  this.width = width;
+  this.height = height;
+  this.data = new Uint8ClampedArray(width * height * 4);
+  this.module = null;
+  this.params = {};
+  this.rampLUT = DEFAULT_RAMP_LUT;
+  this.recolor = false;
+  this.display = {
+    width: width,
+    height: height,
+    setPixel: function (x, y, r, g, b) {
+      var xi = Math.floor(x), yi = Math.floor(y);
+      if (xi < 0 || xi >= self.width || yi < 0 || yi >= self.height) return;
+      var cr, cg, cb;
+      if (Array.isArray(r)) { cr = r[0] || 0; cg = r[1] || 0; cb = r[2] || 0; }
+      else { cr = r; cg = g || 0; cb = b || 0; }
+      var i = (yi * self.width + xi) * 4;
+      self.data[i] = clampByte(cr);
+      self.data[i + 1] = clampByte(cg);
+      self.data[i + 2] = clampByte(cb);
+      self.data[i + 3] = 255;
+    },
+    setValue: function (x, y, v) {
+      var xi = Math.floor(x), yi = Math.floor(y);
+      if (xi < 0 || xi >= self.width || yi < 0 || yi >= self.height) return;
+      var value = isFinite(v) ? Math.max(0, Math.min(1, v)) : 0;
+      var i = (yi * self.width + xi) * 4;
+      var li = Math.round(value * 255) * 3;
+      self.data[i] = self.rampLUT[li];
+      self.data[i + 1] = self.rampLUT[li + 1];
+      self.data[i + 2] = self.rampLUT[li + 2];
+      self.data[i + 3] = 255;
+    }
+  };
+}
+
+Runtime.prototype.loadCode = function (code) {
+  try {
+    var annotation = parseRampAnnotation(code);
+    this.rampLUT = annotation
+      ? buildRampLUT(annotation.stops, annotation.mode, annotation.wrap)
+      : DEFAULT_RAMP_LUT;
+    this.recolor = annotation ? annotation.recolor : false;
+    this.module = compilePattern(code);
+    this.params = {};
+    this.data.fill(0);
+    if (this.module.setup) this.module.setup(this.params);
+    return { ok: true };
+  } catch (error) {
+    this.module = null;
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  }
+};
+
+Runtime.prototype.renderFrame = function (dt, time, input) {
+  if (!this.module) return { ok: false, error: "No pattern loaded." };
+  try {
+    this.params.knobValues = input.knobValues;
+    this.params.knobNormalized = input.knobNormalized;
+    this.params.knobDeltas = input.knobDeltas;
+    this.params.knobRanges = input.knobRanges;
+    this.params.btnPressed = input.btnPressed;
+    this.params.btnHeld = input.btnHeld;
+    if (this.module.update) this.module.update(dt, input, this.params);
+    this.data.fill(0);
+    this.module.draw(this.display, this.params, time);
+    if (this.recolor) {
+      var lut = this.rampLUT;
+      var data = this.data;
+      for (var i = 0; i < data.length; i += 4) {
+        var lum = Math.round(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+        var li = lum * 3;
+        data[i] = lut[li];
+        data[i + 1] = lut[li + 1];
+        data[i + 2] = lut[li + 2];
+      }
+    }
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error && error.message ? error.message : String(error) };
+  }
+};
+
+function makeInput(deltas, values, normalized, ranges) {
+  var zeros = [0, 0, 0, 0];
+  var flags = [false, false, false, false];
+  return {
+    knobDeltas: deltas || zeros,
+    knobValues: values,
+    knobNormalized: normalized,
+    knobRanges: ranges,
+    btnPressed: flags,
+    btnHeld: flags.slice()
+  };
+}
+
+function normalize(values, ranges) {
+  return values.map(function (v, i) {
+    var range = (ranges && ranges[i]) || [0, 1];
+    var span = Math.max(0.001, range[1] - range[0]);
+    return (v - range[0]) / span;
+  });
+}
+
+function knobDelta(prev, next, wrap, unitsPerTurn) {
+  var delta = next - prev;
+  if (wrap) {
+    if (delta > 0.5) delta -= 1;
+    if (delta < -0.5) delta += 1;
+  }
+  return delta * (DETENTS_PER_TURN / (unitsPerTurn || 1));
+}
+
+// ── Live view state ──────────────────────────────────────────────────────────
+var canvas = document.getElementById("screen");
+var context = canvas.getContext("2d");
+var imageData = context.createImageData(DEFAULT_WIDTH, DEFAULT_HEIGHT);
+
+// Match the canvas to the frame the incoming pattern declares. The CSS keeps
+// object-fit: contain, so a portrait pattern letterboxes inside the card
+// instead of being squashed into a landscape box.
+function resizeLive(frame) {
+  if (canvas.width === frame.width && canvas.height === frame.height) return;
+  canvas.width = frame.width;
+  canvas.height = frame.height;
+  imageData = context.createImageData(frame.width, frame.height);
+}
+
+// The longest single step a pattern is ever handed. A frame that took longer
+// than this is split into several of these rather than delivered as one jump:
+// handing a whole stall to a pattern that integrates by dt teleports
+// everything in it.
+var MAX_STEP = 0.05;
+// …and the most real time worth catching up on. Past this the frames are
+// simply lost, which is what you want: returning to a tab that was hidden for
+// a minute should resume, not fast-forward through a minute of simulation.
+var MAX_CATCHUP = 0.25;
+
+var live = {
+  runtime: null,
+  running: true,
+  simTime: 0,
+  lastNow: 0,
+  knobValues: [0.5, 0.5, 0.5, 0.5],
+  knobRanges: [[0, 1], [0, 1], [0, 1], [0, 1]],
+  knobWrap: [false, false, false, false],
+  knobUnitsPerTurn: [1, 1, 1, 1],
+  prevKnobs: null,
+  failed: false,
+  // Whether the canvas already shows the current state. Cleared whenever
+  // something changes what should be on screen, so a paused preview still
+  // redraws exactly once instead of either freezing stale or spinning at
+  // 60fps. See tick().
+  painted: false,
+  // The pending requestAnimationFrame handle, or 0 when this sandbox is
+  // asleep. A paused preview schedules NOTHING — see tick().
+  frame: 0
+};
+
+function paint(runtime) {
+  imageData.data.set(runtime.data);
+  context.putImageData(imageData, 0, 0);
+}
+
+function post(message) {
+  parent.postMessage(message, "*");
+}
+
+/**
+ * One simulation step. Returns false once the pattern has thrown.
+ *
+ * `withKnobDeltas` is true for the first step of a frame only: a knob turn is
+ * one event, and replaying it across the catch-up steps below would multiply
+ * the turn by however far behind the preview had fallen.
+ */
+function step(dt, withKnobDeltas) {
+  live.simTime += dt;
+
+  var deltas = null;
+  if (withKnobDeltas) {
+    var prev = live.prevKnobs || live.knobValues;
+    deltas = live.knobValues.map(function (v, i) {
+      return knobDelta(prev[i], v, live.knobWrap[i], live.knobUnitsPerTurn[i]);
+    });
+    live.prevKnobs = live.knobValues.slice();
+  }
+
+  var input = makeInput(
+    deltas,
+    live.knobValues,
+    normalize(live.knobValues, live.knobRanges),
+    live.knobRanges
+  );
+  var result = live.runtime.renderFrame(dt, live.simTime, input);
+  if (!result.ok) {
+    live.failed = true;
+    post({ type: "pf-status", ok: false, error: result.error });
+    return false;
+  }
+  return true;
+}
+
+/** Schedule a frame, unless one is already pending or this sandbox is dead. */
+function wake() {
+  if (live.frame !== 0 || live.failed || !live.runtime) return;
+  // A sandbox that has been asleep has a stale lastNow; without this the first
+  // frame back would bill the pattern for the whole pause.
+  live.lastNow = performance.now();
+  live.frame = requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  live.frame = 0;
+  var runtime = live.runtime;
+  if (!runtime || live.failed) return;
+
+  var elapsed = Math.min(Math.max(0, (now - live.lastNow) / 1000), MAX_CATCHUP);
+  live.lastNow = now;
+
+  // A paused preview keeps its runtime loaded so hovering plays instantly, but
+  // it has nothing new to draw. Paint once — a fresh load, or a knob turned
+  // while stopped — and then stop scheduling frames ENTIRELY.
+  //
+  // It used to re-arm rAF forever and bail out inside the callback. That is
+  // cheap per call and expensive in aggregate: a feed mounts one sandbox per
+  // nearby card (thirteen of them on a full wall), and thirteen documents each
+  // holding a live animation callback share the frame budget with the one card
+  // the cursor is actually on. pf-run/pf-knobs/pf-load call wake() instead.
+  if (!live.running) {
+    if (!live.painted && step(0, true)) {
+      paint(runtime);
+      live.painted = true;
+    }
+    return;
+  }
+
+  // Slow frames must not become slow motion.
+  //
+  // dt used to be clamped to MAX_STEP and handed over once, so a preview
+  // rendering at 10fps advanced the simulation by 50ms per 100ms of wall
+  // clock: a pattern that integrates velocity by dt physically moved at half
+  // speed. That reads as the pattern dying rather than stuttering, and it only
+  // showed up on the wall — the detail page runs one sandbox and never falls
+  // far enough behind to notice. The clamp now bounds each STEP, and whatever
+  // real time is left over is stepped again (at most MAX_CATCHUP/MAX_STEP
+  // times, so a long stall cannot turn into an unbounded burst).
+  var remaining = elapsed;
+  var first = true;
+  do {
+    var slice = remaining > MAX_STEP ? MAX_STEP : remaining;
+    if (!step(slice, first)) return;
+    remaining -= slice;
+    first = false;
+  } while (remaining > 1e-5);
+
+  paint(runtime);
+  live.painted = true;
+  live.frame = requestAnimationFrame(tick);
+}
+
+// ── Still rendering (feed thumbnails) ────────────────────────────────────────
+function renderStill(request) {
+  var matrixFrame = frameFor(request.code);
+  var runtime = new Runtime(matrixFrame.width, matrixFrame.height);
+  var load = runtime.loadCode(request.code);
+  if (!load.ok) return { ok: false, error: load.error };
+
+  var fps = request.fps || 15;
+  var seconds = typeof request.seconds === "number" ? request.seconds : 0.9;
+  var frames = Math.max(1, Math.floor(seconds * fps));
+  var values = request.knobValues || [0.5, 0.5, 0.5, 0.5];
+  var ranges = request.knobRanges || [[0, 1], [0, 1], [0, 1], [0, 1]];
+  var normalizedValues = normalize(values, ranges);
+
+  for (var f = 0; f < frames; f++) {
+    var input = makeInput(null, values, normalizedValues, ranges);
+    var result = runtime.renderFrame(1 / fps, f / fps, input);
+    if (!result.ok) return { ok: false, error: result.error };
+  }
+
+  var off = document.createElement("canvas");
+  off.width = matrixFrame.width;
+  off.height = matrixFrame.height;
+  var offContext = off.getContext("2d");
+  var offImage = offContext.createImageData(matrixFrame.width, matrixFrame.height);
+  offImage.data.set(runtime.data);
+  offContext.putImageData(offImage, 0, 0);
+  return { ok: true, dataUrl: off.toDataURL("image/png") };
+}
+
+// ── Message protocol ─────────────────────────────────────────────────────────
+window.addEventListener("message", function (event) {
+  var msg = event.data;
+  if (!msg || typeof msg.type !== "string") return;
+
+  if (msg.type === "pf-load") {
+    var liveFrame = frameFor(String(msg.code || ""));
+    resizeLive(liveFrame);
+    live.runtime = new Runtime(liveFrame.width, liveFrame.height);
+    live.simTime = 0;
+    live.lastNow = performance.now();
+    live.failed = false;
+    live.prevKnobs = null;
+    // A fresh pattern must reach the canvas even if it loads paused.
+    live.painted = false;
+    if (Array.isArray(msg.knobValues)) live.knobValues = msg.knobValues.slice(0, KNOB_COUNT);
+    if (Array.isArray(msg.knobRanges)) live.knobRanges = msg.knobRanges;
+    if (Array.isArray(msg.knobWrap)) live.knobWrap = msg.knobWrap;
+    if (Array.isArray(msg.knobUnitsPerTurn)) live.knobUnitsPerTurn = msg.knobUnitsPerTurn;
+    if (typeof msg.running === "boolean") live.running = msg.running;
+    var load = live.runtime.loadCode(String(msg.code || ""));
+    if (load.ok) {
+      paint(live.runtime);
+      post({ type: "pf-status", ok: true });
+      wake();
+    } else {
+      live.failed = true;
+      post({ type: "pf-status", ok: false, error: load.error });
+    }
+  } else if (msg.type === "pf-knobs") {
+    if (Array.isArray(msg.values)) live.knobValues = msg.values.slice(0, KNOB_COUNT);
+    if (Array.isArray(msg.ranges)) live.knobRanges = msg.ranges;
+    // Knobs can be turned on a card that is not playing — redraw that once.
+    live.painted = false;
+    wake();
+  } else if (msg.type === "pf-run") {
+    live.running = Boolean(msg.running);
+    // Starting is the whole point of waking; stopping needs it too, so the
+    // paused branch of tick gets a chance to settle the final frame.
+    wake();
+  } else if (msg.type === "pf-still") {
+    var result;
+    try {
+      result = renderStill(msg);
+    } catch (error) {
+      result = { ok: false, error: error && error.message ? error.message : String(error) };
+    }
+    result.type = "pf-still-result";
+    result.id = msg.id;
+    post(result);
+  }
+});
+
+post({ type: "pf-ready" });
+</script>
+</body>
+</html>

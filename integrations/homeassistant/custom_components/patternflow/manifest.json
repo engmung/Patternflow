@@ -1,0 +1,31 @@
+{
+  "domain": "patternflow",
+  "name": "Patternflow",
+  "codeowners": [
+    "@engmung"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "http",
+    "repairs"
+  ],
+  "documentation": "https://github.com/engmung/Patternflow/tree/main/integrations/homeassistant",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/engmung/Patternflow/issues",
+  "requirements": [],
+  "version": "0.1.0",
+  "after_dependencies": [
+    "mqtt"
+  ],
+  "zeroconf": [
+    {
+      "type": "_http._tcp.local.",
+      "name": "patternflow*"
+    },
+    {
+      "type": "_arduino._tcp.local.",
+      "name": "patternflow*"
+    }
+  ]
+}

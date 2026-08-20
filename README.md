@@ -162,6 +162,8 @@ The Arduino IDE is only needed for firmware feature development or targeting an 
 
 **MQTT.** Patternflow also speaks MQTT, both ways, on the broker you already run. Knob turns and pattern changes publish as they happen; messages coming the other way move the knobs and switch patterns exactly as a hand on the encoder would. Two boards pointed at the same broker follow each other, which is the short version of why it exists. It also puts the device on the same bus as the rest of a home or venue setup, so Home Assistant, Node-RED or a lighting desk can drive it without anything Patternflow-specific in the middle. Point it at a broker on the device's own **MQTT** page; a pattern can be addressed by name or by slug. Publishing `1` to `<prefix>/sleep` puts the panel to sleep and `0` wakes it, with the current state mirrored on `<prefix>/sleep/state` — enough for a Home Assistant switch, and the one command a panel obeys whether it is set to Publisher or Subscriber. Contributed by **[@SimonePDA](https://github.com/SimonePDA)** (Simone Majocchi), along with the browser-side zip unpacking that makes pattern packs install in one click.
 
+**Home Assistant.** There is a ready-made integration in [`integrations/homeassistant`](integrations/homeassistant): the panel is discovered on the network and appears as a device with an On/Sleep switch, a pattern picker, the four knobs, and the numbers worth watching. It also ships a dashboard card that plays the running pattern with the four encoders laid over it as zones you drag — by mouse or by thumb. Everything runs on your LAN over the device's own HTTP API; the only thing that needs the broker above is turning a knob, because that is the one command the HTTP API has no endpoint for. The card never asks the panel for pixels — it runs the pattern's own code in your browser, sandboxed, which is the only version of a live preview this device can afford. The wire protocol behind all of it is documented in [`docs/rest-api.md`](docs/rest-api.md).
+
 **Audio-react.** Patternflow can also react to browser audio. The experimental Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension) captures the current tab's audio, analyzes four FFT bands, and sends lightweight WebSocket knob values to the device. The firmware converts those into virtual encoder motion, so every encoder-driven pattern responds, with no audio code needed in the patterns themselves.
 
 ## How it's built
@@ -179,9 +181,9 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 | `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal) |
 | `docs/` | Assembly map, build-guide media, manifesto, license summary |
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
-| `integrations/` | Host-software bridges: Ableton Live / Max for Live (OSC knob mapping) |
+| `integrations/` | Host-software bridges: Ableton Live / Max for Live (OSC knob mapping), Home Assistant (device, entities and a dashboard card) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [HTTP API](docs/rest-api.md) · [OSC Spec](docs/osc-spec.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 

@@ -4,6 +4,8 @@
 
 Patternflow speaks plain OSC over UDP on the local Wi-Fi network. This document is the contract between the firmware and any host software (the Max for Live bridge in `integrations/ableton/`, TouchDesigner, VCV Rack, Processing, custom scripts…). If you build a new integration, build it against this file, not against the firmware source.
 
+OSC is the low-latency performance transport: knobs and pattern changes, sub-frame, no infrastructure. It does **not** carry device management — no pattern installation, no Wi-Fi, no firmware, no sleep. That lives on the HTTP API, specified in `docs/rest-api.md`, which also has a table comparing what each transport can and cannot do.
+
 ## Transport
 
 | | |
@@ -53,6 +55,7 @@ Unknown addresses are ignored silently. The device drains up to 8 datagrams per 
 - Indices in addresses are 1-based (`knob/1` = leftmost encoder K1).
 - New host→device commands must be safe to receive at any time; the firmware buffers them and applies them at a safe point in the main loop.
 - Planned (not yet implemented): `/patternflow/slate` (host→device one-frame white flash for A/V sync), `/patternflow/param/...` (absolute pattern parameter values).
+- The absolute parameter bus this last item describes now exists — but over MQTT (`<prefix>/param/1..4`, 0..1000) rather than OSC, and readable over HTTP at `GET /api/mqtt`. An OSC spelling of it stays on this list; a host that needs absolute values today should use one of those two. See `docs/rest-api.md`.
 
 ## Version history
 
