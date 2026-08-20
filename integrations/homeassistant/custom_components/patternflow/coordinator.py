@@ -84,6 +84,10 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
 
         self._tick = 0
         self._patterns: dict[str, Any] | None = None
+        self._mqtt: dict[str, Any] | None = None
+        # True while somebody has the device's own web console open. Polling is
+        # cut back to /api/status then — see _async_update_data.
+        self._console_paused = False
         # Sidecars keyed by slug. A slug's metadata cannot change without the
         # file being replaced, and replacing it renumbers the list — which
         # forces a re-read anyway. So this is cached for the life of the entry.
@@ -115,25 +119,54 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         try:
             status = await self.client.get_status()
 
-            mqtt = None
-            if self._mqtt_available:
-                try:
-                    mqtt = await self.client.get_mqtt()
-                except PatternflowNotFound:
+            # Back off to this one endpoint while the device's own console has
+            # the pattern paused.
+            #
+            # Opening a console page evicts the running module to free internal
+            # DRAM, and the firmware gives the pattern back after 25 s of
+            # console idle. "Idle" is the catch: `noteConsoleApiCall()` refreshes
+            # that timer, and /api/mqtt, /api/patterns and /api/patterns/file all
+            # call it. Polling those every ten seconds through a console session
+            # keeps the timer alive forever, and the panel never comes back —
+            # the pause outlives the browser tab that caused it, which looks
+            # exactly like a hung device.
+            #
+            # /api/status is the only endpoint that does not touch the timer, so
+            # while a console is open it is the only one we ask. Nothing is lost:
+            # the pattern is not running, so its knobs are not moving either.
+            if status.get("consolePaused"):
+                if not self._console_paused:
+                    self._console_paused = True
                     _LOGGER.debug(
-                        "%s has no /api/mqtt — built with PF_MQTT_ENABLED 0. "
-                        "Knob positions are not readable on this device",
+                        "%s has a console open — polling status only until it closes",
                         self.client.host,
                     )
-                    self._mqtt_available = False
+            else:
+                self._console_paused = False
 
-            if self._patterns is None or self._tick % PATTERNS_EVERY_N_TICKS == 0:
-                self._patterns = await self.client.get_patterns()
+                if self._mqtt_available:
+                    try:
+                        self._mqtt = await self.client.get_mqtt()
+                    except PatternflowNotFound:
+                        _LOGGER.debug(
+                            "%s has no /api/mqtt — built with PF_MQTT_ENABLED 0. "
+                            "Knob positions are not readable on this device",
+                            self.client.host,
+                        )
+                        self._mqtt_available = False
+                        self._mqtt = None
+
+                if self._patterns is None or self._tick % PATTERNS_EVERY_N_TICKS == 0:
+                    self._patterns = await self.client.get_patterns()
 
         except PatternflowConnectionError as err:
             raise UpdateFailed(str(err)) from err
 
         self._tick += 1
+        # Last known values while paused, rather than None: the entities should
+        # keep showing what the panel was doing, not go unavailable because
+        # somebody opened its web page.
+        mqtt = self._mqtt
         self.knob_writer.note_connection(mqtt)
 
         patterns = self._patterns or {"patterns": [], "active": -1}
@@ -154,7 +187,9 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
 
         # One extra request, once per slug, and only for the pattern actually
         # running — this is what carries the knob labels and `absoluteReady`.
-        if slug and slug not in self._sidecars:
+        # /api/patterns/file refreshes the console idle timer too, so it waits
+        # along with everything else while a console is open.
+        if slug and slug not in self._sidecars and not self._console_paused:
             await self.async_fetch_sidecar(slug)
 
         return PatternflowData(
