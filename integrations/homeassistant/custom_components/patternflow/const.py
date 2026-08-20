@@ -53,6 +53,10 @@ API_MQTT: Final = "/api/mqtt"
 
 MANUFACTURER: Final = "Patternflow"
 
+#: Where the dashboard card and the pattern sandbox are served from. Add
+#: "<this>/patternflow-card.js" as a Lovelace resource (module).
+STATIC_URL: Final = "/patternflow_static"
+
 # ── Knobs ────────────────────────────────────────────────────────────────
 #
 # Reading them is HTTP (see api.py: /api/mqtt reports positions in any role).

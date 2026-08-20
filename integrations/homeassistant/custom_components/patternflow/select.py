@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
@@ -51,6 +53,22 @@ class PatternflowPatternSelect(PatternflowEntity, SelectEntity):
         reloaded and after a load that failed.
         """
         return self.coordinator.current_option
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """What is running, in the terms a client other than a person needs.
+
+        The state is a display name, which is right for a dropdown and useless
+        for anything that has to identify the pattern — two modules may share
+        one. The slug is the identity, and it is what a dashboard card needs to
+        find the pattern's JavaScript and draw a preview of it.
+        """
+        return {
+            "slug": self.coordinator.active_slug,
+            "index": self.coordinator.data.patterns.get("active"),
+            "absolute_ready": self.coordinator.absolute_ready,
+            "knob_labels": self.coordinator.knob_labels,
+        }
 
     async def async_select_option(self, option: str) -> None:
         """Switch the device to this pattern."""

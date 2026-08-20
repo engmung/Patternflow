@@ -54,6 +54,51 @@ Adding one by hand works too. The default address is `patternflow.local`; if mDN
 is unreliable on your network (it often is on Android), use the IP from the
 device's NETWORK screen — hold K2.
 
+## The dashboard card
+
+The integration ships a Lovelace card: the running pattern playing live, the
+four encoders laid over it as zones you drag, the panel switch, and the list of
+installed patterns.
+
+Add it once as a resource — **Settings → Dashboards → ⋮ → Resources → Add**:
+
+| | |
+| --- | --- |
+| URL | `/patternflow_static/patternflow-card.js` |
+| Type | JavaScript module |
+
+Then **Add card → Patternflow** on any dashboard. It finds the device's entities
+itself; the only thing worth setting is which device, if you have more than one.
+
+```yaml
+type: custom:patternflow-card
+device_id: 1a2b3c...      # optional — it picks the first Patternflow device
+preview: true             # run the pattern in the card
+show_patterns: true       # list the installed patterns underneath
+```
+
+**The gesture is one gesture, mouse or touch.** Where your pointer is
+horizontally picks the encoder — four zones, left to right, K1 to K4 — and
+dragging up and down turns it. The wheel still works on a desktop, because that
+is the muscle memory from the community site's wall. A double tap puts a knob
+back to the middle of its range. Only the preview area takes the gesture, so the
+card is not a scroll trap on a phone.
+
+**The preview is not a video of your panel.** It is the pattern's own JavaScript
+running in a sandboxed iframe in the browser you are looking at, driven by the
+knob values Home Assistant holds. The panel is never asked for pixels — it
+cannot spare them; a device-streamed frame endpoint was built for exactly this
+and removed the same day. So the preview is a faithful rendering of the same
+pattern at the same settings, not a mirror. A pattern nobody has turned in a
+while will match; one that has just been turned by hand at the device catches up
+on the next poll.
+
+That also bounds what can be previewed. The card bundles the JavaScript of the
+**Basics pack** — the 33 patterns that ship with Patternflow — matched to the
+modules on your device by slug. A community pattern or a hand-built module has
+no bundled twin, and a preset has no slug at all; both show the controls without
+a picture rather than an error. `preview: false` turns the iframe off entirely.
+
 ### Running more than one panel
 
 Give each one its own `PF_OTA_HOSTNAME` in `firmware/patternflow/net_config.h`
@@ -129,8 +174,13 @@ a broken integration.
 
 ## Not here yet
 
-- **A dashboard card** with the live pattern preview and the four hover/touch
-  zones, like the cards on the community site.
+- **Previews for community patterns.** Only the Basics pack's JavaScript is
+  bundled; anything else shows the controls without a picture. A device stores
+  compiled modules and no source, so there is nothing to read off the panel.
+- **HACS.** The integration lives in `integrations/homeassistant/`, which is the
+  right place in this repository and not where HACS looks — it expects
+  `custom_components/` at the repository root. Manual installation, above, is
+  the supported path for now.
 - **Brightness.** `/api/display` reports it but has no way to set it; the value
   lives in the K1 long-press UI and in NVS.
 - **Knob labels for compiled-in presets.** A module carries its labels in a
@@ -155,6 +205,21 @@ check for an integration living in Home Assistant core. Entity and config-flow
 behaviour needs `pytest-homeassistant-custom-component` and the full harness;
 that is a follow-up, and its absence is why nothing in `tests/` imports
 `homeassistant`.
+
+The dashboard card is built from `web/`, not from here, because it imports the
+knob scale constants and the `@knobs` parser from `web/src/lib` — a copy of
+those would go quietly wrong the next time a knob range is refactored:
+
+```bash
+cd web
+npm run build:ha-card        # → custom_components/patternflow/www/
+npm run check:ha-card        # fails if the committed bundle is stale
+npm run check:ha-card-smoke  # the bundle loads, and still matches the sandbox
+```
+
+The bundle and `pattern-sandbox.html` are committed because Home Assistant is
+handed a directory, not a build. CI rebuilds and compares, so a source change
+without a rebuild fails rather than shipping a stale card.
 
 `tests/fixtures/` holds recorded device responses. To refresh them against a real
 panel:

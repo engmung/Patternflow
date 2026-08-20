@@ -262,6 +262,11 @@ class PatternflowCoordinator(DataUpdateCoordinator[PatternflowData]):
         return str(prefix) if prefix else "patternflow"
 
     @property
+    def active_slug(self) -> str | None:
+        """The running pattern's module slug, or None for a preset."""
+        return self._last_active_slug
+
+    @property
     def active_sidecar(self) -> dict[str, Any] | None:
         """The running pattern's sidecar, if it is a module and we have it."""
         return self._sidecars.get(self._last_active_slug) if self._last_active_slug else None

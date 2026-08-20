@@ -88,8 +88,14 @@ class PatternflowKnob(PatternflowEntity, NumberEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """What kind of control this currently is, and the raw encoder count."""
+        """What kind of control this currently is, and the raw encoder count.
+
+        `knob` is the encoder number, 1 to 4. It is here because a dashboard
+        card has to put the four in the right order and an entity id is not
+        dependable for that — anyone can rename one.
+        """
         return {
+            "knob": self._index + 1,
             "absolute": self.coordinator.absolute_ready,
             "held": self._is_held,
             "encoder_clicks": self.coordinator.knob_clicks(self._index),
