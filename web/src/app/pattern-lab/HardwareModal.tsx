@@ -6,6 +6,7 @@ import SendModuleModal from "@/components/community/SendModuleModal";
 import PublishModal from "@/components/community/PublishModal";
 import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
+import { needsFlatten } from "@/lib/lab/flatten";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import styles from "./PatternLab.module.css";
@@ -53,7 +54,9 @@ export default function HardwareModal({
   // One visible code layer is the simple case: a single prompt and a single
   // paste. Anything else goes through the scaffold.
   const codeLayers = layers.filter(isCodeLayer);
-  const stacked = layers.filter((layer) => layer.visible && layer.opacity > 0).length > 1;
+  // Same test the export path uses (masks count; a lone pixel layer is a
+  // stack, not a pattern with an empty prompt).
+  const stacked = needsFlatten(layers);
 
   const exportData = useMemo(
     () => buildHExport({ name, matrix, layers, knobs, ranges, knobLabels }),

@@ -18,6 +18,7 @@ import { rateLimit } from "@/lib/community/ratelimit";
 import { patternHeaders, patterns } from "@/lib/community/schema";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
+  CODE_MAX,
   cleanCode,
   cleanCpp,
   cleanDescription,
@@ -233,7 +234,12 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   let bareCode = stripShareWrapping(pattern.code);
   let codeChanged = false;
   if (raw.code !== undefined) {
-    const next = cleanCode(raw.code);
+    // Measured with the wrapping off, like the publish route: a pattern just
+    // under the cap is stored a few hundred characters over it, and "Save"
+    // with nothing edited must not be refused for that.
+    const next = cleanCode(
+      typeof raw.code === "string" && raw.code.length <= CODE_MAX * 2 ? stripShareWrapping(raw.code) : raw.code,
+    );
     if (!next) {
       return Response.json({ error: "Pattern code is missing or over 100KB." }, { status: 400 });
     }

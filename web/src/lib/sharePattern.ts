@@ -155,6 +155,19 @@ export function buildAttributionFooter(meta: ShareMeta): string {
   ].join("\n");
 }
 
+// A footer is only a footer at the END of the file: the marker line and then
+// nothing but comment or blank lines. The old pattern was `marker[\s\S]*$`,
+// which deletes from the FIRST marker to the end of the file — and a
+// flattened layer stack (Pattern Lab) embeds each layer's source mid-file,
+// footers included, with the composite draw() after it. Publishing such a
+// stack returned 201 and stored a pattern cut off mid-function: the card
+// said "render error", the page showed a SyntaxError, and nothing said why.
+const TRAILING_COMMENTS = String.raw`(?:\n(?:[ \t]*\/\/[^\n]*|[ \t]*))*\s*$`;
+const COMMUNITY_FOOTER_RE = new RegExp(String.raw`\/\/ ── Made with Patternflow[^\n]*` + TRAILING_COMMENTS);
+const GEMINI_FOOTER_RE = new RegExp(
+  String.raw`\/\/ ---[ \t]*\n\/\/ (?:Generated at|Made with) [^\n]*patternflow\.work[^\n]*` + TRAILING_COMMENTS,
+);
+
 // Remove a header/footer we previously injected, so re-sharing an already
 // exported file does not stack duplicate blocks. Also strips the header/footer
 // the in-app Gemini generation stamps onto patterns (see gemini.ts), so shared
@@ -162,9 +175,9 @@ export function buildAttributionFooter(meta: ShareMeta): string {
 export function stripShareWrapping(code: string): string {
   return code
     .replace(/\/\/ ===== Patternflow pattern =====[\s\S]*?\/\/ =+\n?/, "")
-    .replace(/\/\/ ── Made with Patternflow[\s\S]*$/, "")
+    .replace(COMMUNITY_FOOTER_RE, "")
     .replace(/^\s*\/\/ Pattern:[\s\S]*?\/\/ Made with Patternflow Pattern Lab[^\n]*\n?/, "")
-    .replace(/\/\/ ---\s*\n\/\/ (Generated at|Made with) [^\n]*patternflow\.work[\s\S]*$/, "")
+    .replace(GEMINI_FOOTER_RE, "")
     .trim();
 }
 

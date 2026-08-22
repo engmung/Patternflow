@@ -5,17 +5,29 @@ import { PATTERN_SANDBOX_URL } from "./sandboxUrl";
 
 // Feed thumbnails: one hidden sandboxed iframe renders stills sequentially.
 // Supports custom knob values so card thumbnails retain user-modified states.
+//
+// Both the queue and the cache are module-scoped on purpose (the iframe lives
+// outside React, so it survives the feed's remounts and a back navigation
+// reuses every still it already made), which is exactly why both are bounded:
+// a request can be withdrawn while it is still waiting (a card scrolled away,
+// a knob turned again before its still was drawn), and the cache forgets its
+// oldest entries past a cap. Without either, a few seconds of wheel-scrolling
+// on one card queued a hundred renders at five seconds' timeout each — every
+// other card sat at "rendering…" and the backlog outlived the page.
 
 export type StillResult = { ok: boolean; dataUrl?: string; error?: string };
 
 type Job = {
   id: string;
+  key: string;
   code: string;
   customKnobValues?: number[];
   resolve: (result: StillResult) => void;
 };
 
 const STILL_TIMEOUT_MS = 5000;
+/** Stills kept: a 128×64 PNG is a few KB, so this is a few hundred KB at most. */
+const CACHE_MAX = 400;
 
 const cache = new Map<string, Promise<StillResult>>();
 const queue: Job[] = [];
@@ -112,16 +124,54 @@ function pump() {
   }, STILL_TIMEOUT_MS);
 }
 
-/** Render a thumbnail for pattern code (optionally with custom knob values). */
-export function renderPatternThumb(code: string, customKnobValues?: number[]): Promise<StillResult> {
+function remember(key: string, promise: Promise<StillResult>) {
+  // Re-inserting moves the key to the end, so eviction is oldest-first.
+  cache.delete(key);
+  cache.set(key, promise);
+  while (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+/**
+ * Render a thumbnail for pattern code (optionally with custom knob values).
+ *
+ * Pass an AbortSignal to withdraw the request: a job that has not reached the
+ * iframe yet leaves the queue and resolves `{ ok: false }` at once (and is
+ * forgotten, so asking again later renders it fresh). A job already rendering
+ * finishes — the iframe is sequential, so there is nothing to reclaim.
+ */
+export function renderPatternThumb(
+  code: string,
+  customKnobValues?: number[],
+  signal?: AbortSignal,
+): Promise<StillResult> {
   const cacheKey = customKnobValues ? `${code}::${customKnobValues.join(",")}` : code;
   const cached = cache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    remember(cacheKey, cached);
+    return cached;
+  }
+  if (signal?.aborted) return Promise.resolve({ ok: false, error: "Cancelled." });
 
   const promise = new Promise<StillResult>((resolve) => {
-    queue.push({ id: `still-${++jobCounter}`, code, customKnobValues, resolve });
+    const job: Job = { id: `still-${++jobCounter}`, key: cacheKey, code, customKnobValues, resolve };
+    queue.push(job);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        const index = queue.indexOf(job);
+        if (index < 0) return; // already rendering (or done) — let it finish
+        queue.splice(index, 1);
+        if (cache.get(cacheKey) === promise) cache.delete(cacheKey);
+        resolve({ ok: false, error: "Cancelled." });
+      },
+      { once: true },
+    );
     pump();
   });
-  cache.set(cacheKey, promise);
+  remember(cacheKey, promise);
   return promise;
 }

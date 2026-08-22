@@ -7,6 +7,8 @@ import { flattenLayers } from "../src/lib/lab/flatten";
 import { createPixelLayer, type CodeLayer } from "../src/lib/lab/types";
 import { codeLayerFromSource } from "../src/lib/lab/store";
 import { PatternRuntime, createIdleInput } from "../src/lib/patternHarness";
+import { stripShareWrapping } from "../src/lib/sharePattern";
+import { livePresets } from "../src/lib/presets";
 
 function makeCode(code: string, name: string): CodeLayer {
   return codeLayerFromSource(code, name).layer;
@@ -278,3 +280,81 @@ async function stackSmoke() {
 }
 
 void hExportSmoke().then(stackSmoke);
+
+// ── RLE pixel embedding round trip ──
+// Pixel layers flatten as run-length coded RGBA whenever that is smaller than
+// raw bytes (see flatten.ts). Runs are capped at 256 pixels, so a layer whose
+// runs straddle the cap — and one too noisy to compress, which must fall back
+// to raw — both have to come back pixel-exact through the generated decoder.
+{
+  const rle = createPixelLayer({ width: 128, height: 64 }, "Runs");
+  let run = 0;
+  for (let i = 0; i < 128 * 64; i++) {
+    // Run lengths 1, 2, …, 300 cycling, alternating two opaque colours.
+    const colour = run % 2 === 0 ? [255, 40, 0, 255] : [0, 200, 255, 255];
+    rle.data.set(colour, i * 4);
+    if (i % 301 === 300) run++;
+  }
+  const noise = createPixelLayer({ width: 128, height: 64 }, "Noise");
+  for (let i = 0; i < noise.data.length; i++) noise.data[i] = (i * 2654435761) >>> 24;
+  for (let i = 3; i < noise.data.length; i += 4) noise.data[i] = 255;
+
+  for (const layer of [rle, noise]) {
+    const flat = flattenLayers([layer], { width: 128, height: 64 });
+    const embed = flat.includes('__rle("') ? "rle" : "raw";
+    const rt = new PatternRuntime(128, 64);
+    const loaded = rt.loadCode(flat);
+    if (!loaded.ok) {
+      console.error(`${layer.name}: flattened code failed to load:`, loaded.error);
+      process.exit(1);
+    }
+    const result = rt.renderFrame(1 / 30, 0, createIdleInput());
+    if (!result.ok) {
+      console.error(`${layer.name}: flattened code failed to render:`, result.error);
+      process.exit(1);
+    }
+    let mismatches = 0;
+    for (let i = 0; i < layer.data.length; i += 4) {
+      if (rt.data[i] !== layer.data[i] || rt.data[i + 1] !== layer.data[i + 1] || rt.data[i + 2] !== layer.data[i + 2]) {
+        mismatches++;
+      }
+    }
+    if (mismatches > 0) {
+      console.error(`${layer.name} (${embed}): ${mismatches} pixels differ after the round trip`);
+      process.exit(1);
+    }
+    console.log(`pixel embed smoke OK`, { layer: layer.name, embed, codeChars: flat.length });
+  }
+  if (!flattenLayers([rle], { width: 128, height: 64 }).includes('__rle("')) {
+    console.error("run-heavy layer should have taken the RLE path");
+    process.exit(1);
+  }
+  if (flattenLayers([noise], { width: 128, height: 64 }).includes('__rle("')) {
+    console.error("noise should have fallen back to raw bytes");
+    process.exit(1);
+  }
+}
+
+// ── the community's wrapping strip must leave a flattened stack intact ──
+// Every preset and AI variant ends with a licence footer; flattened, that
+// footer sits mid-file inside the layer's IIFE with the composite after it.
+// The publish route strips licence wrapping before storing — and used to cut
+// from the first footer to the end of the file, storing half a pattern.
+function publishStripSmoke() {
+  const footered = livePresets.find((preset) => /Made with Patternflow/.test(preset.code.slice(-400)));
+  if (!footered) {
+    console.error("expected at least one preset ending with a licence footer");
+    process.exit(1);
+  }
+  const layer = codeLayerFromSource(footered.code, "Code 1").layer;
+  const flat = flattenLayers([createPixelLayer({ width: 128, height: 64 }, "Pixel 1"), layer], { width: 128, height: 64 });
+  const stored = stripShareWrapping(flat);
+  const rt = new PatternRuntime(128, 64);
+  const loaded = rt.loadCode(stored);
+  if (!loaded.ok || !stored.includes("export function draw")) {
+    console.error("stored stack is broken after stripShareWrapping:", loaded.error ?? "composite draw missing");
+    process.exit(1);
+  }
+  console.log("publish strip smoke OK", { preset: footered.name, flatChars: flat.length, storedChars: stored.length });
+}
+publishStripSmoke();

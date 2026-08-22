@@ -37,13 +37,11 @@ export default function PatternCanvas({
   const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    let alive = true;
-    renderPatternThumb(code, knobSetupFromCode(code).values).then((result) => {
-      if (alive && result.ok && result.dataUrl) setThumb(result.dataUrl);
+    const controller = new AbortController();
+    renderPatternThumb(code, knobSetupFromCode(code).values, controller.signal).then((result) => {
+      if (!controller.signal.aborted && result.ok && result.dataUrl) setThumb(result.dataUrl);
     });
-    return () => {
-      alive = false;
-    };
+    return () => controller.abort();
   }, [code]);
 
   // Boot the sandbox a little before it is reachable, so the first hover

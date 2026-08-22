@@ -15,6 +15,7 @@ import { rateLimit } from "@/lib/community/ratelimit";
 import { patterns } from "@/lib/community/schema";
 import { toCardItem } from "@/lib/community/serialize";
 import {
+  CODE_MAX,
   cleanCode,
   cleanCpp,
   cleanDescription,
@@ -112,7 +113,12 @@ async function handlePost(request: Request) {
     return Response.json({ error: "Description is too long (max 2000 chars)." }, { status: 400 });
   }
 
-  const code = cleanCode(raw.code);
+  // Measured with the licence wrapping off: that is what gets stored, and a
+  // pattern accepted just under the cap came back from a download or a fork
+  // a few hundred characters over it, unchanged and refused.
+  const code = cleanCode(
+    typeof raw.code === "string" && raw.code.length <= CODE_MAX * 2 ? stripShareWrapping(raw.code) : raw.code,
+  );
   if (!code) return Response.json({ error: "Pattern code is missing or over 100KB." }, { status: 400 });
 
   // Any licence block the code arrived with belongs to someone else (a lab

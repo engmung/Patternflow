@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -28,13 +29,17 @@ export const dynamic = "force-dynamic";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ k?: string }>;
+  // A repeated `?k=` arrives as an array; treating it as a string was a 500.
+  searchParams: Promise<{ k?: string | string[] }>;
 };
+
+// Metadata and the page both need the row; one query serves the request.
+const getPatternOnce = cache(getPattern);
 
 export async function generateMetadata(props: RouteParams): Promise<Metadata> {
   if (!communityEnabled()) return {};
   const { id } = await props.params;
-  const pattern = await getPattern(id);
+  const pattern = await getPatternOnce(id);
   // Metadata is what previews and crawlers read, so a private pattern's title
   // must not surface here — even the owner's tab goes generic.
   if (!pattern || pattern.visibility === "private") return {};
@@ -48,9 +53,10 @@ export default async function CommunityPatternPage(props: RouteParams) {
   if (!communityEnabled()) return null; // layout already rendered the notice
 
   const { id } = await props.params;
-  const { k } = await props.searchParams;
+  const { k: rawK } = await props.searchParams;
+  const k = Array.isArray(rawK) ? rawK[rawK.length - 1] : rawK;
 
-  const pattern = await getPattern(id);
+  const pattern = await getPatternOnce(id);
   if (!pattern) notFound();
 
   // Viewer context: whether they already liked this, and whether it's theirs to

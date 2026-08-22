@@ -157,13 +157,16 @@ export default function CommunityFeedClient({
 
   const batchRows = isMobile ? MOBILE_FEED_VIEW.batchRows : batchRowsForSlot(slot);
 
-  const loadMore = useCallback(async () => {
+  // `sizeHint` lets a caller ask for a bigger batch than the viewport needs
+  // — the restore below rebuilds a known length and wants few, full pages.
+  const loadMore = useCallback(async (sizeHint?: number) => {
     if (busyRef.current || doneRef.current) return;
     busyRef.current = true;
     setFailed(false);
     try {
       const have = itemsRef.current.length;
-      const size = Math.min(MAX_FEED_PAGE_SIZE, Math.max(cardsPerRow * batchRows, cardsPerRow));
+      const wanted = Math.max(sizeHint ?? 0, cardsPerRow * batchRows, cardsPerRow);
+      const size = Math.min(MAX_FEED_PAGE_SIZE, wanted);
       const params = new URLSearchParams({ offset: String(have), size: String(size) });
       if (sort !== "new") params.set("sort", sort);
       if (hardwareOnly) params.set("hw", "1");
@@ -251,7 +254,12 @@ export default function CommunityFeedClient({
     // thing it touches after a real unmount is a scroll position, so it
     // checks the feed is still on screen instead.
     void (async () => {
-      // Rebuild to the length the feed had.
+      // Rebuild to the length the feed had — in full pages, not viewport
+      // batches. Every page is a real query on the community server (four
+      // correlated counts per row, the whole source of each pattern in the
+      // payload), and a rebuild to 300 cards at viewport size was sixteen of
+      // them fired back-to-back; at the page cap it is seven. On the Pi that
+      // difference is a stutter versus a freeze.
       //
       // The sentinel is loading at the same time, and loadMore refuses to run
       // while a batch is in flight — so a call that returns with nothing added
@@ -264,7 +272,7 @@ export default function CommunityFeedClient({
         if (Date.now() > deadline) break;
         const before = itemsRef.current.length;
         if (busyRef.current) await new Promise((resolve) => setTimeout(resolve, 60));
-        else await loadMoreRef.current();
+        else await loadMoreRef.current(MAX_FEED_PAGE_SIZE);
         if (itemsRef.current.length === before) {
           stalls += 1;
           if (stalls > 40) break;

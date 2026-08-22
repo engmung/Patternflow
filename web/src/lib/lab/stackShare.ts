@@ -129,6 +129,8 @@ export async function importCodeIntoLab(
     if (forkOf !== undefined) store.setForkOf(forkOf);
     return "stack";
   }
-  store.addCodeLayerFromCode(code, name, forkOf);
+  // Whatever the @stack line was (unreadable here, or absent), it must not
+  // travel on inside a code layer — re-exported, the first @stack wins.
+  store.addCodeLayerFromCode(stripStackAnnotation(code), name, forkOf);
   return "single";
 }

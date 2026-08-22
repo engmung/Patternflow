@@ -29,11 +29,12 @@ import { codeUsesValueField, withRampAnnotation } from "@/lib/patternRamp";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
+import { CODE_MAX } from "@/lib/community/validate";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
-import { buildStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
+import { buildStackAnnotation, importCodeIntoLab, stripStackAnnotation } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
 import type { CodeLayer } from "@/lib/lab/types";
 import HardwareModal from "./HardwareModal";
@@ -172,6 +173,10 @@ async function buildExportCode(): Promise<string> {
     });
     // Ride the full project along so "Open in Pattern Lab" restores the
     // layers. Best effort — an oversized stack still publishes, flattened.
+    // The guard is on the TOTAL: the annotation has its own line cap, but
+    // what the community measures is flattened code plus annotation, and
+    // bounding only the line let a pixel-heavy stack sail past the cap and
+    // be refused outright instead of falling back to a flat publish.
     const stackLine = await buildStackAnnotation({
       matrix: state.matrix,
       layers: state.layers,
@@ -182,12 +187,16 @@ async function buildExportCode(): Promise<string> {
       forkOf: state.forkOf,
       gen: state.gen,
     }).catch(() => null);
-    return stackLine ? `${flat}\n\n${stackLine}\n` : flat;
+    const withStack = stackLine ? `${flat}\n\n${stackLine}\n` : flat;
+    return withStack.length <= CODE_MAX ? withStack : flat;
   }
   const layer = state.layers.find(
     (entry) => entry.visible && entry.opacity > 0 && entry.type === "code",
   ) as CodeLayer;
-  let code = withMatrixAnnotation(layer.code, state.matrix);
+  // A layer that arrived from a shared composition may still carry that
+  // composition's @stack line; published as-is it would reopen as the
+  // original author's layers rather than this pattern.
+  let code = withMatrixAnnotation(stripStackAnnotation(layer.code), state.matrix);
   // Knob ranges live in the lab, not in the layer's text, so retuning a
   // slider's min/max left the code saying whatever it was imported with. The
   // flattened path has always written this line; a single code layer — the
@@ -247,17 +256,27 @@ export default function PatternLabClient() {
       // A shared composition carries its layers as a @stack line — restore
       // them; a plain pattern arrives as one layer. Either way it is now the
       // only thing on the canvas.
-      void importCodeIntoLab(
-        handoff.code,
-        handoff.parentTitle ?? undefined,
-        handoff.parentId
-          ? {
-              id: handoff.parentId,
-              title: handoff.parentTitle ?? "a community pattern",
-              license: handoff.parentLicense,
-            }
-          : undefined,
-      );
+      const forkOf = handoff.parentId
+        ? {
+            id: handoff.parentId,
+            title: handoff.parentTitle ?? "a community pattern",
+            license: handoff.parentLicense,
+          }
+        : undefined;
+      importCodeIntoLab(handoff.code, handoff.parentTitle ?? undefined, forkOf).catch(() => {
+        // The stack failed to restore after the canvas was already
+        // cleared. A flat single layer beats an empty lab with no word on
+        // why; the parked work is still under Recent ▾ either way.
+        try {
+          useLabStore.getState().addCodeLayerFromCode(
+            stripStackAnnotation(handoff.code),
+            handoff.parentTitle ?? undefined,
+            forkOf,
+          );
+        } catch {
+          // Nothing left to try.
+        }
+      });
     }
     setMounted(true);
   }, [hydrate]);
