@@ -3,8 +3,8 @@
 // Pattern Lab v2 — a layered, dockable pattern editing workspace.
 //
 // The old lab was one pattern + one fixed two-column layout. This shell hosts
-// seven dockable panels (dockview) over a layer-stack project (zustand):
-// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp. Panels rearrange
+// eight dockable panels (dockview) over a layer-stack project (zustand):
+// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Capture. Panels rearrange
 // Photoshop-style — drag tabs, split groups, float — and the arrangement
 // persists to localStorage alongside the project itself.
 //
@@ -45,6 +45,7 @@ import RampPanel from "./panels/RampPanel";
 import CodePanel from "./panels/CodePanel";
 import PixelPanel from "./panels/PixelPanel";
 import GalleryPanel from "./panels/GalleryPanel";
+import CapturePanel from "./panels/CapturePanel";
 
 import styles from "./PatternLab.module.css";
 import dock from "./LabPanels.module.css";
@@ -65,6 +66,9 @@ const PANEL_DEFS = [
   { id: "gallery", title: "Gallery" },
   { id: "knobs", title: "Knobs" },
   { id: "ramp", title: "Color Ramp" },
+  // Output stage (stills/clips at print sizes) — an add-on module, see
+  // lib/lab/capture. Registered here and nowhere else.
+  { id: "capture", title: "Capture" },
 ] as const;
 
 type PanelId = (typeof PANEL_DEFS)[number]["id"];
@@ -77,6 +81,7 @@ const panelComponents: Record<PanelId, React.FunctionComponent<IDockviewPanelPro
   gallery: GalleryPanel,
   knobs: KnobsPanel,
   ramp: RampPanel,
+  capture: CapturePanel,
 };
 
 function Watermark() {
@@ -108,6 +113,12 @@ function buildDefaultLayout(api: DockviewApi) {
     id: "gallery",
     component: "gallery",
     title: "Gallery",
+    position: { referencePanel: "code", direction: "within" },
+  });
+  api.addPanel({
+    id: "capture",
+    component: "capture",
+    title: "Capture",
     position: { referencePanel: "code", direction: "within" },
   });
   api.addPanel({

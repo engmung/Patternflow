@@ -70,7 +70,7 @@ You don't need hardware to start. The **[Live Editor](https://patternflow.work/p
   <img src="./docs/media/web-live-editor.png" width="100%" alt="Live Editor: a full Patternflow simulator in the browser, code beside the device" />
 </p>
 
-**[Pattern Lab](https://patternflow.work/pattern-lab)** is the full studio, and where a pattern reaches the hardware. Generate variations in batches, shape color ramps, retune knob ranges, then send it to your device: it builds into a small `.pfm` module and installs over Wi-Fi, about ten seconds start to finish. You never plug in a cable, reflash the board, or open an IDE.
+**[Pattern Lab](https://patternflow.work/pattern-lab)** is the full studio, and where a pattern reaches the hardware. Generate variations in batches, shape color ramps, retune knob ranges, then send it to your device: it builds into a small `.pfm` module and installs over Wi-Fi, about ten seconds start to finish. You never plug in a cable, reflash the board, or open an IDE. The Capture panel takes the same pattern off the panel: a PNG at print size for a business card, or an MP4 loop for a post, rendered in your browser with nothing uploaded.
 
 When it looks right, publish it to the **[Community](https://community.patternflow.work/community)**. More than a hundred patterns are up already and the range keeps widening, from quiet waves to chaos-theory studies, every one written as code and every one playable under the same four knobs. Collect patterns into a deck and send it to your board in one click. Browsing needs no account, and publishing asks a username and password, no email. The **[Pattern Guide](PATTERN_GUIDE.md)** walks the whole loop.
 
