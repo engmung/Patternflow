@@ -13,6 +13,24 @@ Patternflow 커뮤니티 웹 서버 및 C++ 펌웨어 웹플래시 컴파일 빌
 - **실행 명령**: `npm start` (포트 3000)
 - **위치**: `/etc/systemd/system/patternflow-community.service`
 
+#### 죽으면 스스로 다시 뜨게 — `Restart=always` 필수
+
+systemd 기본값은 `Restart=no`입니다. 그대로 두면 Node 프로세스가 한 번이라도
+죽는 순간(라즈베리 파이에서 현실적인 원인은 OOM 킬) 누가 `systemctl restart`를
+칠 때까지 커뮤니티 전체가 내려간 채로 있습니다. 두 서비스 모두 `[Service]`에
+아래 두 줄이 들어 있는지 확인하세요:
+
+```ini
+[Service]
+Restart=always
+RestartSec=3
+```
+
+확인: `systemctl show patternflow-community.service -p Restart` 가
+`Restart=always` 를 돌려줘야 합니다. 죽은 적이 있는지는
+`sudo journalctl -u patternflow-community.service | grep -i "main process exited"`,
+OOM 킬은 `dmesg -T | grep -i "killed process"` 로 봅니다.
+
 ### ② `patternflow-worker.service`
 - **역할**: C++ 펌웨어 빌드 워커 (`scripts/build-worker.ts`)
 - **설명**: 웹플래시 요청 대기열(`queued`)을 수신하여 `arduino-cli`를 이용해 ESP32-S3 바이너리를 컴파일합니다.

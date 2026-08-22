@@ -8,8 +8,11 @@
 //   · each code layer's color ramp is baked into a 256×4 RGBA LUT array —
 //     no interpolation code to translate, just a table to copy
 //   · pixel-art layers embed as base64 with a ~10-line alphabet decoder
-//     (no atob), which ports to C++ mechanically — or can be swapped for a
-//     PROGMEM byte array by a deterministic exporter later
+//     (no atob), run-length coded as {count-1, r, g, b, a} — the same shape
+//     the .h exporter writes — whenever that is smaller than the raw bytes.
+//     Raw RGBA is 44 KB per 128×64 layer; the community caps a pattern at
+//     CODE_MAX, so two raw layers could not be published at all. Typical
+//     pixel art (transparent background, flat fills) runs to a few KB.
 //   · blending is the same integer-friendly math as compositor.ts — keep the
 //     two in sync
 //
@@ -23,17 +26,69 @@ import { codeUsesValueField } from "@/lib/patternRamp";
 import { KNOBS_ANNOTATION_RE, buildKnobsAnnotationLine, defaultKnobState } from "./annotations";
 import { rampStateToHarness } from "./engine";
 import { bytesToBase64 } from "./serialize";
+
+/**
+ * Run-length encode straight RGBA bytes as {count-1, r, g, b, a} tuples
+ * (runs of up to 256 identical pixels). Mirrors `__rle` in the preamble
+ * below and the RLE the .h exporter emits.
+ */
+export function rleEncodeRGBA(data: Uint8ClampedArray): Uint8ClampedArray {
+  const pixels = data.length >> 2;
+  const runs: number[] = [];
+  let index = 0;
+  while (index < pixels) {
+    const base = index * 4;
+    const r = data[base];
+    const g = data[base + 1];
+    const b = data[base + 2];
+    const a = data[base + 3];
+    let count = 1;
+    while (
+      count < 256 &&
+      index + count < pixels &&
+      data[(index + count) * 4] === r &&
+      data[(index + count) * 4 + 1] === g &&
+      data[(index + count) * 4 + 2] === b &&
+      data[(index + count) * 4 + 3] === a
+    ) {
+      count++;
+    }
+    runs.push(count - 1, r, g, b, a);
+    index += count;
+  }
+  return new Uint8ClampedArray(runs);
+}
+
+/** The embed expression for one pixel layer: RLE when it wins, raw otherwise. */
+function pixelBufferLiteral(data: Uint8ClampedArray): string {
+  const rle = rleEncodeRGBA(data);
+  return rle.length < data.length
+    ? `__rle("${bytesToBase64(rle)}", __W * __H * 4)`
+    : `__b64("${bytesToBase64(data)}", __W * __H * 4)`;
+}
 import type { CodeLayer, KnobRange, Layer } from "./types";
 
 export type FlattenKnobs = { labels: string[]; ranges: KnobRange[] };
 
 function stripForEmbedding(code: string): string {
-  return code
-    .replace(/^\s*import\s+.*?;?\s*$/gm, "")
-    .replace(/\bexport\s+function\b/g, "function")
-    .replace(KNOBS_ANNOTATION_RE, "")
-    .replace(/^[ \t]*\/\/[ \t]*@matrix[ \t].*$/gm, "")
-    .replace(/^[ \t]*\/\/[ \t]*@ramp[ \t].*$/gm, "");
+  return (
+    code
+      .replace(/^\s*import\s+.*?;?\s*$/gm, "")
+      .replace(/\bexport\s+function\b/g, "function")
+      .replace(KNOBS_ANNOTATION_RE, "")
+      .replace(/^[ \t]*\/\/[ \t]*@matrix[ \t].*$/gm, "")
+      .replace(/^[ \t]*\/\/[ \t]*@ramp[ \t].*$/gm, "")
+      // A layer pasted from a shared composition may still carry that
+      // composition's @stack line. Left in, it sits before the one this
+      // export appends — and the first match wins on reopen, restoring
+      // somebody else's layers instead of these.
+      .replace(/^[ \t]*\/\/[ \t]*@stack[ \t].*$/gm, "")
+  );
+}
+
+/** A layer name inside a `//` comment: every line terminator JS knows, not just \n. */
+function commentSafe(name: string): string {
+  return name.replace(/[\r\n\u2028\u2029]/g, " ");
 }
 
 function lutLiteral(layer: CodeLayer): string {
@@ -64,7 +119,7 @@ export function flattenLayers(
   const manifest = stack
     .map(
       (layer, index) =>
-        `//   ${index + 1}. ${layer.name.replace(/\n/g, " ")} (${layer.type}, ${
+        `//   ${index + 1}. ${commentSafe(layer.name)} (${layer.type}, ${
           layer.role === "mask"
             ? `MASK${layer.maskInvert ? " inverted" : ""}`
             : `${layer.blend}, ${Math.round(layer.opacity * 100)}%`
@@ -88,6 +143,18 @@ function __b64(s, n) {
     if (v < 0) continue;
     buf = (buf << 6) | v; bits += 6;
     if (bits >= 8) { bits -= 8; out[o++] = (buf >> bits) & 255; }
+  }
+  return out;
+}
+
+// Run-length coded RGBA: base64 of {count-1, r, g, b, a} tuples.
+function __rle(s, n) {
+  const t = __b64(s, (s.length * 3) >> 2), out = new Uint8ClampedArray(n);
+  let o = 0;
+  for (let i = 0; i + 4 < t.length && o < n; i += 5) {
+    for (let k = t[i] + 1; k > 0 && o < n; k--) {
+      out[o++] = t[i + 1]; out[o++] = t[i + 2]; out[o++] = t[i + 3]; out[o++] = t[i + 4];
+    }
   }
   return out;
 }
@@ -123,10 +190,10 @@ function __mkDisplay(L) {
     const roleProps = `role: "${layer.role}", maskInvert: ${layer.maskInvert}`;
     if (layer.type === "pixel") {
       parts.push(`
-// ── pixel layer: ${layer.name.replace(/\n/g, " ")} ──
+// ── pixel layer: ${commentSafe(layer.name)} ──
 __stack.push({
   kind: "pixel", opacity: ${layer.opacity}, blend: "${layer.blend}", ${roleProps},
-  buf: __b64("${bytesToBase64(layer.data)}", __W * __H * 4),
+  buf: ${pixelBufferLiteral(layer.data)},
 });`);
       continue;
     }
@@ -134,7 +201,7 @@ __stack.push({
     const usesValue = codeUsesValueField(layer.code);
     const needsLUT = usesValue || layer.recolor;
     parts.push(`
-// ── code layer: ${layer.name.replace(/\n/g, " ")} ──
+// ── code layer: ${commentSafe(layer.name)} ──
 (function () {
   // Shadow the wrapper's own exports: a layer that defines no setup/update
   // must yield undefined here, not capture the OUTER setup (infinite loop).

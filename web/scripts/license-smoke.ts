@@ -132,5 +132,35 @@ check(
   true,
 );
 
+console.log("\n── footers inside a flattened layer stack ──");
+// Pattern Lab flattens a layer stack with each layer's source embedded
+// mid-file, licence footers and all, and the composite draw() AFTER them. A
+// footer is only the file's footer when nothing but comments follows it.
+const communityFooter = [
+  "// ── Made with Patternflow Community · https://community.patternflow.work ──",
+  "// Shared under CC-BY-SA-4.0. Attribution is part of this licence —",
+  "// please keep this notice and the author credit above when you reuse,",
+  "// remix, or redistribute this pattern. Do not delete it.",
+].join("\n");
+const geminiFooter = [
+  "// ---",
+  "// Made with Patternflow Pattern Lab — https://patternflow.work/pattern-lab",
+  "// Licensed CC-BY-SA-4.0. Keep this notice if you share or remix.",
+].join("\n");
+const stack = `(function () {\n  function draw() {}\n${communityFooter}\n})();\n(function () {\n  function draw() {}\n${geminiFooter}\n})();\nexport function draw(display) {}`;
+check("embedded community footer leaves the code after it alone", stripShareWrapping(stack), stack);
+check("trailing community footer still comes off", stripShareWrapping(`${BODY}\n\n${communityFooter}\n`), BODY);
+check("trailing gemini footer still comes off", stripShareWrapping(`${BODY}\n\n${geminiFooter}\n`), BODY);
+check(
+  "a @stack line after the body survives a trailing footer",
+  stripShareWrapping(`${BODY}\n\n// @stack v1 d:AAAA\n\n${communityFooter}\n`),
+  `${BODY}\n\n// @stack v1 d:AAAA`,
+);
+check(
+  "footer followed by comments only is still trailing",
+  stripShareWrapping(`${BODY}\n${communityFooter}\n// trailing note\n\n`),
+  BODY,
+);
+
 console.log(failures === 0 ? "\nAll licence checks passed.\n" : `\n${failures} check(s) FAILED.\n`);
 process.exit(failures === 0 ? 0 : 1);

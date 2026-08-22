@@ -24,6 +24,8 @@
     "check:workshop": "tsx scripts/workshop-smoke.ts",
     "check:sandbox": "tsx scripts/sandbox-smoke.ts",
     "check:capture": "tsx scripts/lab-capture-smoke.ts",
+    "check:thumbs": "tsx scripts/thumbs-smoke.ts",
+    "check:flatten": "tsx scripts/lab-flatten-smoke.ts",
     "check:performance": "tsx scripts/performance-smoke.ts",
     "build:ha-card": "tsx scripts/build-ha-card.ts",
     "check:ha-card": "tsx scripts/build-ha-card.ts --check",

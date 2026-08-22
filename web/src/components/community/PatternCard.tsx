@@ -327,23 +327,27 @@ export default function PatternCard({
   // there; tapping through to the pattern is where it moves.
   const playing = interactive && isHovered;
 
-  // Initial static thumbnail
+  // The still. Rendered once on arrival, and again with the knobs where the
+  // cursor left them — not on every wheel tick: while the card plays, the
+  // live preview covers the still, so a render per tick was a hundred queued
+  // jobs nobody would ever see, each holding the shared iframe for up to five
+  // seconds while every other card waited. A request that is overtaken
+  // (scrolled away, or superseded before it was drawn) is withdrawn.
   useEffect(() => {
-    let alive = true;
-    renderPatternThumb(item.code, knobValues).then((result) => {
-      if (!alive) return;
+    if (playing) return;
+    const controller = new AbortController();
+    renderPatternThumb(item.code, knobValues, controller.signal).then((result) => {
+      if (controller.signal.aborted) return;
       if (result.ok && result.dataUrl) {
         lastThumbRef.current = result.dataUrl;
         setThumb(result.dataUrl);
-      } else if (!lastThumbRef.current) {
+      } else if (!lastThumbRef.current && result.error !== "Cancelled.") {
         // Keep showing the last good frame if a later re-render fails.
         setFailed(result.error ?? "Render failed.");
       }
     });
-    return () => {
-      alive = false;
-    };
-  }, [item.code, knobValues]);
+    return () => controller.abort();
+  }, [item.code, knobValues, playing]);
 
   const handleCardMouseEnter = () => {
     setIsHovered(true);
@@ -429,6 +433,13 @@ export default function PatternCard({
     <Link
       ref={rootRef}
       href={detailUrl}
+      // The detail page is force-dynamic, so a prefetch buys nothing that
+      // survives to the click — and the href changes on every wheel tick
+      // (the knob values ride in it), so each tick registered a fresh
+      // prefetch, and every card entering the viewport another: hundreds of
+      // server renders of the community layout for a feed that was only
+      // being scrolled. The Pi serving it did not enjoy that.
+      prefetch={false}
       className={styles.card}
       onMouseEnter={interactive ? handleCardMouseEnter : undefined}
       onMouseLeave={interactive ? handleCardMouseLeave : undefined}

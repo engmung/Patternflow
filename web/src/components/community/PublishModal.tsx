@@ -9,6 +9,7 @@ import {
   MADE_HOW_LABELS,
   MADE_HOW_VALUES,
   TITLE_MAX,
+  CODE_MAX,
   type MadeHow,
 } from "@/lib/community/validate";
 import {
@@ -80,6 +81,16 @@ export default function PublishModal({
   const publish = async () => {
     const trimmed = title.trim();
     setError(null);
+    if (code.length > CODE_MAX) {
+      // The server says the same thing, but after a round trip that costs
+      // one of five publishes a minute — and without the likely cause.
+      setError(
+        `This pattern is ${Math.round(code.length / 1000)} KB of code; the community takes up to ${
+          CODE_MAX / 1000
+        } KB. Imported images as pixel layers are the usual reason — hide or delete one and share again.`,
+      );
+      return;
+    }
     if (trimmed.length === 0 || trimmed.length > TITLE_MAX) {
       setError(`Title is required (max ${TITLE_MAX} characters).`);
       return;
@@ -106,9 +117,13 @@ export default function PublishModal({
           parentId,
         }),
       });
-      const payload = (await response.json()) as { id?: string; error?: string };
+      // A proxy's HTML error page or a bare 403 is not JSON; reading it as
+      // JSON threw and surfaced as "network error", which it is not.
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as { id?: string; error?: string };
       if (!response.ok || !payload.id) {
-        setError(payload.error ?? "Publishing failed.");
+        setError(payload.error ?? `Publishing failed (HTTP ${response.status}).`);
         return;
       }
       captureEvent("community_publish", {
