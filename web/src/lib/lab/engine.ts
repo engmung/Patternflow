@@ -288,6 +288,31 @@ export class LabEngine {
   }
 
   /**
+   * Per-pixel coverage (0..255) of the visible paint layers at the CURRENT
+   * frame — the alpha channel a transparent export needs. The composite
+   * itself is always opaque (an LED panel is black when off), so this is a
+   * separate read over the same entries `render` composites: alpha union down
+   * the stack, layer opacity and masks included. No time advance. Used by the
+   * capture module (lib/lab/capture); the live preview never calls it.
+   */
+  coverage(matrix: MatrixSize, layers: Layer[], out: Uint8ClampedArray) {
+    const pixelCount = matrix.width * matrix.height;
+    out.fill(0, 0, pixelCount);
+    for (const entry of this.buildEntries(matrix, layers, null)) {
+      const opacity = Math.max(0, Math.min(1, entry.opacity));
+      if (opacity <= 0) continue;
+      const source = entry.data;
+      const mask = entry.mask;
+      for (let i = 0; i < pixelCount; i++) {
+        if (mask && mask[i] === 0) continue;
+        const alpha = (source[i * 4 + 3] / 255) * opacity;
+        if (alpha <= 0) continue;
+        out[i] = 255 - (255 - out[i]) * (1 - alpha);
+      }
+    }
+  }
+
+  /**
    * Composite the current buffers of every visible layer EXCEPT `excludeId`
    * (no time advance) — the pixel editor's alignment backdrop.
    */

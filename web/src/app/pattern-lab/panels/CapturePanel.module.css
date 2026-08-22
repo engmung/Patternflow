@@ -1,0 +1,170 @@
+/* Capture panel — everything specific to the output stage lives here so the
+   shared panel styles (LabPanels.module.css) stay untouched. */
+
+.bar {
+  row-gap: 4px;
+}
+
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.group select {
+  max-width: 100%;
+}
+
+.readout {
+  color: rgba(23, 21, 18, 0.62);
+  white-space: nowrap;
+}
+
+.readoutStrong {
+  color: #171512;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sizeInput {
+  width: 56px !important;
+  text-align: center;
+}
+
+.slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(23, 21, 18, 0.6);
+  text-transform: uppercase;
+}
+
+.slider input[type="range"] {
+  width: 64px;
+  accent-color: #171512;
+}
+
+.colorWell {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: none;
+  cursor: pointer;
+}
+
+.secondsInput {
+  width: 44px !important;
+}
+
+.record {
+  border-color: #b42318 !important;
+  color: #b42318 !important;
+}
+
+.record:hover {
+  background: #b42318 !important;
+  color: #fff !important;
+}
+
+.progress {
+  position: relative;
+  flex: 1 1 120px;
+  min-width: 80px;
+  height: 8px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  overflow: hidden;
+}
+
+.progressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #171512;
+  transition: width 80ms linear;
+}
+
+.message {
+  flex: 1 1 100%;
+  color: rgba(23, 21, 18, 0.7);
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.messageError {
+  color: #b42318;
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+
+.stageBox {
+  flex: 1 1 auto;
+  min-height: 120px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #1a1816;
+  border: 1px solid #171512;
+}
+
+/* The canvas is sized by its own bitmap and only ever scaled DOWN to fit —
+   a replaced element keeps its ratio under max-width/max-height. */
+.stageCanvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Transparency shows as the usual checkerboard, under the picture only. */
+.stageCanvasTransparent {
+  background-color: #d9d4ca;
+  background-image:
+    linear-gradient(45deg, #bdb7aa 25%, transparent 25%, transparent 75%, #bdb7aa 75%),
+    linear-gradient(45deg, #bdb7aa 25%, transparent 25%, transparent 75%, #bdb7aa 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+
+/* The auto look's verdict, full width under the output controls. */
+.verdict {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: rgba(23, 21, 18, 0.7);
+  text-transform: none;
+}
+
+.verdict[data-verdict="upscale"] {
+  color: #8a5a10;
+}
+
+.errorList {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.hint {
+  padding: 14px;
+  color: rgba(23, 21, 18, 0.6);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
