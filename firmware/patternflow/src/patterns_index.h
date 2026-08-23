@@ -113,6 +113,22 @@ input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
 #bulk{display:none}
 .bulkTop{margin:0 0 10px}
 .bulkNote{font-family:var(--mono);font-size:11px;color:var(--faint)}
+/* First run. A partition that has never been formatted cannot hold anything,
+   and the only cure is a deliberate, destructive button — so that button used
+   to sit at the foot of the upload column, in the same grey as "Retry failed",
+   on the one visit where it is the only control that matters. On that state it
+   comes to the top and says what it is; the drop zone goes cold behind it,
+   because a drop there can only produce a queue of certain failures. */
+.firstrun{display:none;margin-top:20px;padding:14px 16px;
+border:1px solid var(--warn);border-radius:3px;background:rgba(217,160,63,.06)}
+.firstrun.on{display:block}
+.firstrun h2{color:var(--warn);margin:0 0 6px}
+.firstrun p{margin:0;font-size:13px;color:var(--muted)}
+.firstrun .actions{margin-top:11px}
+button.del.prim{border-color:var(--warn);color:var(--warn)}
+button.del.prim:hover{background:rgba(217,160,63,.12);
+border-color:var(--warn);color:var(--warn)}
+.drop.off{opacity:.4;cursor:not-allowed;border-style:solid}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
@@ -134,6 +150,17 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 <nav class="pfnav"><a href="/">Console</a><a href="/patterns" class="here">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
 
 
+<div class="firstrun" id="firstRun">
+  <h2>Storage needs formatting</h2>
+  <p>This board's pattern partition isn't readable — either it has never been
+  formatted, or its filesystem is damaged. Format it once, and patterns install
+  normally from then on.</p>
+  <div class="actions">
+    <button class="del prim" id="fmt">Format storage</button>
+    <span class="bulkNote" id="fmtNote"></span>
+  </div>
+</div>
+
 <div class="cols">
 <div class="colL">
 <section>
@@ -148,8 +175,6 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   <div class="sweep" id="sweep"><i></i></div>
   <div class="actions">
     <button class="del" id="retry" style="display:none">Retry failed</button>
-    <button class="del" id="fmt" style="display:none">Format storage</button>
-    <span class="bulkNote" id="fmtNote"></span>
   </div>
 </section>
 </div>
@@ -176,7 +201,13 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 function $(i){return document.getElementById(i)}
 var msg=$('msg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
     qEl=$('q'),retryBtn=$('retry'),bulk=$('bulk'),bulkDel=$('bulkDel'),bulkN=$('bulkN'),
-    selAll=$('selAll'),bulkZip=$('bulkZip');
+    selAll=$('selAll'),bulkZip=$('bulkZip'),firstRun=$('firstRun'),fmtNote=$('fmtNote');
+
+// null until the first /api/patterns reply lands. Nothing may decide whether
+// an install can proceed before then — least of all the community deep-link
+// below, which fires on page load and is exactly what a first-install visitor
+// arrives on.
+var mounted=null,pendingSrc=null;
 
 // Only modules get a checkbox — presets live in firmware.bin and are not
 // deletable — so these are also the count of what bulk actions can touch.
@@ -262,15 +293,36 @@ function busyDone(){
   sweepEl.classList.remove('on');
 }
 
+// One place decides what an unusable volume looks like: the banner at the top,
+// a dead drop zone, and a community link held rather than spent on uploads
+// that cannot land. Formatting stays deliberate and destructive — the firmware
+// never does it behind your back (pattern_registry.h says why) — so this only
+// ever prompts.
+function setMounted(m){
+  mounted=!!m;
+  firstRun.className=mounted?'firstrun':'firstrun on';
+  drop.className=mounted?'drop':'drop off';
+  file.disabled=!mounted;
+  fmtNote.textContent=(!mounted&&pendingSrc)?
+    'a pack is waiting — it installs as soon as this is done':'';
+  if(mounted&&pendingSrc){var s=pendingSrc;pendingSrc=null;runSrc(s)}
+}
+
+// A drop or a link while the volume is unusable would enqueue a batch that
+// fails one file at a time and reads as "uploading is broken". Refuse it once,
+// up front, and point at the one control that fixes it.
+function storageReady(){
+  if(mounted)return true;
+  if(mounted===null){say('still checking the device — try that again in a moment','err');return false}
+  say('format storage first — the button is at the top of this page','err');
+  firstRun.scrollIntoView({block:'nearest'});
+  return false;
+}
+
 function load(){
-  fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
+  return fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
     fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'storage not mounted';
-    // A board whose pattern partition was never formatted cannot store
-    // modules. Formatting is deliberate and destructive, so it is a button
-    // rather than something the firmware does behind your back.
-    $('fmt').style.display=d.mounted?'none':'';
-    $('fmtNote').textContent=d.mounted?'':
-      'this board has never stored patterns - format once to start';
+    setMounted(d.mounted);
     listEl.innerHTML='';
     d.patterns.slice().reverse().forEach(function(p){
       var li=document.createElement('li');
@@ -661,6 +713,7 @@ function expandFiles(fileList){
 // Every entry point to the queue goes through here so a zip is unpacked
 // exactly once, wherever it came from.
 function pickFiles(fileList){
+  if(!storageReady())return;
   expandFiles(fileList).then(function(files){
     if(!files.length){say('nothing to install — no .pfm or .json in that drop','err');return}
     startBatch(files);
@@ -675,8 +728,14 @@ function startBatch(fileList){
   say('');renderQ();runQ(0);
 }
 
+// This button only ever appears on an unusable volume, so the warning is
+// written for that: the device cannot list what is on there to tell you what
+// you are about to lose, and on a fresh board the honest answer is "nothing".
 $('fmt').onclick=function(){
-  if(!confirm('Format pattern storage? This erases every module on the device.'))return;
+  if(!confirm('Format pattern storage?\n\nThis writes a fresh filesystem to the '
+    +'pattern partition. Anything still on it — including modules the device '
+    +'cannot currently read — is destroyed. On a new board there is nothing '
+    +'there to lose.'))return;
   // Same shape as the bulk delete: one call, no progress from inside it, and
   // long enough that a still page looks broken.
   busy('formatting');
@@ -696,8 +755,12 @@ retryBtn.onclick=function(){
 };
 
 file.onchange=function(){if(file.files.length)pickFiles(file.files)};
+// The file input is disabled while unmounted, so clicking the label opens
+// nothing — which on its own is indistinguishable from a broken page. Say why.
+drop.addEventListener('click',function(){if(!mounted)storageReady()});
 ['dragenter','dragover'].forEach(function(e){
-  drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over')})});
+  drop.addEventListener(e,function(ev){ev.preventDefault();
+    if(mounted)drop.classList.add('over')})});
 ['dragleave','drop'].forEach(function(e){
   drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('over')})});
 drop.addEventListener('drop',function(ev){
@@ -709,6 +772,7 @@ drop.addEventListener('drop',function(ev){
 // list, then each file, then the same upload queue the drop zone uses. The
 // device never talks to the internet and the visitor downloads nothing.
 function installFromUrl(src){
+  if(!storageReady())return;
   say('fetching module list from the community…');
   var sep=src.indexOf('?')>=0?'&':'?';
   fetch(src+sep+'list=1').then(function(r){
@@ -763,16 +827,22 @@ function installZipFromUrl(src,tries){
   });
 }
 
+function runSrc(src){
+  // Match on the path only: a listing URL carrying "?…=x.zip" must not be
+  // mistaken for a pack. Both shapes count — a file named "basics.zip" and
+  // a deck's route, which ends in "/zip" with no extension at all.
+  var srcPath=src.split('?')[0].split('#')[0];
+  if(/[./]zip$/i.test(srcPath))installZipFromUrl(src);
+  else installFromUrl(src);
+}
+
 var srcParam=new URLSearchParams(location.search).get('src');
 if(srcParam&&/^https?:\/\//.test(srcParam)){
   // Strip the query so a reload doesn't reinstall.
   history.replaceState(null,'',location.pathname);
-  // Match on the path only: a listing URL carrying "?…=x.zip" must not be
-  // mistaken for a pack. Both shapes count — a file named "basics.zip" and
-  // a deck's route, which ends in "/zip" with no extension at all.
-  var srcPath=srcParam.split('?')[0].split('#')[0];
-  if(/[./]zip$/i.test(srcPath))installZipFromUrl(srcParam);
-  else installFromUrl(srcParam);
+  // Held, not run: setMounted() spends it once the first reply says the volume
+  // can take files — or right after the format finishes, if it cannot yet.
+  pendingSrc=srcParam;
 }
 
 load();
