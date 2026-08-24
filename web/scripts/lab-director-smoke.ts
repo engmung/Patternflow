@@ -4,7 +4,7 @@
 // re-import → identical staircase), and the show rides project persistence.
 // Run: npx tsx scripts/lab-director-smoke.ts
 
-import { bakeShow, continuousLaneValue, cubicBezierY, showFromPerformance } from "../src/lib/lab/director/bake";
+import { bakeShow, bakeShowV2, continuousLaneValue, cubicBezierY, showFromPerformance } from "../src/lib/lab/director/bake";
 import {
   DEFAULT_CURVE_CP,
   directorId,
@@ -179,4 +179,82 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     fail("legacy project should get an empty show");
   }
   console.log("director smoke OK", { part: "persistence" });
+}
+
+// ── PFST v2: sparse eased cues track the curve, and the file round-trips ──
+{
+  const show = emptyShow();
+  show.length = 20;
+  show.title = "V2 Smoke";
+  show.lanes[0] = [key(0, 0, "curve"), key(10, 1000)];
+  show.lanes[1] = [key(0, 500), key(5, 500), key(12, 100)]; // holds jump
+  show.messages = [{ id: directorId(), t: 2, text: "hello" }];
+
+  const v2 = bakeShowV2(show);
+  if (v2.perf.version !== 2) fail("v2 bake must mark version 2");
+  if (v2.overBudget) fail("small v2 show flagged over budget");
+
+  // Executable spec of the proposed player: last cue that set the channel;
+  // if it eases and the channel has a next cue, lerp toward it.
+  const playerValueAt = (ch: number, t: number): number | null => {
+    let prev: { t: number; v: number; ease: boolean } | null = null;
+    let next: { t: number; v: number } | null = null;
+    for (const cue of v2.perf.timeline) {
+      const v = cue.param?.[ch];
+      if (v == null) continue;
+      if (cue.t <= t) prev = { t: cue.t, v, ease: cue.ease === true };
+      else if (!next) next = { t: cue.t, v };
+    }
+    if (!prev) return null;
+    if (!prev.ease || !next || next.t <= prev.t) return prev.v;
+    return prev.v + ((next.v - prev.v) * (t - prev.t)) / (next.t - prev.t);
+  };
+
+  // The lerped v2 playback must track the authoring curve tightly...
+  let worst = 0;
+  for (let t = 0; t <= 10; t += 0.05) {
+    const want = continuousLaneValue(show.lanes[0], t)!;
+    const got = playerValueAt(0, t)!;
+    worst = Math.max(worst, Math.abs(got - want));
+  }
+  if (worst > 10) fail(`v2 player deviates ${worst.toFixed(1)} wire units from the curve`);
+
+  // ...and on LONG segments — where the 1 Hz staircase burns the budget —
+  // the eased pieces stay a fraction of the dense cues (a 60 s curve is 61
+  // v1 cues however gentle it is; flattening only pays for curvature).
+  const long = emptyShow();
+  long.length = 60;
+  long.lanes[0] = [key(0, 0, "curve"), key(60, 1000)];
+  const longV1 = bakeShow(long).cueCount;
+  const longV2 = bakeShowV2(long).perf.timeline.filter((c) => c.param).length;
+  if (longV2 * 2 >= longV1) {
+    fail(`long v2 should cost well under half of v1: ${longV2} vs ${longV1}`);
+  }
+  const v1 = bakeShow(show);
+  const v2ParamCues = v2.perf.timeline.filter((c) => c.param).length;
+
+  // Holds keep v1 semantics: flat until the next keyframe, then jump.
+  if (playerValueAt(1, 11.9) !== 500) fail("v2 hold must keep its value");
+  if (playerValueAt(1, 12) !== 100) fail("v2 hold must jump at its keyframe");
+
+  // Bytes: version 2, decisecond header, full round trip including ease.
+  const bytes = encodePfst(v2.perf);
+  if (bytes[4] !== 2) fail("encoded version byte must be 2");
+  const decoded = decodePfst(bytes);
+  if (decoded.version !== 2) fail("decoded version lost");
+  if (JSON.stringify(decoded.timeline) !== JSON.stringify(v2.perf.timeline)) {
+    fail("v2 timeline changed through encode/decode");
+  }
+  const validated = validatePerformance(JSON.stringify(serializePerformance(v2.perf)));
+  if (!validated.ok) fail(`v2 JSON refused by the rail: ${validated.error}`);
+  if (validated.perf.version !== 2) fail("rail normalization dropped version 2");
+
+  console.log("director smoke OK", {
+    part: "v2",
+    worstError: Number(worst.toFixed(1)),
+    v2ParamCues,
+    v1Cues: v1.cueCount,
+    long: { v1: longV1, v2: longV2 },
+    pfsBytes: bytes.length,
+  });
 }

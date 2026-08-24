@@ -258,3 +258,152 @@ export function continuousLaneValue(
   }
   return null;
 }
+
+// ── PFST v2 bake: sparse eased cues instead of a dense staircase ─────────────
+// v2 tables (deciseconds + per-cue EASE) let a curve ship as a handful of
+// linear pieces the player lerps between, instead of one cue per second.
+// Flattening is adaptive: a piece splits until the chord tracks the bezier
+// within EASE_MAX_ERROR wire units, floored at the 0.1 s grid. Holds stay
+// plain cues that jump, exactly like v1.
+
+const EASE_MAX_ERROR = 8; // 0.8% of the wire range — under a physical detent
+const V2_GRID = 0.1;
+
+type V2Point = { t: number; v: number; ease: boolean };
+
+function snapV2(t: number): number {
+  // n/10, not n*0.1 — the decoder computes raw/10 and the two float paths
+  // must land on identical bits or round trips fail on JSON equality.
+  return Math.round(t * 10) / 10;
+}
+
+function flattenCurve(
+  a: DirectorKeyframe,
+  b: DirectorKeyframe,
+  out: V2Point[],
+): void {
+  const span = b.t - a.t;
+  const dv = b.v - a.v;
+  const at = (t: number) =>
+    clamp1000(a.v + dv * cubicBezierY(a.cp, Math.min(1, Math.max(0, (t - a.t) / span))));
+  const subdivide = (t0: number, v0: number, t1: number, v1: number) => {
+    if (t1 - t0 > V2_GRID * 2) {
+      let worst = 0;
+      for (const q of [0.25, 0.5, 0.75]) {
+        const t = t0 + (t1 - t0) * q;
+        worst = Math.max(worst, Math.abs(at(t) - (v0 + (v1 - v0) * q)));
+      }
+      if (worst > EASE_MAX_ERROR) {
+        const mid = snapV2((t0 + t1) / 2);
+        if (mid > t0 && mid < t1) {
+          const vm = at(mid);
+          subdivide(t0, v0, mid, vm);
+          subdivide(mid, vm, t1, v1);
+          return;
+        }
+      }
+    }
+    out.push({ t: t0, v: v0, ease: true });
+  };
+  subdivide(a.t, clamp1000(a.v), b.t, clamp1000(b.v));
+}
+
+/** One lane as v2 points: keyframes plus eased flattening of curve segments. */
+export function bakeLaneV2(lane: DirectorKeyframe[]): V2Point[] {
+  const keys = [...lane].sort((a, b) => a.t - b.t);
+  const out: V2Point[] = [];
+  for (let i = 0; i < keys.length; i++) {
+    const a = keys[i];
+    const next = keys[i + 1];
+    const curved = next && a.mode === "curve" && next.t > a.t && next.v !== a.v;
+    if (curved) {
+      flattenCurve(a, next!, out);
+    } else {
+      out.push({ t: snapV2(Math.max(0, a.t)), v: clamp1000(a.v), ease: false });
+    }
+  }
+  // Drop exact duplicates (same tick, same value) that flattening can leave
+  // where a keyframe coincides with a piece boundary.
+  const seen = new Map<number, V2Point>();
+  for (const p of out) {
+    const key = Math.round(p.t * 10);
+    const existing = seen.get(key);
+    if (!existing || existing.v !== p.v || existing.ease !== p.ease) seen.set(key, p);
+  }
+  return [...seen.values()].sort((a, b) => a.t - b.t);
+}
+
+export type BakedShowV2 = {
+  perf: Performance;
+  cueCount: number;
+  overBudget: boolean;
+};
+
+export function bakeShowV2(show: DirectorShow): BakedShowV2 {
+  // Ease is per cue, so points that ease and points that hold at the same
+  // tick must stay separate cues (the player fires both).
+  const byKey = new Map<string, { t: number; param: SparseParam; ease: boolean }>();
+  const entry = (t: number, ease: boolean) => {
+    const key = `${Math.round(t * 10)}:${ease ? 1 : 0}`;
+    let e = byKey.get(key);
+    if (!e) {
+      e = { t: snapV2(t), param: [null, null, null, null], ease };
+      byKey.set(key, e);
+    }
+    return e;
+  };
+  show.lanes.forEach((lane, index) => {
+    for (const point of bakeLaneV2(lane)) entry(point.t, point.ease).param[index] = point.v;
+  });
+
+  const messages = new Map<number, string>();
+  for (const m of show.messages) {
+    const text = m.text.trim();
+    if (!text) continue;
+    messages.set(Math.round(snapV2(Math.max(0, m.t)) * 10), text);
+  }
+
+  const timeline: PerformanceCue[] = [...byKey.values()]
+    .sort((a, b) => a.t - b.t)
+    .map((e) => {
+      const cue: PerformanceCue = { t: e.t, param: e.param };
+      if (e.ease) cue.ease = true;
+      const message = messages.get(Math.round(e.t * 10));
+      if (message != null && !e.ease) {
+        cue.message = message;
+        messages.delete(Math.round(e.t * 10));
+      }
+      return cue;
+    });
+  for (const [key, text] of messages) {
+    timeline.push({ t: key / 10, message: text });
+  }
+  timeline.sort((a, b) => a.t - b.t);
+
+  let lastCue = 0;
+  for (const cue of timeline) if (cue.t > lastCue) lastCue = cue.t;
+  const length = Math.max(0.1, Math.min(DIRECTOR_MAX_SECONDS, Math.round(show.length * 10) / 10));
+
+  const perf: Performance = {
+    version: 2,
+    id: show.title
+      ? show.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 31) ||
+        "lab-show"
+      : "lab-show",
+    title: show.title.trim() || "Untitled",
+    utcStart: "",
+    channel: 0,
+    length: Math.max(length, lastCue),
+    loop: show.loop,
+    patternsZip: "",
+    patternsZipSha256: "",
+    required: [],
+    timeline,
+  };
+
+  return {
+    perf,
+    cueCount: timeline.length,
+    overBudget: timeline.length > PFST_MAX_CUES,
+  };
+}
