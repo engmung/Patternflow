@@ -37,8 +37,10 @@ const EXPORT_PREVIEW_INTERVAL_MS = 120;
 // The live stage renders at most this many output pixels. A native 4K frame
 // is hundreds of milliseconds of pattern JS; capped near 720p-class the stage
 // stays fluid while you compose, and only the exports — which are exact by
-// contract — pay the full price.
+// contract — pay the full price. "Fast" is the HUD button's draft mode:
+// same composition, far fewer pixels, for instant feedback on heavy code.
 const PREVIEW_PIXEL_BUDGET = 1_200_000;
+const FAST_PIXEL_BUDGET = 300_000;
 
 const core = new CaptureCore(DEFAULT_CAPTURE_SETTINGS);
 const painter = new StagePainter((width, height) => new OffscreenCanvas(width, height));
@@ -131,9 +133,10 @@ function frameMessage(
  */
 function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor: number } | null {
   if (!project) return null;
+  const budget = core.settings.previewMode === "fast" ? FAST_PIXEL_BUDGET : PREVIEW_PIXEL_BUDGET;
   const pixels = full.output.width * full.output.height;
-  if (pixels <= PREVIEW_PIXEL_BUDGET) return null;
-  const k = Math.sqrt(PREVIEW_PIXEL_BUDGET / pixels);
+  if (pixels <= budget) return null;
+  const k = Math.sqrt(budget / pixels);
   const settings = core.settings;
   let scaled: CaptureSettings;
   if (settings.style === "pixel" || settings.style === "led") {

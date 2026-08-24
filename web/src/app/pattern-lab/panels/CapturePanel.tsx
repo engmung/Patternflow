@@ -27,7 +27,6 @@ import {
 } from "@/lib/lab/capture/settings";
 import {
   CAPTURE_FPS,
-  CAPTURE_HEAVY_PIXELS,
   CAPTURE_SCALES,
   CAPTURE_SECONDS_MAX,
   CAPTURE_SIDE_MAX,
@@ -121,7 +120,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
   const exportingRef = useRef(false);
 
   const geometry = resolveGeometry(settings, matrix);
-  const heavy = geometry.output.width * geometry.output.height > CAPTURE_HEAVY_PIXELS;
 
   const update = useCallback((patch: Partial<CaptureSettings>) => {
     setSettings((current) => normalizeCaptureSettings({ ...current, ...patch }));
@@ -390,18 +388,21 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <span>{hud.renderMs.toFixed(1)} ms</span>
           <span className={styles.dotSep}>·</span>
           <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
-          {hud.preview !== null && (
-            <>
-              <span className={styles.dotSep}>·</span>
-              <span
-                title={`The live stage is rendering at ${Math.round(
-                  hud.preview * 100,
-                )}% of the output size to stay fluid. PNG and video exports always render at the full size.`}
-              >
-                preview {Math.round(hud.preview * 100)}%
-              </span>
-            </>
-          )}
+          <span className={styles.dotSep}>·</span>
+          <button
+            type="button"
+            data-active={settings.previewMode === "fast" ? "true" : undefined}
+            title={
+              settings.previewMode === "fast"
+                ? "Fast preview: the stage renders far fewer pixels for instant feedback — the composition is identical, and PNG/video exports still render the full size. Click to go back to normal preview quality."
+                : "The live stage renders big outputs at reduced size to stay fluid; the number is the current scale. Click for an even faster, lower-resolution preview — same composition, exports stay full size."
+            }
+            onClick={() =>
+              update({ previewMode: settings.previewMode === "fast" ? "auto" : "fast" })
+            }
+          >
+            preview {hud.preview !== null ? Math.round(hud.preview * 100) : 100}%
+          </button>
         </span>
       </div>
 
@@ -495,6 +496,23 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </label>
         )}
 
+        {(settings.style === "auto" || settings.style === "pixel") && (
+          <label>
+            upscale
+            <select
+              value={settings.upscale}
+              aria-label="Upscale finish"
+              title="How the frame is blown up when it is not re-rendered — crisp keeps hard pixel edges, soft interpolates between them. Applies to the Pixel look and Auto's upscale fallback."
+              onChange={(event) =>
+                update({ upscale: event.target.value as CaptureSettings["upscale"] })
+              }
+            >
+              <option value="crisp">Crisp blocks</option>
+              <option value="soft">Soft (interpolated)</option>
+            </select>
+          </label>
+        )}
+
         <span
           className={local.group}
           role="group"
@@ -512,7 +530,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           >
             ⟲
           </button>
-          <span className={local.readout}>{settings.rotation}°</span>
           <button
             type="button"
             aria-label="Turn 90° clockwise"
@@ -523,6 +540,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           >
             ⟳
           </button>
+          <span className={local.readout}>{settings.rotation}°</span>
         </span>
 
         <label>
@@ -601,14 +619,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </>
         )}
 
-        {heavy && (
-          <span
-            className={styles.frameWarning}
-            title="Every frame runs the pattern over this many pixels. The stage stays responsive (it renders off the main thread) but expect a low frame rate and slower exports."
-          >
-            heavy
-          </span>
-        )}
         {settings.style === "auto" && hud.auto && (
           <span className={local.verdict} data-verdict={hud.auto.verdict} title={hud.auto.detail}>
             auto → {hud.auto.description}

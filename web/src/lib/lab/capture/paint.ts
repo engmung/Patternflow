@@ -86,7 +86,8 @@ export class StagePainter {
     }
 
     if (look === "pixel") {
-      context.imageSmoothingEnabled = false;
+      context.imageSmoothingEnabled = settings.upscale === "soft";
+      if ("imageSmoothingQuality" in context) context.imageSmoothingQuality = "high";
       context.drawImage(
         staging,
         0,

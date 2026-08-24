@@ -63,6 +63,17 @@ export type CaptureSettings = {
   height: number;
   /** Integer blow-up of the project matrix for `pixel` / `led`. */
   scale: number;
+  /**
+   * How blocky upscales are drawn — the Pixel look and Auto's fallback.
+   * "crisp" keeps hard cell edges, "soft" interpolates between them.
+   */
+  upscale: "crisp" | "soft";
+  /**
+   * Live-stage quality only, never the exports: "auto" caps the stage near
+   * 720p-class, "fast" much lower for instant feedback on heavy patterns.
+   * The picture keeps the exact composition either way, just fewer pixels.
+   */
+  previewMode: "auto" | "fast";
   rotation: CaptureRotation;
   backdrop: CaptureBackdrop;
   cutout: CaptureCutout;
@@ -82,8 +93,6 @@ export type CaptureSettings = {
 
 export const CAPTURE_SIDE_MAX = 4096;
 export const CAPTURE_SIDE_MIN = 16;
-/** Above this the stage stays usable but the fps counter tells the story. */
-export const CAPTURE_HEAVY_PIXELS = 2_000_000;
 export const CAPTURE_SCALES = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32] as const;
 export const CAPTURE_SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 export const CAPTURE_FPS = [24, 30, 60] as const;
@@ -94,6 +103,8 @@ export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   width: 1024,
   height: 512,
   scale: 8,
+  upscale: "crisp",
+  previewMode: "auto",
   rotation: 0,
   backdrop: "black",
   cutout: "unpainted",
