@@ -1,19 +1,21 @@
 // ── Director: performance authoring for the lab ──────────────────────────────
 // A show is knob automation over time, authored against the pattern being
-// built. The device truth is the .pfs cue table — whole-second cues, each
-// setting some of the four absolute channels (0..1000) and holding until the
-// next — so the authoring grid IS that grid: keyframes sit on whole seconds
-// and carry wire values. "Animation" is a curve on the segment between two
-// keyframes (Blender-style: grab the handles and pull); bake.ts samples it
-// at every second in between, so the lab preview, the exported .pfs and the
-// panel all play the exact same staircase.
+// built. The device truth is the PFST v2 cue table — cues on a 0.1 s grid,
+// each setting some of the four absolute channels (0..1000); a plain cue
+// holds until the next, an EASE cue lerps toward it — so keyframes live on
+// that same 0.1 s grid and carry wire values. The editor optionally snaps
+// them to a coarser grid (1 s / 0.5 s / ...) purely as an authoring aid.
+// "Animation" is a curve on the segment between two keyframes
+// (Blender-style: grab the handles and pull); bake.ts flattens it into
+// eased linear pieces within a sub-detent error, so the lab preview, the
+// exported .pfs and the panel all play the same show.
 
 /** How the segment LEAVING a keyframe reaches the next one. */
 export type SegmentMode = "hold" | "curve";
 
 export type DirectorKeyframe = {
   id: string;
-  /** Whole seconds — the .pfs cue grid is the authoring grid. */
+  /** Seconds on the 0.1 s wire grid (PFST v2 deciseconds). */
   t: number;
   /** Absolute wire value 0..1000, the device's bus unit. */
   v: number;
@@ -45,6 +47,21 @@ export type DirectorShow = {
 
 /** Gentle ease-in-out — the default shape when a segment turns into a curve. */
 export const DEFAULT_CURVE_CP: [number, number, number, number] = [0.35, 0, 0.65, 1];
+
+/**
+ * A straight-line bezier. Imported v2 EASE cues come back as curve segments
+ * with this shape: the file stores flattened linear pieces, so pieces are
+ * what an import can honestly reconstruct (the original bezier only exists
+ * in Director JSON). Re-baking a linear segment reproduces the same piece,
+ * so a v2 file round-trips exactly.
+ */
+export const LINEAR_CURVE_CP: [number, number, number, number] = [1 / 3, 1 / 3, 2 / 3, 2 / 3];
+
+/** Everything time in a show sits on this grid — PFST v2 deciseconds. */
+export function snapWireTime(t: number): number {
+  // n/10, not n*0.1 — must match the decoder's raw/10 bit-for-bit.
+  return Math.round(t * 10) / 10;
+}
 
 export const DIRECTOR_MAX_SECONDS = 3600;
 export const DIRECTOR_DEFAULT_SECONDS = 30;

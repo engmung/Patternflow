@@ -1,16 +1,18 @@
 "use client";
 
 // Director — knob automation over time, authored against the pattern on the
-// canvas. Four lanes (one per physical knob) hold keyframes on whole seconds;
-// a segment between two keyframes is either a hold (jump at the next cue) or
-// a Blender-style bezier curve you shape by its handles. Everything the
-// timeline PLAYS is the baked staircase from lib/lab/director/bake — the same
-// cues the .pfs export and the publish rail carry, so the preview is the show.
+// canvas. Four lanes (one per physical knob) hold keyframes on the PFST v2
+// 0.1 s wire grid — the snap toggle (1 s / 0.5 s / 0.2 s / 0.1 s) is an
+// authoring aid, not a format limit. A segment between two keyframes is
+// either a hold (jump at the next cue) or a Blender-style bezier curve you
+// shape by its handles. The lane draws what bakeLaneV2 exports — eased
+// linear pieces plus hold jumps — so the picture is the file; playback
+// follows the authored curves continuously, which the flattening tracks
+// within a sub-detent error (under one physical click of an encoder).
 //
 // Playback drives the shared knob store the way the device's absolute bus
-// drives the encoders: a cue fires once when the playhead crosses its second,
-// values hold until the next, and the pattern animates in the live preview
-// (and Capture) because they already follow the knobs.
+// drives the encoders, and the pattern animates in the live preview (and
+// Capture) because they already follow the knobs.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -22,7 +24,8 @@ import {
 } from "@/lib/community/performance";
 import { readPerformanceFile } from "@/lib/community/performanceFile";
 import {
-  bakeShow,
+  bakeLaneV2,
+  bakeShowV2,
   continuousLaneValue,
   cubicBezierY,
   showFromPerformance,
@@ -32,6 +35,7 @@ import {
   DIRECTOR_MAX_SECONDS,
   directorId,
   showHasContent,
+  snapWireTime,
   type DirectorKeyframe,
   type DirectorShow,
 } from "@/lib/lab/director/types";
@@ -76,17 +80,29 @@ export default function DirectorPanel() {
 
   const [selection, setSelection] = useState<Selection>(null);
   const [playing, setPlaying] = useState(false);
-  // Smooth follows the authoring curves per frame (what the lab and any
-  // interpolating player can do); steps replays the 1 Hz staircase exactly
-  // as today's panel .pfs player does. The file is identical either way.
-  const [smooth, setSmooth] = useState(true);
+  // Snap is an authoring aid: on, keyframes land on the chosen grid; off,
+  // they land on the raw 0.1 s wire grid (the v2 file resolution).
+  const [snapOn, setSnapOn] = useState(true);
+  const [snapStep, setSnapStep] = useState(1);
   const [timeText, setTimeText] = useState("0.0");
   const [message, setMessage] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
 
-  const baked = useMemo(() => bakeShow(director), [director]);
-  const width = (baked.duration + 2) * PPS;
+  const baked = useMemo(() => bakeShowV2(director), [director]);
+  const duration = baked.perf.length;
+  const width = (duration + 2) * PPS;
   const hasContent = showHasContent(director);
+
+  // Drag handlers live on window and must see the current snap setting.
+  const snapRef = useRef({ on: true, step: 1 });
+  useEffect(() => {
+    snapRef.current = { on: snapOn, step: snapStep };
+  }, [snapOn, snapStep]);
+  const snapTime = useCallback((t: number) => {
+    const { on, step } = snapRef.current;
+    const q = on ? Math.round(t / step) * step : t;
+    return snapWireTime(Math.max(0, Math.min(DIRECTOR_MAX_SECONDS, q)));
+  }, []);
 
   // ── playback (refs + rAF; the playheads move via one CSS var, no re-render) ──
   const bakedRef = useRef(baked);
@@ -98,7 +114,6 @@ export default function DirectorPanel() {
     loopRef.current = director.loop;
   }, [director.loop]);
   const playheadRef = useRef(0);
-  const lastSecRef = useRef(-1);
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -106,36 +121,18 @@ export default function DirectorPanel() {
     timelineRef.current?.style.setProperty("--ph", `${playheadRef.current * PPS}px`);
   }, []);
 
-  const smoothRef = useRef(true);
-
-  const updateMessageAt = useCallback((s: number) => {
+  const updateMessageAt = useCallback((t: number) => {
     let text = "";
     for (const cue of bakedRef.current.perf.timeline) {
-      if (cue.t > s) break;
+      if (cue.t > t) break;
       if (cue.message != null) text = cue.message;
     }
     setMessage(text);
   }, []);
 
-  /** Fire every lane whose staircase changes at second `s` into the knobs. */
-  const applySecond = useCallback(
-    (s: number, force: boolean) => {
-      const values = bakedRef.current.laneValues;
-      const state = useLabStore.getState();
-      for (let lane = 0; lane < 4; lane++) {
-        const v = values[lane]?.[s];
-        if (v == null) continue;
-        const previous = s > 0 ? values[lane][s - 1] : null;
-        if (!force && v === previous) continue;
-        const range = state.ranges[lane] ?? [0, 1];
-        state.setKnob(lane, wireToReal(v, range));
-      }
-      updateMessageAt(s);
-    },
-    [updateMessageAt],
-  );
-
-  /** Sample the authoring curves at a continuous time — smooth playback. */
+  // Playback samples the authored curves continuously — the v2 file's eased
+  // pieces track them within a sub-detent error, so this IS the show as the
+  // panel plays it (v1's staircase preview died with the staircase).
   const lastWireRef = useRef<(number | null)[]>([null, null, null, null]);
   const applyContinuous = useCallback((t: number, force: boolean) => {
     const state = useLabStore.getState();
@@ -151,19 +148,14 @@ export default function DirectorPanel() {
 
   const seek = useCallback(
     (t: number) => {
-      const clamped = Math.max(0, Math.min(bakedRef.current.duration, t));
+      const clamped = Math.max(0, Math.min(bakedRef.current.perf.length, t));
       playheadRef.current = clamped;
-      lastSecRef.current = Math.floor(clamped);
-      if (smoothRef.current) {
-        applyContinuous(clamped, true);
-        updateMessageAt(Math.floor(clamped));
-      } else {
-        applySecond(Math.floor(clamped), true);
-      }
+      applyContinuous(clamped, true);
+      updateMessageAt(clamped);
       moveDom();
       setTimeText(clamped.toFixed(1));
     },
-    [applyContinuous, applySecond, moveDom, updateMessageAt],
+    [applyContinuous, moveDom, updateMessageAt],
   );
 
   useEffect(() => {
@@ -175,13 +167,14 @@ export default function DirectorPanel() {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
       let t = playheadRef.current + dt;
-      const duration = bakedRef.current.duration;
+      const duration = bakedRef.current.perf.length;
       if (t >= duration) {
         if (loopRef.current) {
-          t = t % Math.max(1, duration);
-          lastSecRef.current = -1;
+          t = t % Math.max(0.1, duration);
         } else {
           playheadRef.current = duration;
+          applyContinuous(duration, false);
+          updateMessageAt(duration);
           moveDom();
           setTimeText(duration.toFixed(1));
           setPlaying(false);
@@ -189,13 +182,8 @@ export default function DirectorPanel() {
         }
       }
       playheadRef.current = t;
-      const second = Math.floor(t);
-      if (second !== lastSecRef.current) {
-        lastSecRef.current = second;
-        if (smoothRef.current) updateMessageAt(second);
-        else applySecond(second, false);
-      }
-      if (smoothRef.current) applyContinuous(t, false);
+      applyContinuous(t, false);
+      updateMessageAt(t);
       moveDom();
       if (now - readoutAt > 150) {
         readoutAt = now;
@@ -205,7 +193,7 @@ export default function DirectorPanel() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, applyContinuous, applySecond, moveDom, updateMessageAt]);
+  }, [playing, applyContinuous, moveDom, updateMessageAt]);
 
   // ── editing helpers ──
   const editLane = useCallback(
@@ -221,15 +209,16 @@ export default function DirectorPanel() {
   );
 
   const addKey = useCallback(
-    (lane: number, t: number, v: number) => {
+    (lane: number, rawT: number, v: number) => {
       const id = directorId();
+      const t = snapTime(rawT);
       editLane(lane, (keys) => [
         ...keys,
         { id, t, v, mode: "hold", cp: [...DEFAULT_CURVE_CP] as DirectorKeyframe["cp"] },
       ]);
       setSelection({ kind: "key", lane, id });
     },
-    [editLane],
+    [editLane, snapTime],
   );
 
   const patchKey = useCallback(
@@ -271,8 +260,7 @@ export default function DirectorPanel() {
       const key = lane.find((k) => k.id === drag.id);
       if (!key) return;
       if (drag.kind === "key") {
-        const t = Math.max(0, Math.min(DIRECTOR_MAX_SECONDS, Math.round(px / PPS)));
-        patchKey(drag.lane, drag.id, { t, v: yToWire(py) });
+        patchKey(drag.lane, drag.id, { t: snapTime(px / PPS), v: yToWire(py) });
         return;
       }
       // Curve handles: normalized within the segment to the NEXT keyframe.
@@ -307,7 +295,7 @@ export default function DirectorPanel() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
-  }, [patchKey]);
+  }, [patchKey, snapTime]);
 
   // ── import / export ──
   const exportPfs = () => {
@@ -374,7 +362,7 @@ export default function DirectorPanel() {
               setPlaying(false);
               return;
             }
-            if (playheadRef.current >= baked.duration) seek(0);
+            if (playheadRef.current >= duration) seek(0);
             setPlaying(true);
           }}
         >
@@ -390,29 +378,31 @@ export default function DirectorPanel() {
         >
           ⏮
         </button>
-        <button
-          type="button"
-          data-active={smooth ? "true" : undefined}
-          title={
-            smooth
-              ? "Smooth: playback follows your curves continuously — what the lab (and any interpolating player) shows. The .pfs file itself is 1-second cues; click to hear it exactly as today's panel player steps it."
-              : "Steps: playback replays the 1-second staircase exactly as today's panel .pfs player does. Click for smooth playback along your curves."
-          }
-          onClick={() => {
-            const next = !smooth;
-            smoothRef.current = next;
-            setSmooth(next);
-            seek(playheadRef.current);
-          }}
+        <label title="Snap keyframes to a time grid while placing and dragging — off, they land on the raw 0.1 s wire grid (the .pfs resolution)">
+          <input
+            type="checkbox"
+            checked={snapOn}
+            onChange={(event) => setSnapOn(event.target.checked)}
+          />
+          snap
+        </label>
+        <select
+          value={String(snapStep)}
+          disabled={!snapOn}
+          title="Snap grid spacing"
+          onChange={(event) => setSnapStep(Number(event.target.value))}
         >
-          {smooth ? "smooth" : "steps"}
-        </button>
+          <option value="1">1s</option>
+          <option value="0.5">0.5s</option>
+          <option value="0.2">0.2s</option>
+          <option value="0.1">0.1s</option>
+        </select>
         <span className={styles.stats}>
           <span>t {timeText} s</span>
           <span className={styles.dotSep}>·</span>
           <span
             className={budgetClass}
-            title={`Device budget: ${PFST_MAX_CUES} cues per show. Curves bake one cue per second.`}
+            title={`Device budget: ${PFST_MAX_CUES} cues per show. Curves flatten adaptively into eased pieces on the 0.1 s grid (within 0.8% of the authored bezier).`}
           >
             {baked.cueCount}/{PFST_MAX_CUES} cues
           </span>
@@ -423,18 +413,19 @@ export default function DirectorPanel() {
           </span>
         )}
         <span style={{ flex: 1 }} />
-        <label title="Show length in seconds — playback and export never end before the last cue">
+        <label title="Show length in seconds (0.1 s steps) — playback and export never end before the last cue">
           length
           <input
             type="number"
-            min={1}
+            min={0.1}
             max={DIRECTOR_MAX_SECONDS}
+            step={0.1}
             value={director.length}
-            style={{ width: 54 }}
+            style={{ width: 60 }}
             onChange={(event) => {
               const length = Math.max(
-                1,
-                Math.min(DIRECTOR_MAX_SECONDS, Math.round(Number(event.target.value) || 1)),
+                0.1,
+                Math.min(DIRECTOR_MAX_SECONDS, snapWireTime(Number(event.target.value) || 1)),
               );
               updateDirector((show) => ({ ...show, length }));
             }}
@@ -488,19 +479,20 @@ export default function DirectorPanel() {
       <div className={dock.panelBar}>
         {selectedKey ? (
           <>
-            <label title="Keyframe second">
+            <label title="Keyframe time in seconds, 0.1 s steps">
               t
               <input
                 type="number"
                 min={0}
                 max={DIRECTOR_MAX_SECONDS}
+                step={0.1}
                 value={selectedKey.key.t}
-                style={{ width: 54 }}
+                style={{ width: 60 }}
                 onChange={(event) =>
                   patchKey(selectedKey.lane, selectedKey.id, {
                     t: Math.max(
                       0,
-                      Math.min(DIRECTOR_MAX_SECONDS, Math.round(Number(event.target.value) || 0)),
+                      Math.min(DIRECTOR_MAX_SECONDS, snapWireTime(Number(event.target.value) || 0)),
                     ),
                   })
                 }
@@ -553,14 +545,15 @@ export default function DirectorPanel() {
           </>
         ) : selectedMsg ? (
           <>
-            <label title="Message second">
+            <label title="Message time in seconds, 0.1 s steps">
               t
               <input
                 type="number"
                 min={0}
                 max={DIRECTOR_MAX_SECONDS}
+                step={0.1}
                 value={selectedMsg.msg.t}
-                style={{ width: 54 }}
+                style={{ width: 60 }}
                 onChange={(event) =>
                   updateDirector((show) => ({
                     ...show,
@@ -572,7 +565,7 @@ export default function DirectorPanel() {
                               0,
                               Math.min(
                                 DIRECTOR_MAX_SECONDS,
-                                Math.round(Number(event.target.value) || 0),
+                                snapWireTime(Number(event.target.value) || 0),
                               ),
                             ),
                           }
@@ -612,8 +605,8 @@ export default function DirectorPanel() {
         ) : (
           <>
             <span className={dock.panelHint} style={{ padding: 0 }}>
-              Double-click a lane to add a keyframe · drag dots to move · select one to shape its
-              curve
+              Double-click a lane to add a keyframe (lands on the snap grid) · drag dots to move ·
+              select one to shape its curve
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -621,7 +614,7 @@ export default function DirectorPanel() {
               title="Add a banner message at the playhead"
               onClick={() => {
                 const id = directorId();
-                const t = Math.round(playheadRef.current);
+                const t = snapTime(playheadRef.current);
                 updateDirector((show) => ({
                   ...show,
                   messages: [...show.messages, { id, t, text: "message" }].sort(
@@ -654,7 +647,7 @@ export default function DirectorPanel() {
               if (event.buttons === 1) rulerSeek(event);
             }}
           >
-            {Array.from({ length: Math.floor(baked.duration / 5) + 1 }, (_, i) => (
+            {Array.from({ length: Math.floor(duration / 5) + 1 }, (_, i) => (
               <span key={i} className={local.rulerTick} style={{ left: i * 5 * PPS }}>
                 {i * 5}s
               </span>
@@ -666,8 +659,6 @@ export default function DirectorPanel() {
             <FragmentRow key={lane} label={knobLabels[lane] ?? `Knob ${lane + 1}`} width={width}>
               <Lane
                 keys={sortedLane(director.lanes[lane])}
-                values={baked.laneValues[lane]}
-                duration={baked.duration}
                 width={width}
                 selectedId={
                   selection?.kind === "key" && selection.lane === lane ? selection.id : null
@@ -692,7 +683,7 @@ export default function DirectorPanel() {
                     : ""
                 }`}
                 style={{ left: m.t * PPS }}
-                title={`${m.t}s · ${m.text}`}
+                title={`${m.t.toFixed(1)}s · ${m.text}`}
                 onClick={() => setSelection({ kind: "msg", id: m.id })}
               >
                 {m.text}
@@ -726,31 +717,34 @@ function FragmentRow({
   );
 }
 
-/** One knob lane: the honest staircase, the authoring curve, dots, handles. */
+/** One knob lane: the honest v2 cue line, the authoring curve, dots, handles. */
 function Lane({
   keys,
-  values,
-  duration,
   width,
   selectedId,
   onAdd,
   onBeginDrag,
 }: {
   keys: DirectorKeyframe[];
-  values: (number | null)[];
-  duration: number;
   width: number;
   selectedId: string | null;
   onAdd: (t: number, v: number) => void;
   onBeginDrag: (kind: "key" | "h1" | "h2", id: string, svg: SVGSVGElement) => void;
 }) {
-  // Honest staircase — what the device (and playback) does.
+  // Honest wire line — exactly what bakeLaneV2 exports and the panel plays:
+  // an EASE point ramps to the next cue, a plain point holds and jumps.
+  const points = bakeLaneV2(keys);
   let stairs = "";
-  for (let s = 0; s <= duration; s++) {
-    const v = values[s];
-    if (v == null) continue;
-    const y = wireToY(v);
-    stairs += `${stairs ? "L" : "M"}${s * PPS},${y} L${(s + 1) * PPS},${y} `;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const next = points[i + 1];
+    const y = wireToY(p.v);
+    stairs += `${stairs ? "L" : "M"}${p.t * PPS},${y} `;
+    if (!next) {
+      stairs += `L${width},${y} `;
+    } else if (!p.ease) {
+      stairs += `L${next.t * PPS},${y} `;
+    }
   }
 
   // Authoring intent — the smooth curve the handles shape.
@@ -827,8 +821,8 @@ function Lane({
       height={LANE_H}
       onDoubleClick={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
-        const t = Math.max(0, Math.round((event.clientX - rect.left) / PPS));
-        onAdd(t, yToWire(event.clientY - rect.top));
+        // Raw time out; the panel snaps it (grid or 0.1 s wire floor).
+        onAdd((event.clientX - rect.left) / PPS, yToWire(event.clientY - rect.top));
       }}
     >
       {ghost && <path className={local.curveGhost} d={ghost} />}

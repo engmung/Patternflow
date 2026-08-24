@@ -6,13 +6,13 @@
 
 import { serializePerformance, validatePerformance } from "@/lib/community/performance";
 import { useLabStore } from "../store";
-import { bakeShow } from "./bake";
+import { bakeShowV2 } from "./bake";
 import { showHasContent } from "./types";
 
 export function currentPerformanceJson(): string | null {
   const show = useLabStore.getState().director;
   if (!showHasContent(show)) return null;
-  const baked = bakeShow(show);
+  const baked = bakeShowV2(show);
   if (baked.overBudget) return null;
   const json = JSON.stringify(serializePerformance(baked.perf));
   return validatePerformance(json).ok ? json : null;

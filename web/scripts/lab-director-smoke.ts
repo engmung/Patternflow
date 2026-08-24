@@ -259,3 +259,42 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     pfsBytes: bytes.length,
   });
 }
+
+// ── v2 native authoring: fractional keyframes + import round trip ────────────
+// The editor places keyframes on the 0.1 s wire grid (snap is only an aid),
+// so cues must survive off the whole-second grid, and a v2 file must import
+// as linear curve segments that re-bake into the IDENTICAL timeline (linear
+// pieces flatten with zero error, so the round trip is exact).
+{
+  const show = emptyShow();
+  show.length = 12;
+  show.title = "Fractional";
+  show.lanes[0] = [key(0.3, 100, "curve"), key(4.7, 900)];
+  show.lanes[1] = [key(1.3, 250), key(2.5, 750)];
+  show.messages = [{ id: directorId(), t: 6.4, text: "frac" }];
+
+  const v2 = bakeShowV2(show);
+  for (const cue of v2.perf.timeline) {
+    if (Math.abs(cue.t * 10 - Math.round(cue.t * 10)) > 1e-9) {
+      fail(`cue off the decisecond grid: ${cue.t}`);
+    }
+  }
+  const first = v2.perf.timeline.find((c) => c.param?.[0] != null);
+  if (!first || first.t !== 0.3 || first.param![0] !== 100) fail("fractional start keyframe moved");
+  const holdCue = v2.perf.timeline.find((c) => c.param?.[1] === 750);
+  if (!holdCue || holdCue.t !== 2.5) fail("fractional hold keyframe moved");
+  const msg = v2.perf.timeline.find((c) => c.message === "frac");
+  if (!msg || msg.t !== 6.4) fail("fractional message moved");
+
+  const decoded = decodePfst(encodePfst(v2.perf));
+  const reimported = showFromPerformance(decoded);
+  const easedKey = reimported.lanes[0].find((k) => k.t === 0.3);
+  if (!easedKey || easedKey.mode !== "curve") fail("EASE cue must import as a curve keyframe");
+  const jumpKey = reimported.lanes[1].find((k) => k.t === 1.3);
+  if (!jumpKey || jumpKey.mode !== "hold") fail("plain cue must import as a hold keyframe");
+  const rebaked = bakeShowV2(reimported);
+  if (JSON.stringify(rebaked.perf.timeline) !== JSON.stringify(v2.perf.timeline)) {
+    fail("v2 import → re-bake changed the timeline");
+  }
+  console.log("director smoke OK", { part: "v2-fractional", cues: v2.perf.timeline.length });
+}

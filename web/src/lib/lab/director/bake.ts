@@ -1,14 +1,14 @@
-// ── Director bake: keyframes + curves → the device's cue staircase ───────────
+// ── Director bake: keyframes + curves → the device's cue table ───────────────
 // ONE function turns the authoring model into the timed cue list, and
 // everything downstream — lab playback, the .pfs export, the publish rail —
 // consumes its output. That is the honesty contract learned on the Capture
-// panel: the preview must BE the picture. Here the preview must BE the show:
-// what the lab plays while you scrub is byte-for-byte what encodePfst writes
-// and what the panel replays.
+// panel: the preview must BE the picture. Here the preview must BE the show.
 //
-// Curve segments sample their cubic-bezier at every whole second between the
-// two keyframes; consecutive equal values are elided (a repeated absolute
-// write is a no-op on the device, and cues are a 256-row budget).
+// The shipping path is PFST v2 (bakeShowV2): cues on the 0.1 s grid, curve
+// segments adaptively flattened into EASE pieces the player lerps between,
+// within a sub-detent error of the authored bezier. bakeShow (v1, the dense
+// whole-second staircase) stays for compatibility checks and old players —
+// nothing in the lab's own path uses it anymore.
 
 import {
   PFST_MAX_CUES,
@@ -23,7 +23,9 @@ import {
   type DirectorKeyframe,
   type DirectorShow,
   DEFAULT_CURVE_CP,
+  LINEAR_CURVE_CP,
   directorId,
+  snapWireTime,
 } from "./types";
 
 /**
@@ -198,9 +200,12 @@ export function bakeShow(show: DirectorShow): BakedShow {
 }
 
 /**
- * Import: a decoded performance becomes editable keyframes. Curves cannot be
- * recovered from a staircase — every cue lands as a hold keyframe, which is
- * exactly what the file says.
+ * Import: a decoded performance becomes editable keyframes. v1 staircases
+ * land as hold keyframes — curves cannot be recovered from a staircase.
+ * v2 EASE cues land as LINEAR curve segments: the file stores flattened
+ * pieces, so pieces are what an import can honestly reconstruct, and a
+ * linear segment re-bakes into the identical piece (exact round trip).
+ * The original bezier handles only exist in Director JSON.
  */
 export function showFromPerformance(perf: Performance): DirectorShow {
   const lanes: DirectorShow["lanes"] = [[], [], [], []];
@@ -212,14 +217,15 @@ export function showFromPerformance(perf: Performance): DirectorShow {
         if (v == null) continue;
         lanes[i].push({
           id: directorId(),
-          t: cue.t,
+          t: snapWireTime(cue.t),
           v: clamp1000(v),
-          mode: "hold",
-          cp: [...DEFAULT_CURVE_CP],
+          mode: cue.ease ? "curve" : "hold",
+          cp: cue.ease ? [...LINEAR_CURVE_CP] : [...DEFAULT_CURVE_CP],
         });
       }
     }
-    if (cue.message) messages.push({ id: directorId(), t: cue.t, text: cue.message });
+    if (cue.message)
+      messages.push({ id: directorId(), t: snapWireTime(cue.t), text: cue.message });
   }
   let lastCue = 0;
   for (const cue of perf.timeline) if (cue.t > lastCue) lastCue = cue.t;
@@ -271,11 +277,9 @@ const V2_GRID = 0.1;
 
 type V2Point = { t: number; v: number; ease: boolean };
 
-function snapV2(t: number): number {
-  // n/10, not n*0.1 — the decoder computes raw/10 and the two float paths
-  // must land on identical bits or round trips fail on JSON equality.
-  return Math.round(t * 10) / 10;
-}
+// The decoder computes raw/10 and the two float paths must land on identical
+// bits or round trips fail on JSON equality — snapWireTime is that function.
+const snapV2 = snapWireTime;
 
 function flattenCurve(
   a: DirectorKeyframe,
