@@ -4,8 +4,9 @@
 // pattern either re-run at the output size ("native"), blown up as crisp
 // blocks ("pixel"), drawn as round LEDs ("led"), or — the default — re-run
 // only when a probe shows the code scales, upscaled otherwise ("auto", see
-// probe.ts). Upscales are nearest-only for now; smoothing/interpolation is
-// planned to return as a separate option layered on top, not as a look.
+// probe.ts). Upscales are nearest-only ON PURPOSE: both a Smooth look and a
+// crisp/soft finish option existed briefly in 2026-08 and were rejected —
+// the interpolated blow-up just reads as a broken render at these sizes.
 //
 // This whole directory is an add-on. It owns its own LabEngine instance and
 // runs it in a Web Worker, so nothing here touches the live preview, the
@@ -64,11 +65,6 @@ export type CaptureSettings = {
   /** Integer blow-up of the project matrix for `pixel` / `led`. */
   scale: number;
   /**
-   * How blocky upscales are drawn — the Pixel look and Auto's fallback.
-   * "crisp" keeps hard cell edges, "soft" interpolates between them.
-   */
-  upscale: "crisp" | "soft";
-  /**
    * Live-stage quality only, never the exports: "auto" caps the stage near
    * 720p-class, "fast" much lower for instant feedback on heavy patterns.
    * The picture keeps the exact composition either way, just fewer pixels.
@@ -103,7 +99,6 @@ export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   width: 1024,
   height: 512,
   scale: 8,
-  upscale: "crisp",
   previewMode: "auto",
   rotation: 0,
   backdrop: "black",

@@ -78,7 +78,6 @@ export function normalizeCaptureSettings(input: unknown): CaptureSettings {
     width: clampSide(typeof raw.width === "number" ? raw.width : base.width),
     height: clampSide(typeof raw.height === "number" ? raw.height : base.height),
     scale: pick(raw.scale, CAPTURE_SCALES, base.scale),
-    upscale: pick(raw.upscale, ["crisp", "soft"] as const, base.upscale),
     previewMode: pick(raw.previewMode, ["auto", "fast"] as const, base.previewMode),
     rotation: pick(raw.rotation, CAPTURE_ROTATIONS, base.rotation),
     backdrop: pick(raw.backdrop, ["black", "transparent", "color"] as const, base.backdrop),

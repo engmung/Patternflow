@@ -496,23 +496,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </label>
         )}
 
-        {(settings.style === "auto" || settings.style === "pixel") && (
-          <label>
-            upscale
-            <select
-              value={settings.upscale}
-              aria-label="Upscale finish"
-              title="How the frame is blown up when it is not re-rendered — crisp keeps hard pixel edges, soft interpolates between them. Applies to the Pixel look and Auto's upscale fallback."
-              onChange={(event) =>
-                update({ upscale: event.target.value as CaptureSettings["upscale"] })
-              }
-            >
-              <option value="crisp">Crisp blocks</option>
-              <option value="soft">Soft (interpolated)</option>
-            </select>
-          </label>
-        )}
-
         <span
           className={local.group}
           role="group"
