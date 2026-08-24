@@ -67,7 +67,15 @@ export default function HardwareModal({
     const active = layers.find((layer) => layer.id === activeLayerId);
     const focus = isCodeLayer(active) ? active : codeLayers[0];
     if (!focus) return "";
-    return buildCppPrompt({ code: focus.code, matrix, knobs, ranges, knobLabels, ramp: focus.ramp });
+    return buildCppPrompt({
+      code: focus.code,
+      matrix,
+      knobs,
+      ranges,
+      knobLabels,
+      ramp: focus.ramp,
+      recolor: focus.recolor,
+    });
   }, [layers, activeLayerId, codeLayers, matrix, knobs, ranges, knobLabels]);
 
   const assembled = useMemo(

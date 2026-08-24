@@ -85,7 +85,69 @@ export function withRampAnnotation(code: string, annotation: RampAnnotation): st
   return `${buildRampAnnotationLine(annotation)}\n${stripRampAnnotation(code)}`;
 }
 
-/** Value-field patterns have no color of their own — the ramp IS their color. */
+/**
+ * Blank the contents of comments and string literals, keeping length and
+ * line structure. Detection-grade lexing only: regex literals aren't
+ * tracked (an escaped-dot regex can't match the detector anyway), and a
+ * template's ${…} is blanked along with the rest of it.
+ */
+function blankCommentsAndStrings(code: string): string {
+  const out = code.split("");
+  type Mode = "code" | "line" | "block" | "single" | "double" | "template";
+  let mode: Mode = "code";
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i];
+    const next = code[i + 1];
+    if (mode === "code") {
+      if (ch === "/" && next === "/") mode = "line";
+      else if (ch === "/" && next === "*") mode = "block";
+      else if (ch === "'") mode = "single";
+      else if (ch === '"') mode = "double";
+      else if (ch === "`") mode = "template";
+      continue;
+    }
+    if (mode === "line") {
+      if (ch === "\n") mode = "code";
+      else out[i] = " ";
+      continue;
+    }
+    if (mode === "block") {
+      if (ch === "*" && next === "/") {
+        mode = "code";
+        i++;
+      } else if (ch !== "\n") {
+        out[i] = " ";
+      }
+      continue;
+    }
+    // Inside a string or template: honour escapes, blank everything else.
+    if (ch === "\\") {
+      out[i] = " ";
+      if (i + 1 < code.length && code[i + 1] !== "\n") out[i + 1] = " ";
+      i++;
+      continue;
+    }
+    if (
+      (mode === "single" && (ch === "'" || ch === "\n")) ||
+      (mode === "double" && (ch === '"' || ch === "\n")) ||
+      (mode === "template" && ch === "`")
+    ) {
+      mode = "code";
+      continue;
+    }
+    if (ch !== "\n") out[i] = " ";
+  }
+  return out.join("");
+}
+
+/**
+ * Value-field patterns have no color of their own — the ramp IS their color.
+ * Comments and strings are ignored: AI-returned code loves to quote the API
+ * ("// display.setValue(x, y, v) …"), and matching that used to classify a
+ * plain setPixel pattern as a value field, which made the C++ conversion
+ * prompt force its colors through the ramp LUT — baked pixel-art colors
+ * came out repainted.
+ */
 export function codeUsesValueField(code: string): boolean {
-  return /display\s*\.\s*setValue\s*\(/.test(code);
+  return /display\s*\.\s*setValue\s*\(/.test(blankCommentsAndStrings(code));
 }

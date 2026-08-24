@@ -43,9 +43,24 @@ jobs:
   # fail, because main does not have custom_components/ yet, and go green once
   # that has merged. Expected, and not a sign the workflow is wrong.
   #
-  # brands is ignored because home-assistant/brands has no
-  # custom_integrations/patternflow entry. Adding one is a pull request to that
-  # repository, and a follow-up if the HACS default store is ever the goal.
+  # Two checks are ignored, and both are HACS DEFAULT STORE requirements rather
+  # than anything a custom-repository install touches. Installing this the way
+  # the README describes — paste the repository URL into HACS — checks neither.
+  #
+  #   brands   home-assistant/brands has no custom_integrations/patternflow
+  #            entry. Adding one is a pull request to that repository.
+  #   license  HACS reads the repository's top-level licence and wants an
+  #            OSI-approved one. GitHub resolves this repository to
+  #            CC-BY-SA-4.0, which covers the hardware; the integration and the
+  #            rest of the code are MIT (LICENSE-MIT, and see
+  #            docs/LICENSE-SUMMARY.md — the SPDX header in a file is the
+  #            authority, not the folder it sits in). A repository cannot
+  #            declare two licences to GitHub, and the hardware licence is not
+  #            changing to satisfy a store we are not listing in.
+  #
+  # Both would have to be dealt with properly before submitting to the default
+  # store. Until then they are permanent red, and a permanently red check is one
+  # nobody reads — including on the weekly cron above.
   hacs:
     name: HACS
     runs-on: ubuntu-latest
@@ -53,4 +68,4 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
+          ignore: brands license
