@@ -26,6 +26,7 @@ import {
   type RGBA,
 } from "@/lib/lab/pixelTools";
 import { labEngine } from "@/lib/lab/engine";
+import { buildPixelPatternCode } from "@/lib/lab/pixelToCode";
 import { useActiveLayer, useLabStore } from "@/lib/lab/store";
 import { isPixelLayer } from "@/lib/lab/types";
 import styles from "../PatternLab.module.css";
@@ -124,6 +125,7 @@ export default function PixelPanel() {
   ]);
   const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [codeCopy, setCodeCopy] = useState<"idle" | "copied" | "empty" | "failed">("idle");
 
   const mainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const backdropCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -847,6 +849,34 @@ export default function PixelPanel() {
         <span className={dock.toolSep} />
         <button type="button" onClick={() => setImportOpen(true)} title="Import an image into this layer">
           Import image
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!pixel) return;
+            const code = buildPixelPatternCode(pixel);
+            const flash = (state: "copied" | "empty" | "failed") => {
+              setCodeCopy(state);
+              window.setTimeout(() => setCodeCopy("idle"), 1400);
+            };
+            if (!code) {
+              flash("empty");
+              return;
+            }
+            navigator.clipboard
+              .writeText(code)
+              .then(() => flash("copied"))
+              .catch(() => flash("failed"));
+          }}
+          title="Copy this drawing as a standalone pattern (JS) — paste it into an AI chat and ask for motion or distortion. The pixel layer stays exactly as it is."
+        >
+          {codeCopy === "copied"
+            ? "Copied ✓"
+            : codeCopy === "empty"
+              ? "Layer is empty"
+              : codeCopy === "failed"
+                ? "Copy failed"
+                : "Copy as code"}
         </button>
         <span style={{ flex: 1 }} />
         <label title="Show the other layers behind this one">
