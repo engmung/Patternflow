@@ -8,7 +8,9 @@
 #include <Arduino.h>
 
 static const char WIFI_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<head><meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Wi-Fi</title>
 <style>
@@ -59,15 +61,10 @@ button.primary:hover{background:var(--led);border-color:var(--led)}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
-/* Console navigation, same on every page. */
-.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
 font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.pfnav a{color:var(--faint);text-decoration:none}
-.pfnav a:hover{color:var(--led)}
-.pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Wi-Fi</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi" class="here">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
+
 
 <section>
   <h2>Saved networks</h2>

@@ -20,8 +20,10 @@
 #include <pgmspace.h>
 
 const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow Audio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,10 +35,13 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
      states read as ink, meters and attention states as the LED orange. */
   :root{--bg:#0C0B09;--card:#131110;--card2:#1B1914;--fg:#EDE7DB;--mut:#8A8272;--faint:#5A5546;--ln:#242118;--accent:#FF5C2E;--bad:#FF5C2E;--bar:#1B1914;--bar-on:#FF5C2E}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;-webkit-font-smoothing:antialiased;padding:20px;max-width:720px;margin:0 auto}
-  h1{font-size:11px;letter-spacing:.4em;opacity:.6;font-weight:normal;margin:0 0 4px}
+  body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.5 'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;-webkit-font-smoothing:antialiased;padding:0}
+  .wrap{max-width:680px;margin:0 auto;padding:24px 20px 64px}
+  header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--ln);margin-bottom:16px}
+  .dot{width:7px;height:7px;background:var(--accent);border-radius:1px}
+  h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
   .sub{font-size:11px;color:var(--mut);margin-bottom:20px}
-  #status{position:fixed;top:14px;right:14px;font-size:10px;padding:7px 11px;border:1px solid var(--faint);background:var(--card);letter-spacing:.15em;z-index:10}
+  #status{font-size:10px;padding:6px 10px;border:1px solid var(--faint);background:var(--card);letter-spacing:.15em}
   .ok{color:var(--fg);border-color:var(--fg)!important} .bad{color:var(--bad);border-color:var(--bad)!important}
 
   .section{margin:14px 0;padding:14px;border:1px solid var(--ln);background:var(--card)}
@@ -74,18 +79,13 @@ const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 
   .note{margin-top:18px;font-size:11px;color:var(--mut);line-height:1.6}
   .note code{background:var(--card2);padding:1px 5px;color:var(--fg)}
-/* Console navigation, same on every page. */
-.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
 font-family:inherit;font-size:11px;letter-spacing:.04em}
-.pfnav a{color:var(--faint);text-decoration:none}
-.pfnav a:hover{color:var(--accent)}
-.pfnav a.here{color:var(--fg)}
 </style></head>
 <body>
-<h1>PATTERNFLOW · AUDIO</h1>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
+<div class="wrap">
+<header><span class="dot"></span><h1>Audio</h1><span id="status" class="bad">DISCONNECTED</span></header>
+
 <div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
-<div id="status" class="bad">DISCONNECTED</div>
 
 <div class="section">
   <h2>Audio source</h2>
@@ -377,5 +377,6 @@ function tick() {
 }
 requestAnimationFrame(tick);
 </script>
+</div>
 </body></html>
 )HTML";

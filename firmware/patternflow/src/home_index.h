@@ -28,8 +28,10 @@
 #include <pgmspace.h>
 
 const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230C0B09'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%23FF5C2E'/%3E%3C/svg%3E">
@@ -47,14 +49,12 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;background:var(--bg);color:var(--ink);
        font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
-       display:flex;justify-content:center;padding:64px 24px}
-  .version-tag{position:fixed;top:24px;left:32px;z-index:40;font-family:var(--mono);font-size:10px;
-       letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none}
-  .version-tag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--led);
-       margin-right:8px;vertical-align:1px;box-shadow:0 0 6px var(--led)}
-  .panel{width:100%;max-width:560px}
-  h1{font-family:var(--pretendard);font-size:40px;font-weight:700;letter-spacing:-.035em;line-height:1;margin-bottom:8px}
-  .kicker{font-size:17px;font-weight:300;color:var(--muted);letter-spacing:-.01em;margin-bottom:34px}
+       padding:24px 24px 64px}
+  .panel{width:100%;max-width:560px;margin:16px auto 0}
+  header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:28px}
+  .dot{width:7px;height:7px;background:var(--led);border-radius:1px}
+  h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
+  .sub{font-family:var(--mono);font-size:11px;color:var(--faint)}
 
   /* ── Device card (one small status poll — the device never streams pixels) ── */
   .screen{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 6px}
@@ -121,10 +121,9 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
        font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   footer a{color:var(--muted);text-decoration:none}
   footer a:hover{color:var(--ink)}
-  @media(max-width:560px){body{padding:52px 14px}
-       h1{font-size:33px}.kicker{font-size:16px;margin-bottom:28px}
+  @media(max-width:560px){body{padding:12px 14px 52px}
        .pf-ghost{font-size:42px}.pf-row{padding-right:70px}
-       .version-tag{position:absolute;top:18px;left:18px}}
+       }
   /* Desktop: the whole console on one screen — panel pinned left, rows
      right — instead of a phone column floating in empty space. */
   @media(min-width:960px){
@@ -134,11 +133,10 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
        .rows{margin-top:0}}
 </style></head><body>
 
-<div class="version-tag"><span class="dot"></span>device &middot; <span id="ver">console</span></div>
+
 
 <main class="panel">
-  <h1>Patternflow</h1>
-  <div class="kicker">Device console.</div>
+  <header><span class="dot"></span><h1>Console</h1><span class="sub">device</span></header>
 
   <div class="grid">
   <div class="left">
@@ -255,7 +253,7 @@ function dur(s){
 function tick(){
   if(document.hidden)return;
   fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
-    if(s.version)$('ver').textContent='v'+s.version;
+    if(s.version){var pv=document.getElementById('pfVer');if(pv)pv.textContent='v'+s.version}
     // Three states, in the order the device resolves them. Asleep outranks
     // paused: a sleeping device is asleep whatever this page is doing to its
     // memory, and the frame rate below would be a number from before it went

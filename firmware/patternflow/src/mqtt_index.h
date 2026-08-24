@@ -8,8 +8,8 @@
 
 static const char MQTT_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en">
-<script>(function(){try{if(localStorage.getItem('pf-theme')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}})();</script>
 <head><meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - MQTT</title>
 <style>
@@ -80,18 +80,11 @@ border:1px solid var(--rule);border-radius:2px}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
-.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
 font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.pfnav a{color:var(--faint);text-decoration:none}
-.pfnav a:hover{color:var(--led)}
-.pfnav a.here{color:var(--ink)}
 html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#6B6558;--faint:#9A9486;--ghost:#E0D9CC;--rule:#D9D1C2;--rule-soft:#E8E2D6;--led:#FF5C2E;--ok:#2F8A55;--warn:#B88120;--card:#FFFCFA;--fg:#1A1814}
-.pf-theme{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--faint);cursor:pointer;user-select:none;white-space:nowrap}
-.pf-theme input{accent-color:var(--led);margin:0}
 #rolebox.hidden{display:none}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>MQTT</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt" class="here">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a><label class="pf-theme"><input type="checkbox" id="pfTheme"> Light</label></nav>
 
 <section>
   <h2>Mode</h2>
@@ -417,5 +410,4 @@ setInterval(load,2000);
 if($('f-dirhost')) $('f-dirhost').oninput=function(){dirHostDirty=true};
 if($('f-flhost')) $('f-flhost').oninput=function(){flHostDirty=true};
 </script>
-<script>(function(){var c=document.getElementById('pfTheme');if(!c)return;c.checked=document.documentElement.getAttribute('data-theme')==='light';c.onchange=function(){var on=c.checked;document.documentElement.setAttribute('data-theme',on?'light':'dark');try{localStorage.setItem('pf-theme',on?'light':'dark')}catch(e){}}})();</script>
 </body></html>)HTML";

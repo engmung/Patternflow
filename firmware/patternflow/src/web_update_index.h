@@ -22,27 +22,27 @@
 #include <pgmspace.h>
 
 const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow — Firmware update</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{--cream:#0C0B09;--cream2:#1B1914;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;
+  :root{--cream:#0C0B09;--cream2:#1B1914;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--panel:#131110;
         --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
         --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;background:var(--cream);color:var(--ink);
        font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;
-       display:flex;align-items:center;justify-content:center;padding:72px 24px}
-  .version-tag{position:fixed;top:24px;left:32px;z-index:40;font-family:var(--mono);font-size:10px;
-       letter-spacing:.14em;text-transform:uppercase;color:var(--muted);pointer-events:none}
-  .version-tag .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--led);
-       margin-right:8px;vertical-align:1px;box-shadow:0 0 6px var(--led)}
-  .panel{width:100%;max-width:560px;background:#131110;padding:48px 48px 44px}
-  .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:36px}
+       padding:24px 24px 64px}
+  .panel{width:100%;max-width:560px;background:var(--panel);margin:16px auto 0;padding:48px 48px 44px}
+  header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:24px}
+  .dot{width:7px;height:7px;background:var(--led);border-radius:1px}
+  h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
   .back{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
        color:var(--muted);text-decoration:none}
   .back:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
@@ -51,7 +51,6 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   #pill.ok{border-color:var(--ink);color:var(--ink)}
   #pill.warn{border-color:var(--led);color:var(--led)}
   #pill.bad{border-color:var(--faint);color:var(--faint)}
-  h2{font-size:34px;font-weight:500;letter-spacing:-.025em;line-height:1.05;margin-bottom:12px}
   .sub{max-width:36ch;color:var(--muted);font-size:15px;line-height:1.5;margin-bottom:32px}
   .pf-kicker{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
        color:var(--muted);margin-bottom:2px}
@@ -81,24 +80,14 @@ const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
   #fill{height:100%;width:0%;background:var(--led);transition:width .1s linear}
   #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
   #msg.ok{color:var(--ink)} #msg.bad{color:var(--led)}
-  @media(max-width:560px){body{padding:56px 16px}.panel{padding:36px 24px 32px}h2{font-size:28px}}
-/* Console navigation, same on every page. */
-.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
+  @media(max-width:560px){body{padding:12px 12px 56px}.panel{padding:36px 24px 32px}}
 font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.pfnav a{color:var(--faint);text-decoration:none}
-.pfnav a:hover{color:var(--led)}
-.pfnav a.here{color:var(--ink)}
 </style></head><body>
 
-<div class="version-tag"><span class="dot"></span>device &middot; update</div>
 
 <main class="panel">
-  <div class="top">
-    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update" class="here">Update</a></nav>
-    <span id="pill">&hellip;</span>
-  </div>
+  <header><span class="dot"></span><h1>Update</h1><span id="pill">&hellip;</span></header>
 
-  <h2>Firmware update.</h2>
   <p class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</p>
 
   <!-- Shown when the build page hands a firmware URL over via ?src= —
