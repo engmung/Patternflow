@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
+import { isAdminSession, moderatorHeaderPatchOnly } from "@/lib/community/admin";
 import { getAuth } from "@/lib/community/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/db";
 import {
   clearNotificationsFor,
+  notifyHeaderModerated,
   notifyPerformancePinned,
   notifyPortPinned,
 } from "@/lib/community/notify";
@@ -35,6 +36,12 @@ import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/sh
 // edit touches, the licence block is rebuilt from the row afterwards (see
 // lib/community/license.ts) so the header in the source always matches the
 // pattern's real title, licence and author.
+//
+// A moderator may PATCH somebody else's pattern too, but only its firmware
+// header — a broken .h is a broken download for everyone who flashes it, and
+// deleting the whole pattern over it throws away working JavaScript. The rule
+// and its reasoning live in lib/community/admin.ts; the edit is marked on the
+// row and the author is told about it.
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const blocked = originBlocked(request);
@@ -101,7 +108,9 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   if (!pattern) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
-  if (pattern.userId !== session.user.id) {
+  const isOwner = pattern.userId === session.user.id;
+  const moderating = !isOwner && isAdminSession(session);
+  if (!isOwner && !moderating) {
     // 403, not 404 — the pattern is public, it just isn't theirs to edit.
     return Response.json({ error: "You can only edit your own patterns." }, { status: 403 });
   }
@@ -113,6 +122,25 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   const raw = body as Record<string, unknown>;
+
+  // A moderator's reach into someone else's pattern stops at the .h. Every
+  // other field below simply never runs for them.
+  if (moderating && !moderatorHeaderPatchOnly(raw)) {
+    return Response.json(
+      { error: "A moderator can only edit this pattern's firmware header." },
+      { status: 403 },
+    );
+  }
+  // Repairing a header is moderation; ATTACHING one is authorship. An author
+  // header out-ranks every community port (lib/community/ports.ts), so writing
+  // one here would demote a real porter's work and credit it to the author. A
+  // moderator with a working .h proposes a port like anybody else.
+  if (moderating && !pattern.codeCpp) {
+    return Response.json(
+      { error: "This pattern has no header of its own — propose a port instead." },
+      { status: 403 },
+    );
+  }
 
   // ── Resolve each field, falling back to what is already stored ────────────
   let title = pattern.title;
@@ -269,6 +297,14 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     codeCpp = null;
   }
 
+  // Whose .h this is now. A moderator's fix leaves a mark the page can show —
+  // the row keeps the author's name on it either way. The author touching
+  // their own header clears the mark, and so does the header going away.
+  let cppModeratedAt = pattern.cppModeratedAt;
+  if (moderating) cppModeratedAt = new Date();
+  else if (raw.codeCpp !== undefined || codeChanged) cppModeratedAt = null;
+  if (codeCpp === null) cppModeratedAt = null;
+
   const handle = pattern.displayUsername ?? pattern.username ?? null;
 
   await getDb()
@@ -282,17 +318,26 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       // The header records when the work was MADE, which is what a licence
       // notice is about. Falls back to the upload date when unset; `createdAt`
       // itself never moves.
-      code: buildStoredPatternCode(bareCode, {
-        title,
-        license,
-        handle,
-        date: madeOn ?? pattern.createdAt,
-        // Rebuilt from the parent row every time, never carried over from the
-        // submitted code — an author editing their fork cannot drop the credit
-        // by deleting the line from the editor.
-        basedOn: lineageFrom(parent),
-      }),
+      //
+      // A moderator's edit skips the rebuild entirely and leaves the stored
+      // source byte for byte. The re-bake is normally a no-op — it reproduces
+      // what it last wrote — but on a row published before this route started
+      // baking, the first PATCH does change the bytes, and that is not a
+      // change anyone but the author gets to make.
+      code: moderating
+        ? pattern.code
+        : buildStoredPatternCode(bareCode, {
+            title,
+            license,
+            handle,
+            date: madeOn ?? pattern.createdAt,
+            // Rebuilt from the parent row every time, never carried over from
+            // the submitted code — an author editing their fork cannot drop
+            // the credit by deleting the line from the editor.
+            basedOn: lineageFrom(parent),
+          }),
       codeCpp,
+      cppModeratedAt,
       visibility,
       pinnedHeaderId,
       pinnedPerformanceId,
@@ -308,6 +353,19 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       .update(patternHeaders)
       .set({ stale: true })
       .where(eq(patternHeaders.patternId, id));
+  }
+
+  // Nobody's header changes under them in silence — least of all by the hand
+  // that also runs the place.
+  if (moderating) {
+    await notifyHeaderModerated({
+      recipientId: pattern.userId,
+      patternId: id,
+      patternTitle: title,
+      removed: codeCpp === null,
+      reason: typeof raw.reason === "string" ? raw.reason.trim() || null : null,
+      actorId: session.user.id,
+    });
   }
 
   if (newlyPinnedPort) {

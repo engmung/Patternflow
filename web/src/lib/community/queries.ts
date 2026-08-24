@@ -228,6 +228,7 @@ export async function getPattern(id: string) {
       description: patterns.description,
       code: patterns.code,
       codeCpp: patterns.codeCpp,
+      cppModeratedAt: patterns.cppModeratedAt,
       license: patterns.license,
       madeOn: patterns.madeOn,
       madeHow: patterns.madeHow,
@@ -1169,6 +1170,7 @@ export async function listPatternPorts(patternId: string) {
       codeCpp: patternHeaders.codeCpp,
       note: patternHeaders.note,
       stale: sql<number>`${patternHeaders.stale}`,
+      moderatedAt: patternHeaders.moderatedAt,
       createdAt: patternHeaders.createdAt,
       ...authorFields,
     })

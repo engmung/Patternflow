@@ -51,6 +51,13 @@ function describe(item: NotificationView): string {
       return `published a performance of “${item.targetTitle}” — open it to pick or replace`;
     case "perf-pin":
       return `pinned your performance of “${item.targetTitle}”`;
+    // The two moderation rows. They read as what they are — somebody else
+    // wrote the .h that still carries your name — and the snippet, when the
+    // moderator left one, says why.
+    case "header-fix":
+      return `edited the firmware header on “${item.targetTitle}”`;
+    case "header-drop":
+      return `removed the firmware header from “${item.targetTitle}”`;
     case "territory":
       // The snippet carries where ("A1 · Wired control — OSC"), because that
       // is the reason this row exists: you are pinned there.

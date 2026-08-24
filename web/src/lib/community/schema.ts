@@ -99,6 +99,14 @@ export const patterns = sqliteTable(
      * (the JS may have changed, which would make the port a lie).
      */
     codeCpp: text("code_cpp"),
+    /**
+     * When a moderator last rewrote or removed `code_cpp`. A header is the one
+     * thing here somebody else's board runs, so a moderator may fix a broken
+     * one (lib/community/admin.ts) — but the row still carries the author's
+     * name, so the page has to be able to say the .h is no longer purely
+     * theirs. Cleared the moment the author touches their own header again.
+     */
+    cppModeratedAt: integer("cpp_moderated_at", { mode: "timestamp" }),
     /** SPDX id chosen at publish time. Same options as the Discord share flow. */
     license: text("license").notNull().default("CC-BY-SA-4.0"),
     /**
@@ -190,6 +198,12 @@ export const patternHeaders = sqliteTable(
      * the same rule that detaches the author's own header, kept visible.
      */
     stale: integer("stale", { mode: "boolean" }).notNull().default(false),
+    /**
+     * When a moderator last rewrote this port's C++ — the porter's credit and
+     * their note stay, so the row has to say the code under them changed
+     * hands. Same rule as `patterns.cpp_moderated_at`.
+     */
+    moderatedAt: integer("moderated_at", { mode: "timestamp" }),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   },
   (table) => [

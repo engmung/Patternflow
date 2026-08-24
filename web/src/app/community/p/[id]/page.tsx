@@ -63,10 +63,14 @@ export default async function CommunityPatternPage(props: RouteParams) {
   // edit. Signed-out visitors get `null` and simply see the read-only version.
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
+  // Moderators get one extra verb on this page: repairing or dropping a .h
+  // that does not build (lib/community/admin.ts). Nothing else about someone
+  // else's pattern is theirs to change.
+  const isAdmin = isAdminSession(session);
 
   // Private is a 404 to everyone but the author (and moderators, who must be
   // able to open what gets reported) — not a 403, which would confirm the id.
-  if (!canView(pattern.visibility, pattern.userId, viewerId, isAdminSession(session))) {
+  if (!canView(pattern.visibility, pattern.userId, viewerId, isAdmin)) {
     notFound();
   }
 
@@ -112,12 +116,17 @@ export default async function CommunityPatternPage(props: RouteParams) {
         code: pattern.code,
         codeCpp: effective?.codeCpp ?? null,
         ownCpp: pattern.codeCpp,
+        ownCppModeratedAt: pattern.cppModeratedAt?.toISOString() ?? null,
         portedBy: effective?.source === "port" ? effective.handle : null,
         ports: ports.map((port) => ({
           id: port.id,
           handle: port.displayUsername ?? port.username ?? null,
           note: port.note,
           stale: port.stale,
+          moderatedAt: port.moderatedAt?.toISOString() ?? null,
+          // Moderators only: what their fix modal opens with. Everyone else
+          // gets the effective header alone, as before.
+          codeCpp: isAdmin ? port.codeCpp : null,
           createdAt: port.createdAt.toISOString(),
           mine: viewerId === port.userId,
           pinned: pattern.pinnedHeaderId === port.id,
@@ -169,6 +178,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
       initialKnobs={initialKnobs}
       liked={liked}
       isOwner={viewerId === pattern.userId}
+      isAdmin={isAdmin}
     />
   );
 }
