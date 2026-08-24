@@ -68,6 +68,45 @@ Cue *firing* (pattern switches, messages, setting the base values) stays the
 existing once-per-cue logic; only the between-cues value of eased channels
 changes.
 
+## Performance and predictability, against the real player
+
+Two fair concerns were raised: curve "rendering" cost on the ESP32, and
+whether playback needs a locked refresh rate to stay predictable. Both
+dissolve against the code as it stands:
+
+- **There is no curve to render on the device.** Flattening happened at
+  encode time; the file carries only linear-piece endpoints. Per frame, an
+  eased channel costs one subtraction, one float divide, one multiply, one
+  add, and a five-line local store (`applyRemoteParam` — clamp, flag, u16,
+  timestamp; no publish, no NVS, no allocation). Four channels worst case is
+  a few hundred cycles against a frame budget of ~5 million (240 MHz at
+  46 fps) — about what three or four pixels of the pattern loop cost. There
+  is no independent "sampling rate" to choose: the lerp is evaluated by the
+  loop the player already runs, and `tick()` is already called every frame
+  today.
+- **No locked refresh rate is needed, by the same principle the player
+  already uses.** Cue firing is parameterized on the wall clock
+  (`millis() - startedAtMs`), not stepped per frame — and the eased value is
+  likewise a pure function of *now*: `v(t) = a + (b−a)·(t−t0)/(t1−t0)`.
+  Frame-rate jitter changes how often the line is sampled, never where it
+  is. A playback at 46 fps and one at 30 fps pass through identical values
+  at identical times. (A design that *integrated* steps per frame would need
+  the lock; this one is the other kind.)
+- **Quantized parameters keep jumping.** Some knobs are mode pickers and
+  must never sweep through intermediate values — which is why ease is
+  per-cue, not global. A hold cue behaves exactly as v1: value until the
+  next cue, then jump. One moment can even mix both: an eased channel and a
+  jumping channel at the same tick encode as two cues at the same `t` (one
+  with EASE, one without), which the encoder already emits and the player
+  fires back-to-back. Smooth is available where it is wanted; hard cuts
+  stay hard.
+
+A reference implementation of the above exists against the current player
+(`core_show.h`, branch `fw/pfst-v2`): ~50 lines — version gate, `tickMs`
+(1000/100), ease arm on cue fire (one ≤256-entry scan per fired cue), and
+the per-frame lerp block. Loop wrap, natural end, and stop() all clear the
+ease state through the paths that already existed.
+
 ## Compatibility
 
 | player \ file | v1 file | v2 file |
@@ -99,6 +138,11 @@ as seconds at 10× length. The site's decoder accepts both versions.
 - **Ease curve types** (the reserved cue byte could carry them): linear
   pieces at 0.8 % tolerance already reproduce arbitrary beziers, and one
   interpolation rule keeps the player trivial.
+- **Per-channel ease bits** (the reserved byte could carry four): the same
+  moment is expressible today as two cues at one `t` (eased channels on one,
+  jumping channels on the other), so the extra bits would only save a cue
+  row in the mixed case. Easy to add later without touching anything else
+  if that ever matters.
 - **Raising the 256-cue cap**: v2 removes the pressure that motivated it.
   If ever wanted, the cue table already lives in PSRAM on the current
   firmware, so it is a constant, not a redesign.
