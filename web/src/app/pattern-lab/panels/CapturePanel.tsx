@@ -2,9 +2,9 @@
 
 // Capture — the lab's output stage. A second, independent render of the
 // layer stack for pictures and clips rather than for the LED panel: pick a
-// print/screen size, a look (auto, re-rendered, smooth, pixel blocks, or
-// LED dots), a turn, pause on the moment you want, and save a PNG or record
-// an MP4/WebM.
+// print/screen size, a look (auto, re-rendered, pixel blocks, or LED dots),
+// a turn, pause on the moment you want, and save a PNG or record an
+// MP4/WebM.
 //
 // Everything runs in lib/lab/capture (a worker with its own engine). This
 // component only holds the controls and shows the bitmaps the worker sends;
@@ -27,13 +27,10 @@ import {
 } from "@/lib/lab/capture/settings";
 import {
   CAPTURE_FPS,
-  CAPTURE_HEAVY_PIXELS,
-  CAPTURE_ROTATIONS,
   CAPTURE_SCALES,
   CAPTURE_SECONDS_MAX,
   CAPTURE_SIDE_MAX,
   CAPTURE_SIDE_MIN,
-  CAPTURE_SPEEDS,
   SIZED_STYLES,
   type AutoVerdict,
   type CaptureSettings,
@@ -57,6 +54,8 @@ type Hud = {
   height: number;
   errors: LayerError[];
   auto: AutoVerdict | null;
+  /** Linear scale of the live stage vs the export size; null = exact. */
+  preview: number | null;
 };
 
 function nameErrors(errors: Record<string, string>): LayerError[] {
@@ -105,6 +104,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
     height: 0,
     errors: [],
     auto: null,
+    preview: null,
   });
   const [exporting, setExporting] = useState<ExportState | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -119,7 +119,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
   const exportingRef = useRef(false);
 
   const geometry = resolveGeometry(settings, matrix);
-  const heavy = geometry.output.width * geometry.output.height > CAPTURE_HEAVY_PIXELS;
 
   const update = useCallback((patch: Partial<CaptureSettings>) => {
     setSettings((current) => normalizeCaptureSettings({ ...current, ...patch }));
@@ -172,6 +171,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           height: frame.height,
           errors: nameErrors(frame.errors),
           auto: frame.auto,
+          preview: frame.preview,
         });
       }
     };
@@ -366,20 +366,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
             ▶
           </button>
         </span>
-        <label>
-          speed
-          <select
-            value={settings.speed}
-            aria-label="Stage speed"
-            onChange={(event) => update({ speed: Number(event.target.value) })}
-          >
-            {CAPTURE_SPEEDS.map((speed) => (
-              <option key={speed} value={speed}>
-                {speed}×
-              </option>
-            ))}
-          </select>
-        </label>
         <span style={{ flex: 1 }} />
         <span className={styles.stats}>
           <span className={local.readoutStrong}>t {hud.time.toFixed(2)} s</span>
@@ -387,6 +373,16 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <span>{hud.renderMs.toFixed(1)} ms</span>
           <span className={styles.dotSep}>·</span>
           <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
+          <span className={styles.dotSep}>·</span>
+          {hud.preview !== null ? (
+            <span title="The stage shows this look at reduced size to stay fluid — it only blows the panel frame up, so the picture is identical, just fewer pixels. Exports always render the full size.">
+              preview {Math.round(hud.preview * 100)}%
+            </span>
+          ) : (
+            <span title="Every output pixel — what you see is exactly the export. Native re-runs the pattern's code on the real grid, so big sizes trade frame rate for truth.">
+              exact 100%
+            </span>
+          )}
         </span>
       </div>
 
@@ -397,12 +393,11 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <select
             value={settings.style}
             aria-label="Output look"
-            title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Smooth and Pixel scale the panel frame up (soft / crisp blocks). LED draws each pixel as a round light."
+            title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Pixel scales the panel frame up as crisp blocks. LED draws each pixel as a round light."
             onChange={(event) => update({ style: event.target.value as CaptureSettings["style"] })}
           >
             <option value="auto">Auto</option>
             <option value="native">Native (re-rendered)</option>
-            <option value="smooth">Smooth upscale</option>
             <option value="pixel">Pixel blocks</option>
             <option value="led">LED dots</option>
           </select>
@@ -481,23 +476,35 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </label>
         )}
 
-        <label>
-          turn
-          <select
-            value={settings.rotation}
-            aria-label="Turn"
-            title="Turn the finished picture clockwise, like mounting the panel on its side — the pattern itself keeps its own orientation."
-            onChange={(event) =>
-              update({ rotation: Number(event.target.value) as CaptureSettings["rotation"] })
+        <span
+          className={local.group}
+          role="group"
+          aria-label="Turn"
+          title="Turn the finished picture, like mounting the panel on its side — the pattern itself keeps its own orientation."
+        >
+          <span className={local.readout}>turn</span>
+          <button
+            type="button"
+            aria-label="Turn 90° counter-clockwise"
+            title="Turn the picture 90° counter-clockwise"
+            onClick={() =>
+              update({ rotation: ((settings.rotation + 270) % 360) as CaptureSettings["rotation"] })
             }
           >
-            {CAPTURE_ROTATIONS.map((rotation) => (
-              <option key={rotation} value={rotation}>
-                {rotation}°
-              </option>
-            ))}
-          </select>
-        </label>
+            ⟲
+          </button>
+          <button
+            type="button"
+            aria-label="Turn 90° clockwise"
+            title="Turn the picture 90° clockwise"
+            onClick={() =>
+              update({ rotation: ((settings.rotation + 90) % 360) as CaptureSettings["rotation"] })
+            }
+          >
+            ⟳
+          </button>
+          <span className={local.readout}>{settings.rotation}°</span>
+        </span>
 
         <label>
           backdrop
@@ -575,14 +582,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </>
         )}
 
-        {heavy && (
-          <span
-            className={styles.frameWarning}
-            title="Every frame runs the pattern over this many pixels. The stage stays responsive (it renders off the main thread) but expect a low frame rate and slower exports."
-          >
-            heavy
-          </span>
-        )}
         {settings.style === "auto" && hud.auto && (
           <span className={local.verdict} data-verdict={hud.auto.verdict} title={hud.auto.detail}>
             auto → {hud.auto.description}

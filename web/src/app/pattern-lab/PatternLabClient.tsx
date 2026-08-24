@@ -31,6 +31,7 @@ import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
 import { CODE_MAX } from "@/lib/community/validate";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
+import { onEditorReveal } from "@/lib/lab/editorReveal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
@@ -297,6 +298,30 @@ export default function PatternLabClient() {
   const syncOpenPanels = useCallback((api: DockviewApi) => {
     setOpenPanels(new Set(api.panels.map((panel) => panel.id)));
   }, []);
+
+  // Layer gestures front the matching editor: clicking a pixel layer brings
+  // the Pixel tab forward instead of leaving Code on top with a "use the
+  // Pixel panel" hint. Creating a layer may also reopen a closed editor
+  // panel; plain selection only fronts what is already open, so a
+  // deliberately closed panel stays closed while you dup/delete/retitle.
+  useEffect(
+    () =>
+      onEditorReveal(({ kind, open }) => {
+        const api = apiRef.current;
+        if (!api) return;
+        const existing = api.getPanel(kind);
+        if (existing) {
+          existing.api.setActive();
+          return;
+        }
+        if (!open) return;
+        const def = PANEL_DEFS.find((entry) => entry.id === kind);
+        if (!def) return;
+        api.addPanel({ id: def.id, component: def.id, title: def.title });
+        syncOpenPanels(api);
+      }),
+    [syncOpenPanels],
+  );
 
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {

@@ -1,10 +1,12 @@
 // ── Pattern Lab capture module ───────────────────────────────────────────────
 // Renders the lab's layer stack for OUTPUT rather than for the LED panel:
 // stills (PNG) and clips (MP4/WebM) at print/screen resolutions, with the
-// pattern either re-run at the output size ("native"), scaled up smoothly
-// ("smooth"), blown up as crisp blocks ("pixel"), drawn as round LEDs
-// ("led"), or — the default — re-run only when a probe shows the code
-// scales, upscaled otherwise ("auto", see probe.ts).
+// pattern either re-run at the output size ("native"), blown up as crisp
+// blocks ("pixel"), drawn as round LEDs ("led"), or — the default — re-run
+// only when a probe shows the code scales, upscaled otherwise ("auto", see
+// probe.ts). Upscales are nearest-only ON PURPOSE: both a Smooth look and a
+// crisp/soft finish option existed briefly in 2026-08 and were rejected —
+// the interpolated blow-up just reads as a broken render at these sizes.
 //
 // This whole directory is an add-on. It owns its own LabEngine instance and
 // runs it in a Web Worker, so nothing here touches the live preview, the
@@ -16,11 +18,11 @@ import type { MatrixSize } from "@/lib/patternMatrix";
 import type { Layer, PixelLayer } from "../types";
 
 /** What the user picks. */
-export type CaptureStyle = "auto" | "native" | "smooth" | "pixel" | "led";
+export type CaptureStyle = "auto" | "native" | "pixel" | "led";
 /** What actually gets painted once `auto` has been resolved. */
-export type CaptureLook = "native" | "smooth" | "pixel" | "led";
+export type CaptureLook = "native" | "pixel" | "led";
 /** Looks that take a W×H output size; the others take a blow-up factor. */
-export const SIZED_STYLES: CaptureStyle[] = ["auto", "native", "smooth"];
+export const SIZED_STYLES: CaptureStyle[] = ["auto", "native"];
 
 /**
  * What sits behind the picture.
@@ -54,9 +56,9 @@ export const CAPTURE_ROTATIONS: CaptureRotation[] = [0, 90, 180, 270];
 export type CaptureSettings = {
   style: CaptureStyle;
   /**
-   * Output size for `auto` / `native` / `smooth`. Native runs the pattern
-   * code at exactly this grid; smooth (and an auto fallback) cover it with
-   * the matrix render, cropping the overflow.
+   * Output size for `auto` / `native`. Native runs the pattern code at
+   * exactly this grid; the auto fallback covers it with the matrix render,
+   * cropping the overflow.
    */
   width: number;
   height: number;
@@ -70,8 +72,6 @@ export type CaptureSettings = {
   /** LED look: dot diameter as a fraction of the cell, and glow strength. */
   ledDot: number;
   ledGlow: number;
-  /** Stage playback speed multiplier. */
-  speed: number;
   video: {
     fps: number;
     seconds: number;
@@ -81,10 +81,7 @@ export type CaptureSettings = {
 
 export const CAPTURE_SIDE_MAX = 4096;
 export const CAPTURE_SIDE_MIN = 16;
-/** Above this the stage stays usable but the fps counter tells the story. */
-export const CAPTURE_HEAVY_PIXELS = 2_000_000;
 export const CAPTURE_SCALES = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32] as const;
-export const CAPTURE_SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 export const CAPTURE_FPS = [24, 30, 60] as const;
 export const CAPTURE_SECONDS_MAX = 60;
 
@@ -99,7 +96,6 @@ export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   backdropColor: "#ffffff",
   ledDot: 0.72,
   ledGlow: 0.35,
-  speed: 1,
   video: { fps: 30, seconds: 6, format: "mp4" },
 };
 
@@ -184,6 +180,12 @@ export type FrameMessage = {
   geometry: CaptureGeometry;
   /** Present while the style is `auto`. */
   auto: AutoVerdict | null;
+  /**
+   * Set when the live stage rendered below the requested size to stay fluid:
+   * the linear factor applied (0.5 = half width). Exports are never scaled,
+   * so export previews and small outputs carry null.
+   */
+  preview: number | null;
 };
 
 export type FromWorker =
