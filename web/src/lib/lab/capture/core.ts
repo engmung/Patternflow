@@ -268,12 +268,15 @@ export class CaptureCore {
 
   /**
    * Advance the stage clock by `dt` seconds of pattern time (0 re-renders
-   * the current moment) and produce the output picture.
+   * the current moment) and produce the output picture. `geometryOverride`
+   * lets the caller render the same moment at a different size — the live
+   * stage passes a budget-capped geometry, exports pass nothing.
    */
-  step(dt: number): CaptureFrame | null {
+  step(dt: number, geometryOverride?: CaptureGeometry): CaptureFrame | null {
     const project = this.project;
     if (!project) return null;
-    const geometry = resolveGeometry(this.settings, project.matrix, this.autoLook);
+    const geometry =
+      geometryOverride ?? resolveGeometry(this.settings, project.matrix, this.autoLook);
     const layers = this.layersFor(geometry.render);
     this.time += dt;
 

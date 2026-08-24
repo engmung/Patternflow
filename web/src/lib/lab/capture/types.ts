@@ -184,6 +184,12 @@ export type FrameMessage = {
   geometry: CaptureGeometry;
   /** Present while the style is `auto`. */
   auto: AutoVerdict | null;
+  /**
+   * Set when the live stage rendered below the requested size to stay fluid:
+   * the linear factor applied (0.5 = half width). Exports are never scaled,
+   * so export previews and small outputs carry null.
+   */
+  preview: number | null;
 };
 
 export type FromWorker =

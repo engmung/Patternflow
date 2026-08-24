@@ -12,12 +12,13 @@
 // encodes it; a clip steps the clock at a fixed 1/fps from the current
 // moment, so what the stage shows when you press Record is the first frame.
 
-import { CaptureCore, mergeWireProject, type CaptureFrame } from "./core";
+import { CaptureCore, clampScale, mergeWireProject, resolveGeometry, type CaptureFrame } from "./core";
 import { StagePainter } from "./paint";
 import { describeProbe, probeKey, probeScaling, type ProbeResult } from "./probe";
 import {
   DEFAULT_CAPTURE_SETTINGS,
   type AutoVerdict,
+  type CaptureGeometry,
   type CaptureProject,
   type CaptureSettings,
   type FromWorker,
@@ -33,6 +34,11 @@ const scope = self as unknown as WorkerScope;
 
 const MAX_DT = 0.05;
 const EXPORT_PREVIEW_INTERVAL_MS = 120;
+// The live stage renders at most this many output pixels. A native 4K frame
+// is hundreds of milliseconds of pattern JS; capped near 720p-class the stage
+// stays fluid while you compose, and only the exports — which are exact by
+// contract — pay the full price.
+const PREVIEW_PIXEL_BUDGET = 1_200_000;
 
 const core = new CaptureCore(DEFAULT_CAPTURE_SETTINGS);
 const painter = new StagePainter((width, height) => new OffscreenCanvas(width, height));
@@ -97,7 +103,11 @@ function autoVerdict(): AutoVerdict | null {
   };
 }
 
-function frameMessage(frame: CaptureFrame, bitmap: ImageBitmap): FromWorker {
+function frameMessage(
+  frame: CaptureFrame,
+  bitmap: ImageBitmap,
+  preview: number | null = null,
+): FromWorker {
   return {
     type: "frame",
     bitmap,
@@ -109,16 +119,48 @@ function frameMessage(frame: CaptureFrame, bitmap: ImageBitmap): FromWorker {
     errors: frame.errors,
     geometry: frame.geometry,
     auto: autoVerdict(),
+    preview,
   };
 }
 
+/**
+ * The geometry the live stage should render at: the full one while it fits
+ * the budget, otherwise the same settings shrunk linearly — sized looks by
+ * their output edges, cell looks by their blow-up factor — and re-resolved,
+ * so cover fits, offsets and rotation stay exactly the export's, smaller.
+ */
+function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor: number } | null {
+  if (!project) return null;
+  const pixels = full.output.width * full.output.height;
+  if (pixels <= PREVIEW_PIXEL_BUDGET) return null;
+  const k = Math.sqrt(PREVIEW_PIXEL_BUDGET / pixels);
+  const settings = core.settings;
+  let scaled: CaptureSettings;
+  if (settings.style === "pixel" || settings.style === "led") {
+    const scale = Math.max(1, Math.floor(clampScale(settings.scale, project.matrix) * k));
+    if (scale >= full.scale) return null;
+    scaled = { ...settings, scale };
+  } else {
+    scaled = {
+      ...settings,
+      width: Math.max(1, Math.round(full.output.width * k)),
+      height: Math.max(1, Math.round(full.output.height * k)),
+    };
+  }
+  const geometry = resolveGeometry(scaled, project.matrix, core.autoLook);
+  return { geometry, factor: geometry.output.width / full.output.width };
+}
+
 function renderAndPost(dt: number) {
-  const frame = core.step(dt);
+  const full = core.geometry();
+  if (!full) return;
+  const preview = previewFor(full);
+  const frame = core.step(dt, preview?.geometry);
   if (!frame) return;
   painter.paint(stage, frame, core.settings);
   const bitmap = stage.transferToImageBitmap();
   awaitingAck = true;
-  post(frameMessage(frame, bitmap), [bitmap]);
+  post(frameMessage(frame, bitmap, preview?.factor ?? null), [bitmap]);
 }
 
 function requestTick() {

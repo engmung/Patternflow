@@ -57,6 +57,8 @@ type Hud = {
   height: number;
   errors: LayerError[];
   auto: AutoVerdict | null;
+  /** Linear scale of the live stage vs the export size; null = exact. */
+  preview: number | null;
 };
 
 function nameErrors(errors: Record<string, string>): LayerError[] {
@@ -105,6 +107,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
     height: 0,
     errors: [],
     auto: null,
+    preview: null,
   });
   const [exporting, setExporting] = useState<ExportState | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -172,6 +175,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           height: frame.height,
           errors: nameErrors(frame.errors),
           auto: frame.auto,
+          preview: frame.preview,
         });
       }
     };
@@ -387,6 +391,18 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <span>{hud.renderMs.toFixed(1)} ms</span>
           <span className={styles.dotSep}>·</span>
           <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
+          {hud.preview !== null && (
+            <>
+              <span className={styles.dotSep}>·</span>
+              <span
+                title={`The live stage is rendering at ${Math.round(
+                  hud.preview * 100,
+                )}% of the output size to stay fluid. PNG and video exports always render at the full size.`}
+              >
+                preview {Math.round(hud.preview * 100)}%
+              </span>
+            </>
+          )}
         </span>
       </div>
 
