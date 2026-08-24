@@ -569,12 +569,28 @@ To revert to the previous single-gamma behavior, set all three gammas to 2.4, al
 `core_display.h` configures the panel for ~240Hz refresh:
 
 ```cpp
-mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;  // pixel clock 15 MHz
-mxconfig.min_refresh_rate = 240;                      // target refresh
+mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;  // pixel clock — see below, this is 16 MHz
+mxconfig.min_refresh_rate = 240;                      // target refresh (measured: 260 Hz)
 mxconfig.latch_blanking   = 2;                        // brightness uniformity
 ```
 
-HUB75's BCM (binary code modulation) cycles bit planes at the library default ~120Hz, which aliases against phone-camera rolling shutter and shows up as visible flicker bands on video. Pushing refresh past 240Hz means a 60fps camera averages 4+ cycles per exposure and the bands disappear. I2S/DMA refresh runs on the ESP32-S3's hardware peripherals in parallel with the CPU, so this costs zero rendering FPS — the only trade-off is that the library may quietly reduce effective color depth (8-bit → 6–7 bit) to fit the higher refresh into the same clock budget. If you see banding on long color gradients, dial `min_refresh_rate` down to ~180 or drop `i2sspeed` to `HZ_10M`.
+> **The library's clock enum names are wrong.** `HZ_15M` is `16000000` and `HZ_10M` is `8000000` — `HZ_8M` and `HZ_10M` are the same value, and there is nothing between 8 and 16 MHz. Read the enum, not the name, and if you are hunting harmonics on a spectrum analyser the fundamental is at **16 MHz** (so 96, 112, 128, 144, 160 MHz…), not 15.
+
+HUB75's BCM (binary code modulation) cycles bit planes at the library default ~120Hz, which aliases against phone-camera rolling shutter and shows up as visible flicker bands on video. Pushing refresh past 240Hz means a 60fps camera averages 4+ cycles per exposure and the bands disappear. I2S/DMA refresh runs on the ESP32-S3's hardware peripherals in parallel with the CPU, so this costs zero rendering FPS.
+
+The trade-off is colour depth: the library picks a `lsbMsbTransitionBit` that merges low bit planes until the requested refresh fits the clock budget. **Both settings move together — you cannot lower one without deciding about the other.** Measured on the reference panel (128×64, 8-bit):
+
+| `i2sspeed` | `min_refresh_rate` | Colour depth sacrificed | Actual refresh |
+|---|---|---|---|
+| 16 MHz | 240 *(shipped)* | bit 4 | ~260 Hz |
+| 8 MHz | 240 | bit 7 — **maximum** | ~244 Hz |
+| 8 MHz | 200 | bit 6 | ~217 Hz |
+| 8 MHz | 150 | bit 5 | ~177 Hz |
+| 8 MHz | 96 | bit 4 — same as shipped | ~130 Hz |
+
+So if you drop the clock, **drop `min_refresh_rate` with it** — halving the clock while leaving 240 in place is the worst of both worlds, forcing the maximum colour-depth sacrifice to claw back a refresh rate you were not going to keep anyway. If you see banding on long colour *gradients*, that is the colour-depth axis: raise the clock or lower `min_refresh_rate`. If you see banding on *video* of the panel, that is the refresh axis: raise `min_refresh_rate`.
+
+> **Lowering the panel clock is also an EMI knob**, and it has been measured. 8 MHz improves Wi-Fi latency on the reference unit (median 15 → 4 ms) and one contributor found it was the difference between a usable and an unusable radio on their board — but at any `min_refresh_rate` that preserves colour depth it bands on video, so it is not shipped. Full measurements, the parts that cannot be adopted (do **not** raise the Wi-Fi TX power — it is a conformance setting), and what to try first if your unit's Wi-Fi is bad: [docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md](../docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md).
 
 ## Controls
 

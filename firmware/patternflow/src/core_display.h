@@ -29,15 +29,26 @@ inline void initDisplay() {
   // which can introduce mild banding in long smooth gradients. Dial
   // min_refresh_rate down to ~180 if banding is noticeable.
   //
-  // ⚠️ If an EMC radiated-emissions test fails: this 15 MHz clock and its
-  // harmonics, streamed continuously down the HUB75 ribbon, are the loudest
-  // thing in the product — far louder than Wi-Fi, which is a separate test
-  // entirely. HZ_10M drops the fundamental and every harmonic with it.
+  // ⚠️ If an EMC radiated-emissions test fails: this clock and its harmonics,
+  // streamed continuously down the HUB75 ribbon, are the loudest thing in the
+  // product — far louder than Wi-Fi, which is a separate test entirely.
+  //
+  // Mind the enum names, they lie: HZ_15M is 16000000, and HZ_10M is 8000000
+  // (identical to HZ_8M — there is no step between 8 and 16 MHz). So the
+  // fundamental to hunt for is 16 MHz, not 15, and "drop to HZ_10M" means
+  // halving the clock. It drops the fundamental and every harmonic with it.
   // It is NOT free: at a lower clock the library either sheds bit-planes to
   // hold 240 Hz (banding in the gradients these patterns are made of) or
   // keeps the depth and lets refresh fall (camera banding returns on video).
   // Try the cheap fixes first — ferrite on the ribbon, shorter ribbon,
   // routing, grounding — and come here only if a pre-scan says to.
+  //
+  // The trade has been measured, including on Wi-Fi, which the clock also
+  // desensitises on some boards: see
+  // docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md.
+  // Short version: 8 MHz is a real improvement and still is not shipped,
+  // because every min_refresh_rate that preserves colour depth bands on
+  // video. If you lower i2sspeed, lower min_refresh_rate with it.
   mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;
   mxconfig.min_refresh_rate = 240;
   mxconfig.latch_blanking   = 2;
