@@ -2,9 +2,9 @@
 
 // Capture — the lab's output stage. A second, independent render of the
 // layer stack for pictures and clips rather than for the LED panel: pick a
-// print/screen size, a look (auto, re-rendered, smooth, pixel blocks, or
-// LED dots), a turn, pause on the moment you want, and save a PNG or record
-// an MP4/WebM.
+// print/screen size, a look (auto, re-rendered, pixel blocks, or LED dots),
+// a turn, pause on the moment you want, and save a PNG or record an
+// MP4/WebM.
 //
 // Everything runs in lib/lab/capture (a worker with its own engine). This
 // component only holds the controls and shows the bitmaps the worker sends;
@@ -28,7 +28,6 @@ import {
 import {
   CAPTURE_FPS,
   CAPTURE_HEAVY_PIXELS,
-  CAPTURE_ROTATIONS,
   CAPTURE_SCALES,
   CAPTURE_SECONDS_MAX,
   CAPTURE_SIDE_MAX,
@@ -413,12 +412,11 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <select
             value={settings.style}
             aria-label="Output look"
-            title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Smooth and Pixel scale the panel frame up (soft / crisp blocks). LED draws each pixel as a round light."
+            title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Pixel scales the panel frame up as crisp blocks. LED draws each pixel as a round light."
             onChange={(event) => update({ style: event.target.value as CaptureSettings["style"] })}
           >
             <option value="auto">Auto</option>
             <option value="native">Native (re-rendered)</option>
-            <option value="smooth">Smooth upscale</option>
             <option value="pixel">Pixel blocks</option>
             <option value="led">LED dots</option>
           </select>
@@ -497,23 +495,35 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </label>
         )}
 
-        <label>
-          turn
-          <select
-            value={settings.rotation}
-            aria-label="Turn"
-            title="Turn the finished picture clockwise, like mounting the panel on its side — the pattern itself keeps its own orientation."
-            onChange={(event) =>
-              update({ rotation: Number(event.target.value) as CaptureSettings["rotation"] })
+        <span
+          className={local.group}
+          role="group"
+          aria-label="Turn"
+          title="Turn the finished picture, like mounting the panel on its side — the pattern itself keeps its own orientation."
+        >
+          <span className={local.readout}>turn</span>
+          <button
+            type="button"
+            aria-label="Turn 90° counter-clockwise"
+            title="Turn the picture 90° counter-clockwise"
+            onClick={() =>
+              update({ rotation: ((settings.rotation + 270) % 360) as CaptureSettings["rotation"] })
             }
           >
-            {CAPTURE_ROTATIONS.map((rotation) => (
-              <option key={rotation} value={rotation}>
-                {rotation}°
-              </option>
-            ))}
-          </select>
-        </label>
+            ⟲
+          </button>
+          <span className={local.readout}>{settings.rotation}°</span>
+          <button
+            type="button"
+            aria-label="Turn 90° clockwise"
+            title="Turn the picture 90° clockwise"
+            onClick={() =>
+              update({ rotation: ((settings.rotation + 90) % 360) as CaptureSettings["rotation"] })
+            }
+          >
+            ⟳
+          </button>
+        </span>
 
         <label>
           backdrop

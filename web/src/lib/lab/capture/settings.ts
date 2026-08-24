@@ -72,7 +72,9 @@ export function normalizeCaptureSettings(input: unknown): CaptureSettings {
       ? Math.max(1, Math.min(CAPTURE_SECONDS_MAX, Math.round(video.seconds * 10) / 10))
       : base.video.seconds;
   return {
-    style: pick(raw.style, ["auto", "native", "smooth", "pixel", "led"] as const, base.style),
+    // "smooth" was a look until 2026-08; stored settings carrying it fall
+    // back to auto here.
+    style: pick(raw.style, ["auto", "native", "pixel", "led"] as const, base.style),
     width: clampSide(typeof raw.width === "number" ? raw.width : base.width),
     height: clampSide(typeof raw.height === "number" ? raw.height : base.height),
     scale: pick(raw.scale, CAPTURE_SCALES, base.scale),

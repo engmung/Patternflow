@@ -1,10 +1,11 @@
 // ── Pattern Lab capture module ───────────────────────────────────────────────
 // Renders the lab's layer stack for OUTPUT rather than for the LED panel:
 // stills (PNG) and clips (MP4/WebM) at print/screen resolutions, with the
-// pattern either re-run at the output size ("native"), scaled up smoothly
-// ("smooth"), blown up as crisp blocks ("pixel"), drawn as round LEDs
-// ("led"), or — the default — re-run only when a probe shows the code
-// scales, upscaled otherwise ("auto", see probe.ts).
+// pattern either re-run at the output size ("native"), blown up as crisp
+// blocks ("pixel"), drawn as round LEDs ("led"), or — the default — re-run
+// only when a probe shows the code scales, upscaled otherwise ("auto", see
+// probe.ts). Upscales are nearest-only for now; smoothing/interpolation is
+// planned to return as a separate option layered on top, not as a look.
 //
 // This whole directory is an add-on. It owns its own LabEngine instance and
 // runs it in a Web Worker, so nothing here touches the live preview, the
@@ -16,11 +17,11 @@ import type { MatrixSize } from "@/lib/patternMatrix";
 import type { Layer, PixelLayer } from "../types";
 
 /** What the user picks. */
-export type CaptureStyle = "auto" | "native" | "smooth" | "pixel" | "led";
+export type CaptureStyle = "auto" | "native" | "pixel" | "led";
 /** What actually gets painted once `auto` has been resolved. */
-export type CaptureLook = "native" | "smooth" | "pixel" | "led";
+export type CaptureLook = "native" | "pixel" | "led";
 /** Looks that take a W×H output size; the others take a blow-up factor. */
-export const SIZED_STYLES: CaptureStyle[] = ["auto", "native", "smooth"];
+export const SIZED_STYLES: CaptureStyle[] = ["auto", "native"];
 
 /**
  * What sits behind the picture.
@@ -54,9 +55,9 @@ export const CAPTURE_ROTATIONS: CaptureRotation[] = [0, 90, 180, 270];
 export type CaptureSettings = {
   style: CaptureStyle;
   /**
-   * Output size for `auto` / `native` / `smooth`. Native runs the pattern
-   * code at exactly this grid; smooth (and an auto fallback) cover it with
-   * the matrix render, cropping the overflow.
+   * Output size for `auto` / `native`. Native runs the pattern code at
+   * exactly this grid; the auto fallback covers it with the matrix render,
+   * cropping the overflow.
    */
   width: number;
   height: number;

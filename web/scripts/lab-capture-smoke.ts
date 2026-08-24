@@ -50,14 +50,17 @@ const matrix = { width: 128, height: 64 };
   const turnedPixel = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "pixel", scale: 8, rotation: 270 }, matrix);
   assert(turnedPixel.render.width === 128 && turnedPixel.box.width === 1024 && turnedPixel.output.width === 512 && turnedPixel.output.height === 1024, "270° pixel output is the turned box");
 
-  // Smooth / auto fallback: cover fit, centred, cropping the overflow.
-  const smooth = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "smooth", width: 1050, height: 600 }, matrix);
-  assert(smooth.look === "smooth" && smooth.render.width === 128 && Math.abs(smooth.scale - 9.375) < 1e-9, `cover scale: ${smooth.scale}`);
-  assert(Math.abs(smooth.offsetX + 75) < 1e-9 && smooth.offsetY === 0, `cover offsets: ${smooth.offsetX}, ${smooth.offsetY}`);
+  // Auto fallback: cover fit, centred, cropping the overflow.
   const autoNative = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "auto", width: 1050, height: 600 }, matrix, "native");
   const autoPixel = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "auto", width: 1050, height: 600 }, matrix, "pixel");
   assert(autoNative.look === "native" && autoNative.render.width === 1050, "auto → native re-renders at the output size");
   assert(autoPixel.look === "pixel" && autoPixel.render.width === 128 && autoPixel.output.width === 1050, "auto → pixel keeps the output size, renders the matrix");
+  assert(Math.abs(autoPixel.scale - 9.375) < 1e-9, `cover scale: ${autoPixel.scale}`);
+  assert(Math.abs(autoPixel.offsetX + 75) < 1e-9 && autoPixel.offsetY === 0, `cover offsets: ${autoPixel.offsetX}, ${autoPixel.offsetY}`);
+
+  // "smooth" was a look until 2026-08 — stored settings carrying it open as auto.
+  const legacy = normalizeCaptureSettings({ ...DEFAULT_CAPTURE_SETTINGS, style: "smooth" });
+  assert(legacy.style === "auto", "legacy smooth style falls back to auto");
 }
 
 // ── scaling probe ──
