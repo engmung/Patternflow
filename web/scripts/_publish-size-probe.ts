@@ -19,7 +19,7 @@ function pixel(name: string, fill: "sparse" | "noise" | "empty") {
 
 async function measure(label: string, layers: Layer[]) {
   const flat = flattenLayers(layers, matrix, { labels: ["a", "b", "c", "d"], ranges: [[0, 1], [0, 1], [0, 1], [0, 1]] });
-  const stack = await buildStackAnnotation({ matrix, layers, activeLayerId: layers[0].id, knobs: [0, 0, 0, 0], ranges: [[0, 1], [0, 1], [0, 1], [0, 1]], knobLabels: ["a", "b", "c", "d"], forkOf: null, editOf: null, gen: { count: 5, thinking: "LOW", refs: 6, colorMode: "vfield" }, director: emptyShow() }).catch(() => null);
+  const stack = await buildStackAnnotation({ name: "probe", matrix, layers, activeLayerId: layers[0].id, knobs: [0, 0, 0, 0], ranges: [[0, 1], [0, 1], [0, 1], [0, 1]], knobLabels: ["a", "b", "c", "d"], forkOf: null, editOf: null, gen: { count: 5, thinking: "LOW", refs: 6, colorMode: "vfield" }, director: emptyShow() }).catch(() => null);
   const total = stack ? flat.length + stack.length + 3 : flat.length;
   console.log(`${label.padEnd(34)} flatten=${String(flat.length).padStart(7)} stack=${String(stack?.length ?? "DROPPED").padStart(7)} total=${String(total).padStart(7)} ${total > CODE_MAX ? "✗ OVER CODE_MAX" : "ok"}${stack ? "" : "  (layers lost on reopen)"}`);
 }

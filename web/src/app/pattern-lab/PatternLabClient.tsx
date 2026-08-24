@@ -191,6 +191,7 @@ async function buildExportCode(): Promise<string> {
     // bounding only the line let a pixel-heavy stack sail past the cap and
     // be refused outright instead of falling back to a flat publish.
     const stackLine = await buildStackAnnotation({
+      name: state.name,
       matrix: state.matrix,
       layers: state.layers,
       activeLayerId: state.activeLayerId,
@@ -249,6 +250,8 @@ export default function PatternLabClient() {
   const hydrate = useLabStore((state) => state.hydrate);
   const restoredAt = useLabStore((state) => state.restoredAt);
   const discardProject = useLabStore((state) => state.discardProject);
+  const pieceName = useLabStore((state) => state.name);
+  const setPieceName = useLabStore((state) => state.setName);
   const restoreSession = useLabStore((state) => state.restoreSession);
   const stashCurrent = useLabStore((state) => state.stashCurrent);
   const forkOf = useLabStore((state) => state.forkOf);
@@ -459,6 +462,15 @@ export default function PatternLabClient() {
             Patternflow
           </Link>
           <span className={styles.labTitle}>Pattern Lab</span>
+          <input
+            type="text"
+            className={styles.labName}
+            value={pieceName}
+            maxLength={60}
+            placeholder="name this pattern"
+            title="The piece's name — To hardware uses it as NAME (so the .pfm module matches), the Director stamps it into the show, and publishing suggests it. Layer names stay layer names."
+            onChange={(event) => setPieceName(event.target.value)}
+          />
           {forkOf && (
             <span
               className={styles.forkBadge}

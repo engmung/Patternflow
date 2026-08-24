@@ -128,6 +128,7 @@ async function main() {
     editOf: EDIT,
     gen: { count: 5, thinking: "LOW" as const, refs: 6, colorMode: "vfield" as const },
     director: emptyShow(),
+    name: "Edit Smoke",
   };
   const json = serializeProject(project);
   check("the project serializes", typeof json, "string");

@@ -42,6 +42,35 @@
   letter-spacing: 0.01em;
 }
 
+/* The piece's name — the header input every hand-off shares. */
+.labName {
+  min-width: 120px;
+  max-width: 240px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom-color: #3a362e;
+  border-radius: 0;
+  color: #e8e2d6;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.labName::placeholder {
+  color: #6b6558;
+  font-weight: 400;
+}
+
+.labName:hover {
+  border-bottom-color: #57503f;
+}
+
+.labName:focus {
+  outline: none;
+  border-bottom-color: #ff5c2e;
+}
+
 .labNav {
   display: flex;
   align-items: center;

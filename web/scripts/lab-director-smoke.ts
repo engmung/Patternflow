@@ -162,6 +162,7 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     editOf: null,
     gen: { count: 5, thinking: "LOW" as const, refs: 6, colorMode: "vfield" as const },
     director: show,
+    name: "Smoke Piece",
   };
   const projectJson = serializeProject(project);
   if (!projectJson) fail("project with a show failed to serialize");

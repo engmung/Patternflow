@@ -144,6 +144,14 @@ export type GenJob = {
 };
 
 export type LabProject = {
+  /**
+   * The piece's name — one identity for every hand-off: the hardware
+   * export's NAME (and through it the .pfm module slug), the Director's
+   * .pfs filename and opening pattern cue, and the publish default. Layer
+   * names are parts; this is the work. Empty = unnamed, and consumers fall
+   * back to the focus code layer's name via labPatternName().
+   */
+  name: string;
   matrix: MatrixSize;
   layers: Layer[];
   activeLayerId: string;

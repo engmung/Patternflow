@@ -26,6 +26,12 @@ export type CppPromptArgs = {
   knobLabels: string[];
   ramp: RampState;
   /**
+   * The piece's name, verbatim. Shows look the pattern up by NAME (and by
+   * the .pfm slug derived from it), so the prompt pins NAME to this string
+   * instead of inviting the model to invent a "short name".
+   */
+  name?: string;
+  /**
    * The layer's Recolor toggle: the preview replaces every drawn pixel's
    * color with ramp[luminance], so the C++ must do the same at each write.
    * Ignored for value-field patterns (the ramp already IS their color).
@@ -49,7 +55,10 @@ export function buildCppPrompt({
   ramp,
   recolor,
   forceRgb,
+  name,
 }: CppPromptArgs) {
+  // C-string safe; the device UI truncates long names itself.
+  const pinnedName = (name ?? "").trim().replace(/["\\]/g, "");
   // ── Frame ──
   // A pattern composed for the panel's own grid compiles exactly as it
   // always did: loop PANEL_RES_W/H, write PFCanvas::setPixel, done. Any
@@ -180,8 +189,16 @@ NOTE: the JS pattern computes its own RGB via display.setPixel, and Pattern Lab'
 ## Required interface
 Define one unique namespace. Inside it expose exactly these symbols:
 
-    const char* NAME = "Short Name";
-    const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};
+    const char* NAME = "${pinnedName || "Short Name"}";
+    const char* const KNOB_LABELS[4] = {"...", "...", "...", "..."};${
+      pinnedName
+        ? `
+
+NAME must be EXACTLY the string above, character for character — do not
+shorten, retitle or re-case it. Shows and the device look the pattern up
+by this string.`
+        : ""
+    }
     constexpr bool ABSOLUTE_READY = true;
     void setup();
     void update(float dt, const InputFrame& input);

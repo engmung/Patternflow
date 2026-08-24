@@ -171,6 +171,8 @@ type SerializedLayer = Record<string, unknown>;
 type SerializedProject = {
   version: 2;
   savedAt: number;
+  /** Optional: projects saved before the piece had a name carry none. */
+  name?: string;
   matrix: MatrixSize;
   activeLayerId: string;
   knobs: number[];
@@ -220,6 +222,7 @@ export function serializeProject(project: LabProject): string | null {
   const payload: SerializedProject = {
     version: 2,
     savedAt: Date.now(),
+    name: project.name,
     matrix: project.matrix,
     activeLayerId: project.activeLayerId,
     knobs: project.knobs,
@@ -366,8 +369,21 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
   }
   const knobState = readKnobs(knobSource);
 
+  // Migration: projects saved before the piece had a name adopt the identity
+  // they were already living under — the published title when this is a
+  // revision or fork, else the lead code layer's name. Without this, every
+  // pre-name project would reopen unnamed and its hand-offs (NAME, .pfs,
+  // opening pattern cue) would stop lining up.
+  const savedName = typeof raw.name === "string" ? raw.name.slice(0, 60).trim() : "";
+  const inheritedName =
+    savedName ||
+    (editOf?.title ?? forkOf?.title ?? layers.find((l) => l.type === "code")?.name ?? "")
+      .slice(0, 60)
+      .trim();
+
   return {
     savedAt: Number(raw.savedAt) || 0,
+    name: inheritedName,
     matrix,
     layers,
     activeLayerId,
@@ -401,7 +417,9 @@ const MAX_DIRECTOR_KEYFRAMES = 512;
 const MAX_DIRECTOR_MESSAGES = 256;
 
 function readDirectorTime(raw: unknown): number {
-  const t = Math.round(Number(raw));
+  // 0.1 s grid, NOT whole seconds — rounding to integers here silently
+  // flattened fractional keyframes on every autosave restore.
+  const t = Math.round(Number(raw) * 10) / 10;
   if (!Number.isFinite(t) || t < 0) return 0;
   return Math.min(DIRECTOR_MAX_SECONDS, t);
 }
@@ -542,6 +560,9 @@ export function migrateLegacyDraft(): (LabProject & { savedAt: number }) | null 
 
   return {
     savedAt: draft.savedAt || Date.now(),
+    // Same migration rule as deserializeProject: the draft's identity was its
+    // layer name, so that becomes the piece's name.
+    name: (draft.forkOf?.title ?? layer.name ?? "").slice(0, 60).trim(),
     matrix: draft.matrix ?? DEFAULT_MATRIX,
     layers: [layer],
     activeLayerId: layer.id,

@@ -125,6 +125,9 @@ export async function importCodeIntoLab(
   const stack = await extractStackAnnotation(code).catch(() => null);
   const store = useLabStore.getState();
   if (stack) {
+    // Stacks shared before the piece had a name carry none — the community
+    // post's title is that identity, so it rides in as the fallback.
+    if (!stack.name && name) stack.name = name.slice(0, 60);
     store.importStackLayers(stack);
     if (forkOf !== undefined) store.setForkOf(forkOf);
     return "stack";

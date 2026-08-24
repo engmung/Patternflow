@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import PublishModal from "@/components/community/PublishModal";
-import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
+import { assembleH, buildHExport, cleanPastedUnit, enforcePatternName } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { needsFlatten } from "@/lib/lab/flatten";
@@ -79,12 +79,18 @@ export default function HardwareModal({
       knobLabels,
       ramp: focus.ramp,
       recolor: focus.recolor,
+      name,
     });
-  }, [layers, activeLayerId, codeLayers, matrix, knobs, ranges, knobLabels]);
+  }, [layers, activeLayerId, codeLayers, matrix, knobs, ranges, knobLabels, name]);
 
+  // Single path: the model writes NAME itself, so stamp the lab's name back
+  // on (the scaffold path already carries it — buildHExport bakes it in).
   const assembled = useMemo(
-    () => (stacked ? assembleH(exportData.scaffold, pastes) : single.trim()),
-    [stacked, exportData.scaffold, pastes, single],
+    () =>
+      stacked
+        ? assembleH(exportData.scaffold, pastes)
+        : enforcePatternName(single.trim(), name),
+    [stacked, exportData.scaffold, pastes, single, name],
   );
 
   const translated = exportData.units.filter(
