@@ -766,3 +766,18 @@ export function useFocusCodeLayer(): CodeLayer | undefined {
     return state.layers.find(isCodeLayer);
   });
 }
+
+/**
+ * THE name of what is being built — the one identity every hand-off shares.
+ * The hardware export seeds its NAME from this, the module build slugs the
+ * .pfm from that NAME, and the Director stamps the same name into the show's
+ * opening pattern cue and its .pfs filename — so a show finds its pattern on
+ * the device without anyone retyping anything. Active code layer first, then
+ * the topmost code layer, then any layer at all.
+ */
+export function labPatternName(state: Pick<LabStore, "layers" | "activeLayerId">): string {
+  const active = state.layers.find((layer) => layer.id === state.activeLayerId);
+  const layer = isCodeLayer(active) ? active : (state.layers.find(isCodeLayer) ?? state.layers[0]);
+  const name = layer?.name.trim() ?? "";
+  return name || "pattern";
+}

@@ -297,4 +297,24 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     fail("v2 import → re-bake changed the timeline");
   }
   console.log("director smoke OK", { part: "v2-fractional", cues: v2.perf.timeline.length });
+
+  // ── opening pattern cue ──
+  // The lab stamps its pattern name on the show so the device switches to it
+  // at t=0. No t=0 cue in the show → a dedicated pattern-only cue opens it...
+  const opened = bakeShowV2(show, { openingPattern: "My Glitch" });
+  const openCue = opened.perf.timeline[0];
+  if (openCue.t !== 0 || openCue.pattern !== "My Glitch") fail("opening pattern cue missing");
+  const openedRt = decodePfst(encodePfst(opened.perf));
+  if (openedRt.timeline[0].pattern !== "My Glitch") fail("opening pattern lost in the file");
+  // ...and an existing plain t=0 cue carries the name instead of duplicating.
+  const withZero = emptyShow();
+  withZero.length = 5;
+  withZero.lanes[0] = [key(0, 10), key(2, 900)];
+  const ridden = bakeShowV2(withZero, { openingPattern: "Rider" });
+  const zeroCues = ridden.perf.timeline.filter((c) => c.t === 0);
+  if (zeroCues.length !== 1) fail("opening pattern must not duplicate the t=0 cue");
+  if (zeroCues[0].pattern !== "Rider" || zeroCues[0].param?.[0] !== 10) {
+    fail("opening pattern must ride the existing t=0 cue");
+  }
+  console.log("director smoke OK", { part: "opening-pattern" });
 }

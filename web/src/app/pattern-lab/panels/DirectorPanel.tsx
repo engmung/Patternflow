@@ -39,7 +39,7 @@ import {
   type DirectorKeyframe,
   type DirectorShow,
 } from "@/lib/lab/director/types";
-import { useLabStore } from "@/lib/lab/store";
+import { labPatternName, useLabStore } from "@/lib/lab/store";
 import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
 import local from "./DirectorPanel.module.css";
@@ -88,7 +88,14 @@ export default function DirectorPanel() {
   const [message, setMessage] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
 
-  const baked = useMemo(() => bakeShowV2(director), [director]);
+  // The lab's pattern name rides along everywhere: it opens the show (t=0
+  // pattern cue), names the .pfs when the title is blank, and matches the
+  // .pfm the hardware path installs — one identity, nothing retyped.
+  const patternName = useLabStore((state) => labPatternName(state));
+  const baked = useMemo(
+    () => bakeShowV2(director, { openingPattern: patternName }),
+    [director, patternName],
+  );
   const duration = baked.perf.length;
   const width = (duration + 2) * PPS;
   const hasContent = showHasContent(director);
@@ -299,7 +306,11 @@ export default function DirectorPanel() {
 
   // ── import / export ──
   const exportPfs = () => {
-    const check = validatePerformance(JSON.stringify(serializePerformance(baked.perf)));
+    // A blank title falls back to the pattern name, so the file downloads as
+    // <pattern>.pfs instead of the one-size lab_show.pfs.
+    const named = director.title.trim() ? director : { ...director, title: patternName };
+    const out = bakeShowV2(named, { openingPattern: patternName });
+    const check = validatePerformance(JSON.stringify(serializePerformance(out.perf)));
     if (!check.ok) {
       setImportError(check.error);
       return;
@@ -442,10 +453,10 @@ export default function DirectorPanel() {
         <input
           type="text"
           value={director.title}
-          placeholder="Show title"
+          placeholder={patternName}
           maxLength={31}
           style={{ width: 110 }}
-          title="Name of the show — the .pfs and the published performance carry it"
+          title="Name of the show — the .pfs and the published performance carry it. Blank uses the pattern's name, which also names the .pfm the hardware path installs."
           onChange={(event) => updateDirector((show) => ({ ...show, title: event.target.value }))}
         />
         <button

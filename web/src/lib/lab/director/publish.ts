@@ -5,14 +5,20 @@
 // show publish together in one Share.
 
 import { serializePerformance, validatePerformance } from "@/lib/community/performance";
-import { useLabStore } from "../store";
+import { labPatternName, useLabStore } from "../store";
 import { bakeShowV2 } from "./bake";
 import { showHasContent } from "./types";
 
 export function currentPerformanceJson(): string | null {
-  const show = useLabStore.getState().director;
+  const state = useLabStore.getState();
+  const show = state.director;
   if (!showHasContent(show)) return null;
-  const baked = bakeShowV2(show);
+  // Same identity rule as the panel's .pfs export: blank title falls back to
+  // the pattern name, and the opening cue carries that name so the show finds
+  // its pattern on a device.
+  const name = labPatternName(state);
+  const named = show.title.trim() ? show : { ...show, title: name };
+  const baked = bakeShowV2(named, { openingPattern: name });
   if (baked.overBudget) return null;
   const json = JSON.stringify(serializePerformance(baked.perf));
   return validatePerformance(json).ok ? json : null;

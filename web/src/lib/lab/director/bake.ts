@@ -343,7 +343,21 @@ export type BakedShowV2 = {
   overBudget: boolean;
 };
 
-export function bakeShowV2(show: DirectorShow): BakedShowV2 {
+export function bakeShowV2(
+  show: DirectorShow,
+  opts?: {
+    /**
+     * Pattern name stamped into the opening (t=0) cue, so the device switches
+     * to it when the show starts. The lab passes its pattern name here — the
+     * same string the hardware export uses as NAME and the module build slugs
+     * into the .pfm — which is what makes a lab show find its lab pattern on
+     * the device with nothing retyped. The player matches it case-insensitively
+     * against preset names and installed module filenames, and reports it under
+     * `missing` when it is not on the device.
+     */
+    openingPattern?: string;
+  },
+): BakedShowV2 {
   // Ease is per cue, so points that ease and points that hold at the same
   // tick must stay separate cues (the player fires both).
   const byKey = new Map<string, { t: number; param: SparseParam; ease: boolean }>();
@@ -383,6 +397,15 @@ export function bakeShowV2(show: DirectorShow): BakedShowV2 {
     timeline.push({ t: key / 10, message: text });
   }
   timeline.sort((a, b) => a.t - b.t);
+
+  const openingPattern = opts?.openingPattern?.trim();
+  if (openingPattern) {
+    // Ride the opening cue when one exists (a plain t=0 cue the player fires
+    // first); otherwise open with a dedicated pattern-only cue.
+    const opener = timeline.find((cue) => cue.t === 0 && !cue.ease);
+    if (opener) opener.pattern = openingPattern;
+    else timeline.unshift({ t: 0, pattern: openingPattern });
+  }
 
   let lastCue = 0;
   for (const cue of timeline) if (cue.t > lastCue) lastCue = cue.t;

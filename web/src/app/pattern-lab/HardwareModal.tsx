@@ -8,7 +8,7 @@ import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { needsFlatten } from "@/lib/lab/flatten";
-import { useLabStore } from "@/lib/lab/store";
+import { labPatternName, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import styles from "./PatternLab.module.css";
 
@@ -43,7 +43,9 @@ export default function HardwareModal({
   const activeLayerId = useLabStore((state) => state.activeLayerId);
   const forkOf = useLabStore((state) => state.forkOf);
 
-  const [name, setName] = useState("Layer Stack");
+  // Seeded from the lab's pattern name so the .h NAME, the .pfm slug and the
+  // Director's opening pattern cue all agree without retyping.
+  const [name, setName] = useState(() => labPatternName(useLabStore.getState()));
   const [pastes, setPastes] = useState<Record<number, string>>({});
   const [single, setSingle] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
