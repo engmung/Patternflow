@@ -75,6 +75,12 @@ type Props = {
    * pattern page's "Publish a performance" uses.
    */
   performanceJson?: string | null;
+  /**
+   * Default title for a NEW post — the lab passes its piece name so the
+   * published title matches the .pfm/.pfs identity without retyping.
+   * Ignored when editOf is set (the published title wins there).
+   */
+  initialTitle?: string | null;
   onClose: () => void;
 };
 
@@ -86,13 +92,15 @@ export default function PublishModal({
   editOf,
   codeCpp,
   performanceJson,
+  initialTitle,
   onClose,
 }: Props) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   // Updating opens with what is already published — an empty title on a post
-  // that has one reads as "name this", which it is not.
-  const [title, setTitle] = useState(editOf?.title ?? "");
+  // that has one reads as "name this", which it is not. New posts open with
+  // the lab's piece name for the same reason.
+  const [title, setTitle] = useState(editOf?.title ?? initialTitle ?? "");
   const [description, setDescription] = useState(editOf?.description ?? "");
   const [madeHow, setMadeHow] = useState<MadeHow>("ai-assisted");
   // Public by default — the wall is the point. Private is for work that is

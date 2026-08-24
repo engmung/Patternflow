@@ -321,6 +321,7 @@ export default function HardwareModal({
           parentTitle={forkOf?.title ?? null}
           parentLicense={forkOf?.license ?? null}
           performanceJson={publishPerfJson}
+          initialTitle={name.trim() || null}
           onClose={() => setPublishCode(null)}
         />
       )}

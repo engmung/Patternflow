@@ -644,6 +644,7 @@ export default function PatternLabClient() {
           parentLicense={forkOf?.license ?? null}
           editOf={editOf}
           performanceJson={sharePerfJson}
+          initialTitle={pieceName.trim() || null}
           onClose={() => setShareCode(null)}
         />
       )}
