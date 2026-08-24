@@ -1,9 +1,9 @@
 """Checks on the integration's metadata.
 
-Home Assistant validates all of this with `hassfest` when an integration lives
-in core. A custom integration in a monorepo subdirectory does not get that for
-free, and every one of these mistakes is invisible until someone tries to
-install it — so they are checked here instead.
+`hassfest` runs against this integration in CI now that the component sits at
+`custom_components/patternflow/`, and it covers most of what is here. These stay
+because they run in milliseconds without Docker or Home Assistant, and because
+every one of these mistakes is invisible until someone tries to install it.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE = Path(__file__).parent.parent / "custom_components" / "patternflow"
+PACKAGE = Path(__file__).resolve().parents[3] / "custom_components" / "patternflow"
 
 REQUIRED_MANIFEST_KEYS = {
     "domain",
@@ -56,6 +56,13 @@ class TestManifest:
 
     def test_domain_matches_the_directory(self, manifest):
         assert manifest["domain"] == PACKAGE.name
+
+    def test_keys_are_sorted_the_way_hassfest_wants(self, manifest):
+        # domain, name, then alphabetical. hassfest fails the build over this,
+        # and it is the kind of thing a hand-edited manifest drifts out of.
+        keys = list(manifest)
+        assert keys[:2] == ["domain", "name"]
+        assert keys[2:] == sorted(keys[2:])
 
     def test_polls_and_says_so(self, manifest):
         # There is no push channel on the HTTP API — no WebSocket, no SSE. If

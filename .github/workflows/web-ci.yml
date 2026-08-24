@@ -8,13 +8,13 @@ on:
       - "web/**"
       # The Home Assistant card is built from web/src but committed into the
       # integration, so a change to the built artifact has to be checked too.
-      - "integrations/homeassistant/custom_components/patternflow/www/**"
+      - "custom_components/patternflow/www/**"
       - ".github/workflows/web-ci.yml"
   push:
     branches: [main]
     paths:
       - "web/**"
-      - "integrations/homeassistant/custom_components/patternflow/www/**"
+      - "custom_components/patternflow/www/**"
       - ".github/workflows/web-ci.yml"
 
 # Cancel an in-progress run if newer commits are pushed to the same ref.

@@ -32,21 +32,39 @@ never causes that state, but it will show you when something else has.
 
 ## Installing
 
+The component itself lives at `custom_components/patternflow/` in the repository
+root, not beside this file. That is the only place HACS looks, and it is not
+configurable. Everything else about the integration, its tests, its lint config
+and its scripts, stays here.
+
+### Through HACS
+
+Patternflow is not in the HACS default store, so add it as a custom repository
+once: **HACS → ⋮ → Custom repositories**, URL
+`https://github.com/engmung/Patternflow`, type **Integration**. Then download it
+from the HACS list and restart Home Assistant.
+
+HACS installs the archive attached to each release, so the version it offers is
+the project version. Home Assistant 2024.12 or later.
+
+### By hand
+
 Copy the integration into your Home Assistant configuration directory and
 restart:
 
 ```bash
 rsync -a --exclude='__pycache__' \
-      integrations/homeassistant/custom_components/patternflow/ \
+      custom_components/patternflow/ \
       /path/to/homeassistant/config/custom_components/patternflow/
 ```
 
 That directory carries the dashboard card and the pattern runtime in `www/`, so
-there is nothing else to copy. Twenty files should arrive; if `manifest.json` is
-missing Home Assistant will not see the integration at all, and if `www/` is
-missing the card 404s.
+there is nothing else to copy. Twenty-seven files should arrive; if
+`manifest.json` is missing Home Assistant will not see the integration at all,
+and if `www/` is missing the card 404s.
 
-Then **Settings → Devices & services → Add integration → Patternflow**.
+Either way, then **Settings → Devices & services → Add integration →
+Patternflow**.
 
 If the panel is on the same network, it usually finds itself: the device
 advertises `_http._tcp` over mDNS whenever the browser self-update is compiled
@@ -283,10 +301,6 @@ a broken integration.
 - **Previews for community patterns.** Only the Basics pack's JavaScript is
   bundled; anything else shows the controls without a picture. A device stores
   compiled modules and no source, so there is nothing to read off the panel.
-- **HACS.** The integration lives in `integrations/homeassistant/`, which is the
-  right place in this repository and not where HACS looks — it expects
-  `custom_components/` at the repository root. Manual installation, above, is
-  the supported path for now.
 - **Brightness.** `/api/display` reports it but has no way to set it; the value
   lives in the K1 long-press UI and in NVS.
 - **Knob labels for compiled-in presets.** A module carries its labels in a
@@ -299,9 +313,14 @@ a broken integration.
 ```bash
 cd integrations/homeassistant
 pip install ".[dev]"     # needs Python 3.13, same as Home Assistant
-ruff check . && ruff format --check .
+ruff check --config pyproject.toml . ../../custom_components/patternflow
+ruff format --check --config pyproject.toml . ../../custom_components/patternflow
 pytest -q
 ```
+
+The component has to be named explicitly because it sits at the repository root
+rather than in this directory, and `--config` so it is linted with the rules
+above rather than whatever ruff resolves for a file outside this project.
 
 The test suite deliberately runs without Home Assistant installed. It covers the
 REST client — that it serialises requests, retries once, tells a 404 apart from a
@@ -316,7 +335,7 @@ The integration's brand icons are rendered from the site's own favicon, so the
 two cannot drift into slightly different logos:
 
 ```bash
-python3 scripts/make_brand.py   # → custom_components/patternflow/brand/
+python3 scripts/make_brand.py   # → ../../custom_components/patternflow/brand/
 ```
 
 They are committed, and `brand/` is where Home Assistant looks for a custom
@@ -332,7 +351,7 @@ those would go quietly wrong the next time a knob range is refactored:
 
 ```bash
 cd web
-npm run build:ha-card        # → custom_components/patternflow/www/
+npm run build:ha-card        # → ../custom_components/patternflow/www/
 npm run check:ha-card        # fails if the committed bundle is stale
 npm run check:ha-card-smoke  # the bundle loads, and still matches the sandbox
 ```
