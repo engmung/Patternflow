@@ -48,6 +48,12 @@ type Props = {
    * "Add firmware header".
    */
   codeCpp?: string | null;
+  /**
+   * Canonical performance JSON of the lab's Director show, when one exists.
+   * Publishing attaches it to the new pattern over the same rail the
+   * pattern page's "Publish a performance" uses.
+   */
+  performanceJson?: string | null;
   onClose: () => void;
 };
 
@@ -57,6 +63,7 @@ export default function PublishModal({
   parentTitle,
   parentLicense,
   codeCpp,
+  performanceJson,
   onClose,
 }: Props) {
   const router = useRouter();
@@ -69,6 +76,7 @@ export default function PublishModal({
   const [visibility, setVisibility] = useState<Visibility>("public");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [includeShow, setIncludeShow] = useState(true);
 
   const licenseChoices = parentLicense ? forkLicenseOptions(parentLicense) : LICENSE_OPTIONS;
   // Default to the recommended licence, unless the parent's terms rule it out.
@@ -126,6 +134,18 @@ export default function PublishModal({
         setError(payload.error ?? `Publishing failed (HTTP ${response.status}).`);
         return;
       }
+      // The show rides along on the pattern-page rail. Best effort: the
+      // pattern is already live, and the page's "Publish a performance"
+      // can always attach one later if this leg fails.
+      const withShow = Boolean(performanceJson && includeShow);
+      if (withShow) {
+        await fetch(communityApiUrl(`/api/community/patterns/${payload.id}/performance`), {
+          method: "POST",
+          ...COMMUNITY_FETCH_INIT,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ performanceJson, note: "" }),
+        }).catch(() => undefined);
+      }
       captureEvent("community_publish", {
         pattern_id: payload.id,
         is_fork: Boolean(parentId),
@@ -133,6 +153,7 @@ export default function PublishModal({
         made_how: madeHow,
         code_length: code.length,
         with_header: Boolean(codeCpp),
+        with_show: withShow,
       });
       router.push(`/community/p/${payload.id}`);
     } catch {
@@ -246,6 +267,23 @@ export default function PublishModal({
                 {visibility !== "public" && " You can change this any time from the pattern's page."}
               </span>
             </label>
+
+            {performanceJson && (
+              <label className={styles.field}>
+                <span className={styles.fieldLabel}>
+                  <input
+                    type="checkbox"
+                    checked={includeShow}
+                    onChange={(event) => setIncludeShow(event.target.checked)}
+                  />{" "}
+                  Include the Director show
+                </span>
+                <span className={styles.fieldHint}>
+                  The timeline publishes as this pattern&rsquo;s performance — the pattern page
+                  offers its .pfs, and deck zips carry it to the panel.
+                </span>
+              </label>
+            )}
 
             {error && <div className={styles.formError}>{error}</div>}
 

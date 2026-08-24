@@ -6,6 +6,7 @@ import SendModuleModal from "@/components/community/SendModuleModal";
 import PublishModal from "@/components/community/PublishModal";
 import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
+import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { needsFlatten } from "@/lib/lab/flatten";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
@@ -50,6 +51,7 @@ export default function HardwareModal({
 
   const [sendOpen, setSendOpen] = useState(false);
   const [publishCode, setPublishCode] = useState<string | null>(null);
+  const [publishPerfJson, setPublishPerfJson] = useState<string | null>(null);
 
   // One visible code layer is the simple case: a single prompt and a single
   // paste. Anything else goes through the scaffold.
@@ -275,6 +277,7 @@ export default function HardwareModal({
                     <button
                       type="button"
                       onClick={() => {
+                        setPublishPerfJson(currentPerformanceJson());
                         void exportCode().then(setPublishCode);
                       }}
                     >
@@ -309,6 +312,7 @@ export default function HardwareModal({
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
           parentLicense={forkOf?.license ?? null}
+          performanceJson={publishPerfJson}
           onClose={() => setPublishCode(null)}
         />
       )}

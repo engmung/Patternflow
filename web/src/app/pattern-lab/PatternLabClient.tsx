@@ -31,6 +31,7 @@ import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
 import { CODE_MAX } from "@/lib/community/validate";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
+import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { onEditorReveal } from "@/lib/lab/editorReveal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
@@ -237,6 +238,7 @@ export default function PatternLabClient() {
   const [recent, setRecent] = useState<SessionMeta[]>([]);
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
   const [shareCode, setShareCode] = useState<string | null>(null);
+  const [sharePerfJson, setSharePerfJson] = useState<string | null>(null);
   const [hardwareOpen, setHardwareOpen] = useState(false);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -461,6 +463,7 @@ export default function PatternLabClient() {
               className={styles.headerToggle}
               title="Publish the visible stack to the community — flattened to one pattern, with the layer stack embedded so it reopens editable"
               onClick={() => {
+                setSharePerfJson(currentPerformanceJson());
                 void buildExportCode().then(setShareCode);
               }}
             >
@@ -582,6 +585,7 @@ export default function PatternLabClient() {
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
           parentLicense={forkOf?.license ?? null}
+          performanceJson={sharePerfJson}
           onClose={() => setShareCode(null)}
         />
       )}
