@@ -31,6 +31,7 @@ import {
   serializeProject,
 } from "./serialize";
 import { readSession, stashSession } from "./sessions";
+import { emptyShow, type DirectorShow } from "./director/types";
 import { resizeSurface } from "./pixelTools";
 import {
   DEFAULT_RAMP_STATE,
@@ -135,6 +136,7 @@ function defaultProject(): LabProject {
     knobLabels: knobState.labels,
     forkOf: null,
     gen: { count: 5, thinking: "LOW", refs: 6, colorMode: "vfield" },
+    director: emptyShow(),
   };
 }
 
@@ -194,6 +196,8 @@ export type LabStore = LabProject & {
 
   updateLayerCode: (id: string, code: string) => void;
   applyCodeToActive: (code: string) => void;
+  /** Immutable edit of the Director show (timeline authoring). */
+  updateDirector: (update: (show: DirectorShow) => DirectorShow) => void;
   setKnob: (index: number, value: number) => void;
   setRange: (index: number, edge: "min" | "max", value: number) => void;
   setLayerRecolor: (id: string, recolor: boolean) => void;
@@ -265,6 +269,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
       knobLabels: state.knobLabels,
       forkOf: state.forkOf,
       gen: state.gen,
+      director: state.director,
     });
     if (!json) return false;
     const title = state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work";
@@ -532,6 +537,8 @@ export const useLabStore = create<LabStore>((set, get) => ({
     get().addCodeLayerFromCode(code);
   },
 
+  updateDirector: (update) => set((state) => ({ director: update(state.director) })),
+
   setKnob: (index, value) =>
     set((state) => ({
       knobs: state.knobs.map((knob, knobIndex) => (knobIndex === index ? value : knob)),
@@ -676,7 +683,8 @@ if (typeof window !== "undefined") {
       state.ranges !== previous.ranges ||
       state.knobLabels !== previous.knobLabels ||
       state.forkOf !== previous.forkOf ||
-      state.gen !== previous.gen;
+      state.gen !== previous.gen ||
+      state.director !== previous.director;
     if (!projectChanged) return;
 
     if (saveTimer !== null) clearTimeout(saveTimer);
@@ -692,6 +700,7 @@ if (typeof window !== "undefined") {
         knobLabels: current.knobLabels,
         forkOf: current.forkOf,
         gen: current.gen,
+        director: current.director,
       });
     }, 600);
   });

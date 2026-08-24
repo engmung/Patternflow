@@ -187,6 +187,7 @@ async function buildExportCode(): Promise<string> {
       knobLabels: state.knobLabels,
       forkOf: state.forkOf,
       gen: state.gen,
+      director: state.director,
     }).catch(() => null);
     const withStack = stackLine ? `${flat}\n\n${stackLine}\n` : flat;
     return withStack.length <= CODE_MAX ? withStack : flat;

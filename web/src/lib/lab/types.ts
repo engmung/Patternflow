@@ -14,6 +14,7 @@
 import type { RampMode } from "@/lib/patternHarness";
 import type { MatrixSize } from "@/lib/patternMatrix";
 import type { ColorMode, PatternVariant, ThinkingLevelKey } from "@/lib/gemini";
+import type { DirectorShow } from "./director/types";
 
 export type KnobRange = [number, number];
 
@@ -133,6 +134,8 @@ export type LabProject = {
   knobLabels: string[];
   forkOf: ForkRef;
   gen: GenSettings;
+  /** Knob automation over time — the Director panel's show (see director/). */
+  director: DirectorShow;
 };
 
 export function layerId(): string {

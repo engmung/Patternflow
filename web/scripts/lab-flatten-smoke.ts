@@ -8,6 +8,7 @@ import { buildCppPrompt } from "../src/lib/lab/cppPrompt";
 import { createPixelLayer, DEFAULT_RAMP_STATE, type CodeLayer } from "../src/lib/lab/types";
 import { codeLayerFromSource } from "../src/lib/lab/store";
 import { PatternRuntime, createIdleInput } from "../src/lib/patternHarness";
+import { emptyShow } from "../src/lib/lab/director/types";
 import { codeUsesValueField } from "../src/lib/patternRamp";
 import { stripShareWrapping } from "../src/lib/sharePattern";
 import { livePresets } from "../src/lib/presets";
@@ -240,6 +241,7 @@ async function stackSmoke() {
     knobLabels: ["Hue", "Speed", "Freq", "Mix"],
     forkOf: null,
     gen: { count: 5, thinking: "LOW" as const, refs: 6, colorMode: "vfield" as const },
+    director: emptyShow(),
   };
 
   const line = await buildStackAnnotation(project);
