@@ -48,6 +48,7 @@ import CodePanel from "./panels/CodePanel";
 import PixelPanel from "./panels/PixelPanel";
 import GalleryPanel from "./panels/GalleryPanel";
 import CapturePanel from "./panels/CapturePanel";
+import DirectorPanel from "./panels/DirectorPanel";
 
 import styles from "./PatternLab.module.css";
 import dock from "./LabPanels.module.css";
@@ -71,6 +72,9 @@ const PANEL_DEFS = [
   // Output stage (stills/clips at print sizes) — an add-on module, see
   // lib/lab/capture. Registered here and nowhere else.
   { id: "capture", title: "Capture" },
+  // Knob automation over time (lib/lab/director) — the show that publishes
+  // alongside the pattern.
+  { id: "director", title: "Director" },
 ] as const;
 
 type PanelId = (typeof PANEL_DEFS)[number]["id"];
@@ -84,6 +88,7 @@ const panelComponents: Record<PanelId, React.FunctionComponent<IDockviewPanelPro
   knobs: KnobsPanel,
   ramp: RampPanel,
   capture: CapturePanel,
+  director: DirectorPanel,
 };
 
 function Watermark() {
@@ -121,6 +126,12 @@ function buildDefaultLayout(api: DockviewApi) {
     id: "capture",
     component: "capture",
     title: "Capture",
+    position: { referencePanel: "code", direction: "within" },
+  });
+  api.addPanel({
+    id: "director",
+    component: "director",
+    title: "Director",
     position: { referencePanel: "code", direction: "within" },
   });
   api.addPanel({

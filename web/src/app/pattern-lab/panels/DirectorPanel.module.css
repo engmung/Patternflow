@@ -1,0 +1,149 @@
+/* Director panel — timeline lanes for knob automation. */
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fafafa;
+}
+
+.timeline {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  min-width: max-content;
+}
+
+.gutterCell {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  color: #555;
+  background: #f1f1f1;
+  border-bottom: 1px solid #e2e2e2;
+  border-right: 1px solid #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.laneCell {
+  position: relative;
+  border-bottom: 1px solid #e8e8e8;
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--pps) * 1px - 1px),
+      #efefef calc(var(--pps) * 1px - 1px),
+      #efefef calc(var(--pps) * 1px)
+    );
+}
+
+.laneSvg {
+  display: block;
+}
+
+.ruler {
+  position: relative;
+  height: 20px;
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.rulerTick {
+  position: absolute;
+  top: 2px;
+  font-size: 9px;
+  color: #999;
+  transform: translateX(2px);
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  border-left: 2px solid #ff4d00;
+  transform: translateX(var(--ph, 0px));
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stairs {
+  fill: none;
+  stroke: #16a34a;
+  stroke-width: 2;
+}
+
+.curveGhost {
+  fill: none;
+  stroke: #16a34a55;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.key {
+  fill: #fff;
+  stroke: #16a34a;
+  stroke-width: 2;
+  cursor: grab;
+}
+
+.keySelected {
+  fill: #ff4d00;
+  stroke: #ff4d00;
+}
+
+.handleLine {
+  stroke: #ff4d0088;
+  stroke-width: 1;
+}
+
+.handle {
+  fill: #ff4d00;
+  cursor: grab;
+}
+
+.msgChip {
+  position: absolute;
+  top: 3px;
+  transform: translateX(-4px);
+  max-width: 160px;
+  padding: 1px 6px;
+  font-size: 10px;
+  color: #333;
+  background: #ffe9df;
+  border: 1px solid #ffc4ab;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+}
+
+.msgChipSelected {
+  background: #ff4d00;
+  border-color: #ff4d00;
+  color: #fff;
+}
+
+.budget {
+  font-variant-numeric: tabular-nums;
+}
+
+.budgetOver {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.hint {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #777;
+}
