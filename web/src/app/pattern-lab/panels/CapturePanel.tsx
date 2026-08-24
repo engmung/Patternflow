@@ -31,10 +31,8 @@ import {
   CAPTURE_SECONDS_MAX,
   CAPTURE_SIDE_MAX,
   CAPTURE_SIDE_MIN,
-  CAPTURE_SPEEDS,
   SIZED_STYLES,
   type AutoVerdict,
-  type CaptureLook,
   type CaptureSettings,
   type FrameMessage,
 } from "@/lib/lab/capture/types";
@@ -58,8 +56,6 @@ type Hud = {
   auto: AutoVerdict | null;
   /** Linear scale of the live stage vs the export size; null = exact. */
   preview: number | null;
-  /** The look the last frame actually painted (auto resolved). */
-  look: CaptureLook | null;
 };
 
 function nameErrors(errors: Record<string, string>): LayerError[] {
@@ -109,7 +105,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
     errors: [],
     auto: null,
     preview: null,
-    look: null,
   });
   const [exporting, setExporting] = useState<ExportState | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -177,7 +172,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           errors: nameErrors(frame.errors),
           auto: frame.auto,
           preview: frame.preview,
-          look: frame.geometry.look,
         });
       }
     };
@@ -372,20 +366,6 @@ export default function CapturePanel(props: IDockviewPanelProps) {
             ▶
           </button>
         </span>
-        <label>
-          speed
-          <select
-            value={settings.speed}
-            aria-label="Stage speed"
-            onChange={(event) => update({ speed: Number(event.target.value) })}
-          >
-            {CAPTURE_SPEEDS.map((speed) => (
-              <option key={speed} value={speed}>
-                {speed}×
-              </option>
-            ))}
-          </select>
-        </label>
         <span style={{ flex: 1 }} />
         <span className={styles.stats}>
           <span className={local.readoutStrong}>t {hud.time.toFixed(2)} s</span>
@@ -394,25 +374,14 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <span className={styles.dotSep}>·</span>
           <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
           <span className={styles.dotSep}>·</span>
-          {hud.look === "native" ? (
-            <span title="Native re-runs the pattern's code at the exact output grid, and its picture can depend on that grid — so the stage always renders every pixel and what you see IS the export. Expect a low frame rate at big sizes.">
-              exact 100%
+          {hud.preview !== null ? (
+            <span title="The stage shows this look at reduced size to stay fluid — it only blows the panel frame up, so the picture is identical, just fewer pixels. Exports always render the full size.">
+              preview {Math.round(hud.preview * 100)}%
             </span>
           ) : (
-            <button
-              type="button"
-              data-active={settings.previewMode === "fast" ? "true" : undefined}
-              title={
-                settings.previewMode === "fast"
-                  ? "Fast preview: the same picture at far fewer pixels (this look renders the pattern at the panel frame and only blows it up). Exports always render full size. Click to go back to normal preview quality."
-                  : "Big outputs show at reduced size to stay fluid — the same picture, smaller, since this look only blows up the panel frame. Exports always render full size. Click for an even faster draft preview."
-              }
-              onClick={() =>
-                update({ previewMode: settings.previewMode === "fast" ? "auto" : "fast" })
-              }
-            >
-              preview {hud.preview !== null ? Math.round(hud.preview * 100) : 100}%
-            </button>
+            <span title="Every output pixel — what you see is exactly the export. Native re-runs the pattern's code on the real grid, so big sizes trade frame rate for truth.">
+              exact 100%
+            </span>
           )}
         </span>
       </div>

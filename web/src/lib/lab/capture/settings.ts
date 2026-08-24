@@ -9,7 +9,6 @@ import {
   CAPTURE_ROTATIONS,
   CAPTURE_SCALES,
   CAPTURE_SECONDS_MAX,
-  CAPTURE_SPEEDS,
   DEFAULT_CAPTURE_SETTINGS,
   type CaptureSettings,
 } from "./types";
@@ -78,14 +77,12 @@ export function normalizeCaptureSettings(input: unknown): CaptureSettings {
     width: clampSide(typeof raw.width === "number" ? raw.width : base.width),
     height: clampSide(typeof raw.height === "number" ? raw.height : base.height),
     scale: pick(raw.scale, CAPTURE_SCALES, base.scale),
-    previewMode: pick(raw.previewMode, ["auto", "fast"] as const, base.previewMode),
     rotation: pick(raw.rotation, CAPTURE_ROTATIONS, base.rotation),
     backdrop: pick(raw.backdrop, ["black", "transparent", "color"] as const, base.backdrop),
     cutout: pick(raw.cutout, ["unpainted", "dark"] as const, base.cutout),
     backdropColor: hexColor(raw.backdropColor, base.backdropColor),
     ledDot: unit(raw.ledDot, base.ledDot),
     ledGlow: unit(raw.ledGlow, base.ledGlow),
-    speed: pick(raw.speed, CAPTURE_SPEEDS, base.speed),
     video: {
       fps: pick(video.fps, CAPTURE_FPS, base.video.fps),
       seconds,

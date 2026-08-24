@@ -34,12 +34,11 @@ const scope = self as unknown as WorkerScope;
 
 const MAX_DT = 0.05;
 const EXPORT_PREVIEW_INTERVAL_MS = 120;
-// Stage pixel caps for the matrix-rendered looks (pixel/led/auto fallback),
+// Stage pixel cap for the matrix-rendered looks (pixel/led/auto fallback),
 // where fewer output pixels are the same picture, smaller — the LED look's
-// full-size blur was the main lag. "Fast" is the HUD button's draft mode.
-// The Native look is exempt (see previewFor) and exports never reduce.
+// full-size blur was the main lag. The Native look is exempt (see
+// previewFor) and exports never reduce.
 const PREVIEW_PIXEL_BUDGET = 1_200_000;
-const FAST_PIXEL_BUDGET = 300_000;
 
 const core = new CaptureCore(DEFAULT_CAPTURE_SETTINGS);
 const painter = new StagePainter((width, height) => new OffscreenCanvas(width, height));
@@ -138,10 +137,9 @@ function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor:
   // Matrix-rendered looks (pixel/led/auto's fallback) only shrink the
   // blow-up, so their reduced frame is the same picture at fewer pixels.
   if (full.look === "native") return null;
-  const budget = core.settings.previewMode === "fast" ? FAST_PIXEL_BUDGET : PREVIEW_PIXEL_BUDGET;
   const pixels = full.output.width * full.output.height;
-  if (pixels <= budget) return null;
-  const k = Math.sqrt(budget / pixels);
+  if (pixels <= PREVIEW_PIXEL_BUDGET) return null;
+  const k = Math.sqrt(PREVIEW_PIXEL_BUDGET / pixels);
   const settings = core.settings;
   let scaled: CaptureSettings;
   if (settings.style === "pixel" || settings.style === "led") {
@@ -182,7 +180,7 @@ function tick() {
   if (exporting || awaitingAck || !visible || !core.ready) return;
   const now = performance.now();
   if (playing) {
-    const dt = Math.min(MAX_DT, Math.max(0, (now - lastTick) / 1000)) * core.settings.speed;
+    const dt = Math.min(MAX_DT, Math.max(0, (now - lastTick) / 1000));
     lastTick = now;
     dirty = false;
     renderAndPost(dt);

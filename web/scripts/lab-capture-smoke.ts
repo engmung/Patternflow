@@ -41,9 +41,8 @@ const matrix = { width: 128, height: 64 };
   const huge = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "native", width: 99999, height: 1 }, matrix);
   assert(huge.output.width === 4096 && huge.output.height === 16, "native sides clamp");
 
-  const normalized = normalizeCaptureSettings({ style: "bogus", width: "x", rotation: 45, previewMode: 3, video: { fps: 17, seconds: 900 } });
+  const normalized = normalizeCaptureSettings({ style: "bogus", width: "x", rotation: 45, video: { fps: 17, seconds: 900 } });
   assert(normalized.style === "auto" && normalized.rotation === 0 && normalized.video.fps === 30 && normalized.video.seconds === 60, "settings normalize");
-  assert(normalized.previewMode === "auto", "previewMode normalize");
 
   // Turns: the size is the finished picture; the pattern runs in the frame that turns into it.
   const portrait = resolveGeometry({ ...DEFAULT_CAPTURE_SETTINGS, style: "native", width: 1080, height: 1920, rotation: 90 }, matrix);

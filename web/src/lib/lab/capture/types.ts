@@ -64,16 +64,6 @@ export type CaptureSettings = {
   height: number;
   /** Integer blow-up of the project matrix for `pixel` / `led`. */
   scale: number;
-  /**
-   * Live-stage quality only, never the exports: "auto" caps the stage near
-   * 720p-class, "fast" much lower for instant feedback. Applies ONLY to
-   * looks that render the pattern at the matrix and blow it up (pixel, led,
-   * auto's fallback) — there fewer pixels are the same picture, smaller. The
-   * Native look is never reduced: its code re-runs on the stage grid, and
-   * pixel-unit math draws a DIFFERENT picture on a different grid — a
-   * reduced native stage would preview a pattern that doesn't exist.
-   */
-  previewMode: "auto" | "fast";
   rotation: CaptureRotation;
   backdrop: CaptureBackdrop;
   cutout: CaptureCutout;
@@ -82,8 +72,6 @@ export type CaptureSettings = {
   /** LED look: dot diameter as a fraction of the cell, and glow strength. */
   ledDot: number;
   ledGlow: number;
-  /** Stage playback speed multiplier. */
-  speed: number;
   video: {
     fps: number;
     seconds: number;
@@ -94,7 +82,6 @@ export type CaptureSettings = {
 export const CAPTURE_SIDE_MAX = 4096;
 export const CAPTURE_SIDE_MIN = 16;
 export const CAPTURE_SCALES = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32] as const;
-export const CAPTURE_SPEEDS = [0.25, 0.5, 1, 2, 4] as const;
 export const CAPTURE_FPS = [24, 30, 60] as const;
 export const CAPTURE_SECONDS_MAX = 60;
 
@@ -103,14 +90,12 @@ export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
   width: 1024,
   height: 512,
   scale: 8,
-  previewMode: "auto",
   rotation: 0,
   backdrop: "black",
   cutout: "unpainted",
   backdropColor: "#ffffff",
   ledDot: 0.72,
   ledGlow: 0.35,
-  speed: 1,
   video: { fps: 30, seconds: 6, format: "mp4" },
 };
 
