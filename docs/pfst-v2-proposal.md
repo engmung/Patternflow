@@ -107,6 +107,24 @@ A reference implementation of the above exists against the current player
 the per-frame lerp block. Loop wrap, natural end, and stop() all clear the
 ease state through the paths that already existed.
 
+**Measured on hardware** (2026-08-24, ESP32-S3 128×64, the branch above
+flashed wirelessly; same 60 s show authored once and encoded both ways;
+`/api/mqtt` polled at ~130 ms for the parameter trajectory, `frameUs` from
+`/api/status`):
+
+| | idle | v1 playing | v2 playing (2 ch eased) |
+| --- | --- | --- | --- |
+| frame time | 15.9–16.0 ms | 15.7–15.9 ms | 15.7–15.8 ms |
+
+Frame time is indistinguishable across all three — the lerp cost is below
+measurement noise. Trajectories over the same 11 s window: the eased
+channel produced **12 distinct values under v1** (the 1 Hz staircase,
+~100-wire jumps) and **89 under v2** (a new value on essentially every
+poll, max step 6 wire units — continuous to the eye). The quantized
+channel jumped 0→250 once, identically in both versions (hard cuts
+preserved), and the untouched fourth channel kept `paramActive = false`
+throughout — the physical knob stays live during a show.
+
 ## Compatibility
 
 | player \ file | v1 file | v2 file |
