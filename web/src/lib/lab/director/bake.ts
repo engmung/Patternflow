@@ -231,3 +231,30 @@ export function showFromPerformance(perf: Performance): DirectorShow {
     messages,
   };
 }
+
+/**
+ * The lane's value at a CONTINUOUS time — the authoring curve itself, not
+ * its 1 Hz quantization. This is what smooth playback samples per frame:
+ * hold segments keep their value and jump exactly at the next keyframe
+ * (device semantics), curve segments follow their bezier between the same
+ * endpoints the bake quantizes. At whole seconds inside a curve it agrees
+ * with the staircase by construction; the file stays 1 Hz — smoothness is
+ * a player capability, and the lab's player has it.
+ */
+export function continuousLaneValue(
+  lane: DirectorKeyframe[],
+  t: number,
+): number | null {
+  if (lane.length === 0) return null;
+  const keys = [...lane].sort((a, b) => a.t - b.t);
+  if (t < keys[0].t) return null;
+  for (let i = keys.length - 1; i >= 0; i--) {
+    const a = keys[i];
+    if (t < a.t) continue;
+    const b = keys[i + 1];
+    if (!b || a.mode !== "curve" || b.t <= a.t) return clamp1000(a.v);
+    const u = Math.min(1, (t - a.t) / (b.t - a.t));
+    return clamp1000(a.v + (b.v - a.v) * cubicBezierY(a.cp, u));
+  }
+  return null;
+}

@@ -4,7 +4,7 @@
 // re-import → identical staircase), and the show rides project persistence.
 // Run: npx tsx scripts/lab-director-smoke.ts
 
-import { bakeShow, cubicBezierY, showFromPerformance } from "../src/lib/lab/director/bake";
+import { bakeShow, continuousLaneValue, cubicBezierY, showFromPerformance } from "../src/lib/lab/director/bake";
 import {
   DEFAULT_CURVE_CP,
   directorId,
@@ -109,6 +109,25 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     cues: baked.cueCount,
     poolBytes: baked.poolBytes,
   });
+
+  // -- continuous sampling (smooth playback) agrees with the staircase --
+  // At whole seconds inside a curve the continuous value IS the baked cue;
+  // between them it moves smoothly; hold segments keep their value and jump
+  // exactly at the next keyframe, device-style.
+  for (const s2 of [0, 3, 5, 7, 10]) {
+    const cont = continuousLaneValue(show.lanes[0], s2);
+    if (cont !== baked.laneValues[0][s2]) {
+      fail(`continuous(${s2}) ${cont} != staircase ${baked.laneValues[0][s2]}`);
+    }
+  }
+  const mid = continuousLaneValue(show.lanes[0], 4.5)!;
+  const lo = baked.laneValues[0][4]!;
+  const hi = baked.laneValues[0][5]!;
+  if (!(mid > lo && mid < hi)) fail(`continuous(4.5)=${mid} not between ${lo}..${hi}`);
+  if (continuousLaneValue(show.lanes[1], 11.9) !== 500) fail("hold must keep its value to the end");
+  if (continuousLaneValue(show.lanes[1], 12) !== 100) fail("hold must jump exactly at the next keyframe");
+  if (continuousLaneValue(show.lanes[3], 5) !== null) fail("empty lane stays null");
+  console.log("director smoke OK", { part: "continuous" });
 
   // ── full rail round trip ──
   const json = JSON.stringify(serializePerformance(baked.perf));

@@ -21,7 +21,12 @@ import {
   PFST_MAX_CUES,
 } from "@/lib/community/performance";
 import { readPerformanceFile } from "@/lib/community/performanceFile";
-import { bakeShow, cubicBezierY, showFromPerformance } from "@/lib/lab/director/bake";
+import {
+  bakeShow,
+  continuousLaneValue,
+  cubicBezierY,
+  showFromPerformance,
+} from "@/lib/lab/director/bake";
 import {
   DEFAULT_CURVE_CP,
   DIRECTOR_MAX_SECONDS,
@@ -71,6 +76,10 @@ export default function DirectorPanel() {
 
   const [selection, setSelection] = useState<Selection>(null);
   const [playing, setPlaying] = useState(false);
+  // Smooth follows the authoring curves per frame (what the lab and any
+  // interpolating player can do); steps replays the 1 Hz staircase exactly
+  // as today's panel .pfs player does. The file is identical either way.
+  const [smooth, setSmooth] = useState(true);
   const [timeText, setTimeText] = useState("0.0");
   const [message, setMessage] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
@@ -97,18 +106,9 @@ export default function DirectorPanel() {
     timelineRef.current?.style.setProperty("--ph", `${playheadRef.current * PPS}px`);
   }, []);
 
-  /** Fire every lane whose staircase changes at second `s` into the knobs. */
-  const applySecond = useCallback((s: number, force: boolean) => {
-    const values = bakedRef.current.laneValues;
-    const state = useLabStore.getState();
-    for (let lane = 0; lane < 4; lane++) {
-      const v = values[lane]?.[s];
-      if (v == null) continue;
-      const previous = s > 0 ? values[lane][s - 1] : null;
-      if (!force && v === previous) continue;
-      const range = state.ranges[lane] ?? [0, 1];
-      state.setKnob(lane, wireToReal(v, range));
-    }
+  const smoothRef = useRef(true);
+
+  const updateMessageAt = useCallback((s: number) => {
     let text = "";
     for (const cue of bakedRef.current.perf.timeline) {
       if (cue.t > s) break;
@@ -117,16 +117,53 @@ export default function DirectorPanel() {
     setMessage(text);
   }, []);
 
+  /** Fire every lane whose staircase changes at second `s` into the knobs. */
+  const applySecond = useCallback(
+    (s: number, force: boolean) => {
+      const values = bakedRef.current.laneValues;
+      const state = useLabStore.getState();
+      for (let lane = 0; lane < 4; lane++) {
+        const v = values[lane]?.[s];
+        if (v == null) continue;
+        const previous = s > 0 ? values[lane][s - 1] : null;
+        if (!force && v === previous) continue;
+        const range = state.ranges[lane] ?? [0, 1];
+        state.setKnob(lane, wireToReal(v, range));
+      }
+      updateMessageAt(s);
+    },
+    [updateMessageAt],
+  );
+
+  /** Sample the authoring curves at a continuous time — smooth playback. */
+  const lastWireRef = useRef<(number | null)[]>([null, null, null, null]);
+  const applyContinuous = useCallback((t: number, force: boolean) => {
+    const state = useLabStore.getState();
+    for (let lane = 0; lane < 4; lane++) {
+      const v = continuousLaneValue(state.director.lanes[lane], t);
+      if (v == null) continue;
+      if (!force && lastWireRef.current[lane] === v) continue;
+      lastWireRef.current[lane] = v;
+      const range = state.ranges[lane] ?? [0, 1];
+      state.setKnob(lane, wireToReal(v, range));
+    }
+  }, []);
+
   const seek = useCallback(
     (t: number) => {
       const clamped = Math.max(0, Math.min(bakedRef.current.duration, t));
       playheadRef.current = clamped;
       lastSecRef.current = Math.floor(clamped);
-      applySecond(Math.floor(clamped), true);
+      if (smoothRef.current) {
+        applyContinuous(clamped, true);
+        updateMessageAt(Math.floor(clamped));
+      } else {
+        applySecond(Math.floor(clamped), true);
+      }
       moveDom();
       setTimeText(clamped.toFixed(1));
     },
-    [applySecond, moveDom],
+    [applyContinuous, applySecond, moveDom, updateMessageAt],
   );
 
   useEffect(() => {
@@ -155,8 +192,10 @@ export default function DirectorPanel() {
       const second = Math.floor(t);
       if (second !== lastSecRef.current) {
         lastSecRef.current = second;
-        applySecond(second, false);
+        if (smoothRef.current) updateMessageAt(second);
+        else applySecond(second, false);
       }
+      if (smoothRef.current) applyContinuous(t, false);
       moveDom();
       if (now - readoutAt > 150) {
         readoutAt = now;
@@ -166,7 +205,7 @@ export default function DirectorPanel() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, applySecond, moveDom]);
+  }, [playing, applyContinuous, applySecond, moveDom, updateMessageAt]);
 
   // ── editing helpers ──
   const editLane = useCallback(
@@ -350,6 +389,23 @@ export default function DirectorPanel() {
           }}
         >
           ⏮
+        </button>
+        <button
+          type="button"
+          data-active={smooth ? "true" : undefined}
+          title={
+            smooth
+              ? "Smooth: playback follows your curves continuously — what the lab (and any interpolating player) shows. The .pfs file itself is 1-second cues; click to hear it exactly as today's panel player steps it."
+              : "Steps: playback replays the 1-second staircase exactly as today's panel .pfs player does. Click for smooth playback along your curves."
+          }
+          onClick={() => {
+            const next = !smooth;
+            smoothRef.current = next;
+            setSmooth(next);
+            seek(playheadRef.current);
+          }}
+        >
+          {smooth ? "smooth" : "steps"}
         </button>
         <span className={styles.stats}>
           <span>t {timeText} s</span>
