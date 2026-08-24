@@ -34,6 +34,7 @@ import {
   CAPTURE_SPEEDS,
   SIZED_STYLES,
   type AutoVerdict,
+  type CaptureLook,
   type CaptureSettings,
   type FrameMessage,
 } from "@/lib/lab/capture/types";
@@ -57,6 +58,8 @@ type Hud = {
   auto: AutoVerdict | null;
   /** Linear scale of the live stage vs the export size; null = exact. */
   preview: number | null;
+  /** The look the last frame actually painted (auto resolved). */
+  look: CaptureLook | null;
 };
 
 function nameErrors(errors: Record<string, string>): LayerError[] {
@@ -106,6 +109,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
     errors: [],
     auto: null,
     preview: null,
+    look: null,
   });
   const [exporting, setExporting] = useState<ExportState | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
@@ -173,6 +177,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           errors: nameErrors(frame.errors),
           auto: frame.auto,
           preview: frame.preview,
+          look: frame.geometry.look,
         });
       }
     };
@@ -389,20 +394,26 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <span className={styles.dotSep}>·</span>
           <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
           <span className={styles.dotSep}>·</span>
-          <button
-            type="button"
-            data-active={settings.previewMode === "fast" ? "true" : undefined}
-            title={
-              settings.previewMode === "fast"
-                ? "Fast preview: the stage renders far fewer pixels for instant feedback — the composition is identical, and PNG/video exports still render the full size. Click to go back to normal preview quality."
-                : "The live stage renders big outputs at reduced size to stay fluid; the number is the current scale. Click for an even faster, lower-resolution preview — same composition, exports stay full size."
-            }
-            onClick={() =>
-              update({ previewMode: settings.previewMode === "fast" ? "auto" : "fast" })
-            }
-          >
-            preview {hud.preview !== null ? Math.round(hud.preview * 100) : 100}%
-          </button>
+          {hud.look === "native" ? (
+            <span title="Native re-runs the pattern's code at the exact output grid, and its picture can depend on that grid — so the stage always renders every pixel and what you see IS the export. Expect a low frame rate at big sizes.">
+              exact 100%
+            </span>
+          ) : (
+            <button
+              type="button"
+              data-active={settings.previewMode === "fast" ? "true" : undefined}
+              title={
+                settings.previewMode === "fast"
+                  ? "Fast preview: the same picture at far fewer pixels (this look renders the pattern at the panel frame and only blows it up). Exports always render full size. Click to go back to normal preview quality."
+                  : "Big outputs show at reduced size to stay fluid — the same picture, smaller, since this look only blows up the panel frame. Exports always render full size. Click for an even faster draft preview."
+              }
+              onClick={() =>
+                update({ previewMode: settings.previewMode === "fast" ? "auto" : "fast" })
+              }
+            >
+              preview {hud.preview !== null ? Math.round(hud.preview * 100) : 100}%
+            </button>
+          )}
         </span>
       </div>
 

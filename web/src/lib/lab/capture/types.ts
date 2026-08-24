@@ -66,8 +66,12 @@ export type CaptureSettings = {
   scale: number;
   /**
    * Live-stage quality only, never the exports: "auto" caps the stage near
-   * 720p-class, "fast" much lower for instant feedback on heavy patterns.
-   * The picture keeps the exact composition either way, just fewer pixels.
+   * 720p-class, "fast" much lower for instant feedback. Applies ONLY to
+   * looks that render the pattern at the matrix and blow it up (pixel, led,
+   * auto's fallback) — there fewer pixels are the same picture, smaller. The
+   * Native look is never reduced: its code re-runs on the stage grid, and
+   * pixel-unit math draws a DIFFERENT picture on a different grid — a
+   * reduced native stage would preview a pattern that doesn't exist.
    */
   previewMode: "auto" | "fast";
   rotation: CaptureRotation;

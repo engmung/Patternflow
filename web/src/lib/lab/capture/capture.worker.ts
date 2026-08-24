@@ -34,11 +34,10 @@ const scope = self as unknown as WorkerScope;
 
 const MAX_DT = 0.05;
 const EXPORT_PREVIEW_INTERVAL_MS = 120;
-// The live stage renders at most this many output pixels. A native 4K frame
-// is hundreds of milliseconds of pattern JS; capped near 720p-class the stage
-// stays fluid while you compose, and only the exports — which are exact by
-// contract — pay the full price. "Fast" is the HUD button's draft mode:
-// same composition, far fewer pixels, for instant feedback on heavy code.
+// Stage pixel caps for the matrix-rendered looks (pixel/led/auto fallback),
+// where fewer output pixels are the same picture, smaller — the LED look's
+// full-size blur was the main lag. "Fast" is the HUD button's draft mode.
+// The Native look is exempt (see previewFor) and exports never reduce.
 const PREVIEW_PIXEL_BUDGET = 1_200_000;
 const FAST_PIXEL_BUDGET = 300_000;
 
@@ -133,6 +132,12 @@ function frameMessage(
  */
 function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor: number } | null {
   if (!project) return null;
+  // Native re-runs the pattern code on the stage grid: shrink that grid and
+  // pixel-unit math draws a different picture, not a smaller one. Never
+  // reduce it — a slow exact stage is a preview, a fast different one isn't.
+  // Matrix-rendered looks (pixel/led/auto's fallback) only shrink the
+  // blow-up, so their reduced frame is the same picture at fewer pixels.
+  if (full.look === "native") return null;
   const budget = core.settings.previewMode === "fast" ? FAST_PIXEL_BUDGET : PREVIEW_PIXEL_BUDGET;
   const pixels = full.output.width * full.output.height;
   if (pixels <= budget) return null;
