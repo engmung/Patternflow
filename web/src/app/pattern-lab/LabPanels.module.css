@@ -13,6 +13,7 @@
 }
 
 .dockHeader {
+  position: relative; /* anchors the centered piece-name input */
   display: flex;
   align-items: center;
   justify-content: space-between;
