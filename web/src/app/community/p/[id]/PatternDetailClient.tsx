@@ -198,14 +198,37 @@ export default function PatternDetailClient({
     ? pattern.ownCppModeratedAt !== null
     : pattern.ports.some((port) => port.effective && port.moderatedAt !== null);
 
+  // The author gets the other half of the round trip: their own post reopens
+  // as the thing being revised, so Share in the lab updates this pattern
+  // instead of publishing a fork of it. Everybody else forks, as before.
   const openInLab = () => {
-    writeLabHandoff({
-      code,
-      parentId: pattern.id,
-      parentTitle: pattern.title,
-      parentLicense: pattern.license,
-    });
-    captureEvent("community_open_in_lab", { pattern_id: pattern.id, edited });
+    writeLabHandoff(
+      isOwner
+        ? {
+            code,
+            parentId: null,
+            parentTitle: null,
+            parentLicense: null,
+            edit: {
+              id: pattern.id,
+              title: pattern.title,
+              description: pattern.description,
+              visibility: pattern.visibility,
+              // Their OWN header — a community port is not theirs to lose,
+              // and goes stale on its own when the source moves.
+              hasCpp: pattern.ownCpp !== null,
+              portCount: pattern.ports.filter((port) => !port.stale).length,
+            },
+          }
+        : {
+            code,
+            parentId: pattern.id,
+            parentTitle: pattern.title,
+            parentLicense: pattern.license,
+            edit: null,
+          },
+    );
+    captureEvent("community_open_in_lab", { pattern_id: pattern.id, edited, own: isOwner });
     router.push("/pattern-lab?from=community");
   };
 
@@ -319,8 +342,17 @@ export default function PatternDetailClient({
             >
               Reset code
             </button>
-            <button type="button" className={styles.btnAccent} onClick={openInLab}>
-              Open in Pattern Lab
+            <button
+              type="button"
+              className={styles.btnAccent}
+              onClick={openInLab}
+              title={
+                isOwner
+                  ? "Reopen this pattern in the lab — layers, ramps and show intact. Sharing from there updates this post."
+                  : "Open a copy in the lab. Sharing from there publishes it as your fork."
+              }
+            >
+              {isOwner ? "Edit in Pattern Lab" : "Open in Pattern Lab"}
             </button>
             {/* Only for patterns that ship a verified header — this is the
                 zero-friction path: nothing to convert, nothing to install. */}

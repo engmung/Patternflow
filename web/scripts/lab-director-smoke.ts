@@ -159,6 +159,7 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     ranges: [[0, 1], [0, 1], [0, 1], [0, 1]] as [number, number][],
     knobLabels: ["A", "B", "C", "D"],
     forkOf: null,
+    editOf: null,
     gen: { count: 5, thinking: "LOW" as const, refs: 6, colorMode: "vfield" as const },
     director: show,
   };

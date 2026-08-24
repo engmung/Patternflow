@@ -22,6 +22,7 @@ import {
   layerId,
   type BlendMode,
   type CodeLayer,
+  type EditRef,
   type ForkRef,
   type GenSettings,
   type KnobRange,
@@ -176,6 +177,8 @@ type SerializedProject = {
   ranges: KnobRange[];
   knobLabels: string[];
   forkOf: ForkRef;
+  /** Optional: projects saved before in-place editing existed carry none. */
+  editOf?: EditRef;
   gen: GenSettings;
   layers: SerializedLayer[];
   /** Optional: projects saved before the Director existed don't carry one. */
@@ -223,6 +226,7 @@ export function serializeProject(project: LabProject): string | null {
     ranges: project.ranges,
     knobLabels: project.knobLabels,
     forkOf: project.forkOf,
+    editOf: project.editOf,
     gen: project.gen,
     layers,
     director: project.director,
@@ -339,6 +343,11 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
         })()
       : null;
 
+  // Same defensive read as forkOf, and for the same reason: this rides in
+  // localStorage, where anything can be in the slot. A malformed entry loses
+  // edit mode and the project reopens as a plain draft — never worse.
+  const editOf = readEditRef(raw.editOf);
+
   const activeLayerId =
     typeof raw.activeLayerId === "string" &&
     layers.some((layer) => layer.id === raw.activeLayerId)
@@ -366,8 +375,24 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
     ranges: knobState.ranges,
     knobLabels: knobState.labels,
     forkOf,
+    editOf,
     gen: readGen(raw.gen),
     director: readDirector(raw.director),
+  };
+}
+
+/** The published pattern a project is a revision of, read back defensively. */
+function readEditRef(raw: unknown): EditRef {
+  if (!raw || typeof raw !== "object") return null;
+  const entry = raw as Record<string, unknown>;
+  if (typeof entry.id !== "string" || typeof entry.title !== "string") return null;
+  return {
+    id: entry.id,
+    title: entry.title.slice(0, 120),
+    description: typeof entry.description === "string" ? entry.description : null,
+    visibility: typeof entry.visibility === "string" ? entry.visibility : "public",
+    hasCpp: entry.hasCpp === true,
+    portCount: Number.isFinite(entry.portCount) ? Number(entry.portCount) : 0,
   };
 }
 
@@ -525,6 +550,8 @@ export function migrateLegacyDraft(): (LabProject & { savedAt: number }) | null 
     knobLabels: draft.knobLabels ?? knobState.labels,
     director: emptyShow(),
     forkOf: draft.forkOf ?? null,
+    // The legacy single-draft format predates in-place editing entirely.
+    editOf: null,
     gen: readGen(draft.gen),
   };
 }

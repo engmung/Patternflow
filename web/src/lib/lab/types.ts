@@ -102,6 +102,27 @@ export type Layer = CodeLayer | PixelLayer;
  */
 export type ForkRef = { id: string; title: string; license?: string | null } | null;
 
+/**
+ * The published pattern this project IS — set when its own author opened their
+ * post to revise it. The opposite end of `forkOf`: a fork becomes a NEW
+ * pattern, an edit updates the row it came from, so Share turns into Update
+ * and the community keeps one post with its likes, comments and forks intact.
+ *
+ * Title, description and visibility ride along so the Update modal opens with
+ * what is already published rather than empty fields; `hasCpp` is here because
+ * changing the JavaScript detaches the pattern's firmware header, and that is
+ * worth saying before the button is pressed, not after.
+ */
+export type EditRef = {
+  id: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  hasCpp: boolean;
+  /** How many community ports a code change would send stale. */
+  portCount: number;
+} | null;
+
 export type GenSettings = {
   count: number;
   thinking: ThinkingLevelKey;
@@ -133,6 +154,9 @@ export type LabProject = {
   ranges: KnobRange[];
   knobLabels: string[];
   forkOf: ForkRef;
+  /** Set instead of `forkOf` when this project is the author's own post,
+   *  reopened to be revised in place. Never both at once. */
+  editOf: EditRef;
   gen: GenSettings;
   /** Knob automation over time — the Director panel's show (see director/). */
   director: DirectorShow;

@@ -42,6 +42,7 @@ import {
   nextLayerName,
   type BlendMode,
   type CodeLayer,
+  type EditRef,
   type ForkRef,
   type LayerRole,
   type GalleryItem,
@@ -135,6 +136,7 @@ function defaultProject(): LabProject {
     ranges: knobState.ranges,
     knobLabels: knobState.labels,
     forkOf: null,
+    editOf: null,
     gen: { count: 5, thinking: "LOW", refs: 6, colorMode: "vfield" },
     director: emptyShow(),
   };
@@ -171,12 +173,16 @@ export type LabStore = LabProject & {
   discardProject: () => void;
   /** Park the current work in the session ring and empty the canvas. */
   stashCurrent: () => boolean;
+  /** Park a COPY and keep working — used when the canvas is about to become
+   *  the only copy of something, e.g. revising a published pattern. */
+  parkSnapshot: (title?: string) => boolean;
   /** Swap the canvas for a stashed session, parking what is there now. */
   restoreSession: (id: string) => boolean;
 
   setMatrix: (matrix: MatrixSize) => void;
   setGen: (patch: Partial<GenSettings>) => void;
   setForkOf: (forkOf: ForkRef) => void;
+  setEditOf: (editOf: EditRef) => void;
 
   selectLayer: (id: string) => void;
   addCodeLayer: () => void;
@@ -268,17 +274,44 @@ export const useLabStore = create<LabStore>((set, get) => ({
       ranges: state.ranges,
       knobLabels: state.knobLabels,
       forkOf: state.forkOf,
+      editOf: state.editOf,
       gen: state.gen,
       director: state.director,
     });
     if (!json) return false;
-    const title = state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work";
+    const title = state.editOf?.title ?? state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work";
     const stashed = stashSession(json, title, state.layers.length);
     if (stashed) {
       clearProject();
       set({ ...defaultProject(), restoredAt: null, layers: [], activeLayerId: "" });
     }
     return stashed;
+  },
+
+  // Park a copy WITHOUT clearing the canvas — the difference from
+  // stashCurrent, and the whole point: revising a published pattern overwrites
+  // the only published copy, so the version you started from goes into the
+  // ring the moment it lands and Recent ▾ can hand it back.
+  parkSnapshot: (title) => {
+    const state = get();
+    const json = serializeProject({
+      matrix: state.matrix,
+      layers: state.layers,
+      activeLayerId: state.activeLayerId,
+      knobs: state.knobs,
+      ranges: state.ranges,
+      knobLabels: state.knobLabels,
+      forkOf: state.forkOf,
+      editOf: state.editOf,
+      gen: state.gen,
+      director: state.director,
+    });
+    if (!json) return false;
+    return stashSession(
+      json,
+      title ?? state.editOf?.title ?? state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work",
+      state.layers.length,
+    );
   },
 
   restoreSession: (id) => {
@@ -311,7 +344,11 @@ export const useLabStore = create<LabStore>((set, get) => ({
   },
 
   setGen: (patch) => set((state) => ({ gen: { ...state.gen, ...patch } })),
-  setForkOf: (forkOf) => set({ forkOf }),
+  // Fork and edit are opposite ends of the same handoff, so setting one
+  // clears the other: a project cannot both become a new pattern and update
+  // an existing one.
+  setForkOf: (forkOf) => set(forkOf ? { forkOf, editOf: null } : { forkOf }),
+  setEditOf: (editOf) => set(editOf ? { editOf, forkOf: null } : { editOf }),
 
   selectLayer: (id) => {
     if (get().layers.some((layer) => layer.id === id)) set({ activeLayerId: id });
@@ -683,6 +720,7 @@ if (typeof window !== "undefined") {
       state.ranges !== previous.ranges ||
       state.knobLabels !== previous.knobLabels ||
       state.forkOf !== previous.forkOf ||
+      state.editOf !== previous.editOf ||
       state.gen !== previous.gen ||
       state.director !== previous.director;
     if (!projectChanged) return;
@@ -699,6 +737,7 @@ if (typeof window !== "undefined") {
         ranges: current.ranges,
         knobLabels: current.knobLabels,
         forkOf: current.forkOf,
+        editOf: current.editOf,
         gen: current.gen,
         director: current.director,
       });
