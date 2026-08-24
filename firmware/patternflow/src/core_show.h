@@ -12,6 +12,7 @@
 #include <Arduino.h>
 #include <FFat.h>
 #include "../pattern_registry.h"
+#include "core_mem.h"
 #include "core_mqtt.h"
 
 namespace PatternflowShow {
@@ -56,8 +57,27 @@ static_assert(sizeof(ShowHeader) == 76, "PFST header");
 static_assert(sizeof(ShowCue) == 16, "PFST cue");
 
 inline ShowHeader header = {};
-inline uint8_t pool[MAX_POOL] = {};
-inline ShowCue cueTable[MAX_CUES] = {};
+
+// The string pool and cue table are 8 KB together, and they must NOT be
+// static arrays. Internal DRAM is what the web console runs on, and there is
+// about 15 KB of it left once the panel, Wi-Fi and the HTTP services are up:
+// a build that held these in .bss booted as far as starting the services and
+// then aborted inside mDNS registration, because the next small allocation —
+// a newlib lock inside a log call — had nowhere to come from. Same rule the
+// pattern registry's PSRAM pools follow, for the same reason.
+//
+// Allocated on first load, so a device that never plays a sequence pays
+// nothing, and PSRAM's latency is free here: these are read on cue changes,
+// never per pixel.
+inline uint8_t* pool = nullptr;
+inline ShowCue* cueTable = nullptr;
+
+inline bool ensureBuffers() {
+  if (!pool) pool = (uint8_t*)PFMem::alloc(MAX_POOL);
+  if (!cueTable) cueTable = (ShowCue*)PFMem::alloc(sizeof(ShowCue) * MAX_CUES);
+  return pool != nullptr && cueTable != nullptr;
+}
+
 inline uint16_t cueCount = 0;
 inline uint16_t poolBytes = 0;
 inline bool loaded = false;
@@ -99,7 +119,7 @@ inline int findPattern(const char* name) {
 }
 
 inline const char* poolString(uint16_t off) {
-  if (off == OFF_NONE || off >= poolBytes) return "";
+  if (!pool || off == OFF_NONE || off >= poolBytes) return "";
   return (const char*)(pool + off);
 }
 
@@ -127,6 +147,7 @@ inline void noteMissing(const char* name) {
 
 inline void scanMissing() {
   missingCount = 0;
+  if (!cueTable) return;
   for (uint16_t i = 0; i < cueCount; i++) {
     if (!(cueTable[i].flags & FLAG_PATTERN)) continue;
     const char* name = poolString(cueTable[i].patternOff);
@@ -197,6 +218,10 @@ inline bool loadFile(const char* slug, const char** error) {
   unload();
   if (!slug || !slug[0]) {
     if (error) *error = "missing slug";
+    return false;
+  }
+  if (!ensureBuffers()) {
+    if (error) *error = "no memory for the cue table";
     return false;
   }
   char path[72];
@@ -313,6 +338,12 @@ inline void applyFromStart(uint16_t elapsed) {
 
 inline void stop() {
   playing = false;
+  // A local show that ends — or is stopped — must hand the knobs back. The
+  // MQTT channel flow clears its holds with the end-of-show retained sweep;
+  // this player has no broker, so the release lives here. Without it the
+  // final cue's absolute values keep pinning the pattern (and zeroing those
+  // channels' knob deltas) until something else releases them.
+  PatternflowMqtt::clearAbsoluteAll();
 }
 
 inline bool playLoaded() {

@@ -1257,6 +1257,10 @@ void loop() {
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
       PatternflowShowSchedule::noteInteraction();
+      // Entering SELECT is the strongest "hands on" signal there is — drop
+      // any leftover absolute holds so browsing can never fight a pinned
+      // channel's zeroed deltas.
+      PatternflowMqtt::clearAbsoluteAll();
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
