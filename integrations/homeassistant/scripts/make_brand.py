@@ -3,10 +3,11 @@
 
     python3 scripts/make_brand.py
 
-Writes into `custom_components/patternflow/brand/`, which is where a custom
-integration puts its own brand images since Home Assistant 2026.3 — local ones
-take priority over the brands CDN, and nothing has to be added to the manifest.
-Without them a custom integration shows the generic puzzle piece.
+Writes into `custom_components/patternflow/brand/` at the repository root, which
+is where a custom integration puts its own brand images since Home Assistant
+2026.3 — local ones take priority over the brands CDN, and nothing has to be
+added to the manifest. Without them a custom integration shows the generic
+puzzle piece.
 
 Two of each, because the mark is near-black: `icon.png` for light themes and
 `dark_icon.png` in the project's off-white for dark ones. Plus @2x at 512.
@@ -30,7 +31,7 @@ HERE = Path(__file__).resolve().parent
 INTEGRATION = HERE.parent
 REPO = INTEGRATION.parent.parent
 SOURCE = REPO / "web/public/favicon.svg"
-OUT_DIR = INTEGRATION / "custom_components/patternflow/brand"
+OUT_DIR = REPO / "custom_components/patternflow/brand"
 
 #: The mark's own colour, for light backgrounds.
 LIGHT_THEME_INK = (0x0A, 0x0A, 0x0A)

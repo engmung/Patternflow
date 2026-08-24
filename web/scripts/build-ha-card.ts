@@ -6,7 +6,7 @@
  * Output goes into the integration, which ships it as a static file because
  * HACS and a manual copy both hand Home Assistant a directory, not a build:
  *
- *   integrations/homeassistant/custom_components/patternflow/www/
+ *   custom_components/patternflow/www/
  *     patternflow-card.js     the bundle
  *     pattern-sandbox.html    the pattern runtime, copied verbatim
  *
@@ -46,10 +46,7 @@ import { livePresets } from "../src/lib/presets";
 // underneath.
 const WEB = process.cwd();
 const REPO = path.resolve(WEB, "..");
-const OUT_DIR = path.join(
-  REPO,
-  "integrations/homeassistant/custom_components/patternflow/www",
-);
+const OUT_DIR = path.join(REPO, "custom_components/patternflow/www");
 const SANDBOX = path.join(WEB, "public/pattern-sandbox.html");
 
 const check = process.argv.includes("--check");

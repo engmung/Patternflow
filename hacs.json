@@ -1,0 +1,7 @@
+{
+  "name": "Patternflow",
+  "homeassistant": "2024.12.0",
+  "zip_release": true,
+  "filename": "patternflow-homeassistant.zip",
+  "hide_default_branch": true
+}

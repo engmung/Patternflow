@@ -42,6 +42,10 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
    ```
 
 9. Create the GitHub Release from the tag and attach stable firmware/build artifacts.
+10. Confirm the **Home Assistant Release** workflow went green and `patternflow-homeassistant.zip`
+    is attached, before announcing. HACS points at the newest release of the whole repository
+    regardless of what the release changed, so a release without that asset is one HACS offers
+    and then fails to download. Re-run it with `workflow_dispatch` if it did not fire.
 
 ## Current release line
 

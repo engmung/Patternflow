@@ -18,7 +18,7 @@ from typing import Any
 
 import pytest
 
-PACKAGE = Path(__file__).parent.parent / "custom_components" / "patternflow"
+PACKAGE = Path(__file__).resolve().parents[3] / "custom_components" / "patternflow"
 
 # Register `patternflow` as a package WITHOUT running its __init__, which
 # imports Home Assistant. Submodules then resolve normally — `api` finds
