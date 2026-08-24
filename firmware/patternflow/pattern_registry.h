@@ -37,6 +37,10 @@
 // Shipping one preset and letting people choose the rest is what makes the
 // console reliable, and it is why the pack/deck flow exists.
 #include "presets/preset_origin.h"
+// Black is the night/alarm face for the show scheduler (core_show_schedule.h)
+// — a cleared framebuffer the schedule may overlay a clock onto. Costs a few
+// bytes of DRAM and doubles as "panel dark, still powered" in the carousel.
+#include "presets/preset_black.h"
 // NOT in presetPatterns[] below on purpose: the calibration test card is an
 // overlay the tuner summons via /api/display, never a knob-browsable pattern.
 // See the header's own comment for the full story.
@@ -70,11 +74,13 @@ struct PatternEntry {
 // Pattern 1 stays Origin; modules are appended after the last preset, so
 // turning back from pattern 1 reaches them.
 
-// ── PRESETS (the failsafe only) ──
-// Pattern 1 is Origin and nothing else is compiled in — see the note by the
-// includes above. A board with an empty or unmountable FATFS still lights up.
+// ── PRESETS ──
+// Pattern 1 is Origin, the failsafe: a board with an empty or unmountable
+// FATFS still lights up. Black is the scheduler's night face. Everything
+// else ships as modules — see the note by the includes above.
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
+  PATTERN_ENTRY(Black),
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 

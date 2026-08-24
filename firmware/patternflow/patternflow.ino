@@ -25,6 +25,11 @@
 // Also after the registry: MQTT resolves inbound pattern names against it.
 #include "src/core_mqtt.h"
 #include "src/core_mqtt_http.h"
+// On-device show player (.pfs cue tables on FFat) + its night/wake
+// scheduler. After MQTT: cues apply through the same hold helpers.
+#include "src/core_show.h"
+#include "src/core_show_schedule.h"
+#include "src/core_show_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -280,6 +285,10 @@ void setup() {
     // the normal broker does.
     PatternflowMqtt::applySavedMode();
   }
+  // Wall clock (NTP + saved UTC offset) and the night/wake schedule that
+  // depends on it. NTP itself starts once Wi-Fi is up.
+  PatternflowClock::loadConfig();
+  PatternflowShowSchedule::begin();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -826,8 +835,17 @@ void readInputFrame(InputFrame& input) {
   // (Director / Show manager yield to hands-on control). Checked here, before
   // OSC/MQTT/audio deltas are merged in, so only real knobs release — and
   // core_mqtt's grace window ignores chatter right after an absolute set.
+  // The same motion dismisses a wake/snooze alarm cycle.
+  bool physMove = false;
   for (int i = 0; i < 4; i++) {
-    if (input.knobDeltas[i] != 0) PatternflowMqtt::releaseAbsolute(i);
+    if (input.knobDeltas[i] != 0) {
+      PatternflowMqtt::releaseAbsolute(i);
+      physMove = true;
+    }
+  }
+  if (physMove && !brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
+      !updateShowing) {
+    PatternflowShowSchedule::noteInteraction();
   }
 
   for (int i = 0; i < 4; i++) {
@@ -923,6 +941,7 @@ void loop() {
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     PatternflowMqttHttp::begin();
+    PatternflowShowHttp::begin();
     PatternflowMqtt::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
@@ -948,6 +967,8 @@ void loop() {
   // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
   // an unreachable broker costs one comparison per loop, not a stall.
   PatternflowMqtt::handle();
+  // Advance the running .pfs cue table (no-op when nothing is playing).
+  PatternflowShow::tick();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -968,6 +989,12 @@ void loop() {
   bool k2Clicked = logicalButton(1)->clicked();
   bool k3Clicked = logicalButton(2)->clicked();
   bool k4Clicked = logicalButton(3)->clicked();
+  // Any click during a wake/snooze alarm cycle dismisses it — the person in
+  // the room outranks the schedule.
+  if (!brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
+      !updateShowing && (k1Clicked || k2Clicked || k3Clicked || k4Clicked)) {
+    PatternflowShowSchedule::noteInteraction();
+  }
 
   // ── SLEEP ──────────────────────────────────────────────────────────
   // Remote requests land here, not in the MQTT callback that produced them:
@@ -1229,6 +1256,7 @@ void loop() {
 
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
+      PatternflowShowSchedule::noteInteraction();
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
@@ -1267,9 +1295,12 @@ void loop() {
 
   // Apply OSC-driven pattern / content changes from the most recent
   // received packet. Knob deltas were already merged into the input
-  // frame inside readInputFrame().
+  // frame inside readInputFrame(). While a show is playing, the show owns
+  // pattern selection — remote pickers wait their turn.
   int oscPatternIdx;
-  if (PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
+  if (!PatternflowPatternsHttp::isConsolePaused() &&
+      !PatternflowShow::isPlaying() &&
+      PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
       oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
       activatePattern(oscPatternIdx)) {
     currentPatternIdx = oscPatternIdx;
@@ -1280,11 +1311,38 @@ void loop() {
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
+  // Night/wake scheduler: may queue Black or start the wake sequence.
+  int showPatternIdx;
+  if (!PatternflowPatternsHttp::isConsolePaused()) {
+    PatternflowShowSchedule::tick(currentContentName(),
+                                  currentMode == MODE_RUNNING);
+  }
+  // Show playback must be able to load a module even if Home/Patterns left
+  // the console-pause flag set — /show is a player, not a library editor.
+  if (PatternflowShow::consumePatternIdx(showPatternIdx) &&
+      showPatternIdx >= 0 && showPatternIdx < NUM_PATTERNS) {
+    PatternflowPatternsHttp::releaseConsolePause();
+    if (activatePattern(showPatternIdx)) {
+      currentPatternIdx = showPatternIdx;
+      currentMode = MODE_RUNNING;
+      if (!patterns[showPatternIdx].name ||
+          strcmp(patterns[showPatternIdx].name, "Black") != 0) {
+        contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+      }
+      CalibPattern::overrideOn = false;
+      Serial.printf(">>> SHOW pattern → %s\n", patterns[currentPatternIdx].name);
+    } else {
+      Serial.printf(">>> SHOW pattern failed idx=%d\n", showPatternIdx);
+    }
+  }
+
   // Same contract again, fed by a retained <prefix>/pattern message. The
   // name was already resolved to an index inside core_mqtt.h, so a rename
   // on the broker side cannot select the wrong slot here.
   int mqttPatternIdx;
-  if (PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
+  if (!PatternflowPatternsHttp::isConsolePaused() &&
+      !PatternflowShow::isPlaying() &&
+      PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
       mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
       activatePattern(mqttPatternIdx)) {
     currentPatternIdx = mqttPatternIdx;
@@ -1297,7 +1355,8 @@ void loop() {
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
   int httpPatternIdx;
-  if (PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
+  if (!PatternflowShow::isPlaying() &&
+      PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
       activatePattern(httpPatternIdx)) {
     currentPatternIdx = httpPatternIdx;
@@ -1370,6 +1429,11 @@ void loop() {
     updateActivePattern(dt, input);
     drawActivePattern();
     drawMqttMessageOverlay();
+    // Scheduler-owned clock face, drawn over Black only (dim night clock or
+    // the big snooze face).
+    if (currentContentName() && strcmp(currentContentName(), "Black") == 0) {
+      PatternflowShowSchedule::drawOwnedClock();
+    }
 
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();
