@@ -6,8 +6,7 @@
 import {
   PATTERN_MATRIX_HEIGHT,
   PATTERN_MATRIX_WIDTH,
-  buildRampLUT,
-  type ColorRamp,
+  buildRampLUTRGBA,
 } from "@/lib/patternHarness";
 import { knobDetentStep } from "@/lib/patternflowControls";
 import { withMatrixAnnotation, type MatrixSize } from "@/lib/patternMatrix";
@@ -27,9 +26,16 @@ export type CppPromptArgs = {
   knobLabels: string[];
   ramp: RampState;
   /**
+   * The layer's Recolor toggle: the preview replaces every drawn pixel's
+   * color with ramp[luminance], so the C++ must do the same at each write.
+   * Ignored for value-field patterns (the ramp already IS their color).
+   */
+  recolor?: boolean;
+  /**
    * Flattened layer stacks contain display.setValue INSIDE embedded layers,
    * but their top-level contract is plain setPixel with every LUT already
-   * baked in as arrays — so the value-field/ramp prompt section must not fire.
+   * baked in as arrays — so the value-field/ramp/recolor prompt sections
+   * must not fire.
    */
   forceRgb?: boolean;
 };
@@ -41,6 +47,7 @@ export function buildCppPrompt({
   ranges,
   knobLabels,
   ramp,
+  recolor,
   forceRgb,
 }: CppPromptArgs) {
   // ── Frame ──
@@ -77,30 +84,50 @@ export function buildCppPrompt({
   // ignores comments/strings, so an RGB pattern whose comments quote the
   // setValue API keeps its own colors instead of being forced onto the ramp.
   const usesValueField = !forceRgb && codeUsesValueField(code);
-  let rampSection = "";
-  if (usesValueField) {
-    const harnessRamp: ColorRamp = rampStateToHarness(ramp);
-    const lut = buildRampLUT(harnessRamp);
-    const lutRows: string[] = [];
+  const recolors = !forceRgb && !usesValueField && recolor === true;
+
+  // Both ramp modes bake the SAME table: buildRampLUTRGBA with each entry's
+  // alpha premultiplied into its RGB — the web shows the ramp composited
+  // over the opaque black panel, so this table is exactly what the preview
+  // renders, per-stop alpha included.
+  const bakedLutRows = (): string[] => {
+    const lut = buildRampLUTRGBA(rampStateToHarness(ramp));
+    const rows: string[] = [];
     for (let i = 0; i < 256; i += 8) {
       const entries: string[] = [];
       for (let j = i; j < i + 8; j++) {
-        entries.push(`{${lut[j * 3]},${lut[j * 3 + 1]},${lut[j * 3 + 2]}}`);
+        const alpha = lut[j * 4 + 3] / 255;
+        entries.push(
+          `{${Math.round(lut[j * 4] * alpha)},${Math.round(lut[j * 4 + 1] * alpha)},${Math.round(
+            lut[j * 4 + 2] * alpha,
+          )}}`,
+        );
       }
-      lutRows.push(`  ${entries.join(",")},`);
+      rows.push(`  ${entries.join(",")},`);
     }
-    const sortedStops = [...ramp.stops].sort((a, b) => a.position - b.position);
-    const stopSummary = sortedStops
-      .map((stop) => `${stop.position.toFixed(3)}:${stop.color}`)
+    return rows;
+  };
+  const stopSummary = () =>
+    [...ramp.stops]
+      .sort((a, b) => a.position - b.position)
+      .map(
+        (stop) =>
+          `${stop.position.toFixed(3)}:${stop.color}${
+            stop.alpha !== 1 ? `@${stop.alpha.toFixed(2)}` : ""
+          }`,
+      )
       .join(", ");
+
+  let rampSection = "";
+  if (usesValueField) {
     rampSection = `
 ## Color ramp (value-field pattern) — PRE-BAKED, copy verbatim
-This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user's color ramp has already been baked into the 256-entry RGB lookup table below (it encodes the stops, interpolation mode, and wrap exactly as the web preview renders them).
+This pattern writes a scalar field via display.setValue(x, y, v) with v in 0..1 and has NO color logic of its own. The user's color ramp has already been baked into the 256-entry RGB lookup table below (it encodes the stops, per-stop alpha, interpolation mode, and wrap exactly as the web preview renders them over the black panel).
 
 Embed this table in the namespace EXACTLY as given:
 
 static const uint8_t RAMP_LUT[256][3] = {
-${lutRows.join("\n")}
+${bakedLutRows().join("\n")}
 };
 
 Rules:
@@ -109,7 +136,26 @@ Rules:
     int li = (int)(v * 255.0f + 0.5f);
     PFCanvas::setPixel(x, y, RAMP_LUT[li][0], RAMP_LUT[li][1], RAMP_LUT[li][2]);
 - Do NOT use PFColor:: functions for this pattern's colors; the LUT replaces all color work.
-- (Reference only, for the header comment: stops ${stopSummary}; mode ${ramp.mode}; wrap ${ramp.wrap ? "on" : "off"}.)
+- (Reference only, for the header comment: stops ${stopSummary()}; mode ${ramp.mode}; wrap ${ramp.wrap ? "on" : "off"}.)
+`;
+  } else if (recolors) {
+    rampSection = `
+## Recolor (RGB pattern through the ramp) — PRE-BAKED, copy verbatim
+This pattern computes its own RGB colors, and the user has RECOLOR enabled in Pattern Lab: the live preview replaces every drawn pixel's color with ramp[luminance of that color]. Your C++ must do the same or the hardware will not match the preview.
+
+Embed this table in the namespace EXACTLY as given:
+
+static const uint8_t RAMP_LUT[256][3] = {
+${bakedLutRows().join("\n")}
+};
+
+Rules:
+- Copy the table verbatim — do NOT recompute, resample, reorder, shorten, or "optimize" it, and do NOT write any stop/interpolation/sorting code. The table IS the ramp (per-stop alpha already baked in).
+- Keep ALL of the pattern's own color logic exactly as the JS computes it — the r, g, b it produces drive the lookup. Convert at the write, every time:
+    int lum = (int)(0.2126f * r + 0.7152f * g + 0.0722f * b + 0.5f);
+    PFCanvas::setPixel(x, y, RAMP_LUT[lum][0], RAMP_LUT[lum][1], RAMP_LUT[lum][2]);
+- EVERY pixel write goes through the table; never write the raw r, g, b. A pixel the pattern deliberately draws black becomes RAMP_LUT[0] — that is correct and matches the preview. Pixels the pattern never draws stay unlit; do NOT sweep the whole frame through the LUT.
+- (Reference only, for the header comment: stops ${stopSummary()}; mode ${ramp.mode}; wrap ${ramp.wrap ? "on" : "off"}.)
 `;
   }
 
@@ -119,7 +165,11 @@ ${
     ? `
 NOTE: the JS pattern draws with display.setValue(x, y, v) — a 0..1 value field colored by a lookup ramp (see "Color ramp" section below). There is no setPixel in the source; your C++ maps v through the baked ramp LUT and writes the resulting RGB with PFCanvas::setPixel.
 `
-    : ""
+    : recolors
+      ? `
+NOTE: the JS pattern computes its own RGB via display.setPixel, and Pattern Lab's RECOLOR toggle is ON — the preview maps every drawn color through a ramp by luminance. Translate the pattern's color logic as written, then route each pixel write through the baked RAMP_LUT (see the "Recolor" section below).
+`
+      : ""
 }
 
 ## Output format
@@ -265,11 +315,13 @@ Before finalizing your code block, verify each of these. If any answer is wrong,
 8b. Is there per-pixel math whose result depends only on x, y, or a constant? If yes, move it into a table built in setup() — memory is cheap here and the pixel loop is not.${
     usesValueField
       ? "\n9. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), and does draw() get every color exclusively from RAMP_LUT with no other color code?"
-      : ""
+      : recolors
+        ? "\n9. Did I paste the RAMP_LUT table verbatim (all 256 entries, unchanged), does EVERY PFCanvas::setPixel take its color from RAMP_LUT[lum] with lum computed from the pattern's own r/g/b, and did I keep the pattern's color logic intact ahead of the lookup?"
+        : ""
   }${
     isPanelFrame
       ? ""
-      : `\n${usesValueField ? "10" : "9"}. Is PFCanvas::setFrame(FRAME_W, FRAME_H) the first line of draw(), do all loops run over FRAME_W/FRAME_H, and did I avoid transforming the coordinates myself or touching PFTables?`
+      : `\n${usesValueField || recolors ? "10" : "9"}. Is PFCanvas::setFrame(FRAME_W, FRAME_H) the first line of draw(), do all loops run over FRAME_W/FRAME_H, and did I avoid transforming the coordinates myself or touching PFTables?`
   }
 
 ## JavaScript source

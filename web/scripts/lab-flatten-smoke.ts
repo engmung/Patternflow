@@ -399,6 +399,21 @@ export function draw(display, params, time) {
   if (rgbPrompt.includes("RAMP_LUT")) failures.push("RGB pattern's prompt still carries the ramp LUT");
   if (!vfieldPrompt.includes("RAMP_LUT")) failures.push("value-field pattern's prompt lost the ramp LUT");
 
+  // Recolor: an RGB pattern with the toggle ON carries the baked LUT and the
+  // luminance-lookup contract — but never the value-field framing; a value
+  // field with recolor on stays a value field.
+  const recolorPrompt = buildCppPrompt({ code: rgbWithGuideComment, ...promptArgs, recolor: true });
+  if (!recolorPrompt.includes("## Recolor") || !recolorPrompt.includes("RAMP_LUT")) {
+    failures.push("recolor prompt is missing its section or LUT");
+  }
+  if (recolorPrompt.includes("no setPixel in the source")) {
+    failures.push("recolor prompt slipped into the value-field framing");
+  }
+  const vfieldRecolor = buildCppPrompt({ code: realValueField, ...promptArgs, recolor: true });
+  if (vfieldRecolor.includes("## Recolor")) {
+    failures.push("value field with recolor should keep the value-field section only");
+  }
+
   if (failures.length > 0) {
     console.error("VALUE-FIELD DETECTION SMOKE FAILED:", failures);
     process.exit(1);
