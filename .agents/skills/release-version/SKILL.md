@@ -21,4 +21,8 @@ Follow these steps to finalize and tag a new release:
 6. **Tag** the release: `git tag -a v1.x.0 -m "Release v1.x.0"`.
 7. **Push tags:** `git push --tags`.
 8. **Remind the user** to create a GitHub Release from the tag manually in their browser.
+9. **Check the Home Assistant asset.** Publishing the release triggers the `Home Assistant Release`
+   workflow, which attaches `patternflow-homeassistant.zip`. HACS resolves to the newest release of
+   the whole repository, so a release missing that asset breaks installation for everyone until the
+   next one. Re-run the workflow manually if it did not fire.
 

@@ -1,16 +1,19 @@
 name: Home Assistant CI
 
 # Lint + test the Home Assistant integration so broken code can't reach main.
-# Only runs when something under integrations/homeassistant/ (or this workflow)
-# changes — same shape as web-ci.yml.
+# The component sits at custom_components/patternflow/ because that is the only
+# place HACS looks; its tests, config and scripts stay in integrations/homeassistant/.
+# Both have to trigger this, or a change to the integration runs no CI at all.
 on:
   pull_request:
     paths:
+      - "custom_components/patternflow/**"
       - "integrations/homeassistant/**"
       - ".github/workflows/ha-ci.yml"
   push:
     branches: [main]
     paths:
+      - "custom_components/patternflow/**"
       - "integrations/homeassistant/**"
       - ".github/workflows/ha-ci.yml"
 
@@ -39,12 +42,17 @@ jobs:
       - name: Install dependencies
         run: pip install ".[dev]"
 
-      # Lint is a hard gate: lint errors can't reach main.
+      # Lint is a hard gate: lint errors can't reach main. The component has to
+      # be named explicitly now that it sits outside this working directory, or
+      # it stops being linted and CI stays green about it. --config pins the
+      # config rather than leaning on ruff resolving it from the working
+      # directory: a pyproject.toml appearing at the repository root later would
+      # be the closer ancestor for custom_components/, and would quietly take over.
       - name: Lint
-        run: ruff check .
+        run: ruff check --config pyproject.toml . ../../custom_components/patternflow
 
       - name: Format
-        run: ruff format --check .
+        run: ruff format --check --config pyproject.toml . ../../custom_components/patternflow
 
       # The suite deliberately does not need Home Assistant installed — it
       # covers the REST client, the pure translations, and the metadata that

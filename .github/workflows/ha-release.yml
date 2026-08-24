@@ -1,0 +1,85 @@
+name: Home Assistant Release
+
+# Attach the HACS download to a published release.
+#
+# This runs on EVERY release, not only ones that touched the integration. HACS
+# resolves a repository to the newest non-prerelease of the whole repo and
+# ignores tag names, so a firmware-only vX.Y.Z without this asset is a release
+# HACS will happily point at and then fail to download.
+on:
+  release:
+    types: [published]
+  # For a run that failed, or a release published before this workflow existed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build the asset for (e.g. v3.6.0)"
+        required: true
+
+concurrency:
+  group: ha-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  zip:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      # The tag becomes the version people see in Home Assistant, so a tag that
+      # isn't a release version is a mistake worth stopping on rather than
+      # shipping. A prerelease suffix is allowed: GitHub fires `published` for
+      # prereleases too, and HACS offers them to anyone who turned on beta
+      # versions, so those want the asset as much as a final release does.
+      - name: Check the tag looks like a release
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "::error::'$TAG' is not a vX.Y.Z release tag"
+            exit 1
+          }
+
+      # docs/RELEASING.md: one unified version across firmware, PCB, case, web
+      # and docs. The integration follows it rather than keeping its own stream.
+      # Stamped into the archive only; the committed manifest.json is untouched.
+      - name: Stamp the project version into the manifest
+        run: |
+          VERSION="${TAG#v}"
+          MANIFEST=custom_components/patternflow/manifest.json
+          jq --arg v "$VERSION" '.version = $v' "$MANIFEST" > "$MANIFEST.tmp"
+          mv "$MANIFEST.tmp" "$MANIFEST"
+          echo "manifest version is now $(jq -r .version "$MANIFEST")"
+
+      # Built from INSIDE the component directory on purpose. HACS extracts this
+      # straight into config/custom_components/patternflow with no path
+      # stripping, so anything nested here installs one directory too deep.
+      - name: Build the archive
+        run: |
+          cd custom_components/patternflow
+          zip -r -X "$GITHUB_WORKSPACE/patternflow-homeassistant.zip" . \
+            -x '*__pycache__*' '*.pyc'
+
+      # The layout above is the one thing that cannot be caught after the fact:
+      # a wrong archive installs quietly and leaves a broken integration behind.
+      - name: Check the archive layout
+        run: |
+          unzip -Z1 patternflow-homeassistant.zip | sed 's|^\./||' > entries.txt
+          for required in manifest.json __init__.py www/patternflow-card.js; do
+            grep -qx "$required" entries.txt || {
+              echo "::error::$required is not at the archive root"
+              sed -n '1,20p' entries.txt
+              exit 1
+            }
+          done
+          echo "$(wc -l < entries.txt) entries, manifest.json at the root"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" patternflow-homeassistant.zip --clobber

@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE = Path(__file__).parent.parent / "custom_components" / "patternflow"
+PACKAGE = Path(__file__).resolve().parents[3] / "custom_components" / "patternflow"
 
 REQUIRED_MANIFEST_KEYS = {
     "domain",

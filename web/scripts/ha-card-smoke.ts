@@ -18,10 +18,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 const WEB = process.cwd();
-const OUT = path.resolve(
-  WEB,
-  "../integrations/homeassistant/custom_components/patternflow/www",
-);
+const OUT = path.resolve(WEB, "../custom_components/patternflow/www");
 
 /** Messages the card sends; every one has to be handled by the sandbox. */
 const SENT = ["pf-load", "pf-knobs", "pf-run"];
