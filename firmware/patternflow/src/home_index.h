@@ -185,17 +185,22 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
       <div class="pf-row-t">Pattern library</div>
       <div class="pf-row-d">Drop in a <b>.pfm</b> module or a whole <b>.zip</b> pack &mdash; play, arrange, delete.</div>
     </a>
+    <a class="pf-row" href="/show">
+      <span class="pf-ghost">02</span>
+      <div class="pf-row-t">Sequences</div>
+      <div class="pf-row-d">Timed shows from <b>.pfs</b> tables &mdash; play one, chain a playlist, schedule night and wake.</div>
+    </a>
   </nav>
 
   <span class="pf-kicker">Setup</span>
   <nav>
     <a class="pf-row" href="/wifi">
-      <span class="pf-ghost">02</span>
+      <span class="pf-ghost">03</span>
       <div class="pf-row-t">Wi-Fi</div>
       <div class="pf-row-d">Remember several networks &mdash; the device joins whichever one it finds.</div>
     </a>
     <a class="pf-row" href="/mqtt">
-      <span class="pf-ghost">03</span>
+      <span class="pf-ghost">04</span>
       <div class="pf-row-t">MQTT</div>
       <div class="pf-row-d">Mirror one panel onto another, or hand the knobs to home automation.</div>
     </a>
@@ -204,12 +209,12 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   <span class="pf-kicker">Device</span>
   <nav>
     <a class="pf-row" href="/update">
-      <span class="pf-ghost">04</span>
+      <span class="pf-ghost">05</span>
       <div class="pf-row-t">Firmware update</div>
       <div class="pf-row-d">Drop a .bin &mdash; the device flashes itself over the LAN and reboots. Patterns and Wi-Fi are untouched.</div>
     </a>
     <a class="pf-row" href="/status">
-      <span class="pf-ghost">05</span>
+      <span class="pf-ghost">06</span>
       <div class="pf-row-t">Status</div>
       <div class="pf-row-d">Frame rate, memory, storage and network &mdash; what the device is actually doing.</div>
     </a>
@@ -218,9 +223,14 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   <span class="pf-kicker">Experimental</span>
   <nav>
     <a class="pf-row" href="/audio">
-      <span class="pf-ghost">06</span>
+      <span class="pf-ghost">07</span>
       <div class="pf-row-t">Audio sync<span class="tag">Early</span></div>
       <div class="pf-row-d">Stream music from this browser &mdash; four FFT bands drive the four knobs. Rough, and due a rework.</div>
+    </a>
+    <a class="pf-row" href="/weather">
+      <span class="pf-ghost">08</span>
+      <div class="pf-row-t">Weather<span class="tag">Early</span></div>
+      <div class="pf-row-d">Clock, timezone and local readings &mdash; can drive the knobs from the sky outside.</div>
     </a>
   </nav>
   </div>

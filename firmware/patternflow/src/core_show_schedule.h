@@ -18,7 +18,7 @@
 #include "core_mqtt.h"
 #include "core_show.h"
 #include "core_ui_text.h"
-#include "core_clock.h"
+#include "core_weather.h"
 #include "../pattern_registry.h"
 
 namespace PatternflowShowSchedule {
@@ -71,14 +71,14 @@ inline void goBlack(Black::Face f) {
 }
 
 inline void enterNight() {
-  PatternflowShow::stop();
+  PatternflowShow::stopAll();
   PatternflowMqtt::applyHeldMessage("");
   phase = Night;
   goBlack(nightClock ? Black::Dim : Black::Off);
 }
 
 inline void enterSnooze() {
-  PatternflowShow::stop();
+  PatternflowShow::stopAll();
   PatternflowMqtt::applyHeldMessage("");
   phase = Snooze;
   snoozeAtMs = millis();
@@ -86,7 +86,7 @@ inline void enterSnooze() {
 }
 
 inline void startWake() {
-  lastWakeDay = PatternflowClock::localDayKey();
+  lastWakeDay = PatternflowWeather::localDayKey();
   setFace(Black::Off);
   phase = Wake;
   PatternflowMqtt::applyHeldMessage("");
@@ -103,7 +103,7 @@ inline void startWake() {
 inline void noteInteraction() {
   if (phase != Wake && phase != Snooze) return;
   bool wasSnooze = (phase == Snooze);
-  PatternflowShow::stop();
+  PatternflowShow::stopAll();
   PatternflowShow::consumeFinished();
   setFace(Black::Off);
   phase = Idle;
@@ -191,7 +191,7 @@ inline bool applyConfig(bool en, const char* nightAt, const char* wakeAt,
   save();
   if (!enabled) {
     PatternflowShow::consumeFinished();
-    if (phase == Wake) PatternflowShow::stop();
+    if (phase == Wake) PatternflowShow::stopAll();
     setFace(Black::Off);
     phase = Idle;
   }
@@ -210,10 +210,10 @@ inline void tick(const char* currentName, bool running) {
 
   if (phase == Wake) PatternflowShow::setLoop(false);
 
-  if (!PatternflowClock::timeSynced()) return;
+  if (!PatternflowWeather::timeSynced()) return;
 
-  int nowM = PatternflowClock::localMinutes();
-  int day = PatternflowClock::localDayKey();
+  int nowM = PatternflowWeather::localMinutes();
+  int day = PatternflowWeather::localDayKey();
   bool night = inNightWindow(nowM);
   bool playing = PatternflowShow::isPlaying();
 
@@ -246,13 +246,13 @@ inline void tick(const char* currentName, bool running) {
 
 inline void drawOwnedClock() {
   if (Black::face == Black::Off) return;
-  if (!PatternflowClock::timeSynced()) return;
+  if (!PatternflowWeather::timeSynced()) return;
   if (!dma_display) return;
 
   char buf[12];
   snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
-           PatternflowClock::localHour(), PatternflowClock::localMinute(),
-           PatternflowClock::localSecond());
+           PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
+           PatternflowWeather::localSecond());
 
   uint8_t level = 245;
   if (Black::face == Black::Dim) {
@@ -263,19 +263,14 @@ inline void drawOwnedClock() {
   }
   const uint16_t ink = dma_display->color565(level, level, level);
 
-  // Fork draws this with its TomThumb title font; that rework is not ported
-  // (needs eyes on hardware), so use the stock GFX font — size 2 for the
-  // big face, 1 for the dim night clock.
+  uiUseTitleFont();
   int16_t x1, y1;
   uint16_t w, h;
-  dma_display->setTextSize(Black::face == Black::Big ? 2 : 1);
-  dma_display->getTextBounds(buf, 0, 0, &x1, &y1, &w, &h);
+  uiTitleTextBounds(buf, &x1, &y1, &w, &h);
   int x = (dma_display->width() - (int)w) / 2;
   int y = (dma_display->height() - (int)h) / 2;
-  dma_display->setTextColor(ink);
-  dma_display->setCursor(x - x1, y - y1);
-  dma_display->print(buf);
-  dma_display->setTextSize(1);
+  uiDrawOutlinedTitleAtBaseline(buf, x - x1, y - y1, ink);
+  uiUseDefaultFont();
 }
 
 inline uint32_t snoozeRemainingMs() {

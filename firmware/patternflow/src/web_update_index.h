@@ -94,7 +94,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 
 <main class="panel">
   <div class="top">
-    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update" class="here">Update</a></nav>
+    <nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update" class="here">Update</a></nav>
     <span id="pill">&hellip;</span>
   </div>
 

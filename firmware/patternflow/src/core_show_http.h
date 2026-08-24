@@ -3,6 +3,7 @@
 //
 //   GET    /show
 //   GET    /api/shows
+//   GET    /api/shows/status   playhead / mode only (no FatFS catalog scan)
 //   PUT    /api/shows          raw .pfs, filename in X-PF-Name
 //   POST   /api/shows/control  op=play|stop|loop  slug=  loop=0|1
 //   POST   /api/shows/schedule night/wake fields
@@ -23,8 +24,9 @@
 
 #if PF_SHOW_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
-#include <WebServer.h>
+#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
+#include "core_mem.h"
 #include "core_send.h"
 #include "core_show.h"
 #include "core_show_schedule.h"
@@ -42,11 +44,13 @@ constexpr size_t PUT_MAX =
     PatternflowShow::HEADER_BYTES + PatternflowShow::MAX_POOL +
     (size_t)PatternflowShow::MAX_CUES * PatternflowShow::CUE_BYTES;
 
-// 8.3 KB — same rule as the player's cue table: never a static array.
-// Internal DRAM is the console's lifeline (~15 KB at runtime), and this
-// buffer is touched only while a .pfs upload is in flight. PSRAM, lazily.
 inline uint8_t* putBuf = nullptr;
 inline size_t putLen = 0;
+
+inline bool ensurePutBuf() {
+  if (!putBuf) putBuf = (uint8_t*)PFMem::alloc(PUT_MAX);
+  return putBuf != nullptr;
+}
 inline bool putFailed = false;
 inline char putError[80] = {};
 inline char putSlug[PatternflowShow::SLUG_BYTES] = {};
@@ -114,7 +118,46 @@ inline void appendStatus(String& json) {
     json += '"';
   }
   json += "]";
-  json += ",\"schedEnabled\":";
+  json += ",\"playlist\":";
+  json += PatternflowShow::isPlaylist() ? "true" : "false";
+  json += ",\"playlistLoop\":";
+  json += PatternflowShow::playlistLoops() ? "true" : "false";
+  json += ",\"playlistIndex\":";
+  json += (int)PatternflowShow::playlistPos();
+  json += ",\"playlistCount\":";
+  json += (int)PatternflowShow::playlistSize();
+  json += ",\"playlistSlugs\":[";
+  for (uint8_t i = 0; i < PatternflowShow::playlistSize(); i++) {
+    if (i) json += ',';
+    json += '"';
+    jsonEscape(json, PatternflowShow::playlistSlugAt(i));
+    json += '"';
+  }
+  json += "]";
+  json += ",\"sequenceMode\":";
+  json += PatternflowShow::isSequenceMode() ? "true" : "false";
+  json += ",\"storedCount\":";
+  json += (int)PatternflowShow::storedSize();
+  json += ",\"storedLoop\":";
+  json += PatternflowShow::storedLoops() ? "true" : "false";
+  json += ",\"storedSlugs\":[";
+  for (uint8_t i = 0; i < PatternflowShow::storedSize(); i++) {
+    if (i) json += ',';
+    json += '"';
+    jsonEscape(json, PatternflowShow::storedSlugAt(i));
+    json += '"';
+  }
+  json += "]";
+  json += ",\"variance\":";
+  json += PatternflowShow::varianceOn() ? "true" : "false";
+  json += ",\"varianceCue\":";
+  json += (int)PatternflowShow::varianceCueIdx();
+  json += ",\"varianceParam\":";
+  json += (int)PatternflowShow::varianceParamIdx();
+  if (PatternflowShow::varianceRolledOk()) {
+    json += ",\"varianceValue\":";
+    json += (int)PatternflowShow::varianceValue();
+  }  json += ",\"schedEnabled\":";
   json += PatternflowShowSchedule::enabled ? "true" : "false";
   json += ",\"nightAt\":\"";
   {
@@ -140,18 +183,16 @@ inline void appendStatus(String& json) {
   json += PatternflowShowSchedule::nightClock ? "true" : "false";
   json += ",\"nightDim\":";
   json += (int)PatternflowShowSchedule::nightDimPct;
-  json += ",\"tzMin\":";
-  json += (int)PatternflowClock::timezoneOffsetMin();
   json += ",\"phase\":\"";
   json += PatternflowShowSchedule::phaseName();
   json += "\",\"timeSynced\":";
-  json += PatternflowClock::timeSynced() ? "true" : "false";
+  json += PatternflowWeather::timeSynced() ? "true" : "false";
   json += ",\"localTime\":\"";
-  if (PatternflowClock::timeSynced()) {
+  if (PatternflowWeather::timeSynced()) {
     char tbuf[12];
     snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d",
-             PatternflowClock::localHour(), PatternflowClock::localMinute(),
-             PatternflowClock::localSecond());
+             PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
+             PatternflowWeather::localSecond());
     json += tbuf;
   }
   json += "\",\"snoozeMs\":";
@@ -173,17 +214,24 @@ inline bool isPfsPath(const char* path) {
          (ext[3] == 's' || ext[3] == 'S');
 }
 
-inline void handleList() {
-  String json;
-  json.reserve(2048);
-  json = "{";
-  appendStatus(json);
-  json += ",\"shows\":[";
-  bool first = true;
-  // Same listing contract as scanModules(): path() + close the iterator,
-  // then reopen. Reading the PFST header from the directory File skips
-  // every entry on this FatFS (openNextFile is a name, not a readable
-  // stream), which is why uploads said "stored" and the list stayed empty.
+// Catalog cache: /show used to re-open every .pfs header on each 1 Hz poll,
+// which stuttered playback with ~24 demos. Invalidate only on put/delete.
+constexpr uint8_t SHOW_CACHE_MAX = 48;
+struct ShowCacheEntry {
+  char slug[PatternflowShow::SLUG_BYTES];
+  char title[32];
+  uint16_t length;
+  uint16_t cues;
+  bool loop;
+};
+inline ShowCacheEntry showCache[SHOW_CACHE_MAX] = {};
+inline uint8_t showCacheCount = 0;
+inline bool showCacheValid = false;
+
+inline void invalidateShowCache() { showCacheValid = false; }
+
+inline void rebuildShowCache() {
+  showCacheCount = 0;
   File dir = FFat.open(PatternflowShow::SHOW_DIR);
   if (dir && dir.isDirectory()) {
     File entry = dir.openNextFile();
@@ -193,38 +241,81 @@ inline void handleList() {
       bool take = path && !entry.isDirectory() && isPfsPath(path);
       if (take) snprintf(stored, sizeof(stored), "%s", path);
       entry.close();
-      if (take) {
+      if (take && showCacheCount < SHOW_CACHE_MAX) {
         char slug[PatternflowShow::SLUG_BYTES];
         if (slugFromName(stored, slug, sizeof(slug))) {
-          PatternflowShow::ShowHeader hdr = {};
-          bool haveHdr = false;
+          ShowCacheEntry& e = showCache[showCacheCount];
+          snprintf(e.slug, sizeof(e.slug), "%s", slug);
+          e.title[0] = '\0';
+          e.length = 0;
+          e.cues = 0;
+          e.loop = false;
           File file = FFat.open(stored, "r");
           if (file) {
-            haveHdr = file.read((uint8_t*)&hdr, sizeof(hdr)) == sizeof(hdr) &&
-                      memcmp(hdr.magic, "PFST", 4) == 0;
-            hdr.title[31] = '\0';
-            hdr.id[31] = '\0';
+            PatternflowShow::ShowHeader hdr = {};
+            if (file.read((uint8_t*)&hdr, sizeof(hdr)) == sizeof(hdr) &&
+                memcmp(hdr.magic, "PFST", 4) == 0) {
+              hdr.title[31] = '\0';
+              snprintf(e.title, sizeof(e.title), "%s",
+                       hdr.title[0] ? hdr.title : slug);
+              // Seconds regardless of table version — v2 headers count
+              // deciseconds (see core_show.h).
+              e.length = (hdr.version == PatternflowShow::VERSION2)
+                             ? (uint16_t)(hdr.length / 10)
+                             : hdr.length;
+              e.cues = hdr.cueCount;
+              e.loop = (hdr.flags & 1) != 0;
+            }
             file.close();
           }
-          if (!first) json += ',';
-          first = false;
-          json += "{\"slug\":\"";
-          jsonEscape(json, slug);
-          json += "\",\"title\":\"";
-          jsonEscape(json, haveHdr && hdr.title[0] ? hdr.title : slug);
-          json += "\",\"length\":";
-          json += haveHdr ? hdr.length : 0;
-          json += ",\"cues\":";
-          json += haveHdr ? hdr.cueCount : 0;
-          json += ",\"loop\":";
-          json += (haveHdr && (hdr.flags & 1)) ? "true" : "false";
-          json += '}';
+          if (!e.title[0]) snprintf(e.title, sizeof(e.title), "%s", slug);
+          showCacheCount++;
         }
       }
+      yield();
       entry = dir.openNextFile();
     }
   }
   if (dir) dir.close();
+  showCacheValid = true;
+}
+
+inline void appendShowsArray(String& json) {
+  if (!showCacheValid) rebuildShowCache();
+  for (uint8_t i = 0; i < showCacheCount; i++) {
+    if (i) json += ',';
+    const ShowCacheEntry& e = showCache[i];
+    json += "{\"slug\":\"";
+    jsonEscape(json, e.slug);
+    json += "\",\"title\":\"";
+    jsonEscape(json, e.title);
+    json += "\",\"length\":";
+    json += e.length;
+    json += ",\"cues\":";
+    json += e.cues;
+    json += ",\"loop\":";
+    json += e.loop ? "true" : "false";
+    json += '}';
+  }
+}
+
+inline void handleStatus() {
+  String json;
+  json.reserve(768);
+  json = "{";
+  appendStatus(json);
+  json += '}';
+  sendJson(200, json);
+}
+
+inline void handleList() {
+  if (!showCacheValid) rebuildShowCache();
+  String json;
+  json.reserve(512 + (size_t)showCacheCount * 96);
+  json = "{";
+  appendStatus(json);
+  json += ",\"shows\":[";
+  appendShowsArray(json);
   json += "]}";
   sendJson(200, json);
 }
@@ -234,7 +325,7 @@ inline void handleControl() {
   op.toLowerCase();
   if (op == "stop") {
     PatternflowShowSchedule::noteInteraction();
-    PatternflowShow::stop();
+    PatternflowShow::enterNormalMode(true);
     String json = "{\"ok\":true,";
     appendStatus(json);
     json += '}';
@@ -242,7 +333,69 @@ inline void handleControl() {
     return;
   }
   if (op == "loop") {
-    PatternflowShow::setLoop(server().arg("loop") == "1");
+    // Single-sequence loop only when not in a multi-.pfs playlist.
+    if (!PatternflowShow::isPlaylist()) {
+      PatternflowShow::setLoop(server().arg("loop") == "1");
+    } else {
+      bool on = server().arg("loop") == "1";
+      PatternflowShow::playlistLoop = on;
+      PatternflowShow::storedLoop = on;
+      PatternflowShow::savePrefs();
+    }
+    String json = "{\"ok\":true,";
+    appendStatus(json);
+    json += '}';
+    sendJson(200, json);
+    return;
+  }
+  if (op == "variance") {
+    bool en = server().hasArg("en") ? server().arg("en") == "1" : false;
+    int cue = server().hasArg("cue") ? server().arg("cue").toInt() : 2;
+    int param = server().hasArg("param") ? server().arg("param").toInt() : 0;
+    if (cue < 0) cue = 0;
+    if (cue > (int)PatternflowShow::VARIANCE_CUE_MAX)
+      cue = PatternflowShow::VARIANCE_CUE_MAX;
+    if (param < 0) param = 0;
+    if (param > 3) param = 3;
+    PatternflowShow::setVariance(en, (uint8_t)cue, (uint8_t)param, true);
+    String json = "{\"ok\":true,";
+    appendStatus(json);
+    json += '}';
+    sendJson(200, json);
+    return;
+  }
+  if (op == "playlist") {
+    PatternflowShowSchedule::noteInteraction();
+    PatternflowPatternsHttp::releaseConsolePause();
+    PatternflowShow::clearPlaylist();
+    String slugs = server().hasArg("slugs") ? server().arg("slugs") : String();
+    int start = 0;
+    while (start < (int)slugs.length()) {
+      int end = slugs.length();
+      for (int i = start; i < (int)slugs.length(); i++) {
+        char c = slugs[i];
+        if (c == ',' || c == '\n' || c == '\r' || c == ' ') {
+          end = i;
+          break;
+        }
+      }
+      String one = slugs.substring(start, end);
+      one.trim();
+      start = end + 1;
+      if (one.length() == 0) continue;
+      char slug[PatternflowShow::SLUG_BYTES];
+      if (!slugFromName(one, slug, sizeof(slug))) continue;
+      PatternflowShow::addPlaylistSlug(slug);
+    }
+    bool loopList = server().hasArg("loop") ? server().arg("loop") == "1" : true;
+    if (PatternflowShow::playlistSize() == 0) {
+      sendJson(400, "{\"ok\":false,\"error\":\"no sequences selected\"}");
+      return;
+    }
+    if (!PatternflowShow::startFromSelection(loopList)) {
+      sendJson(400, "{\"ok\":false,\"error\":\"none of the selected files could play\"}");
+      return;
+    }
     String json = "{\"ok\":true,";
     appendStatus(json);
     json += '}';
@@ -278,7 +431,7 @@ inline void handleControl() {
     sendJson(200, json);
     return;
   }
-  sendJson(400, "{\"ok\":false,\"error\":\"op must be play, stop or loop\"}");
+  sendJson(400, "{\"ok\":false,\"error\":\"op must be play, playlist, stop, loop or variance\"}");
 }
 
 inline void handleSchedule() {
@@ -289,11 +442,6 @@ inline void handleSchedule() {
   String nightAt = server().hasArg("night") ? server().arg("night") : "";
   String wakeAt = server().hasArg("wake") ? server().arg("wake") : "";
   String slug = server().hasArg("slug") ? server().arg("slug") : "";
-  // Timezone rides the same form: without Weather ported there is no other
-  // page that owns it, and the alarm is the one feature that needs it.
-  if (server().hasArg("tz")) {
-    PatternflowClock::setTimezoneOffsetMin(server().arg("tz").toInt());
-  }
   if (!PatternflowShowSchedule::applyConfig(en, nightAt.c_str(), wakeAt.c_str(),
                                             slug.c_str(), repeat, clock, dim)) {
     sendJson(400, "{\"ok\":false,\"error\":\"invalid time\"}");
@@ -314,7 +462,7 @@ inline void handleDelete() {
   if (PatternflowShow::isPlaying() &&
       strcasecmp(PatternflowShow::slug(), slug) == 0) {
     PatternflowShowSchedule::noteInteraction();
-    PatternflowShow::stop();
+    PatternflowShow::stopAll();
   }
   char path[72];
   snprintf(path, sizeof(path), "%s/%s.pfs", PatternflowShow::SHOW_DIR, slug);
@@ -327,6 +475,7 @@ inline void handleDelete() {
       strcasecmp(PatternflowShow::slug(), slug) == 0) {
     PatternflowShow::unload();
   }
+  invalidateShowCache();
   sendJson(200, "{\"ok\":true}");
 }
 
@@ -337,8 +486,7 @@ inline void handlePutBody() {
     putError[0] = '\0';
     putLen = 0;
     putSlug[0] = '\0';
-    if (!putBuf) putBuf = (uint8_t*)PFMem::alloc(PUT_MAX);
-    if (!putBuf) {
+    if (!ensurePutBuf()) {
       putFailed = true;
       snprintf(putError, sizeof(putError), "no memory for upload");
       return;
@@ -386,7 +534,7 @@ inline void handlePutDone() {
     return;
   }
   const char* err = "";
-  if (!PatternflowShow::validateBuffer(putBuf, putLen, &err)) {
+  if (!putBuf || !PatternflowShow::validateBuffer(putBuf, putLen, &err)) {
     String body = "{\"ok\":false,\"error\":\"";
     jsonEscape(body, err && err[0] ? err : "invalid table");
     body += "\"}";
@@ -411,6 +559,7 @@ inline void handlePutDone() {
     sendJson(500, "{\"ok\":false,\"error\":\"short write\"}");
     return;
   }
+  invalidateShowCache();
   String json = "{\"ok\":true,\"slug\":\"";
   jsonEscape(json, putSlug);
   json += "\",\"bytes\":";
@@ -425,6 +574,7 @@ inline void begin() {
 
   server().on("/show", HTTP_GET, handleIndex);
   server().on("/api/shows", HTTP_GET, handleList);
+  server().on("/api/shows/status", HTTP_GET, handleStatus);
   server().on("/api/shows", HTTP_PUT, handlePutDone, handlePutBody);
   server().on("/api/shows", HTTP_DELETE, handleDelete);
   server().on("/api/shows/control", HTTP_POST, handleControl);

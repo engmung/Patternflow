@@ -1,81 +1,351 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - on-panel text for the portrait OS overlays
-//
-// The OS screens (SELECT / NETWORK / KNOB MAP / UPDATE) draw at
-// setRotation(1), which makes the usable line **64 px wide**. The stock
-// Adafruit 5x7 font puts ~10 characters in that at size 1 and ~5 at size 2,
-// so a pattern name longer than a word ran off both edges — and since
-// patterns now arrive from a community rather than a curated list, names
-// like "Chromatic Aberration Vortex" are the normal case, not the exception.
-//
-// The fix is word wrap, NOT a smaller font. Org_01 was tried first — it puts
-// about twice as many characters on a line — and read badly on the panel:
-// at this pixel pitch its thin strokes blur together, and a name you cannot
-// read is worse than one that wraps. The stock 5x7 is the most legible
-// bitmap available at this size, and three wrapped lines of it hold 30
-// characters, which covers every name in the library.
-//
-// TomThumb survives for chrome only — short, known hint text like
-// "HOLD TO SELECT", which is 84 px in the stock font and does not fit at all.
-//
-// Custom GFX fonts position from the BASELINE, not the top-left like the
-// built-in one, so every helper here places text by its bounding box
-// (`yTop - y1`) rather than passing yTop to setCursor directly. That is a
-// no-op for the built-in font (y1 is 0) and essential for TomThumb.
-//
-// License: MIT
-// ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include <Arduino.h>
-#include "core_display.h"   // brings in the panel type
-#include <Fonts/TomThumb.h>
-#include <Fonts/Org_01.h>
+// Compact on-panel UI text for OS overlays (NETWORK / KNOB MAP / SELECT / …).
+//
+// Portrait OS screens lay out inside a virtual 64×64 tile at the top of the
+// rotated framebuffer (same density on 64×64 and 64×128).
+// Titles / MQTT banners: MatrixLight8X. Chrome (NETWORK, OSC/AUD, hints):
+// MatrixLight6. Both from trip5/Matrix-Fonts.
 
-// Owned by the sketch.
-extern MatrixPanel_I2S_DMA* dma_display;
+#include "core_display.h"
+#include "fonts/MatrixLight6.h"
+#include "fonts/MatrixLight8X.h"
+#include <string.h>
 
+constexpr int UI_PORTRAIT_TILE = 64;
+
+inline void uiUseCompactFont() {
+  dma_display->setFont(&MatrixLight6);
+  dma_display->setTextSize(1);
+}
+
+inline void uiUseSelectFont() {
+  dma_display->setFont(&MatrixLight8X);
+  dma_display->setTextSize(1);
+}
+
+// Pattern-name / banner title: MatrixLight8X — 8-row LED matrix font.
+inline void uiUseTitleFont() {
+  dma_display->setFont(&MatrixLight8X);
+  dma_display->setTextSize(1);
+}
+
+inline void uiUseDefaultFont() {
+  dma_display->setFont();
+  dma_display->setTextSize(1);
+}
+
+inline int uiLinePitch() { return 7; }       // MatrixLight6 yAdvance 6 + gap
+inline int uiSelectLinePitch() { return 9; }
+inline int uiTitleLinePitch() {
+  return (int)pgm_read_byte(&MatrixLight8X.yAdvance) + 1;  // 8 + gap
+}
+
+// Layout width for wrapping (sum of xAdvance) — ink bounds from getTextBounds
+// can under-count and let a line spill past the tile edge.
+inline int uiTitleAdvanceWidth(const char* text) {
+  const uint8_t first = pgm_read_byte(&MatrixLight8X.first);
+  const uint8_t last = pgm_read_byte(&MatrixLight8X.last);
+  int adv = 0;
+  for (const uint8_t* p = (const uint8_t*)text; *p; ++p) {
+    uint8_t c = *p;
+    if (c < first || c > last) continue;
+    const GFXglyph* g = &MatrixLight8XGlyphs[c - first];
+    adv += (int)pgm_read_byte(&g->xAdvance);
+  }
+  return adv;
+}
+
+inline void uiPortraitTile(int* ox, int* oy, int* tw, int* th) {
+  const int W = dma_display->width();
+  const int H = dma_display->height();
+  *tw = (W < UI_PORTRAIT_TILE) ? W : UI_PORTRAIT_TILE;
+  *th = (H < UI_PORTRAIT_TILE) ? H : UI_PORTRAIT_TILE;
+  *ox = (W - *tw) / 2;
+  *oy = 0;
+}
+
+inline void uiTextBounds(const char* text, int16_t* x1, int16_t* y1, uint16_t* w, uint16_t* h) {
+  uiUseCompactFont();
+  dma_display->getTextBounds(text, 0, 0, x1, y1, w, h);
+}
+
+inline void uiTitleTextBounds(const char* text, int16_t* x1, int16_t* y1, uint16_t* w, uint16_t* h) {
+  uiUseTitleFont();
+  dma_display->getTextBounds(text, 0, 0, x1, y1, w, h);
+}
+
+inline void uiDrawCentered(const char* text, int yTop, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(text, &x1, &y1, &w, &h);
+  int x = (dma_display->width() - (int)w) / 2;
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+inline void uiDrawCenteredTile(int ox, int /*oy*/, int tw, int yTop,
+                               const char* text, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(text, &x1, &y1, &w, &h);
+  int x = ox + (tw - (int)w) / 2;
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+inline void uiDrawCenteredScrim(const char* text, int yTop, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(text, &x1, &y1, &w, &h);
+  int x = (dma_display->width() - (int)w) / 2;
+  dma_display->fillRect(x - 1, yTop - 1, (int)w + 2, (int)h + 2, 0);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+// 1px black outline via two glyph passes + drawPixel (not 8× print).
+// Multi-print outlines on the DMA buffer tore / flickered the corner clock.
+inline void uiDrawCharPass(const GFXfont* font, char ch, int& cursorX, int baselineY,
+                           uint16_t color, bool outlinePass) {
+  uint8_t first = pgm_read_byte(&font->first);
+  uint8_t last = pgm_read_byte(&font->last);
+  uint8_t c = (uint8_t)ch;
+  if (c < first || c > last) {
+    cursorX += 3;
+    return;
+  }
+  GFXglyph* glyph = &(((GFXglyph*)pgm_read_ptr(&font->glyph))[c - first]);
+  uint8_t* bitmap = (uint8_t*)pgm_read_ptr(&font->bitmap);
+  uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
+  uint8_t w = pgm_read_byte(&glyph->width);
+  uint8_t h = pgm_read_byte(&glyph->height);
+  int8_t xo = pgm_read_byte(&glyph->xOffset);
+  int8_t yo = pgm_read_byte(&glyph->yOffset);
+  uint8_t bits = 0, bit = 0;
+  for (uint8_t yy = 0; yy < h; yy++) {
+    for (uint8_t xx = 0; xx < w; xx++) {
+      if (!(bit++ & 7)) bits = pgm_read_byte(&bitmap[bo++]);
+      if (bits & 0x80) {
+        const int px = cursorX + xo + xx;
+        const int py = baselineY + yo + yy;
+        if (outlinePass) {
+          for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+              if (dx == 0 && dy == 0) continue;
+              dma_display->drawPixel(px + dx, py + dy, 0);
+            }
+          }
+        } else {
+          dma_display->drawPixel(px, py, color);
+        }
+      }
+      bits <<= 1;
+    }
+  }
+  cursorX += (int)pgm_read_byte(&glyph->xAdvance);
+}
+
+inline void uiDrawOutlined(const char* text, int x, int yTop, uint16_t ink) {
+  if (!text) return;
+  const GFXfont* font = &MatrixLight6;
+  int baseline = yTop + (int)pgm_read_byte(&font->yAdvance);
+  int cx = x;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baseline, ink, true);
+  }
+  cx = x;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baseline, ink, false);
+  }
+}
+
+// Same outline, but `baselineY` is an Adafruit-GFX cursor Y (as from y - y1).
+inline void uiDrawOutlinedAtBaseline(const char* text, int cursorX, int baselineY,
+                                     uint16_t ink) {
+  if (!text) return;
+  const GFXfont* font = &MatrixLight6;
+  int cx = cursorX;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baselineY, ink, true);
+  }
+  cx = cursorX;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baselineY, ink, false);
+  }
+}
+
+inline void uiDrawOutlinedTitleAtBaseline(const char* text, int cursorX,
+                                          int baselineY, uint16_t ink) {
+  if (!text) return;
+  const GFXfont* font = &MatrixLight8X;
+  int cx = cursorX;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baselineY, ink, true);
+  }
+  cx = cursorX;
+  for (const char* p = text; *p; ++p) {
+    uiDrawCharPass(font, *p, cx, baselineY, ink, false);
+  }
+}
+
+inline void uiDrawCenteredTileScrim(int ox, int /*oy*/, int tw, int yTop,
+                                    const char* text, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(text, &x1, &y1, &w, &h);
+  int x = ox + (tw - (int)w) / 2;
+  dma_display->fillRect(x - 1, yTop - 1, (int)w + 2, (int)h + 2, 0);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+// One MatrixLight8X title line, centered in the tile with a dark scrim.
+inline void uiDrawTitleLineTile(int ox, int tw, int yTop, const char* text, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTitleTextBounds(text, &x1, &y1, &w, &h);
+  int x = ox + (tw - (int)w) / 2;
+  dma_display->fillRect(x - 1, yTop - 1, (int)w + 2, (int)h + 2, 0);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+// Word-wrap `name` into the tile with MatrixLight8X (advance-width fit).
+// reserveBottom: pixels kept free at the tile bottom (SELECT footer, etc.).
+// maxLines: hard cap; banner uses more of the 64×64 tile than SELECT.
+inline int uiDrawWrappedTitleTile(int ox, int oy, int tw, int th, int yTop,
+                                  const char* name, uint16_t color,
+                                  int reserveBottom = -1, int maxLines = 0) {
+  const int maxW = tw - 4;
+  const int pitch = uiTitleLinePitch();
+  if (reserveBottom < 0) reserveBottom = uiLinePitch() + 4;
+  if (maxLines <= 0) {
+    // How many title rows fit between yTop and the reserved footer.
+    int fit = (oy + th - reserveBottom - yTop) / pitch;
+    maxLines = fit < 1 ? 1 : (fit > 6 ? 6 : fit);
+  }
+  const int bottomLimit = oy + th - reserveBottom;
+
+  // Fast path: whole string fits one line (no embedded breaks).
+  // Vertically center like the wrap path — otherwise a short MQTT banner
+  // sits at yTop while a wrapping one lands in the middle of the tile.
+  if (!strchr(name, '\n') && uiTitleAdvanceWidth(name) <= maxW) {
+    int avail = bottomLimit - yTop;
+    int startY = yTop;
+    if (pitch < avail) startY = yTop + (avail - pitch) / 2;
+    uiDrawTitleLineTile(ox, tw, startY, name, color);
+    return startY + pitch;
+  }
+
+  char buf[80];
+  strncpy(buf, name, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = '\0';
+
+  char lines[6][48];
+  if (maxLines > 6) maxLines = 6;
+  int nLines = 0;
+  char* cursor = buf;
+
+  while (*cursor && nLines < maxLines) {
+    while (*cursor == ' ') cursor++;
+    if (!*cursor) break;
+    if (*cursor == '\n') {
+      cursor++;
+      continue;
+    }
+
+    char* lineStart = cursor;
+    char* lastSpace = nullptr;
+    char* p = cursor;
+
+    while (*p && *p != '\n') {
+      if (*p == ' ') lastSpace = p;
+      // Measure [lineStart .. p] inclusive via temporary NUL after p.
+      char saved1 = p[1];
+      p[1] = '\0';
+      int adv = uiTitleAdvanceWidth(lineStart);
+      p[1] = saved1;
+      if (adv > maxW) break;
+      p++;
+    }
+
+    if (p == lineStart) {
+      // First glyph alone is wider than the tile — draw what we can.
+      char one[2] = {lineStart[0], '\0'};
+      uiDrawTitleLineTile(ox, tw, yTop, one, color);
+      return yTop + pitch;
+    }
+
+    // Prefer word boundary on width overflow; keep hard breaks at \n / EOS.
+    char* cut = p;
+    if (*p && *p != '\n' && lastSpace && lastSpace > lineStart) {
+      cut = lastSpace;
+    }
+
+    char keep = *cut;
+    *cut = '\0';
+    strncpy(lines[nLines], lineStart, sizeof(lines[0]) - 1);
+    lines[nLines][sizeof(lines[0]) - 1] = '\0';
+    nLines++;
+    *cut = keep;
+    if (keep == ' ' || keep == '\n') cursor = cut + 1;
+    else cursor = cut;
+
+    if (yTop + nLines * pitch > bottomLimit) break;
+  }
+
+  int blockH = nLines * pitch;
+  int avail = bottomLimit - yTop;
+  int startY = yTop;
+  if (blockH < avail) startY = yTop + (avail - blockH) / 2;
+
+  for (int i = 0; i < nLines; i++) {
+    uiDrawTitleLineTile(ox, tw, startY + i * pitch, lines[i], color);
+  }
+  return startY + nLines * pitch;
+}
+
+inline void uiDrawAt(const char* text, int x, int yTop, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(text, &x1, &y1, &w, &h);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+inline void uiDrawAtTitle(const char* text, int x, int yTop, uint16_t color) {
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTitleTextBounds(text, &x1, &y1, &w, &h);
+  dma_display->setTextColor(color);
+  dma_display->setCursor(x - x1, yTop - y1);
+  dma_display->print(text);
+}
+
+// ── Compatibility shim ───────────────────────────────────────────────────────
+// The sketch's SELECT screen and MQTT banner were written against the older
+// TomThumb helper set (PatternflowUiText::drawWrappedName & co). The fonts
+// underneath are Simone's MatrixLight pair now; this namespace keeps those
+// call sites working by mapping the old vocabulary onto the ui* helpers
+// above — same word-wrap behaviour, new glyphs.
 namespace PatternflowUiText {
 
-// Line advance for each font, including the gap that keeps stacked lines
-// from touching. The built-in font is 7 px tall; TomThumb is 6.
-constexpr int NAME_PITCH = 9;
+inline void useNameFont() { uiUseSelectFont(); }
+inline void useMessageFont() { uiUseTitleFont(); }
+inline void useChromeFont() { uiUseCompactFont(); }
+inline void useDefaultFont() { uiUseDefaultFont(); }
+
 constexpr int CHROME_PITCH = 7;
-// Org_01 is 8 px tall and sits tight; 9 keeps stacked lines apart.
-constexpr int MESSAGE_PITCH = 9;
-// Three lines is 27 px — about a fifth of the portrait screen, which is as
-// much as the SELECT overlay can give up without burying the live preview it
-// exists to show. At ~10 characters a line that is 30 characters, more than
-// any name in the library needs.
 constexpr int MAX_NAME_LINES = 3;
 constexpr size_t NAME_BUF = 64;
 constexpr size_t LINE_BUF = 48;
-
-// The stock 5x7. Legibility beats density here: see the note at the top.
-inline void useNameFont() {
-  dma_display->setFont();
-  dma_display->setTextSize(1);
-}
-
-// Org_01 — about twice the characters per line. Only the message banner
-// uses it; see drawWrappedMessage for why that is not a contradiction of the
-// note at the top of this file.
-inline void useMessageFont() {
-  dma_display->setFont(&Org_01);
-  dma_display->setTextSize(1);
-}
-
-inline void useChromeFont() {
-  dma_display->setFont(&TomThumb);
-  dma_display->setTextSize(1);
-}
-
-// Back to the built-in 5x7. Anything that draws after an overlay must call
-// this, or it inherits the custom font's baseline placement.
-inline void useDefaultFont() {
-  dma_display->setFont();
-  dma_display->setTextSize(1);
-}
 
 inline void boundsWith(void (*chooseFont)(), const char* text,
                        int16_t* x1, int16_t* y1, uint16_t* w, uint16_t* h) {
@@ -83,8 +353,6 @@ inline void boundsWith(void (*chooseFont)(), const char* text,
   dma_display->getTextBounds(text, 0, 0, x1, y1, w, h);
 }
 
-// One centered line on its own tight scrim — the same look every overlay
-// already shares, just measured for the chosen font.
 inline void drawLine(void (*chooseFont)(), const char* text, int yTop,
                      uint16_t color) {
   int16_t x1, y1;
@@ -101,11 +369,9 @@ inline void drawChromeLine(const char* text, int yTop, uint16_t color) {
   drawLine(useChromeFont, text, yTop, color);
 }
 
-// Word-wrap `name` to the panel width and draw it as a centered block whose
-// vertical middle sits at `yMiddle`. Returns the height actually used.
-//
-// A single word too wide to fit is drawn in the chrome font instead of being
-// clipped: smaller and still readable beats half a word.
+// Word-wrap to the panel width, centered block, middle at yMiddle. A single
+// word too wide for the chosen font falls back to the compact font rather
+// than clipping. Returns the height used.
 inline int drawWrapped(void (*chooseFont)(), int pitch, const char* name,
                        int yMiddle, uint16_t color) {
   const int maxW = dma_display->width() - 4;
@@ -133,9 +399,6 @@ inline int drawWrapped(void (*chooseFont)(), int pitch, const char* name,
     char* lastSpace = nullptr;
     char* p = cursor;
 
-    // Grow the line one character at a time until it stops fitting. The
-    // terminator is moved rather than copied — measuring a substring is the
-    // only way to ask this font how wide it renders.
     while (*p) {
       if (*p == ' ') lastSpace = p;
       char saved = p[1];
@@ -168,25 +431,12 @@ inline int drawWrapped(void (*chooseFont)(), int pitch, const char* name,
   return blockH;
 }
 
-/** Pattern names and OS text: the stock 5x7, chosen for legibility. */
 inline int drawWrappedName(const char* name, int yMiddle, uint16_t color) {
-  return drawWrapped(useNameFont, NAME_PITCH, name, yMiddle, color);
+  return drawWrapped(useNameFont, uiSelectLinePitch(), name, yMiddle, color);
 }
 
-/**
- * A banner from <prefix>/message, in Org_01.
- *
- * The denser font, deliberately, and only here. A pattern name is one or two
- * words you glance at and must recognise, which is why the SELECT screen
- * stayed on the stock 5x7 after Org_01 was tried and found to blur at this
- * pixel pitch. A message is a sentence somebody wrote to be read, so fitting
- * it wins over per-character crispness — "Dinner is ready" at ~20 characters
- * a line is one line here and three in the stock font.
- *
- * @SimonePDA asked for this font for exactly that reason.
- */
 inline int drawWrappedMessage(const char* text, int yMiddle, uint16_t color) {
-  return drawWrapped(useMessageFont, MESSAGE_PITCH, text, yMiddle, color);
+  return drawWrapped(useMessageFont, uiTitleLinePitch(), text, yMiddle, color);
 }
 
 }  // namespace PatternflowUiText

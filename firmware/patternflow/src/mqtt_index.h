@@ -7,7 +7,9 @@
 #include <Arduino.h>
 
 static const char MQTT_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<script>(function(){try{if(localStorage.getItem('pf-theme')==='light')document.documentElement.setAttribute('data-theme','light')}catch(e){}})();</script>
+<head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - MQTT</title>
 <style>
@@ -38,8 +40,8 @@ cursor:pointer;text-align:left;font-family:inherit;color:inherit}
 .role:hover,.ch:hover{border-color:var(--muted)}
 .role.on,.ch.on{border-color:var(--led);box-shadow:inset 0 0 0 1px var(--led)}
 .role:disabled,.ch:disabled{opacity:.45;cursor:default}
-.modes{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin-bottom:10px}
-#rolebox.hidden,#normalbox.hidden,#directorbox.hidden{display:none}
+.modes{display:grid;gap:8px;grid-template-columns:1fr 1fr 1fr;margin-bottom:10px}
+#rolebox.hidden,#normalbox.hidden,#directorbox.hidden,#flowlocalbox.hidden{display:none}
 .role b,.ch b{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
 .role p{margin:0;font-size:12px;color:var(--muted);line-height:1.4}
 .ch p{margin:0;font-size:10px;color:var(--muted);line-height:1.3}
@@ -83,19 +85,25 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .pfnav a{color:var(--faint);text-decoration:none}
 .pfnav a:hover{color:var(--led)}
 .pfnav a.here{color:var(--ink)}
+html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#6B6558;--faint:#9A9486;--ghost:#E0D9CC;--rule:#D9D1C2;--rule-soft:#E8E2D6;--led:#FF5C2E;--ok:#2F8A55;--warn:#B88120;--card:#FFFCFA;--fg:#1A1814}
+.pf-theme{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;color:var(--faint);cursor:pointer;user-select:none;white-space:nowrap}
+.pf-theme input{accent-color:var(--led);margin:0}
 #rolebox.hidden{display:none}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>MQTT</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt" class="here">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt" class="here">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a><label class="pf-theme"><input type="checkbox" id="pfTheme"> Light</label></nav>
 
 <section>
   <h2>Mode</h2>
   <div class="modes">
     <button class="ch" id="m-normal" type="button"><b>Normal</b><p>community / HA broker</p></button>
     <button class="ch" id="m-director" type="button"><b>Director</b><p>local PC, no password</p></button>
+    <button class="ch" id="m-flowlocal" type="button"><b>FlowLocal</b><p>show appliance</p></button>
   </div>
-  <p class="note">Normal keeps your saved broker. Director talks only to the PC running Director
-    on this Wi‑Fi — paste the LAN IP shown in the Director Setup tab.</p>
+  <p class="note">Modes are exclusive. <b>Normal</b> = your saved broker + internet NTP/weather
+    (home/venue Wi‑Fi). <b>Director</b> = PC Mosquitto. <b>FlowLocal</b> = show appliance only
+    (join the island AP on the Wi‑Fi page; time/weather/MQTT all go to that box — do not leave
+    FlowLocal selected on home LAN or the panel will keep probing an unreachable .66.1).</p>
 </section>
 
 <section id="directorbox" class="hidden">
@@ -110,6 +118,22 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
   </form>
   <p class="note">Port <b>1883</b>, prefix <b>patternflow</b>, role <b>Subscriber</b>, no user or password.
     Your Normal broker settings are left untouched.</p>
+</section>
+
+<section id="flowlocalbox" class="hidden">
+  <h2>FlowLocal appliance</h2>
+  <form id="fl" autocomplete="off">
+    <div class="field"><label for="f-flhost">Host IP</label>
+      <input id="f-flhost" name="flhost" placeholder="192.168.66.1" maxlength="63" inputmode="decimal"></div>
+    <div class="actions">
+      <button type="submit" class="save" id="flsave">Use FlowLocal</button>
+      <span class="note" id="flmsg"></span>
+    </div>
+  </form>
+  <p class="note">Use only on the show AP. MQTT <b>192.168.66.1:1883</b> (editable), anonymous,
+    prefix <b>patternflow</b>. Time/weather from <code>http://&lt;host&gt;/api/time</code> and
+    <code>/api/weather</code> — <b>not</b> panel OpenWeather/NTP. Switch back to <b>Normal</b>
+    when on internet Wi‑Fi.</p>
 </section>
 
 <div id="normalbox">
@@ -185,6 +209,8 @@ function $(i){return document.getElementById(i)}
 function say(t,cls){$('msg').textContent=t;$('msg').className=cls||''}
 
 var cfgFilled=false;
+var dirHostDirty=false;
+var flHostDirty=false;
 function fillConfig(d){
   $('f-host').value=(d.normalHost!=null?d.normalHost:'')||'';
   $('f-port').value=d.normalPort||1883;
@@ -192,7 +218,8 @@ function fillConfig(d){
   $('f-prefix').value=d.normalPrefix||'patternflow';
   $('f-pass').value='';
   $('f-pass').placeholder=d.normalHasPassword?'unchanged':'none set';
-  if($('f-dirhost')) $('f-dirhost').value=d.directorHost||'';
+  if($('f-dirhost') && !dirHostDirty) $('f-dirhost').value=d.directorHost||'';
+  if($('f-flhost') && !flHostDirty) $('f-flhost').value=d.flowLocalHost||'192.168.66.1';
   cfgFilled=true;
 }
 
@@ -202,26 +229,28 @@ function paint(d){
   var mode=d.mode||'normal';
   $('st').textContent=d.connected?'connected':(d.state||'offline');
   if(!cfgFilled)fillConfig(d);
-  if($('f-dirhost') && d.directorHost!=null) $('f-dirhost').value=d.directorHost||$('f-dirhost').value;
+  if($('f-dirhost') && !dirHostDirty && d.directorHost!=null) $('f-dirhost').value=d.directorHost||'';
+  if($('f-flhost') && !flHostDirty && d.flowLocalHost!=null) $('f-flhost').value=d.flowLocalHost||'192.168.66.1';
   if($('m-normal')) $('m-normal').className='ch'+(mode==='normal'?' on':'');
   if($('m-director')) $('m-director').className='ch'+(mode==='director'?' on':'');
+  if($('m-flowlocal')) $('m-flowlocal').className='ch'+(mode==='flowlocal'?' on':'');
   if($('directorbox')) $('directorbox').className=mode==='director'?'':'hidden';
-  if($('normalbox')) $('normalbox').className=mode==='director'?'hidden':'';
+  if($('flowlocalbox')) $('flowlocalbox').className=mode==='flowlocal'?'':'hidden';
+  if($('normalbox')) $('normalbox').className=(mode==='director'||mode==='flowlocal')?'hidden':'';
   $('state').textContent=d.state||'-';
   $('state').className=d.connected?'ok':
     (d.role==='off'||ch==='off'||!d.configured?'':'bad');
-  $('unset').style.display=d.configured||mode==='director'?'none':'block';
+  $('unset').style.display=(d.configured||mode==='director'||mode==='flowlocal')?'none':'block';
   $('pat').textContent=d.pattern||'-';
   var k=d.knobs||[0,0,0,0];
   for(var i=0;i<4;i++)$('k'+(i+1)).textContent=k[i];
   var p=d.params||[0,0,0,0];
   var pa=d.paramActive||[false,false,false,false];
   $('params').textContent=p.map(function(v,i){return (pa[i]?v:'—')}).join(' · ');
-  var topics=prefix+'/knob/1..4  ·  '+prefix+'/pattern  ·  '+prefix+'/param/1..4'
-             +'  ·  '+prefix+'/sleep  ·  '+prefix+'/sleep/state';
+  var topics=prefix+'/knob/1..4  ·  '+prefix+'/pattern  ·  '+prefix+'/param/1..4';
   if(ch==='ch1'||ch==='ch2'||ch==='ch3'||ch==='ch4'||ch==='live')
     topics+='  ·  '+prefix+'/snapshot';
-  if(mode==='director')
+  if(mode==='director'||mode==='flowlocal')
     topics+='  ·  '+prefix+'/query  ·  '+prefix+'/inventory/#  ·  '+prefix+'/select';
   $('topics').textContent=topics;
 
@@ -347,11 +376,46 @@ $('dir').onsubmit=function(ev){
     .then(function(r){return r.json()}).then(function(d){
       $('dirsave').disabled=false;
       if(d.ok===false){dirSay(d.error||'could not save','err');return}
+      dirHostDirty=false;
       dirSay('saved — connecting to '+host,'good');
       paint(d);
     }).catch(function(){$('dirsave').disabled=false;dirSay('no reply from device','err')});
 };
 
+$('m-flowlocal').onclick=function(){
+  fetch('/api/mqtt/mode',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'mode=flowlocal'})
+    .then(function(r){return r.json()}).then(function(d){
+      if(d.ok===false){say(d.error||'failed','err');return}
+      say('FlowLocal MQTT — confirm host IP','good');
+      paint(d);
+    }).catch(function(){say('no reply from device','err')});
+};
+
+function flSay(t,cls){var e=$('flmsg');if(!e)return;e.textContent=t;e.className='note'+(cls?' '+cls:'')}
+
+$('fl').onsubmit=function(ev){
+  ev.preventDefault();
+  var host=$('f-flhost').value.trim()||'192.168.66.1';
+  flSay('connecting…');
+  $('flsave').disabled=true;
+  fetch('/api/mqtt/flowlocal',{method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'host='+encodeURIComponent(host)})
+    .then(function(r){return r.json()}).then(function(d){
+      $('flsave').disabled=false;
+      if(d.ok===false){flSay(d.error||'could not save','err');return}
+      flHostDirty=false;
+      flSay('saved — FlowLocal '+host,'good');
+      paint(d);
+    }).catch(function(){$('flsave').disabled=false;flSay('no reply from device','err')});
+};
+
 load();
 setInterval(load,2000);
-</script></body></html>)HTML";
+if($('f-dirhost')) $('f-dirhost').oninput=function(){dirHostDirty=true};
+if($('f-flhost')) $('f-flhost').oninput=function(){flHostDirty=true};
+</script>
+<script>(function(){var c=document.getElementById('pfTheme');if(!c)return;c.checked=document.documentElement.getAttribute('data-theme')==='light';c.onchange=function(){var on=c.checked;document.documentElement.setAttribute('data-theme',on?'light':'dark');try{localStorage.setItem('pf-theme',on?'light':'dark')}catch(e){}}})();</script>
+</body></html>)HTML";

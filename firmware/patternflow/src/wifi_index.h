@@ -67,7 +67,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Wi-Fi</h1><span class="sub" id="st">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi" class="here">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi" class="here">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
 
 <section>
   <h2>Saved networks</h2>

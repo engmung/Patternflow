@@ -83,7 +83,7 @@ font-family:inherit;font-size:11px;letter-spacing:.04em}
 </style></head>
 <body>
 <h1>PATTERNFLOW · AUDIO</h1>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio" class="here">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
 <div class="sub">Stream music into the device. Map four FFT bands onto the four knobs.</div>
 <div id="status" class="bad">DISCONNECTED</div>
 

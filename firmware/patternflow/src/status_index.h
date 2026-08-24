@@ -50,7 +50,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .pfnav a.here{color:var(--ink)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Status</h1><span class="sub" id="up">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status" class="here">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
 
 <section><h2>Render</h2><dl>
   <div class="row"><dt>Panel</dt><dd id="pwr">-</dd></div>

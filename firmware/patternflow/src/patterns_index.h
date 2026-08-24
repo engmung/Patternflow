@@ -147,7 +147,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .colR section{margin-top:16px}}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Patterns</h1><span class="sub" id="fs">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns" class="here">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
+<nav class="pfnav"><a href="/">Console</a><a href="/patterns" class="here">Patterns</a><a href="/show">Sequences</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/weather">Weather</a><a href="/update">Update</a></nav>
 
 
 <div class="firstrun" id="firstRun">
