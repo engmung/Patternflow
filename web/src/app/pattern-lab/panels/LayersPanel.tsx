@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { BLEND_MODES } from "@/lib/lab/types";
+import { revealEditor } from "@/lib/lab/editorReveal";
 import { useLabStore } from "@/lib/lab/store";
 import dock from "../LabPanels.module.css";
 
@@ -41,16 +42,34 @@ export default function LayersPanel() {
   return (
     <div className={dock.panel}>
       <div className={dock.panelBar}>
-        <button type="button" onClick={addCodeLayer} title="Add a code pattern layer">
+        <button
+          type="button"
+          onClick={() => {
+            addCodeLayer();
+            revealEditor("code", { open: true });
+          }}
+          title="Add a code pattern layer"
+        >
           + Code
         </button>
-        <button type="button" onClick={addPixelLayer} title="Add a pixel art layer">
+        <button
+          type="button"
+          onClick={() => {
+            addPixelLayer();
+            revealEditor("pixel", { open: true });
+          }}
+          title="Add a pixel art layer"
+        >
           + Pixel
         </button>
         <span style={{ flex: 1 }} />
         <button
           type="button"
-          onClick={() => active && duplicateLayer(active.id)}
+          onClick={() => {
+            if (!active) return;
+            duplicateLayer(active.id);
+            revealEditor(active.type, { open: true });
+          }}
           disabled={!active}
           title="Duplicate the selected layer"
         >
@@ -99,7 +118,12 @@ export default function LayersPanel() {
                     setDragIndex(null);
                     setDragOverIndex(null);
                   }}
-                  onClick={() => selectLayer(layer.id)}
+                  onClick={() => {
+                    selectLayer(layer.id);
+                    // Fronts the matching editor tab even when this layer is
+                    // already active — clicking a layer means "let me edit it".
+                    revealEditor(layer.type);
+                  }}
                   onDoubleClick={() => {
                     setRenamingId(layer.id);
                     setRenameValue(layer.name);
