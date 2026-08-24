@@ -11,6 +11,7 @@ import {
 } from "@/lib/patternHarness";
 import { knobDetentStep } from "@/lib/patternflowControls";
 import { withMatrixAnnotation, type MatrixSize } from "@/lib/patternMatrix";
+import { codeUsesValueField } from "@/lib/patternRamp";
 import type { KnobRange, RampState } from "./types";
 import { rampStateToHarness } from "./engine";
 
@@ -72,8 +73,10 @@ export function buildCppPrompt({
   // precomputed HERE (same buildRampLUT as the live preview) and emitted as
   // a finished C array — models must not write sorting/interpolation code,
   // which is exactly where weaker models broke (unsorted stops → all-black
-  // LUT, hallucinated tokens in hand-rolled lerp loops).
-  const usesValueField = !forceRgb && /display\s*\.\s*setValue\s*\(/.test(code);
+  // LUT, hallucinated tokens in hand-rolled lerp loops). The shared detector
+  // ignores comments/strings, so an RGB pattern whose comments quote the
+  // setValue API keeps its own colors instead of being forced onto the ramp.
+  const usesValueField = !forceRgb && codeUsesValueField(code);
   let rampSection = "";
   if (usesValueField) {
     const harnessRamp: ColorRamp = rampStateToHarness(ramp);

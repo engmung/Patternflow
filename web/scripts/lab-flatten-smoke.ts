@@ -4,9 +4,11 @@
 // and asserts the composite actually blends. Run: npx tsx scripts/lab-flatten-smoke.ts
 
 import { flattenLayers } from "../src/lib/lab/flatten";
-import { createPixelLayer, type CodeLayer } from "../src/lib/lab/types";
+import { buildCppPrompt } from "../src/lib/lab/cppPrompt";
+import { createPixelLayer, DEFAULT_RAMP_STATE, type CodeLayer } from "../src/lib/lab/types";
 import { codeLayerFromSource } from "../src/lib/lab/store";
 import { PatternRuntime, createIdleInput } from "../src/lib/patternHarness";
+import { codeUsesValueField } from "../src/lib/patternRamp";
 import { stripShareWrapping } from "../src/lib/sharePattern";
 import { livePresets } from "../src/lib/presets";
 
@@ -358,3 +360,48 @@ function publishStripSmoke() {
   console.log("publish strip smoke OK", { preset: footered.name, flatChars: flat.length, storedChars: stored.length });
 }
 publishStripSmoke();
+
+// ── value-field detection must not read comments or strings ──
+// AI-returned RGB code loves to quote the API ("// display.setValue(x, y, v)
+// …"); matching that classified a setPixel pattern as a value field and the
+// C++ prompt forced its baked colors through the ramp LUT.
+{
+  const rgbWithGuideComment = `// API guide: display.setValue(x, y, v) colors via the ramp.
+/* also mentioned here: display.setValue(0, 0, 1) */
+const doc = "display.setValue(1, 2, 3)";
+const tpl = \`display.setValue(4, 5, 6)\`;
+export function draw(display, params, time) {
+  display.setPixel(0, 0, 255, 40, 0);
+}`;
+  const realValueField = `// draws a field
+export function draw(display, params, time) {
+  display.setValue(0, 0, 0.5);
+}`;
+  const commentThenReal = `// display.setValue is the API
+export function draw(display, params, time) {
+  const s = "it\\'s escaped"; display.setValue(1, 1, 1);
+}`;
+
+  const failures: string[] = [];
+  if (codeUsesValueField(rgbWithGuideComment)) failures.push("comment/string mention misread as a call");
+  if (!codeUsesValueField(realValueField)) failures.push("real setValue call not detected");
+  if (!codeUsesValueField(commentThenReal)) failures.push("call after comments/escapes not detected");
+
+  const promptArgs = {
+    matrix: { width: 128, height: 64 },
+    knobs: [0.5, 0.5, 0.5, 0.5],
+    ranges: [[0, 1], [0, 1], [0, 1], [0, 1]] as [number, number][],
+    knobLabels: ["A", "B", "C", "D"],
+    ramp: DEFAULT_RAMP_STATE,
+  };
+  const rgbPrompt = buildCppPrompt({ code: rgbWithGuideComment, ...promptArgs });
+  const vfieldPrompt = buildCppPrompt({ code: realValueField, ...promptArgs });
+  if (rgbPrompt.includes("RAMP_LUT")) failures.push("RGB pattern's prompt still carries the ramp LUT");
+  if (!vfieldPrompt.includes("RAMP_LUT")) failures.push("value-field pattern's prompt lost the ramp LUT");
+
+  if (failures.length > 0) {
+    console.error("VALUE-FIELD DETECTION SMOKE FAILED:", failures);
+    process.exit(1);
+  }
+  console.log("value-field detection smoke OK");
+}
