@@ -9,6 +9,7 @@ All notable changes to Patternflow will be documented in this file.
 - **The reconnect path deleted the Wi-Fi network that had just worked.** `addNetwork` took its arguments by reference and the reconnect path passes a saved slot itself, so the shift loop overwrote the referenced string mid-move: joining the second saved network turned `[home, studio]` into `[home, home]` — the working network gone, the absent one duplicated, and the panel unreachable after the next reboot. It now copies before it shifts, and duplicate slots already written into NVS are healed on load.
 
 ### Added
+- **A show pauses and resumes in place.** Stop used to be the only control, and stopped meant *over* — pressing play started from zero. The Sequences page grows a Pause/Resume button: pause banks the wall clock, resume re-bases it, so cues — and a v2 ease mid-ramp — continue exactly where they stopped, and the paused look stays on the panel (absolute holds are kept). `POST /api/shows/control` accepts `op=pause` / `op=resume`; status reports `paused`. Start with nothing ticked now does the obvious thing too: it continues a paused show, or replays what is loaded, instead of scolding about checkboxes.
 - **Pick which saved network the panel boots on.** Slot order is recency, which is wrong the moment a panel lives somewhere it was not last provisioned — every boot then fails on an absent network before the walk wraps around. `/wifi` grows a Boot network picker (stored in NVS, applied on the next boot) and a Reboot button. Ported from @SimonePDA's tree.
 
 ## [3.6.3] - 2026-08-25

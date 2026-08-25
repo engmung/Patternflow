@@ -96,6 +96,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
   <div class="meta" id="now">idle</div>
   <div class="actions">
     <button class="go" id="btnPlaySel" type="button">Start</button>
+    <button class="stop" id="btnPause" type="button" disabled>Pause</button>
     <button class="stop" id="btnStop" type="button">Stop</button>
     <label class="check"><input type="checkbox" id="loop" checked> Loop playlist</label>
   </div>
@@ -186,9 +187,11 @@ function fmt(s){
   var m=(s/60)|0,r=s%60;
   return m+':'+(r<10?'0':'')+r;
 }
+var lastStatus=null;
 function paintStatus(d){
+  lastStatus=d;
   var mode=d.sequenceMode?'sequence':'normal';
-  $('st').textContent=d.playing?(mode+' · playing'):(d.phase&&d.phase!=='idle'?d.phase:mode);
+  $('st').textContent=d.playing?(mode+(d.paused?' · paused':' · playing')):(d.phase&&d.phase!=='idle'?d.phase:mode);
   $('clock').textContent=fmt(d.t||0)+' / '+fmt(d.length||0);
   var line='idle · '+mode;
   if(d.playlist&&d.playlistCount){
@@ -204,6 +207,8 @@ function paintStatus(d){
   if(d.sequenceMode||d.playlist) $('loop').checked=!!(d.storedLoop!=null?d.storedLoop:d.playlistLoop);
   else if(!d.playlist) $('loop').checked=!!d.loop;
   $('btnStop').disabled=!d.playing && !d.playlist && !d.sequenceMode && d.phase!=='snooze' && d.phase!=='wake';
+  $('btnPause').disabled=!d.playing;
+  $('btnPause').textContent=d.paused?'Resume':'Pause';
   paintVariance(d);
   paintNight(d);
   if(!selectedReady && d.storedSlugs){
@@ -355,13 +360,21 @@ function post(op,slug){
   fetch('/api/shows/control',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
     .then(function(r){return r.json()}).then(function(d){
       if(d.ok===false){say(d.error||'failed','err');return}
-      say(op==='play'||op==='playlist'?'playing':'stopped','good');
+      say(op==='play'||op==='playlist'?'playing':
+          op==='pause'?'paused — Resume continues in place':
+          op==='resume'?'resumed':'stopped','good');
       paintFromStatus(d);
     }).catch(function(){say('no reply','err')});
 }
 function playSelected(){
   var slugs=selectedList();
-  if(!slugs.length){say('tick one or more sequences first','err');return}
+  if(!slugs.length){
+    // Nothing ticked — do the obvious thing instead of scolding: continue a
+    // paused show, or replay whatever is loaded from the last session.
+    if(lastStatus&&lastStatus.paused){post('resume');return}
+    if(lastStatus&&lastStatus.loaded&&lastStatus.slug){post('play',lastStatus.slug);return}
+    say('tick one or more sequences first','err');return
+  }
   var body='op=playlist&slugs='+encodeURIComponent(slugs.join(','));
   if($('loop').checked)body+='&loop=1';
   else body+='&loop=0';
@@ -374,6 +387,7 @@ function playSelected(){
     }).catch(function(){say('no reply','err')});
 }
 $('btnPlaySel').onclick=playSelected;
+$('btnPause').onclick=function(){post(lastStatus&&lastStatus.paused?'resume':'pause')};
 $('btnStop').onclick=function(){post('stop')};
 $('btnAll').onclick=function(){
   document.querySelectorAll('#list input.pick').forEach(function(cb){cb.checked=true;selected[cb.dataset.slug]=true});

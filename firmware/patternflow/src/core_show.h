@@ -68,6 +68,12 @@ inline uint16_t cueCount = 0;
 inline uint16_t poolBytes = 0;
 inline bool loaded = false;
 inline bool playing = false;
+// Paused = the wall clock frozen in place. Elapsed-so-far is banked and
+// re-based into startedAtMs on resume, so cues — and a v2 EASE mid-ramp —
+// continue exactly where they stopped. Absolute holds stay applied: a
+// paused show keeps its look instead of snapping back to the knobs.
+inline bool paused = false;
+inline uint32_t pausedAtElapsedMs = 0;
 inline bool loopFlag = false;
 inline uint32_t startedAtMs = 0;
 inline uint16_t lastElapsed = 0;
@@ -195,6 +201,7 @@ inline void queuePattern(const char* name) {
 inline void unload() {
   if (playing) PatternflowMqtt::clearAbsoluteAll();
   playing = false;
+  paused = false;
   loaded = false;
   cueCount = 0;
   poolBytes = 0;
@@ -408,6 +415,7 @@ inline void applyFromStart(uint16_t elapsed) {
 
 inline void stop() {
   playing = false;
+  paused = false;
   clearEase();
   PatternflowMqtt::clearAbsoluteAll();
 }
@@ -502,11 +510,31 @@ inline bool playLoaded() {
   if (!loaded || cueCount == 0 || !cueTable) return false;
   finishedPending = false;
   playing = true;
+  paused = false;
   startedAtMs = millis();
   lastElapsed = 0;
   applyFromStart(0);
   return true;
 }
+
+// Freeze / continue in place. Pause only banks the clock — the show stays
+// "playing" as far as mode and playlist state go, so Stop remains the only
+// thing that tears the session down.
+inline bool pauseShow() {
+  if (!playing || paused) return false;
+  pausedAtElapsedMs = millis() - startedAtMs;
+  paused = true;
+  return true;
+}
+
+inline bool resumeShow() {
+  if (!playing || !paused) return false;
+  startedAtMs = millis() - pausedAtElapsedMs;
+  paused = false;
+  return true;
+}
+
+inline bool isPaused() { return paused; }
 
 inline bool addPlaylistSlug(const char* slug) {
   if (!slug || !slug[0] || playlistCount >= PLAYLIST_MAX) return false;
@@ -631,7 +659,7 @@ inline bool playSlug(const char* slug, const char** error) {
 }
 
 inline void tick() {
-  if (!playing || !loaded || !cueTable) return;
+  if (!playing || paused || !loaded || !cueTable) return;
   // One wall clock, two tick sizes (v1 seconds, v2 deciseconds). Cue firing
   // AND the eased values below are functions of millis(), so playback is
   // frame-rate independent by construction.
