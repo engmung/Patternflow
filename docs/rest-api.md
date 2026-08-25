@@ -271,13 +271,31 @@ Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWOR
 
 | Route | |
 |---|---|
-| `GET /api/wifi` | `{max, connected, current, ip, status, networks:[{ssid}]}` — SSIDs only, never passwords |
+| `GET /api/wifi` | `{max, connected, current, ip, status, bootIdx, networks:[{ssid}]}` — SSIDs only, never passwords |
 | `POST /api/wifi?ssid=…&pass=…` | Store a network. Add `connect=1` to switch immediately. |
 | `DELETE /api/wifi?ssid=…` | Forget one. `404` if it was not saved. |
+| `POST /api/wifi/boot` (`bootIdx=…`) | Which saved slot the next boot tries first. Stored in NVS, deliberately **not** applied live — the request rides the connection it would drop. |
+| `POST /api/wifi/reboot` | Replies `{ok:true}` first, restarts 400 ms later. |
 
 `POST` stores without switching by default: the usual reason to add a network here is to pre-register somewhere the device is *going*, and switching now would drop the connection serving the request and lose the reply. With `connect=1` the reply is sent first and the link torn down after.
 
 Passwords travel in the clear over LAN HTTP and are never sent back. Same trust model as `/update` and `/patterns`.
+
+## Shows (Sequences)
+
+`.pfs` cue tables live on the pattern volume under `/shows` and play on a wall clock — cues fire by `millis()`, not by frame. Format: PFST v1 (whole-second cues) and v2 (deciseconds + eased cues); see `docs/pfst-v2-proposal.md`.
+
+| Route | |
+|---|---|
+| `GET /show` | The Sequences console page. |
+| `GET /api/shows` | Player status plus the catalog: `shows:[{slug,title,length,cues,loop}]`. |
+| `GET /api/shows/status` | Status alone: `playing`, `paused`, `t` / `length` (seconds), `slug`, `title`, `missing[]`, playlist / variance / schedule state. |
+| `PUT /api/shows` (raw body, `X-PF-Name: <name>.pfs`) | Install a table. The slug is derived from the name. |
+| `DELETE /api/shows?slug=…` | Remove one; a playing show is stopped first. |
+| `POST /api/shows/control` | `op=play&slug=…[&loop=1]` · `op=playlist&slugs=a,b[&loop=1]` · `op=pause` · `op=resume` · `op=stop` · `op=loop&loop=1` · `op=variance&en=…&cue=…&param=…` |
+| `POST /api/shows/schedule` | Night/wake schedule — fields as on the page. |
+
+**Pause banks the wall clock, resume re-bases it** — cues (and a v2 ease mid-ramp) continue exactly where they stopped, and the paused look stays on the panel. `missing[]` lists pattern names a show calls that are not on the device; those cues are skipped rather than failing the show. A show's opening cue may name a pattern — the device switches to it when playback starts, matching preset names and module filenames case-insensitively.
 
 ## Firmware update
 
