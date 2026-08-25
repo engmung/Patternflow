@@ -2,6 +2,15 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **A show could not move the knobs of a pattern built by the site.** The module build targeted ABI 1 unless `PF_TARGET_ABI=2` was set, and at ABI 1 `pf_params.h` compiles the absolute tier *out* — so a converted pattern declaring `ABSOLUTE_READY = true` shipped unable to read the absolute bus. A Director show then set the parameters, the device held them (`paramActive` true, values changing), the pattern ignored them, and every layer reported success: the show ran and nothing moved. Builds now target ABI 2 by default, which the loader has accepted since v3.5.1 and the browser flasher has served ever since; `PF_TARGET_ABI=1` still builds for firmware older than that. Found the day after v3.6.3 shipped, on the first show authored end to end in the lab.
+- **The reconnect path deleted the Wi-Fi network that had just worked.** `addNetwork` took its arguments by reference and the reconnect path passes a saved slot itself, so the shift loop overwrote the referenced string mid-move: joining the second saved network turned `[home, studio]` into `[home, home]` — the working network gone, the absent one duplicated, and the panel unreachable after the next reboot. It now copies before it shifts, and duplicate slots already written into NVS are healed on load.
+
+### Added
+- **Pick which saved network the panel boots on.** Slot order is recency, which is wrong the moment a panel lives somewhere it was not last provisioned — every boot then fails on an absent network before the walk wraps around. `/wifi` grows a Boot network picker (stored in NVS, applied on the next boot) and a Reboot button. Ported from @SimonePDA's tree.
+
 ## [3.6.3] - 2026-08-25
 
 The performance release. It started as groundwork to meet **Simone Majocchi's ([@SimonePDA](https://github.com/SimonePDA)) performance-director work**, and ships as the whole thing: his on-device show player, scheduler and weather stack integrated onto this tree's core, a show-authoring Director inside Pattern Lab, and a show format that finally moves the way the curves were drawn. A pattern, its show, its firmware port and its published post now share **one name**, end to end.
