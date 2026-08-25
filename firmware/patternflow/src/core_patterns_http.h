@@ -170,13 +170,16 @@ inline void releaseConsolePause() {
 // Returns true when this call is what evicted the module — the caller then
 // serves the interstitial below rather than the real page.
 inline bool noteConsolePageOpened() {
+  // Eviction retired 2026-08-25. The pause existed for the core-3 builds'
+  // ~15 KB of post-services heap, where a real browser's parallel page loads
+  // at module-resident heap captured the render loop and locked the device
+  // (sequential benchmarks passed; browsing killed it — see the note above).
+  // The core-2 build ships ~95 KB free after services, so pages and a
+  // resident module coexist: the console no longer pauses the pattern, and
+  // the panel never shows the CONSOLE card. If a heap regression ever brings
+  // the lockup back, this is the function that used to evict.
   lastConsoleActivityMs = millis();
-  const bool hadModule = PFModuleLoader::active != nullptr;
-  captureSelectionOnce();
-  // If something put a module back before this return, drop it again so the
-  // wake reload can actually serve the console.
-  if (PFModuleLoader::active) evictResidentModule();
-  return hadModule;
+  return false;
 }
 
 // Deliberately tiny — it has to fit through the starved send that triggered

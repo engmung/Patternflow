@@ -37,3 +37,34 @@ export function isAdminSession(session: CommunitySession): boolean {
   const handle = (session.user as { username?: string | null }).username ?? null;
   return isAdminUsername(handle);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// What a moderator may CHANGE, as opposed to remove.
+//
+// The rule everywhere else is: moderators take things down, they do not edit
+// them — rewriting someone's comment or description and leaving their name on
+// it is putting words in their mouth (see comments/[id]/route.ts).
+//
+// The firmware header is the one exception, because it is not speech. It is
+// the artefact other people flash to their own board, it arrives unverified
+// (we cannot compile ESP32 C++ here), and a header that does not build is a
+// broken download for everybody who tries it. "Delete the whole pattern" is
+// the wrong remedy for it — the JavaScript is usually fine.
+//
+// So a moderator may edit exactly the .h and nothing else, and every such edit
+// is marked on the row (`cpp_moderated_at` / `moderated_at`) and notified to
+// the person whose name is on it. `reason` rides along into that notification.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MODERATOR_PATCH_FIELDS = ["codeCpp", "reason"];
+
+/**
+ * Whether this PATCH body is one a moderator may apply to somebody else's
+ * pattern: it has to carry the header and nothing beyond the reason line.
+ * A body with no `codeCpp` at all is refused too — it would be an edit to
+ * fields the moderator is not allowed near.
+ */
+export function moderatorHeaderPatchOnly(body: Record<string, unknown>): boolean {
+  const keys = Object.keys(body);
+  return keys.includes("codeCpp") && keys.every((key) => MODERATOR_PATCH_FIELDS.includes(key));
+}

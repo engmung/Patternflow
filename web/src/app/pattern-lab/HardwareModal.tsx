@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import PublishModal from "@/components/community/PublishModal";
-import { assembleH, buildHExport, cleanPastedUnit } from "@/lib/lab/hExport";
+import { assembleH, buildHExport, cleanPastedUnit, enforcePatternName } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
+import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { needsFlatten } from "@/lib/lab/flatten";
-import { useLabStore } from "@/lib/lab/store";
+import { labPatternName, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import styles from "./PatternLab.module.css";
 
@@ -42,7 +43,9 @@ export default function HardwareModal({
   const activeLayerId = useLabStore((state) => state.activeLayerId);
   const forkOf = useLabStore((state) => state.forkOf);
 
-  const [name, setName] = useState("Layer Stack");
+  // Seeded from the lab's pattern name so the .h NAME, the .pfm slug and the
+  // Director's opening pattern cue all agree without retyping.
+  const [name, setName] = useState(() => labPatternName(useLabStore.getState()));
   const [pastes, setPastes] = useState<Record<number, string>>({});
   const [single, setSingle] = useState("");
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export default function HardwareModal({
 
   const [sendOpen, setSendOpen] = useState(false);
   const [publishCode, setPublishCode] = useState<string | null>(null);
+  const [publishPerfJson, setPublishPerfJson] = useState<string | null>(null);
 
   // One visible code layer is the simple case: a single prompt and a single
   // paste. Anything else goes through the scaffold.
@@ -75,12 +79,18 @@ export default function HardwareModal({
       knobLabels,
       ramp: focus.ramp,
       recolor: focus.recolor,
+      name,
     });
-  }, [layers, activeLayerId, codeLayers, matrix, knobs, ranges, knobLabels]);
+  }, [layers, activeLayerId, codeLayers, matrix, knobs, ranges, knobLabels, name]);
 
+  // Single path: the model writes NAME itself, so stamp the lab's name back
+  // on (the scaffold path already carries it — buildHExport bakes it in).
   const assembled = useMemo(
-    () => (stacked ? assembleH(exportData.scaffold, pastes) : single.trim()),
-    [stacked, exportData.scaffold, pastes, single],
+    () =>
+      stacked
+        ? assembleH(exportData.scaffold, pastes)
+        : enforcePatternName(single.trim(), name),
+    [stacked, exportData.scaffold, pastes, single, name],
   );
 
   const translated = exportData.units.filter(
@@ -275,6 +285,7 @@ export default function HardwareModal({
                     <button
                       type="button"
                       onClick={() => {
+                        setPublishPerfJson(currentPerformanceJson());
                         void exportCode().then(setPublishCode);
                       }}
                     >
@@ -309,6 +320,8 @@ export default function HardwareModal({
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
           parentLicense={forkOf?.license ?? null}
+          performanceJson={publishPerfJson}
+          initialTitle={name.trim() || null}
           onClose={() => setPublishCode(null)}
         />
       )}

@@ -22,6 +22,7 @@ import {
   layerId,
   type BlendMode,
   type CodeLayer,
+  type EditRef,
   type ForkRef,
   type GenSettings,
   type KnobRange,
@@ -33,6 +34,14 @@ import {
 } from "./types";
 import { defaultKnobState, matchKnobsAnnotation } from "./annotations";
 import { matchMatrixAnnotation } from "@/lib/patternMatrix";
+import {
+  DEFAULT_CURVE_CP,
+  DIRECTOR_MAX_SECONDS,
+  directorId,
+  emptyShow,
+  type DirectorKeyframe,
+  type DirectorShow,
+} from "./director/types";
 
 export const PROJECT_STORAGE = "patternflow_lab_project_v2";
 export const LAYOUT_STORAGE = "patternflow_lab_layout_v1";
@@ -162,14 +171,20 @@ type SerializedLayer = Record<string, unknown>;
 type SerializedProject = {
   version: 2;
   savedAt: number;
+  /** Optional: projects saved before the piece had a name carry none. */
+  name?: string;
   matrix: MatrixSize;
   activeLayerId: string;
   knobs: number[];
   ranges: KnobRange[];
   knobLabels: string[];
   forkOf: ForkRef;
+  /** Optional: projects saved before in-place editing existed carry none. */
+  editOf?: EditRef;
   gen: GenSettings;
   layers: SerializedLayer[];
+  /** Optional: projects saved before the Director existed don't carry one. */
+  director?: DirectorShow;
 };
 
 export function serializeProject(project: LabProject): string | null {
@@ -207,14 +222,17 @@ export function serializeProject(project: LabProject): string | null {
   const payload: SerializedProject = {
     version: 2,
     savedAt: Date.now(),
+    name: project.name,
     matrix: project.matrix,
     activeLayerId: project.activeLayerId,
     knobs: project.knobs,
     ranges: project.ranges,
     knobLabels: project.knobLabels,
     forkOf: project.forkOf,
+    editOf: project.editOf,
     gen: project.gen,
     layers,
+    director: project.director,
   };
   try {
     return JSON.stringify(payload);
@@ -328,6 +346,11 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
         })()
       : null;
 
+  // Same defensive read as forkOf, and for the same reason: this rides in
+  // localStorage, where anything can be in the slot. A malformed entry loses
+  // edit mode and the project reopens as a plain draft — never worse.
+  const editOf = readEditRef(raw.editOf);
+
   const activeLayerId =
     typeof raw.activeLayerId === "string" &&
     layers.some((layer) => layer.id === raw.activeLayerId)
@@ -346,8 +369,21 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
   }
   const knobState = readKnobs(knobSource);
 
+  // Migration: projects saved before the piece had a name adopt the identity
+  // they were already living under — the published title when this is a
+  // revision or fork, else the lead code layer's name. Without this, every
+  // pre-name project would reopen unnamed and its hand-offs (NAME, .pfs,
+  // opening pattern cue) would stop lining up.
+  const savedName = typeof raw.name === "string" ? raw.name.slice(0, 60).trim() : "";
+  const inheritedName =
+    savedName ||
+    (editOf?.title ?? forkOf?.title ?? layers.find((l) => l.type === "code")?.name ?? "")
+      .slice(0, 60)
+      .trim();
+
   return {
     savedAt: Number(raw.savedAt) || 0,
+    name: inheritedName,
     matrix,
     layers,
     activeLayerId,
@@ -355,8 +391,97 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
     ranges: knobState.ranges,
     knobLabels: knobState.labels,
     forkOf,
+    editOf,
     gen: readGen(raw.gen),
+    director: readDirector(raw.director),
   };
+}
+
+/** The published pattern a project is a revision of, read back defensively. */
+function readEditRef(raw: unknown): EditRef {
+  if (!raw || typeof raw !== "object") return null;
+  const entry = raw as Record<string, unknown>;
+  if (typeof entry.id !== "string" || typeof entry.title !== "string") return null;
+  return {
+    id: entry.id,
+    title: entry.title.slice(0, 120),
+    description: typeof entry.description === "string" ? entry.description : null,
+    visibility: typeof entry.visibility === "string" ? entry.visibility : "public",
+    hasCpp: entry.hasCpp === true,
+    portCount: Number.isFinite(entry.portCount) ? Number(entry.portCount) : 0,
+  };
+}
+
+// ── Director show — defensive read, absent on older projects ──
+const MAX_DIRECTOR_KEYFRAMES = 512;
+const MAX_DIRECTOR_MESSAGES = 256;
+
+function readDirectorTime(raw: unknown): number {
+  // 0.1 s grid, NOT whole seconds — rounding to integers here silently
+  // flattened fractional keyframes on every autosave restore.
+  const t = Math.round(Number(raw) * 10) / 10;
+  if (!Number.isFinite(t) || t < 0) return 0;
+  return Math.min(DIRECTOR_MAX_SECONDS, t);
+}
+
+function readKeyframe(raw: unknown): DirectorKeyframe | null {
+  if (!raw || typeof raw !== "object") return null;
+  const entry = raw as Record<string, unknown>;
+  const v = Math.round(Number(entry.v));
+  if (!Number.isFinite(v)) return null;
+  const cpRaw = Array.isArray(entry.cp) ? entry.cp.map(Number) : [];
+  const cp =
+    cpRaw.length === 4 && cpRaw.every((n) => Number.isFinite(n))
+      ? ([cpRaw[0], cpRaw[1], cpRaw[2], cpRaw[3]] as [number, number, number, number])
+      : ([...DEFAULT_CURVE_CP] as [number, number, number, number]);
+  return {
+    id: typeof entry.id === "string" && entry.id ? entry.id : directorId(),
+    t: readDirectorTime(entry.t),
+    v: Math.min(1000, Math.max(0, v)),
+    mode: entry.mode === "curve" ? "curve" : "hold",
+    cp,
+  };
+}
+
+function readDirector(raw: unknown): DirectorShow {
+  const show = emptyShow();
+  if (!raw || typeof raw !== "object") return show;
+  const entry = raw as Record<string, unknown>;
+  if (typeof entry.title === "string") show.title = entry.title.slice(0, 60);
+  const length = Math.round(Number(entry.length));
+  if (Number.isFinite(length) && length >= 1) {
+    show.length = Math.min(DIRECTOR_MAX_SECONDS, length);
+  }
+  show.loop = entry.loop === true;
+  if (Array.isArray(entry.lanes)) {
+    for (let lane = 0; lane < 4; lane++) {
+      const rawLane = entry.lanes[lane];
+      if (!Array.isArray(rawLane)) continue;
+      show.lanes[lane] = rawLane
+        .slice(0, MAX_DIRECTOR_KEYFRAMES)
+        .map(readKeyframe)
+        .filter((k): k is DirectorKeyframe => k !== null)
+        .sort((a, b) => a.t - b.t);
+    }
+  }
+  if (Array.isArray(entry.messages)) {
+    show.messages = entry.messages
+      .slice(0, MAX_DIRECTOR_MESSAGES)
+      .flatMap((m) => {
+        if (!m || typeof m !== "object") return [];
+        const message = m as Record<string, unknown>;
+        if (typeof message.text !== "string" || !message.text) return [];
+        return [
+          {
+            id: typeof message.id === "string" && message.id ? message.id : directorId(),
+            t: readDirectorTime(message.t),
+            text: message.text.slice(0, 200),
+          },
+        ];
+      })
+      .sort((a, b) => a.t - b.t);
+  }
+  return show;
 }
 
 // ── storage IO ──
@@ -435,13 +560,19 @@ export function migrateLegacyDraft(): (LabProject & { savedAt: number }) | null 
 
   return {
     savedAt: draft.savedAt || Date.now(),
+    // Same migration rule as deserializeProject: the draft's identity was its
+    // layer name, so that becomes the piece's name.
+    name: (draft.forkOf?.title ?? layer.name ?? "").slice(0, 60).trim(),
     matrix: draft.matrix ?? DEFAULT_MATRIX,
     layers: [layer],
     activeLayerId: layer.id,
     knobs: draft.knobs ?? knobState.knobs,
     ranges: draft.ranges ?? knobState.ranges,
     knobLabels: draft.knobLabels ?? knobState.labels,
+    director: emptyShow(),
     forkOf: draft.forkOf ?? null,
+    // The legacy single-draft format predates in-place editing entirely.
+    editOf: null,
     gen: readGen(draft.gen),
   };
 }

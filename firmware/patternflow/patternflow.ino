@@ -25,6 +25,14 @@
 // Also after the registry: MQTT resolves inbound pattern names against it.
 #include "src/core_mqtt.h"
 #include "src/core_mqtt_http.h"
+// On-device show player (.pfs cue tables on FFat) + its night/wake
+// scheduler. After MQTT: cues apply through the same hold helpers.
+#include "src/core_library_http.h"
+#include "src/core_weather.h"
+#include "src/core_weather_http.h"
+#include "src/core_show.h"
+#include "src/core_show_schedule.h"
+#include "src/core_show_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -280,6 +288,11 @@ void setup() {
     // the normal broker does.
     PatternflowMqtt::applySavedMode();
   }
+  // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
+  // night/wake schedule that depends on it. Sync itself starts with Wi-Fi.
+  PatternflowWeather::loadConfig();
+  PatternflowShowSchedule::begin();
+  PatternflowShow::begin();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -797,6 +810,36 @@ void drawMqttMessageOverlay() {
 #endif
 }
 
+// Optional HH:MM:SS corner clock (NTP + /weather UTC offset). Drawn after
+// the pattern: white glyphs with a 1px black outline so the pattern shows
+// through. Portrait, top-right (panel stood on end). Skipped on info screens.
+void drawClockOverlay() {
+  if (!PatternflowWeather::clockOverlayEnabled()) return;
+  if (!PatternflowWeather::timeSynced()) return;
+  if (oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting) return;
+  if (currentContentName() && strcmp(currentContentName(), "Weather") == 0) return;
+  if (currentContentName() && strcmp(currentContentName(), "Black") == 0 &&
+      Black::face != Black::Off) return;
+
+  char buf[12];
+  snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
+           PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
+           PatternflowWeather::localSecond());
+
+  uint8_t prevRot = dma_display->getRotation();
+  dma_display->setRotation(1);  // portrait — matches how the panel is stood
+  int16_t x1, y1;
+  uint16_t w, h;
+  uiTextBounds(buf, &x1, &y1, &w, &h);
+  int x = dma_display->width() - (int)w - 3;
+  int y = 2;
+  const uint16_t ink = dma_display->color565(245, 245, 245);
+  // Two-pass pixel outline — not 8x print() (that flickered the digits).
+  uiDrawOutlinedAtBaseline(buf, x - x1, y - y1, ink);
+  uiUseDefaultFont();
+  dma_display->setRotation(prevRot);
+}
+
 void readInputFrame(InputFrame& input) {
   static long prevKnobs[4] = {0, 0, 0, 0};
 
@@ -826,8 +869,17 @@ void readInputFrame(InputFrame& input) {
   // (Director / Show manager yield to hands-on control). Checked here, before
   // OSC/MQTT/audio deltas are merged in, so only real knobs release — and
   // core_mqtt's grace window ignores chatter right after an absolute set.
+  // The same motion dismisses a wake/snooze alarm cycle.
+  bool physMove = false;
   for (int i = 0; i < 4; i++) {
-    if (input.knobDeltas[i] != 0) PatternflowMqtt::releaseAbsolute(i);
+    if (input.knobDeltas[i] != 0) {
+      PatternflowMqtt::releaseAbsolute(i);
+      physMove = true;
+    }
+  }
+  if (physMove && !brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
+      !updateShowing) {
+    PatternflowShowSchedule::noteInteraction();
   }
 
   for (int i = 0; i < 4; i++) {
@@ -863,6 +915,15 @@ void readInputFrame(InputFrame& input) {
   // Absolute MQTT bus last, so it outranks everything above: held channels
   // get their 0..1000 value and their deltas / audio flags cleared, which is
   // what lets PFParams::apply pin the mapped parameter deterministically.
+  // Weather absolute 0..1 channels override audio when a reading is live.
+  // Priority: MQTT absolute (filled below) > weather > audio > deltas.
+  if (PatternflowWeather::driving()) {
+    for (int i = 0; i < 4; i++) {
+      input.knobAudioActive[i] = true;
+      input.knobAudioValue[i] = PatternflowWeather::value(i);
+    }
+  }
+
   PatternflowMqtt::fillAbsolute(input);
 }
 
@@ -923,6 +984,9 @@ void loop() {
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     PatternflowMqttHttp::begin();
+    PatternflowShowHttp::begin();
+    PatternflowLibraryHttp::begin();
+    PatternflowWeatherHttp::begin();
     PatternflowMqtt::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
@@ -932,6 +996,10 @@ void loop() {
   // traffic on Serial and reports connect success/failure back. Cheap when
   // idle (one Serial.available() check).
   PatternflowImprov::handle();
+
+  // One libc localtime snapshot per frame — avoids getLocalTime(0) flicker
+  // when Wi-Fi/CPU load makes per-call reads fail mid-draw.
+  PatternflowWeather::refreshLocalTime();
 
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
@@ -948,6 +1016,8 @@ void loop() {
   // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
   // an unreachable broker costs one comparison per loop, not a stall.
   PatternflowMqtt::handle();
+  // Advance the running .pfs cue table (no-op when nothing is playing).
+  PatternflowShow::tick();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -968,6 +1038,12 @@ void loop() {
   bool k2Clicked = logicalButton(1)->clicked();
   bool k3Clicked = logicalButton(2)->clicked();
   bool k4Clicked = logicalButton(3)->clicked();
+  // Any click during a wake/snooze alarm cycle dismisses it — the person in
+  // the room outranks the schedule.
+  if (!brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
+      !updateShowing && (k1Clicked || k2Clicked || k3Clicked || k4Clicked)) {
+    PatternflowShowSchedule::noteInteraction();
+  }
 
   // ── SLEEP ──────────────────────────────────────────────────────────
   // Remote requests land here, not in the MQTT callback that produced them:
@@ -1229,6 +1305,11 @@ void loop() {
 
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
+      PatternflowShowSchedule::noteInteraction();
+      // Entering SELECT is the strongest "hands on" signal there is — drop
+      // any leftover absolute holds so browsing can never fight a pinned
+      // channel's zeroed deltas.
+      PatternflowMqtt::clearAbsoluteAll();
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
@@ -1267,9 +1348,12 @@ void loop() {
 
   // Apply OSC-driven pattern / content changes from the most recent
   // received packet. Knob deltas were already merged into the input
-  // frame inside readInputFrame().
+  // frame inside readInputFrame(). While a show is playing, the show owns
+  // pattern selection — remote pickers wait their turn.
   int oscPatternIdx;
-  if (PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
+  if (!PatternflowPatternsHttp::isConsolePaused() &&
+      !PatternflowShow::isPlaying() &&
+      PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
       oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
       activatePattern(oscPatternIdx)) {
     currentPatternIdx = oscPatternIdx;
@@ -1280,11 +1364,38 @@ void loop() {
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
+  // Night/wake scheduler: may queue Black or start the wake sequence.
+  int showPatternIdx;
+  if (!PatternflowPatternsHttp::isConsolePaused()) {
+    PatternflowShowSchedule::tick(currentContentName(),
+                                  currentMode == MODE_RUNNING);
+  }
+  // Show playback must be able to load a module even if Home/Patterns left
+  // the console-pause flag set — /show is a player, not a library editor.
+  if (PatternflowShow::consumePatternIdx(showPatternIdx) &&
+      showPatternIdx >= 0 && showPatternIdx < NUM_PATTERNS) {
+    PatternflowPatternsHttp::releaseConsolePause();
+    if (activatePattern(showPatternIdx)) {
+      currentPatternIdx = showPatternIdx;
+      currentMode = MODE_RUNNING;
+      if (!patterns[showPatternIdx].name ||
+          strcmp(patterns[showPatternIdx].name, "Black") != 0) {
+        contentNoticeTimer = CONTENT_NOTICE_SECONDS;
+      }
+      CalibPattern::overrideOn = false;
+      Serial.printf(">>> SHOW pattern → %s\n", patterns[currentPatternIdx].name);
+    } else {
+      Serial.printf(">>> SHOW pattern failed idx=%d\n", showPatternIdx);
+    }
+  }
+
   // Same contract again, fed by a retained <prefix>/pattern message. The
   // name was already resolved to an index inside core_mqtt.h, so a rename
   // on the broker side cannot select the wrong slot here.
   int mqttPatternIdx;
-  if (PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
+  if (!PatternflowPatternsHttp::isConsolePaused() &&
+      !PatternflowShow::isPlaying() &&
+      PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
       mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
       activatePattern(mqttPatternIdx)) {
     currentPatternIdx = mqttPatternIdx;
@@ -1297,7 +1408,8 @@ void loop() {
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
   int httpPatternIdx;
-  if (PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
+  if (!PatternflowShow::isPlaying() &&
+      PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
       activatePattern(httpPatternIdx)) {
     currentPatternIdx = httpPatternIdx;
@@ -1370,6 +1482,12 @@ void loop() {
     updateActivePattern(dt, input);
     drawActivePattern();
     drawMqttMessageOverlay();
+    drawClockOverlay();
+    // Scheduler-owned clock face, drawn over Black only (dim night clock or
+    // the big snooze face).
+    if (currentContentName() && strcmp(currentContentName(), "Black") == 0) {
+      PatternflowShowSchedule::drawOwnedClock();
+    }
 
     if (contentNoticeTimer > 0.0f) {
       drawContentNotice();
@@ -1441,6 +1559,31 @@ void loop() {
     if (allowed != appliedBrightness) {
       appliedBrightness = allowed;
       dma_display->setBrightness8(allowed);
+    }
+  }
+
+  // Weather / time sync can block on HTTP — run AFTER the frame, at most
+  // every 2 s, and only on the path matching the MQTT mode (hard separation):
+  //   FlowLocal  → appliance /api/time + /api/weather only
+  //   Normal/Dir → SNTP + optional OpenWeather only (never the FL host)
+  {
+    static bool wasFlowLocal = false;
+    const bool flowLocal = PatternflowMqtt::isFlowLocalMode();
+    if (flowLocal) {
+      PatternflowWeather::setFlowLocalUpstream(PatternflowMqtt::flowLocalHost());
+    } else {
+      PatternflowWeather::clearFlowLocalUpstream();
+    }
+    if (wasFlowLocal != flowLocal) {
+      Serial.printf("[NET] weather/time path -> %s\n",
+                    flowLocal ? "FlowLocal HTTP" : "internet NTP/OpenWeather");
+      wasFlowLocal = flowLocal;
+    }
+    static uint32_t lastWeatherHandleMs = 0;
+    uint32_t nowWx = millis();
+    if (lastWeatherHandleMs == 0 || (nowWx - lastWeatherHandleMs) >= 2000) {
+      lastWeatherHandleMs = nowWx;
+      PatternflowWeather::handle();
     }
   }
 }

@@ -42,6 +42,49 @@
   letter-spacing: 0.01em;
 }
 
+/* The piece's name — the header input every hand-off shares. Dead center
+   of the header (absolute, so the uneven left/right groups can't skew it);
+   narrow windows drop it back into the flow so it never overlaps buttons. */
+.labName {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(23, 21, 18, 0.25);
+  border-radius: 0;
+  color: #171512;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.labName::placeholder {
+  color: #9a9486;
+  font-weight: 400;
+}
+
+.labName:hover {
+  border-bottom-color: rgba(23, 21, 18, 0.45);
+}
+
+.labName:focus {
+  outline: none;
+  border-bottom-color: #ff5c2e;
+}
+
+@media (max-width: 1080px) {
+  .labName {
+    position: static;
+    transform: none;
+    width: 150px;
+    text-align: left;
+  }
+}
+
 .labNav {
   display: flex;
   align-items: center;

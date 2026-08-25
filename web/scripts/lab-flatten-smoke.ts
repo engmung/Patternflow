@@ -8,6 +8,7 @@ import { buildCppPrompt } from "../src/lib/lab/cppPrompt";
 import { createPixelLayer, DEFAULT_RAMP_STATE, type CodeLayer } from "../src/lib/lab/types";
 import { codeLayerFromSource } from "../src/lib/lab/store";
 import { PatternRuntime, createIdleInput } from "../src/lib/patternHarness";
+import { emptyShow } from "../src/lib/lab/director/types";
 import { codeUsesValueField } from "../src/lib/patternRamp";
 import { stripShareWrapping } from "../src/lib/sharePattern";
 import { livePresets } from "../src/lib/presets";
@@ -211,6 +212,19 @@ async function hExportSmoke() {
   if (/namespace L0 \{ \/\/ ".*" — STUB/.test(assembled)) failures.push("stub L0 still present after assembly");
   if (!assembled.includes("STUB")) failures.push("untouched L2 stub should remain");
 
+  // enforcePatternName: a model that retitles NAME gets stamped back — the
+  // exact miss that shipped as "HexHivePulse" for a piece named
+  // "HexagonalHivePulse". Untouched when the lab has no name.
+  const { enforcePatternName } = await import("../src/lib/lab/hExport");
+  const retitled = '#pragma once\nnamespace X {\nconst char* NAME = "HexHivePulse";\n}';
+  const stamped = enforcePatternName(retitled, "HexagonalHivePulse");
+  if (!stamped.includes('NAME = "HexagonalHivePulse"')) {
+    failures.push("enforcePatternName did not stamp the lab name");
+  }
+  if (enforcePatternName(retitled, "  ") !== retitled) {
+    failures.push("enforcePatternName must leave code alone without a name");
+  }
+
   if (failures.length > 0) {
     console.error("H EXPORT SMOKE FAILED:", failures);
     process.exit(1);
@@ -239,7 +253,10 @@ async function stackSmoke() {
     ] as [number, number][],
     knobLabels: ["Hue", "Speed", "Freq", "Mix"],
     forkOf: null,
+    editOf: null,
     gen: { count: 5, thinking: "LOW" as const, refs: 6, colorMode: "vfield" as const },
+    director: emptyShow(),
+    name: "Flatten Smoke",
   };
 
   const line = await buildStackAnnotation(project);

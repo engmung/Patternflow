@@ -5,7 +5,11 @@
  * string parsing, which is exactly where a silent mistake lives: get it wrong
  * one way and nobody can moderate, get it wrong the other and everybody can.
  */
-import { adminUsernames, isAdminUsername } from "../src/lib/community/admin";
+import {
+  adminUsernames,
+  isAdminUsername,
+  moderatorHeaderPatchOnly,
+} from "../src/lib/community/admin";
 import {
   REPORT_REASONS,
   cleanReportDetail,
@@ -63,6 +67,41 @@ withEnv(" engmung , Second-Mod ", () => {
   check("second entry works", isAdminUsername("second-mod"), true);
   check("list is exactly two", adminUsernames(), ["engmung", "second-mod"]);
 });
+
+console.log("\n── what a moderator may change, not just remove ──");
+// A moderator may edit somebody else's firmware header and NOTHING else. This
+// predicate is the whole of that boundary — every field it lets through is a
+// field a moderator can rewrite under another person's name, so the negative
+// cases matter more than the positive ones.
+check("the header alone passes", moderatorHeaderPatchOnly({ codeCpp: "#pragma once" }), true);
+check("clearing the header passes", moderatorHeaderPatchOnly({ codeCpp: null }), true);
+check(
+  "a reason line rides along",
+  moderatorHeaderPatchOnly({ codeCpp: "#pragma once", reason: "did not build" }),
+  true,
+);
+// The JavaScript is the pattern. If this ever passes, a moderator can rewrite
+// somebody's work and leave their name on it.
+check("the pattern source is refused", moderatorHeaderPatchOnly({ code: "// js" }), false);
+check(
+  "the source smuggled in beside the header is refused",
+  moderatorHeaderPatchOnly({ codeCpp: "#pragma once", code: "// js" }),
+  false,
+);
+check(
+  "retitling is refused",
+  moderatorHeaderPatchOnly({ codeCpp: "#pragma once", title: "Renamed" }),
+  false,
+);
+check(
+  "hiding somebody's pattern is refused",
+  moderatorHeaderPatchOnly({ codeCpp: "#pragma once", visibility: "private" }),
+  false,
+);
+check("relicensing is refused", moderatorHeaderPatchOnly({ license: "MIT" }), false);
+// No header in the body means the edit is about something else entirely.
+check("an empty body is refused", moderatorHeaderPatchOnly({}), false);
+check("a reason on its own is refused", moderatorHeaderPatchOnly({ reason: "because" }), false);
 
 console.log("\n── report input ──");
 check("pattern is a valid target", isReportTargetType("pattern"), true);

@@ -13,6 +13,24 @@ export type LabHandoff = {
   parentTitle: string | null;
   /** Parent's SPDX id, so the publish picker only offers compatible licences. */
   parentLicense: string | null;
+  /**
+   * Set INSTEAD of the parent fields when the visitor owns the pattern: the
+   * lab reopens it to be revised, and Share updates that post rather than
+   * publishing a fork of it. Its own author is the one person for whom "open
+   * this in the lab" means "keep working on it", not "start something new".
+   *
+   * Absent on handoffs written before in-place editing existed.
+   */
+  edit?: {
+    id: string;
+    title: string;
+    description: string | null;
+    visibility: string;
+    /** Ships a .h that a code change will detach — the modal says so. */
+    hasCpp: boolean;
+    /** Community ports a code change would send stale, for the same warning. */
+    portCount: number;
+  } | null;
 };
 
 export function writeLabHandoff(handoff: LabHandoff): void {
@@ -29,11 +47,23 @@ export function readLabHandoff(): LabHandoff | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<LabHandoff>;
     if (typeof parsed.code !== "string" || parsed.code.length === 0) return null;
+    const edit = parsed.edit;
     return {
       code: parsed.code,
       parentId: typeof parsed.parentId === "string" ? parsed.parentId : null,
       parentTitle: typeof parsed.parentTitle === "string" ? parsed.parentTitle : null,
       parentLicense: typeof parsed.parentLicense === "string" ? parsed.parentLicense : null,
+      edit:
+        edit && typeof edit.id === "string" && typeof edit.title === "string"
+          ? {
+              id: edit.id,
+              title: edit.title,
+              description: typeof edit.description === "string" ? edit.description : null,
+              visibility: typeof edit.visibility === "string" ? edit.visibility : "public",
+              hasCpp: edit.hasCpp === true,
+              portCount: Number.isFinite(edit.portCount) ? Number(edit.portCount) : 0,
+            }
+          : null,
     };
   } catch {
     return null;

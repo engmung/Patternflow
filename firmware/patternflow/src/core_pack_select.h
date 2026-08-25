@@ -18,9 +18,7 @@ constexpr uint8_t MAX = 64;
 inline uint32_t rev = 0;
 inline uint8_t count = 0;
 // 2.5 KB, used only while a Director session is marking modules — PSRAM on
-// first use, never internal DRAM. As a static array this was a measurable
-// slice of the ~15 KB the console runs on (nm showed it as the largest
-// non-canvas symbol our code adds), for a feature most boots never touch.
+// first use, never internal DRAM (see the note in core_show.h).
 inline char (*slugs)[MODULE_NAME_BYTES] = nullptr;
 
 inline void bump() {

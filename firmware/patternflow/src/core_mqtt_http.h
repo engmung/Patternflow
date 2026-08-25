@@ -89,6 +89,7 @@ inline void sendStatus(int code) {
   appendJsonString(json, "error", PatternflowMqtt::error());
   appendJsonString(json, "mode", PatternflowMqtt::modeName());
   appendJsonString(json, "directorHost", PatternflowMqtt::directorHost());
+  appendJsonString(json, "flowLocalHost", PatternflowMqtt::flowLocalHost());
   appendJsonString(json, "normalHost", PatternflowMqtt::normalHost());
   appendJsonString(json, "normalUser", PatternflowMqtt::normalUser());
   appendJsonString(json, "normalPrefix", PatternflowMqtt::normalPrefix());
@@ -145,9 +146,9 @@ inline void handleGet() {
 inline void handlePost() {
   PatternflowPatternsHttp::noteConsoleApiCall();
 
-  if (PatternflowMqtt::isDirectorMode()) {
+  if (PatternflowMqtt::isDirectorMode() || PatternflowMqtt::isFlowLocalMode()) {
     server().send(400, "application/json",
-                  "{\"ok\":false,\"error\":\"leave Director mode to change channel or role\"}");
+                  "{\"ok\":false,\"error\":\"leave Director/FlowLocal mode to change channel or role\"}");
     return;
   }
 
@@ -213,9 +214,9 @@ inline void handlePost() {
 inline void handleConfig() {
   PatternflowPatternsHttp::noteConsoleApiCall();
 
-  if (PatternflowMqtt::isDirectorMode()) {
+  if (PatternflowMqtt::isDirectorMode() || PatternflowMqtt::isFlowLocalMode()) {
     server().send(400, "application/json",
-                  "{\"ok\":false,\"error\":\"leave Director mode to edit the Normal broker\"}");
+                  "{\"ok\":false,\"error\":\"leave Director/FlowLocal mode to edit the Normal broker\"}");
     return;
   }
 
@@ -258,10 +259,29 @@ inline void handleDirector() {
   sendStatus(200);
 }
 
+inline void handleFlowLocal() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+  String host = server().hasArg("host") ? server().arg("host") : String();
+  host.trim();
+  if (host.length() == 0) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"host required\"}");
+    return;
+  }
+  PatternflowMqtt::setFlowLocalHost(host.c_str());
+  PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_FLOWLOCAL);
+  sendStatus(200);
+}
+
 inline void handleMode() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   String mode = server().hasArg("mode") ? server().arg("mode") : String();
   mode.toLowerCase();
+  if (mode == "flowlocal") {
+    PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_FLOWLOCAL);
+    sendStatus(200);
+    return;
+  }
   if (mode == "director") {
     PatternflowMqtt::setMqttMode(PatternflowMqtt::MQTT_MODE_DIRECTOR);
     sendStatus(200);
@@ -273,7 +293,7 @@ inline void handleMode() {
     return;
   }
   server().send(400, "application/json",
-                "{\"ok\":false,\"error\":\"mode must be director or normal\"}");
+                "{\"ok\":false,\"error\":\"mode must be director, flowlocal, or normal\"}");
 }
 
 inline void handleForget() {
@@ -293,6 +313,7 @@ inline void begin() {
   server().on("/api/mqtt", HTTP_POST, handlePost);
   server().on("/api/mqtt/config", HTTP_POST, handleConfig);
   server().on("/api/mqtt/director", HTTP_POST, handleDirector);
+  server().on("/api/mqtt/flowlocal", HTTP_POST, handleFlowLocal);
   server().on("/api/mqtt/mode", HTTP_POST, handleMode);
   server().on("/api/mqtt/forget", HTTP_POST, handleForget);
 

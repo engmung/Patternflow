@@ -28,7 +28,9 @@ export type NotificationType =
   | "pin"
   | "performance"
   | "perf-pin"
-  | "territory";
+  | "territory"
+  | "header-fix"
+  | "header-drop";
 
 type Seed = {
   userId: string;
@@ -325,6 +327,43 @@ export async function notifyPortPinned(opts: {
       targetId: opts.patternId,
       targetTitle: opts.patternTitle,
       sourceId: opts.portId,
+    },
+  ]);
+}
+
+/**
+ * A moderator rewrote or removed a .h that carries somebody else's name — the
+ * author's own header, or a community port. This is the only notification
+ * about a moderation act, and it exists for that reason: an edit nobody is
+ * told about is an edit made in their name (lib/community/admin.ts).
+ *
+ * `reason` is whatever the moderator typed in the modal. Optional, and the row
+ * reads without it.
+ */
+export async function notifyHeaderModerated(opts: {
+  /** The author, or the porter — whoever the header is credited to. */
+  recipientId: string;
+  patternId: string;
+  patternTitle: string;
+  /** Set when the .h was a community port rather than the author's own. */
+  portId?: string | null;
+  /** Removed, as opposed to rewritten. */
+  removed?: boolean;
+  reason?: string | null;
+  actorId: string;
+}): Promise<void> {
+  // A moderator fixing their own header is just an author editing it.
+  if (opts.recipientId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.recipientId,
+      type: opts.removed ? "header-drop" : "header-fix",
+      actorId: opts.actorId,
+      targetType: "pattern",
+      targetId: opts.patternId,
+      targetTitle: opts.patternTitle,
+      sourceId: opts.portId ?? null,
+      snippet: opts.reason ? snippetOf(opts.reason) : null,
     },
   ]);
 }

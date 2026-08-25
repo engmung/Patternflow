@@ -2234,6 +2234,19 @@
   padding: 0 6px;
 }
 
+/* A moderator repaired the C++ under somebody else's name. Not a warning and
+   not a badge — a note about whose code is actually in there, so it reads
+   solid rather than borrowing the dashed "expired" look above. */
+.portFixed {
+  flex: none;
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--pfc-ink-2);
+  border: 1px solid var(--pfc-edge);
+  padding: 0 6px;
+}
+
 .portNote {
   color: var(--pfc-ink-muted);
   font-size: 12px;

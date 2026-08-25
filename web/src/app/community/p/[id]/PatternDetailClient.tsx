@@ -36,6 +36,13 @@ export type PortView = {
   handle: string | null;
   note: string | null;
   stale: boolean;
+  /** Set when a moderator repaired this port's C++ — the credit is still the
+   *  porter's, but the code under it is no longer only theirs. */
+  moderatedAt: string | null; // ISO
+  /** The port's own C++, sent to MODERATORS ONLY so the fix modal opens with
+   *  something to edit. A losing port's header is otherwise never shipped to
+   *  the browser — several of them would weigh the page down for everybody. */
+  codeCpp: string | null;
   createdAt: string; // ISO
   mine: boolean;
   pinned: boolean;
@@ -65,6 +72,8 @@ export type PatternView = {
   codeCpp: string | null;
   /** The author's own header only — what their Update/Remove modal edits. */
   ownCpp: string | null;
+  /** Set when a moderator last wrote that header instead of the author. */
+  ownCppModeratedAt: string | null; // ISO
   /** Porter handle when the effective header is a community port. */
   portedBy: string | null;
   /** Every port on this pattern, oldest first. */
@@ -102,6 +111,7 @@ export default function PatternDetailClient({
   initialKnobs,
   liked = false,
   isOwner = false,
+  isAdmin = false,
 }: {
   pattern: PatternView;
   comments: CommentView[];
@@ -110,6 +120,8 @@ export default function PatternDetailClient({
   initialKnobs?: number[];
   liked?: boolean;
   isOwner?: boolean;
+  /** Moderator: may repair or drop this pattern's .h, and nothing else. */
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [code, setCode] = useState(pattern.code);
@@ -118,6 +130,9 @@ export default function PatternDetailClient({
   const [codeTab, setCodeTab] = useState<"js" | "h">("js");
   const [headerModalOpen, setHeaderModalOpen] = useState(false);
   const [portModalOpen, setPortModalOpen] = useState(false);
+  // Moderation of a .h: the author's own header, or one community port.
+  const [fixOwnHeaderOpen, setFixOwnHeaderOpen] = useState(false);
+  const [fixPort, setFixPort] = useState<PortView | null>(null);
   const [performanceModalOpen, setPerformanceModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -175,14 +190,45 @@ export default function PatternDetailClient({
 
   const edited = code !== pattern.code;
 
+  // Whether the .h on show was last written by a moderator rather than by the
+  // person credited for it — which changes what the footnote under it can
+  // honestly claim. The effective header is the author's own when they have
+  // one, otherwise the winning port (lib/community/ports.ts).
+  const shownHeaderModerated = pattern.ownCpp
+    ? pattern.ownCppModeratedAt !== null
+    : pattern.ports.some((port) => port.effective && port.moderatedAt !== null);
+
+  // The author gets the other half of the round trip: their own post reopens
+  // as the thing being revised, so Share in the lab updates this pattern
+  // instead of publishing a fork of it. Everybody else forks, as before.
   const openInLab = () => {
-    writeLabHandoff({
-      code,
-      parentId: pattern.id,
-      parentTitle: pattern.title,
-      parentLicense: pattern.license,
-    });
-    captureEvent("community_open_in_lab", { pattern_id: pattern.id, edited });
+    writeLabHandoff(
+      isOwner
+        ? {
+            code,
+            parentId: null,
+            parentTitle: null,
+            parentLicense: null,
+            edit: {
+              id: pattern.id,
+              title: pattern.title,
+              description: pattern.description,
+              visibility: pattern.visibility,
+              // Their OWN header — a community port is not theirs to lose,
+              // and goes stale on its own when the source moves.
+              hasCpp: pattern.ownCpp !== null,
+              portCount: pattern.ports.filter((port) => !port.stale).length,
+            },
+          }
+        : {
+            code,
+            parentId: pattern.id,
+            parentTitle: pattern.title,
+            parentLicense: pattern.license,
+            edit: null,
+          },
+    );
+    captureEvent("community_open_in_lab", { pattern_id: pattern.id, edited, own: isOwner });
     router.push("/pattern-lab?from=community");
   };
 
@@ -296,8 +342,17 @@ export default function PatternDetailClient({
             >
               Reset code
             </button>
-            <button type="button" className={styles.btnAccent} onClick={openInLab}>
-              Open in Pattern Lab
+            <button
+              type="button"
+              className={styles.btnAccent}
+              onClick={openInLab}
+              title={
+                isOwner
+                  ? "Reopen this pattern in the lab — layers, ramps and show intact. Sharing from there updates this post."
+                  : "Open a copy in the lab. Sharing from there publishes it as your fork."
+              }
+            >
+              {isOwner ? "Edit in Pattern Lab" : "Open in Pattern Lab"}
             </button>
             {/* Only for patterns that ship a verified header — this is the
                 zero-friction path: nothing to convert, nothing to install. */}
@@ -447,14 +502,19 @@ export default function PatternDetailClient({
               {buildsConfigured() ? (
                 <>
                   Use <strong>Send to my Patternflow</strong> below to compile and install this
-                  without an Arduino IDE. Provided by the author and not verified by us.
+                  without an Arduino IDE.{" "}
                 </>
               ) : (
                 <>
                   To flash it: drop the file into <code>firmware/patternflow/</code> and add it to{" "}
-                  <code>pattern_registry.h</code>. Provided by the author and not verified by us.
+                  <code>pattern_registry.h</code>.{" "}
                 </>
               )}
+              {/* "Provided by the author" stops being true the moment a
+                  moderator repairs it — the row still carries their name. */}
+              {shownHeaderModerated
+                ? "This header was last edited by a moderator, not by the person credited for it."
+                : "Provided by the author and not verified by us."}
             </p>
           )}
         </div>
@@ -601,7 +661,30 @@ export default function PatternDetailClient({
           </div>
         )}
 
-        <PortsSection pattern={pattern} isOwner={isOwner} onPropose={() => setPortModalOpen(true)} />
+        {/* The moderator's one verb on somebody else's pattern. Only when the
+            author attached their own .h — a bad community port is repaired in
+            the list below, where it lives. */}
+        {!isOwner && isAdmin && pattern.ownCpp && (
+          <div className={styles.ownerBar}>
+            <span className={styles.formNote}>
+              {pattern.ownCppModeratedAt
+                ? `Moderator — this .h already carries a fix from ${pattern.ownCppModeratedAt.slice(0, 10)}.`
+                : "Moderator — repair this .h if it does not build, or drop it so the pattern falls back to a community port. The author is told either way."}
+            </span>
+            <span className={styles.ownerBarSpacer} />
+            <button type="button" className={styles.btn} onClick={() => setFixOwnHeaderOpen(true)}>
+              Fix .h
+            </button>
+          </div>
+        )}
+
+        <PortsSection
+          pattern={pattern}
+          isOwner={isOwner}
+          isAdmin={isAdmin}
+          onPropose={() => setPortModalOpen(true)}
+          onFix={setFixPort}
+        />
 
         <PerformancesSection
           pattern={pattern}
@@ -626,6 +709,25 @@ export default function PatternDetailClient({
           initialCpp={null}
           mode="port"
           onClose={() => setPortModalOpen(false)}
+        />
+      )}
+
+      {fixOwnHeaderOpen && (
+        <AddHeaderModal
+          patternId={pattern.id}
+          initialCpp={pattern.ownCpp}
+          mode="moderate"
+          onClose={() => setFixOwnHeaderOpen(false)}
+        />
+      )}
+
+      {fixPort && (
+        <AddHeaderModal
+          patternId={pattern.id}
+          portId={fixPort.id}
+          initialCpp={fixPort.codeCpp}
+          mode="moderate-port"
+          onClose={() => setFixPort(null)}
         />
       )}
 
@@ -676,15 +778,20 @@ export default function PatternDetailClient({
 function PortsSection({
   pattern,
   isOwner,
+  isAdmin,
   onPropose,
+  onFix,
 }: {
   pattern: PatternView;
   isOwner: boolean;
+  isAdmin: boolean;
   onPropose: () => void;
+  onFix: (port: PortView) => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   const canPropose = !isOwner && !pattern.ownCpp;
   if (pattern.ports.length === 0 && !canPropose) return null;
@@ -764,6 +871,16 @@ function PortsSection({
                   for an older version
                 </span>
               )}
+              {/* Shown to everybody, not just the porter: whoever downloads
+                  this .h should know whose code they are actually getting. */}
+              {port.moderatedAt && (
+                <span
+                  className={styles.portFixed}
+                  title={`A moderator repaired this port's C++ on ${port.moderatedAt.slice(0, 10)}`}
+                >
+                  moderator fix
+                </span>
+              )}
               {port.note && <span className={styles.portNote}>{port.note}</span>}
               <span className={styles.ownerBarSpacer} />
               {isOwner && !port.stale && !pattern.ownCpp && (
@@ -781,14 +898,33 @@ function PortsSection({
                   {port.pinned ? "Unpin" : "Pin"}
                 </button>
               )}
-              {port.mine && (
+              {/* A moderator repairs the C++ in place; the porter cannot, and
+                  withdraws instead (api/community/ports/[id]/route.ts). */}
+              {isAdmin && !port.mine && port.codeCpp && (
                 <button
                   type="button"
                   className={styles.btnSmall}
                   disabled={busy}
-                  onClick={() => void remove(port.id)}
+                  title="Repair this port's C++ — the porter keeps the credit and is told"
+                  onClick={() => onFix(port)}
                 >
-                  remove
+                  fix
+                </button>
+              )}
+              {(port.mine || isAdmin) && (
+                <button
+                  type="button"
+                  className={styles.btnSmall}
+                  disabled={busy}
+                  title={port.mine ? undefined : "Remove this port — moderator"}
+                  onClick={() => {
+                    // A porter withdrawing their own work fires at once;
+                    // taking down somebody else's asks first.
+                    if (port.mine || confirmRemove === port.id) void remove(port.id);
+                    else setConfirmRemove(port.id);
+                  }}
+                >
+                  {confirmRemove === port.id ? "sure? remove" : "remove"}
                 </button>
               )}
             </li>

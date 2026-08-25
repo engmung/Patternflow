@@ -578,6 +578,21 @@ ${stripLayerAnnotations(layer.code)}
 
 // ── assembly ──
 
+/**
+ * Stamp the lab's name back onto a pasted translation. Models retitle NAME
+ * even when the prompt pins it ("HexagonalHivePulse" came back as
+ * "HexHivePulse"), and NAME is the string shows and the device look the
+ * pattern up by — so the paste path enforces it instead of trusting it.
+ */
+export function enforcePatternName(code: string, name: string): string {
+  const clean = name.trim().replace(/["\\]/g, "");
+  if (!clean) return code;
+  return code.replace(
+    /(const\s+char\s*\*\s*NAME\s*=\s*")[^"\n]*(")/,
+    (_m, head: string, tail: string) => head + clean + tail,
+  );
+}
+
 /** Strip a pasted LLM answer down to the code (drop \`\`\` fences / prose edges). */
 export function cleanPastedUnit(pasted: string, index: number): string | null {
   let text = pasted.trim();

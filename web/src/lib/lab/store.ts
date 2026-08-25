@@ -31,6 +31,7 @@ import {
   serializeProject,
 } from "./serialize";
 import { readSession, stashSession } from "./sessions";
+import { emptyShow, type DirectorShow } from "./director/types";
 import { resizeSurface } from "./pixelTools";
 import {
   DEFAULT_RAMP_STATE,
@@ -41,6 +42,7 @@ import {
   nextLayerName,
   type BlendMode,
   type CodeLayer,
+  type EditRef,
   type ForkRef,
   type LayerRole,
   type GalleryItem,
@@ -127,6 +129,7 @@ function defaultProject(): LabProject {
   const base = defaultKnobState();
   const knobState = knobEntries ? applyKnobEntries(knobEntries, base) : base;
   return {
+    name: "",
     matrix: matrix ?? DEFAULT_MATRIX,
     layers: [layer],
     activeLayerId: layer.id,
@@ -134,7 +137,9 @@ function defaultProject(): LabProject {
     ranges: knobState.ranges,
     knobLabels: knobState.labels,
     forkOf: null,
+    editOf: null,
     gen: { count: 5, thinking: "LOW", refs: 6, colorMode: "vfield" },
+    director: emptyShow(),
   };
 }
 
@@ -169,18 +174,24 @@ export type LabStore = LabProject & {
   discardProject: () => void;
   /** Park the current work in the session ring and empty the canvas. */
   stashCurrent: () => boolean;
+  /** Park a COPY and keep working — used when the canvas is about to become
+   *  the only copy of something, e.g. revising a published pattern. */
+  parkSnapshot: (title?: string) => boolean;
   /** Swap the canvas for a stashed session, parking what is there now. */
   restoreSession: (id: string) => boolean;
 
   setMatrix: (matrix: MatrixSize) => void;
   setGen: (patch: Partial<GenSettings>) => void;
   setForkOf: (forkOf: ForkRef) => void;
+  setEditOf: (editOf: EditRef) => void;
 
   selectLayer: (id: string) => void;
   addCodeLayer: () => void;
   addPixelLayer: () => void;
   addCodeLayerFromCode: (code: string, name?: string, forkOf?: ForkRef) => void;
   /** Restore a shared @stack: its layers land ON TOP of the current stack. */
+  /** Rename the piece — the identity every hand-off shares (see LabProject.name). */
+  setName: (name: string) => void;
   importStackLayers: (payload: LabProject) => void;
   duplicateLayer: (id: string) => void;
   removeLayer: (id: string) => void;
@@ -194,6 +205,8 @@ export type LabStore = LabProject & {
 
   updateLayerCode: (id: string, code: string) => void;
   applyCodeToActive: (code: string) => void;
+  /** Immutable edit of the Director show (timeline authoring). */
+  updateDirector: (update: (show: DirectorShow) => DirectorShow) => void;
   setKnob: (index: number, value: number) => void;
   setRange: (index: number, edge: "min" | "max", value: number) => void;
   setLayerRecolor: (id: string, recolor: boolean) => void;
@@ -257,6 +270,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
   stashCurrent: () => {
     const state = get();
     const json = serializeProject({
+      name: state.name,
       matrix: state.matrix,
       layers: state.layers,
       activeLayerId: state.activeLayerId,
@@ -264,16 +278,49 @@ export const useLabStore = create<LabStore>((set, get) => ({
       ranges: state.ranges,
       knobLabels: state.knobLabels,
       forkOf: state.forkOf,
+      editOf: state.editOf,
       gen: state.gen,
+      director: state.director,
     });
     if (!json) return false;
-    const title = state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work";
+    const title =
+      state.name.trim() ||
+      (state.editOf?.title ?? state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work");
     const stashed = stashSession(json, title, state.layers.length);
     if (stashed) {
       clearProject();
       set({ ...defaultProject(), restoredAt: null, layers: [], activeLayerId: "" });
     }
     return stashed;
+  },
+
+  // Park a copy WITHOUT clearing the canvas — the difference from
+  // stashCurrent, and the whole point: revising a published pattern overwrites
+  // the only published copy, so the version you started from goes into the
+  // ring the moment it lands and Recent ▾ can hand it back.
+  parkSnapshot: (title) => {
+    const state = get();
+    const json = serializeProject({
+      name: state.name,
+      matrix: state.matrix,
+      layers: state.layers,
+      activeLayerId: state.activeLayerId,
+      knobs: state.knobs,
+      ranges: state.ranges,
+      knobLabels: state.knobLabels,
+      forkOf: state.forkOf,
+      editOf: state.editOf,
+      gen: state.gen,
+      director: state.director,
+    });
+    if (!json) return false;
+    return stashSession(
+      json,
+      title ??
+        (state.name.trim() ||
+          (state.editOf?.title ?? state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work")),
+      state.layers.length,
+    );
   },
 
   restoreSession: (id) => {
@@ -306,7 +353,11 @@ export const useLabStore = create<LabStore>((set, get) => ({
   },
 
   setGen: (patch) => set((state) => ({ gen: { ...state.gen, ...patch } })),
-  setForkOf: (forkOf) => set({ forkOf }),
+  // Fork and edit are opposite ends of the same handoff, so setting one
+  // clears the other: a project cannot both become a new pattern and update
+  // an existing one.
+  setForkOf: (forkOf) => set(forkOf ? { forkOf, editOf: null } : { forkOf }),
+  setEditOf: (editOf) => set(editOf ? { editOf, forkOf: null } : { editOf }),
 
   selectLayer: (id) => {
     if (get().layers.some((layer) => layer.id === id)) set({ activeLayerId: id });
@@ -351,6 +402,8 @@ export const useLabStore = create<LabStore>((set, get) => ({
     });
   },
 
+  setName: (name) => set({ name: name.slice(0, 60) }),
+
   importStackLayers: (payload) => {
     const state = get();
     // Fresh ids: the same composition can be imported twice, and imported ids
@@ -376,6 +429,9 @@ export const useLabStore = create<LabStore>((set, get) => ({
       knobs: payload.knobs,
       ranges: payload.ranges,
       knobLabels: payload.knobLabels,
+      // An imported composition brings its name along — but never erases a
+      // name the current canvas already has.
+      ...(payload.name && !state.name ? { name: payload.name } : {}),
     });
   },
 
@@ -532,6 +588,8 @@ export const useLabStore = create<LabStore>((set, get) => ({
     get().addCodeLayerFromCode(code);
   },
 
+  updateDirector: (update) => set((state) => ({ director: update(state.director) })),
+
   setKnob: (index, value) =>
     set((state) => ({
       knobs: state.knobs.map((knob, knobIndex) => (knobIndex === index ? value : knob)),
@@ -669,6 +727,7 @@ if (typeof window !== "undefined") {
     }
 
     const projectChanged =
+      state.name !== previous.name ||
       state.matrix !== previous.matrix ||
       state.layers !== previous.layers ||
       state.activeLayerId !== previous.activeLayerId ||
@@ -676,7 +735,9 @@ if (typeof window !== "undefined") {
       state.ranges !== previous.ranges ||
       state.knobLabels !== previous.knobLabels ||
       state.forkOf !== previous.forkOf ||
-      state.gen !== previous.gen;
+      state.editOf !== previous.editOf ||
+      state.gen !== previous.gen ||
+      state.director !== previous.director;
     if (!projectChanged) return;
 
     if (saveTimer !== null) clearTimeout(saveTimer);
@@ -684,6 +745,7 @@ if (typeof window !== "undefined") {
       saveTimer = null;
       const current = useLabStore.getState();
       saveProject({
+        name: current.name,
         matrix: current.matrix,
         layers: current.layers,
         activeLayerId: current.activeLayerId,
@@ -691,7 +753,9 @@ if (typeof window !== "undefined") {
         ranges: current.ranges,
         knobLabels: current.knobLabels,
         forkOf: current.forkOf,
+        editOf: current.editOf,
         gen: current.gen,
+        director: current.director,
       });
     }, 600);
   });
@@ -717,4 +781,24 @@ export function useFocusCodeLayer(): CodeLayer | undefined {
     if (isCodeLayer(active)) return active;
     return state.layers.find(isCodeLayer);
   });
+}
+
+/**
+ * THE name of what is being built — the one identity every hand-off shares.
+ * The hardware export seeds its NAME from this, the module build slugs the
+ * .pfm from that NAME, and the Director stamps the same name into the show's
+ * opening pattern cue and its .pfs filename — so a show finds its pattern on
+ * the device without anyone retyping anything. The project's own name (the
+ * header input) wins; unnamed projects fall back to the focus code layer,
+ * then any layer — layer names are parts, but they beat "pattern".
+ */
+export function labPatternName(
+  state: Pick<LabStore, "name" | "layers" | "activeLayerId">,
+): string {
+  const project = state.name.trim();
+  if (project) return project;
+  const active = state.layers.find((layer) => layer.id === state.activeLayerId);
+  const layer = isCodeLayer(active) ? active : (state.layers.find(isCodeLayer) ?? state.layers[0]);
+  const name = layer?.name.trim() ?? "";
+  return name || "pattern";
 }

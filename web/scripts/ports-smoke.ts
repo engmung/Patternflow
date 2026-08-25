@@ -176,6 +176,31 @@ async function main() {
     (await queries.listPatternPorts("p-ported")).map((row) => row.stale),
     [true],
   );
+
+  console.log("\n── a moderator's repair is on the record ──");
+  // A moderator may rewrite the C++ of a port that does not build, but the row
+  // still carries the porter's name — so the page has to be able to say the
+  // code changed hands. If this column stops travelling, the credit silently
+  // becomes a lie (lib/community/admin.ts).
+  check(
+    "an untouched port carries no mark",
+    (await queries.listPatternPorts("p-ported")).map((row) => row.moderatedAt),
+    [null],
+  );
+  await db
+    .update(schema.patternHeaders)
+    .set({ codeCpp: "#pragma once // repaired", moderatedAt: at(9) })
+    .where(eq(schema.patternHeaders.id, "port-1"));
+  check(
+    "a repaired one carries the date",
+    (await queries.listPatternPorts("p-ported")).map((row) => row.moderatedAt?.toISOString() ?? null),
+    [at(9).toISOString()],
+  );
+  check(
+    "repairing does not un-stale it — the JS still moved",
+    (await queries.listPatternPorts("p-ported")).map((row) => row.stale),
+    [true],
+  );
 }
 
 main()

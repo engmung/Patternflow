@@ -72,7 +72,7 @@
 // Firmware version string reported to the flasher (Improv device-info RPC).
 // Keep in sync with web/public/flash/manifest.json.
 #ifndef PF_IMPROV_FW_VERSION
-#define PF_IMPROV_FW_VERSION "3.5.2"
+#define PF_IMPROV_FW_VERSION "3.6.3"
 #endif
 
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
@@ -200,6 +200,28 @@
 // on FATFS take PSRAM slots and no internal heap at all (47 of them moved the
 // figure by 0 bytes), while every compiled-in preset takes DRAM. With Origin
 // as the only preset there is room for this and change to spare.
+
+// ── Weather (OpenWeather current conditions / FlowLocal island) ────────
+// Core fetches over HTTPS; /weather stores API key + location in NVS.
+// The clock overlay and the night/wake schedule read local time from here;
+// knob channels 1..4 can carry condition / temp / humidity / feels-like.
+#ifndef PF_WEATHER_ENABLED
+#define PF_WEATHER_ENABLED 1
+#endif
+#ifndef PF_WEATHER_HTTP_ENABLED
+#define PF_WEATHER_HTTP_ENABLED PF_WEATHER_ENABLED
+#endif
+#ifndef PF_WEATHER_POLL_MS
+#define PF_WEATHER_POLL_MS (30UL * 60UL * 1000UL)  // every 30 minutes
+#endif
+// Linear map for temp / feels-like -> knob 0..1 (metric C).
+#ifndef PF_WEATHER_TEMP_MIN_C
+#define PF_WEATHER_TEMP_MIN_C (-20.0f)
+#endif
+#ifndef PF_WEATHER_TEMP_MAX_C
+#define PF_WEATHER_TEMP_MAX_C (40.0f)
+#endif
+
 #ifndef PF_MQTT_ENABLED
 #define PF_MQTT_ENABLED 1
 #endif

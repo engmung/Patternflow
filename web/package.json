@@ -13,6 +13,7 @@
     "check:module": "tsx scripts/module-build-smoke.ts",
     "check:license": "tsx scripts/license-smoke.ts",
     "check:moderation": "tsx scripts/moderation-smoke.ts",
+    "check:headermod": "tsx scripts/header-moderation-smoke.ts",
     "check:retention": "tsx scripts/retention-smoke.ts",
     "sweep": "tsx scripts/retention-sweep.ts",
     "check:deck": "tsx scripts/deck-smoke.ts",
@@ -26,11 +27,13 @@
     "check:capture": "tsx scripts/lab-capture-smoke.ts",
     "check:thumbs": "tsx scripts/thumbs-smoke.ts",
     "check:flatten": "tsx scripts/lab-flatten-smoke.ts",
+    "check:labedit": "tsx scripts/lab-edit-smoke.ts",
     "check:performance": "tsx scripts/performance-smoke.ts",
     "build:ha-card": "tsx scripts/build-ha-card.ts",
     "check:ha-card": "tsx scripts/build-ha-card.ts --check",
     "check:ha-card-smoke": "tsx scripts/ha-card-smoke.ts",
-    "check:pixelcode": "tsx scripts/lab-pixel-code-smoke.ts"
+    "check:pixelcode": "tsx scripts/lab-pixel-code-smoke.ts",
+    "check:director": "tsx scripts/lab-director-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

@@ -74,7 +74,10 @@ enum Channel : uint8_t {
 // credentials stay in NVS and come back when leaving Director mode.
 enum MqttMode : uint8_t {
   MQTT_MODE_NORMAL = 0,
-  MQTT_MODE_DIRECTOR = 1
+  MQTT_MODE_DIRECTOR = 1,
+  // FlowLocal = appliance broker + island behaviours (time/weather/library
+  // via the fl-host HTTP API). Simone's mode; off unless chosen on /mqtt.
+  MQTT_MODE_FLOWLOCAL = 2
 };
 
 #if PF_MQTT_ENABLED
@@ -84,10 +87,16 @@ constexpr size_t MESSAGE_BYTES = 80;
 constexpr size_t SNAPSHOT_BYTES = 384;
 
 constexpr uint32_t CONNECT_TIMEOUT_MS = 1500;
+constexpr uint32_t FLOWLOCAL_CONNECT_TIMEOUT_MS = 400;
 constexpr uint32_t SOCKET_TIMEOUT_S = 1;
 constexpr uint32_t RECONNECT_MIN_MS = 5000;
 constexpr uint32_t RECONNECT_MID_MS = 15000;
 constexpr uint32_t RECONNECT_MAX_MS = 60000;
+// FlowLocal broker is often unreachable on home Wi-Fi — back off hard so
+// blocking connect attempts cannot starve the render loop or the console.
+constexpr uint32_t FL_RECONNECT_MIN_MS = 15000;
+constexpr uint32_t FL_RECONNECT_MID_MS = 45000;
+constexpr uint32_t FL_RECONNECT_MAX_MS = 90000;
 constexpr uint8_t RERESOLVE_AFTER = 4;
 constexpr uint32_t SNAPSHOT_HEARTBEAT_MS = 8000;
 
@@ -139,29 +148,46 @@ inline char cfgPrefix[PREFIX_BYTES] = PF_MQTT_PREFIX;
 inline uint16_t cfgPort = PF_MQTT_PORT;
 inline MqttMode mqttMode = MQTT_MODE_NORMAL;
 inline char dirHost[HOST_BYTES] = {};
+inline char flHost[HOST_BYTES] = "192.168.66.1";
 // -2 idle, -1 header, 0..n-1 items, n end
 inline int inventorySendIdx = -2;
+// Paces the inventory burst (one publish per 25 ms) so a Director query
+// never stalls a frame with back-to-back publishes.
+inline uint32_t inventoryNextSendMs = 0;
 
 inline bool isDirectorMode() { return mqttMode == MQTT_MODE_DIRECTOR; }
+inline bool isFlowLocalMode() { return mqttMode == MQTT_MODE_FLOWLOCAL; }
 
 inline const char* livePrefix() {
-  return isDirectorMode() ? "patternflow" : cfgPrefix;
+  return (isDirectorMode() || isFlowLocalMode()) ? "patternflow" : cfgPrefix;
 }
 
 inline const char* connectHost() {
-  return isDirectorMode() ? dirHost : cfgHost;
+  if (isDirectorMode()) return dirHost;
+  if (isFlowLocalMode()) return flHost;
+  return cfgHost;
 }
 
 inline uint16_t connectPort() {
-  return isDirectorMode() ? (uint16_t)1883 : cfgPort;
+  if (isDirectorMode() || isFlowLocalMode()) return (uint16_t)1883;
+  return cfgPort;
 }
 
 inline bool hasBroker() { return connectHost()[0] != '\0'; }
 
 inline uint32_t reconnectDelayMs() {
+  if (isFlowLocalMode()) {
+    if (failures == 0) return FL_RECONNECT_MIN_MS;
+    if (failures < RERESOLVE_AFTER) return FL_RECONNECT_MID_MS;
+    return FL_RECONNECT_MAX_MS;
+  }
   if (failures == 0) return RECONNECT_MIN_MS;
   if (failures < RERESOLVE_AFTER) return RECONNECT_MID_MS;
   return RECONNECT_MAX_MS;
+}
+
+inline uint32_t connectTimeoutMs() {
+  return isFlowLocalMode() ? FLOWLOCAL_CONNECT_TIMEOUT_MS : CONNECT_TIMEOUT_MS;
 }
 
 inline void setError(const char* message) {
@@ -400,6 +426,7 @@ inline void jsonEscape(const char* in, char* out, size_t n) {
 inline void requestInventory() {
   if (!isDirectorMode()) return;
   inventorySendIdx = -1;
+  inventoryNextSendMs = 0;
 }
 
 inline void publishSelectAck(uint8_t matched, uint8_t presets, uint8_t missing) {
@@ -495,6 +522,8 @@ inline void publishInventoryItem(int index) {
 
 inline void pumpInventory() {
   if (inventorySendIdx < -1 || !isDirectorMode() || !client.connected()) return;
+  const uint32_t now = millis();
+  if (inventoryNextSendMs != 0 && (int32_t)(now - inventoryNextSendMs) < 0) return;
   if (inventorySendIdx == -1) {
     char topic[48];
     char payload[40];
@@ -502,11 +531,13 @@ inline void pumpInventory() {
     snprintf(payload, sizeof(payload), "{\"count\":%d}", NUM_PATTERNS);
     client.publish(topic, payload, false);
     inventorySendIdx = 0;
+    inventoryNextSendMs = now + 25;
     return;
   }
   if (inventorySendIdx < NUM_PATTERNS) {
     publishInventoryItem(inventorySendIdx);
     inventorySendIdx++;
+    inventoryNextSendMs = now + 25;
     return;
   }
   char topic[48];
@@ -515,6 +546,7 @@ inline void pumpInventory() {
   snprintf(payload, sizeof(payload), "{\"count\":%d}", NUM_PATTERNS);
   client.publish(topic, payload, false);
   inventorySendIdx = -2;
+  inventoryNextSendMs = 0;
 }
 
 inline void applyRemoteKnob(int index, long remote) {
@@ -532,7 +564,11 @@ inline void applyRemoteKnob(int index, long remote) {
 
 inline void applyRemotePattern(const char* name) {
   int index = findPatternByName(name);
-  if (index >= 0) pendingPatternIdx = index;
+  if (index >= 0) {
+    pendingPatternIdx = index;
+    return;
+  }
+  Serial.printf("[MQTT] unknown pattern '%s'\n", name ? name : "");
 }
 
 inline void applyRemoteParam(int index, long value) {
@@ -937,9 +973,9 @@ inline bool resolveBroker() {
 inline void applyClientSettings() {
 #if defined(ESP_ARDUINO_VERSION) && \
     ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
-  net.setConnectionTimeout(CONNECT_TIMEOUT_MS);
+  net.setConnectionTimeout(connectTimeoutMs());
 #else
-  net.setTimeout((CONNECT_TIMEOUT_MS + 999U) / 1000U);
+  net.setTimeout((connectTimeoutMs() + 999U) / 1000U);
 #endif
   client.setCallback(onMessage);
   client.setBufferSize(512);
@@ -983,7 +1019,7 @@ inline bool tryConnect() {
   setError("");
   Serial.printf("[MQTT] connected as %s (%s) mode=%s ch=%s prefix=%s to %s:%d\n",
                 clientId, roleName(role),
-                isDirectorMode() ? "director" : "normal",
+                isFlowLocalMode() ? "flowlocal" : (isDirectorMode() ? "director" : "normal"),
                 channelName(channel), livePrefix(),
                 connectHost(), connectPort());
   if (role == ROLE_SUBSCRIBER) {
@@ -1075,13 +1111,22 @@ inline bool isConnected() { return client.connected(); }
 inline const char* error() { return lastError; }
 inline const char* host() { return connectHost(); }
 inline uint16_t port() { return connectPort(); }
-inline const char* user() { return isDirectorMode() ? "" : cfgUser; }
+inline const char* user() {
+  return (isDirectorMode() || isFlowLocalMode()) ? "" : cfgUser;
+}
 inline const char* prefix() { return livePrefix(); }
-inline bool hasPassword() { return !isDirectorMode() && cfgPass[0] != '\0'; }
+inline bool hasPassword() {
+  return !isDirectorMode() && !isFlowLocalMode() && cfgPass[0] != '\0';
+}
 inline const char* lastPatternName() { return lastPattern; }
 inline const char* normalHost() { return cfgHost; }
 inline const char* directorHost() { return dirHost; }
-inline const char* modeName() { return isDirectorMode() ? "director" : "normal"; }
+inline const char* flowLocalHost() { return flHost; }
+inline const char* modeName() {
+  if (isDirectorMode()) return "director";
+  if (isFlowLocalMode()) return "flowlocal";
+  return "normal";
+}
 inline uint16_t normalPort() { return cfgPort; }
 inline const char* normalUser() { return cfgUser; }
 inline const char* normalPrefix() { return cfgPrefix; }
@@ -1100,12 +1145,19 @@ inline void persistMqttMode() {
   if (!prefs.begin("patternflow", false)) return;
   prefs.putUChar("mq_mode", (uint8_t)mqttMode);
   prefs.putString("mq_dirhost", dirHost);
+  prefs.putString("mq_flhost", flHost);
   prefs.end();
 }
 
 inline void applyDirectorOverlay() {
   channel = CHANNEL_BROADCAST;
   role = ROLE_SUBSCRIBER;
+}
+
+inline void applyFlowLocalOverlay() {
+  channel = CHANNEL_BROADCAST;
+  role = ROLE_SUBSCRIBER;
+  if (flHost[0] == '\0') copyField(flHost, sizeof(flHost), "192.168.66.1");
 }
 
 inline void restoreNormalChannelAndRole() {
@@ -1131,6 +1183,14 @@ inline bool setDirectorHost(const char* host) {
   return dirHost[0] != '\0';
 }
 
+inline bool setFlowLocalHost(const char* host) {
+  copyField(flHost, sizeof(flHost), host);
+  if (flHost[0] == '\0') copyField(flHost, sizeof(flHost), "192.168.66.1");
+  persistMqttMode();
+  if (isFlowLocalMode()) applyConfigChange();
+  return flHost[0] != '\0';
+}
+
 inline void setMqttMode(MqttMode next) {
   if (next == MQTT_MODE_DIRECTOR && dirHost[0] == '\0') {
     mqttMode = MQTT_MODE_DIRECTOR;
@@ -1142,12 +1202,16 @@ inline void setMqttMode(MqttMode next) {
   }
   if (mqttMode == next) {
     if (next == MQTT_MODE_DIRECTOR) applyDirectorOverlay();
+    if (next == MQTT_MODE_FLOWLOCAL) applyFlowLocalOverlay();
     return;
   }
   mqttMode = next;
   persistMqttMode();
   if (next == MQTT_MODE_DIRECTOR) {
     applyDirectorOverlay();
+    applyConfigChange();
+  } else if (next == MQTT_MODE_FLOWLOCAL) {
+    applyFlowLocalOverlay();
     applyConfigChange();
   } else {
     restoreNormalChannelAndRole();
@@ -1158,10 +1222,11 @@ inline void setMqttMode(MqttMode next) {
 
 inline void applySavedMode() {
   if (mqttMode == MQTT_MODE_DIRECTOR) applyDirectorOverlay();
+  if (mqttMode == MQTT_MODE_FLOWLOCAL) applyFlowLocalOverlay();
 }
 
 inline void persistChannelAndRole() {
-  if (isDirectorMode()) return;
+  if (isDirectorMode() || isFlowLocalMode()) return;
   Preferences prefs;
   if (!prefs.begin("patternflow", false)) return;
   prefs.putUChar("mqtt_role", (uint8_t)role);
@@ -1179,6 +1244,8 @@ inline void loadConfig() {
   if (prefs.isKey("mq_prefix")) prefs.getString("mq_prefix", cfgPrefix, sizeof(cfgPrefix));
   if (prefs.isKey("mq_port")) cfgPort = prefs.getUShort("mq_port", cfgPort);
   if (prefs.isKey("mq_dirhost")) prefs.getString("mq_dirhost", dirHost, sizeof(dirHost));
+  if (prefs.isKey("mq_flhost")) prefs.getString("mq_flhost", flHost, sizeof(flHost));
+  if (flHost[0] == '\0') copyField(flHost, sizeof(flHost), "192.168.66.1");
   if (prefs.isKey("mq_mode")) {
     mqttMode = (MqttMode)prefs.getUChar("mq_mode", (uint8_t)MQTT_MODE_NORMAL);
   }
@@ -1279,7 +1346,7 @@ inline void begin() {
   lastReconnectMs = 0;
   if (hasBroker()) {
     Serial.printf("[MQTT] ready — %s broker %s:%d  page /mqtt\n",
-                  isDirectorMode() ? "director" : "normal",
+                  isFlowLocalMode() ? "flowlocal" : (isDirectorMode() ? "director" : "normal"),
                   connectHost(), connectPort());
   } else {
     Serial.println("[MQTT] compiled in, no broker set — see /mqtt");

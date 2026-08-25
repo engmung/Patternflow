@@ -31,6 +31,7 @@ import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
 import { CODE_MAX } from "@/lib/community/validate";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
+import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { onEditorReveal } from "@/lib/lab/editorReveal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
@@ -48,6 +49,7 @@ import CodePanel from "./panels/CodePanel";
 import PixelPanel from "./panels/PixelPanel";
 import GalleryPanel from "./panels/GalleryPanel";
 import CapturePanel from "./panels/CapturePanel";
+import DirectorPanel from "./panels/DirectorPanel";
 
 import styles from "./PatternLab.module.css";
 import dock from "./LabPanels.module.css";
@@ -71,6 +73,9 @@ const PANEL_DEFS = [
   // Output stage (stills/clips at print sizes) — an add-on module, see
   // lib/lab/capture. Registered here and nowhere else.
   { id: "capture", title: "Capture" },
+  // Knob automation over time (lib/lab/director) — the show that publishes
+  // alongside the pattern.
+  { id: "director", title: "Director" },
 ] as const;
 
 type PanelId = (typeof PANEL_DEFS)[number]["id"];
@@ -84,6 +89,7 @@ const panelComponents: Record<PanelId, React.FunctionComponent<IDockviewPanelPro
   knobs: KnobsPanel,
   ramp: RampPanel,
   capture: CapturePanel,
+  director: DirectorPanel,
 };
 
 function Watermark() {
@@ -121,6 +127,12 @@ function buildDefaultLayout(api: DockviewApi) {
     id: "capture",
     component: "capture",
     title: "Capture",
+    position: { referencePanel: "code", direction: "within" },
+  });
+  api.addPanel({
+    id: "director",
+    component: "director",
+    title: "Director",
     position: { referencePanel: "code", direction: "within" },
   });
   api.addPanel({
@@ -179,6 +191,7 @@ async function buildExportCode(): Promise<string> {
     // bounding only the line let a pixel-heavy stack sail past the cap and
     // be refused outright instead of falling back to a flat publish.
     const stackLine = await buildStackAnnotation({
+      name: state.name,
       matrix: state.matrix,
       layers: state.layers,
       activeLayerId: state.activeLayerId,
@@ -186,7 +199,11 @@ async function buildExportCode(): Promise<string> {
       ranges: state.ranges,
       knobLabels: state.knobLabels,
       forkOf: state.forkOf,
+      // Never travels in the shared code: a reader opening somebody else's
+      // pattern is forking it, not editing their post.
+      editOf: null,
       gen: state.gen,
+      director: state.director,
     }).catch(() => null);
     const withStack = stackLine ? `${flat}\n\n${stackLine}\n` : flat;
     return withStack.length <= CODE_MAX ? withStack : flat;
@@ -225,6 +242,7 @@ export default function PatternLabClient() {
   const [recent, setRecent] = useState<SessionMeta[]>([]);
   const [openPanels, setOpenPanels] = useState<Set<string>>(new Set());
   const [shareCode, setShareCode] = useState<string | null>(null);
+  const [sharePerfJson, setSharePerfJson] = useState<string | null>(null);
   const [hardwareOpen, setHardwareOpen] = useState(false);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -232,10 +250,14 @@ export default function PatternLabClient() {
   const hydrate = useLabStore((state) => state.hydrate);
   const restoredAt = useLabStore((state) => state.restoredAt);
   const discardProject = useLabStore((state) => state.discardProject);
+  const pieceName = useLabStore((state) => state.name);
+  const setPieceName = useLabStore((state) => state.setName);
   const restoreSession = useLabStore((state) => state.restoreSession);
   const stashCurrent = useLabStore((state) => state.stashCurrent);
   const forkOf = useLabStore((state) => state.forkOf);
   const setForkOf = useLabStore((state) => state.setForkOf);
+  const editOf = useLabStore((state) => state.editOf);
+  const setEditOf = useLabStore((state) => state.setEditOf);
 
   // Boot: restore the project (or migrate the old draft), then consume a
   // community → lab handoff exactly once.
@@ -257,27 +279,48 @@ export default function PatternLabClient() {
       // A shared composition carries its layers as a @stack line — restore
       // them; a plain pattern arrives as one layer. Either way it is now the
       // only thing on the canvas.
-      const forkOf = handoff.parentId
-        ? {
-            id: handoff.parentId,
-            title: handoff.parentTitle ?? "a community pattern",
-            license: handoff.parentLicense,
+      //
+      // Two shapes arrive here. Somebody else's pattern is a FORK source: it
+      // becomes a new post when shared. The visitor's own pattern arrives as
+      // an EDIT instead — the same post, reopened — and the two are mutually
+      // exclusive by construction (lib/community/handoff.ts).
+      // Named `editing` rather than `editOf` so it cannot be confused with
+      // the store selector of that name above.
+      const editing = handoff.edit ?? null;
+      const forkOf =
+        !editing && handoff.parentId
+          ? {
+              id: handoff.parentId,
+              title: handoff.parentTitle ?? "a community pattern",
+              license: handoff.parentLicense,
+            }
+          : undefined;
+      const openedTitle = editing?.title ?? handoff.parentTitle ?? undefined;
+      importCodeIntoLab(handoff.code, openedTitle, forkOf)
+        .catch(() => {
+          // The stack failed to restore after the canvas was already
+          // cleared. A flat single layer beats an empty lab with no word on
+          // why; the parked work is still under Recent ▾ either way.
+          try {
+            useLabStore.getState().addCodeLayerFromCode(
+              stripStackAnnotation(handoff.code),
+              openedTitle,
+              forkOf,
+            );
+          } catch {
+            // Nothing left to try.
           }
-        : undefined;
-      importCodeIntoLab(handoff.code, handoff.parentTitle ?? undefined, forkOf).catch(() => {
-        // The stack failed to restore after the canvas was already
-        // cleared. A flat single layer beats an empty lab with no word on
-        // why; the parked work is still under Recent ▾ either way.
-        try {
-          useLabStore.getState().addCodeLayerFromCode(
-            stripStackAnnotation(handoff.code),
-            handoff.parentTitle ?? undefined,
-            forkOf,
-          );
-        } catch {
-          // Nothing left to try.
-        }
-      });
+        })
+        .finally(() => {
+          if (!editing) return;
+          const store = useLabStore.getState();
+          store.setEditOf(editing);
+          // Revising a post overwrites the only published copy, so the
+          // version being opened goes into the session ring NOW rather than
+          // at Update time — a crash, a closed tab or a change of mind all
+          // land on the same "get it back from Recent ▾".
+          store.parkSnapshot(`${editing.title} · published`);
+        });
     }
     setMounted(true);
   }, [hydrate]);
@@ -419,6 +462,15 @@ export default function PatternLabClient() {
             Patternflow
           </Link>
           <span className={styles.labTitle}>Pattern Lab</span>
+          <input
+            type="text"
+            className={styles.labName}
+            value={pieceName}
+            maxLength={60}
+            placeholder="name this pattern"
+            title="The piece's name — To hardware uses it as NAME (so the .pfm module matches), the Director stamps it into the show, and publishing suggests it. Layer names stay layer names."
+            onChange={(event) => setPieceName(event.target.value)}
+          />
           {forkOf && (
             <span
               className={styles.forkBadge}
@@ -426,6 +478,21 @@ export default function PatternLabClient() {
             >
               forking from {forkOf.title}
               <button type="button" aria-label="Detach fork lineage" onClick={() => setForkOf(null)}>
+                ×
+              </button>
+            </span>
+          )}
+          {editOf && (
+            <span
+              className={styles.forkBadge}
+              title="Your own post, reopened. Sharing UPDATES it — same page, same likes, comments and forks. Click × to publish this as a separate new pattern instead; the version you started from is under Recent ▾."
+            >
+              editing {editOf.title}
+              <button
+                type="button"
+                aria-label="Publish as a new pattern instead of updating this one"
+                onClick={() => setEditOf(null)}
+              >
                 ×
               </button>
             </span>
@@ -447,12 +514,17 @@ export default function PatternLabClient() {
             <button
               type="button"
               className={styles.headerToggle}
-              title="Publish the visible stack to the community — flattened to one pattern, with the layer stack embedded so it reopens editable"
+              title={
+                editOf
+                  ? `Update "${editOf.title}" with what is on the canvas — same post, same likes and comments`
+                  : "Publish the visible stack to the community — flattened to one pattern, with the layer stack embedded so it reopens editable"
+              }
               onClick={() => {
+                setSharePerfJson(currentPerformanceJson());
                 void buildExportCode().then(setShareCode);
               }}
             >
-              Share
+              {editOf ? "Update" : "Share"}
             </button>
           )}
           {buildsConfigured() && (
@@ -570,6 +642,9 @@ export default function PatternLabClient() {
           parentId={forkOf?.id ?? null}
           parentTitle={forkOf?.title ?? null}
           parentLicense={forkOf?.license ?? null}
+          editOf={editOf}
+          performanceJson={sharePerfJson}
+          initialTitle={pieceName.trim() || null}
           onClose={() => setShareCode(null)}
         />
       )}

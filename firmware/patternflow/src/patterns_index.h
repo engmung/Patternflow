@@ -24,7 +24,9 @@
 #include <Arduino.h>
 
 static const char PATTERNS_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en">
+<head><meta charset="utf-8">
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Patterns</title>
 <style>
@@ -132,12 +134,7 @@ border-color:var(--warn);color:var(--warn)}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
-/* Console navigation, same on every page. */
-.pfnav{display:flex;flex-wrap:wrap;gap:13px;margin:10px 0 0;
 font-family:var(--mono);font-size:11px;letter-spacing:.04em}
-.pfnav a{color:var(--faint);text-decoration:none}
-.pfnav a:hover{color:var(--led)}
-.pfnav a.here{color:var(--ink)}
 /* Desktop: upload pinned left, the library right — the whole page without
    scrolling, instead of a phone column with acres beside it. */
 @media(min-width:960px){
@@ -147,7 +144,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 .colR section{margin-top:16px}}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Patterns</h1><span class="sub" id="fs">-</span></header>
-<nav class="pfnav"><a href="/">Console</a><a href="/patterns" class="here">Patterns</a><a href="/audio">Audio</a><a href="/status">Status</a><a href="/wifi">Wi-Fi</a><a href="/mqtt">MQTT</a><a href="/update">Update</a></nav>
+
 
 
 <div class="firstrun" id="firstRun">
@@ -166,7 +163,7 @@ font-family:var(--mono);font-size:11px;letter-spacing:.04em}
 <section>
   <h2>Upload</h2>
   <label class="drop" id="drop">
-    <input type="file" id="file" accept=".pfm,.json,.zip,application/zip" multiple>
+    <input type="file" id="file" accept=".pfm,.json,.pfs,.zip,application/zip" multiple>
     <p>Drop <b>.pfm</b> files or a <b>.zip</b> pack here, or click to choose</p>
     <p class="hint">modules + their .json sidecars, all at once &middot; zip unpacks in the browser</p>
   </label>
@@ -612,7 +609,7 @@ function runQ(i){
   var it=items[i];
   var isLast=true;
   for(var j=i+1;j<items.length;j++)
-    if(items[j].st==='wait'||items[j].st==='retry')isLast=false;
+    if((items[j].st==='wait'||items[j].st==='retry')&&!/\.pfs$/i.test(items[j].name))isLast=false;
   it.st='up';it.pct=0;renderQ();
 
   var xhr=new XMLHttpRequest();
@@ -621,9 +618,14 @@ function runQ(i){
   // installs feel broken). A raw body sidesteps boundary parsing entirely.
   // Filename and the batch flag travel as headers; last=1 triggers the
   // device's single end-of-batch rescan.
-  xhr.open('PUT','/api/patterns');
+  //
+  // A pack may carry .pfs show tables beside its modules — those go to the
+  // Sequences store instead, and the rescan flag only counts the items bound
+  // for /api/patterns (a .pfs must not swallow the batch's one rescan).
+  var isPfs=/\.pfs$/i.test(it.name);
+  xhr.open('PUT',isPfs?'/api/shows':'/api/patterns');
   xhr.setRequestHeader('X-PF-Name',it.name);
-  xhr.setRequestHeader('X-PF-Last',isLast?'1':'0');
+  if(!isPfs)xhr.setRequestHeader('X-PF-Last',isLast?'1':'0');
   // Transfer shows 0-90%. "100% handed to the network" is not "installed" —
   // a bar parked on 100 while the device was still writing (or failing) read
   // as success. The last 10% is the device's own confirmation.
@@ -683,7 +685,13 @@ function loadFflate(){
 function expandFiles(fileList){
   var list=Array.prototype.slice.call(fileList||[]);
   // catalog.txt rides along: it is the pack's running order (deck order).
-  var keep=function(n){return /\.(pfm|json)$/i.test(n)||/^catalog\.txt$/i.test(n)};
+  // .pfs is a Director show table — installed to /show alongside the pack.
+  // performance.json is that show's editable source (Director / site), not
+  // a module sidecar: the device has no use for it, so it stays behind.
+  var keep=function(n){
+    if(/^performance\.json$/i.test(n)||/\.perf\.json$/i.test(n))return false;
+    return /\.(pfm|json|pfs)$/i.test(n)||/^catalog\.txt$/i.test(n)
+  };
   if(!list.some(function(f){return /\.zip$/i.test(f.name)}))
     return Promise.resolve(list.filter(function(f){return keep(f.name)}));
 
@@ -715,7 +723,7 @@ function expandFiles(fileList){
 function pickFiles(fileList){
   if(!storageReady())return;
   expandFiles(fileList).then(function(files){
-    if(!files.length){say('nothing to install — no .pfm or .json in that drop','err');return}
+    if(!files.length){say('nothing to install — no .pfm, .json or .pfs in that drop','err');return}
     startBatch(files);
   }).catch(function(e){say((e&&e.message)||'could not read that zip','err')});
 }

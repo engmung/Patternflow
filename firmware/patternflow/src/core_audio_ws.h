@@ -35,6 +35,7 @@
 #include <WebSocketsServer.h>
 #include "audio_index.h"
 #include "home_index.h"
+#include "theme_index.h"
 #endif
 
 #include "core_send.h"
@@ -244,6 +245,13 @@ inline void begin() {
 
   httpServer.on("/", handleRoot);
   httpServer.on("/audio", handleAudio);
+  // Shared console chrome + light theme, loaded by every page's <head>.
+  // Short-lived cache: one fetch covers a whole console visit, but a
+  // firmware update still reaches the browser within five minutes.
+  httpServer.on("/pf-console.js", []() {
+    PFSend::progmem(httpServer, PF_CONSOLE_JS, "application/javascript",
+                    "max-age=300");
+  });
   httpServer.onNotFound([]() {
     httpServer.send(404, "text/plain", "Not found");
   });

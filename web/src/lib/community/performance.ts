@@ -27,6 +27,18 @@
 //     patternOff u16 (0xFFFF none) · param[4] u16 · messageOff u16
 
 export const PFST_VERSION = 1;
+/**
+ * PFST v2 — same 76-byte header, same 16-byte cue, two reinterpretations:
+ * cue `t` and the header length are DECISECONDS (0.1 s ticks, so a u16 still
+ * holds ~109 minutes), and flag bit 6 (EASE) on a cue means "interpolate the
+ * param channels this cue sets linearly toward each channel's next cue".
+ * Smoothness is thereby a per-cue property instead of a cue-count cost —
+ * dense baking at 0.2 s would burn the 256-cue budget in under a minute of
+ * one-lane animation; an eased segment is 2 cues however long it runs.
+ * Proposed upstream in docs/pfst-v2-proposal.md; the device player gates on
+ * the version byte, so v1 players reject v2 tables cleanly.
+ */
+export const PFST_VERSION_2 = 2;
 export const PFST_HEADER_BYTES = 76;
 export const PFST_CUE_BYTES = 16;
 export const PFST_MAX_CUES = 256;
@@ -38,6 +50,8 @@ const FLAG_PARAM1 = 2;
 /** PARAM1|PARAM2|PARAM3|PARAM4 — "this cue touches at least one channel". */
 const FLAG_PARAM_ANY = 2 | 4 | 8 | 16;
 const FLAG_MESSAGE = 32;
+/** v2 only: lerp this cue's set channels toward their next values. */
+const FLAG_EASE = 64;
 
 /** Sparse per-channel values: null = this cue does not touch that channel. */
 export type SparseParam = [number | null, number | null, number | null, number | null];
@@ -47,6 +61,8 @@ export type PerformanceCue = {
   pattern?: string;
   message?: string;
   param?: SparseParam;
+  /** v2: interpolate the set channels linearly toward their next cues. */
+  ease?: boolean;
 };
 
 export type Performance = {
@@ -69,10 +85,11 @@ export function clamp1000(n: unknown): number {
   return Math.min(1000, Math.max(0, v));
 }
 
-function quantizeTime(t: unknown): number {
-  const n = Math.round(Number(t));
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return n;
+/** v1 cues sit on whole seconds; v2 cues on the 0.1 s grid. */
+function quantizeTime(t: unknown, deciseconds: boolean): number {
+  const raw = Number(t);
+  if (!Number.isFinite(raw) || raw < 0) return 0;
+  return deciseconds ? Math.round(raw * 10) / 10 : Math.round(raw);
 }
 
 function parseParamField(raw: unknown): SparseParam | null {
@@ -97,14 +114,15 @@ function parseParamField(raw: unknown): SparseParam | null {
   return out.every((x) => x == null) ? null : out;
 }
 
-function normalizeCue(cue: unknown): PerformanceCue | null {
+function normalizeCue(cue: unknown, deciseconds: boolean): PerformanceCue | null {
   if (!cue || typeof cue !== "object") return null;
   const c = cue as Record<string, unknown>;
-  const out: PerformanceCue = { t: quantizeTime(c.t) };
+  const out: PerformanceCue = { t: quantizeTime(c.t, deciseconds) };
   if (c.pattern != null && String(c.pattern).length) out.pattern = String(c.pattern);
   const param = parseParamField(c.param);
   if (param) out.param = param;
   if (c.message != null) out.message = String(c.message);
+  if (deciseconds && c.ease === true && out.param) out.ease = true;
   if (out.pattern == null && out.param == null && out.message == null) return null;
   return out;
 }
@@ -134,19 +152,23 @@ export function normalizePerformance(raw: unknown): Performance {
   if (!raw || typeof raw !== "object") return base;
   const r = raw as Record<string, unknown>;
   const out = { ...base };
-  out.version = Number(r.version) || 1;
+  // Only the two known table versions exist; anything else reads as v1.
+  out.version = Number(r.version) === PFST_VERSION_2 ? PFST_VERSION_2 : 1;
+  const deciseconds = out.version === PFST_VERSION_2;
   out.id = String(r.id || base.id);
   out.title = String(r.title || base.title);
   out.utcStart = r.utcStart == null ? "" : String(r.utcStart);
   out.channel = Number(r.channel) || 0;
-  out.length = Math.max(1, Math.round(Number(r.length) || 60));
+  out.length = deciseconds
+    ? Math.max(0.1, Math.round((Number(r.length) || 60) * 10) / 10)
+    : Math.max(1, Math.round(Number(r.length) || 60));
   out.loop = !!r.loop;
   out.patternsZip = r.patternsZip == null ? "" : String(r.patternsZip);
   out.patternsZipSha256 = r.patternsZipSha256 == null ? "" : String(r.patternsZipSha256);
   out.required = Array.isArray(r.required) ? r.required.map(String) : [];
   out.timeline = Array.isArray(r.timeline)
     ? r.timeline
-        .map(normalizeCue)
+        .map((cue) => normalizeCue(cue, deciseconds))
         .filter((c): c is PerformanceCue => c != null)
         .sort((a, b) => (a.t !== b.t ? a.t - b.t : cueKindOrder(a) - cueKindOrder(b)))
     : [];
@@ -192,6 +214,7 @@ export function serializePerformance(perf: Performance): Record<string, unknown>
       const out: Record<string, unknown> = { t: cue.t };
       if (cue.pattern != null) out.pattern = cue.pattern;
       if (cue.message != null) out.message = cue.message;
+      if (cue.ease === true) out.ease = true;
       if (cue.param) {
         const dense = cue.param.every((v) => v != null);
         if (dense) {
@@ -258,12 +281,15 @@ export function decodePfst(bytes: Uint8Array): Performance {
   if (bytes[0] !== 0x50 || bytes[1] !== 0x46 || bytes[2] !== 0x53 || bytes[3] !== 0x54) {
     throw new Error("not a PFST table (bad magic)");
   }
-  if (bytes[4] !== PFST_VERSION) {
-    throw new Error(`unsupported PFST version ${bytes[4]}`);
+  const version = bytes[4];
+  if (version !== PFST_VERSION && version !== PFST_VERSION_2) {
+    throw new Error(`unsupported PFST version ${version}`);
   }
+  // v2 stores times in deciseconds; everything else is byte-identical.
+  const tick = version === PFST_VERSION_2 ? 10 : 1;
 
   const loop = (bytes[5] & 1) === 1;
-  const length = view.getUint16(6, true);
+  const length = view.getUint16(6, true) / tick;
   const cueCount = view.getUint16(8, true);
   const poolLength = view.getUint16(10, true);
   if (cueCount > PFST_MAX_CUES) throw new Error(`too many cues (${cueCount})`);
@@ -293,7 +319,8 @@ export function decodePfst(bytes: Uint8Array): Performance {
   for (let i = 0; i < cueCount; i++) {
     const at = cueBase + i * PFST_CUE_BYTES;
     const flags = bytes[at + 2];
-    const cue: PerformanceCue = { t: view.getUint16(at, true) };
+    const cue: PerformanceCue = { t: view.getUint16(at, true) / tick };
+    if (version === PFST_VERSION_2 && flags & FLAG_EASE) cue.ease = true;
     if (flags & FLAG_PATTERN) {
       const name = poolString(view.getUint16(at + 4, true));
       if (name) cue.pattern = name;
@@ -315,7 +342,7 @@ export function decodePfst(bytes: Uint8Array): Performance {
   // Through normalize so a decoded table lands in exactly the shape a pasted
   // JSON would — same defaults, same cue ordering.
   return normalizePerformance({
-    version: 1,
+    version,
     id,
     title,
     length,
@@ -325,16 +352,23 @@ export function decodePfst(bytes: Uint8Array): Performance {
       ...(cue.pattern != null ? { pattern: cue.pattern } : {}),
       ...(cue.message != null ? { message: cue.message } : {}),
       ...(cue.param ? { param: cue.param } : {}),
+      ...(cue.ease === true ? { ease: true } : {}),
     })),
   });
 }
 
-/** Pack a performance into the PFST v1 bytes the device's /show player reads. */
+/**
+ * Pack a performance into the PFST bytes the device's /show player reads —
+ * v1 (whole-second cues) byte-for-byte as always, v2 (deciseconds + EASE)
+ * when the performance says so.
+ */
 export function encodePfst(perf: Performance): Uint8Array {
   const cues = perf.timeline;
   if (cues.length > PFST_MAX_CUES) {
     throw new Error(`too many cues (${cues.length}, max ${PFST_MAX_CUES})`);
   }
+  const version = perf.version === PFST_VERSION_2 ? PFST_VERSION_2 : PFST_VERSION;
+  const tick = version === PFST_VERSION_2 ? 10 : 1;
 
   // String pool: offset 0 is the empty string, entries dedupe.
   const poolBytes: number[] = [0];
@@ -353,7 +387,7 @@ export function encodePfst(perf: Performance): Uint8Array {
   const cueView = new DataView(cueBytes.buffer);
   cues.forEach((cue, i) => {
     const base = i * PFST_CUE_BYTES;
-    const t = Math.min(65535, Math.max(0, Math.round(cue.t)));
+    const t = Math.min(65535, Math.max(0, Math.round(cue.t * tick)));
     let flags = 0;
     let patternOff = PFST_OFF_NONE;
     let messageOff = PFST_OFF_NONE;
@@ -372,6 +406,9 @@ export function encodePfst(perf: Performance): Uint8Array {
     if (cue.message != null) {
       flags |= FLAG_MESSAGE;
       messageOff = intern(cue.message);
+    }
+    if (version === PFST_VERSION_2 && cue.ease === true && flags & FLAG_PARAM_ANY) {
+      flags |= FLAG_EASE;
     }
     cueView.setUint16(base, t, true);
     cueBytes[base + 2] = flags & 255;
@@ -400,9 +437,9 @@ export function encodePfst(perf: Performance): Uint8Array {
   out[1] = 0x46; // F
   out[2] = 0x53; // S
   out[3] = 0x54; // T
-  out[4] = PFST_VERSION;
+  out[4] = version;
   out[5] = perf.loop ? 1 : 0;
-  view.setUint16(6, Math.min(65535, durationOf(perf)), true);
+  view.setUint16(6, Math.min(65535, Math.round(durationOf(perf) * tick)), true);
   view.setUint16(8, cues.length, true);
   view.setUint16(10, poolBytes.length, true);
   out.set(pad32(perf.title), 12);
