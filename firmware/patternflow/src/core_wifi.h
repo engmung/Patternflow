@@ -136,6 +136,14 @@ inline void loadCredentials() {
         snprintf(key, sizeof(key), "ssid%d", i);
         String ssid = p.getString(key, "");
         if (ssid.length() == 0) continue;
+        // Heal duplicates the pre-fix aliasing bug wrote into NVS: the same
+        // SSID twice reads as one network shown twice on /wifi, and makes
+        // the retry walk burn slots re-trying a network that just failed.
+        bool duplicate = false;
+        for (int j = 0; j < savedCountValue; j++) {
+          if (savedSsids[j] == ssid) { duplicate = true; break; }
+        }
+        if (duplicate) continue;
         snprintf(key, sizeof(key), "pass%d", i);
         savedSsids[savedCountValue] = ssid;
         savedPasses[savedCountValue] = p.getString(key, "");
@@ -156,9 +164,11 @@ inline void loadCredentials() {
 
   if (savedCountValue > 0) {
     if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
-      bool migrated = p.getInt("count", -1) < 0;
+      int stored = p.getInt("count", -1);
       p.end();
-      if (migrated) writeNetworks();  // persist the migrated slot layout once
+      // Rewrite once when the layout changed on the way in: legacy
+      // single-slot migration, or duplicate slots healed above.
+      if (stored != savedCountValue) writeNetworks();
     }
     clampBootIdx();
     attemptIdx = bootIdx;
@@ -174,7 +184,15 @@ inline void loadCredentials() {
 
 // Add a network, or move an already-known one to the front. Returns false only
 // when the SSID is empty or the list is full of other networks.
-inline bool addNetwork(const String& ssid, const String& pass) {
+inline bool addNetwork(const String& ssidRef, const String& passRef) {
+  // Copy FIRST. The reconnect path calls this with savedSsids[i] /
+  // savedPasses[i] themselves, and the shift loop below overwrites what
+  // those references point at mid-move. That exact aliasing turned
+  // [PatternflowLocal, wifiiii] into [PatternflowLocal, PatternflowLocal]
+  // the moment the second network connected — deleting the network that
+  // had just WORKED and duplicating the one that hadn't.
+  const String ssid = ssidRef;
+  const String pass = passRef;
   if (ssid.length() == 0) return false;
 
   int existing = -1;
