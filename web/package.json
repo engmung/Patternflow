@@ -33,7 +33,8 @@
     "check:ha-card": "tsx scripts/build-ha-card.ts --check",
     "check:ha-card-smoke": "tsx scripts/ha-card-smoke.ts",
     "check:pixelcode": "tsx scripts/lab-pixel-code-smoke.ts",
-    "check:director": "tsx scripts/lab-director-smoke.ts"
+    "check:director": "tsx scripts/lab-director-smoke.ts",
+    "check:pfstvectors": "tsx scripts/pfst-v2-vectors-smoke.ts"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

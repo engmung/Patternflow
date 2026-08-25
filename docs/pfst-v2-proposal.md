@@ -6,6 +6,16 @@ the panel. Written against the v1 format as implemented in the Director's
 (`web/src/lib/community/performance.ts`, which already implements everything
 below behind the version byte).
 
+> **Implementing it?** This document is the *case* for v2 — the reasoning and
+> the hardware measurements. The contract lives in
+> **[pfst-v2-spec.md](pfst-v2-spec.md)**: byte layout, the edge cases decided
+> one by one, the reference player as it ships, and test-vector `.pfs` files
+> with expected trajectories.
+>
+> **Status: shipped** in Patternflow firmware v3.6.3 — the proposal below was
+> written before that and reads as a proposal; nothing in it changed on the
+> way in.
+
 ## Why
 
 v1 cue times are whole seconds (`t` is a u16 of seconds), and the player sets
