@@ -82,7 +82,9 @@ inline void handleList() {
   json += up ? WiFi.localIP().toString() : String("");
   json += "\",\"status\":\"";
   json += PatternflowWifi::statusText();
-  json += "\",\"networks\":[";
+  json += "\",\"bootIdx\":";
+  json += PatternflowWifi::getBootIndex();
+  json += ",\"networks\":[";
   for (int i = 0; i < PatternflowWifi::savedCount(); i++) {
     if (i) json += ',';
     json += "{\"ssid\":\"";
@@ -151,6 +153,35 @@ inline void handleDelete() {
   sendJson(200, "{\"ok\":true}");
 }
 
+// Which saved network the next boot starts from. Not a live switch — the
+// request rides the connection it would otherwise drop, so it is stored and
+// the caller reboots when it suits them.
+inline void handleBoot() {
+  if (!server().hasArg("bootIdx")) {
+    sendJson(400, "{\"ok\":false,\"error\":\"missing bootIdx\"}");
+    return;
+  }
+  int idx = server().arg("bootIdx").toInt();
+  if (!PatternflowWifi::setBootIndex(idx)) {
+    sendJson(400, "{\"ok\":false,\"error\":\"invalid boot index\"}");
+    return;
+  }
+  Serial.printf("[WIFI-HTTP] boot slot %d (reboot to apply)\n", idx);
+  String body = "{\"ok\":true,\"bootIdx\":";
+  body += idx;
+  body += ",\"reboot\":true}";
+  sendJson(200, body);
+}
+
+// Answer first, restart after — a reset inside the handler loses the reply
+// and the page cannot tell "rebooting" from "the request failed".
+inline void handleReboot() {
+  sendJson(200, "{\"ok\":true,\"rebooting\":true}");
+  Serial.println("[WIFI-HTTP] reboot requested");
+  delay(400);
+  ESP.restart();
+}
+
 inline void handleIndex() {
   if (PatternflowPatternsHttp::noteConsolePageOpened()) {
     PatternflowPatternsHttp::sendConsoleWakePage();
@@ -167,6 +198,8 @@ inline void begin() {
   server().on("/api/wifi", HTTP_GET, handleList);
   server().on("/api/wifi", HTTP_POST, handleAdd);
   server().on("/api/wifi", HTTP_DELETE, handleDelete);
+  server().on("/api/wifi/boot", HTTP_POST, handleBoot);
+  server().on("/api/wifi/reboot", HTTP_POST, handleReboot);
 
 #if !PF_AUDIO_ENABLED
   server().begin();

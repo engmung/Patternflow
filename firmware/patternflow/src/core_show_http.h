@@ -96,6 +96,8 @@ inline bool ensureDir() {
 inline void appendStatus(String& json) {
   json += "\"playing\":";
   json += PatternflowShow::isPlaying() ? "true" : "false";
+  json += ",\"paused\":";
+  json += PatternflowShow::isPaused() ? "true" : "false";
   json += ",\"loaded\":";
   json += PatternflowShow::isLoaded() ? "true" : "false";
   json += ",\"loop\":";
@@ -332,6 +334,22 @@ inline void handleControl() {
     sendJson(200, json);
     return;
   }
+  if (op == "pause" || op == "resume") {
+    PatternflowShowSchedule::noteInteraction();
+    bool ok = op == "pause" ? PatternflowShow::pauseShow()
+                            : PatternflowShow::resumeShow();
+    if (!ok) {
+      sendJson(400, op == "pause"
+                        ? "{\"ok\":false,\"error\":\"nothing is playing\"}"
+                        : "{\"ok\":false,\"error\":\"nothing is paused\"}");
+      return;
+    }
+    String json = "{\"ok\":true,";
+    appendStatus(json);
+    json += '}';
+    sendJson(200, json);
+    return;
+  }
   if (op == "loop") {
     // Single-sequence loop only when not in a multi-.pfs playlist.
     if (!PatternflowShow::isPlaylist()) {
@@ -431,7 +449,7 @@ inline void handleControl() {
     sendJson(200, json);
     return;
   }
-  sendJson(400, "{\"ok\":false,\"error\":\"op must be play, playlist, stop, loop or variance\"}");
+  sendJson(400, "{\"ok\":false,\"error\":\"op must be play, playlist, pause, resume, stop, loop or variance\"}");
 }
 
 inline void handleSchedule() {

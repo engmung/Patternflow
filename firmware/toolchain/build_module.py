@@ -198,10 +198,19 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
     # and the day the absolute firmware is the norm, PF_TARGET_ABI=2 turns the
     # bus on for everything at once with no second migration.
     #
-    # Default 1 because the wrong guess is not symmetric: target 1 on new
-    # firmware costs a feature nobody has asked for yet, target 2 on old
-    # firmware is a module that refuses to install.
-    target_abi = 2 if os.environ.get("PF_TARGET_ABI") == "2" else 1
+    # Default 2 since v3.6.3 — the day this comment was waiting for. The host
+    # loader has accepted descriptor 2 since v3.6.3's predecessor v3.5.1, the
+    # browser flasher has served such a build ever since, and v3.6.3 ships the
+    # show player whose entire job is driving these params. Targeting 1 by
+    # default meant a converted pattern compiled the absolute tier OUT: a
+    # Director show would set the bus, the device would hold the values, and
+    # the pattern could not read them — the show ran and nothing moved, with
+    # every layer reporting success. That silence is worse than the old risk.
+    #
+    # PF_TARGET_ABI=1 is the escape hatch for building a module that must also
+    # install on firmware older than v3.5.1, which refuses descriptor 2 (it
+    # refuses cleanly, by design — see core_module_loader.h).
+    target_abi = 1 if os.environ.get("PF_TARGET_ABI") == "1" else 2
     source_text = (src_dir / "pattern.cpp").read_text(encoding="utf-8", errors="replace")
     source_absolute = bool(re.search(r"\bABSOLUTE_READY\s*=\s*true\b", source_text))
     # A delta-only source gains nothing from the newer host, so it stays at 1

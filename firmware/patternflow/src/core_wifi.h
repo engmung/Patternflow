@@ -72,9 +72,35 @@ inline int savedCountValue = 0;
 // Which slot the next join attempt uses. tick() walks this forward so a boot
 // in any remembered location eventually lands, without scanning.
 inline int attemptIdx = 0;
+// Which saved slot to try FIRST on power-up (0..count-1), set from /wifi and
+// persisted. Slot order is recency, which is the right default and the wrong
+// answer when a panel lives at a venue and was last provisioned at home: it
+// then spends every boot failing on a network that is not there before it
+// wraps around. This pins the starting point; the walk still covers the rest.
+// Takes effect on the next boot — switching the live join would drop the
+// session that asked for it.
+inline int bootIdx = 0;
 
 inline int savedCount() { return savedCountValue; }
 inline const String& savedSsid(int i) { return savedSsids[i]; }
+
+inline void clampBootIdx() {
+  if (savedCountValue <= 0) {
+    bootIdx = 0;
+    return;
+  }
+  if (bootIdx < 0 || bootIdx >= savedCountValue) bootIdx = 0;
+}
+
+// The list reorders under the preference (addNetwork moves an entry to the
+// front), so the slot the user picked has to be followed through the shuffle
+// rather than left pointing at whatever lands in its index.
+inline void adjustBootIdxOnInsertAtFront(int from) {
+  if (from <= 0) return;
+  if (bootIdx == from) bootIdx = 0;
+  else if (bootIdx < from) bootIdx++;
+  clampBootIdx();
+}
 
 inline void writeNetworks() {
   Preferences p;
@@ -87,6 +113,7 @@ inline void writeNetworks() {
     snprintf(key, sizeof(key), "pass%d", i);
     p.putString(key, savedPasses[i]);
   }
+  p.putInt("bootIdx", bootIdx);
   // Keep the legacy single-slot keys pointing at the top network, so a
   // downgrade to an older firmware still finds a usable network.
   if (savedCountValue > 0) {
@@ -109,11 +136,20 @@ inline void loadCredentials() {
         snprintf(key, sizeof(key), "ssid%d", i);
         String ssid = p.getString(key, "");
         if (ssid.length() == 0) continue;
+        // Heal duplicates the pre-fix aliasing bug wrote into NVS: the same
+        // SSID twice reads as one network shown twice on /wifi, and makes
+        // the retry walk burn slots re-trying a network that just failed.
+        bool duplicate = false;
+        for (int j = 0; j < savedCountValue; j++) {
+          if (savedSsids[j] == ssid) { duplicate = true; break; }
+        }
+        if (duplicate) continue;
         snprintf(key, sizeof(key), "pass%d", i);
         savedSsids[savedCountValue] = ssid;
         savedPasses[savedCountValue] = p.getString(key, "");
         savedCountValue++;
       }
+      bootIdx = p.getInt("bootIdx", 0);
     } else {
       // Migration: firmware before multi-network stored one ssid/pass pair.
       String ssid = p.getString("ssid", "");
@@ -128,13 +164,16 @@ inline void loadCredentials() {
 
   if (savedCountValue > 0) {
     if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
-      bool migrated = p.getInt("count", -1) < 0;
+      int stored = p.getInt("count", -1);
       p.end();
-      if (migrated) writeNetworks();  // persist the migrated slot layout once
+      // Rewrite once when the layout changed on the way in: legacy
+      // single-slot migration, or duplicate slots healed above.
+      if (stored != savedCountValue) writeNetworks();
     }
-    attemptIdx = 0;
-    activeSsid = savedSsids[0];
-    activePass = savedPasses[0];
+    clampBootIdx();
+    attemptIdx = bootIdx;
+    activeSsid = savedSsids[bootIdx];
+    activePass = savedPasses[bootIdx];
     credsFromNvs = true;
   } else {
     activeSsid = PF_WIFI_SSID;
@@ -145,7 +184,15 @@ inline void loadCredentials() {
 
 // Add a network, or move an already-known one to the front. Returns false only
 // when the SSID is empty or the list is full of other networks.
-inline bool addNetwork(const String& ssid, const String& pass) {
+inline bool addNetwork(const String& ssidRef, const String& passRef) {
+  // Copy FIRST. The reconnect path calls this with savedSsids[i] /
+  // savedPasses[i] themselves, and the shift loop below overwrites what
+  // those references point at mid-move. That exact aliasing turned
+  // [PatternflowLocal, wifiiii] into [PatternflowLocal, PatternflowLocal]
+  // the moment the second network connected — deleting the network that
+  // had just WORKED and duplicating the one that hadn't.
+  const String ssid = ssidRef;
+  const String pass = passRef;
   if (ssid.length() == 0) return false;
 
   int existing = -1;
@@ -158,6 +205,10 @@ inline bool addNetwork(const String& ssid, const String& pass) {
     existing = MAX_NETWORKS - 1;
     savedCountValue = MAX_NETWORKS - 1;
   }
+  if (existing < 0 && savedCountValue > 0) {
+    // Brand-new network goes in at the front, so everything shifts down one.
+    bootIdx = min(bootIdx + 1, MAX_NETWORKS - 1);
+  }
 
   int from = existing >= 0 ? existing : savedCountValue;
   if (from >= savedCountValue) savedCountValue = min(savedCountValue + 1, MAX_NETWORKS);
@@ -167,6 +218,8 @@ inline bool addNetwork(const String& ssid, const String& pass) {
   }
   savedSsids[0] = ssid;
   savedPasses[0] = pass;
+  if (existing >= 0) adjustBootIdxOnInsertAtFront(from);
+  clampBootIdx();
   writeNetworks();
   return true;
 }
@@ -184,11 +237,30 @@ inline bool removeNetwork(const String& ssid) {
     savedCountValue--;
     savedSsids[savedCountValue] = "";
     savedPasses[savedCountValue] = "";
-    if (attemptIdx >= savedCountValue) attemptIdx = 0;
+    // Follow the preference through the gap the removal left.
+    if (i < bootIdx) bootIdx--;
+    else if (i == bootIdx) bootIdx = min(bootIdx, max(savedCountValue - 1, 0));
+    clampBootIdx();
+    if (attemptIdx >= savedCountValue) attemptIdx = bootIdx;
     writeNetworks();
     return true;
   }
   return false;
+}
+
+// Pick which saved slot the NEXT boot tries first. Deliberately does not
+// reconnect: the request arrives over the very connection it would drop.
+inline bool setBootIndex(int idx) {
+  if (savedCountValue <= 0) return false;
+  if (idx < 0 || idx >= savedCountValue) return false;
+  bootIdx = idx;
+  writeNetworks();
+  return true;
+}
+
+inline int getBootIndex() {
+  clampBootIdx();
+  return bootIdx;
 }
 
 // Kick off the connection and return immediately.
@@ -348,6 +420,8 @@ inline int savedCount() { return 0; }
 inline const String& savedSsid(int) { static String s; return s; }
 inline bool addNetwork(const String&, const String&) { return false; }
 inline bool removeNetwork(const String&) { return false; }
+inline bool setBootIndex(int) { return false; }
+inline int getBootIndex() { return 0; }
 inline bool isConnected() { return false; }
 inline bool consumeJustConnected() { return false; }
 inline const char* statusText() { return "OFF"; }
