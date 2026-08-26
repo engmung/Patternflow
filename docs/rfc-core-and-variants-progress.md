@@ -182,6 +182,35 @@ It grew with the second and third ports and stopped with the fourth,
 which is the only real evidence that it is close to complete — and the
 question still worth putting to the people who would build on it.
 
+### Reviewed, twice
+
+Four green builds are not a review. Going back over it from angles the
+compiler cannot check turned up five things, none of which failed loudly:
+
+| what | why it mattered |
+| --- | --- |
+| the core was `#include`-ing addons | `core_status_http.h` pulled in the dispatcher to call `appendStatus`, so a core-only build would have needed addon headers to exist. The core now declares an extension point and the sketch — the one file allowed to know both — wires it. |
+| **an NVS namespace typo** | the setup hooks opened `"pf"`; everything else uses `"patternflow"`. Reads returned defaults, writes went where nobody looks, and the audio switch and MQTT role would have quietly stopped surviving reboots. |
+| the NETWORK screen had no row cap | rows start at y=22 on an 11 px pitch and the Wi-Fi line is fixed at y=50, so a third toggleable addon would have drawn over it |
+| four documents named moved files | the PFST spec, `rest-api.md`, the vendored PubSubClient note, the site's encoder comment |
+| a weather asset sat in the core | `weather_icons_32.h`, referenced by nothing |
+
+The namespace typo is the one worth remembering: it is exactly the kind of
+bug this whole restructuring can introduce — an addon owns its own settings
+now, so it has to be handed the right drawer to put them in.
+
+Checked and found clean: no public function was lost in any port (the
+inline surface of all four features diffed before and after — only
+weather's `ensureLocalTime`, which was internal and became `core_clock`'s
+`ensure()`); the module build toolchain shares only
+`core_color/math/noise`, all still in `src/`, and building a `.pfm` still
+works; the PlatformIO source filter needed no change; the web smokes pass.
+
+Hardware, after the fixes: nine console pages, a show playing and driving
+the bus, pause/stop, the clock synced through `core_clock`, the audio
+websocket handshaking on :81, `POST /api/params`, MQTT config restored
+from NVS across a flash. Frame time 16.46 ms.
+
 ## What is deliberately not done yet
 
 Steps 5 and 6 — deleting the extracted features and cutting core 4.0.0,
