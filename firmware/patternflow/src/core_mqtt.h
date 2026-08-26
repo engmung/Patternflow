@@ -1418,6 +1418,11 @@ inline void loadConfig() {}
 inline void saveConfig(const char*, uint16_t, const char*, const char*, const char*) {}
 inline void clearConfig() {}
 inline void persistChannelAndRole() {}
+// FlowLocal accessors: the library page and the sketch ask about the
+// appliance-broker mode unconditionally, so the disabled build has to
+// answer too - without these, -DPF_MQTT_ENABLED=0 does not compile.
+inline bool isFlowLocalMode() { return false; }
+inline const char* flowLocalHost() { return ""; }
 inline void setMqttMode(MqttMode) {}
 inline bool setDirectorHost(const char*) { return false; }
 inline void applySavedMode() {}
