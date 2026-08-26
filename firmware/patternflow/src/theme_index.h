@@ -81,6 +81,12 @@ html+=navLink(e);
 nav.innerHTML=html;
 var v=document.getElementById('pfVer');
 if(v&&d.version)v.textContent='v'+d.version;
+// One status fetch, shared. A page that needs to know what this build
+// actually has — the home page hides rows for absent features — listens
+// for this rather than asking again. window.pfStatus covers a listener
+// that registered after the fetch already landed.
+window.pfStatus=d;
+document.dispatchEvent(new CustomEvent('pf-status',{detail:d}));
 }).catch(function(){});
 
 var c=document.getElementById('pfTheme');

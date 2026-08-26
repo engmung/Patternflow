@@ -1,27 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - Audio-react browser UI (PROGMEM HTML bundle)
-//
-// Served at http://patternflow.local/audio by core_audio_ws.h. The UI:
-//   - audio source: file upload or mic
-//   - four frequency bands, each routed to a target knob (1..4)
-//   - per band: Hz min/max sliders, base value, ±range modulation
-//   - live energy meters + WebSocket throttled to ~30 Hz
-//
-// Audio path: source → AnalyserNode (FFT 2048) → per-band bin average
-// in dB → normalized 0..1 → EMA smoothing → output = base + audio×range
-// (clamped 0..1) → WebSocket frame "k=N,v=F".
-//
-// Tab/system capture is better handled by the Patternflow Audio Chrome
-// extension because the ESP32 serves this page over normal HTTP.
-//
-// License: MIT
-// ═══════════════════════════════════════════════════════════
-// The page body below is generated from console/audio.html — edit that,
-// then run: python firmware/toolchain/console_pages.py build
-#pragma once
-#include <pgmspace.h>
-
-const char AUDIO_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -380,4 +357,3 @@ requestAnimationFrame(tick);
 </script>
 </div>
 </body></html>
-)HTML";

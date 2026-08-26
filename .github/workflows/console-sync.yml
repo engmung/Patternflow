@@ -1,0 +1,43 @@
+name: Console pages in sync
+
+# The console pages are authored as firmware/patternflow/console/*.html and
+# spliced into the PROGMEM headers by firmware/toolchain/console_pages.py.
+#
+# That arrangement has exactly one way to go wrong: someone edits the .h
+# directly. Nothing complains, the device ships their change — and the next
+# `console_pages.py build` silently overwrites it with the older HTML. The
+# work disappears with no error anywhere.
+#
+# So the only thing this checks is that every header still matches its HTML.
+on:
+  pull_request:
+    paths:
+      - "firmware/patternflow/console/**"
+      - "firmware/patternflow/src/*_index.h"
+      - "firmware/patternflow/addons/**/*_index.h"
+      - "firmware/toolchain/console_pages.py"
+      - ".github/workflows/console-sync.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/patternflow/console/**"
+      - "firmware/patternflow/src/*_index.h"
+      - "firmware/patternflow/addons/**/*_index.h"
+      - "firmware/toolchain/console_pages.py"
+
+concurrency:
+  group: console-sync-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Headers match console/*.html
+        run: python firmware/toolchain/console_pages.py check

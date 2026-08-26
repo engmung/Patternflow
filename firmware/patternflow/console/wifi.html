@@ -1,15 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - /wifi page (served by core_wifi_http.h)
-// Same cream/ink/LED tokens as the other consoles; no external assets.
-// License: MIT
-// ═══════════════════════════════════════════════════════════
-// The page body below is generated from console/wifi.html — edit that,
-// then run: python firmware/toolchain/console_pages.py build
-#pragma once
-
-#include <Arduino.h>
-
-static const char WIFI_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
+<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8">
 <script src="/pf-console.js"></script>
@@ -239,4 +228,4 @@ $('f').onsubmit=function(e){
 };
 
 load();setInterval(load,5000);
-</script></body></html>)HTML";
+</script></body></html>

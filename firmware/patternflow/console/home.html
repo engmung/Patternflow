@@ -1,35 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - Device web console home (PROGMEM HTML bundle)
-//
-// Served at http://patternflow.local/ by core_audio_ws.h. A live status line
-// (pattern, fps, heap, signal — one small JSON poll) above the feature rows,
-// grouped by what they are for:
-//
-//   PATTERNS      01  the library            → /patterns
-//   SETUP         02  Wi-Fi, 03 MQTT         → /wifi, /mqtt
-//   DEVICE        04  update, 05 status      → /update, /status
-//   EXPERIMENTAL  06  audio sync             → /audio
-//
-// The look is the device's own, not the marketing site's: near-black,
-// cream type, the LED orange doing the accent work — the console is opened
-// next to a glowing panel in a dark room, and a live LED frame reads right
-// on black in a way it never did on paper cream. patternflow.work stays
-// paper; the instrument is dark.
-//
-// The update banner is the browser's doing: it fetches the public flasher
-// manifest over HTTPS and compares against this device's version. The
-// device never talks to the internet — same ferrying trick as the community
-// installer — so the check costs the firmware nothing. Silently absent when
-// the site is unreachable (offline LAN) or CORS says no.
-//
-// License: MIT
-// ═══════════════════════════════════════════════════════════
-// The page body below is generated from console/home.html — edit that,
-// then run: python firmware/toolchain/console_pages.py build
-#pragma once
-#include <pgmspace.h>
-
-const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -378,4 +347,3 @@ setInterval(tick,3000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
 </script>
 </body></html>
-)HTML";
