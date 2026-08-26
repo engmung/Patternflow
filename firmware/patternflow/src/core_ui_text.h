@@ -4,29 +4,32 @@
 //
 // Portrait OS screens lay out inside a virtual 64×64 tile at the top of the
 // rotated framebuffer (same density on 64×64 and 64×128).
-// Titles / MQTT banners: MatrixLight8X. Chrome (NETWORK, OSC/AUD, hints):
-// MatrixLight6. Both from trip5/Matrix-Fonts.
+//
+// WHICH fonts is not decided here — core_ui_fonts.h binds the three roles
+// and can be overridden per build, because a font is a preference and a
+// preference should not require editing this file.
 
 #include "core_display.h"
-#include "fonts/MatrixLight6.h"
-#include "fonts/MatrixLight8X.h"
+#include "core_ui_fonts.h"
 #include <string.h>
 
 constexpr int UI_PORTRAIT_TILE = 64;
 
+// Small print: NETWORK rows, hints, status lines.
 inline void uiUseCompactFont() {
-  dma_display->setFont(&MatrixLight6);
+  dma_display->setFont(PF_UI_FONT_CHROME);
   dma_display->setTextSize(1);
 }
 
+// Pattern names on the SELECT screen.
 inline void uiUseSelectFont() {
-  dma_display->setFont(&MatrixLight8X);
+  dma_display->setFont(PF_UI_FONT_SELECT);
   dma_display->setTextSize(1);
 }
 
-// Pattern-name / banner title: MatrixLight8X — 8-row LED matrix font.
+// Banner messages and titles.
 inline void uiUseTitleFont() {
-  dma_display->setFont(&MatrixLight8X);
+  dma_display->setFont(PF_UI_FONT_TITLE);
   dma_display->setTextSize(1);
 }
 
@@ -35,23 +38,30 @@ inline void uiUseDefaultFont() {
   dma_display->setTextSize(1);
 }
 
-inline int uiLinePitch() { return 7; }       // MatrixLight6 yAdvance 6 + gap
-inline int uiSelectLinePitch() { return 9; }
-inline int uiTitleLinePitch() {
-  return (int)pgm_read_byte(&MatrixLight8X.yAdvance) + 1;  // 8 + gap
-}
+// Line heights travel with the font choice (see core_ui_fonts.h): swap a
+// font without swapping these and text overlaps rather than failing to build.
+inline int uiLinePitch() { return PF_UI_PITCH_CHROME; }
+inline int uiSelectLinePitch() { return PF_UI_PITCH_SELECT; }
+inline int uiTitleLinePitch() { return PF_UI_PITCH_TITLE; }
 
 // Layout width for wrapping (sum of xAdvance) — ink bounds from getTextBounds
 // can under-count and let a line spill past the tile edge.
 inline int uiTitleAdvanceWidth(const char* text) {
-  const uint8_t first = pgm_read_byte(&MatrixLight8X.first);
-  const uint8_t last = pgm_read_byte(&MatrixLight8X.last);
+  const GFXfont* font = PF_UI_FONT_TITLE;
+  // The built-in 5x7 has no GFXfont to walk; it is a fixed 6 px advance.
+  if (!font) {
+    int n = 0;
+    for (const char* p = text; *p; ++p) n++;
+    return n * 6;
+  }
+  const uint8_t first = pgm_read_byte(&font->first);
+  const uint8_t last = pgm_read_byte(&font->last);
+  const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&font->glyph);
   int adv = 0;
   for (const uint8_t* p = (const uint8_t*)text; *p; ++p) {
     uint8_t c = *p;
     if (c < first || c > last) continue;
-    const GFXglyph* g = &MatrixLight8XGlyphs[c - first];
-    adv += (int)pgm_read_byte(&g->xAdvance);
+    adv += (int)pgm_read_byte(&glyphs[c - first].xAdvance);
   }
   return adv;
 }
@@ -151,7 +161,8 @@ inline void uiDrawCharPass(const GFXfont* font, char ch, int& cursorX, int basel
 
 inline void uiDrawOutlined(const char* text, int x, int yTop, uint16_t ink) {
   if (!text) return;
-  const GFXfont* font = &MatrixLight6;
+  const GFXfont* font = PF_UI_FONT_CHROME;
+  if (!font) return;  // outlining walks glyphs; the built-in 5x7 has none
   int baseline = yTop + (int)pgm_read_byte(&font->yAdvance);
   int cx = x;
   for (const char* p = text; *p; ++p) {
@@ -167,7 +178,8 @@ inline void uiDrawOutlined(const char* text, int x, int yTop, uint16_t ink) {
 inline void uiDrawOutlinedAtBaseline(const char* text, int cursorX, int baselineY,
                                      uint16_t ink) {
   if (!text) return;
-  const GFXfont* font = &MatrixLight6;
+  const GFXfont* font = PF_UI_FONT_CHROME;
+  if (!font) return;
   int cx = cursorX;
   for (const char* p = text; *p; ++p) {
     uiDrawCharPass(font, *p, cx, baselineY, ink, true);
@@ -181,7 +193,8 @@ inline void uiDrawOutlinedAtBaseline(const char* text, int cursorX, int baseline
 inline void uiDrawOutlinedTitleAtBaseline(const char* text, int cursorX,
                                           int baselineY, uint16_t ink) {
   if (!text) return;
-  const GFXfont* font = &MatrixLight8X;
+  const GFXfont* font = PF_UI_FONT_TITLE;
+  if (!font) return;
   int cx = cursorX;
   for (const char* p = text; *p; ++p) {
     uiDrawCharPass(font, *p, cx, baselineY, ink, true);
@@ -204,7 +217,7 @@ inline void uiDrawCenteredTileScrim(int ox, int /*oy*/, int tw, int yTop,
   dma_display->print(text);
 }
 
-// One MatrixLight8X title line, centered in the tile with a dark scrim.
+// One title line, centered in the tile with a dark scrim.
 inline void uiDrawTitleLineTile(int ox, int tw, int yTop, const char* text, uint16_t color) {
   int16_t x1, y1;
   uint16_t w, h;
@@ -216,7 +229,7 @@ inline void uiDrawTitleLineTile(int ox, int tw, int yTop, const char* text, uint
   dma_display->print(text);
 }
 
-// Word-wrap `name` into the tile with MatrixLight8X (advance-width fit).
+// Word-wrap `name` into the tile with the title font (advance-width fit).
 // reserveBottom: pixels kept free at the tile bottom (SELECT footer, etc.).
 // maxLines: hard cap; banner uses more of the 64×64 tile than SELECT.
 inline int uiDrawWrappedTitleTile(int ox, int oy, int tw, int th, int yTop,
@@ -332,7 +345,7 @@ inline void uiDrawAtTitle(const char* text, int x, int yTop, uint16_t color) {
 // ── Compatibility shim ───────────────────────────────────────────────────────
 // The sketch's SELECT screen and MQTT banner were written against the older
 // TomThumb helper set (PatternflowUiText::drawWrappedName & co). The fonts
-// underneath are Simone's MatrixLight pair now; this namespace keeps those
+// underneath come from core_ui_fonts.h now; this namespace keeps those
 // call sites working by mapping the old vocabulary onto the ui* helpers
 // above — same word-wrap behaviour, new glyphs.
 namespace PatternflowUiText {
