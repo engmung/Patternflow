@@ -15,7 +15,7 @@
 #include "../../pattern_registry.h"
 #include "../../src/core_mem.h"
 #include "../../src/core_bus.h"
-#include "../../src/core_mqtt.h"
+#include "../../src/core_banner.h"
 
 namespace PatternflowShow {
 
@@ -398,7 +398,7 @@ inline void applyCue(uint16_t cueIdx) {
     }
   }
   if (cue.flags & FLAG_MESSAGE) {
-    PatternflowMqtt::applyHeldMessage(poolString(cue.messageOff));
+    PatternflowBanner::hold(poolString(cue.messageOff));
   }
 }
 

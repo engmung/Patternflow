@@ -14,10 +14,12 @@
 #include "pf_addon.h"
 #include "show/addon_show.h"
 #include "weather/addon_weather.h"
+#include "mqtt/addon_mqtt.h"
 
 inline const PFAddon* const PF_ADDONS[] = {
     &PFAddonShow::descriptor,
     &PFAddonWeather::descriptor,
+    &PFAddonMqtt::descriptor,
 };
 
 inline constexpr size_t PF_ADDON_COUNT = sizeof(PF_ADDONS) / sizeof(PF_ADDONS[0]);

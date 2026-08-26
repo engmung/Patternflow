@@ -35,8 +35,8 @@
 
 #include "core_http.h"
 #include "core_bus.h"
+#include "../addons/pf_addons.h"
 #include "core_canvas.h"   // presentUs
-#include "core_mqtt.h"     // role/state for the network section
 #include "core_send.h"
 #include "core_sleep.h"    // panel-off state
 
@@ -194,14 +194,9 @@ inline void handleStatus() {
   json += PFModuleLoader::lastSetupUs;
   json += "}";
 
-  // MQTT, so "why is the other panel not following?" is answerable from
-  // one page instead of two. Role and state only — never the credentials.
-  json += ",\"mqttRole\":\"";
-  json += PatternflowMqtt::roleName(PatternflowMqtt::currentRole());
-  json += "\",\"mqttState\":\"";
-  json += PatternflowMqtt::stateText();
-  json += "\",\"mqttConnected\":";
-  json += PatternflowMqtt::isConnected() ? "true" : "false";
+  // Addons append their own fields — an MQTT bridge reports its role and
+  // connection here, so this file does not have to know what MQTT is.
+  PFAddons::appendStatus(json);
   json += "}";
 
   server().sendHeader("Cache-Control", "no-store");

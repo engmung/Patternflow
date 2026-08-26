@@ -39,15 +39,16 @@
 #pragma once
 
 #include <Arduino.h>
-#include "config.h"
-#include "core_encoders.h"
-#include "core_bus.h"
+#include "../../config.h"
+#include "../../src/core_encoders.h"
+#include "../../src/core_bus.h"
+#include "../../src/core_banner.h"
 
 #if PF_MQTT_ENABLED
 #include <WiFi.h>
 #include <Preferences.h>
 #include "pubsubclient/PubSubClient.h"
-#include "core_pack_select.h"
+#include "../../src/core_pack_select.h"
 #endif
 
 namespace PatternflowMqtt {
@@ -122,9 +123,8 @@ inline int8_t pendingSleep = -1;
 // Last sleep state published, so noteSleep() can dedupe the same way
 // notePattern() does. -1 = nothing published on this connection yet.
 inline int8_t publishedSleep = -1;
-inline char overlayText[MESSAGE_BYTES] = {};
-inline uint32_t overlayExpiresMs = 0;
-inline bool overlaySticky = false;
+// The banner itself lives in core_banner.h - a show cue and a scheduler
+// notice put words on the panel too, and neither is an MQTT feature.
 inline IPAddress brokerIp;
 inline bool brokerResolved = false;
 inline uint8_t failures = 0;
@@ -590,35 +590,22 @@ inline void fillAbsolute(InputFrame& input) {
 }
 
 inline void applyRemoteMessage(uint8_t* payload, unsigned int length) {
-  overlaySticky = false;
-  char body[MESSAGE_BYTES];
+  char body[PatternflowBanner::MESSAGE_BYTES];
   unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
   memcpy(body, payload, n);
   body[n] = '\0';
   while (n && (body[n - 1] == '\n' || body[n - 1] == '\r' || body[n - 1] == ' ')) {
     body[--n] = '\0';
   }
-  if (!body[0]) {
-    overlayText[0] = '\0';
-    overlayExpiresMs = 0;
-    return;
-  }
-  snprintf(overlayText, sizeof(overlayText), "%s", body);
-  overlayExpiresMs = millis() + PF_MQTT_MESSAGE_DURATION_MS;
+  PatternflowBanner::show(body, PF_MQTT_MESSAGE_DURATION_MS);
 }
+
 
 // Show player: banner holds until the next message cue (empty clears).
 inline void applyHeldMessage(const char* text) {
-  if (!text || !text[0]) {
-    overlayText[0] = '\0';
-    overlayExpiresMs = 0;
-    overlaySticky = false;
-    return;
-  }
-  snprintf(overlayText, sizeof(overlayText), "%s", text);
-  overlaySticky = true;
-  overlayExpiresMs = 0;
+  PatternflowBanner::hold(text);
 }
+
 
 // <prefix>/sleep. Accepts the spellings a person or an automation actually
 // sends: 1/0, on/off, true/false, sleep/wake, and toggle. Anything else is
@@ -658,8 +645,7 @@ inline void applyRemoteSleep(uint8_t* payload, unsigned int length) {
 inline void applyRemoteSnapshot(uint8_t* payload, unsigned int length) {
   if (!payload || length == 0) {
     clearAbsoluteAll();
-    overlayText[0] = '\0';
-    overlayExpiresMs = 0;
+    PatternflowBanner::clear();
     return;
   }
 
@@ -723,23 +709,13 @@ inline void applyRemoteSnapshot(uint8_t* payload, unsigned int length) {
   }
 }
 
-inline bool overlayActive() {
-  if (!overlayText[0]) return false;
-  if (overlaySticky) return true;
-  if (overlayExpiresMs == 0) return false;
-  if ((int32_t)(millis() - overlayExpiresMs) >= 0) {
-    overlayText[0] = '\0';
-    overlayExpiresMs = 0;
-    return false;
-  }
-  return true;
-}
+inline bool overlayActive() { return PatternflowBanner::active(); }
 
-inline const char* overlayMessage() { return overlayText; }
+inline const char* overlayMessage() { return PatternflowBanner::message(); }
 
 inline uint32_t overlayRemainingMs() {
   if (!overlayActive()) return 0;
-  return overlayExpiresMs - millis();
+  return PatternflowBanner::expiresMs - millis();
 }
 
 inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
@@ -1022,9 +998,7 @@ inline void resetSessionState() {
   // the sleep state itself.
   publishedSleep = -1;
   publishedPattern[0] = '\0';
-  overlayText[0] = '\0';
-  overlayExpiresMs = 0;
-  overlaySticky = false;
+  PatternflowBanner::clear();
   lastSnapshotPubMs = 0;
 }
 

@@ -40,6 +40,32 @@ inline void fillInput(InputFrame& input) {
   }
 }
 
+inline void observeFrame(const InputFrame& input, const char* patternName) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (PF_ADDONS[i]->observeFrame) PF_ADDONS[i]->observeFrame(input, patternName);
+  }
+}
+
+inline void onSleep(bool sleeping) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (PF_ADDONS[i]->onSleep) PF_ADDONS[i]->onSleep(sleeping);
+  }
+}
+
+// First request wins the frame; the next is served on the frame after.
+inline bool requestSleep(bool* sleeping) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (PF_ADDONS[i]->requestSleep && PF_ADDONS[i]->requestSleep(sleeping)) return true;
+  }
+  return false;
+}
+
+inline void appendStatus(String& json) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (PF_ADDONS[i]->appendStatus) PF_ADDONS[i]->appendStatus(json);
+  }
+}
+
 inline void onUserInput() {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
     if (PF_ADDONS[i]->onUserInput) PF_ADDONS[i]->onUserInput();

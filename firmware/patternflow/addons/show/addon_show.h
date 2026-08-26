@@ -74,10 +74,14 @@ inline const PFAddon descriptor = {
     setup,
     onNetwork,
     loop,
-    nullptr,       // fillInput - the show drives the bus, not the frame
+    nullptr,       // observeFrame
+    nullptr,       // fillInput
     onUserInput,
     claimsPattern,
     takePattern,
+    nullptr,       // onSleep
+    nullptr,       // requestSleep
+    nullptr,       // appendStatus
     drawOverlay,
 };
 

@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "../../src/core_mqtt.h"
+#include "../../src/core_banner.h"
 #include "core_show.h"
 #include "../../src/core_ui_text.h"
 #include "../../src/core_clock.h"
@@ -72,14 +72,14 @@ inline void goBlack(Black::Face f) {
 
 inline void enterNight() {
   PatternflowShow::stopAll();
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   phase = Night;
   goBlack(nightClock ? Black::Dim : Black::Off);
 }
 
 inline void enterSnooze() {
   PatternflowShow::stopAll();
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   phase = Snooze;
   snoozeAtMs = millis();
   goBlack(Black::Big);
@@ -89,7 +89,7 @@ inline void startWake() {
   lastWakeDay = PatternflowClock::dayKey();
   setFace(Black::Off);
   phase = Wake;
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   if (wakeSlug[0]) {
     const char* err = "";
     if (PatternflowShow::playSlug(wakeSlug, &err)) {

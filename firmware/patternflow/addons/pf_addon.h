@@ -57,6 +57,12 @@ struct PFAddon {
   // a socket. The panel is not being drawn while this runs.
   void (*loop)(const PFAddonFrame&);
 
+  // The finished input frame, after every source has been merged and the
+  // absolute bus applied — what the pattern is about to see. For addons
+  // that mirror or publish state rather than produce it. Read-only by
+  // convention: writing here is what fillInput is for.
+  void (*observeFrame)(const InputFrame&, const char* patternName);
+
   // Contribute to the input frame before the pattern sees it — drive a
   // knob lane from a sensor, a reading, a stream. Runs before the
   // absolute bus is applied, so a pinned channel still outranks this.
@@ -75,6 +81,22 @@ struct PFAddon {
   // request it; the sketch performs the switch, because loading a module
   // is its job and not an addon's.
   bool (*takePattern)(int* idx);
+
+  // The panel went to sleep, or woke. Anything mirroring device state
+  // wants to know; anything with a timer may want to stand down.
+  void (*onSleep)(bool sleeping);
+
+  // "Put the device to sleep / wake it, please." Return true and set
+  // `sleeping` to request it. Like takePattern this is a request: the
+  // sketch owns stopping DMA and reclocking the CPU, which is not
+  // something to do from inside an addon's loop.
+  bool (*requestSleep)(bool* sleeping);
+
+  // Append fields to /api/status. Write `,"key":value` pairs — leading
+  // comma, no trailing one — into the string. The core used to report
+  // MQTT's role and connection itself, which is a core file knowing an
+  // optional feature's state; this is how an addon says its own.
+  void (*appendStatus)(String&);
 
   // After the pattern has drawn, before the frame is presented. Clocks,
   // banners, subtitles. Keep it cheap — this is per frame.

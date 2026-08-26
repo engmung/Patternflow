@@ -18,6 +18,7 @@
 // Drives the panel and the CPU down for sleep mode. Needs core_display.h only,
 // so it sits here rather than tangling with anything on the network side.
 #include "src/core_sleep.h"
+#include "src/core_banner.h"
 #include "pattern_registry.h"
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
@@ -25,8 +26,6 @@
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
 // Also after the registry: MQTT resolves inbound pattern names against it.
-#include "src/core_mqtt.h"
-#include "src/core_mqtt_http.h"
 // On-device show player (.pfs cue tables on FFat) + its night/wake
 // scheduler. After MQTT: cues apply through the same hold helpers.
 
@@ -265,25 +264,6 @@ void setup() {
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
   PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
-  // channel), then apply the saved role under the channel's constraints
-  // (Ch1–4 force Subscriber). Defaults stay Off, so a device that has never
-  // been told otherwise never dials a broker.
-  PatternflowMqtt::loadConfig();
-  {
-    auto savedRole = (PatternflowMqtt::Role)prefs.getUChar(
-        "mqtt_role", PatternflowMqtt::ROLE_OFF);
-    auto ch = PatternflowMqtt::currentChannel();
-    if (savedRole == PatternflowMqtt::ROLE_OFF ||
-        ch == PatternflowMqtt::CHANNEL_OFF) {
-      PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF,
-                                    PatternflowMqtt::ROLE_OFF);
-    } else {
-      PatternflowMqtt::applyChannel(ch, savedRole);
-    }
-    // Director mode (local authoring broker) survives reboots the same way
-    // the normal broker does.
-    PatternflowMqtt::applySavedMode();
-  }
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
   // Addons load their own settings here; sync itself starts with Wi-Fi.
   PFAddons::setup();
@@ -774,12 +754,11 @@ void drawSelectingMode() {
 // Uses the same wrapped-name helper the SELECT screen does, so a long message
 // breaks the same way a long pattern name does — the panel is 64 px wide in
 // portrait, which is about ten characters a line.
-void drawMqttMessageOverlay() {
-#if PF_MQTT_ENABLED
-  if (!PatternflowMqtt::overlayActive()) return;
+void drawBannerOverlay() {
+  if (!PatternflowBanner::active()) return;
 
-  char text[PatternflowMqtt::MESSAGE_BYTES];
-  asciiFold(PatternflowMqtt::overlayMessage(), text, sizeof(text));
+  char text[PatternflowBanner::MESSAGE_BYTES];
+  asciiFold(PatternflowBanner::message(), text, sizeof(text));
   if (!text[0]) return;
 
   // Portrait, like every other overlay; the caller is drawing in landscape.
@@ -801,7 +780,6 @@ void drawMqttMessageOverlay() {
                                        dma_display->color565(255, 255, 255));
   PatternflowUiText::useDefaultFont();
   dma_display->setRotation(0);
-#endif
 }
 
 // True while the device is showing its own UI over the pattern - the info
@@ -865,7 +843,6 @@ void readInputFrame(InputFrame& input) {
   // the raw 1×-per-detent rate, not amplified by the fast-spin curve.
   for (int i = 0; i < 4; i++) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
-    input.knobDeltas[i] += PatternflowMqtt::consumeKnobDelta(i);
   }
 
   // Audio-react direct delta messages. New browser/extension clients send
@@ -951,9 +928,7 @@ void loop() {
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
-    PatternflowMqttHttp::begin();
     PFAddons::onNetwork();
-    PatternflowMqtt::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
   }
@@ -981,7 +956,6 @@ void loop() {
 
   // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
   // an unreachable broker costs one comparison per loop, not a stall.
-  PatternflowMqtt::handle();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -1015,9 +989,7 @@ void loop() {
   // kind of thing this file's history warns about.
   {
     bool wantSleep;
-    if (PatternflowMqtt::consumeSleepRequest(wantSleep)) {
-      PatternflowSleep::request(wantSleep);
-    }
+    if (PFAddons::requestSleep(&wantSleep)) PatternflowSleep::request(wantSleep);
   }
   // Flashing beats sleeping, in both directions: a device that is being
   // reflashed does not fall asleep underneath the upload, and one that is
@@ -1033,7 +1005,7 @@ void loop() {
     // Whatever the knobs read at this moment is "not touched since".
     for (int i = 0; i < 4; i++) sleepKnobSnapshot[i] = input.knobs[i];
   }
-  PatternflowMqtt::noteSleep(PatternflowSleep::isSleeping());
+  PFAddons::onSleep(PatternflowSleep::isSleeping());
 
   if (PatternflowSleep::isSleeping()) {
     // input.knobs is the raw physical click count — the one field readInputFrame
@@ -1304,11 +1276,9 @@ void loop() {
     (int)currentMode
   );
 
-  // MQTT mirrors the same frame: knob values as they move, and the pattern
-  // name only when it actually changes (notePattern dedupes, so this does
-  // not republish every frame).
-  PatternflowMqtt::update(input, currentContentName());
-  PatternflowMqtt::notePattern(currentContentName());
+  // Addons that mirror device state see the finished frame here - every
+  // source merged, the absolute bus applied, exactly what the pattern gets.
+  PFAddons::observeFrame(input, currentContentName());
 
   // Apply OSC-driven pattern / content changes from the most recent
   // received packet. Knob deltas were already merged into the input
@@ -1353,23 +1323,6 @@ void loop() {
     } else {
       Serial.printf(">>> SHOW pattern failed idx=%d\n", addonPatternIdx);
     }
-  }
-
-  // Same contract again, fed by a retained <prefix>/pattern message. The
-  // name was already resolved to an index inside core_mqtt.h, so a rename
-  // on the broker side cannot select the wrong slot here.
-  int mqttPatternIdx;
-  if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PFAddons::patternClaimed() &&
-      PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
-      mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
-      activatePattern(mqttPatternIdx)) {
-    currentPatternIdx = mqttPatternIdx;
-    currentMode = MODE_RUNNING;
-    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
-    CalibPattern::overrideOn = false;
-    notePatternChanged();
-    Serial.printf(">>> MQTT pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
@@ -1447,7 +1400,7 @@ void loop() {
     pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
-    drawMqttMessageOverlay();
+    drawBannerOverlay();
     {
       PFAddonFrame frame{dt, currentContentName(), true, chromeVisible()};
       PFAddons::drawOverlay(frame);
@@ -1527,20 +1480,7 @@ void loop() {
   }
 
   // Weather / time sync can block on HTTP — run AFTER the frame, at most
-  // every 2 s, and only on the path matching the MQTT mode (hard separation):
-  //   FlowLocal  → appliance /api/time + /api/weather only
-  //   Normal/Dir → SNTP + optional OpenWeather only (never the FL host)
   {
-    static bool wasFlowLocal = false;
-    const bool flowLocal = PatternflowMqtt::isFlowLocalMode();
-    if (flowLocal) {
-    } else {
-    }
-    if (wasFlowLocal != flowLocal) {
-      Serial.printf("[NET] weather/time path -> %s\n",
-                    flowLocal ? "FlowLocal HTTP" : "internet NTP/OpenWeather");
-      wasFlowLocal = flowLocal;
-    }
     static uint32_t lastWeatherHandleMs = 0;
     uint32_t nowWx = millis();
     if (lastWeatherHandleMs == 0 || (nowWx - lastWeatherHandleMs) >= 2000) {
