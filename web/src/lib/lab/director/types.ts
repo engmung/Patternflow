@@ -28,6 +28,22 @@ export type DirectorKeyframe = {
   cp: [number, number, number, number];
 };
 
+/**
+ * A pattern switch at a point in time — "at t, show this pattern".
+ *
+ * The lab does not author these: its Director builds a show for the one
+ * pattern on the canvas, and the piece's name goes on the opening cue.
+ * Other editors do author them — a show can walk a whole palette — and the
+ * format has carried them since v1. They are kept here so that opening
+ * such a show in the lab and exporting it again returns the pattern
+ * switches untouched, instead of silently deleting somebody's palette.
+ */
+export type DirectorPatternCue = {
+  id: string;
+  t: number;
+  name: string;
+};
+
 export type DirectorMessage = {
   id: string;
   t: number;
@@ -43,6 +59,12 @@ export type DirectorShow = {
   /** One lane per physical knob, keyframes kept sorted by t. */
   lanes: [DirectorKeyframe[], DirectorKeyframe[], DirectorKeyframe[], DirectorKeyframe[]];
   messages: DirectorMessage[];
+  /**
+   * Pattern switches this show carried in from elsewhere. Never written by
+   * the lab's own editing; passed through on import/export so a
+   * multi-pattern show survives a round trip (see DirectorPatternCue).
+   */
+  patternCues?: DirectorPatternCue[];
 };
 
 /** Gentle ease-in-out — the default shape when a segment turns into a curve. */
@@ -92,5 +114,6 @@ export function cloneShow(show: DirectorShow): DirectorShow {
     loop: show.loop,
     lanes: show.lanes.map((lane) => lane.map((k) => ({ ...k, cp: [...k.cp] }))) as DirectorShow["lanes"],
     messages: show.messages.map((m) => ({ ...m })),
+    patternCues: show.patternCues?.map((c) => ({ ...c })),
   };
 }
