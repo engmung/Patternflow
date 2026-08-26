@@ -21,7 +21,8 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include "../net_config.h"
+#include "../../net_config.h"
+#include "../../src/core_clock.h"
 
 #ifndef PF_WEATHER_ENABLED
 #define PF_WEATHER_ENABLED 1
@@ -140,7 +141,7 @@ inline uint32_t ageMs() {
 
 inline void beginNtp() {
   // Offset is minutes east of UTC (e.g. Dubai +240, Rome +60 / +120 DST).
-  configTime((long)tzOffsetMin * 60L, 0, "pool.ntp.org", "time.google.com");
+  PatternflowClock::beginSync(tzOffsetMin);
   ntpStarted = true;
   Serial.printf("[WEATHER] NTP started (UTC%+d min)\n", (int)tzOffsetMin);
 }
@@ -297,68 +298,17 @@ inline bool syncTimeFromFlowLocal() {
   return true;
 }
 
-// Frame-stable clock. getLocalTime(..., 0) fails under Wi-Fi/CPU load and
-// made HH:MM:SS flash (often :00) when outline/text paths called it many
-// times per frame. Snapshot once from the libc clock instead.
-inline struct tm cachedLocalTm = {};
-inline bool cachedLocalOk = false;
-inline uint32_t cachedLocalAtMs = 0;
-constexpr uint32_t LOCAL_REFRESH_MS = 500;
-
-inline void refreshLocalTime() {
-  time_t n = time(nullptr);
-  // Before SNTP settles, time() can be 1970 — treat as unsynced.
-  if (n < 1609459200LL) {  // 2021-01-01 UTC
-    cachedLocalOk = false;
-    return;
-  }
-  cachedLocalOk = (localtime_r(&n, &cachedLocalTm) != nullptr);
-}
-
-inline void ensureLocalTime() {
-  uint32_t now = millis();
-  if (cachedLocalOk && (now - cachedLocalAtMs) < LOCAL_REFRESH_MS) return;
-  refreshLocalTime();
-  cachedLocalAtMs = now;
-}
-
-inline bool localTime(struct tm* out) {
-  if (!out) return false;
-  ensureLocalTime();
-  if (!cachedLocalOk) return false;
-  *out = cachedLocalTm;
-  return true;
-}
-
-inline bool timeSynced() {
-  ensureLocalTime();
-  return cachedLocalOk && cachedLocalTm.tm_year >= (2020 - 1900);
-}
-
-inline int localHour() {
-  ensureLocalTime();
-  return cachedLocalOk ? cachedLocalTm.tm_hour : 12;
-}
-
-inline int localMinute() {
-  ensureLocalTime();
-  return cachedLocalOk ? cachedLocalTm.tm_min : 0;
-}
-
-inline int localSecond() {
-  ensureLocalTime();
-  return cachedLocalOk ? cachedLocalTm.tm_sec : 0;
-}
-
-inline int localMinutes() {
-  return localHour() * 60 + localMinute();
-}
-
-inline int localDayKey() {
-  ensureLocalTime();
-  if (!cachedLocalOk) return -1;
-  return cachedLocalTm.tm_year * 400 + cachedLocalTm.tm_yday;
-}
+// The clock itself lives in core_clock.h — a night/wake scheduler and a
+// corner clock both need one, and neither is a weather feature. These
+// stay as the names the rest of the weather code already uses.
+inline void refreshLocalTime() { PatternflowClock::refresh(); }
+inline bool localTime(struct tm* out) { return PatternflowClock::localTime(out); }
+inline bool timeSynced() { return PatternflowClock::synced(); }
+inline int localHour() { return PatternflowClock::hour(); }
+inline int localMinute() { return PatternflowClock::minute(); }
+inline int localSecond() { return PatternflowClock::second(); }
+inline int localMinutes() { return PatternflowClock::minutesOfDay(); }
+inline int localDayKey() { return PatternflowClock::dayKey(); }
 
 // Prefer OpenWeather icon day/night letter; else local clock.
 inline bool isNight() {

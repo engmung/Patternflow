@@ -15,15 +15,15 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
 
 #if PF_SHOW_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
-#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
+#include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
-#include "core_mem.h"
-#include "core_send.h"
+#include "../../src/core_mem.h"
+#include "../../src/core_send.h"
 #include "core_show.h"
 #include "core_show_schedule.h"
 #include "show_index.h"
@@ -184,13 +184,13 @@ inline void appendStatus(String& json) {
   json += ",\"phase\":\"";
   json += PatternflowShowSchedule::phaseName();
   json += "\",\"timeSynced\":";
-  json += PatternflowWeather::timeSynced() ? "true" : "false";
+  json += PatternflowClock::synced() ? "true" : "false";
   json += ",\"localTime\":\"";
-  if (PatternflowWeather::timeSynced()) {
+  if (PatternflowClock::synced()) {
     char tbuf[12];
     snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d",
-             PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
-             PatternflowWeather::localSecond());
+             PatternflowClock::hour(), PatternflowClock::minute(),
+             PatternflowClock::second());
     json += tbuf;
   }
   json += "\",\"snoozeMs\":";

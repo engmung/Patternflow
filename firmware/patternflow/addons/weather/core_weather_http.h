@@ -12,19 +12,19 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
 
 #ifndef PF_WEATHER_HTTP_ENABLED
 #define PF_WEATHER_HTTP_ENABLED PF_WEATHER_ENABLED
 #endif
 
 #if PF_WEATHER_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED && PF_WEATHER_ENABLED
-#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
+#include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include "core_weather.h"
 #include "weather_index.h"
-#include "../pattern_registry.h"
+#include "../../pattern_registry.h"
 #endif
 
 namespace PatternflowWeatherHttp {

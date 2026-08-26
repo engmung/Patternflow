@@ -8,8 +8,8 @@
 #include "src/core_improv.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
-#include "src/core_audio_ws.h"
 #include "src/core_home_http.h"
+#include "addons/pf_addons.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
@@ -17,6 +17,7 @@
 // Drives the panel and the CPU down for sleep mode. Needs core_display.h only,
 // so it sits here rather than tangling with anything on the network side.
 #include "src/core_sleep.h"
+#include "src/core_banner.h"
 #include "pattern_registry.h"
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
@@ -24,16 +25,8 @@
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
 // Also after the registry: MQTT resolves inbound pattern names against it.
-#include "src/core_mqtt.h"
-#include "src/core_mqtt_http.h"
 // On-device show player (.pfs cue tables on FFat) + its night/wake
 // scheduler. After MQTT: cues apply through the same hold helpers.
-#include "src/core_library_http.h"
-#include "src/core_weather.h"
-#include "src/core_weather_http.h"
-#include "src/core_show.h"
-#include "src/core_show_schedule.h"
-#include "src/core_show_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -268,32 +261,14 @@ void setup() {
   // OSC + audio-react runtime flags, restored from NVS so the device boots
   // into whatever the K2 info screen was last set to.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
-  PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
-  // channel), then apply the saved role under the channel's constraints
-  // (Ch1–4 force Subscriber). Defaults stay Off, so a device that has never
-  // been told otherwise never dials a broker.
-  PatternflowMqtt::loadConfig();
-  {
-    auto savedRole = (PatternflowMqtt::Role)prefs.getUChar(
-        "mqtt_role", PatternflowMqtt::ROLE_OFF);
-    auto ch = PatternflowMqtt::currentChannel();
-    if (savedRole == PatternflowMqtt::ROLE_OFF ||
-        ch == PatternflowMqtt::CHANNEL_OFF) {
-      PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF,
-                                    PatternflowMqtt::ROLE_OFF);
-    } else {
-      PatternflowMqtt::applyChannel(ch, savedRole);
-    }
-    // Director mode (local authoring broker) survives reboots the same way
-    // the normal broker does.
-    PatternflowMqtt::applySavedMode();
-  }
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
-  // night/wake schedule that depends on it. Sync itself starts with Wi-Fi.
-  PatternflowWeather::loadConfig();
-  PatternflowShowSchedule::begin();
-  PatternflowShow::begin();
+  // Addons load their own settings here; sync itself starts with Wi-Fi.
+  // The core exposes an extension point for /api/status; the addons are
+  // what fills it. Wiring the two is the sketch's job, because it is the
+  // only file that is allowed to know about both.
+  PatternflowStatusHttp::extraStatus = PFAddons::appendStatus;
+  PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -508,13 +483,26 @@ void drawNetworkInfo() {
 
   // Feature rows: status dot + name on the left, state right-aligned in
   // the state's color — reads like the web console's tag pills.
+  // OSC is core; every other row comes from an addon that says it can be
+  // switched off here, so this screen lists features it knows nothing about.
+  //
+  // Two rows is the budget: they start at y=22 on an 11 px pitch and the
+  // Wi-Fi line is fixed at y=50, so a third would draw over it. A build
+  // with more toggleable addons than that shows the first ones and the
+  // rest stay web-only — the alternative is a screen that silently
+  // overlaps itself.
+  constexpr int MAX_FEATURE_ROWS = 2;
   struct FeatureRow { const char* name; bool compiled; bool on; };
-  const FeatureRow rows[2] = {
-    { "OSC", PatternflowOsc::isCompiledIn(),   PatternflowOsc::isRuntimeEnabled() },
-    { "AUD", PatternflowAudio::isCompiledIn(), PatternflowAudio::isRuntimeEnabled() },
-  };
+  FeatureRow rows[MAX_FEATURE_ROWS];
+  int rowCount = 0;
+  rows[rowCount++] = { "OSC", PatternflowOsc::isCompiledIn(),
+                       PatternflowOsc::isRuntimeEnabled() };
+  for (size_t t = 0; t < PFAddons::toggleableCount() && rowCount < MAX_FEATURE_ROWS; t++) {
+    size_t a = PFAddons::toggleableAt(t);
+    rows[rowCount++] = { PFAddons::shortName(a), true, PFAddons::runtimeEnabled(a) };
+  }
   dma_display->setTextSize(1);
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < rowCount; i++) {
     int y = 22 + i * 11;
     bool on = rows[i].compiled && rows[i].on;
     uint16_t st = rows[i].compiled ? (on ? pfGreenC() : pfRedC()) : pfDimC();
@@ -781,12 +769,11 @@ void drawSelectingMode() {
 // Uses the same wrapped-name helper the SELECT screen does, so a long message
 // breaks the same way a long pattern name does — the panel is 64 px wide in
 // portrait, which is about ten characters a line.
-void drawMqttMessageOverlay() {
-#if PF_MQTT_ENABLED
-  if (!PatternflowMqtt::overlayActive()) return;
+void drawBannerOverlay() {
+  if (!PatternflowBanner::active()) return;
 
-  char text[PatternflowMqtt::MESSAGE_BYTES];
-  asciiFold(PatternflowMqtt::overlayMessage(), text, sizeof(text));
+  char text[PatternflowBanner::MESSAGE_BYTES];
+  asciiFold(PatternflowBanner::message(), text, sizeof(text));
   if (!text[0]) return;
 
   // Portrait, like every other overlay; the caller is drawing in landscape.
@@ -808,37 +795,14 @@ void drawMqttMessageOverlay() {
                                        dma_display->color565(255, 255, 255));
   PatternflowUiText::useDefaultFont();
   dma_display->setRotation(0);
-#endif
 }
 
-// Optional HH:MM:SS corner clock (NTP + /weather UTC offset). Drawn after
-// the pattern: white glyphs with a 1px black outline so the pattern shows
-// through. Portrait, top-right (panel stood on end). Skipped on info screens.
-void drawClockOverlay() {
-  if (!PatternflowWeather::clockOverlayEnabled()) return;
-  if (!PatternflowWeather::timeSynced()) return;
-  if (oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting) return;
-  if (currentContentName() && strcmp(currentContentName(), "Weather") == 0) return;
-  if (currentContentName() && strcmp(currentContentName(), "Black") == 0 &&
-      Black::face != Black::Off) return;
-
-  char buf[12];
-  snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
-           PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
-           PatternflowWeather::localSecond());
-
-  uint8_t prevRot = dma_display->getRotation();
-  dma_display->setRotation(1);  // portrait — matches how the panel is stood
-  int16_t x1, y1;
-  uint16_t w, h;
-  uiTextBounds(buf, &x1, &y1, &w, &h);
-  int x = dma_display->width() - (int)w - 3;
-  int y = 2;
-  const uint16_t ink = dma_display->color565(245, 245, 245);
-  // Two-pass pixel outline — not 8x print() (that flickered the digits).
-  uiDrawOutlinedAtBaseline(buf, x - x1, y - y1, ink);
-  uiUseDefaultFont();
-  dma_display->setRotation(prevRot);
+// True while the device is showing its own UI over the pattern - the info
+// screen, the knob map, the update screen, the brightness bar. Addons get
+// this through PFAddonFrame::chromeVisible so a decorative overlay knows to
+// stay off without reaching for these globals.
+static inline bool chromeVisible() {
+  return oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting;
 }
 
 void readInputFrame(InputFrame& input) {
@@ -880,7 +844,7 @@ void readInputFrame(InputFrame& input) {
   }
   if (physMove && !brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing) {
-    PatternflowShowSchedule::noteInteraction();
+    PFAddons::onUserInput();
   }
 
   for (int i = 0; i < 4; i++) {
@@ -894,36 +858,20 @@ void readInputFrame(InputFrame& input) {
   // the raw 1×-per-detent rate, not amplified by the fast-spin curve.
   for (int i = 0; i < 4; i++) {
     input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
-    input.knobDeltas[i] += PatternflowMqtt::consumeKnobDelta(i);
   }
 
   // Audio-react direct delta messages. New browser/extension clients send
   // normalized deltas here so base/default values do not overwrite pattern
   // state; patterns still see only ordinary knobDeltas.
   for (int i = 0; i < 4; i++) {
-    int audioDelta = PatternflowAudio::consumeKnobDelta(i);
-    if (input.knobDeltas[i] == 0) input.knobDeltas[i] = audioDelta;
-  }
-
-  // Browser audio-react override. Patterns can read knobAudioActive[i]
-  // and use knobAudioValue[i] (normalized 0..1) in place of integrating
-  // knobDeltas. When inactive, the encoder/OSC path runs unchanged.
-  for (int i = 0; i < 4; i++) {
-    input.knobAudioActive[i] = PatternflowAudio::isActive(i);
-    input.knobAudioValue[i]  = PatternflowAudio::value(i);
   }
 
   // Absolute MQTT bus last, so it outranks everything above: held channels
   // get their 0..1000 value and their deltas / audio flags cleared, which is
   // what lets PFParams::apply pin the mapped parameter deterministically.
-  // Weather absolute 0..1 channels override audio when a reading is live.
-  // Priority: MQTT absolute (filled below) > weather > audio > deltas.
-  if (PatternflowWeather::driving()) {
-    for (int i = 0; i < 4; i++) {
-      input.knobAudioActive[i] = true;
-      input.knobAudioValue[i] = PatternflowWeather::value(i);
-    }
-  }
+  // Addons may drive the lanes (a weather reading, a sensor). They run
+  // before the absolute bus below, which therefore still outranks them.
+  PFAddons::fillInput(input);
 
   PatternflowBus::fillAbsolute(input);
 }
@@ -978,18 +926,13 @@ void loop() {
   if (PatternflowWifi::consumeJustConnected()) {
     PatternflowOsc::begin();
     PatternflowOta::begin();
-    PatternflowAudio::begin();
     PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
-    PatternflowMqttHttp::begin();
-    PatternflowShowHttp::begin();
-    PatternflowLibraryHttp::begin();
-    PatternflowWeatherHttp::begin();
-    PatternflowMqtt::begin();
+    PFAddons::onNetwork();
     Serial.println("[NET] services started");
     reportHeap("services up");
   }
@@ -1001,7 +944,6 @@ void loop() {
 
   // One libc localtime snapshot per frame — avoids getLocalTime(0) flicker
   // when Wi-Fi/CPU load makes per-call reads fail mid-draw.
-  PatternflowWeather::refreshLocalTime();
 
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
@@ -1010,7 +952,6 @@ void loop() {
   // Service the audio-react HTTP/WebSocket servers in the main loop
   // (single-threaded — no separate core-0 task). Cheap when idle.
   PatternflowHttp::handle();
-  PatternflowAudio::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
@@ -1018,9 +959,6 @@ void loop() {
 
   // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
   // an unreachable broker costs one comparison per loop, not a stall.
-  PatternflowMqtt::handle();
-  // Advance the running .pfs cue table (no-op when nothing is playing).
-  PatternflowShow::tick();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -1045,7 +983,7 @@ void loop() {
   // the room outranks the schedule.
   if (!brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing && (k1Clicked || k2Clicked || k3Clicked || k4Clicked)) {
-    PatternflowShowSchedule::noteInteraction();
+    PFAddons::onUserInput();
   }
 
   // ── SLEEP ──────────────────────────────────────────────────────────
@@ -1054,9 +992,7 @@ void loop() {
   // kind of thing this file's history warns about.
   {
     bool wantSleep;
-    if (PatternflowMqtt::consumeSleepRequest(wantSleep)) {
-      PatternflowSleep::request(wantSleep);
-    }
+    if (PFAddons::requestSleep(&wantSleep)) PatternflowSleep::request(wantSleep);
   }
   // Flashing beats sleeping, in both directions: a device that is being
   // reflashed does not fall asleep underneath the upload, and one that is
@@ -1072,7 +1008,7 @@ void loop() {
     // Whatever the knobs read at this moment is "not touched since".
     for (int i = 0; i < 4; i++) sleepKnobSnapshot[i] = input.knobs[i];
   }
-  PatternflowMqtt::noteSleep(PatternflowSleep::isSleeping());
+  PFAddons::onSleep(PatternflowSleep::isSleeping());
 
   if (PatternflowSleep::isSleeping()) {
     // input.knobs is the raw physical click count — the one field readInputFrame
@@ -1229,13 +1165,16 @@ void loop() {
       }
       oscInfoIdleAtMs = now;
     }
-    if (input.knobDeltas[2] != 0) {                  // K3 turn → audio-react
-      bool next = input.knobDeltas[2] > 0;
-      if (next != PatternflowAudio::isRuntimeEnabled()) {
-        PatternflowAudio::setRuntimeEnabled(next);
-        prefs.putBool("audio_runtime", next);
-        netInfoDirty = true;
-        Serial.printf("[NVS] audio_runtime saved: %s\n", next ? "true" : "false");
+    if (input.knobDeltas[2] != 0) {                  // K3 turn → first addon row
+      size_t a = PFAddons::toggleableAt(0);
+      if (a < PF_ADDON_COUNT) {
+        bool next = input.knobDeltas[2] > 0;
+        if (next != PFAddons::runtimeEnabled(a)) {
+          PFAddons::setRuntimeEnabled(a, next);
+          netInfoDirty = true;
+          Serial.printf("[ADDON] %s runtime: %s\n", PFAddons::shortName(a),
+                        next ? "true" : "false");
+        }
       }
       oscInfoIdleAtMs = now;
     }
@@ -1308,7 +1247,7 @@ void loop() {
 
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
-      PatternflowShowSchedule::noteInteraction();
+      PFAddons::onUserInput();
       // Entering SELECT is the strongest "hands on" signal there is — drop
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
@@ -1343,11 +1282,9 @@ void loop() {
     (int)currentMode
   );
 
-  // MQTT mirrors the same frame: knob values as they move, and the pattern
-  // name only when it actually changes (notePattern dedupes, so this does
-  // not republish every frame).
-  PatternflowMqtt::update(input, currentContentName());
-  PatternflowMqtt::notePattern(currentContentName());
+  // Addons that mirror device state see the finished frame here - every
+  // source merged, the absolute bus applied, exactly what the pattern gets.
+  PFAddons::observeFrame(input, currentContentName());
 
   // Apply OSC-driven pattern / content changes from the most recent
   // received packet. Knob deltas were already merged into the input
@@ -1355,7 +1292,7 @@ void loop() {
   // pattern selection — remote pickers wait their turn.
   int oscPatternIdx;
   if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PatternflowShow::isPlaying() &&
+      !PFAddons::patternClaimed() &&
       PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
       oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
       activatePattern(oscPatternIdx)) {
@@ -1367,51 +1304,36 @@ void loop() {
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
-  // Night/wake scheduler: may queue Black or start the wake sequence.
-  int showPatternIdx;
-  if (!PatternflowPatternsHttp::isConsolePaused()) {
-    PatternflowShowSchedule::tick(currentContentName(),
-                                  currentMode == MODE_RUNNING);
+  // Addons run here: the show player advances its cue table, the
+  // scheduler decides whether night/wake is due. The frame tells them
+  // what is on the panel so they need nothing from the sketch's globals.
+  {
+    PFAddonFrame frame{dt, currentContentName(),
+                       currentMode == MODE_RUNNING, chromeVisible()};
+      PFAddons::loop(frame);
   }
-  // Show playback must be able to load a module even if Home/Patterns left
-  // the console-pause flag set — /show is a player, not a library editor.
-  if (PatternflowShow::consumePatternIdx(showPatternIdx) &&
-      showPatternIdx >= 0 && showPatternIdx < NUM_PATTERNS) {
-    PatternflowPatternsHttp::releaseConsolePause();
-    if (activatePattern(showPatternIdx)) {
-      currentPatternIdx = showPatternIdx;
+  // An addon may ask for a pattern; loading a module is the sketch's job,
+  // so it requests and we perform.
+  int addonPatternIdx;
+  if (PFAddons::takePattern(&addonPatternIdx) &&
+      addonPatternIdx >= 0 && addonPatternIdx < NUM_PATTERNS) {
+    if (activatePattern(addonPatternIdx)) {
+      currentPatternIdx = addonPatternIdx;
       currentMode = MODE_RUNNING;
-      if (!patterns[showPatternIdx].name ||
-          strcmp(patterns[showPatternIdx].name, "Black") != 0) {
+      if (!patterns[addonPatternIdx].name ||
+          strcmp(patterns[addonPatternIdx].name, "Black") != 0) {
         contentNoticeTimer = CONTENT_NOTICE_SECONDS;
       }
       CalibPattern::overrideOn = false;
       Serial.printf(">>> SHOW pattern → %s\n", patterns[currentPatternIdx].name);
     } else {
-      Serial.printf(">>> SHOW pattern failed idx=%d\n", showPatternIdx);
+      Serial.printf(">>> SHOW pattern failed idx=%d\n", addonPatternIdx);
     }
-  }
-
-  // Same contract again, fed by a retained <prefix>/pattern message. The
-  // name was already resolved to an index inside core_mqtt.h, so a rename
-  // on the broker side cannot select the wrong slot here.
-  int mqttPatternIdx;
-  if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PatternflowShow::isPlaying() &&
-      PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
-      mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
-      activatePattern(mqttPatternIdx)) {
-    currentPatternIdx = mqttPatternIdx;
-    currentMode = MODE_RUNNING;
-    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
-    CalibPattern::overrideOn = false;
-    notePatternChanged();
-    Serial.printf(">>> MQTT pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
   int httpPatternIdx;
-  if (!PatternflowShow::isPlaying() &&
+  if (!PFAddons::patternClaimed() &&
       PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
       activatePattern(httpPatternIdx)) {
@@ -1484,12 +1406,10 @@ void loop() {
     pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
-    drawMqttMessageOverlay();
-    drawClockOverlay();
-    // Scheduler-owned clock face, drawn over Black only (dim night clock or
-    // the big snooze face).
-    if (currentContentName() && strcmp(currentContentName(), "Black") == 0) {
-      PatternflowShowSchedule::drawOwnedClock();
+    drawBannerOverlay();
+    {
+      PFAddonFrame frame{dt, currentContentName(), true, chromeVisible()};
+      PFAddons::drawOverlay(frame);
     }
 
     if (contentNoticeTimer > 0.0f) {
@@ -1566,27 +1486,11 @@ void loop() {
   }
 
   // Weather / time sync can block on HTTP — run AFTER the frame, at most
-  // every 2 s, and only on the path matching the MQTT mode (hard separation):
-  //   FlowLocal  → appliance /api/time + /api/weather only
-  //   Normal/Dir → SNTP + optional OpenWeather only (never the FL host)
   {
-    static bool wasFlowLocal = false;
-    const bool flowLocal = PatternflowMqtt::isFlowLocalMode();
-    if (flowLocal) {
-      PatternflowWeather::setFlowLocalUpstream(PatternflowMqtt::flowLocalHost());
-    } else {
-      PatternflowWeather::clearFlowLocalUpstream();
-    }
-    if (wasFlowLocal != flowLocal) {
-      Serial.printf("[NET] weather/time path -> %s\n",
-                    flowLocal ? "FlowLocal HTTP" : "internet NTP/OpenWeather");
-      wasFlowLocal = flowLocal;
-    }
     static uint32_t lastWeatherHandleMs = 0;
     uint32_t nowWx = millis();
     if (lastWeatherHandleMs == 0 || (nowWx - lastWeatherHandleMs) >= 2000) {
       lastWeatherHandleMs = nowWx;
-      PatternflowWeather::handle();
     }
   }
 }

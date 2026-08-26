@@ -3,4 +3,4 @@ PlatformIO both compile it from `src/`. Upstream:
 https://github.com/knolleary/pubsubclient
 
 Brought in by Simone Majocchi (@SimonePDA) along with the MQTT sidechannel
-in `src/core_mqtt.h`.
+in `addons/mqtt/core_mqtt.h`.

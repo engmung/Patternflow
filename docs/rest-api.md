@@ -6,7 +6,7 @@ One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still 
 
 Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. The Home Assistant integration in `integrations/homeassistant/` is built against this file. If you build another one, build it against this file, not against the firmware source.
 
-`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software. The MQTT topic layout is documented in the header comment of `firmware/patternflow/src/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
+`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software. The MQTT topic layout is documented in the header comment of `firmware/patternflow/addons/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 
 ## Transport
 

@@ -4,7 +4,7 @@ Running log of the restructuring proposed in
 [rfc-core-and-variants.md](rfc-core-and-variants.md), against the six-step
 migration order in §2.11. Updated as steps land.
 
-**Where it stands: steps 1–3 done, 4–6 open.** Everything so far is
+**Where it stands: steps 1–3 done; step 4 is being built on a branch.** Everything so far is
 neutral — no feature has left the core, nothing behaves differently, and
 the tree is in a state that can simply be left alone if the discussion in
 the RFC issue changes the plan.
@@ -14,7 +14,7 @@ the RFC issue changes the plan.
 | 1 | Move contract code out of leaving files | **done** |
 | 2 | `POST /api/params`, `variant` + `caps` in status | **done** |
 | 3 | Compile each leaving feature out, prove the seams | **done** |
-| 4 | Cut the hooks + `addons/`; port the show player onto it | open |
+| 4 | Cut the hooks + `addons/`; port the show player onto it | **in progress** — on branch `fw/addon-seam` |
 | 5 | Delete the extracted features → core 4.0.0 | open |
 | 6 | Variants fork | open |
 
@@ -111,13 +111,112 @@ trajectory the spec prints — it climbed 26 → 46 → 71 → 92 → 118 → 15
 `POST /api/params` was checked on a build with MQTT compiled out, which is
 the case it exists for.
 
+## Step 4 (in progress, branch `fw/addon-seam`)
+
+Being built on a branch rather than guessed at, because a hook is a
+contract the moment it is published — and the hook list in the RFC was
+derived from what already-integrated features happened to need, which is
+evidence about the past. Porting real features onto it turns the open
+question into a measurement. **Nothing here is merged.**
+
+The seam is three files (`addons/pf_addon.h`, `pf_addons.h`, `addons.h`)
+documented in [`firmware/patternflow/addons/README.md`](../firmware/patternflow/addons/README.md).
+The rule it enforces: a variant adds a directory and one line, so its whole
+diff against the core is additions and `git merge upstream` cannot conflict.
+
+### Ported so far
+
+| addon | what moved | what it taught |
+| --- | --- | --- |
+| `show/` | player, `/show`, night/wake schedule, library pull | Needed `onUserInput`, `claimsPattern`, and `takePattern` as a *request* (loading a module is the sketch's job). Loop and overlay hooks need frame context or the addon reaches into sketch globals. |
+| `weather/` | readings, `/weather`, corner clock | Needed **two hooks the first port never asked for**: `fillInput` (a reading drives the knob lanes) and `chromeVisible` on the frame (four sketch globals an addon could not see). |
+| `mqtt/` | client, all roles + FlowLocal, `/mqtt` | Four more: `observeFrame` (the *finished* frame, mirrored outward — the opposite end from `fillInput`), `onSleep` / `requestSleep`, and `appendStatus`, because the core was reporting `mqttRole` in `/api/status` itself. |
+| `audio/` | FFT bands over a websocket, `/audio` | Walked into the boundary the RFC drew around the device's own UI — it has a row on the NETWORK screen and a knob that toggles it. Resolved by letting the menu *describe* addons (`shortName`, `isRuntimeEnabled`, `setRuntimeEnabled`) rather than giving addons the menu. |
+
+The sketch named show 13 times, weather 11, MQTT 23 and audio 9. **All
+four are now zero** — it dispatches moments and knows no feature by name.
+`drawClockOverlay()` and `drawMqttMessageOverlay()`, 60 lines of the core
+knowing what a clock and a banner look like, left with their features.
+
+### Infrastructure hiding inside features — four times now
+
+Twice more during the ports. The night/wake scheduler was reaching into
+weather to ask what time it was, and a show cue displayed its banner by
+calling `PatternflowMqtt::applyHeldMessage()` — so sequences depended on
+weather for a clock and on a broker client for the ability to show text.
+
+All four were found the same way: by trying to remove something.
+
+| what | was living in | moved to | found in |
+| --- | --- | --- | --- |
+| console web server | `core_audio_ws.h` | `src/core_http.h` | step 1 |
+| absolute parameter bus | `core_mqtt.h` | `src/core_bus.h` | step 1 |
+| local wall time | `core_weather.h` | `src/core_clock.h` | step 4 |
+| the banner (text on the panel) | `core_mqtt.h` | `src/core_banner.h` | step 4 |
+
+### Independence, measured
+
+Every combination builds, and the sketch is identical in all of them:
+
+| addons enabled | flash |
+| --- | ---: |
+| all four | 1,405,809 B |
+| **none (the bare core)** | **1,090,569 B** |
+| show + weather | 1,404,629 B |
+| weather only | 1,348,137 B |
+| show only | 1,220,533 B |
+| none | 1,348,241 B *(measured before weather moved)* |
+
+Verified on hardware after each port: `/show` and `/weather` answer, a show
+plays through the addon path, the scheduler still reads the clock
+(`timeSynced` true), frame time 16.3–16.4 ms — unchanged throughout.
+
+### Where it ended up
+
+All four features ported. The bare core is **-308 KB of flash and -10 KB
+of static RAM** below the full build, and every feature is a directory
+plus one line in `addons.h`.
+
+The hook list settled at 12 (plus three fields for the device-menu row).
+It grew with the second and third ports and stopped with the fourth,
+which is the only real evidence that it is close to complete — and the
+question still worth putting to the people who would build on it.
+
+### Reviewed, twice
+
+Four green builds are not a review. Going back over it from angles the
+compiler cannot check turned up five things, none of which failed loudly:
+
+| what | why it mattered |
+| --- | --- |
+| the core was `#include`-ing addons | `core_status_http.h` pulled in the dispatcher to call `appendStatus`, so a core-only build would have needed addon headers to exist. The core now declares an extension point and the sketch — the one file allowed to know both — wires it. |
+| **an NVS namespace typo** | the setup hooks opened `"pf"`; everything else uses `"patternflow"`. Reads returned defaults, writes went where nobody looks, and the audio switch and MQTT role would have quietly stopped surviving reboots. |
+| the NETWORK screen had no row cap | rows start at y=22 on an 11 px pitch and the Wi-Fi line is fixed at y=50, so a third toggleable addon would have drawn over it |
+| four documents named moved files | the PFST spec, `rest-api.md`, the vendored PubSubClient note, the site's encoder comment |
+| a weather asset sat in the core | `weather_icons_32.h`, referenced by nothing |
+
+The namespace typo is the one worth remembering: it is exactly the kind of
+bug this whole restructuring can introduce — an addon owns its own settings
+now, so it has to be handed the right drawer to put them in.
+
+Checked and found clean: no public function was lost in any port (the
+inline surface of all four features diffed before and after — only
+weather's `ensureLocalTime`, which was internal and became `core_clock`'s
+`ensure()`); the module build toolchain shares only
+`core_color/math/noise`, all still in `src/`, and building a `.pfm` still
+works; the PlatformIO source filter needed no change; the web smokes pass.
+
+Hardware, after the fixes: nine console pages, a show playing and driving
+the bus, pause/stop, the clock synced through `core_clock`, the audio
+websocket handshaking on :81, `POST /api/params`, MQTT config restored
+from NVS across a flash. Frame time 16.46 ms.
+
 ## What is deliberately not done yet
 
-Step 4 cuts the hook interface, and **a hook is a contract once it is
-published** — a variant author builds on it, and changing it later breaks
-their firmware. The hook list in RFC §2.4 was derived from what the
-already-integrated features needed, which is evidence about the past, not
-about anyone's roadmap. Question 3 in the RFC issue asks exactly this, and
-it is cheap to answer now and expensive to answer after step 4.
+Steps 5 and 6 — deleting the extracted features and cutting core 4.0.0,
+then the variants forking — wait on agreement, and the branch above is
+what makes that agreement concrete: the hook list is no longer a proposal,
+it is a thing two real features are already standing on.
 
-So the tree waits here, in a state that costs nothing to wait in.
+`dev` and `main` are untouched by step 4. The core there is still the full
+firmware, so waiting costs nothing.

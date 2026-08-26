@@ -15,11 +15,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "core_mqtt.h"
+#include "../../src/core_banner.h"
 #include "core_show.h"
-#include "core_ui_text.h"
-#include "core_weather.h"
-#include "../pattern_registry.h"
+#include "../../src/core_ui_text.h"
+#include "../../src/core_clock.h"
+#include "../../pattern_registry.h"
 
 namespace PatternflowShowSchedule {
 
@@ -72,24 +72,24 @@ inline void goBlack(Black::Face f) {
 
 inline void enterNight() {
   PatternflowShow::stopAll();
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   phase = Night;
   goBlack(nightClock ? Black::Dim : Black::Off);
 }
 
 inline void enterSnooze() {
   PatternflowShow::stopAll();
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   phase = Snooze;
   snoozeAtMs = millis();
   goBlack(Black::Big);
 }
 
 inline void startWake() {
-  lastWakeDay = PatternflowWeather::localDayKey();
+  lastWakeDay = PatternflowClock::dayKey();
   setFace(Black::Off);
   phase = Wake;
-  PatternflowMqtt::applyHeldMessage("");
+  PatternflowBanner::hold("");
   if (wakeSlug[0]) {
     const char* err = "";
     if (PatternflowShow::playSlug(wakeSlug, &err)) {
@@ -210,10 +210,10 @@ inline void tick(const char* currentName, bool running) {
 
   if (phase == Wake) PatternflowShow::setLoop(false);
 
-  if (!PatternflowWeather::timeSynced()) return;
+  if (!PatternflowClock::synced()) return;
 
-  int nowM = PatternflowWeather::localMinutes();
-  int day = PatternflowWeather::localDayKey();
+  int nowM = PatternflowClock::minutesOfDay();
+  int day = PatternflowClock::dayKey();
   bool night = inNightWindow(nowM);
   bool playing = PatternflowShow::isPlaying();
 
@@ -246,13 +246,13 @@ inline void tick(const char* currentName, bool running) {
 
 inline void drawOwnedClock() {
   if (Black::face == Black::Off) return;
-  if (!PatternflowWeather::timeSynced()) return;
+  if (!PatternflowClock::synced()) return;
   if (!dma_display) return;
 
   char buf[12];
   snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
-           PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
-           PatternflowWeather::localSecond());
+           PatternflowClock::hour(), PatternflowClock::minute(),
+           PatternflowClock::second());
 
   uint8_t level = 245;
   if (Black::face == Black::Dim) {

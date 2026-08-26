@@ -13,8 +13,8 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
 
 #ifndef PF_MQTT_HTTP_ENABLED
 #define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
@@ -22,7 +22,7 @@
 
 #if PF_MQTT_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <Preferences.h>
-#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
+#include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include "core_mqtt.h"
 #include "mqtt_index.h"

@@ -12,9 +12,8 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
-#include "core_mqtt.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
 
 #ifndef PF_LIBRARY_HTTP_ENABLED
 #define PF_LIBRARY_HTTP_ENABLED 1
@@ -304,10 +303,11 @@ inline void handlePull() {
     sendJson(503, "{\"ok\":false,\"error\":\"wifi down\"}");
     return;
   }
+  // The caller names the host; DEFAULT_HOST is the appliance's usual
+  // address. This used to ask the MQTT module for its FlowLocal host, which
+  // made sequences depend on an unrelated addon for a default — a client
+  // that knows about FlowLocal can pass ?host= instead.
   String host = server().hasArg("host") ? server().arg("host") : String();
-  if (host.length() == 0 && PatternflowMqtt::isFlowLocalMode()) {
-    host = PatternflowMqtt::flowLocalHost();
-  }
   if (host.length() == 0) host = DEFAULT_HOST;
   String kind = server().hasArg("kind") ? server().arg("kind") : String("shows");
   String names = server().hasArg("names") ? server().arg("names") : String();

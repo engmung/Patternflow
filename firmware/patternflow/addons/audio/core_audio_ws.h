@@ -27,17 +27,17 @@
 #pragma once
 
 #include <Arduino.h>
-#include "config.h"
+#include "../../config.h"
 
 #if PF_AUDIO_ENABLED
 #include <WiFi.h>
-#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
+#include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WebSocketsServer.h>
 #include "audio_index.h"
-#include "core_http.h"
+#include "../../src/core_http.h"
 #endif
 
-#include "core_send.h"
+#include "../../src/core_send.h"
 
 // Forward declaration: the home page pauses a loaded pattern module the same
 // way the other console pages do (see core_patterns_http.h for why), but this

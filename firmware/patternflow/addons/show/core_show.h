@@ -12,10 +12,10 @@
 #include <Arduino.h>
 #include <FFat.h>
 #include <Preferences.h>
-#include "../pattern_registry.h"
-#include "core_mem.h"
-#include "core_bus.h"
-#include "core_mqtt.h"
+#include "../../pattern_registry.h"
+#include "../../src/core_mem.h"
+#include "../../src/core_bus.h"
+#include "../../src/core_banner.h"
 
 namespace PatternflowShow {
 
@@ -398,7 +398,7 @@ inline void applyCue(uint16_t cueIdx) {
     }
   }
   if (cue.flags & FLAG_MESSAGE) {
-    PatternflowMqtt::applyHeldMessage(poolString(cue.messageOff));
+    PatternflowBanner::hold(poolString(cue.messageOff));
   }
 }
 
