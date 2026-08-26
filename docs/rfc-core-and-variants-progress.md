@@ -4,7 +4,7 @@ Running log of the restructuring proposed in
 [rfc-core-and-variants.md](rfc-core-and-variants.md), against the six-step
 migration order in §2.11. Updated as steps land.
 
-**Where it stands: steps 1–3 done, 4–6 open.** Everything so far is
+**Where it stands: steps 1–3 done; step 4 is being built on a branch.** Everything so far is
 neutral — no feature has left the core, nothing behaves differently, and
 the tree is in a state that can simply be left alone if the discussion in
 the RFC issue changes the plan.
@@ -14,7 +14,7 @@ the RFC issue changes the plan.
 | 1 | Move contract code out of leaving files | **done** |
 | 2 | `POST /api/params`, `variant` + `caps` in status | **done** |
 | 3 | Compile each leaving feature out, prove the seams | **done** |
-| 4 | Cut the hooks + `addons/`; port the show player onto it | open |
+| 4 | Cut the hooks + `addons/`; port the show player onto it | **in progress** — on branch `fw/addon-seam` |
 | 5 | Delete the extracted features → core 4.0.0 | open |
 | 6 | Variants fork | open |
 
@@ -111,13 +111,72 @@ trajectory the spec prints — it climbed 26 → 46 → 71 → 92 → 118 → 15
 `POST /api/params` was checked on a build with MQTT compiled out, which is
 the case it exists for.
 
+## Step 4 (in progress, branch `fw/addon-seam`)
+
+Being built on a branch rather than guessed at, because a hook is a
+contract the moment it is published — and the hook list in the RFC was
+derived from what already-integrated features happened to need, which is
+evidence about the past. Porting real features onto it turns the open
+question into a measurement. **Nothing here is merged.**
+
+The seam is three files (`addons/pf_addon.h`, `pf_addons.h`, `addons.h`)
+documented in [`firmware/patternflow/addons/README.md`](../firmware/patternflow/addons/README.md).
+The rule it enforces: a variant adds a directory and one line, so its whole
+diff against the core is additions and `git merge upstream` cannot conflict.
+
+### Ported so far
+
+| addon | what moved | what it taught |
+| --- | --- | --- |
+| `show/` | player, `/show`, night/wake schedule, library pull | Needed `onUserInput`, `claimsPattern`, and `takePattern` as a *request* (loading a module is the sketch's job). Loop and overlay hooks need frame context or the addon reaches into sketch globals. |
+| `weather/` | readings, `/weather`, corner clock | Needed **two hooks the first port never asked for**: `fillInput` (a reading drives the knob lanes) and `chromeVisible` on the frame (four sketch globals an addon could not see). |
+
+The sketch named the show feature in 13 places and weather in 11. It now
+names neither anywhere. `drawClockOverlay()` — 30 lines of the core knowing
+what a clock looks like — left with weather.
+
+### A third piece of infrastructure came out of a feature
+
+The night/wake scheduler was reaching into weather to ask what time it was,
+so an addon depended on another addon: removing weather would have broken
+sequences. Local wall time moved to `src/core_clock.h`.
+
+That is now three of these, all found the same way — by trying to remove
+something:
+
+| what | was living in | moved to | found in |
+| --- | --- | --- | --- |
+| console web server | `core_audio_ws.h` | `src/core_http.h` | step 1 |
+| absolute parameter bus | `core_mqtt.h` | `src/core_bus.h` | step 1 |
+| local wall time | `core_weather.h` | `src/core_clock.h` | step 4 |
+
+### Independence, measured
+
+Every combination builds, and the sketch is identical in all four:
+
+| addons enabled | flash |
+| --- | ---: |
+| show + weather | 1,404,629 B |
+| weather only | 1,348,137 B |
+| show only | 1,220,533 B |
+| none | 1,348,241 B *(measured before weather moved)* |
+
+Verified on hardware after each port: `/show` and `/weather` answer, a show
+plays through the addon path, the scheduler still reads the clock
+(`timeSynced` true), frame time 16.3–16.4 ms — unchanged throughout.
+
+### Still to port
+
+MQTT (23 sketch call sites) and the audio websocket (9). Audio is the
+interesting one left: it owns a server of its own, which no addon has
+exercised yet.
+
 ## What is deliberately not done yet
 
-Step 4 cuts the hook interface, and **a hook is a contract once it is
-published** — a variant author builds on it, and changing it later breaks
-their firmware. The hook list in RFC §2.4 was derived from what the
-already-integrated features needed, which is evidence about the past, not
-about anyone's roadmap. Question 3 in the RFC issue asks exactly this, and
-it is cheap to answer now and expensive to answer after step 4.
+Steps 5 and 6 — deleting the extracted features and cutting core 4.0.0,
+then the variants forking — wait on agreement, and the branch above is
+what makes that agreement concrete: the hook list is no longer a proposal,
+it is a thing two real features are already standing on.
 
-So the tree waits here, in a state that costs nothing to wait in.
+`dev` and `main` are untouched by step 4. The core there is still the full
+firmware, so waiting costs nothing.
