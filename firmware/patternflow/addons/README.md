@@ -35,13 +35,18 @@ each row says which port proved it.
 
 | hook | when | proven by |
 | --- | --- | --- |
-| `setup()` | boot, before Wi-Fi | show player, weather config |
-| `onNetwork()` | Wi-Fi connected, and every reconnect — register HTTP routes here | `/show`, `/weather` |
-| `loop(frame)` | every frame; **must not block** | show cue table, weather polling |
-| `fillInput(input)` | before the pattern sees the input frame — drive a knob lane from a reading | weather |
+| `setup()` | boot, before Wi-Fi | show player, weather config, MQTT role |
+| `onNetwork()` | Wi-Fi connected, and every reconnect — register HTTP routes here | `/show`, `/weather`, `/mqtt`, `/audio` |
+| `loop(frame)` | every frame; **must not block** | show cue table, weather polling, MQTT client |
+| `observeFrame(input, name)` | the *finished* input frame, for addons that mirror rather than produce | MQTT publishing knob values |
+| `fillInput(input)` | before the pattern sees the frame — drive a lane from a reading | weather, audio bands, MQTT deltas |
 | `onUserInput()` | a human turned a knob or pressed a button | night/wake scheduler |
 | `claimsPattern()` | "I am driving the pattern" — remote pickers stand down | a running show |
-| `takePattern(&idx)` | "switch to this pattern, please" — the sketch performs it | show pattern cues |
+| `takePattern(&idx)` | "switch to this pattern, please" — the sketch performs it | show cues, MQTT pattern topic |
+| `onSleep(bool)` | the panel slept or woke | MQTT state publishing |
+| `requestSleep(&bool)` | "sleep / wake the device, please" — again a request | MQTT sleep topic |
+| `shortName` + `isRuntimeEnabled()` + `setRuntimeEnabled(bool)` | the device's own NETWORK screen lists and toggles this addon | audio |
+| `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
 
 `PFAddonFrame` carries what those hooks need so an addon never reaches into
@@ -67,13 +72,24 @@ inline const PFAddon descriptor = {
     setup,         // or nullptr
     onNetwork,
     loop,
+    nullptr,       // observeFrame
     nullptr,       // fillInput
     nullptr,       // onUserInput
     nullptr,       // claimsPattern
     nullptr,       // takePattern
+    nullptr,       // onSleep
+    nullptr,       // requestSleep
+    nullptr,       // shortName - set it to appear in the device's NETWORK screen
+    nullptr,       // isRuntimeEnabled
+    nullptr,       // setRuntimeEnabled
+    nullptr,       // appendStatus
     drawOverlay,
 };
 ```
+
+The order matters — these are positional. Copy the block from an existing
+addon and fill in what you need; the compiler catches a slot in the wrong
+place as a type error, which is how the ports found their own mistakes.
 
 Then one line in `addons.h`, and nothing else in the tree changes.
 
@@ -95,8 +111,14 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 
 | addon | files | notes |
 | --- | --- | --- |
-| `show/` | player, HTTP page, night/wake schedule, library pull | The first port, deliberately the hardest — it touches every hook. |
-| `weather/` | readings, HTTP page, corner clock | The second port, and the one that grew the interface. |
+| `show/` | player, HTTP page, night/wake schedule, library pull | The first port, deliberately the hardest. |
+| `weather/` | readings, HTTP page, corner clock | Grew the interface: `fillInput`, `chromeVisible`. |
+| `mqtt/` | client, all roles + FlowLocal, HTTP page | Grew it again: `observeFrame`, sleep in both directions, `appendStatus`. |
+| `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
+
+Emptying `addons.h` leaves the bare core: **1,090,569 B** flash against
+1,405,809 with all four loaded, and the sketch is byte-identical either
+way.
 
 ## What the ports taught
 
@@ -107,9 +129,18 @@ same shape keeps recurring.
 fitted to the first one.** The show player fit perfectly and looked like
 proof. Weather then needed two hooks it had never asked for: `fillInput`,
 and `chromeVisible` on the frame — which in the sketch had been four
-separate globals an addon could not see and should not have to.
+separate globals an addon could not see and should not have to. MQTT
+added four more, audio three. The list stopped growing at four ports,
+which is the only reason to believe it is close to complete.
 
-**Infrastructure hides inside whichever feature needed it first.** Three
+**Where the boundary actually is.** The RFC said the device's own UI was
+out of scope for addons, and audio walked straight into it: a row on the
+NETWORK screen and a knob that turns it off. The resolution was not to
+give addons the menu, but to let the menu describe them — an addon says
+its short name and whether it is on, and the core renders the row. The
+core still owns its UI; it just no longer knows what audio is.
+
+**Infrastructure hides inside whichever feature needed it first.** Four
 times now, and always found the same way — by trying to remove something:
 
 | what | was living in | moved to |
@@ -117,11 +148,13 @@ times now, and always found the same way — by trying to remove something:
 | the console web server | `core_audio_ws.h` | `src/core_http.h` |
 | the absolute parameter bus | `core_mqtt.h` | `src/core_bus.h` |
 | local wall time (NTP, timezone) | `core_weather.h` | `src/core_clock.h` |
+| the banner (text on the panel) | `core_mqtt.h` | `src/core_banner.h` |
 
-The clock is the clearest case: the night/wake scheduler was reaching into
-weather to ask what time it was, so an addon depended on another addon and
-removing weather would have broken sequences. "What time is it" is not a
-weather question.
+The last two are the clearest. A show cue displayed its banner by calling
+`PatternflowMqtt::applyHeldMessage()`, so putting text on the panel
+required a broker client to exist; and the night/wake scheduler asked
+weather what time it was, so sequences depended on weather for a clock.
+Neither "show some text" nor "what time is it" is a feature question.
 
 **A feature's file set is not obvious from its name.** `core_library_http.h`
 read as core until the compiler disagreed: it installs `.pfs` files from a

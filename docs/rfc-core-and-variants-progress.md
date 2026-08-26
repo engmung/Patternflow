@@ -130,32 +130,38 @@ diff against the core is additions and `git merge upstream` cannot conflict.
 | --- | --- | --- |
 | `show/` | player, `/show`, night/wake schedule, library pull | Needed `onUserInput`, `claimsPattern`, and `takePattern` as a *request* (loading a module is the sketch's job). Loop and overlay hooks need frame context or the addon reaches into sketch globals. |
 | `weather/` | readings, `/weather`, corner clock | Needed **two hooks the first port never asked for**: `fillInput` (a reading drives the knob lanes) and `chromeVisible` on the frame (four sketch globals an addon could not see). |
+| `mqtt/` | client, all roles + FlowLocal, `/mqtt` | Four more: `observeFrame` (the *finished* frame, mirrored outward — the opposite end from `fillInput`), `onSleep` / `requestSleep`, and `appendStatus`, because the core was reporting `mqttRole` in `/api/status` itself. |
+| `audio/` | FFT bands over a websocket, `/audio` | Walked into the boundary the RFC drew around the device's own UI — it has a row on the NETWORK screen and a knob that toggles it. Resolved by letting the menu *describe* addons (`shortName`, `isRuntimeEnabled`, `setRuntimeEnabled`) rather than giving addons the menu. |
 
-The sketch named the show feature in 13 places and weather in 11. It now
-names neither anywhere. `drawClockOverlay()` — 30 lines of the core knowing
-what a clock looks like — left with weather.
+The sketch named show 13 times, weather 11, MQTT 23 and audio 9. **All
+four are now zero** — it dispatches moments and knows no feature by name.
+`drawClockOverlay()` and `drawMqttMessageOverlay()`, 60 lines of the core
+knowing what a clock and a banner look like, left with their features.
 
-### A third piece of infrastructure came out of a feature
+### Infrastructure hiding inside features — four times now
 
-The night/wake scheduler was reaching into weather to ask what time it was,
-so an addon depended on another addon: removing weather would have broken
-sequences. Local wall time moved to `src/core_clock.h`.
+Twice more during the ports. The night/wake scheduler was reaching into
+weather to ask what time it was, and a show cue displayed its banner by
+calling `PatternflowMqtt::applyHeldMessage()` — so sequences depended on
+weather for a clock and on a broker client for the ability to show text.
 
-That is now three of these, all found the same way — by trying to remove
-something:
+All four were found the same way: by trying to remove something.
 
 | what | was living in | moved to | found in |
 | --- | --- | --- | --- |
 | console web server | `core_audio_ws.h` | `src/core_http.h` | step 1 |
 | absolute parameter bus | `core_mqtt.h` | `src/core_bus.h` | step 1 |
 | local wall time | `core_weather.h` | `src/core_clock.h` | step 4 |
+| the banner (text on the panel) | `core_mqtt.h` | `src/core_banner.h` | step 4 |
 
 ### Independence, measured
 
-Every combination builds, and the sketch is identical in all four:
+Every combination builds, and the sketch is identical in all of them:
 
 | addons enabled | flash |
 | --- | ---: |
+| all four | 1,405,809 B |
+| **none (the bare core)** | **1,090,569 B** |
 | show + weather | 1,404,629 B |
 | weather only | 1,348,137 B |
 | show only | 1,220,533 B |
@@ -165,11 +171,16 @@ Verified on hardware after each port: `/show` and `/weather` answer, a show
 plays through the addon path, the scheduler still reads the clock
 (`timeSynced` true), frame time 16.3–16.4 ms — unchanged throughout.
 
-### Still to port
+### Where it ended up
 
-MQTT (23 sketch call sites) and the audio websocket (9). Audio is the
-interesting one left: it owns a server of its own, which no addon has
-exercised yet.
+All four features ported. The bare core is **-308 KB of flash and -10 KB
+of static RAM** below the full build, and every feature is a directory
+plus one line in `addons.h`.
+
+The hook list settled at 12 (plus three fields for the device-menu row).
+It grew with the second and third ports and stopped with the fourth,
+which is the only real evidence that it is close to complete — and the
+question still worth putting to the people who would build on it.
 
 ## What is deliberately not done yet
 
