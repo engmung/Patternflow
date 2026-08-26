@@ -21,6 +21,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "../src/core_encoders.h"  // InputFrame
 
 // What an addon can see about the frame being drawn. Passed to the hooks
 // that run inside the render loop, so an addon never has to reach into the
@@ -29,6 +30,12 @@ struct PFAddonFrame {
   float dt;                  // seconds since the previous frame
   const char* patternName;   // display name of the running pattern, may be null
   bool running;              // false while a menu/overlay owns the panel
+  // The sketch has its own chrome on screen (info screen, knob map,
+  // update screen, brightness bar). Decorative overlays must stay off
+  // while this is true or they draw over the device's own UI. Learned
+  // from the weather clock, which checked four sketch globals to work
+  // this out for itself.
+  bool chromeVisible;
 };
 
 struct PFAddon {
@@ -49,6 +56,11 @@ struct PFAddon {
   // Every frame. MUST NOT block: no delay(), no long loops, no waiting on
   // a socket. The panel is not being drawn while this runs.
   void (*loop)(const PFAddonFrame&);
+
+  // Contribute to the input frame before the pattern sees it — drive a
+  // knob lane from a sensor, a reading, a stream. Runs before the
+  // absolute bus is applied, so a pinned channel still outranks this.
+  void (*fillInput)(InputFrame&);
 
   // A human turned a knob or pressed a button. Schedulers use this to know
   // the device is attended; anything with an idle timer wants it.

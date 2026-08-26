@@ -34,6 +34,12 @@ inline void loop(const PFAddonFrame& frame) {
   }
 }
 
+inline void fillInput(InputFrame& input) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (PF_ADDONS[i]->fillInput) PF_ADDONS[i]->fillInput(input);
+  }
+}
+
 inline void onUserInput() {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
     if (PF_ADDONS[i]->onUserInput) PF_ADDONS[i]->onUserInput();

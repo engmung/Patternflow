@@ -10,6 +10,7 @@
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
 #include "src/core_home_http.h"
+#include "src/core_clock.h"
 #include "addons/pf_addons.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
@@ -29,8 +30,6 @@
 #include "src/core_mqtt_http.h"
 // On-device show player (.pfs cue tables on FFat) + its night/wake
 // scheduler. After MQTT: cues apply through the same hold helpers.
-#include "src/core_weather.h"
-#include "src/core_weather_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -287,8 +286,7 @@ void setup() {
     PatternflowMqtt::applySavedMode();
   }
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
-  // night/wake schedule that depends on it. Sync itself starts with Wi-Fi.
-  PatternflowWeather::loadConfig();
+  // Addons load their own settings here; sync itself starts with Wi-Fi.
   PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
@@ -807,34 +805,12 @@ void drawMqttMessageOverlay() {
 #endif
 }
 
-// Optional HH:MM:SS corner clock (NTP + /weather UTC offset). Drawn after
-// the pattern: white glyphs with a 1px black outline so the pattern shows
-// through. Portrait, top-right (panel stood on end). Skipped on info screens.
-void drawClockOverlay() {
-  if (!PatternflowWeather::clockOverlayEnabled()) return;
-  if (!PatternflowWeather::timeSynced()) return;
-  if (oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting) return;
-  if (currentContentName() && strcmp(currentContentName(), "Weather") == 0) return;
-  if (currentContentName() && strcmp(currentContentName(), "Black") == 0 &&
-      Black::face != Black::Off) return;
-
-  char buf[12];
-  snprintf(buf, sizeof(buf), "%02d:%02d:%02d",
-           PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
-           PatternflowWeather::localSecond());
-
-  uint8_t prevRot = dma_display->getRotation();
-  dma_display->setRotation(1);  // portrait — matches how the panel is stood
-  int16_t x1, y1;
-  uint16_t w, h;
-  uiTextBounds(buf, &x1, &y1, &w, &h);
-  int x = dma_display->width() - (int)w - 3;
-  int y = 2;
-  const uint16_t ink = dma_display->color565(245, 245, 245);
-  // Two-pass pixel outline — not 8x print() (that flickered the digits).
-  uiDrawOutlinedAtBaseline(buf, x - x1, y - y1, ink);
-  uiUseDefaultFont();
-  dma_display->setRotation(prevRot);
+// True while the device is showing its own UI over the pattern - the info
+// screen, the knob map, the update screen, the brightness bar. Addons get
+// this through PFAddonFrame::chromeVisible so a decorative overlay knows to
+// stay off without reaching for these globals.
+static inline bool chromeVisible() {
+  return oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting;
 }
 
 void readInputFrame(InputFrame& input) {
@@ -912,14 +888,9 @@ void readInputFrame(InputFrame& input) {
   // Absolute MQTT bus last, so it outranks everything above: held channels
   // get their 0..1000 value and their deltas / audio flags cleared, which is
   // what lets PFParams::apply pin the mapped parameter deterministically.
-  // Weather absolute 0..1 channels override audio when a reading is live.
-  // Priority: MQTT absolute (filled below) > weather > audio > deltas.
-  if (PatternflowWeather::driving()) {
-    for (int i = 0; i < 4; i++) {
-      input.knobAudioActive[i] = true;
-      input.knobAudioValue[i] = PatternflowWeather::value(i);
-    }
-  }
+  // Addons may drive the lanes (a weather reading, a sensor). They run
+  // before the absolute bus below, which therefore still outranks them.
+  PFAddons::fillInput(input);
 
   PatternflowBus::fillAbsolute(input);
 }
@@ -982,7 +953,6 @@ void loop() {
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     PatternflowMqttHttp::begin();
-    PatternflowWeatherHttp::begin();
     PFAddons::onNetwork();
     PatternflowMqtt::begin();
     Serial.println("[NET] services started");
@@ -996,7 +966,6 @@ void loop() {
 
   // One libc localtime snapshot per frame — avoids getLocalTime(0) flicker
   // when Wi-Fi/CPU load makes per-call reads fail mid-draw.
-  PatternflowWeather::refreshLocalTime();
 
   // OTA must run early in the loop so a long pattern render doesn't
   // starve the upload handler. Cheap when no upload is in flight.
@@ -1364,7 +1333,9 @@ void loop() {
   // scheduler decides whether night/wake is due. The frame tells them
   // what is on the panel so they need nothing from the sketch's globals.
   {
-    PFAddonFrame frame{dt, currentContentName(), currentMode == MODE_RUNNING};
+    PFAddonFrame frame{dt, currentContentName(),
+                       currentMode == MODE_RUNNING, chromeVisible()};
+      PatternflowClock::refresh();
     PFAddons::loop(frame);
   }
   // An addon may ask for a pattern; loading a module is the sketch's job,
@@ -1479,9 +1450,8 @@ void loop() {
     updateActivePattern(dt, input);
     drawActivePattern();
     drawMqttMessageOverlay();
-    drawClockOverlay();
     {
-      PFAddonFrame frame{dt, currentContentName(), true};
+      PFAddonFrame frame{dt, currentContentName(), true, chromeVisible()};
       PFAddons::drawOverlay(frame);
     }
 
@@ -1566,9 +1536,7 @@ void loop() {
     static bool wasFlowLocal = false;
     const bool flowLocal = PatternflowMqtt::isFlowLocalMode();
     if (flowLocal) {
-      PatternflowWeather::setFlowLocalUpstream(PatternflowMqtt::flowLocalHost());
     } else {
-      PatternflowWeather::clearFlowLocalUpstream();
     }
     if (wasFlowLocal != flowLocal) {
       Serial.printf("[NET] weather/time path -> %s\n",
@@ -1579,7 +1547,6 @@ void loop() {
     uint32_t nowWx = millis();
     if (lastWeatherHandleMs == 0 || (nowWx - lastWeatherHandleMs) >= 2000) {
       lastWeatherHandleMs = nowWx;
-      PatternflowWeather::handle();
     }
   }
 }

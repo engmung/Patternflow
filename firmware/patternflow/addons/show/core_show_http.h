@@ -184,13 +184,13 @@ inline void appendStatus(String& json) {
   json += ",\"phase\":\"";
   json += PatternflowShowSchedule::phaseName();
   json += "\",\"timeSynced\":";
-  json += PatternflowWeather::timeSynced() ? "true" : "false";
+  json += PatternflowClock::synced() ? "true" : "false";
   json += ",\"localTime\":\"";
-  if (PatternflowWeather::timeSynced()) {
+  if (PatternflowClock::synced()) {
     char tbuf[12];
     snprintf(tbuf, sizeof(tbuf), "%02d:%02d:%02d",
-             PatternflowWeather::localHour(), PatternflowWeather::localMinute(),
-             PatternflowWeather::localSecond());
+             PatternflowClock::hour(), PatternflowClock::minute(),
+             PatternflowClock::second());
     json += tbuf;
   }
   json += "\",\"snoozeMs\":";
