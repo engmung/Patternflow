@@ -92,6 +92,15 @@ struct PFAddon {
   // something to do from inside an addon's loop.
   bool (*requestSleep)(bool* sleeping);
 
+  // An addon the user can switch off at the device, without reflashing.
+  // Expose both and the NETWORK screen lists it as a row with a state,
+  // and a knob turn there toggles it — so the device's own menu can
+  // offer features it knows nothing about. `shortName` is what that row
+  // shows: three or four characters, the panel is 64 px wide.
+  const char* shortName;
+  bool (*isRuntimeEnabled)();
+  void (*setRuntimeEnabled)(bool);
+
   // Append fields to /api/status. Write `,"key":value` pairs — leading
   // comma, no trailing one — into the string. The core used to report
   // MQTT's role and connection itself, which is a core file knowing an

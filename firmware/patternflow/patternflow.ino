@@ -8,7 +8,6 @@
 #include "src/core_improv.h"
 #include "src/core_osc.h"
 #include "src/core_ota.h"
-#include "src/core_audio_ws.h"
 #include "src/core_home_http.h"
 #include "addons/pf_addons.h"
 #include "src/core_web_update.h"
@@ -262,7 +261,6 @@ void setup() {
   // OSC + audio-react runtime flags, restored from NVS so the device boots
   // into whatever the K2 info screen was last set to.
   PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
-  PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
   // Addons load their own settings here; sync itself starts with Wi-Fi.
@@ -481,13 +479,19 @@ void drawNetworkInfo() {
 
   // Feature rows: status dot + name on the left, state right-aligned in
   // the state's color — reads like the web console's tag pills.
+  // OSC is core; every other row comes from an addon that says it can be
+  // switched off here. The screen lists features it knows nothing about.
   struct FeatureRow { const char* name; bool compiled; bool on; };
-  const FeatureRow rows[2] = {
-    { "OSC", PatternflowOsc::isCompiledIn(),   PatternflowOsc::isRuntimeEnabled() },
-    { "AUD", PatternflowAudio::isCompiledIn(), PatternflowAudio::isRuntimeEnabled() },
-  };
+  FeatureRow rows[1 + PF_ADDON_COUNT];
+  int rowCount = 0;
+  rows[rowCount++] = { "OSC", PatternflowOsc::isCompiledIn(),
+                       PatternflowOsc::isRuntimeEnabled() };
+  for (size_t t = 0; t < PFAddons::toggleableCount(); t++) {
+    size_t a = PFAddons::toggleableAt(t);
+    rows[rowCount++] = { PFAddons::shortName(a), true, PFAddons::runtimeEnabled(a) };
+  }
   dma_display->setTextSize(1);
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < rowCount; i++) {
     int y = 22 + i * 11;
     bool on = rows[i].compiled && rows[i].on;
     uint16_t st = rows[i].compiled ? (on ? pfGreenC() : pfRedC()) : pfDimC();
@@ -849,16 +853,6 @@ void readInputFrame(InputFrame& input) {
   // normalized deltas here so base/default values do not overwrite pattern
   // state; patterns still see only ordinary knobDeltas.
   for (int i = 0; i < 4; i++) {
-    int audioDelta = PatternflowAudio::consumeKnobDelta(i);
-    if (input.knobDeltas[i] == 0) input.knobDeltas[i] = audioDelta;
-  }
-
-  // Browser audio-react override. Patterns can read knobAudioActive[i]
-  // and use knobAudioValue[i] (normalized 0..1) in place of integrating
-  // knobDeltas. When inactive, the encoder/OSC path runs unchanged.
-  for (int i = 0; i < 4; i++) {
-    input.knobAudioActive[i] = PatternflowAudio::isActive(i);
-    input.knobAudioValue[i]  = PatternflowAudio::value(i);
   }
 
   // Absolute MQTT bus last, so it outranks everything above: held channels
@@ -921,7 +915,6 @@ void loop() {
   if (PatternflowWifi::consumeJustConnected()) {
     PatternflowOsc::begin();
     PatternflowOta::begin();
-    PatternflowAudio::begin();
     PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
@@ -948,7 +941,6 @@ void loop() {
   // Service the audio-react HTTP/WebSocket servers in the main loop
   // (single-threaded — no separate core-0 task). Cheap when idle.
   PatternflowHttp::handle();
-  PatternflowAudio::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
@@ -1162,13 +1154,16 @@ void loop() {
       }
       oscInfoIdleAtMs = now;
     }
-    if (input.knobDeltas[2] != 0) {                  // K3 turn → audio-react
-      bool next = input.knobDeltas[2] > 0;
-      if (next != PatternflowAudio::isRuntimeEnabled()) {
-        PatternflowAudio::setRuntimeEnabled(next);
-        prefs.putBool("audio_runtime", next);
-        netInfoDirty = true;
-        Serial.printf("[NVS] audio_runtime saved: %s\n", next ? "true" : "false");
+    if (input.knobDeltas[2] != 0) {                  // K3 turn → first addon row
+      size_t a = PFAddons::toggleableAt(0);
+      if (a < PF_ADDON_COUNT) {
+        bool next = input.knobDeltas[2] > 0;
+        if (next != PFAddons::runtimeEnabled(a)) {
+          PFAddons::setRuntimeEnabled(a, next);
+          netInfoDirty = true;
+          Serial.printf("[ADDON] %s runtime: %s\n", PFAddons::shortName(a),
+                        next ? "true" : "false");
+        }
       }
       oscInfoIdleAtMs = now;
     }

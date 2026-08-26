@@ -109,6 +109,9 @@ inline const PFAddon descriptor = {
     takePattern,
     onSleep,
     requestSleep,
+    nullptr,       // shortName - not listed in the device menu
+    nullptr,       // isRuntimeEnabled
+    nullptr,       // setRuntimeEnabled
     appendStatus,
     nullptr,       // drawOverlay
 };

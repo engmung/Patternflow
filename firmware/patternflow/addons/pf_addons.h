@@ -66,6 +66,48 @@ inline void appendStatus(String& json) {
   }
 }
 
+// Addons the device menu can list and toggle: those that expose both
+// runtime hooks and a short name.
+inline bool isToggleable(size_t i) {
+  return i < PF_ADDON_COUNT && PF_ADDONS[i]->shortName &&
+         PF_ADDONS[i]->isRuntimeEnabled && PF_ADDONS[i]->setRuntimeEnabled;
+}
+
+inline size_t toggleableCount() {
+  size_t n = 0;
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (isToggleable(i)) n++;
+  }
+  return n;
+}
+
+// The nth toggleable addon, by menu order. Returns PF_ADDON_COUNT when
+// there is no nth one.
+inline size_t toggleableAt(size_t nth) {
+  size_t n = 0;
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (!isToggleable(i)) continue;
+    if (n == nth) return i;
+    n++;
+  }
+  return PF_ADDON_COUNT;
+}
+
+inline const char* shortName(size_t i) {
+  return i < PF_ADDON_COUNT ? PF_ADDONS[i]->shortName : "";
+}
+
+inline bool runtimeEnabled(size_t i) {
+  return i < PF_ADDON_COUNT && PF_ADDONS[i]->isRuntimeEnabled &&
+         PF_ADDONS[i]->isRuntimeEnabled();
+}
+
+inline void setRuntimeEnabled(size_t i, bool on) {
+  if (i < PF_ADDON_COUNT && PF_ADDONS[i]->setRuntimeEnabled) {
+    PF_ADDONS[i]->setRuntimeEnabled(on);
+  }
+}
+
 inline void onUserInput() {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
     if (PF_ADDONS[i]->onUserInput) PF_ADDONS[i]->onUserInput();
