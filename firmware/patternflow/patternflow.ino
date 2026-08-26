@@ -10,7 +10,6 @@
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
 #include "src/core_home_http.h"
-#include "src/core_clock.h"
 #include "addons/pf_addons.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
@@ -1335,8 +1334,7 @@ void loop() {
   {
     PFAddonFrame frame{dt, currentContentName(),
                        currentMode == MODE_RUNNING, chromeVisible()};
-      PatternflowClock::refresh();
-    PFAddons::loop(frame);
+      PFAddons::loop(frame);
   }
   // An addon may ask for a pattern; loading a module is the sketch's job,
   // so it requests and we perform.
