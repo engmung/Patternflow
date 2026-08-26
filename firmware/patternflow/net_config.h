@@ -75,6 +75,29 @@
 #define PF_IMPROV_FW_VERSION "3.6.3"
 #endif
 
+// ── Variant identity (RFC: docs/rfc-core-and-variants.md) ────
+// Which firmware this is. "core" is the maintained ground; a variant
+// overrides this with its own name ("simone-pd", "radio", "iot"), and that
+// string is what /api/status reports, what the site's variant list matches,
+// and what stops the console's update banner from offering a core build on
+// top of somebody's chosen firmware.
+//
+// A variant sets it from its own header rather than editing this file, so
+// its diff against the core stays additions-only:
+//   -DPF_VARIANT='"simone-pd"'   or   #define PF_VARIANT "simone-pd"
+#ifndef PF_VARIANT
+#define PF_VARIANT "core"
+#endif
+
+// -- Show player (.pfs sequences, /show) ---------------------
+// Declared here rather than inside core_show_http.h so anything can test
+// it: /api/status builds its `caps` list from these flags, and a flag
+// defined only inside the feature it guards is invisible to every file
+// that does not include that feature.
+#ifndef PF_SHOW_HTTP_ENABLED
+#define PF_SHOW_HTTP_ENABLED 1
+#endif
+
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
 // On by default. Loop cost is one UDP poll per frame when idle.
 #ifndef PF_OTA_ENABLED

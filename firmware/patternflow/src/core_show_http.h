@@ -18,10 +18,6 @@
 #include "../net_config.h"
 #include "core_patterns_http.h"
 
-#ifndef PF_SHOW_HTTP_ENABLED
-#define PF_SHOW_HTTP_ENABLED 1
-#endif
-
 #if PF_SHOW_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
