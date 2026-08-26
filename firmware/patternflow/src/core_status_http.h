@@ -59,6 +59,12 @@ inline WebServer& server() { return PatternflowHttp::server(); }
 // never reaches into what attaches to it.
 inline void (*extraStatus)(String&) = nullptr;
 
+// Extra capability strings, same arrangement: the sketch points this at
+// the addon dispatcher, and each addon that declares a `cap` adds it.
+// Appends `,"name"` per cap — the core always emits at least two, so a
+// leading comma is always correct here.
+inline void (*extraCaps)(String&) = nullptr;
+
 inline bool initialized = false;
 
 inline void appendKb(String& json, const char* key, uint32_t bytes) {
@@ -95,18 +101,12 @@ inline void handleStatus() {
 #if PF_SLEEP_ENABLED
     cap("sleep");
 #endif
-#if PF_SHOW_HTTP_ENABLED
-    cap("shows");
-#endif
-#if PF_MQTT_ENABLED
-    cap("mqtt");
-#endif
-#if PF_AUDIO_ENABLED
-    cap("audio");
-#endif
-#if PF_WEATHER_ENABLED
-    cap("weather");
-#endif
+    // Everything else is an addon saying what it is. Built from the
+    // addons actually loaded, not from compile flags: a build with the
+    // show code present but no show addon registered does not play
+    // shows, and a client probing caps must not be told otherwise.
+    (void)cap;  // the core's own entries above use it
+    if (extraCaps) extraCaps(json);
   }
   json += "],";
   json += "\"uptime\":";

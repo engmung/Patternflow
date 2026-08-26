@@ -268,6 +268,7 @@ void setup() {
   // what fills it. Wiring the two is the sketch's job, because it is the
   // only file that is allowed to know about both.
   PatternflowStatusHttp::extraStatus = PFAddons::appendStatus;
+  PatternflowStatusHttp::extraCaps = PFAddons::emitCaps;
   PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
