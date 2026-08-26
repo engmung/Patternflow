@@ -321,6 +321,9 @@ Three variants already visible — a good sign the shape is real:
 
 ## 2.11 Migration order
 
+*Progress against this order is tracked in
+[rfc-core-and-variants-progress.md](rfc-core-and-variants-progress.md).*
+
 Steps 1–3 are safe to land before anything is agreed — they are neutral
 refactors and additive endpoints that improve the tree either way. Steps
 4–6 are the split itself.
