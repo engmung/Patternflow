@@ -264,6 +264,10 @@ void setup() {
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
   // Addons load their own settings here; sync itself starts with Wi-Fi.
+  // The core exposes an extension point for /api/status; the addons are
+  // what fills it. Wiring the two is the sketch's job, because it is the
+  // only file that is allowed to know about both.
+  PatternflowStatusHttp::extraStatus = PFAddons::appendStatus;
   PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
@@ -480,13 +484,20 @@ void drawNetworkInfo() {
   // Feature rows: status dot + name on the left, state right-aligned in
   // the state's color — reads like the web console's tag pills.
   // OSC is core; every other row comes from an addon that says it can be
-  // switched off here. The screen lists features it knows nothing about.
+  // switched off here, so this screen lists features it knows nothing about.
+  //
+  // Two rows is the budget: they start at y=22 on an 11 px pitch and the
+  // Wi-Fi line is fixed at y=50, so a third would draw over it. A build
+  // with more toggleable addons than that shows the first ones and the
+  // rest stay web-only — the alternative is a screen that silently
+  // overlaps itself.
+  constexpr int MAX_FEATURE_ROWS = 2;
   struct FeatureRow { const char* name; bool compiled; bool on; };
-  FeatureRow rows[1 + PF_ADDON_COUNT];
+  FeatureRow rows[MAX_FEATURE_ROWS];
   int rowCount = 0;
   rows[rowCount++] = { "OSC", PatternflowOsc::isCompiledIn(),
                        PatternflowOsc::isRuntimeEnabled() };
-  for (size_t t = 0; t < PFAddons::toggleableCount(); t++) {
+  for (size_t t = 0; t < PFAddons::toggleableCount() && rowCount < MAX_FEATURE_ROWS; t++) {
     size_t a = PFAddons::toggleableAt(t);
     rows[rowCount++] = { PFAddons::shortName(a), true, PFAddons::runtimeEnabled(a) };
   }

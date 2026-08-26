@@ -35,7 +35,6 @@
 
 #include "core_http.h"
 #include "core_bus.h"
-#include "../addons/pf_addons.h"
 #include "core_canvas.h"   // presentUs
 #include "core_send.h"
 #include "core_sleep.h"    // panel-off state
@@ -52,6 +51,13 @@ namespace PatternflowStatusHttp {
 
 // One core-owned server (core_http.h); this used to borrow audio's.
 inline WebServer& server() { return PatternflowHttp::server(); }
+
+// Extra /api/status fields, supplied from outside the core. The sketch
+// points this at the addon dispatcher at boot; a build with no addons
+// leaves it null and the endpoint is unchanged. Declared here rather
+// than including addons/, because dependencies point one way: the core
+// never reaches into what attaches to it.
+inline void (*extraStatus)(String&) = nullptr;
 
 inline bool initialized = false;
 
@@ -194,9 +200,10 @@ inline void handleStatus() {
   json += PFModuleLoader::lastSetupUs;
   json += "}";
 
-  // Addons append their own fields — an MQTT bridge reports its role and
-  // connection here, so this file does not have to know what MQTT is.
-  PFAddons::appendStatus(json);
+  // Whoever registered extraStatus appends its fields — an MQTT bridge
+  // reports its role and connection there, so this file never has to
+  // know what MQTT is.
+  if (extraStatus) extraStatus(json);
   json += "}";
 
   server().sendHeader("Cache-Control", "no-store");
