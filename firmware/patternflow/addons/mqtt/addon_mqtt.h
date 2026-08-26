@@ -32,7 +32,7 @@ namespace PFAddonMqtt {
 inline void setup() {
   PatternflowMqtt::loadConfig();
   Preferences prefs;
-  prefs.begin("pf", /*readOnly=*/true);
+  prefs.begin("patternflow", /*readOnly=*/true);
   auto savedRole =
       (PatternflowMqtt::Role)prefs.getUChar("mqtt_role", PatternflowMqtt::ROLE_OFF);
   prefs.end();

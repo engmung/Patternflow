@@ -28,7 +28,7 @@ namespace PFAddonAudio {
 inline void setup() {
   // The runtime switch survives reboots; the addon owns its own key.
   Preferences prefs;
-  prefs.begin("pf", /*readOnly=*/true);
+  prefs.begin("patternflow", /*readOnly=*/true);
   PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
   prefs.end();
 }
@@ -57,7 +57,7 @@ inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
 inline void setRuntimeEnabled(bool on) {
   PatternflowAudio::setRuntimeEnabled(on);
   Preferences prefs;
-  prefs.begin("pf", /*readOnly=*/false);
+  prefs.begin("patternflow", /*readOnly=*/false);
   prefs.putBool("audio_runtime", on);
   prefs.end();
 }

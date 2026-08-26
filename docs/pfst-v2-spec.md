@@ -10,7 +10,8 @@ cues, and the hardware measurements — is in
 [pfst-v2-proposal.md](pfst-v2-proposal.md). This file is the contract.
 
 **Status:** shipped in Patternflow firmware v3.6.3
-(`firmware/patternflow/src/core_show.h`) and in the site's encoder/decoder
+(`firmware/patternflow/addons/show/core_show.h`) and in the site's
+encoder/decoder
 (`web/src/lib/community/performance.ts`). v1 tables are byte-identical to
 what they always were.
 
@@ -148,8 +149,9 @@ messages are events and never interpolate, whatever the flag says.
 
 ## 4. Reference implementation
 
-From `firmware/patternflow/src/core_show.h` as it ships in v3.6.3. About 50
-lines total.
+From `firmware/patternflow/src/core_show.h` as it ships in v3.6.3 — about
+50 lines total. (The player moved to `addons/show/core_show.h` after that
+release; the code below is unchanged by the move.)
 
 ### 4.1 State
 
