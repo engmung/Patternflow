@@ -48,25 +48,17 @@
 #include <esp_ota_ops.h>
 #include "core_send.h"
 #include "web_update_index.h"
-#if PF_AUDIO_ENABLED
-#include "core_audio_ws.h"
-#endif
+#include "core_http.h"
 #endif
 
 namespace PatternflowWebUpdate {
 
 #if PF_WEBUPDATE_ENABLED
 
-// Rides on the audio-react server when that is compiled in (one port-80
-// server total); otherwise owns a WebServer of its own.
-#if PF_AUDIO_ENABLED
-constexpr uint16_t HTTP_PORT = PF_AUDIO_HTTP_PORT;
-inline WebServer& server() { return PatternflowAudio::httpServer; }
-#else
-constexpr uint16_t HTTP_PORT = 80;
-inline WebServer ownServer(HTTP_PORT);
-inline WebServer& server() { return ownServer; }
-#endif
+// One core-owned console server (core_http.h). This used to fork on
+// PF_AUDIO_ENABLED and ride the audio module's server.
+constexpr uint16_t HTTP_PORT = PatternflowHttp::HTTP_PORT;
+inline WebServer& server() { return PatternflowHttp::server(); }
 
 // How long the app must stay up before this image is declared good (see the
 // rollback note in the header comment). Reaching the main loop and staying
@@ -265,14 +257,7 @@ inline void begin() {
   server().on("/update", HTTP_POST, handleUploadDone, handleUpload);
   server().on("/update/status", HTTP_GET, handleStatus);
 
-#if !PF_AUDIO_ENABLED
-  // Standalone server: everything else redirects to the update page.
-  server().onNotFound([]() {
-    server().sendHeader("Location", "/update");
-    server().send(302, "text/plain", "");
-  });
-  server().begin();
-#endif
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
   Serial.printf("[UPDATE] Ready — http://%s.local/update (IP %s)\n",
@@ -285,9 +270,6 @@ inline void begin() {
 // valid after a healthy stretch of uptime, and fires the deferred reboot.
 inline void handle() {
 #if PF_WEBUPDATE_ENABLED
-#if !PF_AUDIO_ENABLED
-  if (initialized) server().handleClient();
-#endif
 
   if (!bootMarkedValid && millis() > BOOT_VALID_AFTER_MS) {
     bootMarkedValid = true;

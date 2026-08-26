@@ -9,6 +9,7 @@
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
+#include "src/core_home_http.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
@@ -978,6 +979,7 @@ void loop() {
     PatternflowOsc::begin();
     PatternflowOta::begin();
     PatternflowAudio::begin();
+    PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
@@ -1007,6 +1009,7 @@ void loop() {
 
   // Service the audio-react HTTP/WebSocket servers in the main loop
   // (single-threaded — no separate core-0 task). Cheap when idle.
+  PatternflowHttp::handle();
   PatternflowAudio::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,

@@ -33,9 +33,7 @@
 #include <WiFi.h>
 #include <esp_heap_caps.h>
 
-#if PF_AUDIO_ENABLED
-#include "core_audio_ws.h"
-#endif
+#include "core_http.h"
 #include "core_canvas.h"   // presentUs
 #include "core_mqtt.h"     // role/state for the network section
 #include "core_send.h"
@@ -51,12 +49,8 @@ namespace PatternflowStatusHttp {
 
 #if PF_STATUS_HTTP_ENABLED
 
-#if PF_AUDIO_ENABLED
-inline WebServer& server() { return PatternflowAudio::httpServer; }
-#else
-inline WebServer statusServer(80);
-inline WebServer& server() { return statusServer; }
-#endif
+// One core-owned server (core_http.h); this used to borrow audio's.
+inline WebServer& server() { return PatternflowHttp::server(); }
 
 inline bool initialized = false;
 
@@ -231,9 +225,7 @@ inline void begin() {
   server().on("/api/status", HTTP_GET, handleStatus);
   server().on("/api/sleep", HTTP_POST, handleSleep);
 
-#if !PF_AUDIO_ENABLED
-  server().begin();
-#endif
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
   Serial.printf("[STATUS] Ready - http://%s.local/status\n", PF_OTA_HOSTNAME);

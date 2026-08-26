@@ -31,9 +31,7 @@
 #include <WiFi.h>
 #include <esp_heap_caps.h>
 
-#if PF_AUDIO_ENABLED
-#include "core_audio_ws.h"
-#endif
+#include "core_http.h"
 #include "core_send.h"     // low-heap page sender — pages serve WITHOUT pausing the pattern
 #include "core_pack_select.h"
 #include "patterns_index.h"
@@ -44,16 +42,10 @@ namespace PatternflowPatternsHttp {
 
 #if PF_PATTERNS_HTTP_ENABLED
 
-// Same arrangement as core_web_update.h: ride on the audio server when it is
-// compiled in, otherwise own one.
-#if PF_AUDIO_ENABLED
-constexpr uint16_t HTTP_PORT = PF_AUDIO_HTTP_PORT;
-inline WebServer& server() { return PatternflowAudio::httpServer; }
-#else
-constexpr uint16_t HTTP_PORT = 80;
-inline WebServer patternsServer(HTTP_PORT);
-inline WebServer& server() { return patternsServer; }
-#endif
+// The console server belongs to the core (core_http.h), not to any one
+// feature - this used to fork on PF_AUDIO_ENABLED and borrow audio's.
+constexpr uint16_t HTTP_PORT = PatternflowHttp::HTTP_PORT;
+inline WebServer& server() { return PatternflowHttp::server(); }
 
 inline bool initialized = false;
 
@@ -852,9 +844,7 @@ inline void begin() {
   server().on("/api/patterns/delete", HTTP_POST, handleDeleteMany);
   server().on("/api/patterns/format", HTTP_POST, handleFormat);
 
-#if !PF_AUDIO_ENABLED
-  server().begin();
-#endif
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
   Serial.printf("[PATTERNS] Ready - http://%s.local/patterns (IP %s)\n", PF_OTA_HOSTNAME,
