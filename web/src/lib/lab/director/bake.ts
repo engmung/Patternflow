@@ -210,6 +210,9 @@ export function bakeShow(show: DirectorShow): BakedShow {
 export function showFromPerformance(perf: Performance): DirectorShow {
   const lanes: DirectorShow["lanes"] = [[], [], [], []];
   const messages: DirectorShow["messages"] = [];
+  // Pattern switches are not something the lab authors, but they are
+  // something a .pfs can carry. Read them so an export puts them back.
+  const patternCues: NonNullable<DirectorShow["patternCues"]> = [];
   for (const cue of perf.timeline) {
     if (cue.param) {
       for (let i = 0; i < 4; i++) {
@@ -226,6 +229,8 @@ export function showFromPerformance(perf: Performance): DirectorShow {
     }
     if (cue.message)
       messages.push({ id: directorId(), t: snapWireTime(cue.t), text: cue.message });
+    if (cue.pattern)
+      patternCues.push({ id: directorId(), t: snapWireTime(cue.t), name: cue.pattern });
   }
   let lastCue = 0;
   for (const cue of perf.timeline) if (cue.t > lastCue) lastCue = cue.t;
@@ -235,6 +240,7 @@ export function showFromPerformance(perf: Performance): DirectorShow {
     loop: perf.loop,
     lanes,
     messages,
+    patternCues,
   };
 }
 
@@ -398,8 +404,24 @@ export function bakeShowV2(
   }
   timeline.sort((a, b) => a.t - b.t);
 
+  // Pattern switches carried in from another editor go back out unchanged.
+  // The lab cannot author these, but a show that walks a palette must survive
+  // being opened here — dropping them silently deleted somebody's work.
+  for (const carried of show.patternCues ?? []) {
+    const name = carried.name.trim();
+    if (!name) continue;
+    const t = snapV2(Math.max(0, carried.t));
+    const host = timeline.find((cue) => cue.t === t && !cue.ease && !cue.pattern);
+    if (host) host.pattern = name;
+    else timeline.push({ t, pattern: name });
+  }
+  timeline.sort((a, b) => a.t - b.t);
+
   const openingPattern = opts?.openingPattern?.trim();
-  if (openingPattern) {
+  // An imported show already says which pattern it opens with; the lab's own
+  // name must not overwrite somebody else's choice.
+  const hasOwnOpener = timeline.some((cue) => cue.t === 0 && cue.pattern);
+  if (openingPattern && !hasOwnOpener) {
     // Ride the opening cue when one exists (a plain t=0 cue the player fires
     // first); otherwise open with a dedicated pattern-only cue.
     const opener = timeline.find((cue) => cue.t === 0 && !cue.ease);

@@ -318,4 +318,28 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     fail("opening pattern must ride the existing t=0 cue");
   }
   console.log("director smoke OK", { part: "opening-pattern" });
+
+  // -- pattern cues the lab does not author must survive a round trip --
+  // A show from another editor can walk a palette of patterns. The lab has
+  // no UI for that, but opening such a show here and exporting it again
+  // used to delete every switch silently.
+  const palette = emptyShow();
+  palette.length = 30;
+  palette.lanes[0] = [key(0, 200), key(1, 900)];
+  const carried = bakeShowV2(palette, { openingPattern: "Lab Piece" });
+  carried.perf.timeline.push({ t: 1, pattern: "Second" });
+  carried.perf.timeline.push({ t: 2, pattern: "Third" });
+  carried.perf.timeline.sort((a, b) => a.t - b.t);
+  const reopened = showFromPerformance(decodePfst(encodePfst(carried.perf)));
+  const out = bakeShowV2(reopened, { openingPattern: "Lab Piece" });
+  const names = out.perf.timeline.filter((c) => c.pattern).map((c) => c.pattern);
+  if (!names.includes("Second") || !names.includes("Third")) {
+    fail(`pattern switches lost on a lab round trip: ${JSON.stringify(names)}`);
+  }
+  // The lab's own name must not overwrite an imported show's opener.
+  const opener = out.perf.timeline.find((c) => c.t === 0 && c.pattern);
+  if (opener?.pattern !== "Lab Piece") {
+    fail(`imported opener wrong: ${JSON.stringify(opener)}`);
+  }
+  console.log("director smoke OK", { part: "pattern-cue-passthrough", names });
 }
