@@ -874,7 +874,7 @@ void readInputFrame(InputFrame& input) {
   bool physMove = false;
   for (int i = 0; i < 4; i++) {
     if (input.knobDeltas[i] != 0) {
-      PatternflowMqtt::releaseAbsolute(i);
+      PatternflowBus::releaseAbsolute(i);
       physMove = true;
     }
   }
@@ -925,7 +925,7 @@ void readInputFrame(InputFrame& input) {
     }
   }
 
-  PatternflowMqtt::fillAbsolute(input);
+  PatternflowBus::fillAbsolute(input);
 }
 
 // Legacy absolute audio-react path for older clients that still send k=N,v=F.
@@ -1312,7 +1312,7 @@ void loop() {
       // Entering SELECT is the strongest "hands on" signal there is — drop
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
-      PatternflowMqtt::clearAbsoluteAll();
+      PatternflowBus::clearAbsoluteAll();
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
