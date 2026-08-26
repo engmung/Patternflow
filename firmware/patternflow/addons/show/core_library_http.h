@@ -12,9 +12,9 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
-#include "core_mqtt.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
+#include "../../src/core_mqtt.h"
 
 #ifndef PF_LIBRARY_HTTP_ENABLED
 #define PF_LIBRARY_HTTP_ENABLED 1

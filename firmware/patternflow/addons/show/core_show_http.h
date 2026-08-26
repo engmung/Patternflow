@@ -15,15 +15,15 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../net_config.h"
-#include "core_patterns_http.h"
+#include "../../net_config.h"
+#include "../../src/core_patterns_http.h"
 
 #if PF_SHOW_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
-#include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
+#include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
-#include "core_mem.h"
-#include "core_send.h"
+#include "../../src/core_mem.h"
+#include "../../src/core_send.h"
 #include "core_show.h"
 #include "core_show_schedule.h"
 #include "show_index.h"

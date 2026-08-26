@@ -10,6 +10,7 @@
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
 #include "src/core_home_http.h"
+#include "addons/pf_addons.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
@@ -28,12 +29,8 @@
 #include "src/core_mqtt_http.h"
 // On-device show player (.pfs cue tables on FFat) + its night/wake
 // scheduler. After MQTT: cues apply through the same hold helpers.
-#include "src/core_library_http.h"
 #include "src/core_weather.h"
 #include "src/core_weather_http.h"
-#include "src/core_show.h"
-#include "src/core_show_schedule.h"
-#include "src/core_show_http.h"
 
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -292,8 +289,7 @@ void setup() {
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
   // night/wake schedule that depends on it. Sync itself starts with Wi-Fi.
   PatternflowWeather::loadConfig();
-  PatternflowShowSchedule::begin();
-  PatternflowShow::begin();
+  PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -880,7 +876,7 @@ void readInputFrame(InputFrame& input) {
   }
   if (physMove && !brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing) {
-    PatternflowShowSchedule::noteInteraction();
+    PFAddons::onUserInput();
   }
 
   for (int i = 0; i < 4; i++) {
@@ -986,9 +982,8 @@ void loop() {
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     PatternflowMqttHttp::begin();
-    PatternflowShowHttp::begin();
-    PatternflowLibraryHttp::begin();
     PatternflowWeatherHttp::begin();
+    PFAddons::onNetwork();
     PatternflowMqtt::begin();
     Serial.println("[NET] services started");
     reportHeap("services up");
@@ -1019,8 +1014,6 @@ void loop() {
   // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
   // an unreachable broker costs one comparison per loop, not a stall.
   PatternflowMqtt::handle();
-  // Advance the running .pfs cue table (no-op when nothing is playing).
-  PatternflowShow::tick();
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -1045,7 +1038,7 @@ void loop() {
   // the room outranks the schedule.
   if (!brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing && (k1Clicked || k2Clicked || k3Clicked || k4Clicked)) {
-    PatternflowShowSchedule::noteInteraction();
+    PFAddons::onUserInput();
   }
 
   // ── SLEEP ──────────────────────────────────────────────────────────
@@ -1308,7 +1301,7 @@ void loop() {
 
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
-      PatternflowShowSchedule::noteInteraction();
+      PFAddons::onUserInput();
       // Entering SELECT is the strongest "hands on" signal there is — drop
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
@@ -1355,7 +1348,7 @@ void loop() {
   // pattern selection — remote pickers wait their turn.
   int oscPatternIdx;
   if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PatternflowShow::isPlaying() &&
+      !PFAddons::patternClaimed() &&
       PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
       oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
       activatePattern(oscPatternIdx)) {
@@ -1367,28 +1360,29 @@ void loop() {
     Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
   }
 
-  // Night/wake scheduler: may queue Black or start the wake sequence.
-  int showPatternIdx;
-  if (!PatternflowPatternsHttp::isConsolePaused()) {
-    PatternflowShowSchedule::tick(currentContentName(),
-                                  currentMode == MODE_RUNNING);
+  // Addons run here: the show player advances its cue table, the
+  // scheduler decides whether night/wake is due. The frame tells them
+  // what is on the panel so they need nothing from the sketch's globals.
+  {
+    PFAddonFrame frame{dt, currentContentName(), currentMode == MODE_RUNNING};
+    PFAddons::loop(frame);
   }
-  // Show playback must be able to load a module even if Home/Patterns left
-  // the console-pause flag set — /show is a player, not a library editor.
-  if (PatternflowShow::consumePatternIdx(showPatternIdx) &&
-      showPatternIdx >= 0 && showPatternIdx < NUM_PATTERNS) {
-    PatternflowPatternsHttp::releaseConsolePause();
-    if (activatePattern(showPatternIdx)) {
-      currentPatternIdx = showPatternIdx;
+  // An addon may ask for a pattern; loading a module is the sketch's job,
+  // so it requests and we perform.
+  int addonPatternIdx;
+  if (PFAddons::takePattern(&addonPatternIdx) &&
+      addonPatternIdx >= 0 && addonPatternIdx < NUM_PATTERNS) {
+    if (activatePattern(addonPatternIdx)) {
+      currentPatternIdx = addonPatternIdx;
       currentMode = MODE_RUNNING;
-      if (!patterns[showPatternIdx].name ||
-          strcmp(patterns[showPatternIdx].name, "Black") != 0) {
+      if (!patterns[addonPatternIdx].name ||
+          strcmp(patterns[addonPatternIdx].name, "Black") != 0) {
         contentNoticeTimer = CONTENT_NOTICE_SECONDS;
       }
       CalibPattern::overrideOn = false;
       Serial.printf(">>> SHOW pattern → %s\n", patterns[currentPatternIdx].name);
     } else {
-      Serial.printf(">>> SHOW pattern failed idx=%d\n", showPatternIdx);
+      Serial.printf(">>> SHOW pattern failed idx=%d\n", addonPatternIdx);
     }
   }
 
@@ -1397,7 +1391,7 @@ void loop() {
   // on the broker side cannot select the wrong slot here.
   int mqttPatternIdx;
   if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PatternflowShow::isPlaying() &&
+      !PFAddons::patternClaimed() &&
       PatternflowMqtt::consumePatternIdx(mqttPatternIdx) &&
       mqttPatternIdx >= 0 && mqttPatternIdx < NUM_PATTERNS &&
       activatePattern(mqttPatternIdx)) {
@@ -1411,7 +1405,7 @@ void loop() {
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
   int httpPatternIdx;
-  if (!PatternflowShow::isPlaying() &&
+  if (!PFAddons::patternClaimed() &&
       PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
       activatePattern(httpPatternIdx)) {
@@ -1486,10 +1480,9 @@ void loop() {
     drawActivePattern();
     drawMqttMessageOverlay();
     drawClockOverlay();
-    // Scheduler-owned clock face, drawn over Black only (dim night clock or
-    // the big snooze face).
-    if (currentContentName() && strcmp(currentContentName(), "Black") == 0) {
-      PatternflowShowSchedule::drawOwnedClock();
+    {
+      PFAddonFrame frame{dt, currentContentName(), true};
+      PFAddons::drawOverlay(frame);
     }
 
     if (contentNoticeTimer > 0.0f) {

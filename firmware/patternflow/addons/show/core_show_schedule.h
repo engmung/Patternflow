@@ -15,11 +15,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "core_mqtt.h"
+#include "../../src/core_mqtt.h"
 #include "core_show.h"
-#include "core_ui_text.h"
-#include "core_weather.h"
-#include "../pattern_registry.h"
+#include "../../src/core_ui_text.h"
+#include "../../src/core_weather.h"
+#include "../../pattern_registry.h"
 
 namespace PatternflowShowSchedule {
 
