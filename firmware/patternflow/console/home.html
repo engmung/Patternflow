@@ -88,6 +88,9 @@
   .pf-row.soon,.pf-row.soon .pf-row-d{color:var(--faint)}
   .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
        border:1px solid var(--faint);color:var(--muted);padding:3px 8px 2px;margin-left:10px;vertical-align:2px}
+  #variant{margin-right:auto;margin-left:16px}
+  #variant a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--rule)}
+  #variant a:hover{color:var(--led);border-color:var(--led)}
   footer{margin-top:34px;display:flex;justify-content:space-between;gap:16px;
        font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   footer a{color:var(--muted);text-decoration:none}
@@ -205,7 +208,9 @@
   </div>
   </div>
 
-  <footer><span id="host"></span><a href="https://patternflow.work" target="_blank" rel="noopener">patternflow.work</a></footer>
+  <footer><span id="host"></span>
+    <span id="variant"></span>
+    <a href="https://patternflow.work" target="_blank" rel="noopener">patternflow.work</a></footer>
 </main>
 
 <script>
@@ -235,8 +240,24 @@ function gate(s){
   for(i=0;i<ghosts.length;i++)
     ghosts[i].textContent=(i+1<10?'0':'')+(i+1);
 }
-document.addEventListener('pf-status',function(e){gate(e.detail)});
-if(window.pfStatus)gate(window.pfStatus);
+// Core, or somebody's variant? Only the device can answer, so it does —
+// and points at the shelf either way, because the useful question on a
+// core panel is "what else could this run" and on a variant it is
+// "what am I running and how do I get back".
+function sayVariant(s){
+  var el=$('variant');if(!el||!s)return;
+  var v=s.variant||'core';
+  var href='https://patternflow.work/variants'+(v==='core'?'':'#'+v);
+  el.innerHTML='';
+  el.appendChild(document.createTextNode(
+    v==='core'?'Patternflow core \u00b7 ':'Variant: '+v+' \u00b7 '));
+  var a=document.createElement('a');
+  a.href=href;a.target='_blank';a.rel='noopener';
+  a.textContent=v==='core'?'other firmwares':'about this firmware';
+  el.appendChild(a);
+}
+document.addEventListener('pf-status',function(e){gate(e.detail);sayVariant(e.detail)});
+if(window.pfStatus){gate(window.pfStatus);sayVariant(window.pfStatus)}
 
 // ── Device card ───────────────────────────────────────────────
 // One status JSON, ~1.7 KB every 3 s — everything on the card comes out of
@@ -283,7 +304,7 @@ function tick(){
       (s.mqttRole+' · '+s.mqttState):'off';
     $('s-up').textContent=dur(s.uptime);
     $('s-fw').textContent='v'+s.version;
-    checkUpdate(s.version);
+    checkUpdate(s.version,s.variant);
   }).catch(function(){$('nowsub').textContent='cannot reach device'});
 }
 
@@ -328,8 +349,15 @@ $('p-sleep').addEventListener('click',function(){setPower(true)});
 
 // ── Update check (runs in the browser, never on the device) ───
 var updChecked=false;
-function checkUpdate(deviceVersion){
+// The manifest at patternflow.work describes CORE releases. Offering one
+// of those to a panel running somebody else's firmware would talk a
+// person into flashing away the thing they deliberately chose, with a
+// version comparison that means nothing across two release lines. So on
+// a variant this stays quiet: that maintainer announces their own
+// updates, and the footer already links to them.
+function checkUpdate(deviceVersion,variant){
   if(updChecked||!deviceVersion)return;
+  if(variant&&variant!=='core')return;
   updChecked=true;
   fetch('https://patternflow.work/flash/manifest.json',{cache:'no-store'})
     .then(function(r){if(!r.ok)throw 0;return r.json()})

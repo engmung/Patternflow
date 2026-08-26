@@ -18,6 +18,7 @@ not have them — so you can look at both:
     /mock?caps=bare                    core only (no Sequences/Audio/MQTT/Weather)
     /mock?caps=full                    everything (the default)
     /mock?caps=patterns,params,shows   whatever you want to see
+    /mock?variant=simone-pd            pretend this is somebody else's firmware
 
 What this is NOT: the firmware. It answers the same URLs with the same
 JSON shapes, and that is all it promises. Behaviour that lives in C++ —
@@ -84,6 +85,7 @@ def raw_literal(rel, tag):
 class Device:
     def __init__(self):
         self.caps = list(CAPS_FULL)
+        self.variant = "core"
         self.uptime = 748
         self.sleep = False
         self.console_paused = False
@@ -114,7 +116,7 @@ class Device:
         p = self.patterns[self.active] if self.patterns else None
         return {
             "version": "3.6.3",
-            "variant": "core",
+            "variant": self.variant,
             "caps": self.caps,
             "uptime": self.uptime,
             "panel": "128x64",
@@ -225,9 +227,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send("/* %s */" % e, ctype, 500)
 
         if path == "/mock":
-            want = q.get("caps", "full")
-            DEV.caps = (CAPS_BARE if want == "bare" else CAPS_FULL if want == "full"
-                        else [c.strip() for c in want.split(",") if c.strip()])
+            if "variant" in q:
+                DEV.variant = q["variant"] or "core"
+            want = q.get("caps", "full") if "caps" in q else None
+            if want is not None:
+                DEV.caps = (CAPS_BARE if want == "bare" else CAPS_FULL if want == "full"
+                            else [c.strip() for c in want.split(",") if c.strip()])
             self.send_response(302)
             self.send_header("Location", "/")
             self.end_headers()
@@ -415,6 +420,7 @@ if __name__ == "__main__":
     print("Patternflow console (mock device)  http://localhost:%d" % PORT)
     print("  pages    " + "  ".join(sorted(ROUTES)))
     print("  caps     /mock?caps=bare   /mock?caps=full")
+    print("  variant  /mock?variant=simone-pd   /mock?variant=core")
     print("  editing  firmware/patternflow/console/*.html — just save and refresh")
     print("  shipping python firmware/toolchain/console_pages.py build\n")
     try:

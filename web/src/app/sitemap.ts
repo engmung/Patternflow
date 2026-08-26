@@ -13,6 +13,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${siteUrl}/build`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${siteUrl}/inside`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${siteUrl}/roadmap`, lastModified: now, changeFrequency: "weekly", priority: 0.6 },
+    // The shelf of firmwares built on core. A device running a variant links
+    // here from its own console, so this needs to be findable from outside too.
+    { url: `${siteUrl}/variants`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${siteUrl}/contact`, lastModified: now, changeFrequency: "yearly", priority: 0.5 },
     { url: `${siteUrl}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     // Printed on the safety leaflet in every box as the address of the EU
