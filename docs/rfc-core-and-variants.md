@@ -113,7 +113,7 @@ a listed variant, one file drop away.
 | leaves | natural home | notes |
 | --- | --- | --- |
 | **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | Simone's variant | v3.6.3 integrated his stack whole and is the natural fork point — his variant starts *finished*. |
-| **MQTT** (all modes incl. FlowLocal, `/mqtt`) | Simone's variant / an IoT variant | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. Every capability it carried stays reachable in core over HTTP — including the knob write, via `/api/params`. |
+| **MQTT** (all modes, `/mqtt`) | Simone's variant | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. **Corrected from an earlier draft**, which split this across two variants: FlowLocal is Simone's and the Director lives inside FlowLocal, so the MQTT code goes to him whole. That does not dissolve the IoT variant — bendobos's integration is its own body of work, and where the two meet is for them to agree. Every capability MQTT held stays reachable in core over HTTP, including the knob write via `/api/params`. |
 | **Weather** (`core_weather*`, `/weather`) | Simone's variant | |
 | **Audio-react websocket** (`core_audio_ws`, `/audio`) | its own variant (or retired) | OSC stays core; this is only the browser-mic path. |
 | **Home Assistant / IoT** | an IoT variant + the existing HA repo | The integration's *read* path is plain core HTTP and works everywhere; its knob-*write* path moves from MQTT to `/api/params`, so **HA works fully against the bare core**. The MQTT half (publisher role, bridges) follows MQTT into the IoT variant. |
@@ -286,15 +286,17 @@ Staged, so nobody runs an empty forum:
 
 Three variants already visible — a good sign the shape is real:
 
-1. **`simone-pd`** — shows, schedule, weather, MQTT/FlowLocal, his fonts.
+1. **`simone-pd`** — shows, schedule, weather, MQTT (FlowLocal and the
+   Director inside it are his), his fonts.
    Fork of v3.6.3; day-one finished.
-2. **`radio`** — the cartoonmonkeystudio configuration: 8 MHz panel
+2. **`iot`** — bendobos's existing IoT integration as its own repo.
+   Not a gap to fill: it is built, and the split asks it to move out.
+   Where it ends and Simone's MQTT begins is for the two of them.
+   *(Owner to ask: @bendobos, who built the HA integration and sleep.)*
+3. **`radio`** — the cartoonmonkeystudio configuration: 8 MHz panel
    clock, raised TX power, for hostile-Wi-Fi units. The patch the core
    rightly declined becomes a firmware someone rightly ships. *(Owner to
    ask: CE.)*
-3. **`iot`** — MQTT (all roles), FlowLocal, the publisher/bridge half of
-   the HA story. *(Owner to ask: @bendobos, who built the HA integration
-   and sleep.)*
 
 ## 2.10 Known tricky parts
 

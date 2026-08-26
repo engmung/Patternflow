@@ -18,17 +18,26 @@
 export type VariantStatus =
   // Shipping: there is a binary you can flash today.
   | 'available'
-  // Announced and being built, but nothing to download yet.
+  // Someone has agreed to maintain it and is building it.
   | 'building'
-  // Agreed in principle, owner confirmed, work not started.
-  | 'planned';
+  // Nobody has agreed to anything. This entry is an opening — a variant the
+  // split obviously implies, published so the person best placed to own it
+  // can see it and say yes or no. Being listed as `proposed` is an
+  // invitation, never an announcement, and the page has to read that way:
+  // these are real people's names on firmware they have not committed to.
+  | 'proposed';
 
 export type Variant = {
   /** The string this firmware reports in /api/status. Also the anchor. */
   id: string;
   name: string;
-  /** Who maintains it, as they wish to be credited. */
-  maintainer: string;
+  /**
+   * Who maintains it, as they wish to be credited. On a `proposed` entry
+   * this is who it has been SUGGESTED to — they have not agreed, and the
+   * page must not imply otherwise. Absent means nobody has been asked: the
+   * gap is open to whoever wants it.
+   */
+  maintainer?: string;
   maintainerHref?: string;
   status: VariantStatus;
   /** One line: what this is FOR. Not a feature list. */
@@ -48,58 +57,69 @@ export const CORE_NOTE =
   'Wi-Fi, sleep, OSC, and the update path out of anything. It is what ships ' +
   'on the board and what you can always return to.';
 
+// The thing people most often assume needs a variant, and does not. Worth
+// saying next to core rather than buried in an entry: somebody who came
+// here looking for "the Home Assistant firmware" should leave knowing they
+// already have it.
+export const CORE_ALSO =
+  'Home Assistant works against core as it is. Reading the panel was always ' +
+  'plain HTTP, and setting the four knobs is POST /api/params \u2014 no broker ' +
+  'and no variant in between. OSC is core too, for the same reason: it needs ' +
+  'nothing but the network already in the room.';
+
 export const VARIANTS: Variant[] = [
   {
     id: 'simone-pd',
     name: 'Performance Director',
     maintainer: 'Simone Majocchi',
     maintainerHref: 'https://github.com/SimonePDA',
-    status: 'building',
+    status: 'proposed',
     summary:
       'For running a panel as part of a show — timed sequences, a schedule, ' +
       'and a broker in the middle of several devices.',
     adds: [
       'show player (.pfs sequences, playlists)',
       'night / wake schedule',
-      'MQTT, including FlowLocal',
+      'MQTT',
       'weather overlay',
       'MatrixLight panel fonts',
     ],
     source: 'https://github.com/SimonePDA',
     note:
-      'This is where the sequence player and MQTT went when core stopped ' +
-      'carrying them, and it starts finished rather than empty: firmware ' +
-      '3.6.3 shipped all of it, and this variant forks from that point. ' +
-      'Choose it if you run shows on a schedule or drive several panels ' +
-      'from one place. If you only ever pick a pattern and leave it, core ' +
-      'does that with more memory free.',
+      'Nothing to download yet — this is an opening, not an announcement. ' +
+      'Firmware 3.6.3 integrated Simone\u2019s whole stack, which makes that ' +
+      'release the obvious fork point and him the obvious person to ask: a ' +
+      'variant starting from there starts finished rather than empty. He ' +
+      'has not agreed to anything. If it happens, choose it when you run ' +
+      'shows on a schedule or drive several panels from one place; if you ' +
+      'pick a pattern and leave it, core does that with more memory free.',
   },
   {
     id: 'iot',
     name: 'IoT',
-    maintainer: 'to be confirmed',
-    status: 'planned',
+    maintainer: 'bendobos',
+    maintainerHref: 'https://github.com/bendobos',
+    status: 'proposed',
     summary:
       'For a panel that lives inside a home automation setup rather than on ' +
       'a desk.',
     adds: [
-      'MQTT publisher and bridge roles',
-      'FlowLocal',
-      'the broker half of the Home Assistant integration',
+      'the IoT integration work already built for Patternflow',
+      'home-automation side of the device',
     ],
     note:
-      'Worth knowing before you go looking for this: the Home Assistant ' +
-      'integration works against plain core. Reading state was always core ' +
-      'HTTP, and writing the four knobs moved to POST /api/params — so if ' +
-      'Home Assistant is all you wanted, you do not need a variant at all. ' +
-      'This one is for the cases core deliberately does not cover: acting as ' +
-      'a broker publisher, or bridging panels to each other.',
+      'This one is not a gap somebody has to fill \u2014 bendobos already built ' +
+      'it, and the split is asking that it become its own repository rather ' +
+      'than living inside core. He has not agreed yet. Worth knowing before ' +
+      'you go looking: the Home Assistant integration itself works against ' +
+      'plain core, so if that is all you wanted you do not need a variant. ' +
+      'Exactly where this ends and Simone\u2019s MQTT begins is for the two of ' +
+      'them to settle, not for this page to decide.',
   },
   {
     id: 'radio',
     name: 'Radio',
-    maintainer: 'to be confirmed',
-    status: 'planned',
+    status: 'proposed',
     summary:
       'For units in hostile radio conditions — a warehouse, a venue, a room ' +
       'full of competing access points.',
@@ -110,9 +130,11 @@ export const VARIANTS: Variant[] = [
     note:
       'This adds no features. It re-tunes two numbers that core keeps ' +
       'conservative on purpose, because the conservative values are the ones ' +
-      'that pass EMC and behave on every unit. If your panel drops off the ' +
-      'network in a specific difficult room, this exists for you — and it is ' +
-      'exactly the kind of disagreement variants are for, rather than a ' +
-      'setting core has to defend to everyone.',
+      'that pass EMC and behave on every unit. Nobody is building it. It is ' +
+      'listed because the request came from a real person with a real room, ' +
+      'core was right to decline it, and that is exactly the disagreement ' +
+      'variants exist to hold — rather than a setting core has to defend to ' +
+      'everyone. Raising transmit power has regulatory consequences, so ' +
+      'whoever builds it owns those too.',
   },
 ];

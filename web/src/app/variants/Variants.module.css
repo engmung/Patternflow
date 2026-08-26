@@ -80,6 +80,15 @@
   line-height: 1.65;
 }
 
+.coreAlso {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+
 /* ── one variant ───────────────────────────────────────────────────────── */
 
 .sectionHead {
@@ -90,6 +99,15 @@
   text-transform: uppercase;
   color: var(--pf-ink-muted);
 }
+
+.shelfNote {
+  margin: 0 0 22px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+.shelfNote em { color: var(--pf-ink); font-style: normal; font-weight: 600; }
 
 .list {
   list-style: none;

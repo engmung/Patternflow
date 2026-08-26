@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "./Variants.module.css";
-import { VARIANTS, CORE_NOTE, type VariantStatus } from "./variants-data";
+import {
+  VARIANTS,
+  CORE_NOTE,
+  CORE_ALSO,
+  type VariantStatus,
+} from "./variants-data";
 
 // /variants — the shelf.
 //
@@ -20,7 +25,7 @@ import { VARIANTS, CORE_NOTE, type VariantStatus } from "./variants-data";
 export const metadata: Metadata = {
   title: "Firmware variants / Patternflow",
   description:
-    "Patternflow core is the firmware that has to keep working. Variants add what not everyone wants — show sequencing, MQTT, radio tuning — and you can move between them over Wi-Fi without losing your patterns or settings.",
+    "Patternflow core is the firmware that has to keep working. A variant adds what not everyone wants — show sequencing, MQTT, radio tuning — and you move between them over Wi-Fi without losing your patterns or settings. Three variants are proposed; none has a maintainer yet.",
   alternates: { canonical: "/variants" },
 };
 
@@ -29,7 +34,7 @@ export const dynamic = "force-static";
 const STATUS_LABEL: Record<VariantStatus, string> = {
   available: "available",
   building: "in progress",
-  planned: "planned",
+  proposed: "unclaimed",
 };
 
 export default function VariantsPage() {
@@ -52,9 +57,18 @@ export default function VariantsPage() {
         <section className={styles.core}>
           <span className={styles.coreTag}>You are probably running this</span>
           <p className={styles.coreBody}>{CORE_NOTE}</p>
+          <p className={styles.coreAlso}>{CORE_ALSO}</p>
         </section>
 
         <h2 className={styles.sectionHead}>The shelf</h2>
+        <p className={styles.shelfNote}>
+          <em>Nothing here is downloadable yet.</em> Some of this code exists
+          already and some of it does not; what none of it has is a person who
+          has said yes. Where a name appears below it is a suggestion made in
+          public &mdash; the people best placed to own each one &mdash; and
+          not a commitment any of them has made. If one of them is you, the
+          entry is yours to accept, correct or decline.
+        </p>
         <ul className={styles.list}>
           {VARIANTS.map((v) => (
             <li key={v.id} id={v.id} className={styles.item}>
@@ -65,14 +79,38 @@ export default function VariantsPage() {
                 </span>
               </div>
 
+              {/* On an unclaimed entry this must never read as a credit.
+                  Naming someone as the maintainer of firmware they have not
+                  agreed to build is the one way this page could do real harm
+                  to a person, so the byline says which it is. */}
               <p className={styles.by}>
-                by{" "}
-                {v.maintainerHref ? (
-                  <a href={v.maintainerHref} target="_blank" rel="noopener">
-                    {v.maintainer}
-                  </a>
+                {v.status === "proposed" ? (
+                  v.maintainer ? (
+                    <>
+                      suggested to{" "}
+                      {v.maintainerHref ? (
+                        <a href={v.maintainerHref} target="_blank" rel="noopener">
+                          {v.maintainer}
+                        </a>
+                      ) : (
+                        v.maintainer
+                      )}
+                      {" "}&mdash; not yet agreed
+                    </>
+                  ) : (
+                    <>nobody has taken this on</>
+                  )
                 ) : (
-                  v.maintainer
+                  <>
+                    by{" "}
+                    {v.maintainerHref ? (
+                      <a href={v.maintainerHref} target="_blank" rel="noopener">
+                        {v.maintainer}
+                      </a>
+                    ) : (
+                      v.maintainer
+                    )}
+                  </>
                 )}
               </p>
 
@@ -156,9 +194,21 @@ export default function VariantsPage() {
             </a>
             , along with the seam a variant plugs into &mdash; a variant adds
             files, it does not edit core ones, which is what lets it take a
-            core update without a merge fight. If you have built one and want
-            it on this shelf,{" "}
-            <Link href="/contact">get in touch</Link>.
+            core update without a merge fight. To get on this shelf &mdash;
+            or to claim one of the openings above &mdash; open a pull request
+            adding your entry to{" "}
+            <a
+              href="https://github.com/engmung/Patternflow/blob/main/web/src/app/variants/variants-data.ts"
+              target="_blank"
+              rel="noopener"
+            >
+              <code>variants-data.ts</code>
+            </a>
+            . You write your own description; somebody still reads it before
+            it goes up, because a stranger&rsquo;s binary on somebody&rsquo;s
+            hardware is what this page is asking people to trust. If a pull
+            request is not your thing,{" "}
+            <Link href="/contact">get in touch</Link> instead.
           </p>
 
           <h3>Building your own console</h3>

@@ -84,7 +84,7 @@ live there. Below ~10 KB this page itself stops loading.</p></section>
   <div class="row"><dt>MQTT</dt><dd id="mq">-</dd></div>
 </dl></section>
 
-<footer>Firmware <span id="fw">-</span> &middot; panel <span id="pn">-</span>
+<footer>Firmware <span id="fw">-</span><span id="var"></span> &middot; panel <span id="pn">-</span>
 &nbsp;<a href="/">Home</a> &middot; <a href="/patterns">Patterns</a></footer>
 </div>
 <script>
@@ -102,6 +102,10 @@ function tick(){
   fetch('/api/status').then(function(r){return r.json()}).then(function(d){
     $('up').textContent='up '+dur(d.uptime);
     $('fw').textContent=d.version;$('pn').textContent=d.panel;
+    // This page is what gets screenshotted when somebody asks for help, so
+    // it has to say which firmware that screenshot is of. Core says nothing
+    // extra — it is the default and the noise is not worth it.
+    $('var').textContent=(d.variant&&d.variant!=='core')?(' · '+d.variant):'';
 
     // Read-only here; the switch lives on the console home page. Both dark
     // states are worth naming, because the numbers below them look identical
