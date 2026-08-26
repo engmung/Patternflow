@@ -14,6 +14,7 @@
 #include <Preferences.h>
 #include "../pattern_registry.h"
 #include "core_mem.h"
+#include "core_bus.h"
 #include "core_mqtt.h"
 
 namespace PatternflowShow {
@@ -199,7 +200,7 @@ inline void queuePattern(const char* name) {
 }
 
 inline void unload() {
-  if (playing) PatternflowMqtt::clearAbsoluteAll();
+  if (playing) PatternflowBus::clearAbsoluteAll();
   playing = false;
   paused = false;
   loaded = false;
@@ -379,7 +380,7 @@ inline void applyCue(uint16_t cueIdx) {
         (uint8_t)i == varianceParam) {
       v = varianceRolled;
     }
-    PatternflowMqtt::applyRemoteParam(i, v);
+    PatternflowBus::applyRemoteParam(i, v);
     // Any cue that sets a channel ends its running ease; an EASE cue re-arms
     // it toward the channel's next value (one <=256-entry scan per fired cue).
     easeActive[i] = false;
@@ -417,7 +418,7 @@ inline void stop() {
   playing = false;
   paused = false;
   clearEase();
-  PatternflowMqtt::clearAbsoluteAll();
+  PatternflowBus::clearAbsoluteAll();
 }
 
 inline void clearRuntimePlaylist() {
@@ -714,7 +715,7 @@ inline void tick() {
       float u = (float)(nowMs - t0) / (float)(t1 - t0);
       long v = (long)((float)easeFromV[i] +
                       ((float)easeToV[i] - (float)easeFromV[i]) * u + 0.5f);
-      PatternflowMqtt::applyRemoteParam(i, v);
+      PatternflowBus::applyRemoteParam(i, v);
     }
   }
 }

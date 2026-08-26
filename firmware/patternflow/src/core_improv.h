@@ -147,14 +147,12 @@ inline void sendRpcResult(uint8_t cmd, const String* strings, uint8_t count) {
 inline void sendWifiResult() {
   String urls[1];
   uint8_t count = 0;
-#if PF_AUDIO_ENABLED
+  // The console is core now, so a connected device always has a URL to
+  // hand back (this used to be gated on the audio build).
   if (PatternflowWifi::isConnected()) {
-    String url = "http://" + WiFi.localIP().toString();
-    if (PF_AUDIO_HTTP_PORT != 80) url += ":" + String((int)PF_AUDIO_HTTP_PORT);
-    urls[0] = url;
+    urls[0] = "http://" + WiFi.localIP().toString();
     count = 1;
   }
-#endif
   sendRpcResult(CMD_WIFI_SETTINGS, urls, count);
 }
 

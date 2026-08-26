@@ -33,9 +33,8 @@
 #include <WiFi.h>
 #include <esp_heap_caps.h>
 
-#if PF_AUDIO_ENABLED
-#include "core_audio_ws.h"
-#endif
+#include "core_http.h"
+#include "core_bus.h"
 #include "core_canvas.h"   // presentUs
 #include "core_mqtt.h"     // role/state for the network section
 #include "core_send.h"
@@ -51,12 +50,8 @@ namespace PatternflowStatusHttp {
 
 #if PF_STATUS_HTTP_ENABLED
 
-#if PF_AUDIO_ENABLED
-inline WebServer& server() { return PatternflowAudio::httpServer; }
-#else
-inline WebServer statusServer(80);
-inline WebServer& server() { return statusServer; }
-#endif
+// One core-owned server (core_http.h); this used to borrow audio's.
+inline WebServer& server() { return PatternflowHttp::server(); }
 
 inline bool initialized = false;
 
@@ -72,6 +67,42 @@ inline void handleStatus() {
   String json = "{";
 
   json += "\"version\":\"" PF_IMPROV_FW_VERSION "\",";
+  // Which firmware this is, and what it can do. `variant` is for humans and
+  // for the site's variant list; `caps` is what the lab and the console
+  // probe instead of assuming a feature exists (RFC §2.2).
+  json += "\"variant\":\"" PF_VARIANT "\",";
+  json += "\"caps\":[";
+  {
+    bool first = true;
+    auto cap = [&](const char* name) {
+      if (!first) json += ',';
+      first = false;
+      json += '"';
+      json += name;
+      json += '"';
+    };
+    cap("patterns");   // the .pfm loader and its volume - always core
+    cap("params");     // the absolute bus + POST /api/params - always core
+#if PF_OSC_ENABLED
+    cap("osc");
+#endif
+#if PF_SLEEP_ENABLED
+    cap("sleep");
+#endif
+#if PF_SHOW_HTTP_ENABLED
+    cap("shows");
+#endif
+#if PF_MQTT_ENABLED
+    cap("mqtt");
+#endif
+#if PF_AUDIO_ENABLED
+    cap("audio");
+#endif
+#if PF_WEATHER_ENABLED
+    cap("weather");
+#endif
+  }
+  json += "],";
   json += "\"uptime\":";
   json += (uint32_t)(millis() / 1000);
   json += ',';
@@ -192,6 +223,68 @@ inline void handleIndex() {
 // belongs in loop(), not inside an open HTTP response. That is a deliberate
 // property, not a rough edge: the console sets its switch optimistically and
 // lets the next poll confirm.
+// POST /api/params?p1=..&p2=..&p3=..&p4=..  (0..1000, any subset)
+//
+// Writing the absolute bus over plain HTTP. Until now the only way in was
+// MQTT, which made "turn a knob remotely" require a broker — so the bus,
+// which is module-ABI ground, had an optional feature as its only door.
+// This is that door in the core (RFC §2.2), and it is what lets MQTT leave
+// without taking a capability with it.
+//
+// One shot per request, by contract: this server takes a single connection
+// and pauses drawing while it answers, so a slider must debounce rather
+// than stream. Physical encoder motion releases a channel exactly as it
+// does for any other writer.
+inline void handleParams() {
+  PatternflowPatternsHttp::noteConsoleApiCall();
+
+  int written = 0;
+  String error;
+  for (int i = 0; i < 4; i++) {
+    // Built without character escapes on purpose: a literal NUL once
+    // landed here through the editing path, and this cannot repeat.
+    char key[3];
+    key[0] = 0x70;             // p
+    key[1] = (char)(0x31 + i); // 1..4
+    key[2] = 0;
+    if (!server().hasArg(key)) continue;
+    String raw = server().arg(key);
+    raw.trim();
+    long value = raw.toInt();
+    if (raw.length() == 0 || value < 0 || value > 1000) {
+      error = String(key) + " must be 0..1000";
+      break;
+    }
+    PatternflowBus::applyRemoteParam(i, value);
+    written++;
+  }
+
+  server().sendHeader("Cache-Control", "no-store");
+  if (error.length()) {
+    server().send(400, "application/json",
+                  String("{\"ok\":false,\"error\":\"") + error + "\"}");
+    return;
+  }
+  if (written == 0) {
+    server().send(400, "application/json",
+                  "{\"ok\":false,\"error\":\"send at least one of p1..p4\"}");
+    return;
+  }
+
+  String body = "{\"ok\":true,\"params\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) body += ',';
+    body += PatternflowBus::heldValue(i);
+  }
+  body += "],\"active\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) body += ',';
+    body += PatternflowBus::isHeld(i) ? "true" : "false";
+  }
+  body += "]}";
+  server().send(200, "application/json", body);
+}
+
 inline void handleSleep() {
   PatternflowPatternsHttp::noteConsoleApiCall();
 
@@ -230,10 +323,9 @@ inline void begin() {
   server().on("/status", HTTP_GET, handleIndex);
   server().on("/api/status", HTTP_GET, handleStatus);
   server().on("/api/sleep", HTTP_POST, handleSleep);
+  server().on("/api/params", HTTP_POST, handleParams);
 
-#if !PF_AUDIO_ENABLED
-  server().begin();
-#endif
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
   Serial.printf("[STATUS] Ready - http://%s.local/status\n", PF_OTA_HOSTNAME);

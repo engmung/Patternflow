@@ -70,7 +70,30 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `frameUs` / `presentUs` | Smoothed frame time and the part of it spent pushing pixels. `1e6 / frameUs` is the honest fps. |
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
 | `loadError` | Why the last module load failed, empty when it did not. Without it a refusal is invisible from the network. |
+| `variant` | Which firmware this is: `"core"`, or a variant's own name. What the site's variant list matches, and what stops the update banner offering a core build on top of someone's chosen firmware. |
+| `caps` | What this build can do, e.g. `["patterns","params","osc","sleep","shows","mqtt","audio","weather"]`. **Probe this rather than assuming a feature exists** — the core is shrinking and features are moving into variants (see [the RFC](rfc-core-and-variants.md)). `patterns` and `params` are always present. |
 | `mqttRole` | `"off"`, `"publisher"` or `"subscriber"`. Decides whether the device obeys knob and pattern topics — see [Knobs](#knobs-and-parameters). |
+
+### `POST /api/params`
+
+Write the absolute parameter bus — the four channels a pattern reads as
+set-points beside the physical encoders.
+
+`p1`..`p4`, each `0..1000`, any subset; at least one required. A channel is
+**held** once written and released the moment somebody turns that knob, so
+an automated source can pin a look and hands always win it back. Patterns
+see it only if they declare `ABSOLUTE_READY` and were built at module ABI 2.
+
+    curl -X POST http://patternflow.local/api/params -d "p1=750&p3=250"
+    → {"ok":true,"params":[750,500,250,500],"active":[true,false,true,false]}
+
+**One shot per request, by contract.** This server takes a single connection
+and pauses drawing while it answers, so a slider must debounce rather than
+stream a value per pixel of travel.
+
+This is the plain-HTTP door to a capability that used to require an MQTT
+broker; it exists so that MQTT can live in a variant without taking remote
+knob control out of the core with it.
 
 ### `POST /api/sleep`
 

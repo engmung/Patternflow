@@ -27,9 +27,7 @@
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 
-#if PF_AUDIO_ENABLED
-#include "core_audio_ws.h"
-#endif
+#include "core_http.h"
 #include "core_send.h"
 #include "core_wifi.h"
 #include "wifi_index.h"
@@ -39,12 +37,8 @@ namespace PatternflowWifiHttp {
 
 #if PF_WIFI_HTTP_ENABLED
 
-#if PF_AUDIO_ENABLED
-inline WebServer& server() { return PatternflowAudio::httpServer; }
-#else
-inline WebServer wifiServer(80);
-inline WebServer& server() { return wifiServer; }
-#endif
+// One core-owned server (core_http.h); this used to borrow audio's.
+inline WebServer& server() { return PatternflowHttp::server(); }
 
 inline bool initialized = false;
 
@@ -201,9 +195,7 @@ inline void begin() {
   server().on("/api/wifi/boot", HTTP_POST, handleBoot);
   server().on("/api/wifi/reboot", HTTP_POST, handleReboot);
 
-#if !PF_AUDIO_ENABLED
-  server().begin();
-#endif
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
   Serial.printf("[WIFI-HTTP] Ready - http://%s.local/wifi\n", PF_OTA_HOSTNAME);

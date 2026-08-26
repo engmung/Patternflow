@@ -9,6 +9,7 @@
 #include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_audio_ws.h"
+#include "src/core_home_http.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
@@ -873,7 +874,7 @@ void readInputFrame(InputFrame& input) {
   bool physMove = false;
   for (int i = 0; i < 4; i++) {
     if (input.knobDeltas[i] != 0) {
-      PatternflowMqtt::releaseAbsolute(i);
+      PatternflowBus::releaseAbsolute(i);
       physMove = true;
     }
   }
@@ -924,7 +925,7 @@ void readInputFrame(InputFrame& input) {
     }
   }
 
-  PatternflowMqtt::fillAbsolute(input);
+  PatternflowBus::fillAbsolute(input);
 }
 
 // Legacy absolute audio-react path for older clients that still send k=N,v=F.
@@ -978,6 +979,7 @@ void loop() {
     PatternflowOsc::begin();
     PatternflowOta::begin();
     PatternflowAudio::begin();
+    PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
     PatternflowPatternsHttp::begin();
     PatternflowStatusHttp::begin();
@@ -1007,6 +1009,7 @@ void loop() {
 
   // Service the audio-react HTTP/WebSocket servers in the main loop
   // (single-threaded — no separate core-0 task). Cheap when idle.
+  PatternflowHttp::handle();
   PatternflowAudio::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
@@ -1309,7 +1312,7 @@ void loop() {
       // Entering SELECT is the strongest "hands on" signal there is — drop
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
-      PatternflowMqtt::clearAbsoluteAll();
+      PatternflowBus::clearAbsoluteAll();
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the

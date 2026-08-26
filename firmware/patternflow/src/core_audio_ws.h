@@ -34,8 +34,7 @@
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WebSocketsServer.h>
 #include "audio_index.h"
-#include "home_index.h"
-#include "theme_index.h"
+#include "core_http.h"
 #endif
 
 #include "core_send.h"
@@ -58,7 +57,6 @@ namespace PatternflowAudio {
 // tab closing mid-track).
 constexpr uint32_t AUDIO_TIMEOUT_MS = 500;
 
-inline WebServer httpServer(PF_AUDIO_HTTP_PORT);
 inline WebSocketsServer wsServer(PF_AUDIO_WS_PORT);
 
 inline bool initialized = false;
@@ -152,16 +150,8 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
   }
 }
 
-inline void handleRoot() {
-  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
-    PatternflowPatternsHttp::sendConsoleWakePage();
-    return;
-  }
-  PFSend::progmem(httpServer, HOME_INDEX_HTML);
-}
-
 inline void handleAudio() {
-  PFSend::progmem(httpServer, AUDIO_INDEX_HTML);
+  PFSend::progmem(PatternflowHttp::server(), AUDIO_INDEX_HTML);
 }
 
 #endif  // PF_AUDIO_ENABLED
@@ -243,19 +233,8 @@ inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
-  httpServer.on("/", handleRoot);
-  httpServer.on("/audio", handleAudio);
-  // Shared console chrome + light theme, loaded by every page's <head>.
-  // Short-lived cache: one fetch covers a whole console visit, but a
-  // firmware update still reaches the browser within five minutes.
-  httpServer.on("/pf-console.js", []() {
-    PFSend::progmem(httpServer, PF_CONSOLE_JS, "application/javascript",
-                    "max-age=300");
-  });
-  httpServer.onNotFound([]() {
-    httpServer.send(404, "text/plain", "Not found");
-  });
-  httpServer.begin();
+  PatternflowHttp::server().on("/audio", handleAudio);
+  PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   wsServer.begin();
   wsServer.onEvent(onEvent);
@@ -273,7 +252,6 @@ inline void handle() {
 #if PF_AUDIO_ENABLED
   if (!initialized) return;
 
-  httpServer.handleClient();
   wsServer.loop();
 
   uint32_t now = millis();
