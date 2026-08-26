@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Pattern: Black
-// Full-black framebuffer (panel stays powered). Night / alarm-clock face;
+// Full-black framebuffer (panel stays powered). The show scheduler's night
+// and alarm-clock face;
 // the schedule may overlay a dim or large clock after present().
 #pragma once
 
-#include "../src/core_canvas.h"
-#include "../src/core_encoders.h"
+#include "../../src/core_canvas.h"
+#include "../../src/core_encoders.h"
 
 namespace Black {
   const char* NAME = "Black";
