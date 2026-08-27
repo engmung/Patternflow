@@ -67,72 +67,19 @@ export const CORE_ALSO =
   'and no variant in between. OSC is core too, for the same reason: it needs ' +
   'nothing but the network already in the room.';
 
-export const VARIANTS: Variant[] = [
-  {
-    id: 'simone-pd',
-    name: 'Performance Director',
-    maintainer: 'Simone Majocchi',
-    maintainerHref: 'https://github.com/SimonePDA',
-    status: 'proposed',
-    summary:
-      'For running a panel as part of a show — timed sequences, a schedule, ' +
-      'and a broker in the middle of several devices.',
-    adds: [
-      'show player (.pfs sequences, playlists)',
-      'night / wake schedule',
-      'MQTT',
-      'weather overlay',
-      'MatrixLight panel fonts',
-    ],
-    source: 'https://github.com/SimonePDA',
-    note:
-      'Nothing to download yet — this is an opening, not an announcement. ' +
-      'Firmware 3.6.3 integrated Simone\u2019s whole stack, which makes that ' +
-      'release the obvious fork point and him the obvious person to ask: a ' +
-      'variant starting from there starts finished rather than empty. He ' +
-      'has not agreed to anything. If it happens, choose it when you run ' +
-      'shows on a schedule or drive several panels from one place; if you ' +
-      'pick a pattern and leave it, core does that with more memory free.',
-  },
-  {
-    id: 'iot',
-    name: 'IoT',
-    status: 'proposed',
-    summary:
-      'For a panel driven over a broker rather than over HTTP \u2014 MQTT for ' +
-      'people who already run one.',
-    adds: [
-      'MQTT publisher and bridge roles, for setups that prefer a broker',
-    ],
-    note:
-      'Read the Home Assistant line above first, because it is probably why ' +
-      'you are here: that integration runs on plain core over HTTP, and ' +
-      'bendobos \u2014 who wrote it \u2014 is moving it into its own repository with ' +
-      'its own documentation. It is an integration, not a firmware, and it ' +
-      'needs no variant. What is left for this entry is narrower: a panel ' +
-      'that should speak MQTT to a broker somebody already runs, without ' +
-      'carrying Simone\u2019s FlowLocal and Director along with it. Nobody has ' +
-      'taken it on, and it may turn out nobody needs to.',
-  },
-  {
-    id: 'radio',
-    name: 'Radio',
-    status: 'proposed',
-    summary:
-      'For units in hostile radio conditions — a warehouse, a venue, a room ' +
-      'full of competing access points.',
-    adds: [
-      '8 MHz panel clock (down from the core default)',
-      'raised Wi-Fi transmit power',
-    ],
-    note:
-      'This adds no features. It re-tunes two numbers that core keeps ' +
-      'conservative on purpose, because the conservative values are the ones ' +
-      'that pass EMC and behave on every unit. Nobody is building it. It is ' +
-      'listed because the request came from a real person with a real room, ' +
-      'core was right to decline it, and that is exactly the disagreement ' +
-      'variants exist to hold — rather than a setting core has to defend to ' +
-      'everyone. Raising transmit power has regulatory consequences, so ' +
-      'whoever builds it owns those too.',
-  },
-];
+// Empty, and that is the honest state.
+//
+// Three entries stood here for a few hours, and every one of them named a
+// person — or left a slot open for one — who had never been asked whether
+// they wanted to maintain a firmware. A shelf of variants nobody had
+// committed to build made the split look further along than it was, and it
+// did that at the expense of people who had not agreed to be on it.
+//
+// Whatever any of them decides is theirs to say, in their own words, in
+// their own time. It does not get written down here first.
+//
+// So: no entries until somebody says yes. The rest of this page describes
+// what a variant IS and how you move between firmwares, which is true today
+// and useful to anyone thinking about building one. Adding a variant back is
+// one object in this array.
+export const VARIANTS: Variant[] = [];

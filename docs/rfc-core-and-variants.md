@@ -99,7 +99,7 @@ The core is defined by what it **guarantees**, not by what it includes:
 | **Sleep** | Small, safety-adjacent (power/heat); the console needs it. |
 | **Minimal HTTP surface**: `/`, `/patterns`, `/status`, `/wifi`, `/update` + their `/api/*` | What the site, docs and the HA integration's read path assume exists everywhere. |
 | **`POST /api/params`** *(new)* | The capability MQTT was the only carrier of: write the four absolute channels over plain HTTP, one shot per request, same release-on-touch semantics as the bus. This is what lets MQTT leave without any capability leaving with it — HA's knob write moves to it. (The old `/api/knob` was removed as *unused*, not unsafe; the rule against polling this one-connection server stands.) |
-| **`/api/status` reports `variant` + `caps`** *(new)* | `variant`: one human-readable string (`"core"`, `"simone-pd"`, `"radio"`). `caps`: machine-probed feature list (`["shows","mqtt"]`) for the site/lab. Also how the update banner knows not to offer a core bin on top of a variant. |
+| **`/api/status` reports `variant` + `caps`** *(new)* | `variant`: one human-readable string (`"core"`, or whatever a variant calls itself). `caps`: machine-probed feature list (`["shows","mqtt"]`) for the site/lab. Also how the update banner knows not to offer a core bin on top of a variant. |
 
 This table is the whole of "maintaining the frame". It is small, changes
 slowly, and none of it is where creative disagreements live.
@@ -112,11 +112,11 @@ a listed variant, one file drop away.
 
 | leaves | natural home | notes |
 | --- | --- | --- |
-| **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | Simone's variant | v3.6.3 integrated his stack whole and is the natural fork point — his variant starts *finished*. |
-| **MQTT** (all modes, `/mqtt`) | Simone's variant | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. **Corrected from an earlier draft**, which split this across two variants: FlowLocal is Simone's and the Director lives inside FlowLocal, so the MQTT code goes to him whole. That does not dissolve the IoT variant — bendobos's integration is its own body of work, and where the two meet is for them to agree. Every capability MQTT held stays reachable in core over HTTP, including the knob write via `/api/params`. |
-| **Weather** (`core_weather*`, `/weather`) | Simone's variant | |
+| **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | a variant — unclaimed | v3.6.3 integrated this whole stack, so v3.6.3 is the natural fork point: a variant starting there starts *finished* rather than empty. Whose variant that is has not been settled, and this table is not the place to decide it. |
+| **MQTT** (all modes, `/mqtt`) | a variant — unclaimed | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. **Corrected from an earlier draft**, which split this across two variants. FlowLocal is Simone Majocchi's work and the Director lives inside FlowLocal, so the MQTT code travels as one piece rather than being parcelled out by mode. That is a fact about the code, not a decision about who maintains it. Every capability MQTT held stays reachable in core over HTTP, including the knob write via `/api/params`. |
+| **Weather** (`core_weather*`, `/weather`) | a variant — unclaimed | |
 | **Audio-react websocket** (`core_audio_ws`, `/audio`) | its own variant (or retired) | OSC stays core; this is only the browser-mic path. |
-| **Home Assistant / IoT** | an IoT variant + the existing HA repo | The integration's *read* path is plain core HTTP and works everywhere; its knob-*write* path moves from MQTT to `/api/params`, so **HA works fully against the bare core**. The MQTT half (publisher role, bridges) follows MQTT into the IoT variant. |
+| **Home Assistant / IoT** | the HA integration moves to its own repo (bendobos, agreed in the thread); the broker-side variant is unclaimed | The integration's *read* path is plain core HTTP and works everywhere; its knob-*write* path moves from MQTT to `/api/params`, so **HA works fully against the bare core**. The MQTT half (publisher role, bridges) follows MQTT into the IoT variant. |
 
 **PFST / `.pfs` splits down the middle, deliberately:** the *format* and
 its authoring stay with the project — [the spec](pfst-v2-spec.md), the
@@ -178,8 +178,8 @@ settings variant is then also an additions-only diff.
 
 **Proof of sufficiency is built into the migration:** the core's own show
 player becomes the first addon. If it ports onto the hooks cleanly, the
-seam is real — and the result doubles as the reference addon `simone-pd`
-starts from.
+seam is real — and the result doubles as the reference any variant
+can start from.
 
 **Deliberately out of reach in v1** (stated up front): the home page's
 PROGMEM cards; new screens in the device's physical UI (the K2 menu is
@@ -284,19 +284,28 @@ Staged, so nobody runs an empty forum:
 
 ## 2.9 The first shelf
 
-Three variants already visible — a good sign the shape is real:
+Empty, and it is worth saying why rather than quietly deleting the list
+that used to be here.
 
-1. **`simone-pd`** — shows, schedule, weather, MQTT (FlowLocal and the
-   Director inside it are his), his fonts.
-   Fork of v3.6.3; day-one finished.
-2. **`iot`** — bendobos's existing IoT integration as its own repo.
-   Not a gap to fill: it is built, and the split asks it to move out.
-   Where it ends and Simone's MQTT begins is for the two of them.
-   *(Owner to ask: @bendobos, who built the HA integration and sleep.)*
-3. **`radio`** — the cartoonmonkeystudio configuration: 8 MHz panel
-   clock, raised TX power, for hostile-Wi-Fi units. The patch the core
-   rightly declined becomes a firmware someone rightly ships. *(Owner to
-   ask: CE.)*
+This section named three variants and, with them, three people who had not
+been asked whether they wanted to maintain a firmware. It read as evidence
+that the shape was already working — "three variants already visible, a
+good sign the shape is real" — when what it actually listed was three
+guesses about how other people would like to spend their time.
+
+That is a bad way to treat a contributor and a worse way to argue for a
+proposal. Naming somebody as the future maintainer of a fork, in public,
+before asking them, makes the decision look already taken and leaves them
+to either accept it or object in front of an audience. The same list went
+up on the site's variants page for a few hours and has come down for the
+same reason.
+
+Anyone this concerns speaks for themselves, in their own words, wherever
+they choose to — not here and not through me.
+
+The seam is real and it is built. Who uses it is not for this document to
+predict.
+
 
 ## 2.10 Known tricky parts
 
@@ -343,16 +352,21 @@ refactors and additive endpoints that improve the tree either way. Steps
    first addon** — sufficiency proof and reference implementation.
 5. Delete the extracted features from core → **4.0.0**. Variants page +
    README table; lab upload buttons capability-probed.
-6. Simone forks v3.6.3 (or adopts the addon port) → `simone-pd`; ask CE
-   about `radio`, bendobos about `iot`.
+6. Somebody forks v3.6.3, or adopts the addon port, and publishes a
+   variant. **This step is the one that cannot be planned from here** —
+   it is other people's time, and step 5 does not happen without it.
+   Asking is the whole of the work; assuming an answer is what an
+   earlier draft of this document did wrong.
 
 ## 2.12 Open questions
 
-1. Simone — does the `simone-pd` shape match what you want to own?
-   Anything in §2.3 you'd rather see stay core?
-2. bendobos — the IoT integration as its own repo: does the `iot` split
-   in §2.3 match how you'd want to carry it? (The HA knob write moves to
-   core HTTP either way, so HA keeps working against a bare core.)
+1. *(asked)* Simone — the show/MQTT/weather stack is yours; is running
+   it as a separate firmware something you would want at all? Anything
+   in §2.3 you would rather see stay in core?
+2. *(answered — yes)* bendobos — the HA integration moves to his own
+   repo, and he reports nothing missing from the hook table for it. The
+   HA knob write is core HTTP either way, so HA works against a bare
+   core with no variant at all.
 3. Anything the hook table (§2.4) misses for what you'd want to build?
    It was derived from the features already integrated — but you know
    your own roadmaps, and hooks are easiest to add *before* they are a

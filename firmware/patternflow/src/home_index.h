@@ -284,7 +284,7 @@ function sayVariant(s){
     v==='core'?'Patternflow core \u00b7 ':'Variant: '+v+' \u00b7 '));
   var a=document.createElement('a');
   a.href=href;a.target='_blank';a.rel='noopener';
-  a.textContent=v==='core'?'other firmwares':'about this firmware';
+  a.textContent=v==='core'?'variants':'about this firmware';
   el.appendChild(a);
 }
 document.addEventListener('pf-status',function(e){gate(e.detail);sayVariant(e.detail)});

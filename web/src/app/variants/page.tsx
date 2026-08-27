@@ -25,7 +25,7 @@ import {
 export const metadata: Metadata = {
   title: "Firmware variants / Patternflow",
   description:
-    "Patternflow core is the firmware that has to keep working. A variant adds what not everyone wants — show sequencing, MQTT, radio tuning — and you move between them over Wi-Fi without losing your patterns or settings. Three variants are proposed; none has a maintainer yet.",
+    "Patternflow core is the firmware that has to keep working. A variant adds what not everyone wants, and you move between firmwares over Wi-Fi without losing your patterns or settings. No variants exist yet — this is what one would be, and how to build one.",
   alternates: { canonical: "/variants" },
 };
 
@@ -61,14 +61,17 @@ export default function VariantsPage() {
         </section>
 
         <h2 className={styles.sectionHead}>The shelf</h2>
-        <p className={styles.shelfNote}>
-          <em>Nothing here is downloadable yet.</em> Some of this code exists
-          already and some of it does not; what none of it has is a person who
-          has said yes. Where a name appears below it is a suggestion made in
-          public &mdash; the people best placed to own each one &mdash; and
-          not a commitment any of them has made. If one of them is you, the
-          entry is yours to accept, correct or decline.
-        </p>
+        {VARIANTS.length === 0 ? (
+          <p className={styles.shelfNote}>
+            <em>There are no variants yet.</em> The seam they plug into is
+            built and in the firmware, but nobody has published one, and this
+            page is not going to list firmwares that do not exist or name
+            people who have not agreed to maintain them. When somebody does,
+            they go here. Until then the rest of this page is the useful part:
+            what a variant is, what it has to promise you, and how you would
+            move to one and back.
+          </p>
+        ) : null}
         <ul className={styles.list}>
           {VARIANTS.map((v) => (
             <li key={v.id} id={v.id} className={styles.item}>
@@ -194,9 +197,8 @@ export default function VariantsPage() {
             </a>
             , along with the seam a variant plugs into &mdash; a variant adds
             files, it does not edit core ones, which is what lets it take a
-            core update without a merge fight. To get on this shelf &mdash;
-            or to claim one of the openings above &mdash; open a pull request
-            adding your entry to{" "}
+            core update without a merge fight. To get on this shelf, open a
+            pull request adding your entry to{" "}
             <a
               href="https://github.com/engmung/Patternflow/blob/main/web/src/app/variants/variants-data.ts"
               target="_blank"
