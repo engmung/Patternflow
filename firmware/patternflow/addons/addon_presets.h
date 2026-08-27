@@ -15,6 +15,12 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
+// A variant may define PF_ADDON_PRESETS in its overrides.h — including as
+// nothing at all — and the defaults below then do not apply. Without that
+// escape a build with no show player still carried the show player's
+// pattern, which is exactly the kind of thing nobody can explain later.
+#ifndef PF_ADDON_PRESETS
+
 #include "show/preset_black.h"
 
 // Expanded inside presetPatterns[] in pattern_registry.h. Keep the trailing
@@ -24,3 +30,5 @@
 // turning K4 through the pattern list.
 #define PF_ADDON_PRESETS \
   PATTERN_ENTRY_HIDDEN(Black),
+
+#endif

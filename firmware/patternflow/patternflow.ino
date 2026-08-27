@@ -715,11 +715,31 @@ void drawKnobMap() {
 // Draws the SELECT overlay ON TOP of the live pattern preview the loop has
 // already rendered into the buffer (so no fillScreen here). Each label sits on
 // a small dark scrim so it stays readable over whatever pattern is behind it.
+// Hidden patterns are skipped while browsing but were still counted, so a
+// list with one hidden entry read "1 / 3" and then "3 / 3" — a missing 2
+// that looks exactly like a bug, because from the outside it is one.
+// Count and rank by what the screen will actually stop on.
+static int visiblePatternCount() {
+  int n = 0;
+  for (int i = 0; i < NUM_PATTERNS; i++)
+    if (!patterns[i].hidden) n++;
+  return n;
+}
+
+static int visiblePatternRank(int idx) {
+  int n = 0;
+  for (int i = 0; i <= idx && i < NUM_PATTERNS; i++)
+    if (!patterns[i].hidden) n++;
+  return n;  // 1-based; 0 only if idx itself is hidden and first
+}
+
 void drawSelectingMode() {
   uint16_t screenH = dma_display->height();
+  const int visN = visiblePatternCount();
+  const int visI = visiblePatternRank(currentPatternIdx);
 
   char pageStr[16];
-  snprintf(pageStr, sizeof(pageStr), "%d / %d", currentPatternIdx + 1, NUM_PATTERNS);
+  snprintf(pageStr, sizeof(pageStr), "%d / %d", visI, visN);
   drawCenteredTextScrim(pageStr, 10, dma_display->color565(190, 190, 190), 1);
 
   // Position track under the page indicator: a hairline with an LED-orange
@@ -732,8 +752,8 @@ void drawSelectingMode() {
     int ty = 23;
     dma_display->fillRect(tx - 2, ty - 2, trackW + 4, 5, 0);
     dma_display->drawFastHLine(tx, ty, trackW, pfDimC());
-    int mx = (NUM_PATTERNS > 1)
-             ? tx + ((trackW - 3) * currentPatternIdx) / (NUM_PATTERNS - 1)
+    int mx = (visN > 1)
+             ? tx + ((trackW - 3) * (visI > 0 ? visI - 1 : 0)) / (visN - 1)
              : tx;
     dma_display->fillRect(mx, ty - 1, 3, 3, pfLedC());
   }
