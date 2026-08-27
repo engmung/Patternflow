@@ -498,9 +498,13 @@ this section:
   a core-2.x build, so treat it as the shape rather than today's figure.
   What a big pattern competes with is the last big pattern, not the addons.
 
-An earlier version of this section reported +12.3 KB here, from a
-measurement taken during step 3. It was stale, and it was low: the real gap
-is larger, and the argument survives being corrected upward.
+An earlier version of this section reported +12.3 KB here, and so did the
+[RFC issue](https://github.com/engmung/Patternflow/issues/349) publicly. That
+figure came from a step-3 measurement recorded in
+[the progress log](rfc-core-and-variants-progress.md#what-the-slim-core-measures)
+and appears to have been carried over from `firmware/README`'s v3.5.2
+core-2.x table rather than re-taken. It was stale, and it was **low**: the
+real gap is larger. The argument survives being corrected upward.
 
 ### How these were measured, because it decides the numbers
 
