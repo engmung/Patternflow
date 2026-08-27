@@ -29,13 +29,18 @@ else
 fi
 echo "for this version — the same bytes, not a rebuild."
 echo
-echo "## Over Wi-Fi, if the panel already runs Patternflow"
+echo "## Which of these you need"
 echo
-echo 'Open `http://patternflow.local/update` and drop `patternflow.ino.bin` on'
-echo 'it. That is the app image only; the others do not change between releases'
-echo "and are not rewritten."
+echo '**Updating a panel that already runs Patternflow: just'
+echo '`patternflow.ino.bin`.** Open `http://patternflow.local/update` and drop'
+echo "it on. That is the whole job."
 echo
-echo "## Over USB"
+echo "The other files are for a board that has **never** run Patternflow — one"
+echo "straight from the factory has no bootloader and no partition table, so"
+echo "there is nothing there to accept an update. They are also what you need"
+echo "to recover a board over USB."
+echo
+echo "## First flash, or recovery, over USB"
 echo
 echo '```'
 echo 'esptool.py --chip esp32s3 --baud 921600 write_flash \'
@@ -73,9 +78,9 @@ echo
 echo "| file | offset | |"
 echo "|---|---|---|"
 have patternflow.ino.bootloader.bin &&
-  echo '| `patternflow.ino.bootloader.bin` | 0x0 | second-stage bootloader |'
+  echo '| `patternflow.ino.bootloader.bin` | 0x0 | runs first at power-on, reads the partition table and `otadata`, and starts whichever app slot is selected. From the ESP32 core, not this project. It changed once, at v3.5.1, when the build moved to a different core |'
 have patternflow.ino.partitions.bin &&
-  echo '| `patternflow.ino.partitions.bin` | 0x8000 | partition table — **never changes between releases**, and a firmware that changes it strands every pattern already on the board |'
+  echo '| `patternflow.ino.partitions.bin` | 0x8000 | the map of the 16 MB flash: two 3 MB app slots, 10 MB for patterns, and the settings. **Byte-identical in every release since v3.1.0**, and it has to be — a firmware that moved `ffat` would erase every pattern on the board |'
 have boot_app0.bin &&
   echo '| `boot_app0.bin` | 0xe000 | which app slot to boot; comes from the ESP32 core, not a build output |'
 echo '| `patternflow.ino.bin` | 0x10000 | the firmware itself |'
