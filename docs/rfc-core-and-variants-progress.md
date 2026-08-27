@@ -14,9 +14,9 @@ the RFC issue changes the plan.
 | 1 | Move contract code out of leaving files | **done** |
 | 2 | `POST /api/params`, `variant` + `caps` in status | **done** |
 | 3 | Compile each leaving feature out, prove the seams | **done** |
-| 4 | Cut the hooks + `addons/`; port the show player onto it | **in progress** — on branch `fw/addon-seam` |
-| 5 | Delete the extracted features → core 4.0.0 | open |
-| 6 | Variants fork | open |
+| 4 | Cut the hooks + `addons/`; port the show player onto it | **done** — shipped in 3.7.0 |
+| 5 | Delete the extracted features → core 4.0.0 | **cancelled** — see the end of this log |
+| 6 | Variants fork | **cancelled** with step 5 |
 
 ---
 
@@ -90,6 +90,13 @@ what core 4.0 is expected to be, without anything being deleted yet:
 | static RAM | 92,896 B | **85,196 B** | −7.7 KB |
 | free internal heap *(on hardware)* | 84,432 B | **96,460 B** | **+12 KB** |
 | largest free block *(on hardware)* | 73,716 B | **86,004 B** | **+12.3 KB** |
+
+*Re-measured 27 August 2026 under a controlled procedure — flash, reboot,
+wait 80 s, take **one** reading — and the last row was low: the bare core
+reads **92,148**, **+18.4 KB**. `heapLargest` decays 2,048 B at a time as the
+device serves HTTP, so a number sampled repeatedly reads lower than one
+sampled once, and nothing here recorded which was done. RFC §2.13 has the
+three-build table.*
 
 The last row is the interesting one: a loadable `.pfm` needs one
 contiguous block of internal RAM, so that number *is* the ceiling on how
@@ -211,10 +218,13 @@ the bus, pause/stop, the clock synced through `core_clock`, the audio
 websocket handshaking on :81, `POST /api/params`, MQTT config restored
 from NVS across a flash. Frame time 16.46 ms.
 
-## What is deliberately not done yet
+## What was deliberately not done yet
+
+*As of the step-4 branch. Steps 5 and 6 were cancelled outright a week
+later — the end of this log says why.*
 
 Steps 5 and 6 — deleting the extracted features and cutting core 4.0.0,
-then the variants forking — wait on agreement, and the branch above is
+then the variants forking — waited on agreement, and the branch above is
 what makes that agreement concrete: the hook list is no longer a proposal,
 it is a thing two real features are already standing on.
 
@@ -279,9 +289,33 @@ rather than something a maintainer does, and it is deliberately the piece
 that makes leaving safe. The shelf is only worth having if the way back is
 real.
 
-### Still open
+### Steps 5 and 6 are withdrawn
 
-Steps 5 and 6 are unchanged: they wait on agreement, and on the variants
-actually existing. Nothing here brings that forward — but a person who
-takes a variant now lands somewhere that explains itself, which was not
-true a week ago.
+*Updated 27 August 2026.*
+
+They were waiting on agreement. The agreement went the other way, and the
+measurement went with it — including the part of it recorded above.
+
+The `audio` bundle, three addons out, leaves the ceiling on a loadable
+pattern **exactly where it was**: 73,716 bytes either way, confirmed on
+hardware, on a board using 45 % of its flash. The slim-core table further up
+this log shows the other half honestly: strip *all five* addons and the
+ceiling does rise, to 92,148 B — **+18.4 KB**, more than that table's
+original figure. Both are true, and the difference is what
+each one is. The bundle is a firmware somebody would ship; `PF_ADDONS_NONE`
+is a compile flag with no shows, no MQTT, no weather, no OSC and no sound.
+The prize for shipping it is 18.4 KB on a ceiling already two and a half
+times the largest module anyone has built.
+
+That is the whole of what a slim core was for, and it is not enough.
+
+Steps 1–4 stand and shipped in 3.7.0. What replaces 5 and 6 is in RFC
+§2.13: everything stays in this tree, and `firmware/bundles/` names
+firmwares built from it — two files each, no fork, no vendored copies.
+
+The part of this log that still reads true is the shape it kept finding:
+**a feature is never as separable as it looks.** Four pieces of
+infrastructure were hiding inside features, three interfaces reported a
+feature that had left the build, and the hook set turned out to be one
+field short — every one of them found by trying to move something, and
+none by reading the code.

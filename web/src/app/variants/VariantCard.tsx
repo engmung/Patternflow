@@ -29,6 +29,21 @@ import type { Variant } from "./variants-data";
 // Core is the cheapest entry on the shelf: its images already sit under
 // /flash/bin with CORS headers, so its install button needs nothing new.
 
+// Why this firmware is not simply the default. Three different answers, and
+// somebody choosing needs to know which — picking up something unfinished is
+// not the same as picking up something deliberately still.
+const REASON_LABEL: Record<NonNullable<Variant["reason"]>, string> = {
+  "not-ready": "not ready for everyone",
+  "not-universal": "not right as a default",
+  frozen: "pinned and not moving",
+};
+
+const STATUS_LABEL: Record<Variant["status"], string> = {
+  available: "available",
+  building: "in progress",
+  proposed: "unclaimed",
+};
+
 type Props = { variant: Variant };
 
 type Manifest = {
@@ -114,32 +129,40 @@ export default function VariantCard({ variant: v }: Props) {
     <li id={v.id} className={styles.card}>
       <div className={styles.cardHead}>
         <h3 className={styles.name}>{v.name}</h3>
+
+        {/* Beside the name, not under it: on a shelf of firmwares, who made
+            one is part of what it is.
+
+            On an unclaimed entry this must never read as a credit — naming
+            somebody as maintainer of firmware they have not agreed to build
+            is the one way this page could do real harm to a person. And no
+            maintainer at all means nobody is being credited on purpose, the
+            default not being one person's work, so nothing is printed:
+            "by someone" is worse than silence. */}
+        {v.status === "proposed" ? (
+          <span className={styles.by}>
+            {v.maintainer ? (
+              <>
+                suggested to{" "}
+                <Person name={v.maintainer} href={v.maintainerHref} /> &mdash;
+                not yet agreed
+              </>
+            ) : (
+              <>nobody has taken this on</>
+            )}
+          </span>
+        ) : v.maintainer ? (
+          <span className={styles.by}>
+            by <Person name={v.maintainer} href={v.maintainerHref} />
+          </span>
+        ) : null}
+
         {v.status !== "available" && (
           <span className={styles.status} data-s={v.status}>
-            {v.status === "building" ? "in progress" : "unclaimed"}
+            {STATUS_LABEL[v.status]}
           </span>
         )}
       </div>
-
-      {/* On an unclaimed entry this must never read as a credit. Naming
-          somebody as maintainer of firmware they have not agreed to build is
-          the one way this page could do real harm to a person. */}
-      <p className={styles.by}>
-        {v.status === "proposed" ? (
-          v.maintainer ? (
-            <>
-              suggested to <Person name={v.maintainer} href={v.maintainerHref} />{" "}
-              &mdash; not yet agreed
-            </>
-          ) : (
-            <>nobody has taken this on</>
-          )
-        ) : (
-          <>
-            by <Person name={v.maintainer} href={v.maintainerHref} />
-          </>
-        )}
-      </p>
 
       <div className={styles.actions}>
         {installUrl && !stale ? (
