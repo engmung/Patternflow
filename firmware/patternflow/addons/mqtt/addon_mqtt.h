@@ -65,7 +65,8 @@ inline void fillInput(InputFrame& input) {
 
 // The finished frame, mirrored outward. notePattern dedupes, so this does
 // not republish every frame.
-inline void observeFrame(const InputFrame& input, const char* patternName) {
+inline void observeFrame(const InputFrame& input, const PFAddonFrame& frame) {
+  const char* patternName = frame.patternName;
   PatternflowMqtt::update(input, patternName);
   PatternflowMqtt::notePattern(patternName);
 }

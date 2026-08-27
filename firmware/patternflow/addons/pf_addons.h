@@ -40,9 +40,9 @@ inline void fillInput(InputFrame& input) {
   }
 }
 
-inline void observeFrame(const InputFrame& input, const char* patternName) {
+inline void observeFrame(const InputFrame& input, const PFAddonFrame& frame) {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
-    if (PF_ADDONS[i]->observeFrame) PF_ADDONS[i]->observeFrame(input, patternName);
+    if (PF_ADDONS[i]->observeFrame) PF_ADDONS[i]->observeFrame(input, frame);
   }
 }
 
@@ -126,9 +126,25 @@ inline bool patternClaimed() {
 // First addon with a pending pattern request wins the frame; the next one
 // is served on the frame after. Requests are edges, not levels, so nothing
 // is lost by taking them one at a time.
-inline bool takePattern(int* idx) {
+// Which addon answered changes what the sketch should do afterwards. An
+// addon that CLAIMS the pattern owns what is on the panel for as long as
+// it runs — a show cycling through cues — so its choices are transient and
+// must not be written to NVS every time. One that only ASKS is relaying a
+// person: somebody picked a pattern from Ableton or a phone, and that
+// should survive a reboot exactly as turning the knob does.
+//
+// The distinction already existed in the hook set; it just was not
+// reported. OSC moving out of the core is what made it matter, because
+// OSC's pattern picks used to persist and would otherwise have stopped
+// silently.
+inline bool takePattern(int* idx, bool* isPersonsChoice = nullptr) {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
-    if (PF_ADDONS[i]->takePattern && PF_ADDONS[i]->takePattern(idx)) return true;
+    if (PF_ADDONS[i]->takePattern && PF_ADDONS[i]->takePattern(idx)) {
+      if (isPersonsChoice)
+        *isPersonsChoice =
+            !(PF_ADDONS[i]->claimsPattern && PF_ADDONS[i]->claimsPattern());
+      return true;
+    }
   }
   return false;
 }

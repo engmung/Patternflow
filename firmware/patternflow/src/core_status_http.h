@@ -95,9 +95,9 @@ inline void handleStatus() {
     };
     cap("patterns");   // the .pfm loader and its volume - always core
     cap("params");     // the absolute bus + POST /api/params - always core
-#if PF_OSC_ENABLED
-    cap("osc");
-#endif
+    // "osc" is no longer emitted here: OSC is an addon and declares its own
+    // cap, and leaving this behind reported it twice on a build that has it
+    // and once on a build that does not.
 #if PF_SLEEP_ENABLED
     cap("sleep");
 #endif

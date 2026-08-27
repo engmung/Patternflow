@@ -12,12 +12,14 @@
 #pragma once
 
 #include "pf_addon.h"
+#include "osc/addon_osc.h"
 #include "show/addon_show.h"
 #include "weather/addon_weather.h"
 #include "mqtt/addon_mqtt.h"
 #include "audio/addon_audio.h"
 
 inline const PFAddon* const PF_ADDONS[] = {
+    &PFAddonOsc::descriptor,
     &PFAddonShow::descriptor,
     &PFAddonWeather::descriptor,
     &PFAddonMqtt::descriptor,

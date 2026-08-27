@@ -36,6 +36,16 @@ struct PFAddonFrame {
   // from the weather clock, which checked four sketch globals to work
   // this out for itself.
   bool chromeVisible;
+  // Registry index of the running pattern, or -1. Names are what an
+  // addon usually wants, but a published wire protocol can be pinned to
+  // the index — OSC's /patternflow/pattern/index is, and hosts are built
+  // against it, so the index cannot be swapped for the name after the
+  // fact.
+  int patternIndex;
+  // The sketch's own mode enum, as an int. `running` is the same fact
+  // reduced to a bool and is what most addons should use; this is for
+  // the one case that has to report the raw value outward.
+  int appMode;
 };
 
 struct PFAddon {
@@ -61,7 +71,10 @@ struct PFAddon {
   // absolute bus applied — what the pattern is about to see. For addons
   // that mirror or publish state rather than produce it. Read-only by
   // convention: writing here is what fillInput is for.
-  void (*observeFrame)(const InputFrame&, const char* patternName);
+  // Takes the addon frame rather than a bare name: the fifth port (OSC)
+  // needed two more facts about the same moment, and widening the struct
+  // once beats adding a parameter every time that happens.
+  void (*observeFrame)(const InputFrame&, const PFAddonFrame&);
 
   // Contribute to the input frame before the pattern sees it — drive a
   // knob lane from a sensor, a reading, a stream. Runs before the
