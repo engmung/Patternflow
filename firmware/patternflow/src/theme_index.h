@@ -89,12 +89,14 @@ html+=navLink(e);
 }
 nav.innerHTML=html;
 var v=document.getElementById('pfVer');
-if(v&&d.version)v.textContent='v'+d.version;
+// On a variant the badge carries its own version, so this one has to say
+// whose it is — unlabelled, it reads as the variant's and is wrong.
+if(v&&d.version)v.textContent=(d.variant&&d.variant!=='core'?'core v':'v')+d.version;
 // Only a variant gets a badge, and it links to its own entry on the
 // shelf so the name is a way in rather than a label.
 var vb=document.getElementById('pfVariant');
 if(vb&&d.variant&&d.variant!=='core'){
-vb.textContent=d.variant;
+vb.textContent=d.variant+(d.variantVersion?' '+d.variantVersion:'');
 vb.href='https://patternflow.work/variants#'+encodeURIComponent(d.variant);
 vb.style.display='inline-flex';
 }
