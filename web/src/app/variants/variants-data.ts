@@ -157,6 +157,12 @@ export const VARIANTS: Variant[] = [
       'On-board PDM microphone (four wires, not yet a part on the board)',
       'Wi-Fi transmit power raised for rooms full of access points',
     ],
+    // Served from here, so the panel's own /update page can fetch it. Under
+    // /flash/bin, which already sends the CORS header that fetch needs.
+    hosted: {
+      version: 'v0.1.0',
+      url: 'https://patternflow.work/flash/bin/audio-v0.1.0/patternflow.ino.bin',
+    },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
       'Six of seven people asked for on-board sound and it was the most ' +

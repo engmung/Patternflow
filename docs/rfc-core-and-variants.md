@@ -104,13 +104,21 @@ The core is defined by what it **guarantees**, not by what it includes:
 This table is the whole of "maintaining the frame". It is small, changes
 slowly, and none of it is where creative disagreements live.
 
-## 2.3 What becomes a variant
+## 2.3 What was going to leave
 
-Nothing is discarded — each feature is handed to the people who care
-about it most, and the day it moves, its replacement is already in place:
-a listed variant, one file drop away.
+> **Superseded by §2.13.** Nothing in this table left, and nothing is
+> going to. It is kept because the reasoning is still worth reading and
+> because deleting the wrong half of an argument makes the right half
+> unreadable — but where this section and §2.13 disagree, §2.13 is what
+> happened.
 
-| leaves | natural home | notes |
+The idea was that each feature would be handed to whoever cared about it
+most, with its replacement in place the day it moved. What that missed is
+in §2.13: the move buys the person holding the panel nothing measurable,
+and a separate repository is where trees drift apart rather than where
+they stop drifting.
+
+| was to leave | proposed home | notes |
 | --- | --- | --- |
 | **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | a variant — unclaimed | v3.6.3 integrated this whole stack, so v3.6.3 is the natural fork point: a variant starting there starts *finished* rather than empty. Whose variant that is has not been settled, and this table is not the place to decide it. |
 | **MQTT** (all modes, `/mqtt`) | a variant — unclaimed | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. **Corrected from an earlier draft**, which split this across two variants. FlowLocal is Simone Majocchi's work and the Director lives inside FlowLocal, so the MQTT code travels as one piece rather than being parcelled out by mode. That is a fact about the code, not a decision about who maintains it. Every capability MQTT held stays reachable in core over HTTP, including the knob write via `/api/params`. |
@@ -282,30 +290,28 @@ Staged, so nobody runs an empty forum:
    the job, the page redirects. A parked half-alive space reads as
    "nobody's home", which is worse than no space.
 
-## 2.9 The first shelf
+## 2.9 The shelf
 
-Empty, and it is worth saying why rather than quietly deleting the list
-that used to be here.
+Two firmwares, and both are built from this repository:
 
-This section named three variants and, with them, three people who had not
-been asked whether they wanted to maintain a firmware. It read as evidence
-that the shape was already working — "three variants already visible, a
-good sign the shape is real" — when what it actually listed was three
-guesses about how other people would like to spend their time.
+1. **Patternflow** — everything. What ships on the board.
+2. **Patternflow Audio** — everything, plus a microphone that needs four
+   wires soldered to the DevKit and a transmit power that is not the
+   conformance-tested one. Neither belongs in the firmware everybody gets,
+   which is the only reason this exists. When the microphone is a part on
+   the board, it moves into the default and this stops existing.
 
-That is a bad way to treat a contributor and a worse way to argue for a
-proposal. Naming somebody as the future maintainer of a fork, in public,
-before asking them, makes the decision look already taken and leaves them
-to either accept it or object in front of an audience. The same list went
-up on the site's variants page for a few hours and has come down for the
-same reason.
+An earlier draft of this section listed three firmwares and, with them,
+three people who had never been asked whether they wanted to maintain one.
+That was published for a few hours and taken down the same day. Naming
+somebody as the future maintainer of a fork, in public, before asking,
+makes the decision look already taken and leaves them to accept it or
+object in front of an audience.
 
-Anyone this concerns speaks for themselves, in their own words, wherever
-they choose to — not here and not through me.
-
-The seam is real and it is built. Who uses it is not for this document to
-predict.
-
+Somebody else's firmware is welcome and has its own tier on the page. The
+Home Assistant integration is the shape that belongs there: a bridge to a
+different product, whose lapsing would cost HA users a convenience and cost
+Patternflow nothing.
 
 ## 2.10 Known tricky parts
 
@@ -325,10 +331,12 @@ predict.
   drag on a one-connection server. One-shot by contract; clients
   debounce; stated in rest-api.md the day it ships.
 - **The lab's device-upload buttons** switch to capability probing.
-- **Versioning:** the slim core is a breaking change to what "the
-  firmware" contains → **core v4.0.0**. v3.6.3 stands as the last
-  full-integration snapshot and the fork point. Variants version
-  themselves and state which core they track.
+- ~~**Versioning:** the slim core is a breaking change → **core
+  v4.0.0**.~~ **Superseded by §2.13.** There is no slim core, so nothing
+  breaks: the seam shipped as **3.7.0**, a feature release, and every
+  firmware from 3.6.3 onward contains everything it always did. A firmware
+  built from this tree states which core it was built against; one built
+  elsewhere versions itself and says the same.
 
 ## 2.11 Migration order
 
