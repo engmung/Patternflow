@@ -6,7 +6,6 @@
 #include "src/core_encoders.h"
 #include "src/core_wifi.h"
 #include "src/core_improv.h"
-#include "src/core_osc.h"
 #include "src/core_ota.h"
 #include "src/core_home_http.h"
 #include "addons/pf_addons.h"
@@ -258,9 +257,6 @@ void setup() {
   // out of the way and takes over from the first present().
   PatternflowPower::load();
 
-  // OSC + audio-react runtime flags, restored from NVS so the device boots
-  // into whatever the K2 info screen was last set to.
-  PatternflowOsc::setRuntimeEnabled(prefs.getBool("osc_runtime", true));
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
   // Addons load their own settings here; sync itself starts with Wi-Fi.
@@ -484,8 +480,10 @@ void drawNetworkInfo() {
 
   // Feature rows: status dot + name on the left, state right-aligned in
   // the state's color — reads like the web console's tag pills.
-  // OSC is core; every other row comes from an addon that says it can be
-  // switched off here, so this screen lists features it knows nothing about.
+  // Every row comes from an addon that says it can be switched off here,
+  // so this screen lists features it knows nothing about. OSC used to be
+  // hard-coded as the first row back when it lived in the core; it is an
+  // addon now and arrives the same way as the rest.
   //
   // Two rows is the budget: they start at y=22 on an 11 px pitch and the
   // Wi-Fi line is fixed at y=50, so a third would draw over it. A build
@@ -496,8 +494,6 @@ void drawNetworkInfo() {
   struct FeatureRow { const char* name; bool compiled; bool on; };
   FeatureRow rows[MAX_FEATURE_ROWS];
   int rowCount = 0;
-  rows[rowCount++] = { "OSC", PatternflowOsc::isCompiledIn(),
-                       PatternflowOsc::isRuntimeEnabled() };
   for (size_t t = 0; t < PFAddons::toggleableCount() && rowCount < MAX_FEATURE_ROWS; t++) {
     size_t a = PFAddons::toggleableAt(t);
     rows[rowCount++] = { PFAddons::shortName(a), true, PFAddons::runtimeEnabled(a) };
@@ -857,9 +853,6 @@ void readInputFrame(InputFrame& input) {
   // Remote-driven virtual knob motion (each a no-op when its feature is
   // compiled out). Added after acceleration so external automation moves at
   // the raw 1×-per-detent rate, not amplified by the fast-spin curve.
-  for (int i = 0; i < 4; i++) {
-    input.knobDeltas[i] += PatternflowOsc::consumeKnobDelta(i);
-  }
 
   // Audio-react direct delta messages. New browser/extension clients send
   // normalized deltas here so base/default values do not overwrite pattern
@@ -925,7 +918,6 @@ void loop() {
   // (re)connection starts the network services. begin() is idempotent.
   PatternflowWifi::tick();
   if (PatternflowWifi::consumeJustConnected()) {
-    PatternflowOsc::begin();
     PatternflowOta::begin();
     PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
@@ -1156,18 +1148,25 @@ void loop() {
 
     // Toggles use knob ROTATION, not clicks — so holding K2 to exit can't
     // accidentally flip a setting. Turn right = ON, left = OFF.
-    if (input.knobDeltas[1] != 0) {                  // K2 turn → OSC
-      bool next = input.knobDeltas[1] > 0;
-      if (next != PatternflowOsc::isRuntimeEnabled()) {
-        PatternflowOsc::setRuntimeEnabled(next);
-        prefs.putBool("osc_runtime", next);
-        netInfoDirty = true;
-        Serial.printf("[NVS] osc_runtime saved: %s\n", next ? "true" : "false");
+    // K2 and K3 turn the first and second rows the screen drew. Both come
+    // from addons now — K2 used to be hard-wired to OSC back when OSC was
+    // core, which meant the screen and the knobs disagreed the moment any
+    // other feature moved out.
+    if (input.knobDeltas[1] != 0) {                  // K2 turn → first addon row
+      size_t a = PFAddons::toggleableAt(0);
+      if (a < PF_ADDON_COUNT) {
+        bool next = input.knobDeltas[1] > 0;
+        if (next != PFAddons::runtimeEnabled(a)) {
+          PFAddons::setRuntimeEnabled(a, next);
+          netInfoDirty = true;
+          Serial.printf("[ADDON] %s runtime: %s\n", PFAddons::shortName(a),
+                        next ? "true" : "false");
+        }
       }
       oscInfoIdleAtMs = now;
     }
-    if (input.knobDeltas[2] != 0) {                  // K3 turn → first addon row
-      size_t a = PFAddons::toggleableAt(0);
+    if (input.knobDeltas[2] != 0) {                  // K3 turn → second addon row
+      size_t a = PFAddons::toggleableAt(1);
       if (a < PF_ADDON_COUNT) {
         bool next = input.knobDeltas[2] > 0;
         if (next != PFAddons::runtimeEnabled(a)) {
@@ -1271,52 +1270,24 @@ void loop() {
     currentMode == MODE_RUNNING && !brightnessAdjusting && !oscInfoShowing
   );
 
-  // OSC is a sidechannel: runs in every mode when PF_OSC_ENABLED.
-  // It sends input/state to a remote host and (since C) accepts knob,
-  // pattern-index, and content-toggle commands back. Drawing is still
-  // done by patterns, not by OSC.
-  PatternflowOsc::update(
-    input,
-    currentContentName(),
-    currentPatternIdx,
-    0, // content mode removed (always pattern)
-    (int)currentMode
-  );
-
   // Addons that mirror device state see the finished frame here - every
   // source merged, the absolute bus applied, exactly what the pattern gets.
-  PFAddons::observeFrame(input, currentContentName());
-
-  // Apply OSC-driven pattern / content changes from the most recent
-  // received packet. Knob deltas were already merged into the input
-  // frame inside readInputFrame(). While a show is playing, the show owns
-  // pattern selection — remote pickers wait their turn.
-  int oscPatternIdx;
-  if (!PatternflowPatternsHttp::isConsolePaused() &&
-      !PFAddons::patternClaimed() &&
-      PatternflowOsc::consumePatternIdx(oscPatternIdx) &&
-      oscPatternIdx >= 0 && oscPatternIdx < NUM_PATTERNS &&
-      activatePattern(oscPatternIdx)) {
-    currentPatternIdx = oscPatternIdx;
-    currentMode = MODE_RUNNING;
-    contentNoticeTimer = CONTENT_NOTICE_SECONDS;
-    CalibPattern::overrideOn = false;  // picking a pattern dismisses the test card
-    notePatternChanged();
-    Serial.printf(">>> OSC pattern → %s\n", patterns[currentPatternIdx].name);
-  }
-
-  // Addons run here: the show player advances its cue table, the
-  // scheduler decides whether night/wake is due. The frame tells them
-  // what is on the panel so they need nothing from the sketch's globals.
   {
-    PFAddonFrame frame{dt, currentContentName(),
-                       currentMode == MODE_RUNNING, chromeVisible()};
-      PFAddons::loop(frame);
+    PFAddonFrame observed{dt, currentContentName(),
+                          currentMode == MODE_RUNNING, chromeVisible(),
+                          currentPatternIdx, (int)currentMode};
+    PFAddons::observeFrame(input, observed);
   }
+
   // An addon may ask for a pattern; loading a module is the sketch's job,
   // so it requests and we perform.
   int addonPatternIdx;
-  if (PFAddons::takePattern(&addonPatternIdx) &&
+  bool addonPickWasAPerson = false;
+  // Not while an install batch is evicting modules — the OSC path used to
+  // check this and the addon path did not, which was a latent way to load
+  // a pattern into a half-emptied FATFS.
+  if (!PatternflowPatternsHttp::isConsolePaused() &&
+      PFAddons::takePattern(&addonPatternIdx, &addonPickWasAPerson) &&
       addonPatternIdx >= 0 && addonPatternIdx < NUM_PATTERNS) {
     if (activatePattern(addonPatternIdx)) {
       currentPatternIdx = addonPatternIdx;
@@ -1326,9 +1297,13 @@ void loop() {
         contentNoticeTimer = CONTENT_NOTICE_SECONDS;
       }
       CalibPattern::overrideOn = false;
-      Serial.printf(">>> SHOW pattern → %s\n", patterns[currentPatternIdx].name);
+      // A remote picker is a person choosing; remember it the way a knob
+      // turn is remembered. A show owns the panel and its cues are not
+      // choices, so they must not write NVS on every cue.
+      if (addonPickWasAPerson) notePatternChanged();
+      Serial.printf(">>> ADDON pattern → %s\n", patterns[currentPatternIdx].name);
     } else {
-      Serial.printf(">>> SHOW pattern failed idx=%d\n", addonPatternIdx);
+      Serial.printf(">>> ADDON pattern failed idx=%d\n", addonPatternIdx);
     }
   }
 
@@ -1409,7 +1384,8 @@ void loop() {
     drawActivePattern();
     drawBannerOverlay();
     {
-      PFAddonFrame frame{dt, currentContentName(), true, chromeVisible()};
+      PFAddonFrame frame{dt, currentContentName(), true, chromeVisible(),
+                         currentPatternIdx, (int)currentMode};
       PFAddons::drawOverlay(frame);
     }
 

@@ -8,6 +8,23 @@
 
 #include <Arduino.h>
 
+// ── A variant's settings, before anything has a default ─────────────────
+// Every tunable in this file and in net_config.h is `#ifndef`-guarded, which
+// only helps somebody who can define the value FIRST. config.h is the first
+// project header the sketch includes, so this is the earliest point that
+// exists — and a variant that wants a different panel clock, a different
+// transmit power or a different brightness cap drops an addons/overrides.h
+// and changes nothing else in the tree.
+//
+// The RFC named this file (§2.4) and it was never built; the first variant
+// that wanted a setting rather than a feature is what surfaced it. Pair with
+// addons/addons_local.h, which does the same job for the addon list.
+#if defined(__has_include)
+#if __has_include("addons/overrides.h")
+#include "addons/overrides.h"
+#endif
+#endif
+
 // --- Arduino macro detox ---
 // Arduino.h defines PI / TWO_PI / HALF_PI / DEG_TO_RAD / RAD_TO_DEG / EULER as
 // bare object-like macros, so a pattern that declares its own constant with

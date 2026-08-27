@@ -40,6 +40,13 @@ st.textContent='html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--ink:#1
 +'.pf-brand{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono,ui-monospace,monospace);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted,#8A8272);text-decoration:none;white-space:nowrap}'
 +'.pf-brand .pf-dot{width:5px;height:5px;border-radius:50%;background:var(--led,#FF5C2E);box-shadow:0 0 6px var(--led,#FF5C2E)}'
 +'#pfVer{color:var(--faint,#5A5546);letter-spacing:.08em}'
+// A variant's name, in the LED colour, on every page. Buried in a footer
+// it answered a question nobody thought to ask; the point of the badge is
+// that somebody who did not flash this panel themselves can tell what it
+// is running without going looking. Core shows nothing — it is the
+// default and a badge on every panel would say nothing.
++'#pfVariant{display:none;align-items:center;padding:1px 6px;border:1px solid var(--led,#FF5C2E);border-radius:2px;color:var(--led,#FF5C2E);letter-spacing:.1em;text-decoration:none}'
++'#pfVariant:hover{background:var(--led,#FF5C2E);color:var(--cream,var(--bg,#0C0B09))}'
 +'.pf-cnav{display:flex;flex-wrap:wrap;gap:6px 13px;font-family:var(--mono,ui-monospace,monospace);font-size:11px;letter-spacing:.04em}'
 +'.pf-cnav a{color:var(--faint,#5A5546);text-decoration:none}'
 +'.pf-cnav a:hover{color:var(--led,#FF5C2E)}'
@@ -60,7 +67,9 @@ var NAV=[['/','Console',null],['/patterns','Patterns',null],
 ['/update','Update',null]];
 var p=location.pathname.replace(/\/+$/,'')||'/';
 var h=document.createElement('header');h.className='pf-chrome';h.id='pfChrome';
-var m='<div class="pf-chrome-in"><a class="pf-brand" href="/"><span class="pf-dot"></span>Patternflow <span id="pfVer"></span></a><nav class="pf-cnav">';
+var m='<div class="pf-chrome-in"><a class="pf-brand" href="/"><span class="pf-dot"></span>Patternflow <span id="pfVer"></span></a>'
++'<a id="pfVariant" class="pf-brand" target="_blank" rel="noopener"></a>'
++'<nav class="pf-cnav">';
 function navLink(e){return '<a href="'+e[0]+'"'+(p===e[0]?' class="here"':'')+'>'+e[1]+'</a>'}
 // Draw the unconditional pages now; the rest join when caps arrive, so
 // the header never sits empty waiting on a request.
@@ -81,6 +90,14 @@ html+=navLink(e);
 nav.innerHTML=html;
 var v=document.getElementById('pfVer');
 if(v&&d.version)v.textContent='v'+d.version;
+// Only a variant gets a badge, and it links to its own entry on the
+// shelf so the name is a way in rather than a label.
+var vb=document.getElementById('pfVariant');
+if(vb&&d.variant&&d.variant!=='core'){
+vb.textContent=d.variant;
+vb.href='https://patternflow.work/variants#'+encodeURIComponent(d.variant);
+vb.style.display='inline-flex';
+}
 // One status fetch, shared. A page that needs to know what this build
 // actually has — the home page hides rows for absent features — listens
 // for this rather than asking again. window.pfStatus covers a listener
