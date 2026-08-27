@@ -64,6 +64,12 @@ export default function VariantsPage() {
                 firmware has. It adds files; it never edits core ones, so it
                 can take a core update without a fight.
               </p>
+              <p className={styles.makeBody}>
+                Made one? It goes on this shelf. Open a pull request, or just{" "}
+                <Link href="/contact">tell me about it</Link> &mdash; there is
+                no process yet and this is early days, so whichever is easier
+                for you is the right one.
+              </p>
               <div className={styles.detailLinks}>
                 <a
                   href="https://github.com/engmung/patternflow-audio"
