@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "./Variants.module.css";
 import VariantCard from "./VariantCard";
-import { VARIANTS, CORE_NOTE, CORE_ALSO } from "./variants-data";
+import { VARIANTS } from "./variants-data";
 
 // /variants — the shelf.
 //
@@ -44,93 +44,57 @@ export default function VariantsPage() {
           </p>
         </header>
 
-        <section className={styles.core}>
-          <span className={styles.coreTag}>You are probably running this</span>
-          <p className={styles.coreBody}>{CORE_NOTE}</p>
-          <p className={styles.coreAlso}>{CORE_ALSO}</p>
-        </section>
-
-        <h2 className={styles.sectionHead}>The shelf</h2>
-        {VARIANTS.length === 0 ? (
-          <p className={styles.shelfNote}>
-            <em>There are no variants yet.</em> The seam they plug into is
-            built and in the firmware, but nobody has published one, and this
-            page is not going to list firmwares that do not exist or name
-            people who have not agreed to maintain them. When somebody does,
-            they go here. Until then the rest of this page is the useful part:
-            what a variant is, what it has to promise you, and how you would
-            move to one and back.
-          </p>
-        ) : null}
         <ul className={styles.list}>
           {VARIANTS.map((v) => (
             <VariantCard key={v.id} variant={v} />
           ))}
+
+          {/* An empty slot, on purpose. A list of things somebody else made
+              reads as a catalogue; a list with a gap at the end reads as a
+              place where things keep arriving, and the difference is whether
+              anyone thinks to build one. */}
+          <li className={styles.makeCard}>
+            <span className={styles.plus} aria-hidden="true">
+              +
+            </span>
+            <div>
+              <h3 className={styles.name}>Make your own</h3>
+              <p className={styles.makeBody}>
+                A few directories and one file saying which of them your
+                firmware has. It adds files; it never edits core ones, so it
+                can take a core update without a fight.
+              </p>
+              <div className={styles.detailLinks}>
+                <a
+                  href="https://github.com/engmung/patternflow-audio"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Read the example
+                </a>
+                <a
+                  href="https://github.com/engmung/Patternflow/blob/main/docs/rfc-core-and-variants.md"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  The rules
+                </a>
+              </div>
+            </div>
+          </li>
         </ul>
 
         <section className={styles.how}>
-          <h2>Moving between them</h2>
-
+          <h2>What switching costs you</h2>
           <p>
-            One click above, if the image is served from here. Otherwise
-            download the maintainer&rsquo;s <code>.bin</code> and drop it on
-            your panel&rsquo;s <code>/update</code> page &mdash; the same way a
-            core update works.
-          </p>
-          <p>
-            <strong>You keep everything.</strong> Your patterns, your Wi-Fi
-            networks, your settings. An update rewrites the program only.
-          </p>
-          <p>
-            <strong>You can always come back.</strong> A core <code>.bin</code>
-            from <Link href="/update">patternflow.work/update</Link>, the same
-            way. A firmware you cannot leave is not a variant, it is a fork,
-            and it does not go on this page.
-          </p>
-          <p>
-            Console pages appear and disappear with whatever the firmware
-            actually has &mdash; it asks the device rather than assuming.
-            Patterns are the exception by design: every variant runs the same
-            community <code>.pfm</code> modules, so your library works
-            everywhere.
-          </p>
-
-          <h3>Building one</h3>
-          <p>
-            A variant is a few directories and one file saying which of them
-            this firmware has. It adds files; it never edits core ones, which
-            is what lets it take a core update without a merge fight.{" "}
-            <a
-              href="https://github.com/engmung/patternflow-audio"
-              target="_blank"
-              rel="noopener"
-            >
-              patternflow-audio
-            </a>{" "}
-            is meant to be read as the example, and{" "}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/docs/rfc-core-and-variants.md"
-              target="_blank"
-              rel="noopener"
-            >
-              the RFC
-            </a>{" "}
-            has the rules &mdash; all of them about not stranding the person
-            holding the hardware.
-          </p>
-          <p>
-            To get listed, open a pull request adding your entry to{" "}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/web/src/app/variants/variants-data.ts"
-              target="_blank"
-              rel="noopener"
-            >
-              <code>variants-data.ts</code>
-            </a>
-            , or <Link href="/contact">get in touch</Link>. Somebody reads it
-            before it goes up.
+            <strong>Nothing.</strong> Your patterns, your Wi-Fi networks, your
+            settings &mdash; an update rewrites the program only. And every
+            firmware on this shelf can be left again the same way you arrived,
+            which is the one rule that gets you listed. A firmware you cannot
+            leave is a fork, not a variant.
           </p>
         </section>
+
       </div>
     </main>
   );

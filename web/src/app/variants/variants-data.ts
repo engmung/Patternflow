@@ -67,20 +67,15 @@ export type Variant = {
    * cannot pretend to be current.
    */
   hosted?: { version: string; url: string };
+  /**
+   * Or: a flasher manifest to read the current version and image from, for a
+   * firmware that publishes one. Core does; a variant could. Wins over
+   * `hosted`, because a manifest cannot go stale the way a pinned copy can.
+   */
+  manifest?: string;
   /** The honest paragraph. Kept short: who should and should not take this. */
   note: string;
 };
-
-export const CORE_NOTE =
-  'Core is the one that has to keep working: the panel, the pattern loader, ' +
-  'Wi-Fi, sleep, and the update path out of anything. It is what ships on ' +
-  'the board and what you can always return to.';
-
-// The thing people most often assume needs a variant, and does not.
-export const CORE_ALSO =
-  'Home Assistant works against core as it is. Reading the panel was always ' +
-  'plain HTTP, and setting the four knobs is POST /api/params — no broker ' +
-  'and no variant in between.';
 
 // One entry, and it is the maintainer's own.
 //
@@ -94,6 +89,26 @@ export const CORE_ALSO =
 // about. Whatever anyone else decides is theirs to say, in their own words,
 // in their own time; it does not get written down here first.
 export const VARIANTS: Variant[] = [
+  {
+    id: 'core',
+    name: 'Core',
+    maintainer: 'Patternflow',
+    maintainerHref: 'https://github.com/engmung/Patternflow',
+    status: 'available',
+    summary:
+      'What ships on the board. The one that has to keep working, and the ' +
+      'one you can always come back to.',
+    adds: [
+      'The panel, and the pattern loader',
+      'Wi-Fi, sleep, and the way out of any firmware',
+      'Home Assistant, over plain HTTP',
+    ],
+    manifest: '/flash/manifest.json',
+    source: 'https://github.com/engmung/Patternflow',
+    note:
+      'On the shelf because coming back is a switch too. If you are reading ' +
+      'this on a panel you have not changed, this is what it is running.',
+  },
   {
     id: 'audio',
     name: 'Audio',

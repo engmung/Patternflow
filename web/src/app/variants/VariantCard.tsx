@@ -7,29 +7,40 @@ import type { Variant } from "./variants-data";
 
 // One shelf entry.
 //
-// Two things here need the browser, which is why this is a client component:
+// Three things on the face of it — name, who made it, install — because that
+// is the whole decision for most people. Everything else sits behind Details,
+// available and out of the way.
 //
-// 1. **The latest release.** A copy hosted here is current until its
+// Two things need the browser, which is why this is a client component:
+//
+// 1. **Which version is current.** A pinned copy is current until its
 //    maintainer cuts a release, and then it is quietly a month old. So the
-//    page asks GitHub what the newest tag is and says when the two differ.
-//    Read in the visitor's browser rather than at build time — a static page
-//    would freeze the answer at deploy — and unauthenticated, so the rate
-//    limit is per visitor rather than shared.
+//    card reads the latest tag from GitHub, and reads a flasher manifest for
+//    a firmware that publishes one. In the visitor's browser rather than at
+//    build time, because a static page would freeze the answer at deploy.
 //
 // 2. **The install link.** The device cannot fetch over the internet: TLS
 //    needs tens of KB of heap and the board has single digits spare. So the
 //    panel's OWN /update page takes a `?src=` URL and the browser, which can
-//    reach both, does the download and the POST. That makes this a plain
-//    link to the panel, not a request from here — mixed content would block
-//    that anyway, https page to http board.
+//    reach both, does the download and the POST. That makes this a plain link
+//    to the panel, not a request from here — mixed content would block that
+//    anyway, https page to http board.
+//
+// Core is the cheapest entry on the shelf: its images already sit under
+// /flash/bin with CORS headers, so its install button needs nothing new.
 
 type Props = { variant: Variant };
 
-const STATUS_LABEL: Record<Variant["status"], string> = {
-  available: "available",
-  building: "in progress",
-  proposed: "unclaimed",
+type Manifest = {
+  version?: string;
+  builds?: { parts?: { path?: string; offset?: number }[] }[];
 };
+
+// The app image is the part at 0x10000; the other three are bootloader,
+// partitions and boot_app0, which /update does not rewrite.
+function appImagePath(m: Manifest): string | null {
+  return m.builds?.[0]?.parts?.find((p) => p.offset === 65536)?.path ?? null;
+}
 
 function Person({ name, href }: { name?: string; href?: string }) {
   if (!name) return <>someone</>;
@@ -44,7 +55,12 @@ function Person({ name, href }: { name?: string; href?: string }) {
 
 export default function VariantCard({ variant: v }: Props) {
   const { deviceHost, changeDeviceHost } = useDeviceHost();
+  const [open, setOpen] = useState(false);
   const [latest, setLatest] = useState<string | null>(null);
+  const [fromManifest, setFromManifest] = useState<{
+    version: string;
+    url: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!v.github) return;
@@ -53,8 +69,7 @@ export default function VariantCard({ variant: v }: Props) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         // Silence is the right failure: rate limit, no releases yet, or no
-        // network. None of those should become an error on a page whose job
-        // is to describe firmwares.
+        // network. None should become an error on a page describing firmwares.
         if (live && d?.tag_name) setLatest(String(d.tag_name));
       })
       .catch(() => {});
@@ -63,20 +78,47 @@ export default function VariantCard({ variant: v }: Props) {
     };
   }, [v.github]);
 
+  useEffect(() => {
+    if (!v.manifest) return;
+    let live = true;
+    fetch(v.manifest, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m: Manifest | null) => {
+        const path = m ? appImagePath(m) : null;
+        if (!live || !m?.version || !path) return;
+        setFromManifest({
+          version: m.version,
+          // Absolute: the panel's own page is what fetches this, and a
+          // relative path there would mean the panel itself.
+          url: new URL(`/flash/${path}`, window.location.origin).toString(),
+        });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [v.manifest]);
+
+  const image = fromManifest ?? v.hosted ?? null;
   const host = deviceHost.trim() || "patternflow.local";
-  const installUrl = v.hosted
-    ? `http://${host}/update?src=${encodeURIComponent(v.hosted.url)}`
+  const installUrl = image
+    ? `http://${host}/update?src=${encodeURIComponent(image.url)}`
     : null;
 
-  const stale = Boolean(v.hosted && latest && latest !== v.hosted.version);
+  // Only a pinned copy can fall behind. A manifest is always the current answer.
+  const stale = Boolean(
+    v.hosted && !fromManifest && latest && latest !== v.hosted.version,
+  );
 
   return (
     <li id={v.id} className={styles.card}>
       <div className={styles.cardHead}>
         <h3 className={styles.name}>{v.name}</h3>
-        <span className={styles.status} data-s={v.status}>
-          {STATUS_LABEL[v.status]}
-        </span>
+        {v.status !== "available" && (
+          <span className={styles.status} data-s={v.status}>
+            {v.status === "building" ? "in progress" : "unclaimed"}
+          </span>
+        )}
       </div>
 
       {/* On an unclaimed entry this must never read as a credit. Naming
@@ -99,79 +141,91 @@ export default function VariantCard({ variant: v }: Props) {
         )}
       </p>
 
-      <p className={styles.summary}>{v.summary}</p>
-
-      <div className={styles.diff}>
-        <ul className={styles.adds}>
-          {v.adds.map((a) => (
-            <li key={a}>{a}</li>
-          ))}
-        </ul>
-      </div>
-
-      {(v.hosted || latest) && (
-        <p className={styles.versions}>
-          {v.hosted && (
-            <span>
-              <span className={styles.vLabel}>here</span> {v.hosted.version}
-            </span>
-          )}
-          {latest && (
-            <span>
-              <span className={styles.vLabel}>latest</span> {latest}
-            </span>
-          )}
-          {stale && (
-            <span className={styles.vStale}>
-              newer release &mdash; install from the maintainer
-            </span>
-          )}
-        </p>
-      )}
-
       <div className={styles.actions}>
-        {installUrl && !stale && (
+        {installUrl && !stale ? (
           <a className={styles.install} href={installUrl}>
             Install to my panel
           </a>
-        )}
-        {v.releases && (
+        ) : v.releases ? (
           <a
-            className={styles.secondary}
+            className={styles.install}
             href={v.releases}
             target="_blank"
             rel="noopener"
           >
-            {stale || !v.hosted ? "Download" : "Releases"}
+            Download
           </a>
-        )}
-        {v.source && (
-          <a
-            className={styles.secondary}
-            href={v.source}
-            target="_blank"
-            rel="noopener"
-          >
-            Source
-          </a>
-        )}
+        ) : null}
+        <button
+          type="button"
+          className={styles.secondary}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          {open ? "Less" : "Details"}
+        </button>
       </div>
 
-      {installUrl && (
-        <label className={styles.hostRow}>
-          <span>your panel</span>
-          <input
-            type="text"
-            value={deviceHost}
-            spellCheck={false}
-            autoCapitalize="none"
-            onChange={(e) => changeDeviceHost(e.target.value)}
-            placeholder="patternflow.local"
-          />
-        </label>
-      )}
+      {open && (
+        <div className={styles.details}>
+          <p className={styles.summary}>{v.summary}</p>
 
-      <p className={styles.note}>{v.note}</p>
+          <ul className={styles.adds}>
+            {v.adds.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+
+          {(image || latest) && (
+            <p className={styles.versions}>
+              {image && (
+                <span>
+                  <span className={styles.vLabel}>here</span> {image.version}
+                </span>
+              )}
+              {latest && (
+                <span>
+                  <span className={styles.vLabel}>latest</span> {latest}
+                </span>
+              )}
+              {stale && (
+                <span className={styles.vStale}>
+                  newer release &mdash; install from the maintainer
+                </span>
+              )}
+            </p>
+          )}
+
+          {installUrl && (
+            <label className={styles.hostRow}>
+              <span>your panel</span>
+              <input
+                type="text"
+                value={deviceHost}
+                spellCheck={false}
+                autoCapitalize="none"
+                onChange={(e) => changeDeviceHost(e.target.value)}
+                placeholder="patternflow.local"
+              />
+            </label>
+          )}
+
+          <p className={styles.note}>{v.note}</p>
+
+          <div className={styles.detailLinks}>
+            {v.releases && (
+              <a href={v.releases} target="_blank" rel="noopener">
+                Releases
+              </a>
+            )}
+            {v.source && (
+              <a href={v.source} target="_blank" rel="noopener">
+                Source
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </li>
   );
 }

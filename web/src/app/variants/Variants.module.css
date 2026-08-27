@@ -16,7 +16,7 @@
 }
 
 .doc {
-  max-width: 68ch;
+  max-width: 900px;
   margin: 0 auto;
   overflow-wrap: break-word;
 }
@@ -55,39 +55,8 @@
   color: var(--pf-ink-muted);
 }
 
-/* ── the core entry, set apart ─────────────────────────────────────────── */
 
-.core {
-  margin-bottom: 48px;
-  padding: 22px 24px;
-  border: var(--pf-rule-w) solid var(--pf-rule);
-  background: rgba(255, 255, 255, 0.42);
-}
 
-.coreTag {
-  display: block;
-  margin-bottom: 10px;
-  font-family: var(--pf-mono);
-  font-size: 11px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  color: var(--pf-led);
-}
-
-.coreBody {
-  margin: 0;
-  font-size: var(--pf-fs-body);
-  line-height: 1.65;
-}
-
-.coreAlso {
-  margin: 14px 0 0;
-  padding-top: 14px;
-  border-top: var(--pf-rule-w) solid var(--pf-rule);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.7;
-  color: var(--pf-ink-muted);
-}
 
 /* ── one variant, as a card ─────────────────────────────────────────────
 
@@ -96,25 +65,24 @@
    what does it add, what does it give up — so those get the visual weight
    and everything else is support. */
 
-.sectionHead {
-  margin: 0 0 8px;
-  font-family: var(--pf-mono);
-  font-size: 11px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-  color: var(--pf-ink-muted);
+
+/* A grid, so the shelf reads as a shelf. Cards are short by design — name,
+   maker, install — and a single column of short cards is mostly whitespace.
+   auto-fit + minmax means one column on a phone and two or three on a
+   desktop without naming any breakpoints. */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  align-items: start;
 }
 
-.shelfNote {
-  margin: 0 0 22px;
-  max-width: 58ch;
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.7;
-  color: var(--pf-ink-muted);
-}
-.shelfNote em { color: var(--pf-ink); font-style: normal; font-weight: 600; }
-
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
+/* An open card needs the room its details take, and taking the full row is
+   less jarring than growing one cell and pushing its neighbours down. */
+.card:has(.details) { grid-column: 1 / -1; }
 
 .card {
   padding: 24px;
@@ -164,17 +132,6 @@
 }
 
 /* The decision, at a glance: what arrives, what leaves. */
-.diff { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-bottom: 18px; }
-
-.adds { list-style: none; margin: 0; padding: 0; display: contents; }
-
-.adds li {
-  font-family: var(--pf-mono);
-  font-size: 12px;
-  padding: 4px 10px 4px 8px;
-  border: var(--pf-rule-w) solid var(--pf-rule);
-  background: rgba(255, 255, 255, 0.6);
-}
 .adds li::before {
   content: '+';
   color: var(--pf-led);
@@ -297,4 +254,46 @@
 @media (max-width: 640px) {
   .page { padding: 32px 18px 72px; }
   .title { font-size: 26px; }
+}
+
+/* Details, folded away until asked for. */
+.details {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.detailLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 14px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+}
+.detailLinks a { color: var(--pf-ink-muted); }
+.detailLinks a:hover { color: var(--pf-led); }
+
+/* The empty slot. Dashed, quieter than a real entry, and unmistakably a
+   place rather than a thing. */
+.makeCard {
+  display: flex;
+  gap: 18px;
+  padding: 24px;
+  border: var(--pf-rule-w) dashed var(--pf-ink-ghost);
+}
+
+.plus {
+  font-family: var(--pf-mono);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--pf-ink-ghost);
+}
+
+.makeBody {
+  margin: 6px 0 0;
+  max-width: 52ch;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.6;
+  color: var(--pf-ink-muted);
 }
