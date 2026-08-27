@@ -1,16 +1,16 @@
 {
   "name": "Patternflow",
-  "version": "v3.6.3",
+  "version": "v3.7.0",
   "new_install_prompt_erase": true,
   "new_install_improv_wait_time": 20,
   "builds": [
     {
       "chipFamily": "ESP32-S3",
       "parts": [
-        { "path": "bin/v3.6.3/patternflow.ino.bootloader.bin", "offset": 0 },
-        { "path": "bin/v3.6.3/patternflow.ino.partitions.bin", "offset": 32768 },
-        { "path": "bin/v3.6.3/boot_app0.bin", "offset": 57344 },
-        { "path": "bin/v3.6.3/patternflow.ino.bin", "offset": 65536 }
+        { "path": "bin/v3.7.0/patternflow.ino.bootloader.bin", "offset": 0 },
+        { "path": "bin/v3.7.0/patternflow.ino.partitions.bin", "offset": 32768 },
+        { "path": "bin/v3.7.0/boot_app0.bin", "offset": 57344 },
+        { "path": "bin/v3.7.0/patternflow.ino.bin", "offset": 65536 }
       ]
     }
   ]
