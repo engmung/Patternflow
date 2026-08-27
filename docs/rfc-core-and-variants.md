@@ -397,8 +397,8 @@ A firmware with three addons removed was built and run beside the full one:
 
 | | flash | free internal | **largest free block** |
 |---|---|---|---|
-| everything | 1,412,672 | 84,728 | **73,716** |
-| sound only | 1,133,921 | 84,800 | **73,716** |
+| everything | 1,412,457 | 92,920 | **73,716** |
+| sound only | 1,133,925 | 93,580 | **73,716** |
 
 The largest free block is the ceiling on how big a loadable `.pfm` can be,
 and it is **identical**. Real modules are 3–22 KB against a 73 KB ceiling.

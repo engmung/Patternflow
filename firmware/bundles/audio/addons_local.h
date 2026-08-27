@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// patternflow-audio — what this firmware is, in one file.
+// Patternflow Audio — what this firmware is, in one file.
 //
 // The core's addons/addons.h includes this if it is present and steps aside
 // if it is not. Nothing in the core tree is edited, which is why build.sh is

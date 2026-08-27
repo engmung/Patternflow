@@ -1,32 +1,35 @@
-// The shelf. One entry per firmware built on Patternflow core.
+// The shelf. One entry per firmware you can put on a panel.
 //
-// Hand-curated, and the curation is the point: somebody read the code before
-// the name went up. There is no application form.
+// The first is the default: everything the device does, and what ships on the
+// board. It is not a base somebody builds on — the others exist because of
+// something IT cannot carry, and each says which. "Everything minus a few
+// things" is not a reason to publish a firmware: dropping three features
+// leaves the ceiling on loadable patterns exactly where it was (73,716 bytes
+// either way) on a board using 45 % of its flash.
 //
-// Two tiers, and the difference is visible on the page:
+// Two tiers, and the difference is who to ask when it breaks:
 //
-//   listed          name, what it adds and drops, a link to the maintainer's
-//                   own releases. You download and flash it yourself.
-//   listed + hosted a copy of the binary is served from here, so a panel can
-//                   be updated in one click. That copy is vouched for —
-//                   somebody built it, ran it, and put it there.
+//   official   built from the Patternflow repository, published here. A core
+//              change has to compile against all of them before it lands, so
+//              they cannot silently rot.
+//   community  somebody else's firmware, their repository, their schedule.
+//              Not a lesser thing. A different one.
 //
-// Hosting somebody's binary means distributing it, so `hosted` is only ever
-// set for a firmware whose maintainer agreed and whose build was checked.
-// Everything else links out, and linking out is not a lesser tier — it is
-// the normal one.
+// Hand-curated either way, and the curation is the point: somebody read it
+// before the name went up. There is no application form.
 //
-// A hosted copy goes stale the moment its maintainer cuts a release, so the
-// page reads the latest tag from GitHub in the visitor's browser and says so
-// when the two have drifted. Better to admit the gap than to quietly serve
-// last month's firmware.
+// An entry can carry a binary served from here for one-click install, or a
+// flasher manifest to read the current one from. A pinned copy goes stale the
+// moment its maintainer cuts a release, so the page reads their latest GitHub
+// tag in the visitor's browser and stands down when the two have drifted —
+// better to admit the gap than to quietly serve last month's firmware.
 //
-// To be listed, a variant agrees to the rules in
+// To be listed, a firmware agrees to the rules in
 // docs/rfc-core-and-variants.md §2.6 — the short version being: it can be
 // left again over /update, it does not change the partition layout, it plays
 // the same community .pfm modules, it reports its own `variant` string and
-// version in /api/status, and it keeps Wi-Fi credentials where core keeps
-// them so switching does not mean re-provisioning.
+// version in /api/status, and it keeps Wi-Fi credentials where the default
+// keeps them so switching does not mean re-provisioning.
 
 // Where a firmware comes from. The distinction is the whole point of the
 // page: one of these is published from this repository and the other is
@@ -96,7 +99,7 @@ export type Variant = {
   hosted?: { version: string; url: string };
   /**
    * Or: a flasher manifest to read the current version and image from, for a
-   * firmware that publishes one. Core does; a variant could. Wins over
+   * firmware that publishes one. The default does; any firmware could. Wins over
    * `hosted`, because a manifest cannot go stale the way a pinned copy can.
    */
   manifest?: string;

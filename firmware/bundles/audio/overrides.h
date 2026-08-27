@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// patternflow-audio — settings this firmware changes.
+// Patternflow Audio — settings this firmware changes.
 //
 // The core includes this from config.h before anything has a default, so
 // every `#ifndef`-guarded value in config.h and net_config.h can be set here.
