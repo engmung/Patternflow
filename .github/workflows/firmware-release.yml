@@ -1,0 +1,140 @@
+name: Firmware Release
+
+# Attach the firmware images to a published release.
+#
+# Why this exists: for a long time it did not, and the images only ever lived
+# at patternflow.work/flash/bin/<version>/. From the repository there was no
+# way to get the firmware a given release *was* — you had to know to look at
+# the website. Worse, one version (v3.6.3) was re-cut and overwritten in place
+# when fixes folded in, so the same version name carried two different
+# binaries and nothing recorded which one you had.
+#
+# The images are not built here. Building the sketch needs the ESP32 toolchain
+# and takes minutes; the release process already produces the files and commits
+# them under web/public/flash/bin/<tag>/ for the browser flasher. This workflow
+# takes them from the tag and attaches them, so the release and the website
+# cannot drift apart — they are literally the same bytes.
+#
+# FLASHING.md carries a sha256 for each one. That is the part that makes a
+# version name mean something: if an image is ever re-cut, the hash says so.
+
+on:
+  release:
+    types: [published]
+  # For releases published before this workflow existed, and for a run that
+  # failed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach images for (e.g. v3.6.3)"
+        required: true
+      # v3.6.3 was built with patternflow_secrets.h present and carries the
+      # maintainer's Wi-Fi credentials. The risk was assessed and accepted — it
+      # needs RF proximity — but the guard below still refuses it, and it
+      # should: an accepted risk is not the same as an invisible one. Ticking
+      # this is how you say "I know about this image", once, per run. It is not
+      # available on the automatic path at all.
+      known_secrets:
+        description: "This image is known to contain build-time credentials — attach it anyway"
+        type: boolean
+        default: false
+
+concurrency:
+  group: firmware-release-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Check the tag looks like a release
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
+            echo "::error::'$TAG' is not a vX.Y.Z release tag"
+            exit 1
+          }
+
+      # A release with no images under its own version is not worth failing the
+      # run over — v1/v2-era tags predate this layout, and a prerelease may not
+      # have had a build cut. Say so and stop.
+      - name: Find the images
+        id: find
+        run: |
+          DIR="web/public/flash/bin/$TAG"
+          if [ ! -d "$DIR" ]; then
+            echo "::notice::no images committed at $DIR — nothing to attach"
+            echo "found=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          echo "found=1" >> "$GITHUB_OUTPUT"
+          ls -l "$DIR"
+
+      # The app image is the one part that must be there. The other three are
+      # expected but not universal: releases before v3.2.0 predate the four-part
+      # layout and carry no boot_app0.bin, which is not a build output at all —
+      # it comes from the ESP32 core. Attach what exists and let FLASHING.md
+      # describe exactly that, rather than failing on history.
+      - name: Work out which parts exist
+        if: steps.find.outputs.found == '1'
+        run: |
+          cd "${{ steps.find.outputs.dir }}"
+          [ -f patternflow.ino.bin ] || {
+            echo "::error::patternflow.ino.bin is missing — nothing to publish"
+            exit 1
+          }
+          for f in patternflow.ino.bootloader.bin patternflow.ino.partitions.bin boot_app0.bin; do
+            [ -f "$f" ] || echo "::warning::$f is not in this release"
+          done
+
+      # The one check that cannot be made after the fact. net_config.h bakes
+      # whatever patternflow_secrets.h defines straight into the image, and
+      # three published releases went out carrying the maintainer's home Wi-Fi
+      # credentials because of it. A clean image still has the placeholder in
+      # it; an image built with the secrets file does not.
+      - name: Refuse to publish an image built with secrets
+        if: steps.find.outputs.found == '1'
+        run: |
+          BIN="${{ steps.find.outputs.dir }}/patternflow.ino.bin"
+          if grep -qa YOUR_WIFI_SSID "$BIN"; then
+            echo "placeholder SSID present — built without patternflow_secrets.h"
+          elif [ "${{ inputs.known_secrets }}" = "true" ]; then
+            echo "::warning::$BIN has no placeholder SSID and is being attached"
+            echo "::warning::anyway, because this run said so. It carries whatever"
+            echo "::warning::patternflow_secrets.h defined when it was built."
+          else
+            echo "::error::$BIN has no placeholder SSID. Either it was built with"
+            echo "::error::patternflow_secrets.h present, or the placeholder changed."
+            echo "::error::Do not publish it until you know which."
+            echo "::error::To attach a known-leaky image deliberately, re-run this"
+            echo "::error::workflow by hand with 'This image is known to contain"
+            echo "::error::build-time credentials' ticked."
+            exit 1
+          fi
+
+      # The generator is a script rather than a heredoc so it can be run
+      # against a real image directory and read before anything is published:
+      #   .github/scripts/flashing-md.sh web/public/flash/bin/v3.7.0 v3.7.0
+      - name: Write FLASHING.md
+        if: steps.find.outputs.found == '1'
+        run: |
+          bash .github/scripts/flashing-md.sh             "${{ steps.find.outputs.dir }}" "$TAG" "$(git log -1 --format=%cs HEAD)"             > FLASHING.md
+          cat FLASHING.md
+
+      - name: Attach them to the release
+        if: steps.find.outputs.found == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DIR="${{ steps.find.outputs.dir }}"
+          gh release upload "$TAG" "$DIR"/*.bin FLASHING.md --clobber
+          echo "attached $(ls "$DIR"/*.bin | wc -l) images and FLASHING.md to $TAG"
