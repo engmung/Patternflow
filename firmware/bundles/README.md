@@ -25,7 +25,7 @@ no bundle at all, because it is simply everything.
 ## When a bundle is worth making
 
 Not for "everything minus a few things". That was tried and it is pointless:
-dropping three addons saved 280 KB of flash on a board using 45 % of it, and
+dropping three addons saved 278,528 bytes of flash on a board using 45 % of it, and
 left the ceiling on loadable patterns *exactly where it was* — 73,716 bytes
 either way. Nobody would switch, and they would be right not to.
 

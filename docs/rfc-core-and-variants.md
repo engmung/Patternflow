@@ -459,19 +459,32 @@ for a reason worth writing down rather than quietly deleting.
 Three builds, one panel, 27 August 2026. **The procedure matters more than
 it looks** — see the note below:
 
-| build | addons | flash | free internal | **largest free block** |
+| build | addons | `.bin` on disk | free internal heap | **largest free block** |
 |---|---|---|---|---|
 | default — what ships | 5 | 1,412,816 | 84,896 | **73,716** |
 | the `audio` bundle | 3 | 1,134,288 | 83,264 | **73,716** |
 | `PF_ADDONS_NONE` | 0 | 1,095,200 | 101,472 | **92,148** |
+
+Two notes on the columns, because this project has already published numbers
+that measured different things under the same name:
+
+- **`.bin` on disk** is the file you flash. The toolchain reports a figure
+  ~360 B smaller (1,412,457 for the default = **44.9 %** of the 3,145,728 B
+  app partition) — that is program storage, before the image header, padding
+  and hash. Elsewhere in this repo the toolchain figure is the one quoted.
+- **Free internal heap** is read from the running device. It is *not* the
+  92,920 B that appears next to these flash figures elsewhere: that number
+  is static RAM **used**, 28.4 % of 327,680 B, and an earlier version of this
+  table printed it in this column by mistake.
 
 The largest free block is the ceiling on how big a loadable `.pfm` can be.
 Read the table honestly and it says two things, one of which argues against
 this section:
 
 - **A firmware somebody would actually ship gains nothing.** The `audio`
-  bundle drops the show player, weather and MQTT — 278 KB of flash — and
-  lands on **exactly the same ceiling**, to the byte. That is the whole
+  bundle drops the show player, weather and MQTT — 278,528 bytes of flash,
+  a fifth of the image — and lands on **exactly the same ceiling**, to the
+  byte. That is the whole
   case for step 5, tested against the one real build that exists, and it
   comes back zero.
 - **A build with no addons at all gains 18 KB** (92,148, +18,432). Not
@@ -481,8 +494,9 @@ this section:
   42 patterns) and the largest module anyone has built is 29 KB, against a
   ceiling already two and a half times that, on a board using 45 % of its
   flash. Loading that 29 KB module is itself what moves the number: with one
-  resident the largest block is 65,524 B, and it plays at 48.5 fps. The
-  addons are not what a big pattern is competing with.
+  resident the largest block was 65,524 B at 48.5 fps — measured on v3.5.2,
+  a core-2.x build, so treat it as the shape rather than today's figure.
+  What a big pattern competes with is the last big pattern, not the addons.
 
 An earlier version of this section reported +12.3 KB here, from a
 measurement taken during step 3. It was stale, and it was low: the real gap
