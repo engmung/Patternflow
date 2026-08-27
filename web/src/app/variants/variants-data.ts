@@ -123,8 +123,9 @@ export const VARIANTS: Variant[] = [
     id: 'core',
     name: 'Patternflow',
     tier: 'official',
-    maintainer: 'SeungHun Lee',
-    maintainerHref: 'https://github.com/engmung',
+    // Deliberately no `maintainer`. The default is not one person's firmware —
+    // the show player, MQTT and weather in it are Simone Majocchi's work, and
+    // a byline naming only the maintainer reads as a claim over it.
     status: 'available',
     summary:
       'Everything the panel does. This is what ships on the board, and what ' +
@@ -151,11 +152,12 @@ export const VARIANTS: Variant[] = [
     maintainerHref: 'https://github.com/engmung',
     status: 'available',
     summary:
-      'Everything above, plus a microphone soldered to the board — so the ' +
-      'panel hears the room with no computer in it.',
+      'Sound, and nothing else in the way — a microphone soldered to the ' +
+      'board, so the panel hears the room with no computer in it.',
     adds: [
       'On-board PDM microphone (four wires, not yet a part on the board)',
       'Wi-Fi transmit power raised for rooms full of access points',
+      'No sequences, weather or MQTT — this build is only about sound',
     ],
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
@@ -169,7 +171,9 @@ export const VARIANTS: Variant[] = [
       'wanted thing in the survey by a wide margin — but it needs four wires ' +
       'soldered to the DevKit and the radio setting here is not the ' +
       'conformance-tested one, so neither belongs in the firmware everybody ' +
-      'gets. When the microphone is a part on the board, this moves into the ' +
-      'default and this bundle stops existing.',
+      'gets. It is also where that work happens, which is why it carries ' +
+      'nothing else: no sequences, no weather, no MQTT. Take this to ' +
+      'experiment with sound, not to run a room. When the microphone is a ' +
+      'part on the board, on-board audio moves into the default.',
   },
 ];

@@ -95,6 +95,9 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 8px 12px;
+  /* The byline sits in here now, so the space before the buttons is the
+     head's to give. */
+  margin-bottom: 20px;
 }
 
 .name {
@@ -117,7 +120,7 @@
 .status[data-s='available'] { border-color: var(--pf-led); color: var(--pf-led); }
 
 .by {
-  margin: 4px 0 14px;
+  margin: 0;
   font-family: var(--pf-mono);
   font-size: var(--pf-fs-mono);
   color: var(--pf-ink-faint);
