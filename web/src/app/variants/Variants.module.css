@@ -297,3 +297,21 @@
   line-height: 1.6;
   color: var(--pf-ink-muted);
 }
+
+.sectionHead {
+  margin: 40px 0 6px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+.sectionHead:first-of-type { margin-top: 0; }
+
+.sectionNote {
+  margin: 0 0 18px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.65;
+  color: var(--pf-ink-muted);
+}

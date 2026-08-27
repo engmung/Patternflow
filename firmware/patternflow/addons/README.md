@@ -21,11 +21,14 @@ taking updates is the fork this directory exists to prevent.
 | `addons_local.h` | which addons this firmware has, in what order |
 | `overrides.h` | any `#ifndef`-guarded setting: transmit power, panel clock, its own name and version |
 
-Both are gitignored in the core and neither exists here. See
-[patternflow-audio](https://github.com/engmung/patternflow-audio) for a
-worked example — three addon directories, those two files, core as a
-submodule, and a build script that is three `cp` lines with no `sed` in
-it.
+Both are gitignored here, because they belong to a firmware rather than to
+the core. The ones this repository publishes live in
+[`firmware/bundles/`](../../bundles/README.md) — `build.sh audio` copies a
+pair in, builds, and takes them away again.
+
+Somebody building a firmware outside this tree writes the same two files.
+That is the entire difference between a bundle and somebody else's firmware:
+where the two files live, and therefore who to ask when it breaks.
 
 See [`docs/rfc-core-and-variants.md`](../../../docs/rfc-core-and-variants.md)
 for why any of this exists.

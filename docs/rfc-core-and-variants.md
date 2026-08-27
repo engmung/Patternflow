@@ -350,13 +350,12 @@ refactors and additive endpoints that improve the tree either way. Steps
    hook list.
 4. Cut the hooks + `addons/` seam; **port the show player onto it as the
    first addon** — sufficiency proof and reference implementation.
-5. Delete the extracted features from core → **4.0.0**. Variants page +
-   README table; lab upload buttons capability-probed.
-6. Somebody forks v3.6.3, or adopts the addon port, and publishes a
-   variant. **This step is the one that cannot be planned from here** —
-   it is other people's time, and step 5 does not happen without it.
-   Asking is the whole of the work; assuming an answer is what an
-   earlier draft of this document did wrong.
+5. ~~Delete the extracted features from core → **4.0.0**.~~
+   **WITHDRAWN.** See §2.13. Nothing leaves the core. The seam stays and
+   is used to publish named firmwares from this tree instead.
+6. ~~Somebody forks v3.6.3 and publishes a variant.~~
+   **WITHDRAWN with step 5.** A firmware built from this repository is
+   not a fork and does not need one.
 
 ## 2.12 Open questions
 
@@ -383,3 +382,120 @@ campaign; units are months from shipping and the firmware changes all the
 way there, so sooner is better. Both `variant` and `caps` ship in status —
 machines probe `caps`, humans read `variant`. Variants stay
 maintainer-curated with no formal listing process, deliberately.)*
+
+## 2.13 What changed, and why step 5 is withdrawn
+
+*Added 2026-08-27, after the seam was built and the first firmware was
+published from it.*
+
+Steps 1–4 were right and they shipped. Step 5 was wrong, and it was wrong
+for a reason worth writing down rather than quietly deleting.
+
+### The measurement that killed it
+
+A firmware with three addons removed was built and run beside the full one:
+
+| | flash | free internal | **largest free block** |
+|---|---|---|---|
+| everything | 1,412,672 | 84,728 | **73,716** |
+| sound only | 1,133,921 | 84,800 | **73,716** |
+
+The largest free block is the ceiling on how big a loadable `.pfm` can be,
+and it is **identical**. Real modules are 3–22 KB against a 73 KB ceiling.
+Flash sits at 45 % of the partition. So removing features from the shipped
+firmware buys the person holding the panel *nothing*: not a bigger pattern,
+not a faster frame, not a feature they could not otherwise have.
+
+The whole case for step 5 was that a smaller core would leave room. It does
+not, because there was never a shortage.
+
+### What it would have cost
+
+The Crowd Supply page lists MQTT and bidirectional OSC under Software — as
+things the device does, not things you bolt on. Backers funded that. Moving
+those into separately-owned repositories would have redefined the product
+after it was sold, and at a reliability tier the page never disclosed.
+
+Simone Majocchi ([@SimonePDA](https://github.com/SimonePDA)) put that
+argument in [#349](https://github.com/engmung/Patternflow/issues/349), and
+it is correct.
+
+### And it works against the thing this document was for
+
+The stated motive was to stop the maintainer being the integrator of
+everything — specifically, to stop his tree and other people's trees drifting
+apart between merges.
+
+**A separate repository is where that drift happens.** With an addon in this
+tree, changing a hook fails the build immediately and is fixed in the same
+commit; that is exactly what happened when `observeFrame` was widened for OSC
+and MQTT broke in the compiler a second later. With the same addon in
+somebody else's tree, nothing happens, it silently rots, and the eventual
+re-convergence is worse than the merge that was being avoided.
+
+The seam already solved the hard half. Merge conflicts are gone because a
+firmware adds files and edits none. What remained was never a merge problem —
+it was "am I responsible for understanding this?", and that is answered with
+a rule, not with a repository boundary.
+
+### What replaces it
+
+**Everything stays in this tree.** MQTT, the show player, weather, OSC,
+audio. The default build is all of them, and that is what ships on the board.
+
+**Named firmwares are built from it.** `firmware/bundles/<name>/` is two
+files — `addons_local.h` and `overrides.h` — saying which features compile in
+and what the firmware calls itself. No code, no fork, no duplication.
+
+**A bundle earns its place only by carrying what the default cannot**: a part
+that is not on the board yet, a setting that must not be universal, or a
+build somebody needs pinned so a show behaves the same at the next gig.
+"Everything minus a few things" is not a reason and the numbers above are why.
+
+**Somebody else's firmware is still welcome** — that is what the community
+tier on the shelf is for, and the Home Assistant integration is the right
+shape for it: a bridge to a different product, whose lapsing would cost HA
+users a convenience and cost Patternflow nothing.
+
+### The rule that was missing
+
+A contributed addon arrives with a bundle its author owns. If that author
+stops and the addon breaks, **it drops out of the next default build** — no
+argument, no negotiation, and the bundle stays on the shelf pinned to the
+last core it worked on.
+
+Without this the maintainer eventually carries every feature anybody ever
+contributed, which is the position this whole document was written to escape.
+With it, "in this tree" costs a compile, not a promise.
+
+## 2.14 The formats are frozen
+
+The real guarantee a performer needs is not that the firmware never changes.
+It is that **the files keep working**.
+
+Two contracts, and from here they do not move:
+
+| | what is fixed |
+|---|---|
+| **`.pfm` ABI** (`abi/pf_abi.h`) | `PFInputFrame`, `PFHostAPI`, `PFPatternModule` — field order and meaning |
+| **`.pfs` shows** (PFST v1/v2) | 76-byte header, 16-byte cues, the flag bits |
+
+**Frozen means:** bytes do not move. Fields are appended, never reordered and
+never reinterpreted. Old files play forever. Anything else takes a version
+byte, and the old version keeps working — which is how `paramAbsolute` was
+added without breaking a single existing module, and how PFST v2 kept v1
+byte-identical.
+
+This is already the practice. It has not been a promise, and it should be.
+
+**Before it is signed, the people who wrote these formats get the last word.**
+The show format is Simone's; the module ABI has been shaped by everyone who
+has shipped a pattern against it. If anything needs to change, it changes
+now — after this, it does not.
+
+One candidate is already visible: a pattern reads sound through
+`knobAudioValue[4]`, four numbers mapped to the knobs. On-board audio is
+coming, and a pattern that wants a spectrum rather than four bands would need
+a wider lane. Adding that later is an ABI 3. Deciding it now is free.
+
+

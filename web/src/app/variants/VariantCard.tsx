@@ -29,6 +29,21 @@ import type { Variant } from "./variants-data";
 // Core is the cheapest entry on the shelf: its images already sit under
 // /flash/bin with CORS headers, so its install button needs nothing new.
 
+// Why this firmware is not simply the default. Three different answers, and
+// somebody choosing needs to know which — picking up something unfinished is
+// not the same as picking up something deliberately still.
+const REASON_LABEL: Record<NonNullable<Variant["reason"]>, string> = {
+  "not-ready": "not ready for everyone",
+  "not-universal": "not right as a default",
+  frozen: "pinned and not moving",
+};
+
+const STATUS_LABEL: Record<Variant["status"], string> = {
+  available: "available",
+  building: "in progress",
+  proposed: "unclaimed",
+};
+
 type Props = { variant: Variant };
 
 type Manifest = {
@@ -114,11 +129,15 @@ export default function VariantCard({ variant: v }: Props) {
     <li id={v.id} className={styles.card}>
       <div className={styles.cardHead}>
         <h3 className={styles.name}>{v.name}</h3>
-        {v.status !== "available" && (
+        {v.status !== "available" ? (
           <span className={styles.status} data-s={v.status}>
-            {v.status === "building" ? "in progress" : "unclaimed"}
+            {STATUS_LABEL[v.status]}
           </span>
-        )}
+        ) : v.reason ? (
+          <span className={styles.status} data-s="reason">
+            {REASON_LABEL[v.reason]}
+          </span>
+        ) : null}
       </div>
 
       {/* On an unclaimed entry this must never read as a credit. Naming

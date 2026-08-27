@@ -28,6 +28,30 @@
 // version in /api/status, and it keeps Wi-Fi credentials where core keeps
 // them so switching does not mean re-provisioning.
 
+// Where a firmware comes from. The distinction is the whole point of the
+// page: one of these is published from this repository and the other is
+// somebody else's work on their own terms, and a reader deciding what to
+// flash needs to know which they are looking at.
+export type Tier =
+  // Built from this repository, published here. Its code is in the tree,
+  // where the compiler keeps it honest against every core change.
+  | 'official'
+  // Somebody else's firmware, their repository, their release schedule.
+  // Not a lesser thing — a different thing, and the difference is who to
+  // ask when it breaks.
+  | 'community';
+
+// Why a firmware exists that is not the default. Three different answers,
+// and a person choosing needs to know which: picking up something
+// unfinished is not the same as picking up something deliberately still.
+export type Reason =
+  // Experimental, or needs hardware the board does not have yet.
+  | 'not-ready'
+  // Correct for a situation, wrong as a default.
+  | 'not-universal'
+  // Pinned and not moving, so a show behaves the same at the next gig.
+  | 'frozen';
+
 export type VariantStatus =
   // Shipping: there is a binary you can flash today.
   | 'available'
@@ -43,6 +67,9 @@ export type Variant = {
   /** The string this firmware reports in /api/status. Also the anchor. */
   id: string;
   name: string;
+  tier: Tier;
+  /** Absent on the default, which needs no reason to exist. */
+  reason?: Reason;
   /**
    * As they wish to be credited. On a `proposed` entry this is who it has
    * been SUGGESTED to — they have not agreed, and the page must not imply
@@ -91,50 +118,49 @@ export type Variant = {
 export const VARIANTS: Variant[] = [
   {
     id: 'core',
-    name: 'Core',
-    maintainer: 'Patternflow',
-    maintainerHref: 'https://github.com/engmung/Patternflow',
-    status: 'available',
-    summary:
-      'What ships on the board. The one that has to keep working, and the ' +
-      'one you can always come back to.',
-    adds: [
-      'The panel, and the pattern loader',
-      'Wi-Fi, sleep, and the way out of any firmware',
-      'Home Assistant, over plain HTTP',
-    ],
-    manifest: '/flash/manifest.json',
-    source: 'https://github.com/engmung/Patternflow',
-    note:
-      'On the shelf because coming back is a switch too. If you are reading ' +
-      'this on a panel you have not changed, this is what it is running.',
-  },
-  {
-    id: 'audio',
-    name: 'Audio',
+    name: 'Patternflow',
+    tier: 'official',
     maintainer: 'SeungHun Lee',
     maintainerHref: 'https://github.com/engmung',
     status: 'available',
     summary:
-      'For pointing sound at a panel — a laptop running Ableton, a tab ' +
-      'playing something, or the room itself.',
+      'Everything the panel does. This is what ships on the board, and what ' +
+      'you can always come back to.',
     adds: [
-      'OSC (Max, TouchDesigner, Ableton)',
-      'Browser audio + Chrome extension',
-      'On-board microphone',
+      'Patterns, and the loader for community ones',
+      'Sequences, weather, MQTT',
+      'OSC and browser audio',
+      'Wi-Fi, sleep, and the way out of any firmware',
     ],
-    github: 'engmung/patternflow-audio',
-    releases: 'https://github.com/engmung/patternflow-audio/releases',
-    source: 'https://github.com/engmung/patternflow-audio',
-    hosted: {
-      version: 'v0.1.0',
-      url: 'https://community.patternflow.work/api/variant-bin/audio/firmware.bin',
-    },
+    manifest: '/flash/manifest.json',
+    source: 'https://github.com/engmung/Patternflow',
     note:
-      'The first variant, and the one the split was tested on rather than ' +
-      'argued about — OSC left the core to get here, and it was the ' +
-      'maintainer’s own favourite thing in the firmware. Take it if a ' +
-      'computer or a microphone drives your panel. If you pick a pattern and ' +
-      'leave it, core does that and this adds nothing you would notice.',
+      'Not a starting point you build on — the finished thing. Everything ' +
+      'else here exists because of something this cannot carry, not because ' +
+      'it is missing anything.',
+  },
+  {
+    id: 'audio',
+    name: 'Patternflow Audio',
+    tier: 'official',
+    reason: 'not-ready',
+    maintainer: 'SeungHun Lee',
+    maintainerHref: 'https://github.com/engmung',
+    status: 'available',
+    summary:
+      'Everything above, plus a microphone soldered to the board — so the ' +
+      'panel hears the room with no computer in it.',
+    adds: [
+      'On-board PDM microphone (four wires, not yet a part on the board)',
+      'Wi-Fi transmit power raised for rooms full of access points',
+    ],
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
+    note:
+      'Six of seven people asked for on-board sound and it was the most ' +
+      'wanted thing in the survey by a wide margin — but it needs four wires ' +
+      'soldered to the DevKit and the radio setting here is not the ' +
+      'conformance-tested one, so neither belongs in the firmware everybody ' +
+      'gets. When the microphone is a part on the board, this moves into the ' +
+      'default and this bundle stops existing.',
   },
 ];
