@@ -114,3 +114,6 @@ firmware/patternflow/lib/
 # A variant's addon list. The core never has one — it belongs to whoever
 # forked or built against this tree, and must never be committed here.
 firmware/patternflow/addons/addons_local.h
+
+# A variant's settings overrides. Core never has one.
+firmware/patternflow/addons/overrides.h
