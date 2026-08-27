@@ -49,14 +49,46 @@ st.textContent='html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--ink:#1
 (document.head||document.documentElement).appendChild(st);
 function mount(){
 if(document.getElementById('pfChrome'))return;
-var NAV=[['/','Console'],['/patterns','Patterns'],['/show','Sequences'],['/audio','Audio'],['/status','Status'],['/wifi','Wi-Fi'],['/mqtt','MQTT'],['/weather','Weather'],['/update','Update']];
+// path, label, and the capability the page needs (null = always there).
+// Features live in addons now, so a build may genuinely not have /show or
+// /mqtt — linking to them anyway hands people a 404 and makes the device
+// look broken. /api/status lists what is actually loaded.
+var NAV=[['/','Console',null],['/patterns','Patterns',null],
+['/show','Sequences','shows'],['/audio','Audio','audio'],
+['/status','Status',null],['/wifi','Wi-Fi',null],
+['/mqtt','MQTT','mqtt'],['/weather','Weather','weather'],
+['/update','Update',null]];
 var p=location.pathname.replace(/\/+$/,'')||'/';
 var h=document.createElement('header');h.className='pf-chrome';h.id='pfChrome';
 var m='<div class="pf-chrome-in"><a class="pf-brand" href="/"><span class="pf-dot"></span>Patternflow <span id="pfVer"></span></a><nav class="pf-cnav">';
-for(var i=0;i<NAV.length;i++)m+='<a href="'+NAV[i][0]+'"'+(p===NAV[i][0]?' class="here"':'')+'>'+NAV[i][1]+'</a>';
+function navLink(e){return '<a href="'+e[0]+'"'+(p===e[0]?' class="here"':'')+'>'+e[1]+'</a>'}
+// Draw the unconditional pages now; the rest join when caps arrive, so
+// the header never sits empty waiting on a request.
+for(var i=0;i<NAV.length;i++)if(!NAV[i][2])m+=navLink(NAV[i]);
 m+='</nav><label class="pf-theme"><input type="checkbox" id="pfTheme"> Light</label></div>';
 h.innerHTML=m;
 document.body.insertBefore(h,document.body.firstChild);
+// Fill in the capability-gated links. Failing quietly is deliberate: an
+// unreachable device should not also lose the pages that do work.
+fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+var caps=d.caps||[];var nav=h.querySelector('.pf-cnav');if(!nav)return;
+var html='';
+for(var i=0;i<NAV.length;i++){
+var e=NAV[i];
+if(e[2]&&caps.indexOf(e[2])<0)continue;
+html+=navLink(e);
+}
+nav.innerHTML=html;
+var v=document.getElementById('pfVer');
+if(v&&d.version)v.textContent='v'+d.version;
+// One status fetch, shared. A page that needs to know what this build
+// actually has — the home page hides rows for absent features — listens
+// for this rather than asking again. window.pfStatus covers a listener
+// that registered after the fetch already landed.
+window.pfStatus=d;
+document.dispatchEvent(new CustomEvent('pf-status',{detail:d}));
+}).catch(function(){});
+
 var c=document.getElementById('pfTheme');
 c.checked=document.documentElement.getAttribute('data-theme')==='light';
 c.onchange=function(){var on=c.checked;

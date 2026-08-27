@@ -139,6 +139,16 @@ inline void drawOverlay(const PFAddonFrame& frame) {
   }
 }
 
+// Feeds /api/status caps: hands the emitter every declared cap string.
+inline void emitCaps(String& json) {
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (!PF_ADDONS[i]->cap) continue;
+    json += ",\"";
+    json += PF_ADDONS[i]->cap;
+    json += '"';
+  }
+}
+
 // Feeds /api/status caps. Returns the addon's cap string or null.
 inline const char* capAt(size_t i) {
   return i < PF_ADDON_COUNT ? PF_ADDONS[i]->cap : nullptr;

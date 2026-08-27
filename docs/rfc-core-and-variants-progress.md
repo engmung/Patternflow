@@ -220,3 +220,68 @@ it is a thing two real features are already standing on.
 
 `dev` and `main` are untouched by step 4. The core there is still the full
 firmware, so waiting costs nothing.
+
+---
+
+## Step 4½ — the console became editable, and §2.7 got built
+
+Two things that were not on the numbered list but blocked work on it.
+
+### The console pages are HTML files now
+
+Nine console pages lived inside `R"HTML(...)HTML"` literals. That is the
+right way to ship them onto a device with no filesystem and the wrong way
+to work on them: no browser, no refresh, no devtools, and nothing you can
+hand to somebody who designs in HTML but does not build firmware.
+
+They now live in `firmware/patternflow/console/*.html`, with
+`firmware/toolchain/console_pages.py` splicing them back into the headers
+and `console_serve.py` serving every page against a fake device on
+`localhost:8322`. CI checks the two stay in sync, because the one way this
+arrangement fails silently is somebody editing a `.h` and having the next
+`build` overwrite it.
+
+The generator replaces **only** the bytes between the delimiters. A
+whole-file generator was written first and thrown away: it deleted the doc
+comment above each literal, which on `home_index.h` is the design intent
+and on `patterns_index.h` is Simone's attribution for the browser-side
+unzip. Worth remembering as a general shape — a generator that owns a whole
+file owns everything a human wrote in it.
+
+Within a minute of the pages being real files, two things surfaced that
+PROGMEM had hidden:
+
+| what | why it mattered |
+| --- | --- |
+| **the home page ignored `caps`** | the nav learned about capabilities in step 4; the page body never did. A bare core's console still advertised Sequences, MQTT, Audio and Weather — four dead links and a meaningless status row — which is exactly the failure the `caps` work existed to prevent, surviving in the one place nobody looked. |
+| eight pages carried orphaned CSS | the body of the old `.pfnav` rule, left when its selector was deleted. A parse error and 492 dead bytes on every page. |
+
+Rows now carry `data-cap`; `gate()` removes what is absent, drops any group
+left empty, and renumbers the rest. To pay for it without a second request,
+the shared chrome dispatches `pf-status` with the status it already fetches.
+
+### §2.7 exists
+
+`/variants` — the shelf, hand-curated, no listing process, nothing
+mirrored. Performance Director, IoT and Radio, the last two with owners
+still to confirm.
+
+The device now participates: its console footer says whether it is running
+core or a named variant and links to that entry, and **the update banner no
+longer arms on a variant**. That last one is the substantive part. The
+manifest at patternflow.work describes core releases; offering one to a
+panel running somebody else's firmware would talk a person into flashing
+away the thing they chose, on a version comparison that means nothing
+across two release lines.
+
+This is the first piece of the RFC that ships something a *user* touches
+rather than something a maintainer does, and it is deliberately the piece
+that makes leaving safe. The shelf is only worth having if the way back is
+real.
+
+### Still open
+
+Steps 5 and 6 are unchanged: they wait on agreement, and on the variants
+actually existing. Nothing here brings that forward — but a person who
+takes a variant now lands somewhere that explains itself, which was not
+true a week ago.

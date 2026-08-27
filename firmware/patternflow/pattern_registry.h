@@ -37,10 +37,6 @@
 // Shipping one preset and letting people choose the rest is what makes the
 // console reliable, and it is why the pack/deck flow exists.
 #include "presets/preset_origin.h"
-// Black is the night/alarm face for the show scheduler (core_show_schedule.h)
-// — a cleared framebuffer the schedule may overlay a clock onto. Costs a few
-// bytes of DRAM and doubles as "panel dark, still powered" in the carousel.
-#include "presets/preset_black.h"
 // NOT in presetPatterns[] below on purpose: the calibration test card is an
 // overlay the tuner summons via /api/display, never a knob-browsable pattern.
 // See the header's own comment for the full story.
@@ -56,6 +52,11 @@ struct PatternEntry {
   // The four members above are meaningless for a module: its code is not in
   // firmware.bin, so the loader dispatches instead.
   const char* modulePath;
+  // Reachable by name, skipped by the knob. For patterns that are a
+  // *state* something else switches to rather than something a person
+  // browses to: the show scheduler's night face is the panel going dark,
+  // not an entry in a carousel of things to look at.
+  bool hidden;
   // Pattern maps the MQTT absolute 0..1000 bus via PFParams (Director /
   // Show manager). Presets declare it as ns::ABSOLUTE_READY; modules carry
   // it in their sidecar .json.
@@ -63,7 +64,15 @@ struct PatternEntry {
 };
 
 #define PATTERN_ENTRY(ns) \
-  { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr, ns::ABSOLUTE_READY }
+  { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr, false, ns::ABSOLUTE_READY }
+
+// Same, but skipped when browsing with the knob (see PatternEntry::hidden).
+#define PATTERN_ENTRY_HIDDEN(ns) \
+  { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr, true, ns::ABSOLUTE_READY }
+
+// Presets an addon brings with it (PF_ADDON_PRESETS). Included after the
+// macro above, because the list expands to PATTERN_ENTRY calls.
+#include "addons/addon_presets.h"
 
 // To add a pattern:
 // - Module (the usual way now): build a .pfm and upload it — no rebuild.
@@ -76,11 +85,15 @@ struct PatternEntry {
 
 // ── PRESETS ──
 // Pattern 1 is Origin, the failsafe: a board with an empty or unmountable
-// FATFS still lights up. Black is the scheduler's night face. Everything
-// else ships as modules — see the note by the includes above.
+// FATFS still lights up. Everything else ships as modules — see the note by
+// the includes above.
+//
+// Addons may contribute presets of their own; the show addon brings Black,
+// its night face. A build with no addons has this list at Origin alone,
+// which is the point: the core ships the failsafe and nothing else.
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
-  PATTERN_ENTRY(Black),
+  PF_ADDON_PRESETS
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 
@@ -420,6 +433,7 @@ inline void buildPatternList() {
   for (int i = 0; i < numModules; i++) {
     patterns[NUM_PATTERNS++] = {
       moduleNames[i], MODULE_KNOB_LABELS, nullptr, nullptr, nullptr, modulePaths[i],
+      false,  // hidden - an installed pattern is always browsable
       readSidecarAbsoluteReady(modulePaths[i]),
     };
   }

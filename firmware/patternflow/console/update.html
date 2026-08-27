@@ -1,29 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - Browser self-update page (PROGMEM HTML bundle)
-//
-// Served at http://patternflow.local/update by core_web_update.h.
-// Drop a firmware .bin (the app image the web build service emits, or an
-// arduino-cli export) and the device flashes itself via Update.h.
-//
-// The page polls /update/status: stock builds are always ready
-// (PF_WEBUPDATE_ALWAYS_ARMED 1); builds that opted into physical arming
-// show a LOCKED tag plus the how-to-arm note until the UPDATE screen is
-// opened on the device. Upload progress is the XHR's own send progress —
-// the device flashes as it receives, so the bar tracks the actual write
-// within a buffer's worth.
-//
-// Styled to the patternflow.work design system (web/docs/
-// patternflow-styleguide.html): cream + ink + LED accent, thin rules,
-// mono kickers/tags, dashed placeholder-style drop zone.
-//
-// License: MIT
-// ═══════════════════════════════════════════════════════════
-// The page body below is generated from console/update.html — edit that,
-// then run: python firmware/toolchain/console_pages.py build
-#pragma once
-#include <pgmspace.h>
-
-const char WEB_UPDATE_HTML[] PROGMEM = R"HTML(<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -236,4 +211,3 @@ document.getElementById('handoffGo').addEventListener('click',function(){
 });
 </script>
 </body></html>
-)HTML";

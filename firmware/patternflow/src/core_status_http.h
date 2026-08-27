@@ -59,6 +59,12 @@ inline WebServer& server() { return PatternflowHttp::server(); }
 // never reaches into what attaches to it.
 inline void (*extraStatus)(String&) = nullptr;
 
+// Extra capability strings, same arrangement: the sketch points this at
+// the addon dispatcher, and each addon that declares a `cap` adds it.
+// Appends `,"name"` per cap — the core always emits at least two, so a
+// leading comma is always correct here.
+inline void (*extraCaps)(String&) = nullptr;
+
 inline bool initialized = false;
 
 inline void appendKb(String& json, const char* key, uint32_t bytes) {
@@ -95,18 +101,12 @@ inline void handleStatus() {
 #if PF_SLEEP_ENABLED
     cap("sleep");
 #endif
-#if PF_SHOW_HTTP_ENABLED
-    cap("shows");
-#endif
-#if PF_MQTT_ENABLED
-    cap("mqtt");
-#endif
-#if PF_AUDIO_ENABLED
-    cap("audio");
-#endif
-#if PF_WEATHER_ENABLED
-    cap("weather");
-#endif
+    // Everything else is an addon saying what it is. Built from the
+    // addons actually loaded, not from compile flags: a build with the
+    // show code present but no show addon registered does not play
+    // shows, and a client probing caps must not be told otherwise.
+    (void)cap;  // the core's own entries above use it
+    if (extraCaps) extraCaps(json);
   }
   json += "],";
   json += "\"uptime\":";
@@ -166,6 +166,27 @@ inline void handleStatus() {
   // The other reason the panel can be dark while everything here reads fine:
   // this very page is what paused it. The console has always had a branch for
   // this state — it just never received the field to trigger it.
+  // Knob positions and the absolute-parameter bus. These lived only in
+  // GET /api/mqtt, which is an addon — so a build without MQTT could be
+  // written to but not read, and an HTTP-only integration (Home
+  // Assistant) would have lost knob state the day MQTT left. They belong
+  // in core, next to everything else a client polls for.
+  json += "\"knobs\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::knobAt(i);
+  }
+  json += "],\"params\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::heldValue(i);
+  }
+  json += "],\"paramActive\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::isHeld(i) ? "true" : "false";
+  }
+  json += "],";
   json += "\"consolePaused\":";
   json += PatternflowPatternsHttp::isConsolePaused() ? "true" : "false";
   json += ',';

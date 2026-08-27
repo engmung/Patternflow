@@ -1,0 +1,247 @@
+/* Variants — the shelf of firmwares built on the core.
+
+   Set as a document, not a store: the same one-column prose shape as
+   /compliance and /terms. Someone reading this is deciding whether to flash a
+   stranger's binary onto hardware they paid for, and the honest paragraph
+   under each entry is the part that matters. A card grid would push that
+   paragraph out of the way in favour of the feature list, which is exactly
+   the wrong emphasis. */
+
+.page {
+  min-height: 100vh;
+  padding: 48px 24px 96px;
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.doc {
+  max-width: 68ch;
+  margin: 0 auto;
+  overflow-wrap: break-word;
+}
+
+.head {
+  padding-bottom: 28px;
+  margin-bottom: 36px;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.brand {
+  display: inline-block;
+  margin-bottom: 24px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+  text-decoration: none;
+}
+.brand:hover { color: var(--pf-led); }
+
+.title {
+  margin: 0 0 14px;
+  font-size: var(--pf-fs-h2);
+  font-weight: 500;
+  letter-spacing: var(--pf-track-tight);
+  line-height: 1.15;
+}
+
+.lede {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--pf-fs-sub);
+  line-height: 1.6;
+  color: var(--pf-ink-muted);
+}
+
+/* ── the core entry, set apart ─────────────────────────────────────────── */
+
+.core {
+  margin-bottom: 48px;
+  padding: 22px 24px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.coreTag {
+  display: block;
+  margin-bottom: 10px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-led);
+}
+
+.coreBody {
+  margin: 0;
+  font-size: var(--pf-fs-body);
+  line-height: 1.65;
+}
+
+.coreAlso {
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+
+/* ── one variant ───────────────────────────────────────────────────────── */
+
+.sectionHead {
+  margin: 0 0 8px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+.shelfNote {
+  margin: 0 0 22px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+.shelfNote em { color: var(--pf-ink); font-style: normal; font-weight: 600; }
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.item {
+  padding: 30px 0;
+  border-bottom: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.itemTop {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 4px;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
+  letter-spacing: var(--pf-track-tight);
+}
+
+.status {
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: var(--pf-rule-w) solid var(--pf-ink-faint);
+  color: var(--pf-ink-muted);
+  white-space: nowrap;
+}
+.status[data-s='available'] {
+  border-color: var(--pf-led);
+  color: var(--pf-led);
+}
+
+.by {
+  margin: 0 0 14px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  color: var(--pf-ink-faint);
+}
+.by a { color: var(--pf-ink-muted); }
+
+.summary {
+  margin: 0 0 16px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-body);
+  line-height: 1.65;
+}
+
+.adds {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.adds li {
+  font-family: var(--pf-mono);
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+  color: var(--pf-ink-muted);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.note {
+  margin: 0 0 16px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+}
+.links a { color: var(--pf-ink); }
+.links a:hover { color: var(--pf-led); }
+.idTag { color: var(--pf-ink-faint); }
+
+/* ── how switching works ───────────────────────────────────────────────── */
+
+.how {
+  margin-top: 56px;
+  padding-top: 32px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.how h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: var(--pf-track-tight);
+}
+
+.how h3 {
+  margin: 26px 0 8px;
+  font-size: var(--pf-fs-body);
+  font-weight: 600;
+}
+
+.how p {
+  margin: 0 0 12px;
+  max-width: 58ch;
+  font-size: var(--pf-fs-body);
+  line-height: 1.7;
+  color: var(--pf-ink-muted);
+}
+
+.how strong { color: var(--pf-ink); font-weight: 600; }
+
+.how code {
+  font-family: var(--pf-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 640px) {
+  .page { padding: 32px 18px 72px; }
+  .title { font-size: 26px; }
+}

@@ -268,6 +268,7 @@ void setup() {
   // what fills it. Wiring the two is the sketch's job, because it is the
   // only file that is allowed to know about both.
   PatternflowStatusHttp::extraStatus = PFAddons::appendStatus;
+  PatternflowStatusHttp::extraCaps = PFAddons::emitCaps;
   PFAddons::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
@@ -1429,6 +1430,15 @@ void loop() {
       // than -NUM_PATTERNS in one frame, and C++'s % keeps the sign — a plain
       // "+= NUM_PATTERNS once" would leave a negative index into patterns[].
       currentPatternIdx = ((currentPatternIdx % NUM_PATTERNS) + NUM_PATTERNS) % NUM_PATTERNS;
+      // Step over hidden entries in whichever direction the knob is going.
+      // Bounded by NUM_PATTERNS so an all-hidden list cannot spin forever.
+      {
+        int step = input.knobDeltas[3] > 0 ? 1 : -1;
+        for (int guard = 0; guard < NUM_PATTERNS && patterns[currentPatternIdx].hidden; guard++) {
+          currentPatternIdx =
+              ((currentPatternIdx + step) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
+        }
+      }
       // Presets are already resident so this returns immediately; landing on a
       // module costs a read + relocate + setup(). Measure that before deciding
       // whether browsing needs to defer the load until the knob settles.

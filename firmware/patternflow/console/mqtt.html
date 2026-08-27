@@ -1,14 +1,4 @@
-// ═══════════════════════════════════════════════════════════
-// PatternFlow - /mqtt channel + role page (served by core_mqtt_http.h)
-// License: MIT
-// ═══════════════════════════════════════════════════════════
-// The page body below is generated from console/mqtt.html — edit that,
-// then run: python firmware/toolchain/console_pages.py build
-#pragma once
-
-#include <Arduino.h>
-
-static const char MQTT_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
+<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8">
 <script src="/pf-console.js"></script>
@@ -411,4 +401,4 @@ setInterval(load,2000);
 if($('f-dirhost')) $('f-dirhost').oninput=function(){dirHostDirty=true};
 if($('f-flhost')) $('f-flhost').oninput=function(){flHostDirty=true};
 </script>
-</body></html>)HTML";
+</body></html>
