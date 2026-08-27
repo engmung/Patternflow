@@ -173,10 +173,16 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 static RAM, against 1,412,457 and 92,920 with all five loaded. The sketch is
 byte-identical either way.
 
-That gap buys the person holding the panel nothing, which is why nothing was
-ever removed from the core: the ceiling on a loadable `.pfm` is 73,716 bytes
-**in both builds**, and flash sits at 45 % of the partition either way. A
-named firmware exists to carry what the default cannot, not to be smaller.
+That gap buys the person holding the panel almost nothing, which is why
+nothing was ever removed from the core. Flash sits at 45 % of the partition
+even with all five loaded. The ceiling on a loadable `.pfm` — the largest
+contiguous block — is 73,716 B with everything and **the same 73,716 B in the
+`audio` bundle**, three addons out. Only the bare `PF_ADDONS_NONE` build moves
+it, to 86,004 B, and that is a compile flag rather than a firmware anybody
+would ship. 12 KB more room, in a build with no shows, no MQTT, no weather, no
+OSC and no sound, on top of a ceiling already three times the largest module
+anyone has written. A named firmware exists to carry what the default cannot,
+not to be smaller — see RFC §2.13 for the whole measurement.
 See [`../../bundles/README.md`](../../bundles/README.md).
 
 ## What the ports taught

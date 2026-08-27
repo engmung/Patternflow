@@ -1,8 +1,13 @@
-# RFC: a small core, and variants around it
+# RFC: the core, and the firmwares built from it
 
-*Restructuring the firmware. Written 2026-08-26; the work starts this
-weekend and lands by September 3rd. Discussion happens on the issue that
-announces this file — the open questions at the end are real ones.*
+*Restructuring the firmware. Written 2026-08-26.*
+
+> **Status, 27 August 2026.** The seam shipped in 3.7.0: every feature is an
+> addon, a named firmware is two files, and nothing edits a core file to
+> exist. **Splitting the core did not happen and will not** — §2.13 has the
+> measurement and the argument that settled it. Part 2 below describes what
+> is actually in the tree; the history of how it got here is in
+> [the progress log](rfc-core-and-variants-progress.md) and in git.
 
 This document is two things on purpose. **Part 1 is the maintainer, in
 his own words** — the decision and why. **Part 2 is the specification** —
@@ -12,6 +17,11 @@ this file) can implement against it without asking what was meant.
 ---
 
 # Part 1 — Why
+
+> Written 26 August 2026, before any of it was built, and left as written.
+> The one thing in it that did not survive contact is the ask that everyone
+> keep their firmware in their own repository — see §2.13. The rest still
+> stands, and it is why any of the work happened.
 
 I'm thinking of tearing down the whole structure of the firmware. There
 have been moments like this before, but back then the refactoring was for
@@ -80,9 +90,15 @@ and live control is what the instrument is for — which is why OSC is core
 and MQTT is not, without either being a special case.
 
 Two clauses complete the principle: anything **safety- or
-recovery-adjacent** is core (power clamp, sleep, `/update`); anything
-that exists to be **disagreed about** — schedulers, bridges, radio
-trade-offs — is a variant, because disagreement is what variants are for.
+recovery-adjacent** is core and unconditional (power clamp, sleep,
+`/update`); anything that exists to be **disagreed about** — schedulers,
+bridges, radio trade-offs — is where a named build gets to differ.
+
+**What this principle decides, now that nothing leaves.** It is not a rule
+about which repository code lives in — all of it lives here. It is the rule
+for what a firmware may *turn off* and still be Patternflow. Adapters and
+disagreeable things may be dropped by a build; the contract in §2.2 may
+not.
 
 ## 2.2 The core contract
 
@@ -98,42 +114,36 @@ The core is defined by what it **guarantees**, not by what it includes:
 | **OSC** | Live control floor; no infrastructure needed. |
 | **Sleep** | Small, safety-adjacent (power/heat); the console needs it. |
 | **Minimal HTTP surface**: `/`, `/patterns`, `/status`, `/wifi`, `/update` + their `/api/*` | What the site, docs and the HA integration's read path assume exists everywhere. |
-| **`POST /api/params`** *(new)* | The capability MQTT was the only carrier of: write the four absolute channels over plain HTTP, one shot per request, same release-on-touch semantics as the bus. This is what lets MQTT leave without any capability leaving with it — HA's knob write moves to it. (The old `/api/knob` was removed as *unused*, not unsafe; the rule against polling this one-connection server stands.) |
+| **`POST /api/params`** *(new)* | The capability MQTT was the only carrier of: write the four absolute channels over plain HTTP, one shot per request, same release-on-touch semantics as the bus. It was added so MQTT *could* leave without any capability leaving with it. MQTT is staying (§2.13) and this earned its place anyway: HA's knob write moved to it, and it is the one way to drive the bus that needs no broker and no UDP. (The old `/api/knob` was removed as *unused*, not unsafe; the rule against polling this one-connection server stands.) |
 | **`/api/status` reports `variant` + `caps`** *(new)* | `variant`: one human-readable string (`"core"`, or whatever a variant calls itself). `caps`: machine-probed feature list (`["shows","mqtt"]`) for the site/lab. Also how the update banner knows not to offer a core bin on top of a variant. |
 
 This table is the whole of "maintaining the frame". It is small, changes
 slowly, and none of it is where creative disagreements live.
 
-## 2.3 What was going to leave
+## 2.3 Which feature is which files
 
-> **Superseded by §2.13.** Nothing in this table left, and nothing is
-> going to. It is kept because the reasoning is still worth reading and
-> because deleting the wrong half of an argument makes the right half
-> unreadable — but where this section and §2.13 disagree, §2.13 is what
-> happened.
+Every one of these is an addon, and every one is in the firmware that ships
+on the board. This is the map — what each feature is made of, and therefore
+what a named build would be leaving out if it dropped one. Nothing here
+leaves the tree; §2.13 has the measurement that settled that.
 
-The idea was that each feature would be handed to whoever cared about it
-most, with its replacement in place the day it moved. What that missed is
-in §2.13: the move buys the person holding the panel nothing measurable,
-and a separate repository is where trees drift apart rather than where
-they stop drifting.
-
-| was to leave | proposed home | notes |
+| feature | addon | notes |
 | --- | --- | --- |
-| **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | a variant — unclaimed | v3.6.3 integrated this whole stack, so v3.6.3 is the natural fork point: a variant starting there starts *finished* rather than empty. Whose variant that is has not been settled, and this table is not the place to decide it. |
-| **MQTT** (all modes, `/mqtt`) | a variant — unclaimed | Fails the infrastructure test (needs a broker); ~1,500 lines of state machine serving the minority who run one. **Corrected from an earlier draft**, which split this across two variants. FlowLocal is Simone Majocchi's work and the Director lives inside FlowLocal, so the MQTT code travels as one piece rather than being parcelled out by mode. That is a fact about the code, not a decision about who maintains it. Every capability MQTT held stays reachable in core over HTTP, including the knob write via `/api/params`. |
-| **Weather** (`core_weather*`, `/weather`) | a variant — unclaimed | |
-| **Audio-react websocket** (`core_audio_ws`, `/audio`) | its own variant (or retired) | OSC stays core; this is only the browser-mic path. |
-| **Home Assistant / IoT** | the HA integration moves to its own repo (bendobos, agreed in the thread); the broker-side variant is unclaimed | The integration's *read* path is plain core HTTP and works everywhere; its knob-*write* path moves from MQTT to `/api/params`, so **HA works fully against the bare core**. The MQTT half (publisher role, bridges) follows MQTT into the IoT variant. |
+| **Show player** (`core_show*`, `core_show_schedule`, `/show`, night/wake) | `show/` | The largest of them, integrated whole in v3.6.3. Also owns the `Black` preset, which left the pattern carousel with it. |
+| **MQTT** (all modes, `/mqtt`) | `mqtt/` | The one that fails the infrastructure test — it needs a broker — and the reason the split looked attractive: ~1,500 lines of state machine serving the minority who run one. FlowLocal is Simone Majocchi's work and the Director lives inside FlowLocal, so this travels as one piece rather than being parcelled out by mode. Every capability it holds is also reachable over plain HTTP, including the knob write via `/api/params`. |
+| **Weather** (`core_weather*`, `/weather`) | `weather/` | |
+| **Audio-react websocket** (`core_audio_ws`, `/audio`) | `audio/` | The browser-microphone path, and the one addon with a server of its own. |
+| **On-board audio** (512-pt FFT) | `audio_in/` | Needs a microphone soldered to the DevKit, which is why it is the reason the `audio` build exists at all. |
+| **OSC** (`core_osc`, both directions) | `osc/` | Direct UDP, no infrastructure — it passes the test MQTT fails. The fifth port, and the first that did not fit the hook set: `observeFrame` had to be widened for it. |
+| **Home Assistant** | *not an addon* | A Python component for a different product; it never compiled into the board's image. Its read path is plain core HTTP and its knob write moved from MQTT to `/api/params`, so it works against any firmware here. It moves to bendobos' own repository when he has one — §2.12 q2. |
 
-**PFST / `.pfs` splits down the middle, deliberately:** the *format* and
-its authoring stay with the project — [the spec](pfst-v2-spec.md), the
-test vectors, and Pattern Lab's Director are web-side and cost the
-firmware nothing. *Playback* leaves with the show player. The lab's
-"upload to my device" affordances probe the device (`/api/shows`
-answering = the capability check) and appear only when the firmware in
-front of them can play — the lab works identically against core and
-variants.
+**PFST / `.pfs` is split between the tree and the web, deliberately:** the
+*format* and its authoring are web-side and cost the firmware nothing — [the
+spec](pfst-v2-spec.md), the test vectors, and Pattern Lab's Director.
+*Playback* is the `show/` addon. The lab's "upload to my device" affordances
+probe the device (`/api/shows` answering = the capability check) and appear
+only when the firmware in front of them can play, so the lab works
+identically against any build. The format itself is frozen — §2.14.
 
 ## 2.4 The seam: how a variant stays current
 
@@ -209,28 +219,42 @@ contract code inside a leaving file, with the show player calling
 the same kind of step-one as moving the web server out of audio. A large
 refactor, not a rewrite.
 
-## 2.5 What stays in 4.0, concretely
+## 2.5 What every firmware has, concretely
+
+Below the addons there is a floor that no build drops. This is it — and by
+subtraction it is also the list of what a named build is turning off when it
+leaves an addon out.
 
 - **Console pages:** `/` (home), `/patterns`, `/status`, `/wifi`,
-  `/update` — five, plus `/pf-console.js`. `/audio`, `/show`, `/weather`,
-  `/mqtt` leave with their features.
+  `/update` — five, plus `/pf-console.js`. `/audio`, `/show`, `/weather`
+  and `/mqtt` belong to their addons and are absent from a build that
+  omits them; the nav is driven by `caps`, so nothing dangles.
 - **API:** `status`, `patterns` (+ select/file/format/pending), `wifi`
   (+ boot/reboot), `update` (+ status), `sleep`, `params` *(new)*.
-- **src/ that leaves:** `core_show*`, `core_show_schedule`, `core_mqtt*`,
-  `core_weather*`, `core_library_http`, `core_audio_ws` (its `httpServer`
-  ownership moves to a neutral `core_http` first), and the page bundles
-  `show_index` / `weather_index` / `mqtt_index` / `audio_index`.
-- **Stays** (beyond the contract table): the fonts (console UI assets),
+- **Feature-owned, and therefore droppable:** `core_show*`,
+  `core_show_schedule`, `core_mqtt*`, `core_weather*`, `core_library_http`,
+  `core_audio_ws`, and the page bundles `show_index` / `weather_index` /
+  `mqtt_index` / `audio_index`. All of them live under `addons/` now, which
+  is what makes dropping one a two-file decision instead of a fork.
+- **Always present** (beyond the contract table): the fonts (console UI assets),
   `core_pack_select`, power clamp, sleep, OSC, Improv, the module loader
   and the whole `abi/`.
 
 ## 2.6 What a variant is
 
-A **fork of the core that ships its own releases.** Not a submodule here,
-not a branch here, not a PR queue — those re-create the integration
-burden this RFC ends. The author owns their repo, issues, cadence, bin.
+There are two kinds, and the rules below apply to both.
 
-Rules a listed variant agrees to (few, and all user-safety):
+**Official** — a firmware built from *this* repository.
+`firmware/bundles/<name>/` is two files saying which addons compile in and
+what the build calls itself. No fork, no vendored code, no release cadence
+of its own: a core change has to compile against it before it lands, which
+is the point. This is what the `audio` firmware is.
+
+**Community** — somebody else's repository, releases, issues and bin. A
+fork, and that is fine: the right shape when the work is genuinely theirs
+and its lapsing should cost this project nothing.
+
+Rules a listed firmware agrees to, either kind (few, and all user-safety):
 
 1. **Never change the partition table.** `/update` in, `/update` (or the
    flasher) out — always.
@@ -252,13 +276,23 @@ Rules a listed variant agrees to (few, and all user-safety):
 
 ## 2.7 How people find and switch
 
-- **A Variants page** — deliberately humble MVP: a hand-curated list
-  (curated by the maintainer, no formal listing process yet) on the site,
-  linked from the console home page. Name, maintainer, one-line
-  difference, link to *their* releases, the honest paragraph. The core
-  does not mirror or re-host variant bins.
-- **Switch:** download their bin, drop it on `/update`. Settings survive
-  (rule 5).
+Built, and live at
+[patternflow.work/variants](https://patternflow.work/variants).
+
+- **The page** — a hand-curated list (curated by the maintainer, no
+  formal listing process yet) on the site, linked from the console home
+  page. Name, maintainer, one-line difference, the honest paragraph.
+- **Hosting.** Official firmwares are built here and their images sit under
+  `/flash/bin/<name>-<version>/` like any other release. A community bin can
+  be hosted too, through `/api/variant-bin`. This is not generosity: the
+  board cannot fetch over TLS, so one-click install works by handing the
+  *browser* a `?src=` URL, and that fetch is cross-origin. GitHub release
+  assets send no CORS header at all. Hosting is the only place one-click can
+  happen, which makes "we host it" and "somebody vouched for it" the same
+  boundary — deliberately.
+- **Switch:** one click from the card, which opens the panel's own `/update`
+  with the image URL. Anything not hosted here is downloaded by hand and
+  dropped on `/update`. Settings survive either way (rule 5).
 - **Return:** the browser flasher at patternflow.work/flash, or the core
   bin on `/update`.
 - **The update banner** checks `variant`: on a variant it offers the
@@ -308,10 +342,15 @@ somebody as the future maintainer of a fork, in public, before asking,
 makes the decision look already taken and leaves them to accept it or
 object in front of an audience.
 
-Somebody else's firmware is welcome and has its own tier on the page. The
-Home Assistant integration is the shape that belongs there: a bridge to a
-different product, whose lapsing would cost HA users a convenience and cost
-Patternflow nothing.
+Somebody else's firmware is welcome and has its own tier on the page. That
+tier is **empty**, and the page says so with a slot rather than hiding the
+section — a shelf with a gap reads as somewhere things arrive; a shelf with
+one thing on it reads as finished.
+
+What would go in it: a build for a panel this project does not sell, a
+performer's own pattern set baked in, an installation pinned to a firmware
+that must never move again. What would *not* is "the default, minus a few
+things" — §2.13 has the numbers on why that buys nobody anything.
 
 ## 2.10 Known tricky parts
 
@@ -331,21 +370,19 @@ Patternflow nothing.
   drag on a one-connection server. One-shot by contract; clients
   debounce; stated in rest-api.md the day it ships.
 - **The lab's device-upload buttons** switch to capability probing.
-- ~~**Versioning:** the slim core is a breaking change → **core
-  v4.0.0**.~~ **Superseded by §2.13.** There is no slim core, so nothing
-  breaks: the seam shipped as **3.7.0**, a feature release, and every
-  firmware from 3.6.3 onward contains everything it always did. A firmware
-  built from this tree states which core it was built against; one built
-  elsewhere versions itself and says the same.
+- **Versioning:** nothing breaks, so there is no 4.0. The seam shipped as
+  **3.7.0**, a feature release, and every firmware from 3.6.3 onward
+  contains everything it always did. A named build from this tree states
+  which core it was built against; one built elsewhere versions itself and
+  reports the same through `/api/status`.
 
 ## 2.11 Migration order
 
 *Progress against this order is tracked in
 [rfc-core-and-variants-progress.md](rfc-core-and-variants-progress.md).*
 
-Steps 1–3 are safe to land before anything is agreed — they are neutral
-refactors and additive endpoints that improve the tree either way. Steps
-4–6 are the split itself.
+Steps 1–4 landed, and shipped as 3.7.0. Steps 5 and 6 were the split
+itself, and they are cancelled — §2.13.
 
 1. Move the two pieces of contract code out of leaving files, no
    behaviour change: `httpServer` → neutral `core_http`; absolute bus →
@@ -358,31 +395,49 @@ refactors and additive endpoints that improve the tree either way. Steps
    hook list.
 4. Cut the hooks + `addons/` seam; **port the show player onto it as the
    first addon** — sufficiency proof and reference implementation.
-5. ~~Delete the extracted features from core → **4.0.0**.~~
-   **WITHDRAWN.** See §2.13. Nothing leaves the core. The seam stays and
-   is used to publish named firmwares from this tree instead.
-6. ~~Somebody forks v3.6.3 and publishes a variant.~~
-   **WITHDRAWN with step 5.** A firmware built from this repository is
-   not a fork and does not need one.
+5. ~~Delete the extracted features from core → 4.0.0.~~ **Cancelled**
+   (§2.13). Nothing leaves. The seam is used to publish *named builds*
+   from this tree instead — `firmware/bundles/`, two files each.
+6. ~~Somebody forks v3.6.3 and publishes a variant.~~ **Cancelled with
+   step 5.** A firmware built from this repository is not a fork and does
+   not need one. Somebody else's fork is still welcome; it is just not the
+   plan any more.
+
+What is left is not a migration. It is: keep the formats frozen (§2.14),
+and add a named build when — and only when — something turns up that the
+default genuinely cannot carry.
 
 ## 2.12 Open questions
 
-1. *(asked)* Simone — the show/MQTT/weather stack is yours; is running
-   it as a separate firmware something you would want at all? Anything
-   in §2.3 you would rather see stay in core?
-2. *(answered — yes)* bendobos — the HA integration moves to his own
-   repo, and he reports nothing missing from the hook table for it. The
-   HA knob write is core HTTP either way, so HA works against a bare
-   core with no variant at all.
+1. *(answered — no, and he was right)* Simone — running the
+   show/MQTT/weather stack as a separate firmware. He argued in
+   [#349](https://github.com/engmung/Patternflow/issues/349) that it
+   redefines a product already sold, at a reliability tier the funded
+   page never disclosed. Measuring it agreed with him from the other
+   direction: the move buys nothing. See §2.13.
+2. *(answered — yes; not yet done)* bendobos — the HA integration moves
+   to his own repo, and he reports nothing missing from the hook table for
+   it. The HA knob write is core HTTP either way, so HA works against a
+   bare core with no variant at all. **It stays in this tree until he has a repo
+   and tells us** — that was the agreed order, so nothing is removed here
+   ahead of somewhere for HA users to go. Unaffected by the withdrawal in
+   §2.13, which is about firmware features; see the note there on the HACS
+   URL having to survive the move.
 3. Anything the hook table (§2.4) misses for what you'd want to build?
    It was derived from the features already integrated — but you know
    your own roadmaps, and hooks are easiest to add *before* they are a
    published contract.
-4. How should people find and switch between variants? §2.7 proposes a
-   curated list on the site plus a link from the console, but this is the
-   part the maintainer is least settled on — a repo document, deeper
-   console integration, something else entirely. Accessibility is the
-   goal; suggestions welcome.
+4. *(answered — built)* How should people find and switch between
+   firmwares? [patternflow.work/variants](https://patternflow.work/variants):
+   official builds from this tree and community ones from elsewhere, each
+   card saying why it is not simply the default, with one-click install
+   for images served from here. The original text follows.
+
+   > How should people find and switch between variants? §2.7 proposes a
+   > curated list on the site plus a link from the console, but this is the
+   > part the maintainer is least settled on — a repo document, deeper
+   > console integration, something else entirely. Accessibility is the
+   > goal; suggestions welcome.
 
 *(Already settled, so nobody spends a comment on them: sleep stays core —
 power/heat-adjacent, and the console needs it. Timing is not gated on the
@@ -401,21 +456,39 @@ for a reason worth writing down rather than quietly deleting.
 
 ### The measurement that killed it
 
-A firmware with three addons removed was built and run beside the full one:
+A firmware with three of the five addons removed was built and run beside
+the full one, both on the same panel, 27 August 2026:
 
 | | flash | free internal | **largest free block** |
 |---|---|---|---|
-| everything | 1,412,457 | 92,920 | **73,716** |
-| sound only | 1,133,925 | 93,580 | **73,716** |
+| everything — what ships | 1,412,457 | 92,920 | **73,716** |
+| the `audio` bundle | 1,133,925 | 93,580 | **73,716** |
 
 The largest free block is the ceiling on how big a loadable `.pfm` can be,
-and it is **identical**. Real modules are 3–22 KB against a 73 KB ceiling.
-Flash sits at 45 % of the partition. So removing features from the shipped
-firmware buys the person holding the panel *nothing*: not a bigger pattern,
-not a faster frame, not a feature they could not otherwise have.
+and between those two it is **identical**.
 
-The whole case for step 5 was that a smaller core would leave room. It does
-not, because there was never a shortage.
+**The row that argues against this section**, because leaving it out would
+be picking the comparison that agrees: strip *all five* addons
+(`PF_ADDONS_NONE`) and the ceiling does move — 86,004 B, **+12.3 KB**. That
+was measured earlier in this work, on the step-3 tree, and is recorded in
+[the progress log](rfc-core-and-variants-progress.md). It has not been
+re-measured against today's tree.
+
+So the honest statement is not "removing features changes nothing." It is:
+
+- A firmware somebody would actually ship — the bundle that exists, three
+  features out — lands on **exactly the same ceiling**.
+- The 12.3 KB shows up only in a build with no show player, no MQTT, no
+  weather, no OSC and no sound. That is a compile flag, not a product.
+- And 12.3 KB is headroom on top of headroom. The largest `.pfm` anybody
+  has built is 22 KB against a ceiling already three times that, and flash
+  sits at 45 % of its partition **in the build that has everything**.
+
+The case for step 5 was that a smaller core would leave room. It leaves
+room nobody is reaching for, and only in a configuration nobody would run.
+An earlier draft of this section quoted the two-row table alone and called
+the ceiling identical full stop — true of the comparison it made, and
+misleading about the question it was answering.
 
 ### What it would have cost
 
@@ -461,9 +534,20 @@ build somebody needs pinned so a show behaves the same at the next gig.
 "Everything minus a few things" is not a reason and the numbers above are why.
 
 **Somebody else's firmware is still welcome** — that is what the community
-tier on the shelf is for, and the Home Assistant integration is the right
-shape for it: a bridge to a different product, whose lapsing would cost HA
-users a convenience and cost Patternflow nothing.
+tier on the shelf is for. Nobody has published one yet.
+
+**"Nothing leaves" is about the firmware.** One agreed move is not covered by
+it and should not be read as reversed: bendobos taking the Home Assistant
+integration to his own repository (§2.12 q2). That is not a variant and not a
+fork — it is a Python component for a different product, it never compiled
+into the board's image, and its read path is plain core HTTP that works
+against any firmware here. It stays here **until he has a repo and says so**, which is the
+agreed order and not an oversight: it lives in `integrations/homeassistant/`,
+`hacs.json` sits at this repository's root, and every release attaches its
+zip, so HA users keep working the whole time. It comes out of this tree on
+his word, not on a date. The one thing that has to be handled when it does:
+the HACS custom-repository URL people already pasted points here, so it has
+to keep resolving or existing installs break.
 
 ### The rule that was missing
 
