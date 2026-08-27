@@ -129,6 +129,14 @@ inline void handleStatus() {
   json += "\",\"rssi\":";
   json += up ? WiFi.RSSI() : 0;
   json += ",\"host\":\"" PF_OTA_HOSTNAME "\",";
+  // Actual transmit power, in dBm. Core sets 13 as a conformance fix and a
+  // variant may override it, so the number a panel is really running at
+  // stopped being knowable from the firmware version alone — and the panel
+  // is the only thing that can answer honestly. The radio reports quarter
+  // dBm; a join must have happened or this reads garbage, hence the guard.
+  json += "\"txDbm\":";
+  json += up ? String((float)WiFi.getTxPower() / 4.0f, 1) : String("null");
+  json += ',';
 
   // Memory. Internal is the scarce one; PSRAM is where the cold data lives.
   appendKb(json, "heapInternal", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
