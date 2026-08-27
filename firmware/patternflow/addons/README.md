@@ -13,19 +13,22 @@ variant edits none.
 An earlier version of this said "and one line to `addons.h`" — which was
 one line in a *core* file, so every variant conflicted on it at every core
 update, forever, on the same line. One line is enough to make taking
-updates a chore that eventually stops happening, and a variant that stops
+updates a chore that eventually stops happening, and a firmware that stops
 taking updates is the fork this directory exists to prevent.
 
-| the variant's own file | what it decides |
+| the firmware's own file | what it decides |
 | --- | --- |
 | `addons_local.h` | which addons this firmware has, in what order |
 | `overrides.h` | any `#ifndef`-guarded setting: transmit power, panel clock, its own name and version |
 
-Both are gitignored in the core and neither exists here. See
-[patternflow-audio](https://github.com/engmung/patternflow-audio) for a
-worked example — three addon directories, those two files, core as a
-submodule, and a build script that is three `cp` lines with no `sed` in
-it.
+Both are gitignored here, because they belong to a firmware rather than to
+the core. The ones this repository publishes live in
+[`firmware/bundles/`](../../bundles/README.md) — `build.sh audio` copies a
+pair in, builds, and takes them away again.
+
+Somebody building a firmware outside this tree writes the same two files.
+That is the entire difference between a bundle and somebody else's firmware:
+where the two files live, and therefore who to ask when it breaks.
 
 See [`docs/rfc-core-and-variants.md`](../../../docs/rfc-core-and-variants.md)
 for why any of this exists.
@@ -38,8 +41,8 @@ for why any of this exists.
 | --- | --- |
 | `pf_addon.h` | The interface. What an addon may be asked, and what it is told. |
 | `pf_addons.h` | The dispatcher. Walks the list and fans each moment out. |
-| `addons.h` | The default list, and the escape hatch. **Core owns it; a variant never edits it.** |
-| `addon_presets.h` | Patterns contributed by addons. Same arrangement: `#ifndef PF_ADDON_PRESETS`, so a variant can decline them. |
+| `addons.h` | The default list, and the escape hatch. **The core owns it; no firmware edits it.** |
+| `addon_presets.h` | Patterns contributed by addons. Same arrangement: `#ifndef PF_ADDON_PRESETS`, so a firmware can decline them. |
 
 A variant's `addons_local.h` defines `PF_ADDON_LIST` and `addons.h` steps
 aside. It may add, drop and reorder; `PF_ADDONS_NONE` builds with none at
@@ -166,9 +169,23 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 | `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
 | `osc/` | Max / TouchDesigner / Ableton, both directions | The fifth, and the first that did not fit — see below. |
 
-Emptying `addons.h` leaves the bare core: **1,090,569 B** flash against
-1,405,809 with all four loaded, and the sketch is byte-identical either
-way.
+`PF_ADDONS_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of
+static RAM, against 1,412,457 and 92,920 with all five loaded. The sketch is
+byte-identical either way.
+
+That gap buys the person holding the panel almost nothing, which is why
+nothing was ever removed from the core. Flash sits at 45 % of the partition
+even with all five loaded. The ceiling on a loadable `.pfm` — the largest
+contiguous block — is 73,716 B with everything and **the same 73,716 B in the
+`audio` bundle**, three addons out. Only the bare `PF_ADDONS_NONE` build moves
+it, to 92,148 B, and that is a compile flag rather than a firmware anybody
+would ship. 18 KB more room, in a build with no shows, no MQTT, no weather, no
+OSC and no sound, on top of a ceiling already two and a half times the
+largest module anyone has built (29 KB; the 42-pattern community library tops
+out at 17.5 KB). (All three read once, ~80 s after a reboot — `heapLargest`
+decays under HTTP traffic, so repeated polling reports a lower number.) A named firmware exists to carry what the default cannot,
+not to be smaller — see RFC §2.13 for the whole measurement.
+See [`../../bundles/README.md`](../../bundles/README.md).
 
 ## What the ports taught
 

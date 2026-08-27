@@ -348,6 +348,32 @@ see the constraints section below).
 Measured across the real 42-pattern community library: median `.pfm` 5,924 B,
 largest 17,512 B, smallest 4,612 B, 281 KB for all 42 together.
 
+### How to measure this, before reading it
+
+`heapLargest` is not a property of a build. It decays as the device serves
+HTTP, in steps of exactly 2,048 B — polling a build eighteen times walks it
+down ~4 KB — so **a firmware sampled often reads worse than one sampled
+rarely**, and two numbers taken over different windows do not compare.
+
+Take it this way, or do not quote it:
+
+> flash → `POST /api/wifi/reboot` → wait ~80 s → **one** read of `/api/status`
+
+Two names that mean different things, and have already been mixed up here:
+
+- **Flash.** The toolchain's figure is program storage (1,412,457 = 44.9 % of
+  the 3,145,728 B partition). The `.bin` on disk is ~360 B larger — header,
+  padding, hash. Say which one you mean.
+- **RAM.** The build's `92,920` is static RAM *used*, 28.4 % of 327,680. Free
+  internal heap is a different number and only the running device knows it.
+
+And the rule the rest of this section exists to serve: **a heap number
+travels with its build, its procedure and its date, or it is not evidence.**
+The figures below are v3.5.2 on a core 2.x build and are quoted as history —
+[RFC §2.13](../docs/rfc-core-and-variants.md) has current ones, taken under
+the protocol above. In 2026-08 the `86,004` below was copied into five
+documents as a measurement of something else entirely.
+
 ### Current state (v3.5.2, measured on hardware, core 2.x build)
 
 | | |

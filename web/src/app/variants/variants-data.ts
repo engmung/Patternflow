@@ -1,32 +1,59 @@
-// The shelf. One entry per firmware built on Patternflow core.
+// The shelf. One entry per firmware you can put on a panel.
 //
-// Hand-curated, and the curation is the point: somebody read the code before
-// the name went up. There is no application form.
+// The first is the default: everything the device does, and what ships on the
+// board. It is not a base somebody builds on — the others exist because of
+// something IT cannot carry, and each says which. "Everything minus a few
+// things" is not a reason to publish a firmware: dropping three features
+// leaves the ceiling on loadable patterns exactly where it was (73,716 bytes
+// either way) on a board using 45 % of its flash.
 //
-// Two tiers, and the difference is visible on the page:
+// Two tiers, and the difference is who to ask when it breaks:
 //
-//   listed          name, what it adds and drops, a link to the maintainer's
-//                   own releases. You download and flash it yourself.
-//   listed + hosted a copy of the binary is served from here, so a panel can
-//                   be updated in one click. That copy is vouched for —
-//                   somebody built it, ran it, and put it there.
+//   official   built from the Patternflow repository, published here. A core
+//              change has to compile against all of them before it lands, so
+//              they cannot silently rot.
+//   community  somebody else's firmware, their repository, their schedule.
+//              Not a lesser thing. A different one.
 //
-// Hosting somebody's binary means distributing it, so `hosted` is only ever
-// set for a firmware whose maintainer agreed and whose build was checked.
-// Everything else links out, and linking out is not a lesser tier — it is
-// the normal one.
+// Hand-curated either way, and the curation is the point: somebody read it
+// before the name went up. There is no application form.
 //
-// A hosted copy goes stale the moment its maintainer cuts a release, so the
-// page reads the latest tag from GitHub in the visitor's browser and says so
-// when the two have drifted. Better to admit the gap than to quietly serve
-// last month's firmware.
+// An entry can carry a binary served from here for one-click install, or a
+// flasher manifest to read the current one from. A pinned copy goes stale the
+// moment its maintainer cuts a release, so the page reads their latest GitHub
+// tag in the visitor's browser and stands down when the two have drifted —
+// better to admit the gap than to quietly serve last month's firmware.
 //
-// To be listed, a variant agrees to the rules in
+// To be listed, a firmware agrees to the rules in
 // docs/rfc-core-and-variants.md §2.6 — the short version being: it can be
 // left again over /update, it does not change the partition layout, it plays
 // the same community .pfm modules, it reports its own `variant` string and
-// version in /api/status, and it keeps Wi-Fi credentials where core keeps
-// them so switching does not mean re-provisioning.
+// version in /api/status, and it keeps Wi-Fi credentials where the default
+// keeps them so switching does not mean re-provisioning.
+
+// Where a firmware comes from. The distinction is the whole point of the
+// page: one of these is published from this repository and the other is
+// somebody else's work on their own terms, and a reader deciding what to
+// flash needs to know which they are looking at.
+export type Tier =
+  // Built from this repository, published here. Its code is in the tree,
+  // where the compiler keeps it honest against every core change.
+  | 'official'
+  // Somebody else's firmware, their repository, their release schedule.
+  // Not a lesser thing — a different thing, and the difference is who to
+  // ask when it breaks.
+  | 'community';
+
+// Why a firmware exists that is not the default. Three different answers,
+// and a person choosing needs to know which: picking up something
+// unfinished is not the same as picking up something deliberately still.
+export type Reason =
+  // Experimental, or needs hardware the board does not have yet.
+  | 'not-ready'
+  // Correct for a situation, wrong as a default.
+  | 'not-universal'
+  // Pinned and not moving, so a show behaves the same at the next gig.
+  | 'frozen';
 
 export type VariantStatus =
   // Shipping: there is a binary you can flash today.
@@ -43,6 +70,9 @@ export type Variant = {
   /** The string this firmware reports in /api/status. Also the anchor. */
   id: string;
   name: string;
+  tier: Tier;
+  /** Absent on the default, which needs no reason to exist. */
+  reason?: Reason;
   /**
    * As they wish to be credited. On a `proposed` entry this is who it has
    * been SUGGESTED to — they have not agreed, and the page must not imply
@@ -69,7 +99,7 @@ export type Variant = {
   hosted?: { version: string; url: string };
   /**
    * Or: a flasher manifest to read the current version and image from, for a
-   * firmware that publishes one. Core does; a variant could. Wins over
+   * firmware that publishes one. The default does; any firmware could. Wins over
    * `hosted`, because a manifest cannot go stale the way a pinned copy can.
    */
   manifest?: string;
@@ -91,50 +121,59 @@ export type Variant = {
 export const VARIANTS: Variant[] = [
   {
     id: 'core',
-    name: 'Core',
-    maintainer: 'Patternflow',
-    maintainerHref: 'https://github.com/engmung/Patternflow',
+    name: 'Patternflow',
+    tier: 'official',
+    // Deliberately no `maintainer`. The default is not one person's firmware —
+    // the show player, MQTT and weather in it are Simone Majocchi's work, and
+    // a byline naming only the maintainer reads as a claim over it.
     status: 'available',
     summary:
-      'What ships on the board. The one that has to keep working, and the ' +
-      'one you can always come back to.',
+      'Everything the panel does. This is what ships on the board, and what ' +
+      'you can always come back to.',
     adds: [
-      'The panel, and the pattern loader',
+      'Patterns, and the loader for community ones',
+      'Sequences, weather, MQTT',
+      'OSC and browser audio',
       'Wi-Fi, sleep, and the way out of any firmware',
-      'Home Assistant, over plain HTTP',
     ],
     manifest: '/flash/manifest.json',
     source: 'https://github.com/engmung/Patternflow',
     note:
-      'On the shelf because coming back is a switch too. If you are reading ' +
-      'this on a panel you have not changed, this is what it is running.',
+      'Not a starting point you build on — the finished thing. Everything ' +
+      'else here exists because of something this cannot carry, not because ' +
+      'it is missing anything.',
   },
   {
     id: 'audio',
-    name: 'Audio',
+    name: 'Patternflow Audio',
+    tier: 'official',
+    reason: 'not-ready',
     maintainer: 'SeungHun Lee',
     maintainerHref: 'https://github.com/engmung',
     status: 'available',
     summary:
-      'For pointing sound at a panel — a laptop running Ableton, a tab ' +
-      'playing something, or the room itself.',
+      'Sound, and nothing else in the way — a microphone soldered to the ' +
+      'board, so the panel hears the room with no computer in it.',
     adds: [
-      'OSC (Max, TouchDesigner, Ableton)',
-      'Browser audio + Chrome extension',
-      'On-board microphone',
+      'On-board PDM microphone (four wires, not yet a part on the board)',
+      'Wi-Fi transmit power raised for rooms full of access points',
+      'No sequences, weather or MQTT — this build is only about sound',
     ],
-    github: 'engmung/patternflow-audio',
-    releases: 'https://github.com/engmung/patternflow-audio/releases',
-    source: 'https://github.com/engmung/patternflow-audio',
+    // Served from here, so the panel's own /update page can fetch it. Under
+    // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
       version: 'v0.1.0',
-      url: 'https://community.patternflow.work/api/variant-bin/audio/firmware.bin',
+      url: 'https://patternflow.work/flash/bin/audio-v0.1.0/patternflow.ino.bin',
     },
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
-      'The first variant, and the one the split was tested on rather than ' +
-      'argued about — OSC left the core to get here, and it was the ' +
-      'maintainer’s own favourite thing in the firmware. Take it if a ' +
-      'computer or a microphone drives your panel. If you pick a pattern and ' +
-      'leave it, core does that and this adds nothing you would notice.',
+      'Six of seven people asked for on-board sound and it was the most ' +
+      'wanted thing in the survey by a wide margin — but it needs four wires ' +
+      'soldered to the DevKit and the radio setting here is not the ' +
+      'conformance-tested one, so neither belongs in the firmware everybody ' +
+      'gets. It is also where that work happens, which is why it carries ' +
+      'nothing else: no sequences, no weather, no MQTT. Take this to ' +
+      'experiment with sound, not to run a room. When the microphone is a ' +
+      'part on the board, on-board audio moves into the default.',
   },
 ];

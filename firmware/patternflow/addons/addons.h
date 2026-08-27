@@ -8,10 +8,22 @@
 // same line, for as long as the variant exists. One line is enough to make
 // "take the update" a chore that eventually stops happening.
 //
-// So a variant drops its own `addons_local.h` next to this file and owns it
+// So a firmware drops its own `addons_local.h` next to this file and owns it
 // completely: its own includes, and `PF_ADDON_LIST` naming the descriptors it
-// wants, in the order it wants them. Nothing in the core tree changes, which
-// makes a variant's build a file copy rather than a merge:
+// wants, in the order it wants them. Nothing in the core tree changes.
+//
+// Two ways to use that, and the first is the usual one:
+//
+//   **A named build from this repository.** `firmware/bundles/<name>/` holds
+//   the two files; `bundles/build.sh <name>` copies them in, builds, and
+//   removes them again. Nothing is forked and nothing is duplicated, so a
+//   core change has to compile against the build before it lands.
+//
+//     ./firmware/bundles/build.sh audio
+//
+//   **Somebody else's firmware, in their own repository.** Their addons and
+//   their `addons_local.h` are copied over a checkout of core, which makes
+//   their build a file copy rather than a merge:
 //
 //     cp -r my-addons/*     core/firmware/patternflow/addons/
 //     cp    addons_local.h  core/firmware/patternflow/addons/
@@ -44,8 +56,18 @@
 // define PF_ADDON_LIST and suppress them entirely.
 #if defined(__has_include)
 #if __has_include("addons_local.h")
+#define PF_ADDONS_LOCAL_PRESENT 1
 #include "addons_local.h"
 #endif
+#endif
+
+// A local file that defines neither macro would fall through to the defaults
+// below and produce the FULL build — wearing whatever name overrides.h gives
+// it. That is a firmware lying about what it contains, and the only evidence
+// is a byte count nobody reads. Misspell the macro and the build stops here
+// instead.
+#if defined(PF_ADDONS_LOCAL_PRESENT) && !defined(PF_ADDONS_NONE) &&     !defined(PF_ADDON_LIST)
+#error "addons_local.h must define PF_ADDON_LIST or PF_ADDONS_NONE (typo?)"
 #endif
 
 #if !defined(PF_ADDONS_NONE) && !defined(PF_ADDON_LIST)

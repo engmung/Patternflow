@@ -25,8 +25,13 @@ import type { NextRequest } from "next/server";
 // maintainer's own releases and is downloaded by hand.
 //
 // On Vercel `VARIANT_BIN_DIR` is unset and every request 404s. That is
-// correct: the static deployment has no business distributing firmware, and
-// the shelf entries point at community.patternflow.work explicitly.
+// correct: the static deployment has no business distributing firmware.
+//
+// **Nothing on the shelf uses this today.** Official firmwares are built
+// here and their images sit under /flash/bin, which already sends CORS. This
+// exists for the community tier — somebody else's build, vouched for and
+// served from the Pi so it can be installed in one click like the rest. It
+// is not dead code; it is an empty shelf slot with the plumbing already in.
 
 export const dynamic = "force-dynamic";
 
