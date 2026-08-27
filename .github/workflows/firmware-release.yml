@@ -52,9 +52,13 @@ jobs:
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
+      # The default branch, with full history so the tag is reachable. NOT the
+      # tag: checking that out replaces this workflow's own script with
+      # whatever existed back then, which for every release so far is nothing.
+      # Tooling comes from here; only the images come from the tag.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
 
       - name: Check the tag looks like a release
         run: |
@@ -66,15 +70,24 @@ jobs:
       # A release with no images under its own version is not worth failing the
       # run over — v1/v2-era tags predate this layout, and a prerelease may not
       # have had a build cut. Say so and stop.
-      - name: Find the images
+      - name: Take the images from the tag
         id: find
         run: |
           DIR="web/public/flash/bin/$TAG"
-          if [ ! -d "$DIR" ]; then
-            echo "::notice::no images committed at $DIR — nothing to attach"
+          git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || {
+            echo "::error::no tag $TAG in this repository"
+            exit 1
+          }
+          if ! git ls-tree -r --name-only "$TAG" -- "$DIR" | grep -q .; then
+            echo "::notice::$TAG has no images at $DIR — nothing to attach"
             echo "found=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # The images AS THEY WERE at the tag, not as they are on the default
+          # branch. v3.6.3 was re-cut and overwritten in place, so those are
+          # not always the same bytes.
+          rm -rf "$DIR"
+          git checkout "$TAG" -- "$DIR"
           echo "dir=$DIR" >> "$GITHUB_OUTPUT"
           echo "found=1" >> "$GITHUB_OUTPUT"
           ls -l "$DIR"
@@ -127,7 +140,7 @@ jobs:
       - name: Write FLASHING.md
         if: steps.find.outputs.found == '1'
         run: |
-          bash .github/scripts/flashing-md.sh             "${{ steps.find.outputs.dir }}" "$TAG" "$(git log -1 --format=%cs HEAD)"             > FLASHING.md
+          bash .github/scripts/flashing-md.sh             "${{ steps.find.outputs.dir }}" "$TAG" "$(git log -1 --format=%cs "$TAG")"             > FLASHING.md
           cat FLASHING.md
 
       - name: Attach them to the release
