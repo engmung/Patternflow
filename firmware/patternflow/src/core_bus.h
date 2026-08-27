@@ -31,6 +31,11 @@ inline bool paramHeld[4] = {false, false, false, false};
 inline uint16_t paramValue[4] = {500, 500, 500, 500};
 inline uint32_t paramHeldAtMs[4] = {0, 0, 0, 0};
 
+// Last finished frame's knob positions, kept so the core can answer
+// "where are the knobs" over HTTP. Absolute accumulated clicks, the
+// same numbers a pattern sees and the same ones MQTT publishes.
+inline long knobValue[4] = {0, 0, 0, 0};
+
 // Ignore encoder chatter briefly after an absolute set (Director spam / noise).
 constexpr uint32_t ABSOLUTE_RELEASE_GRACE_MS = 250;
 
@@ -65,6 +70,10 @@ inline bool isHeld(int index) {
   return index >= 0 && index <= 3 && paramHeld[index];
 }
 
+inline long knobAt(int index) {
+  return (index >= 0 && index < 4) ? knobValue[index] : 0;
+}
+
 inline uint16_t heldValue(int index) {
   return (index >= 0 && index <= 3) ? paramValue[index] : 0;
 }
@@ -72,7 +81,10 @@ inline uint16_t heldValue(int index) {
 // Copy held absolute values into the frame. Call after physical release.
 // When absolute is active, clear deltas / audio flags on that channel so
 // legacy paths cannot fight the set-point.
+// Called once per frame with the finished input, which makes it the one
+// place that sees the final knob values without adding a call site.
 inline void fillAbsolute(InputFrame& input) {
+  for (int i = 0; i < 4; i++) knobValue[i] = input.knobs[i];
   for (int i = 0; i < 4; ++i) {
     input.paramAbsoluteActive[i] = paramHeld[i];
     input.paramAbsolute[i] = paramValue[i];

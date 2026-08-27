@@ -48,7 +48,10 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "fsMounted": true, "fsTotal": 6291456, "fsUsed": 204800,
   "patterns": 34, "presets": 1, "modules": 33,
   "active": "Wave Saw", "activeIsModule": true,
-  "sleep": false, "consolePaused": false,
+  "sleep": false,
+  "knobs": [12, 0, -3, 40], "params": [500, 500, 750, 500],
+  "paramActive": [false, false, true, false],
+  "consolePaused": false,
   "frameUs": 16400, "presentUs": 3100, "loopCore": 1,
   "colorBits": 6, "refreshHz": 121,
   "loadError": "", "load": { "total": 0, "read": 0, "relocate": 0, "setup": 0 },
@@ -66,6 +69,9 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `active` | **Display name** of the running pattern, or `"-"`. Not a slug and not an index. |
 | `activeIsModule` | `true` for an uploaded `.pfm`, `false` for a preset compiled into `firmware.bin`. |
 | `sleep` | Panel off / board idling. A sleeping device answers every other field here looking perfectly healthy. |
+| `knobs` | The four encoders' absolute accumulated click counts — the same numbers the running pattern sees. Signed, unbounded, and meaningful only as a difference: there is no scale and no zero. |
+| `params` | The absolute parameter bus, 0..1000 per lane. What `POST /api/params`, OSC and MQTT all write to. |
+| `paramActive` | Per lane: is a remote writer currently holding it? Goes `false` a beat after somebody turns that encoder, because a hand in the room outranks the network. |
 | `consolePaused` | A pattern-install batch is in progress and the module is evicted. Not an error. (Console pages stopped pausing the pattern in 3.6.3 — the name is older than that.) |
 | `frameUs` / `presentUs` | Smoothed frame time and the part of it spent pushing pixels. `1e6 / frameUs` is the honest fps. |
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
@@ -221,11 +227,15 @@ Uploading evicts the running module for the duration of the batch, so the panel 
 
 ## Knobs and parameters
 
-This is the one part of the device that HTTP cannot write.
+Both directions work over HTTP. This section used to say the opposite, and it was true until `POST /api/params` landed.
 
-**Reading works over HTTP.** `GET /api/mqtt` reports the live knob positions and parameter values regardless of MQTT role, and regardless of whether a broker is configured at all — the firmware copies the input frame into that state before it checks the role. Only `PF_MQTT_ENABLED` (default on) has to be compiled in; the endpoint is absent otherwise.
+**Reading.** `GET /api/status` reports `knobs` (absolute accumulated clicks, the same numbers a pattern sees), `params` (the absolute bus, 0..1000) and `paramActive` (whether each lane is currently held by a remote writer rather than a hand). This is core and is always present.
 
-**Writing needs OSC or MQTT.** `/api/knob` and `/remote` existed and were removed as unused alongside the `/api/frame` incident. Use `/patternflow/knob/N/delta` over OSC (see `docs/osc-spec.md`), or `<prefix>/knob/N` and `<prefix>/param/N` over MQTT.
+`GET /api/mqtt` reports the same three fields and has since before `/api/status` did — but it lives in the MQTT addon, so a build without MQTT does not serve it. **Read knob state from `/api/status`**, not from `/api/mqtt`, unless you specifically want the broker fields alongside it.
+
+**Writing.** `POST /api/params` sets any subset of the four lanes, 0..1000, and is core — see above. A hand on the encoder releases the lane it touches, so a remote value never fights a person. `/patternflow/knob/N/delta` over OSC (`docs/osc-spec.md`) and `<prefix>/knob/N` / `<prefix>/param/N` over MQTT do the same job for clients already speaking those.
+
+`/api/knob` and `/remote` existed and were removed as unused alongside the `/api/frame` incident; do not look for them.
 
 ### `GET /api/mqtt`
 

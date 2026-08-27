@@ -166,6 +166,27 @@ inline void handleStatus() {
   // The other reason the panel can be dark while everything here reads fine:
   // this very page is what paused it. The console has always had a branch for
   // this state — it just never received the field to trigger it.
+  // Knob positions and the absolute-parameter bus. These lived only in
+  // GET /api/mqtt, which is an addon — so a build without MQTT could be
+  // written to but not read, and an HTTP-only integration (Home
+  // Assistant) would have lost knob state the day MQTT left. They belong
+  // in core, next to everything else a client polls for.
+  json += "\"knobs\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::knobAt(i);
+  }
+  json += "],\"params\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::heldValue(i);
+  }
+  json += "],\"paramActive\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::isHeld(i) ? "true" : "false";
+  }
+  json += "],";
   json += "\"consolePaused\":";
   json += PatternflowPatternsHttp::isConsolePaused() ? "true" : "false";
   json += ',';

@@ -97,24 +97,22 @@ export const VARIANTS: Variant[] = [
   {
     id: 'iot',
     name: 'IoT',
-    maintainer: 'bendobos',
-    maintainerHref: 'https://github.com/bendobos',
     status: 'proposed',
     summary:
-      'For a panel that lives inside a home automation setup rather than on ' +
-      'a desk.',
+      'For a panel driven over a broker rather than over HTTP \u2014 MQTT for ' +
+      'people who already run one.',
     adds: [
-      'the IoT integration work already built for Patternflow',
-      'home-automation side of the device',
+      'MQTT publisher and bridge roles, for setups that prefer a broker',
     ],
     note:
-      'This one is not a gap somebody has to fill \u2014 bendobos already built ' +
-      'it, and the split is asking that it become its own repository rather ' +
-      'than living inside core. He has not agreed yet. Worth knowing before ' +
-      'you go looking: the Home Assistant integration itself works against ' +
-      'plain core, so if that is all you wanted you do not need a variant. ' +
-      'Exactly where this ends and Simone\u2019s MQTT begins is for the two of ' +
-      'them to settle, not for this page to decide.',
+      'Read the Home Assistant line above first, because it is probably why ' +
+      'you are here: that integration runs on plain core over HTTP, and ' +
+      'bendobos \u2014 who wrote it \u2014 is moving it into its own repository with ' +
+      'its own documentation. It is an integration, not a firmware, and it ' +
+      'needs no variant. What is left for this entry is narrower: a panel ' +
+      'that should speak MQTT to a broker somebody already runs, without ' +
+      'carrying Simone\u2019s FlowLocal and Director along with it. Nobody has ' +
+      'taken it on, and it may turn out nobody needs to.',
   },
   {
     id: 'radio',
