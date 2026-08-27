@@ -91,6 +91,13 @@ what core 4.0 is expected to be, without anything being deleted yet:
 | free internal heap *(on hardware)* | 84,432 B | **96,460 B** | **+12 KB** |
 | largest free block *(on hardware)* | 73,716 B | **86,004 B** | **+12.3 KB** |
 
+*Re-measured 27 August 2026 under a controlled procedure — flash, reboot,
+wait 80 s, take **one** reading — and the last row was low: the bare core
+reads **92,148**, **+18.4 KB**. `heapLargest` decays 2,048 B at a time as the
+device serves HTTP, so a number sampled repeatedly reads lower than one
+sampled once, and nothing here recorded which was done. RFC §2.13 has the
+three-build table.*
+
 The last row is the interesting one: a loadable `.pfm` needs one
 contiguous block of internal RAM, so that number *is* the ceiling on how
 big a pattern can be. The slim core raises it by 12 KB.
@@ -293,11 +300,12 @@ The `audio` bundle, three addons out, leaves the ceiling on a loadable
 pattern **exactly where it was**: 73,716 bytes either way, confirmed on
 hardware, on a board using 45 % of its flash. The slim-core table further up
 this log shows the other half honestly: strip *all five* addons and the
-ceiling does rise, to 86,004 B. Both are true, and the difference is what
+ceiling does rise, to 92,148 B — **+18.4 KB**, more than that table's
+original figure. Both are true, and the difference is what
 each one is. The bundle is a firmware somebody would ship; `PF_ADDONS_NONE`
 is a compile flag with no shows, no MQTT, no weather, no OSC and no sound.
-The prize for shipping it is 12.3 KB on a ceiling already three times the
-largest module anyone has written.
+The prize for shipping it is 18.4 KB on a ceiling already two and a half
+times the largest module anyone has built.
 
 That is the whole of what a slim core was for, and it is not enough.
 

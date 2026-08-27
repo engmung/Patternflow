@@ -456,39 +456,50 @@ for a reason worth writing down rather than quietly deleting.
 
 ### The measurement that killed it
 
-A firmware with three of the five addons removed was built and run beside
-the full one, both on the same panel, 27 August 2026:
+Three builds, one panel, 27 August 2026. **The procedure matters more than
+it looks** — see the note below:
 
-| | flash | free internal | **largest free block** |
-|---|---|---|---|
-| everything — what ships | 1,412,457 | 92,920 | **73,716** |
-| the `audio` bundle | 1,133,925 | 93,580 | **73,716** |
+| build | addons | flash | free internal | **largest free block** |
+|---|---|---|---|---|
+| default — what ships | 5 | 1,412,816 | 84,896 | **73,716** |
+| the `audio` bundle | 3 | 1,134,288 | 83,264 | **73,716** |
+| `PF_ADDONS_NONE` | 0 | 1,095,200 | 101,472 | **92,148** |
 
-The largest free block is the ceiling on how big a loadable `.pfm` can be,
-and between those two it is **identical**.
+The largest free block is the ceiling on how big a loadable `.pfm` can be.
+Read the table honestly and it says two things, one of which argues against
+this section:
 
-**The row that argues against this section**, because leaving it out would
-be picking the comparison that agrees: strip *all five* addons
-(`PF_ADDONS_NONE`) and the ceiling does move — 86,004 B, **+12.3 KB**. That
-was measured earlier in this work, on the step-3 tree, and is recorded in
-[the progress log](rfc-core-and-variants-progress.md). It has not been
-re-measured against today's tree.
+- **A firmware somebody would actually ship gains nothing.** The `audio`
+  bundle drops the show player, weather and MQTT — 278 KB of flash — and
+  lands on **exactly the same ceiling**, to the byte. That is the whole
+  case for step 5, tested against the one real build that exists, and it
+  comes back zero.
+- **A build with no addons at all gains 18 KB** (92,148, +18,432). Not
+  nothing. But that is a compile flag, not a product: no shows, no MQTT, no
+  weather, no OSC, no sound. And it is headroom on top of headroom — the
+  real community library runs 4.6–17.5 KB per `.pfm` (median 5,924 B across
+  42 patterns) and the largest module anyone has built is 29 KB, against a
+  ceiling already two and a half times that, on a board using 45 % of its
+  flash. Loading that 29 KB module is itself what moves the number: with one
+  resident the largest block is 65,524 B, and it plays at 48.5 fps. The
+  addons are not what a big pattern is competing with.
 
-So the honest statement is not "removing features changes nothing." It is:
+An earlier version of this section reported +12.3 KB here, from a
+measurement taken during step 3. It was stale, and it was low: the real gap
+is larger, and the argument survives being corrected upward.
 
-- A firmware somebody would actually ship — the bundle that exists, three
-  features out — lands on **exactly the same ceiling**.
-- The 12.3 KB shows up only in a build with no show player, no MQTT, no
-  weather, no OSC and no sound. That is a compile flag, not a product.
-- And 12.3 KB is headroom on top of headroom. The largest `.pfm` anybody
-  has built is 22 KB against a ceiling already three times that, and flash
-  sits at 45 % of its partition **in the build that has everything**.
+### How these were measured, because it decides the numbers
 
-The case for step 5 was that a smaller core would leave room. It leaves
-room nobody is reaching for, and only in a configuration nobody would run.
-An earlier draft of this section quoted the two-row table alone and called
-the ceiling identical full stop — true of the comparison it made, and
-misleading about the question it was answering.
+Flash the build, reboot, wait ~80 s, and take **one** reading of
+`/api/status`. Not two.
+
+`heapLargest` decays as the device serves HTTP — in steps of exactly 2,048
+bytes. Polling it eighteen times walks the bare core from 92,148 down to
+88,052, so a build sampled more often looks worse than one sampled less,
+and any two numbers taken over different windows are not comparable. Every
+figure above is a single post-boot read, and none of the earlier numbers in
+this project recorded which procedure produced them.
+
 
 ### What it would have cost
 

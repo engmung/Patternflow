@@ -178,10 +178,12 @@ nothing was ever removed from the core. Flash sits at 45 % of the partition
 even with all five loaded. The ceiling on a loadable `.pfm` — the largest
 contiguous block — is 73,716 B with everything and **the same 73,716 B in the
 `audio` bundle**, three addons out. Only the bare `PF_ADDONS_NONE` build moves
-it, to 86,004 B, and that is a compile flag rather than a firmware anybody
-would ship. 12 KB more room, in a build with no shows, no MQTT, no weather, no
-OSC and no sound, on top of a ceiling already three times the largest module
-anyone has written. A named firmware exists to carry what the default cannot,
+it, to 92,148 B, and that is a compile flag rather than a firmware anybody
+would ship. 18 KB more room, in a build with no shows, no MQTT, no weather, no
+OSC and no sound, on top of a ceiling already two and a half times the
+largest module anyone has built (29 KB; the 42-pattern community library tops
+out at 17.5 KB). (All three read once, ~80 s after a reboot — `heapLargest`
+decays under HTTP traffic, so repeated polling reports a lower number.) A named firmware exists to carry what the default cannot,
 not to be smaller — see RFC §2.13 for the whole measurement.
 See [`../../bundles/README.md`](../../bundles/README.md).
 
