@@ -33,7 +33,7 @@ constexpr uint8_t FLAG_PARAM3 = 8;
 constexpr uint8_t FLAG_PARAM4 = 16;
 constexpr uint8_t FLAG_MESSAGE = 32;
 constexpr uint8_t FLAG_EASE = 64;  // v2 only
-// PFST v2 (docs/pfst-v2-proposal.md): same layout, times in DECISECONDS,
+// PFST v2 (docs/pfst-v2-spec.md): same layout, times in DECISECONDS,
 // and FLAG_EASE lerps the cue's set channels toward each channel's next cue.
 constexpr uint8_t VERSION2 = 2;
 constexpr uint8_t MAX_MISSING = 8;

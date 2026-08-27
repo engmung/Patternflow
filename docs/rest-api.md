@@ -316,7 +316,7 @@ Passwords travel in the clear over LAN HTTP and are never sent back. Same trust 
 
 ## Shows (Sequences)
 
-`.pfs` cue tables live on the pattern volume under `/shows` and play on a wall clock — cues fire by `millis()`, not by frame. Format: PFST v1 (whole-second cues) and v2 (deciseconds + eased cues); see `docs/pfst-v2-proposal.md`.
+`.pfs` cue tables live on the pattern volume under `/shows` and play on a wall clock — cues fire by `millis()`, not by frame. Format: PFST v1 (whole-second cues) and v2 (deciseconds + eased cues); see `docs/pfst-v2-spec.md`.
 
 | Route | |
 |---|---|

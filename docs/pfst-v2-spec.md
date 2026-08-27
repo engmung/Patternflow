@@ -5,9 +5,13 @@ the byte layout, the exact semantics with the edge cases spelled out, the
 reference implementation as it actually runs on the device, and test vectors
 to check yourself against.
 
-The *case* for v2 — why deciseconds, why an ease flag rather than denser
-cues, and the hardware measurements — is in
-[pfst-v2-proposal.md](pfst-v2-proposal.md). This file is the contract.
+The *case* for v2, briefly, since the proposal that argued it has been
+folded into this file: whole-second cues could not express a swell, and the
+obvious fix — many more cues — costs flash and RAM on a device that has
+little of either. Deciseconds are ten times the resolution for no extra
+bytes, and one flag bit saying "ease into this one" replaces the dozens of
+intermediate cues a curve would otherwise need. Both fit inside the v1
+layout, which is why v1 tables still load unchanged.
 
 **Status:** shipped in Patternflow firmware v3.6.3
 (`firmware/patternflow/addons/show/core_show.h`) and in the site's
