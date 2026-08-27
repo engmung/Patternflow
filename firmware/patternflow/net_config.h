@@ -89,6 +89,19 @@
 #define PF_VARIANT "core"
 #endif
 
+// A variant's own release, separate from the core version it is built on.
+// Both matter and they answer different questions: the variant version is
+// what somebody downloaded, the core version is what it was built against,
+// and a support conversation needs both. Empty on core, where the core
+// version already is the answer.
+//
+// RFC §2.6 rule 3 asked for this and only the name half was ever built,
+// so a variant reported its identity and then core's version number
+// beside it — which reads as a claim to be core.
+#ifndef PF_VARIANT_VERSION
+#define PF_VARIANT_VERSION ""
+#endif
+
 // -- Show player (.pfs sequences, /show) ---------------------
 // Declared here rather than inside core_show_http.h so anything can test
 // it: /api/status builds its `caps` list from these flags, and a flag

@@ -35,7 +35,7 @@ export const PFST_VERSION = 1;
  * Smoothness is thereby a per-cue property instead of a cue-count cost —
  * dense baking at 0.2 s would burn the 256-cue budget in under a minute of
  * one-lane animation; an eased segment is 2 cues however long it runs.
- * Proposed upstream in docs/pfst-v2-proposal.md; the device player gates on
+ * Specified in docs/pfst-v2-spec.md; the device player gates on
  * the version byte, so v1 players reject v2 tables cleanly.
  */
 export const PFST_VERSION_2 = 2;

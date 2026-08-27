@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "./Variants.module.css";
-import {
-  VARIANTS,
-  CORE_NOTE,
-  CORE_ALSO,
-  type VariantStatus,
-} from "./variants-data";
+import VariantCard from "./VariantCard";
+import { VARIANTS } from "./variants-data";
 
 // /variants — the shelf.
 //
@@ -31,12 +27,6 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-static";
 
-const STATUS_LABEL: Record<VariantStatus, string> = {
-  available: "available",
-  building: "in progress",
-  proposed: "unclaimed",
-};
-
 export default function VariantsPage() {
   return (
     <main className={styles.page}>
@@ -54,184 +44,63 @@ export default function VariantsPage() {
           </p>
         </header>
 
-        <section className={styles.core}>
-          <span className={styles.coreTag}>You are probably running this</span>
-          <p className={styles.coreBody}>{CORE_NOTE}</p>
-          <p className={styles.coreAlso}>{CORE_ALSO}</p>
-        </section>
-
-        <h2 className={styles.sectionHead}>The shelf</h2>
-        {VARIANTS.length === 0 ? (
-          <p className={styles.shelfNote}>
-            <em>There are no variants yet.</em> The seam they plug into is
-            built and in the firmware, but nobody has published one, and this
-            page is not going to list firmwares that do not exist or name
-            people who have not agreed to maintain them. When somebody does,
-            they go here. Until then the rest of this page is the useful part:
-            what a variant is, what it has to promise you, and how you would
-            move to one and back.
-          </p>
-        ) : null}
         <ul className={styles.list}>
           {VARIANTS.map((v) => (
-            <li key={v.id} id={v.id} className={styles.item}>
-              <div className={styles.itemTop}>
-                <h3 className={styles.name}>{v.name}</h3>
-                <span className={styles.status} data-s={v.status}>
-                  {STATUS_LABEL[v.status]}
-                </span>
-              </div>
-
-              {/* On an unclaimed entry this must never read as a credit.
-                  Naming someone as the maintainer of firmware they have not
-                  agreed to build is the one way this page could do real harm
-                  to a person, so the byline says which it is. */}
-              <p className={styles.by}>
-                {v.status === "proposed" ? (
-                  v.maintainer ? (
-                    <>
-                      suggested to{" "}
-                      {v.maintainerHref ? (
-                        <a href={v.maintainerHref} target="_blank" rel="noopener">
-                          {v.maintainer}
-                        </a>
-                      ) : (
-                        v.maintainer
-                      )}
-                      {" "}&mdash; not yet agreed
-                    </>
-                  ) : (
-                    <>nobody has taken this on</>
-                  )
-                ) : (
-                  <>
-                    by{" "}
-                    {v.maintainerHref ? (
-                      <a href={v.maintainerHref} target="_blank" rel="noopener">
-                        {v.maintainer}
-                      </a>
-                    ) : (
-                      v.maintainer
-                    )}
-                  </>
-                )}
-              </p>
-
-              <p className={styles.summary}>{v.summary}</p>
-
-              <ul className={styles.adds}>
-                {v.adds.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-
-              <p className={styles.note}>{v.note}</p>
-
-              <div className={styles.links}>
-                <span className={styles.idTag}>
-                  reports variant: {v.id}
-                </span>
-                {v.releases && (
-                  <a href={v.releases} target="_blank" rel="noopener">
-                    Releases &rarr;
-                  </a>
-                )}
-                {v.source && (
-                  <a href={v.source} target="_blank" rel="noopener">
-                    Source &rarr;
-                  </a>
-                )}
-              </div>
-            </li>
+            <VariantCard key={v.id} variant={v} />
           ))}
+
+          {/* An empty slot, on purpose. A list of things somebody else made
+              reads as a catalogue; a list with a gap at the end reads as a
+              place where things keep arriving, and the difference is whether
+              anyone thinks to build one. */}
+          <li className={styles.makeCard}>
+            <span className={styles.plus} aria-hidden="true">
+              +
+            </span>
+            <div>
+              <h3 className={styles.name}>Make your own</h3>
+              <p className={styles.makeBody}>
+                A few directories and one file saying which of them your
+                firmware has. It adds files; it never edits core ones, so it
+                can take a core update without a fight.
+              </p>
+              <p className={styles.makeBody}>
+                Made one? It goes on this shelf. Open a pull request, or just{" "}
+                <Link href="/contact">tell me about it</Link> &mdash; there is
+                no process yet and this is early days, so whichever is easier
+                for you is the right one.
+              </p>
+              <div className={styles.detailLinks}>
+                <a
+                  href="https://github.com/engmung/patternflow-audio"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Read the example
+                </a>
+                <a
+                  href="https://github.com/engmung/Patternflow/blob/main/docs/rfc-core-and-variants.md"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  The rules
+                </a>
+              </div>
+            </div>
+          </li>
         </ul>
 
         <section className={styles.how}>
-          <h2>Moving between them</h2>
-
-          <h3>Switching to a variant</h3>
+          <h2>What switching costs you</h2>
           <p>
-            Download that maintainer&rsquo;s firmware <code>.bin</code> from
-            their own releases, open your panel&rsquo;s console, and drop it on{" "}
-            <code>/update</code>. The panel flashes itself over your network
-            and reboots &mdash; the same way a core update works.
-          </p>
-
-          <h3>Coming back</h3>
-          <p>
-            The same way, with a core <code>.bin</code> &mdash; or from{" "}
-            <Link href="/update">patternflow.work/update</Link> if the
-            console is not reachable. Every listed variant agrees to keep this
-            route open. A firmware you cannot leave is not a variant, it is a
-            fork, and it does not go on this page.
-          </p>
-
-          <h3>What you keep</h3>
-          <p>
-            Your Wi-Fi networks, your uploaded patterns, and the storage they
-            live on. An update rewrites the program only, and listed variants
-            keep those settings where core keeps them, so switching does not
-            mean setting the panel up again.
-          </p>
-
-          <h3>What changes</h3>
-          <p>
-            Whatever that variant adds or removes &mdash; pages appear or
-            disappear from the console accordingly, because the console asks
-            the device what it actually has rather than assuming. Patterns are
-            the exception by design: every variant runs the same community{" "}
-            <code>.pfm</code> modules, so your library works everywhere.
-          </p>
-
-          <h3>Building your own</h3>
-          <p>
-            The rules a variant agrees to are short and all of them are about
-            not stranding the person holding the hardware. They are written
-            down in{" "}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/docs/rfc-core-and-variants.md"
-              target="_blank"
-              rel="noopener"
-            >
-              the RFC
-            </a>
-            , along with the seam a variant plugs into &mdash; a variant adds
-            files, it does not edit core ones, which is what lets it take a
-            core update without a merge fight. To get on this shelf, open a
-            pull request adding your entry to{" "}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/web/src/app/variants/variants-data.ts"
-              target="_blank"
-              rel="noopener"
-            >
-              <code>variants-data.ts</code>
-            </a>
-            . You write your own description; somebody still reads it before
-            it goes up, because a stranger&rsquo;s binary on somebody&rsquo;s
-            hardware is what this page is asking people to trust. If a pull
-            request is not your thing,{" "}
-            <Link href="/contact">get in touch</Link> instead.
-          </p>
-
-          <h3>Building your own console</h3>
-          <p>
-            The pages your panel serves are ordinary HTML files in the
-            firmware repository, not markup buried in C++, and they come with
-            a mock device so you can open them in a browser and edit them with
-            devtools &mdash; no panel, no toolchain, no flashing. Everything
-            they do goes through the same <code>/api/</code> endpoints, so a
-            console you write yourself has exactly as much reach as the one
-            that ships. Start at{" "}
-            <a
-              href="https://github.com/engmung/Patternflow/blob/main/firmware/patternflow/console/README.md"
-              target="_blank"
-              rel="noopener"
-            >
-              firmware/patternflow/console
-            </a>
-            .
+            <strong>Nothing.</strong> Your patterns, your Wi-Fi networks, your
+            settings &mdash; an update rewrites the program only. And every
+            firmware on this shelf can be left again the same way you arrived,
+            which is the one rule that gets you listed. A firmware you cannot
+            leave is a fork, not a variant.
           </p>
         </section>
+
       </div>
     </main>
   );

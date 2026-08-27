@@ -1,30 +1,42 @@
 // The shelf. One entry per firmware built on Patternflow core.
 //
-// This list is hand-curated by the maintainer. There is no application form
-// and no automated listing, deliberately: the list is short, and a person
-// reading it is about to flash a stranger's binary onto their hardware. What
-// it is worth depends entirely on someone having actually looked.
+// Hand-curated, and the curation is the point: somebody read the code before
+// the name went up. There is no application form.
+//
+// Two tiers, and the difference is visible on the page:
+//
+//   listed          name, what it adds and drops, a link to the maintainer's
+//                   own releases. You download and flash it yourself.
+//   listed + hosted a copy of the binary is served from here, so a panel can
+//                   be updated in one click. That copy is vouched for —
+//                   somebody built it, ran it, and put it there.
+//
+// Hosting somebody's binary means distributing it, so `hosted` is only ever
+// set for a firmware whose maintainer agreed and whose build was checked.
+// Everything else links out, and linking out is not a lesser tier — it is
+// the normal one.
+//
+// A hosted copy goes stale the moment its maintainer cuts a release, so the
+// page reads the latest tag from GitHub in the visitor's browser and says so
+// when the two have drifted. Better to admit the gap than to quietly serve
+// last month's firmware.
 //
 // To be listed, a variant agrees to the rules in
 // docs/rfc-core-and-variants.md §2.6 — the short version being: it can be
 // left again over /update, it does not change the partition layout, it plays
-// the same community .pfm modules, it reports its own `variant` string in
-// /api/status, and it keeps Wi-Fi credentials where core keeps them so
-// switching does not mean re-provisioning.
-//
-// The site does not mirror or re-host anyone's firmware. Every download link
-// points at that maintainer's own releases, and stays their responsibility.
+// the same community .pfm modules, it reports its own `variant` string and
+// version in /api/status, and it keeps Wi-Fi credentials where core keeps
+// them so switching does not mean re-provisioning.
 
 export type VariantStatus =
   // Shipping: there is a binary you can flash today.
   | 'available'
   // Someone has agreed to maintain it and is building it.
   | 'building'
-  // Nobody has agreed to anything. This entry is an opening — a variant the
-  // split obviously implies, published so the person best placed to own it
-  // can see it and say yes or no. Being listed as `proposed` is an
-  // invitation, never an announcement, and the page has to read that way:
-  // these are real people's names on firmware they have not committed to.
+  // Nobody has agreed to anything. An opening, published so the person best
+  // placed to own it can see it and say yes or no. An invitation, never an
+  // announcement: these are real people's names on firmware they have not
+  // committed to.
   | 'proposed';
 
 export type Variant = {
@@ -32,54 +44,97 @@ export type Variant = {
   id: string;
   name: string;
   /**
-   * Who maintains it, as they wish to be credited. On a `proposed` entry
-   * this is who it has been SUGGESTED to — they have not agreed, and the
-   * page must not imply otherwise. Absent means nobody has been asked: the
-   * gap is open to whoever wants it.
+   * As they wish to be credited. On a `proposed` entry this is who it has
+   * been SUGGESTED to — they have not agreed, and the page must not imply
+   * otherwise. Absent means nobody has been asked.
    */
   maintainer?: string;
   maintainerHref?: string;
   status: VariantStatus;
   /** One line: what this is FOR. Not a feature list. */
   summary: string;
-  /** What it adds on top of core. Short phrases, not sentences. */
+  /** What it adds on top of core. Short phrases — these render as a list. */
   adds: string[];
-  /** Where its releases live. Omitted while nothing has shipped. */
+  /** `owner/repo`, so the page can read the maintainer's latest release. */
+  github?: string;
+  /** Where its releases live. */
   releases?: string;
   /** Its source, if public. */
   source?: string;
-  /** The honest paragraph — who should and should not choose this. */
+  /**
+   * A copy served from here, for one-click install. `version` is what that
+   * copy IS — compared against the maintainer's latest, so a stale copy
+   * cannot pretend to be current.
+   */
+  hosted?: { version: string; url: string };
+  /**
+   * Or: a flasher manifest to read the current version and image from, for a
+   * firmware that publishes one. Core does; a variant could. Wins over
+   * `hosted`, because a manifest cannot go stale the way a pinned copy can.
+   */
+  manifest?: string;
+  /** The honest paragraph. Kept short: who should and should not take this. */
   note: string;
 };
 
-export const CORE_NOTE =
-  'Core is the one that has to keep working: the panel, the pattern loader, ' +
-  'Wi-Fi, sleep, OSC, and the update path out of anything. It is what ships ' +
-  'on the board and what you can always return to.';
-
-// The thing people most often assume needs a variant, and does not. Worth
-// saying next to core rather than buried in an entry: somebody who came
-// here looking for "the Home Assistant firmware" should leave knowing they
-// already have it.
-export const CORE_ALSO =
-  'Home Assistant works against core as it is. Reading the panel was always ' +
-  'plain HTTP, and setting the four knobs is POST /api/params \u2014 no broker ' +
-  'and no variant in between. OSC is core too, for the same reason: it needs ' +
-  'nothing but the network already in the room.';
-
-// Empty, and that is the honest state.
+// One entry, and it is the maintainer's own.
 //
-// Three entries stood here for a few hours, and every one of them named a
+// Three stood here for a few hours before it, and every one of them named a
 // person — or left a slot open for one — who had never been asked whether
-// they wanted to maintain a firmware. A shelf of variants nobody had
-// committed to build made the split look further along than it was, and it
-// did that at the expense of people who had not agreed to be on it.
+// they wanted to maintain a firmware. That made the split look further along
+// than it was, at the expense of people who had not agreed to be on it, and
+// it came down the same day.
 //
-// Whatever any of them decides is theirs to say, in their own words, in
-// their own time. It does not get written down here first.
-//
-// So: no entries until somebody says yes. The rest of this page describes
-// what a variant IS and how you move between firmwares, which is true today
-// and useful to anyone thinking about building one. Adding a variant back is
-// one object in this array.
-export const VARIANTS: Variant[] = [];
+// What replaced it is the same work done to something nobody had to be asked
+// about. Whatever anyone else decides is theirs to say, in their own words,
+// in their own time; it does not get written down here first.
+export const VARIANTS: Variant[] = [
+  {
+    id: 'core',
+    name: 'Core',
+    maintainer: 'Patternflow',
+    maintainerHref: 'https://github.com/engmung/Patternflow',
+    status: 'available',
+    summary:
+      'What ships on the board. The one that has to keep working, and the ' +
+      'one you can always come back to.',
+    adds: [
+      'The panel, and the pattern loader',
+      'Wi-Fi, sleep, and the way out of any firmware',
+      'Home Assistant, over plain HTTP',
+    ],
+    manifest: '/flash/manifest.json',
+    source: 'https://github.com/engmung/Patternflow',
+    note:
+      'On the shelf because coming back is a switch too. If you are reading ' +
+      'this on a panel you have not changed, this is what it is running.',
+  },
+  {
+    id: 'audio',
+    name: 'Audio',
+    maintainer: 'SeungHun Lee',
+    maintainerHref: 'https://github.com/engmung',
+    status: 'available',
+    summary:
+      'For pointing sound at a panel — a laptop running Ableton, a tab ' +
+      'playing something, or the room itself.',
+    adds: [
+      'OSC (Max, TouchDesigner, Ableton)',
+      'Browser audio + Chrome extension',
+      'On-board microphone',
+    ],
+    github: 'engmung/patternflow-audio',
+    releases: 'https://github.com/engmung/patternflow-audio/releases',
+    source: 'https://github.com/engmung/patternflow-audio',
+    hosted: {
+      version: 'v0.1.0',
+      url: 'https://community.patternflow.work/api/variant-bin/audio/firmware.bin',
+    },
+    note:
+      'The first variant, and the one the split was tested on rather than ' +
+      'argued about — OSC left the core to get here, and it was the ' +
+      'maintainer’s own favourite thing in the firmware. Take it if a ' +
+      'computer or a microphone drives your panel. If you pick a pattern and ' +
+      'leave it, core does that and this adds nothing you would notice.',
+  },
+];

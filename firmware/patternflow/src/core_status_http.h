@@ -83,6 +83,7 @@ inline void handleStatus() {
   // for the site's variant list; `caps` is what the lab and the console
   // probe instead of assuming a feature exists (RFC §2.2).
   json += "\"variant\":\"" PF_VARIANT "\",";
+  json += "\"variantVersion\":\"" PF_VARIANT_VERSION "\",";
   json += "\"caps\":[";
   {
     bool first = true;
