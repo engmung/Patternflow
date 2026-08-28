@@ -2,7 +2,7 @@
 #
 # Build a named firmware from this repository.
 #
-#   ./build.sh                       the default — everything
+#   ./build.sh                       the default — no features
 #   ./build.sh audio                 the audio bundle
 #   ./build.sh audio flash <host>    build it, then push it to a panel
 #
@@ -29,7 +29,7 @@ if [ -n "$BUNDLE" ] && [ "$BUNDLE" != "flash" ]; then
   trap 'rm -f "$ADDONS/addons_local.h" "$ADDONS/overrides.h"' EXIT
   shift
 else
-  echo "bundle:  (default — everything)"
+  echo "bundle:  (default — no features)"
 fi
 
 ( cd "$SKETCH" && PLATFORMIO_BUILD_DIR="$BUILD_DIR" python -m platformio run -e firmware )

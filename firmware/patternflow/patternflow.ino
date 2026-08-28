@@ -1,3 +1,84 @@
+// ═══════════════════════════════════════════════════════════
+// PatternFlow — the device itself
+//
+// The panel, the four encoders, the pattern loader, Wi-Fi, sleep, /update and
+// the web console. A build of this file with nothing else still does the thing
+// Patternflow is for: load an interactive pattern and run it under four knobs.
+//
+// EVERY OTHER BUILD IN THIS REPOSITORY COMPILES THIS FILE UNCHANGED. Audio and
+// Performance differ by two files in firmware/bundles/<name>/ and not one line
+// here, so a change made for one edition lands in all of them. That is the
+// whole point and also the whole risk. docs/EDITIONS.md is the reasoning;
+// addons/pf_addon.h is the interface; addons/addons.h is the composition.
+//
+// ── The rule ────────────────────────────────────────────────────────
+//
+// No feature is named in this file. Not in an #include, not in an #if, not in
+// a string on the screen. Every feature reaches the core through the hooks in
+// pf_addon.h, dispatched here as PFAddons::something() that neither knows nor
+// asks what is behind it. If you find yourself wanting `#if PF_OSC_ENABLED`
+// here, the answer is a hook, or the feature does not belong in the core.
+//
+// The one thing this file DOES decide is where each hook fires in the frame.
+// Which addons run, and in what order, is the composition's business.
+//
+// ── If you are an AI agent editing this file ────────────────────────────
+//
+// You were probably asked to add or fix a feature, and this file is where the
+// symptom showed up. That is not the same as this being where the fix goes.
+//
+// THIS FILE CHANGES FOR TWO REASONS ONLY: a bug in the device itself, or a
+// real improvement to what the device is. A feature bends to fit the core.
+// The core does not bend to fit a feature. If an edit here exists so that one
+// feature can work, it is in the wrong file - put it behind a hook instead.
+//
+// The test takes one question: would this edit still be correct on a build
+// that does not contain the feature you are working on? If the honest answer
+// is "it would do nothing" or "it would be wrong", move it to addons/.
+//
+// Three things that mislead agents in particular:
+//
+//   - A name is not a feature. `oscInfoShowing` is the NETWORK screen's own
+//     flag and has had nothing to do with OSC for a long time. Do not follow
+//     a name into a conclusion about what the code does, and do not rename
+//     across this file to match a tidier mental model - that is a large diff
+//     with no behaviour change, and it buries the real one underneath.
+//
+//   - The comments here explain WHY the code has its shape, and several are
+//     the only surviving record of a bug that took hardware to find. They
+//     are not clutter. Change the code and you update the comment; if you
+//     cannot tell whether a comment is still true, leave it and say so.
+//
+//   - Compiling is not testing. Most of what has broken here broke silently
+//     on a build that had no feature to notice. Build all three editions.
+//
+// ── What has actually gone wrong here ─────────────────────────────
+//
+// Four real regressions, all of them invisible on the build that was in front
+// of the person who caused them. Read these before editing:
+//
+//   1. `InputFrame input{}` in the main loop. The braces are load-bearing. The
+//      lane fields are written only by a feature that drives them, so without
+//      the value-initialisation a build that has no such feature reads stack
+//      garbage - and a garbage active-flag makes PFParams::apply return early,
+//      which ignores the physical knobs. Shipped once. Do not drop the braces.
+//
+//   2. PFAddons::loop(frame) must be dispatched every frame. It went missing
+//      in v3.7.0 and every addon's loop silently stopped; nothing failed to
+//      compile, and the default build had no addons to notice.
+//
+//   3. Screen text that names a feature. "OSC / AUD" was hard-coded under the
+//      NETWORK screen's toggle rows long after the rows themselves were built
+//      from the addon list, so two of the three editions drew an instruction
+//      for knobs that toggle nothing.
+//
+//   4. Widening a hook's signature. That is fine and the compiler will tell
+//      you: build all three editions (firmware/bundles/build.sh, then `audio`
+//      and `performance`) before you push. A hook change that compiles only
+//      against the default is not tested.
+//
+// License: MIT
+// ═══════════════════════════════════════════════════════════
 #include <Arduino.h>
 #include <Preferences.h>
 #include "config.h"
@@ -23,10 +104,17 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
-// Also after the registry: MQTT resolves inbound pattern names against it.
-// On-device show player (.pfs cue tables on FFat) + its night/wake
-// scheduler. After MQTT: cues apply through the same hold helpers.
 
+// ── Device state ──────────────────────────────────────────────
+//
+// One flat block of globals rather than a struct, because every screen and
+// the main loop read them and an .ino has no header to share a type through.
+//
+// These belong to the core and to nothing else. A feature that needs to know
+// about them is TOLD, through PFAddonFrame (addons/pf_addon.h) - which is why
+// that struct carries chromeVisible() and the mode instead of letting an
+// addon reach in here. Adding a global for one feature's benefit is the most
+// common way this file has drifted. The hook exists so you do not have to.
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
 int currentPatternIdx = 0;
@@ -65,6 +153,11 @@ bool brightnessDirty = false;
 // = on, left = off; both persist in NVS). Rotation, not clicks, so the K2
 // longpress used to exit can't flip anything. Second K2 longpress or idle
 // exits.
+// NOTE ON THE NAME: this is the NETWORK screen's visibility flag, nothing
+// more. OSC was hard-wired as that screen's first row back when it lived in
+// the core; it is an ordinary addon now and the rows are built from whatever
+// is loaded. The name survives because renaming it touches a dozen call sites
+// for no behaviour change. It does NOT mean this file knows about OSC.
 bool oscInfoShowing = false;
 uint32_t oscInfoIdleAtMs = 0;
 
@@ -241,6 +334,13 @@ void clearPatternLatchIfStable() {
   prefs.putBool("pat_trying", false);
 }
 
+// ── Boot ──────────────────────────────────────────────────────
+//
+// Order matters and the reasons sit on the individual lines. The one rule
+// worth stating up front: PFAddons::setup() runs LAST, after the panel, the
+// pattern registry and the HTTP server exist, so an addon may assume all
+// three. Wi-Fi is the exception - it starts non-blocking and is NOT up yet
+// when setup() returns, which is exactly what the onNetwork hook is for.
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -323,6 +423,11 @@ void setup() {
   lastMs = millis();
 }
 
+// ── Text and drawing helpers ───────────────────────────────────
+//
+// Shared by every screen below. Panel text is 6x8 ASCII with no glyphs past
+// 0x7F, which is why asciiFold exists - pattern names are UTF-8 and come from
+// anywhere in the world. Everything drawn on the panel goes through here.
 const char* currentContentName() {
   return patterns[currentPatternIdx].name;
 }
@@ -415,6 +520,18 @@ void drawScreenHeader(const char* title) {
   dma_display->drawFastHLine(4, 15, dma_display->width() - 8, pfRuleC());
 }
 
+// ── The info screens ───────────────────────────────────────────
+//
+// The overlays a person reaches with a longpress: NETWORK, the knob map, the
+// update progress screen, the paused screen, and the brief notices. They draw
+// over the running pattern, and every one of them is core.
+//
+// A feature does NOT get a screen here. It gets a row on NETWORK by declaring
+// shortName + isRuntimeEnabled + setRuntimeEnabled in its descriptor, and a
+// page in the web console for anything larger. That keeps the panel readable
+// on a 64px line, and keeps this file from growing one screen per feature -
+// which is what it would do, because a screen is always the easiest thing to
+// add and the hardest to take back once someone has learned it.
 // Notices sit on the same tight scrim the SELECT overlay uses (text bounds
 // + 2px) instead of a full-width black band — less of the live pattern is
 // blotted out and every overlay text now shares one look.
@@ -531,19 +648,46 @@ void drawNetworkInfo() {
     drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
   }
 
-  // Hints under a hairline rule — turn to toggle, K1 to sleep, K4 for the
-  // update screen, click (or hold) K2 to leave. Five lines at 9px pitch
-  // instead of the old four at 10: adding SLEEP is what made it tight.
+  // Hints under a hairline rule. The rows above come from whatever addons
+  // are loaded, so the lines naming them have to as well: "TURN K2/K3" over
+  // "OSC / AUD" was hard-coded, and only the audio edition has those two.
+  // Every other build drew an instruction for knobs that toggle nothing.
+  //
+  // Lines are collected and then dropped onto a fixed ladder, so a build
+  // with all five keeps the layout this screen was tuned for and a build
+  // with fewer packs up from the top, the same way the feature rows do.
   dma_display->drawFastHLine(4, 82, w - 8, pfRuleC());
-  drawCenteredText("TURN K2/K3", 86, pfDimC(), 1);
-  drawCenteredText("OSC / AUD", 95, pfDimC(), 1);
+  const char* hints[5];
+  uint16_t hintColors[5];
+  int hintCount = 0;
+  char toggleNames[16];
+  if (rowCount > 0) {
+    hints[hintCount] = rowCount > 1 ? "TURN K2/K3" : "TURN K2";
+    hintColors[hintCount++] = pfDimC();
+    if (rowCount > 1) {
+      snprintf(toggleNames, sizeof(toggleNames), "%s / %s", rows[0].name,
+               rows[1].name);
+    } else {
+      snprintf(toggleNames, sizeof(toggleNames), "%s", rows[0].name);
+    }
+    hints[hintCount] = toggleNames;
+    hintColors[hintCount++] = pfDimC();
+  }
   if (PatternflowSleep::isCompiledIn()) {
-    drawCenteredText("K1 = SLEEP", 105, pfLedC(), 1);
+    hints[hintCount] = "K1 = SLEEP";
+    hintColors[hintCount++] = pfLedC();
   }
   if (PatternflowWebUpdate::isCompiledIn()) {
-    drawCenteredText("K4=UPDATE", 114, pfDimC(), 1);
+    hints[hintCount] = "K4=UPDATE";
+    hintColors[hintCount++] = pfDimC();
   }
-  drawCenteredText("K2 = EXIT", 123, pfDimC(), 1);
+  hints[hintCount] = "K2 = EXIT";
+  hintColors[hintCount++] = pfDimC();
+
+  static const int HINT_Y[5] = {86, 95, 105, 114, 123};
+  for (int i = 0; i < hintCount; i++) {
+    drawCenteredText(hints[i], HINT_Y[i], hintColors[i], 1);
+  }
 
   dma_display->setRotation(0);
 }
@@ -717,6 +861,12 @@ void drawKnobMap() {
 // Draws the SELECT overlay ON TOP of the live pattern preview the loop has
 // already rendered into the buffer (so no fillScreen here). Each label sits on
 // a small dark scrim so it stays readable over whatever pattern is behind it.
+// ── SELECT mode and the banner ─────────────────────────────────
+//
+// Browsing the pattern list with K1, plus the banner overlay that addons and
+// the console can raise. Ranks are computed over VISIBLE patterns only: a
+// hidden entry still occupies an index, and counting it produced a list that
+// skipped a number and looked broken from the outside.
 // Hidden patterns are skipped while browsing but were still counted, so a
 // list with one hidden entry read "1 / 3" and then "3 / 3" — a missing 2
 // that looks exactly like a bug, because from the outside it is one.
@@ -824,6 +974,29 @@ static inline bool chromeVisible() {
   return oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting;
 }
 
+// ── Building the input frame ───────────────────────────────────
+//
+// The seam every feature drives the device through, and the part of this file
+// most worth understanding before changing anything.
+//
+// readInputFrame fills the frame from the PHYSICAL encoders only. Features
+// add to it afterwards through PFAddons::fillInput, and the three ways they
+// can do that are deliberately different from each other:
+//
+//   knobDeltas[i]            encoder motion, accumulated. What a hand does.
+//   knobAudioActive/Value[i] an absolute continuous reading, 0..1, lerped
+//                            into the parameter's range. A LANE: a level
+//                            that is simply true right now, like a band of
+//                            audio. Not a delta, and not a set value.
+//   paramAbsolute[i]         an exact value, 0..1000. What a cue, a show or
+//                            a remote sends when it means one number.
+//
+// PFParams::apply consumes them in the order paramAbsolute -> lane -> deltas
+// and RETURNS EARLY at the first one that is active. That is why the frame is
+// value-initialised where it is declared in loop(): on a build with no
+// feature writing the lane fields, stack garbage in knobAudioActive makes
+// apply() return before it ever reaches the encoders, and the knobs go dead.
+// That shipped once. The braces on `InputFrame input{}` are load-bearing.
 void readInputFrame(InputFrame& input) {
   static long prevKnobs[4] = {0, 0, 0, 0};
 
@@ -949,6 +1122,25 @@ void applyLaneMotion(InputFrame& input, bool enabled) {
   }
 }
 
+// ── The frame ─────────────────────────────────────────────────
+//
+// Runs at ~60fps and everything in it is on the frame budget. The order is
+// the contract features are written against, so moving a step is a breaking
+// change even when it still compiles:
+//
+//   1. boot latch, sleep, and the network service calls
+//   2. readInputFrame       physical encoders into a zeroed frame
+//   3. PFAddons::fillInput  features add deltas, lanes, absolutes
+//   4. PFParams::apply      one of those three wins, per knob
+//   5. the pattern renders
+//   6. PFAddons::loop       features get the finished frame and their own
+//                           time slice
+//   7. observeFrame / takePattern   what happened, and who wants the panel
+//   8. overlays draw on top
+//
+// Step 6 is not optional and is not a debug call. It went missing in v3.7.0,
+// nothing failed to compile, and every addon's timer silently stopped for a
+// release. If you are moving code in here, check it is still dispatched.
 void loop() {
   // Above the sleep block on purpose: a board that is asleep still has to be
   // able to disarm the latch, or a device told to sleep within the first few

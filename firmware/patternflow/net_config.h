@@ -18,7 +18,12 @@
 #pragma once
 
 // Per-device overrides first. Without this file every default below applies
-// (Wi-Fi placeholders, OSC off, OTA on, audio on).
+// (Wi-Fi placeholders, OTA on).
+//
+// These settings TUNE a feature; they do not decide whether it is in the
+// build. PF_OSC_ENABLED sits inside addons/osc/, so it is only read when the
+// composition names the OSC descriptor — see addons/addons.h and
+// docs/EDITIONS.md. A build with no features reads none of them.
 #if __has_include("patternflow_secrets.h")
 #include "patternflow_secrets.h"
 #endif
