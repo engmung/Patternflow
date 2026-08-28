@@ -890,9 +890,30 @@ void readInputFrame(InputFrame& input) {
   PatternflowBus::fillAbsolute(input);
 }
 
-// Legacy absolute audio-react path for older clients that still send k=N,v=F.
-// New clients send d=N,v=F and are merged into knobDeltas in readInputFrame().
-// "Physical wins": turning a knob this frame suppresses legacy audio on that knob.
+// The absolute audio path: a band level, 0..1, on a lane.
+//
+// This turns that level into encoder motion so a pattern that only ever reads
+// `knobDeltas` still reacts — which was the whole point, and is why every
+// pattern responds to audio without audio code of its own.
+//
+// It used to also clear `knobAudioActive`, and that quietly made the good
+// path unreachable. `PFParams::apply` checks the flag FIRST and maps the
+// level straight into the parameter's own range:
+//
+//     if (input.knobAudioActive[i]) { *param = lerp(lo, hi, value); return; }
+//     if (input.knobDeltas[i] != 0) { *param += delta * step; }
+//
+// With the flag cleared, every audio source — browser, extension, the on-board
+// microphone — fell through to the second line: unbounded accumulation, where
+// the same sound gives a different result depending on what came before, and a
+// dropped update is an error the parameter keeps forever.
+//
+// Leaving the flag set costs nothing and both paths coexist, because that
+// first branch returns: a PFParams pattern reads the level and lands inside
+// its declared range, a raw-delta pattern never looks at the flag and takes
+// the motion. Nothing needs to choose.
+//
+// "Physical wins": turning a knob this frame suppresses audio on that lane.
 void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
   static bool wasActive[4] = {false, false, false, false};
   static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -907,7 +928,6 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
     }
 
     float value = constrain(input.knobAudioValue[i], 0.0f, 1.0f);
-    input.knobAudioActive[i] = false;
 
     if (!wasActive[i]) {
       prevValue[i] = 0.5f;

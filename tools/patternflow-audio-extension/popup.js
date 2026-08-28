@@ -31,6 +31,9 @@ let config = structuredClone(DEFAULT_CONFIG);
 let state = null;
 let saveTimer = null;
 let bandEls = [];
+// Bands are indexed 0..3; this is the fifth choice — every editor at once,
+// for setting one band against the others rather than one at a time.
+const ALL_BANDS = -1;
 let activeBandIndex = 0;
 let spectrumDrag = null;
 
@@ -146,6 +149,7 @@ function normalizeBand(raw, index) {
     hzMin,
     hzMax,
     knob: Math.max(0, Math.min(3, Number(raw.knob ?? index) || 0)),
+    muted: raw.muted === true,
     outMin,
     outMax,
     inMin,
@@ -154,11 +158,15 @@ function normalizeBand(raw, index) {
   };
 }
 
+// Four bands, always, because the panel has four knobs. Adding and removing
+// them made the count a thing to manage; a band you do not want is muted, and
+// it is still there when you want it back.
 function normalizeConfig(raw) {
-  const storedBands = Array.isArray(raw?.bands) ? raw.bands : [];
-  const bands = storedBands.length > 0
-    ? storedBands.map(normalizeBand)
-    : structuredClone(DEFAULT_CONFIG.bands);
+  const stored = Array.isArray(raw?.bands) ? raw.bands : [];
+  const bands = [];
+  for (let i = 0; i < 4; i++) {
+    bands.push(normalizeBand(stored[i] || newBand(i), i));
+  }
 
   return {
     ...DEFAULT_CONFIG,
@@ -256,6 +264,46 @@ function bindRange(root, selector, outputSelector, getter, setter, format, scale
   });
 }
 
+// Which band you are editing, in one move, without leaving the spectrum in
+// view. The tabs carry the knob each band drives and whether it is muted,
+// because that is what you want to know before switching.
+function renderBandTabs() {
+  const root = $('bandTabs');
+  if (!root) return;
+  root.innerHTML = '';
+  config.bands.forEach((band, index) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'band-tab';
+    if (index === activeBandIndex) tab.classList.add('active');
+    if (band.muted) tab.classList.add('muted');
+    tab.innerHTML = `<strong>${index + 1}</strong><span>K${band.knob + 1}</span>`;
+    tab.title = band.muted ? `Band ${index + 1} - muted` : `Band ${index + 1} -> knob ${band.knob + 1}`;
+    tab.addEventListener('click', () => selectBand(index));
+    root.appendChild(tab);
+  });
+
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'band-tab all';
+  if (activeBandIndex === ALL_BANDS) all.classList.add('active');
+  all.innerHTML = '<strong>All</strong><span>compare</span>';
+  all.title = 'Show every band at once';
+  all.addEventListener('click', () => selectBand(ALL_BANDS));
+  root.appendChild(all);
+}
+
+function selectBand(index) {
+  activeBandIndex = index === ALL_BANDS
+    ? ALL_BANDS
+    : Math.max(0, Math.min(config.bands.length - 1, index));
+  bandEls.forEach((entry, i) => {
+    entry.panel.hidden = activeBandIndex !== ALL_BANDS && i !== activeBandIndex;
+  });
+  renderBandTabs();
+  renderSpectrumBands();
+}
+
 function buildBands() {
   const root = $('bands');
   const template = $('band-template');
@@ -268,15 +316,16 @@ function buildBands() {
     el.dataset.index = String(index);
     el.querySelector('.band-title').textContent = `Band ${index + 1}`;
 
-    el.addEventListener('click', () => {
-      activeBandIndex = index;
-      renderSpectrumBands();
-    });
+    // One editor at a time unless you ask for all of them. Four stacked
+    // panels meant scrolling down to change a band and back up to watch the
+    // spectrum answer, over and over.
+    el.hidden = activeBandIndex !== ALL_BANDS && index !== activeBandIndex;
 
     const knob = el.querySelector('.knob');
     knob.value = String(band.knob);
     knob.addEventListener('change', () => {
       band.knob = Math.max(0, Math.min(3, parseInt(knob.value, 10) || 0));
+      renderBandTabs();
       persistConfig();
     });
 
@@ -288,14 +337,20 @@ function buildBands() {
       ).join('');
     }
 
-    const remove = el.querySelector('.remove-band');
-    remove.disabled = config.bands.length <= 1;
-    remove.addEventListener('click', (event) => {
+    const mute = el.querySelector('.mute-band');
+    const paintMute = () => {
+      mute.textContent = band.muted ? 'Muted' : 'Mute';
+      mute.classList.toggle('on', band.muted === true);
+      mute.title = band.muted
+        ? 'This band is not driving its knob'
+        : 'Stop this band driving its knob';
+    };
+    paintMute();
+    mute.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (config.bands.length <= 1) return;
-      config.bands.splice(index, 1);
-      activeBandIndex = Math.max(0, Math.min(activeBandIndex, config.bands.length - 1));
-      buildBands();
+      band.muted = !band.muted;
+      paintMute();
+      renderBandTabs();
       renderSpectrumBands();
       persistConfig();
     });
@@ -347,6 +402,9 @@ function buildBands() {
     }, (value) => value.toFixed(2));
 
     bandEls.push({
+      // The panel itself, not only its meters — selectBand shows and hides
+      // these, and it had nothing to hold on to.
+      panel: el,
       level: el.querySelector('.level'),
       output: el.querySelector('.output')
     });
@@ -394,9 +452,17 @@ function renderSpectrumBands() {
     const el = document.createElement('div');
     el.className = 'spectrum-band';
     if (index === activeBandIndex) el.style.background = 'rgba(232, 85, 46, .26)';
+    else if (activeBandIndex === ALL_BANDS) el.style.background = 'rgba(232, 85, 46, .14)';
     el.style.left = `${Math.min(left, right)}px`;
     el.style.width = `${Math.max(2, Math.abs(right - left))}px`;
     el.innerHTML = `<span>B${index + 1}</span>`;
+    if (band.muted) el.classList.add('muted');
+    // Select on click, and swallow the pointer so it does not also begin a
+    // drag that would rewrite the band you just reached for.
+    el.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      selectBand(index);
+    });
     root.appendChild(el);
   });
 }
@@ -413,7 +479,10 @@ function bindSpectrumDrag() {
     if (!spectrumDrag) return;
     const rect = wrap.getBoundingClientRect();
     const currentHz = xToHz(event.clientX - rect.left, rect.width);
+    // Dragging rewrites one band's range, so in All view there is nothing to
+    // drag — pick a band first.
     const band = config.bands[activeBandIndex];
+    if (!band) return;
     band.hzMin = Math.min(spectrumDrag.startHz, currentHz);
     band.hzMax = Math.max(spectrumDrag.startHz, currentHz);
     clampBandRange(band);
@@ -491,13 +560,8 @@ async function init() {
     persistConfig();
   });
 
-  $('addBand').addEventListener('click', () => {
-    config.bands.push(newBand(config.bands.length));
-    activeBandIndex = config.bands.length - 1;
-    buildBands();
-    renderSpectrumBands();
-    persistConfig();
-  });
+  // No Add Band: there are four, one per knob, and there always were four
+  // knobs to drive.
 
   $('connect').addEventListener('click', async () => {
     try {
@@ -528,6 +592,7 @@ async function init() {
   $('release').addEventListener('click', () => sendMessage({ type: 'release' }));
 
   buildBands();
+  renderBandTabs();
   bindManualControls();
   bindSpectrumDrag();
   renderSpectrumBands();

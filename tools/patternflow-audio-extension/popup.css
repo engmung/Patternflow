@@ -427,3 +427,70 @@ input[type="range"] {
   margin: 6px 0 10px;
   width: 100%;
 }
+
+/* ── Band selector ───────────────────────────────────────────────────────
+   Four bands, one editor on screen. These say which one you are on, which
+   knob it drives, and whether it is muted — the three things worth knowing
+   before you switch. */
+.band-tabs {
+  display: grid;
+  /* Four bands and All. */
+  grid-template-columns: repeat(4, 1fr) 1.2fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.band-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0 5px;
+  min-height: 0;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.band-tab strong { font-size: 13px; font-weight: 600; }
+.band-tab span { font-size: 9px; letter-spacing: 0.08em; }
+
+.band-tab:hover { color: var(--ink); border-color: var(--ink); }
+
+.band-tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+}
+
+/* A muted band stays in place and stays reachable — it just is not driving
+   anything, and should not look like it is. */
+.band-tab.muted { opacity: 0.45; }
+.band-tab.muted strong { text-decoration: line-through; }
+
+.spectrum-band { cursor: pointer; }
+.spectrum-band.muted { opacity: 0.35; }
+
+.mute-band {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.mute-band.on {
+  border-color: var(--led);
+  color: var(--led);
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+/* `hidden` loses to any explicit display, and .band sets one. Say it again. */
+.band[hidden] { display: none; }
+
+.band-tab.all strong { font-size: 11px; letter-spacing: 0.06em; }

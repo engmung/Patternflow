@@ -31,7 +31,7 @@
 <section class="spectrum-section">
   <div class="section-head">
     <span class="label">Spectrum</span>
-    <button id="addBand" type="button" class="small-button">Add Band</button>
+    <span class="hint">click a band to edit it</span>
   </div>
   <div class="spectrum-wrap">
     <canvas id="spectrum" width="760" height="220"></canvas>
@@ -44,6 +44,9 @@
     <span>10k</span>
     <span>20k</span>
   </div>
+  <!-- Four, one per knob. The spectrum above selects too; this row is here so
+       switching does not depend on hitting a narrow band with the pointer. -->
+  <div id="bandTabs" class="band-tabs"></div>
 </section>
 
 <section>
@@ -87,7 +90,7 @@
             <option value="3">4</option>
           </select>
         </label>
-        <button type="button" class="remove-band" title="Remove band">Remove</button>
+        <button type="button" class="mute-band">Mute</button>
       </div>
     </div>
 

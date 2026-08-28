@@ -64,6 +64,20 @@ inline void appendStatus(String& json) {
   json += PatternflowAudio::isRuntimeEnabled() ? "true" : "false";
   json += ",\"audioClients\":";
   json += PatternflowAudio::clientCount();
+  // The four lanes as the pattern will see them. Without these the absolute
+  // path is unobservable from outside: a client can send a level, the panel
+  // can act on it, and there is no way to check the two agree.
+  json += ",\"audioLanes\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += String(PatternflowAudio::value(i), 3);
+  }
+  json += "],\"audioLaneActive\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowAudio::isActive(i) ? "true" : "false";
+  }
+  json += ']';
 }
 
 inline void setRuntimeEnabled(bool on) {

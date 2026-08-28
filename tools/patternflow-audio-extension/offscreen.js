@@ -13,7 +13,7 @@ let running = false;
 let manual = false;
 let wsWanted = false;
 let wsSerial = 0;
-let lastSentValues = [0.5, 0.5, 0.5, 0.5];
+let lastSentValues = [-1, -1, -1, -1];
 
 const MIN_HZ = 20;
 const MAX_HZ = 20000;
@@ -74,29 +74,26 @@ function send(msg, options = {}) {
   return true;
 }
 
-function resetOutputBaselines(nextValues = [0.5, 0.5, 0.5, 0.5]) {
-  lastSentValues = nextValues.map((value) => {
-    const numeric = Number(value);
-    return Math.max(0, Math.min(1, Number.isFinite(numeric) ? numeric : 0.5));
-  });
+// -1 is "nothing sent yet", so the first real level always goes out. With
+// absolute values there is no baseline to match — only a cache of what the
+// lane was last told.
+function resetOutputBaselines() {
+  lastSentValues = [-1, -1, -1, -1];
 }
 
-function getBandBaselines() {
-  const baselines = [0.5, 0.5, 0.5, 0.5];
-  if (!config?.bands) return baselines;
-  for (const band of config.bands) {
-    const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
-    baselines[idx] = Math.max(0, Math.min(1, Number(band.outMin) || 0));
-  }
-  return baselines;
-}
-
+// Absolute, not a delta.
+//
+// `d=lane,change` became virtual encoder clicks in firmware, so a band level
+// never set anything — it nudged, and the parameter drifted wherever the sum
+// of nudges went. The same music gave a different result depending on what had
+// already happened, and any message the one-connection server dropped stayed
+// wrong forever. `k=lane,level` lands the band inside the parameter's own
+// range, and the next frame corrects whatever the last one lost.
 function sendOutputValue(knob, value) {
   const idx = Math.max(0, Math.min(3, Number(knob) || 0));
   const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-  const delta = normalized - lastSentValues[idx];
-  if (Math.abs(delta) < 0.001) return;
-  if (send(`d=${idx},v=${delta.toFixed(3)}`)) {
+  if (Math.abs(normalized - lastSentValues[idx]) < 0.002) return;
+  if (send(`k=${idx},v=${normalized.toFixed(3)}`)) {
     lastSentValues[idx] = normalized;
   }
 }
@@ -151,7 +148,7 @@ async function start(streamId, nextConfig) {
   running = true;
   manual = false;
   wsWanted = true;
-  resetOutputBaselines(getBandBaselines());
+  resetOutputBaselines();
 
   audioCtx = new AudioContext();
   mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -268,6 +265,19 @@ function tick() {
 
   for (let i = 0; i < bands.length; i++) {
     const band = bands[i];
+    if (band.muted) {
+      // Release the lane once, then leave it alone: the encoder owns it again
+      // and nothing here should keep writing to it.
+      const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
+      if (lastSentValues[idx] !== -1) {
+        send(`off=${idx}`, { control: true });
+        lastSentValues[idx] = -1;
+      }
+      smoothing[i] = 0;
+      levels[i] = 0;
+      outputs[i] = 0;
+      continue;
+    }
     const raw = bandEnergy(band);
     smoothing[i] = alpha * raw + (1 - alpha) * smoothing[i];
     const mapped = mapBandOutput(smoothing[i], band);
@@ -303,7 +313,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'config') {
       const oldUrl = config ? wsUrl() : '';
       config = message.config;
-      if (running) resetOutputBaselines(getBandBaselines());
+      if (running) resetOutputBaselines();
       if (ws && oldUrl !== wsUrl()) connectWs();
       sendResponse({ ok: true });
       return;
@@ -323,7 +333,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'release') {
       send('off', { control: true });
-      resetOutputBaselines(manual ? undefined : getBandBaselines());
+      resetOutputBaselines();
       sendResponse({ ok: true });
       return;
     }
