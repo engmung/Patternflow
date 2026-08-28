@@ -58,6 +58,14 @@
   .stat .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);margin-top:4px;
        white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stat .bar{height:3px;background:var(--ghost);margin-top:7px}
+  /* The edition block is a link, so it must not inherit link styling and
+     must not look clickable in the middle of a list of readouts. The
+     sub-line is where the one thing worth saying goes. */
+  a.stat{display:block;text-decoration:none;color:inherit}
+  a.stat:hover .v{color:var(--led)}
+  a.stat:hover .sub{color:var(--ink)}
+  .stat .sub{font-size:11px;line-height:1.45;color:var(--faint);margin-top:5px;
+       white-space:normal}
   .stat .bar i{display:block;height:100%;width:0;background:var(--led);transition:width .3s}
 
   /* ── Update banner (hidden until the browser proves it) ───── */
@@ -88,9 +96,6 @@
   .pf-row.soon,.pf-row.soon .pf-row-d{color:var(--faint)}
   .tag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
        border:1px solid var(--faint);color:var(--muted);padding:3px 8px 2px;margin-left:10px;vertical-align:2px}
-  #variant{margin-right:auto;margin-left:16px}
-  #variant a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--rule)}
-  #variant a:hover{color:var(--led);border-color:var(--led)}
   footer{margin-top:34px;display:flex;justify-content:space-between;gap:16px;
        font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   footer a{color:var(--muted);text-decoration:none}
@@ -138,6 +143,18 @@
       <div class="stat" data-cap="mqtt"><span class="k">MQTT</span><div class="v" id="s-mqtt">&mdash;</div></div>
       <div class="stat"><span class="k">Uptime</span><div class="v" id="s-up">&mdash;</div></div>
       <div class="stat"><span class="k">Firmware</span><div class="v" id="s-fw">&mdash;</div></div>
+      <!-- Which edition this panel is running. It was a line of small print in
+           the footer, which is where you put something nobody needs — and this
+           is the first thing to know when a feature you expected is not here.
+           Same block as everything else, and a link either way: on an edition
+           it goes to that edition's card, on the default it goes to the shelf,
+           because "where are the other ones" is the question the default
+           raises. -->
+      <a class="stat" id="s-ed-block" href="https://patternflow.work/variants">
+        <span class="k">Edition</span>
+        <div class="v" id="s-ed">&mdash;</div>
+        <div class="sub" id="s-ed-sub"></div>
+      </a>
     </div>
   </div>
 
@@ -209,7 +226,6 @@
   </div>
 
   <footer><span id="host"></span>
-    <span id="variant"></span>
     <a href="https://patternflow.work" target="_blank" rel="noopener">patternflow.work</a></footer>
 </main>
 
@@ -240,24 +256,8 @@ function gate(s){
   for(i=0;i<ghosts.length;i++)
     ghosts[i].textContent=(i+1<10?'0':'')+(i+1);
 }
-// Core, or somebody's variant? Only the device can answer, so it does —
-// and points at the shelf either way, because the useful question on a
-// core panel is "what else could this run" and on a variant it is
-// "what am I running and how do I get back".
-function sayVariant(s){
-  var el=$('variant');if(!el||!s)return;
-  var v=s.variant||'core';
-  var href='https://patternflow.work/variants'+(v==='core'?'':'#'+v);
-  el.innerHTML='';
-  el.appendChild(document.createTextNode(
-    v==='core'?'Patternflow core \u00b7 ':'Variant: '+v+' \u00b7 '));
-  var a=document.createElement('a');
-  a.href=href;a.target='_blank';a.rel='noopener';
-  a.textContent=v==='core'?'variants':'about this firmware';
-  el.appendChild(a);
-}
-document.addEventListener('pf-status',function(e){gate(e.detail);sayVariant(e.detail)});
-if(window.pfStatus){gate(window.pfStatus);sayVariant(window.pfStatus)}
+document.addEventListener('pf-status',function(e){gate(e.detail)});
+if(window.pfStatus){gate(window.pfStatus)}
 
 // ── Device card ───────────────────────────────────────────────
 // One status JSON, ~1.7 KB every 3 s — everything on the card comes out of
@@ -304,6 +304,23 @@ function tick(){
       (s.mqttRole+' · '+s.mqttState):'off';
     $('s-up').textContent=dur(s.uptime);
     $('s-fw').textContent='v'+s.version;
+
+    // Edition. The default build says what it is and where the others are,
+    // because "the feature I wanted is missing" is the question it provokes;
+    // an edition says which one and links to its own card.
+    var ed=s.variant&&s.variant!=='core'?s.variant:'';
+    if(ed){
+      $('s-ed').textContent=ed+(s.variantVersion?' '+s.variantVersion:'');
+      $('s-ed-sub').textContent='This panel runs the '+ed+' edition. '+
+        'Tap for what it carries, or to go back to the standard firmware.';
+      $('s-ed-block').href='https://patternflow.work/variants#'+encodeURIComponent(ed);
+    }else{
+      $('s-ed').textContent='Patternflow';
+      $('s-ed-sub').textContent='The standard firmware. Other editions add '+
+        'sound or MQTT — tap to see them. Installing one is a click and keeps '+
+        'your patterns and settings.';
+      $('s-ed-block').href='https://patternflow.work/variants';
+    }
     checkUpdate(s.version,s.variant);
   }).catch(function(){$('nowsub').textContent='cannot reach device'});
 }

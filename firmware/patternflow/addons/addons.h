@@ -71,27 +71,24 @@
 #endif
 
 #if !defined(PF_ADDONS_NONE) && !defined(PF_ADDON_LIST)
-// No edition file: this is the default composition - what ships on the board.
+// No edition file: the default composition, and it carries no features.
 //
-// Patterns, sequences, weather, and OSC for live control that needs no
-// infrastructure. Two features are deliberately NOT here, and each has an
-// edition of its own on the shelf, one click away:
+// Patternflow is a device that loads interactive patterns and runs them under
+// four knobs. That is the whole of it, and none of it is a feature: the
+// loader, the encoders, the panel, Wi-Fi, /update, sleep and the console are
+// the device. A panel with nothing in this list still does the thing it is
+// for, and does it with more room than any other build - the largest
+// contiguous block a loadable .pfm can claim is 92,148 bytes here against
+// 73,716 with features loaded, measured on hardware.
 //
-//   audio - the browser websocket and the on-board microphone, which needs
-//           four wires soldered to a board with no footprint for it yet
-//   mqtt  - Simone Majocchi's client, FlowLocal and Director, for the people
-//           running a broker
+// Everything else is a way of driving it from somewhere else, and each has an
+// edition on the shelf, one click away:
 //
-// This is not a ranking - see docs/EDITIONS.md. A composition is a build-time
-// choice, and the reason to make one is that a build without MQTT in it
-// cannot have had MQTT broken by a change to something else.
-#include "osc/addon_osc.h"
-#include "show/addon_show.h"
-#include "weather/addon_weather.h"
-#define PF_ADDON_LIST                \
-  &PFAddonOsc::descriptor,           \
-      &PFAddonShow::descriptor,      \
-      &PFAddonWeather::descriptor
+//   audio       - OSC, browser audio, and the on-board microphone
+//   performance - sequences, MQTT and weather
+//
+// This is not a ranking - see docs/EDITIONS.md.
+#define PF_ADDONS_NONE
 #endif
 
 #ifdef PF_ADDONS_NONE
