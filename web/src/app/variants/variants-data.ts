@@ -109,15 +109,16 @@ export type Variant = {
 
 // ── On 3.8.0 ────────────────────────────────────────────────────────────
 //
-// All three images report firmware 3.8.0, and 3.8.0 is NOT a cut release. It
-// is a working number so that three provisional images do not have to claim
-// to be 3.7.1, which was a real release with a different composition inside
-// it. There is no tag, no GitHub release and no changelog entry, and none of
-// those should be added on the strength of these builds.
+// All three images report firmware 3.8.0. The images are real: built clean,
+// scanned, and the thing the one-click install hands people today.
 //
-// The notes below say so on the cards themselves. When the checkpoint is
-// actually cut — reviewed, written up, tagged — these get rebuilt against it
-// and the wording comes out.
+// What does not exist yet is the WRITE-UP — no tag, no GitHub release, no
+// changelog entry. 3.8.0 is a working number chosen so three current images
+// do not have to claim to be 3.7.1, which was a real release with a different
+// composition inside it. The notes tell people what changed in the meantime.
+//
+// So: install these, they work. Do not treat the number as a documented
+// release until the changelog and the release notes catch up with it.
 
 // One entry, and it is the maintainer's own.
 //
@@ -167,11 +168,10 @@ export const VARIANTS: Variant[] = [
     },
     source: 'https://github.com/engmung/Patternflow',
     note:
-      'This image is provisional. It is built from the working branch so the ' +
-      'new default can be installed and used today, and it reports 3.8.0 only ' +
-      'because it is not 3.7.1 — that was a real release with every feature ' +
-      'compiled in. No release has been cut. A checkpoint is coming, properly ' +
-      'written up, and this card is rebuilt against it when it lands. ' +
+      'Installable today. It reports 3.8.0 rather than 3.7.1 because 3.7.1 ' +
+      'was a release with every feature compiled in, and this is not that. ' +
+      'The written-up release notes for 3.8.0 are still being put together — ' +
+      'the firmware is not waiting on them. ' +
       'Patternflow is a device that loads interactive patterns and runs them ' +
       'under four knobs, and this is exactly that and nothing else. Because ' +
       'nothing else is loaded, a pattern gets more contiguous memory here ' +
@@ -212,8 +212,8 @@ export const VARIANTS: Variant[] = [
       'a reconnect and keeps two panels together. Knob state and pattern ' +
       'selection are reachable over plain HTTP on any edition, so this is ' +
       'for when you want the panel to be part of something larger. ' +
-      'Provisional build: no release has been cut for the 3.8.0 it reports, ' +
-      'and this is rebuilt against the checkpoint when one is.',
+      'The written-up release notes for the 3.8.0 it reports are still being ' +
+      'put together; the image itself is current.',
   },
   {
     id: 'audio',
@@ -252,7 +252,7 @@ export const VARIANTS: Variant[] = [
       'Installing this without the microphone is safe: the panel can tell a ' +
       'missing mic from a quiet room, says so on the Mic page, and lets ' +
       'nothing drive the knobs until you turn it on. ' +
-      'Provisional build: no release has been cut for the 3.8.0 it reports, ' +
-      'and this is rebuilt against the checkpoint when one is.',
+      'The written-up release notes for the 3.8.0 it reports are still being ' +
+      'put together; the image itself is current.',
   },
 ];
