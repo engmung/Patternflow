@@ -123,4 +123,15 @@ struct PFAddon {
   // After the pattern has drawn, before the frame is presented. Clocks,
   // banners, subtitles. Keep it cheap — this is per frame.
   void (*drawOverlay)(const PFAddonFrame&);
+
+  // The console header's nav, the same idea one screen out. An addon that
+  // serves a page says where it is and what to call it, and the core lists
+  // it without knowing what it is.
+  //
+  // This exists because the alternative was already happening: theme_index.h
+  // - a core file - had /show, /mqtt and /weather written into it by name,
+  // gated on caps so they degraded correctly but named all the same. Adding a
+  // fourth was the moment to stop. Null on both means no nav entry.
+  const char* navPath;
+  const char* navLabel;
 };

@@ -534,6 +534,15 @@ function del(slug,name){
 // items: {f:File|null, name, st:'get'|'wait'|'up'|'retry'|'ok'|'fail', pct, err}
 var items=[];
 
+// Whether this firmware has the Sequences store, so a .pfs in a pack can be
+// refused with a reason instead of a lie. Without the show feature there is
+// no /api/shows: the PUT gets the 404 page, JSON.parse fails, and the queue
+// reports "no reply from device" after two pointless retries. Assume yes
+// until told otherwise, so a probe that never lands changes nothing.
+var hasShows=true;
+fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()})
+  .then(function(d){hasShows=(d.caps||[]).indexOf('shows')>=0}).catch(function(){});
+
 // Upload states only — deleting is one request now and reports as a single
 // line, so it no longer borrows this queue.
 var STATE_LABEL={get:'fetching…',wait:'waiting',up:'uploading',
@@ -597,6 +606,11 @@ function runQ(i){
   // Sequences store instead, and the rescan flag only counts the items bound
   // for /api/patterns (a .pfs must not swallow the batch's one rescan).
   var isPfs=/\.pfs$/i.test(it.name);
+  if(isPfs&&!hasShows){
+    it.st='fail';it.pct=0;
+    it.err='this firmware has no Sequences — Performance edition adds them';
+    renderQ();setTimeout(function(){runQ(i+1)},350);return;
+  }
   xhr.open('PUT',isPfs?'/api/shows':'/api/patterns');
   xhr.setRequestHeader('X-PF-Name',it.name);
   if(!isPfs)xhr.setRequestHeader('X-PF-Last',isLast?'1':'0');

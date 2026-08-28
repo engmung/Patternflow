@@ -96,6 +96,8 @@ inline const PFAddon descriptor = {
     nullptr,       // setRuntimeEnabled
     nullptr,       // appendStatus
     drawOverlay,
+    "/weather",    // navPath - the console header link
+    "Weather",     // navLabel
 };
 
 }  // namespace PFAddonWeather

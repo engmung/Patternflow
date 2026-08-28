@@ -27,7 +27,9 @@
 // #define PF_OTA_PASSWORD "your-secret"
 
 // ── OSC (Ableton/Max sidechannel) ──
-// Off by default. Set to 1 to send/receive OSC.
+// Only read on a build whose composition includes the OSC feature — the
+// Audio edition does; the default build has no features and ignores this
+// line entirely. Set to 0 to compile OSC out of a build that does have it.
 #define PF_OSC_ENABLED 1
 // Remote host is normally LEARNED automatically: leave this line commented
 // out and let the M4L bridge (or any host) send /patternflow/ping — the
@@ -38,14 +40,14 @@
 // #define PF_OSC_LOCAL_PORT 9001
 
 // ── Audio-react WebSocket ──
-// On by default. Uncomment to disable.
-// #define PF_AUDIO_ENABLED 0
+// Ships in the Audio edition; uncomment to compile it out of a build that
+// has it. Nothing here adds the feature to a build without it.
 
 // ── MQTT (panel-to-panel sync / home automation) ──
-// Compiled in by default but inert: the role (Off / Publisher / Subscriber)
-// is chosen at http://<device-ip>/mqtt, and nothing is dialled until a broker
-// host is set here. It does cost internal heap while connected — see the
-// measurements in net_config.h if you also compile presets back in.
+// Ships in the Performance edition. There it is inert until configured: the
+// role (Off / Publisher / Subscriber) is chosen at http://<device-ip>/mqtt,
+// and nothing is dialled until a broker host is set here. It costs internal
+// heap while connected — see the measurements in net_config.h.
 // #define PF_MQTT_HOST "broker.example.lan"
 // #define PF_MQTT_PORT 1883
 // #define PF_MQTT_USER "patternflow"

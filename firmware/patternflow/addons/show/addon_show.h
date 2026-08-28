@@ -86,6 +86,8 @@ inline const PFAddon descriptor = {
     nullptr,       // setRuntimeEnabled
     nullptr,       // appendStatus
     drawOverlay,
+    "/show",       // navPath - the console header link
+    "Sequences",   // navLabel
 };
 
 }  // namespace PFAddonShow
