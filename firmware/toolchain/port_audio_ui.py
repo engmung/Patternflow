@@ -161,15 +161,15 @@ padding:6px 0;margin-bottom:12px}
 <p class="wrap-note" id="heapline"></p>
 
 <label class="drive"><input type="checkbox" id="mic"> <b>Microphone</b></label>
-<p class="wrap-note">Off until you turn it on: the mic is four wires to a breakout rather than a
-part on the board, so most panels running this firmware do not have one, and an analysis over a
-floating pin is worth nobody's memory. Turning it off releases the I2S driver and parks the
-analysis; the setting is remembered.</p>
-
-<label class="drive"><input type="checkbox" id="drive"> Let the room drive the knobs</label>
-<p class="wrap-note" id="driveNote">Separate on purpose. With this off the meters still move and
-the panel does not, which is how you shape the response without it reacting to every word you
-say. A hand on an encoder always wins, and a browser tab sending audio outranks the room.</p>
+<p class="wrap-note">The panel listens, and the four bands below turn the four knobs, so patterns
+react to the room with no computer in it.
+<br><br>
+Off until you turn it on, and off is right for most panels: the mic is four wires to a breakout
+rather than a part on the board, and an analysis over a floating pin is worth nobody's memory.
+Turning it off releases the I2S driver and parks the analysis. The setting is remembered.
+<br><br>
+A hand on an encoder always wins and keeps that knob for five seconds. A browser tab sending
+audio through the Chrome extension outranks the microphone on any knob it has already claimed.</p>
 
 @@SPECTRUM@@
 
@@ -325,7 +325,6 @@ function paintLive() {
                gain: b.gain, outMin: b.outMin, outMax: b.outMax,
                knob: b.knob, muted: b.muted === true };
     });
-    $('drive').checked = !!d.driving;
     $('mic').checked = !!d.micOn;
     paintHeap();
     buildBands();
@@ -367,12 +366,6 @@ $('mic').addEventListener('change', function(){
   x.send('mic=' + (on ? '1' : '0'));
 });
 
-$('drive').addEventListener('change', function(){
-  var x = new XMLHttpRequest();
-  x.open('POST', '/api/audio-in');
-  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  x.send('driving=' + ($('drive').checked ? '1' : '0'));
-});
 </script>
 </body></html>
 '''

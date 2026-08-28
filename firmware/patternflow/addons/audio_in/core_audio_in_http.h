@@ -5,7 +5,7 @@
 //
 //   GET  /audio-in           the page
 //   GET  /api/audio-in       live levels + the current shaping. Polled.
-//   POST /api/audio-in       set one band, or the driving flag
+//   POST /api/audio-in       set one band, or the microphone switch
 //
 // ── Why polling and not the websocket ───────────────────────────────────
 //
@@ -101,8 +101,6 @@ inline void handleGet() {
   j += PFAudioFFT::sourceLabel();
   j += "\",\"micOn\":";
   j += PFAudioInMap::micOn ? "true" : "false";
-  j += ",\"driving\":";
-  j += PFAudioInMap::driving ? "true" : "false";
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -174,17 +172,13 @@ inline float argFloat(const char* name, float fallback) {
   return v.toFloat();
 }
 
-// One band per POST, addressed by index, or `driving` on its own. Partial
+// One band per POST, addressed by index, or `mic` on its own. Partial
 // updates are allowed: the page sends only the handle that moved, so dragging
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
   if (server().hasArg("mic")) {
     const String v = server().arg("mic");
     PFAudioInMap::micOn = (v == "1" || v == "true");
-  }
-  if (server().hasArg("driving")) {
-    const String v = server().arg("driving");
-    PFAudioInMap::driving = (v == "1" || v == "true");
   }
 
   if (server().hasArg("band")) {

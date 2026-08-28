@@ -121,10 +121,7 @@ inline void fillInput(InputFrame& input) {
   // the same behaviour with no coupling, and it is what dispatch order is
   // for. A hand on the encoder outranks both - the core drops any lane whose
   // knob moved this frame.
-  // Watching the meters and having the room turn the knobs are separate
-  // things, and someone tuning the response graph wants the first without
-  // the second. /audio-in owns this switch.
-  if (!PFAudioInMap::driving) return;
+  if (!PFAudioInMap::micOn) return;
   // Belt and braces over the default-off switch: somebody who ticks the box
   // on a panel with no microphone would otherwise pin all four knobs at
   // their resting position and find that turning one does not stick.
