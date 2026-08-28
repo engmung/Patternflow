@@ -45,6 +45,17 @@
 #define PF_VARIANT "audio"
 #define PF_VARIANT_VERSION "v0.1.0"
 
+// ── The on-board microphone drives the knobs ────────────────────────────
+//
+// audio_in defaults this off, because it was written as a cost measurement
+// before any microphone existed and a measurement should cost a normal build
+// nothing. There is a microphone now - a PDM MEMS part on GPIO43/44, the only
+// two free header pins - and this is the edition it is for.
+//
+// It yields to the browser audio path on any lane that path has claimed, and
+// both yield to a hand on the encoder.
+#define PF_AUDIO_IN_DRIVES_KNOBS 1
+
 // ── No presets from addons this firmware does not have ──────────────────
 //
 // Core defaults this to the show player's Black pattern. There is no show

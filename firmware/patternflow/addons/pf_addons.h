@@ -155,6 +155,23 @@ inline void drawOverlay(const PFAddonFrame& frame) {
   }
 }
 
+// Feeds /api/status nav: `["/path","Label"]` pairs for addons that serve a
+// page. Emitted as a whole array because the console header wants it in one
+// piece, unlike caps which the core interleaves with its own.
+inline void emitNav(String& json) {
+  bool first = true;
+  for (size_t i = 0; i < PF_ADDON_COUNT; i++) {
+    if (!PF_ADDONS[i]->navPath || !PF_ADDONS[i]->navLabel) continue;
+    if (!first) json += ',';
+    first = false;
+    json += "[\"";
+    json += PF_ADDONS[i]->navPath;
+    json += "\",\"";
+    json += PF_ADDONS[i]->navLabel;
+    json += "\"]";
+  }
+}
+
 // Feeds /api/status caps: hands the emitter every declared cap string.
 inline void emitCaps(String& json) {
   for (size_t i = 0; i < PF_ADDON_COUNT; i++) {

@@ -56,37 +56,45 @@ st.textContent='html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--ink:#1
 (document.head||document.documentElement).appendChild(st);
 function mount(){
 if(document.getElementById('pfChrome'))return;
-// path, label, and the capability the page needs (null = always there).
-// Features live in addons now, so a build may genuinely not have /show or
-// /mqtt — linking to them anyway hands people a 404 and makes the device
-// look broken. /api/status lists what is actually loaded.
-var NAV=[['/','Console',null],['/patterns','Patterns',null],
-['/show','Sequences','shows'],
-['/status','Status',null],['/wifi','Wi-Fi',null],
-['/mqtt','MQTT','mqtt'],['/weather','Weather','weather'],
-['/update','Update',null]];
+// The core's own pages, and only those. Feature pages are not listed here:
+// this file used to name /show, /mqtt and /weather, which meant a core file
+// knowing three optional features by path and label. They arrive from
+// /api/status addonNav now, contributed by whichever addons are loaded, so
+// a page the core has never heard of still gets a link and a build without
+// it still gets a header that is right.
+var NAV=[['/','Console'],['/patterns','Patterns'],
+['/status','Status'],['/wifi','Wi-Fi'],['/update','Update']];
+// Where an addon's links are spliced in: after Patterns, before Status, which
+// is where Sequences sat when it was hard-coded.
+var NAV_AT=2;
 var p=location.pathname.replace(/\/+$/,'')||'/';
 var h=document.createElement('header');h.className='pf-chrome';h.id='pfChrome';
 var m='<div class="pf-chrome-in"><a class="pf-brand" href="/"><span class="pf-dot"></span>Patternflow <span id="pfVer"></span></a>'
 +'<a id="pfVariant" class="pf-brand" target="_blank" rel="noopener"></a>'
 +'<nav class="pf-cnav">';
 function navLink(e){return '<a href="'+e[0]+'"'+(p===e[0]?' class="here"':'')+'>'+e[1]+'</a>'}
-// Draw the unconditional pages now; the rest join when caps arrive, so
+// Draw the core's pages now; addon links join when /api/status answers, so
 // the header never sits empty waiting on a request.
-for(var i=0;i<NAV.length;i++)if(!NAV[i][2])m+=navLink(NAV[i]);
+for(var i=0;i<NAV.length;i++)m+=navLink(NAV[i]);
 m+='</nav><label class="pf-theme"><input type="checkbox" id="pfTheme"> Light</label></div>';
 h.innerHTML=m;
 document.body.insertBefore(h,document.body.firstChild);
 // Fill in the capability-gated links. Failing quietly is deliberate: an
 // unreachable device should not also lose the pages that do work.
 fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
-var caps=d.caps||[];var nav=h.querySelector('.pf-cnav');if(!nav)return;
-var html='';
-for(var i=0;i<NAV.length;i++){
-var e=NAV[i];
-if(e[2]&&caps.indexOf(e[2])<0)continue;
-html+=navLink(e);
+var nav=h.querySelector('.pf-cnav');if(!nav)return;
+// Splice whatever the device says it serves into the core's list. No caps
+// check: an addon that reported a nav entry IS loaded, so there is nothing
+// left to gate on - the check existed only because the paths were guesses
+// written into this file.
+var all=NAV.slice();
+var extra=d.addonNav||[];
+for(var i=0;i<extra.length;i++){
+if(!extra[i]||extra[i].length<2)continue;
+all.splice(NAV_AT+i,0,extra[i]);
 }
+var html='';
+for(i=0;i<all.length;i++)html+=navLink(all[i]);
 nav.innerHTML=html;
 var v=document.getElementById('pfVer');
 // On a variant the badge carries its own version, so this one has to say

@@ -100,6 +100,8 @@ inline const PFAddon descriptor = {
     setRuntimeEnabled,
     nullptr,       // appendStatus
     nullptr,       // drawOverlay
+    nullptr,       // navPath - no console page
+    nullptr,       // navLabel
 };
 
 }  // namespace PFAddonOsc

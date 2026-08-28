@@ -30,6 +30,9 @@
 #include <Arduino.h>
 #include <math.h>
 
+#include "core_audio_in_map.h"
+#include "core_audio_pdm.h"
+
 namespace PFAudioFFT {
 
 // 512 points at 16 kHz is 32 ms of audio — long enough to resolve a bass
@@ -83,6 +86,9 @@ inline void begin() {
   }
   for (int i = 0; i < N; i++) { re[i] = 0.0f; im[i] = 0.0f; }
   buildSource();
+  // After the tables: a mic that fails to start must still leave a
+  // working analysis behind it, fed by synth.
+  PFAudioPdm::begin();
   ready = true;
 }
 
@@ -129,21 +135,72 @@ inline void buildSource() {
   }
 }
 
+// The window comes from the microphone when there is one, and from the
+// synthetic source when there is not. The fallback is not politeness: this
+// module's whole reason for existing was to measure the cost of the analysis
+// on a board with no mic attached, and that has to keep working.
+//
+// The imaginary lane is zeroed either way - this is a real-input signal in a
+// complex transform, which is the deliberately naive arrangement the header
+// explains.
 inline void fill(uint32_t tick) {
+  if (PFAudioPdm::readWindow(re)) {
+    for (int i = 0; i < N; i++) im[i] = 0.0f;
+    return;
+  }
   const int off = (int)(tick * 37u) % (SRC - N);
   for (int i = 0; i < N; i++) { re[i] = src[off + i]; im[i] = 0.0f; }
 }
 
-// Four bands over the usable half of the spectrum. Edges are roughly
-// logarithmic because hearing is: ~60-190 Hz, ~190-750, ~750-2.5k, ~2.5k-8k.
+// Four bands, each over whatever slice of the spectrum it has been given.
+// The edges used to be four constants here, roughly logarithmic because
+// hearing is; they are settings now, on /audio-in, because the useful split
+// depends entirely on what is playing.
+//
+// The ranges are read without a lock. They are written from the HTTP task on
+// the other core, and the worst a torn read can do is fold one frame over an
+// edge that is halfway between the old value and the new one - 16 ms of a
+// slightly wrong band while somebody drags a handle. A mutex on the audio
+// path to avoid that would cost more than it saves.
 inline void fold() {
-  static const int edge[5] = {2, 12, 48, 160, N / 2};
   for (int b = 0; b < 4; b++) {
+    const int lo = PFAudioInMap::binOf(PFAudioInMap::bands[b].hzMin);
+    int hi = PFAudioInMap::binOf(PFAudioInMap::bands[b].hzMax);
+    if (hi <= lo) hi = lo + 1;
+    if (hi > N / 2) hi = N / 2;
     float sum = 0.0f;
-    for (int k = edge[b]; k < edge[b + 1]; k++)
+    for (int k = lo; k < hi; k++)
       sum += sqrtf(re[k] * re[k] + im[k] * im[k]);
-    const float v = sum / (float)(edge[b + 1] - edge[b]);
+    const float v = sum / (float)(hi - lo);
     bands[b] = bands[b] * SMOOTH + v * (1.0f - SMOOTH);
+  }
+}
+
+// A coarse, log-spaced view of the spectrum for /audio-in to draw. Log
+// because that is how the frequencies people care about are spaced: a linear
+// picture spends three quarters of its width above 2 kHz, where almost
+// nothing in music lives, and squeezes every bass decision into the left
+// centimetre. The extension's spectrum is log for the same reason.
+//
+// Buckets, not bins: 256 numbers ten times a second on a single-connection
+// web server is not worth it, and nobody is reading a 31 Hz bin off a
+// 600 px canvas. This is a picture to aim at, and the band edges it is used
+// to set are exact regardless.
+constexpr int SPEC_BUCKETS = 40;
+
+inline void spectrum(float* out) {
+  const float loHz = PFAudioInMap::MIN_HZ, hiHz = PFAudioInMap::MAX_HZ;
+  const float lg0 = log10f(loHz), lg1 = log10f(hiHz);
+  for (int i = 0; i < SPEC_BUCKETS; i++) {
+    const float a = powf(10.0f, lg0 + (lg1 - lg0) * (float)i / SPEC_BUCKETS);
+    const float b = powf(10.0f, lg0 + (lg1 - lg0) * (float)(i + 1) / SPEC_BUCKETS);
+    int k0 = PFAudioInMap::binOf(a), k1 = PFAudioInMap::binOf(b);
+    if (k1 <= k0) k1 = k0 + 1;      // the low buckets are narrower than a bin
+    if (k1 > N / 2) k1 = N / 2;
+    float sum = 0.0f;
+    for (int k = k0; k < k1; k++)
+      sum += sqrtf(re[k] * re[k] + im[k] * im[k]);
+    out[i] = sum / (float)(k1 - k0);
   }
 }
 

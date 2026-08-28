@@ -33,6 +33,9 @@
 
 #include "../pf_addon.h"
 #include "core_audio_fft.h"
+#include "core_audio_in_http.h"
+#include "core_audio_in_map.h"
+#include "core_audio_pdm.h"
 
 #ifndef PF_AUDIO_IN_CORE
 #define PF_AUDIO_IN_CORE 0
@@ -53,15 +56,26 @@ inline uint32_t heapCost = 0;
 inline void analysisTask(void*) {
   for (;;) {
     PFAudioFFT::analyze(tick++);
-    // 60 Hz, the panel's own cadence. A window is 32 ms of audio and these
-    // overlap, which is what you want: a transient lands in the frame it
-    // happened in rather than up to a window late.
-    vTaskDelay(pdMS_TO_TICKS(16));
+    // With a microphone, the I2S read inside analyze() already blocks for the
+    // 16 ms a hop takes to exist, so it paces this loop against the audio
+    // clock. Delaying on top of that would run two clocks at once and overrun
+    // the DMA buffer on whichever side was slower.
+    //
+    // Without one, nothing blocks and the loop would spin the core flat, so
+    // the synthetic path keeps the old 16 ms tick - 60 Hz, the panel's own
+    // cadence, with windows overlapping the same way.
+    if (!PFAudioPdm::available()) vTaskDelay(pdMS_TO_TICKS(16));
+    else taskYIELD();
   }
 }
 #endif
 
+// Registers /audio-in once Wi-Fi is up. Same edge every other addon with a
+// page uses; nothing here runs before the HTTP server exists.
+inline void onNetwork() { PFAudioInHttp::begin(); }
+
 inline void setup() {
+  PFAudioInMap::load();
   const uint32_t before = ESP.getFreeHeap();
   PFAudioFFT::begin();
   heapCost = before - ESP.getFreeHeap();
@@ -84,12 +98,28 @@ inline void loop(const PFAddonFrame&) {
 // and a hand on an encoder releases that lane, so sound never fights a
 // person for a knob.
 inline void fillInput(InputFrame& input) {
+  // Only drive a lane nobody else has taken. This addon is dispatched last in
+  // every composition that carries it, so on a build that also has the
+  // browser audio path both would write the same four lanes and the mic would
+  // silently win - a person who deliberately connected the Chrome extension
+  // would find the room overriding their tab.
+  //
+  // The rule is deliberately not "yield to the browser": that would mean
+  // knowing which other addons exist. Yielding to whoever already spoke is
+  // the same behaviour with no coupling, and it is what dispatch order is
+  // for. A hand on the encoder outranks both - the core drops any lane whose
+  // knob moved this frame.
+  // Watching the meters and having the room turn the knobs are separate
+  // things, and someone tuning the response graph wants the first without
+  // the second. /audio-in owns this switch.
+  if (!PFAudioInMap::driving) return;
   for (int i = 0; i < 4; i++) {
-    float v = PFAudioFFT::bands[i];
-    if (v > 1.0f) v = 1.0f;
-    if (v < 0.0f) v = 0.0f;
+    if (input.knobAudioActive[i]) continue;
+    // Shaped, not raw. A raw band never reaches the top of a knob on this
+    // hardware - see the measurement in core_audio_in_map.h.
+    input.knobAudioValue[i] = PFAudioInMap::clamp01(
+        PFAudioInMap::mapped(i, PFAudioFFT::bands[i]));
     input.knobAudioActive[i] = true;
-    input.knobAudioValue[i] = v;
   }
 }
 #endif
@@ -115,6 +145,13 @@ inline void appendStatus(String& json) {
   json += heapCost;
   json += ",\"staticBytes\":";
   json += PFAudioFFT::staticBytes();
+  json += ",\"source\":\"";
+  json += PFAudioPdm::sourceName();
+  json += "\",\"micWindows\":";
+  json += PFAudioPdm::windowsRead;
+  // Peak and DC are the first things to read with a real mic in the loop:
+  // the S3's PDM input is documented low-amplitude, and a spectrum computed
+  // from nothing still folds into four plausible-looking band numbers.
   json += ",\"rawPeak\":";
   json += String(PFAudioFFT::rawPeak, 5);
   json += ",\"rawDc\":";
@@ -129,9 +166,9 @@ inline void appendStatus(String& json) {
 
 inline const PFAddon descriptor = {
     "audio-in",
-    nullptr,       // cap - not a console page, nothing for the nav to gate
+    "audio-in",    // cap - /audio-in exists on this build
     setup,
-    nullptr,       // onNetwork
+    onNetwork,
 #if PF_AUDIO_IN_CORE == 1
     loop,
 #else
@@ -153,6 +190,8 @@ inline const PFAddon descriptor = {
     nullptr,       // setRuntimeEnabled
     appendStatus,
     nullptr,       // drawOverlay
+    "/audio-in",   // navPath - the console header link
+    "Mic",         // navLabel
 };
 
 }  // namespace PFAddonAudioIn

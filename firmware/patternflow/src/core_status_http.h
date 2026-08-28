@@ -64,6 +64,10 @@ inline void (*extraStatus)(String&) = nullptr;
 // Appends `,"name"` per cap — the core always emits at least two, so a
 // leading comma is always correct here.
 inline void (*extraCaps)(String&) = nullptr;
+// Console-header nav entries contributed by addons: `["/path","Label"]`
+// pairs. The header's own pages stay in the header; this is how a page the
+// core has never heard of gets linked without the core naming it.
+inline void (*extraNav)(String&) = nullptr;
 
 inline bool initialized = false;
 
@@ -109,6 +113,11 @@ inline void handleStatus() {
     (void)cap;  // the core's own entries above use it
     if (extraCaps) extraCaps(json);
   }
+  json += "],";
+  // Pages the loaded addons serve. Empty on a build with no features, which
+  // is the default, and the console header then draws only its own.
+  json += "\"addonNav\":[";
+  if (extraNav) extraNav(json);
   json += "],";
   json += "\"uptime\":";
   json += (uint32_t)(millis() / 1000);

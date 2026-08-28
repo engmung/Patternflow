@@ -115,6 +115,8 @@ inline const PFAddon descriptor = {
     nullptr,       // setRuntimeEnabled
     appendStatus,
     nullptr,       // drawOverlay
+    "/mqtt",       // navPath - the console header link
+    "MQTT",        // navLabel
 };
 
 }  // namespace PFAddonMqtt
