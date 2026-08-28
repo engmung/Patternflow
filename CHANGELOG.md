@@ -2,6 +2,19 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [3.7.1] - 2026-08-28
+
+The 3.7.0 seam shipped without the line that runs it.
+
+### Fixed
+- **Every addon's per-frame hook was dead.** `PFAddons::loop()` is not called anywhere in 3.7.0. The addon port moved the per-frame work out of the sketch — correctly, it belongs to the addons — removed the concrete calls that used to do it, and never added the dispatcher that replaced them. Two orphaned comments were left where the calls had been. So the show player never ticked, MQTT never pumped, weather never fetched, and the audio websocket never completed a handshake. **Nothing failed loudly:** `onNetwork` still ran, so routes registered and port 81 opened, TCP connected, and the console's audio page loaded and said DISCONNECTED forever. Every addon was present, initialised, and frozen. On-board audio was the exception — `audio_in` runs on a Core 0 task, not the loop hook — which is why this read as an audio problem rather than a seam one. Verified on hardware: a raw websocket handshake was an 8 s timeout before and `HTTP/1.1 101 Switching Protocols` in 121 ms after; `/api/shows`, `/api/weather` and `/api/mqtt` all answer again.
+- **The audio page's file picker worked exactly once per load.** `createMediaElementSource()` can be called once per media element, ever; calling it for a second file throws, so the first track analysed and every one after it did nothing while still playing.
+- **One empty FFT bin froze the audio meters for the session.** `getFloatFrequencyData` returns `-Infinity` for a bin with no energy, which makes the band average `-Infinity` and then NaN inside the smoother — and NaN is absorbing, so nothing recovered until a reload.
+- **The connected-client count only ever went up.** It was kept by hand and a client whose TCP died without a close frame never produced the event that decremented it, so an idle panel reported one client connected. The websocket library already knows; it is asked now.
+
+### Added
+- **`/api/status` reports `audioRuntime` and `audioClients`.** Whether audio was switched on at all was invisible from outside the device: a browser could hold a socket open, send knob messages, and have every one dropped because the AUD row on the panel was off, with nothing anywhere saying so.
+
 ## [3.7.0] - 2026-08-27
 
 The release where a firmware can have a name. Everything Patternflow does still ships on the board — MQTT, sequences, weather, OSC, audio, all of it — and now the same tree can also publish *named* firmwares for the things the default cannot carry: a microphone that needs four wires soldered on, a radio setting that must not be universal, a build somebody needs pinned so a show behaves the same at the next gig.
