@@ -1020,7 +1020,16 @@ void loop() {
     PFAddons::loop(frame);
   }
 
-  InputFrame input;
+  // Value-initialised, and it has to be. PFInputFrame is a plain ABI struct
+  // with no default member initialisers, and `knobAudioActive` /
+  // `knobAudioValue` are written only by a feature that drives a lane. The
+  // old default build always carried audio, whose fillInput wrote them every
+  // frame unconditionally, so nobody ever saw what happens without one:
+  // indeterminate memory reaching PFParams::apply, where a garbage `active`
+  // flag pins a pattern's parameter to a garbage value. Composing audio out
+  // is what surfaced it — /api/status reported lanes of 1.576 on a build with
+  // nothing driving them. Zeroing ~100 bytes a frame costs nothing.
+  InputFrame input{};
   readInputFrame(input);
 
   // One-shot click events for the mode buttons, consumed every frame so a
