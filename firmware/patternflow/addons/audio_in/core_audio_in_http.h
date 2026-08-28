@@ -5,7 +5,7 @@
 //
 //   GET  /audio-in           the page
 //   GET  /api/audio-in       live levels + the current shaping. Polled.
-//   POST /api/audio-in       set one band, or the driving flag
+//   POST /api/audio-in       set one band, or the microphone switch
 //
 // ── Why polling and not the websocket ───────────────────────────────────
 //
@@ -52,11 +52,55 @@ inline void handleIndex() {
 // as the FFT produced it; `out` is what the knob is being driven to. Showing
 // both is the point - a band that is moving while its output is flat is a
 // shaping problem, and one where neither moves is a microphone problem.
+// Two shapes from one route. `?levels=1` is what the page polls ten times a
+// second and carries no configuration at all: the page owns the config after
+// it has read it once, and sending it back on every tick is what made a
+// dragged handle spring back to whatever the device last managed to save.
+//
+// Field names are the extension's — levels, outputs, spectrum — because the
+// page's paint loop is lifted from popup.js and renaming them here would mean
+// editing code whose whole value is that it is not edited.
 inline void handleGet() {
+  const bool levelsOnly = server().hasArg("levels");
+
+  if (levelsOnly) {
+    String j = "{\"source\":\"";
+    j += PFAudioFFT::sourceLabel();
+    j += "\",\"rawPeak\":";
+    j += String(PFAudioFFT::rawPeak, 5);
+    j += ",\"rawDc\":";
+    j += String(PFAudioFFT::rawDc, 5);
+    j += ",\"dropped\":";
+    j += PFAudioPdm::dropped;
+    j += ",\"levels\":[";
+    for (int i = 0; i < 4; i++) {
+      if (i) j += ',';
+      j += String(PFAudioFFT::bands[i], 4);
+    }
+    j += "],\"outputs\":[";
+    for (int i = 0; i < 4; i++) {
+      if (i) j += ',';
+      j += String(PFAudioInMap::mapped(i, PFAudioFFT::bands[i]), 4);
+    }
+    j += "],\"spectrum\":[";
+    {
+      float s[PFAudioFFT::SPEC_BUCKETS];
+      PFAudioFFT::spectrum(s);
+      for (int i = 0; i < PFAudioFFT::SPEC_BUCKETS; i++) {
+        if (i) j += ',';
+        j += String(s[i], 3);
+      }
+    }
+    j += "]}";
+    server().sendHeader("Cache-Control", "no-store");
+    server().send(200, "application/json", j);
+    return;
+  }
+
   String j = "{\"source\":\"";
   j += PFAudioFFT::sourceLabel();
-  j += "\",\"driving\":";
-  j += PFAudioInMap::driving ? "true" : "false";
+  j += "\",\"micOn\":";
+  j += PFAudioInMap::micOn ? "true" : "false";
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -128,13 +172,13 @@ inline float argFloat(const char* name, float fallback) {
   return v.toFloat();
 }
 
-// One band per POST, addressed by index, or `driving` on its own. Partial
+// One band per POST, addressed by index, or `mic` on its own. Partial
 // updates are allowed: the page sends only the handle that moved, so dragging
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
-  if (server().hasArg("driving")) {
-    const String v = server().arg("driving");
-    PFAudioInMap::driving = (v == "1" || v == "true");
+  if (server().hasArg("mic")) {
+    const String v = server().arg("mic");
+    PFAudioInMap::micOn = (v == "1" || v == "true");
   }
 
   if (server().hasArg("band")) {

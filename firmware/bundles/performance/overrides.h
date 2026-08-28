@@ -15,7 +15,7 @@
 // edition's own and moves at whatever pace suits it — it has nothing to say
 // about the core version, which is reported separately.
 #define PF_VARIANT          "performance"
-#define PF_VARIANT_VERSION  "v0.1.0"
+#define PF_VARIANT_VERSION  "v0.2.1"
 
 // PF_ADDON_PRESETS is deliberately NOT defined here. Defining it as nothing
 // is how a build with no show player keeps the show player's hidden Black

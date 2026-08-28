@@ -236,8 +236,8 @@ export const VARIANTS: Variant[] = [
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.3.0',
-      url: 'https://patternflow.work/flash/bin/audio-v0.3.0/patternflow.ino.bin',
+      version: 'v0.3.1',
+      url: 'https://patternflow.work/flash/bin/audio-v0.3.1/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:

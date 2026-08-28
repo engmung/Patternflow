@@ -17,6 +17,60 @@
 //                            PDM RX reads. Tie it high instead and this reads
 //                            silence while looking perfectly healthy.
 //
+// ── The neighbours, and why this is not a good place for a microphone ───
+//
+// GPIO43 and GPIO44 are the only unclaimed pins on this board. Everything
+// else is HUB75, an encoder, the USB pair, or the N16R8's octal PSRAM at
+// 35-37 — 26 of the 28 usable GPIOs, and the two that are left are these.
+//
+// They are also immediately next to the panel's RGB bus:
+//
+//     40  B1 ┐
+//     41  G1 ├─ HUB75 data, switching at the pixel clock
+//     42  R1 ┘
+//     43  PDM CLK      <- us
+//     44  PDM DAT      <- us
+//
+// On a bare DevKit that is fine and this reads clean audio. Connect the panel
+// and MHz-rate data starts toggling on the three pins beside a flying lead
+// carrying a 1-bit PDM stream, and the microphone picks up the picture. It
+// was reported first as "spikes with no sound in the room" and then as the
+// panel locking up, which was the same noise reaching the knobs.
+//
+// There is no software fix for that and no other pin to move to. What helps,
+// in order: keep the mic leads short and away from the HUB75 ribbon, ground
+// the pair, or run the mic with the panel dark. What would actually fix it is
+// a board revision that brings a microphone header out away from the panel
+// bus — which is the useful version of this note, because it is the kind of
+// thing only a build with the panel attached ever finds.
+//
+// ── The neighbours, and why this is not a good place for a microphone ───
+//
+// GPIO43 and GPIO44 are the only unclaimed pins on this board. Everything
+// else is HUB75, an encoder, the USB pair, or the N16R8's octal PSRAM at
+// 35-37 — 26 of the 28 usable GPIOs, and the two that are left are these.
+//
+// They are also immediately next to the panel's RGB bus:
+//
+//     40  B1 ┐
+//     41  G1 ├─ HUB75 data, switching at the pixel clock
+//     42  R1 ┘
+//     43  PDM CLK      <- us
+//     44  PDM DAT      <- us
+//
+// On a bare DevKit that is fine and this reads clean audio. Connect the panel
+// and MHz-rate data starts toggling on the three pins beside a flying lead
+// carrying a 1-bit PDM stream, and the microphone picks up the picture. It
+// was reported first as "spikes with no sound in the room" and then as the
+// panel locking up, which was the same noise reaching the knobs.
+//
+// There is no software fix for that and no other pin to move to. What helps,
+// in order: keep the mic leads short and away from the HUB75 ribbon, ground
+// the pair, or run the mic with the panel dark. What would actually fix it is
+// a board revision that brings a microphone header out away from the panel
+// bus — which is the useful version of this note, because it is the kind of
+// thing only a build with the panel attached ever finds.
+//
 // ── Which driver ────────────────────────────────────────────────────────
 //
 // driver/i2s.h - the legacy one. Not a preference: platformio.ini pins
@@ -83,6 +137,9 @@ constexpr uint32_t RATE = 16000;
 inline bool live = false;      // I2S came up
 inline bool stalled = false;   // ...and then stopped producing samples
 inline uint32_t windowsRead = 0;
+// How many hops have been thrown away because the analysis fell behind. The
+// number that says whether this is keeping up; see readWindow.
+inline uint32_t dropped = 0;
 
 inline bool available() { return live && !stalled; }
 
@@ -108,7 +165,25 @@ inline int16_t raw[HOP];
 // The ring the window is cut from: the previous hop, then the new one.
 inline float ring[WINDOW];
 
+// Installing I2S costs about 7.9 KB of internal heap — measured by building
+// the same edition with PF_AUDIO_IN_PDM_ENABLED 0 and comparing one clean
+// reading each. That is not much on this board, and it is not the reason
+// anybody's console is slow; it is simply rude to spend it on a panel with no
+// microphone wired, which is most of them.
+//
+// So it starts on demand and can be handed back. `begin()` is the install,
+// `end()` is the release, and both are safe to call twice.
+inline void end() {
+  if (!live) return;
+  i2s_driver_uninstall(PORT);
+  live = false;
+  stalled = false;
+  emptyReads = 0;
+  Serial.println("[AUDIO-IN] PDM released");
+}
+
 inline void begin() {
+  if (live) return;
   i2s_config_t cfg = {};
   cfg.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
   cfg.sample_rate = RATE;
@@ -162,15 +237,44 @@ inline void begin() {
 // fall back rather than analyse a window of silence it invented.
 //
 // Blocking here is the point: at 16 kHz a hop takes 16 ms to exist, so this
-// paces the analysis task against the audio clock. That is why the task does
-// not also delay - two clocks would drift against each other and the DMA
-// buffer would overrun on whichever side was slower.
+// paces the analysis task against the audio clock.
+//
+// ── Which is only true while we are keeping up ──────────────────────────
+//
+// The DMA ring holds four hops, 64 ms. Miss that much — and on the assembled
+// device that is easy, with the panel blitting on core 1 and Wi-Fi on core 0 —
+// and the ring is full. From then on every read returns INSTANTLY from the
+// backlog instead of blocking for 16 ms, the task stops being paced by
+// anything, and it spins a 477 us transform back to back at priority 1 on the
+// core Wi-Fi lives on. That starves the thing that made it late, which fills
+// the ring further. It does not recover.
+//
+// Reported as: fine for a while, then suddenly bad and stays bad, the console
+// stops answering, and only on the real device — never on a bare DevKit with
+// no panel to compete with.
+//
+// So a read is followed by a non-blocking drain: whatever else is queued is
+// pulled out and discarded, and the window is cut from the NEWEST hop. Falling
+// behind then costs some dropped audio and nothing else, which is the right
+// price — the analysis is for reacting to now, and a backlog is by definition
+// not now. `dropped` counts it so the condition is visible instead of
+// inferred.
 inline bool readWindow(float* dst) {
   if (!live) return false;
 
   size_t got = 0;
   const esp_err_t err = i2s_read(PORT, raw, sizeof(raw), &got,
                                  pdMS_TO_TICKS(READ_TIMEOUT_MS));
+
+  // Drain to the newest. Bounded, because a ring that refills as fast as it
+  // empties must not turn this into the spin it exists to prevent.
+  for (int guard = 0; guard < 8; guard++) {
+    size_t more = 0;
+    if (i2s_read(PORT, raw, sizeof(raw), &more, 0) != ESP_OK || more == 0) break;
+    got = more;
+    dropped++;
+  }
+
   const int samples = (int)(got / sizeof(int16_t));
   if (samples == 0) {
     if (++emptyReads >= STALL_LIMIT && !stalled) {

@@ -43,7 +43,7 @@
 // never do: somebody who did not flash it has no other way to find out what
 // is on it, and the update banner would offer them a core release on top.
 #define PF_VARIANT "audio"
-#define PF_VARIANT_VERSION "v0.1.0"
+#define PF_VARIANT_VERSION "v0.3.1"
 
 // ── The on-board microphone drives the knobs ────────────────────────────
 //

@@ -5,677 +5,1408 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Mic</title>
 <style>
-:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
---rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
---panel:#131110;
---sans:'Inter',ui-sans-serif,system-ui,sans-serif;
---mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
-*{box-sizing:border-box}
-body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);
-line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:680px;margin:0 auto;padding:32px 20px 64px}
-header{display:flex;align-items:center;gap:8px;padding-bottom:12px;
-border-bottom:1px solid var(--rule)}
-.dot{width:7px;height:7px;background:var(--led);border-radius:1px}
-h1{font-size:15px;font-weight:600;margin:0;flex:1}
-.sub{font-family:var(--mono);font-size:11px;color:var(--faint)}
-section{margin-top:26px}
-h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-color:var(--muted);margin:0 0 10px}
-.note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
-.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);padding:6px 0}
-.check input{accent-color:var(--led)}
-button{font:inherit;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer;
-border:1px solid var(--rule);background:none;color:var(--ink)}
-button:hover{border-color:var(--led);color:var(--led)}
-#msg{margin-top:10px;font-family:var(--mono);font-size:11px;min-height:16px;color:var(--faint)}
+/* ── Ported from tools/patternflow-audio-extension/popup.css ────────────
+   Verbatim, because the extension's popup is the interface people have used
+   and liked, and a second one written from scratch was worse. Only the nine
+   palette variables below it are changed: the extension is a light popup and
+   this is a page inside the device's dark console.
 
-/* Source banner: the one thing worth knowing before anything else on the
-   page means anything. A synth reading looks exactly like a real one. */
-.src{display:flex;align-items:baseline;gap:10px;padding:9px 11px;margin-top:14px;
-border:1px solid var(--rule);background:var(--panel);border-radius:2px}
-.src b{font-size:12px;font-weight:600}
-.src.warn{border-color:var(--warn)}
-.src.warn b{color:var(--warn)}
-.src span{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
+   Regenerate with firmware/toolchain/port_audio_ui.py after changing the
+   extension, rather than editing here. */
+:root {
+  --cream: #f4efe6;
+  --cream-2: #ede7db;
+  --ink: #141414;
+  --muted: #6b655a;
+  --faint: #a69f90;
+  --rule: #d9d1c0;
+  --led: #e8552e;
+  --ok: #267a43;
+  --bad: #b43b2d;
+  --field: #fbf7ef;
+}
 
-/* The spectrum, and the band ranges laid over it. Drag anywhere on it to
-   set the selected band's range - the extension's gesture, so the two
-   surfaces are learned once. */
-.specwrap{position:relative;height:104px;margin-bottom:14px;border:1px solid var(--rule);
-background:var(--panel);border-radius:2px;touch-action:none;cursor:crosshair;overflow:hidden}
-#spec{position:absolute;inset:0;width:100%;height:100%}
-.sb{position:absolute;top:0;bottom:16px;border-left:1px solid var(--led);
-border-right:1px solid var(--led);background:rgba(255,92,46,.10);pointer-events:none}
-.sb.on{background:rgba(255,92,46,.24)}
-.sb span{position:absolute;top:2px;left:3px;font-family:var(--mono);font-size:9px;
-color:var(--led)}
-.ticks{position:absolute;left:0;right:0;bottom:0;height:15px;border-top:1px solid var(--rule)}
-.ticks i{position:absolute;font-family:var(--mono);font-size:9px;color:var(--faint);
-font-style:normal;transform:translateX(-50%);top:1px}
-.hzline{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;font-size:12px}
-.hzline b{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:400}
-.hzline .k{color:var(--muted)}
-.hzline .presets{margin-left:auto;display:flex;gap:4px}
-.hzline .presets button{padding:3px 7px;font-size:11px}
+* {
+  box-sizing: border-box;
+}
 
-/* Tabs: one band at a time, plus an All view for setting them against
-   each other. Same split the extension uses. */
-.tabs{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
-.tabs button{padding:5px 11px;font-size:12px;color:var(--muted)}
-.tabs button.on{border-color:var(--led);color:var(--led)}
+body {
+  width: 460px;
+  max-height: 620px;
+  margin: 0;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--cream);
+  color: var(--ink);
+  font: 12px/1.45 Inter, ui-sans-serif, system-ui, sans-serif;
+}
 
-.band[hidden]{display:none}
-/* Knob assignment and mute. Sits above the graph because it decides what the
-   graph is for: shaping a band that drives nothing is wasted effort. */
-.assign{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
-.assign .k{font-size:12px;color:var(--muted)}
-.knobs{display:flex;gap:3px}
-.knobs button{padding:4px 9px;font-size:11px;font-family:var(--mono);color:var(--muted)}
-.knobs button.on{border-color:var(--led);color:var(--led)}
-.mute{margin-left:auto;font-size:11px}
-.mute.on{border-color:var(--warn);color:var(--warn)}
-.clash{font-size:11px;color:var(--warn);flex-basis:100%}
-.band.off .plot,.band.off .rows,.band.off .travel{opacity:.4}
-.mini.off{opacity:.5}
-.mini.off .bandhead b::after{content:' (muted)';color:var(--warn);font-weight:400}
-.tabs button.muted{text-decoration:line-through;opacity:.65}
-.bandhead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
-.bandhead b{font-size:13px;font-weight:600}
-.bandhead .hz{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
+header,
+.section-head,
+.band-head,
+.band-actions {
+  display: flex;
+  align-items: center;
+}
 
-/* The response graph. x is the incoming level, y is what the knob does.
-   Four handles: ignore-below, full-at (bottom edge) and rest/peak (right
-   edge). The dot is the sound right now. */
-.plot{position:relative;height:190px;border:1px solid var(--rule);
-background:var(--panel);border-radius:2px;touch-action:none;overflow:hidden}
-.plot svg{position:absolute;inset:0;width:100%;height:100%}
-.outband{position:absolute;left:0;right:0;background:#1B1914}
-.live{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;
-border-radius:50%;background:var(--led);box-shadow:0 0 0 2px var(--panel);
-pointer-events:none;transition:left .08s linear,top .08s linear}
-.h{position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;
-background:var(--ink);border:2px solid var(--panel);cursor:grab;touch-action:none}
-.h:active{cursor:grabbing;background:var(--led)}
-.h.x{top:calc(100% - 7px)}
-.h.y{left:calc(100% - 7px)}
-.axis{position:absolute;font-family:var(--mono);font-size:9px;color:var(--faint);
-pointer-events:none}
-.axis.bl{left:5px;bottom:3px}
-.axis.br{right:5px;bottom:3px}
-.axis.tr{right:5px;top:3px}
+header {
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 10px;
+}
 
-.rows{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;
-margin-top:12px;align-items:center;font-size:12px}
-.rows .k{color:var(--muted)}
-.rows .v{font-family:var(--mono);font-size:11px;color:var(--ink);text-align:right}
-.rows input[type=range]{width:100%;accent-color:var(--led)}
+.brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
 
-/* Travel: how much of its knob a band actually uses. The number that names
-   the dead-band problem without anyone having to know what a dB is. */
-.travel{margin-top:12px}
-.tbar{height:5px;background:var(--rule-soft);border:1px solid var(--rule);border-radius:2px}
-.tfill{height:100%;background:var(--ink)}
-.tfill.weak{background:var(--warn)}
-.tline{display:flex;justify-content:space-between;align-items:baseline;margin-top:5px;
-font-size:11px;color:var(--muted)}
-.tline .n{font-family:var(--mono)}
+.brand img {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
 
-/* All view: the same picture four times, small. */
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mini{border:1px solid var(--rule);background:var(--panel);padding:9px 10px;border-radius:2px}
-.mini .bandhead{margin-bottom:7px}
-.mini .bandhead b{font-size:12px}
-.mini .plot{height:76px;cursor:pointer}
-.mini .h{display:none}
-.mini .travel{margin-top:8px}
+h1 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+section {
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  background: transparent;
+}
+
+.status {
+  min-width: 82px;
+  padding: 5px 8px 4px;
+  border: 1px solid var(--ink);
+  background: var(--field);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .12em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.ok { color: var(--ok); }
+.bad { color: var(--bad); }
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.device {
+  display: grid;
+  grid-template-columns: 1fr 74px;
+  gap: 7px;
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input[type="text"],
+select {
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--field);
+  color: var(--ink);
+}
+
+input[type="text"] {
+  padding: 8px 9px;
+}
+
+select {
+  padding: 3px 6px;
+}
+
+button {
+  min-height: 32px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--cream);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+button:hover {
+  background: var(--cream);
+  color: var(--ink);
+}
+
+.small-button,
+.remove-band {
+  min-height: 26px;
+  padding: 5px 8px;
+}
+
+.remove-band {
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.actions {
+  display: grid;
+  /* Two, since WS Test moved into the diagnostics fold. */
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.actions button {
+  padding: 8px;
+}
+
+.detail {
+  min-height: 18px;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.section-head {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.spectrum-wrap {
+  position: relative;
+  height: 132px;
+  border: 1px solid var(--ink);
+  background: var(--field);
+}
+
+#spectrum {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.spectrum-bands {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.spectrum-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--led);
+  border-right: 1px solid var(--led);
+  background: rgba(232, 85, 46, .16);
+}
+
+.spectrum-band span {
+  position: absolute;
+  left: 5px;
+  top: 5px;
+  color: var(--ink);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.spectrum-scale {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.spectrum-scale span:last-child {
+  text-align: right;
+}
+
+.global {
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  align-items: center;
+  gap: 8px;
+}
+
+.global label,
+.manual-grid label {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.global label {
+  grid-template-columns: 74px 1fr;
+}
+
+.manual-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.manual-grid label {
+  grid-template-columns: 28px 1fr 40px;
+}
+
+.value,
+output {
+  color: var(--ink);
+  text-align: right;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.band {
+  margin: 0;
+  padding-top: 12px;
+}
+
+.band-head {
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.band-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.band-actions {
+  gap: 7px;
+}
+
+.target {
+  display: grid;
+  grid-template-columns: auto 48px;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.band-strip,
+.map-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.band-strip {
+  grid-template-columns: 1fr 1fr 92px;
+}
+
+.map-row {
+  grid-template-columns: 48px 1fr 92px;
+}
+
+.map-row > span,
+.row span {
+  color: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.band-readout {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 4px;
+  align-items: center;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+}
+
+.map-sliders {
+  display: grid;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 54px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+details.advanced {
+  margin-top: 8px;
+}
+
+details.advanced summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--ink);
+}
+
+.meter {
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+  background: var(--cream-2);
+  border: 1px solid var(--rule);
+}
+
+.meter.out {
+  height: 3px;
+  margin-top: 3px;
+}
+
+.meter div {
+  width: 0;
+  height: 100%;
+  background: var(--led);
+  transition: width .08s linear;
+}
+
+.meter.out div {
+  background: var(--ink);
+}
+
+/* ── Named frequency ranges, per band ────────────────────────────────────
+   The sliders are log-scaled now, so a range is reachable by hand — but
+   nobody should have to drag for "bass" when the name is the thing they
+   mean. Same six ranges the device's own audio page offers. */
+.hz-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.hz-presets button {
+  min-height: 0;
+  padding: 3px 7px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.hz-presets button:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ── Diagnostics, folded ─────────────────────────────────────────────────
+   Connecting with no audio and pushing the knobs by hand is how you tell a
+   dead panel from a dead capture. Worth having, not worth the space. */
+.diagnostics > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.diagnostics > summary:hover {
+  color: var(--ink);
+}
+
+.diagnostics #manualConnect {
+  margin: 6px 0 10px;
+  width: 100%;
+}
+
+/* ── Band selector ───────────────────────────────────────────────────────
+   Four bands, one editor on screen. These say which one you are on, which
+   knob it drives, and whether it is muted — the three things worth knowing
+   before you switch. */
+.band-tabs {
+  display: grid;
+  /* Four bands and All. */
+  grid-template-columns: repeat(4, 1fr) 1.2fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.band-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0 5px;
+  min-height: 0;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.band-tab strong { font-size: 13px; font-weight: 600; }
+.band-tab span { font-size: 9px; letter-spacing: 0.08em; }
+
+.band-tab:hover { color: var(--ink); border-color: var(--ink); }
+
+.band-tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+}
+
+/* A muted band stays in place and stays reachable — it just is not driving
+   anything, and should not look like it is. */
+.band-tab.muted { opacity: 0.45; }
+.band-tab.muted strong { text-decoration: line-through; }
+
+.spectrum-band { cursor: pointer; }
+.spectrum-band.muted { opacity: 0.35; }
+
+.mute-band {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.mute-band.on {
+  border-color: var(--led);
+  color: var(--led);
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+/* `hidden` loses to any explicit display, and .band sets one. Say it again. */
+.band[hidden] { display: none; }
+
+.band-tab.all strong { font-size: 11px; letter-spacing: 0.06em; }
+
+/* ── The response graph ──────────────────────────────────────────────────
+   Six sliders became one picture. Left to right is how loud the band is,
+   bottom to top is where the knob lands, and the line between them is every
+   number at once — which is the thing the sliders could not show. */
+.band-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.band-key {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.band-note { color: var(--faint); font-size: 10px; }
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.plot-wrap { display: flex; gap: 10px; }
+
+.plot-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 26px;
+  height: 180px;
+  padding: 2px 0;
+  color: var(--faint);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.plot-col { flex: 1; min-width: 0; }
+
+.plot {
+  position: relative;
+  height: 180px;
+  border: 1px solid var(--ink);
+  background: var(--field);
+  overflow: hidden;
+  cursor: grab;
+  /* The handles are dragged; the popup must not pan or select instead. */
+  touch-action: none;
+  user-select: none;
+  color: var(--ink);
+}
+
+.plot:active { cursor: grabbing; }
+
+/* the stretch of knob the music is allowed to use */
+.plot-out { position: absolute; left: 0; right: 0; background: #f0e6d6; }
+/* the levels this band responds to at all */
+.plot-in {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px dashed var(--faint);
+  border-right: 1px dashed var(--faint);
+}
+
+.plot-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.plot-vline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--led); opacity: .55; }
+.plot-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--led); opacity: .55; }
+
+.plot-dot {
+  position: absolute;
+  width: 9px; height: 9px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 0 2px var(--field);
+}
+
+/* Handles: triangles pointing at the edge they move. Input on the floor,
+   output on the right wall — so which axis a handle belongs to is visible
+   before it is dragged. */
+.h { position: absolute; width: 14px; height: 14px; background: var(--ink); }
+.h-in-min, .h-in-max { bottom: 0; margin-left: -7px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.h-out-min, .h-out-max { right: 0; margin-top: -7px; clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.h.on { background: var(--led); }
+
+.plot-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* The same four numbers as words, for anyone who wants to read rather than
+   aim — and so a value can be checked without hovering a handle. */
+.readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 14px;
+  margin-top: 12px;
+  padding: 10px 11px;
+  background: var(--field);
+  border: 1px solid var(--rule);
+}
+
+.readout > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.readout span { color: var(--muted); font-size: 11px; }
+.readout output { font-size: 11px; }
+
+/* Boost bends the line rather than moving its ends, so it is not something
+   to drag on the plot. Seven steps, and the hint says what the shape means. */
+.boost-row { display: flex; align-items: center; gap: 12px; margin-top: 13px; }
+.boost-steps { flex: 1; display: flex; gap: 3px; }
+
+.boost-steps button {
+  flex: 1;
+  min-height: 0;
+  height: 22px;
+  padding: 0;
+  border-color: var(--rule);
+  background: var(--field);
+}
+
+.boost-steps button.soft { background: var(--cream-2); }
+.boost-steps button.on { background: var(--ink); border-color: var(--ink); }
+.boost-steps button:hover { border-color: var(--ink); }
+
+.boost-row .gainOut { width: 34px; text-align: right; font-size: 11px; }
+.boost-hint { margin-top: 6px; color: var(--muted); font-size: 11px; }
+
+/* The meters said nothing about which was which. */
+.meter-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.meter-row .meter { flex: 1; margin-top: 0; }
+
+.meter-key {
+  width: 26px;
+  color: var(--faint);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* How much of its knob this band actually uses. The number that names a
+   band which is technically working and doing nothing. */
+.travelOut { width: 42px; text-align: right; font-size: 10px; color: var(--muted); }
+.travelOut.weak { color: var(--led); }
+
+
+/* ── The console's palette, over the extension's ──────────────────────
+   The dark values, which is what a console page is by default. Light mode
+   arrives from /pf-console.js: it stamps html[data-theme=light] and injects
+   its own variable block, and that selector outranks :root, so these are
+   simply replaced when somebody ticks Light.
+
+   That only works for names BOTH sides know. popup.css uses two the console
+   has never heard of — `--cream-2` (the console spells it --cream2) and
+   `--field` (the console calls it --panel) — so in light mode those two kept
+   their dark values and a few surfaces stayed black on a white page. They are
+   aliases now: the value is resolved where it is used, so it follows whichever
+   theme is in effect instead of being frozen here. */
+:root{
+  --cream:#0C0B09; --cream2:#131110; --ink:#EDE7DB; --muted:#8A8272;
+  --faint:#5A5546; --rule:#242118; --led:#FF5C2E; --ok:#57B87F;
+  --bad:#D9534F; --panel:#131110;
+}
+:root{ --cream-2: var(--cream2); --field: var(--panel); }
+body{max-width:760px;margin:0 auto;padding:28px 20px 64px}
+/* The console injects its own header, so the popup's brand row goes. */
+.wrap-note{font-size:12px;color:var(--faint);line-height:1.45;margin:10px 0 0}
+.srcline{display:flex;align-items:baseline;gap:10px;padding:9px 11px;margin-bottom:18px;
+border:1px solid var(--rule);background:var(--field);border-radius:2px}
+.srcline b{font-size:12px}
+.srcline.warn{border-color:var(--bad)} .srcline.warn b{color:var(--bad)}
+.srcline span{font-family:var(--mono,ui-monospace,monospace);font-size:11px;
+color:var(--faint);margin-left:auto}
+.drive{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);
+padding:6px 0;margin-bottom:12px}
+.drive input{accent-color:var(--led)}
 </style>
 </head>
 <body>
-<div class="wrap">
-<header><span class="dot"></span><h1>Microphone</h1><span class="sub" id="win">-</span></header>
 
-<div class="src" id="src"><b id="srcName">connecting</b>
-<span id="srcRaw"></span></div>
+<div class="srcline" id="srcline"><b id="srcName">connecting</b><span id="srcRaw"></span></div>
+<p class="wrap-note" id="heapline"></p>
 
-<section>
-  <label class="check"><input type="checkbox" id="drive"> Let the room drive the knobs</label>
-  <p class="note">Off until you turn it on, because the microphone is four wires to a
-  breakout rather than a part on the board &mdash; on a panel without one, the data pin
-  is floating, and what it picks up is a signal rather than silence. Nothing detects that
-  as &ldquo;no microphone&rdquo;, so it would sit there holding all four knobs.
-  <br><br>
-  With it off the meters still move and nothing else does, which is also how you tune the
-  response without the panel reacting to every word you say. A hand on an encoder always
-  wins, and a browser tab sending audio outranks the room.</p>
-</section>
+<label class="drive"><input type="checkbox" id="mic"> <b>Microphone</b></label>
+<p class="wrap-note">The panel listens, and the four bands below turn the four knobs, so patterns
+react to the room with no computer in it.
+<br><br>
+Off until you turn it on, and off is right for most panels: the mic is four wires to a breakout
+rather than a part on the board, and an analysis over a floating pin is worth nobody's memory.
+Turning it off releases the I2S driver and parks the analysis. The setting is remembered.
+<br><br>
+A hand on an encoder always wins and keeps that knob for five seconds. A browser tab sending
+audio through the Chrome extension outranks the microphone on any knob it has already claimed.</p>
 
-<section>
-  <h2>Spectrum</h2>
-  <div class="specwrap" id="specwrap">
-    <canvas id="spec"></canvas>
-    <div id="sbands"></div>
-    <div class="ticks" id="ticks"></div>
+<section class="spectrum-section">
+  <div class="section-head">
+    <span class="label">Spectrum</span>
+    <span class="hint">click a band to edit it</span>
   </div>
-  <div class="hzline"><span class="k">Band range</span><b id="hzNow">-</b>
-    <span class="presets" id="presets"></span></div>
-  <p class="note">Drag across the spectrum to set which frequencies the selected band
-  listens to. Bands may overlap and may leave gaps &mdash; two bands over the same range
-  with different shaping is a real thing to want. The axis is logarithmic, because that is
-  how the frequencies you care about are spaced.</p>
-
-  <div class="tabs" id="tabs"></div>
-  <div id="bands"></div>
-  <div id="all" hidden><div class="grid" id="grid"></div>
-    <p class="note"><b>Travel</b> is how much of its knob a band uses between silence and
-    its own loudest moment. Under a third and the band is there without doing anything &mdash;
-    pull its <em>Full at</em> handle in, or raise its boost.</p>
+  <div class="spectrum-wrap">
+    <canvas id="spectrum" width="760" height="220"></canvas>
+    <div id="spectrumBands" class="spectrum-bands"></div>
   </div>
-  <div id="msg"></div>
-  <div style="margin-top:14px"><button id="reset">Reset to defaults</button></div>
+  <div class="spectrum-scale">
+    <span>20</span>
+    <span>100</span>
+    <span>1k</span>
+    <span>10k</span>
+    <span>20k</span>
+  </div>
+  <!-- Four, one per knob. The spectrum above selects too; this row is here so
+       switching does not depend on hitting a narrow band with the pointer. -->
+  <div id="bandTabs" class="band-tabs"></div>
 </section>
 
-<section>
-  <h2>Why the numbers are small</h2>
-  <p class="note">The S3's PDM input runs quiet &mdash; a tone loud enough to be
-  uncomfortable in the room peaks around 0.03 of full scale, and that is the silicon,
-  not the wiring. The defaults already account for it: <em>Full at</em> sits well below 1
-  and the upper bands carry a boost, because a hi-hat puts a fraction of a kick's energy
-  into band 4. Raw levels here are unscaled on purpose, so a dead microphone reads as
-  dead instead of as a healthy-looking zero.</p>
-</section>
-</div>
+<template id="band-template">
+  <section class="band">
+    <div class="band-head">
+      <strong class="band-title"></strong>
+      <div class="band-actions">
+        <label class="target">K
+          <select class="knob">
+            <option value="0">1</option>
+            <option value="1">2</option>
+            <option value="2">3</option>
+            <option value="3">4</option>
+          </select>
+        </label>
+        <button type="button" class="mute-band">Mute</button>
+      </div>
+    </div>
+
+    <div class="band-row">
+      <span class="band-key">Listens to</span>
+      <output class="hzOut mono"></output>
+    </div>
+    <div class="hz-presets"></div>
+
+    <div class="band-row" style="margin-top:14px">
+      <span class="band-key">Response</span>
+      <span class="band-note">drag the handles</span>
+    </div>
+
+    <div class="plot-wrap">
+      <div class="plot-axis">
+        <span>1.0</span><span>0.5</span><span>0.0</span>
+      </div>
+      <div class="plot-col">
+        <div class="plot">
+          <div class="plot-out"></div>
+          <div class="plot-in"></div>
+          <svg class="plot-curve" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polyline points="" fill="none" stroke="currentColor" stroke-width="1"
+                      vector-effect="non-scaling-stroke"></polyline>
+          </svg>
+          <div class="plot-vline"></div>
+          <div class="plot-hline"></div>
+          <div class="plot-dot"></div>
+          <div class="h h-in-min" data-h="inMin"></div>
+          <div class="h h-in-max" data-h="inMax"></div>
+          <div class="h h-out-max" data-h="outMax"></div>
+          <div class="h h-out-min" data-h="outMin"></div>
+        </div>
+        <div class="plot-scale">
+          <span>quiet</span><span>how loud this band is</span><span>loud</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="readout">
+      <div><span>Ignores below</span><output class="r-in-min mono"></output></div>
+      <div><span>Full at</span><output class="r-in-max mono"></output></div>
+      <div><span>Knob rests at</span><output class="r-out-min mono"></output></div>
+      <div><span>Knob peaks at</span><output class="r-out-max mono"></output></div>
+    </div>
+
+    <div class="boost-row">
+      <span class="band-key">Boost</span>
+      <div class="boost-steps"></div>
+      <output class="gainOut mono"></output>
+    </div>
+    <div class="boost-hint"></div>
+
+    <div class="meter-row">
+      <span class="meter-key">in</span>
+      <div class="meter"><div class="level"></div></div>
+    </div>
+    <div class="meter-row">
+      <span class="meter-key">knob</span>
+      <div class="meter out"><div class="output"></div></div>
+      <output class="travelOut mono"></output>
+    </div>
+  </section>
+</template>
+
+<main id="bands"></main>
+
+<p class="wrap-note"><b>Travel</b> is how much of its knob a band uses between silence and its
+own loudest moment. Under a third and the band is there without doing anything &mdash; pull its
+<em>Full at</em> handle in, or raise the boost. If a quiet room already moves the knobs, that is
+the noise floor: drag <em>Ignores below</em> up until the dot sits still.</p>
 
 <script>
 var $ = function(id){ return document.getElementById(id); };
-// Band ranges are settings now, so the labels come from the device rather
-// than from a list here that would quietly go stale the first time anyone
-// dragged one.
-var state = null;      // last /api/audio-in payload
-var sel = 0;           // 0-3, or 4 for the All view
-var peak = [0,0,0,0];  // decaying per-band peak, for travel
-var els = [];          // per-band {panel, plot, dot, curve, outband, hx, hy, vals}
-var mini = [];
-var dirty = 0;         // ms timestamp: suppress server->UI writes while dragging
 
-function clamp01(v){ return v < 0 ? 0 : v > 1 ? 1 : v; }
+// ── Ported from the extension, verbatim ─────────────────────────────────
+// These are the functions that draw and drag. They are lifted rather than
+// rewritten so the two surfaces behave identically — a person who learned
+// one has learned the other — and so a fix to either lands in both.
+var MIN_HZ = 31.25, MAX_HZ = 8000;   // the device's analysable range, not 20..20k
 
-// Log axis, matching the extension's hzToX/xToHz. The device reports the
-// analysable range rather than the page assuming it: change the sample rate
-// or the window and this follows without an edit here.
-var HZ_LO = 31.25, HZ_HI = 8000;
-function hzToU(hz){
-  var a = Math.log10(HZ_LO), b = Math.log10(HZ_HI);
-  return clamp01((Math.log10(Math.max(HZ_LO, Math.min(HZ_HI, hz))) - a) / (b - a));
+// A canvas cannot inherit a CSS variable, so the spectrum has to look one up.
+// Cached, because this is called four times per repaint at ten repaints a
+// second, and invalidated when the console's Light switch changes the theme
+// attribute on <html>.
+var themeCache = {};
+function themeColor(name){
+  if (themeCache[name]) return themeCache[name];
+  var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  themeCache[name] = v || '#888';
+  return themeCache[name];
 }
-function uToHz(u){
-  var a = Math.log10(HZ_LO), b = Math.log10(HZ_HI);
-  return Math.round(Math.pow(10, a + clamp01(u) * (b - a)));
-}
-function fmtHz(hz){
-  return hz >= 1000 ? (hz / 1000).toFixed(hz >= 10000 ? 0 : 1) + 'k' : Math.round(hz) + '';
+new MutationObserver(function(){ themeCache = {}; })
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
+
+const clampHz = (value) => Math.max(MIN_HZ, Math.min(MAX_HZ, Number(value) || MIN_HZ));
+
+function hzToX(hz, width) {
+  const min = Math.log10(MIN_HZ);
+  const max = Math.log10(MAX_HZ);
+  return ((Math.log10(clampHz(hz)) - min) / (max - min)) * width;
 }
 
-// The firmware's PFAudioInMap::mapped, and the extension's mapBandOutput.
-// All three have to agree or the graph is drawing something the device is
-// not doing.
-function mapOut(b, level){
-  var inMin = clamp01(b.inMin);
-  var inMax = Math.max(inMin + 0.01, clamp01(b.inMax));
-  var gain = Math.max(0.2, Math.min(4, Number(b.gain) || 1));
-  var u = clamp01((level - inMin) / (inMax - inMin));
+function xToHz(x, width) {
+  const t = Math.max(0, Math.min(1, x / Math.max(1, width)));
+  const min = Math.log10(MIN_HZ);
+  const max = Math.log10(MAX_HZ);
+  return Math.round(10 ** (min + t * (max - min)));
+}
+
+function formatHz(value) {
+  const hz = Math.round(value);
+  if (hz >= 1000) return `${(hz / 1000).toFixed(hz >= 10000 ? 0 : 1)}k`;
+  return String(hz);
+}
+
+function clampBandRange(band) {
+  band.hzMin = clampHz(band.hzMin);
+  band.hzMax = clampHz(band.hzMax);
+  if (band.hzMin > band.hzMax) [band.hzMin, band.hzMax] = [band.hzMax, band.hzMin];
+}
+
+const BOOST_STEPS = [0.5, 0.8, 1.0, 1.4, 1.8, 2.2, 2.6];
+
+// level -> knob, the same arithmetic offscreen.js runs. Kept in step by hand,
+// and it has to be: the plot IS the explanation of what the audio does, so a
+// curve that disagrees with the mapping is worse than no curve.
+function mapBandOutput(band, level) {
+  const inMin = clamp01(band.inMin);
+  const inMax = Math.max(inMin + 0.01, clamp01(band.inMax));
+  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
+  let u = clamp01((level - inMin) / (inMax - inMin));
   u = Math.pow(u, 1 / gain);
-  return b.outMin + u * (b.outMax - b.outMin);
+  return band.outMin + u * (band.outMax - band.outMin);
 }
 
-function curveFor(b){
-  var pts = [];
-  for (var k = 0; k <= 40; k++){
-    var x = k / 40;
-    pts.push((x * 100).toFixed(1) + ',' + ((1 - mapOut(b, x)) * 100).toFixed(1));
+function boostHint(gain) {
+  if (gain > 1.2) return 'Quiet bands need this — the highs carry far less energy than the bass.';
+  if (gain < 0.9) return 'Softens a band that is drowning out the others.';
+  return 'Straight through — what comes in is what goes out.';
+}
+
+// One graph, four handles, a live dot. Returns a repaint function the tick
+// loop calls with the current level.
+function buildPlot(el, band) {
+  const plot = el.querySelector('.plot');
+  const curve = el.querySelector('.plot-curve polyline');
+  const outBand = el.querySelector('.plot-out');
+  const inBand = el.querySelector('.plot-in');
+  const vline = el.querySelector('.plot-vline');
+  const hline = el.querySelector('.plot-hline');
+  const dot = el.querySelector('.plot-dot');
+  const handles = {
+    inMin: el.querySelector('.h-in-min'),
+    inMax: el.querySelector('.h-in-max'),
+    outMin: el.querySelector('.h-out-min'),
+    outMax: el.querySelector('.h-out-max')
+  };
+  const readout = {
+    inMin: el.querySelector('.r-in-min'),
+    inMax: el.querySelector('.r-in-max'),
+    outMin: el.querySelector('.r-out-min'),
+    outMax: el.querySelector('.r-out-max')
+  };
+  const hzOut = el.querySelector('.hzOut');
+  const gainOut = el.querySelector('.gainOut');
+  const hint = el.querySelector('.boost-hint');
+  const steps = el.querySelector('.boost-steps');
+  const pct = (v) => (v * 100).toFixed(1) + '%';
+  // A handle sitting at 0.00 or 1.00 is half outside a clipped box, and the
+  // two most reachable values are exactly those. Keep the marker inside the
+  // frame while the value it reports stays honest.
+  const edge = (v) => `clamp(7px, ${pct(v)}, calc(100% - 7px))`;
+
+  steps.innerHTML = BOOST_STEPS.map(
+    (g) => `<button type="button" data-g="${g}" title="${g.toFixed(1)}x"></button>`
+  ).join('');
+
+  function paintShape() {
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const x = i / 40;
+      pts.push((x * 100).toFixed(1) + ',' + ((1 - mapBandOutput(band, x)) * 100).toFixed(1));
+    }
+    curve.setAttribute('points', pts.join(' '));
+
+    outBand.style.top = pct(1 - band.outMax);
+    outBand.style.height = pct(Math.max(0.01, band.outMax - band.outMin));
+    inBand.style.left = pct(band.inMin);
+    inBand.style.width = pct(Math.max(0.01, band.inMax - band.inMin));
+
+    handles.inMin.style.left = edge(band.inMin);
+    handles.inMax.style.left = edge(band.inMax);
+    handles.outMin.style.top = edge(1 - band.outMin);
+    handles.outMax.style.top = edge(1 - band.outMax);
+
+    readout.inMin.textContent = band.inMin.toFixed(2);
+    readout.inMax.textContent = band.inMax.toFixed(2);
+    readout.outMin.textContent = band.outMin.toFixed(2);
+    readout.outMax.textContent = band.outMax.toFixed(2);
+
+    hzOut.textContent = formatHz(band.hzMin) + ' - ' + formatHz(band.hzMax) + ' Hz';
+    gainOut.textContent = band.gain.toFixed(1) + 'x';
+    hint.textContent = boostHint(band.gain);
+
+    steps.querySelectorAll('button').forEach((b) => {
+      const g = Number(b.dataset.g);
+      b.classList.toggle('on', Math.abs(band.gain - g) < 0.01);
+      b.classList.toggle('soft', g < 1);
+    });
   }
-  return pts.join(' ');
-}
 
-function post(body, then){
-  var x = new XMLHttpRequest();
-  x.open('POST', '/api/audio-in');
-  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  x.onload = function(){ if (then) then(); };
-  x.send(body);
-}
-
-// Sending on every pointermove would put a POST on the wire at pointer rate
-// and this device answers one connection at a time. Coalesce to the last
-// value, at most every 120 ms, and always send the final position.
-var pending = null, sendTimer = null;
-function queue(i){
-  pending = i;
-  if (sendTimer) return;
-  sendTimer = setTimeout(function(){
-    sendTimer = null;
-    var j = pending; pending = null;
-    if (j === null) return;
-    var b = state.bands[j];
-    post('band=' + j + '&hzMin=' + b.hzMin.toFixed(1) + '&hzMax=' + b.hzMax.toFixed(1) +
-         '&inMin=' + b.inMin.toFixed(4) + '&inMax=' + b.inMax.toFixed(4) +
-         '&gain=' + b.gain.toFixed(3) + '&outMin=' + b.outMin.toFixed(3) +
-         '&outMax=' + b.outMax.toFixed(3) +
-         '&knob=' + b.knob + '&muted=' + (b.muted ? '1' : '0'));
-  }, 120);
-}
-
-function drag(el, plot, i, onMove){
-  el.addEventListener('pointerdown', function(e){
-    e.preventDefault();
-    el.setPointerCapture(e.pointerId);
-    var move = function(ev){
-      var r = plot.getBoundingClientRect();
-      dirty = Date.now();
-      onMove(clamp01((ev.clientX - r.left) / r.width),
-             clamp01(1 - (ev.clientY - r.top) / r.height));
-      repaint(i);
-      queue(i);
-    };
-    var up = function(ev){
-      el.releasePointerCapture(e.pointerId);
-      el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
-      dirty = Date.now();
-      queue(i);
-    };
-    el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
-    move(e);
+  steps.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-g]');
+    if (!btn) return;
+    band.gain = Number(btn.dataset.g);
+    paintShape();
+    persistConfig();
   });
-}
 
-function buildBand(i){
-  var d = document.createElement('div');
-  d.className = 'band';
-  d.innerHTML =
-    '<div class="bandhead"><b>Band ' + (i+1) + '</b>' +
-    '<span class="sub">knob ' + (i+1) + '</span>' +
-    '<span class="hz">-</span></div>' +
-    '<div class="assign"><span class="k">Drives</span>' +
-      '<span class="knobs">' +
-        '<button data-k="0">K1</button><button data-k="1">K2</button>' +
-        '<button data-k="2">K3</button><button data-k="3">K4</button>' +
-      '</span>' +
-      '<button class="mute">Mute</button>' +
-      '<span class="clash"></span>' +
-    '</div>' +
-    '<div class="plot">' +
-      '<div class="outband"></div>' +
-      '<svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
-        '<polyline fill="none" stroke="#EDE7DB" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
-      '</svg>' +
-      '<div class="live"></div>' +
-      '<div class="h x" data-h="inMin"></div><div class="h x" data-h="inMax"></div>' +
-      '<div class="h y" data-h="outMin"></div><div class="h y" data-h="outMax"></div>' +
-      '<span class="axis bl">quiet</span><span class="axis br">loud</span>' +
-      '<span class="axis tr">knob</span>' +
-    '</div>' +
-    '<div class="rows">' +
-      '<span class="k">Boost</span><input type="range" min="0.2" max="4" step="0.05">' +
-      '<span class="v gv">1.00</span>' +
-      '<span class="k">Ignore below</span><span></span><span class="v v0">-</span>' +
-      '<span class="k">Full at</span><span></span><span class="v v1">-</span>' +
-      '<span class="k">Knob range</span><span></span><span class="v v2">-</span>' +
-      '<span class="k">In / out now</span><span></span><span class="v v3">-</span>' +
-    '</div>' +
-    '<div class="travel"><div class="tbar"><div class="tfill"></div></div>' +
-      '<div class="tline"><span class="verdict">-</span><span class="n">-</span></div></div>';
-
-  var plot = d.querySelector('.plot');
-  var hs = d.querySelectorAll('.h');
-  var hzLabel = d.querySelector('.hz');
-  var knobBtns = d.querySelectorAll('.knobs button');
-  var muteBtn = d.querySelector('.mute');
-  var clashEl = d.querySelector('.clash');
-  var e = {
-    panel: d, plot: plot,
-    curve: d.querySelector('polyline'),
-    outband: d.querySelector('.outband'),
-    dot: d.querySelector('.live'),
-    hInMin: hs[0], hInMax: hs[1], hOutMin: hs[2], hOutMax: hs[3],
-    gain: d.querySelector('input[type=range]'),
-    gv: d.querySelector('.gv'),
-    v0: d.querySelector('.v0'), v1: d.querySelector('.v1'),
-    v2: d.querySelector('.v2'), v3: d.querySelector('.v3'),
-    tfill: d.querySelector('.tfill'),
-    verdict: d.querySelector('.verdict'),
-    tnum: d.querySelector('.tline .n'),
-    hz: hzLabel, knobs: knobBtns, mute: muteBtn, clash: clashEl
+  // Grab whichever handle the pointer landed nearest. The output pair carries
+  // a small penalty so a press near a corner takes the input handle — that is
+  // the one people reach for, and the frequency of the mistake is not even.
+  let dragging = null;
+  const at = (event) => {
+    const r = plot.getBoundingClientRect();
+    return {
+      x: clamp01((event.clientX - r.left) / r.width),
+      y: clamp01(1 - (event.clientY - r.top) / r.height)
+    };
   };
 
-  for (var kk = 0; kk < knobBtns.length; kk++){
-    (function(which){
-      knobBtns[which].addEventListener('click', function(){
-        dirty = Date.now();
-        state.bands[i].knob = which;
-        for (var b = 0; b < 4; b++) repaint(b);   // a clash changes two bands
-        queue(i);
-      });
-    })(kk);
-  }
-  muteBtn.addEventListener('click', function(){
-    dirty = Date.now();
-    state.bands[i].muted = !state.bands[i].muted;
-    for (var b = 0; b < 4; b++) repaint(b);
-    renderTabs();
-    queue(i);
+  plot.addEventListener('pointerdown', (event) => {
+    const { x, y } = at(event);
+    dragging = [
+      ['inMin', Math.abs(x - band.inMin)],
+      ['inMax', Math.abs(x - band.inMax)],
+      ['outMin', Math.abs(y - band.outMin) + 0.04],
+      ['outMax', Math.abs(y - band.outMax) + 0.04]
+    ].sort((a, b) => a[1] - b[1])[0][0];
+    handles[dragging].classList.add('on');
+    plot.setPointerCapture(event.pointerId);
+    event.preventDefault();
   });
 
-  drag(e.hInMin, plot, i, function(x){
-    var b = state.bands[i];
-    b.inMin = Math.min(x, b.inMax - 0.01);
-  });
-  drag(e.hInMax, plot, i, function(x){
-    var b = state.bands[i];
-    b.inMax = Math.max(x, b.inMin + 0.01);
-  });
-  drag(e.hOutMin, plot, i, function(x, y){ state.bands[i].outMin = y; });
-  drag(e.hOutMax, plot, i, function(x, y){ state.bands[i].outMax = y; });
-
-  e.gain.addEventListener('input', function(){
-    dirty = Date.now();
-    state.bands[i].gain = Number(e.gain.value);
-    repaint(i); queue(i);
+  plot.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const { x, y } = at(event);
+    if (dragging === 'inMin') band.inMin = Math.min(x, band.inMax - 0.05);
+    if (dragging === 'inMax') band.inMax = Math.max(x, band.inMin + 0.05);
+    if (dragging === 'outMin') band.outMin = Math.min(y, band.outMax - 0.05);
+    if (dragging === 'outMax') band.outMax = Math.max(y, band.outMin + 0.05);
+    paintShape();
   });
 
-  els[i] = e;
-  return d;
-}
-
-function buildMini(i){
-  var d = document.createElement('div');
-  d.className = 'mini';
-  d.innerHTML =
-    '<div class="bandhead"><b>Band ' + (i+1) + '</b>' +
-    '<span class="sub mk">-</span>' +
-    '<span class="hz">-</span></div>' +
-    '<div class="plot"><div class="outband"></div>' +
-      '<svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
-        '<polyline fill="none" stroke="#EDE7DB" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
-      '</svg><div class="live"></div></div>' +
-    '<div class="travel"><div class="tbar"><div class="tfill"></div></div>' +
-      '<div class="tline"><span class="verdict">-</span><span class="n">-</span></div></div>';
-  // Clicking a small one opens it full size, which is the move people make
-  // straight after spotting the band that is not doing anything.
-  d.querySelector('.plot').addEventListener('click', function(){ select(i); });
-  mini[i] = {
-    root: d, knob: d.querySelector('.mk'),
-    hz: d.querySelector('.hz'),
-    curve: d.querySelector('polyline'), outband: d.querySelector('.outband'),
-    dot: d.querySelector('.live'), tfill: d.querySelector('.tfill'),
-    verdict: d.querySelector('.verdict'), tnum: d.querySelector('.tline .n')
+  const release = () => {
+    if (!dragging) return;
+    handles[dragging].classList.remove('on');
+    dragging = null;
+    renderSpectrumBands();
+    persistConfig();
   };
-  return d;
+  plot.addEventListener('pointerup', release);
+  plot.addEventListener('pointercancel', release);
+
+  paintShape();
+  return { paintShape, live(level) {
+    const out = mapBandOutput(band, level);
+    vline.style.left = pct(level);
+    hline.style.top = pct(1 - out);
+    dot.style.left = pct(level);
+    dot.style.top = pct(1 - out);
+  } };
 }
 
-function pc(v){ return (v * 100).toFixed(1) + '%'; }
-
-function paintTravel(t, o){
-  var weak = t < 0.34;
-  o.tfill.style.width = pc(Math.min(1, t));
-  o.tfill.className = 'tfill' + (weak ? ' weak' : '');
-  o.verdict.textContent = weak ? 'barely moving' : 'using its range';
-  o.verdict.style.color = weak ? 'var(--warn)' : 'var(--muted)';
-  o.tnum.textContent = Math.round(t * 100) + '%';
-  o.tnum.style.color = weak ? 'var(--warn)' : 'var(--ink)';
-}
-
-function repaint(i){
-  if (!state) return;
-  var b = state.bands[i], e = els[i], m = mini[i];
-  var lvl = state.level[i], out = state.out[i];
-  var lo = Math.min(b.outMin, b.outMax), hi = Math.max(b.outMin, b.outMax);
-  var pts = curveFor(b);
-
-  // travel: silence to this band's own recent peak, as a fraction of the
-  // knob range it was given
-  var span = Math.abs(b.outMax - b.outMin);
-  var t = span < 0.001 ? 0 :
-          clamp01(Math.abs(mapOut(b, peak[i]) - mapOut(b, 0)) / span);
-
-  // Who actually drives this knob: the first unmuted band that names it, the
-  // same first-wins rule fillInput uses. Saying so beats leaving someone to
-  // wonder why a band they are shaping does nothing.
-  var owner = -1;
-  for (var q = 0; q < 4; q++){
-    if (!state.bands[q].muted && state.bands[q].knob === b.knob){ owner = q; break; }
-  }
-
-  if (e){
-    e.panel.className = 'band' + (b.muted ? ' off' : '');
-    for (var kk = 0; kk < 4; kk++)
-      e.knobs[kk].className = (kk === b.knob ? 'on' : '');
-    e.mute.textContent = b.muted ? 'Muted' : 'Mute';
-    e.mute.className = 'mute' + (b.muted ? ' on' : '');
-    e.clash.textContent = (!b.muted && owner !== -1 && owner !== i)
-      ? ('Band ' + (owner + 1) + ' also drives K' + (b.knob + 1) + ' and gets there first \u2014 this band is measured but not heard.')
-      : '';
-    e.curve.setAttribute('points', pts);
-    e.outband.style.top = pc(1 - hi);
-    e.outband.style.height = pc(Math.max(0.005, hi - lo));
-    e.dot.style.left = pc(clamp01(lvl));
-    e.dot.style.top = pc(1 - clamp01(out));
-    e.hInMin.style.left = pc(b.inMin);
-    e.hInMax.style.left = pc(b.inMax);
-    e.hOutMin.style.top = pc(1 - b.outMin);
-    e.hOutMax.style.top = pc(1 - b.outMax);
-    e.hz.textContent = fmtHz(b.hzMin) + ' - ' + fmtHz(b.hzMax) + ' Hz';
-    e.gv.textContent = b.gain.toFixed(2) + 'x';
-    if (document.activeElement !== e.gain) e.gain.value = b.gain;
-    e.v0.textContent = b.inMin.toFixed(3);
-    e.v1.textContent = b.inMax.toFixed(3);
-    e.v2.textContent = b.outMin.toFixed(2) + ' - ' + b.outMax.toFixed(2);
-    e.v3.textContent = lvl.toFixed(4) + '  ->  ' + out.toFixed(3);
-    paintTravel(t, e);
-  }
-  if (m){
-    m.root.className = 'mini' + (b.muted ? ' off' : '');
-    m.knob.textContent = 'K' + (b.knob + 1);
-    m.hz.textContent = fmtHz(b.hzMin) + ' - ' + fmtHz(b.hzMax);
-    m.curve.setAttribute('points', pts);
-    m.outband.style.top = pc(1 - hi);
-    m.outband.style.height = pc(Math.max(0.005, hi - lo));
-    m.dot.style.left = pc(clamp01(lvl));
-    m.dot.style.top = pc(1 - clamp01(out));
-    paintTravel(t, m);
-  }
-}
-
-function select(i){
-  sel = i;
-  var t = $('tabs').children;
-  for (var k = 0; k < t.length; k++) t[k].classList.toggle('on', k === i);
-  $('all').hidden = (i !== 4);
-  for (var b = 0; b < 4; b++) els[b].panel.hidden = (i !== b);
-  if (state) renderTabs();
-  for (b = 0; b < 4; b++) repaint(b);
-  drawBandOverlay();
-}
-
-// Bars for the spectrum. Scaled against a decaying maximum rather than a
-// fixed one: the absolute numbers off this microphone are tiny (see the note
-// at the foot of the page), so a fixed scale would draw a flat line at the
-// bottom no matter what was playing.
-var specMax = 0.02;
-function drawSpec(vals){
-  var c = $('spec'), w = c.clientWidth, h = c.clientHeight;
-  if (!w || !h) return;
-  if (c.width !== w || c.height !== h){ c.width = w; c.height = h; }
-  var g = c.getContext('2d');
-  g.clearRect(0, 0, w, h);
-  var top = 0;
-  for (var i = 0; i < vals.length; i++) if (vals[i] > top) top = vals[i];
-  specMax = Math.max(top, specMax * 0.985, 0.005);
-  var floor = 16;                       // leave the tick strip clear
-  var bw = w / vals.length;
-  for (i = 0; i < vals.length; i++){
-    var v = clamp01(vals[i] / specMax);
-    var bh = Math.max(1, v * (h - floor - 4));
-    g.fillStyle = '#3A3529';
-    g.fillRect(i * bw, h - floor - bh, Math.max(1, bw - 1), bh);
-  }
-}
-
-function drawBandOverlay(){
-  if (!state) return;
-  var root = $('sbands');
+// Which band you are editing, in one move, without leaving the spectrum in
+// view. The tabs carry the knob each band drives and whether it is muted,
+// because that is what you want to know before switching.
+function renderBandTabs() {
+  const root = $('bandTabs');
+  if (!root) return;
   root.innerHTML = '';
-  for (var i = 0; i < 4; i++){
-    var b = state.bands[i];
-    var l = hzToU(b.hzMin), r = hzToU(b.hzMax);
-    var d = document.createElement('div');
-    d.className = 'sb' + (i === sel ? ' on' : '');
-    d.style.left = (Math.min(l, r) * 100) + '%';
-    d.style.width = Math.max(0.6, Math.abs(r - l) * 100) + '%';
-    d.innerHTML = '<span>B' + (i + 1) + '</span>';
-    root.appendChild(d);
-  }
-  var s = (sel >= 0 && sel < 4) ? state.bands[sel] : null;
-  $('hzNow').textContent = s
-    ? fmtHz(s.hzMin) + ' - ' + fmtHz(s.hzMax) + ' Hz'
-    : 'pick a band to change its range';
+  config.bands.forEach((band, index) => {
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.className = 'band-tab';
+    if (index === activeBandIndex) tab.classList.add('active');
+    if (band.muted) tab.classList.add('muted');
+    tab.innerHTML = `<strong>${index + 1}</strong><span>K${band.knob + 1}</span>`;
+    tab.title = band.muted ? `Band ${index + 1} - muted` : `Band ${index + 1} -> knob ${band.knob + 1}`;
+    tab.addEventListener('click', () => selectBand(index));
+    root.appendChild(tab);
+  });
+
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'band-tab all';
+  if (activeBandIndex === ALL_BANDS) all.classList.add('active');
+  all.innerHTML = '<strong>All</strong><span>compare</span>';
+  all.title = 'Show every band at once';
+  all.addEventListener('click', () => selectBand(ALL_BANDS));
+  root.appendChild(all);
 }
 
-// Drag across the spectrum to set the selected band's range. In the All view
-// there is no selected band, so it does nothing rather than guessing.
-(function(){
-  var wrap = $('specwrap'), from = null;
-  function hzAt(e){
-    var r = wrap.getBoundingClientRect();
-    return uToHz((e.clientX - r.left) / Math.max(1, r.width));
-  }
-  wrap.addEventListener('pointerdown', function(e){
-    if (sel > 3 || !state) return;
-    e.preventDefault();
-    wrap.setPointerCapture(e.pointerId);
-    from = hzAt(e);
+function selectBand(index) {
+  activeBandIndex = index === ALL_BANDS
+    ? ALL_BANDS
+    : Math.max(0, Math.min(config.bands.length - 1, index));
+  bandEls.forEach((entry, i) => {
+    entry.panel.hidden = activeBandIndex !== ALL_BANDS && i !== activeBandIndex;
   });
-  wrap.addEventListener('pointermove', function(e){
-    if (from === null) return;
-    var now = hzAt(e), b = state.bands[sel];
-    b.hzMin = Math.min(from, now);
-    b.hzMax = Math.max(from, now);
-    if (b.hzMax - b.hzMin < 31.25) b.hzMax = b.hzMin + 31.25;
-    dirty = Date.now();
-    drawBandOverlay(); repaint(sel); queue(sel);
-  });
-  wrap.addEventListener('pointerup', function(e){
-    if (from === null) return;
-    from = null;
-    wrap.releasePointerCapture(e.pointerId);
-    dirty = Date.now();
-    queue(sel);
-  });
-})();
+  renderBandTabs();
+  renderSpectrumBands();
+}
 
-function tick(){
+function buildBands() {
+  const root = $('bands');
+  const template = $('band-template');
+  root.innerHTML = '';
+  bandEls = [];
+
+  config.bands.forEach((band, index) => {
+    const fragment = template.content.cloneNode(true);
+    const el = fragment.querySelector('.band');
+    el.dataset.index = String(index);
+    el.querySelector('.band-title').textContent = `Band ${index + 1}`;
+
+    // One editor at a time unless you ask for all of them. Four stacked
+    // panels meant scrolling down to change a band and back up to watch the
+    // spectrum answer, over and over.
+    el.hidden = activeBandIndex !== ALL_BANDS && index !== activeBandIndex;
+
+    const knob = el.querySelector('.knob');
+    knob.value = String(band.knob);
+    knob.addEventListener('change', () => {
+      band.knob = Math.max(0, Math.min(3, parseInt(knob.value, 10) || 0));
+      renderBandTabs();
+      persistConfig();
+    });
+
+    const presetRow = el.querySelector('.hz-presets');
+    if (presetRow) {
+      presetRow.innerHTML = HZ_PRESETS.map(
+        ([name, lo, hi]) =>
+          `<button type="button" class="hz-preset" data-min="${lo}" data-max="${hi}">${name}</button>`
+      ).join('');
+    }
+
+    const mute = el.querySelector('.mute-band');
+    const paintMute = () => {
+      mute.textContent = band.muted ? 'Muted' : 'Mute';
+      mute.classList.toggle('on', band.muted === true);
+      mute.title = band.muted
+        ? 'This band is not driving its knob'
+        : 'Stop this band driving its knob';
+    };
+    paintMute();
+    mute.addEventListener('click', (event) => {
+      event.stopPropagation();
+      band.muted = !band.muted;
+      paintMute();
+      renderBandTabs();
+      renderSpectrumBands();
+      persistConfig();
+    });
+
+    el.querySelectorAll('.hz-preset').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        band.hzMin = Number(btn.dataset.min);
+        band.hzMax = Number(btn.dataset.max);
+        clampBandRange(band);
+        buildBands();
+        renderSpectrumBands();
+        persistConfig();
+      });
+    });
+
+    const plot = buildPlot(el, band);
+
+    bandEls.push({
+      // The panel itself, not only its meters — selectBand shows and hides
+      // these, and it had nothing to hold on to.
+      panel: el,
+      band,
+      plot,
+      level: el.querySelector('.level'),
+      output: el.querySelector('.output'),
+      travel: el.querySelector('.travelOut')
+    });
+
+    root.appendChild(fragment);
+  });
+}
+
+function drawSpectrum(values) {
+  const canvas = $('spectrum');
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = themeColor('--field');
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = themeColor('--rule');
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const y = Math.round((height / 4) * i) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  const barCount = Math.max(1, values.length);
+  const barWidth = width / barCount;
+  for (let i = 0; i < barCount; i++) {
+    const v = clamp01(values[i] || 0);
+    const h = Math.max(1, v * (height - 12));
+    ctx.fillStyle = i % 2 ? themeColor('--muted') : themeColor('--ink');
+    ctx.fillRect(i * barWidth, height - h, Math.max(1, barWidth - 1), h);
+  }
+}
+
+function renderSpectrumBands() {
+  const root = $('spectrumBands');
+  const width = root.clientWidth || $('spectrum').clientWidth;
+  root.innerHTML = '';
+  config.bands.forEach((band, index) => {
+    const left = hzToX(band.hzMin, width);
+    const right = hzToX(band.hzMax, width);
+    const el = document.createElement('div');
+    el.className = 'spectrum-band';
+    if (index === activeBandIndex) el.style.background = 'rgba(232, 85, 46, .26)';
+    else if (activeBandIndex === ALL_BANDS) el.style.background = 'rgba(232, 85, 46, .14)';
+    el.style.left = `${Math.min(left, right)}px`;
+    el.style.width = `${Math.max(2, Math.abs(right - left))}px`;
+    el.innerHTML = `<span>B${index + 1}</span>`;
+    if (band.muted) el.classList.add('muted');
+    // Select on click, and swallow the pointer so it does not also begin a
+    // drag that would rewrite the band you just reached for.
+    el.addEventListener('pointerdown', (event) => {
+      event.stopPropagation();
+      selectBand(index);
+    });
+    root.appendChild(el);
+  });
+}
+
+function bindSpectrumDrag() {
+  const wrap = document.querySelector('.spectrum-wrap');
+  wrap.addEventListener('pointerdown', (event) => {
+    const rect = wrap.getBoundingClientRect();
+    const startHz = xToHz(event.clientX - rect.left, rect.width);
+    spectrumDrag = { startHz };
+    wrap.setPointerCapture(event.pointerId);
+  });
+  wrap.addEventListener('pointermove', (event) => {
+    if (!spectrumDrag) return;
+    const rect = wrap.getBoundingClientRect();
+    const currentHz = xToHz(event.clientX - rect.left, rect.width);
+    // Dragging rewrites one band's range, so in All view there is nothing to
+    // drag — pick a band first.
+    const band = config.bands[activeBandIndex];
+    if (!band) return;
+    band.hzMin = Math.min(spectrumDrag.startHz, currentHz);
+    band.hzMax = Math.max(spectrumDrag.startHz, currentHz);
+    clampBandRange(band);
+    buildBands();
+    renderSpectrumBands();
+  });
+  wrap.addEventListener('pointerup', (event) => {
+    if (!spectrumDrag) return;
+    spectrumDrag = null;
+    wrap.releasePointerCapture(event.pointerId);
+    persistConfig();
+  });
+}
+
+// Named ranges, offered per band. The device console has had these since it
+// shipped; dragging a slider to find "bass" is not a thing anyone should do.
+const HZ_PRESETS = [
+  ['Sub',     20,   60],
+  ['Bass',    60,   250],
+  ['Low mid', 250,  500],
+  ['Mid',     500,  2000],
+  ['Hi mid',  2000, 4000],
+  ['High',    4000, 16000]
+];
+
+// Bands are indexed 0..3; this is the fifth choice — every editor at once,
+// for setting one band against the others rather than one at a time.
+const ALL_BANDS = -1;
+
+// ── The device half ─────────────────────────────────────────────────────
+//
+// Everything above came from a popup whose settings live in chrome.storage
+// and whose levels arrive over a port. Here the settings live on the panel
+// and the levels are polled, and the difference matters in exactly one way:
+//
+//   THE PAGE OWNS THE CONFIG. It is read once, at load. After that the page
+//   is the truth and writes to the device; the poll brings back levels and
+//   nothing else.
+//
+// The first version of this page re-read the whole config every 100 ms and
+// tried to decide, per tick, whether the user was mid-gesture. Any POST that
+// had not landed yet lost, so a dragged handle sprang back and the controls
+// felt stuck. There is no clever version of that. One owner, one direction.
+var config = { bands: [] };
+var state = null;              // last levels payload
+var bandEls = [];
+var activeBandIndex = 0;
+var spectrumDrag = null;
+var saveTimer = null;
+var pending = {};
+
+// Debounced, and coalesced per band: dragging emits pointer-rate changes and
+// this panel answers one connection at a time.
+function persistConfig() {
+  config.bands.forEach(function(b, i){ pending[i] = b; });
+  if (saveTimer) return;
+  saveTimer = setTimeout(function(){
+    saveTimer = null;
+    var jobs = Object.keys(pending);
+    pending = {};
+    jobs.forEach(function(i){
+      var b = config.bands[i];
+      var body = 'band=' + i +
+        '&hzMin=' + b.hzMin.toFixed(1) + '&hzMax=' + b.hzMax.toFixed(1) +
+        '&inMin=' + b.inMin.toFixed(4) + '&inMax=' + b.inMax.toFixed(4) +
+        '&gain=' + b.gain.toFixed(3) +
+        '&outMin=' + b.outMin.toFixed(3) + '&outMax=' + b.outMax.toFixed(3) +
+        '&knob=' + b.knob + '&muted=' + (b.muted ? '1' : '0');
+      var x = new XMLHttpRequest();
+      x.open('POST', '/api/audio-in');
+      x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      x.send(body);
+    });
+  }, 200);
+}
+
+// Levels only. One request in flight at a time, chained rather than on an
+// interval: this web server takes one connection, and a timer that fires
+// while the last request is still open queues them up until every reading is
+// stale and the page feels like it is dragging behind the sound.
+var polling = false;
+function poll() {
+  if (polling) return;
+  polling = true;
+  var x = new XMLHttpRequest();
+  x.open('GET', '/api/audio-in?levels=1');
+  x.onloadend = function(){
+    polling = false;
+    var d = null;
+    try { d = JSON.parse(x.responseText); } catch (e) {}
+    if (d) { state = d; paintLive(); }
+    setTimeout(poll, 90);
+  };
+  x.send();
+}
+
+// The tail of the extension's renderState(), which is the part that is not
+// about capture status. Kept in the extension's own terms — levels, outputs,
+// spectrum, entry.plot.live, the 0.995 peak decay — so it stays comparable to
+// the file it came from.
+function paintLive() {
+  if (!state) return;
+
+  var live = state.source === 'pdm';
+  $('srcline').className = 'srcline' + (live ? '' : ' warn');
+  $('srcName').textContent = live ? 'Microphone' : state.source;
+  $('srcRaw').textContent = 'peak ' + Number(state.rawPeak).toFixed(5) +
+                            '  dc ' + Number(state.rawDc).toFixed(5);
+
+  var levels = state.levels || [];
+  var outputs = state.outputs || [];
+  for (var i = 0; i < bandEls.length; i++) {
+    var entry = bandEls[i];
+    var level = levels[i] || 0;
+    entry.level.style.width = Math.round(level * 100) + '%';
+    entry.output.style.width = Math.round((outputs[i] || 0) * 100) + '%';
+    // The dot is the point of the graph: it says where this sound lands, and
+    // it is the only part that can tell you a band is doing nothing.
+    if (entry.plot) entry.plot.live(level);
+
+    if (entry.travel) {
+      var b = entry.band;
+      entry.peak = Math.max(level, (entry.peak || 0) * 0.995);
+      var span = Math.max(0.01, b.outMax - b.outMin);
+      var travel = (mapBandOutput(b, entry.peak) - mapBandOutput(b, 0)) / span;
+      entry.travel.textContent = Math.round(Math.min(1, travel) * 100) + '%';
+      entry.travel.classList.toggle('weak', travel < 0.34);
+      entry.travel.title = travel < 0.34
+        ? 'This band is barely moving its knob - pull "Full at" left, or add boost'
+        : 'How much of its knob this band is using';
+    }
+  }
+  drawSpectrum(state.spectrum || []);
+}
+
+// Read the config once, build the UI from it, then start the level poll.
+(function start(){
   var x = new XMLHttpRequest();
   x.open('GET', '/api/audio-in');
   x.onload = function(){
-    var d = null;
-    try { d = JSON.parse(x.responseText); } catch(e){}
-    if (!d) return;
+    var d = JSON.parse(x.responseText);
+    if (d.hzRange && d.hzRange.length === 2) { MIN_HZ = d.hzRange[0]; MAX_HZ = d.hzRange[1]; }
+    config.bands = d.bands.map(function(b, i){
+      return { hzMin: b.hzMin, hzMax: b.hzMax, inMin: b.inMin, inMax: b.inMax,
+               gain: b.gain, outMin: b.outMin, outMax: b.outMax,
+               knob: b.knob, muted: b.muted === true };
+    });
+    $('mic').checked = !!d.micOn;
+    paintHeap();
+    buildBands();
+    renderBandTabs();
+    renderSpectrumBands();
+    bindSpectrumDrag();
+    selectBand(0);
+    poll();
+  };
+  x.send();
+})();
 
-    // A drag in flight owns the numbers. Taking the server's copy back mid
-    // gesture yanks the handle out from under the pointer, because the POST
-    // that would have made them agree has not landed yet.
-    var mine = (Date.now() - dirty) < 900;
-    if (!state || !mine) state = d;
-    else { state.level = d.level; state.source = d.source; state.spec = d.spec;
-           state.rawPeak = d.rawPeak; state.rawDc = d.rawDc; state.windows = d.windows;
-           for (var i = 0; i < 4; i++) state.out[i] = mapOut(state.bands[i], d.level[i]); }
-    if (d.hzRange && d.hzRange.length === 2){ HZ_LO = d.hzRange[0]; HZ_HI = d.hzRange[1]; }
-
-    // Peaks decay so travel reflects the last few seconds, not the loudest
-    // thing that ever happened while the page was open.
-    for (var i = 0; i < 4; i++){
-      peak[i] = Math.max(state.level[i], peak[i] * 0.97);
-    }
-
-    // Anything that is not a plain 'pdm' is worth the warning colour: a
-    // synthetic source, a stalled mic, or a data pin sitting on a rail.
-    var live = state.source === 'pdm';
-    $('src').className = 'src' + (live ? '' : ' warn');
-    $('srcName').textContent = live ? 'Microphone' : state.source;
-    $('srcRaw').textContent = 'peak ' + Number(state.rawPeak).toFixed(5) +
-                              '  dc ' + Number(state.rawDc).toFixed(5);
-    $('win').textContent = state.windows + ' windows';
-    if (document.activeElement !== $('drive')) $('drive').checked = !!state.driving;
-
-    drawSpec(state.spec || []);
-    drawBandOverlay();
-    renderTabs();
-    for (i = 0; i < 4; i++) repaint(i);
+// Free heap, next to the switch that changes it. Not decoration: the claim
+// that the microphone costs about 8 KB of internal heap should be checkable by
+// the person who cares, in the two seconds it takes to tick a box, rather than
+// taken from a commit message.
+function paintHeap(){
+  var x = new XMLHttpRequest();
+  x.open('GET', '/api/status');
+  x.onload = function(){
+    try {
+      var d = JSON.parse(x.responseText);
+      $('heapline').textContent =
+        'free internal ' + d.heapInternal.toLocaleString() +
+        ' B, largest block ' + d.heapLargest.toLocaleString() + ' B';
+    } catch (e) {}
   };
   x.send();
 }
 
-for (var i = 0; i < 4; i++){
-  $('bands').appendChild(buildBand(i));
-  $('grid').appendChild(buildMini(i));
-}
-['Band 1','Band 2','Band 3','Band 4','All four'].forEach(function(name, i){
-  var b = document.createElement('button');
-  b.textContent = name;
-  b.addEventListener('click', function(){ select(i); });
-  $('tabs').appendChild(b);
-});
-
-// The tabs carry which knob each band drives and whether it is muted, so the
-// arrangement is readable without clicking through all four.
-function renderTabs(){
-  if (!state) return;
-  var t = $('tabs').children;
-  for (var i = 0; i < 4; i++){
-    var bd = state.bands[i];
-    t[i].textContent = 'Band ' + (i+1) + '  K' + (bd.knob + 1);
-    t[i].classList.toggle('muted', bd.muted === true);
-  }
-}
-[50, 100, 250, 500, 1000, 2000, 4000, 8000].forEach(function(hz){
-  var i = document.createElement('i');
-  i.textContent = fmtHz(hz);
-  i.style.left = (hzToU(hz) * 100) + '%';
-  $('ticks').appendChild(i);
-});
-
-// The four splits the extension ships with, as one click each. Somewhere to
-// start from beats an empty spectrum and a drag gesture nobody has found yet.
-[['Bass',31,250],['Low mid',250,1000],['High mid',1000,3000],['Air',3000,8000],
- ['Full',31,8000]].forEach(function(p){
-  var b = document.createElement('button');
-  b.textContent = p[0];
-  b.addEventListener('click', function(){
-    if (sel > 3 || !state) return;
-    state.bands[sel].hzMin = p[1];
-    state.bands[sel].hzMax = p[2];
-    dirty = Date.now();
-    drawBandOverlay(); repaint(sel); queue(sel);
-  });
-  $('presets').appendChild(b);
-});
-
-select(0);
-
-$('drive').addEventListener('change', function(){
-  post('driving=' + ($('drive').checked ? '1' : '0'));
-  $('msg').textContent = $('drive').checked
-    ? 'the room is driving the knobs' : 'meters only - the knobs are yours';
-});
-$('reset').addEventListener('click', function(){
+$('mic').addEventListener('change', function(){
+  var on = $('mic').checked;
   var x = new XMLHttpRequest();
-  x.open('POST', '/api/audio-in/reset');
-  x.onload = function(){ dirty = 0; $('msg').textContent = 'back to defaults'; tick(); };
-  x.send();
+  x.open('POST', '/api/audio-in');
+  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  // The driver takes a moment to install or release, and the heap reading is
+  // only interesting once it has.
+  x.onloadend = function(){ setTimeout(paintHeap, 700); };
+  x.send('mic=' + (on ? '1' : '0'));
 });
 
-tick();
-setInterval(tick, 100);
 </script>
 </body></html>

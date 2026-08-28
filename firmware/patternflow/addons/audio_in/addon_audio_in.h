@@ -55,17 +55,27 @@ inline uint32_t heapCost = 0;
 #if PF_AUDIO_IN_CORE == 0
 inline void analysisTask(void*) {
   for (;;) {
+    // With the microphone off there is nothing to analyse and no reason to
+    // wake 60 times a second on the core Wi-Fi lives on. The task stays
+    // parked; flipping the switch on /audio-in starts I2S and it resumes.
+    if (!PFAudioInMap::micOn) {
+      if (PFAudioPdm::live) PFAudioPdm::end();
+      vTaskDelay(pdMS_TO_TICKS(250));
+      continue;
+    }
+    if (!PFAudioPdm::live) PFAudioPdm::begin();
+
     PFAudioFFT::analyze(tick++);
-    // With a microphone, the I2S read inside analyze() already blocks for the
-    // 16 ms a hop takes to exist, so it paces this loop against the audio
-    // clock. Delaying on top of that would run two clocks at once and overrun
-    // the DMA buffer on whichever side was slower.
+    // With a microphone the I2S read paces this loop, and without one nothing
+    // blocks at all, so the synthetic path keeps the old 16 ms tick.
     //
-    // Without one, nothing blocks and the loop would spin the core flat, so
-    // the synthetic path keeps the old 16 ms tick - 60 Hz, the panel's own
-    // cadence, with windows overlapping the same way.
-    if (!PFAudioPdm::available()) vTaskDelay(pdMS_TO_TICKS(16));
-    else taskYIELD();
+    // Either way this ALWAYS yields for at least a tick. It used to
+    // taskYIELD() on the microphone path, on the reasoning that the read was
+    // the clock - which stops being true the moment the DMA ring backs up and
+    // reads start returning instantly. A priority-1 task spinning on the core
+    // Wi-Fi runs on is how a panel stops answering, and a yield that cannot
+    // guarantee anything is not a floor. One tick is.
+    vTaskDelay(PFAudioPdm::available() ? 1 : pdMS_TO_TICKS(16));
   }
 }
 #endif
@@ -77,6 +87,8 @@ inline void onNetwork() { PFAudioInHttp::begin(); }
 inline void setup() {
   PFAudioInMap::load();
   const uint32_t before = ESP.getFreeHeap();
+  // Tables and buffers only. I2S is the analysis task's business now, so a
+  // panel that boots with the mic off never installs the driver at all.
   PFAudioFFT::begin();
   heapCost = before - ESP.getFreeHeap();
 #if PF_AUDIO_IN_CORE == 0
@@ -109,10 +121,7 @@ inline void fillInput(InputFrame& input) {
   // the same behaviour with no coupling, and it is what dispatch order is
   // for. A hand on the encoder outranks both - the core drops any lane whose
   // knob moved this frame.
-  // Watching the meters and having the room turn the knobs are separate
-  // things, and someone tuning the response graph wants the first without
-  // the second. /audio-in owns this switch.
-  if (!PFAudioInMap::driving) return;
+  if (!PFAudioInMap::micOn) return;
   // Belt and braces over the default-off switch: somebody who ticks the box
   // on a panel with no microphone would otherwise pin all four knobs at
   // their resting position and find that turning one does not stick.
@@ -164,6 +173,10 @@ inline void appendStatus(String& json) {
   json += PFAudioFFT::sourceLabel();
   json += "\",\"micWindows\":";
   json += PFAudioPdm::windowsRead;
+  // Hops thrown away because the analysis fell behind. Steady zero is healthy;
+  // a number that climbs means the device has more to do than time to do it.
+  json += ",\"micDropped\":";
+  json += PFAudioPdm::dropped;
   // Peak and DC are the first things to read with a real mic in the loop:
   // the S3's PDM input is documented low-amplitude, and a spectrum computed
   // from nothing still folds into four plausible-looking band numbers.

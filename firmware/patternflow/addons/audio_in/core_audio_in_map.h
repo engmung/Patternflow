@@ -114,22 +114,24 @@ inline void clampRange(Band& b) {
   if (b.hzMax - b.hzMin < BIN_HZ) b.hzMax = min(MAX_HZ, b.hzMin + BIN_HZ);
 }
 
-// Whether the mic drives the knobs at all. Separate from whether the analysis
-// runs: someone tuning the response graph wants to watch the meters move
-// without the panel reacting to every word they say.
+// Whether the microphone runs at all: the I2S driver, the DMA buffers and the
+// analysis. Off means the feature costs a panel nothing but the code size.
 //
-// OFF until somebody turns it on, and that default is load-bearing. The
-// microphone is four wires to a breakout, not a part on the board, so most
-// people installing the Audio edition do not have one. On those panels GPIO44
-// is an input pin with nothing driving it: I2S starts, the read succeeds, and
-// what comes back is whatever the floating pad picked up. That is not silence
-// and it is not detectable as "no microphone" - it is a signal, and it would
-// be holding all four knobs.
+// Default off, and this is the switch people will actually use. The mic is
+// four wires to a breakout rather than a part on the board, so a panel that
+// installs the Audio edition for OSC and the Chrome extension should not be
+// running an analysis over a floating pin. Turning it on is one tick on
+// /audio-in and it persists.
+inline bool micOn = false;
+
+// There was a second flag here, `driving`, for whether the bands moved the
+// knobs — separate from whether the analysis ran, so that somebody shaping the
+// response could watch the meters without the panel jumping at every word.
 //
-// So the room drives nothing until a person ticks the box on /audio-in, at
-// which point it persists. One switch for somebody who wired a mic; nothing
-// at all for everybody else.
-inline bool driving = false;
+// It came first and micOn was added on top of it, which left two switches for
+// one question and a page nobody could read. The tuning case it existed for is
+// not worth a second control: micOn is the switch, and it means the panel
+// listens and reacts.
 
 inline float clamp01(float v) {
   if (v < 0.0f) return 0.0f;
@@ -170,13 +172,13 @@ inline float travel(int b, float peakLevel) {
 // garbage - they get the defaults and retune, which is the safe direction.
 constexpr const char* NVS_NS = "pf-audioin";
 constexpr const char* NVS_KEY = "bands";
-constexpr const char* NVS_DRIVE = "drive";
+constexpr const char* NVS_MIC = "mic";
 
 inline void save() {
   Preferences p;
   if (!p.begin(NVS_NS, false)) return;
   p.putBytes(NVS_KEY, bands, sizeof(bands));
-  p.putBool(NVS_DRIVE, driving);
+  p.putBool(NVS_MIC, micOn);
   p.end();
 }
 
@@ -193,7 +195,7 @@ inline void load() {
       bands[i].knob = constrain(bands[i].knob, 0, 3);
     }
   }
-  driving = p.getBool(NVS_DRIVE, false);
+  micOn = p.getBool(NVS_MIC, false);
   p.end();
 }
 
