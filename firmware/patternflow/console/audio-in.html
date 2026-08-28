@@ -598,6 +598,8 @@ function tick(){
       peak[i] = Math.max(state.level[i], peak[i] * 0.97);
     }
 
+    // Anything that is not a plain 'pdm' is worth the warning colour: a
+    // synthetic source, a stalled mic, or a data pin sitting on a rail.
     var live = state.source === 'pdm';
     $('src').className = 'src' + (live ? '' : ' warn');
     $('srcName').textContent = live ? 'Microphone' : state.source;

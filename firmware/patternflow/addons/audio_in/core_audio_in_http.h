@@ -54,7 +54,7 @@ inline void handleIndex() {
 // shaping problem, and one where neither moves is a microphone problem.
 inline void handleGet() {
   String j = "{\"source\":\"";
-  j += PFAudioPdm::sourceName();
+  j += PFAudioFFT::sourceLabel();
   j += "\",\"driving\":";
   j += PFAudioInMap::driving ? "true" : "false";
   j += ",\"rawPeak\":";

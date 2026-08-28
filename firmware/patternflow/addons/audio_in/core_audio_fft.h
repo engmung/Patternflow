@@ -176,6 +176,38 @@ inline void fold() {
   }
 }
 
+// Is there actually a microphone on the other end of those two pins?
+//
+// Measured on a board with nothing wired to GPIO44: rawPeak 0.94406 and
+// rawDc -0.94406, exactly, forever, with all four bands at 0.0000. The pad
+// floats to a rail, every sample comes back identical, and a constant signal
+// puts all of its energy in bin 0 - which fold() skips, so the bands are
+// genuinely zero rather than noisy.
+//
+// I2S reports none of this as an error. The driver starts, the reads succeed
+// and return a full hop, and sourceName() says "pdm" because by every test
+// it has, it is. Without this check a panel with no mic looks healthy and
+// pins all four knobs at their resting position, which reads as knobs that
+// will not hold a setting.
+//
+// A real microphone measured 0.004 on the same field, so 0.5 is not a close
+// call. Both halves are required: a genuinely silent room also has near-zero
+// bands, and it should not be reported as a wiring fault.
+inline bool inputIsDeadRail() {
+  if (fabsf(rawDc) < 0.5f) return false;
+  for (int b = 0; b < 4; b++)
+    if (bands[b] > 1e-4f) return false;
+  return true;
+}
+
+// What the input actually is, for /api/status and the console page. Lives
+// here rather than beside the driver because the driver cannot see the
+// spectrum, and the spectrum is the only thing that tells these apart.
+inline const char* sourceLabel() {
+  if (!PFAudioPdm::available()) return PFAudioPdm::sourceName();
+  return inputIsDeadRail() ? "pdm (no mic - data pin idle)" : "pdm";
+}
+
 // A coarse, log-spaced view of the spectrum for /audio-in to draw. Log
 // because that is how the frequencies people care about are spaced: a linear
 // picture spends three quarters of its width above 2 kHz, where almost

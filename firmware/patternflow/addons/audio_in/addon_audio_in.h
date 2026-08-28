@@ -113,6 +113,10 @@ inline void fillInput(InputFrame& input) {
   // things, and someone tuning the response graph wants the first without
   // the second. /audio-in owns this switch.
   if (!PFAudioInMap::driving) return;
+  // Belt and braces over the default-off switch: somebody who ticks the box
+  // on a panel with no microphone would otherwise pin all four knobs at
+  // their resting position and find that turning one does not stick.
+  if (PFAudioFFT::inputIsDeadRail()) return;
   // Bands, not knobs: a band names the knob it drives, so this loop is over
   // bands and the index it writes to comes from the band.
   //
@@ -157,7 +161,7 @@ inline void appendStatus(String& json) {
   json += ",\"staticBytes\":";
   json += PFAudioFFT::staticBytes();
   json += ",\"source\":\"";
-  json += PFAudioPdm::sourceName();
+  json += PFAudioFFT::sourceLabel();
   json += "\",\"micWindows\":";
   json += PFAudioPdm::windowsRead;
   // Peak and DC are the first things to read with a real mic in the loop:
