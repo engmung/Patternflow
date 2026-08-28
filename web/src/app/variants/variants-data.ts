@@ -140,18 +140,14 @@ export const VARIANTS: Variant[] = [
     // the show player, MQTT and weather in it are Simone Majocchi's work, and
     // a byline naming only the maintainer reads as a claim over it.
     //
-    // This card now installs the default composition, and it is the only
-    // place that does. The browser flasher at /flash still serves v3.7.1 —
-    // the old composition, with every feature compiled in — because what a
-    // NEW device ships with is a bigger decision than what a shelf offers,
-    // and it is not this one. So the two paths genuinely differ right now:
-    // flash a fresh board and it arrives carrying everything; install this
-    // and it becomes the plain instrument.
+    // The browser flasher installs this too: flash/manifest.json points at the
+    // same image, so a new board and this card now arrive at the same place.
+    // They disagreed for a while — the flasher was still on v3.7.1, the old
+    // composition with every feature compiled in — which was the last thing
+    // left over from the split.
     //
-    // That is the shelf working as intended rather than a contradiction — the
-    // whole point is that you choose a composition — but it does mean the
-    // flasher manifest is the next thing to reconcile, and it should be a
-    // deliberate step with its own look.
+    // Each edition has its own one-click path from its own card, so this stays
+    // the plain gateway and does not need to know what anybody is running.
     status: 'available',
     summary:
       'The instrument. Patterns, four knobs, and the most room on the board ' +

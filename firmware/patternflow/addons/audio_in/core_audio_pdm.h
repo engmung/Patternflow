@@ -17,7 +17,7 @@
 //                            PDM RX reads. Tie it high instead and this reads
 //                            silence while looking perfectly healthy.
 //
-// ── The neighbours, and why this is not a good place for a microphone ───
+// ── The neighbours ──────────────────────────────────────────────────────
 //
 // GPIO43 and GPIO44 are the only unclaimed pins on this board. Everything
 // else is HUB75, an encoder, the USB pair, or the N16R8's octal PSRAM at
@@ -31,45 +31,17 @@
 //     43  PDM CLK      <- us
 //     44  PDM DAT      <- us
 //
-// On a bare DevKit that is fine and this reads clean audio. Connect the panel
-// and MHz-rate data starts toggling on the three pins beside a flying lead
-// carrying a 1-bit PDM stream, and the microphone picks up the picture. It
-// was reported first as "spikes with no sound in the room" and then as the
-// panel locking up, which was the same noise reaching the knobs.
+// So a 1-bit PDM stream on a flying lead runs alongside three pins carrying
+// the panel's picture at MHz rates, which is not where anyone would choose to
+// put a microphone.
 //
-// There is no software fix for that and no other pin to move to. What helps,
-// in order: keep the mic leads short and away from the HUB75 ribbon, ground
-// the pair, or run the mic with the panel dark. What would actually fix it is
-// a board revision that brings a microphone header out away from the panel
-// bus — which is the useful version of this note, because it is the kind of
-// thing only a build with the panel attached ever finds.
-//
-// ── The neighbours, and why this is not a good place for a microphone ───
-//
-// GPIO43 and GPIO44 are the only unclaimed pins on this board. Everything
-// else is HUB75, an encoder, the USB pair, or the N16R8's octal PSRAM at
-// 35-37 — 26 of the 28 usable GPIOs, and the two that are left are these.
-//
-// They are also immediately next to the panel's RGB bus:
-//
-//     40  B1 ┐
-//     41  G1 ├─ HUB75 data, switching at the pixel clock
-//     42  R1 ┘
-//     43  PDM CLK      <- us
-//     44  PDM DAT      <- us
-//
-// On a bare DevKit that is fine and this reads clean audio. Connect the panel
-// and MHz-rate data starts toggling on the three pins beside a flying lead
-// carrying a 1-bit PDM stream, and the microphone picks up the picture. It
-// was reported first as "spikes with no sound in the room" and then as the
-// panel locking up, which was the same noise reaching the knobs.
-//
-// There is no software fix for that and no other pin to move to. What helps,
-// in order: keep the mic leads short and away from the HUB75 ribbon, ground
-// the pair, or run the mic with the panel dark. What would actually fix it is
-// a board revision that brings a microphone header out away from the panel
-// bus — which is the useful version of this note, because it is the kind of
-// thing only a build with the panel attached ever finds.
+// In practice it is fine. The assembled device reads clean with the panel
+// running — the spikes that looked like crosstalk turned out to be a
+// backlogged DMA ring, and they went with it. This is recorded because the
+// adjacency is real and somebody will wonder, not because it is a known
+// fault: if a build ever does show the picture in the audio, short leads away
+// from the ribbon are the first thing to try, and a board revision that
+// brings the microphone header out away from the panel bus would settle it.
 //
 // ── Which driver ────────────────────────────────────────────────────────
 //
