@@ -25,8 +25,8 @@ Patternflow is an open-source hardware instrument: four rotary encoders controll
 ## Common commands
 - Web dev server: `npm run dev` (inside the `web/` directory)
 - Web production build: `npm run build` (inside the `web/` directory)
-- Firmware compilation: `./firmware/bundles/build.sh` (PlatformIO, bundled toolchain — not the Arduino IDE). That builds the default: the device with no features. Named editions are `./firmware/bundles/build.sh audio` and `./firmware/bundles/build.sh performance`.
-- **Changing anything in the firmware core means building all three.** A hook change that compiles against the default is not tested — the default has no addons to break.
+- Firmware compilation: `./firmware/bundles/build.sh` (PlatformIO, bundled toolchain — not the Arduino IDE). That builds the default: the device with no features. Named editions are `./firmware/bundles/build.sh audio` and `./firmware/bundles/build.sh performance`. `./firmware/bundles/build.sh all` builds every composition and scans each binary for per-feature marker strings, proving each image carries exactly its features — run it before pushing anything that touches firmware.
+- **Changing anything in the firmware core means building all three** — `build.sh all` is that rule as one command. A hook change that compiles against the default is not tested; the default has no addons to break. The boundary rule itself is enforced by `firmware/toolchain/check_boundaries.py` in CI: core referencing a feature namespace, including from `addons/`, or branching on a feature flag fails the build.
 - KiCad exports: Export Gerbers from `hardware/pcb/kicad/patternflow.kicad_pcb`. Export STLs from `hardware/case/source/patternflow_case.blend`.
 
 ## Versioning

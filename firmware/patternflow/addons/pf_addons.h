@@ -168,6 +168,8 @@ inline void emitNav(String& json) {
     json += PF_ADDONS[i]->navPath;
     json += "\",\"";
     json += PF_ADDONS[i]->navLabel;
+    json += "\",\"";
+    if (PF_ADDONS[i]->navDesc) json += PF_ADDONS[i]->navDesc;
     json += "\"]";
   }
 }

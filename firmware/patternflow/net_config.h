@@ -28,7 +28,14 @@
 #include "patternflow_secrets.h"
 #endif
 
-// ── Wi-Fi (shared by OTA, OSC, and audio-react) ──────────────
+// ── Wi-Fi ────────────────────────────────────────────────────────────
+// Whether the panel has a radio at all. 0 makes a USB-only instrument:
+// everything network-side (console, OTA, every feature that dials out)
+// compiles out behind PF_WIFI_NEEDED in core_wifi.h.
+#ifndef PF_WIFI_ENABLED
+#define PF_WIFI_ENABLED 1
+#endif
+
 // Credentials normally come from patternflow_secrets.h. The placeholders
 // here only keep a secret-less checkout compiling.
 #ifndef PF_WIFI_SSID

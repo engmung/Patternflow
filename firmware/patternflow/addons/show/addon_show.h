@@ -88,6 +88,8 @@ inline const PFAddon descriptor = {
     drawOverlay,
     "/show",       // navPath - the console header link
     "Sequences",   // navLabel
+    "Timed shows from .pfs tables — play one, chain a playlist, "
+    "schedule night and wake.",
 };
 
 }  // namespace PFAddonShow

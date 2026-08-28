@@ -1576,8 +1576,13 @@ void loop() {
     if (activatePattern(addonPatternIdx)) {
       currentPatternIdx = addonPatternIdx;
       currentMode = MODE_RUNNING;
-      if (!patterns[addonPatternIdx].name ||
-          strcmp(patterns[addonPatternIdx].name, "Black") != 0) {
+      // Hidden patterns arrive unannounced. This used to compare the name
+      // against "Black" - the show scheduler's night face - which was the
+      // core knowing one feature's pattern by name (check_boundaries.py
+      // caught it on its first run). `hidden` is the property that
+      // comparison was reaching for: a pattern nobody can browse to is not
+      // an arrival worth flashing a name for, whichever feature brought it.
+      if (!patterns[addonPatternIdx].hidden) {
         contentNoticeTimer = CONTENT_NOTICE_SECONDS;
       }
       CalibPattern::overrideOn = false;

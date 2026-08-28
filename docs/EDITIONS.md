@@ -251,7 +251,24 @@ Then:
 ```bash
 ./firmware/bundles/build.sh audio            # build it
 ./firmware/bundles/build.sh audio flash pf.local   # and push it to a panel
+./firmware/bundles/build.sh all              # every composition, proven
 ```
+
+`all` builds default, audio and performance, then scans each binary for one
+marker string per feature — a literal that lives only in that feature's
+sources. An edition must contain its own features' markers and none of the
+others'. That is the composition checked in the shipped bytes: `addons.h`
+catches a misspelled macro, this catches the right macro building the wrong
+thing. Run it before pushing anything that touches the core; it is the rule
+"a core change is tested against every composition" as one command.
+
+The boundary itself is mechanical too: `firmware/toolchain/check_boundaries.py`
+(run in CI on every firmware change) fails the build if a core file references
+a feature namespace, includes from the feature tree, or branches on a
+feature's flags. The rule lived in comments first and was violated three times
+before it grew teeth; on its first run the checker found a fourth, so the
+lesson is written down here: **a rule an agent must remember is a rule that
+will drift — put it where the build fails.**
 
 `overrides.h` is included before any default in `config.h`, so it reaches every
 `#ifndef`-guarded setting in the tree — panel clock, transmit power, brightness

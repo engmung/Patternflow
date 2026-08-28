@@ -81,7 +81,6 @@ live there. Below ~10 KB this page itself stops loading.</p></section>
   <div class="row"><dt>Network</dt><dd id="ss">-</dd></div>
   <div class="row"><dt>Signal</dt><dd id="rs">-</dd></div>
   <div class="row"><dt>Address</dt><dd id="ip">-</dd></div>
-  <div class="row" data-cap="mqtt"><dt>MQTT</dt><dd id="mq">-</dd></div>
 </dl></section>
 
 <footer>Firmware <span id="fw">-</span><span id="var"></span> &middot; panel <span id="pn">-</span>
@@ -152,21 +151,9 @@ function tick(){
     $('rs').textContent=d.wifi?d.rssi+' dBm':'-';
     $('ip').textContent=d.wifi?d.ip:'-';
 
-    // "off" is a choice, not a fault — only a role that is trying and
-    // failing gets the red treatment.
-    // Rows for features this build may not have. The device says what it
-    // actually loaded; a row for something absent is not "off", it is a
-    // question the panel cannot answer.
-    var caps=d.caps||[];
-    var gated=document.querySelectorAll('[data-cap]');
-    for(var gi=0;gi<gated.length;gi++){
-      if(caps.indexOf(gated[gi].getAttribute('data-cap'))<0)gated[gi].remove();
-    }
-    if(document.getElementById('mq')){
-    var role=d.mqttRole||'off';
-    $('mq').textContent=role==='off'?'off':(role+' · '+(d.mqttState||'-'));
-    $('mq').className=role==='off'?'':(d.mqttConnected?'ok':'bad');
-    }
+    // No feature rows here. This page had an MQTT line, capability-gated -
+    // a core page reporting one feature's state by name. A feature's state
+    // lives on that feature's own page, one click from the header.
   }).catch(function(){$('up').textContent='disconnected'});
 }
 tick();setInterval(tick,2000);

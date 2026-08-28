@@ -117,6 +117,7 @@ inline const PFAddon descriptor = {
     nullptr,       // drawOverlay
     "/mqtt",       // navPath - the console header link
     "MQTT",        // navLabel
+    "Mirror one panel onto another, or hand the knobs to home automation.",
 };
 
 }  // namespace PFAddonMqtt
