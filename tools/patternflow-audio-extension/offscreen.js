@@ -222,8 +222,12 @@ function hzToBin(hz) {
   return Math.round(Number(hz) * analyser.fftSize / audioCtx.sampleRate);
 }
 
-function normalizeDb(db, gain = 1) {
-  return clamp01(((db + 80) / 70) * (Number(gain) || 1));
+// Raw level only. Gain used to be folded in here, which meant it scaled the
+// signal BEFORE the input window clipped it — so raising boost also slid the
+// band out of its own window, and the two controls fought. It shapes the
+// curve now, in mapBandOutput, which is the curve the popup draws.
+function normalizeDb(db) {
+  return clamp01((db + 80) / 70);
 }
 
 function bandEnergy(band) {
@@ -234,16 +238,26 @@ function bandEnergy(band) {
   let sum = 0;
   for (let i = minBin; i <= maxBin; i++) sum += freqBuf[i];
   const avgDb = sum / (maxBin - minBin + 1);
-  return normalizeDb(avgDb, band.gain);
+  return normalizeDb(avgDb);
 }
 
+// The whole chain, and the exact curve the popup plots:
+//
+//   level -> [ignores below .. full at] -> boost bends it -> [rests at .. peaks at]
+//
+// Boost is an exponent on the normalised position, not a multiplier on the
+// level: above 1x a quiet band reaches its top early, below 1x a loud one
+// holds back. Ends stay put either way, so it cannot push a band out of its
+// own window the way the old multiply-then-clip did.
 function mapBandOutput(energy, band) {
   const inMin = clamp01(band.inMin ?? 0);
   const inMax = Math.max(inMin + 0.01, clamp01(band.inMax ?? 1));
   const outMin = clamp01(band.outMin ?? 0);
   const outMax = clamp01(band.outMax ?? 1);
-  const normalized = clamp01((energy - inMin) / (inMax - inMin));
-  return outMin + normalized * (outMax - outMin);
+  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
+  let u = clamp01((energy - inMin) / (inMax - inMin));
+  u = Math.pow(u, 1 / gain);
+  return outMin + u * (outMax - outMin);
 }
 
 function computeSpectrum() {

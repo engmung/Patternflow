@@ -80,25 +80,6 @@ function xToHz(x, width) {
   return Math.round(10 ** (min + t * (max - min)));
 }
 
-// The spectrum canvas above these sliders is log-scaled, and dragging on it
-// picks a range properly. The sliders were linear over 20-20000, so 60-250 Hz
-// — the whole of bass — was 0.95 % of the track and could not be hit by hand.
-// Same mapping for both now: the slider carries 0..1000 and means Hz.
-const HZ_SLIDER_STEPS = 1000;
-
-function hzToSlider(hz) {
-  const min = Math.log10(MIN_HZ);
-  const max = Math.log10(MAX_HZ);
-  return Math.round(((Math.log10(clampHz(hz)) - min) / (max - min)) * HZ_SLIDER_STEPS);
-}
-
-function sliderToHz(pos) {
-  const t = Math.max(0, Math.min(1, Number(pos) / HZ_SLIDER_STEPS));
-  const min = Math.log10(MIN_HZ);
-  const max = Math.log10(MAX_HZ);
-  return Math.round(10 ** (min + t * (max - min)));
-}
-
 function formatHz(value) {
   const hz = Math.round(value);
   if (hz >= 1000) return `${(hz / 1000).toFixed(hz >= 10000 ? 0 : 1)}k`;
@@ -182,19 +163,6 @@ function clampBandRange(band) {
   if (band.hzMin > band.hzMax) [band.hzMin, band.hzMax] = [band.hzMax, band.hzMin];
 }
 
-function clampOutputRange(band) {
-  band.outMin = clamp01(band.outMin);
-  band.outMax = clamp01(band.outMax);
-  if (band.outMin > band.outMax) [band.outMin, band.outMax] = [band.outMax, band.outMin];
-}
-
-function clampInputRange(band) {
-  band.inMin = clamp01(band.inMin);
-  band.inMax = clamp01(band.inMax);
-  if (band.inMin > band.inMax) [band.inMin, band.inMax] = [band.inMax, band.inMin];
-  if (band.inMax - band.inMin < 0.01) band.inMax = Math.min(1, band.inMin + 0.01);
-}
-
 function persistConfig() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
@@ -240,28 +208,31 @@ function renderState() {
   const levels = state.levels || [];
   const outputs = state.outputs || [];
   for (let i = 0; i < bandEls.length; i++) {
-    bandEls[i].level.style.width = `${Math.round((levels[i] || 0) * 100)}%`;
-    bandEls[i].output.style.width = `${Math.round((outputs[i] || 0) * 100)}%`;
+    const entry = bandEls[i];
+    const level = levels[i] || 0;
+    entry.level.style.width = `${Math.round(level * 100)}%`;
+    entry.output.style.width = `${Math.round((outputs[i] || 0) * 100)}%`;
+    // The dot is the point of the graph: it says where this sound lands, and
+    // it is the only part that can tell you a band is doing nothing.
+    if (entry.plot) entry.plot.live(level);
+
+    // Travel: how much of its knob this band uses between silence and the
+    // loudest it has been. A band can be configured perfectly and still sit
+    // still because nothing in the music reaches its window — that reads as
+    // broken, and this is the number that says otherwise.
+    if (entry.travel) {
+      const b = entry.band;
+      entry.peak = Math.max(level, (entry.peak || 0) * 0.995);
+      const span = Math.max(0.01, b.outMax - b.outMin);
+      const travel = (mapBandOutput(b, entry.peak) - mapBandOutput(b, 0)) / span;
+      entry.travel.textContent = Math.round(Math.min(1, travel) * 100) + '%';
+      entry.travel.classList.toggle('weak', travel < 0.34);
+      entry.travel.title = travel < 0.34
+        ? 'This band is barely moving its knob — pull "Full at" left, or add boost'
+        : 'How much of its knob this band is using';
+    }
   }
   drawSpectrum(state.spectrum || []);
-}
-
-function bindRange(root, selector, outputSelector, getter, setter, format, scale) {
-  const input = root.querySelector(selector);
-  const output = root.querySelector(outputSelector);
-  const toInput = scale ? scale.toInput : (v) => v;
-  const fromInput = scale ? scale.fromInput : (v) => v;
-  const sync = () => {
-    input.value = toInput(getter());
-    output.textContent = format(getter());
-  };
-  sync();
-  input.addEventListener('input', () => {
-    setter(fromInput(parseFloat(input.value)));
-    sync();
-    renderSpectrumBands();
-    persistConfig();
-  });
 }
 
 // Which band you are editing, in one move, without leaving the spectrum in
@@ -302,6 +273,159 @@ function selectBand(index) {
   });
   renderBandTabs();
   renderSpectrumBands();
+}
+
+const BOOST_STEPS = [0.5, 0.8, 1.0, 1.4, 1.8, 2.2, 2.6];
+
+// level -> knob, the same arithmetic offscreen.js runs. Kept in step by hand,
+// and it has to be: the plot IS the explanation of what the audio does, so a
+// curve that disagrees with the mapping is worse than no curve.
+function mapBandOutput(band, level) {
+  const inMin = clamp01(band.inMin);
+  const inMax = Math.max(inMin + 0.01, clamp01(band.inMax));
+  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
+  let u = clamp01((level - inMin) / (inMax - inMin));
+  u = Math.pow(u, 1 / gain);
+  return band.outMin + u * (band.outMax - band.outMin);
+}
+
+function boostHint(gain) {
+  if (gain > 1.2) return 'Quiet bands need this — the highs carry far less energy than the bass.';
+  if (gain < 0.9) return 'Softens a band that is drowning out the others.';
+  return 'Straight through — what comes in is what goes out.';
+}
+
+// One graph, four handles, a live dot. Returns a repaint function the tick
+// loop calls with the current level.
+function buildPlot(el, band) {
+  const plot = el.querySelector('.plot');
+  const curve = el.querySelector('.plot-curve polyline');
+  const outBand = el.querySelector('.plot-out');
+  const inBand = el.querySelector('.plot-in');
+  const vline = el.querySelector('.plot-vline');
+  const hline = el.querySelector('.plot-hline');
+  const dot = el.querySelector('.plot-dot');
+  const handles = {
+    inMin: el.querySelector('.h-in-min'),
+    inMax: el.querySelector('.h-in-max'),
+    outMin: el.querySelector('.h-out-min'),
+    outMax: el.querySelector('.h-out-max')
+  };
+  const readout = {
+    inMin: el.querySelector('.r-in-min'),
+    inMax: el.querySelector('.r-in-max'),
+    outMin: el.querySelector('.r-out-min'),
+    outMax: el.querySelector('.r-out-max')
+  };
+  const hzOut = el.querySelector('.hzOut');
+  const gainOut = el.querySelector('.gainOut');
+  const hint = el.querySelector('.boost-hint');
+  const steps = el.querySelector('.boost-steps');
+  const pct = (v) => (v * 100).toFixed(1) + '%';
+  // A handle sitting at 0.00 or 1.00 is half outside a clipped box, and the
+  // two most reachable values are exactly those. Keep the marker inside the
+  // frame while the value it reports stays honest.
+  const edge = (v) => `clamp(7px, ${pct(v)}, calc(100% - 7px))`;
+
+  steps.innerHTML = BOOST_STEPS.map(
+    (g) => `<button type="button" data-g="${g}" title="${g.toFixed(1)}x"></button>`
+  ).join('');
+
+  function paintShape() {
+    const pts = [];
+    for (let i = 0; i <= 40; i++) {
+      const x = i / 40;
+      pts.push((x * 100).toFixed(1) + ',' + ((1 - mapBandOutput(band, x)) * 100).toFixed(1));
+    }
+    curve.setAttribute('points', pts.join(' '));
+
+    outBand.style.top = pct(1 - band.outMax);
+    outBand.style.height = pct(Math.max(0.01, band.outMax - band.outMin));
+    inBand.style.left = pct(band.inMin);
+    inBand.style.width = pct(Math.max(0.01, band.inMax - band.inMin));
+
+    handles.inMin.style.left = edge(band.inMin);
+    handles.inMax.style.left = edge(band.inMax);
+    handles.outMin.style.top = edge(1 - band.outMin);
+    handles.outMax.style.top = edge(1 - band.outMax);
+
+    readout.inMin.textContent = band.inMin.toFixed(2);
+    readout.inMax.textContent = band.inMax.toFixed(2);
+    readout.outMin.textContent = band.outMin.toFixed(2);
+    readout.outMax.textContent = band.outMax.toFixed(2);
+
+    hzOut.textContent = formatHz(band.hzMin) + ' - ' + formatHz(band.hzMax) + ' Hz';
+    gainOut.textContent = band.gain.toFixed(1) + 'x';
+    hint.textContent = boostHint(band.gain);
+
+    steps.querySelectorAll('button').forEach((b) => {
+      const g = Number(b.dataset.g);
+      b.classList.toggle('on', Math.abs(band.gain - g) < 0.01);
+      b.classList.toggle('soft', g < 1);
+    });
+  }
+
+  steps.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-g]');
+    if (!btn) return;
+    band.gain = Number(btn.dataset.g);
+    paintShape();
+    persistConfig();
+  });
+
+  // Grab whichever handle the pointer landed nearest. The output pair carries
+  // a small penalty so a press near a corner takes the input handle — that is
+  // the one people reach for, and the frequency of the mistake is not even.
+  let dragging = null;
+  const at = (event) => {
+    const r = plot.getBoundingClientRect();
+    return {
+      x: clamp01((event.clientX - r.left) / r.width),
+      y: clamp01(1 - (event.clientY - r.top) / r.height)
+    };
+  };
+
+  plot.addEventListener('pointerdown', (event) => {
+    const { x, y } = at(event);
+    dragging = [
+      ['inMin', Math.abs(x - band.inMin)],
+      ['inMax', Math.abs(x - band.inMax)],
+      ['outMin', Math.abs(y - band.outMin) + 0.04],
+      ['outMax', Math.abs(y - band.outMax) + 0.04]
+    ].sort((a, b) => a[1] - b[1])[0][0];
+    handles[dragging].classList.add('on');
+    plot.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+
+  plot.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    const { x, y } = at(event);
+    if (dragging === 'inMin') band.inMin = Math.min(x, band.inMax - 0.05);
+    if (dragging === 'inMax') band.inMax = Math.max(x, band.inMin + 0.05);
+    if (dragging === 'outMin') band.outMin = Math.min(y, band.outMax - 0.05);
+    if (dragging === 'outMax') band.outMax = Math.max(y, band.outMin + 0.05);
+    paintShape();
+  });
+
+  const release = () => {
+    if (!dragging) return;
+    handles[dragging].classList.remove('on');
+    dragging = null;
+    renderSpectrumBands();
+    persistConfig();
+  };
+  plot.addEventListener('pointerup', release);
+  plot.addEventListener('pointercancel', release);
+
+  paintShape();
+  return { paintShape, live(level) {
+    const out = mapBandOutput(band, level);
+    vline.style.left = pct(level);
+    hline.style.top = pct(1 - out);
+    dot.style.left = pct(level);
+    dot.style.top = pct(1 - out);
+  } };
 }
 
 function buildBands() {
@@ -367,46 +491,17 @@ function buildBands() {
       });
     });
 
-    bindRange(el, '.hzMin', '.hzMinOut', () => band.hzMin, (value) => {
-      band.hzMin = value;
-      clampBandRange(band);
-    }, formatHz, { toInput: hzToSlider, fromInput: sliderToHz });
-
-    bindRange(el, '.hzMax', '.hzMaxOut', () => band.hzMax, (value) => {
-      band.hzMax = value;
-      clampBandRange(band);
-    }, formatHz, { toInput: hzToSlider, fromInput: sliderToHz });
-
-    bindRange(el, '.outMin', '.outMinOut', () => band.outMin, (value) => {
-      band.outMin = value;
-      clampOutputRange(band);
-    }, (value) => value.toFixed(2));
-
-    bindRange(el, '.outMax', '.outMaxOut', () => band.outMax, (value) => {
-      band.outMax = value;
-      clampOutputRange(band);
-    }, (value) => value.toFixed(2));
-
-    bindRange(el, '.inMin', '.inMinOut', () => band.inMin, (value) => {
-      band.inMin = value;
-      clampInputRange(band);
-    }, (value) => value.toFixed(2));
-
-    bindRange(el, '.inMax', '.inMaxOut', () => band.inMax, (value) => {
-      band.inMax = value;
-      clampInputRange(band);
-    }, (value) => value.toFixed(2));
-
-    bindRange(el, '.gain', '.gainOut', () => band.gain, (value) => {
-      band.gain = Math.max(0.2, Math.min(4, value));
-    }, (value) => value.toFixed(2));
+    const plot = buildPlot(el, band);
 
     bandEls.push({
       // The panel itself, not only its meters — selectBand shows and hides
       // these, and it had nothing to hold on to.
       panel: el,
+      band,
+      plot,
       level: el.querySelector('.level'),
-      output: el.querySelector('.output')
+      output: el.querySelector('.output'),
+      travel: el.querySelector('.travelOut')
     });
 
     root.appendChild(fragment);
