@@ -107,6 +107,18 @@ export type Variant = {
   note: string;
 };
 
+// ── On 3.8.0 ────────────────────────────────────────────────────────────
+//
+// All three images report firmware 3.8.0, and 3.8.0 is NOT a cut release. It
+// is a working number so that three provisional images do not have to claim
+// to be 3.7.1, which was a real release with a different composition inside
+// it. There is no tag, no GitHub release and no changelog entry, and none of
+// those should be added on the strength of these builds.
+//
+// The notes below say so on the cards themselves. When the checkpoint is
+// actually cut — reviewed, written up, tagged — these get rebuilt against it
+// and the wording comes out.
+
 // One entry, and it is the maintainer's own.
 //
 // Three stood here for a few hours before it, and every one of them named a
@@ -155,6 +167,11 @@ export const VARIANTS: Variant[] = [
     },
     source: 'https://github.com/engmung/Patternflow',
     note:
+      'This image is provisional. It is built from the working branch so the ' +
+      'new default can be installed and used today, and it reports 3.8.0 only ' +
+      'because it is not 3.7.1 — that was a real release with every feature ' +
+      'compiled in. No release has been cut. A checkpoint is coming, properly ' +
+      'written up, and this card is rebuilt against it when it lands. ' +
       'Patternflow is a device that loads interactive patterns and runs them ' +
       'under four knobs, and this is exactly that and nothing else. Because ' +
       'nothing else is loaded, a pattern gets more contiguous memory here ' +
@@ -194,7 +211,9 @@ export const VARIANTS: Variant[] = [
       'panel keeps on its own; MQTT is the way in that stays in step across ' +
       'a reconnect and keeps two panels together. Knob state and pattern ' +
       'selection are reachable over plain HTTP on any edition, so this is ' +
-      'for when you want the panel to be part of something larger.',
+      'for when you want the panel to be part of something larger. ' +
+      'Provisional build: no release has been cut for the 3.8.0 it reports, ' +
+      'and this is rebuilt against the checkpoint when one is.',
   },
   {
     id: 'audio',
@@ -232,6 +251,8 @@ export const VARIANTS: Variant[] = [
       'part on the board, on-board audio moves into the default. ' +
       'Installing this without the microphone is safe: the panel can tell a ' +
       'missing mic from a quiet room, says so on the Mic page, and lets ' +
-      'nothing drive the knobs until you turn it on.',
+      'nothing drive the knobs until you turn it on. ' +
+      'Provisional build: no release has been cut for the 3.8.0 it reports, ' +
+      'and this is rebuilt against the checkpoint when one is.',
   },
 ];
