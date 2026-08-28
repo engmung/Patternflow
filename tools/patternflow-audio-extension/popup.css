@@ -153,7 +153,8 @@ button:hover {
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  /* Two, since WS Test moved into the diagnostics fold. */
+  grid-template-columns: 1fr 1fr;
   gap: 7px;
   margin-top: 8px;
 }
@@ -379,3 +380,275 @@ input[type="range"] {
 .meter.out div {
   background: var(--ink);
 }
+
+/* ── Named frequency ranges, per band ────────────────────────────────────
+   The sliders are log-scaled now, so a range is reachable by hand — but
+   nobody should have to drag for "bass" when the name is the thing they
+   mean. Same six ranges the device's own audio page offers. */
+.hz-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.hz-presets button {
+  min-height: 0;
+  padding: 3px 7px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.hz-presets button:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ── Diagnostics, folded ─────────────────────────────────────────────────
+   Connecting with no audio and pushing the knobs by hand is how you tell a
+   dead panel from a dead capture. Worth having, not worth the space. */
+.diagnostics > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.diagnostics > summary:hover {
+  color: var(--ink);
+}
+
+.diagnostics #manualConnect {
+  margin: 6px 0 10px;
+  width: 100%;
+}
+
+/* ── Band selector ───────────────────────────────────────────────────────
+   Four bands, one editor on screen. These say which one you are on, which
+   knob it drives, and whether it is muted — the three things worth knowing
+   before you switch. */
+.band-tabs {
+  display: grid;
+  /* Four bands and All. */
+  grid-template-columns: repeat(4, 1fr) 1.2fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.band-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 0 5px;
+  min-height: 0;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.band-tab strong { font-size: 13px; font-weight: 600; }
+.band-tab span { font-size: 9px; letter-spacing: 0.08em; }
+
+.band-tab:hover { color: var(--ink); border-color: var(--ink); }
+
+.band-tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--cream);
+}
+
+/* A muted band stays in place and stays reachable — it just is not driving
+   anything, and should not look like it is. */
+.band-tab.muted { opacity: 0.45; }
+.band-tab.muted strong { text-decoration: line-through; }
+
+.spectrum-band { cursor: pointer; }
+.spectrum-band.muted { opacity: 0.35; }
+
+.mute-band {
+  min-height: 26px;
+  padding: 5px 8px;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.mute-band.on {
+  border-color: var(--led);
+  color: var(--led);
+}
+
+.hint {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+/* `hidden` loses to any explicit display, and .band sets one. Say it again. */
+.band[hidden] { display: none; }
+
+.band-tab.all strong { font-size: 11px; letter-spacing: 0.06em; }
+
+/* ── The response graph ──────────────────────────────────────────────────
+   Six sliders became one picture. Left to right is how loud the band is,
+   bottom to top is where the knob lands, and the line between them is every
+   number at once — which is the thing the sliders could not show. */
+.band-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.band-key {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+}
+
+.band-note { color: var(--faint); font-size: 10px; }
+
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.plot-wrap { display: flex; gap: 10px; }
+
+.plot-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 26px;
+  height: 180px;
+  padding: 2px 0;
+  color: var(--faint);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.plot-col { flex: 1; min-width: 0; }
+
+.plot {
+  position: relative;
+  height: 180px;
+  border: 1px solid var(--ink);
+  background: var(--field);
+  overflow: hidden;
+  cursor: grab;
+  /* The handles are dragged; the popup must not pan or select instead. */
+  touch-action: none;
+  user-select: none;
+  color: var(--ink);
+}
+
+.plot:active { cursor: grabbing; }
+
+/* the stretch of knob the music is allowed to use */
+.plot-out { position: absolute; left: 0; right: 0; background: #f0e6d6; }
+/* the levels this band responds to at all */
+.plot-in {
+  position: absolute; top: 0; bottom: 0;
+  border-left: 1px dashed var(--faint);
+  border-right: 1px dashed var(--faint);
+}
+
+.plot-curve { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.plot-vline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--led); opacity: .55; }
+.plot-hline { position: absolute; left: 0; right: 0; height: 1px; background: var(--led); opacity: .55; }
+
+.plot-dot {
+  position: absolute;
+  width: 9px; height: 9px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--led);
+  box-shadow: 0 0 0 2px var(--field);
+}
+
+/* Handles: triangles pointing at the edge they move. Input on the floor,
+   output on the right wall — so which axis a handle belongs to is visible
+   before it is dragged. */
+.h { position: absolute; width: 14px; height: 14px; background: var(--ink); }
+.h-in-min, .h-in-max { bottom: 0; margin-left: -7px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.h-out-min, .h-out-max { right: 0; margin-top: -7px; clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+.h.on { background: var(--led); }
+
+.plot-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: var(--faint);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* The same four numbers as words, for anyone who wants to read rather than
+   aim — and so a value can be checked without hovering a handle. */
+.readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 14px;
+  margin-top: 12px;
+  padding: 10px 11px;
+  background: var(--field);
+  border: 1px solid var(--rule);
+}
+
+.readout > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.readout span { color: var(--muted); font-size: 11px; }
+.readout output { font-size: 11px; }
+
+/* Boost bends the line rather than moving its ends, so it is not something
+   to drag on the plot. Seven steps, and the hint says what the shape means. */
+.boost-row { display: flex; align-items: center; gap: 12px; margin-top: 13px; }
+.boost-steps { flex: 1; display: flex; gap: 3px; }
+
+.boost-steps button {
+  flex: 1;
+  min-height: 0;
+  height: 22px;
+  padding: 0;
+  border-color: var(--rule);
+  background: var(--field);
+}
+
+.boost-steps button.soft { background: var(--cream-2); }
+.boost-steps button.on { background: var(--ink); border-color: var(--ink); }
+.boost-steps button:hover { border-color: var(--ink); }
+
+.boost-row .gainOut { width: 34px; text-align: right; font-size: 11px; }
+.boost-hint { margin-top: 6px; color: var(--muted); font-size: 11px; }
+
+/* The meters said nothing about which was which. */
+.meter-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.meter-row .meter { flex: 1; margin-top: 0; }
+
+.meter-key {
+  width: 26px;
+  color: var(--faint);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* How much of its knob this band actually uses. The number that names a
+   band which is technically working and doing nothing. */
+.travelOut { width: 42px; text-align: right; font-size: 10px; color: var(--muted); }
+.travelOut.weak { color: var(--led); }

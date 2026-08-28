@@ -15,10 +15,18 @@
 // cost is negligible.
 //
 // Message protocol:
+//   a=F,F,F,F all four lanes at once; '-' leaves a lane alone
 //   k=N,v=F   set knob N (0..3) to value F (clamped to 0..1)
 //   d=N,v=F   add normalized delta F to knob N (-1..1)
 //   off=N     release knob N back to encoder control
 //   off       release all four knobs
+//
+// `a=` exists because sending four `k=` messages per frame did not work. A
+// browser client checks `bufferedAmount` before each send so it cannot
+// outrun a one-connection server, and after the first send of a frame that
+// is never zero - so lanes 1..3 were dropped every frame, in index order,
+// and lane 3 never moved at all. One message per frame instead of four: no
+// ordering to lose to, and a quarter of the traffic.
 //
 // Library dependency: WebSockets by Markus Sattler (Links2004).
 // WebServer is part of the ESP32 Arduino core.
@@ -100,6 +108,29 @@ inline void parseMessage(uint8_t* payload, size_t length) {
   char buf[64];
   memcpy(buf, payload, length);
   buf[length] = '\0';
+
+  // "a=F,F,F,F" - every lane in one message. A '-' in a slot means "not
+  // driven by this client", which is how a muted band stays out of the way
+  // without needing a release of its own.
+  if (buf[0] == 'a' && buf[1] == '=') {
+    const char* p = buf + 2;
+    uint32_t now = millis();
+    for (int i = 0; i < 4 && *p; i++) {
+      if (*p == '-') {
+        p++;
+      } else {
+        char* end = nullptr;
+        float v = strtof(p, &end);
+        if (end == p) break;
+        if (v < 0.0f) v = 0.0f;
+        else if (v > 1.0f) v = 1.0f;
+        setKnobValue(i, v, now);
+        p = end;
+      }
+      if (*p == ',') p++;
+    }
+    return;
+  }
 
   // "k=N,v=F" — parsed by hand (no sscanf: its %f path is needlessly
   // heavy and this runs on every inbound frame).
@@ -192,7 +223,7 @@ inline float value(int idx) {
 inline int consumeKnobDelta(int idx) {
 #if PF_AUDIO_ENABLED
   if (idx < 0 || idx >= 4 || !runtimeEnabled) return 0;
-  float movement = pendingDeltas[idx] * PF_AUDIO_VIRTUAL_KNOB_SCALE + deltaResidual[idx];
+  float movement = pendingDeltas[idx] * PF_LANE_MOTION_SCALE + deltaResidual[idx];
   pendingDeltas[idx] = 0.0f;
   int delta = (int)roundf(movement);
   deltaResidual[idx] = movement - (float)delta;

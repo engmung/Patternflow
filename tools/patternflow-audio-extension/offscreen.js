@@ -13,7 +13,8 @@ let running = false;
 let manual = false;
 let wsWanted = false;
 let wsSerial = 0;
-let lastSentValues = [0.5, 0.5, 0.5, 0.5];
+let lastSentValues = [-1, -1, -1, -1];
+let lastSentBody = '';
 
 const MIN_HZ = 20;
 const MAX_HZ = 20000;
@@ -74,29 +75,45 @@ function send(msg, options = {}) {
   return true;
 }
 
-function resetOutputBaselines(nextValues = [0.5, 0.5, 0.5, 0.5]) {
-  lastSentValues = nextValues.map((value) => {
-    const numeric = Number(value);
-    return Math.max(0, Math.min(1, Number.isFinite(numeric) ? numeric : 0.5));
-  });
+// -1 is "nothing sent yet", so the first real level always goes out. With
+// absolute values there is no baseline to match — only a cache of what the
+// lane was last told.
+function resetOutputBaselines() {
+  lastSentValues = [-1, -1, -1, -1];
+  lastSentBody = '';
 }
 
-function getBandBaselines() {
-  const baselines = [0.5, 0.5, 0.5, 0.5];
-  if (!config?.bands) return baselines;
-  for (const band of config.bands) {
-    const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
-    baselines[idx] = Math.max(0, Math.min(1, Number(band.outMin) || 0));
-  }
-  return baselines;
+// Absolute, not a delta.
+//
+// `d=lane,change` became virtual encoder clicks in firmware, so a band level
+// never set anything — it nudged, and the parameter drifted wherever the sum
+// of nudges went. The same music gave a different result depending on what had
+// already happened, and any message the one-connection server dropped stayed
+// wrong forever. `k=lane,level` lands the band inside the parameter's own
+// range, and the next frame corrects whatever the last one lost.
+// All four lanes, one message per frame.
+//
+// Sending them one at a time did not work and failed in the least visible way
+// possible: `send()` refuses while `ws.bufferedAmount > 0`, which after the
+// first send of a frame it always is, so lanes 1..3 were dropped every frame
+// in index order. Knob 1 moved, knob 2 flickered, knob 4 never moved at all —
+// and it looked like a signal problem, because the band that never worked was
+// also the quietest one.
+//
+// A '-' leaves a lane alone, which is what a muted band sends.
+function sendLanes(values) {
+  const body = values
+    .map((v) => (v === null ? '-' : Math.max(0, Math.min(1, v)).toFixed(3)))
+    .join(',');
+  if (body === lastSentBody) return;
+  if (send(`a=${body}`)) lastSentBody = body;
 }
 
 function sendOutputValue(knob, value) {
   const idx = Math.max(0, Math.min(3, Number(knob) || 0));
   const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-  const delta = normalized - lastSentValues[idx];
-  if (Math.abs(delta) < 0.001) return;
-  if (send(`d=${idx},v=${delta.toFixed(3)}`)) {
+  if (Math.abs(normalized - lastSentValues[idx]) < 0.002) return;
+  if (send(`k=${idx},v=${normalized.toFixed(3)}`)) {
     lastSentValues[idx] = normalized;
   }
 }
@@ -151,7 +168,7 @@ async function start(streamId, nextConfig) {
   running = true;
   manual = false;
   wsWanted = true;
-  resetOutputBaselines(getBandBaselines());
+  resetOutputBaselines();
 
   audioCtx = new AudioContext();
   mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -205,8 +222,12 @@ function hzToBin(hz) {
   return Math.round(Number(hz) * analyser.fftSize / audioCtx.sampleRate);
 }
 
-function normalizeDb(db, gain = 1) {
-  return clamp01(((db + 80) / 70) * (Number(gain) || 1));
+// Raw level only. Gain used to be folded in here, which meant it scaled the
+// signal BEFORE the input window clipped it — so raising boost also slid the
+// band out of its own window, and the two controls fought. It shapes the
+// curve now, in mapBandOutput, which is the curve the popup draws.
+function normalizeDb(db) {
+  return clamp01((db + 80) / 70);
 }
 
 function bandEnergy(band) {
@@ -217,16 +238,26 @@ function bandEnergy(band) {
   let sum = 0;
   for (let i = minBin; i <= maxBin; i++) sum += freqBuf[i];
   const avgDb = sum / (maxBin - minBin + 1);
-  return normalizeDb(avgDb, band.gain);
+  return normalizeDb(avgDb);
 }
 
+// The whole chain, and the exact curve the popup plots:
+//
+//   level -> [ignores below .. full at] -> boost bends it -> [rests at .. peaks at]
+//
+// Boost is an exponent on the normalised position, not a multiplier on the
+// level: above 1x a quiet band reaches its top early, below 1x a loud one
+// holds back. Ends stay put either way, so it cannot push a band out of its
+// own window the way the old multiply-then-clip did.
 function mapBandOutput(energy, band) {
   const inMin = clamp01(band.inMin ?? 0);
   const inMax = Math.max(inMin + 0.01, clamp01(band.inMax ?? 1));
   const outMin = clamp01(band.outMin ?? 0);
   const outMax = clamp01(band.outMax ?? 1);
-  const normalized = clamp01((energy - inMin) / (inMax - inMin));
-  return outMin + normalized * (outMax - outMin);
+  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
+  let u = clamp01((energy - inMin) / (inMax - inMin));
+  u = Math.pow(u, 1 / gain);
+  return outMin + u * (outMax - outMin);
 }
 
 function computeSpectrum() {
@@ -266,15 +297,39 @@ function tick() {
   while (smoothing.length < bands.length) smoothing.push(0);
   if (smoothing.length > bands.length) smoothing.length = bands.length;
 
+  // A lane nothing drives stays null, and goes out as '-'. Two bands on the
+  // same knob: the last one wins, deterministically, rather than whichever
+  // happened to get the socket first.
+  const lanes = [null, null, null, null];
+
   for (let i = 0; i < bands.length; i++) {
     const band = bands[i];
+    const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
+    if (band.muted) {
+      smoothing[i] = 0;
+      levels[i] = 0;
+      outputs[i] = 0;
+      continue;
+    }
     const raw = bandEnergy(band);
     smoothing[i] = alpha * raw + (1 - alpha) * smoothing[i];
     const mapped = mapBandOutput(smoothing[i], band);
     levels[i] = smoothing[i];
     outputs[i] = mapped;
-    sendOutputValue(band.knob, mapped);
+    lanes[idx] = mapped;
   }
+
+  // Muting a band hands its lane back once, and only if this client had it.
+  for (let i = 0; i < 4; i++) {
+    if (lanes[i] === null && lastSentValues[i] !== -1) {
+      send(`off=${i}`, { control: true });
+      lastSentValues[i] = -1;
+    } else if (lanes[i] !== null) {
+      lastSentValues[i] = lanes[i];
+    }
+  }
+
+  sendLanes(lanes);
 
   const now = performance.now();
   if (now - lastLevelReport > 120) {
@@ -303,7 +358,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'config') {
       const oldUrl = config ? wsUrl() : '';
       config = message.config;
-      if (running) resetOutputBaselines(getBandBaselines());
+      if (running) resetOutputBaselines();
       if (ws && oldUrl !== wsUrl()) connectWs();
       sendResponse({ ok: true });
       return;
@@ -323,7 +378,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'release') {
       send('off', { control: true });
-      resetOutputBaselines(manual ? undefined : getBandBaselines());
+      resetOutputBaselines();
       sendResponse({ ok: true });
       return;
     }

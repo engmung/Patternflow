@@ -1,5 +1,9 @@
 # bundles/
 
+> **New here? Read [`docs/EDITIONS.md`](../../docs/EDITIONS.md) first** — what
+> an edition is, why they exist, and what one has to promise. This file is the
+> mechanics: the two files, and when cutting one is worth it.
+
 Named firmwares, built from this repository.
 
 Everything Patternflow does lives in `patternflow/` — the panel, the pattern

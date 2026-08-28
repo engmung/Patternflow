@@ -71,18 +71,24 @@
 #endif
 
 #if !defined(PF_ADDONS_NONE) && !defined(PF_ADDON_LIST)
-// No variant file: this is what core ships.
-#include "osc/addon_osc.h"
-#include "show/addon_show.h"
-#include "weather/addon_weather.h"
-#include "mqtt/addon_mqtt.h"
-#include "audio/addon_audio.h"
-#define PF_ADDON_LIST                \
-  &PFAddonOsc::descriptor,           \
-      &PFAddonShow::descriptor,      \
-      &PFAddonWeather::descriptor,   \
-      &PFAddonMqtt::descriptor,      \
-      &PFAddonAudio::descriptor
+// No edition file: the default composition, and it carries no features.
+//
+// Patternflow is a device that loads interactive patterns and runs them under
+// four knobs. That is the whole of it, and none of it is a feature: the
+// loader, the encoders, the panel, Wi-Fi, /update, sleep and the console are
+// the device. A panel with nothing in this list still does the thing it is
+// for, and does it with more room than any other build - the largest
+// contiguous block a loadable .pfm can claim is 92,148 bytes here against
+// 73,716 with features loaded, measured on hardware.
+//
+// Everything else is a way of driving it from somewhere else, and each has an
+// edition on the shelf, one click away:
+//
+//   audio       - OSC, browser audio, and the on-board microphone
+//   performance - sequences, MQTT and weather
+//
+// This is not a ranking - see docs/EDITIONS.md.
+#define PF_ADDONS_NONE
 #endif
 
 #ifdef PF_ADDONS_NONE

@@ -23,16 +23,15 @@
   </div>
   <div id="detail" class="detail">Open the tab you want to hear, then press Start.</div>
   <div class="actions">
-    <button id="manualConnect">WS Test</button>
     <button id="stop">Stop</button>
-    <button id="release">Release</button>
+    <button id="release" title="Hand the knobs back to the encoders">Release knobs</button>
   </div>
 </section>
 
 <section class="spectrum-section">
   <div class="section-head">
     <span class="label">Spectrum</span>
-    <button id="addBand" type="button" class="small-button">Add Band</button>
+    <span class="hint">click a band to edit it</span>
   </div>
   <div class="spectrum-wrap">
     <canvas id="spectrum" width="760" height="220"></canvas>
@@ -45,6 +44,9 @@
     <span>10k</span>
     <span>20k</span>
   </div>
+  <!-- Four, one per knob. The spectrum above selects too; this row is here so
+       switching does not depend on hitting a narrow band with the pointer. -->
+  <div id="bandTabs" class="band-tabs"></div>
 </section>
 
 <section>
@@ -60,13 +62,19 @@
 <main id="bands"></main>
 
 <section>
-  <div class="label">Manual test</div>
+  <!-- Connecting without audio and driving the knobs by hand is how you tell a
+       dead panel from a dead capture. Useful, and not what anyone opens this
+       for — so it is one click away rather than always on screen. -->
+  <details class="diagnostics">
+    <summary>Test without audio</summary>
+    <button id="manualConnect">Connect only</button>
   <div class="manual-grid">
     <label>K1 <input class="manual" data-knob="0" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K2 <input class="manual" data-knob="1" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K3 <input class="manual" data-knob="2" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K4 <input class="manual" data-knob="3" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
   </div>
+  </details>
 </section>
 
 <template id="band-template">
@@ -82,54 +90,70 @@
             <option value="3">4</option>
           </select>
         </label>
-        <button type="button" class="remove-band" title="Remove band">Remove</button>
+        <button type="button" class="mute-band">Mute</button>
       </div>
     </div>
 
-    <div class="band-strip">
-      <input class="hzMin" type="range" min="20" max="20000" step="10">
-      <input class="hzMax" type="range" min="20" max="20000" step="10">
-      <div class="band-readout">
-        <output class="hzMinOut"></output>
-        <span>-</span>
-        <output class="hzMaxOut"></output>
+    <div class="band-row">
+      <span class="band-key">Listens to</span>
+      <output class="hzOut mono"></output>
+    </div>
+    <div class="hz-presets"></div>
+
+    <div class="band-row" style="margin-top:14px">
+      <span class="band-key">Response</span>
+      <span class="band-note">drag the handles</span>
+    </div>
+
+    <div class="plot-wrap">
+      <div class="plot-axis">
+        <span>1.0</span><span>0.5</span><span>0.0</span>
+      </div>
+      <div class="plot-col">
+        <div class="plot">
+          <div class="plot-out"></div>
+          <div class="plot-in"></div>
+          <svg class="plot-curve" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <polyline points="" fill="none" stroke="currentColor" stroke-width="1"
+                      vector-effect="non-scaling-stroke"></polyline>
+          </svg>
+          <div class="plot-vline"></div>
+          <div class="plot-hline"></div>
+          <div class="plot-dot"></div>
+          <div class="h h-in-min" data-h="inMin"></div>
+          <div class="h h-in-max" data-h="inMax"></div>
+          <div class="h h-out-max" data-h="outMax"></div>
+          <div class="h h-out-min" data-h="outMin"></div>
+        </div>
+        <div class="plot-scale">
+          <span>quiet</span><span>how loud this band is</span><span>loud</span>
+        </div>
       </div>
     </div>
 
-    <div class="map-row">
-      <span>Output</span>
-      <div class="map-sliders">
-        <input class="outMin" type="range" min="0" max="1" step="0.01">
-        <input class="outMax" type="range" min="0" max="1" step="0.01">
-      </div>
-      <div class="band-readout">
-        <output class="outMinOut"></output>
-        <span>-</span>
-        <output class="outMaxOut"></output>
-      </div>
+    <div class="readout">
+      <div><span>Ignores below</span><output class="r-in-min mono"></output></div>
+      <div><span>Full at</span><output class="r-in-max mono"></output></div>
+      <div><span>Knob rests at</span><output class="r-out-min mono"></output></div>
+      <div><span>Knob peaks at</span><output class="r-out-max mono"></output></div>
     </div>
 
-    <details class="advanced">
-      <summary>Clamp / gain</summary>
-      <div class="row">
-        <span>In low</span>
-        <input class="inMin" type="range" min="0" max="1" step="0.01">
-        <output class="inMinOut"></output>
-      </div>
-      <div class="row">
-        <span>In high</span>
-        <input class="inMax" type="range" min="0" max="1" step="0.01">
-        <output class="inMaxOut"></output>
-      </div>
-      <div class="row">
-        <span>Gain</span>
-        <input class="gain" type="range" min="0.2" max="4" step="0.05">
-        <output class="gainOut"></output>
-      </div>
-    </details>
+    <div class="boost-row">
+      <span class="band-key">Boost</span>
+      <div class="boost-steps"></div>
+      <output class="gainOut mono"></output>
+    </div>
+    <div class="boost-hint"></div>
 
-    <div class="meter"><div class="level"></div></div>
-    <div class="meter out"><div class="output"></div></div>
+    <div class="meter-row">
+      <span class="meter-key">in</span>
+      <div class="meter"><div class="level"></div></div>
+    </div>
+    <div class="meter-row">
+      <span class="meter-key">knob</span>
+      <div class="meter out"><div class="output"></div></div>
+      <output class="travelOut mono"></output>
+    </div>
   </section>
 </template>
 

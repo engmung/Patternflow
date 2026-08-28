@@ -128,20 +128,53 @@ export const VARIANTS: Variant[] = [
     // a byline naming only the maintainer reads as a claim over it.
     status: 'available',
     summary:
-      'Everything the panel does. This is what ships on the board, and what ' +
-      'you can always come back to.',
+      'The instrument. Patterns, four knobs, and the most room on the board ' +
+      'for the patterns you install.',
     adds: [
       'Patterns, and the loader for community ones',
-      'Sequences, weather, MQTT',
-      'OSC and browser audio',
+      'Four encoders, and the panel they drive',
       'Wi-Fi, sleep, and the way out of any firmware',
+      'The largest block a pattern can claim — 92 KB, against 74 KB elsewhere',
     ],
     manifest: '/flash/manifest.json',
     source: 'https://github.com/engmung/Patternflow',
     note:
-      'Not a starting point you build on — the finished thing. Everything ' +
-      'else here exists because of something this cannot carry, not because ' +
-      'it is missing anything.',
+      'Patternflow is a device that loads interactive patterns and runs them ' +
+      'under four knobs, and this is exactly that and nothing else. Because ' +
+      'nothing else is loaded, a pattern gets more contiguous memory here ' +
+      'than in any other build — which matters for the big ones. Everything ' +
+      'below is a way of driving the panel from somewhere else. Switching is ' +
+      'a click, and so is switching back: your patterns, networks and ' +
+      'settings do not move.',
+  },
+  {
+    id: 'performance',
+    name: 'Patternflow Performance',
+    tier: 'official',
+    reason: 'not-universal',
+    // Credited because it is his work — the client in every role, FlowLocal,
+    // and the Director inside it. He offered to co-own a bundle on this tree
+    // rather than keep a fork (#349), which is exactly what this is.
+    maintainer: 'Simone Majocchi',
+    maintainerHref: 'https://github.com/SimonePDA',
+    status: 'available',
+    summary:
+      'A panel that runs a room: sequences on a timeline, a broker driving ' +
+      'the knobs, two panels in step, and the weather turning up as light.',
+    adds: [
+      'Sequences — cue lists, timelines, the night/wake scheduler',
+      'MQTT in every role — publisher, subscriber, bridge',
+      'FlowLocal and the Director',
+      'Weather — temperature and wind mapped onto the knobs',
+    ],
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
+    note:
+      'For a panel that has to behave the same way twice — an installation, ' +
+      'a set, a room that opens at seven. Sequences play a timeline the ' +
+      'panel keeps on its own; MQTT is the way in that stays in step across ' +
+      'a reconnect and keeps two panels together. Knob state and pattern ' +
+      'selection are reachable over plain HTTP on any edition, so this is ' +
+      'for when you want the panel to be part of something larger.',
   },
   {
     id: 'audio',
@@ -155,9 +188,10 @@ export const VARIANTS: Variant[] = [
       'Sound, and nothing else in the way — a microphone soldered to the ' +
       'board, so the panel hears the room with no computer in it.',
     adds: [
+      'OSC — Ableton, Max and TouchDesigner, both directions',
+      'Browser and tab audio through the Chrome extension',
       'On-board PDM microphone (four wires, not yet a part on the board)',
       'Wi-Fi transmit power raised for rooms full of access points',
-      'No sequences, weather or MQTT — this build is only about sound',
     ],
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.

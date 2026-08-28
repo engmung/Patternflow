@@ -6,6 +6,18 @@ The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads fou
 
 > ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: classic shift-register parts — **74HC595**, **FM6124**, **FM6126A**, **ICN2037**, **ICN2038S**, **DP5125D**, **DP3246**, **MBI5124**, **SM162xx**. S-PWM / GCLK "video wall" panels (**ICN2053**, **FM6353**, **FM6363C / FM6373C**, **DP3264/DP3265**, **ICND2055**, **MBI505x** — sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. "HUB75E" on a listing guarantees a connector, not compatibility. Check this **before buying** — see **[docs/panel-compatibility.md](../docs/panel-compatibility.md)**. Select your panel's driver below via `PANEL_PROFILE`.
 
+## Building your own firmware
+
+One image ships on the board, and it is not the only one you can run. Features
+are modules in this tree; a build is a choice of which ones compile in; a
+published build is an **edition**, installed from
+[the shelf](https://patternflow.work/variants) in one click, with your
+patterns and settings intact.
+
+**[docs/EDITIONS.md](../docs/EDITIONS.md)** is where that starts: what a
+feature is, how to write one, how to cut an edition, and the promises every
+build keeps so switching stays safe. Read it before writing a feature.
+
 ## Setup
 
 ### Required board package
