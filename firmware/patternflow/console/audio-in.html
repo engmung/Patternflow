@@ -66,6 +66,20 @@ font-style:normal;transform:translateX(-50%);top:1px}
 .tabs button.on{border-color:var(--led);color:var(--led)}
 
 .band[hidden]{display:none}
+/* Knob assignment and mute. Sits above the graph because it decides what the
+   graph is for: shaping a band that drives nothing is wasted effort. */
+.assign{display:flex;align-items:center;gap:8px;margin-bottom:11px;flex-wrap:wrap}
+.assign .k{font-size:12px;color:var(--muted)}
+.knobs{display:flex;gap:3px}
+.knobs button{padding:4px 9px;font-size:11px;font-family:var(--mono);color:var(--muted)}
+.knobs button.on{border-color:var(--led);color:var(--led)}
+.mute{margin-left:auto;font-size:11px}
+.mute.on{border-color:var(--warn);color:var(--warn)}
+.clash{font-size:11px;color:var(--warn);flex-basis:100%}
+.band.off .plot,.band.off .rows,.band.off .travel{opacity:.4}
+.mini.off{opacity:.5}
+.mini.off .bandhead b::after{content:' (muted)';color:var(--warn);font-weight:400}
+.tabs button.muted{text-decoration:line-through;opacity:.65}
 .bandhead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
 .bandhead b{font-size:13px;font-weight:600}
 .bandhead .hz{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
@@ -241,7 +255,8 @@ function queue(i){
     post('band=' + j + '&hzMin=' + b.hzMin.toFixed(1) + '&hzMax=' + b.hzMax.toFixed(1) +
          '&inMin=' + b.inMin.toFixed(4) + '&inMax=' + b.inMax.toFixed(4) +
          '&gain=' + b.gain.toFixed(3) + '&outMin=' + b.outMin.toFixed(3) +
-         '&outMax=' + b.outMax.toFixed(3));
+         '&outMax=' + b.outMax.toFixed(3) +
+         '&knob=' + b.knob + '&muted=' + (b.muted ? '1' : '0'));
   }, 120);
 }
 
@@ -277,6 +292,14 @@ function buildBand(i){
     '<div class="bandhead"><b>Band ' + (i+1) + '</b>' +
     '<span class="sub">knob ' + (i+1) + '</span>' +
     '<span class="hz">-</span></div>' +
+    '<div class="assign"><span class="k">Drives</span>' +
+      '<span class="knobs">' +
+        '<button data-k="0">K1</button><button data-k="1">K2</button>' +
+        '<button data-k="2">K3</button><button data-k="3">K4</button>' +
+      '</span>' +
+      '<button class="mute">Mute</button>' +
+      '<span class="clash"></span>' +
+    '</div>' +
     '<div class="plot">' +
       '<div class="outband"></div>' +
       '<svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
@@ -302,6 +325,9 @@ function buildBand(i){
   var plot = d.querySelector('.plot');
   var hs = d.querySelectorAll('.h');
   var hzLabel = d.querySelector('.hz');
+  var knobBtns = d.querySelectorAll('.knobs button');
+  var muteBtn = d.querySelector('.mute');
+  var clashEl = d.querySelector('.clash');
   var e = {
     panel: d, plot: plot,
     curve: d.querySelector('polyline'),
@@ -315,8 +341,26 @@ function buildBand(i){
     tfill: d.querySelector('.tfill'),
     verdict: d.querySelector('.verdict'),
     tnum: d.querySelector('.tline .n'),
-    hz: hzLabel
+    hz: hzLabel, knobs: knobBtns, mute: muteBtn, clash: clashEl
   };
+
+  for (var kk = 0; kk < knobBtns.length; kk++){
+    (function(which){
+      knobBtns[which].addEventListener('click', function(){
+        dirty = Date.now();
+        state.bands[i].knob = which;
+        for (var b = 0; b < 4; b++) repaint(b);   // a clash changes two bands
+        queue(i);
+      });
+    })(kk);
+  }
+  muteBtn.addEventListener('click', function(){
+    dirty = Date.now();
+    state.bands[i].muted = !state.bands[i].muted;
+    for (var b = 0; b < 4; b++) repaint(b);
+    renderTabs();
+    queue(i);
+  });
 
   drag(e.hInMin, plot, i, function(x){
     var b = state.bands[i];
@@ -344,6 +388,7 @@ function buildMini(i){
   d.className = 'mini';
   d.innerHTML =
     '<div class="bandhead"><b>Band ' + (i+1) + '</b>' +
+    '<span class="sub mk">-</span>' +
     '<span class="hz">-</span></div>' +
     '<div class="plot"><div class="outband"></div>' +
       '<svg viewBox="0 0 100 100" preserveAspectRatio="none">' +
@@ -355,6 +400,7 @@ function buildMini(i){
   // straight after spotting the band that is not doing anything.
   d.querySelector('.plot').addEventListener('click', function(){ select(i); });
   mini[i] = {
+    root: d, knob: d.querySelector('.mk'),
     hz: d.querySelector('.hz'),
     curve: d.querySelector('polyline'), outband: d.querySelector('.outband'),
     dot: d.querySelector('.live'), tfill: d.querySelector('.tfill'),
@@ -388,7 +434,23 @@ function repaint(i){
   var t = span < 0.001 ? 0 :
           clamp01(Math.abs(mapOut(b, peak[i]) - mapOut(b, 0)) / span);
 
+  // Who actually drives this knob: the first unmuted band that names it, the
+  // same first-wins rule fillInput uses. Saying so beats leaving someone to
+  // wonder why a band they are shaping does nothing.
+  var owner = -1;
+  for (var q = 0; q < 4; q++){
+    if (!state.bands[q].muted && state.bands[q].knob === b.knob){ owner = q; break; }
+  }
+
   if (e){
+    e.panel.className = 'band' + (b.muted ? ' off' : '');
+    for (var kk = 0; kk < 4; kk++)
+      e.knobs[kk].className = (kk === b.knob ? 'on' : '');
+    e.mute.textContent = b.muted ? 'Muted' : 'Mute';
+    e.mute.className = 'mute' + (b.muted ? ' on' : '');
+    e.clash.textContent = (!b.muted && owner !== -1 && owner !== i)
+      ? ('Band ' + (owner + 1) + ' also drives K' + (b.knob + 1) + ' and gets there first \u2014 this band is measured but not heard.')
+      : '';
     e.curve.setAttribute('points', pts);
     e.outband.style.top = pc(1 - hi);
     e.outband.style.height = pc(Math.max(0.005, hi - lo));
@@ -408,6 +470,8 @@ function repaint(i){
     paintTravel(t, e);
   }
   if (m){
+    m.root.className = 'mini' + (b.muted ? ' off' : '');
+    m.knob.textContent = 'K' + (b.knob + 1);
     m.hz.textContent = fmtHz(b.hzMin) + ' - ' + fmtHz(b.hzMax);
     m.curve.setAttribute('points', pts);
     m.outband.style.top = pc(1 - hi);
@@ -421,9 +485,10 @@ function repaint(i){
 function select(i){
   sel = i;
   var t = $('tabs').children;
-  for (var k = 0; k < t.length; k++) t[k].className = (k === i ? 'on' : '');
+  for (var k = 0; k < t.length; k++) t[k].classList.toggle('on', k === i);
   $('all').hidden = (i !== 4);
   for (var b = 0; b < 4; b++) els[b].panel.hidden = (i !== b);
+  if (state) renderTabs();
   for (b = 0; b < 4; b++) repaint(b);
   drawBandOverlay();
 }
@@ -538,6 +603,7 @@ function tick(){
 
     drawSpec(state.spec || []);
     drawBandOverlay();
+    renderTabs();
     for (i = 0; i < 4; i++) repaint(i);
   };
   x.send();
@@ -553,6 +619,18 @@ for (var i = 0; i < 4; i++){
   b.addEventListener('click', function(){ select(i); });
   $('tabs').appendChild(b);
 });
+
+// The tabs carry which knob each band drives and whether it is muted, so the
+// arrangement is readable without clicking through all four.
+function renderTabs(){
+  if (!state) return;
+  var t = $('tabs').children;
+  for (var i = 0; i < 4; i++){
+    var bd = state.bands[i];
+    t[i].textContent = 'Band ' + (i+1) + '  K' + (bd.knob + 1);
+    t[i].classList.toggle('muted', bd.muted === true);
+  }
+}
 [50, 100, 250, 500, 1000, 2000, 4000, 8000].forEach(function(hz){
   var i = document.createElement('i');
   i.textContent = fmtHz(hz);

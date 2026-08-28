@@ -92,6 +92,10 @@ inline void handleGet() {
     j += String(b.outMin, 3);
     j += ",\"outMax\":";
     j += String(b.outMax, 3);
+    j += ",\"knob\":";
+    j += b.knob;
+    j += ",\"muted\":";
+    j += b.muted ? "true" : "false";
     j += '}';
   }
   j += "],\"hzRange\":[";
@@ -148,6 +152,12 @@ inline void handleSet() {
     x.gain = constrain(argFloat("gain", x.gain), 0.2f, 4.0f);
     x.outMin = constrain(argFloat("outMin", x.outMin), 0.0f, 1.0f);
     x.outMax = constrain(argFloat("outMax", x.outMax), 0.0f, 1.0f);
+    if (server().hasArg("knob"))
+      x.knob = constrain((int)server().arg("knob").toInt(), 0, 3);
+    if (server().hasArg("muted")) {
+      const String m = server().arg("muted");
+      x.muted = (m == "1" || m == "true");
+    }
     // The mapping forces this anyway; doing it here too means what gets saved
     // is what gets used, and a reload does not silently move a handle.
     if (x.inMax < x.inMin + 0.01f) x.inMax = min(1.0f, x.inMin + 0.01f);
@@ -160,10 +170,10 @@ inline void handleSet() {
 
 inline void handleReset() {
   PFAudioInMap::Band d[4] = {
-      {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f},
-      {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f},
-      { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f},
-      { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f},
+      {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f, 0, false},
+      {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f, 1, false},
+      { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f, 2, false},
+      { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
   };
   for (int i = 0; i < 4; i++) PFAudioInMap::bands[i] = d[i];
   PFAudioInMap::save();

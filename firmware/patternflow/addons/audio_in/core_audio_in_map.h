@@ -61,16 +61,28 @@ struct Band {
   float gain;
   float outMin;
   float outMax;
+
+  // Which knob this band drives, 0-3. Not the band's own index: a set whose
+  // interest is all in the low end wants three bands across the bass and one
+  // knob left for something else, and that needs the assignment to be free.
+  // Two bands may name the same knob; see fillInput for who wins.
+  int knob;
+
+  // A band that is measured but does not drive anything. Muting rather than
+  // deleting is the extension's choice and it is the right one: the settings
+  // you spent time on are still there when you want the band back, and the
+  // meter keeps moving so you can see what you turned off.
+  bool muted;
 };
 
 // Defaults sized from the measurement above, not from taste. inMax descends
 // across the bands because the energy does: a hi-hat at the same loudness as
 // a kick puts a fraction of the level into band 4.
 inline Band bands[4] = {
-    {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f},
-    {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f},
-    { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f},
-    { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f},
+    {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f, 0, false},
+    {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f, 1, false},
+    { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f, 2, false},
+    { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
 };
 
 // The analysis is 512 points at 16 kHz, so a bin is 31.25 Hz and the last
@@ -164,7 +176,10 @@ inline void load() {
     // Saved settings are trusted to be the right shape, not to be sane: a
     // blob written by a build with a different sample rate would put edges
     // past Nyquist, and fold() would read off the end of the spectrum.
-    for (int i = 0; i < 4; i++) clampRange(bands[i]);
+    for (int i = 0; i < 4; i++) {
+      clampRange(bands[i]);
+      bands[i].knob = constrain(bands[i].knob, 0, 3);
+    }
   }
   driving = p.getBool(NVS_DRIVE, true);
   p.end();

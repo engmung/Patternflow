@@ -113,13 +113,24 @@ inline void fillInput(InputFrame& input) {
   // things, and someone tuning the response graph wants the first without
   // the second. /audio-in owns this switch.
   if (!PFAudioInMap::driving) return;
-  for (int i = 0; i < 4; i++) {
-    if (input.knobAudioActive[i]) continue;
+  // Bands, not knobs: a band names the knob it drives, so this loop is over
+  // bands and the index it writes to comes from the band.
+  //
+  // Two bands may name the same knob. The first one in order wins, because
+  // `knobAudioActive` is already the "someone claimed this lane" flag used to
+  // yield to other addons - reusing it here means one rule covers both cases
+  // and there is no separate precedence to learn. Deterministic either way;
+  // last-wins would be just as defensible and half as consistent.
+  for (int b = 0; b < 4; b++) {
+    const PFAudioInMap::Band& cfg = PFAudioInMap::bands[b];
+    if (cfg.muted) continue;
+    const int k = constrain(cfg.knob, 0, 3);
+    if (input.knobAudioActive[k]) continue;
     // Shaped, not raw. A raw band never reaches the top of a knob on this
     // hardware - see the measurement in core_audio_in_map.h.
-    input.knobAudioValue[i] = PFAudioInMap::clamp01(
-        PFAudioInMap::mapped(i, PFAudioFFT::bands[i]));
-    input.knobAudioActive[i] = true;
+    input.knobAudioValue[k] = PFAudioInMap::clamp01(
+        PFAudioInMap::mapped(b, PFAudioFFT::bands[b]));
+    input.knobAudioActive[k] = true;
   }
 }
 #endif
