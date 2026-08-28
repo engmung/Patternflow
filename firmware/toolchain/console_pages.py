@@ -43,7 +43,6 @@ PAGES = [
     ("show", "addons/show/show_index.h"),
     ("weather", "addons/weather/weather_index.h"),
     ("mqtt", "addons/mqtt/mqtt_index.h"),
-    ("audio", "addons/audio/audio_index.h"),
 ]
 
 OPEN = 'R"HTML('

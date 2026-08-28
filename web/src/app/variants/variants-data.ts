@@ -126,7 +126,13 @@ export const VARIANTS: Variant[] = [
     // Deliberately no `maintainer`. The default is not one person's firmware —
     // the show player, MQTT and weather in it are Simone Majocchi's work, and
     // a byline naming only the maintainer reads as a claim over it.
-    status: 'available',
+    //
+    // No image yet, deliberately. The browser flasher still serves v3.7.1 —
+    // the old composition, with every feature compiled in — and a card that
+    // says "carries nothing" while installing five features would be lying.
+    // It goes back to 'available' when a checkpoint for the new default is
+    // cut, and not before.
+    status: 'building',
     summary:
       'The instrument. Patterns, four knobs, and the most room on the board ' +
       'for the patterns you install.',
@@ -136,7 +142,6 @@ export const VARIANTS: Variant[] = [
       'Wi-Fi, sleep, and the way out of any firmware',
       'The largest block a pattern can claim — 92 KB, against 74 KB elsewhere',
     ],
-    manifest: '/flash/manifest.json',
     source: 'https://github.com/engmung/Patternflow',
     note:
       'Patternflow is a device that loads interactive patterns and runs them ' +
@@ -167,6 +172,10 @@ export const VARIANTS: Variant[] = [
       'FlowLocal and the Director',
       'Weather — temperature and wind mapped onto the knobs',
     ],
+    hosted: {
+      version: 'v0.2.0',
+      url: 'https://patternflow.work/flash/bin/performance-v0.2.0/patternflow.ino.bin',
+    },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
     note:
       'For a panel that has to behave the same way twice — an installation, ' +
@@ -196,8 +205,8 @@ export const VARIANTS: Variant[] = [
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.1.0',
-      url: 'https://patternflow.work/flash/bin/audio-v0.1.0/patternflow.ino.bin',
+      version: 'v0.2.0',
+      url: 'https://patternflow.work/flash/bin/audio-v0.2.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
