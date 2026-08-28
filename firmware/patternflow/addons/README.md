@@ -2,6 +2,11 @@
 
 Features that attach to the core without the core knowing they exist.
 
+> **New here? Read [`docs/EDITIONS.md`](../../../docs/EDITIONS.md) first.** It
+> is the short version of what a feature is, what an edition is, and which
+> promises every build has to keep. This file is the reference underneath it:
+> the hooks, in full, and what proved each one.
+
 This directory is the answer to one question: *when the core updates, how
 does somebody else's firmware take the update without pain?* Git merges are
 only painful when both sides edit the same files — so the rule is that a

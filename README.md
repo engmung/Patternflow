@@ -106,6 +106,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi: bidirectional OSC (Ableton/Max/TouchDesigner), MQTT, and audio-react WebSocket · USB |
+| **Firmware** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/variants). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly, first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 

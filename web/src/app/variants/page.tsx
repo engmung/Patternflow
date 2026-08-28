@@ -99,7 +99,7 @@ export default function VariantsPage() {
                 </p>
                 <div className={styles.detailLinks}>
                   <a
-                    href="https://github.com/engmung/Patternflow/blob/main/firmware/bundles/README.md"
+                    href="https://github.com/engmung/Patternflow/blob/main/docs/EDITIONS.md"
                     target="_blank"
                     rel="noopener"
                   >

@@ -629,6 +629,10 @@ a wider lane. Adding that later is an ABI 3. Deciding it now is free.
 
 ## 2.15 Editions: the pattern precedent
 
+> This section is the argument. **[EDITIONS.md](EDITIONS.md) is the document
+> to actually use** — what a feature is, how to write one, how to cut an
+> edition, and what every build has to promise.
+
 *Added 28 August 2026. This amends §2.13, which was written the day before
 and concluded that every feature ships in one default build. The seam and the
 freeze in §2.13 and §2.14 stand; the composition question is reopened, on an
