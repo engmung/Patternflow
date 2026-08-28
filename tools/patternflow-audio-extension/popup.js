@@ -5,19 +5,27 @@ const DEFAULT_CONFIG = {
   host: 'patternflow.local',
   smoothing: 0.35,
   sendIntervalMs: 33,
+  // Four, because the panel has four knobs. Shipping one meant a first run
+  // moved a single knob and looked broken; the device page has defaulted to
+  // four the whole time.
   bands: [
-    {
-      hzMin: 60,
-      hzMax: 250,
-      knob: 0,
-      outMin: 0.30,
-      outMax: 0.85,
-      inMin: 0.00,
-      inMax: 1.00,
-      gain: 1.00
-    }
+    { hzMin: 60,   hzMax: 250,   knob: 0, outMin: 0.30, outMax: 0.85, inMin: 0, inMax: 1, gain: 1 },
+    { hzMin: 250,  hzMax: 2000,  knob: 1, outMin: 0.30, outMax: 0.85, inMin: 0, inMax: 1, gain: 1 },
+    { hzMin: 2000, hzMax: 5000,  knob: 2, outMin: 0.30, outMax: 0.85, inMin: 0, inMax: 1, gain: 1 },
+    { hzMin: 5000, hzMax: 16000, knob: 3, outMin: 0.30, outMax: 0.85, inMin: 0, inMax: 1, gain: 1 }
   ]
 };
+
+// Named ranges, offered per band. The device console has had these since it
+// shipped; dragging a slider to find "bass" is not a thing anyone should do.
+const HZ_PRESETS = [
+  ['Sub',     20,   60],
+  ['Bass',    60,   250],
+  ['Low mid', 250,  500],
+  ['Mid',     500,  2000],
+  ['Hi mid',  2000, 4000],
+  ['High',    4000, 16000]
+];
 
 let config = structuredClone(DEFAULT_CONFIG);
 let state = null;
@@ -64,6 +72,25 @@ function hzToX(hz, width) {
 
 function xToHz(x, width) {
   const t = Math.max(0, Math.min(1, x / Math.max(1, width)));
+  const min = Math.log10(MIN_HZ);
+  const max = Math.log10(MAX_HZ);
+  return Math.round(10 ** (min + t * (max - min)));
+}
+
+// The spectrum canvas above these sliders is log-scaled, and dragging on it
+// picks a range properly. The sliders were linear over 20-20000, so 60-250 Hz
+// — the whole of bass — was 0.95 % of the track and could not be hit by hand.
+// Same mapping for both now: the slider carries 0..1000 and means Hz.
+const HZ_SLIDER_STEPS = 1000;
+
+function hzToSlider(hz) {
+  const min = Math.log10(MIN_HZ);
+  const max = Math.log10(MAX_HZ);
+  return Math.round(((Math.log10(clampHz(hz)) - min) / (max - min)) * HZ_SLIDER_STEPS);
+}
+
+function sliderToHz(pos) {
+  const t = Math.max(0, Math.min(1, Number(pos) / HZ_SLIDER_STEPS));
   const min = Math.log10(MIN_HZ);
   const max = Math.log10(MAX_HZ);
   return Math.round(10 ** (min + t * (max - min)));
@@ -211,16 +238,18 @@ function renderState() {
   drawSpectrum(state.spectrum || []);
 }
 
-function bindRange(root, selector, outputSelector, getter, setter, format) {
+function bindRange(root, selector, outputSelector, getter, setter, format, scale) {
   const input = root.querySelector(selector);
   const output = root.querySelector(outputSelector);
+  const toInput = scale ? scale.toInput : (v) => v;
+  const fromInput = scale ? scale.fromInput : (v) => v;
   const sync = () => {
-    input.value = getter();
+    input.value = toInput(getter());
     output.textContent = format(getter());
   };
   sync();
   input.addEventListener('input', () => {
-    setter(parseFloat(input.value));
+    setter(fromInput(parseFloat(input.value)));
     sync();
     renderSpectrumBands();
     persistConfig();
@@ -251,6 +280,14 @@ function buildBands() {
       persistConfig();
     });
 
+    const presetRow = el.querySelector('.hz-presets');
+    if (presetRow) {
+      presetRow.innerHTML = HZ_PRESETS.map(
+        ([name, lo, hi]) =>
+          `<button type="button" class="hz-preset" data-min="${lo}" data-max="${hi}">${name}</button>`
+      ).join('');
+    }
+
     const remove = el.querySelector('.remove-band');
     remove.disabled = config.bands.length <= 1;
     remove.addEventListener('click', (event) => {
@@ -263,15 +300,27 @@ function buildBands() {
       persistConfig();
     });
 
+    el.querySelectorAll('.hz-preset').forEach((btn) => {
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        band.hzMin = Number(btn.dataset.min);
+        band.hzMax = Number(btn.dataset.max);
+        clampBandRange(band);
+        buildBands();
+        renderSpectrumBands();
+        persistConfig();
+      });
+    });
+
     bindRange(el, '.hzMin', '.hzMinOut', () => band.hzMin, (value) => {
       band.hzMin = value;
       clampBandRange(band);
-    }, formatHz);
+    }, formatHz, { toInput: hzToSlider, fromInput: sliderToHz });
 
     bindRange(el, '.hzMax', '.hzMaxOut', () => band.hzMax, (value) => {
       band.hzMax = value;
       clampBandRange(band);
-    }, formatHz);
+    }, formatHz, { toInput: hzToSlider, fromInput: sliderToHz });
 
     bindRange(el, '.outMin', '.outMinOut', () => band.outMin, (value) => {
       band.outMin = value;

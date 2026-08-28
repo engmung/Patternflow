@@ -23,9 +23,8 @@
   </div>
   <div id="detail" class="detail">Open the tab you want to hear, then press Start.</div>
   <div class="actions">
-    <button id="manualConnect">WS Test</button>
     <button id="stop">Stop</button>
-    <button id="release">Release</button>
+    <button id="release" title="Hand the knobs back to the encoders">Release knobs</button>
   </div>
 </section>
 
@@ -60,13 +59,19 @@
 <main id="bands"></main>
 
 <section>
-  <div class="label">Manual test</div>
+  <!-- Connecting without audio and driving the knobs by hand is how you tell a
+       dead panel from a dead capture. Useful, and not what anyone opens this
+       for — so it is one click away rather than always on screen. -->
+  <details class="diagnostics">
+    <summary>Test without audio</summary>
+    <button id="manualConnect">Connect only</button>
   <div class="manual-grid">
     <label>K1 <input class="manual" data-knob="0" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K2 <input class="manual" data-knob="1" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K3 <input class="manual" data-knob="2" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
     <label>K4 <input class="manual" data-knob="3" type="range" min="0" max="1" step="0.01" value="0.50"><output>0.50</output></label>
   </div>
+  </details>
 </section>
 
 <template id="band-template">
@@ -87,14 +92,17 @@
     </div>
 
     <div class="band-strip">
-      <input class="hzMin" type="range" min="20" max="20000" step="10">
-      <input class="hzMax" type="range" min="20" max="20000" step="10">
+      <!-- 0..1000 is a position on the log scale, mapped to Hz in popup.js.
+           Linear 20-20000 put the whole of bass in the first 1 % of travel. -->
+      <input class="hzMin" type="range" min="0" max="1000" step="1">
+      <input class="hzMax" type="range" min="0" max="1000" step="1">
       <div class="band-readout">
         <output class="hzMinOut"></output>
         <span>-</span>
         <output class="hzMaxOut"></output>
       </div>
     </div>
+    <div class="hz-presets"></div>
 
     <div class="map-row">
       <span>Output</span>

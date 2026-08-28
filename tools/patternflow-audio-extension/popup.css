@@ -153,7 +153,8 @@ button:hover {
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  /* Two, since WS Test moved into the diagnostics fold. */
+  grid-template-columns: 1fr 1fr;
   gap: 7px;
   margin-top: 8px;
 }
@@ -378,4 +379,51 @@ input[type="range"] {
 
 .meter.out div {
   background: var(--ink);
+}
+
+/* ── Named frequency ranges, per band ────────────────────────────────────
+   The sliders are log-scaled now, so a range is reachable by hand — but
+   nobody should have to drag for "bass" when the name is the thing they
+   mean. Same six ranges the device's own audio page offers. */
+.hz-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.hz-presets button {
+  min-height: 0;
+  padding: 3px 7px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+}
+
+.hz-presets button:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ── Diagnostics, folded ─────────────────────────────────────────────────
+   Connecting with no audio and pushing the knobs by hand is how you tell a
+   dead panel from a dead capture. Worth having, not worth the space. */
+.diagnostics > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.diagnostics > summary:hover {
+  color: var(--ink);
+}
+
+.diagnostics #manualConnect {
+  margin: 6px 0 10px;
+  width: 100%;
 }
