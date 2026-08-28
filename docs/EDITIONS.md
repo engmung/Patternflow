@@ -7,6 +7,42 @@ the two references it points at are the mechanics.
 
 ---
 
+## Where the line is
+
+**Patternflow is a device that loads interactive patterns and runs them under
+four knobs.** That sentence decides everything below it, and it is the only
+test worth applying.
+
+What that sentence names is not a feature and never composes out: the pattern
+loader, the four encoders, the panel driver, Wi-Fi, `/update`, sleep, the
+console. Those are the device. **The default build carries no features at
+all**, and a panel running it does the whole of what Patternflow is for.
+
+Everything else — sequences, MQTT, OSC, weather, audio — is a way of driving
+that device from somewhere else. Real, wanted, first-class, and not the thing
+itself. Each belongs to an edition somebody chooses.
+
+The line is easy to draw somewhere flattering instead. An earlier version of
+this document used a different test — *does this need infrastructure outside
+the room* — which is a fine question about what is **separable** and a bad one
+about what is **core**: it kept OSC and the show player in a build called
+standard for no better reason than that they need nothing running to work.
+Cheap is not the same as central.
+
+The measurement agrees with the definition, which is the part worth trusting.
+On hardware, the largest contiguous block a loadable `.pfm` can claim:
+
+| build | largest free block |
+|---|---|
+| **default — patterns and knobs** | **92,148** |
+| performance — sequences, MQTT, weather | 77,812 |
+| audio — OSC, browser audio, microphone | 69,620 |
+
+The build that matches "this device runs patterns" is also the build that
+gives patterns the most room to be.
+
+---
+
 ## The three words
 
 **A feature** is a directory in this repository implementing one capability
@@ -21,7 +57,13 @@ itself and any settings it needs different.
 **An edition** is a composition somebody published — a firmware with a name, a
 version of its own, and a card on
 [patternflow.work/variants](https://patternflow.work/variants) that installs it
-in one click.
+in one click. Three exist:
+
+| | carries | whose |
+|---|---|---|
+| **Patternflow** | nothing — the device itself | the product |
+| **Audio** | OSC, browser audio, the on-board microphone | SeungHun Lee |
+| **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
 
 The word "addon" is retired. It suggested something optional or third-party,
 and none of these are: they are first-class capabilities that happen to live
