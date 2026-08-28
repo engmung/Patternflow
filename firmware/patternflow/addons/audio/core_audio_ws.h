@@ -67,7 +67,11 @@ inline float values[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 inline float pendingDeltas[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 inline float deltaResidual[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 inline uint32_t lastUpdateMs[4] = { 0, 0, 0, 0 };
-inline uint32_t connectedClients = 0;
+// Not a counter of our own. A hand-kept one drifts: a client whose TCP dies
+// without a close frame is reaped by the library without WStype_DISCONNECTED
+// ever reaching us, so the count only ever goes up. A panel sitting idle with
+// nothing attached was reporting one connected client. The library already
+// knows the truth - ask it.
 
 inline void setKnobValue(int idx, float value, uint32_t nowMs) {
   values[idx] = value;
@@ -129,17 +133,17 @@ inline void parseMessage(uint8_t* payload, size_t length) {
 inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_CONNECTED: {
-      connectedClients++;
       IPAddress ip = wsServer.remoteIP(num);
-      Serial.printf("[AUDIO] client %u from %s (%u connected)\n",
-                    num, ip.toString().c_str(), connectedClients);
+      Serial.printf("[AUDIO] client %u from %s (%d connected)\n",
+                    num, ip.toString().c_str(), wsServer.connectedClients());
       break;
     }
     case WStype_DISCONNECTED: {
-      if (connectedClients > 0) connectedClients--;
-      if (connectedClients == 0) releaseAllKnobs();
-      Serial.printf("[AUDIO] client %u disconnected (%u connected)\n",
-                    num, connectedClients);
+      // connectedClients() still counts this one - the library frees the slot
+      // after the callback returns.
+      if (wsServer.connectedClients() <= 1) releaseAllKnobs();
+      Serial.printf("[AUDIO] client %u disconnected (%d connected)\n",
+                    num, wsServer.connectedClients() - 1);
       break;
     }
     case WStype_TEXT:
@@ -202,7 +206,9 @@ inline int consumeKnobDelta(int idx) {
 
 inline uint32_t clientCount() {
 #if PF_AUDIO_ENABLED
-  return connectedClients;
+  if (!initialized) return 0;
+  int n = wsServer.connectedClients();
+  return n > 0 ? (uint32_t)n : 0;
 #else
   return 0;
 #endif

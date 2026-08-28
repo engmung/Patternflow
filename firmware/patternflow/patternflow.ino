@@ -962,16 +962,13 @@ void loop() {
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
 
-  // Service the audio-react HTTP/WebSocket servers in the main loop
-  // (single-threaded — no separate core-0 task). Cheap when idle.
+  // The console's HTTP server. Addon-owned servers (the audio websocket on
+  // :81) are serviced by PFAddons::loop below, not here.
   PatternflowHttp::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
   PatternflowPatternsHttp::tick();
-
-  // MQTT keepalive + inbound delivery. Reconnects are paced internally, so
-  // an unreachable broker costs one comparison per loop, not a stall.
 
   // Browser self-update housekeeping: boot-valid marking and the deferred
   // post-flash reboot. (Upload traffic itself arrives through the shared
@@ -982,6 +979,25 @@ void loop() {
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;
   const uint32_t frameStartedUs = micros();
+
+  // Every addon's per-frame hook: the MQTT keepalive, the show player's tick,
+  // the weather scheduler, the audio websocket's accept/handshake pump, the
+  // on-board FFT.
+  //
+  // **This was missing.** The addon port removed the concrete calls that used
+  // to live above — correctly, they belong to the addons now — and never
+  // added the dispatcher that replaced them, leaving two orphaned comments
+  // where the calls had been. Nothing failed loudly: `begin()` still ran, so
+  // :81 accepted TCP and every route answered; the websocket simply never
+  // completed a handshake because nobody was pumping it, and MQTT never
+  // reconnected. The addons were all present, all initialised, and all
+  // frozen. Ahead of the render so a slow pattern cannot starve a socket.
+  {
+    PFAddonFrame frame{dt, currentContentName(),
+                       currentMode == MODE_RUNNING, chromeVisible(),
+                       currentPatternIdx, (int)currentMode};
+    PFAddons::loop(frame);
+  }
 
   InputFrame input;
   readInputFrame(input);

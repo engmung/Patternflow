@@ -117,6 +117,12 @@ let audioCtx = null, analyser = null, sourceNode = null, freqBuf = null;
 let mediaElem = null, mediaStream = null;
 let currentSource = 'file';
 
+// createMediaElementSource() can be called ONCE per media element, ever. A
+// second call on the same <audio> throws InvalidStateError, which is why
+// loading a second file used to kill the page: the first track worked, every
+// one after it silently did nothing. Made once, kept, reconnected.
+let elemSource = null;
+
 function ensureAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -127,10 +133,20 @@ function ensureAudio() {
 }
 
 function disconnectAll() {
+  // Disconnect, never discard: elemSource is not replaceable.
   try { if (sourceNode) sourceNode.disconnect(); } catch (e) {}
+  try { if (analyser) analyser.disconnect(); } catch (e) {}
   sourceNode = null;
-  if (mediaElem) { mediaElem.pause(); mediaElem.removeAttribute('src'); mediaElem.load(); mediaElem = null; }
+  if (mediaElem) {
+    mediaElem.pause();
+    if (mediaElem.src && mediaElem.src.startsWith('blob:')) URL.revokeObjectURL(mediaElem.src);
+    mediaElem.removeAttribute('src');
+    mediaElem.load();
+    mediaElem = null;
+  }
   if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+  // A dead source leaves the last levels frozen on screen and in the smoother.
+  smoothing.fill(0);
 }
 
 async function setSource(kind) {
@@ -148,12 +164,18 @@ async function loadFile(file) {
   ensureAudio();
   await audioCtx.resume();
   const audio = document.getElementById('audio-elem');
+  if (mediaElem && mediaElem.src && mediaElem.src.startsWith('blob:')) {
+    URL.revokeObjectURL(mediaElem.src);
+  }
   audio.src = URL.createObjectURL(file);
   audio.load();
   mediaElem = audio;
-  sourceNode = audioCtx.createMediaElementSource(audio);
+  if (!elemSource) elemSource = audioCtx.createMediaElementSource(audio);
+  sourceNode = elemSource;
   sourceNode.connect(analyser);
-  analyser.connect(audioCtx.destination); // file path: play to speakers too
+  // Routing the element through the graph takes it off the speakers, so the
+  // analyser has to hand it back.
+  analyser.connect(audioCtx.destination);
   audio.play().catch(() => {});
   document.getElementById('source-info').textContent = `Loaded: ${file.name}`;
 }
@@ -211,11 +233,20 @@ function bandEnergy(band) {
   const minBin = Math.max(0, hzToBin(band.hzMin));
   const maxBin = Math.min(freqBuf.length - 1, hzToBin(band.hzMax));
   if (maxBin < minBin) return 0;
-  let sum = 0;
-  for (let i = minBin; i <= maxBin; i++) sum += freqBuf[i];
-  const avgDb = sum / (maxBin - minBin + 1);
+  // getFloatFrequencyData returns -Infinity for an empty bin, and one of
+  // those makes the average -Infinity, then NaN once it meets the smoother —
+  // and `SMOOTH_ALPHA * raw + (1 - a) * NaN` is NaN for the rest of the
+  // session. The meters stick and nothing recovers until a reload. Skip them.
+  let sum = 0, n = 0;
+  for (let i = minBin; i <= maxBin; i++) {
+    const v = freqBuf[i];
+    if (Number.isFinite(v)) { sum += v; n++; }
+  }
+  if (!n) return 0;
+  const avgDb = sum / n;
   // Map -80..-10 dB → 0..1 (typical perceptual range)
-  return Math.max(0, Math.min(1, (avgDb + 80) / 70));
+  const x = (avgDb + 80) / 70;
+  return x < 0 ? 0 : x > 1 ? 1 : x;
 }
 
 // ═══ WebSocket ═══
@@ -342,6 +373,7 @@ function tick() {
   for (let i = 0; i < 4; i++) {
     const band = bands[i];
     const raw = bandEnergy(band);
+    if (!Number.isFinite(smoothing[i])) smoothing[i] = 0;
     smoothing[i] = SMOOTH_ALPHA * raw + (1 - SMOOTH_ALPHA) * smoothing[i];
     const mapped = Math.max(0, Math.min(1, band.base + smoothing[i] * band.range));
 
