@@ -86,9 +86,9 @@ inline void begin() {
   }
   for (int i = 0; i < N; i++) { re[i] = 0.0f; im[i] = 0.0f; }
   buildSource();
-  // After the tables: a mic that fails to start must still leave a
-  // working analysis behind it, fed by synth.
-  PFAudioPdm::begin();
+  // The microphone is NOT started here. It is installed and released by the
+  // analysis task as the switch on /audio-in moves, so that a panel with the
+  // mic off never allocates the driver.
   ready = true;
 }
 
@@ -204,6 +204,7 @@ inline bool inputIsDeadRail() {
 // here rather than beside the driver because the driver cannot see the
 // spectrum, and the spectrum is the only thing that tells these apart.
 inline const char* sourceLabel() {
+  if (!PFAudioInMap::micOn) return "off";
   if (!PFAudioPdm::available()) return PFAudioPdm::sourceName();
   return inputIsDeadRail() ? "pdm (no mic - data pin idle)" : "pdm";
 }

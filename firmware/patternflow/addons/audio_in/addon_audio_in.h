@@ -55,6 +55,16 @@ inline uint32_t heapCost = 0;
 #if PF_AUDIO_IN_CORE == 0
 inline void analysisTask(void*) {
   for (;;) {
+    // With the microphone off there is nothing to analyse and no reason to
+    // wake 60 times a second on the core Wi-Fi lives on. The task stays
+    // parked; flipping the switch on /audio-in starts I2S and it resumes.
+    if (!PFAudioInMap::micOn) {
+      if (PFAudioPdm::live) PFAudioPdm::end();
+      vTaskDelay(pdMS_TO_TICKS(250));
+      continue;
+    }
+    if (!PFAudioPdm::live) PFAudioPdm::begin();
+
     PFAudioFFT::analyze(tick++);
     // With a microphone, the I2S read inside analyze() already blocks for the
     // 16 ms a hop takes to exist, so it paces this loop against the audio
@@ -77,6 +87,8 @@ inline void onNetwork() { PFAudioInHttp::begin(); }
 inline void setup() {
   PFAudioInMap::load();
   const uint32_t before = ESP.getFreeHeap();
+  // Tables and buffers only. I2S is the analysis task's business now, so a
+  // panel that boots with the mic off never installs the driver at all.
   PFAudioFFT::begin();
   heapCost = before - ESP.getFreeHeap();
 #if PF_AUDIO_IN_CORE == 0

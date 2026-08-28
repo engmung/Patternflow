@@ -108,7 +108,25 @@ inline int16_t raw[HOP];
 // The ring the window is cut from: the previous hop, then the new one.
 inline float ring[WINDOW];
 
+// Installing I2S costs about 7.9 KB of internal heap — measured by building
+// the same edition with PF_AUDIO_IN_PDM_ENABLED 0 and comparing one clean
+// reading each. That is not much on this board, and it is not the reason
+// anybody's console is slow; it is simply rude to spend it on a panel with no
+// microphone wired, which is most of them.
+//
+// So it starts on demand and can be handed back. `begin()` is the install,
+// `end()` is the release, and both are safe to call twice.
+inline void end() {
+  if (!live) return;
+  i2s_driver_uninstall(PORT);
+  live = false;
+  stalled = false;
+  emptyReads = 0;
+  Serial.println("[AUDIO-IN] PDM released");
+}
+
 inline void begin() {
+  if (live) return;
   i2s_config_t cfg = {};
   cfg.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_PDM);
   cfg.sample_rate = RATE;

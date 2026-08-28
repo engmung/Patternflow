@@ -114,6 +114,16 @@ inline void clampRange(Band& b) {
   if (b.hzMax - b.hzMin < BIN_HZ) b.hzMax = min(MAX_HZ, b.hzMin + BIN_HZ);
 }
 
+// Whether the microphone runs at all: the I2S driver, the DMA buffers and the
+// analysis. Off means the feature costs a panel nothing but the code size.
+//
+// Default off, and this is the switch people will actually use. The mic is
+// four wires to a breakout rather than a part on the board, so a panel that
+// installs the Audio edition for OSC and the Chrome extension should not be
+// running an analysis over a floating pin. Turning it on is one tick on
+// /audio-in and it persists.
+inline bool micOn = false;
+
 // Whether the mic drives the knobs at all. Separate from whether the analysis
 // runs: someone tuning the response graph wants to watch the meters move
 // without the panel reacting to every word they say.
@@ -171,12 +181,14 @@ inline float travel(int b, float peakLevel) {
 constexpr const char* NVS_NS = "pf-audioin";
 constexpr const char* NVS_KEY = "bands";
 constexpr const char* NVS_DRIVE = "drive";
+constexpr const char* NVS_MIC = "mic";
 
 inline void save() {
   Preferences p;
   if (!p.begin(NVS_NS, false)) return;
   p.putBytes(NVS_KEY, bands, sizeof(bands));
   p.putBool(NVS_DRIVE, driving);
+  p.putBool(NVS_MIC, micOn);
   p.end();
 }
 
@@ -194,6 +206,7 @@ inline void load() {
     }
   }
   driving = p.getBool(NVS_DRIVE, false);
+  micOn = p.getBool(NVS_MIC, false);
   p.end();
 }
 

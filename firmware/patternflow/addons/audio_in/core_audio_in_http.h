@@ -97,7 +97,9 @@ inline void handleGet() {
 
   String j = "{\"source\":\"";
   j += PFAudioFFT::sourceLabel();
-  j += "\",\"driving\":";
+  j += "\",\"micOn\":";
+  j += PFAudioInMap::micOn ? "true" : "false";
+  j += ",\"driving\":";
   j += PFAudioInMap::driving ? "true" : "false";
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
@@ -174,6 +176,10 @@ inline float argFloat(const char* name, float fallback) {
 // updates are allowed: the page sends only the handle that moved, so dragging
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
+  if (server().hasArg("mic")) {
+    const String v = server().arg("mic");
+    PFAudioInMap::micOn = (v == "1" || v == "true");
+  }
   if (server().hasArg("driving")) {
     const String v = server().arg("driving");
     PFAudioInMap::driving = (v == "1" || v == "true");

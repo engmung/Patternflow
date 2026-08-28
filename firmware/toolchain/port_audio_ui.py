@@ -158,12 +158,18 @@ padding:6px 0;margin-bottom:12px}
 <body>
 
 <div class="srcline" id="srcline"><b id="srcName">connecting</b><span id="srcRaw"></span></div>
+<p class="wrap-note" id="heapline"></p>
+
+<label class="drive"><input type="checkbox" id="mic"> <b>Microphone</b></label>
+<p class="wrap-note">Off until you turn it on: the mic is four wires to a breakout rather than a
+part on the board, so most panels running this firmware do not have one, and an analysis over a
+floating pin is worth nobody's memory. Turning it off releases the I2S driver and parks the
+analysis; the setting is remembered.</p>
 
 <label class="drive"><input type="checkbox" id="drive"> Let the room drive the knobs</label>
-<p class="wrap-note" id="driveNote">Off until you turn it on: the microphone is four wires to a
-breakout rather than a part on the board, and a panel without one has a floating data pin. The
-meters run either way, which is also how you shape the response without the panel reacting to
-every word you say.</p>
+<p class="wrap-note" id="driveNote">Separate on purpose. With this off the meters still move and
+the panel does not, which is how you shape the response without it reacting to every word you
+say. A hand on an encoder always wins, and a browser tab sending audio outranks the room.</p>
 
 @@SPECTRUM@@
 
@@ -320,6 +326,8 @@ function paintLive() {
                knob: b.knob, muted: b.muted === true };
     });
     $('drive').checked = !!d.driving;
+    $('mic').checked = !!d.micOn;
+    paintHeap();
     buildBands();
     renderBandTabs();
     renderSpectrumBands();
@@ -329,6 +337,35 @@ function paintLive() {
   };
   x.send();
 })();
+
+// Free heap, next to the switch that changes it. Not decoration: the claim
+// that the microphone costs about 8 KB of internal heap should be checkable by
+// the person who cares, in the two seconds it takes to tick a box, rather than
+// taken from a commit message.
+function paintHeap(){
+  var x = new XMLHttpRequest();
+  x.open('GET', '/api/status');
+  x.onload = function(){
+    try {
+      var d = JSON.parse(x.responseText);
+      $('heapline').textContent =
+        'free internal ' + d.heapInternal.toLocaleString() +
+        ' B, largest block ' + d.heapLargest.toLocaleString() + ' B';
+    } catch (e) {}
+  };
+  x.send();
+}
+
+$('mic').addEventListener('change', function(){
+  var on = $('mic').checked;
+  var x = new XMLHttpRequest();
+  x.open('POST', '/api/audio-in');
+  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  // The driver takes a moment to install or release, and the heap reading is
+  // only interesting once it has.
+  x.onloadend = function(){ setTimeout(paintHeap, 700); };
+  x.send('mic=' + (on ? '1' : '0'));
+});
 
 $('drive').addEventListener('change', function(){
   var x = new XMLHttpRequest();
