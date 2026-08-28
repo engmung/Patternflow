@@ -59,8 +59,9 @@ bool brightnessAdjusting = false;
 uint32_t brightnessIdleAtMs = 0;
 bool brightnessDirty = false;
 
-// NETWORK screen: K2 longpress enters a status view (Wi-Fi / OSC / audio).
-// Inside, TURNING K2 toggles OSC and TURNING K3 toggles audio-react (right
+// NETWORK screen: K2 longpress enters a status view. It lists whichever
+// addons declare a short name and a runtime switch — the sketch does not know
+// what they are. Inside, TURNING K2 toggles the first row and K3 the second (right
 // = on, left = off; both persist in NVS). Rotation, not clicks, so the K2
 // longpress used to exit can't flip anything. Second K2 longpress or idle
 // exits.
@@ -464,8 +465,9 @@ void drawBrightnessNotice() {
   }
 }
 
-// NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi / OSC / audio
-// state. TURN K2 to toggle OSC, TURN K3 to toggle audio-react (rotation,
+// NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi plus a row per
+// toggleable addon, whatever those turn out to be.
+// TURN K2 to toggle the first row, K3 the second (rotation,
 // not a click — a K2 click exits). Drawn PORTRAIT (rotation 1, 64×128):
 // vertical is the device's primary mounting, so this screen reads upright
 // like the SELECT overlay. The 64px line width fits ~10 chars at text
@@ -874,12 +876,6 @@ void readInputFrame(InputFrame& input) {
   // compiled out). Added after acceleration so external automation moves at
   // the raw 1×-per-detent rate, not amplified by the fast-spin curve.
 
-  // Audio-react direct delta messages. New browser/extension clients send
-  // normalized deltas here so base/default values do not overwrite pattern
-  // state; patterns still see only ordinary knobDeltas.
-  for (int i = 0; i < 4; i++) {
-  }
-
   // Absolute MQTT bus last, so it outranks everything above: held channels
   // get their 0..1000 value and their deltas / audio flags cleared, which is
   // what lets PFParams::apply pin the mapped parameter deterministically.
@@ -890,11 +886,15 @@ void readInputFrame(InputFrame& input) {
   PatternflowBus::fillAbsolute(input);
 }
 
-// The absolute audio path: a band level, 0..1, on a lane.
+// An absolute lane, 0..1, turned into encoder motion.
 //
-// This turns that level into encoder motion so a pattern that only ever reads
-// `knobDeltas` still reacts — which was the whole point, and is why every
-// pattern responds to audio without audio code of its own.
+// Named for audio because audio got here first, and that name was wrong: the
+// weather addon drives these same lanes, and so may anything else. Nothing
+// here knows or needs to know which addon put the value there.
+//
+// The motion exists so a pattern that only ever reads `knobDeltas` still
+// reacts — which is why every pattern responds to these sources without
+// carrying any code for them.
 //
 // It used to also clear `knobAudioActive`, and that quietly made the good
 // path unreachable. `PFParams::apply` checks the flag FIRST and maps the
@@ -903,8 +903,9 @@ void readInputFrame(InputFrame& input) {
 //     if (input.knobAudioActive[i]) { *param = lerp(lo, hi, value); return; }
 //     if (input.knobDeltas[i] != 0) { *param += delta * step; }
 //
-// With the flag cleared, every audio source — browser, extension, the on-board
-// microphone — fell through to the second line: unbounded accumulation, where
+// With the flag cleared, every source — browser, extension, the on-board
+// microphone, the weather addon — fell through to the second line: unbounded
+// accumulation, where
 // the same sound gives a different result depending on what came before, and a
 // dropped update is an error the parameter keeps forever.
 //
@@ -913,8 +914,8 @@ void readInputFrame(InputFrame& input) {
 // its declared range, a raw-delta pattern never looks at the flag and takes
 // the motion. Nothing needs to choose.
 //
-// "Physical wins": turning a knob this frame suppresses audio on that lane.
-void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
+// "Physical wins": turning a knob this frame suppresses the lane.
+void applyLaneMotion(InputFrame& input, bool enabled) {
   static bool wasActive[4] = {false, false, false, false};
   static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   static float residual[4] = {0.0f, 0.0f, 0.0f, 0.0f};
@@ -935,10 +936,10 @@ void applyAudioVirtualKnobs(InputFrame& input, bool enabled) {
       wasActive[i] = true;
     }
 
-    // Full-rate: no MAX_DELTA clamp, so a fast audio swing lands this frame
+    // Full-rate: no MAX_DELTA clamp, so a fast swing lands this frame
     // instead of crawling at a few clicks per frame. Residual carries the
     // sub-click remainder so slow swings still move the knob.
-    float movement = (value - prevValue[i]) * PF_AUDIO_VIRTUAL_KNOB_SCALE + residual[i];
+    float movement = (value - prevValue[i]) * PF_LANE_MOTION_SCALE + residual[i];
     int delta = (int)roundf(movement);
     residual[i] = movement - (float)delta;
     if (fabsf(residual[i]) < 0.001f) residual[i] = 0.0f;
@@ -1321,10 +1322,13 @@ void loop() {
     }
   }
 
-  applyAudioVirtualKnobs(
+  applyLaneMotion(
     input,
     currentMode == MODE_RUNNING && !brightnessAdjusting && !oscInfoShowing
   );
+
+  // Everything above has had its say; this is the frame the pattern gets.
+  PatternflowBus::noteFinalFrame(input);
 
   // Addons that mirror device state see the finished frame here - every
   // source merged, the absolute bus applied, exactly what the pattern gets.
@@ -1527,12 +1531,4 @@ void loop() {
     }
   }
 
-  // Weather / time sync can block on HTTP — run AFTER the frame, at most
-  {
-    static uint32_t lastWeatherHandleMs = 0;
-    uint32_t nowWx = millis();
-    if (lastWeatherHandleMs == 0 || (nowWx - lastWeatherHandleMs) >= 2000) {
-      lastWeatherHandleMs = nowWx;
-    }
-  }
 }

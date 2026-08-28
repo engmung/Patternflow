@@ -54,7 +54,13 @@ inline void fillInput(InputFrame& input) {
 
 inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
 
-// Whether audio is switched on, and whether anything is connected. Neither
+// Whether audio is switched on, and whether anything is connected — both
+// specific to this addon. What the lanes are actually doing is core's to
+// report (`lanes` / `laneActive` in /api/status): audio is not the only
+// thing that drives them, and what a source is sending is not what the
+// pattern ends up seeing.
+//
+// Neither
 // was visible from outside the device: a browser could complete a websocket
 // handshake, send knob messages, and have every one of them silently dropped
 // because the AUD row on the NETWORK screen was off — with nothing anywhere
@@ -64,20 +70,6 @@ inline void appendStatus(String& json) {
   json += PatternflowAudio::isRuntimeEnabled() ? "true" : "false";
   json += ",\"audioClients\":";
   json += PatternflowAudio::clientCount();
-  // The four lanes as the pattern will see them. Without these the absolute
-  // path is unobservable from outside: a client can send a level, the panel
-  // can act on it, and there is no way to check the two agree.
-  json += ",\"audioLanes\":[";
-  for (int i = 0; i < 4; i++) {
-    if (i) json += ',';
-    json += String(PatternflowAudio::value(i), 3);
-  }
-  json += "],\"audioLaneActive\":[";
-  for (int i = 0; i < 4; i++) {
-    if (i) json += ',';
-    json += PatternflowAudio::isActive(i) ? "true" : "false";
-  }
-  json += ']';
 }
 
 inline void setRuntimeEnabled(bool on) {

@@ -223,7 +223,7 @@ inline float value(int idx) {
 inline int consumeKnobDelta(int idx) {
 #if PF_AUDIO_ENABLED
   if (idx < 0 || idx >= 4 || !runtimeEnabled) return 0;
-  float movement = pendingDeltas[idx] * PF_AUDIO_VIRTUAL_KNOB_SCALE + deltaResidual[idx];
+  float movement = pendingDeltas[idx] * PF_LANE_MOTION_SCALE + deltaResidual[idx];
   pendingDeltas[idx] = 0.0f;
   int delta = (int)roundf(movement);
   deltaResidual[idx] = movement - (float)delta;

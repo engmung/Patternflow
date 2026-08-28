@@ -70,6 +70,32 @@ inline bool isHeld(int index) {
   return index >= 0 && index <= 3 && paramHeld[index];
 }
 
+// What the pattern actually sees on the absolute lanes, snapshotted once a
+// frame after every source has been merged and every override applied.
+//
+// Not the same as asking a source whether it is sending: audio can be pushing
+// a lane while the absolute bus holds it, or while a hand is on the encoder,
+// and in both cases the pattern sees nothing. Reporting the source's intent
+// instead of the arbitrated frame is how three separate measurements went
+// wrong in one afternoon.
+inline bool laneActive[4] = {false, false, false, false};
+inline float laneValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+inline void noteFinalFrame(const InputFrame& input) {
+  for (int i = 0; i < 4; i++) {
+    laneActive[i] = input.knobAudioActive[i];
+    laneValue[i] = input.knobAudioValue[i];
+  }
+}
+
+inline bool laneIsActive(int index) {
+  return index >= 0 && index < 4 && laneActive[index];
+}
+
+inline float laneAt(int index) {
+  return (index >= 0 && index < 4) ? laneValue[index] : 0.0f;
+}
+
 inline long knobAt(int index) {
   return (index >= 0 && index < 4) ? knobValue[index] : 0;
 }

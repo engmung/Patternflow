@@ -189,7 +189,7 @@
 // Hosts a tiny UI on the device. A browser captures audio (file / tab /
 // mic), runs an FFT, and pushes each band's energy as a normalized 0..1
 // value over WebSocket. The input layer turns that into virtual knob
-// deltas (applyAudioVirtualKnobs), so EVERY encoder-driven pattern reacts
+// deltas (applyLaneMotion), so EVERY encoder-driven pattern reacts
 // to audio with no per-pattern code.
 #ifndef PF_AUDIO_ENABLED
 #define PF_AUDIO_ENABLED 1
@@ -200,10 +200,19 @@
 #ifndef PF_AUDIO_WS_PORT
 #define PF_AUDIO_WS_PORT 81
 #endif
-// How many knob clicks a full 0..1 audio swing maps to. Higher = stronger
-// audio response. No per-frame clamp, so the value tracks without lag.
-#ifndef PF_AUDIO_VIRTUAL_KNOB_SCALE
-#define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
+// How many knob clicks a full 0..1 swing on an absolute lane maps to. Higher
+// = stronger response. No per-frame clamp, so the value tracks without lag.
+//
+// Not audio's, despite where it sits: the weather addon drives the same lanes
+// and takes the same scale. The old name is kept below because a firmware
+// built elsewhere may already set it in its overrides.h, and a rename that
+// silently ignores somebody's setting is worse than an untidy header.
+#ifndef PF_LANE_MOTION_SCALE
+#ifdef PF_AUDIO_VIRTUAL_KNOB_SCALE
+#define PF_LANE_MOTION_SCALE PF_AUDIO_VIRTUAL_KNOB_SCALE
+#else
+#define PF_LANE_MOTION_SCALE 48.0f
+#endif
 #endif
 
 // ── MQTT (mirror one panel onto another, or into home automation) ──

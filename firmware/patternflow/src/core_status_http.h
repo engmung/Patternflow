@@ -190,6 +190,16 @@ inline void handleStatus() {
     if (i) json += ',';
     json += PatternflowBus::heldValue(i);
   }
+  json += "],\"laneActive\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowBus::laneIsActive(i) ? "true" : "false";
+  }
+  json += "],\"lanes\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += String(PatternflowBus::laneAt(i), 3);
+  }
   json += "],\"paramActive\":[";
   for (int i = 0; i < 4; i++) {
     if (i) json += ',';
