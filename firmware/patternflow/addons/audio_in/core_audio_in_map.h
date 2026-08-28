@@ -117,7 +117,19 @@ inline void clampRange(Band& b) {
 // Whether the mic drives the knobs at all. Separate from whether the analysis
 // runs: someone tuning the response graph wants to watch the meters move
 // without the panel reacting to every word they say.
-inline bool driving = true;
+//
+// OFF until somebody turns it on, and that default is load-bearing. The
+// microphone is four wires to a breakout, not a part on the board, so most
+// people installing the Audio edition do not have one. On those panels GPIO44
+// is an input pin with nothing driving it: I2S starts, the read succeeds, and
+// what comes back is whatever the floating pad picked up. That is not silence
+// and it is not detectable as "no microphone" - it is a signal, and it would
+// be holding all four knobs.
+//
+// So the room drives nothing until a person ticks the box on /audio-in, at
+// which point it persists. One switch for somebody who wired a mic; nothing
+// at all for everybody else.
+inline bool driving = false;
 
 inline float clamp01(float v) {
   if (v < 0.0f) return 0.0f;
@@ -181,7 +193,7 @@ inline void load() {
       bands[i].knob = constrain(bands[i].knob, 0, 3);
     }
   }
-  driving = p.getBool(NVS_DRIVE, true);
+  driving = p.getBool(NVS_DRIVE, false);
   p.end();
 }
 

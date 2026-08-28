@@ -140,9 +140,14 @@ font-size:11px;color:var(--muted)}
 
 <section>
   <label class="check"><input type="checkbox" id="drive"> Let the room drive the knobs</label>
-  <p class="note">Off, the meters still move and nothing else does &mdash; which is how you
-  tune this without the panel reacting to every word you say. A hand on an encoder
-  always wins, and a browser tab sending audio outranks the room.</p>
+  <p class="note">Off until you turn it on, because the microphone is four wires to a
+  breakout rather than a part on the board &mdash; on a panel without one, the data pin
+  is floating, and what it picks up is a signal rather than silence. Nothing detects that
+  as &ldquo;no microphone&rdquo;, so it would sit there holding all four knobs.
+  <br><br>
+  With it off the meters still move and nothing else does, which is also how you tune the
+  response without the panel reacting to every word you say. A hand on an encoder always
+  wins, and a browser tab sending audio outranks the room.</p>
 </section>
 
 <section>
