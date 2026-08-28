@@ -31,24 +31,73 @@ behind an interface.
 
 ## Why editions exist
 
-Not to save flash. That was measured and it is not the reason: dropping three
-of five features leaves the ceiling on a loadable pattern **exactly where it
-was**, on a board using 45 % of its partition. See
+### It is not a hierarchy
+
+Start here, because the structure is easy to misread and the misreading is
+costly.
+
+This says nothing about which features matter, who is important, or whose work
+is central. There is no tier of features, no promotion, no demotion. MQTT is
+not less than patterns because it can be composed out; the show player is not
+less than OSC because a build might not carry it. **Every feature sits in the
+same tree, under the same interface, with the same standing.** A composition is
+a build-time choice, not a verdict.
+
+The shelf does have tiers — official and community — and even that is not about
+standing. It answers one question: *who do you ask when it breaks?* A firmware
+built here gets compiled against every core change before that change lands. A
+firmware built elsewhere is its author's to keep working. Different maintenance
+obligations, not different worth.
+
+Nothing here decides who owns anything. It decides what is in the room when you
+compile.
+
+### It is entirely about how the work gets done
+
+The reason is development ergonomics, and specifically the shape development
+has now.
+
+Most edits to this firmware are made by an agent. Not "assisted by" — made by.
+It reads what it is shown, changes what it was asked to change, and does not
+remember what it learned yesterday. That is a fine way to work and it is how
+this project moves as fast as it does, but it changes which safeguards are
+worth anything.
+
+Consider the two ways to keep an audio change from breaking MQTT:
+
+| | |
+|---|---|
+| **"Be careful not to touch MQTT."** | An instruction. Depends on the reader having read the MQTT code, held it in mind, and noticed the interaction. Costs nothing to say and guarantees nothing. Degrades with every file added to the tree, and does not survive a fresh context at all. |
+| **MQTT is not in this build.** | A fact. The compiler enforces it. It does not degrade, it does not depend on anyone's attention, and it is exactly as true on the hundredth edit as the first. |
+
+The second is worth having and the first is not, and the gap between them grows
+every time the codebase grows or the person changes.
+
+Working on audio means building the audio edition: OSC, browser audio, the
+on-board microphone. MQTT, the show player and weather are not compiled, so
+nothing done to audio can reach them. The change under review is smaller, the
+thing to hold in mind is smaller, and the guarantee is mechanical instead of
+attentional.
+
+### What this does and does not buy — honestly
+
+**It does not save flash.** That was measured: dropping three of five features
+leaves the ceiling on a loadable pattern **exactly where it was**, on a board
+using 45 % of its partition. Anyone who tells you separation is about memory
+should be shown the numbers. See
 [RFC §2.13](rfc-core-and-variants.md#213-what-changed-and-why-step-5-is-withdrawn).
 
-### The blast radius of a change
+**It does not protect the core.** A change to `patternflow.ino`, the ABI, or
+the bus reaches every edition, and composing features out does nothing about
+it. The worst bug this project has shipped was exactly that shape — one missing
+line in the sketch froze the show player, MQTT, weather and the audio websocket
+at once, in every build. Editions would not have caught it. Nothing about this
+structure makes core changes cheap, and they should still be made carefully and
+measured on hardware.
 
-With one build carrying everything, every edit is potentially cross-cutting,
-and the only proof otherwise is that somebody read it and thought so.
-
-In a build that does not contain MQTT, a mistake in audio **cannot** have
-broken MQTT. Not "was reviewed and probably didn't" — could not, because MQTT
-was not there to break. That is a guarantee the compiler enforces rather than
-one a reviewer keeps.
-
-It matters more than it used to. Most edits now come from an agent rather than
-from the person who wrote the file, and an agent does not remember yesterday.
-A habit does not survive that. A compile error does.
+**What it buys is the ordinary case**: work inside one feature, which is most
+work. There, the blast radius stops at the build's edge, and it stops for a
+reason a machine can check.
 
 ### It is how the panel already works
 
