@@ -77,7 +77,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
 | `loadError` | Why the last module load failed, empty when it did not. Without it a refusal is invisible from the network. |
 | `variant` | Which firmware this is: `"core"`, or a variant's own name. What the site's variant list matches, and what stops the update banner offering a core build on top of someone's chosen firmware. |
-| `caps` | What this build can do, e.g. `["patterns","params","osc","sleep","shows"]`. **Probe this rather than assuming a feature exists** — the default build carries none of the optional ones, and each [edition](EDITIONS.md) carries a different set. `patterns` and `params` are always present. |
+| `caps` | What this build can do. **Probe this rather than assuming a feature exists.** The default build reports `["patterns","params","sleep"]` and nothing else; each [edition](EDITIONS.md) adds its own — Audio adds `osc` and `audio`, Performance adds `weather`, `mqtt` and `shows`. `patterns` and `params` are on every build. |
 | `mqttRole` | `"off"`, `"publisher"` or `"subscriber"`. Decides whether the device obeys knob and pattern topics — see [Knobs](#knobs-and-parameters). |
 
 ### `POST /api/params`
