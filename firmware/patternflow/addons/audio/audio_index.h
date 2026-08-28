@@ -130,8 +130,6 @@ const bands = [
 ];
 
 const smoothing = [0, 0, 0, 0];
-// What each lane was last told, so an unchanged level costs no message.
-let lastSentValues = bands.map(() => -1);
 const SMOOTH_ALPHA = 0.35;       // 0..1, higher = snappier
 const SEND_INTERVAL_MS = 33;     // ~30 Hz WS update
 let lastSendMs = 0;
@@ -295,22 +293,24 @@ function wsSendControl(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
 }
 
-// Absolute, not a delta.
+// All four lanes, absolute, one message per frame.
 //
-// This used to send `d=lane,change`, which the firmware turned into virtual
-// encoder clicks — so the level did not set anything, it nudged, and the
-// parameter wandered wherever the sum of nudges took it. Two consequences,
-// both of which you could feel: the same music gave a different result
-// depending on what had already happened, and any message the one-connection
-// server dropped was an error that never washed out.
+// Two things were wrong here. It sent `d=lane,change`, which the firmware
+// turned into virtual encoder clicks — so a level never set anything, it
+// nudged, and the parameter wandered wherever the sum of nudges went. And it
+// sent one message per band inside a single frame, while `wsSend` refuses
+// whenever `ws.bufferedAmount > 0` — which, after the first send of a frame,
+// it always is. Bands 2, 3 and 4 were dropped every frame, in that order.
 //
-// `k=lane,level` lands the band inside the parameter's own declared range and
-// the next frame corrects anything the last one lost.
-function sendOutputValue(knob, value) {
-  const idx = Math.max(0, Math.min(3, Number(knob) || 0));
-  const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-  if (Math.abs(normalized - lastSentValues[idx]) < 0.002) return;
-  if (wsSend(`k=${idx},v=${normalized.toFixed(3)}`)) lastSentValues[idx] = normalized;
+// `a=` carries all four and the next frame corrects whatever the last one
+// lost, so a drop costs nothing and no lane can starve another.
+let lastSentBody = '';
+function sendLanes(values) {
+  const body = values
+    .map(v => (v === null ? '-' : Math.max(0, Math.min(1, v)).toFixed(3)))
+    .join(',');
+  if (body === lastSentBody) return;
+  if (wsSend(`a=${body}`)) lastSentBody = body;
 }
 
 // ═══ Band UI ═══
@@ -390,7 +390,7 @@ document.getElementById('file-input').addEventListener('change', e => {
 document.getElementById('release-all').addEventListener('click', () => {
   wsSendControl('off');
   smoothing.fill(0);
-  lastSentValues = bands.map(() => -1);
+  lastSentBody = '';
 });
 
 // ═══ Tick loop ═══
@@ -402,6 +402,8 @@ function tick() {
   const now = performance.now();
   const shouldSend = (now - lastSendMs) >= SEND_INTERVAL_MS;
   if (shouldSend) lastSendMs = now;
+
+  const lanes = [null, null, null, null];
 
   for (let i = 0; i < 4; i++) {
     const band = bands[i];
@@ -415,8 +417,10 @@ function tick() {
     if (m1) m1.style.width = (smoothing[i] * 100).toFixed(1) + '%';
     if (m2) m2.style.width = (mapped * 100).toFixed(1) + '%';
 
-    if (shouldSend) sendOutputValue(band.knob, mapped);
+    if (shouldSend) lanes[Math.max(0, Math.min(3, band.knob))] = mapped;
   }
+
+  if (shouldSend) sendLanes(lanes);
 }
 requestAnimationFrame(tick);
 </script>

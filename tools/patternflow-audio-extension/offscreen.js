@@ -14,6 +14,7 @@ let manual = false;
 let wsWanted = false;
 let wsSerial = 0;
 let lastSentValues = [-1, -1, -1, -1];
+let lastSentBody = '';
 
 const MIN_HZ = 20;
 const MAX_HZ = 20000;
@@ -79,6 +80,7 @@ function send(msg, options = {}) {
 // lane was last told.
 function resetOutputBaselines() {
   lastSentValues = [-1, -1, -1, -1];
+  lastSentBody = '';
 }
 
 // Absolute, not a delta.
@@ -89,6 +91,24 @@ function resetOutputBaselines() {
 // already happened, and any message the one-connection server dropped stayed
 // wrong forever. `k=lane,level` lands the band inside the parameter's own
 // range, and the next frame corrects whatever the last one lost.
+// All four lanes, one message per frame.
+//
+// Sending them one at a time did not work and failed in the least visible way
+// possible: `send()` refuses while `ws.bufferedAmount > 0`, which after the
+// first send of a frame it always is, so lanes 1..3 were dropped every frame
+// in index order. Knob 1 moved, knob 2 flickered, knob 4 never moved at all —
+// and it looked like a signal problem, because the band that never worked was
+// also the quietest one.
+//
+// A '-' leaves a lane alone, which is what a muted band sends.
+function sendLanes(values) {
+  const body = values
+    .map((v) => (v === null ? '-' : Math.max(0, Math.min(1, v)).toFixed(3)))
+    .join(',');
+  if (body === lastSentBody) return;
+  if (send(`a=${body}`)) lastSentBody = body;
+}
+
 function sendOutputValue(knob, value) {
   const idx = Math.max(0, Math.min(3, Number(knob) || 0));
   const normalized = Math.max(0, Math.min(1, Number(value) || 0));
@@ -263,16 +283,15 @@ function tick() {
   while (smoothing.length < bands.length) smoothing.push(0);
   if (smoothing.length > bands.length) smoothing.length = bands.length;
 
+  // A lane nothing drives stays null, and goes out as '-'. Two bands on the
+  // same knob: the last one wins, deterministically, rather than whichever
+  // happened to get the socket first.
+  const lanes = [null, null, null, null];
+
   for (let i = 0; i < bands.length; i++) {
     const band = bands[i];
+    const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
     if (band.muted) {
-      // Release the lane once, then leave it alone: the encoder owns it again
-      // and nothing here should keep writing to it.
-      const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
-      if (lastSentValues[idx] !== -1) {
-        send(`off=${idx}`, { control: true });
-        lastSentValues[idx] = -1;
-      }
       smoothing[i] = 0;
       levels[i] = 0;
       outputs[i] = 0;
@@ -283,8 +302,20 @@ function tick() {
     const mapped = mapBandOutput(smoothing[i], band);
     levels[i] = smoothing[i];
     outputs[i] = mapped;
-    sendOutputValue(band.knob, mapped);
+    lanes[idx] = mapped;
   }
+
+  // Muting a band hands its lane back once, and only if this client had it.
+  for (let i = 0; i < 4; i++) {
+    if (lanes[i] === null && lastSentValues[i] !== -1) {
+      send(`off=${i}`, { control: true });
+      lastSentValues[i] = -1;
+    } else if (lanes[i] !== null) {
+      lastSentValues[i] = lanes[i];
+    }
+  }
+
+  sendLanes(lanes);
 
   const now = performance.now();
   if (now - lastLevelReport > 120) {
