@@ -123,11 +123,14 @@ attentional.
 
 ### What this does and does not buy — honestly
 
-**It does not save flash.** That was measured: dropping three of five features
-leaves the ceiling on a loadable pattern **exactly where it was**, on a board
-using 45 % of its partition. Anyone who tells you separation is about memory
-should be shown the numbers. See
-[RFC §2.13](rfc-core-and-variants.md#213-what-changed-and-why-step-5-is-withdrawn).
+**It is not mainly about memory**, and the numbers are more interesting than
+either slogan. Dropping *some* features moves nothing: the audio edition sheds
+278 KB of flash and lands on the same 73,716-byte ceiling the full build had.
+Dropping *all* of them does move it, to 92,148 — but that is the default doing
+the one job the device exists for, not a saving anyone engineered. Nobody
+should sell composition as a memory trick. See
+[RFC §2.13](rfc-core-and-variants.md#213-what-changed-and-why-step-5-is-withdrawn)
+for the controlled measurement and the procedure it needs.
 
 **It does not protect the core.** A change to `patternflow.ino`, the ABI, or
 the bus reaches every edition, and composing features out does nothing about
@@ -259,6 +262,20 @@ puts both back the way it found them.**
 Order in `PF_ADDON_LIST` is dispatch order, and it matters where features
 compete: one that CLAIMS the pattern (a show) should come after ones that only
 ASK (a remote picker), or the picker never gets a turn.
+
+Two traps worth knowing before you cut one, both found by cutting these:
+
+- **Libraries are named, not discovered.** PlatformIO's dependency finder
+  scans includes and cannot evaluate the `__has_include` your composition
+  arrives through, so a feature's library disappears the moment that feature
+  leaves the default build. Anything a feature needs belongs in `lib_deps`.
+  WebSockets went that way when audio left; HTTPClient followed when weather
+  did.
+- **`PF_ADDON_PRESETS` cuts both ways.** Defining it as nothing is how a build
+  *without* the show player keeps the scheduler's hidden `Black` pattern out
+  of the carousel. In a build *with* the show player it deletes a pattern the
+  scheduler calls by name, and the build fails on `'Black' has not been
+  declared`. Copying another edition's `overrides.h` is how you get there.
 
 ### Versions are yours
 
