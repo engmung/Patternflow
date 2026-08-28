@@ -2,11 +2,11 @@
 
 *Restructuring the firmware. Written 2026-08-26.*
 
-> **Status, 27 August 2026.** The seam shipped in 3.7.0: every feature is an
-> addon, a named firmware is two files, and nothing edits a core file to
-> exist. **Splitting the core did not happen and will not** — §2.13 has the
-> measurement and the argument that settled it. Part 2 below describes what
-> is actually in the tree; the history of how it got here is in
+> **Status, 28 August 2026.** The seam shipped in 3.7.0: every feature is a
+> module in this tree, a named firmware is two files, and nothing edits a core
+> file to exist. **The code is not splitting up** — §2.13 has the measurement
+> and the argument. **What each published build carries is open** — §2.15 has
+> why. Part 2 below describes the tree; the history is in
 > [the progress log](rfc-core-and-variants-progress.md) and in git.
 
 This document is two things on purpose. **Part 1 is the maintainer, in
@@ -451,6 +451,13 @@ maintainer-curated with no formal listing process, deliberately.)*
 *Added 2026-08-27, after the seam was built and the first firmware was
 published from it.*
 
+> **Half of this was amended the next day — see §2.15.** The seam, the
+> measurement and the drift argument stand. The conclusion drawn from them —
+> that every feature therefore ships in one default build — rested on
+> "a feature you install is not a feature the product has", which this
+> project's own patterns disprove. Which features each edition carries is
+> open again; where the code lives is not.
+
 Steps 1–4 were right and they shipped. Step 5 was wrong, and it was wrong
 for a reason worth writing down rather than quietly deleting.
 
@@ -551,7 +558,8 @@ a rule, not with a repository boundary.
 ### What replaces it
 
 **Everything stays in this tree.** MQTT, the show player, weather, OSC,
-audio. The default build is all of them, and that is what ships on the board.
+audio. *(The second half of that sentence — that the default build is all of
+them — is what §2.15 reopens. The first half is not in question.)*
 
 **Named firmwares are built from it.** `firmware/bundles/<name>/` is two
 files — `addons_local.h` and `overrides.h` — saying which features compile in
@@ -619,4 +627,76 @@ One candidate is already visible: a pattern reads sound through
 coming, and a pattern that wants a spectrum rather than four bands would need
 a wider lane. Adding that later is an ABI 3. Deciding it now is free.
 
+## 2.15 Editions: the pattern precedent
 
+*Added 28 August 2026. This amends §2.13, which was written the day before
+and concluded that every feature ships in one default build. The seam and the
+freeze in §2.13 and §2.14 stand; the composition question is reopened, on an
+argument §2.13 did not consider.*
+
+### What §2.13 assumed, and why it was wrong
+
+Withdrawing the split rested on a claim that looks obvious and is not: that a
+feature you have to install is a feature the product does not have. The
+funded page lists MQTT and bidirectional OSC under Software; if a stock panel
+did not answer MQTT, the reasoning went, the page would be a lie.
+
+**This project already refutes that, and it refutes it with its best work.**
+
+Community patterns are not in the firmware. A panel arrives with a loader and
+a catalogue; the patterns come from the shelf, one click, over Wi-Fi, and
+nobody has ever suggested that a pattern somebody installed is therefore not
+Patternflow. The 42-pattern library is the most alive part of the project and
+none of it ships in the image.
+
+A firmware edition is the same shape by the same route: the same shelf, the
+same one click, the same `/update`, and settings, networks and installed
+patterns all survive it. If "you install it" demotes MQTT, it demotes every
+pattern anyone has written, which is plainly false. So it demotes neither.
+
+### What separation is actually for
+
+Not flash. §2.13 measured that and the numbers hold: dropping features buys
+the person holding the panel nothing they can use.
+
+**It is for the blast radius of a change.** With one build carrying
+everything, every edit is potentially cross-cutting and the only proof
+otherwise is reading. With a build that does not contain MQTT, a mistake in
+audio *cannot* have broken MQTT — not "was reviewed and probably didn't", but
+could not, because it was not there to break.
+
+That matters more now than it would have a year ago, because most of the
+editing is done by an agent rather than by the person who wrote the file. A
+guarantee the compiler enforces is worth more than a habit a reviewer keeps,
+and it is the only kind that survives being handed to something that does not
+remember yesterday.
+
+### What this does not change
+
+- **Every feature stays in this tree.** `addons/` holds them all; nothing
+  moves to another repository and nothing is anybody else's to maintain. That
+  half of §2.13 was right for the reasons given there, and the drift argument
+  is unaffected: a hook change still breaks the build in the same commit.
+- **A core change still has to compile against every published edition**
+  before it lands. Composition is not ownership.
+- **The formats stay frozen** (§2.14). An edition change must never make a
+  `.pfs` or a `.pfm` stop opening — that is the guarantee a performer
+  actually needs, and it is orthogonal to which features a build carries.
+- **Leaving an edition stays one click**, and remains the rule for being
+  listed at all.
+
+### Naming
+
+"Addon" was the wrong word and should be retired. It suggests something
+optional, third-party, bolted on — none of which is true of a directory in
+this repository implementing a first-class feature behind a fixed interface.
+They are **features**; a build is a **composition** of them; a published
+composition is an **edition**.
+
+### Still open
+
+Which features each edition carries, and whether a default edition keeps
+everything, are decisions for the person shipping the product, not for this
+document. What this section settles is only that "it has to be installed" is
+not an argument against, because the project has been distributing its most
+important content that way since it began.
