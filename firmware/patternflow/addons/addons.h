@@ -71,18 +71,27 @@
 #endif
 
 #if !defined(PF_ADDONS_NONE) && !defined(PF_ADDON_LIST)
-// No variant file: this is what core ships.
+// No edition file: this is the default composition - what ships on the board.
+//
+// Patterns, sequences, weather, and OSC for live control that needs no
+// infrastructure. Two features are deliberately NOT here, and each has an
+// edition of its own on the shelf, one click away:
+//
+//   audio - the browser websocket and the on-board microphone, which needs
+//           four wires soldered to a board with no footprint for it yet
+//   mqtt  - Simone Majocchi's client, FlowLocal and Director, for the people
+//           running a broker
+//
+// This is not a ranking - see docs/EDITIONS.md. A composition is a build-time
+// choice, and the reason to make one is that a build without MQTT in it
+// cannot have had MQTT broken by a change to something else.
 #include "osc/addon_osc.h"
 #include "show/addon_show.h"
 #include "weather/addon_weather.h"
-#include "mqtt/addon_mqtt.h"
-#include "audio/addon_audio.h"
 #define PF_ADDON_LIST                \
   &PFAddonOsc::descriptor,           \
       &PFAddonShow::descriptor,      \
-      &PFAddonWeather::descriptor,   \
-      &PFAddonMqtt::descriptor,      \
-      &PFAddonAudio::descriptor
+      &PFAddonWeather::descriptor
 #endif
 
 #ifdef PF_ADDONS_NONE

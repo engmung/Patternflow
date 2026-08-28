@@ -128,20 +128,53 @@ export const VARIANTS: Variant[] = [
     // a byline naming only the maintainer reads as a claim over it.
     status: 'available',
     summary:
-      'Everything the panel does. This is what ships on the board, and what ' +
-      'you can always come back to.',
+      'What ships on the board, and what you can always come back to. ' +
+      'Patterns, sequences and live control, with nothing bolted on.',
     adds: [
       'Patterns, and the loader for community ones',
-      'Sequences, weather, MQTT',
-      'OSC and browser audio',
+      'Sequences and the night/wake scheduler',
+      'Weather',
+      'OSC — live control from Ableton, Max or TouchDesigner, no broker needed',
       'Wi-Fi, sleep, and the way out of any firmware',
     ],
     manifest: '/flash/manifest.json',
     source: 'https://github.com/engmung/Patternflow',
     note:
-      'Not a starting point you build on — the finished thing. Everything ' +
-      'else here exists because of something this cannot carry, not because ' +
-      'it is missing anything.',
+      'Not a starting point you build on. Sound and MQTT each have an ' +
+      'edition below because each needs something this one should not carry ' +
+      'for everybody — a part that is not on the board yet, or a broker to ' +
+      'talk to. Switching to one is a click, and switching back is the same ' +
+      'click: your patterns, networks and settings do not move.',
+  },
+  {
+    id: 'mqtt',
+    name: 'Patternflow MQTT',
+    tier: 'official',
+    reason: 'not-universal',
+    // Credited because it is his work — the client in every role, FlowLocal,
+    // and the Director inside it. He offered to co-own a bundle on this tree
+    // rather than keep a fork (#349), which is exactly what this is.
+    maintainer: 'Simone Majocchi',
+    maintainerHref: 'https://github.com/SimonePDA',
+    status: 'available',
+    summary:
+      'Patternflow on a broker: two panels in sync, a phone or a dashboard ' +
+      'driving the knobs, and the Director sequencing the room.',
+    adds: [
+      'MQTT client in every role — publisher, subscriber, bridge',
+      'FlowLocal and the Director',
+      'Sequences, so a show can be cued from the broker',
+      'OSC, as in every edition',
+    ],
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/mqtt',
+    note:
+      'This one needs a broker, which is why it is not what everybody gets: ' +
+      'a panel with no broker to talk to would carry fifteen hundred lines ' +
+      'of state machine for nothing. If you run one — Home Assistant, ' +
+      'Node-RED, a Pi in the corner — this is the edition that speaks to it. ' +
+      'Every capability here is also reachable over plain HTTP on any ' +
+      'edition, including writing the knobs; MQTT is the way in that keeps ' +
+      'two panels in step and survives a reconnect.',
   },
   {
     id: 'audio',
