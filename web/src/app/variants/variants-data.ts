@@ -127,12 +127,19 @@ export const VARIANTS: Variant[] = [
     // the show player, MQTT and weather in it are Simone Majocchi's work, and
     // a byline naming only the maintainer reads as a claim over it.
     //
-    // No image yet, deliberately. The browser flasher still serves v3.7.1 —
-    // the old composition, with every feature compiled in — and a card that
-    // says "carries nothing" while installing five features would be lying.
-    // It goes back to 'available' when a checkpoint for the new default is
-    // cut, and not before.
-    status: 'building',
+    // This card now installs the default composition, and it is the only
+    // place that does. The browser flasher at /flash still serves v3.7.1 —
+    // the old composition, with every feature compiled in — because what a
+    // NEW device ships with is a bigger decision than what a shelf offers,
+    // and it is not this one. So the two paths genuinely differ right now:
+    // flash a fresh board and it arrives carrying everything; install this
+    // and it becomes the plain instrument.
+    //
+    // That is the shelf working as intended rather than a contradiction — the
+    // whole point is that you choose a composition — but it does mean the
+    // flasher manifest is the next thing to reconcile, and it should be a
+    // deliberate step with its own look.
+    status: 'available',
     summary:
       'The instrument. Patterns, four knobs, and the most room on the board ' +
       'for the patterns you install.',
@@ -142,6 +149,10 @@ export const VARIANTS: Variant[] = [
       'Wi-Fi, sleep, and the way out of any firmware',
       'The largest block a pattern can claim — 92 KB, against 74 KB elsewhere',
     ],
+    hosted: {
+      version: 'v3.8.0',
+      url: 'https://patternflow.work/flash/bin/core-v3.8.0/patternflow.ino.bin',
+    },
     source: 'https://github.com/engmung/Patternflow',
     note:
       'Patternflow is a device that loads interactive patterns and runs them ' +
@@ -173,8 +184,8 @@ export const VARIANTS: Variant[] = [
       'Weather — temperature and wind mapped onto the knobs',
     ],
     hosted: {
-      version: 'v0.2.0',
-      url: 'https://patternflow.work/flash/bin/performance-v0.2.0/patternflow.ino.bin',
+      version: 'v0.2.1',
+      url: 'https://patternflow.work/flash/bin/performance-v0.2.1/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
     note:
@@ -199,14 +210,15 @@ export const VARIANTS: Variant[] = [
     adds: [
       'OSC — Ableton, Max and TouchDesigner, both directions',
       'Browser and tab audio through the Chrome extension',
-      'On-board PDM microphone (four wires, not yet a part on the board)',
+      'On-board PDM microphone — four wires to GPIO43/44, no computer needed',
+      'A Mic page: live spectrum, four bands you aim at the frequencies you want',
       'Wi-Fi transmit power raised for rooms full of access points',
     ],
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.2.0',
-      url: 'https://patternflow.work/flash/bin/audio-v0.2.0/patternflow.ino.bin',
+      version: 'v0.3.0',
+      url: 'https://patternflow.work/flash/bin/audio-v0.3.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
@@ -217,6 +229,9 @@ export const VARIANTS: Variant[] = [
       'gets. It is also where that work happens, which is why it carries ' +
       'nothing else: no sequences, no weather, no MQTT. Take this to ' +
       'experiment with sound, not to run a room. When the microphone is a ' +
-      'part on the board, on-board audio moves into the default.',
+      'part on the board, on-board audio moves into the default. ' +
+      'Installing this without the microphone is safe: the panel can tell a ' +
+      'missing mic from a quiet room, says so on the Mic page, and lets ' +
+      'nothing drive the knobs until you turn it on.',
   },
 ];
