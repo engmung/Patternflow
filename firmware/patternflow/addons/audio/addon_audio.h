@@ -54,6 +54,18 @@ inline void fillInput(InputFrame& input) {
 
 inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
 
+// Whether audio is switched on, and whether anything is connected. Neither
+// was visible from outside the device: a browser could complete a websocket
+// handshake, send knob messages, and have every one of them silently dropped
+// because the AUD row on the NETWORK screen was off — with nothing anywhere
+// saying so. The page reported CONNECTED and the panel did not move.
+inline void appendStatus(String& json) {
+  json += ",\"audioRuntime\":";
+  json += PatternflowAudio::isRuntimeEnabled() ? "true" : "false";
+  json += ",\"audioClients\":";
+  json += PatternflowAudio::clientCount();
+}
+
 inline void setRuntimeEnabled(bool on) {
   PatternflowAudio::setRuntimeEnabled(on);
   Preferences prefs;
@@ -78,7 +90,7 @@ inline const PFAddon descriptor = {
     "AUD",         // shortName - the NETWORK screen row
     isRuntimeEnabled,
     setRuntimeEnabled,
-    nullptr,       // appendStatus
+    appendStatus,
     nullptr,       // drawOverlay
 };
 
