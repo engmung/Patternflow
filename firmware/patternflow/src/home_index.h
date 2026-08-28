@@ -242,11 +242,6 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 
   <span class="pf-kicker">Experimental</span>
   <nav>
-    <a class="pf-row" href="/audio" data-cap="audio">
-      <span class="pf-ghost">07</span>
-      <div class="pf-row-t">Audio sync<span class="tag">Early</span></div>
-      <div class="pf-row-d">Stream music from this browser &mdash; four FFT bands drive the four knobs. Rough, and due a rework.</div>
-    </a>
     <a class="pf-row" href="/weather" data-cap="weather">
       <span class="pf-ghost">08</span>
       <div class="pf-row-t">Weather<span class="tag">Early</span></div>

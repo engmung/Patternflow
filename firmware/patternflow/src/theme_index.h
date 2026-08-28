@@ -61,7 +61,7 @@ if(document.getElementById('pfChrome'))return;
 // /mqtt — linking to them anyway hands people a 404 and makes the device
 // look broken. /api/status lists what is actually loaded.
 var NAV=[['/','Console',null],['/patterns','Patterns',null],
-['/show','Sequences','shows'],['/audio','Audio','audio'],
+['/show','Sequences','shows'],
 ['/status','Status',null],['/wifi','Wi-Fi',null],
 ['/mqtt','MQTT','mqtt'],['/weather','Weather','weather'],
 ['/update','Update',null]];

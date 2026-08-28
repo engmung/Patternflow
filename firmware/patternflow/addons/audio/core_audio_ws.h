@@ -1,8 +1,17 @@
 // Patternflow - Audio-react WebSocket server (single-threaded)
 //
-// Hosts the device web console on port 80 — a landing page at "/"
-// (home_index.h) and the audio-react UI at "/audio" (audio_index.h) —
-// plus a WebSocket endpoint on port 81. (core_web_update.h registers its
+// A WebSocket endpoint on port 81, and nothing else.
+//
+// This used to serve a page at /audio too — file, tab and microphone capture
+// in the browser. It could never work: the device is plain HTTP on a LAN
+// address, which is not a secure context, so `navigator.mediaDevices` is not
+// merely blocked but absent. Microphone and tab capture were buttons that
+// could only ever apologise, and a file player is beside the point when the
+// whole value is being in sync with what is actually playing.
+//
+// Sound reaches a panel two ways now, and neither is this page: the Chrome
+// extension, which has an extension context and can capture a tab, and the
+// on-board microphone in audio_in, which does not involve a browser at all. (core_web_update.h registers its
 // /update routes on this same server.) Browsers connect, send normalized
 // 0..1 knob values per frame, and patterns read those through
 // InputFrame::knobAudioActive / knobAudioValue.
@@ -41,7 +50,6 @@
 #include <WiFi.h>
 #include "../../src/webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WebSocketsServer.h>
-#include "audio_index.h"
 #include "../../src/core_http.h"
 #endif
 
@@ -185,10 +193,6 @@ inline void onEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length)
   }
 }
 
-inline void handleAudio() {
-  PFSend::progmem(PatternflowHttp::server(), AUDIO_INDEX_HTML);
-}
-
 #endif  // PF_AUDIO_ENABLED
 
 inline bool isCompiledIn() {
@@ -270,7 +274,6 @@ inline void begin() {
   if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
 
-  PatternflowHttp::server().on("/audio", handleAudio);
   PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   wsServer.begin();
