@@ -70,6 +70,8 @@ inline void handleGet() {
     j += String(PFAudioFFT::rawPeak, 5);
     j += ",\"rawDc\":";
     j += String(PFAudioFFT::rawDc, 5);
+    j += ",\"dropped\":";
+    j += PFAudioPdm::dropped;
     j += ",\"levels\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';

@@ -66,16 +66,16 @@ inline void analysisTask(void*) {
     if (!PFAudioPdm::live) PFAudioPdm::begin();
 
     PFAudioFFT::analyze(tick++);
-    // With a microphone, the I2S read inside analyze() already blocks for the
-    // 16 ms a hop takes to exist, so it paces this loop against the audio
-    // clock. Delaying on top of that would run two clocks at once and overrun
-    // the DMA buffer on whichever side was slower.
+    // With a microphone the I2S read paces this loop, and without one nothing
+    // blocks at all, so the synthetic path keeps the old 16 ms tick.
     //
-    // Without one, nothing blocks and the loop would spin the core flat, so
-    // the synthetic path keeps the old 16 ms tick - 60 Hz, the panel's own
-    // cadence, with windows overlapping the same way.
-    if (!PFAudioPdm::available()) vTaskDelay(pdMS_TO_TICKS(16));
-    else taskYIELD();
+    // Either way this ALWAYS yields for at least a tick. It used to
+    // taskYIELD() on the microphone path, on the reasoning that the read was
+    // the clock - which stops being true the moment the DMA ring backs up and
+    // reads start returning instantly. A priority-1 task spinning on the core
+    // Wi-Fi runs on is how a panel stops answering, and a yield that cannot
+    // guarantee anything is not a floor. One tick is.
+    vTaskDelay(PFAudioPdm::available() ? 1 : pdMS_TO_TICKS(16));
   }
 }
 #endif
@@ -176,6 +176,10 @@ inline void appendStatus(String& json) {
   json += PFAudioFFT::sourceLabel();
   json += "\",\"micWindows\":";
   json += PFAudioPdm::windowsRead;
+  // Hops thrown away because the analysis fell behind. Steady zero is healthy;
+  // a number that climbs means the device has more to do than time to do it.
+  json += ",\"micDropped\":";
+  json += PFAudioPdm::dropped;
   // Peak and DC are the first things to read with a real mic in the loop:
   // the S3's PDM input is documented low-amplitude, and a spectrum computed
   // from nothing still folds into four plausible-looking band numbers.

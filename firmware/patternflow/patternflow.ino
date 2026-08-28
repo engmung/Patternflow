@@ -1088,14 +1088,36 @@ void readInputFrame(InputFrame& input) {
 // its declared range, a raw-delta pattern never looks at the flag and takes
 // the motion. Nothing needs to choose.
 //
-// "Physical wins": turning a knob this frame suppresses the lane.
+// "Physical wins", and it has to keep winning for a moment afterwards.
+//
+// This used to suppress the lane only on the frame a delta arrived. That is
+// not a release: the hand stops moving, the next frame has no delta, the lane
+// takes the knob back and PFParams::apply drives the parameter straight to
+// the mapped level again. From the front it reads as a knob pinned to a value
+// it will not leave — turn it and it springs back — and with a source that is
+// not really carrying audio, that value is whatever outMin happens to be.
+//
+// Reported from hardware as the device being locked up. It is not locked up:
+// it is doing what it was told, by a lane nobody meant to leave in charge.
+//
+// So a physical delta buys the knob HANDS_OFF_MS to itself. Timed rather than
+// permanent, because a lane is a continuous source and not a one-off command —
+// the absolute bus is the one that gets released for good, in readInputFrame.
+// A brush past an encoder must not silently stop the microphone working.
+constexpr uint32_t LANE_HANDS_OFF_MS = 5000;   // matches the brightness idle
+
 void applyLaneMotion(InputFrame& input, bool enabled) {
   static bool wasActive[4] = {false, false, false, false};
   static float prevValue[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   static float residual[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  static uint32_t handsOffUntil[4] = {0, 0, 0, 0};
 
   for (int i = 0; i < 4; i++) {
-    if (!enabled || !input.knobAudioActive[i] || input.knobDeltas[i] != 0) {
+    if (input.knobDeltas[i] != 0) handsOffUntil[i] = input.now + LANE_HANDS_OFF_MS;
+    // Signed compare so the wrap at 49 days is a non-event.
+    const bool heldByHand = (int32_t)(handsOffUntil[i] - input.now) > 0;
+
+    if (!enabled || !input.knobAudioActive[i] || heldByHand) {
       wasActive[i] = false;
       residual[i] = 0.0f;
       input.knobAudioActive[i] = false;
