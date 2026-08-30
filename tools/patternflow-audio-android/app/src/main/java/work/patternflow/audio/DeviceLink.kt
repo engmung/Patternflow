@@ -166,6 +166,12 @@ class DeviceLink(private val host: String) {
     // a slow device drops monitor frames, never the lane stream.
     @Volatile private var frameInFlight = false
 
+    /** True while a console page is actually looking - the device tells us
+     *  in every frame reply, and the service throttles monitor frames from
+     *  4 Hz down to a 2 s heartbeat when nobody is. */
+    @Volatile var monitorWanted = false
+        private set
+
     fun postFrame(payload: String) {
         if (frameInFlight) return
         frameInFlight = true
@@ -175,9 +181,11 @@ class DeviceLink(private val host: String) {
         ).enqueue(object : okhttp3.Callback {
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 frameInFlight = false
+                monitorWanted = false
             }
 
             override fun onResponse(call: okhttp3.Call, response: Response) {
+                monitorWanted = response.body?.string()?.contains("\"watch\":true") == true
                 response.close()
                 frameInFlight = false
             }

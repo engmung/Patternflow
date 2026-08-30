@@ -164,7 +164,11 @@ class CaptureService : Service() {
                 val lanes = analyzer.analyze(mono)
                 System.arraycopy(analyzer.levels, 0, uiLevels, 0, 4)
                 val l = link
-                if (l != null && now - lastFrameSent > 250) {
+                // Demand-driven monitoring: 4 Hz while a console page is
+                // watching, a 2 s heartbeat otherwise (which is also how we
+                // find out a page just opened).
+                val frameGap = if (l != null && l.monitorWanted) 250 else 2000
+                if (l != null && now - lastFrameSent > frameGap) {
                     lastFrameSent = now
                     l.postFrame(buildFrame())
                 }

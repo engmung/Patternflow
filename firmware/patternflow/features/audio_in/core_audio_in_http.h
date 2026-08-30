@@ -59,7 +59,18 @@ inline float extSpec[64] = {0};
 inline uint32_t extMs = 0;
 
 inline bool extFresh() {
-  return extMs != 0 && (millis() - extMs) < 1500 && !PFAudioInMap::micOn;
+  return extMs != 0 && (millis() - extMs) < 3000 && !PFAudioInMap::micOn;
+}
+
+// When did a console page last poll? That timestamp IS the monitor demand:
+// the frame POST's reply tells the phone whether anyone is watching, and the
+// phone throttles itself from a 4 Hz monitor to a 2 s heartbeat when the
+// answer is no - full detail while tuning, near-zero load while filming,
+// no switch anywhere.
+inline uint32_t pagePollMs = 0;
+
+inline bool pageWatching() {
+  return pagePollMs != 0 && (millis() - pagePollMs) < 2500;
 }
 
 // "l0,l1,l2,l3;lo0,hi0,..lo3,hi3;s0,..,s63" - 4+8+64 floats, three groups.
@@ -104,6 +115,7 @@ inline void handleGet() {
   const bool levelsOnly = server().hasArg("levels");
 
   if (levelsOnly) {
+    pagePollMs = millis();
     const bool ext = extFresh();
     String j = "{\"source\":\"";
     j += ext ? "phone" : PFAudioFFT::sourceLabel();
@@ -334,10 +346,13 @@ inline void applyBandArgs(int b, const String& suffix) {
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
   // Monitor frames are state, not settings: no NVS save, no other fields.
+  // The reply carries the demand signal - see pageWatching().
   if (server().hasArg("frame")) {
     parseFrame(server().arg("frame"));
     server().sendHeader("Cache-Control", "no-store");
-    server().send(200, "application/json", "{\"ok\":true}");
+    server().send(200, "application/json",
+                  pageWatching() ? "{\"ok\":true,\"watch\":true}"
+                                 : "{\"ok\":true,\"watch\":false}");
     return;
   }
   if (server().hasArg("mic")) {
