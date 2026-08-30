@@ -1,8 +1,9 @@
 # Patternflow Audio Chrome Extension
 
 Captures audio from the currently active Chrome/Edge tab, shows a live
-spectrum, maps editable frequency bands to Patternflow knobs, and sends
-normalized knob deltas over WebSocket.
+spectrum, maps editable frequency bands to Patternflow knobs, and streams
+the four knob lanes over WebSocket. The wire protocol is a written contract:
+[`docs/audio-ws-spec.md`](../../docs/audio-ws-spec.md).
 
 The extension uses the same Patternflow mark as the web app for its toolbar
 icon and popup header.

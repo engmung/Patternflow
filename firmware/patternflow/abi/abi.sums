@@ -1,0 +1,7 @@
+# sha256 of each LF-normalized header in abi/. Verified in CI by
+# check_abi_freeze.py; regenerate with --update ONLY alongside a
+# deliberate, append-only ABI change. The file exists so no change
+# to the one contract installed modules read can be an accident.
+2fdca28c596418529252f340133343c708a9a8aa11078435f5c733cbc922ec1b  pf_abi.h
+b6788eb470841b19738ce3bf2f81281903dd9839b9a87078133b0ec42460c481  pf_module.h
+5456ff3504023a7f126f57d0712085e7d6facb85f5f576e2e8fc447dec8b0b4a  pf_params.h

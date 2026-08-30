@@ -13,7 +13,7 @@ Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. 
 | | |
 |---|---|
 | Base URL | `http://patternflow.local/` — mDNS, hostname from `PF_OTA_HOSTNAME`. The raw IP works too and is the fallback on clients with poor mDNS (Android). |
-| Port | **80** for everything documented here. One server carries the console, the API and `/update`. A build with the audio feature adds a WebSocket on **81** (`PF_AUDIO_WS_PORT`) for the Chrome extension, which is not part of this contract. |
+| Port | **80** for everything documented here. One server carries the console, the API and `/update`. A build with the audio feature adds a WebSocket on **81** (`PF_AUDIO_WS_PORT`) for streaming audio clients — its wire protocol is [`audio-ws-spec.md`](audio-ws-spec.md). |
 | Advertised over mDNS | `_http._tcp` on port 80 (`core_web_update.h`, whenever `PF_WEBUPDATE_ENABLED`) and `_arduino._tcp` (ArduinoOTA, whenever `PF_OTA_ENABLED`). The first carries no TXT records at all and the second only ArduinoOTA's own (board type, auth flags) — nothing Patternflow-specific either way. A discovering client must probe `GET /api/status` to confirm what it found. |
 | Concurrency | **One connection.** See [Rules that will bite you](#rules-that-will-bite-you). |
 | Authentication | **None.** No token, no password, no session. Anyone on the LAN can call anything here, including `POST /update`. This is a deliberate trust model, the same one ArduinoOTA's empty-password default has; `PF_WEBUPDATE_ALWAYS_ARMED 0` is the one lever that narrows it. |
@@ -51,6 +51,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "sleep": false,
   "knobs": [12, 0, -3, 40], "params": [500, 500, 750, 500],
   "paramActive": [false, false, true, false],
+  "lanes": [0.0, 0.0, 0.0, 0.0], "laneActive": [false, false, false, false],
   "consolePaused": false,
   "frameUs": 16400, "presentUs": 3100, "loopCore": 1,
   "colorBits": 6, "refreshHz": 121,
@@ -72,6 +73,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `knobs` | The four encoders' absolute accumulated click counts — the same numbers the running pattern sees. Signed, unbounded, and meaningful only as a difference: there is no scale and no zero. |
 | `params` | The absolute parameter bus, 0..1000 per lane. What `POST /api/params`, OSC and MQTT all write to. |
 | `paramActive` | Per lane: is a remote writer currently holding it? Goes `false` a beat after somebody turns that encoder, because a hand in the room outranks the network. |
+| `lanes` / `laneActive` | The continuous 0..1 lane per knob and whether something is driving it — the audio WebSocket, the on-board microphone, weather. Sits between the absolute bus and the encoders in priority; see [`audio-ws-spec.md`](audio-ws-spec.md) for the semantics. |
 | `consolePaused` | A pattern-install batch is in progress and the module is evicted. Not an error. (Console pages stopped pausing the pattern in 3.6.3 — the name is older than that.) |
 | `frameUs` / `presentUs` | Smoothed frame time and the part of it spent pushing pixels. `1e6 / frameUs` is the honest fps. |
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
@@ -79,6 +81,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `variant` | Which firmware this is: `"core"`, or a variant's own name. What the site's variant list matches, and what stops the update banner offering a core build on top of someone's chosen firmware. |
 | `caps` | What this build can do. **Probe this rather than assuming a feature exists.** The default build reports `["patterns","params","sleep"]` and nothing else; each [edition](EDITIONS.md) adds its own — Audio adds `osc` and `audio`, Performance adds `weather`, `mqtt` and `shows`. `patterns` and `params` are on every build. |
 | `mqttRole` | `"off"`, `"publisher"` or `"subscriber"`. Decides whether the device obeys knob and pattern topics — see [Knobs](#knobs-and-parameters). |
+| `featureNav` | `[path, label, one-line description]` per console page the loaded features serve, e.g. `[["/audio-in","Mic","The panel hears the room…"]]`. What the console header and home screen build their feature links from; empty on the default build. |
 
 ### `POST /api/params`
 
@@ -298,6 +301,22 @@ The mapping lives in `web/src/lib/patternflowControls.ts` as `LOGICAL_KNOB_TO_WE
 
 Scale constants live in the same file and are the contract for anything converting between a parameter value and encoder detents: `ENCODER_CLICKS_PER_TURN = 24`, `TURNS_PER_FULL_RANGE = 2` — so 48 detents cross a parameter's entire declared range, whatever that range is.
 
+## Microphone (Audio edition)
+
+Gated on `"audio-in"` in `caps`; the page is `/audio-in`. Settings persist in
+NVS. The live shaping UI polls the same endpoints documented here — there is
+nothing it can do that a script cannot.
+
+| Endpoint | Meaning |
+|---|---|
+| `GET /api/audio-in` | Full state: `micOn`, `source` (`"off"`, `"pdm"`, `"pdm (no mic - data pin idle)"`, `"synth"`), raw `rawPeak`/`rawDc`, per-band config (`hzMin`/`hzMax`/`inMin`/`inMax`/`gain`/`outMin`/`outMax`/`knob`/`muted`), `hzRange`, and a 40-bucket log `spec`. |
+| `GET /api/audio-in?levels=1` | The polling shape: `levels`, `outputs`, `spectrum`, `dropped` and nothing configurable — the page owns the config after reading it once. |
+| `POST /api/audio-in` | `mic=0/1` switches the whole feature (installs/releases the I2S driver). `band=N` plus any subset of the band fields updates one band; partial updates are the point, so a dragged handle cannot clobber the other three. |
+| `POST /api/audio-in/reset` | Back to the measured defaults. |
+
+`micDropped` in `/api/status`'s `audioIn` block counts capture hops discarded
+because analysis fell behind; flat is healthy, climbing means overload.
+
 ## Wi-Fi
 
 Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWORKS` are remembered and tried in order.
@@ -376,9 +395,10 @@ In short: HTTP is the management and state transport, OSC is the low-latency per
 - Parameters are query-string or form-encoded. There is no JSON request body anywhere, and adding one would need a body parser the firmware does not have.
 - Errors are `{"ok":false,"error":"<lowercase sentence>"}` with a `4xx`/`5xx` status. Success bodies vary; the ones that report a mutation start with `"ok":true`.
 - A handler must never touch FATFS, the ELF loader, the DMA engine or the CPU clock. Queue the work and let `loop()` do it; the reply then reports the pre-transition state, which callers already expect.
-- New endpoints are gated by a `PF_*_ENABLED` flag and must leave the sketch compiling when set to `0`.
+- A feature's endpoints exist only when that feature is composed in — the route itself is absent otherwise, so clients probe `caps` rather than expecting a soft 404. Core endpoints are gated by a core `PF_*_ENABLED` flag and must leave the sketch compiling at `0`.
 - Nothing here may stream per-frame pixel data. That has been tried.
 
 ## Version history
 
+- **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.
 - **1.0** — first written contract for the HTTP API. Covers status, sleep, display calibration, patterns (list / select / sidecar / install / delete), the MQTT status and configuration endpoints, Wi-Fi, and firmware update; documents the single-connection rule, the console-pause rule, the queued-write rule, and the knob read/write asymmetry.

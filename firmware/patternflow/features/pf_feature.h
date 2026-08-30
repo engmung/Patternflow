@@ -48,6 +48,19 @@ struct PFFeatureFrame {
   int appMode;
 };
 
+// ── Widening this struct ────────────────────────────────────────────────
+//
+// New hooks and fields go AT THE TAIL, never inserted or reordered. Every
+// descriptor is a positional aggregate initializer, and adjacent fields of
+// the same type (the nav triple, the three runtime-toggle entries) reorder
+// without a compiler diagnostic - the build stays green and every feature
+// quietly wires the wrong function to the wrong hook. Out-of-tree features
+// recompile against the checkout they are copied onto, so a tail-append is
+// always safe for them: their shorter initializer list value-initializes the
+// new tail to null, which every dispatch site treats as "not implemented".
+//
+// After widening, `./firmware/bundles/build.sh all` is the test - a hook
+// change that compiles against one composition is not tested.
 struct PFFeature {
   // Identity. `cap` is the string this feature contributes to /api/status
   // caps (null = contributes nothing) — what the site and the lab probe
