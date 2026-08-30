@@ -99,7 +99,12 @@ if [ -n "$BUNDLE" ] && [ "$BUNDLE" != "flash" ]; then
   cp "$DIR"/*.h "$FEATURES/"
   # Whatever happens next, the tree goes back to the default. Leaving a
   # bundle's files behind would make the following build silently wrong.
-  trap 'rm -f "$FEATURES/features_local.h" "$FEATURES/overrides.h"' EXIT
+  # Both spellings: a legacy bundle carries addons_local.h, features.h
+  # accepts it, and a trap that only knows the new name leaves it behind -
+  # which turns every later "default" build into that bundle, silently.
+  # That happened once, and the leftover reached a commit before the next
+  # marker scan would have caught it.
+  trap 'rm -f "$FEATURES/features_local.h" "$FEATURES/addons_local.h" "$FEATURES/overrides.h"' EXIT
   shift
 else
   echo "bundle:  (default — no features)"
