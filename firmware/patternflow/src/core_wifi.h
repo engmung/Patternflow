@@ -53,6 +53,14 @@ inline uint32_t lastBeginMs = 0;
 // panel — latching keeps the label steady until the state truly changes.
 inline wl_status_t latchedFailure = WL_IDLE_STATUS;
 
+// Both owned by core_wifi_portal.h. retrySuppressed stops the retry walk
+// while the setup AP is serving a board whose only credentials are the
+// placeholder — re-begin()ing a name that cannot exist just stutters the AP.
+// portalOpen turns statusText()/ipString() into setup instructions so the
+// NETWORK screen tells whoever is standing at the panel where to connect.
+inline bool retrySuppressed = false;
+inline bool portalOpen = false;
+
 // Active credentials in use. Loaded from NVS (where Improv-Serial provisioning
 // writes them, see core_improv.h) when present, otherwise the compile-time
 // placeholders from net_config.h. Held in String so they outlive begin().
@@ -315,6 +323,7 @@ inline void applyCredentials(const String& ssid, const String& pass) {
   connectedNow = false;
   justConnectedEdge = false;
   latchedFailure = WL_IDLE_STATUS;  // stale failure was for the old creds
+  retrySuppressed = false;          // real creds now exist; the walk matters again
   WiFi.disconnect();
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
   lastBeginMs = millis();
@@ -351,6 +360,8 @@ inline void tick() {
     Serial.println("[WiFi] connection lost; retrying...");
     lastBeginMs = 0;  // retry promptly on a fresh drop
   }
+
+  if (retrySuppressed) return;
 
   uint32_t now = millis();
   if (now - lastBeginMs >= RETRY_INTERVAL_MS) {
@@ -400,6 +411,7 @@ inline const char* statusText() {
     latchedFailure = WL_IDLE_STATUS;
     return "CONNECTED";
   }
+  if (portalOpen) return "SETUP AP";
   if (s == WL_NO_SSID_AVAIL || s == WL_CONNECT_FAILED) latchedFailure = s;
   switch (latchedFailure) {
     case WL_NO_SSID_AVAIL:  return "NO SSID";
@@ -412,6 +424,7 @@ inline const char* statusText() {
 // UTF-8 char (like an em dash) as its own garbage glyph.
 inline String ipString() {
   if (WiFi.status() == WL_CONNECTED) return WiFi.localIP().toString();
+  if (portalOpen) return WiFi.softAPIP().toString();
   return String("-");
 }
 

@@ -184,9 +184,15 @@ inline void handleIndex() {
   PFSend::progmem(server(), WIFI_INDEX_HTML);
 }
 
-inline void begin() {
-  if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+// Routes split out from begin(): the setup portal (core_wifi_portal.h)
+// serves this page on a device that never reaches the connected state
+// begin() waits for, so it registers the routes directly. Guarded — begin()
+// runs later on the connect edge and must not stack duplicate handlers.
+inline bool routesRegistered = false;
+
+inline void registerRoutes() {
+  if (routesRegistered) return;
+  routesRegistered = true;
 
   server().on("/wifi", HTTP_GET, handleIndex);
   server().on("/api/wifi", HTTP_GET, handleList);
@@ -194,7 +200,13 @@ inline void begin() {
   server().on("/api/wifi", HTTP_DELETE, handleDelete);
   server().on("/api/wifi/boot", HTTP_POST, handleBoot);
   server().on("/api/wifi/reboot", HTTP_POST, handleReboot);
+}
 
+inline void begin() {
+  if (initialized) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+
+  registerRoutes();
   PatternflowHttp::begin();  // idempotent; whoever is first starts it
 
   initialized = true;
