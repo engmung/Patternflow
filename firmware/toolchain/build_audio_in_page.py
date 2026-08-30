@@ -52,6 +52,11 @@ DEVICE_BAR = '''
       <span class="toggle"><span class="dotK"></span></span>
       <span class="toggleLabel">Microphone</span>
     </button>
+    <button id="monToggle" class="toggleWrap on" type="button"
+            title="Off = this page stops asking for live data; the knobs keep running, the phone stops streaming its monitor">
+      <span class="toggle"><span class="dotK"></span></span>
+      <span class="toggleLabel">Monitor</span>
+    </button>
     <div class="damping">
       <span class="fieldLabel">Input gain</span>
       <input id="micGain" type="range" min="1" max="16" step="0.5">
@@ -126,9 +131,14 @@ ADAPTER = r'''
   var polling = false;
   var micOn = false;
   var phoneLive = false;
+  // The Monitor toggle: on = live view, 10 Hz. Off = the page trickles a
+  // status poll every 2 s marked idle=1, which the device does NOT count as
+  // an audience - so the phone app throttles its monitor frames too. The
+  // knobs never stop either way; only the watching does.
+  var monitorOn = true;
 
   function poll() {
-    fetch('/api/audio-in?levels=1').then(function (r) { return r.json(); }).then(function (j) {
+    fetch('/api/audio-in?levels=1' + (monitorOn ? '' : '&idle=1')).then(function (r) { return r.json(); }).then(function (j) {
       // ext frames come from the phone app, already on the editor's own
       // normalized scale - converting them again would wreck them. The
       // device's mic values are linear and get the dB treatment.
@@ -152,7 +162,7 @@ ADAPTER = r'''
     }).finally(function () {
       // Chained, never setInterval: the device serves one connection at a
       // time, and a timer would stack requests behind a slow one.
-      if (polling) setTimeout(poll, 100);
+      if (polling) setTimeout(poll, monitorOn ? 100 : 2000);
     });
   }
 
@@ -229,7 +239,8 @@ ADAPTER = r'''
     if (t) t.classList.toggle('on', micOn);
     var note = document.getElementById('deviceNote');
     if (note) {
-      note.textContent = micOn ? ''
+      note.textContent = !monitorOn ? 'monitor paused — the knobs keep running'
+        : micOn ? ''
         : phoneLive ? 'showing the phone app’s audio'
         : 'microphone is off — the panel is not listening';
     }
@@ -240,6 +251,11 @@ ADAPTER = r'''
       micOn = !micOn;
       syncBar();
       post('mic=' + (micOn ? 1 : 0));
+    });
+    document.getElementById('monToggle').addEventListener('click', function () {
+      monitorOn = !monitorOn;
+      document.getElementById('monToggle').classList.toggle('on', monitorOn);
+      syncBar();
     });
     var gainTimer = null;
     document.getElementById('micGain').addEventListener('input', function () {

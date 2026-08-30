@@ -115,7 +115,10 @@ inline void handleGet() {
   const bool levelsOnly = server().hasArg("levels");
 
   if (levelsOnly) {
-    pagePollMs = millis();
+    // idle=1 marks the page's own low-power mode (its Monitor toggle off):
+    // it still wants a status trickle, but must not count as an audience -
+    // the phone reads that demand and throttles its frames accordingly.
+    if (!server().hasArg("idle")) pagePollMs = millis();
     const bool ext = extFresh();
     String j = "{\"source\":\"";
     j += ext ? "phone" : PFAudioFFT::sourceLabel();
