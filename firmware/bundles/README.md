@@ -17,13 +17,21 @@ bundles/audio/
   overrides.h       what it calls itself, and any setting it changes
 ```
 
-That is the whole of it. The default build — what ships on the board — needs
-no bundle at all, because it is simply everything.
+That is the whole of it. The default build needs no bundle at all — and it
+is the opposite of everything: the device and nothing else. Every feature
+lives in an edition built from these two files.
 
 ```bash
-./firmware/bundles/build.sh          # the default: everything
+./firmware/bundles/build.sh          # the default: no features
 ./firmware/bundles/build.sh audio    # the audio bundle
 ./firmware/bundles/build.sh audio flash patternflow.local
+./firmware/bundles/build.sh all      # every composition + the marker scan
+                                     # proving each binary carries exactly
+                                     # its features
+./firmware/bundles/shelf.sh audio v0.4.0   # a publishable image: secrets
+                                     # moved aside, scanner proven against a
+                                     # control build, four files staged for
+                                     # the shelf
 ```
 
 ## When a bundle is worth making

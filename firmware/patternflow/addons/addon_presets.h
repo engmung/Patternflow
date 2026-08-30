@@ -15,20 +15,33 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-// A variant may define PF_ADDON_PRESETS in its overrides.h — including as
-// nothing at all — and the defaults below then do not apply. Without that
-// escape a build with no show player still carried the show player's
-// pattern, which is exactly the kind of thing nobody can explain later.
+// The default is EMPTY. It used to be the other way round: this file
+// included the show player's Black pattern unless a composition opted out,
+// so the bare core - a build with no show player at all - carried one
+// feature's pattern, and the audio edition needed an empty define to be rid
+// of it. This file's own comment called that "exactly the kind of thing
+// nobody can explain later" and then recreated it as the default.
+//
+// Now a composition that carries a preset says so in overrides.h, twice:
+//
+//   #define PF_ADDON_PRESET_INCLUDE "show/preset_black.h"
+//   #define PF_ADDON_PRESETS PATTERN_ENTRY_HIDDEN(Black),
+//
+// The include is taken HERE, not in addons_local.h, and the placement is
+// load-bearing: pattern_registry.h reaches this file immediately before it
+// expands PF_ADDON_PRESETS, and the registry's first parse happens wherever
+// some core header pulls it in - which is before the composition's own
+// includes run. An include anywhere else declares the namespace after the
+// one expansion that needed it (that build failure is how this comment got
+// written). One include; a composition with several presets points this at
+// a wrapper header of its own.
+//
+// Entries expand inside presetPatterns[] in pattern_registry.h; keep the
+// trailing comma on every entry.
+#ifdef PF_ADDON_PRESET_INCLUDE
+#include PF_ADDON_PRESET_INCLUDE
+#endif
+
 #ifndef PF_ADDON_PRESETS
-
-#include "show/preset_black.h"
-
-// Expanded inside presetPatterns[] in pattern_registry.h. Keep the trailing
-// comma on every entry; an empty definition is fine.
-// Black is hidden: the scheduler switches to it by name, and it is the
-// panel going dark rather than something anyone wants to land on while
-// turning K4 through the pattern list.
-#define PF_ADDON_PRESETS \
-  PATTERN_ENTRY_HIDDEN(Black),
-
+#define PF_ADDON_PRESETS
 #endif
