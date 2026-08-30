@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // Patternflow Audio — what this firmware is, in one file.
 //
-// The core's addons/addons.h includes this if it is present and steps aside
+// The core's features/features.h includes this if it is present and steps aside
 // if it is not. Nothing in the core tree is edited, which is why build.sh is
 // three lines of `cp` and taking a core update is `cd core && git checkout
 // <newer tag>`.
@@ -29,11 +29,11 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "osc/addon_osc.h"
-#include "audio/addon_audio.h"
-#include "audio_in/addon_audio_in.h"
+#include "osc/feature_osc.h"
+#include "audio/feature_audio.h"
+#include "audio_in/feature_audio_in.h"
 
-#define PF_ADDON_LIST              \
-  &PFAddonOsc::descriptor,         \
-      &PFAddonAudio::descriptor,   \
-      &PFAddonAudioIn::descriptor
+#define PF_FEATURE_LIST              \
+  &PFFeatureOsc::descriptor,         \
+      &PFFeatureAudio::descriptor,   \
+      &PFFeatureAudioIn::descriptor

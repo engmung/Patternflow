@@ -51,7 +51,7 @@ inline bool ready = false;
 inline float bands[4] = {0, 0, 0, 0};
 constexpr float SMOOTH = 0.7f;
 
-// Cost, reported through the addon's status hook. The point of the exercise.
+// Cost, reported through the feature's status hook. The point of the exercise.
 // Raw signal, before any transform touches it. This is the first thing to
 // look at with a real microphone: the S3's PDM input has a documented
 // low-amplitude problem (esp-idf#8660), and a spectrum computed from
@@ -238,7 +238,7 @@ inline void spectrum(float* out) {
 }
 
 // One window, timed. Whoever calls this decides which core pays for it —
-// and that turns out to be the whole design question, so the addon runs it
+// and that turns out to be the whole design question, so the feature runs it
 // both ways and the numbers say which is right.
 inline void analyze(uint32_t tick) {
   if (!ready) return;

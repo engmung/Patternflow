@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - MQTT, as an addon
+// PatternFlow - MQTT, as a feature
 //
 // The third port, and the one that finished the hook set. Sequences needed
 // six hooks, weather added two, and MQTT added three more:
@@ -7,7 +7,7 @@
 //   observeFrame  - it mirrors the FINISHED input frame outward (knob values
 //                   as they move, the pattern name when it changes). That is
 //                   the opposite end of the frame from fillInput, and no
-//                   earlier addon had wanted to look rather than write.
+//                   earlier feature had wanted to look rather than write.
 //   onSleep       - the panel slept or woke, and anything publishing device
 //                   state has to say so.
 //   requestSleep  - a broker message can ask the device to sleep. Like
@@ -19,16 +19,16 @@
 #pragma once
 
 #include <Preferences.h>
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "core_mqtt.h"
 #include "core_mqtt_http.h"
 
-namespace PFAddonMqtt {
+namespace PFFeatureMqtt {
 
 // Restore the saved channel first (it constrains the role), then the role.
 // Defaults stay Off, so a device that has never been told otherwise never
 // dials a broker. This used to sit in the sketch's setup(), reading the
-// sketch's Preferences handle; an addon owns its own.
+// sketch's Preferences handle; a feature owns its own.
 inline void setup() {
   PatternflowMqtt::loadConfig();
   Preferences prefs;
@@ -52,7 +52,7 @@ inline void onNetwork() {
   PatternflowMqtt::begin();
 }
 
-inline void loop(const PFAddonFrame&) {
+inline void loop(const PFFeatureFrame&) {
   PatternflowMqtt::handle();
 }
 
@@ -65,7 +65,7 @@ inline void fillInput(InputFrame& input) {
 
 // The finished frame, mirrored outward. notePattern dedupes, so this does
 // not republish every frame.
-inline void observeFrame(const InputFrame& input, const PFAddonFrame& frame) {
+inline void observeFrame(const InputFrame& input, const PFFeatureFrame& frame) {
   const char* patternName = frame.patternName;
   PatternflowMqtt::update(input, patternName);
   PatternflowMqtt::notePattern(patternName);
@@ -97,7 +97,7 @@ inline bool takePattern(int* idx) {
   return PatternflowMqtt::consumePatternIdx(*idx);
 }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "mqtt",
     "mqtt",
     setup,
@@ -120,4 +120,4 @@ inline const PFAddon descriptor = {
     "Mirror one panel onto another, or hand the knobs to home automation.",
 };
 
-}  // namespace PFAddonMqtt
+}  // namespace PFFeatureMqtt

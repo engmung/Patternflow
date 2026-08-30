@@ -21,8 +21,8 @@
 // (Wi-Fi placeholders, OTA on).
 //
 // These settings TUNE a feature; they do not decide whether it is in the
-// build. PF_OSC_ENABLED sits inside addons/osc/, so it is only read when the
-// composition names the OSC descriptor — see addons/addons.h and
+// build. PF_OSC_ENABLED sits inside features/osc/, so it is only read when the
+// composition names the OSC descriptor — see features/features.h and
 // docs/EDITIONS.md. A build with no features reads none of them.
 #if __has_include("patternflow_secrets.h")
 #include "patternflow_secrets.h"
@@ -215,7 +215,7 @@
 // How many knob clicks a full 0..1 swing on an absolute lane maps to. Higher
 // = stronger response. No per-frame clamp, so the value tracks without lag.
 //
-// Not audio's, despite where it sits: the weather addon drives the same lanes
+// Not audio's, despite where it sits: the weather feature drives the same lanes
 // and takes the same scale. The old name is kept below because a firmware
 // built elsewhere may already set it in its overrides.h, and a rename that
 // silently ignores somebody's setting is worse than an untidy header.

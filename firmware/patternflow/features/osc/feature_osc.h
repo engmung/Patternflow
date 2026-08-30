@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - OSC, as an addon
+// PatternFlow - OSC, as a feature
 //
-// The fifth port onto the addon seam, and the first one that did not fit.
+// The fifth port onto the feature seam, and the first one that did not fit.
 //
 // OSC was left in the core by the RFC's first draft, on the grounds that it
 // needs no infrastructure — no broker, no computer beyond the one already
@@ -24,7 +24,7 @@
 // released wire specification that hosts are built against — the index
 // cannot be quietly swapped for the name.
 //
-// So `PFAddonFrame` gained `patternIndex` and `appMode`, and `observeFrame`
+// So `PFFeatureFrame` gained `patternIndex` and `appMode`, and `observeFrame`
 // now takes the frame instead of a bare name. That is the first genuine gap
 // the hook set has shown, and it was found the only way such things are
 // found: by porting a feature that had not been considered when the hooks
@@ -37,10 +37,10 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "core_osc.h"
 
-namespace PFAddonOsc {
+namespace PFFeatureOsc {
 
 // The device's NETWORK screen row and the NVS key behind it. OSC has always
 // been switchable there; moving the feature must not move the switch.
@@ -67,14 +67,14 @@ inline void fillInput(InputFrame& input) {
 
 // Outward: knob turns, buttons, pattern and mode changes, heartbeat. Runs on
 // the finished frame, so what the host hears is exactly what the pattern saw.
-inline void observeFrame(const InputFrame& input, const PFAddonFrame& frame) {
+inline void observeFrame(const InputFrame& input, const PFFeatureFrame& frame) {
   PatternflowOsc::update(input, frame.patternName, frame.patternIndex,
                          0,  // content mode: removed years ago, still on the wire as 0
                          frame.appMode);
 }
 
 // Inward: /patternflow/pattern/index. Loading a module is the sketch's job,
-// so the addon asks and the sketch performs.
+// so the feature asks and the sketch performs.
 inline bool takePattern(int* idx) {
   return PatternflowOsc::consumePatternIdx(*idx);
 }
@@ -82,7 +82,7 @@ inline bool takePattern(int* idx) {
 inline bool isRuntimeEnabled() { return PatternflowOsc::isRuntimeEnabled(); }
 inline void setRuntimeEnabled(bool on) { PatternflowOsc::setRuntimeEnabled(on); }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "osc",
     "osc",         // cap - the site and the lab probe for this
     setup,
@@ -105,4 +105,4 @@ inline const PFAddon descriptor = {
     nullptr,       // navDesc
 };
 
-}  // namespace PFAddonOsc
+}  // namespace PFFeatureOsc

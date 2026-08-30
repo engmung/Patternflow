@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - presets contributed by addons
+// PatternFlow - presets contributed by features
 //
-// Most addons need no pattern of their own. Some do: the show scheduler's
+// Most features need no pattern of their own. Some do: the show scheduler's
 // night face is a pattern, because "what is on the panel" is how the rest
 // of the firmware talks about that state.
 //
-// Same rule as addons.h — a variant adds a line here and nothing else in
+// Same rule as features.h — a variant adds a line here and nothing else in
 // the tree changes. An empty list is valid and is what the bare core has.
 //
 // The registry includes this file; nothing in src/ does. A preset listed
@@ -24,12 +24,12 @@
 //
 // Now a composition that carries a preset says so in overrides.h, twice:
 //
-//   #define PF_ADDON_PRESET_INCLUDE "show/preset_black.h"
-//   #define PF_ADDON_PRESETS PATTERN_ENTRY_HIDDEN(Black),
+//   #define PF_FEATURE_PRESET_INCLUDE "show/preset_black.h"
+//   #define PF_FEATURE_PRESETS PATTERN_ENTRY_HIDDEN(Black),
 //
-// The include is taken HERE, not in addons_local.h, and the placement is
+// The include is taken HERE, not in features_local.h, and the placement is
 // load-bearing: pattern_registry.h reaches this file immediately before it
-// expands PF_ADDON_PRESETS, and the registry's first parse happens wherever
+// expands PF_FEATURE_PRESETS, and the registry's first parse happens wherever
 // some core header pulls it in - which is before the composition's own
 // includes run. An include anywhere else declares the namespace after the
 // one expansion that needed it (that build failure is how this comment got
@@ -38,10 +38,18 @@
 //
 // Entries expand inside presetPatterns[] in pattern_registry.h; keep the
 // trailing comma on every entry.
-#ifdef PF_ADDON_PRESET_INCLUDE
-#include PF_ADDON_PRESET_INCLUDE
+// Legacy macro names (pre-rename), mapped before they are read.
+#if defined(PF_ADDON_PRESET_INCLUDE) && !defined(PF_FEATURE_PRESET_INCLUDE)
+#define PF_FEATURE_PRESET_INCLUDE PF_ADDON_PRESET_INCLUDE
+#endif
+#if defined(PF_ADDON_PRESETS) && !defined(PF_FEATURE_PRESETS)
+#define PF_FEATURE_PRESETS PF_ADDON_PRESETS
 #endif
 
-#ifndef PF_ADDON_PRESETS
-#define PF_ADDON_PRESETS
+#ifdef PF_FEATURE_PRESET_INCLUDE
+#include PF_FEATURE_PRESET_INCLUDE
+#endif
+
+#ifndef PF_FEATURE_PRESETS
+#define PF_FEATURE_PRESETS
 #endif

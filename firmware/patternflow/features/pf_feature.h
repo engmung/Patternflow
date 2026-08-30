@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - the addon interface
+// PatternFlow - the feature interface
 //
 // How a feature attaches to the core without the core knowing it exists.
 //
@@ -10,11 +10,11 @@
 // "somebody touched a knob") and whoever cares listens.
 //
 // A variant therefore never edits a core file. It adds its own directory
-// under addons/ and one line to addons/addons.h, so its whole diff against
+// under features/ and one line to features/features.h, so its whole diff against
 // the core is additions and `git merge upstream` stays clean.
 //
 // Every hook is optional: leave a field null and that moment passes the
-// addon by.
+// feature by.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -23,10 +23,10 @@
 #include <Arduino.h>
 #include "../src/core_encoders.h"  // InputFrame
 
-// What an addon can see about the frame being drawn. Passed to the hooks
-// that run inside the render loop, so an addon never has to reach into the
+// What a feature can see about the frame being drawn. Passed to the hooks
+// that run inside the render loop, so a feature never has to reach into the
 // sketch's globals for it.
-struct PFAddonFrame {
+struct PFFeatureFrame {
   float dt;                  // seconds since the previous frame
   const char* patternName;   // display name of the running pattern, may be null
   bool running;              // false while a menu/overlay owns the panel
@@ -37,19 +37,19 @@ struct PFAddonFrame {
   // this out for itself.
   bool chromeVisible;
   // Registry index of the running pattern, or -1. Names are what an
-  // addon usually wants, but a published wire protocol can be pinned to
+  // feature usually wants, but a published wire protocol can be pinned to
   // the index — OSC's /patternflow/pattern/index is, and hosts are built
   // against it, so the index cannot be swapped for the name after the
   // fact.
   int patternIndex;
   // The sketch's own mode enum, as an int. `running` is the same fact
-  // reduced to a bool and is what most addons should use; this is for
+  // reduced to a bool and is what most features should use; this is for
   // the one case that has to report the raw value outward.
   int appMode;
 };
 
-struct PFAddon {
-  // Identity. `cap` is the string this addon contributes to /api/status
+struct PFFeature {
+  // Identity. `cap` is the string this feature contributes to /api/status
   // caps (null = contributes nothing) — what the site and the lab probe
   // instead of assuming a feature exists.
   const char* name;
@@ -65,16 +65,16 @@ struct PFAddon {
 
   // Every frame. MUST NOT block: no delay(), no long loops, no waiting on
   // a socket. The panel is not being drawn while this runs.
-  void (*loop)(const PFAddonFrame&);
+  void (*loop)(const PFFeatureFrame&);
 
   // The finished input frame, after every source has been merged and the
-  // absolute bus applied — what the pattern is about to see. For addons
+  // absolute bus applied — what the pattern is about to see. For features
   // that mirror or publish state rather than produce it. Read-only by
   // convention: writing here is what fillInput is for.
-  // Takes the addon frame rather than a bare name: the fifth port (OSC)
+  // Takes the feature frame rather than a bare name: the fifth port (OSC)
   // needed two more facts about the same moment, and widening the struct
   // once beats adding a parameter every time that happens.
-  void (*observeFrame)(const InputFrame&, const PFAddonFrame&);
+  void (*observeFrame)(const InputFrame&, const PFFeatureFrame&);
 
   // Contribute to the input frame before the pattern sees it — drive a
   // knob lane from a sensor, a reading, a stream. Runs before the
@@ -85,14 +85,14 @@ struct PFAddon {
   // the device is attended; anything with an idle timer wants it.
   void (*onUserInput)();
 
-  // "I am driving the pattern right now." While any addon says true, the
+  // "I am driving the pattern right now." While any feature says true, the
   // sketch ignores pattern-change requests from OSC, MQTT and HTTP — a
   // running show must not have the pattern yanked out from under it.
   bool (*claimsPattern)();
 
   // "Switch to this pattern index, please." Return true and set idx to
   // request it; the sketch performs the switch, because loading a module
-  // is its job and not an addon's.
+  // is its job and not a feature's.
   bool (*takePattern)(int* idx);
 
   // The panel went to sleep, or woke. Anything mirroring device state
@@ -102,10 +102,10 @@ struct PFAddon {
   // "Put the device to sleep / wake it, please." Return true and set
   // `sleeping` to request it. Like takePattern this is a request: the
   // sketch owns stopping DMA and reclocking the CPU, which is not
-  // something to do from inside an addon's loop.
+  // something to do from inside a feature's loop.
   bool (*requestSleep)(bool* sleeping);
 
-  // An addon the user can switch off at the device, without reflashing.
+  // A feature the user can switch off at the device, without reflashing.
   // Expose both and the NETWORK screen lists it as a row with a state,
   // and a knob turn there toggles it — so the device's own menu can
   // offer features it knows nothing about. `shortName` is what that row
@@ -117,14 +117,14 @@ struct PFAddon {
   // Append fields to /api/status. Write `,"key":value` pairs — leading
   // comma, no trailing one — into the string. The core used to report
   // MQTT's role and connection itself, which is a core file knowing an
-  // optional feature's state; this is how an addon says its own.
+  // optional feature's state; this is how a feature says its own.
   void (*appendStatus)(String&);
 
   // After the pattern has drawn, before the frame is presented. Clocks,
   // banners, subtitles. Keep it cheap — this is per frame.
-  void (*drawOverlay)(const PFAddonFrame&);
+  void (*drawOverlay)(const PFFeatureFrame&);
 
-  // The console header's nav, the same idea one screen out. An addon that
+  // The console header's nav, the same idea one screen out. A feature that
   // serves a page says where it is and what to call it, and the core lists
   // it without knowing what it is.
   //
@@ -145,3 +145,13 @@ struct PFAddon {
   // Plain text, no quotes - it rides inside /api/status JSON unescaped.
   const char* navDesc;
 };
+
+// ── Legacy name shim (2026-08-30) ───────────────────────────────────────
+//
+// The tree was addons/ and the vocabulary was "addon" until docs/EDITIONS.md
+// settled on "feature". An out-of-tree composition written against the old
+// names — two files copied over a checkout, the recipe Simone's bundle uses —
+// must keep building, so the old spellings are accepted here and mapped.
+// Delete this block once every out-of-tree bundle has migrated.
+using PFAddon = PFFeature;
+using PFAddonFrame = PFFeatureFrame;

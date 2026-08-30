@@ -14,14 +14,14 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "weather/addon_weather.h"
-#include "mqtt/addon_mqtt.h"
-#include "show/addon_show.h"
+#include "weather/feature_weather.h"
+#include "mqtt/feature_mqtt.h"
+#include "show/feature_show.h"
 
 // Dispatch order matters where features compete. The show player CLAIMS the
 // pattern while a sequence runs, so it goes last - anything that only ASKS
 // must get its turn first, or a remote picker never gets one at all.
-#define PF_ADDON_LIST              \
-  &PFAddonWeather::descriptor,     \
-      &PFAddonMqtt::descriptor,    \
-      &PFAddonShow::descriptor
+#define PF_FEATURE_LIST              \
+  &PFFeatureWeather::descriptor,     \
+      &PFFeatureMqtt::descriptor,    \
+      &PFFeatureShow::descriptor

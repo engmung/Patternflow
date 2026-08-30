@@ -12,9 +12,9 @@
 // and features read from it.
 //
 // It costs nothing when unused. Until something calls beginSync() — the
-// weather addon does, from its timezone setting; an IoT or alarm addon
+// weather feature does, from its timezone setting; an IoT or alarm feature
 // would too — every reader short-circuits on `started` and no clock code
-// runs at all. A build with no time-aware addon in it pays zero.
+// runs at all. A build with no time-aware feature in it pays zero.
 //
 // The caching is not an optimization, it is a correctness fix: getLocalTime()
 // fails intermittently under Wi-Fi/CPU load, and a text path that asks for
@@ -30,7 +30,7 @@
 
 namespace PatternflowClock {
 
-// False until an addon asks for time to exist. Every accessor below
+// False until a feature asks for time to exist. Every accessor below
 // returns its fallback immediately while this is false.
 inline bool started = false;
 

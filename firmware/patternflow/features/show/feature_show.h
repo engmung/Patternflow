@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - the show player, as an addon
+// PatternFlow - the show player, as a feature
 //
-// The first thing ported onto the addon seam, and deliberately the
+// The first thing ported onto the feature seam, and deliberately the
 // hardest: sequences touch boot, the network, every frame, user input,
 // pattern control and the overlay pass. If this fits, the hook set is
 // real.
@@ -14,13 +14,13 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "core_show.h"
 #include "core_show_http.h"
 #include "core_show_schedule.h"
 #include "core_library_http.h"
 
-namespace PFAddonShow {
+namespace PFFeatureShow {
 
 inline void setup() {
   PatternflowShowSchedule::begin();
@@ -31,7 +31,7 @@ inline void onNetwork() {
   PatternflowShowHttp::begin();
 }
 
-inline void loop(const PFAddonFrame& frame) {
+inline void loop(const PFFeatureFrame& frame) {
   // Advance the running .pfs cue table (no-op when nothing is playing).
   PatternflowShow::tick();
 
@@ -62,13 +62,13 @@ inline bool takePattern(int* idx) {
 
 // Scheduler-owned clock face, drawn over Black only (dim night clock or
 // the big snooze face).
-inline void drawOverlay(const PFAddonFrame& frame) {
+inline void drawOverlay(const PFFeatureFrame& frame) {
   if (frame.patternName && strcmp(frame.patternName, "Black") == 0) {
     PatternflowShowSchedule::drawOwnedClock();
   }
 }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "show",        // name
     "shows",       // cap reported by /api/status
     setup,
@@ -92,4 +92,4 @@ inline const PFAddon descriptor = {
     "schedule night and wake.",
 };
 
-}  // namespace PFAddonShow
+}  // namespace PFFeatureShow

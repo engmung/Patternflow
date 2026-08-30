@@ -65,7 +65,7 @@ in one click. Three exist:
 | **Audio** | OSC, browser audio, the on-board microphone | SeungHun Lee |
 | **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
 
-The word "addon" is retired. It suggested something optional or third-party,
+The word "feature" is retired. It suggested something optional or third-party,
 and none of these are: they are first-class capabilities that happen to live
 behind an interface.
 
@@ -188,12 +188,12 @@ that the firmware never changes, but that **the files keep opening**. See
 ## Building a feature
 
 Full reference, including all thirteen hooks and what proved each one:
-[`firmware/patternflow/addons/README.md`](../firmware/patternflow/addons/README.md).
+[`firmware/patternflow/features/README.md`](../firmware/patternflow/features/README.md).
 
 The shape, briefly. A feature is a directory with a descriptor:
 
 ```c
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "weather",      // name
     "weather",      // cap — what /api/status advertises, and what the nav gates on
     setup,          // boot, before Wi-Fi
@@ -229,14 +229,14 @@ Full reference: [`firmware/bundles/README.md`](../firmware/bundles/README.md).
 Two files under `firmware/bundles/<name>/`:
 
 ```c
-// addons_local.h — which features compile in, and in what order
-#include "osc/addon_osc.h"
-#include "audio/addon_audio.h"
-#include "audio_in/addon_audio_in.h"
-#define PF_ADDON_LIST            \
-    &PFAddonOsc::descriptor,     \
-    &PFAddonAudio::descriptor,   \
-    &PFAddonAudioIn::descriptor
+// features_local.h — which features compile in, and in what order
+#include "osc/feature_osc.h"
+#include "audio/feature_audio.h"
+#include "audio_in/feature_audio_in.h"
+#define PF_FEATURE_LIST            \
+    &PFFeatureOsc::descriptor,     \
+    &PFFeatureAudio::descriptor,   \
+    &PFFeatureAudioIn::descriptor
 ```
 
 ```c
@@ -257,7 +257,7 @@ Then:
 `all` builds default, audio and performance, then scans each binary for one
 marker string per feature — a literal that lives only in that feature's
 sources. An edition must contain its own features' markers and none of the
-others'. That is the composition checked in the shipped bytes: `addons.h`
+others'. That is the composition checked in the shipped bytes: `features.h`
 catches a misspelled macro, this catches the right macro building the wrong
 thing. Run it before pushing anything that touches the core; it is the rule
 "a core change is tested against every composition" as one command.
@@ -272,11 +272,11 @@ will drift — put it where the build fails.**
 
 `overrides.h` is included before any default in `config.h`, so it reaches every
 `#ifndef`-guarded setting in the tree — panel clock, transmit power, brightness
-cap, the lot. `addons_local.h` sits beside the core's own list, which steps
+cap, the lot. `features_local.h` sits beside the core's own list, which steps
 aside when it finds one. **Neither file is a core file, and the build script
 puts both back the way it found them.**
 
-Order in `PF_ADDON_LIST` is dispatch order, and it matters where features
+Order in `PF_FEATURE_LIST` is dispatch order, and it matters where features
 compete: one that CLAIMS the pattern (a show) should come after ones that only
 ASK (a remote picker), or the picker never gets a turn.
 
@@ -288,7 +288,7 @@ Two traps worth knowing before you cut one, both found by cutting these:
   leaves the default build. Anything a feature needs belongs in `lib_deps`.
   WebSockets went that way when audio left; HTTPClient followed when weather
   did.
-- **`PF_ADDON_PRESETS` cuts both ways.** Defining it as nothing is how a build
+- **`PF_FEATURE_PRESETS` cuts both ways.** Defining it as nothing is how a build
   *without* the show player keeps the scheduler's hidden `Black` pattern out
   of the carousel. In a build *with* the show player it deletes a pattern the
   scheduler calls by name, and the build fails on `'Black' has not been
@@ -340,6 +340,31 @@ fork, not an edition.**
 
 ---
 
+## The rename (2026-08-30)
+
+The directory was `firmware/patternflow/addons/` and the vocabulary was
+"addon" until this document settled on "feature"; the tree now matches the
+words. For a composition maintained OUT of this tree — two files copied over
+a checkout — the old spellings still build: `addons_local.h` is accepted
+beside `features_local.h`, `PF_ADDON_LIST` / `PF_ADDONS_NONE` map to the new
+macros, the old `addon_<name>.h` descriptor headers exist as stubs, and
+`PFAddonOsc`-style namespaces are aliases. The shims are marked in the tree
+and get deleted once every out-of-tree bundle has migrated — copy the two
+files into `features/` (the directory is the one thing a shim cannot rename)
+and swap the prefixes at your leisure.
+
+One migration is real rather than spelling: a composition that carries the
+show player must now declare its night-face preset itself —
+
+```c
+#define PF_FEATURE_PRESET_INCLUDE "show/preset_black.h"
+#define PF_FEATURE_PRESETS PATTERN_ENTRY_HIDDEN(Black),
+```
+
+— because the bare core no longer ships another feature's pattern by default.
+Without those two lines the build stops at `'Black' has not been declared`,
+which is the compiler saying the same thing this paragraph does.
+
 ## Where the code lives
 
 **Every feature is in this repository.** Nothing is moving out, and this is
@@ -364,7 +389,7 @@ that make this Patternflow live here.
 
 | you want to | read |
 |---|---|
-| write a feature | [`addons/README.md`](../firmware/patternflow/addons/README.md) — the hooks, in full |
+| write a feature | [`features/README.md`](../firmware/patternflow/features/README.md) — the hooks, in full |
 | cut an edition | [`bundles/README.md`](../firmware/bundles/README.md) — the two files, in full |
 | know why any of this | [RFC](rfc-core-and-variants.md) §2.13, §2.14, §2.15 |
 | talk to a panel | [`rest-api.md`](rest-api.md) |

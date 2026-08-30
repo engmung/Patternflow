@@ -53,18 +53,18 @@ namespace PatternflowStatusHttp {
 inline WebServer& server() { return PatternflowHttp::server(); }
 
 // Extra /api/status fields, supplied from outside the core. The sketch
-// points this at the addon dispatcher at boot; a build with no addons
+// points this at the feature dispatcher at boot; a build with no features
 // leaves it null and the endpoint is unchanged. Declared here rather
-// than including addons/, because dependencies point one way: the core
+// than including features/, because dependencies point one way: the core
 // never reaches into what attaches to it.
 inline void (*extraStatus)(String&) = nullptr;
 
 // Extra capability strings, same arrangement: the sketch points this at
-// the addon dispatcher, and each addon that declares a `cap` adds it.
+// the feature dispatcher, and each feature that declares a `cap` adds it.
 // Appends `,"name"` per cap — the core always emits at least two, so a
 // leading comma is always correct here.
 inline void (*extraCaps)(String&) = nullptr;
-// Console-header nav entries contributed by addons: `["/path","Label"]`
+// Console-header nav entries contributed by features: `["/path","Label"]`
 // pairs. The header's own pages stay in the header; this is how a page the
 // core has never heard of gets linked without the core naming it.
 inline void (*extraNav)(String&) = nullptr;
@@ -100,23 +100,23 @@ inline void handleStatus() {
     };
     cap("patterns");   // the .pfm loader and its volume - always core
     cap("params");     // the absolute bus + POST /api/params - always core
-    // "osc" is no longer emitted here: OSC is an addon and declares its own
+    // "osc" is no longer emitted here: OSC is a feature and declares its own
     // cap, and leaving this behind reported it twice on a build that has it
     // and once on a build that does not.
 #if PF_SLEEP_ENABLED
     cap("sleep");
 #endif
-    // Everything else is an addon saying what it is. Built from the
-    // addons actually loaded, not from compile flags: a build with the
-    // show code present but no show addon registered does not play
+    // Everything else is a feature saying what it is. Built from the
+    // features actually loaded, not from compile flags: a build with the
+    // show code present but no show feature registered does not play
     // shows, and a client probing caps must not be told otherwise.
     (void)cap;  // the core's own entries above use it
     if (extraCaps) extraCaps(json);
   }
   json += "],";
-  // Pages the loaded addons serve. Empty on a build with no features, which
+  // Pages the loaded features serve. Empty on a build with no features, which
   // is the default, and the console header then draws only its own.
-  json += "\"addonNav\":[";
+  json += "\"featureNav\":[";
   if (extraNav) extraNav(json);
   json += "],";
   json += "\"uptime\":";
@@ -185,7 +185,7 @@ inline void handleStatus() {
   // this very page is what paused it. The console has always had a branch for
   // this state — it just never received the field to trigger it.
   // Knob positions and the absolute-parameter bus. These lived only in
-  // GET /api/mqtt, which is an addon — so a build without MQTT could be
+  // GET /api/mqtt, which is a feature — so a build without MQTT could be
   // written to but not read, and an HTTP-only integration (Home
   // Assistant) would have lost knob state the day MQTT left. They belong
   // in core, next to everything else a client polls for.

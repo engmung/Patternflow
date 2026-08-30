@@ -1,14 +1,14 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - weather, as an addon
+// PatternFlow - weather, as a feature
 //
-// The second port onto the addon seam, and the one that grew it: the show
+// The second port onto the feature seam, and the one that grew it: the show
 // player needed six hooks, weather needed two more.
 //
 //   fillInput  - a live reading drives the four knob lanes, so a pattern
 //                animates from the weather without knowing what weather is.
-//   chromeVisible (on PFAddonFrame) - the corner clock has to stay off the
+//   chromeVisible (on PFFeatureFrame) - the corner clock has to stay off the
 //                panel while the device's own UI is up. In the sketch that
-//                was four separate globals; an addon cannot see those, and
+//                was four separate globals; a feature cannot see those, and
 //                should not have to.
 //
 // The clock itself moved here whole. It used to be drawClockOverlay() in
@@ -18,12 +18,12 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "../../src/core_ui_text.h"
 #include "core_weather.h"
 #include "core_weather_http.h"
 
-namespace PFAddonWeather {
+namespace PFFeatureWeather {
 
 inline void setup() {
   PatternflowWeather::loadConfig();
@@ -33,13 +33,13 @@ inline void onNetwork() {
   PatternflowWeatherHttp::begin();
 }
 
-inline void loop(const PFAddonFrame&) {
+inline void loop(const PFFeatureFrame&) {
   PatternflowWeather::refreshLocalTime();
   PatternflowWeather::handle();
 }
 
 // A live reading overrides the audio lane; the absolute bus still outranks
-// this, because fillAbsolute runs after every addon has had its say.
+// this, because fillAbsolute runs after every feature has had its say.
 inline void fillInput(InputFrame& input) {
   if (!PatternflowWeather::driving()) return;
   for (int i = 0; i < 4; i++) {
@@ -51,7 +51,7 @@ inline void fillInput(InputFrame& input) {
 // Optional HH:MM:SS corner clock (NTP + /weather UTC offset). Drawn after
 // the pattern: white glyphs with a 1px black outline so the pattern shows
 // through. Portrait, top-right (panel stood on end).
-inline void drawOverlay(const PFAddonFrame& frame) {
+inline void drawOverlay(const PFFeatureFrame& frame) {
   if (!PatternflowWeather::clockOverlayEnabled()) return;
   if (!PatternflowWeather::timeSynced()) return;
   if (frame.chromeVisible) return;
@@ -78,7 +78,7 @@ inline void drawOverlay(const PFAddonFrame& frame) {
   dma_display->setRotation(prevRot);
 }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "weather",
     "weather",
     setup,
@@ -102,4 +102,4 @@ inline const PFAddon descriptor = {
     "the sky outside.",
 };
 
-}  // namespace PFAddonWeather
+}  // namespace PFFeatureWeather

@@ -1,4 +1,4 @@
-# addons/
+# features/
 
 Features that attach to the core without the core knowing they exist.
 
@@ -15,7 +15,7 @@ variant edits none.
 > **A variant adds directories here and two files of its own. It edits
 > nothing.** `git merge upstream` has nothing to conflict over, ever.
 
-An earlier version of this said "and one line to `addons.h`" — which was
+An earlier version of this said "and one line to `features.h`" — which was
 one line in a *core* file, so every variant conflicted on it at every core
 update, forever, on the same line. One line is enough to make taking
 updates a chore that eventually stops happening, and a firmware that stops
@@ -23,7 +23,7 @@ taking updates is the fork this directory exists to prevent.
 
 | the firmware's own file | what it decides |
 | --- | --- |
-| `addons_local.h` | which addons this firmware has, in what order |
+| `features_local.h` | which features this firmware has, in what order |
 | `overrides.h` | any `#ifndef`-guarded setting: transmit power, panel clock, its own name and version |
 
 Both are gitignored here, because they belong to a firmware rather than to
@@ -44,36 +44,36 @@ for why any of this exists.
 
 | file | what it is |
 | --- | --- |
-| `pf_addon.h` | The interface. What an addon may be asked, and what it is told. |
-| `pf_addons.h` | The dispatcher. Walks the list and fans each moment out. |
-| `addons.h` | The default list, and the escape hatch. **The core owns it; no firmware edits it.** |
-| `addon_presets.h` | Patterns contributed by addons. Same arrangement: `#ifndef PF_ADDON_PRESETS`, so a firmware can decline them. |
+| `pf_feature.h` | The interface. What a feature may be asked, and what it is told. |
+| `pf_features.h` | The dispatcher. Walks the list and fans each moment out. |
+| `features.h` | The default list, and the escape hatch. **The core owns it; no firmware edits it.** |
+| `feature_presets.h` | Patterns contributed by features. Same arrangement: `#ifndef PF_FEATURE_PRESETS`, so a firmware can decline them. |
 
-A variant's `addons_local.h` defines `PF_ADDON_LIST` and `addons.h` steps
-aside. It may add, drop and reorder; `PF_ADDONS_NONE` builds with none at
+A variant's `features_local.h` defines `PF_FEATURE_LIST` and `features.h` steps
+aside. It may add, drop and reorder; `PF_FEATURES_NONE` builds with none at
 all:
 
 ```c
-#include "audio_in/addon_audio_in.h"
-#define PF_ADDON_LIST            \\
-    &PFAddonOsc::descriptor,     \\
-    &PFAddonAudioIn::descriptor
+#include "audio_in/feature_audio_in.h"
+#define PF_FEATURE_LIST            \\
+    &PFFeatureOsc::descriptor,     \\
+    &PFFeatureAudioIn::descriptor
 ```
 
 `overrides.h` is included from `config.h` before any default applies, so
-it reaches settings the addon list cannot:
+it reaches settings the feature list cannot:
 
 ```c
 #define PF_VARIANT          "audio"
 #define PF_VARIANT_VERSION  "v0.1.0"   // reported in /api/status, worn as
                                        // a badge in the console header
 #define PF_WIFI_TX_POWER    WIFI_POWER_17dBm
-#define PF_ADDON_PRESETS                // no presets from addons you lack
+#define PF_FEATURE_PRESETS                // no presets from features you lack
 ```
 
-An addon is a `PFAddon` — a name, a capability string, and a set of function
+A feature is a `PFFeature` — a name, a capability string, and a set of function
 pointers. Every hook is optional: leave a field `nullptr` and that moment
-passes the addon by.
+passes the feature by.
 
 ## The hooks
 
@@ -85,29 +85,29 @@ each row says which port proved it.
 | `setup()` | boot, before Wi-Fi | show player, weather config, MQTT role |
 | `onNetwork()` | Wi-Fi connected, and every reconnect — register HTTP routes here | `/show`, `/weather`, `/mqtt`, `/audio` |
 | `loop(frame)` | every frame; **must not block** | show cue table, weather polling, MQTT client |
-| `observeFrame(input, frame)` | the *finished* input frame, for addons that mirror rather than produce | MQTT publishing knob values; OSC reporting outward |
+| `observeFrame(input, frame)` | the *finished* input frame, for features that mirror rather than produce | MQTT publishing knob values; OSC reporting outward |
 | `fillInput(input)` | before the pattern sees the frame — drive a lane from a reading | weather, audio bands, MQTT deltas |
 | `onUserInput()` | a human turned a knob or pressed a button | night/wake scheduler |
 | `claimsPattern()` | "I am driving the pattern" — remote pickers stand down | a running show |
 | `takePattern(&idx)` | "switch to this pattern, please" — the sketch performs it | show cues, MQTT pattern topic |
 | `onSleep(bool)` | the panel slept or woke | MQTT state publishing |
 | `requestSleep(&bool)` | "sleep / wake the device, please" — again a request | MQTT sleep topic |
-| `shortName` + `isRuntimeEnabled()` + `setRuntimeEnabled(bool)` | the device's own NETWORK screen lists and toggles this addon | audio |
+| `shortName` + `isRuntimeEnabled()` + `setRuntimeEnabled(bool)` | the device's own NETWORK screen lists and toggles this feature | audio |
 | `navPath` + `navLabel` + `navDesc` | the console header links the page, and the home screen gives it a row with that one-line description — the core never learns the path | /show, /mqtt, /weather, /audio-in |
 | `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
 
-`PFAddonFrame` carries what those hooks need so an addon never reaches into
+`PFFeatureFrame` carries what those hooks need so a feature never reaches into
 the sketch's globals: `dt`, `patternName`, `running`, `chromeVisible` (the
 device's own UI is on screen — decorative overlays stay off), plus
 `patternIndex` and `appMode` for the one case that has to report raw
 values outward on a published wire protocol.
 
 **`takePattern` is a request, not an action.** Loading a module is the
-sketch's job; an addon asks and the sketch performs.
+sketch's job; a feature asks and the sketch performs.
 
 It also reports *who* asked, and that changes what the sketch does
-afterwards. An addon that **claims** the pattern owns the panel while it
+afterwards. A feature that **claims** the pattern owns the panel while it
 runs — a show cycling cues — so its choices are transient and must not be
 written to NVS every cue. One that only **asks** is relaying a person:
 somebody picked a pattern from Ableton or a phone, and that should survive
@@ -117,14 +117,14 @@ remembered.
 ## Writing one
 
 ```
-addons/
+features/
   yourthing/
-    addon_yourthing.h     ← the descriptor: which function answers which hook
+    feature_yourthing.h     ← the descriptor: which function answers which hook
     core_yourthing.h      ← your actual feature, unchanged
 ```
 
 ```c
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "yourthing",   // name
     "yourthing",   // cap string reported in /api/status caps, or nullptr
     setup,         // or nullptr
@@ -149,10 +149,10 @@ inline const PFAddon descriptor = {
 ```
 
 The order matters — these are positional. Copy the block from an existing
-addon and fill in what you need; the compiler catches a slot in the wrong
+feature and fill in what you need; the compiler catches a slot in the wrong
 place as a type error, which is how the ports found their own mistakes.
 
-Then one line in `addons.h`, and nothing else in the tree changes.
+Then one line in `features.h`, and nothing else in the tree changes.
 
 ### House rules
 
@@ -161,7 +161,7 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 - **Buffers of 1 KB or more go through `PFMem`** (PSRAM). Internal heap is
   the scarcest thing on the board and it is what caps how big a loadable
   pattern can be.
-- **Own servers and tasks are fine** — the audio addon runs its own
+- **Own servers and tasks are fine** — the audio feature runs its own
   websocket port — as long as the loop hook itself stays quick.
 - **Settings live in your own NVS namespace.** Read and write the core's
   existing keys (Wi-Fi, brightness, selected pattern) so users switch
@@ -170,7 +170,7 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 
 ## What lives here so far
 
-| addon | files | notes |
+| feature | files | notes |
 | --- | --- | --- |
 | `show/` | player, HTTP page, night/wake schedule, library pull | The first port, deliberately the hardest. |
 | `weather/` | readings, HTTP page, corner clock | Grew the interface: `fillInput`, `chromeVisible`. |
@@ -178,7 +178,7 @@ Then one line in `addons.h`, and nothing else in the tree changes.
 | `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
 | `osc/` | Max / TouchDesigner / Ableton, both directions | The fifth, and the first that did not fit — see below. |
 
-`PF_ADDONS_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of
+`PF_FEATURES_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of
 static RAM, against 1,412,457 and 92,920 with all five loaded. The sketch is
 byte-identical either way.
 
@@ -186,7 +186,7 @@ That gap buys the person holding the panel almost nothing, which is why
 nothing was ever removed from the core. Flash sits at 45 % of the partition
 even with all five loaded. The ceiling on a loadable `.pfm` — the largest
 contiguous block — is 73,716 B with everything and **the same 73,716 B in the
-`audio` bundle**, three addons out. Only the bare `PF_ADDONS_NONE` build moves
+`audio` bundle**, three features out. Only the bare `PF_FEATURES_NONE` build moves
 it, to 92,148 B, and that is a compile flag rather than a firmware anybody
 would ship. 18 KB more room, in a build with no shows, no MQTT, no weather, no
 OSC and no sound, on top of a ceiling already two and a half times the
@@ -205,14 +205,14 @@ same shape keeps recurring.
 fitted to the first one.** The show player fit perfectly and looked like
 proof. Weather then needed two hooks it had never asked for: `fillInput`,
 and `chromeVisible` on the frame — which in the sketch had been four
-separate globals an addon could not see and should not have to. MQTT
+separate globals a feature could not see and should not have to. MQTT
 added four more, audio three. The list stopped growing at four ports,
 which is the only reason to believe it is close to complete.
 
 **Where the boundary actually is.** The RFC said the device's own UI was
-out of scope for addons, and audio walked straight into it: a row on the
+out of scope for features, and audio walked straight into it: a row on the
 NETWORK screen and a knob that turns it off. The resolution was not to
-give addons the menu, but to let the menu describe them — an addon says
+give features the menu, but to let the menu describe them — a feature says
 its short name and whether it is on, and the core renders the row. The
 core still owns its UI; it just no longer knows what audio is.
 
@@ -234,18 +234,18 @@ Neither "show some text" nor "what time is it" is a feature question.
 
 **The fifth port is what found the gap.** Four features ported cleanly and
 that looked like proof; OSC did not, and that is the useful part. All four
-earlier addons spoke in names and booleans, so `observeFrame` handing over a
+earlier features spoke in names and booleans, so `observeFrame` handing over a
 pattern *name* was enough. OSC publishes `/patternflow/pattern/index` and an
 app-mode integer, both fixed in a released wire specification that hosts are
 built against — the index cannot be quietly swapped for the name. So
-`PFAddonFrame` gained two fields and `observeFrame` takes the frame.
+`PFFeatureFrame` gained two fields and `observeFrame` takes the frame.
 
 A hook list stops being a guess only when something nobody had in mind when
 it was written is pushed through it.
 
 **Moving a feature out is not finished when it compiles.** OSC leaving found
 three places the interface had not been told: a preset hardcoded from another
-addon's directory, a pattern counter that counted entries it would never stop
+feature's directory, a pattern counter that counted entries it would never stop
 on, and a status row reporting a feature the build did not have. The
 compiler helps with none of them. `caps` is the only mechanism that scales,
 and anything hardcoded beside it will drift.

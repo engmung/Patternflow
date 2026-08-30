@@ -9,18 +9,18 @@
 // Performance differ by two files in firmware/bundles/<name>/ and not one line
 // here, so a change made for one edition lands in all of them. That is the
 // whole point and also the whole risk. docs/EDITIONS.md is the reasoning;
-// addons/pf_addon.h is the interface; addons/addons.h is the composition.
+// features/pf_feature.h is the interface; features/features.h is the composition.
 //
 // ── The rule ────────────────────────────────────────────────────────
 //
 // No feature is named in this file. Not in an #include, not in an #if, not in
 // a string on the screen. Every feature reaches the core through the hooks in
-// pf_addon.h, dispatched here as PFAddons::something() that neither knows nor
+// pf_feature.h, dispatched here as PFFeatures::something() that neither knows nor
 // asks what is behind it. If you find yourself wanting `#if PF_OSC_ENABLED`
 // here, the answer is a hook, or the feature does not belong in the core.
 //
 // The one thing this file DOES decide is where each hook fires in the frame.
-// Which addons run, and in what order, is the composition's business.
+// Which features run, and in what order, is the composition's business.
 //
 // ── If you are an AI agent editing this file ────────────────────────────
 //
@@ -34,7 +34,7 @@
 //
 // The test takes one question: would this edit still be correct on a build
 // that does not contain the feature you are working on? If the honest answer
-// is "it would do nothing" or "it would be wrong", move it to addons/.
+// is "it would do nothing" or "it would be wrong", move it to features/.
 //
 // Three things that mislead agents in particular:
 //
@@ -63,13 +63,13 @@
 //      garbage - and a garbage active-flag makes PFParams::apply return early,
 //      which ignores the physical knobs. Shipped once. Do not drop the braces.
 //
-//   2. PFAddons::loop(frame) must be dispatched every frame. It went missing
-//      in v3.7.0 and every addon's loop silently stopped; nothing failed to
-//      compile, and the default build had no addons to notice.
+//   2. PFFeatures::loop(frame) must be dispatched every frame. It went missing
+//      in v3.7.0 and every feature's loop silently stopped; nothing failed to
+//      compile, and the default build had no features to notice.
 //
 //   3. Screen text that names a feature. "OSC / AUD" was hard-coded under the
 //      NETWORK screen's toggle rows long after the rows themselves were built
-//      from the addon list, so two of the three editions drew an instruction
+//      from the feature list, so two of the three editions drew an instruction
 //      for knobs that toggle nothing.
 //
 //   4. Widening a hook's signature. That is fine and the compiler will tell
@@ -89,7 +89,7 @@
 #include "src/core_improv.h"
 #include "src/core_ota.h"
 #include "src/core_home_http.h"
-#include "addons/pf_addons.h"
+#include "features/pf_features.h"
 #include "src/core_web_update.h"
 // Reads the demand the display driver measured while blitting, so it comes
 // after core_display.h and before anything that sets brightness.
@@ -111,9 +111,9 @@
 // the main loop read them and an .ino has no header to share a type through.
 //
 // These belong to the core and to nothing else. A feature that needs to know
-// about them is TOLD, through PFAddonFrame (addons/pf_addon.h) - which is why
+// about them is TOLD, through PFFeatureFrame (features/pf_feature.h) - which is why
 // that struct carries chromeVisible() and the mode instead of letting an
-// addon reach in here. Adding a global for one feature's benefit is the most
+// feature reach in here. Adding a global for one feature's benefit is the most
 // common way this file has drifted. The hook exists so you do not have to.
 MatrixPanel_I2S_DMA *dma_display = nullptr;
 
@@ -148,14 +148,14 @@ uint32_t brightnessIdleAtMs = 0;
 bool brightnessDirty = false;
 
 // NETWORK screen: K2 longpress enters a status view. It lists whichever
-// addons declare a short name and a runtime switch — the sketch does not know
+// features declare a short name and a runtime switch — the sketch does not know
 // what they are. Inside, TURNING K2 toggles the first row and K3 the second (right
 // = on, left = off; both persist in NVS). Rotation, not clicks, so the K2
 // longpress used to exit can't flip anything. Second K2 longpress or idle
 // exits.
 // NOTE ON THE NAME: this is the NETWORK screen's visibility flag, nothing
 // more. OSC was hard-wired as that screen's first row back when it lived in
-// the core; it is an ordinary addon now and the rows are built from whatever
+// the core; it is an ordinary feature now and the rows are built from whatever
 // is loaded. The name survives because renaming it touches a dozen call sites
 // for no behaviour change. It does NOT mean this file knows about OSC.
 bool oscInfoShowing = false;
@@ -337,8 +337,8 @@ void clearPatternLatchIfStable() {
 // ── Boot ──────────────────────────────────────────────────────
 //
 // Order matters and the reasons sit on the individual lines. The one rule
-// worth stating up front: PFAddons::setup() runs LAST, after the panel, the
-// pattern registry and the HTTP server exist, so an addon may assume all
+// worth stating up front: PFFeatures::setup() runs LAST, after the panel, the
+// pattern registry and the HTTP server exist, so a feature may assume all
 // three. Wi-Fi is the exception - it starts non-blocking and is NOT up yet
 // when setup() returns, which is exactly what the onNetwork hook is for.
 void setup() {
@@ -360,14 +360,14 @@ void setup() {
 
   // MQTT channel + role from /mqtt. loadConfig first (broker + prefix +
   // Wall clock + weather (NTP / FlowLocal HTTP, saved UTC offset) and the
-  // Addons load their own settings here; sync itself starts with Wi-Fi.
-  // The core exposes an extension point for /api/status; the addons are
+  // Features load their own settings here; sync itself starts with Wi-Fi.
+  // The core exposes an extension point for /api/status; the features are
   // what fills it. Wiring the two is the sketch's job, because it is the
   // only file that is allowed to know about both.
-  PatternflowStatusHttp::extraStatus = PFAddons::appendStatus;
-  PatternflowStatusHttp::extraCaps = PFAddons::emitCaps;
-  PatternflowStatusHttp::extraNav = PFAddons::emitNav;
-  PFAddons::setup();
+  PatternflowStatusHttp::extraStatus = PFFeatures::appendStatus;
+  PatternflowStatusHttp::extraCaps = PFFeatures::emitCaps;
+  PatternflowStatusHttp::extraNav = PFFeatures::emitNav;
+  PFFeatures::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,
   // and the audio-react server are started from the connect edge in loop()
@@ -584,7 +584,7 @@ void drawBrightnessNotice() {
 }
 
 // NETWORK info + toggle screen (K2 longpress). Shows Wi-Fi plus a row per
-// toggleable addon, whatever those turn out to be.
+// toggleable feature, whatever those turn out to be.
 // TURN K2 to toggle the first row, K3 the second (rotation,
 // not a click — a K2 click exits). Drawn PORTRAIT (rotation 1, 64×128):
 // vertical is the device's primary mounting, so this screen reads upright
@@ -600,23 +600,23 @@ void drawNetworkInfo() {
 
   // Feature rows: status dot + name on the left, state right-aligned in
   // the state's color — reads like the web console's tag pills.
-  // Every row comes from an addon that says it can be switched off here,
+  // Every row comes from a feature that says it can be switched off here,
   // so this screen lists features it knows nothing about. OSC used to be
   // hard-coded as the first row back when it lived in the core; it is an
-  // addon now and arrives the same way as the rest.
+  // feature now and arrives the same way as the rest.
   //
   // Two rows is the budget: they start at y=22 on an 11 px pitch and the
   // Wi-Fi line is fixed at y=50, so a third would draw over it. A build
-  // with more toggleable addons than that shows the first ones and the
+  // with more toggleable features than that shows the first ones and the
   // rest stay web-only — the alternative is a screen that silently
   // overlaps itself.
   constexpr int MAX_FEATURE_ROWS = 2;
   struct FeatureRow { const char* name; bool compiled; bool on; };
   FeatureRow rows[MAX_FEATURE_ROWS];
   int rowCount = 0;
-  for (size_t t = 0; t < PFAddons::toggleableCount() && rowCount < MAX_FEATURE_ROWS; t++) {
-    size_t a = PFAddons::toggleableAt(t);
-    rows[rowCount++] = { PFAddons::shortName(a), true, PFAddons::runtimeEnabled(a) };
+  for (size_t t = 0; t < PFFeatures::toggleableCount() && rowCount < MAX_FEATURE_ROWS; t++) {
+    size_t a = PFFeatures::toggleableAt(t);
+    rows[rowCount++] = { PFFeatures::shortName(a), true, PFFeatures::runtimeEnabled(a) };
   }
   dma_display->setTextSize(1);
   for (int i = 0; i < rowCount; i++) {
@@ -649,7 +649,7 @@ void drawNetworkInfo() {
     drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
   }
 
-  // Hints under a hairline rule. The rows above come from whatever addons
+  // Hints under a hairline rule. The rows above come from whatever features
   // are loaded, so the lines naming them have to as well: "TURN K2/K3" over
   // "OSC / AUD" was hard-coded, and only the audio edition has those two.
   // Every other build drew an instruction for knobs that toggle nothing.
@@ -864,7 +864,7 @@ void drawKnobMap() {
 // a small dark scrim so it stays readable over whatever pattern is behind it.
 // ── SELECT mode and the banner ─────────────────────────────────
 //
-// Browsing the pattern list with K1, plus the banner overlay that addons and
+// Browsing the pattern list with K1, plus the banner overlay that features and
 // the console can raise. Ranks are computed over VISIBLE patterns only: a
 // hidden entry still occupies an index, and counting it produced a list that
 // skipped a number and looked broken from the outside.
@@ -968,8 +968,8 @@ void drawBannerOverlay() {
 }
 
 // True while the device is showing its own UI over the pattern - the info
-// screen, the knob map, the update screen, the brightness bar. Addons get
-// this through PFAddonFrame::chromeVisible so a decorative overlay knows to
+// screen, the knob map, the update screen, the brightness bar. Features get
+// this through PFFeatureFrame::chromeVisible so a decorative overlay knows to
 // stay off without reaching for these globals.
 static inline bool chromeVisible() {
   return oscInfoShowing || updateShowing || knobMapShowing || brightnessAdjusting;
@@ -981,7 +981,7 @@ static inline bool chromeVisible() {
 // most worth understanding before changing anything.
 //
 // readInputFrame fills the frame from the PHYSICAL encoders only. Features
-// add to it afterwards through PFAddons::fillInput, and the three ways they
+// add to it afterwards through PFFeatures::fillInput, and the three ways they
 // can do that are deliberately different from each other:
 //
 //   knobDeltas[i]            encoder motion, accumulated. What a hand does.
@@ -1037,7 +1037,7 @@ void readInputFrame(InputFrame& input) {
   }
   if (physMove && !brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing) {
-    PFAddons::onUserInput();
+    PFFeatures::onUserInput();
   }
 
   for (int i = 0; i < 4; i++) {
@@ -1053,9 +1053,9 @@ void readInputFrame(InputFrame& input) {
   // Absolute MQTT bus last, so it outranks everything above: held channels
   // get their 0..1000 value and their deltas / audio flags cleared, which is
   // what lets PFParams::apply pin the mapped parameter deterministically.
-  // Addons may drive the lanes (a weather reading, a sensor). They run
+  // Features may drive the lanes (a weather reading, a sensor). They run
   // before the absolute bus below, which therefore still outranks them.
-  PFAddons::fillInput(input);
+  PFFeatures::fillInput(input);
 
   PatternflowBus::fillAbsolute(input);
 }
@@ -1063,8 +1063,8 @@ void readInputFrame(InputFrame& input) {
 // An absolute lane, 0..1, turned into encoder motion.
 //
 // Named for audio because audio got here first, and that name was wrong: the
-// weather addon drives these same lanes, and so may anything else. Nothing
-// here knows or needs to know which addon put the value there.
+// weather feature drives these same lanes, and so may anything else. Nothing
+// here knows or needs to know which feature put the value there.
 //
 // The motion exists so a pattern that only ever reads `knobDeltas` still
 // reacts — which is why every pattern responds to these sources without
@@ -1078,7 +1078,7 @@ void readInputFrame(InputFrame& input) {
 //     if (input.knobDeltas[i] != 0) { *param += delta * step; }
 //
 // With the flag cleared, every source — browser, extension, the on-board
-// microphone, the weather addon — fell through to the second line: unbounded
+// microphone, the weather feature — fell through to the second line: unbounded
 // accumulation, where
 // the same sound gives a different result depending on what came before, and a
 // dropped update is an error the parameter keeps forever.
@@ -1153,16 +1153,16 @@ void applyLaneMotion(InputFrame& input, bool enabled) {
 //
 //   1. boot latch, sleep, and the network service calls
 //   2. readInputFrame       physical encoders into a zeroed frame
-//   3. PFAddons::fillInput  features add deltas, lanes, absolutes
+//   3. PFFeatures::fillInput  features add deltas, lanes, absolutes
 //   4. PFParams::apply      one of those three wins, per knob
 //   5. the pattern renders
-//   6. PFAddons::loop       features get the finished frame and their own
+//   6. PFFeatures::loop       features get the finished frame and their own
 //                           time slice
 //   7. observeFrame / takePattern   what happened, and who wants the panel
 //   8. overlays draw on top
 //
 // Step 6 is not optional and is not a debug call. It went missing in v3.7.0,
-// nothing failed to compile, and every addon's timer silently stopped for a
+// nothing failed to compile, and every feature's timer silently stopped for a
 // release. If you are moving code in here, check it is still dispatched.
 void loop() {
   // Above the sleep block on purpose: a board that is asleep still has to be
@@ -1181,7 +1181,7 @@ void loop() {
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
-    PFAddons::onNetwork();
+    PFFeatures::onNetwork();
     Serial.println("[NET] services started");
     reportHeap("services up");
   }
@@ -1198,8 +1198,8 @@ void loop() {
   // starve the upload handler. Cheap when no upload is in flight.
   PatternflowOta::handle();
 
-  // The console's HTTP server. Addon-owned servers (the audio websocket on
-  // :81) are serviced by PFAddons::loop below, not here.
+  // The console's HTTP server. Feature-owned servers (the audio websocket on
+  // :81) are serviced by PFFeatures::loop below, not here.
   PatternflowHttp::handle();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
@@ -1216,23 +1216,23 @@ void loop() {
   lastMs = now;
   const uint32_t frameStartedUs = micros();
 
-  // Every addon's per-frame hook: the MQTT keepalive, the show player's tick,
+  // Every feature's per-frame hook: the MQTT keepalive, the show player's tick,
   // the weather scheduler, the audio websocket's accept/handshake pump, the
   // on-board FFT.
   //
-  // **This was missing.** The addon port removed the concrete calls that used
-  // to live above — correctly, they belong to the addons now — and never
+  // **This was missing.** The feature port removed the concrete calls that used
+  // to live above — correctly, they belong to the features now — and never
   // added the dispatcher that replaced them, leaving two orphaned comments
   // where the calls had been. Nothing failed loudly: `begin()` still ran, so
   // :81 accepted TCP and every route answered; the websocket simply never
   // completed a handshake because nobody was pumping it, and MQTT never
-  // reconnected. The addons were all present, all initialised, and all
+  // reconnected. The features were all present, all initialised, and all
   // frozen. Ahead of the render so a slow pattern cannot starve a socket.
   {
-    PFAddonFrame frame{dt, currentContentName(),
+    PFFeatureFrame frame{dt, currentContentName(),
                        currentMode == MODE_RUNNING, chromeVisible(),
                        currentPatternIdx, (int)currentMode};
-    PFAddons::loop(frame);
+    PFFeatures::loop(frame);
   }
 
   // Value-initialised, and it has to be. PFInputFrame is a plain ABI struct
@@ -1257,7 +1257,7 @@ void loop() {
   // the room outranks the schedule.
   if (!brightnessAdjusting && !oscInfoShowing && !knobMapShowing &&
       !updateShowing && (k1Clicked || k2Clicked || k3Clicked || k4Clicked)) {
-    PFAddons::onUserInput();
+    PFFeatures::onUserInput();
   }
 
   // ── SLEEP ──────────────────────────────────────────────────────────
@@ -1266,7 +1266,7 @@ void loop() {
   // kind of thing this file's history warns about.
   {
     bool wantSleep;
-    if (PFAddons::requestSleep(&wantSleep)) PatternflowSleep::request(wantSleep);
+    if (PFFeatures::requestSleep(&wantSleep)) PatternflowSleep::request(wantSleep);
   }
   // Flashing beats sleeping, in both directions: a device that is being
   // reflashed does not fall asleep underneath the upload, and one that is
@@ -1282,7 +1282,7 @@ void loop() {
     // Whatever the knobs read at this moment is "not touched since".
     for (int i = 0; i < 4; i++) sleepKnobSnapshot[i] = input.knobs[i];
   }
-  PFAddons::onSleep(PatternflowSleep::isSleeping());
+  PFFeatures::onSleep(PatternflowSleep::isSleeping());
 
   if (PatternflowSleep::isSleeping()) {
     // input.knobs is the raw physical click count — the one field readInputFrame
@@ -1430,30 +1430,30 @@ void loop() {
     // Toggles use knob ROTATION, not clicks — so holding K2 to exit can't
     // accidentally flip a setting. Turn right = ON, left = OFF.
     // K2 and K3 turn the first and second rows the screen drew. Both come
-    // from addons now — K2 used to be hard-wired to OSC back when OSC was
+    // from features now — K2 used to be hard-wired to OSC back when OSC was
     // core, which meant the screen and the knobs disagreed the moment any
     // other feature moved out.
-    if (input.knobDeltas[1] != 0) {                  // K2 turn → first addon row
-      size_t a = PFAddons::toggleableAt(0);
-      if (a < PF_ADDON_COUNT) {
+    if (input.knobDeltas[1] != 0) {                  // K2 turn → first feature row
+      size_t a = PFFeatures::toggleableAt(0);
+      if (a < PF_FEATURE_COUNT) {
         bool next = input.knobDeltas[1] > 0;
-        if (next != PFAddons::runtimeEnabled(a)) {
-          PFAddons::setRuntimeEnabled(a, next);
+        if (next != PFFeatures::runtimeEnabled(a)) {
+          PFFeatures::setRuntimeEnabled(a, next);
           netInfoDirty = true;
-          Serial.printf("[ADDON] %s runtime: %s\n", PFAddons::shortName(a),
+          Serial.printf("[FEATURE] %s runtime: %s\n", PFFeatures::shortName(a),
                         next ? "true" : "false");
         }
       }
       oscInfoIdleAtMs = now;
     }
-    if (input.knobDeltas[2] != 0) {                  // K3 turn → second addon row
-      size_t a = PFAddons::toggleableAt(1);
-      if (a < PF_ADDON_COUNT) {
+    if (input.knobDeltas[2] != 0) {                  // K3 turn → second feature row
+      size_t a = PFFeatures::toggleableAt(1);
+      if (a < PF_FEATURE_COUNT) {
         bool next = input.knobDeltas[2] > 0;
-        if (next != PFAddons::runtimeEnabled(a)) {
-          PFAddons::setRuntimeEnabled(a, next);
+        if (next != PFFeatures::runtimeEnabled(a)) {
+          PFFeatures::setRuntimeEnabled(a, next);
           netInfoDirty = true;
-          Serial.printf("[ADDON] %s runtime: %s\n", PFAddons::shortName(a),
+          Serial.printf("[FEATURE] %s runtime: %s\n", PFFeatures::shortName(a),
                         next ? "true" : "false");
         }
       }
@@ -1528,7 +1528,7 @@ void loop() {
 
   if (!oscInfoShowing && !knobMapShowing && !updateShowing && logicalButton(3)->longPressed(MODE_HOLD_MS)) {
     if (currentMode == MODE_RUNNING) {
-      PFAddons::onUserInput();
+      PFFeatures::onUserInput();
       // Entering SELECT is the strongest "hands on" signal there is — drop
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
@@ -1554,27 +1554,27 @@ void loop() {
   // Everything above has had its say; this is the frame the pattern gets.
   PatternflowBus::noteFinalFrame(input);
 
-  // Addons that mirror device state see the finished frame here - every
+  // Features that mirror device state see the finished frame here - every
   // source merged, the absolute bus applied, exactly what the pattern gets.
   {
-    PFAddonFrame observed{dt, currentContentName(),
+    PFFeatureFrame observed{dt, currentContentName(),
                           currentMode == MODE_RUNNING, chromeVisible(),
                           currentPatternIdx, (int)currentMode};
-    PFAddons::observeFrame(input, observed);
+    PFFeatures::observeFrame(input, observed);
   }
 
-  // An addon may ask for a pattern; loading a module is the sketch's job,
+  // A feature may ask for a pattern; loading a module is the sketch's job,
   // so it requests and we perform.
-  int addonPatternIdx;
-  bool addonPickWasAPerson = false;
+  int featurePatternIdx;
+  bool featurePickWasAPerson = false;
   // Not while an install batch is evicting modules — the OSC path used to
-  // check this and the addon path did not, which was a latent way to load
+  // check this and the feature path did not, which was a latent way to load
   // a pattern into a half-emptied FATFS.
   if (!PatternflowPatternsHttp::isConsolePaused() &&
-      PFAddons::takePattern(&addonPatternIdx, &addonPickWasAPerson) &&
-      addonPatternIdx >= 0 && addonPatternIdx < NUM_PATTERNS) {
-    if (activatePattern(addonPatternIdx)) {
-      currentPatternIdx = addonPatternIdx;
+      PFFeatures::takePattern(&featurePatternIdx, &featurePickWasAPerson) &&
+      featurePatternIdx >= 0 && featurePatternIdx < NUM_PATTERNS) {
+    if (activatePattern(featurePatternIdx)) {
+      currentPatternIdx = featurePatternIdx;
       currentMode = MODE_RUNNING;
       // Hidden patterns arrive unannounced. This used to compare the name
       // against "Black" - the show scheduler's night face - which was the
@@ -1582,23 +1582,23 @@ void loop() {
       // caught it on its first run). `hidden` is the property that
       // comparison was reaching for: a pattern nobody can browse to is not
       // an arrival worth flashing a name for, whichever feature brought it.
-      if (!patterns[addonPatternIdx].hidden) {
+      if (!patterns[featurePatternIdx].hidden) {
         contentNoticeTimer = CONTENT_NOTICE_SECONDS;
       }
       CalibPattern::overrideOn = false;
       // A remote picker is a person choosing; remember it the way a knob
       // turn is remembered. A show owns the panel and its cues are not
       // choices, so they must not write NVS on every cue.
-      if (addonPickWasAPerson) notePatternChanged();
-      Serial.printf(">>> ADDON pattern → %s\n", patterns[currentPatternIdx].name);
+      if (featurePickWasAPerson) notePatternChanged();
+      Serial.printf(">>> FEATURE pattern → %s\n", patterns[currentPatternIdx].name);
     } else {
-      Serial.printf(">>> ADDON pattern failed idx=%d\n", addonPatternIdx);
+      Serial.printf(">>> FEATURE pattern failed idx=%d\n", featurePatternIdx);
     }
   }
 
   // Same contract as the OSC path above, fed by GET /api/patterns/select.
   int httpPatternIdx;
-  if (!PFAddons::patternClaimed() &&
+  if (!PFFeatures::patternClaimed() &&
       PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
       activatePattern(httpPatternIdx)) {
@@ -1673,9 +1673,9 @@ void loop() {
     drawActivePattern();
     drawBannerOverlay();
     {
-      PFAddonFrame frame{dt, currentContentName(), true, chromeVisible(),
+      PFFeatureFrame frame{dt, currentContentName(), true, chromeVisible(),
                          currentPatternIdx, (int)currentMode};
-      PFAddons::drawOverlay(frame);
+      PFFeatures::drawOverlay(frame);
     }
 
     if (contentNoticeTimer > 0.0f) {

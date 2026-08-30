@@ -14,7 +14,7 @@ on:
     paths:
       - "firmware/patternflow/console/**"
       - "firmware/patternflow/src/*_index.h"
-      - "firmware/patternflow/addons/**/*_index.h"
+      - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
       - ".github/workflows/console-sync.yml"
   push:
@@ -22,7 +22,7 @@ on:
     paths:
       - "firmware/patternflow/console/**"
       - "firmware/patternflow/src/*_index.h"
-      - "firmware/patternflow/addons/**/*_index.h"
+      - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
 
 concurrency:

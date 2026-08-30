@@ -13,17 +13,17 @@ separate times before this existed - the NETWORK screen's hard-coded
 rows - each one capability-gated and well-intentioned, each one a core file
 that knew a feature by name, and none of them caught by anything until a
 person tripped over the symptom. The guards that DID hold all had teeth:
-addons.h refuses a composition that defines neither macro, CI refuses a
+features.h refuses a composition that defines neither macro, CI refuses a
 console header that drifted from its HTML, platformio.ini names libraries
 because the dependency finder cannot. This is the same idea aimed at the
 boundary itself.
 
 Four rules:
 
-  R1  Core references no addon namespace. The namespace list is read from
-      the addon directories themselves, so a brand-new feature is guarded
-      the moment it declares `namespace PFAddonWhatever`.
-  R2  Core includes nothing from the addon tree, except the two seams that
+  R1  Core references no feature namespace. The namespace list is read from
+      the feature directories themselves, so a brand-new feature is guarded
+      the moment it declares `namespace PFFeatureWhatever`.
+  R2  Core includes nothing from the feature tree, except the two seams that
       ARE the boundary: the sketch includes the dispatcher, the pattern
       registry includes the preset seam.
   R3  Behavioural core - the sketch, src/, abi/ - takes no #if / #ifdef
@@ -47,16 +47,16 @@ ROOT = Path(__file__).resolve().parents[1]
 SKETCH = ROOT / "patternflow"
 
 # The one constant to touch if the directory is ever renamed (features/?).
-ADDON_DIR = "addons"
+FEATURE_DIR = "features"
 
-# Files under addons/ that are the interface rather than a feature: the hook
+# Files under features/ that are the interface rather than a feature: the hook
 # struct, the dispatcher, the composition, and the preset seam.
-SEAM_FILES = {"pf_addon.h", "pf_addons.h", "addons.h", "addon_presets.h"}
+SEAM_FILES = {"pf_feature.h", "pf_features.h", "features.h", "feature_presets.h"}
 
-# The two sanctioned core -> addons includes (core file, included seam file).
+# The two sanctioned core -> features includes (core file, included seam file).
 CORE_INCLUDE_ALLOW = {
-    ("patternflow.ino", "pf_addons.h"),
-    ("pattern_registry.h", "addon_presets.h"),
+    ("patternflow.ino", "pf_features.h"),
+    ("pattern_registry.h", "feature_presets.h"),
     # overrides.h is the composition's second file - config.h includes it
     # before any default precisely so an edition can reach every #ifndef.
     ("config.h", "overrides.h"),
@@ -66,7 +66,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(errors="replace")
 
 # Same stripping check_sources.py uses: comments and raw strings blanked to
-# same-length spaces so line numbers survive. A comment may mention an addon
+# same-length spaces so line numbers survive. A comment may mention a feature
 # namespace freely - core_bus.h explains its own history that way.
 RAW_STRING = re.compile(r'R"([A-Za-z_]*)\(.*?\)\1"', re.DOTALL)
 LINE_COMMENT = re.compile(r"//[^\n]*")
@@ -96,19 +96,19 @@ def core_files() -> list[Path]:
     return files
 
 
-def addon_subdirs() -> list[Path]:
-    root = SKETCH / ADDON_DIR
+def feature_subdirs() -> list[Path]:
+    root = SKETCH / FEATURE_DIR
     return sorted(d for d in root.iterdir() if d.is_dir())
 
 
-def addon_namespaces(cores: list[Path]) -> dict[str, str]:
+def feature_namespaces(cores: list[Path]) -> dict[str, str]:
     """namespace name -> feature directory that declares it.
 
-    A namespace the CORE declares belongs to the core, even where an addon
+    A namespace the CORE declares belongs to the core, even where a feature
     re-opens it - core_audio_ws.h re-opens PatternflowPatternsHttp to
-    forward-declare server(), which is the addon reaching toward the core
-    (the allowed direction), not the core toward the addon. The first run
-    of this checker attributed that namespace to addons/audio/ and flagged
+    forward-declare server(), which is the feature reaching toward the core
+    (the allowed direction), not the core toward the feature. The first run
+    of this checker attributed that namespace to features/audio/ and flagged
     every legitimate core use of the core's own web server.
     """
     decl = re.compile(r"^\s*namespace\s+(\w+)", re.M)
@@ -116,7 +116,7 @@ def addon_namespaces(cores: list[Path]) -> dict[str, str]:
     for p in cores:
         core_owned.update(decl.findall(stripped(p)))
     ns: dict[str, str] = {}
-    for d in addon_subdirs():
+    for d in feature_subdirs():
         for h in d.rglob("*.h"):
             for name in decl.findall(stripped(h)):
                 if name not in core_owned:
@@ -127,19 +127,19 @@ def addon_namespaces(cores: list[Path]) -> dict[str, str]:
 def feature_flag_prefixes() -> list[str]:
     """PF_OSC, PF_AUDIO, ... derived from the directory names, so a new
     feature's flags are guarded without anyone editing this file."""
-    return sorted({"PF_" + d.name.upper() for d in addon_subdirs()})
+    return sorted({"PF_" + d.name.upper() for d in feature_subdirs()})
 
 
 def main() -> int:
     violations: list[str] = []
     cores = core_files()
-    namespaces = addon_namespaces(cores)
+    namespaces = feature_namespaces(cores)
     prefixes = feature_flag_prefixes()
 
     ns_pattern = re.compile(
         r"\b(" + "|".join(re.escape(n) for n in sorted(namespaces)) + r")\b")
     include_pattern = re.compile(
-        r'#\s*include\s+"([^"]*' + re.escape(ADDON_DIR) + r'/[^"]+)"')
+        r'#\s*include\s+"([^"]*' + re.escape(FEATURE_DIR) + r'/[^"]+)"')
     cond_pattern = re.compile(r"^\s*#\s*(if|elif|ifdef|ifndef)\b(.*)$", re.M)
     flag_pattern = re.compile(
         r"\b(" + "|".join(prefixes) + r")\w*\b")
@@ -155,8 +155,8 @@ def main() -> int:
             line = text.count("\n", 0, m.start()) + 1
             violations.append(
                 f"{rel}:{line}: core references {m.group(1)} "
-                f"(a namespace of {ADDON_DIR}/{namespaces[m.group(1)]}/) - "
-                f"reach it through a hook in pf_addon.h instead")
+                f"(a namespace of {FEATURE_DIR}/{namespaces[m.group(1)]}/) - "
+                f"reach it through a hook in pf_feature.h instead")
 
         # R2 - includes (checked on raw text: includes never sit in comments
         # we care about, and the historical ones are stripped anyway)
@@ -185,7 +185,7 @@ def main() -> int:
 
     # R4 - feature isolation
     cross = re.compile(r'#\s*include\s+"\.\./([\w-]+)/')
-    for d in addon_subdirs():
+    for d in feature_subdirs():
         for h in sorted(d.rglob("*.h")):
             text = stripped(h)
             for m in cross.finditer(text):
@@ -196,7 +196,7 @@ def main() -> int:
                 rel = h.relative_to(SKETCH).as_posix()
                 violations.append(
                     f"{rel}:{line}: feature {d.name} includes from "
-                    f"{ADDON_DIR}/{target}/ - features do not know each "
+                    f"{FEATURE_DIR}/{target}/ - features do not know each "
                     f"other; an edition is a set, not a stack")
 
     if violations:
@@ -209,7 +209,7 @@ def main() -> int:
 
     print(f"boundary holds: {len(cores)} core files know none of "
           f"{len(namespaces)} feature namespaces across "
-          f"{len(addon_subdirs())} features")
+          f"{len(feature_subdirs())} features")
     return 0
 
 

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - audio-react, as an addon
+// PatternFlow - audio-react, as a feature
 //
 // The fourth port, and the one that tested the boundary the RFC drew
 // around the device's own UI. Audio is not only a web page: it has a row
@@ -7,11 +7,11 @@
 // standing at the panel should be able to stop it reacting.
 //
 // Rather than let the sketch keep naming this one feature, the menu learned
-// to list addons generically: expose `shortName`, `isRuntimeEnabled` and
+// to list features generically: expose `shortName`, `isRuntimeEnabled` and
 // `setRuntimeEnabled` and the NETWORK screen shows a row and toggles it.
 // The core still owns the menu — it just no longer knows what audio is.
 //
-// It is also the only addon that runs a server of its own (the websocket on
+// It is also the only feature that runs a server of its own (the websocket on
 // PF_AUDIO_WS_PORT), which the seam allows: the rule is only that the loop
 // hook must not block.
 //
@@ -20,13 +20,13 @@
 #pragma once
 
 #include <Preferences.h>
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "core_audio_ws.h"
 
-namespace PFAddonAudio {
+namespace PFFeatureAudio {
 
 inline void setup() {
-  // The runtime switch survives reboots; the addon owns its own key.
+  // The runtime switch survives reboots; the feature owns its own key.
   Preferences prefs;
   prefs.begin("patternflow", /*readOnly=*/true);
   PatternflowAudio::setRuntimeEnabled(prefs.getBool("audio_runtime", true));
@@ -37,7 +37,7 @@ inline void onNetwork() {
   PatternflowAudio::begin();
 }
 
-inline void loop(const PFAddonFrame&) {
+inline void loop(const PFFeatureFrame&) {
   PatternflowAudio::handle();
 }
 
@@ -55,7 +55,7 @@ inline void fillInput(InputFrame& input) {
 inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
 
 // Whether audio is switched on, and whether anything is connected — both
-// specific to this addon. What the lanes are actually doing is core's to
+// specific to this feature. What the lanes are actually doing is core's to
 // report (`lanes` / `laneActive` in /api/status): audio is not the only
 // thing that drives them, and what a source is sending is not what the
 // pattern ends up seeing.
@@ -80,7 +80,7 @@ inline void setRuntimeEnabled(bool on) {
   prefs.end();
 }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "audio",
     "audio",
     setup,
@@ -103,4 +103,4 @@ inline const PFAddon descriptor = {
     nullptr,       // navDesc
 };
 
-}  // namespace PFAddonAudio
+}  // namespace PFFeatureAudio

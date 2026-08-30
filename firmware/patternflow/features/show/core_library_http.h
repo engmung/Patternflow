@@ -305,7 +305,7 @@ inline void handlePull() {
   }
   // The caller names the host; DEFAULT_HOST is the appliance's usual
   // address. This used to ask the MQTT module for its FlowLocal host, which
-  // made sequences depend on an unrelated addon for a default — a client
+  // made sequences depend on an unrelated feature for a default — a client
   // that knows about FlowLocal can pass ?host= instead.
   String host = server().hasArg("host") ? server().arg("host") : String();
   if (host.length() == 0) host = DEFAULT_HOST;

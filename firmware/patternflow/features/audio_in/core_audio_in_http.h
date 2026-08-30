@@ -9,7 +9,7 @@
 //
 // ── Why polling and not the websocket ───────────────────────────────────
 //
-// The audio addon already runs a websocket on :81, and reusing it was the
+// The audio feature already runs a websocket on :81, and reusing it was the
 // obvious idea. It is the wrong one: that socket carries levels INTO the
 // device from a browser tab, and this page is the opposite direction. Wiring
 // both through one server means the mic page cannot work on a build that has
