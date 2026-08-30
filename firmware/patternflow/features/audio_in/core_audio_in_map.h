@@ -75,15 +75,37 @@ struct Band {
   bool muted;
 };
 
-// Defaults sized from the measurement above, not from taste. inMax descends
-// across the bands because the energy does: a hi-hat at the same loudness as
-// a kick puts a fraction of the level into band 4.
-inline Band bands[4] = {
-    {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f, 0, false},
-    {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f, 1, false},
-    { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f, 2, false},
-    { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
-};
+// Input gain, applied to microphone samples before the FFT. The S3's PDM
+// path is documented-quiet (esp-idf#8660: a tone that is uncomfortable in
+// the room peaks at 0.03 of full scale) and Espressif's own answer in that
+// thread is "apply the gain to the data that I2S read" - the IDF 5 driver
+// later grew a hardware amplify_num (1..15) that its header admits is the
+// same digital multiply. So: a runtime gain, WLED-style, user-tunable on
+// /audio-in. Applied only to the microphone - the synthetic source is
+// already full-scale and would clip.
+inline float micGain = 8.0f;
+constexpr float MIC_GAIN_MIN = 1.0f;
+constexpr float MIC_GAIN_MAX = 16.0f;
+
+inline Band bands[4];  // filled by resetBands() or load(); see below
+
+// Defaults sized from the measurement above, not from taste - and sized for
+// micGain 8, which is why they look 8x the numbers in that note. inMax
+// descends across the bands because the energy does: a hi-hat at the same
+// loudness as a kick puts a fraction of the level into band 4.
+//
+// One function rather than two literal tables: the HTTP reset handler and
+// the fresh-boot path both call this, and the two copies they used to keep
+// in sync are exactly the kind of pair that drifts.
+inline void resetBands() {
+  const Band d[4] = {
+      {   62.0f,  375.0f, 0.08f, 1.00f, 1.0f, 0.30f, 0.85f, 0, false},
+      {  375.0f, 1500.0f, 0.06f, 0.95f, 1.2f, 0.30f, 0.85f, 1, false},
+      { 1500.0f, 5000.0f, 0.03f, 0.40f, 1.6f, 0.30f, 0.85f, 2, false},
+      { 5000.0f, 8000.0f, 0.02f, 0.25f, 1.8f, 0.30f, 0.85f, 3, false},
+  };
+  for (int i = 0; i < 4; i++) bands[i] = d[i];
+}
 
 // The analysis is 512 points at 16 kHz, so a bin is 31.25 Hz and the last
 // usable one is 8 kHz. Bin 0 is DC and never counted: a PDM mic has a
@@ -171,18 +193,26 @@ inline float travel(int b, float peakLevel) {
 // so adding a field to Band cannot resurrect somebody's old settings as
 // garbage - they get the defaults and retune, which is the safe direction.
 constexpr const char* NVS_NS = "pf-audioin";
-constexpr const char* NVS_KEY = "bands";
+// "bands8", not "bands": the shaping numbers only mean anything at a given
+// input gain, and gain landed after people had already tuned against the
+// ungained scale. Reading those old values under 8x gain would saturate
+// every band, so the key changed and the old blob is simply orphaned -
+// defaults and a retune, the same safe direction as a size mismatch.
+constexpr const char* NVS_KEY = "bands8";
 constexpr const char* NVS_MIC = "mic";
+constexpr const char* NVS_GAIN = "igain";
 
 inline void save() {
   Preferences p;
   if (!p.begin(NVS_NS, false)) return;
   p.putBytes(NVS_KEY, bands, sizeof(bands));
   p.putBool(NVS_MIC, micOn);
+  p.putFloat(NVS_GAIN, micGain);
   p.end();
 }
 
 inline void load() {
+  resetBands();  // the baseline; NVS overwrites it when a saved set exists
   Preferences p;
   if (!p.begin(NVS_NS, true)) return;
   if (p.getBytesLength(NVS_KEY) == sizeof(bands)) {
@@ -196,6 +226,7 @@ inline void load() {
     }
   }
   micOn = p.getBool(NVS_MIC, false);
+  micGain = constrain(p.getFloat(NVS_GAIN, micGain), MIC_GAIN_MIN, MIC_GAIN_MAX);
   p.end();
 }
 
