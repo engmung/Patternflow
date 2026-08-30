@@ -89,6 +89,56 @@ constexpr float MIC_GAIN_MAX = 16.0f;
 
 inline Band bands[4];  // filled by resetBands() or load(); see below
 
+// ── Response curves, as tables ──────────────────────────────────────────
+//
+// The mapping editor (the extension's editor.html, and its console port)
+// replaced the single boost exponent with free curves - rising, falling,
+// gates, steps, arches, hand-dragged beziers. The firmware learns NONE of
+// that: a curve arrives as 33 samples of its shape, 0..255, and this side
+// only interpolates. New curve types cost the device nothing, forever.
+//
+// Parallel arrays rather than fields in Band, on purpose: the Band blob's
+// NVS key encodes its layout, and growing the struct would orphan every
+// tuned set (bands8 -> bands9 both did exactly that). The tables live under
+// their own keys, so an upgrade keeps the windows people measured.
+//
+// A band with no table (lutSet 0) keeps the legacy gain exponent - the
+// upgrade is invisible until the editor touches a band.
+constexpr int LUT_POINTS = 33;
+inline uint8_t luts[4][LUT_POINTS];
+inline uint8_t lutSet[4] = {0, 0, 0, 0};
+// The editor's own description of the curve (preset id / bezier handles),
+// stored and echoed verbatim so the editor can reopen what it saved. The
+// firmware never parses it.
+inline char metas[4][32] = {{0}, {0}, {0}, {0}};
+
+inline float lutValue(int b, float u) {
+  const float pos = (u < 0 ? 0 : (u > 1 ? 1 : u)) * (LUT_POINTS - 1);
+  const int i = (int)pos;
+  const int j = i + 1 < LUT_POINTS ? i + 1 : i;
+  const float f = pos - i;
+  return (luts[b][i] * (1.0f - f) + luts[b][j] * f) / 255.0f;
+}
+
+// ── Damping ─────────────────────────────────────────────────────────────
+//
+// A per-band EMA on the level the MAPPING consumes - not on what the gate
+// hears (its constants were measured against raw 60 Hz frames and stay
+// that way). Stored on the extension's scale (alpha at its 30 Hz tick) so
+// one number means one feel on both paths; this side converts to its own
+// frame rate at use. Higher alpha = snappier; the editor shows it reversed
+// as "damping", tight to glassy.
+inline float smoothing = 0.35f;
+inline float smoothLevel[4] = {0, 0, 0, 0};
+
+inline void smoothLevels(const float* level) {
+  // alpha_60 so that two 60 Hz steps equal one 30 Hz step of `smoothing`.
+  const float a30 = constrain(smoothing, 0.05f, 0.9f);
+  const float a60 = 1.0f - sqrtf(1.0f - a30);
+  for (int i = 0; i < 4; i++)
+    smoothLevel[i] += (level[i] - smoothLevel[i]) * a60;
+}
+
 // Defaults sized from MUSIC, measured 2026-08-30: thirty seconds of a real
 // track at listening volume, per-band p10/p90 quantiles, at micGain 8.
 //
@@ -121,6 +171,11 @@ inline void resetBands() {
       { 5000.0f, 8000.0f, 0.012f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
   };
   for (int i = 0; i < 4; i++) bands[i] = d[i];
+  for (int i = 0; i < 4; i++) {
+    lutSet[i] = 0;
+    metas[i][0] = 0;
+  }
+  smoothing = 0.35f;
 }
 
 // The analysis is 512 points at 16 kHz, so a bin is 31.25 Hz and the last
@@ -332,9 +387,15 @@ inline float mappedWindow(int b, float level, float inMinRaw, float inMaxRaw) {
   const Band& x = bands[b];
   const float inMin = clamp01(inMinRaw);
   const float inMax = max(inMin + 0.01f, clamp01(inMaxRaw));
-  const float gain = constrain(x.gain, 0.2f, 4.0f);
   float u = clamp01((level - inMin) / (inMax - inMin));
-  u = powf(u, 1.0f / gain);
+  if (lutSet[b]) {
+    // The editor's baked curve - any shape, including falling ones, which is
+    // how "loud pushes the knob DOWN" works with no inversion switch.
+    u = lutValue(b, u);
+  } else {
+    const float gain = constrain(x.gain, 0.2f, 4.0f);
+    u = powf(u, 1.0f / gain);
+  }
   return x.outMin + u * (x.outMax - x.outMin);
 }
 
@@ -378,6 +439,13 @@ constexpr const char* NVS_KEY = "bands9";
 constexpr const char* NVS_MIC = "mic";
 constexpr const char* NVS_GAIN = "igain";
 constexpr const char* NVS_AUTO = "auto";
+// The curve tables live beside the bands, not inside them - see the note at
+// `luts`. Their own keys, their own size checks, and a bands9 set survives
+// this feature arriving.
+constexpr const char* NVS_LUTS = "luts9";
+constexpr const char* NVS_LSET = "lset9";
+constexpr const char* NVS_META = "meta9";
+constexpr const char* NVS_SMOOTH = "smooth";
 
 inline void save() {
   Preferences p;
@@ -386,6 +454,10 @@ inline void save() {
   p.putBool(NVS_MIC, micOn);
   p.putFloat(NVS_GAIN, micGain);
   p.putBool(NVS_AUTO, autoRange);
+  p.putBytes(NVS_LUTS, luts, sizeof(luts));
+  p.putBytes(NVS_LSET, lutSet, sizeof(lutSet));
+  p.putBytes(NVS_META, metas, sizeof(metas));
+  p.putFloat(NVS_SMOOTH, smoothing);
   p.end();
 }
 
@@ -406,6 +478,16 @@ inline void load() {
   micOn = p.getBool(NVS_MIC, false);
   micGain = constrain(p.getFloat(NVS_GAIN, micGain), MIC_GAIN_MIN, MIC_GAIN_MAX);
   autoRange = p.getBool(NVS_AUTO, autoRange);
+  if (p.getBytesLength(NVS_LUTS) == sizeof(luts) &&
+      p.getBytesLength(NVS_LSET) == sizeof(lutSet)) {
+    p.getBytes(NVS_LUTS, luts, sizeof(luts));
+    p.getBytes(NVS_LSET, lutSet, sizeof(lutSet));
+  }
+  if (p.getBytesLength(NVS_META) == sizeof(metas)) {
+    p.getBytes(NVS_META, metas, sizeof(metas));
+    for (int i = 0; i < 4; i++) metas[i][sizeof(metas[i]) - 1] = 0;
+  }
+  smoothing = constrain(p.getFloat(NVS_SMOOTH, smoothing), 0.05f, 0.9f);
   p.end();
 }
 

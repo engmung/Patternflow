@@ -226,7 +226,10 @@ inline const char* sourceLabel() {
 // web server is not worth it, and nobody is reading a 31 Hz bin off a
 // 600 px canvas. This is a picture to aim at, and the band edges it is used
 // to set are exact regardless.
-constexpr int SPEC_BUCKETS = 40;
+// 64, the editor's contract (one bucket count on every path - the extension
+// computes the same 64 from tab audio). Was 40 when the old strip page drew
+// it into a 600 px canvas.
+constexpr int SPEC_BUCKETS = 64;
 
 inline void spectrum(float* out) {
   const float loHz = PFAudioInMap::MIN_HZ, hiHz = PFAudioInMap::MAX_HZ;

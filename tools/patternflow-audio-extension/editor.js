@@ -164,9 +164,35 @@ const hzOf = (x) => clampHz(CAPS.hzMin * Math.pow(10, DECADES * ((x - M.l) / PW)
 const yOf = (v) => M.t + (1 - clamp01(v)) * PH;
 const vOf = (y) => clamp01(1 - (y - M.t) / PH);
 
-const TICKS = [[20, '20'], [50, '50'], [100, '100'], [200, '200'], [500, '500'],
-  [1000, '1k'], [2000, '2k'], [5000, '5k'], [10000, '10k'], [20000, '20k']];
+// Inner gridlines only — the endpoints are drawn from CAPS, so the same axis
+// code serves the extension's 20–20k and the microphone's 31–8k.
+const TICKS = [[50, '50'], [100, '100'], [200, '200'], [500, '500'],
+  [1000, '1k'], [2000, '2k'], [5000, '5k'], [10000, '10k']]
+  .filter(([hz]) => hz > CAPS.hzMin * 1.15 && hz < CAPS.hzMax * 0.87);
 const DB_LINES = [[1, '0'], [0.75, '-18'], [0.5, '-35'], [0.25, '-53'], [0, '-70']];
+
+// Canvas colors come from the page's CSS variables, read fresh each paint so
+// a theme toggle repaints correctly. The extension page is the cream
+// instrument; the device console wraps the same module in its dark tokens.
+function theme() {
+  const s = getComputedStyle(document.body);
+  const v = (name, fallback) => (s.getPropertyValue(name) || fallback).trim();
+  const led = v('--led', '#e8552e');
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(led.replace('#', ''));
+  const ledRgb = m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : '232, 85, 46';
+  return {
+    field: v('--field', '#fbf7ef'),
+    cream: v('--cream', '#f4efe6'),
+    ink: v('--ink', '#141414'),
+    muted: v('--muted', '#6b655a'),
+    faint: v('--faint', '#a69f90'),
+    rule: v('--rule', '#d9d1c0'),
+    led,
+    ledA: (a) => `rgba(${ledRgb}, ${a})`,
+    ruleA: (a) => `rgba(${parseInt(v('--rule', '#d9d1c0').replace('#', '').slice(0, 2), 16)}, ${parseInt(v('--rule', '#d9d1c0').replace('#', '').slice(2, 4), 16)}, ${parseInt(v('--rule', '#d9d1c0').replace('#', '').slice(4, 6), 16)}, ${a})`,
+    inkA: (a) => `rgba(${parseInt(v('--ink', '#141414').replace('#', '').slice(0, 2), 16)}, ${parseInt(v('--ink', '#141414').replace('#', '').slice(2, 4), 16)}, ${parseInt(v('--ink', '#141414').replace('#', '').slice(4, 6), 16)}, ${a})`
+  };
+}
 
 // The window a band maps right now: its own handles, or the breathing
 // envelope while auto range runs.
@@ -189,15 +215,16 @@ function formatHz(hz) {
 const MONO = '10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
 
 function drawPlot() {
+  const T = theme();
   const W = M.l + PW + M.r, H = M.t + PH + M.b;
   pctx.clearRect(0, 0, W, H);
-  pctx.fillStyle = '#fbf7ef';
+  pctx.fillStyle = T.field;
   pctx.fillRect(0, 0, W, H);
 
   // grid
   pctx.font = MONO;
-  pctx.strokeStyle = 'rgba(217, 209, 192, 0.55)';
-  pctx.fillStyle = '#a69f90';
+  pctx.strokeStyle = T.ruleA(0.55);
+  pctx.fillStyle = T.faint;
   pctx.lineWidth = 1;
   for (const [v, label] of DB_LINES) {
     const y = Math.round(yOf(v)) + 0.5;
@@ -210,18 +237,20 @@ function drawPlot() {
   pctx.textAlign = 'center';
   for (const [hz, label] of TICKS) {
     const x = Math.round(xOf(hz)) + 0.5;
-    if (hz > CAPS.hzMin && hz < CAPS.hzMax) {
-      pctx.beginPath(); pctx.moveTo(x, M.t); pctx.lineTo(x, M.t + PH); pctx.stroke();
-    }
+    pctx.beginPath(); pctx.moveTo(x, M.t); pctx.lineTo(x, M.t + PH); pctx.stroke();
     pctx.fillText(label, x, M.t + PH + 16);
   }
-  pctx.strokeStyle = '#d9d1c0';
+  pctx.textAlign = 'left';
+  pctx.fillText(formatHz(CAPS.hzMin), M.l, M.t + PH + 16);
+  pctx.textAlign = 'right';
+  pctx.fillText(formatHz(CAPS.hzMax), M.l + PW, M.t + PH + 16);
+  pctx.strokeStyle = T.rule;
   pctx.beginPath(); pctx.moveTo(M.l, M.t + PH + 0.5); pctx.lineTo(M.l + PW, M.t + PH + 0.5); pctx.stroke();
 
   // spectrum staircase
   const spec = frame.spectrum || [];
   if (spec.length > 1) {
-    pctx.fillStyle = 'rgba(20, 20, 20, 0.14)';
+    pctx.fillStyle = T.inkA(0.14);
     pctx.beginPath();
     pctx.moveTo(M.l, yOf(spec[0]));
     const bw = PW / spec.length;
@@ -242,10 +271,10 @@ function drawPlot() {
     const x0 = xOf(band.hzMin), x1 = xOf(band.hzMax);
     const yTop = yOf(win.hi), yBot = yOf(win.lo);
     const isSel = i === sel;
-    const stroke = isSel ? '#e8552e' : (band.muted ? '#a69f90' : '#141414');
+    const stroke = isSel ? T.led : (band.muted ? T.faint : T.ink);
     const alpha = band.muted ? 0.04 : (isSel ? 0.12 : 0.07);
 
-    pctx.fillStyle = 'rgba(232, 85, 46, ' + alpha + ')';
+    pctx.fillStyle = T.ledA(alpha);
     pctx.fillRect(x0, yTop, x1 - x0, yBot - yTop);
 
     pctx.strokeStyle = stroke;
@@ -263,7 +292,7 @@ function drawPlot() {
     // the raw position it wandered out of its own box, which read as broken.
     const level = (frame.levels && frame.levels[i]) || 0;
     const ly = Math.max(yTop + 1.5, Math.min(yBot - 1.5, yOf(level)));
-    pctx.strokeStyle = '#e8552e';
+    pctx.strokeStyle = T.led;
     pctx.lineWidth = 2;
     pctx.beginPath();
     pctx.moveTo(x0 + 1, ly);
@@ -271,8 +300,8 @@ function drawPlot() {
     pctx.stroke();
 
     if (isSel) {
-      pctx.fillStyle = '#fbf7ef';
-      pctx.strokeStyle = '#141414';
+      pctx.fillStyle = T.field;
+      pctx.strokeStyle = T.ink;
       pctx.lineWidth = 1;
       for (const [cx, cy] of [[x0, yTop], [x1, yTop], [x0, yBot], [x1, yBot]]) {
         pctx.fillRect(cx - 3.5, cy - 3.5, 7, 7);
@@ -285,6 +314,7 @@ function drawPlot() {
 }
 
 function placeTags() {
+  const T = theme();
   cfg.bands.forEach((band, i) => {
     const tag = $('tag' + i);
     const win = bandWindow(i);
@@ -293,12 +323,12 @@ function placeTags() {
     tag.classList.toggle('sel', i === sel);
     tag.classList.toggle('mutedTag', band.muted);
     tag.querySelector('.tagText').textContent = 'B' + (i + 1) + '·K' + (band.knob + 1) + (band.muted ? '·M' : '');
-    drawGlyph(tag.querySelector('canvas'), band, 18, 12);
+    drawGlyph(tag.querySelector('canvas'), band, 18, 12, T.ink);
   });
 }
 
 // tiny curve glyph, used by tags and footer chips
-function drawGlyph(canvas, band, w, h) {
+function drawGlyph(canvas, band, w, h, color) {
   const dpr = window.devicePixelRatio || 1;
   if (canvas.width !== w * dpr) {
     canvas.width = w * dpr; canvas.height = h * dpr;
@@ -307,7 +337,7 @@ function drawGlyph(canvas, band, w, h) {
   const g = canvas.getContext('2d');
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.clearRect(0, 0, w, h);
-  g.strokeStyle = '#141414';
+  g.strokeStyle = color || theme().ink;
   g.lineWidth = 1.4;
   g.lineCap = 'round';
   g.beginPath();
@@ -464,21 +494,22 @@ const cxOf = (u) => CM.l + clamp01(u) * CW;
 const cyOf = (v) => CM.t + (1 - clamp01(v)) * CH;
 
 function drawCurve() {
+  const T = theme();
   const band = cfg.bands[sel];
   const W = CM.l + CW + CM.r, H = CM.t + CH + CM.b;
   cctx.clearRect(0, 0, W, H);
 
-  cctx.fillStyle = '#f4efe6';
+  cctx.fillStyle = T.cream;
   cctx.fillRect(CM.l, CM.t, CW, CH);
-  cctx.strokeStyle = '#d9d1c0';
+  cctx.strokeStyle = T.rule;
   cctx.lineWidth = 1;
   cctx.strokeRect(CM.l + 0.5, CM.t + 0.5, CW - 1, CH - 1);
-  cctx.strokeStyle = 'rgba(217, 209, 192, 0.5)';
+  cctx.strokeStyle = T.ruleA(0.5);
   cctx.beginPath(); cctx.moveTo(cxOf(0.5), CM.t); cctx.lineTo(cxOf(0.5), CM.t + CH); cctx.stroke();
   cctx.beginPath(); cctx.moveTo(CM.l, cyOf(0.5)); cctx.lineTo(CM.l + CW, cyOf(0.5)); cctx.stroke();
 
   // curve
-  cctx.strokeStyle = '#141414';
+  cctx.strokeStyle = T.ink;
   cctx.lineWidth = 2;
   cctx.lineCap = 'round';
   cctx.beginPath();
@@ -495,13 +526,13 @@ function drawCurve() {
   // bezier handles
   if (band.curve && band.curve.type === 'bezier') {
     const c = band.curve;
-    cctx.strokeStyle = '#a69f90';
+    cctx.strokeStyle = T.faint;
     cctx.setLineDash([2, 3]);
     cctx.beginPath(); cctx.moveTo(cxOf(0), cyOf(c.y0)); cctx.lineTo(cxOf(c.p1x), cyOf(c.p1y)); cctx.stroke();
     cctx.beginPath(); cctx.moveTo(cxOf(1), cyOf(c.y1)); cctx.lineTo(cxOf(c.p2x), cyOf(c.p2y)); cctx.stroke();
     cctx.setLineDash([]);
-    cctx.fillStyle = '#e8552e';
-    cctx.strokeStyle = '#141414';
+    cctx.fillStyle = T.led;
+    cctx.strokeStyle = T.ink;
     cctx.lineWidth = 1;
     for (const [hx, hy] of [[c.p1x, c.p1y], [c.p2x, c.p2y]]) {
       cctx.fillRect(cxOf(hx) - 3.5, cyOf(hy) - 3.5, 7, 7);
@@ -514,17 +545,17 @@ function drawCurve() {
   const level = (frame.levels && frame.levels[sel]) || 0;
   const u = clamp01((level - win.lo) / Math.max(0.001, win.hi - win.lo));
   const v = bandCurveValue(band, u);
-  cctx.strokeStyle = '#e8552e';
+  cctx.strokeStyle = T.led;
   cctx.setLineDash([3, 3]);
   cctx.lineWidth = 1;
   cctx.beginPath(); cctx.moveTo(cxOf(u), CM.t + CH); cctx.lineTo(cxOf(u), cyOf(v)); cctx.stroke();
   cctx.setLineDash([]);
-  cctx.fillStyle = '#e8552e';
+  cctx.fillStyle = T.led;
   cctx.beginPath(); cctx.arc(cxOf(u), cyOf(v), 4.5, 0, Math.PI * 2); cctx.fill();
 
   // labels
   cctx.font = MONO;
-  cctx.fillStyle = '#a69f90';
+  cctx.fillStyle = T.faint;
   cctx.textAlign = 'left';
   cctx.fillText(cfg.autoRange ? 'in auto' : 'in ' + win.lo.toFixed(2), CM.l, CM.t + CH + 16);
   cctx.textAlign = 'right';
@@ -587,7 +618,7 @@ function renderPresetChips() {
   if (band.curve && band.curve.type === 'steps') $('stepsN').textContent = String(band.curve.n);
   document.querySelectorAll('.preset canvas').forEach((canvas) => {
     const preset = PRESETS[canvas.parentElement.dataset.p];
-    drawGlyph(canvas, { curve: preset.curve, gain: 1 }, 40, 24);
+    drawGlyph(canvas, { curve: preset.curve, gain: 1 }, 40, 24, theme().ink);
   });
 }
 
@@ -689,7 +720,7 @@ function renderChips() {
     chip.querySelector('.chipName').textContent = 'B' + (i + 1);
     chip.querySelector('.chipHz').textContent = formatHz(band.hzMin) + '–' + formatHz(band.hzMax);
     chip.querySelector('.chipKnob').textContent = 'K' + (band.knob + 1);
-    drawGlyph(chip.querySelector('canvas'), band, 18, 12);
+    drawGlyph(chip.querySelector('canvas'), band, 18, 12, theme().muted);
   });
 }
 
@@ -753,7 +784,7 @@ $('damping').addEventListener('input', () => {
 function renderStatus() {
   const el = $('sourceChip');
   if (frame.demo) { el.textContent = 'demo source'; el.className = 'chip'; }
-  else if (frame.running && frame.connected) { el.textContent = 'live · tab audio'; el.className = 'chip okChip'; }
+  else if (frame.running && frame.connected) { el.textContent = (A.labels && A.labels.live) || 'live · tab audio'; el.className = 'chip okChip'; }
   else if (frame.running) { el.textContent = 'capturing · connecting'; el.className = 'chip'; }
   else { el.textContent = 'idle'; el.className = 'chip'; }
   $('hostChip').textContent = cfg.host + ':81';
