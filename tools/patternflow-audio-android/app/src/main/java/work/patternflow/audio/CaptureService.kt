@@ -137,6 +137,7 @@ class CaptureService : Service() {
         thread(name = "pf-analyze", isDaemon = true) {
             val mono = FloatArray(Analyzer.FFT_SIZE)
             var lastConfig = 0L
+            var lastFrameSent = 0L
             while (alive) {
                 val now = System.currentTimeMillis()
                 if (now - lastConfig > 5000) {
@@ -156,6 +157,10 @@ class CaptureService : Service() {
                 val lanes = analyzer.analyze(mono)
                 System.arraycopy(analyzer.levels, 0, uiLevels, 0, 4)
                 val l = link
+                if (l != null && now - lastFrameSent > 150) {
+                    lastFrameSent = now
+                    l.postFrame(buildFrame())
+                }
                 if (l != null && l.connected) {
                     l.sendLanes(lanes)
                     status = "live"
@@ -167,6 +172,29 @@ class CaptureService : Service() {
                 Thread.sleep(33)
             }
         }
+    }
+
+    // "l0..l3;lo0,hi0..lo3,hi3;s0..s63" - the shape parseFrame() on the
+    // firmware side insists on, 76 numbers or nothing.
+    private fun buildFrame(): String {
+        val sb = StringBuilder(620)
+        for (i in 0..3) {
+            if (i > 0) sb.append(',')
+            sb.append(String.format(java.util.Locale.US, "%.3f", analyzer.levels[i]))
+        }
+        sb.append(';')
+        for (i in 0..3) {
+            if (i > 0) sb.append(',')
+            sb.append(String.format(java.util.Locale.US, "%.3f", analyzer.envLo[i]))
+            sb.append(',')
+            sb.append(String.format(java.util.Locale.US, "%.3f", analyzer.envHi[i]))
+        }
+        sb.append(';')
+        for (i in 0 until 64) {
+            if (i > 0) sb.append(',')
+            sb.append(String.format(java.util.Locale.US, "%.2f", analyzer.spectrum[i]))
+        }
+        return sb.toString()
     }
 
     private fun stopEverything() {

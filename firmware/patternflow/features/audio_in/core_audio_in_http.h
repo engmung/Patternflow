@@ -41,6 +41,46 @@ namespace PFAudioInHttp {
 
 inline bool initialized = false;
 
+// ── External frames ─────────────────────────────────────────────────────
+//
+// A phone running the capture app analyses on the phone and sends the panel
+// nothing but final lane values - which leaves the console editor BLIND on a
+// board with no microphone: an empty plot, boxes with nothing to breathe
+// against, no way to see a curve doing anything. So the app also POSTs its
+// analysis here a few times a second (levels, envelopes, a spectrum sized to
+// this device's axis), and while those frames stay fresh - and the
+// microphone is off; a live mic outranks a monitor - the poll payload serves
+// them instead. The page cannot tell the difference, except that `source`
+// says "phone" and the values arrive already normalized (`ext:true`, so the
+// page skips its own scale conversion).
+inline float extLevels[4] = {0, 0, 0, 0};
+inline float extEnv[8] = {0, 0, 0, 0, 0, 0, 0, 0};  // lo,hi per band
+inline float extSpec[64] = {0};
+inline uint32_t extMs = 0;
+
+inline bool extFresh() {
+  return extMs != 0 && (millis() - extMs) < 1500 && !PFAudioInMap::micOn;
+}
+
+// "l0,l1,l2,l3;lo0,hi0,..lo3,hi3;s0,..,s63" - 4+8+64 floats, three groups.
+// A frame that does not parse to exactly that shape is dropped whole.
+inline void parseFrame(const String& s) {
+  float vals[76];
+  int n = 0, start = 0;
+  for (unsigned i = 0; i <= s.length() && n < 76; i++) {
+    const char c = i < s.length() ? s[i] : ',';
+    if (c == ',' || c == ';') {
+      if (i > (unsigned)start) vals[n++] = s.substring(start, i).toFloat();
+      start = i + 1;
+    }
+  }
+  if (n != 76) return;
+  memcpy(extLevels, vals, sizeof(extLevels));
+  memcpy(extEnv, vals + 4, sizeof(extEnv));
+  memcpy(extSpec, vals + 12, sizeof(extSpec));
+  extMs = millis();
+}
+
 inline WebServer& server() { return PatternflowPatternsHttp::server(); }
 
 inline void handleIndex() {
@@ -64,9 +104,12 @@ inline void handleGet() {
   const bool levelsOnly = server().hasArg("levels");
 
   if (levelsOnly) {
+    const bool ext = extFresh();
     String j = "{\"source\":\"";
-    j += PFAudioFFT::sourceLabel();
-    j += "\",\"rawPeak\":";
+    j += ext ? "phone" : PFAudioFFT::sourceLabel();
+    j += "\",\"ext\":";
+    j += ext ? "true" : "false";
+    j += ",\"rawPeak\":";
     j += String(PFAudioFFT::rawPeak, 5);
     j += ",\"rawDc\":";
     j += String(PFAudioFFT::rawDc, 5);
@@ -78,7 +121,7 @@ inline void handleGet() {
     j += ",\"levels\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';
-      j += String(PFAudioInMap::smoothLevel[i], 4);
+      j += String(ext ? extLevels[i] : PFAudioInMap::smoothLevel[i], 4);
     }
     // The level as the mapping consumes it in auto mode - the page paints
     // its dot and meters from this so what you see is what the knob gets.
@@ -95,7 +138,18 @@ inline void handleGet() {
     // The breathing window, for the editor's boxes: in auto mode each band
     // maps between its learned floor and its peak envelope, and the box's
     // dashed edges are drawn from exactly these.
-    if (PFAudioInMap::autoRange) {
+    if (ext) {
+      // The phone's own envelopes - its auto range, seen from here.
+      j += "],\"env\":[";
+      for (int i = 0; i < 4; i++) {
+        if (i) j += ',';
+        j += "{\"lo\":";
+        j += String(extEnv[i * 2], 4);
+        j += ",\"hi\":";
+        j += String(extEnv[i * 2 + 1], 4);
+        j += '}';
+      }
+    } else if (PFAudioInMap::autoRange) {
       j += "],\"env\":[";
       for (int i = 0; i < 4; i++) {
         if (i) j += ',';
@@ -107,7 +161,12 @@ inline void handleGet() {
       }
     }
     j += "],\"spectrum\":[";
-    {
+    if (ext) {
+      for (int i = 0; i < 64; i++) {
+        if (i) j += ',';
+        j += String(extSpec[i], 3);
+      }
+    } else {
       float s[PFAudioFFT::SPEC_BUCKETS];
       PFAudioFFT::spectrum(s);
       for (int i = 0; i < PFAudioFFT::SPEC_BUCKETS; i++) {
@@ -274,6 +333,13 @@ inline void applyBandArgs(int b, const String& suffix) {
 // updates are allowed: the page sends only the handle that moved, so dragging
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
+  // Monitor frames are state, not settings: no NVS save, no other fields.
+  if (server().hasArg("frame")) {
+    parseFrame(server().arg("frame"));
+    server().sendHeader("Cache-Control", "no-store");
+    server().send(200, "application/json", "{\"ok\":true}");
+    return;
+  }
   if (server().hasArg("mic")) {
     const String v = server().arg("mic");
     PFAudioInMap::micOn = (v == "1" || v == "true");

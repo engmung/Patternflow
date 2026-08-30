@@ -95,11 +95,28 @@ class Analyzer {
 
     // ── per-band state ──────────────────────────────────────────────────
     private val smoothLevel = FloatArray(4)
-    private val envLo = FloatArray(4) { 1f }
-    private val envHi = FloatArray(4)
+    val envLo = FloatArray(4) { 1f }
+    val envHi = FloatArray(4)
 
     /** Latest smoothed band levels, for the UI meters. */
     val levels = FloatArray(4)
+
+    // A 64-bucket spectrum over the PANEL's axis (31.25–8000 Hz), not the
+    // phone's full range: these buckets exist to be relayed to the console
+    // editor as monitor frames, and they have to paint onto its axis as-is.
+    // 8000/31.25 is exactly 256, so the log spacing lands on clean numbers.
+    val spectrum = FloatArray(64)
+    private val bucketLo = IntArray(64)
+    private val bucketHi = IntArray(64)
+
+    init {
+        for (s in 0 until 64) {
+            val h0 = 31.25f * 256f.pow(s / 64f)
+            val h1 = 31.25f * 256f.pow((s + 1) / 64f)
+            bucketLo[s] = max(1, (h0 * FFT_SIZE / SAMPLE_RATE).toInt())
+            bucketHi[s] = max(bucketLo[s], min(FFT_SIZE / 2 - 1, (h1 * FFT_SIZE / SAMPLE_RATE).toInt()))
+        }
+    }
 
     /**
      * One tick: window the newest FFT_SIZE mono samples, transform, fold the
@@ -119,6 +136,12 @@ class Analyzer {
             val mag = sqrt(re[i] * re[i] + im[i] * im[i]) * scale
             val db = 20f * log10(max(mag, 1e-4f))
             binDb[i] = BIN_SMOOTH * binDb[i] + (1f - BIN_SMOOTH) * db
+        }
+
+        for (s in 0 until 64) {
+            var sum = 0f
+            for (k in bucketLo[s]..bucketHi[s]) sum += binDb[k]
+            spectrum[s] = clamp01(((sum / (bucketHi[s] - bucketLo[s] + 1)) + 80f) / 70f)
         }
 
         val cfg = bands

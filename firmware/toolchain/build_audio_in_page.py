@@ -125,18 +125,26 @@ ADAPTER = r'''
   var frameFn = null;
   var polling = false;
   var micOn = false;
+  var phoneLive = false;
 
   function poll() {
     fetch('/api/audio-in?levels=1').then(function (r) { return r.json(); }).then(function (j) {
-      micOn = j.source !== 'off';
+      // ext frames come from the phone app, already on the editor's own
+      // normalized scale - converting them again would wreck them. The
+      // device's mic values are linear and get the dB treatment.
+      var ext = j.ext === true;
+      micOn = !ext && j.source !== 'off';
+      phoneLive = ext;
       syncBar();
+      window.PFAdapter.labels.live = ext ? 'live · phone' : 'live · microphone';
+      var conv = ext ? function (v) { return v; } : dbn;
       if (frameFn) frameFn({
-        running: micOn,
-        connected: micOn,
-        levels: (j.levels || []).map(dbn),
+        running: ext || micOn,
+        connected: ext || micOn,
+        levels: (j.levels || []).map(conv),
         outputs: j.outputs || [],
-        env: (j.env || []).map(function (e) { return { lo: dbn(e.lo), hi: dbn(e.hi) }; }),
-        spectrum: (j.spectrum || []).map(dbn),
+        env: (j.env || []).map(function (e) { return { lo: conv(e.lo), hi: conv(e.hi) }; }),
+        spectrum: (j.spectrum || []).map(conv),
         autoRange: true
       });
     }).catch(function () {
@@ -220,7 +228,11 @@ ADAPTER = r'''
     var t = document.getElementById('micToggle');
     if (t) t.classList.toggle('on', micOn);
     var note = document.getElementById('deviceNote');
-    if (note) note.textContent = micOn ? '' : 'microphone is off — the panel is not listening';
+    if (note) {
+      note.textContent = micOn ? ''
+        : phoneLive ? 'showing the phone app’s audio'
+        : 'microphone is off — the panel is not listening';
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function () {

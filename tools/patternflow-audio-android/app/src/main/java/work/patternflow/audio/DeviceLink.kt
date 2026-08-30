@@ -133,6 +133,31 @@ class DeviceLink(private val host: String) {
         ws?.send("off")
     }
 
+    // ── monitor frames ──────────────────────────────────────────────────
+    // The console editor on a mic-less board is blind without these: the
+    // phone's levels, envelopes and spectrum, POSTed a few times a second so
+    // the page shows what THIS source hears. Fire-and-forget, one in flight -
+    // a slow device drops monitor frames, never the lane stream.
+    @Volatile private var frameInFlight = false
+
+    fun postFrame(payload: String) {
+        if (frameInFlight) return
+        frameInFlight = true
+        val body = okhttp3.FormBody.Builder().add("frame", payload).build()
+        http.newCall(
+            Request.Builder().url("http://$host/api/audio-in").post(body).build()
+        ).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                frameInFlight = false
+            }
+
+            override fun onResponse(call: okhttp3.Call, response: Response) {
+                response.close()
+                frameInFlight = false
+            }
+        })
+    }
+
     fun close() {
         try {
             ws?.send("off")
