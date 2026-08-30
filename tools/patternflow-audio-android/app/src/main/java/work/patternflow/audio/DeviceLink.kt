@@ -60,8 +60,24 @@ class DeviceLink(private val host: String) {
         return null
     }
 
+    data class Config(
+        val bands: List<Analyzer.Band>,
+        val smoothing: Float,
+        val autoRange: Boolean
+    )
+
+    // The console page stores level windows through one codec (its linear
+    // scale for the microphone's sake); decoding through the SAME constants
+    // puts a window back at exactly the axis position it was dragged to.
+    // The constants mirror DB_FLOOR/DB_SPAN in the page's adapter - frozen
+    // together or windows drift.
+    private fun windowDecode(x: Double): Float {
+        val db = 20.0 * Math.log10(maxOf(x, 1e-4))
+        return ((db + 45.0) / 47.0).toFloat().coerceIn(0f, 1f)
+    }
+
     /** Blocking; call off the main thread. Returns null on any failure. */
-    fun fetchConfig(): Pair<List<Analyzer.Band>, Float>? {
+    fun fetchConfig(): Config? {
         return try {
             val res: Response = http.newCall(
                 Request.Builder().url("http://$host/api/audio-in").build()
@@ -70,6 +86,7 @@ class DeviceLink(private val host: String) {
             if (!res.isSuccessful) return null
             val j = JSONObject(body)
             val smoothing = j.optDouble("smoothing", 0.35).toFloat()
+            val autoRange = j.optBoolean("autoRange", true)
             val arr = j.getJSONArray("bands")
             val bands = ArrayList<Analyzer.Band>(4)
             for (i in 0 until minOf(4, arr.length())) {
@@ -83,12 +100,14 @@ class DeviceLink(private val host: String) {
                         knob = b.optInt("knob", i),
                         muted = b.optBoolean("muted", false),
                         gain = b.optDouble("gain", 1.0).toFloat(),
-                        curve = decodeMeta(b.optString("meta", ""))
+                        curve = decodeMeta(b.optString("meta", "")),
+                        inMin = windowDecode(b.optDouble("inMin", 0.0)),
+                        inMax = windowDecode(b.optDouble("inMax", 1.0))
                     )
                 )
             }
             lastError = ""
-            Pair(bands, smoothing)
+            Config(bands, smoothing, autoRange)
         } catch (e: Exception) {
             lastError = e.message ?: "config fetch failed"
             null

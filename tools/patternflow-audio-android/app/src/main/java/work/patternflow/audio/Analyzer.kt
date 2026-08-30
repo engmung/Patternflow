@@ -34,6 +34,15 @@ class Analyzer {
         private const val ENV_MIN_SPAN = 0.06f
         private const val AUTO_LO = 0.10f
         private const val AUTO_HI = 0.95f
+
+        // Internal capture is full-scale digital: mastered music lives in the
+        // top ~20 dB, and the extension's (-80..-10) normalization - built
+        // for AnalyserNode's quieter numbers - crushed everything against the
+        // ceiling here (measured as "raising every minimum still triggers").
+        // Floor -54, full at -6: silence rests low, a verse sits mid-axis, a
+        // chorus reaches high, and the editor has room to cut between them.
+        private const val DB_FLOOR = -54f
+        private const val DB_SPAN = 48f
     }
 
     // ── config, replaced wholesale by DeviceLink ────────────────────────
@@ -41,11 +50,20 @@ class Analyzer {
         val hzMin: Float, val hzMax: Float,
         val outMin: Float, val outMax: Float,
         val knob: Int, val muted: Boolean,
-        val gain: Float, val curve: Curve?
+        val gain: Float, val curve: Curve?,
+        // Manual level window, already decoded into THIS analyzer's scale by
+        // DeviceLink (the console stores windows through one codec; both ends
+        // share it, so a box edge dragged against the phone's displayed
+        // levels round-trips to exactly where it was dropped).
+        val inMin: Float = 0f, val inMax: Float = 1f
     )
 
     @Volatile var bands: List<Band> = emptyList()
     @Volatile var smoothing = 0.35f
+    // Follows the device's auto-range switch: auto normalizes inside the
+    // tracked envelopes; manual maps the band's own window, which is what
+    // makes fine cuts possible on a hot digital source.
+    @Volatile var autoRange = true
 
     // ── curves, evaluated from the device's meta strings ────────────────
     sealed class Curve {
@@ -141,7 +159,7 @@ class Analyzer {
         for (s in 0 until 64) {
             var sum = 0f
             for (k in bucketLo[s]..bucketHi[s]) sum += binDb[k]
-            spectrum[s] = clamp01(((sum / (bucketHi[s] - bucketLo[s] + 1)) + 80f) / 70f)
+            spectrum[s] = clamp01(((sum / (bucketHi[s] - bucketLo[s] + 1)) - DB_FLOOR) / DB_SPAN)
         }
 
         val cfg = bands
@@ -156,7 +174,7 @@ class Analyzer {
             val hi = min(FFT_SIZE / 2 - 1, (band.hzMax * FFT_SIZE / SAMPLE_RATE).toInt())
             var sum = 0f
             for (k in lo..max(lo, hi)) sum += binDb[k]
-            val energy = clamp01(((sum / (max(lo, hi) - lo + 1)) + 80f) / 70f)
+            val energy = clamp01(((sum / (max(lo, hi) - lo + 1)) - DB_FLOOR) / DB_SPAN)
 
             smoothLevel[b] += (energy - smoothLevel[b]) * alpha
             val level = smoothLevel[b]
@@ -171,8 +189,14 @@ class Analyzer {
             if (envHi[b] < envLo[b] + ENV_MIN_SPAN) envHi[b] = envLo[b] + ENV_MIN_SPAN
 
             if (band.muted) continue
-            val span = max(0.001f, envHi[b] - envLo[b])
-            val u = clamp01((clamp01((level - envLo[b]) / span) - AUTO_LO) / (AUTO_HI - AUTO_LO))
+            val u = if (autoRange) {
+                val span = max(0.001f, envHi[b] - envLo[b])
+                clamp01((clamp01((level - envLo[b]) / span) - AUTO_LO) / (AUTO_HI - AUTO_LO))
+            } else {
+                val inMin = clamp01(band.inMin)
+                val inMax = max(inMin + 0.01f, clamp01(band.inMax))
+                clamp01((level - inMin) / (inMax - inMin))
+            }
             val v = evalCurve(band.curve, band, u)
             val out = clamp01(band.outMin + v * (band.outMax - band.outMin))
 

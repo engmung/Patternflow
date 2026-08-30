@@ -142,9 +142,10 @@ class CaptureService : Service() {
                 val now = System.currentTimeMillis()
                 if (now - lastConfig > 5000) {
                     lastConfig = now
-                    link?.fetchConfig()?.let { (bands, smoothing) ->
-                        analyzer.bands = bands
-                        analyzer.smoothing = smoothing
+                    link?.fetchConfig()?.let { cfg ->
+                        analyzer.bands = cfg.bands
+                        analyzer.smoothing = cfg.smoothing
+                        analyzer.autoRange = cfg.autoRange
                     }
                 }
                 synchronized(ringLock) {
