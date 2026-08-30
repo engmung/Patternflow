@@ -101,6 +101,8 @@ inline void handleGet() {
   j += PFAudioFFT::sourceLabel();
   j += "\",\"micOn\":";
   j += PFAudioInMap::micOn ? "true" : "false";
+  j += ",\"micGain\":";
+  j += String(PFAudioInMap::micGain, 1);
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -180,6 +182,11 @@ inline void handleSet() {
     const String v = server().arg("mic");
     PFAudioInMap::micOn = (v == "1" || v == "true");
   }
+  if (server().hasArg("micGain")) {
+    PFAudioInMap::micGain = constrain(server().arg("micGain").toFloat(),
+                                      PFAudioInMap::MIC_GAIN_MIN,
+                                      PFAudioInMap::MIC_GAIN_MAX);
+  }
 
   if (server().hasArg("band")) {
     const int b = server().arg("band").toInt();
@@ -213,13 +220,8 @@ inline void handleSet() {
 }
 
 inline void handleReset() {
-  PFAudioInMap::Band d[4] = {
-      {   62.0f,  375.0f, 0.010f, 0.150f, 1.0f, 0.30f, 0.85f, 0, false},
-      {  375.0f, 1500.0f, 0.008f, 0.120f, 1.2f, 0.30f, 0.85f, 1, false},
-      { 1500.0f, 5000.0f, 0.004f, 0.050f, 1.6f, 0.30f, 0.85f, 2, false},
-      { 5000.0f, 8000.0f, 0.003f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
-  };
-  for (int i = 0; i < 4; i++) PFAudioInMap::bands[i] = d[i];
+  PFAudioInMap::resetBands();
+  PFAudioInMap::micGain = 8.0f;
   PFAudioInMap::save();
   server().sendHeader("Cache-Control", "no-store");
   server().send(200, "application/json", "{\"ok\":true}");

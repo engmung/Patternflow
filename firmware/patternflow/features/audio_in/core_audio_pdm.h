@@ -81,6 +81,18 @@
 #define PF_AUDIO_IN_PDM_ENABLED 1
 #endif
 
+// Downsample-ratio experiment, CLOSED. DSR_16S doubles the PDM clock
+// (fs*64 -> fs*128, 1.024 -> 2.048 MHz at 16 kHz); the hope was a mic whose
+// low-power threshold sits near 1 MHz waking up. Measured 2026-08-30 on this
+// hardware, same tone, same volume: tone rawPeak 0.0059 (DSR16) vs 0.0052
+// (DSR8) - inside run-to-run noise, matching esp-idf#8660's finding - and
+// DSR16 dragged the window rate to 56.6/s against DSR8's 60.6. So 8 stays
+// the default; the define stays because the experiment cost one flag and the
+// next microphone model may answer differently.
+#ifndef PF_AUDIO_IN_PDM_DSR16
+#define PF_AUDIO_IN_PDM_DSR16 0
+#endif
+
 #if PF_AUDIO_IN_PDM_ENABLED
 #include <driver/i2s.h>
 #if !SOC_I2S_SUPPORTS_PDM_RX
@@ -198,10 +210,15 @@ inline void begin() {
     return;
   }
 
+#if PF_AUDIO_IN_PDM_DSR16
+  i2s_set_pdm_rx_down_sample(PORT, I2S_PDM_DSR_16S);
+#endif
+
   for (int i = 0; i < WINDOW; i++) ring[i] = 0.0f;
   live = true;
-  Serial.printf("[AUDIO-IN] PDM up: CLK=%d DAT=%d %luHz mono left\n",
-                PF_AUDIO_IN_PDM_CLK, PF_AUDIO_IN_PDM_DAT, (unsigned long)RATE);
+  Serial.printf("[AUDIO-IN] PDM up: CLK=%d DAT=%d %luHz mono left dsr=%d\n",
+                PF_AUDIO_IN_PDM_CLK, PF_AUDIO_IN_PDM_DAT, (unsigned long)RATE,
+                PF_AUDIO_IN_PDM_DSR16 ? 16 : 8);
 }
 
 // Read one hop, slide it into the ring, and hand back a whole window.
@@ -265,11 +282,11 @@ inline bool readWindow(float* dst) {
 
   // Slide: the previous hop becomes the window's first half.
   for (int i = 0; i < WINDOW - HOP; i++) ring[i] = ring[i + HOP];
-  // int16 full scale to roughly +/-1. Do NOT normalise or auto-gain here: the
-  // S3's PDM input is documented low-amplitude (esp-idf#8660), and rawPeak at
-  // /api/status is how anyone finds that out. A scaled signal would report a
-  // healthy peak from nothing. Gain belongs downstream, once there is a real
-  // number to size it against.
+  // int16 full scale to roughly +/-1, and nothing else: no gain here. The
+  // real number the silicon returned has to survive to the diagnostics
+  // (rawPeak/rawDc are documented as raw) and to the dead-rail check. The
+  // user-tunable microphone gain is applied downstream in analyze(), after
+  // those are measured from the same window.
   const float k = 1.0f / 32768.0f;
   const int n = samples < HOP ? samples : HOP;
   for (int i = 0; i < n; i++) ring[WINDOW - HOP + i] = (float)raw[i] * k;

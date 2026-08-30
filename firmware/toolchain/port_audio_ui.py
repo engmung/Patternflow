@@ -161,6 +161,15 @@ padding:6px 0;margin-bottom:12px}
 <p class="wrap-note" id="heapline"></p>
 
 <label class="drive"><input type="checkbox" id="mic"> <b>Microphone</b></label>
+<div class="global" style="margin:2px 0 8px">
+  <label><span>Mic gain</span>
+    <input id="micGain" type="range" min="1" max="16" step="0.5" value="8"></label>
+  <output id="micGainOut" class="value">8.0x</output>
+</div>
+<p class="wrap-note">The S3's PDM input runs quiet by design (a loud room peaks near 3% of
+full scale), so samples are multiplied before analysis. Raise this if quiet sounds barely
+register, lower it if everything slams the top. Raw peak/dc in the header stay unscaled so
+a wiring problem still looks like one.</p>
 <p class="wrap-note">The panel listens, and the four bands below turn the four knobs, so patterns
 react to the room with no computer in it.
 <br><br>
@@ -326,6 +335,10 @@ function paintLive() {
                knob: b.knob, muted: b.muted === true };
     });
     $('mic').checked = !!d.micOn;
+    if (typeof d.micGain === 'number'){
+      $('micGain').value = d.micGain;
+      $('micGainOut').textContent = d.micGain.toFixed(1) + 'x';
+    }
     paintHeap();
     buildBands();
     renderBandTabs();
@@ -354,6 +367,17 @@ function paintHeap(){
   };
   x.send();
 }
+
+$('micGain').addEventListener('input', function(){
+  $('micGainOut').textContent = Number($('micGain').value).toFixed(1) + 'x';
+});
+// Send on release, not per pixel: one slider, one save, one NVS write.
+$('micGain').addEventListener('change', function(){
+  var x = new XMLHttpRequest();
+  x.open('POST', '/api/audio-in');
+  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  x.send('micGain=' + Number($('micGain').value).toFixed(1));
+});
 
 $('mic').addEventListener('change', function(){
   var on = $('mic').checked;

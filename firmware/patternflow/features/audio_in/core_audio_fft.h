@@ -245,11 +245,23 @@ inline void analyze(uint32_t tick) {
 
   const uint32_t t0 = micros();
   fill(tick);
+  // Peak and DC are measured BEFORE the gain, then the gain is applied in
+  // the same pass. Order matters twice over: rawPeak/rawDc stay what the
+  // silicon returned (the diagnostic /api/status documents them as), and the
+  // dead-rail detector keeps its physical threshold - a floating pin reads
+  // |dc| ~0.94 and a real mic ~0.005, and gaining both before the comparison
+  // would push a healthy mic toward the trip point instead of away from it.
+  // Gain is microphone-only: the synthetic source is already full-scale.
+  const float g = PFAudioPdm::available() ? PFAudioInMap::micGain : 1.0f;
   float pk = 0.0f, sum = 0.0f;
   for (int i = 0; i < N; i++) {
     const float a = fabsf(re[i]);
     if (a > pk) pk = a;
     sum += re[i];
+    float v = re[i] * g;
+    if (v > 1.0f) v = 1.0f;
+    if (v < -1.0f) v = -1.0f;
+    re[i] = v;
   }
   rawPeak = pk;
   rawDc = sum / (float)N;
