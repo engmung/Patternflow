@@ -185,6 +185,43 @@ that the firmware never changes, but that **the files keep opening**. See
 
 ---
 
+## What is promised, and to whom
+
+"If the core keeps improving, will the things built against it keep
+working?" - the right worry, so here is the contract, strongest first.
+Everything below has an enforcer; a promise kept by memory is the kind that
+was broken three times before the boundary checker existed.
+
+**1. The module ABI (`firmware/patternflow/abi/`) - binary, strongest.**
+Consumed by installed `.pfm` files that never recompile. Frozen field
+layout, append-only growth, an explicit version handshake
+(`PF_ABI_VERSION` 1 is frozen; modules stamp `PF_ABI_MODULE_VERSION`; the
+loader accepts the range), and since 2026-08-30 a CI lock: `abi.sums` pins
+every header's hash and `check_abi_freeze.py` fails any drift that was not
+deliberately re-pinned in the same commit.
+
+**2. The hook interface (`features/pf_feature.h`) - compile-time.** For
+feature code that recompiles against a checkout, in-tree or out. Widening
+is tail-append only (the rule and its reason are written on the struct);
+the compiler surfaces every break at build, and `build.sh all` makes sure
+"builds" means all three compositions. The two composition filenames and
+their macros are the out-of-tree seam - renamed spellings are shimmed, and
+shims get deleted only after their consumers migrate.
+
+**3. The wire ([`rest-api.md`](rest-api.md), [`osc-spec.md`](osc-spec.md),
+[`audio-ws-spec.md`](audio-ws-spec.md)) - runtime.** Integrations build
+against the spec files, not the firmware source. Growth is additive; each
+spec carries its own compatibility rule (probe `caps` before assuming an
+endpoint; unknown WebSocket prefixes are ignored; new OSC addresses do not
+move old ones) and its own version history.
+
+**Explicitly not promised: everything else.** Core file layout, namespaces,
+internal helpers, what a screen draws, which serial lines print - all of it
+may change without notice, and the `addons/` -> `features/` rename is the
+standing example: forty files moved, and nothing that speaks any of the
+three contracts above noticed. That is the shape of the deal - the inside
+stays free precisely because the edges are locked.
+
 ## Building a feature
 
 Full reference, including all thirteen hooks and what proved each one:

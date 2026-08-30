@@ -1,3 +1,6 @@
+// ═══ FROZEN CONTRACT ═══ Installed .pfm modules read this layout WITHOUT
+// recompiling. Append at the tail only; bump PF_ABI_MODULE_VERSION; then
+// refresh abi.sums (check_abi_freeze.py --update) — CI fails on any drift.
 // Patternflow host <-> loadable pattern module ABI.
 //
 // Included by BOTH sides:

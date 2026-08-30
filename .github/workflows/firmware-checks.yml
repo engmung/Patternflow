@@ -47,5 +47,7 @@ jobs:
           python-version: "3.x"
       - name: The core names no feature
         run: python firmware/toolchain/check_boundaries.py
+      - name: The module ABI does not move silently
+        run: python firmware/toolchain/check_abi_freeze.py
       - name: No mangled literals or raw control bytes
         run: python firmware/toolchain/check_sources.py
