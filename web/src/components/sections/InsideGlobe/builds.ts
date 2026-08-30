@@ -202,6 +202,21 @@ export const builds: Build[] = [
       { src: '/builds/jon/anchor.jpg', alt: "Close-up of the printed D-ring anchor carrying the shoulder strap on Jon's Patternflow" },
     ],
   },
+  {
+    id: 'mexico-alfredo',
+    slug: 'alfredo-mexico',
+    kind: 'build',
+    location: { lat: 19.4326, lng: -99.1332, label: 'Mexico City, Mexico' },
+    maker: 'Alfredo Borboa',
+    date: '2026-08',
+    description:
+      '"A wooden case that blends with any home decor. LED juiciness for any space in your home!"',
+    images: [
+      { src: '/builds/alfredo/lit.jpg', alt: "Alfredo Borboa's Patternflow in a pale wood case, a full-spectrum gradient across the panel" },
+      { src: '/builds/alfredo/wood.jpg', alt: "Alfredo Borboa's wooden Patternflow case powered down, four turned walnut knobs down the front" },
+      { src: '/builds/alfredo/glow.jpg', alt: "Colored light from Alfredo Borboa's Patternflow spilling across a wooden table" },
+    ],
+  },
 ];
 
 export function buildBySlug(slug: string): Build | undefined {
