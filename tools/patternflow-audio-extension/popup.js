@@ -686,6 +686,12 @@ async function init() {
 
   $('release').addEventListener('click', () => sendMessage({ type: 'release' }));
 
+  // The mapping editor gets a real tab: boxes dragged on a spectrum need
+  // more room than a popup that closes the moment focus leaves it.
+  $('openEditor').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('editor.html') });
+  });
+
   buildBands();
   renderBandTabs();
   bindManualControls();
