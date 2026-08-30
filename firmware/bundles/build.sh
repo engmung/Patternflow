@@ -10,14 +10,14 @@
 #                                    its features — run this before pushing
 #                                    anything that touches the core
 #
-# A bundle is two files. This copies them next to the addon list, builds, and
+# A bundle is two files. This copies them next to the feature list, builds, and
 # takes them away again — the tree is left exactly as it was found, so the
 # next build is the default unless you ask for a bundle.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 SKETCH=firmware/patternflow
-ADDONS="$SKETCH/addons"
+FEATURES="$SKETCH/features"
 # xtensa's linker cannot open output files under a path with non-ASCII in it,
 # and this repository lives under one. The build tree goes somewhere plain.
 BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
@@ -34,7 +34,7 @@ BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
 # marker string per feature — a literal that lives only in that feature's
 # sources, verified by grep before it was trusted here. An edition must
 # contain its own features' markers and NONE of the others'. That checks the
-# composition in the shipped bytes, where addons.h's #error guard cannot see:
+# composition in the shipped bytes, where features.h's #error guard cannot see:
 # the guard catches a misspelled macro, this catches the right macro building
 # the wrong thing. It is how the NETWORK screen fix was proven — "OSC / AUD"
 # absent from the default image because the compiler folded the branch away —
@@ -96,10 +96,15 @@ if [ -n "$BUNDLE" ] && [ "$BUNDLE" != "flash" ]; then
   DIR="firmware/bundles/$BUNDLE"
   [ -d "$DIR" ] || { echo "no such bundle: $BUNDLE" >&2; exit 1; }
   echo "bundle:  $BUNDLE"
-  cp "$DIR"/*.h "$ADDONS/"
+  cp "$DIR"/*.h "$FEATURES/"
   # Whatever happens next, the tree goes back to the default. Leaving a
   # bundle's files behind would make the following build silently wrong.
-  trap 'rm -f "$ADDONS/addons_local.h" "$ADDONS/overrides.h"' EXIT
+  # Both spellings: a legacy bundle carries addons_local.h, features.h
+  # accepts it, and a trap that only knows the new name leaves it behind -
+  # which turns every later "default" build into that bundle, silently.
+  # That happened once, and the leftover reached a commit before the next
+  # marker scan would have caught it.
+  trap 'rm -f "$FEATURES/features_local.h" "$FEATURES/addons_local.h" "$FEATURES/overrides.h"' EXIT
   shift
 else
   echo "bundle:  (default — no features)"

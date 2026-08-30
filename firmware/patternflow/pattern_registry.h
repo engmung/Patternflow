@@ -70,9 +70,9 @@ struct PatternEntry {
 #define PATTERN_ENTRY_HIDDEN(ns) \
   { ns::NAME, ns::KNOB_LABELS, ns::setup, ns::update, ns::draw, nullptr, true, ns::ABSOLUTE_READY }
 
-// Presets an addon brings with it (PF_ADDON_PRESETS). Included after the
+// Presets a feature brings with it (PF_FEATURE_PRESETS). Included after the
 // macro above, because the list expands to PATTERN_ENTRY calls.
-#include "addons/addon_presets.h"
+#include "features/feature_presets.h"
 
 // To add a pattern:
 // - Module (the usual way now): build a .pfm and upload it — no rebuild.
@@ -88,12 +88,12 @@ struct PatternEntry {
 // FATFS still lights up. Everything else ships as modules — see the note by
 // the includes above.
 //
-// Addons may contribute presets of their own; the show addon brings Black,
-// its night face. A build with no addons has this list at Origin alone,
+// Features may contribute presets of their own; the show feature brings Black,
+// its night face. A build with no features has this list at Origin alone,
 // which is the point: the core ships the failsafe and nothing else.
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
-  PF_ADDON_PRESETS
+  PF_FEATURE_PRESETS
 };
 const int NUM_PRESETS = sizeof(presetPatterns) / sizeof(presetPatterns[0]);
 

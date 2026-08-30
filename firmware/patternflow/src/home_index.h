@@ -207,12 +207,12 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   </nav>
 
   <!-- Whatever features this firmware carries, one row each. The rows are
-       not written into this page: they arrive from /api/status addonNav,
-       contributed by the loaded addons, so a page the core has never heard
+       not written into this page: they arrive from /api/status featureNav,
+       contributed by the loaded features, so a page the core has never heard
        of still gets a row and a build with none gets no group. This page
        used to hand-write rows for /show, /mqtt and /weather - capability-
        gated, so they degraded, but named in a core page all the same, and
-       the first addon page the list did not know about proved the point by
+       the first feature page the list did not know about proved the point by
        having no row at all. -->
   <span class="pf-kicker" id="featKick" hidden>Features</span>
   <nav id="featRows" hidden></nav>
@@ -252,8 +252,8 @@ function $(i){return document.getElementById(i)}
 $('host').textContent=location.hostname;
 
 // ── What this build actually has ───────────────────────────────
-// Feature rows are not written into this page. Whatever addons the firmware
-// carries report their pages in /api/status addonNav — path, label, one
+// Feature rows are not written into this page. Whatever features the firmware
+// carries report their pages in /api/status featureNav — path, label, one
 // line — and the Features group is built from that. A build with none gets
 // no group, and a page the core has never heard of still gets a row. This
 // used to work the other way round: rows for every feature in the markup,
@@ -263,7 +263,7 @@ $('host').textContent=location.hostname;
 // Rebuilt from scratch on every status (gate can fire twice at load), then
 // everything renumbers so the list still reads 01, 02, 03.
 function gate(s){
-  var i,nav=(s&&s.addonNav)||[];
+  var i,nav=(s&&s.featureNav)||[];
   var f=$('featRows'),fk=$('featKick');
   if(f){
     f.innerHTML='';

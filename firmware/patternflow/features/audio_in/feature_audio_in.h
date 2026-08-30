@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - on-board audio input, as an addon
+// PatternFlow - on-board audio input, as a feature
 //
-// The fifth port onto the addon seam, and the first one that was not already
+// The fifth port onto the feature seam, and the first one that was not already
 // living in the core — which makes it the more interesting test. The other
 // four proved the hooks could carry features that already existed. This one
 // asks whether they can carry a feature nobody has written yet.
@@ -11,7 +11,7 @@
 //   setup        - build the twiddle tables, and start the analysis task
 //   loop         - run a window inline, when measuring the inline cost
 //   fillInput    - four bands drive the four knob lanes, exactly the way
-//                  the weather addon drives them from a temperature. A
+//                  the weather feature drives them from a temperature. A
 //                  pattern animates from sound without knowing what sound is.
 //   appendStatus - report what it costs, because that is the open question
 //
@@ -31,7 +31,7 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "../pf_addon.h"
+#include "../pf_feature.h"
 #include "core_audio_fft.h"
 #include "core_audio_in_http.h"
 #include "core_audio_in_map.h"
@@ -47,7 +47,7 @@
 #define PF_AUDIO_IN_DRIVES_KNOBS 0
 #endif
 
-namespace PFAddonAudioIn {
+namespace PFFeatureAudioIn {
 
 inline uint32_t tick = 0;
 inline uint32_t heapCost = 0;
@@ -80,7 +80,7 @@ inline void analysisTask(void*) {
 }
 #endif
 
-// Registers /audio-in once Wi-Fi is up. Same edge every other addon with a
+// Registers /audio-in once Wi-Fi is up. Same edge every other feature with a
 // page uses; nothing here runs before the HTTP server exists.
 inline void onNetwork() { PFAudioInHttp::begin(); }
 
@@ -99,25 +99,25 @@ inline void setup() {
 }
 
 #if PF_AUDIO_IN_CORE == 1
-inline void loop(const PFAddonFrame&) {
+inline void loop(const PFFeatureFrame&) {
   PFAudioFFT::analyze(tick++);
 }
 #endif
 
 #if PF_AUDIO_IN_DRIVES_KNOBS
-// Same lane the weather addon and the browser audio path use. The absolute
-// bus still outranks it — fillAbsolute runs after every addon has spoken —
+// Same lane the weather feature and the browser audio path use. The absolute
+// bus still outranks it — fillAbsolute runs after every feature has spoken —
 // and a hand on an encoder releases that lane, so sound never fights a
 // person for a knob.
 inline void fillInput(InputFrame& input) {
-  // Only drive a lane nobody else has taken. This addon is dispatched last in
+  // Only drive a lane nobody else has taken. This feature is dispatched last in
   // every composition that carries it, so on a build that also has the
   // browser audio path both would write the same four lanes and the mic would
   // silently win - a person who deliberately connected the Chrome extension
   // would find the room overriding their tab.
   //
   // The rule is deliberately not "yield to the browser": that would mean
-  // knowing which other addons exist. Yielding to whoever already spoke is
+  // knowing which other features exist. Yielding to whoever already spoke is
   // the same behaviour with no coupling, and it is what dispatch order is
   // for. A hand on the encoder outranks both - the core drops any lane whose
   // knob moved this frame.
@@ -131,7 +131,7 @@ inline void fillInput(InputFrame& input) {
   //
   // Two bands may name the same knob. The first one in order wins, because
   // `knobAudioActive` is already the "someone claimed this lane" flag used to
-  // yield to other addons - reusing it here means one rule covers both cases
+  // yield to other features - reusing it here means one rule covers both cases
   // and there is no separate precedence to learn. Deterministic either way;
   // last-wins would be just as defensible and half as consistent.
   for (int b = 0; b < 4; b++) {
@@ -192,7 +192,7 @@ inline void appendStatus(String& json) {
   json += "]}";
 }
 
-inline const PFAddon descriptor = {
+inline const PFFeature descriptor = {
     "audio-in",
     "audio-in",    // cap - /audio-in exists on this build
     setup,
@@ -224,4 +224,4 @@ inline const PFAddon descriptor = {
     "shape into the knobs.",
 };
 
-}  // namespace PFAddonAudioIn
+}  // namespace PFFeatureAudioIn

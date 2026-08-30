@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - the addon list
+// PatternFlow - the feature list
 //
 // **THE CORE OWNS THIS FILE. A VARIANT DOES NOT EDIT IT.**
 //
@@ -8,8 +8,8 @@
 // same line, for as long as the variant exists. One line is enough to make
 // "take the update" a chore that eventually stops happening.
 //
-// So a firmware drops its own `addons_local.h` next to this file and owns it
-// completely: its own includes, and `PF_ADDON_LIST` naming the descriptors it
+// So a firmware drops its own `features_local.h` next to this file and owns it
+// completely: its own includes, and `PF_FEATURE_LIST` naming the descriptors it
 // wants, in the order it wants them. Nothing in the core tree changes.
 //
 // Two ways to use that, and the first is the usual one:
@@ -21,28 +21,28 @@
 //
 //     ./firmware/bundles/build.sh audio
 //
-//   **Somebody else's firmware, in their own repository.** Their addons and
-//   their `addons_local.h` are copied over a checkout of core, which makes
+//   **Somebody else's firmware, in their own repository.** Their features and
+//   their `features_local.h` are copied over a checkout of core, which makes
 //   their build a file copy rather than a merge:
 //
-//     cp -r my-addons/*     core/firmware/patternflow/addons/
-//     cp    addons_local.h  core/firmware/patternflow/addons/
+//     cp -r my-features/*     core/firmware/patternflow/features/
+//     cp    features_local.h  core/firmware/patternflow/features/
 //     cd core/firmware/patternflow && pio run -e firmware
 //
-// A variant's `addons_local.h` looks like this — it may add features, drop
+// A variant's `features_local.h` looks like this — it may add features, drop
 // features it does not want, and reorder what is left:
 //
-//     #include "audio_in/addon_audio_in.h"
-//     #define PF_ADDON_LIST            \
-//         &PFAddonOsc::descriptor,     \
-//         &PFAddonAudio::descriptor,   \
-//         &PFAddonAudioIn::descriptor
+//     #include "audio_in/feature_audio_in.h"
+//     #define PF_FEATURE_LIST            \
+//         &PFFeatureOsc::descriptor,     \
+//         &PFFeatureAudio::descriptor,   \
+//         &PFFeatureAudioIn::descriptor
 //
-// Or, for a build with no addons at all:
+// Or, for a build with no features at all:
 //
-//     #define PF_ADDONS_NONE
+//     #define PF_FEATURES_NONE
 //
-// Order is dispatch order. It matters where addons compete: one that CLAIMS
+// Order is dispatch order. It matters where features compete: one that CLAIMS
 // the pattern (a show) should come after ones that only ASK (a remote
 // picker), or the picker never gets a turn.
 //
@@ -50,15 +50,33 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
-#include "pf_addon.h"
+#include "pf_feature.h"
 
 // The variant's file, if there is one. Included before the defaults so it can
-// define PF_ADDON_LIST and suppress them entirely.
+// define PF_FEATURE_LIST and suppress them entirely.
 #if defined(__has_include)
-#if __has_include("addons_local.h")
-#define PF_ADDONS_LOCAL_PRESENT 1
+#if __has_include("features_local.h")
+#define PF_FEATURES_LOCAL_PRESENT 1
+#include "features_local.h"
+#elif __has_include("addons_local.h")
+// Legacy filename (pre-rename). Same seam, same rules.
+#define PF_FEATURES_LOCAL_PRESENT 1
 #include "addons_local.h"
 #endif
+#endif
+
+// ── Legacy name shim (2026-08-30) ───────────────────────────────────────
+//
+// The tree was addons/ and the vocabulary was "addon" until docs/EDITIONS.md
+// settled on "feature". An out-of-tree composition written against the old
+// names — two files copied over a checkout, the recipe Simone's bundle uses —
+// must keep building, so the old spellings are accepted here and mapped.
+// Delete this block once every out-of-tree bundle has migrated.
+#if defined(PF_ADDON_LIST) && !defined(PF_FEATURE_LIST)
+#define PF_FEATURE_LIST PF_ADDON_LIST
+#endif
+#if defined(PF_ADDONS_NONE) && !defined(PF_FEATURES_NONE)
+#define PF_FEATURES_NONE
 #endif
 
 // A local file that defines neither macro would fall through to the defaults
@@ -66,11 +84,11 @@
 // it. That is a firmware lying about what it contains, and the only evidence
 // is a byte count nobody reads. Misspell the macro and the build stops here
 // instead.
-#if defined(PF_ADDONS_LOCAL_PRESENT) && !defined(PF_ADDONS_NONE) &&     !defined(PF_ADDON_LIST)
-#error "addons_local.h must define PF_ADDON_LIST or PF_ADDONS_NONE (typo?)"
+#if defined(PF_FEATURES_LOCAL_PRESENT) && !defined(PF_FEATURES_NONE) &&     !defined(PF_FEATURE_LIST)
+#error "features_local.h must define PF_FEATURE_LIST or PF_FEATURES_NONE (typo?)"
 #endif
 
-#if !defined(PF_ADDONS_NONE) && !defined(PF_ADDON_LIST)
+#if !defined(PF_FEATURES_NONE) && !defined(PF_FEATURE_LIST)
 // No edition file: the default composition, and it carries no features.
 //
 // Patternflow is a device that loads interactive patterns and runs them under
@@ -88,16 +106,16 @@
 //   performance - sequences, MQTT and weather
 //
 // This is not a ranking - see docs/EDITIONS.md.
-#define PF_ADDONS_NONE
+#define PF_FEATURES_NONE
 #endif
 
-#ifdef PF_ADDONS_NONE
+#ifdef PF_FEATURES_NONE
 // A zero-length array is not valid C++, so an empty build gets a null pointer
 // and a count of zero instead. Every dispatch loop is bounded by the count,
 // so nothing is ever dereferenced.
-inline const PFAddon* const* const PF_ADDONS = nullptr;
-inline constexpr size_t PF_ADDON_COUNT = 0;
+inline const PFFeature* const* const PF_FEATURES = nullptr;
+inline constexpr size_t PF_FEATURE_COUNT = 0;
 #else
-inline const PFAddon* const PF_ADDONS[] = {PF_ADDON_LIST};
-inline constexpr size_t PF_ADDON_COUNT = sizeof(PF_ADDONS) / sizeof(PF_ADDONS[0]);
+inline const PFFeature* const PF_FEATURES[] = {PF_FEATURE_LIST};
+inline constexpr size_t PF_FEATURE_COUNT = sizeof(PF_FEATURES) / sizeof(PF_FEATURES[0]);
 #endif

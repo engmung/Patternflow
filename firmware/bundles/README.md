@@ -13,7 +13,7 @@ and which settings differ.
 
 ```
 bundles/audio/
-  addons_local.h    which addons this firmware has, and in what order
+  features_local.h    which features this firmware has, and in what order
   overrides.h       what it calls itself, and any setting it changes
 ```
 
@@ -37,7 +37,7 @@ lives in an edition built from these two files.
 ## When a bundle is worth making
 
 Not for "everything minus a few things". That was tried and it is pointless:
-dropping three addons saved 278,528 bytes of flash on a board using 45 % of it, and
+dropping three features saved 278,528 bytes of flash on a board using 45 % of it, and
 left the ceiling on loadable patterns *exactly where it was* — 73,716 bytes
 either way. Nobody would switch, and they would be right not to.
 
@@ -63,7 +63,7 @@ know whether they are picking up something unfinished or something frozen.
 ## Graduating
 
 A bundle is not a permanent home. When the microphone works and the board has
-a footprint for it, that addon joins the default list and the audio bundle
+a footprint for it, that feature joins the default list and the audio bundle
 either dissolves or picks up whatever is next. Nothing here is meant to
 accumulate.
 
@@ -74,5 +74,5 @@ nothing, and the person who owns a bundle decides what goes in it and when it
 cuts a version — without owning a fork, and without the code leaving this
 repository where the compiler keeps it honest against every core change.
 
-See [`../patternflow/addons/README.md`](../patternflow/addons/README.md) for
-what an addon is and the hooks it can answer.
+See [`../patternflow/features/README.md`](../patternflow/features/README.md) for
+what a feature is and the hooks it can answer.

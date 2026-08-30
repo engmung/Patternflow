@@ -13,15 +13,15 @@
 // only helps somebody who can define the value FIRST. config.h is the first
 // project header the sketch includes, so this is the earliest point that
 // exists — and a variant that wants a different panel clock, a different
-// transmit power or a different brightness cap drops an addons/overrides.h
+// transmit power or a different brightness cap drops an features/overrides.h
 // and changes nothing else in the tree.
 //
 // The RFC named this file (§2.4) and it was never built; the first variant
 // that wanted a setting rather than a feature is what surfaced it. Pair with
-// addons/addons_local.h, which does the same job for the addon list.
+// features/features_local.h, which does the same job for the feature list.
 #if defined(__has_include)
-#if __has_include("addons/overrides.h")
-#include "addons/overrides.h"
+#if __has_include("features/overrides.h")
+#include "features/overrides.h"
 #endif
 #endif
 

@@ -20,12 +20,12 @@
 // ── The show player's night face ────────────────────────────────────────
 //
 // The night/wake scheduler switches to Black by name, so this edition ships
-// it (addons_local.h includes the header; this names the entry). Hidden,
+// it (features_local.h includes the header; this names the entry). Hidden,
 // because the panel going dark is not something to land on while turning K4
-// through the list. The bare core defines PF_ADDON_PRESETS empty - a preset
+// through the list. The bare core defines PF_FEATURE_PRESETS empty - a preset
 // rides with the composition that needs it, never with the default.
-#define PF_ADDON_PRESET_INCLUDE "show/preset_black.h"
-#define PF_ADDON_PRESETS PATTERN_ENTRY_HIDDEN(Black),
+#define PF_FEATURE_PRESET_INCLUDE "show/preset_black.h"
+#define PF_FEATURE_PRESETS PATTERN_ENTRY_HIDDEN(Black),
 
 // Nothing else is changed. The radio stays at the conformance-tested setting,
 // and a panel switching to this edition keeps its Wi-Fi, its brightness and

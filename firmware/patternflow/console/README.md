@@ -31,10 +31,10 @@ CI checks the two stay in sync.
 | `status.html`   | `/status`   | `src/core_status_http.h`           |
 | `wifi.html`     | `/wifi`     | `src/core_wifi_http.h`             |
 | `update.html`   | `/update`   | `src/core_web_update.h`            |
-| `show.html`     | `/show`     | `addons/show/core_show_http.h`     |
-| `weather.html`  | `/weather`  | `addons/weather/core_weather_http.h` |
-| `mqtt.html`     | `/mqtt`     | `addons/mqtt/core_mqtt_http.h`     |
-| `audio.html`    | `/audio`    | `addons/audio/core_audio_ws.h`     |
+| `show.html`     | `/show`     | `features/show/core_show_http.h`     |
+| `weather.html`  | `/weather`  | `features/weather/core_weather_http.h` |
+| `mqtt.html`     | `/mqtt`     | `features/mqtt/core_mqtt_http.h`     |
+| `audio.html`    | `/audio`    | `features/audio/core_audio_ws.h`     |
 
 The shared header band, nav and light/dark toggle are not in these files.
 They live in `src/theme_index.h`, served at `/pf-console.js`, and every page
@@ -55,7 +55,7 @@ flash. That constrains what a page may do:
 - **Size is flash.** These strings live in the firmware image. A page that
   doubles in size takes that space from patterns.
 - **Nothing may assume a feature exists.** Sequences, MQTT, Weather and Audio
-  are addons; a build may have none of them. Ask `/api/status` — its `caps`
+  are features; a build may have none of them. Ask `/api/status` — its `caps`
   array lists what is actually loaded — and hide what is not there. The nav
   does this for you. If your page has its own links or rows, mark them
   `data-cap="shows"` and see `gate()` in `home.html`.

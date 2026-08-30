@@ -3,7 +3,7 @@
 //
 // The core includes this from config.h before anything has a default, so
 // every `#ifndef`-guarded value in config.h and net_config.h can be set here.
-// No core file is edited; build.sh copies this in beside addons_local.h.
+// No core file is edited; build.sh copies this in beside features_local.h.
 //
 // Keep this list short and keep the reasons attached to it. A setting with no
 // stated reason is one nobody can safely change back.

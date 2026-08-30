@@ -40,10 +40,10 @@ PAGES = [
     ("status", "src/status_index.h"),
     ("wifi", "src/wifi_index.h"),
     ("update", "src/web_update_index.h"),
-    ("show", "addons/show/show_index.h"),
-    ("weather", "addons/weather/weather_index.h"),
-    ("mqtt", "addons/mqtt/mqtt_index.h"),
-    ("audio-in", "addons/audio_in/audio_in_index.h"),
+    ("show", "features/show/show_index.h"),
+    ("weather", "features/weather/weather_index.h"),
+    ("mqtt", "features/mqtt/mqtt_index.h"),
+    ("audio-in", "features/audio_in/audio_in_index.h"),
 ]
 
 OPEN = 'R"HTML('
