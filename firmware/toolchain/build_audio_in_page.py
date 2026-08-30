@@ -259,6 +259,15 @@ OVERRIDES = '''
   --bad: #FF6B5A;
   --field: #131110;
 }
+/* The console's Light toggle stamps html[data-theme=light] and overrides the
+   CONSOLE-named variables (theme_index.h). The editor's two names of its own
+   need light values here or the plot field and tags stay dark in a light
+   page - which read as "the toggle does nothing". Canvas colors follow free:
+   editor.js reads these variables fresh on every paint. */
+html[data-theme=light] {
+  --cream-2: #E8E2D6;
+  --field: #FFFCFA;
+}
 /* device host chip is meaningless when the page IS the device */
 #hostChip { display: none; }
 .deviceBar {

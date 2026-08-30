@@ -208,6 +208,15 @@ header { display: flex; align-items: center; justify-content: space-between; gap
   --bad: #FF6B5A;
   --field: #131110;
 }
+/* The console's Light toggle stamps html[data-theme=light] and overrides the
+   CONSOLE-named variables (theme_index.h). The editor's two names of its own
+   need light values here or the plot field and tags stay dark in a light
+   page - which read as "the toggle does nothing". Canvas colors follow free:
+   editor.js reads these variables fresh on every paint. */
+html[data-theme=light] {
+  --cream-2: #E8E2D6;
+  --field: #FFFCFA;
+}
 /* device host chip is meaningless when the page IS the device */
 #hostChip { display: none; }
 .deviceBar {
@@ -448,6 +457,9 @@ header { display: flex; align-items: center; justify-content: space-between; gap
     labels: { live: 'live · microphone' },
     captureHint: 'Turn the microphone on to hear the room.',
     loadConfig: function () {
+      // Never reject: a failed read hands the editor its defaults and the
+      // page still stands - the poll loop keeps trying, and the next save
+      // writes the truth back.
       return fetch('/api/audio-in').then(function (r) { return r.json(); }).then(function (j) {
         micOn = !!j.micOn;
         var gainEl = document.getElementById('micGain');
@@ -468,7 +480,7 @@ header { display: flex; align-items: center; justify-content: space-between; gap
             };
           })
         };
-      });
+      }).catch(function () { return null; });
     },
     saveConfig: function (cfg) {
       var parts = ['auto=' + (cfg.autoRange ? 1 : 0), 'smoothing=' + cfg.smoothing.toFixed(3)];

@@ -55,6 +55,15 @@ class MainActivity : Activity() {
             )
         }
 
+        // The mapping lives on the panel; this app is the pipe. One tap to
+        // the console editor answers "where do I shape the sound".
+        findViewById<Button>(R.id.openEditor).setOnClickListener {
+            val h = host.text.toString().trim().ifEmpty { "patternflow.local" }
+            startActivity(
+                Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://$h/audio-in"))
+            )
+        }
+
         ui.post(object : Runnable {
             override fun run() {
                 status.text = CaptureService.status
