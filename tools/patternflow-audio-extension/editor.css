@@ -67,6 +67,9 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 
 /* ── toolbar / toggles ── */
 .toolbar { display: flex; align-items: center; gap: 10px; }
+.damping { display: flex; align-items: center; gap: 8px; }
+.damping input { width: 130px; accent-color: var(--led); }
+.damping .mono { font-size: 11px; min-width: 56px; text-align: right; }
 .toggleWrap {
   font: inherit; cursor: pointer; display: flex; align-items: center; gap: 7px;
   border: 1px solid var(--ink); border-radius: 2px; background: var(--field); padding: 5px 11px;

@@ -725,6 +725,31 @@ $('autoToggle').addEventListener('click', () => {
 
 $('stopBtn').addEventListener('click', () => A.stop());
 
+// Damping = the level smoothing the analysis already runs (an EMA on each
+// band, before the window and curve). Right means calmer: the slider's 0..1
+// maps to alpha 0.9..0.05, so a gentle word scale replaces a number nobody
+// would know the direction of. It smooths the INPUT level, not the output —
+// gate and steps curves stay crisp, their trigger just stops flickering.
+const DAMP_WORDS = [[0.25, 'tight'], [0.5, 'balanced'], [0.75, 'smooth'], [1.01, 'glassy']];
+
+function dampWord(v) {
+  for (const [top, word] of DAMP_WORDS) if (v < top) return word;
+  return 'glassy';
+}
+
+function syncDamping() {
+  const v = clamp01((0.9 - cfg.smoothing) / 0.85);
+  $('damping').value = String(v);
+  $('dampingWord').textContent = dampWord(v);
+}
+
+$('damping').addEventListener('input', () => {
+  const v = clamp01($('damping').value);
+  cfg.smoothing = Math.max(0.05, Math.min(0.9, 0.9 - v * 0.85));
+  $('dampingWord').textContent = dampWord(v);
+  persist();
+});
+
 function renderStatus() {
   const el = $('sourceChip');
   if (frame.demo) { el.textContent = 'demo source'; el.className = 'chip'; }
@@ -757,6 +782,7 @@ window.addEventListener('resize', () => {
   sizePlot();
   sizeCurve();
   syncAutoToggle();
+  syncDamping();
   selectBand(0);
   renderStatus();
   A.requestStatus();
