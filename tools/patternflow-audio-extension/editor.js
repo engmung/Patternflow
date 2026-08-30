@@ -257,10 +257,12 @@ function drawPlot() {
     pctx.beginPath(); pctx.moveTo(x0, yBot); pctx.lineTo(x1, yBot); pctx.stroke();
     pctx.setLineDash([]);
 
-    // live level as a horizontal line across the box — the band's average,
-    // read the same way as the spectrum behind it
+    // live level as a horizontal line across the box — the band's average.
+    // The line BELONGS to the box: below the window it sits pinned on the
+    // bottom edge ("resting under the floor"), above it on the top. Drawn at
+    // the raw position it wandered out of its own box, which read as broken.
     const level = (frame.levels && frame.levels[i]) || 0;
-    const ly = yOf(level);
+    const ly = Math.max(yTop + 1.5, Math.min(yBot - 1.5, yOf(level)));
     pctx.strokeStyle = '#e8552e';
     pctx.lineWidth = 2;
     pctx.beginPath();
