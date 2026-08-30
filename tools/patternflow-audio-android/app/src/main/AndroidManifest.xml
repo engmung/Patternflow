@@ -26,6 +26,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".EditorActivity"
+            android:exported="false" />
+
         <service
             android:name=".CaptureService"
             android:exported="false"

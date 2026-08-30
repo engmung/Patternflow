@@ -139,12 +139,19 @@ class DeviceLink(private val host: String) {
 
     /** All four lanes, one message, only when something changed. */
     fun sendLanes(lanes: Array<Float?>) {
+        val socket = ws ?: return
+        // The extension's discipline, ported: never queue behind a slow
+        // reader. OkHttp buffers sends internally, and a busy panel turned
+        // that buffer into LAG - every lane arriving late by however much
+        // had piled up. Freshest-or-nothing is what a live signal wants;
+        // the next frame corrects whatever this one skipped.
+        if (socket.queueSize() > 0L) return
         val body = lanes.joinToString(",") { v ->
             if (v == null) "-"
             else String.format(java.util.Locale.US, "%.3f", v.coerceIn(0f, 1f))
         }
         if (body == lastBody) return
-        if (ws?.send("a=$body") == true) lastBody = body
+        if (socket.send("a=$body")) lastBody = body
     }
 
     /** Hand the knobs back to the encoders. */

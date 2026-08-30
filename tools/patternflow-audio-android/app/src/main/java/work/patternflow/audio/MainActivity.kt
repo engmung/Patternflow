@@ -55,12 +55,13 @@ class MainActivity : Activity() {
             )
         }
 
-        // The mapping lives on the panel; this app is the pipe. One tap to
-        // the console editor answers "where do I shape the sound".
+        // The mapping lives on the panel; this app is the pipe - but the
+        // panel's editor opens INSIDE the app, so shaping the sound never
+        // means leaving it.
         findViewById<Button>(R.id.openEditor).setOnClickListener {
             val h = host.text.toString().trim().ifEmpty { "patternflow.local" }
             startActivity(
-                Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://$h/audio-in"))
+                Intent(this, EditorActivity::class.java).putExtra("host", h)
             )
         }
 

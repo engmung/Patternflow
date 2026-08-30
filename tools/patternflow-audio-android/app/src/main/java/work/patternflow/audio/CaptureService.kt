@@ -133,21 +133,27 @@ class CaptureService : Service() {
             }
         }
 
+        // Config refresh on its own thread: fetchConfig blocks for up to the
+        // HTTP timeout, and it used to run inside the analysis loop - every
+        // slow response was a hole in the lane stream, felt as a periodic
+        // stutter. The analysis loop now never waits on the network.
+        thread(name = "pf-config", isDaemon = true) {
+            while (alive) {
+                link?.fetchConfig()?.let { cfg ->
+                    analyzer.bands = cfg.bands
+                    analyzer.smoothing = cfg.smoothing
+                    analyzer.autoRange = cfg.autoRange
+                }
+                Thread.sleep(5000)
+            }
+        }
+
         // Analysis: 30 Hz over the newest window, matching the extension.
         thread(name = "pf-analyze", isDaemon = true) {
             val mono = FloatArray(Analyzer.FFT_SIZE)
-            var lastConfig = 0L
             var lastFrameSent = 0L
             while (alive) {
                 val now = System.currentTimeMillis()
-                if (now - lastConfig > 5000) {
-                    lastConfig = now
-                    link?.fetchConfig()?.let { cfg ->
-                        analyzer.bands = cfg.bands
-                        analyzer.smoothing = cfg.smoothing
-                        analyzer.autoRange = cfg.autoRange
-                    }
-                }
                 synchronized(ringLock) {
                     var idx = (ringPos - Analyzer.FFT_SIZE + ring.size) % ring.size
                     for (i in 0 until Analyzer.FFT_SIZE) {
@@ -158,7 +164,7 @@ class CaptureService : Service() {
                 val lanes = analyzer.analyze(mono)
                 System.arraycopy(analyzer.levels, 0, uiLevels, 0, 4)
                 val l = link
-                if (l != null && now - lastFrameSent > 150) {
+                if (l != null && now - lastFrameSent > 250) {
                     lastFrameSent = now
                     l.postFrame(buildFrame())
                 }
