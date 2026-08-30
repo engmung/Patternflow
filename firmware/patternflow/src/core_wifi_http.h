@@ -181,7 +181,19 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), WIFI_INDEX_HTML);
+  // send_P, not PFSend. PFSend trades completeness for a bounded loop stall
+  // (5 s budget, then TRUNCATE) — the right deal for console pages at
+  // module-resident heap, and the wrong one here: this page is the setup
+  // portal's payload, and a phone camped on a no-internet SoftAP drains in
+  // power-save bursts slow enough to blow that budget. The truncated body
+  // then never reaches Content-Length, which a captive mini-browser renders
+  // as a white page and kills (measured: "Connection reset by peer" ten
+  // seconds in). send_P pushes at the socket's own pace to the end; the
+  // page is 12 KB and this path has no module pressure.
+  Serial.printf("[WIFI-HTTP] serving /wifi (%u bytes)\n",
+                (unsigned)strlen_P(WIFI_INDEX_HTML));
+  server().sendHeader("Cache-Control", "no-store");
+  server().send_P(200, "text/html", WIFI_INDEX_HTML);
 }
 
 // Routes split out from begin(): the setup portal (core_wifi_portal.h)

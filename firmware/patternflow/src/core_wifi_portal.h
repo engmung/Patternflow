@@ -71,11 +71,21 @@ constexpr uint32_t CLOSE_GRACE_MS = 20000;
 
 inline DNSServer dnsServer;
 inline bool apUp = false;
+inline bool servicesUp = false;
 inline bool notFoundInstalled = false;
 inline bool graceArmed = false;
+inline uint32_t apStartMs = 0;
 inline uint32_t graceStartMs = 0;
 inline uint32_t lastUpMs = 0;
 inline char apName[33] = {0};
+
+// softAP() returns before the AP interface actually exists — the netif comes
+// up on the Wi-Fi task, an event later. A DNS socket opened in that gap binds
+// into nothing and then FAILS EVERY REPLY forever ("could not send data: 12"
+// once per query, measured on hardware): the phone joins, its captive probe
+// queries arrive, and no answer ever leaves, so no sign-in sheet. One beat of
+// patience before opening sockets is the whole fix.
+constexpr uint32_t AP_SETTLE_MS = 700;
 
 // A public image on a never-provisioned board: no saved networks, and the
 // compile-time fallback is the placeholder every published binary carries
@@ -86,8 +96,72 @@ inline bool hopeless() {
          strcmp(PF_WIFI_SSID, "YOUR_WIFI_SSID") == 0;
 }
 
+// The page the portal actually lands people on. Not the full /wifi manager:
+// that page delivers fine over the AP (serial said so, twice per attempt)
+// and still came up white inside a Samsung captive webview — so the portal
+// page carries NOTHING a webview can choke on. No script, no external
+// fetch, no theme chrome; one form, plain POST, ~1.5 KB. The /wifi manager
+// stays reachable for later, from a real browser on a real network.
+inline const char SETUP_HTML[] PROGMEM = R"HTML(<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patternflow setup</title>
+<style>body{background:#0C0B09;color:#EDE7DB;font:16px/1.6 system-ui,sans-serif;
+margin:0;padding:32px 22px}h1{font-size:18px;margin:0 0 4px}
+p{color:#8A8272;font-size:13px;margin:6px 0 20px}
+label{display:block;font-size:13px;color:#8A8272;margin:16px 0 5px}
+input{width:100%;box-sizing:border-box;font:inherit;padding:11px;
+background:#131110;color:#EDE7DB;border:1px solid #242118;border-radius:4px}
+button{margin-top:22px;width:100%;font:inherit;padding:13px;background:#EDE7DB;
+color:#0C0B09;border:0;border-radius:4px;font-weight:600}</style></head><body>
+<h1>Patternflow</h1>
+<p>Tell this panel your Wi-Fi. It joins, and this setup network closes itself.</p>
+<form method="POST" action="/setup">
+<label>Network name (SSID)</label>
+<input name="ssid" maxlength="32" required autocomplete="off" autocapitalize="off">
+<label>Password</label>
+<input name="pass" type="password" maxlength="63" autocomplete="off">
+<button>Save &amp; connect</button></form></body></html>)HTML";
+
+inline void handleSetupPage() {
+  Serial.println("[PORTAL] serving /setup");
+  PatternflowHttp::server().sendHeader("Cache-Control", "no-store");
+  PatternflowHttp::server().send_P(200, "text/html", SETUP_HTML);
+}
+
+inline void handleSetupSave() {
+  WebServer& sv = PatternflowHttp::server();
+  const String ssid = sv.arg("ssid");
+  const String pass = sv.arg("pass");
+  if (ssid.length() == 0 || ssid.length() > 32 || pass.length() > 63) {
+    sv.send(400, "text/html",
+            F("<!doctype html><meta charset=utf-8><body style='background:#0C0B09;"
+              "color:#EDE7DB;font:16px system-ui;padding:32px 22px'>"
+              "That name did not fit (1-32 chars). Go back and retry."));
+    return;
+  }
+  Serial.printf("[PORTAL] /setup save \"%s\"\n", ssid.c_str());
+  String body =
+      F("<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>Patternflow setup</title></head>"
+        "<body style=\"background:#0C0B09;color:#EDE7DB;font:16px/1.6 system-ui;"
+        "padding:32px 22px\"><h1 style=\"font-size:18px\">Saved</h1>"
+        "<p style=\"color:#8A8272;font-size:14px\">The panel is joining \"");
+  body += ssid;
+  body += F("\" now. Its NETWORK screen (hold K2) shows the new address; this "
+            "setup network disappears once it connects. You can close this.</p>"
+            "</body></html>");
+  sv.sendHeader("Cache-Control", "no-store");
+  sv.send(200, "text/html", body);
+  // Reply first, join after — applyCredentials tears radio state around,
+  // and the phone deserves to hear "saved" before the ground moves.
+  PatternflowWifi::applyCredentials(ssid, pass);
+}
+
 inline void open() {
   apUp = true;
+  servicesUp = false;
   graceArmed = false;
 
   // Last two MAC octets — stable per board, distinct per bench.
@@ -98,22 +172,66 @@ inline void open() {
     // The retry loop would re-begin() the placeholder every few seconds
     // forever; each cycle pokes the radio and stutters the AP for whoever
     // is mid-setup on it. Nothing is lost by stopping: applyCredentials()
-    // lifts the suppression the moment real creds arrive.
+    // lifts the suppression the moment real creds arrive. disconnect(true)
+    // also cancels the join attempt already in flight — mode(WIFI_AP) on
+    // top of a mid-join STA leaves the supplicant wedged half-scanning.
     PatternflowWifi::retrySuppressed = true;
+    WiFi.disconnect(true);
     WiFi.mode(WIFI_AP);
   } else {
     WiFi.mode(WIFI_AP_STA);
   }
-  WiFi.softAP(apName);  // open AP, default 192.168.4.1
+  // NOT 192.168.4.1. Samsung phones connect, probe, and then never raise
+  // their sign-in sheet when the portal answers from a private IP range —
+  // "connected, no internet", and that is the end of it (measured here on
+  // a Galaxy through seven fruitless rounds, and documented across seven
+  // years in tonyp7/esp32-wifi-manager#57). An address that LOOKS public
+  // makes the same phones raise the sheet; 200.200.200.1 is the value with
+  // multi-device confirmations there (Samsung, iPhone, Motorola). The
+  // range belongs to someone on the real internet, which does not matter
+  // here: clients of this AP have no internet, and the lease lasts only
+  // until the panel joins a network. Everything downstream — DNS answers,
+  // redirect targets, the NETWORK screen — reads WiFi.softAPIP(), so this
+  // one line is the whole change.
+  WiFi.softAPConfig(IPAddress(200, 200, 200, 1), IPAddress(200, 200, 200, 1),
+                    IPAddress(255, 255, 255, 0));
+  WiFi.softAP(apName);  // open AP
+  apStartMs = millis();
+
+  PatternflowWifi::portalOpen = true;  // NETWORK screen: "SETUP AP" + AP IP
+  Serial.printf("[PORTAL] setup AP \"%s\" opening (%s)\n", apName,
+                hopeless() ? "nothing provisioned" : "join keeps failing");
+  // Sockets wait for AP_SETTLE_MS — see startServices().
+}
+
+// The half of bring-up that opens sockets, run one settle-beat after
+// softAP() so the AP netif exists underneath them.
+inline void startServices() {
+  servicesUp = true;
 
   // Every DNS name resolves to us, which is what makes phones pop their
   // "sign in to network" sheet instead of showing a dead spinner.
   dnsServer.start(53, "*", WiFi.softAPIP());
 
   // The /wifi page and its API, on the core server, without waiting for the
-  // connect edge that will never come while we are needed.
+  // connect edge that will never come while we are needed — plus the
+  // script-free /setup form above, which is where the redirect lands.
   PatternflowWifiHttp::registerRoutes();
+  PatternflowHttp::server().on("/setup", HTTP_GET, handleSetupPage);
+  PatternflowHttp::server().on("/setup", HTTP_POST, handleSetupSave);
   PatternflowHttp::begin();
+
+  // Android's connectivity probes deliberately fall through to the wildcard
+  // 302 below: the redirect is what raises the phone's sign-in sheet, and
+  // on the Samsung this was debugged against, that sheet is the ONLY
+  // rendering surface that reliably reaches this AP - the visible browser
+  // never arrives (typed addresses get silently upgraded to https, which a
+  // device without TLS cannot answer). One experiment here answered the
+  // probe 204 ("internet is fine") to stop the phone from drifting home to
+  // its saved network - it did stop the drift, and it also removed the
+  // sheet, leaving no window at all. Keep the sheet; it must land on a page
+  // this webview can actually draw (the script-free /setup above - the full
+  // /wifi page delivered twice per attempt and still rendered white there).
 
   // Captive catch-all, installed once and portal-aware forever after: any
   // URL we do not serve (a phone's connectivity probe, the unregistered
@@ -126,7 +244,7 @@ inline void open() {
       WebServer& sv = PatternflowHttp::server();
       if (apUp) {
         sv.sendHeader("Location",
-                      String("http://") + WiFi.softAPIP().toString() + "/wifi",
+                      String("http://") + WiFi.softAPIP().toString() + "/setup",
                       true);
         sv.send(302, "text/plain", "");
       } else {
@@ -135,17 +253,16 @@ inline void open() {
     });
   }
 
-  PatternflowWifi::portalOpen = true;  // NETWORK screen: "SETUP AP" + AP IP
-  Serial.printf("[PORTAL] setup AP \"%s\" up — http://%s/wifi (%s)\n", apName,
-                WiFi.softAPIP().toString().c_str(),
-                hopeless() ? "nothing provisioned" : "join keeps failing");
+  Serial.printf("[PORTAL] setup AP \"%s\" up — http://%s/wifi\n", apName,
+                WiFi.softAPIP().toString().c_str());
 }
 
 inline void close() {
-  dnsServer.stop();
+  if (servicesUp) dnsServer.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   apUp = false;
+  servicesUp = false;
   graceArmed = false;
   PatternflowWifi::portalOpen = false;
   Serial.println("[PORTAL] connected — setup AP closed");
@@ -165,6 +282,23 @@ inline void tick() {
                                     : (uint32_t)PF_WIFI_PORTAL_AFTER_MS;
     if (now - lastUpMs >= due) open();
     return;
+  }
+
+  if (!servicesUp) {
+    if (now - apStartMs < AP_SETTLE_MS) return;
+    startServices();
+  }
+
+  // The DNS socket goes quietly bad after minutes of AP life - replies start
+  // failing ENOMEM ("could not send data: 12"), observed on hardware ~5 min
+  // in, likely replies queued toward a client that left without ARP. A
+  // periodic re-open is a one-packet blip and keeps the resolver honest for
+  // however long someone leaves the portal waiting.
+  static uint32_t dnsCycleMs = 0;
+  if (now - dnsCycleMs >= 120000) {
+    dnsCycleMs = now;
+    dnsServer.stop();
+    dnsServer.start(53, "*", WiFi.softAPIP());
   }
 
   dnsServer.processNextRequest();

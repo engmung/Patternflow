@@ -1,7 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8">
-<script src="/pf-console.js"></script>
+<!-- defer is load-bearing: this page is the setup portal's payload, and a
+     head script without it blocks first paint until the console chrome
+     arrives — over a power-save phone camped on the SoftAP that fetch can
+     stall, and the person stares at a white page that has, in fact, been
+     fully delivered. Deferred, the form renders instantly and the chrome
+     (theme, header) catches up whenever it lands. -->
+<script src="/pf-console.js" defer></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Wi-Fi</title>
 <style>

@@ -84,8 +84,11 @@
 #ifndef PF_WIFI_PORTAL_AFTER_MS
 #define PF_WIFI_PORTAL_AFTER_MS 45000
 #endif
+// Deliberately short: the full brand name pushed the SSID past 20 chars and
+// some phones (field-reported on Samsung) mishandle long AP names during
+// captive setup — the sheet never offered. Four hex chars of MAC follow.
 #ifndef PF_WIFI_PORTAL_NAME
-#define PF_WIFI_PORTAL_NAME "Patternflow-Setup"
+#define PF_WIFI_PORTAL_NAME "PF-Setup"
 #endif
 
 // ── Improv-Serial Wi-Fi provisioning ─────────────────────────
