@@ -42,6 +42,7 @@ constexpr int LOG2N = 9;
 constexpr float SAMPLE_HZ = 16000.0f;
 
 inline float re[N], im[N];
+inline float hann[N];
 inline float twCos[N / 2], twSin[N / 2];
 inline uint16_t brev[N];
 inline bool ready = false;
@@ -85,6 +86,12 @@ inline void begin() {
     brev[i] = (uint16_t)r;
   }
   for (int i = 0; i < N; i++) { re[i] = 0.0f; im[i] = 0.0f; }
+  // Hann, times 2: the window kills the rectangular-window leakage that was
+  // smearing strong bass into the high bands (there was no window at all
+  // before), and the factor 2 undoes its coherent gain of 0.5 so band
+  // levels keep the scale everything downstream was tuned against.
+  for (int i = 0; i < N; i++)
+    hann[i] = (1.0f - cosf(2.0f * (float)M_PI * i / (N - 1)));
   buildSource();
   // The microphone is NOT started here. It is installed and released by the
   // analysis task as the switch on /audio-in moves, so that a panel with the
@@ -261,7 +268,9 @@ inline void analyze(uint32_t tick) {
     float v = re[i] * g;
     if (v > 1.0f) v = 1.0f;
     if (v < -1.0f) v = -1.0f;
-    re[i] = v;
+    // Gain saturates BEFORE the window shapes the frame - a clipped loud
+    // sample still tapers at the edges, which is the point of the window.
+    re[i] = v * hann[i];
   }
   rawPeak = pk;
   rawDc = sum / (float)N;

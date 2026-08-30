@@ -97,6 +97,11 @@ lifted = lift(js, [
 # Substituted here rather than in the extension: the extension is not wrong,
 # it simply has one theme. themeColor() is defined in the device half below
 # and re-reads on a theme change.
+# In auto-range mode the two in-handles are hidden, but buildPlot's
+# nearest-handle pick does not know about visibility - a drag near the right
+# edge would grab the invisible inMax and go nowhere. Filter them out of the
+# candidate list when AUTO_ON, substituted here for the same reason as
+# themeColor: the extension is not wrong, it just has no auto mode.
 for literal, name, why in [
     ("'#fbf7ef'", "--field", "the panel behind the bars"),
     ("'#d9d1c0'", "--rule", "the quarter lines"),
@@ -105,6 +110,13 @@ for literal, name, why in [
 ]:
     assert literal in lifted, "drawSpectrum no longer uses %s" % literal
     lifted = lifted.replace(literal, "themeColor('%s')" % name)
+
+_PICK_OLD = "].sort((a, b) => a[1] - b[1])[0][0];"
+_PICK_NEW = ("].filter(function(c){ return !window.AUTO_ON || "
+             "(c[0] !== 'inMin' && c[0] !== 'inMax'); })"
+             ".sort(function(a, b){ return a[1] - b[1]; })[0][0];")
+assert _PICK_OLD in lifted, "buildPlot's handle pick moved"
+lifted = lifted.replace(_PICK_OLD, _PICK_NEW)
 
 PAGE_TMPL = u'''<!doctype html>
 <html lang="en">
@@ -153,6 +165,8 @@ color:var(--faint);margin-left:auto}
 .drive{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);
 padding:6px 0;margin-bottom:12px}
 .drive input{accent-color:var(--led)}
+/* Auto range: the absolute in-window is not in the path, so its handles go. */
+body.auto-on .h-in-min, body.auto-on .h-in-max { display:none }
 </style>
 </head>
 <body>
@@ -170,6 +184,14 @@ padding:6px 0;margin-bottom:12px}
 full scale), so samples are multiplied before analysis. Raise this if quiet sounds barely
 register, lower it if everything slams the top. Raw peak/dc in the header stay unscaled so
 a wiring problem still looks like one.</p>
+
+<label class="drive"><input type="checkbox" id="autoRange"> <b>Auto range</b></label>
+<p class="wrap-note">Each band tracks its own recent floor and peak and rides inside that
+window, so a quiet verse, a loud chorus and the next track all fill the same knob range a
+few seconds after they start. Two measurements half an hour apart put the same band's
+level four-to-one apart on the same stereo, which is why fixed ranges kept going dead.
+Off, the graph's left and right handles are absolute again, extension-style, for tuning
+against one known source.</p>
 <p class="wrap-note">The panel listens, and the four bands below turn the four knobs, so patterns
 react to the room with no computer in it.
 <br><br>
@@ -247,11 +269,18 @@ function persistConfig() {
     saveTimer = null;
     var jobs = Object.keys(pending);
     pending = {};
+    // While auto displays, the bands carry the fixed relative window for the
+    // graph - so those two fields are simply not sent, and the server keeps
+    // the manual tuning underneath. Everything else (frequency range, boost,
+    // knob range, knob, mute) still saves; the first version of this guard
+    // returned early and silently dropped all of it.
+    var auto = $('autoRange').checked;
     jobs.forEach(function(i){
       var b = config.bands[i];
       var body = 'band=' + i +
         '&hzMin=' + b.hzMin.toFixed(1) + '&hzMax=' + b.hzMax.toFixed(1) +
-        '&inMin=' + b.inMin.toFixed(4) + '&inMax=' + b.inMax.toFixed(4) +
+        (auto ? '' :
+        '&inMin=' + b.inMin.toFixed(4) + '&inMax=' + b.inMax.toFixed(4)) +
         '&gain=' + b.gain.toFixed(3) +
         '&outMin=' + b.outMin.toFixed(3) + '&outMax=' + b.outMax.toFixed(3) +
         '&knob=' + b.knob + '&muted=' + (b.muted ? '1' : '0');
@@ -287,6 +316,31 @@ function poll() {
 // about capture status. Kept in the extension's own terms — levels, outputs,
 // spectrum, entry.plot.live, the 0.995 peak decay — so it stays comparable to
 // the file it came from.
+// In auto mode the mapping consumes the NORMALIZED level, so the dot, the
+// meters and the travel readout paint from levelsN - what you see is what
+// the knob gets - and the in-handles are hidden because the window they set
+// is not in the path. The lifted extension code is untouched: we swap what
+// "the level" means and which inMin/inMax the local bands carry for display.
+var AUTO_LO = 0.10, AUTO_HI = 0.95;
+var manualIn = null;   // saved [inMin,inMax] per band while auto displays
+function applyAutoDisplay(on){
+  if (!config.bands.length) return;
+  if (on && !manualIn){
+    manualIn = config.bands.map(function(b){ return [b.inMin, b.inMax]; });
+    config.bands.forEach(function(b){ b.inMin = AUTO_LO; b.inMax = AUTO_HI; });
+  } else if (!on && manualIn){
+    config.bands.forEach(function(b, i){
+      b.inMin = manualIn[i][0]; b.inMax = manualIn[i][1];
+    });
+    manualIn = null;
+  }
+  window.AUTO_ON = on;
+  document.body.classList.toggle('auto-on', on);
+  buildBands();
+  renderBandTabs();
+  renderSpectrumBands();
+}
+
 function paintLive() {
   if (!state) return;
 
@@ -296,7 +350,13 @@ function paintLive() {
   $('srcRaw').textContent = 'peak ' + Number(state.rawPeak).toFixed(5) +
                             '  dc ' + Number(state.rawDc).toFixed(5);
 
-  var levels = state.levels || [];
+  if ($('autoRange').checked && config.bands.length){
+    for (var ai = 0; ai < config.bands.length; ai++){
+      config.bands[ai].inMin = AUTO_LO;
+      config.bands[ai].inMax = AUTO_HI;
+    }
+  }
+  var levels = ($('autoRange').checked ? state.levelsN : state.levels) || [];
   var outputs = state.outputs || [];
   for (var i = 0; i < bandEls.length; i++) {
     var entry = bandEls[i];
@@ -335,6 +395,8 @@ function paintLive() {
                knob: b.knob, muted: b.muted === true };
     });
     $('mic').checked = !!d.micOn;
+    $('autoRange').checked = !!d.autoRange;
+    if (d.autoRange) applyAutoDisplay(true);
     if (typeof d.micGain === 'number'){
       $('micGain').value = d.micGain;
       $('micGainOut').textContent = d.micGain.toFixed(1) + 'x';
@@ -377,6 +439,15 @@ $('micGain').addEventListener('change', function(){
   x.open('POST', '/api/audio-in');
   x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
   x.send('micGain=' + Number($('micGain').value).toFixed(1));
+});
+
+$('autoRange').addEventListener('change', function(){
+  var on = $('autoRange').checked;
+  var x = new XMLHttpRequest();
+  x.open('POST', '/api/audio-in');
+  x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+  x.send('auto=' + (on ? '1' : '0'));
+  applyAutoDisplay(on);
 });
 
 $('mic').addEventListener('change', function(){
