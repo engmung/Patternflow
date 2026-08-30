@@ -1,0 +1,51 @@
+name: Core knows no features
+
+# Two fast source-level checks on every firmware change:
+#
+#   check_boundaries.py — the core/feature boundary, mechanically. The rule
+#   ("the core names no feature") lived in comments and was violated three
+#   times before it grew teeth; on its first run the checker also found a
+#   fourth (the sketch comparing a pattern name against the show scheduler's
+#   "Black"). Prose does not hold; a failing build does.
+#
+#   check_sources.py — mangled string literals and raw control bytes, the
+#   patch-script damage that compiles into garbage or reports its error
+#   thirty lines from the cause.
+#
+# Neither needs a toolchain, so both finish in seconds. The three-edition
+# compile stays local (`firmware/bundles/build.sh all`) — the ~80 s xtensa
+# build per edition is not worth a runner on every push, and the boundary
+# violations that break only one edition are exactly what these greps catch
+# before the compiler would.
+on:
+  pull_request:
+    paths:
+      - "firmware/patternflow/**"
+      - "firmware/toolchain/check_boundaries.py"
+      - "firmware/toolchain/check_sources.py"
+      - ".github/workflows/firmware-checks.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/patternflow/**"
+      - "firmware/toolchain/check_boundaries.py"
+      - "firmware/toolchain/check_sources.py"
+
+concurrency:
+  group: firmware-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: The core names no feature
+        run: python firmware/toolchain/check_boundaries.py
+      - name: No mangled literals or raw control bytes
+        run: python firmware/toolchain/check_sources.py

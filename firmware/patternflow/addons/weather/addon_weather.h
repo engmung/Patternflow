@@ -98,6 +98,8 @@ inline const PFAddon descriptor = {
     drawOverlay,
     "/weather",    // navPath - the console header link
     "Weather",     // navLabel
+    "Clock, timezone and local readings — can drive the knobs from "
+    "the sky outside.",
 };
 
 }  // namespace PFAddonWeather

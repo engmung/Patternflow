@@ -100,6 +100,7 @@ inline const PFAddon descriptor = {
     nullptr,       // drawOverlay
     nullptr,       // navPath - no console page
     nullptr,       // navLabel
+    nullptr,       // navDesc
 };
 
 }  // namespace PFAddonAudio

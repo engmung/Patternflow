@@ -1,6 +1,6 @@
 // Patternflow - shared Wi-Fi bring-up (non-blocking + auto-reconnect)
 //
-// OSC, OTA, and the audio-react server all ride on one STA connection.
+// Everything network-side rides on one STA connection.
 // This module owns it so there is exactly one WiFi.begin() in flight and
 // one place that handles dropouts.
 //
@@ -22,7 +22,13 @@
 #include <Arduino.h>
 #include "config.h"
 
-#if PF_OSC_ENABLED || PF_OTA_ENABLED || PF_AUDIO_ENABLED || PF_WEBUPDATE_ENABLED
+// One core switch, not a disjunction of feature flags. This used to read
+// `#if PF_OSC_ENABLED || PF_OTA_ENABLED || PF_AUDIO_ENABLED || ...`, which
+// was the core deciding whether the radio exists by enumerating features —
+// and a stale enumeration at that: the console, MQTT and weather all need
+// Wi-Fi and were never in the list. Whether this panel has a radio is the
+// core's own question; PF_WIFI_ENABLED answers it in net_config.h.
+#if PF_WIFI_ENABLED
 #define PF_WIFI_NEEDED 1
 #include <WiFi.h>
 #include <Preferences.h>

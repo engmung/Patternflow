@@ -134,4 +134,14 @@ struct PFAddon {
   // fourth was the moment to stop. Null on both means no nav entry.
   const char* navPath;
   const char* navLabel;
+
+  // One plain-text line for the console home page's row under that label.
+  // This is the last thing the core used to know about features by name: the
+  // home page carried a hand-written row for /show, /mqtt and /weather -
+  // gated on caps so it degraded, but written into a core page all the same,
+  // which is how the Audio edition's Mic page ended up with a header link
+  // and no home row. Now the row travels with the feature.
+  //
+  // Plain text, no quotes - it rides inside /api/status JSON unescaped.
+  const char* navDesc;
 };

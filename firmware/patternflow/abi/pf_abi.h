@@ -47,6 +47,14 @@ typedef struct PFInputFrame {
   bool btnPressed[4];
   bool btnHeld[4];
   uint32_t now;
+  // THE NAME IS A FOSSIL AND IT IS FROZEN. These are the generic LANES: an
+  // absolute continuous reading, 0..1, that any source can put on a knob -
+  // weather drives them from a temperature, the Chrome extension from a
+  // browser tab, the microphone from the room. "Audio" is only who got here
+  // first. Do not rename them: this struct is the ABI that compiled .pfm
+  // modules read, so the name is frozen the way a wire format is - a rename
+  // is a silent field-offset change inside every module already installed
+  // on somebody's panel.
   bool knobAudioActive[4];
   float knobAudioValue[4];
   // Absolute bus 0..1000 (Director / Show manager). Appended — older

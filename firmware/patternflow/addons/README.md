@@ -93,6 +93,7 @@ each row says which port proved it.
 | `onSleep(bool)` | the panel slept or woke | MQTT state publishing |
 | `requestSleep(&bool)` | "sleep / wake the device, please" — again a request | MQTT sleep topic |
 | `shortName` + `isRuntimeEnabled()` + `setRuntimeEnabled(bool)` | the device's own NETWORK screen lists and toggles this addon | audio |
+| `navPath` + `navLabel` + `navDesc` | the console header links the page, and the home screen gives it a row with that one-line description — the core never learns the path | /show, /mqtt, /weather, /audio-in |
 | `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
 
@@ -141,6 +142,9 @@ inline const PFAddon descriptor = {
     nullptr,       // setRuntimeEnabled
     nullptr,       // appendStatus
     drawOverlay,
+    "/yourthing",  // navPath - the console header link, or nullptr
+    "Yourthing",   // navLabel
+    "One line for the home screen's row.",   // navDesc
 };
 ```
 

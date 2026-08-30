@@ -56,9 +56,3 @@
 // both yield to a hand on the encoder.
 #define PF_AUDIO_IN_DRIVES_KNOBS 1
 
-// ── No presets from addons this firmware does not have ──────────────────
-//
-// Core defaults this to the show player's Black pattern. There is no show
-// player here, so an empty definition: a panel running this should not carry
-// a pattern belonging to a feature it does not have.
-#define PF_ADDON_PRESETS

@@ -17,13 +17,15 @@
 #define PF_VARIANT          "performance"
 #define PF_VARIANT_VERSION  "v0.2.1"
 
-// PF_ADDON_PRESETS is deliberately NOT defined here. Defining it as nothing
-// is how a build with no show player keeps the show player's hidden Black
-// pattern out of the carousel — but this edition HAS the show player, and its
-// night/wake scheduler switches to Black by name. Emptying it here does not
-// hide a pattern, it removes one the scheduler needs, and the build fails on
-// `'Black' has not been declared`. Inherited from a copy of the audio
-// overrides, where it was correct.
+// ── The show player's night face ────────────────────────────────────────
+//
+// The night/wake scheduler switches to Black by name, so this edition ships
+// it (addons_local.h includes the header; this names the entry). Hidden,
+// because the panel going dark is not something to land on while turning K4
+// through the list. The bare core defines PF_ADDON_PRESETS empty - a preset
+// rides with the composition that needs it, never with the default.
+#define PF_ADDON_PRESET_INCLUDE "show/preset_black.h"
+#define PF_ADDON_PRESETS PATTERN_ENTRY_HIDDEN(Black),
 
 // Nothing else is changed. The radio stays at the conformance-tested setting,
 // and a panel switching to this edition keeps its Wi-Fi, its brightness and

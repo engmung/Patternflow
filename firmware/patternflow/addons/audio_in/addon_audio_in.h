@@ -220,6 +220,8 @@ inline const PFAddon descriptor = {
     nullptr,       // drawOverlay
     "/audio-in",   // navPath - the console header link
     "Mic",         // navLabel
+    "The panel hears the room — a live spectrum, and four bands you "
+    "shape into the knobs.",
 };
 
 }  // namespace PFAddonAudioIn

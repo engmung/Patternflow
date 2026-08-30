@@ -140,7 +140,6 @@
       <div class="stat"><span class="k">Wi-Fi</span><div class="v" id="s-wifi">&mdash;</div></div>
       <div class="stat"><span class="k">Address</span><div class="v" id="s-ip">&mdash;</div></div>
       <div class="stat"><span class="k">Memory</span><div class="v" id="s-heap">&mdash;</div></div>
-      <div class="stat" data-cap="mqtt"><span class="k">MQTT</span><div class="v" id="s-mqtt">&mdash;</div></div>
       <div class="stat"><span class="k">Uptime</span><div class="v" id="s-up">&mdash;</div></div>
       <div class="stat"><span class="k">Firmware</span><div class="v" id="s-fw">&mdash;</div></div>
       <!-- Which edition this panel is running. It was a line of small print in
@@ -174,12 +173,18 @@
       <div class="pf-row-t">Pattern library</div>
       <div class="pf-row-d">Drop in a <b>.pfm</b> module or a whole <b>.zip</b> pack &mdash; play, arrange, delete.</div>
     </a>
-    <a class="pf-row" href="/show" data-cap="shows">
-      <span class="pf-ghost">02</span>
-      <div class="pf-row-t">Sequences</div>
-      <div class="pf-row-d">Timed shows from <b>.pfs</b> tables &mdash; play one, chain a playlist, schedule night and wake.</div>
-    </a>
   </nav>
+
+  <!-- Whatever features this firmware carries, one row each. The rows are
+       not written into this page: they arrive from /api/status addonNav,
+       contributed by the loaded addons, so a page the core has never heard
+       of still gets a row and a build with none gets no group. This page
+       used to hand-write rows for /show, /mqtt and /weather - capability-
+       gated, so they degraded, but named in a core page all the same, and
+       the first addon page the list did not know about proved the point by
+       having no row at all. -->
+  <span class="pf-kicker" id="featKick" hidden>Features</span>
+  <nav id="featRows" hidden></nav>
 
   <span class="pf-kicker">Setup</span>
   <nav>
@@ -187,11 +192,6 @@
       <span class="pf-ghost">03</span>
       <div class="pf-row-t">Wi-Fi</div>
       <div class="pf-row-d">Remember several networks &mdash; the device joins whichever one it finds.</div>
-    </a>
-    <a class="pf-row" href="/mqtt" data-cap="mqtt">
-      <span class="pf-ghost">04</span>
-      <div class="pf-row-t">MQTT</div>
-      <div class="pf-row-d">Mirror one panel onto another, or hand the knobs to home automation.</div>
     </a>
   </nav>
 
@@ -209,14 +209,6 @@
     </a>
   </nav>
 
-  <span class="pf-kicker">Experimental</span>
-  <nav>
-    <a class="pf-row" href="/weather" data-cap="weather">
-      <span class="pf-ghost">08</span>
-      <div class="pf-row-t">Weather<span class="tag">Early</span></div>
-      <div class="pf-row-d">Clock, timezone and local readings &mdash; can drive the knobs from the sky outside.</div>
-    </a>
-  </nav>
   </div>
   </div>
 
@@ -229,23 +221,32 @@ function $(i){return document.getElementById(i)}
 $('host').textContent=location.hostname;
 
 // ── What this build actually has ───────────────────────────────
-// Features live in addons, so a panel may genuinely have no shows or
-// no MQTT. Advertising them anyway sends people to a 404 and makes the
-// device look broken. The rows are in the markup — this removes the
-// ones with no feature behind them, drops any group left empty, and
-// renumbers what remains so the list still reads 01, 02, 03.
+// Feature rows are not written into this page. Whatever addons the firmware
+// carries report their pages in /api/status addonNav — path, label, one
+// line — and the Features group is built from that. A build with none gets
+// no group, and a page the core has never heard of still gets a row. This
+// used to work the other way round: rows for every feature in the markup,
+// deleted when the capability was absent, which meant a core page naming
+// features and a new feature's page getting no row at all.
+//
+// Rebuilt from scratch on every status (gate can fire twice at load), then
+// everything renumbers so the list still reads 01, 02, 03.
 function gate(s){
-  var caps=(s&&s.caps)||null;
-  if(!caps)return;  // no answer: leave everything, a 404 beats a blank page
-  var i,n=document.querySelectorAll('[data-cap]');
-  for(i=0;i<n.length;i++)
-    if(caps.indexOf(n[i].getAttribute('data-cap'))<0)n[i].remove();
-  var groups=document.querySelectorAll('.rows nav');
-  for(i=0;i<groups.length;i++){
-    if(groups[i].querySelector('.pf-row'))continue;
-    var kicker=groups[i].previousElementSibling;
-    if(kicker&&kicker.classList.contains('pf-kicker'))kicker.remove();
-    groups[i].remove();
+  var i,nav=(s&&s.addonNav)||[];
+  var f=$('featRows'),fk=$('featKick');
+  if(f){
+    f.innerHTML='';
+    for(i=0;i<nav.length;i++){
+      var e=nav[i];if(!e||e.length<2)continue;
+      var a=document.createElement('a');
+      a.className='pf-row';a.href=e[0];
+      a.innerHTML='<span class="pf-ghost">00</span>'+
+        '<div class="pf-row-t"></div><div class="pf-row-d"></div>';
+      a.querySelector('.pf-row-t').textContent=e[1];
+      a.querySelector('.pf-row-d').textContent=e[2]||'';
+      f.appendChild(a);
+    }
+    f.hidden=fk.hidden=!f.querySelector('.pf-row');
   }
   var ghosts=document.querySelectorAll('.rows .pf-ghost');
   for(i=0;i<ghosts.length;i++)
@@ -295,8 +296,6 @@ function tick(){
     $('s-ip').textContent=s.wifi?s.ip:'—';
     $('s-heap').textContent=Math.round(s.heapInternal/1024)+'K + '+
       Math.round(s.heapPsram/1048576)+'M psram';
-    $('s-mqtt').textContent=(s.mqttRole&&s.mqttRole!=='off')?
-      (s.mqttRole+' · '+s.mqttState):'off';
     $('s-up').textContent=dur(s.uptime);
     $('s-fw').textContent='v'+s.version;
 
