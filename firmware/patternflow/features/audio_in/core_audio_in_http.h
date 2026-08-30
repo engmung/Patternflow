@@ -77,6 +77,13 @@ inline void handleGet() {
       if (i) j += ',';
       j += String(PFAudioFFT::bands[i], 4);
     }
+    // The level as the mapping consumes it in auto mode - the page paints
+    // its dot and meters from this so what you see is what the knob gets.
+    j += "],\"levelsN\":[";
+    for (int i = 0; i < 4; i++) {
+      if (i) j += ',';
+      j += String(PFAudioInMap::normalized(i, PFAudioFFT::bands[i]), 4);
+    }
     j += "],\"outputs\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';
@@ -103,6 +110,8 @@ inline void handleGet() {
   j += PFAudioInMap::micOn ? "true" : "false";
   j += ",\"micGain\":";
   j += String(PFAudioInMap::micGain, 1);
+  j += ",\"autoRange\":";
+  j += PFAudioInMap::autoRange ? "true" : "false";
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -181,6 +190,10 @@ inline void handleSet() {
   if (server().hasArg("mic")) {
     const String v = server().arg("mic");
     PFAudioInMap::micOn = (v == "1" || v == "true");
+  }
+  if (server().hasArg("auto")) {
+    const String v = server().arg("auto");
+    PFAudioInMap::autoRange = (v == "1" || v == "true");
   }
   if (server().hasArg("micGain")) {
     PFAudioInMap::micGain = constrain(server().arg("micGain").toFloat(),

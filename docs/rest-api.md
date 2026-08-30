@@ -309,9 +309,9 @@ nothing it can do that a script cannot.
 
 | Endpoint | Meaning |
 |---|---|
-| `GET /api/audio-in` | Full state: `micOn`, `micGain` (input gain, 1..16, applied to mic samples before analysis - raw fields stay unscaled), `source` (`"off"`, `"pdm"`, `"pdm (no mic - data pin idle)"`, `"synth"`), raw `rawPeak`/`rawDc`, per-band config (`hzMin`/`hzMax`/`inMin`/`inMax`/`gain`/`outMin`/`outMax`/`knob`/`muted`), `hzRange`, and a 40-bucket log `spec`. |
-| `GET /api/audio-in?levels=1` | The polling shape: `levels`, `outputs`, `spectrum`, `dropped` and nothing configurable — the page owns the config after reading it once. |
-| `POST /api/audio-in` | `mic=0/1` switches the whole feature (installs/releases the I2S driver). `micGain=1..16` sets the input gain. `band=N` plus any subset of the band fields updates one band; partial updates are the point, so a dragged handle cannot clobber the other three. |
+| `GET /api/audio-in` | Full state: `micOn`, `micGain` (input gain, 1..16, applied to mic samples before analysis - raw fields stay unscaled), `autoRange` (each band self-normalizes against its tracked floor/peak envelope; on by default), `source` (`"off"`, `"pdm"`, `"pdm (no mic - data pin idle)"`, `"synth"`), raw `rawPeak`/`rawDc`, per-band config (`hzMin`/`hzMax`/`inMin`/`inMax`/`gain`/`outMin`/`outMax`/`knob`/`muted`), `hzRange`, and a 40-bucket log `spec`. |
+| `GET /api/audio-in?levels=1` | The polling shape: `levels`, `levelsN` (the level normalized inside the band's tracked range - what the mapping consumes in auto mode), `outputs`, `spectrum`, `dropped` and nothing configurable — the page owns the config after reading it once. |
+| `POST /api/audio-in` | `mic=0/1` switches the whole feature (installs/releases the I2S driver). `micGain=1..16` sets the input gain; `auto=0/1` switches per-band auto-ranging. `band=N` plus any subset of the band fields updates one band; partial updates are the point, so a dragged handle cannot clobber the other three. |
 | `POST /api/audio-in/reset` | Back to the measured defaults. |
 
 `micDropped` in `/api/status`'s `audioIn` block counts capture hops discarded

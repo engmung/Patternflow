@@ -66,6 +66,10 @@ inline void analysisTask(void*) {
     if (!PFAudioPdm::live) PFAudioPdm::begin();
 
     PFAudioFFT::analyze(tick++);
+    // Envelope tracking rides the analysis clock - once per window, here,
+    // never from the mapping (which also runs from HTTP polls and would
+    // double-count the release).
+    if (PFAudioInMap::micOn) PFAudioInMap::trackEnvelopes(PFAudioFFT::bands);
     // With a microphone the I2S read paces this loop, and without one nothing
     // blocks at all, so the synthetic path keeps the old 16 ms tick.
     //

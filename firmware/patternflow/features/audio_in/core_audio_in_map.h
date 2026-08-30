@@ -89,20 +89,36 @@ constexpr float MIC_GAIN_MAX = 16.0f;
 
 inline Band bands[4];  // filled by resetBands() or load(); see below
 
-// Defaults sized from the measurement above, not from taste - and sized for
-// micGain 8, which is why they look 8x the numbers in that note. inMax
-// descends across the bands because the energy does: a hi-hat at the same
-// loudness as a kick puts a fraction of the level into band 4.
+// Defaults sized from MUSIC, measured 2026-08-30: thirty seconds of a real
+// track at listening volume, per-band p10/p90 quantiles, at micGain 8.
+//
+//     band      p10..p90 measured     defaults below
+//     62-375    0.24 .. 0.66          0.20 .. 0.90
+//     375-1.5k  0.16 .. 0.49          0.12 .. 0.65
+//     1.5k-5k   0.05 .. 0.12          0.045 .. 0.16
+//     5k-8k     0.011 .. 0.019        0.012 .. 0.030
+//
+// The top band's numbers are microscopic and that is CONTENT, not silicon:
+// a white-noise sweep the same day measured the mic + PDM decimator flat to
+// within about 6 dB up to 7.5 kHz, so there is no hardware roll-off to
+// boost away. Music itself carries a fraction of its energy above 5 kHz
+// (the 1/f tilt), and the previous defaults - sized from a synthetic tone -
+// left inMax 8..10x above where music actually reaches, which read as "the
+// top band does not respond". Ranges sized to the content are the fix; a
+// hardware-response EQ would have been correcting a curve that is not there.
+//
+// inMin also clears the measured quiet-room floor per band (0.135/0.088/
+// 0.024/0.010) so silence does not wobble the knobs.
 //
 // One function rather than two literal tables: the HTTP reset handler and
 // the fresh-boot path both call this, and the two copies they used to keep
 // in sync are exactly the kind of pair that drifts.
 inline void resetBands() {
   const Band d[4] = {
-      {   62.0f,  375.0f, 0.08f, 1.00f, 1.0f, 0.30f, 0.85f, 0, false},
-      {  375.0f, 1500.0f, 0.06f, 0.95f, 1.2f, 0.30f, 0.85f, 1, false},
-      { 1500.0f, 5000.0f, 0.03f, 0.40f, 1.6f, 0.30f, 0.85f, 2, false},
-      { 5000.0f, 8000.0f, 0.02f, 0.25f, 1.8f, 0.30f, 0.85f, 3, false},
+      {   62.0f,  375.0f, 0.200f, 0.900f, 1.0f, 0.30f, 0.85f, 0, false},
+      {  375.0f, 1500.0f, 0.120f, 0.650f, 1.2f, 0.30f, 0.85f, 1, false},
+      { 1500.0f, 5000.0f, 0.045f, 0.160f, 1.6f, 0.30f, 0.85f, 2, false},
+      { 5000.0f, 8000.0f, 0.012f, 0.030f, 1.8f, 0.30f, 0.85f, 3, false},
   };
   for (int i = 0; i < 4; i++) bands[i] = d[i];
 }
@@ -161,17 +177,172 @@ inline float clamp01(float v) {
   return v;
 }
 
+// ── Auto range ──────────────────────────────────────────────────────────
+//
+// Static in-ranges cannot fit music. Two 30-second windows of the same
+// listening session, half an hour apart, measured band 2's level 4x apart -
+// verse against chorus, one track against the next - so ranges sized to any
+// one window leave bands dead in the next. This is the problem WLED's AGC
+// exists for, and this is the same idea per band: track a slow envelope of
+// each band's own floor and peak, normalize the level inside it, and let
+// the passage define the range instead of a constant.
+//
+// Attack is instant on both edges (a peak claims the top immediately, a
+// dropout claims the floor); release is a slow exponential, about eight
+// seconds to cross most of a gap at 60 analyses/second, so the range
+// breathes with the song without pumping on every bar. The span never
+// shrinks below MIN_SPAN: in silence both envelopes converge and the
+// division would otherwise amplify noise into a full-scale flutter.
+//
+// In auto mode the band's own inMin/inMax are NOT used - the normalized
+// level runs through a fixed relative window (squelch AUTO_LO, full at
+// AUTO_HI) and then the band's boost curve and knob range as always. Manual
+// mode is untouched and remains the extension-style absolute shaping.
+inline bool autoRange = true;
+
+// ── How the gate learned what it knows ──────────────────────────────────
+//
+// Three designs died on this hardware before this one, all measured:
+//
+//   v1  normalized against min/max envelopes. In silence the envelopes hug
+//       the noise floor and division turns its flutter into full-scale knob
+//       motion - all four knobs swinging 0.30..0.85 in a room with the
+//       keyboard untouched.
+//   v2  gated on envelope span. Better, but the span statistic is recent
+//       max minus recent min, and this board supplies spikes on schedule:
+//       every HTTP poll is a Wi-Fi burst, every burst makes the regulator
+//       whine audibly, and the mic hears it. One-frame spikes latched the
+//       instant-attack envelope for the whole release.
+//   v3  per-band span thresholds. Uncomparable 20-second runs - the noise
+//       is non-stationary, so constants tuned against one snapshot lost to
+//       the next.
+//
+// So the noise itself was finally measured (100 samples, silent room, the
+// worst case of a page polling at 10 Hz):
+//
+//   band    median   p95      max     music median (listening volume)
+//   62-375   0.146   0.204    0.271   0.37
+//   375-1.5k 0.040   0.085    0.228   0.30
+//   1.5k-5k  0.020   0.048    0.082   0.074
+//   5k-8k    0.017   0.021    0.042   0.015  <- at or below its own noise
+//
+// Which says: the spikes are rare and one sample long (p95 to max is a
+// cliff), music stands 2..7x above the noise MEDIAN in the three lower
+// bands, and band 4 at listening volume has no level story at all - it
+// only rises above its floor on genuinely strong treble, and pretending
+// otherwise is how v1 danced to hiss. Hence:
+//
+//   - a slow noise reference that learns only from quiet-zone samples,
+//   - a gate on sustained exceedance of that reference (three consecutive
+//     frames to open - a one-frame RF spike cannot vote three times),
+//   - a slow close (25 quiet frames) so musical gaps do not chatter it,
+//   - normalization from the reference to a peak envelope, never from a
+//     tracked minimum.
+inline float noiseRef[4] = {-1.0f, -1.0f, -1.0f, -1.0f};  // <0 = unlearned
+inline float envHi[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+inline bool gateOpen[4] = {false, false, false, false};
+inline int gateVotes[4] = {0, 0, 0, 0};
+
+constexpr float NOISE_LEARN = 0.005f;  // reference EMA, ~3 s to settle
+// 1.5, not wider: the bass band's music floor sits only ~1.6x above its
+// noise reference, so a wider zone let quiet musical frames TEACH the
+// reference, which climbed toward the music and dragged the open threshold
+// with it - measured as the bass gate never opening while mids danced.
+constexpr float LEARN_ZONE = 1.5f;     // learn only when level < ref * this
+constexpr int WARMUP_FRAMES = 120;     // ~2 s of min-tracking at boot
+constexpr float OPEN_K = 1.8f;         // active when level > ref*K + ABS
+// Per band, one number, for one reason: the board's own Wi-Fi whine lives
+// in 375-1500 Hz, and its bursts turned out to be an HTTP transaction long
+// - several analysis frames, not one - so the mid band alone gets an
+// absolute floor its spikes cannot reach (they top out ~0.23; music sits
+// at 0.30+ there). Measured, like every other constant in this block.
+constexpr float OPEN_ABS[4] = {0.012f, 0.050f, 0.015f, 0.012f};
+constexpr int OPEN_VOTES = 8;          // ~130 ms sustained - outlasts a burst
+constexpr float CLOSE_K = 1.4f;        // below this counts as quiet
+constexpr int CLOSE_VOTES = 25;        // ~0.4 s of quiet to close
+constexpr float NORM_LO_K = 1.5f;      // normalization floor = ref * this
+constexpr float NORM_MIN_SPAN = 0.02f;
+constexpr float ENV_ATTACK = 0.3f;
+constexpr float ENV_RELEASE = 0.002f;
+// The relative response window the normalized level runs through (the
+// page shows the same 0.10..0.95 as the fixed in-handles in auto mode).
+constexpr float AUTO_LO = 0.10f;
+constexpr float AUTO_HI = 0.95f;
+
+inline int warmup = WARMUP_FRAMES;
+
+inline void trackEnvelopes(const float* level) {
+  const bool warming = warmup > 0;
+  if (warming) warmup--;
+  for (int i = 0; i < 4; i++) {
+    const float v = clamp01(level[i]);
+
+    // The reference learns the FLOOR, three rules deep: during warmup it
+    // takes the running minimum (so booting mid-song does not seed it with
+    // a bass hit); after that it moves only while the gate is CLOSED (an
+    // open gate means signal, and signal never teaches the floor); and only
+    // from samples inside the learn zone (a spike during silence is not the
+    // floor either).
+    if (noiseRef[i] < 0.0f) noiseRef[i] = v;
+    else if (warming) noiseRef[i] = min(noiseRef[i], v);
+    else if (!gateOpen[i] && v < noiseRef[i] * LEARN_ZONE + 0.005f)
+      noiseRef[i] += (v - noiseRef[i]) * NOISE_LEARN;
+
+    if (v > envHi[i]) envHi[i] += (v - envHi[i]) * ENV_ATTACK;
+    else envHi[i] += (v - envHi[i]) * ENV_RELEASE;
+    const float lo = noiseRef[i] * NORM_LO_K;
+    if (envHi[i] < lo + NORM_MIN_SPAN) envHi[i] = lo + NORM_MIN_SPAN;
+
+    const bool loud = v > noiseRef[i] * OPEN_K + OPEN_ABS[i];
+    const bool quiet = v < noiseRef[i] * CLOSE_K + OPEN_ABS[i];
+    if (!gateOpen[i]) {
+      // Opening stays strict-consecutive: an RF spike is one frame long and
+      // cannot vote three times in a row.
+      gateVotes[i] = loud ? gateVotes[i] + 1 : 0;
+      if (gateVotes[i] >= OPEN_VOTES) { gateOpen[i] = true; gateVotes[i] = 0; }
+    } else {
+      // Closing counts down by MAJORITY, not by consecutive quiet. The whine
+      // band's bursts kept resetting a consecutive counter in the tail right
+      // after music stopped, holding the gate open for noise to ride through
+      // (measured: one 0.85 knob jump in that window). A burst now costs
+      // three votes instead of all of them, so ~10% burst duty still closes
+      // the gate in about a second, while real music - mostly loud frames -
+      // drives the count straight back to zero.
+      if (quiet) gateVotes[i]++;
+      else gateVotes[i] = max(0, gateVotes[i] - 3);
+      if (gateVotes[i] >= CLOSE_VOTES) { gateOpen[i] = false; gateVotes[i] = 0; }
+    }
+  }
+}
+
+// The band's level as a position between its noise reference and its peak
+// envelope, 0..1. Zero while the gate is closed: the page paints its dot
+// from this, and a dot dancing to amplified hiss while the knob rests would
+// read as a bug in whichever half you looked at second.
+inline float normalized(int b, float level) {
+  if (!gateOpen[b]) return 0.0f;
+  const float lo = noiseRef[b] * NORM_LO_K;
+  return clamp01((level - lo) / max(envHi[b] - lo, NORM_MIN_SPAN));
+}
+
 // The extension's mapBandOutput, in C++. Same clamps, same order, same edge
 // cases - including inMax being forced at least 0.01 above inMin, which is
 // what stops a dragged handle pair from dividing by zero.
-inline float mapped(int b, float level) {
+inline float mappedWindow(int b, float level, float inMinRaw, float inMaxRaw) {
   const Band& x = bands[b];
-  const float inMin = clamp01(x.inMin);
-  const float inMax = max(inMin + 0.01f, clamp01(x.inMax));
+  const float inMin = clamp01(inMinRaw);
+  const float inMax = max(inMin + 0.01f, clamp01(inMaxRaw));
   const float gain = constrain(x.gain, 0.2f, 4.0f);
   float u = clamp01((level - inMin) / (inMax - inMin));
   u = powf(u, 1.0f / gain);
   return x.outMin + u * (x.outMax - x.outMin);
+}
+
+inline float mapped(int b, float level) {
+  if (autoRange)
+    return mappedWindow(b, normalized(b, level), AUTO_LO, AUTO_HI);
+  const Band& x = bands[b];
+  return mappedWindow(b, level, x.inMin, x.inMax);
 }
 
 // How much of its knob a band actually uses between silence and its own
@@ -184,6 +355,8 @@ inline float travel(int b, float peakLevel) {
   if (span < 0.001f) return 0.0f;
   return clamp01(fabsf(mapped(b, peakLevel) - mapped(b, 0.0f)) / span);
 }
+// (mapped() already routes through the auto window when autoRange is on, so
+// travel and the page's readouts follow whichever mode is live.)
 
 // ── Persistence ─────────────────────────────────────────────────────────
 //
@@ -198,9 +371,13 @@ constexpr const char* NVS_NS = "pf-audioin";
 // ungained scale. Reading those old values under 8x gain would saturate
 // every band, so the key changed and the old blob is simply orphaned -
 // defaults and a retune, the same safe direction as a size mismatch.
-constexpr const char* NVS_KEY = "bands8";
+// bands9: the defaults' meaning changed again (music-sized ranges), and a
+// saved set tuned against the tone-sized scale would leave the top bands
+// dead in exactly the way this change fixes.
+constexpr const char* NVS_KEY = "bands9";
 constexpr const char* NVS_MIC = "mic";
 constexpr const char* NVS_GAIN = "igain";
+constexpr const char* NVS_AUTO = "auto";
 
 inline void save() {
   Preferences p;
@@ -208,6 +385,7 @@ inline void save() {
   p.putBytes(NVS_KEY, bands, sizeof(bands));
   p.putBool(NVS_MIC, micOn);
   p.putFloat(NVS_GAIN, micGain);
+  p.putBool(NVS_AUTO, autoRange);
   p.end();
 }
 
@@ -227,6 +405,7 @@ inline void load() {
   }
   micOn = p.getBool(NVS_MIC, false);
   micGain = constrain(p.getFloat(NVS_GAIN, micGain), MIC_GAIN_MIN, MIC_GAIN_MAX);
+  autoRange = p.getBool(NVS_AUTO, autoRange);
   p.end();
 }
 
