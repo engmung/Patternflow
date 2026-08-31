@@ -104,6 +104,7 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
+#include "src/core_wifi_portal.h"
 
 // ── Device state ──────────────────────────────────────────────
 //
@@ -1173,6 +1174,9 @@ void loop() {
   // Maintain Wi-Fi (non-blocking): retries while down, and on each fresh
   // (re)connection starts the network services. begin() is idempotent.
   PatternflowWifi::tick();
+  // The setup-AP fallback: watches for "cannot join anything", opens a
+  // captive portal serving /wifi, and folds up once a join succeeds.
+  PatternflowWifiPortal::tick();
   if (PatternflowWifi::consumeJustConnected()) {
     PatternflowOta::begin();
     PatternflowHomeHttp::begin();
