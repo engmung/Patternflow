@@ -153,7 +153,6 @@ class CaptureService : Service() {
         thread(name = "pf-analyze", isDaemon = true) {
             val mono = FloatArray(Analyzer.FFT_SIZE)
             var lastFrameSent = 0L
-            var lastLaneSent = 0L
             while (alive) {
                 val now = System.currentTimeMillis()
                 synchronized(ringLock) {
@@ -175,13 +174,11 @@ class CaptureService : Service() {
                     l.postFrame(buildFrame())
                 }
                 if (l != null && l.connected) {
-                    // 20 Hz on the wire, not 30: half the pressure on the
-                    // panel's single-message-per-pass drain, and a knob
-                    // cannot show the difference. Analysis stays at 30.
-                    if (now - lastLaneSent >= 50) {
-                        lastLaneSent = now
-                        l.sendLanes(lanes)
-                    }
+                    // Full 30 Hz, like the extension. A 20 Hz cap was tried
+                    // against the backlog and quantized against the 33 ms
+                    // loop into ~13 Hz staircase motion - the server's
+                    // burst drain is the real fix and has 6x headroom.
+                    l.sendLanes(lanes)
                     status = "live"
                 } else {
                     status = "device offline - retrying"

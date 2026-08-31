@@ -142,12 +142,13 @@ class DeviceLink(private val host: String) {
     /** All four lanes, one message, only when something changed. */
     fun sendLanes(lanes: Array<Float?>) {
         val socket = ws ?: return
-        // The extension's discipline, ported: never queue behind a slow
-        // reader. OkHttp buffers sends internally, and a busy panel turned
-        // that buffer into LAG - every lane arriving late by however much
-        // had piled up. Freshest-or-nothing is what a live signal wants;
-        // the next frame corrects whatever this one skipped.
-        if (socket.queueSize() > 0L) return
+        // Skip only on REAL backlog. A zero-tolerance check dropped frames
+        // constantly - OkHttp's queue is briefly non-empty after every send
+        // until its writer thread flushes, so any scheduling hiccup turned
+        // into stutter. ~100 bytes is three or four lane messages: enough
+        // slack for normal flushing, still a hard stop before the multi-
+        // second TCP pileup this guard exists for.
+        if (socket.queueSize() > 100L) return
         val body = lanes.joinToString(",") { v ->
             if (v == null) "-"
             else String.format(java.util.Locale.US, "%.3f", v.coerceIn(0f, 1f))
