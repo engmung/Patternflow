@@ -109,16 +109,14 @@ export type Variant = {
 
 // ── On 3.8.0 ────────────────────────────────────────────────────────────
 //
-// All three images report firmware 3.8.0. The images are real: built clean,
-// scanned, and the thing the one-click install hands people today.
+// All three images report firmware 3.8.0: built clean, scanned, and the
+// thing the one-click install hands people. Promoted from provisional to
+// the regular offering on 2026-08-31 — the community banner points here,
+// and the browser flasher installs the same core image.
 //
-// What does not exist yet is the WRITE-UP — no tag, no GitHub release, no
-// changelog entry. 3.8.0 is a working number chosen so three current images
-// do not have to claim to be 3.7.1, which was a real release with a different
-// composition inside it. The notes tell people what changed in the meantime.
-//
-// So: install these, they work. Do not treat the number as a documented
-// release until the changelog and the release notes catch up with it.
+// The GitHub release write-up (tag, changelog) follows separately; the
+// number is real and the notes will catch up to it, not the other way
+// around.
 
 // One entry, and it is the maintainer's own.
 //
@@ -164,10 +162,6 @@ export const VARIANTS: Variant[] = [
     },
     source: 'https://github.com/engmung/Patternflow',
     note:
-      'Installable today. It reports 3.8.0 rather than 3.7.1 because 3.7.1 ' +
-      'was a release with every feature compiled in, and this is not that. ' +
-      'The written-up release notes for 3.8.0 are still being put together — ' +
-      'the firmware is not waiting on them. ' +
       'Patternflow is a device that loads interactive patterns and runs them ' +
       'under four knobs, and this is exactly that and nothing else. Because ' +
       'nothing else is loaded, a pattern gets more contiguous memory here ' +
@@ -207,9 +201,7 @@ export const VARIANTS: Variant[] = [
       'panel keeps on its own; MQTT is the way in that stays in step across ' +
       'a reconnect and keeps two panels together. Knob state and pattern ' +
       'selection are reachable over plain HTTP on any edition, so this is ' +
-      'for when you want the panel to be part of something larger. ' +
-      'The written-up release notes for the 3.8.0 it reports are still being ' +
-      'put together; the image itself is current.',
+      'for when you want the panel to be part of something larger.',
   },
   {
     id: 'audio',
@@ -247,8 +239,6 @@ export const VARIANTS: Variant[] = [
       'part on the board, on-board audio moves into the default. ' +
       'Installing this without the microphone is safe: the panel can tell a ' +
       'missing mic from a quiet room, says so on the Mic page, and lets ' +
-      'nothing drive the knobs until you turn it on. ' +
-      'The written-up release notes for the 3.8.0 it reports are still being ' +
-      'put together; the image itself is current.',
+      'nothing drive the knobs until you turn it on.',
   },
 ];
