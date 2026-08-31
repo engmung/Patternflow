@@ -62,11 +62,11 @@ export default function FirmwareNotice() {
     <div className={styles.fwNotice}>
       <span className={styles.fwNoticeTag}>Firmware</span>
       <span className={styles.fwNoticeText}>
-        <strong>{LATEST}</strong> is out — patterns install from a link, and a set now ships with
-        the board.
+        <strong>{LATEST}</strong> is out — the firmware split into editions: the core instrument,
+        Audio, and Performance. One-click install, switch any time, your settings stay.
       </span>
-      <Link href="/update" className={styles.fwNoticeLink}>
-        Update over Wi-Fi →
+      <Link href="/variants" className={styles.fwNoticeLink}>
+        Pick an edition →
       </Link>
       <button
         type="button"
