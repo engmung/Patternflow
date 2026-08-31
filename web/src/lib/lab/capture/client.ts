@@ -7,9 +7,11 @@
 import type { MatrixSize } from "@/lib/patternMatrix";
 import type { Layer } from "../types";
 import type {
+  AutoVerdict,
   CaptureSettings,
   FrameMessage,
   FromWorker,
+  ShowAutomation,
   ToWorker,
   VideoRequest,
   WireLayer,
@@ -30,6 +32,8 @@ export type CaptureClientHandlers = {
   onState: (state: { time: number; playing: boolean }) => void;
   onProgress: (done: number, total: number) => void;
   onFatal: (message: string) => void;
+  /** The auto probe's standalone verdict (frames don't flow while idle). */
+  onAuto?: (auto: AutoVerdict | null) => void;
 };
 
 type Pending =
@@ -104,6 +108,9 @@ export class CaptureClient {
         pending?.reject(new Error(message.message));
         return;
       }
+      case "auto":
+        this.handlers.onAuto?.(message.auto);
+        return;
       case "fatal":
         this.failAll(message.message);
         this.handlers.onFatal(message.message);
@@ -172,19 +179,31 @@ export class CaptureClient {
     this.send({ type: "frame-shown" });
   }
 
-  exportImage(): Promise<Blob> {
+  exportImage(opts?: {
+    automation?: ShowAutomation;
+    warmSeconds?: number;
+  }): Promise<Blob> {
     return new Promise((resolve, reject) => {
       const requestId = this.nextRequestId++;
       this.pending.set(requestId, { kind: "image", resolve, reject });
-      this.send({ type: "export-image", requestId });
+      this.send({
+        type: "export-image",
+        requestId,
+        automation: opts?.automation,
+        warmSeconds: opts?.warmSeconds,
+      });
     });
   }
 
-  exportVideo(video: VideoRequest): Promise<{ blob: Blob; extension: string }> {
+  exportVideo(
+    video: VideoRequest,
+    automation?: ShowAutomation,
+    warmSeconds?: number,
+  ): Promise<{ blob: Blob; extension: string }> {
     return new Promise((resolve, reject) => {
       const requestId = this.nextRequestId++;
       this.pending.set(requestId, { kind: "video", resolve, reject });
-      this.send({ type: "export-video", requestId, video });
+      this.send({ type: "export-video", requestId, video, automation, warmSeconds });
     });
   }
 

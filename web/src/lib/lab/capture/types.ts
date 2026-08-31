@@ -155,6 +155,23 @@ export type VideoRequest = {
   format: CaptureVideoFormat;
 };
 
+/**
+ * Knob automation for a video export — the Director show pre-sampled on the
+ * main thread (lib/lab/director/sample.ts) into REAL knob values. Sampling
+ * up front keeps curve code out of the worker and guarantees the render
+ * replays exactly what the Director panel played: same sampler, same values.
+ * The worker resets the pattern clock (a show is a take from t = 0) and
+ * feeds one frame's knobs before each step.
+ */
+export type ShowAutomation = {
+  /** Must match the VideoRequest fps. */
+  fps: number;
+  /** Frame count — the render's total when present. */
+  frames: number;
+  /** frames×4 interleaved real knob values, fallbacks already resolved. */
+  knobs: Float32Array;
+};
+
 export type ToWorker =
   | { type: "project"; project: WireProject }
   | { type: "settings"; settings: CaptureSettings }
@@ -164,8 +181,27 @@ export type ToWorker =
   | { type: "restart" }
   | { type: "step"; frames: number }
   | { type: "frame-shown" }
-  | { type: "export-image"; requestId: number }
-  | { type: "export-video"; requestId: number; video: VideoRequest }
+  | {
+      type: "export-image";
+      requestId: number;
+      /**
+       * How the still finds its moment. `automation` replays the show up to
+       * the playhead (frame-exact with a show render); `warmSeconds` starts a
+       * fresh take and runs the pattern that long at matrix size before the
+       * full-size frame (the viewfinder-off stand-in for "a moment worth
+       * looking at"); neither = the stage's current moment (the viewfinder).
+       */
+      automation?: ShowAutomation;
+      warmSeconds?: number;
+    }
+  | {
+      type: "export-video";
+      requestId: number;
+      video: VideoRequest;
+      automation?: ShowAutomation;
+      /** No automation: fresh take, warmed this long before frame 0. */
+      warmSeconds?: number;
+    }
   | { type: "cancel-export" };
 
 export type FrameMessage = {
@@ -191,6 +227,9 @@ export type FrameMessage = {
 export type FromWorker =
   | { type: "ready" }
   | FrameMessage
+  /** The auto probe's verdict, standalone — frames only flow while the
+      viewfinder shows, but the Capture controls always want this. */
+  | { type: "auto"; auto: AutoVerdict | null }
   | { type: "state"; time: number; playing: boolean }
   | { type: "progress"; requestId: number; done: number; total: number }
   | { type: "image"; requestId: number; blob: Blob }

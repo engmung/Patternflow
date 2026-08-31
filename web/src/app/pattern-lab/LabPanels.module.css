@@ -244,6 +244,12 @@
   object-fit: contain;
 }
 
+/* Camera view frames arrive at output resolution — smooth them down, the
+   way the export will actually look, instead of nearest-neighbor grit. */
+.previewFrame canvas.cameraCanvas {
+  image-rendering: auto;
+}
+
 /* ── Layers panel ── */
 
 .layerList {

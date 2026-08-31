@@ -1,10 +1,14 @@
-/* Director panel — timeline lanes for knob automation. */
+/* Director panel — overview-plus-focus timeline lanes for knob automation.
+   The timeline sets two CSS vars: --pps (px per second, the zoom) and
+   --gridpx (the ruler tick spacing in px); playheads carry --pht (seconds)
+   so one var move — or a zoom — repositions all of them. */
 
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
   background: #fafafa;
+  outline: none;
 }
 
 .timeline {
@@ -30,6 +34,64 @@
   text-overflow: ellipsis;
 }
 
+/* Focused lane header: the lane name up top, the value axis down the side. */
+.gutterFocus {
+  position: sticky;
+  align-items: flex-start;
+  padding-top: 4px;
+  background: #ececec;
+}
+
+.gutterCompact {
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.gutterCompact:hover {
+  opacity: 1;
+  background: #ebebeb;
+}
+
+.laneHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.laneSwatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.laneName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.axisLabel {
+  position: absolute;
+  right: 6px;
+  font-size: 9px;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+
+.axisMax {
+  top: 3px;
+}
+
+.axisMid {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.axisMin {
+  bottom: 3px;
+}
+
 .laneCell {
   position: relative;
   border-bottom: 1px solid #e8e8e8;
@@ -37,14 +99,26 @@
     repeating-linear-gradient(
       to right,
       transparent 0,
-      transparent calc(var(--pps) * 1px - 1px),
-      #efefef calc(var(--pps) * 1px - 1px),
-      #efefef calc(var(--pps) * 1px)
+      transparent calc(var(--gridpx) * 1px - 1px),
+      #efefef calc(var(--gridpx) * 1px - 1px),
+      #efefef calc(var(--gridpx) * 1px)
     );
+}
+
+.laneCompact {
+  cursor: pointer;
+}
+
+.laneCompact:hover {
+  background-color: #f5f5f5;
 }
 
 .laneSvg {
   display: block;
+}
+
+.laneSvgCompact {
+  opacity: 0.8;
 }
 
 .ruler {
@@ -60,6 +134,7 @@
   font-size: 9px;
   color: #999;
   transform: translateX(2px);
+  font-variant-numeric: tabular-nums;
 }
 
 .playhead {
@@ -69,34 +144,47 @@
   left: 0;
   width: 0;
   border-left: 2px solid #ff4d00;
-  transform: translateX(var(--ph, 0px));
+  transform: translateX(calc(var(--pht, 0) * var(--pps) * 1px));
   pointer-events: none;
   z-index: 2;
 }
 
-.stairs {
-  fill: none;
-  stroke: #16a34a;
-  stroke-width: 2;
+/* Horizontal quarter gridlines inside the focused lane. */
+.vGrid {
+  stroke: #e8e8e8;
+  stroke-width: 1;
 }
 
-.curveGhost {
+/* The authored curve — the line you trust (stroke color set per lane). */
+.curve {
   fill: none;
-  stroke: #16a34a55;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.curveCompact {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* The flattened v2 wire pieces, overlaid on demand ("wire" toggle). */
+.wire {
+  fill: none;
+  stroke: #00000055;
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 
 .key {
   fill: #fff;
-  stroke: #16a34a;
   stroke-width: 2;
   cursor: grab;
 }
 
 .keySelected {
   fill: #ff4d00;
-  stroke: #ff4d00;
+  stroke: #ff4d00 !important;
 }
 
 .handleLine {

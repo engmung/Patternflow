@@ -3,18 +3,29 @@
 // Director — knob automation over time, authored against the pattern on the
 // canvas. Four lanes (one per physical knob) hold keyframes on the PFST v2
 // 0.1 s wire grid — the snap toggle (1 s / 0.5 s / 0.2 s / 0.1 s) is an
-// authoring aid, not a format limit. A segment between two keyframes is
-// either a hold (jump at the next cue) or a Blender-style bezier curve you
-// shape by its handles. The lane draws what bakeLaneV2 exports — eased
-// linear pieces plus hold jumps — so the picture is the file; playback
-// follows the authored curves continuously, which the flattening tracks
-// within a sub-detent error (under one physical click of an encoder).
+// authoring aid, not a format limit.
 //
-// Playback drives the shared knob store the way the device's absolute bus
-// drives the encoders, and the pattern animates in the live preview (and
-// Capture) because they already follow the knobs.
+// The editor is an overview-plus-focus layout: all four lanes are always
+// visible as compact strips, and the FOCUSED lane (click a strip) expands to
+// fill the panel with a value axis, draggable keys and curve handles. New
+// keyframes interpolate as SMOOTH curves by default — auto handles derived
+// from the neighbors, Blender's auto-clamped idea — and a key can be switched
+// to a hand-shaped bezier (grab a handle, it converts) or a hold that jumps
+// at the next cue. The solid line is the authored curve; the flattened v2
+// wire pieces (what the .pfs ships) track it within a sub-detent error and
+// can be overlaid with the "wire" toggle.
+//
+// Playback belongs to the shared show transport (lib/lab/director/
+// transport) — ONE clock for the whole lab. This panel is the view that
+// edits it: play/seek here move the same playhead the Capture panel's 🔗
+// link follows, and the transport drives the shared knob store the way the
+// device's absolute bus drives the encoders, so the pattern animates in the
+// live preview (and Capture) because they already follow the knobs.
+// Alt/Ctrl-wheel zooms time around the cursor; Shift while dragging bypasses
+// the snap grid; Delete removes the selection.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { IDockviewPanelProps } from "dockview-react";
 import {
   encodePfst,
   pfsFilename,
@@ -26,10 +37,13 @@ import { readPerformanceFile } from "@/lib/community/performanceFile";
 import {
   bakeLaneV2,
   bakeShowV2,
-  continuousLaneValue,
   cubicBezierY,
+  resolveLane,
+  resolvedLaneValue,
   showFromPerformance,
 } from "@/lib/lab/director/bake";
+import { showToMidi, midiFilename } from "@/lib/lab/director/exporters/midi";
+import { showTransport, type ShowTransportState } from "@/lib/lab/director/transport";
 import {
   DEFAULT_CURVE_CP,
   DIRECTOR_MAX_SECONDS,
@@ -44,22 +58,32 @@ import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
 import local from "./DirectorPanel.module.css";
 
-const PPS = 28; // px per second
-const LANE_H = 56;
+const PPS_DEFAULT = 28; // px per second
+const PPS_MIN = 6;
+const PPS_MAX = 220;
+const RULER_H = 20;
+const COMPACT_H = 36;
+const COMPACT_PAD = 4;
+const FOCUS_MIN_H = 140;
+const GUTTER_W = 92; // must match the grid template in DirectorPanel.module.css
+const FOCUS_PAD = 8;
 const MSG_H = 26;
-const PAD_Y = 5;
+/** Double-click closer than this (px) to the curve inserts ON the curve. */
+const CURVE_MAGNET_PX = 10;
+
+const LANE_COLORS = ["#0ea5e9", "#a855f7", "#f59e0b", "#10b981"];
 
 type Selection =
   | { kind: "key"; lane: number; id: string }
   | { kind: "msg"; id: string }
   | null;
 
-function wireToY(v: number): number {
-  return LANE_H - PAD_Y - (Math.max(0, Math.min(1000, v)) / 1000) * (LANE_H - PAD_Y * 2);
+function wireToY(v: number, height: number, pad: number): number {
+  return height - pad - (Math.max(0, Math.min(1000, v)) / 1000) * (height - pad * 2);
 }
 
-function yToWire(y: number): number {
-  const t = (LANE_H - PAD_Y - y) / (LANE_H - PAD_Y * 2);
+function yToWire(y: number, height: number, pad: number): number {
+  const t = (height - pad - y) / (height - pad * 2);
   return Math.round(Math.max(0, Math.min(1, t)) * 1000);
 }
 
@@ -68,11 +92,40 @@ function wireToReal(v: number, range: [number, number]): number {
   return range[0] + (v / 1000) * (range[1] - range[0]);
 }
 
+function fmtReal(v: number): string {
+  const a = Math.abs(v);
+  return v.toFixed(a >= 100 ? 0 : a >= 10 ? 1 : 2);
+}
+
 function sortedLane(lane: DirectorKeyframe[]): DirectorKeyframe[] {
   return [...lane].sort((a, b) => a.t - b.t);
 }
 
-export default function DirectorPanel() {
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Ruler/grid spacing in seconds for a zoom level — ticks stay ≥ ~56 px apart. */
+function tickStep(pps: number): number {
+  for (const step of [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]) {
+    if (step * pps >= 56) return step;
+  }
+  return 600;
+}
+
+/** The three-way interpolation of a keyframe, for the selection editor. */
+type Interp = "auto" | "manual" | "hold";
+function interpOf(k: DirectorKeyframe): Interp {
+  if (k.mode === "hold") return "hold";
+  return k.h === "auto" ? "auto" : "manual";
+}
+
+export default function DirectorPanel(props: IDockviewPanelProps) {
   const director = useLabStore((state) => state.director);
   const updateDirector = useLabStore((state) => state.updateDirector);
   const knobLabels = useLabStore((state) => state.knobLabels);
@@ -87,6 +140,10 @@ export default function DirectorPanel() {
   const [timeText, setTimeText] = useState("0.0");
   const [message, setMessage] = useState<string>("");
   const [importError, setImportError] = useState<string | null>(null);
+  const [pps, setPps] = useState(PPS_DEFAULT);
+  const [focusLane, setFocusLane] = useState(0);
+  const [showWire, setShowWire] = useState(false);
+  const [focusH, setFocusH] = useState(200);
 
   // The lab's pattern name rides along everywhere: it opens the show (t=0
   // pattern cue), names the .pfs when the title is blank, and matches the
@@ -97,35 +154,46 @@ export default function DirectorPanel() {
     [director, patternName],
   );
   const duration = baked.perf.length;
-  const width = (duration + 2) * PPS;
+  const width = (duration + 2) * pps;
   const hasContent = showHasContent(director);
 
-  // Drag handlers live on window and must see the current snap setting.
+  // Auto handles materialized once per edit — drawing, handle display and
+  // on-curve insertion all read these, so what is shown IS what bakes.
+  const resolvedLanes = useMemo(
+    () => director.lanes.map((lane) => resolveLane(lane)),
+    [director],
+  );
+
+  // Drag handlers live on window and must see current snap/zoom settings.
   const snapRef = useRef({ on: true, step: 1 });
   useEffect(() => {
     snapRef.current = { on: snapOn, step: snapStep };
   }, [snapOn, snapStep]);
-  const snapTime = useCallback((t: number) => {
+  const ppsRef = useRef(pps);
+  useEffect(() => {
+    ppsRef.current = pps;
+  }, [pps]);
+  const snapTime = useCallback((t: number, fine = false) => {
     const { on, step } = snapRef.current;
-    const q = on ? Math.round(t / step) * step : t;
+    const q = on && !fine ? Math.round(t / step) * step : t;
     return snapWireTime(Math.max(0, Math.min(DIRECTOR_MAX_SECONDS, q)));
   }, []);
 
-  // ── playback (refs + rAF; the playheads move via one CSS var, no re-render) ──
+  // ── playback: rendered FROM the shared transport (one clock, lab-wide) ──
   const bakedRef = useRef(baked);
-  const loopRef = useRef(director.loop);
   useEffect(() => {
     bakedRef.current = baked;
   }, [baked]);
-  useEffect(() => {
-    loopRef.current = director.loop;
-  }, [director.loop]);
-  const playheadRef = useRef(0);
+  /** Mirror of the transport time, for handlers that need "the playhead now". */
+  const playheadRef = useRef(showTransport.get().time);
   const timelineRef = useRef<HTMLDivElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const moveDom = useCallback(() => {
-    timelineRef.current?.style.setProperty("--ph", `${playheadRef.current * PPS}px`);
+  // The playhead carries its time in seconds; CSS multiplies by --pps, so a
+  // zoom moves every playhead without a seek.
+  const moveDom = useCallback((t: number) => {
+    timelineRef.current?.style.setProperty("--pht", String(t));
   }, []);
 
   const updateMessageAt = useCallback((t: number) => {
@@ -137,70 +205,79 @@ export default function DirectorPanel() {
     setMessage(text);
   }, []);
 
-  // Playback samples the authored curves continuously — the v2 file's eased
-  // pieces track them within a sub-detent error, so this IS the show as the
-  // panel plays it (v1's staircase preview died with the staircase).
-  const lastWireRef = useRef<(number | null)[]>([null, null, null, null]);
-  const applyContinuous = useCallback((t: number, force: boolean) => {
-    const state = useLabStore.getState();
-    for (let lane = 0; lane < 4; lane++) {
-      const v = continuousLaneValue(state.director.lanes[lane], t);
-      if (v == null) continue;
-      if (!force && lastWireRef.current[lane] === v) continue;
-      lastWireRef.current[lane] = v;
-      const range = state.ranges[lane] ?? [0, 1];
-      state.setKnob(lane, wireToReal(v, range));
-    }
+  const seek = useCallback((t: number) => showTransport.seek(t), []);
+
+  // The panel renders whatever the transport says — playhead CSS var, time
+  // readout (throttled while playing), banner message, play button state.
+  useEffect(() => {
+    let readoutAt = 0;
+    const apply = (state: ShowTransportState) => {
+      playheadRef.current = state.time;
+      moveDom(state.time);
+      updateMessageAt(state.time);
+      setPlaying(state.playing);
+      const now = performance.now();
+      if (!state.playing || now - readoutAt > 150) {
+        readoutAt = now;
+        setTimeText(state.time.toFixed(1));
+      }
+    };
+    apply(showTransport.get());
+    return showTransport.subscribe(apply);
+  }, [moveDom, updateMessageAt]);
+
+  const togglePlay = useCallback(() => showTransport.toggle(), []);
+
+  // ── layout: the focused lane fills whatever the panel gives it ──
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      const free = el.clientHeight - (RULER_H + 3 * COMPACT_H + MSG_H + 8);
+      setFocusH(Math.max(FOCUS_MIN_H, free));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
-  const seek = useCallback(
-    (t: number) => {
-      const clamped = Math.max(0, Math.min(bakedRef.current.perf.length, t));
-      playheadRef.current = clamped;
-      applyContinuous(clamped, true);
-      updateMessageAt(clamped);
-      moveDom();
-      setTimeText(clamped.toFixed(1));
-    },
-    [applyContinuous, moveDom, updateMessageAt],
-  );
-
+  // ── zoom: Alt/Ctrl-wheel scales time around the cursor ──
+  // Native listener: React delegates wheel passively, so preventDefault (to
+  // stop browser page-zoom on Ctrl-wheel) only works here.
+  const pendingScroll = useRef<{ t: number; px: number } | null>(null);
   useEffect(() => {
-    if (!playing) return;
-    let raf = 0;
-    let last = performance.now();
-    let readoutAt = 0;
-    const tick = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      let t = playheadRef.current + dt;
-      const duration = bakedRef.current.perf.length;
-      if (t >= duration) {
-        if (loopRef.current) {
-          t = t % Math.max(0.1, duration);
-        } else {
-          playheadRef.current = duration;
-          applyContinuous(duration, false);
-          updateMessageAt(duration);
-          moveDom();
-          setTimeText(duration.toFixed(1));
-          setPlaying(false);
-          return;
-        }
-      }
-      playheadRef.current = t;
-      applyContinuous(t, false);
-      updateMessageAt(t);
-      moveDom();
-      if (now - readoutAt > 150) {
-        readoutAt = now;
-        setTimeText(t.toFixed(1));
-      }
-      raf = requestAnimationFrame(tick);
+    const el = bodyRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      if (!event.altKey && !event.ctrlKey) return;
+      event.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const px = event.clientX - rect.left - GUTTER_W;
+      const t = Math.max(0, (px + el.scrollLeft) / ppsRef.current);
+      const next = Math.min(PPS_MAX, Math.max(PPS_MIN, ppsRef.current * Math.exp(-event.deltaY * 0.002)));
+      if (next === ppsRef.current) return;
+      pendingScroll.current = { t, px };
+      setPps(next);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing, applyContinuous, moveDom, updateMessageAt]);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+  useLayoutEffect(() => {
+    const target = pendingScroll.current;
+    if (!target || !bodyRef.current) return;
+    pendingScroll.current = null;
+    bodyRef.current.scrollLeft = Math.max(0, target.t * pps - target.px);
+  }, [pps]);
+
+  const zoomBy = useCallback((factor: number) => {
+    const el = bodyRef.current;
+    const next = Math.min(PPS_MAX, Math.max(PPS_MIN, ppsRef.current * factor));
+    if (el) {
+      // Keep the view center still.
+      const px = (el.clientWidth - GUTTER_W) / 2;
+      pendingScroll.current = { t: Math.max(0, (px + el.scrollLeft) / ppsRef.current), px };
+    }
+    setPps(next);
+  }, []);
 
   // ── editing helpers ──
   const editLane = useCallback(
@@ -215,25 +292,47 @@ export default function DirectorPanel() {
     [updateDirector],
   );
 
-  const addKey = useCallback(
-    (lane: number, rawT: number, v: number) => {
-      const id = directorId();
-      const t = snapTime(rawT);
-      editLane(lane, (keys) => [
-        ...keys,
-        { id, t, v, mode: "hold", cp: [...DEFAULT_CURVE_CP] as DirectorKeyframe["cp"] },
-      ]);
-      setSelection({ kind: "key", lane, id });
-    },
-    [editLane, snapTime],
-  );
-
   const patchKey = useCallback(
     (lane: number, id: string, patch: Partial<DirectorKeyframe>) => {
       editLane(lane, (keys) => keys.map((k) => (k.id === id ? { ...k, ...patch } : k)));
     },
     [editLane],
   );
+
+  // Double-click on the focused lane: near the curve inserts ON the curve
+  // (the segment keeps its shape as closely as auto handles allow), free
+  // space inserts at the pointer. New keys are smooth — curve + auto.
+  const addKey = useCallback(
+    (lane: number, rawT: number, pointerY: number) => {
+      const t = snapTime(rawT);
+      let v = yToWire(pointerY, focusH, FOCUS_PAD);
+      const onCurve = resolvedLaneValue(resolveLane(useLabStore.getState().director.lanes[lane]), t);
+      if (onCurve != null && Math.abs(wireToY(onCurve, focusH, FOCUS_PAD) - pointerY) <= CURVE_MAGNET_PX) {
+        v = Math.round(onCurve);
+      }
+      const id = directorId();
+      editLane(lane, (keys) => [
+        ...keys,
+        { id, t, v, mode: "curve", h: "auto", cp: [...DEFAULT_CURVE_CP] as DirectorKeyframe["cp"] },
+      ]);
+      setSelection({ kind: "key", lane, id });
+    },
+    [editLane, snapTime, focusH],
+  );
+
+  const deleteSelection = useCallback(() => {
+    const current = selection;
+    if (!current) return;
+    if (current.kind === "key") {
+      editLane(current.lane, (keys) => keys.filter((k) => k.id !== current.id));
+    } else {
+      updateDirector((show) => ({
+        ...show,
+        messages: show.messages.filter((m) => m.id !== current.id),
+      }));
+    }
+    setSelection(null);
+  }, [selection, editLane, updateDirector]);
 
   const selectedKey = useMemo(() => {
     if (selection?.kind !== "key") return null;
@@ -247,12 +346,39 @@ export default function DirectorPanel() {
     return m ? { id: m.id, msg: m } : null;
   }, [selection, director]);
 
+  // Keyboard, scoped to the panel (the root div holds focus after any click
+  // inside): Delete removes the selection, Space toggles playback.
+  const onPanelKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.tagName === "BUTTON" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        deleteSelection();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        togglePlay();
+      }
+    },
+    [deleteSelection, togglePlay],
+  );
+
   // ── pointer dragging (keys and curve handles) ──
   const dragRef = useRef<{
     kind: "key" | "h1" | "h2";
     lane: number;
     id: string;
     svg: SVGSVGElement;
+    laneH: number;
+    pad: number;
   } | null>(null);
 
   useEffect(() => {
@@ -262,12 +388,16 @@ export default function DirectorPanel() {
       const rect = drag.svg.getBoundingClientRect();
       const px = event.clientX - rect.left;
       const py = event.clientY - rect.top;
+      const pps = ppsRef.current;
       const state = useLabStore.getState();
       const lane = state.director.lanes[drag.lane];
       const key = lane.find((k) => k.id === drag.id);
       if (!key) return;
       if (drag.kind === "key") {
-        patchKey(drag.lane, drag.id, { t: snapTime(px / PPS), v: yToWire(py) });
+        patchKey(drag.lane, drag.id, {
+          t: snapTime(px / pps, event.shiftKey),
+          v: yToWire(py, drag.laneH, drag.pad),
+        });
         return;
       }
       // Curve handles: normalized within the segment to the NEXT keyframe.
@@ -275,13 +405,13 @@ export default function DirectorPanel() {
       const index = keys.findIndex((k) => k.id === drag.id);
       const next = keys[index + 1];
       if (!next || next.t <= key.t) return;
-      const u = Math.max(0, Math.min(1, (px / PPS - key.t) / (next.t - key.t)));
+      const u = Math.max(0, Math.min(1, (px / pps - key.t) / (next.t - key.t)));
       const dv = next.v - key.v;
       let y: number;
       if (dv === 0) {
         y = drag.kind === "h1" ? key.cp[1] : key.cp[3];
       } else {
-        y = Math.max(-1, Math.min(2, (yToWire(py) - key.v) / dv));
+        y = Math.max(-1, Math.min(2, (yToWire(py, drag.laneH, drag.pad) - key.v) / dv));
       }
       const cp = [...key.cp] as DirectorKeyframe["cp"];
       if (drag.kind === "h1") {
@@ -304,6 +434,27 @@ export default function DirectorPanel() {
     };
   }, [patchKey, snapTime]);
 
+  const beginDrag = useCallback(
+    (
+      kind: "key" | "h1" | "h2",
+      lane: number,
+      id: string,
+      svg: SVGSVGElement,
+      resolvedCp?: DirectorKeyframe["cp"],
+    ) => {
+      if (kind !== "key" && resolvedCp) {
+        // Grabbing an auto handle converts the segment to a hand-shaped
+        // bezier, frozen at the auto shape it had — Blender's gesture.
+        const key = useLabStore.getState().director.lanes[lane].find((k) => k.id === id);
+        if (key && key.h === "auto") {
+          patchKey(lane, id, { h: "manual", cp: [...resolvedCp] as DirectorKeyframe["cp"] });
+        }
+      }
+      dragRef.current = { kind, lane, id, svg, laneH: focusH, pad: FOCUS_PAD };
+    },
+    [patchKey, focusH],
+  );
+
   // ── import / export ──
   const exportPfs = () => {
     // A blank title falls back to the pattern name, so the file downloads as
@@ -316,13 +467,15 @@ export default function DirectorPanel() {
       return;
     }
     const bytes = encodePfst(check.perf);
-    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = pfsFilename(check.perf);
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(new Blob([bytes.buffer as ArrayBuffer], { type: "application/octet-stream" }), pfsFilename(check.perf));
+  };
+
+  // The same show as a standard MIDI file: one CC per knob lane, ready to
+  // drop on an Ableton (or any DAW) track and MIDI-map to macros.
+  const exportMidi = () => {
+    const named = director.title.trim() ? director : { ...director, title: patternName };
+    const bytes = showToMidi(named, { labels: knobLabels });
+    downloadBlob(new Blob([bytes.buffer as ArrayBuffer], { type: "audio/midi" }), midiFilename(named.title));
   };
 
   const importFile = (file: File | undefined) => {
@@ -352,30 +505,27 @@ export default function DirectorPanel() {
 
   const rulerSeek = (event: React.PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    seek((event.clientX - rect.left) / PPS);
+    seek((event.clientX - rect.left) / pps);
   };
 
-  const budgetClass = baked.overBudget
-    ? `${local.budget} ${local.budgetOver}`
-    : local.budget;
+  const budgetClass = baked.overBudget ? `${local.budget} ${local.budgetOver}` : local.budget;
+
+  const step = tickStep(pps);
+  const tickCount = Math.floor(duration / step) + 1;
+  const gridPx = step * pps;
+
+  const laneColor = (lane: number) => LANE_COLORS[lane % LANE_COLORS.length];
 
   return (
-    <div className={dock.panel}>
+    <div className={dock.panel} tabIndex={-1} onKeyDown={onPanelKeyDown}>
       {/* transport */}
       <div className={dock.panelBar}>
         <button
           type="button"
           data-active={playing ? "true" : undefined}
           disabled={!hasContent}
-          title={hasContent ? (playing ? "Pause" : "Play the show — cues drive the knobs, the pattern follows") : "Add keyframes first (double-click a lane)"}
-          onClick={() => {
-            if (playing) {
-              setPlaying(false);
-              return;
-            }
-            if (playheadRef.current >= duration) seek(0);
-            setPlaying(true);
-          }}
+          title={hasContent ? (playing ? "Pause (Space)" : "Play the show — cues drive the knobs, the pattern follows (Space)") : "Add keyframes first (double-click the focused lane)"}
+          onClick={togglePlay}
         >
           {playing ? "❚❚" : "▶"}
         </button>
@@ -383,13 +533,13 @@ export default function DirectorPanel() {
           type="button"
           title="Back to the start"
           onClick={() => {
-            setPlaying(false);
+            showTransport.pause();
             seek(0);
           }}
         >
           ⏮
         </button>
-        <label title="Snap keyframes to a time grid while placing and dragging — off, they land on the raw 0.1 s wire grid (the .pfs resolution)">
+        <label title="Snap keyframes to a time grid while placing and dragging — off (or holding Shift), they land on the raw 0.1 s wire grid (the .pfs resolution)">
           <input
             type="checkbox"
             checked={snapOn}
@@ -408,6 +558,20 @@ export default function DirectorPanel() {
           <option value="0.2">0.2s</option>
           <option value="0.1">0.1s</option>
         </select>
+        <button type="button" title="Zoom out (Alt-wheel on the timeline)" onClick={() => zoomBy(1 / 1.4)}>
+          −
+        </button>
+        <button type="button" title="Zoom in (Alt-wheel on the timeline)" onClick={() => zoomBy(1.4)}>
+          +
+        </button>
+        <label title="Overlay the flattened wire pieces the .pfs actually ships — they track the authored curve within one encoder detent">
+          <input
+            type="checkbox"
+            checked={showWire}
+            onChange={(event) => setShowWire(event.target.checked)}
+          />
+          wire
+        </label>
         <span className={styles.stats}>
           <span>t {timeText} s</span>
           <span className={styles.dotSep}>·</span>
@@ -466,6 +630,28 @@ export default function DirectorPanel() {
           onClick={exportPfs}
         >
           .pfs
+        </button>
+        <button
+          type="button"
+          disabled={!hasContent}
+          title="Download this show as a MIDI file — each knob lane becomes a CC automation, ready to drop on an Ableton track and MIDI-map"
+          onClick={exportMidi}
+        >
+          .mid
+        </button>
+        <button
+          type="button"
+          disabled={!hasContent}
+          title="Open Capture linked to the Director (🔗) — render the show to video there, with the automation driving the knobs"
+          onClick={() => {
+            // A shortcut, not a hierarchy: flip the shared link on and front
+            // the Capture panel (if the user closed it, the link still holds
+            // for when they reopen it from the Panels menu).
+            showTransport.setFollow(true);
+            props.containerApi?.getPanel("capture")?.api.setActive();
+          }}
+        >
+          Render…
         </button>
         <button
           type="button"
@@ -528,29 +714,36 @@ export default function DirectorPanel() {
               = {wireToReal(selectedKey.key.v, ranges[selectedKey.lane] ?? [0, 1]).toFixed(2)}{" "}
               {knobLabels[selectedKey.lane]}
             </span>
-            <label title="How this keyframe reaches the NEXT one: hold jumps there, curve eases with draggable handles">
+            <label title="How this keyframe reaches the NEXT one: smooth derives the curve from the neighbors (Blender auto-clamped), bezier is hand-shaped with draggable handles, hold keeps the value and jumps at the next cue">
               to next
               <select
-                value={selectedKey.key.mode}
-                onChange={(event) =>
-                  patchKey(selectedKey.lane, selectedKey.id, {
-                    mode: event.target.value === "curve" ? "curve" : "hold",
-                  })
-                }
+                value={interpOf(selectedKey.key)}
+                onChange={(event) => {
+                  const interp = event.target.value as Interp;
+                  if (interp === "hold") {
+                    patchKey(selectedKey.lane, selectedKey.id, { mode: "hold" });
+                  } else if (interp === "auto") {
+                    patchKey(selectedKey.lane, selectedKey.id, { mode: "curve", h: "auto" });
+                  } else {
+                    // Freeze the current shape so switching auto → bezier
+                    // starts from what is on screen, not from a default.
+                    const resolved = resolveLane(
+                      useLabStore.getState().director.lanes[selectedKey.lane],
+                    ).find((k) => k.id === selectedKey.id);
+                    patchKey(selectedKey.lane, selectedKey.id, {
+                      mode: "curve",
+                      h: "manual",
+                      cp: [...(resolved?.cp ?? selectedKey.key.cp)] as DirectorKeyframe["cp"],
+                    });
+                  }
+                }}
               >
+                <option value="auto">smooth</option>
+                <option value="manual">bezier</option>
                 <option value="hold">hold</option>
-                <option value="curve">curve</option>
               </select>
             </label>
-            <button
-              type="button"
-              onClick={() => {
-                editLane(selectedKey.lane, (keys) =>
-                  keys.filter((k) => k.id !== selectedKey.id),
-                );
-                setSelection(null);
-              }}
-            >
+            <button type="button" onClick={deleteSelection}>
               Delete
             </button>
           </>
@@ -600,24 +793,15 @@ export default function DirectorPanel() {
                 }))
               }
             />
-            <button
-              type="button"
-              onClick={() => {
-                updateDirector((show) => ({
-                  ...show,
-                  messages: show.messages.filter((m) => m.id !== selectedMsg.id),
-                }));
-                setSelection(null);
-              }}
-            >
+            <button type="button" onClick={deleteSelection}>
               Delete
             </button>
           </>
         ) : (
           <>
             <span className={dock.panelHint} style={{ padding: 0 }}>
-              Double-click a lane to add a keyframe (lands on the snap grid) · drag dots to move ·
-              select one to shape its curve
+              Click a lane to focus it · double-click the focused lane to add a smooth keyframe ·
+              drag dots, shape with handles · Shift = fine · Alt-wheel = zoom
             </span>
             <span style={{ flex: 1 }} />
             <button
@@ -643,11 +827,11 @@ export default function DirectorPanel() {
       </div>
 
       {/* timeline */}
-      <div className={local.body}>
+      <div className={local.body} ref={bodyRef}>
         <div
           ref={timelineRef}
           className={local.timeline}
-          style={{ "--pps": PPS } as React.CSSProperties}
+          style={{ "--pps": pps, "--gridpx": gridPx } as React.CSSProperties}
         >
           <div className={local.gutterCell}>t</div>
           <div
@@ -658,30 +842,52 @@ export default function DirectorPanel() {
               if (event.buttons === 1) rulerSeek(event);
             }}
           >
-            {Array.from({ length: Math.floor(duration / 5) + 1 }, (_, i) => (
-              <span key={i} className={local.rulerTick} style={{ left: i * 5 * PPS }}>
-                {i * 5}s
+            {Array.from({ length: tickCount }, (_, i) => (
+              <span key={i} className={local.rulerTick} style={{ left: i * gridPx }}>
+                {step < 1 ? (i * step).toFixed(1) : i * step}s
               </span>
             ))}
             <div className={local.playhead} />
           </div>
 
-          {[0, 1, 2, 3].map((lane) => (
-            <FragmentRow key={lane} label={knobLabels[lane] ?? `Knob ${lane + 1}`} width={width}>
-              <Lane
-                keys={sortedLane(director.lanes[lane])}
+          {[0, 1, 2, 3].map((lane) => {
+            const focused = lane === focusLane;
+            const height = focused ? focusH : COMPACT_H;
+            const range = ranges[lane] ?? [0, 1];
+            return (
+              <LaneRow
+                key={lane}
+                label={knobLabels[lane] ?? `Knob ${lane + 1}`}
+                color={laneColor(lane)}
+                focused={focused}
+                height={height}
                 width={width}
-                selectedId={
-                  selection?.kind === "key" && selection.lane === lane ? selection.id : null
-                }
-                onAdd={(t, v) => addKey(lane, t, v)}
-                onBeginDrag={(kind, id, svg) => {
-                  if (kind === "key") setSelection({ kind: "key", lane, id });
-                  dragRef.current = { kind, lane, id, svg };
-                }}
-              />
-            </FragmentRow>
-          ))}
+                range={range}
+                onFocus={() => setFocusLane(lane)}
+              >
+                <Lane
+                  keys={resolvedLanes[lane]}
+                  rawLane={director.lanes[lane]}
+                  width={width}
+                  height={height}
+                  pad={focused ? FOCUS_PAD : COMPACT_PAD}
+                  pps={pps}
+                  color={laneColor(lane)}
+                  focused={focused}
+                  showWire={showWire && focused}
+                  selectedId={
+                    selection?.kind === "key" && selection.lane === lane ? selection.id : null
+                  }
+                  onFocus={() => setFocusLane(lane)}
+                  onAdd={(t, py) => addKey(lane, t, py)}
+                  onSelect={(id) => setSelection({ kind: "key", lane, id })}
+                  onBeginDrag={(kind, id, svg, resolvedCp) =>
+                    beginDrag(kind, lane, id, svg, resolvedCp)
+                  }
+                />
+              </LaneRow>
+            );
+          })}
 
           <div className={local.gutterCell}>message</div>
           <div className={local.laneCell} style={{ width, height: MSG_H }}>
@@ -693,7 +899,7 @@ export default function DirectorPanel() {
                     ? ` ${local.msgChipSelected}`
                     : ""
                 }`}
-                style={{ left: m.t * PPS }}
+                style={{ left: m.t * pps }}
                 title={`${m.t.toFixed(1)}s · ${m.text}`}
                 onClick={() => setSelection({ kind: "msg", id: m.id })}
               >
@@ -708,19 +914,51 @@ export default function DirectorPanel() {
   );
 }
 
-function FragmentRow({
+function LaneRow({
   label,
+  color,
+  focused,
+  height,
   width,
+  range,
+  onFocus,
   children,
 }: {
   label: string;
+  color: string;
+  focused: boolean;
+  height: number;
   width: number;
+  range: [number, number];
+  onFocus: () => void;
   children: React.ReactNode;
 }) {
   return (
     <>
-      <div className={local.gutterCell}>{label}</div>
-      <div className={local.laneCell} style={{ width, height: LANE_H }}>
+      <div
+        className={`${local.gutterCell} ${focused ? local.gutterFocus : local.gutterCompact}`}
+        style={{ height }}
+        onClick={focused ? undefined : onFocus}
+        title={focused ? undefined : "Focus this lane"}
+      >
+        <span className={local.laneHead}>
+          <span className={local.laneSwatch} style={{ background: color }} />
+          <span className={local.laneName}>{label}</span>
+        </span>
+        {focused && (
+          <>
+            <span className={`${local.axisLabel} ${local.axisMax}`}>{fmtReal(range[1])}</span>
+            <span className={`${local.axisLabel} ${local.axisMid}`}>
+              {fmtReal((range[0] + range[1]) / 2)}
+            </span>
+            <span className={`${local.axisLabel} ${local.axisMin}`}>{fmtReal(range[0])}</span>
+          </>
+        )}
+      </div>
+      <div
+        className={`${local.laneCell}${focused ? "" : ` ${local.laneCompact}`}`}
+        style={{ width, height }}
+      >
         {children}
         <div className={local.playhead} />
       </div>
@@ -728,128 +966,196 @@ function FragmentRow({
   );
 }
 
-/** One knob lane: the honest v2 cue line, the authoring curve, dots, handles. */
+/**
+ * One knob lane. The solid line is the authored curve (auto handles already
+ * materialized by resolveLane); holds draw as steps that jump at the next
+ * key. Focused lanes edit — double-click adds, dots drag, a selected key
+ * shows its incoming and outgoing handles (grabbing an auto handle converts
+ * that segment to a hand-shaped bezier). Compact lanes are a click target
+ * that focuses them.
+ */
 function Lane({
   keys,
+  rawLane,
   width,
+  height,
+  pad,
+  pps,
+  color,
+  focused,
+  showWire,
   selectedId,
+  onFocus,
   onAdd,
+  onSelect,
   onBeginDrag,
 }: {
+  /** Sorted, auto handles resolved. */
   keys: DirectorKeyframe[];
+  rawLane: DirectorKeyframe[];
   width: number;
+  height: number;
+  pad: number;
+  pps: number;
+  color: string;
+  focused: boolean;
+  showWire: boolean;
   selectedId: string | null;
-  onAdd: (t: number, v: number) => void;
-  onBeginDrag: (kind: "key" | "h1" | "h2", id: string, svg: SVGSVGElement) => void;
+  onFocus: () => void;
+  onAdd: (t: number, pointerY: number) => void;
+  onSelect: (id: string) => void;
+  onBeginDrag: (
+    kind: "key" | "h1" | "h2",
+    id: string,
+    svg: SVGSVGElement,
+    resolvedCp?: DirectorKeyframe["cp"],
+  ) => void;
 }) {
-  // Honest wire line — exactly what bakeLaneV2 exports and the panel plays:
-  // an EASE point ramps to the next cue, a plain point holds and jumps.
-  const points = bakeLaneV2(keys);
-  let stairs = "";
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const next = points[i + 1];
-    const y = wireToY(p.v);
-    stairs += `${stairs ? "L" : "M"}${p.t * PPS},${y} `;
+  const toY = (v: number) => wireToY(v, height, pad);
+
+  // Authored curve — the line you trust. Curves sample their bezier; holds
+  // draw a step with an explicit jump edge at the next keyframe.
+  let curve = "";
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const next = keys[i + 1];
+    const y = toY(k.v);
+    curve += `${curve ? "L" : "M"}${k.t * pps},${y} `;
     if (!next) {
-      stairs += `L${width},${y} `;
-    } else if (!p.ease) {
-      stairs += `L${next.t * PPS},${y} `;
+      curve += `L${width},${y} `;
+    } else if (k.mode !== "curve" || next.t <= k.t || next.v === k.v) {
+      const jump = k.mode !== "curve";
+      curve += `L${next.t * pps},${y} `;
+      if (jump) curve += `L${next.t * pps},${toY(next.v)} `;
+    } else {
+      const span = next.t - k.t;
+      const steps = Math.max(8, Math.min(48, Math.round((span * pps) / 5)));
+      for (let s = 1; s <= steps; s++) {
+        const u = s / steps;
+        const v = k.v + (next.v - k.v) * cubicBezierY(k.cp, u);
+        curve += `L${(k.t + u * span) * pps},${toY(v)} `;
+      }
     }
   }
 
-  // Authoring intent — the smooth curve the handles shape.
-  let ghost = "";
-  for (let i = 0; i < keys.length - 1; i++) {
-    const a = keys[i];
-    const b = keys[i + 1];
-    if (a.mode !== "curve" || b.t <= a.t) continue;
-    let path = `M${a.t * PPS},${wireToY(a.v)} `;
-    for (let step = 1; step <= 24; step++) {
-      const u = step / 24;
-      const v = a.v + (b.v - a.v) * cubicBezierY(a.cp, u);
-      path += `L${(a.t + u * (b.t - a.t)) * PPS},${wireToY(v)} `;
+  // The wire truth on demand — exactly what bakeLaneV2 exports and the
+  // device plays: EASE points ramp, plain points hold and jump.
+  let wire = "";
+  if (showWire) {
+    const points = bakeLaneV2(rawLane);
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      const next = points[i + 1];
+      const y = toY(p.v);
+      wire += `${wire ? "L" : "M"}${p.t * pps},${y} `;
+      if (!next) wire += `L${width},${y} `;
+      else if (!p.ease) wire += `L${next.t * pps},${y} `;
     }
-    ghost += path;
   }
 
+  // Handles for the selected key, Blender-style: its outgoing handle (own
+  // segment) and its incoming handle (the previous segment's arrival).
   const selectedIndex = selectedId ? keys.findIndex((k) => k.id === selectedId) : -1;
-  const handleKey = selectedIndex >= 0 ? keys[selectedIndex] : null;
-  const handleNext = selectedIndex >= 0 ? keys[selectedIndex + 1] : null;
-  const showHandles =
-    handleKey && handleNext && handleKey.mode === "curve" && handleNext.t > handleKey.t;
-
+  const selected = selectedIndex >= 0 ? keys[selectedIndex] : null;
   let handles: React.ReactNode = null;
-  if (showHandles && handleKey && handleNext) {
-    const span = handleNext.t - handleKey.t;
-    const dv = handleNext.v - handleKey.v;
-    const hx = (u: number) => (handleKey.t + u * span) * PPS;
-    const hy = (y: number) => wireToY(handleKey.v + dv * y);
-    handles = (
-      <g>
-        <line
-          className={local.handleLine}
-          x1={handleKey.t * PPS}
-          y1={wireToY(handleKey.v)}
-          x2={hx(handleKey.cp[0])}
-          y2={hy(handleKey.cp[1])}
-        />
-        <line
-          className={local.handleLine}
-          x1={handleNext.t * PPS}
-          y1={wireToY(handleNext.v)}
-          x2={hx(handleKey.cp[2])}
-          y2={hy(handleKey.cp[3])}
-        />
-        <circle
-          className={local.handle}
-          cx={hx(handleKey.cp[0])}
-          cy={hy(handleKey.cp[1])}
-          r={4}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onBeginDrag("h1", handleKey.id, event.currentTarget.ownerSVGElement!);
-          }}
-        />
-        <circle
-          className={local.handle}
-          cx={hx(handleKey.cp[2])}
-          cy={hy(handleKey.cp[3])}
-          r={4}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onBeginDrag("h2", handleKey.id, event.currentTarget.ownerSVGElement!);
-          }}
-        />
-      </g>
-    );
+  if (focused && selected) {
+    const parts: React.ReactNode[] = [];
+    const segmentHandle = (
+      owner: DirectorKeyframe,
+      next: DirectorKeyframe,
+      which: "h1" | "h2",
+      key: string,
+    ) => {
+      const span = next.t - owner.t;
+      const dv = next.v - owner.v;
+      const u = which === "h1" ? owner.cp[0] : owner.cp[2];
+      const yn = which === "h1" ? owner.cp[1] : owner.cp[3];
+      const hx = (owner.t + u * span) * pps;
+      const hy = toY(owner.v + dv * yn);
+      const anchor = which === "h1" ? owner : next;
+      return (
+        <g key={key}>
+          <line
+            className={local.handleLine}
+            x1={anchor.t * pps}
+            y1={toY(anchor.v)}
+            x2={hx}
+            y2={hy}
+          />
+          <circle
+            className={local.handle}
+            cx={hx}
+            cy={hy}
+            r={4}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onBeginDrag(which, owner.id, event.currentTarget.ownerSVGElement!, owner.cp);
+            }}
+          />
+        </g>
+      );
+    };
+    const next = keys[selectedIndex + 1];
+    if (next && selected.mode === "curve" && next.t > selected.t) {
+      parts.push(segmentHandle(selected, next, "h1", "out"));
+    }
+    const prev = keys[selectedIndex - 1];
+    if (prev && prev.mode === "curve" && selected.t > prev.t) {
+      parts.push(segmentHandle(prev, selected, "h2", "in"));
+    }
+    handles = <g>{parts}</g>;
   }
+
+  // Focused lanes get quarter gridlines under the curve.
+  const gridLines = focused
+    ? [250, 500, 750].map((v) => (
+        <line key={v} className={local.vGrid} x1={0} y1={toY(v)} x2={width} y2={toY(v)} />
+      ))
+    : null;
 
   return (
     <svg
-      className={local.laneSvg}
+      className={`${local.laneSvg}${focused ? "" : ` ${local.laneSvgCompact}`}`}
       width={width}
-      height={LANE_H}
-      onDoubleClick={(event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        // Raw time out; the panel snaps it (grid or 0.1 s wire floor).
-        onAdd((event.clientX - rect.left) / PPS, yToWire(event.clientY - rect.top));
-      }}
+      height={height}
+      onPointerDown={focused ? undefined : onFocus}
+      onDoubleClick={
+        focused
+          ? (event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              // Raw time out; the panel snaps it (grid or 0.1 s wire floor).
+              onAdd((event.clientX - rect.left) / pps, event.clientY - rect.top);
+            }
+          : undefined
+      }
     >
-      {ghost && <path className={local.curveGhost} d={ghost} />}
-      {stairs && <path className={local.stairs} d={stairs} />}
+      {gridLines}
+      {curve && (
+        <path
+          className={focused ? local.curve : local.curveCompact}
+          style={{ stroke: color }}
+          d={curve}
+        />
+      )}
+      {wire && <path className={local.wire} d={wire} />}
       {handles}
       {keys.map((k) => (
         <circle
           key={k.id}
           className={`${local.key}${k.id === selectedId ? ` ${local.keySelected}` : ""}`}
-          cx={k.t * PPS}
-          cy={wireToY(k.v)}
-          r={5}
-          onPointerDown={(event) => {
-            event.stopPropagation();
-            onBeginDrag("key", k.id, event.currentTarget.ownerSVGElement!);
-          }}
+          style={{ stroke: color }}
+          cx={k.t * pps}
+          cy={toY(k.v)}
+          r={focused ? 5 : 2.5}
+          onPointerDown={
+            focused
+              ? (event) => {
+                  event.stopPropagation();
+                  onSelect(k.id);
+                  onBeginDrag("key", k.id, event.currentTarget.ownerSVGElement!);
+                }
+              : undefined
+          }
         />
       ))}
     </svg>
