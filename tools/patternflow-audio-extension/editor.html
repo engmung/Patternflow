@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Patternflow Audio — Mapping</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="brand">
+      <span class="led"></span>
+      <span class="title">Patternflow Audio</span>
+      <span class="kicker">MAPPING</span>
+    </div>
+    <div class="cluster">
+      <span id="captureHint" class="hint"></span>
+      <span id="sourceChip" class="chip">idle</span>
+      <span id="hostChip" class="chip dim">patternflow.local:81</span>
+      <button id="stopBtn" class="primaryBtn" disabled>Stop</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button id="autoToggle" class="toggleWrap" type="button">
+      <span class="toggle"><span class="dotK"></span></span>
+      <span class="toggleLabel">Auto range</span>
+    </button>
+    <span id="autoHint" class="hint"></span>
+    <span class="spacer"></span>
+    <div class="damping">
+      <span class="fieldLabel">Attack</span>
+      <input id="attack" type="range" min="0" max="1" step="0.01">
+      <span id="attackWord" class="mono dimText">quick</span>
+    </div>
+    <div class="damping">
+      <span class="fieldLabel">Damping</span>
+      <input id="damping" type="range" min="0" max="1" step="0.01">
+      <span id="dampingWord" class="mono dimText">balanced</span>
+    </div>
+    <button id="openPreview" class="ghostBtn" type="button"
+            title="Synthetic test signals through the selected band - see attack, damping and the curve move a knob">Preview</button>
+  </div>
+
+  <div id="plotWrap" class="plotWrap">
+    <canvas id="plot"></canvas>
+    <div class="tag" id="tag0"><span class="tagText">B1·K1</span><canvas></canvas></div>
+    <div class="tag" id="tag1"><span class="tagText">B2·K2</span><canvas></canvas></div>
+    <div class="tag" id="tag2"><span class="tagText">B3·K3</span><canvas></canvas></div>
+    <div class="tag" id="tag3"><span class="tagText">B4·K4</span><canvas></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="col">
+      <span class="colKicker">RESPONSE</span>
+      <canvas id="curve"></canvas>
+    </div>
+
+    <div class="col presetsCol">
+      <span class="colKicker">CURVE</span>
+      <div class="presetGrid">
+        <button class="preset" data-p="smooth" type="button"><canvas></canvas><span>Smooth</span></button>
+        <button class="preset" data-p="sharp" type="button"><canvas></canvas><span>Sharp</span></button>
+        <button class="preset" data-p="fall" type="button"><canvas></canvas><span>Fall</span></button>
+        <button class="preset" data-p="gate" type="button"><canvas></canvas><span>Gate</span></button>
+        <button class="preset" data-p="steps" type="button"><canvas></canvas><span>Steps</span></button>
+        <button class="preset" data-p="arch" type="button"><canvas></canvas><span>Arch</span></button>
+      </div>
+      <div id="stepsRow" class="stepsRow" hidden>
+        <span>steps</span>
+        <button id="stepsMinus" type="button">&#8722;</button>
+        <span id="stepsN" class="mono">3</span>
+        <button id="stepsPlus" type="button">+</button>
+      </div>
+      <span id="legacyHint" class="hint">This band still runs its old boost curve — pick a preset to upgrade it.</span>
+      <span class="hint">Drag the two handles for a custom shape. Any curve saves as a 33-point table.</span>
+    </div>
+
+    <div class="vr"></div>
+
+    <div class="col grow">
+      <div class="bandHead">
+        <span id="bandName" class="bandName">Band 1</span>
+        <span id="bandMeta" class="mono dimText">62 – 375 Hz</span>
+      </div>
+
+      <div class="field">
+        <div class="fieldRow">
+          <span class="fieldLabel">Output range</span>
+          <span id="outLabel" class="mono">0.30 – 0.85</span>
+        </div>
+        <div id="outTrack" class="outTrack">
+          <div class="outRail"></div>
+          <div id="outFill" class="outFill"></div>
+          <div id="outLo" class="outHandle"></div>
+          <div id="outHi" class="outHandle"></div>
+        </div>
+        <div class="outPresets">
+          <button class="outPreset" type="button" data-lo="0" data-hi="1">0&#8211;1</button>
+          <button class="outPreset" type="button" data-lo="0" data-hi="0.5">0&#8211;.5</button>
+          <button class="outPreset" type="button" data-lo="0.5" data-hi="1">.5&#8211;1</button>
+          <button class="outPreset" type="button" data-lo="0.25" data-hi="0.75">.25&#8211;.75</button>
+          <button class="outPreset" type="button" data-lo="0.15" data-hi="0.6">.15&#8211;.6</button>
+          <button class="outPreset" type="button" data-lo="0.3" data-hi="0.85">.3&#8211;.85</button>
+        </div>
+      </div>
+
+      <div class="fieldRow">
+        <span class="fieldLabel">Mute band</span>
+        <button id="muteToggle" class="toggle small" type="button"><span class="dotK"></span></button>
+      </div>
+
+      <div class="spacer"></div>
+      <div class="fieldRow">
+        <button id="resetBand" class="ghostBtn" type="button">Reset band</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview: synthetic test signals through the SELECTED band's window,
+       curve and glide - what the knob will do, before any music plays. -->
+  <div id="pvOverlay" class="pvOverlay" hidden>
+    <div class="pvCard">
+      <div class="pvHead">
+        <span id="pvTitle" class="bandName">Preview — Band 1</span>
+        <button id="pvClose" class="ghostBtn" type="button">Close</button>
+      </div>
+      <div class="pvChips">
+        <button class="pvSig on" type="button" data-s="pulse">Kick pulses</button>
+        <button class="pvSig" type="button" data-s="noisy">Noisy room</button>
+        <button class="pvSig" type="button" data-s="swell">Slow swell</button>
+      </div>
+      <canvas id="pvScope"></canvas>
+      <div class="pvLegend">
+        <span class="pvKeyIn"></span><span class="hint">input level</span>
+        <span class="pvKeyOut"></span><span class="hint">knob output</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="chips">
+    <button class="chipCard" id="chip0" type="button"><span class="chipDot"></span><span class="chipName mono">B1</span><span class="chipHz mono dimText">62–375</span><canvas></canvas></button>
+    <button class="chipCard" id="chip1" type="button"><span class="chipDot"></span><span class="chipName mono">B2</span><span class="chipHz mono dimText">250–2k</span><canvas></canvas></button>
+    <button class="chipCard" id="chip2" type="button"><span class="chipDot"></span><span class="chipName mono">B3</span><span class="chipHz mono dimText">2k–5k</span><canvas></canvas></button>
+    <button class="chipCard" id="chip3" type="button"><span class="chipDot"></span><span class="chipName mono">B4</span><span class="chipHz mono dimText">5k–16k</span><canvas></canvas></button>
+  </div>
+
+</div>
+<script src="editor-adapter.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>

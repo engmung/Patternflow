@@ -652,3 +652,17 @@ input[type="range"] {
    band which is technically working and doing nothing. */
 .travelOut { width: 42px; text-align: right; font-size: 10px; color: var(--muted); }
 .travelOut.weak { color: var(--led); }
+
+/* The one road to the mapping editor — mapping no longer lives in the popup. */
+.editor-cta {
+  width: 100%;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  background: var(--ink);
+  color: var(--cream);
+  padding: 9px 12px;
+}
+.editor-cta:hover { background: var(--led); border-color: var(--led); }

@@ -41,6 +41,57 @@ namespace PFAudioInHttp {
 
 inline bool initialized = false;
 
+// ── External frames ─────────────────────────────────────────────────────
+//
+// A phone running the capture app analyses on the phone and sends the panel
+// nothing but final lane values - which leaves the console editor BLIND on a
+// board with no microphone: an empty plot, boxes with nothing to breathe
+// against, no way to see a curve doing anything. So the app also POSTs its
+// analysis here a few times a second (levels, envelopes, a spectrum sized to
+// this device's axis), and while those frames stay fresh - and the
+// microphone is off; a live mic outranks a monitor - the poll payload serves
+// them instead. The page cannot tell the difference, except that `source`
+// says "phone" and the values arrive already normalized (`ext:true`, so the
+// page skips its own scale conversion).
+inline float extLevels[4] = {0, 0, 0, 0};
+inline float extEnv[8] = {0, 0, 0, 0, 0, 0, 0, 0};  // lo,hi per band
+inline float extSpec[64] = {0};
+inline uint32_t extMs = 0;
+
+inline bool extFresh() {
+  return extMs != 0 && (millis() - extMs) < 3000 && !PFAudioInMap::micOn;
+}
+
+// When did a console page last poll? That timestamp IS the monitor demand:
+// the frame POST's reply tells the phone whether anyone is watching, and the
+// phone throttles itself from a 4 Hz monitor to a 2 s heartbeat when the
+// answer is no - full detail while tuning, near-zero load while filming,
+// no switch anywhere.
+inline uint32_t pagePollMs = 0;
+
+inline bool pageWatching() {
+  return pagePollMs != 0 && (millis() - pagePollMs) < 2500;
+}
+
+// "l0,l1,l2,l3;lo0,hi0,..lo3,hi3;s0,..,s63" - 4+8+64 floats, three groups.
+// A frame that does not parse to exactly that shape is dropped whole.
+inline void parseFrame(const String& s) {
+  float vals[76];
+  int n = 0, start = 0;
+  for (unsigned i = 0; i <= s.length() && n < 76; i++) {
+    const char c = i < s.length() ? s[i] : ',';
+    if (c == ',' || c == ';') {
+      if (i > (unsigned)start) vals[n++] = s.substring(start, i).toFloat();
+      start = i + 1;
+    }
+  }
+  if (n != 76) return;
+  memcpy(extLevels, vals, sizeof(extLevels));
+  memcpy(extEnv, vals + 4, sizeof(extEnv));
+  memcpy(extSpec, vals + 12, sizeof(extSpec));
+  extMs = millis();
+}
+
 inline WebServer& server() { return PatternflowPatternsHttp::server(); }
 
 inline void handleIndex() {
@@ -64,33 +115,73 @@ inline void handleGet() {
   const bool levelsOnly = server().hasArg("levels");
 
   if (levelsOnly) {
+    // idle=1 marks the page's own low-power mode (its Monitor toggle off):
+    // it still wants a status trickle, but must not count as an audience -
+    // the phone reads that demand and throttles its frames accordingly.
+    if (!server().hasArg("idle")) pagePollMs = millis();
+    const bool ext = extFresh();
     String j = "{\"source\":\"";
-    j += PFAudioFFT::sourceLabel();
-    j += "\",\"rawPeak\":";
+    j += ext ? "phone" : PFAudioFFT::sourceLabel();
+    j += "\",\"ext\":";
+    j += ext ? "true" : "false";
+    j += ",\"rawPeak\":";
     j += String(PFAudioFFT::rawPeak, 5);
     j += ",\"rawDc\":";
     j += String(PFAudioFFT::rawDc, 5);
     j += ",\"dropped\":";
     j += PFAudioPdm::dropped;
+    // Damped, because these are what the mapping consumes and what the page
+    // paints - the raw per-window numbers still leave through rawPeak and
+    // /api/status for anyone diagnosing the silicon.
     j += ",\"levels\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';
-      j += String(PFAudioFFT::bands[i], 4);
+      j += String(ext ? extLevels[i] : PFAudioInMap::smoothLevel[i], 4);
     }
     // The level as the mapping consumes it in auto mode - the page paints
     // its dot and meters from this so what you see is what the knob gets.
     j += "],\"levelsN\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';
-      j += String(PFAudioInMap::normalized(i, PFAudioFFT::bands[i]), 4);
+      j += String(PFAudioInMap::normalized(i, PFAudioInMap::smoothLevel[i]), 4);
     }
     j += "],\"outputs\":[";
     for (int i = 0; i < 4; i++) {
       if (i) j += ',';
-      j += String(PFAudioInMap::mapped(i, PFAudioFFT::bands[i]), 4);
+      j += String(PFAudioInMap::mapped(i, PFAudioInMap::smoothLevel[i]), 4);
+    }
+    // The breathing window, for the editor's boxes: in auto mode each band
+    // maps between its learned floor and its peak envelope, and the box's
+    // dashed edges are drawn from exactly these.
+    if (ext) {
+      // The phone's own envelopes - its auto range, seen from here.
+      j += "],\"env\":[";
+      for (int i = 0; i < 4; i++) {
+        if (i) j += ',';
+        j += "{\"lo\":";
+        j += String(extEnv[i * 2], 4);
+        j += ",\"hi\":";
+        j += String(extEnv[i * 2 + 1], 4);
+        j += '}';
+      }
+    } else if (PFAudioInMap::autoRange) {
+      j += "],\"env\":[";
+      for (int i = 0; i < 4; i++) {
+        if (i) j += ',';
+        j += "{\"lo\":";
+        j += String(PFAudioInMap::noiseRef[i] * PFAudioInMap::NORM_LO_K, 4);
+        j += ",\"hi\":";
+        j += String(PFAudioInMap::envHi[i], 4);
+        j += '}';
+      }
     }
     j += "],\"spectrum\":[";
-    {
+    if (ext) {
+      for (int i = 0; i < 64; i++) {
+        if (i) j += ',';
+        j += String(extSpec[i], 3);
+      }
+    } else {
       float s[PFAudioFFT::SPEC_BUCKETS];
       PFAudioFFT::spectrum(s);
       for (int i = 0; i < PFAudioFFT::SPEC_BUCKETS; i++) {
@@ -112,6 +203,10 @@ inline void handleGet() {
   j += String(PFAudioInMap::micGain, 1);
   j += ",\"autoRange\":";
   j += PFAudioInMap::autoRange ? "true" : "false";
+  j += ",\"smoothing\":";
+  j += String(PFAudioInMap::smoothing, 3);
+  j += ",\"attack\":";
+  j += String(PFAudioInMap::attack, 3);
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -151,6 +246,16 @@ inline void handleGet() {
     j += b.knob;
     j += ",\"muted\":";
     j += b.muted ? "true" : "false";
+    // The curve, as the editor described it (a preset id or bezier handles,
+    // opaque here). The editor re-bakes its table from this on load, so the
+    // 33 samples never need to travel back.
+    j += ",\"meta\":\"";
+    for (const char* c = PFAudioInMap::metas[i]; *c; c++) {
+      if (*c == '"' || *c == '\\') j += '\\';
+      j += *c;
+    }
+    j += "\",\"lutSet\":";
+    j += PFAudioInMap::lutSet[i] ? "true" : "false";
     j += '}';
   }
   j += "],\"hzRange\":[";
@@ -183,10 +288,78 @@ inline float argFloat(const char* name, float fallback) {
   return v.toFloat();
 }
 
+// Apply whatever band fields arrived under the given argument names. Shared
+// by the single-band form (bare names + band=N) and the editor's whole-config
+// form (suffixed names, hzMin0..hzMin3), so the two cannot drift.
+inline void applyBandArgs(int b, const String& suffix) {
+  PFAudioInMap::Band& x = PFAudioInMap::bands[b];
+  const String sHzMin = "hzMin" + suffix, sHzMax = "hzMax" + suffix;
+  x.hzMin = argFloat(sHzMin.c_str(), x.hzMin);
+  x.hzMax = argFloat(sHzMax.c_str(), x.hzMax);
+  PFAudioInMap::clampRange(x);
+  x.inMin = constrain(argFloat(("inMin" + suffix).c_str(), x.inMin), 0.0f, 1.0f);
+  x.inMax = constrain(argFloat(("inMax" + suffix).c_str(), x.inMax), 0.0f, 1.0f);
+  x.gain = constrain(argFloat(("gain" + suffix).c_str(), x.gain), 0.2f, 4.0f);
+  x.outMin = constrain(argFloat(("outMin" + suffix).c_str(), x.outMin), 0.0f, 1.0f);
+  x.outMax = constrain(argFloat(("outMax" + suffix).c_str(), x.outMax), 0.0f, 1.0f);
+  if (server().hasArg("knob" + suffix))
+    x.knob = constrain((int)server().arg("knob" + suffix).toInt(), 0, 3);
+  if (server().hasArg("muted" + suffix)) {
+    const String m = server().arg("muted" + suffix);
+    x.muted = (m == "1" || m == "true");
+  }
+  if (x.inMax < x.inMin + 0.01f) x.inMax = min(1.0f, x.inMin + 0.01f);
+
+  // The curve table: 33 comma-separated 0..255 samples. An empty value
+  // clears the table and the band falls back to its gain exponent.
+  if (server().hasArg("lut" + suffix)) {
+    const String csv = server().arg("lut" + suffix);
+    if (!csv.length()) {
+      PFAudioInMap::lutSet[b] = 0;
+    } else {
+      uint8_t parsed[PFAudioInMap::LUT_POINTS];
+      int n = 0, acc = 0;
+      bool has = false, ok = true;
+      for (unsigned k = 0; k <= csv.length(); k++) {
+        const char c = k < csv.length() ? csv[k] : ',';
+        if (c >= '0' && c <= '9') {
+          acc = acc * 10 + (c - '0');
+          has = true;
+          if (acc > 255) { ok = false; break; }
+        } else if (c == ',') {
+          if (!has || n >= PFAudioInMap::LUT_POINTS) { ok = false; break; }
+          parsed[n++] = (uint8_t)acc;
+          acc = 0;
+          has = false;
+        } else { ok = false; break; }
+      }
+      if (ok && n == PFAudioInMap::LUT_POINTS) {
+        memcpy(PFAudioInMap::luts[b], parsed, sizeof(parsed));
+        PFAudioInMap::lutSet[b] = 1;
+      }
+    }
+  }
+  if (server().hasArg("meta" + suffix)) {
+    const String m = server().arg("meta" + suffix);
+    strncpy(PFAudioInMap::metas[b], m.c_str(), sizeof(PFAudioInMap::metas[b]) - 1);
+    PFAudioInMap::metas[b][sizeof(PFAudioInMap::metas[b]) - 1] = 0;
+  }
+}
+
 // One band per POST, addressed by index, or `mic` on its own. Partial
 // updates are allowed: the page sends only the handle that moved, so dragging
 // one edge cannot clobber the other three by round-tripping a stale copy.
 inline void handleSet() {
+  // Monitor frames are state, not settings: no NVS save, no other fields.
+  // The reply carries the demand signal - see pageWatching().
+  if (server().hasArg("frame")) {
+    parseFrame(server().arg("frame"));
+    server().sendHeader("Cache-Control", "no-store");
+    server().send(200, "application/json",
+                  pageWatching() ? "{\"ok\":true,\"watch\":true}"
+                                 : "{\"ok\":true,\"watch\":false}");
+    return;
+  }
   if (server().hasArg("mic")) {
     const String v = server().arg("mic");
     PFAudioInMap::micOn = (v == "1" || v == "true");
@@ -200,31 +373,36 @@ inline void handleSet() {
                                       PFAudioInMap::MIC_GAIN_MIN,
                                       PFAudioInMap::MIC_GAIN_MAX);
   }
+  if (server().hasArg("smoothing")) {
+    PFAudioInMap::smoothing =
+        constrain(server().arg("smoothing").toFloat(), 0.05f, 0.9f);
+  }
+  if (server().hasArg("attack")) {
+    PFAudioInMap::attack =
+        constrain(server().arg("attack").toFloat(), 0.05f, 0.9f);
+  }
 
+  // Single-band form: band=N plus bare field names. The strip-era contract,
+  // still honoured.
   if (server().hasArg("band")) {
     const int b = server().arg("band").toInt();
     if (b < 0 || b > 3) {
       server().send(400, "application/json", "{\"error\":\"band must be 0-3\"}");
       return;
     }
-    PFAudioInMap::Band& x = PFAudioInMap::bands[b];
-    x.hzMin = argFloat("hzMin", x.hzMin);
-    x.hzMax = argFloat("hzMax", x.hzMax);
-    PFAudioInMap::clampRange(x);
-    x.inMin = constrain(argFloat("inMin", x.inMin), 0.0f, 1.0f);
-    x.inMax = constrain(argFloat("inMax", x.inMax), 0.0f, 1.0f);
-    x.gain = constrain(argFloat("gain", x.gain), 0.2f, 4.0f);
-    x.outMin = constrain(argFloat("outMin", x.outMin), 0.0f, 1.0f);
-    x.outMax = constrain(argFloat("outMax", x.outMax), 0.0f, 1.0f);
-    if (server().hasArg("knob"))
-      x.knob = constrain((int)server().arg("knob").toInt(), 0, 3);
-    if (server().hasArg("muted")) {
-      const String m = server().arg("muted");
-      x.muted = (m == "1" || m == "true");
+    applyBandArgs(b, "");
+  }
+
+  // Whole-config form: suffixed field names (hzMin0..hzMin3, lut2, meta1...).
+  // The editor saves everything it owns in one request - four sequential
+  // POSTs on a single-connection server was a drag stuttering the panel.
+  for (int b = 0; b < 4; b++) {
+    const String suffix(b);
+    if (server().hasArg("hzMin" + suffix) || server().hasArg("lut" + suffix) ||
+        server().hasArg("knob" + suffix) || server().hasArg("muted" + suffix) ||
+        server().hasArg("outMin" + suffix)) {
+      applyBandArgs(b, suffix);
     }
-    // The mapping forces this anyway; doing it here too means what gets saved
-    // is what gets used, and a reload does not silently move a handle.
-    if (x.inMax < x.inMin + 0.01f) x.inMax = min(1.0f, x.inMin + 0.01f);
   }
 
   PFAudioInMap::save();

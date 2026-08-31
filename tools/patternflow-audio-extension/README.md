@@ -8,6 +8,21 @@ the four knob lanes over WebSocket. The wire protocol is a written contract:
 The extension uses the same Patternflow mark as the web app for its toolbar
 icon and popup header.
 
+## The mapping editor
+
+**Editor &#8599;** in the popup opens the full editor in its own tab
+(`editor.html`): every band is a box drawn on the live spectrum — its width
+is the frequencies it listens to, its height the level window it maps — and
+a response curve turns position-in-window into knob position. Curves come as
+presets (rise, fall, gate, steps, arch) or hand-dragged beziers, and every
+shape bakes to a 33-point table the analysis side just interpolates — the
+same table the device firmware will consume, which is the point: the editor
+module (`editor.js`) is adapter-isolated (`editor-adapter.js`) and ports to
+the device console by swapping the adapter only. Auto range makes the boxes
+breathe with the room; grabbing a breathing edge takes manual control.
+Opened outside the extension (plain http), it runs a synthesized demo
+source — the fast way to iterate on the editor itself.
+
 ## Install for local testing
 
 1. Open `chrome://extensions`.

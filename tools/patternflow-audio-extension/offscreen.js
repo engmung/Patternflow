@@ -16,6 +16,36 @@ let wsSerial = 0;
 let lastSentValues = [-1, -1, -1, -1];
 let lastSentBody = '';
 
+// Auto-range envelopes, one pair per band: the floor and peak the band has
+// recently seen, in the same dbNorm units as the levels. Attack is instant on
+// both edges, release is a slow exponential (~8 s at the 30 Hz tick — the
+// device runs 0.002 at 60 Hz, this is the same time constant). MIN_SPAN stops
+// silence from collapsing the window into a noise amplifier. Same idea as the
+// device's auto range, minus its microphone gate — tab audio is digital and
+// silent means zero, so there is no whine floor to fence off.
+let envLo = [1, 1, 1, 1];
+let envHi = [0, 0, 0, 0];
+const ENV_RELEASE = 0.004;
+const ENV_MIN_SPAN = 0.06;
+const AUTO_LO = 0.10;   // relative squelch inside the tracked window
+const AUTO_HI = 0.95;   // relative full-scale
+
+function resetEnvelopes() {
+  envLo = [1, 1, 1, 1];
+  envHi = [0, 0, 0, 0];
+}
+
+function trackEnvelopes(levels) {
+  for (let i = 0; i < 4; i++) {
+    const v = clamp01(levels[i] || 0);
+    if (v > envHi[i]) envHi[i] = v;
+    else envHi[i] += (v - envHi[i]) * ENV_RELEASE;
+    if (v < envLo[i]) envLo[i] = v;
+    else envLo[i] += (v - envLo[i]) * ENV_RELEASE;
+    if (envHi[i] < envLo[i] + ENV_MIN_SPAN) envHi[i] = envLo[i] + ENV_MIN_SPAN;
+  }
+}
+
 const MIN_HZ = 20;
 const MAX_HZ = 20000;
 
@@ -159,7 +189,8 @@ async function stop() {
   analyser = null;
   freqBuf = null;
   smoothing = [0, 0, 0, 0];
-  patchState({ running: false, manual: false, connected: false, levels: [], outputs: [], spectrum: [] });
+  resetEnvelopes();
+  patchState({ running: false, manual: false, connected: false, levels: [], outputs: [], spectrum: [], env: [] });
 }
 
 async function start(streamId, nextConfig) {
@@ -241,23 +272,46 @@ function bandEnergy(band) {
   return normalizeDb(avgDb);
 }
 
-// The whole chain, and the exact curve the popup plots:
+// The whole chain:
 //
-//   level -> [ignores below .. full at] -> boost bends it -> [rests at .. peaks at]
+//   level -> window (manual in/full, or the auto-tracked envelope)
+//         -> response curve -> [rests at .. peaks at]
 //
-// Boost is an exponent on the normalised position, not a multiplier on the
-// level: above 1x a quiet band reaches its top early, below 1x a loud one
-// holds back. Ends stay put either way, so it cannot push a band out of its
-// own window the way the old multiply-then-clip did.
-function mapBandOutput(energy, band) {
-  const inMin = clamp01(band.inMin ?? 0);
-  const inMax = Math.max(inMin + 0.01, clamp01(band.inMax ?? 1));
+// The response curve has two generations. Bands the editor has touched carry
+// a baked 33-point lookup table (band.lut) — any shape at all, including
+// falling and non-monotonic ones — and this side only interpolates, exactly
+// like the firmware will. Bands never touched keep the legacy boost exponent
+// (band.gain): above 1x a quiet band reaches its top early, below 1x a loud
+// one holds back. Ends stay put either way.
+function curveValue(band, u) {
+  const lut = band.lut;
+  if (Array.isArray(lut) && lut.length >= 2) {
+    const pos = clamp01(u) * (lut.length - 1);
+    const i = Math.floor(pos);
+    const j = Math.min(lut.length - 1, i + 1);
+    const f = pos - i;
+    return clamp01(Number(lut[i]) || 0) * (1 - f) + clamp01(Number(lut[j]) || 0) * f;
+  }
+  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
+  return Math.pow(clamp01(u), 1 / gain);
+}
+
+function mapBandOutput(energy, band, index) {
+  let u;
+  if (config.autoRange && index !== undefined) {
+    // The band's own recent floor..peak is the window; a fixed relative
+    // squelch keeps the resting noise of the window's bottom from dancing.
+    const lo = envLo[index];
+    const span = Math.max(0.001, envHi[index] - envLo[index]);
+    u = clamp01((clamp01((energy - lo) / span) - AUTO_LO) / (AUTO_HI - AUTO_LO));
+  } else {
+    const inMin = clamp01(band.inMin ?? 0);
+    const inMax = Math.max(inMin + 0.01, clamp01(band.inMax ?? 1));
+    u = clamp01((energy - inMin) / (inMax - inMin));
+  }
   const outMin = clamp01(band.outMin ?? 0);
   const outMax = clamp01(band.outMax ?? 1);
-  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
-  let u = clamp01((energy - inMin) / (inMax - inMin));
-  u = Math.pow(u, 1 / gain);
-  return outMin + u * (outMax - outMin);
+  return outMin + curveValue(band, u) * (outMax - outMin);
 }
 
 function computeSpectrum() {
@@ -302,19 +356,29 @@ function tick() {
   // happened to get the socket first.
   const lanes = [null, null, null, null];
 
+  // Levels first, for every band including muted ones — the editor shows a
+  // muted band's level so you can see what it WOULD do, and the auto-range
+  // envelopes keep tracking so unmuting does not open on a stale window.
+  for (let i = 0; i < bands.length; i++) {
+    const raw = bandEnergy(bands[i]);
+    // Glide ballistics: a hit ATTACKS at its own speed, the fall RELEASES at
+    // the damping - two user-set alphas. Symmetric smoothing made percussive
+    // music feel late; this is the VU-meter split every reactive light wants.
+    const atk = Math.max(0.05, Math.min(0.9, config.attack ?? 0.65));
+    const a = raw > smoothing[i] ? atk : alpha;
+    smoothing[i] = a * raw + (1 - a) * smoothing[i];
+    levels[i] = smoothing[i];
+  }
+  if (config.autoRange) trackEnvelopes(levels);
+
   for (let i = 0; i < bands.length; i++) {
     const band = bands[i];
     const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
     if (band.muted) {
-      smoothing[i] = 0;
-      levels[i] = 0;
       outputs[i] = 0;
       continue;
     }
-    const raw = bandEnergy(band);
-    smoothing[i] = alpha * raw + (1 - alpha) * smoothing[i];
-    const mapped = mapBandOutput(smoothing[i], band);
-    levels[i] = smoothing[i];
+    const mapped = mapBandOutput(levels[i], band, i);
     outputs[i] = mapped;
     lanes[idx] = mapped;
   }
@@ -334,7 +398,16 @@ function tick() {
   const now = performance.now();
   if (now - lastLevelReport > 120) {
     lastLevelReport = now;
-    patchState({ levels, outputs, spectrum: computeSpectrum() });
+    patchState({
+      levels,
+      outputs,
+      spectrum: computeSpectrum(),
+      // The editor draws these as each box's breathing top and bottom edge.
+      env: config.autoRange
+        ? envLo.map((lo, i) => ({ lo, hi: envHi[i] }))
+        : [],
+      autoRange: config.autoRange === true
+    });
   }
 }
 

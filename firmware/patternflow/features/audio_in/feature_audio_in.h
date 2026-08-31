@@ -68,8 +68,13 @@ inline void analysisTask(void*) {
     PFAudioFFT::analyze(tick++);
     // Envelope tracking rides the analysis clock - once per window, here,
     // never from the mapping (which also runs from HTTP polls and would
-    // double-count the release).
-    if (PFAudioInMap::micOn) PFAudioInMap::trackEnvelopes(PFAudioFFT::bands);
+    // double-count the release). The gate hears RAW frames (its constants
+    // were measured that way); the damped copy is what the mapping and the
+    // page consume.
+    if (PFAudioInMap::micOn) {
+      PFAudioInMap::trackEnvelopes(PFAudioFFT::bands);
+      PFAudioInMap::smoothLevels(PFAudioFFT::bands);
+    }
     // With a microphone the I2S read paces this loop, and without one nothing
     // blocks at all, so the synthetic path keeps the old 16 ms tick.
     //
@@ -143,10 +148,11 @@ inline void fillInput(InputFrame& input) {
     if (cfg.muted) continue;
     const int k = constrain(cfg.knob, 0, 3);
     if (input.knobAudioActive[k]) continue;
-    // Shaped, not raw. A raw band never reaches the top of a knob on this
-    // hardware - see the measurement in core_audio_in_map.h.
+    // Shaped and damped, not raw. A raw band never reaches the top of a knob
+    // on this hardware - see the measurement in core_audio_in_map.h - and the
+    // damped copy is what keeps a gate/steps curve from flickering.
     input.knobAudioValue[k] = PFAudioInMap::clamp01(
-        PFAudioInMap::mapped(b, PFAudioFFT::bands[b]));
+        PFAudioInMap::mapped(b, PFAudioInMap::smoothLevel[b]));
     input.knobAudioActive[k] = true;
   }
 }
