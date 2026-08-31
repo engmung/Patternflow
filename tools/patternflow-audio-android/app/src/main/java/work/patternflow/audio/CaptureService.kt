@@ -142,6 +142,7 @@ class CaptureService : Service() {
                 link?.fetchConfig()?.let { cfg ->
                     analyzer.bands = cfg.bands
                     analyzer.smoothing = cfg.smoothing
+                    analyzer.attack = cfg.attack
                     analyzer.autoRange = cfg.autoRange
                 }
                 Thread.sleep(5000)
@@ -152,6 +153,7 @@ class CaptureService : Service() {
         thread(name = "pf-analyze", isDaemon = true) {
             val mono = FloatArray(Analyzer.FFT_SIZE)
             var lastFrameSent = 0L
+            var lastLaneSent = 0L
             while (alive) {
                 val now = System.currentTimeMillis()
                 synchronized(ringLock) {
@@ -173,7 +175,13 @@ class CaptureService : Service() {
                     l.postFrame(buildFrame())
                 }
                 if (l != null && l.connected) {
-                    l.sendLanes(lanes)
+                    // 20 Hz on the wire, not 30: half the pressure on the
+                    // panel's single-message-per-pass drain, and a knob
+                    // cannot show the difference. Analysis stays at 30.
+                    if (now - lastLaneSent >= 50) {
+                        lastLaneSent = now
+                        l.sendLanes(lanes)
+                    }
                     status = "live"
                 } else {
                     status = "device offline - retrying"

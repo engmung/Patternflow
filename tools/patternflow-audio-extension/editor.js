@@ -28,11 +28,6 @@ const PRESETS = {
   arch:   { label: 'Arch',   curve: { type: 'arch',   id: 'arch' } }
 };
 
-// Glide: levels ATTACK fast (a hit lands now) and RELEASE at the damping
-// the slider sets - the VU-meter ballistic every reactive light wants. The
-// same split runs in the extension's analysis, the app and the firmware.
-const GLIDE_ATTACK = 0.65;
-
 const clamp01 = (v) => Math.max(0, Math.min(1, Number(v) || 0));
 const clampHz = (v) => Math.max(CAPS.hzMin, Math.min(CAPS.hzMax, Number(v) || CAPS.hzMin));
 
@@ -77,6 +72,7 @@ function normalizeConfig(raw) {
     smoothing: (raw && raw.smoothing) || 0.35,
     sendIntervalMs: (raw && raw.sendIntervalMs) || 33,
     autoRange: !!(raw && raw.autoRange),
+    attack: Math.max(0.05, Math.min(0.9, Number(raw && raw.attack) || 0.65)),
     bands,
     ...(raw && raw.manualExtra ? { manualExtra: raw.manualExtra } : {})
   };
@@ -783,7 +779,9 @@ function pvSignal(t) {
 function pvChain(sig) {
   // Mirror the live pipeline: asymmetric glide on the LEVEL, then window,
   // curve, output range.
-  const a = pvLevel < sig ? GLIDE_ATTACK : Math.max(0.05, Math.min(0.9, cfg.smoothing));
+  const a = pvLevel < sig
+    ? Math.max(0.05, Math.min(0.9, cfg.attack))
+    : Math.max(0.05, Math.min(0.9, cfg.smoothing));
   pvLevel += (sig - pvLevel) * a;
   const band = cfg.bands[sel];
   let u;
@@ -907,6 +905,7 @@ $('stopBtn').addEventListener('click', () => A.stop());
 // would know the direction of. It smooths the INPUT level, not the output —
 // gate and steps curves stay crisp, their trigger just stops flickering.
 const DAMP_WORDS = [[0.25, 'tight'], [0.5, 'balanced'], [0.75, 'smooth'], [1.01, 'glassy']];
+const ATK_WORDS = [[0.25, 'snap'], [0.5, 'quick'], [0.75, 'soft'], [1.01, 'lazy']];
 
 function dampWord(v) {
   for (const [top, word] of DAMP_WORDS) if (v < top) return word;
@@ -917,7 +916,17 @@ function syncDamping() {
   const v = clamp01((0.9 - cfg.smoothing) / 0.85);
   $('damping').value = String(v);
   $('dampingWord').textContent = dampWord(v);
+  const k = clamp01((0.9 - cfg.attack) / 0.85);
+  $('attack').value = String(k);
+  $('attackWord').textContent = ATK_WORDS.find(([top]) => k < top)[1];
 }
+
+$('attack').addEventListener('input', () => {
+  const v = clamp01($('attack').value);
+  cfg.attack = Math.max(0.05, Math.min(0.9, 0.9 - v * 0.85));
+  $('attackWord').textContent = ATK_WORDS.find(([top]) => v < top)[1];
+  persist();
+});
 
 $('damping').addEventListener('input', () => {
   const v = clamp01($('damping').value);

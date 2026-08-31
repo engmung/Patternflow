@@ -64,6 +64,7 @@ class Analyzer {
     // tracked envelopes; manual maps the band's own window, which is what
     // makes fine cuts possible on a hot digital source.
     @Volatile var autoRange = true
+    @Volatile var attack = 0.65f
 
     // ── curves, evaluated from the device's meta strings ────────────────
     sealed class Curve {
@@ -176,9 +177,9 @@ class Analyzer {
             for (k in lo..max(lo, hi)) sum += binDb[k]
             val energy = clamp01(((sum / (max(lo, hi) - lo + 1)) - DB_FLOOR) / DB_SPAN)
 
-            // Glide: fast fixed attack, damped release - the same split the
-            // extension and the firmware run.
-            val a = if (energy > smoothLevel[b]) 0.65f else alpha
+            // Glide: user-set attack up, damped release down - the same
+            // split the extension and the firmware run.
+            val a = if (energy > smoothLevel[b]) attack.coerceIn(0.05f, 0.9f) else alpha
             smoothLevel[b] += (energy - smoothLevel[b]) * a
             val level = smoothLevel[b]
             levels[b] = level

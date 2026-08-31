@@ -129,16 +129,18 @@ inline float lutValue(int b, float u) {
 // frame rate at use. Higher alpha = snappier; the editor shows it reversed
 // as "damping", tight to glassy.
 inline float smoothing = 0.35f;
+inline float attack = 0.65f;
 inline float smoothLevel[4] = {0, 0, 0, 0};
 
 inline void smoothLevels(const float* level) {
-  // alpha_60 so that two 60 Hz steps equal one 30 Hz step of `smoothing`.
-  // Glide ballistics: rises take the fast fixed attack (0.65 at 30 Hz),
-  // falls take the damped release - the same split the extension and the
-  // phone app run, so one Damping value means one feel everywhere.
+  // alpha_60 so that two 60 Hz steps equal one 30 Hz step of the stored
+  // alphas. Glide ballistics: rises take Attack, falls take Damping - two
+  // user-set speeds, the same split the extension and the phone app run,
+  // so the pair means one feel everywhere.
   const float a30 = constrain(smoothing, 0.05f, 0.9f);
+  const float k30 = constrain(attack, 0.05f, 0.9f);
   const float rel60 = 1.0f - sqrtf(1.0f - a30);
-  const float atk60 = 1.0f - sqrtf(1.0f - 0.65f);
+  const float atk60 = 1.0f - sqrtf(1.0f - k30);
   for (int i = 0; i < 4; i++) {
     const float a = level[i] > smoothLevel[i] ? atk60 : rel60;
     smoothLevel[i] += (level[i] - smoothLevel[i]) * a;
@@ -452,6 +454,7 @@ constexpr const char* NVS_LUTS = "luts9";
 constexpr const char* NVS_LSET = "lset9";
 constexpr const char* NVS_META = "meta9";
 constexpr const char* NVS_SMOOTH = "smooth";
+constexpr const char* NVS_ATTACK = "attack";
 
 inline void save() {
   Preferences p;
@@ -464,6 +467,7 @@ inline void save() {
   p.putBytes(NVS_LSET, lutSet, sizeof(lutSet));
   p.putBytes(NVS_META, metas, sizeof(metas));
   p.putFloat(NVS_SMOOTH, smoothing);
+  p.putFloat(NVS_ATTACK, attack);
   p.end();
 }
 
@@ -494,6 +498,7 @@ inline void load() {
     for (int i = 0; i < 4; i++) metas[i][sizeof(metas[i]) - 1] = 0;
   }
   smoothing = constrain(p.getFloat(NVS_SMOOTH, smoothing), 0.05f, 0.9f);
+  attack = constrain(p.getFloat(NVS_ATTACK, attack), 0.05f, 0.9f);
   p.end();
 }
 

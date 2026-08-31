@@ -205,6 +205,8 @@ inline void handleGet() {
   j += PFAudioInMap::autoRange ? "true" : "false";
   j += ",\"smoothing\":";
   j += String(PFAudioInMap::smoothing, 3);
+  j += ",\"attack\":";
+  j += String(PFAudioInMap::attack, 3);
   j += ",\"rawPeak\":";
   j += String(PFAudioFFT::rawPeak, 5);
   j += ",\"rawDc\":";
@@ -374,6 +376,10 @@ inline void handleSet() {
   if (server().hasArg("smoothing")) {
     PFAudioInMap::smoothing =
         constrain(server().arg("smoothing").toFloat(), 0.05f, 0.9f);
+  }
+  if (server().hasArg("attack")) {
+    PFAudioInMap::attack =
+        constrain(server().arg("attack").toFloat(), 0.05f, 0.9f);
   }
 
   // Single-band form: band=N plus bare field names. The strip-era contract,

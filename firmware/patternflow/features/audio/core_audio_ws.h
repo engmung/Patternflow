@@ -292,7 +292,14 @@ inline void handle() {
 #if PF_AUDIO_ENABLED
   if (!initialized) return;
 
-  wsServer.loop();
+  // A burst, not one call: the library hands over ONE message per loop()
+  // pass per client, and the phone sends lanes 20 times a second while
+  // HTTP work (page polls, monitor frames) steals main-loop passes. At one
+  // message per pass the drain rate dips below the arrival rate, messages
+  // back up in TCP, and the panel keeps dancing SECONDS after the music
+  // stops - measured, not theorized. Six passes cost microseconds when
+  // idle and give the drain a 6x ceiling when it matters.
+  for (int k = 0; k < 6; k++) wsServer.loop();
 
   uint32_t now = millis();
   for (int i = 0; i < 4; i++) {

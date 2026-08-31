@@ -30,10 +30,17 @@
     <span id="autoHint" class="hint"></span>
     <span class="spacer"></span>
     <div class="damping">
+      <span class="fieldLabel">Attack</span>
+      <input id="attack" type="range" min="0" max="1" step="0.01">
+      <span id="attackWord" class="mono dimText">quick</span>
+    </div>
+    <div class="damping">
       <span class="fieldLabel">Damping</span>
       <input id="damping" type="range" min="0" max="1" step="0.01">
       <span id="dampingWord" class="mono dimText">balanced</span>
     </div>
+    <button id="openPreview" class="ghostBtn" type="button"
+            title="Synthetic test signals through the selected band - see attack, damping and the curve move a knob">Preview</button>
   </div>
 
   <div id="plotWrap" class="plotWrap">
@@ -90,9 +97,12 @@
           <div id="outHi" class="outHandle"></div>
         </div>
         <div class="outPresets">
-          <button class="outPreset" type="button" data-lo="0" data-hi="1">Full 0&#8211;1</button>
-          <button class="outPreset" type="button" data-lo="0.25" data-hi="0.75">Mid .25&#8211;.75</button>
-          <button class="outPreset" type="button" data-lo="0.3" data-hi="0.85">Classic .3&#8211;.85</button>
+          <button class="outPreset" type="button" data-lo="0" data-hi="1">0&#8211;1</button>
+          <button class="outPreset" type="button" data-lo="0" data-hi="0.5">0&#8211;.5</button>
+          <button class="outPreset" type="button" data-lo="0.5" data-hi="1">.5&#8211;1</button>
+          <button class="outPreset" type="button" data-lo="0.25" data-hi="0.75">.25&#8211;.75</button>
+          <button class="outPreset" type="button" data-lo="0.15" data-hi="0.6">.15&#8211;.6</button>
+          <button class="outPreset" type="button" data-lo="0.3" data-hi="0.85">.3&#8211;.85</button>
         </div>
       </div>
 
@@ -104,7 +114,6 @@
       <div class="spacer"></div>
       <div class="fieldRow">
         <button id="resetBand" class="ghostBtn" type="button">Reset band</button>
-        <button id="openPreview" class="ghostBtn" type="button">Preview</button>
       </div>
     </div>
   </div>

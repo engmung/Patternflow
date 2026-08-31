@@ -361,10 +361,11 @@ function tick() {
   // envelopes keep tracking so unmuting does not open on a stale window.
   for (let i = 0; i < bands.length; i++) {
     const raw = bandEnergy(bands[i]);
-    // Glide ballistics: a hit ATTACKS fast (fixed), the fall RELEASES at the
-    // damping the user set. Symmetric smoothing made percussive music feel
-    // late; this is the VU-meter split every reactive light wants.
-    const a = raw > smoothing[i] ? 0.65 : alpha;
+    // Glide ballistics: a hit ATTACKS at its own speed, the fall RELEASES at
+    // the damping - two user-set alphas. Symmetric smoothing made percussive
+    // music feel late; this is the VU-meter split every reactive light wants.
+    const atk = Math.max(0.05, Math.min(0.9, config.attack ?? 0.65));
+    const a = raw > smoothing[i] ? atk : alpha;
     smoothing[i] = a * raw + (1 - a) * smoothing[i];
     levels[i] = smoothing[i];
   }

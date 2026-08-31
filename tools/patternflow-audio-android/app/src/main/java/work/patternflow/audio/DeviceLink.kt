@@ -63,6 +63,7 @@ class DeviceLink(private val host: String) {
     data class Config(
         val bands: List<Analyzer.Band>,
         val smoothing: Float,
+        val attack: Float,
         val autoRange: Boolean
     )
 
@@ -86,6 +87,7 @@ class DeviceLink(private val host: String) {
             if (!res.isSuccessful) return null
             val j = JSONObject(body)
             val smoothing = j.optDouble("smoothing", 0.35).toFloat()
+            val attack = j.optDouble("attack", 0.65).toFloat()
             val autoRange = j.optBoolean("autoRange", true)
             val arr = j.getJSONArray("bands")
             val bands = ArrayList<Analyzer.Band>(4)
@@ -107,7 +109,7 @@ class DeviceLink(private val host: String) {
                 )
             }
             lastError = ""
-            Config(bands, smoothing, autoRange)
+            Config(bands, smoothing, attack, autoRange)
         } catch (e: Exception) {
             lastError = e.message ?: "config fetch failed"
             null
