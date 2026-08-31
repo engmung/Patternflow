@@ -103,10 +103,17 @@ class CaptureService : Service() {
             .setChannelMask(AudioFormat.CHANNEL_IN_STEREO)
             .build()
 
+        // The smallest buffer the platform allows (x2 for safety): every
+        // byte of slack here is standing latency between the song and the
+        // panel. The old 16 KB request was ~85 ms of it.
+        val minBuf = AudioRecord.getMinBufferSize(
+            Analyzer.SAMPLE_RATE, AudioFormat.CHANNEL_IN_STEREO,
+            AudioFormat.ENCODING_PCM_16BIT
+        )
         record = AudioRecord.Builder()
             .setAudioPlaybackCaptureConfig(config)
             .setAudioFormat(format)
-            .setBufferSizeInBytes(Analyzer.FFT_SIZE * 8)
+            .setBufferSizeInBytes(maxOf(minBuf * 2, 4096))
             .build()
 
         link = DeviceLink(host).also { it.connect() }
@@ -118,7 +125,7 @@ class CaptureService : Service() {
         record?.startRecording()
 
         thread(name = "pf-capture", isDaemon = true) {
-            val buf = ShortArray(960 * 2) // 20 ms of stereo
+            val buf = ShortArray(480 * 2) // 10 ms of stereo - fresher ring
             while (alive) {
                 val n = record?.read(buf, 0, buf.size) ?: break
                 if (n <= 0) continue
@@ -185,7 +192,10 @@ class CaptureService : Service() {
                     if (l != null && !l.connected) l.connect()
                     Thread.sleep(1000)
                 }
-                Thread.sleep(33)
+                // 60 Hz: the tick itself was a third of the felt latency at
+                // 30. Analysis is ~2 ms of math; the panel's drain has the
+                // headroom (six websocket passes per loop).
+                Thread.sleep(16)
             }
         }
     }

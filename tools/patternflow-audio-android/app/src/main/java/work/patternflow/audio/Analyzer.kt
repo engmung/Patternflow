@@ -29,8 +29,12 @@ class Analyzer {
     companion object {
         const val FFT_SIZE = 2048
         const val SAMPLE_RATE = 48000
-        private const val BIN_SMOOTH = 0.3f      // AnalyserNode smoothingTimeConstant
-        private const val ENV_RELEASE = 0.004f   // at the 30 Hz tick, ~8 s
+        // The service ticks at 60 Hz (half the felt tick latency of 30);
+        // every stored alpha stays on the product's 30 Hz reference scale
+        // and converts here, exactly the way the firmware converts to its
+        // frame rate. retention^2 per two ticks = retention per one.
+        private const val BIN_SMOOTH = 0.5477f   // sqrt(0.3) - AnalyserNode's 0.3 at 2x rate
+        private const val ENV_RELEASE = 0.002f   // 0.004 at the 30 Hz reference
         private const val ENV_MIN_SPAN = 0.06f
         private const val AUTO_LO = 0.10f
         private const val AUTO_HI = 0.95f
@@ -178,8 +182,10 @@ class Analyzer {
             val energy = clamp01(((sum / (max(lo, hi) - lo + 1)) - DB_FLOOR) / DB_SPAN)
 
             // Glide: user-set attack up, damped release down - the same
-            // split the extension and the firmware run.
-            val a = if (energy > smoothLevel[b]) attack.coerceIn(0.05f, 0.9f) else alpha
+            // split the extension and the firmware run, converted from the
+            // 30 Hz reference to this 60 Hz tick.
+            val a30 = if (energy > smoothLevel[b]) attack.coerceIn(0.05f, 0.9f) else alpha
+            val a = 1f - sqrt(1f - a30)
             smoothLevel[b] += (energy - smoothLevel[b]) * a
             val level = smoothLevel[b]
             levels[b] = level
