@@ -13,6 +13,18 @@
 /** How the segment LEAVING a keyframe reaches the next one. */
 export type SegmentMode = "hold" | "curve";
 
+/**
+ * Who shapes a curve segment's bezier. "auto" — the default for new keys —
+ * derives the handles from the neighboring keyframes (Blender's auto-clamped
+ * idea: flat at the ends and at local extremes, secant slope through monotone
+ * runs, clamped so the curve never leaves the band between its endpoints);
+ * the stored cp is ignored and resolveLane materializes it. "manual" is a
+ * hand-shaped bezier: the stored cp is the truth. ABSENT means manual —
+ * every show saved before handle modes existed was hand-shaped (or hold),
+ * and reading absent as manual keeps those bakes bit-identical.
+ */
+export type HandleMode = "auto" | "manual";
+
 export type DirectorKeyframe = {
   id: string;
   /** Seconds on the 0.1 s wire grid (PFST v2 deciseconds). */
@@ -20,10 +32,13 @@ export type DirectorKeyframe = {
   /** Absolute wire value 0..1000, the device's bus unit. */
   v: number;
   mode: SegmentMode;
+  /** Handle mode for "curve" segments; absent = manual (see HandleMode). */
+  h?: HandleMode;
   /**
    * cubic-bezier(x1, y1, x2, y2) easing for "curve", in segment-normalized
    * space (0,0 → 1,1). x is clamped to [0,1] by the editor; y may overshoot,
-   * the baked wire value clamps to 0..1000.
+   * the baked wire value clamps to 0..1000. For h: "auto" this is a
+   * placeholder — the effective cp comes from resolveLane.
    */
   cp: [number, number, number, number];
 };

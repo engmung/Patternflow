@@ -71,9 +71,52 @@ function sortedLane(lane: DirectorKeyframe[]): DirectorKeyframe[] {
   return [...lane].sort((a, b) => a.t - b.t);
 }
 
+/**
+ * Sort a lane and materialize the cp of every auto-handled curve key, so
+ * everything downstream — both bakes, continuous playback, the panel's
+ * curve drawing — sees one concrete bezier per segment. The tangent rule is
+ * Blender's auto-clamped: flat at the ends and at local extremes, the secant
+ * slope through monotone runs, Fritsch–Carlson clamped (|m| ≤ 3·min of the
+ * neighboring segment slopes) — which pins every derived cp y into [0, 1],
+ * so an auto curve can never overshoot the band between its keyframes.
+ * Manual and hold keys pass through untouched.
+ */
+export function resolveLane(lane: DirectorKeyframe[]): DirectorKeyframe[] {
+  const keys = sortedLane(lane);
+  if (!keys.some((k) => k.mode === "curve" && k.h === "auto")) return keys;
+  const n = keys.length;
+  const delta: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const span = keys[i + 1].t - keys[i].t;
+    delta.push(span > 0 ? (keys[i + 1].v - keys[i].v) / span : 0);
+  }
+  const tangent = (i: number): number => {
+    const dl = i > 0 ? delta[i - 1] : null;
+    const dr = i < n - 1 ? delta[i] : null;
+    if (dl == null || dr == null) return 0;
+    if (dl === 0 || dr === 0 || dl > 0 !== dr > 0) return 0;
+    const secant = (keys[i + 1].v - keys[i - 1].v) / (keys[i + 1].t - keys[i - 1].t);
+    const cap = 3 * Math.min(Math.abs(dl), Math.abs(dr));
+    return Math.sign(secant) * Math.min(Math.abs(secant), cap);
+  };
+  return keys.map((k, i) => {
+    if (k.mode !== "curve" || k.h !== "auto") return k;
+    const next = keys[i + 1];
+    if (!next) return k;
+    const span = next.t - k.t;
+    const dv = next.v - k.v;
+    // Flat segments draw and bake flat whatever the cp says; leave it be.
+    if (span <= 0 || dv === 0) return k;
+    // Hermite tangents → the segment bezier: P1 = P0 + m·span/3, normalized.
+    const y1 = (tangent(i) * span) / (3 * dv);
+    const y2 = 1 - (tangent(i + 1) * span) / (3 * dv);
+    return { ...k, cp: [1 / 3, y1, 2 / 3, y2] as DirectorKeyframe["cp"] };
+  });
+}
+
 /** One lane's cue values by second: keyframes plus curve samples, dupes elided. */
 export function bakeLane(lane: DirectorKeyframe[]): Map<number, number> {
-  const keys = sortedLane(lane);
+  const keys = resolveLane(lane);
   const raw = new Map<number, number>();
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i];
@@ -258,7 +301,19 @@ export function continuousLaneValue(
   t: number,
 ): number | null {
   if (lane.length === 0) return null;
-  const keys = [...lane].sort((a, b) => a.t - b.t);
+  return resolvedLaneValue(resolveLane(lane), t);
+}
+
+/**
+ * continuousLaneValue over keys already passed through resolveLane — for
+ * callers that sample one lane many times (the show sampler, the panel's
+ * curve drawing) and resolve once up front.
+ */
+export function resolvedLaneValue(
+  keys: DirectorKeyframe[],
+  t: number,
+): number | null {
+  if (keys.length === 0) return null;
   if (t < keys[0].t) return null;
   for (let i = keys.length - 1; i >= 0; i--) {
     const a = keys[i];
@@ -320,7 +375,7 @@ function flattenCurve(
 
 /** One lane as v2 points: keyframes plus eased flattening of curve segments. */
 export function bakeLaneV2(lane: DirectorKeyframe[]): V2Point[] {
-  const keys = [...lane].sort((a, b) => a.t - b.t);
+  const keys = resolveLane(lane);
   const out: V2Point[] = [];
   for (let i = 0; i < keys.length; i++) {
     const a = keys[i];

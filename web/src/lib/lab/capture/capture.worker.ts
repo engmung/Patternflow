@@ -13,6 +13,7 @@
 // moment, so what the stage shows when you press Record is the first frame.
 
 import { CaptureCore, clampScale, mergeWireProject, resolveGeometry, type CaptureFrame } from "./core";
+import type { MatrixSize } from "@/lib/patternMatrix";
 import { StagePainter } from "./paint";
 import { describeProbe, probeKey, probeScaling, type ProbeResult } from "./probe";
 import {
@@ -22,6 +23,7 @@ import {
   type CaptureProject,
   type CaptureSettings,
   type FromWorker,
+  type ShowAutomation,
   type ToWorker,
   type VideoRequest,
 } from "./types";
@@ -88,8 +90,44 @@ function scheduleProbe() {
     probeTimer = null;
     const before = probe?.key;
     refreshProbe();
+    postAuto();
     if (probe?.key !== before) markDirty();
   }, PROBE_SETTLE_MS);
+}
+
+/**
+ * A take's warm-up runs the pattern at matrix size — same state, a fraction
+ * of the pixels — so "a fresh 2 s in" costs milliseconds, not a 4K render
+ * per step.
+ */
+function warmGeometry(matrix: MatrixSize): CaptureGeometry {
+  return {
+    look: "pixel",
+    render: matrix,
+    box: matrix,
+    output: matrix,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    rotation: 0,
+  };
+}
+
+const WARM_STEP = 1 / 30;
+/** How far the stage runs in when it wakes cold (matches fresh takes). */
+const STAGE_WARM_SECONDS = 2;
+
+/** Run a fresh-take warm-up: `seconds` of pattern time at matrix size. */
+function warmTo(seconds: number) {
+  if (!project) return;
+  const warm = warmGeometry(project.matrix);
+  const steps = Math.max(1, Math.round(seconds / WARM_STEP));
+  for (let index = 0; index < steps; index++) core.step(WARM_STEP, warm);
+}
+
+/** The verdict travels on its own: the controls need it with no frames flowing. */
+function postAuto() {
+  post({ type: "auto", auto: autoVerdict() });
 }
 
 function autoVerdict(): AutoVerdict | null {
@@ -199,10 +237,43 @@ function markDirty() {
 
 // ── exports ──
 
-async function exportImage(requestId: number) {
+async function exportImage(
+  requestId: number,
+  automation?: ShowAutomation,
+  warmSeconds?: number,
+) {
   exporting = true;
   try {
-    const frame = core.step(0);
+    if (!project) throw new Error("Nothing to capture yet.");
+    let frame: CaptureFrame | null = null;
+    if (automation) {
+      // The show's frame at the playhead: replay the automation from t = 0 —
+      // state and all — at matrix size, and render only the last frame big.
+      // Frame-exact with what a show render shows at that moment.
+      core.reset();
+      const dt = 1 / automation.fps;
+      const warm = warmGeometry(project.matrix);
+      for (let index = 0; index < automation.frames; index++) {
+        const base = index * 4;
+        core.setKnobs([
+          automation.knobs[base],
+          automation.knobs[base + 1],
+          automation.knobs[base + 2],
+          automation.knobs[base + 3],
+        ]);
+        frame = core.step(dt, index < automation.frames - 1 ? warm : undefined);
+      }
+      if (!frame) frame = core.step(0);
+    } else if (warmSeconds && warmSeconds > 0) {
+      // Viewfinder off: a fresh take, warmed a moment in — deterministic,
+      // and never a cold t = 0 frame of a pattern that starts dark.
+      core.reset();
+      warmTo(warmSeconds);
+      frame = core.step(0);
+    } else {
+      // The stage's current moment — exactly what the viewfinder shows.
+      frame = core.step(0);
+    }
     if (!frame) throw new Error("Nothing to capture yet.");
     painter.paint(stage, frame, core.settings);
     const blob = await stage.convertToBlob({ type: "image/png" });
@@ -216,13 +287,32 @@ async function exportImage(requestId: number) {
   }
 }
 
-async function exportVideo(requestId: number, video: VideoRequest) {
+async function exportVideo(
+  requestId: number,
+  video: VideoRequest,
+  automation?: ShowAutomation,
+  warmSeconds?: number,
+) {
   exporting = true;
   cancelRequested = false;
   const liveSettings = core.settings;
+  // Clip knobs are PINNED for the whole take: whatever the knobs were at
+  // Record is the clip, even if live edits stream in mid-export (the loop
+  // awaits the encoder, so project messages can interleave). A show render
+  // overrides them per frame from the automation instead.
+  const pinnedKnobs = project ? [...project.knobs] : null;
   try {
     const geometry = core.geometry();
     if (!geometry) throw new Error("Nothing to capture yet.");
+    // A show is a take from t = 0: fresh pattern state. A clip with the
+    // viewfinder off is a fresh take too, warmed a moment in; with it on,
+    // the clip records from the stage's current moment — what you see.
+    if (automation) {
+      core.reset();
+    } else if (warmSeconds && warmSeconds > 0 && project) {
+      core.reset();
+      warmTo(warmSeconds);
+    }
 
     // Video has no alpha channel: a transparent backdrop flattens onto black.
     const settings: CaptureSettings =
@@ -265,13 +355,26 @@ async function exportVideo(requestId: number, video: VideoRequest) {
     output.addVideoTrack(source, { frameRate: video.fps });
     await output.start();
 
-    const total = Math.max(1, Math.round(video.seconds * video.fps));
+    const total = automation
+      ? automation.frames
+      : Math.max(1, Math.round(video.seconds * video.fps));
     const dt = 1 / video.fps;
     let lastPreview = 0;
 
     try {
       for (let index = 0; index < total; index++) {
         if (cancelRequested) throw new Error("cancelled");
+        if (automation) {
+          const base = index * 4;
+          core.setKnobs([
+            automation.knobs[base],
+            automation.knobs[base + 1],
+            automation.knobs[base + 2],
+            automation.knobs[base + 3],
+          ]);
+        } else if (pinnedKnobs) {
+          core.setKnobs(pinnedKnobs);
+        }
         const frame = core.step(dt);
         if (!frame) throw new Error("Project vanished mid-render.");
         painter.paint(stage, frame, settings);
@@ -309,6 +412,9 @@ async function exportVideo(requestId: number, video: VideoRequest) {
     post({ type: "failed", requestId, message: describe(error) });
   } finally {
     core.setSettings(liveSettings);
+    // Back to the live project wholesale — knobs and any edits that streamed
+    // in while the export ran.
+    if (project) core.setProject(project);
     exporting = false;
     // Bitmaps posted during the export were not acked — the panel only acks
     // live frames — so the gate must not be left closed.
@@ -334,20 +440,29 @@ scope.onmessage = (event) => {
       core.setProject(project);
       // First project: probe right away so the very first frame is already
       // the right look; afterwards let edits and drags settle.
-      if (!probe) refreshProbe();
-      else scheduleProbe();
+      if (!probe) {
+        refreshProbe();
+        postAuto();
+      } else {
+        scheduleProbe();
+      }
       markDirty();
       return;
     }
     case "settings": {
       core.setSettings(message.settings);
       refreshProbe();
+      postAuto();
       markDirty();
       return;
     }
     case "visible": {
       visible = message.visible;
       if (visible) {
+        // The stage idles until the viewfinder opens; a first frame at the
+        // pattern's cold t = 0 is black more often than not. Wake it the way
+        // a fresh take starts: warmed a moment in, at matrix size.
+        if (core.ready && core.time === 0) warmTo(STAGE_WARM_SECONDS);
         lastTick = performance.now();
         markDirty();
       }
@@ -398,7 +513,7 @@ scope.onmessage = (event) => {
         post({ type: "failed", requestId: message.requestId, message: "An export is already running." });
         return;
       }
-      void exportImage(message.requestId);
+      void exportImage(message.requestId, message.automation, message.warmSeconds);
       return;
     }
     case "export-video": {
@@ -406,7 +521,7 @@ scope.onmessage = (event) => {
         post({ type: "failed", requestId: message.requestId, message: "An export is already running." });
         return;
       }
-      void exportVideo(message.requestId, message.video);
+      void exportVideo(message.requestId, message.video, message.automation, message.warmSeconds);
       return;
     }
     case "cancel-export": {

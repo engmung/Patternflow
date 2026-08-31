@@ -4,7 +4,14 @@
 // re-import → identical staircase), and the show rides project persistence.
 // Run: npx tsx scripts/lab-director-smoke.ts
 
-import { bakeShow, bakeShowV2, continuousLaneValue, cubicBezierY, showFromPerformance } from "../src/lib/lab/director/bake";
+import {
+  bakeShow,
+  bakeShowV2,
+  continuousLaneValue,
+  cubicBezierY,
+  resolveLane,
+  showFromPerformance,
+} from "../src/lib/lab/director/bake";
 import {
   DEFAULT_CURVE_CP,
   directorId,
@@ -17,6 +24,8 @@ import {
   serializePerformance,
   validatePerformance,
 } from "../src/lib/community/performance";
+import { sampleShow, toKnobFrames } from "../src/lib/lab/director/sample";
+import { MIDI_LANE_CCS, showToMidi } from "../src/lib/lab/director/exporters/midi";
 import { deserializeProject, serializeProject } from "../src/lib/lab/serialize";
 import { codeLayerFromSource } from "../src/lib/lab/store";
 import { livePresets } from "../src/lib/presets";
@@ -342,4 +351,172 @@ function key(t: number, v: number, mode: "hold" | "curve" = "hold"): DirectorKey
     fail(`imported opener wrong: ${JSON.stringify(opener)}`);
   }
   console.log("director smoke OK", { part: "pattern-cue-passthrough", names });
+}
+
+// ── auto handles: smooth by default, clamped like Blender ────────────────────
+// New keys are curve+auto: resolveLane derives the bezier from the neighbors.
+// Two keys ease in and out; monotone runs stay inside the band between their
+// keyframes; a local extreme gets a flat tangent so the peak IS the keyframe.
+// Manual keys (and every pre-handle show, where h is absent) pass through
+// with their stored cp untouched.
+{
+  const autoKey = (t: number, v: number): DirectorKeyframe => ({
+    id: directorId(),
+    t,
+    v,
+    mode: "curve",
+    h: "auto",
+    cp: [...DEFAULT_CURVE_CP],
+  });
+
+  // Two auto keys: symmetric ease-in-out.
+  const ramp = [autoKey(0, 0), autoKey(10, 1000)];
+  const at = (lane: DirectorKeyframe[], t: number) => continuousLaneValue(lane, t)!;
+  const mid = at(ramp, 5);
+  if (Math.abs(mid - 500) > 1) fail(`auto 2-key ramp must be symmetric: v(5)=${mid}`);
+  if (!(at(ramp, 3) < 300 && at(ramp, 7) > 700)) fail("auto 2-key ramp must ease at both ends");
+
+  // Monotone run: passes through the middle key, never leaves [0, 1000],
+  // never decreases.
+  const run = [autoKey(0, 0), autoKey(4, 800), autoKey(10, 1000)];
+  if (at(run, 4) !== 800) fail("auto curve must pass exactly through its keyframes");
+  let prev = -1;
+  for (let t = 0; t <= 10; t += 0.05) {
+    const v = at(run, t);
+    if (v < 0 || v > 1000) fail(`auto monotone run overshot at ${t}: ${v}`);
+    if (v < prev - 1e-6) fail(`auto monotone run must not decrease: v(${t})=${v} < ${prev}`);
+    prev = v;
+  }
+
+  // Local extreme: flat tangent — the peak is the keyframe, nothing above it.
+  const peak = [autoKey(0, 0), autoKey(5, 1000), autoKey(10, 0)];
+  for (let t = 0; t <= 10; t += 0.05) {
+    const v = at(peak, t);
+    if (v > 1000 || v < 0) fail(`auto extreme overshot at ${t}: ${v}`);
+  }
+  if (at(peak, 5) !== 1000) fail("peak keyframe value must be exact");
+  if (!(at(peak, 4.5) < 1000 && at(peak, 5.5) < 1000)) fail("peak must be a single point");
+
+  // Manual and legacy (absent h) keys keep their stored cp.
+  const manual: DirectorKeyframe = {
+    id: directorId(),
+    t: 0,
+    v: 0,
+    mode: "curve",
+    h: "manual",
+    cp: [0.9, 0.1, 0.95, 0.2],
+  };
+  const legacy = key(2, 500, "curve"); // no h — pre-handle show
+  const mixed = resolveLane([manual, legacy, autoKey(4, 1000)]);
+  if (mixed[0].cp[0] !== 0.9) fail("manual cp must survive resolveLane");
+  if (mixed[1].cp[0] !== DEFAULT_CURVE_CP[0]) fail("legacy (absent h) cp must survive resolveLane");
+
+  // Auto keys ride the whole rail: bake → encode → decode → import → re-bake
+  // lands on the identical timeline (imports are linear pieces, which
+  // re-flatten with zero error).
+  const show = emptyShow();
+  show.length = 15;
+  show.title = "Auto Smoke";
+  show.lanes[0] = [autoKey(0, 0), autoKey(4, 800), autoKey(12, 100)];
+  const v2 = bakeShowV2(show);
+  const reimported = showFromPerformance(decodePfst(encodePfst(v2.perf)));
+  const rebaked = bakeShowV2(reimported);
+  if (JSON.stringify(rebaked.perf.timeline) !== JSON.stringify(v2.perf.timeline)) {
+    fail("auto-handle show changed through the pfs round trip");
+  }
+  console.log("director smoke OK", { part: "auto-handles", cues: v2.perf.timeline.length });
+}
+
+// ── sampler + MIDI export ────────────────────────────────────────────────────
+// The sampler is the canonical "values OUT of a show" form — the capture
+// show render and the MIDI export both draw from it. Wire values must match
+// continuous playback, NaN marks the span before a lane's first cue, and
+// the .mid must be a well-formed SMF whose CC ramps cover the value range.
+{
+  const show = emptyShow();
+  show.length = 4;
+  show.title = "Midi Smoke";
+  show.lanes[0] = [key(0, 0, "curve"), key(4, 1000)]; // eased ramp
+  show.lanes[1] = [key(1, 500)]; // hold; silent before 1 s
+
+  const sampled = sampleShow(show, 100);
+  if (sampled.duration !== 4) fail(`sampled duration ${sampled.duration}`);
+  if (sampled.frames !== 401) fail(`default sampling must include the end: ${sampled.frames}`);
+  if (sampled.wire[0][0] !== 0 || sampled.wire[0][400] !== 1000) fail("ramp endpoints wrong");
+  const midSample = sampled.wire[0][200];
+  const want = continuousLaneValue(show.lanes[0], 2)!;
+  if (Math.abs(midSample - want) > 0.001) fail(`sampler must match playback: ${midSample} vs ${want}`);
+  if (!Number.isNaN(sampled.wire[1][0])) fail("before the first cue must sample NaN");
+  if (sampled.wire[1][100] !== 500) fail("hold value wrong after its cue");
+  if (!Number.isNaN(sampled.wire[3][0])) fail("empty lane must sample NaN");
+
+  const knobs = toKnobFrames(sampled, [[0, 2], [0, 2], [0, 1], [0, 1]], [9, 9, 9, 9]);
+  if (knobs[0 * 4 + 1] !== 9) fail("NaN must resolve to the live fallback");
+  if (knobs[100 * 4 + 1] !== 1) fail("wire 500 on [0,2] must be 1");
+  if (knobs[400 * 4 + 0] !== 2) fail("wire 1000 on [0,2] must be 2");
+
+  const midi = showToMidi(show, { labels: ["A", "B", "C", "D"] });
+  const ascii = (at: number, text: string) =>
+    [...text].every((ch, i) => midi[at + i] === ch.charCodeAt(0));
+  if (!ascii(0, "MThd")) fail("missing MThd");
+  if (midi[9] !== 0 || midi[11] !== 1) fail("must be format 0, one track");
+  if (midi[12] !== 480 >> 8 || midi[13] !== (480 & 0xff)) fail("division must be 480");
+  if (!ascii(14, "MTrk")) fail("missing MTrk");
+
+  // Walk the track (all events carry full status bytes).
+  let at = 22;
+  let tick = 0;
+  const ccs: Array<{ tick: number; cc: number; value: number }> = [];
+  let ended = false;
+  while (at < midi.length) {
+    let delta = 0;
+    for (;;) {
+      const b = midi[at++];
+      delta = (delta << 7) | (b & 0x7f);
+      if (!(b & 0x80)) break;
+    }
+    tick += delta;
+    const status = midi[at++];
+    if (status === 0xff) {
+      const type = midi[at++];
+      let len = 0;
+      for (;;) {
+        const b = midi[at++];
+        len = (len << 7) | (b & 0x7f);
+        if (!(b & 0x80)) break;
+      }
+      at += len;
+      if (type === 0x2f) {
+        ended = true;
+        break;
+      }
+    } else if ((status & 0xf0) === 0xb0) {
+      ccs.push({ tick, cc: midi[at], value: midi[at + 1] });
+      at += 2;
+    } else {
+      fail(`unexpected status 0x${status.toString(16)} at ${at - 1}`);
+    }
+  }
+  if (!ended) fail("track must end with end-of-track");
+  if (tick !== 4 * 960) fail(`end-of-track must land on the duration: ${tick}`);
+
+  const lane0 = ccs.filter((c) => c.cc === MIDI_LANE_CCS[0]);
+  if (lane0[0]?.value !== 0 || lane0[lane0.length - 1]?.value !== 127) {
+    fail("CC ramp must cover 0..127");
+  }
+  if (lane0.length < 100) fail(`smooth ramp should emit densely, got ${lane0.length}`);
+  for (let i = 1; i < lane0.length; i++) {
+    if (lane0[i].value < lane0[i - 1].value) fail("monotone ramp must emit monotone CCs");
+    if (lane0[i].tick <= lane0[i - 1].tick) fail("CC ticks must increase");
+  }
+  const lane1 = ccs.filter((c) => c.cc === MIDI_LANE_CCS[1]);
+  if (lane1.length !== 1) fail(`a single hold must emit one CC, got ${lane1.length}`);
+  if (lane1[0].value !== 64 || lane1[0].tick !== 960) fail("hold CC must be 64 at 1 s");
+  if (ccs.some((c) => c.cc === MIDI_LANE_CCS[3])) fail("empty lane must emit nothing");
+
+  console.log("director smoke OK", {
+    part: "sampler+midi",
+    bytes: midi.length,
+    rampEvents: lane0.length,
+  });
 }
