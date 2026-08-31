@@ -218,14 +218,15 @@ export const VARIANTS: Variant[] = [
       'OSC — Ableton, Max and TouchDesigner, both directions',
       'Browser and tab audio through the Chrome extension',
       'On-board PDM microphone — four wires to GPIO43/44, no computer needed',
-      'A Mic page: live spectrum, four bands you aim at the frequencies you want',
+      'The mapping editor: bands as boxes on the live spectrum, response ' +
+        'curves from rise to gate to hand-drawn',
       'Wi-Fi transmit power raised for rooms full of access points',
     ],
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.3.1',
-      url: 'https://patternflow.work/flash/bin/audio-v0.3.1/patternflow.ino.bin',
+      version: 'v0.4.0',
+      url: 'https://patternflow.work/flash/bin/audio-v0.4.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
