@@ -25,6 +25,23 @@ class DeviceLink(private val host: String) {
     private val http = OkHttpClient.Builder()
         .connectTimeout(4, TimeUnit.SECONDS)
         .readTimeout(4, TimeUnit.SECONDS)
+        // TCP_NODELAY, explicitly: Java sockets ship with Nagle ON, which
+        // holds each 25-byte lane frame back waiting to coalesce with the
+        // next - up to an RTT of added delay per message, sixty times a
+        // second. Chrome sets this for its websockets; OkHttp leaves it to
+        // the factory, so the factory it is.
+        .socketFactory(object : javax.net.SocketFactory() {
+            private val d = getDefault()
+            private fun tune(s: java.net.Socket) = s.apply { tcpNoDelay = true }
+            override fun createSocket() = tune(java.net.Socket())
+            override fun createSocket(h: String, p: Int) = tune(java.net.Socket(h, p))
+            override fun createSocket(h: String, p: Int, l: java.net.InetAddress, lp: Int) =
+                tune(java.net.Socket(h, p, l, lp))
+            override fun createSocket(a: java.net.InetAddress, p: Int) =
+                tune(java.net.Socket(a, p))
+            override fun createSocket(a: java.net.InetAddress, p: Int, l: java.net.InetAddress, lp: Int) =
+                tune(java.net.Socket(a, p, l, lp))
+        })
         .build()
 
     @Volatile var connected = false

@@ -47,6 +47,12 @@ class CaptureService : Service() {
     private var link: DeviceLink? = null
     private val analyzer = Analyzer()
     @Volatile private var alive = false
+    // Held only while capturing. The Wi-Fi lock is the important one: in
+    // power-save the radio BATCHES uplink packets tens to hundreds of ms at
+    // a time - jitter the PC extension never sees on its wired LAN, and
+    // most of the felt lag this app had left. LOW_LATENCY turns it off.
+    private var wifiLock: android.net.wifi.WifiManager.WifiLock? = null
+    private var wakeLock: android.os.PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -115,6 +121,15 @@ class CaptureService : Service() {
             .setAudioFormat(format)
             .setBufferSizeInBytes(maxOf(minBuf * 2, 4096))
             .build()
+
+        val wm = applicationContext.getSystemService(WIFI_SERVICE) as android.net.wifi.WifiManager
+        wifiLock = wm.createWifiLock(
+            android.net.wifi.WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "pf-audio"
+        ).also { it.acquire() }
+        val pm = getSystemService(android.os.PowerManager::class.java)
+        wakeLock = pm.newWakeLock(
+            android.os.PowerManager.PARTIAL_WAKE_LOCK, "pf:capture"
+        ).also { it.acquire(4 * 60 * 60 * 1000L) }
 
         link = DeviceLink(host).also { it.connect() }
 
@@ -227,6 +242,9 @@ class CaptureService : Service() {
         alive = false
         running = false
         status = "idle"
+        try { wifiLock?.release() } catch (_: Exception) {}
+        try { wakeLock?.release() } catch (_: Exception) {}
+        wifiLock = null; wakeLock = null
         try { record?.stop() } catch (_: Exception) {}
         record?.release(); record = null
         link?.close(); link = null
