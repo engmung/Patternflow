@@ -172,3 +172,37 @@ header { display: flex; align-items: center; justify-content: space-between; gap
 .chipDot { width: 6px; height: 6px; background: var(--led); border-radius: 1px; }
 .chipCard .mono { font-size: 11px; }
 .arrow { font-size: 10px; color: var(--faint); }
+
+/* ── output presets + preview ── */
+.outPresets { display: flex; gap: 6px; }
+.outPreset {
+  font: inherit; font-size: 10px; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 2px;
+  background: var(--cream); color: var(--muted); padding: 3px 8px;
+}
+.outPreset:hover { border-color: var(--led); color: var(--led); }
+
+.pvOverlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.pvOverlay[hidden] { display: none; }
+.pvCard {
+  background: var(--cream); border: 1px solid var(--ink); border-radius: 3px;
+  padding: 18px; display: flex; flex-direction: column; gap: 12px;
+  width: 640px; max-width: 94vw;
+}
+.pvHead { display: flex; justify-content: space-between; align-items: center; }
+.pvChips { display: flex; gap: 8px; }
+.pvSig {
+  font: inherit; font-size: 11px; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 2px;
+  background: var(--field); color: var(--ink); padding: 5px 11px;
+}
+.pvSig.on { border-color: var(--led); font-weight: 600; }
+#pvScope { display: block; background: var(--field); border: 1px solid var(--rule); }
+.pvLegend { display: flex; gap: 7px; align-items: center; }
+.pvKeyIn, .pvKeyOut { width: 16px; height: 3px; display: inline-block; }
+.pvKeyIn { background: var(--faint); }
+.pvKeyOut { background: var(--led); }

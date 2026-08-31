@@ -361,7 +361,11 @@ function tick() {
   // envelopes keep tracking so unmuting does not open on a stale window.
   for (let i = 0; i < bands.length; i++) {
     const raw = bandEnergy(bands[i]);
-    smoothing[i] = alpha * raw + (1 - alpha) * smoothing[i];
+    // Glide ballistics: a hit ATTACKS fast (fixed), the fall RELEASES at the
+    // damping the user set. Symmetric smoothing made percussive music feel
+    // late; this is the VU-meter split every reactive light wants.
+    const a = raw > smoothing[i] ? 0.65 : alpha;
+    smoothing[i] = a * raw + (1 - a) * smoothing[i];
     levels[i] = smoothing[i];
   }
   if (config.autoRange) trackEnvelopes(levels);

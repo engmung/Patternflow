@@ -28,6 +28,11 @@ const PRESETS = {
   arch:   { label: 'Arch',   curve: { type: 'arch',   id: 'arch' } }
 };
 
+// Glide: levels ATTACK fast (a hit lands now) and RELEASE at the damping
+// the slider sets - the VU-meter ballistic every reactive light wants. The
+// same split runs in the extension's analysis, the app and the firmware.
+const GLIDE_ATTACK = 0.65;
+
 const clamp01 = (v) => Math.max(0, Math.min(1, Number(v) || 0));
 const clampHz = (v) => Math.max(CAPS.hzMin, Math.min(CAPS.hzMax, Number(v) || CAPS.hzMin));
 
@@ -53,7 +58,9 @@ function normalizeBand(raw, index) {
   if (band.inMax - band.inMin < 0.02) band.inMax = Math.min(1, band.inMin + 0.02);
   band.outMin = clamp01(band.outMin); band.outMax = clamp01(band.outMax);
   if (band.outMax - band.outMin < 0.05) band.outMax = Math.min(1, band.outMin + 0.05);
-  band.knob = Math.max(0, Math.min(3, Number(band.knob) || 0));
+  // Four bands, four knobs, one line between them: band i drives knob i.
+  // A free assignment existed and earned nothing but a control to explain.
+  band.knob = index;
   band.muted = band.muted === true;
   band.gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
   if (band.curve && typeof band.curve !== 'object') band.curve = null;
@@ -322,7 +329,7 @@ function placeTags() {
     tag.style.top = Math.round(yOf(win.hi) - 11) + 'px';
     tag.classList.toggle('sel', i === sel);
     tag.classList.toggle('mutedTag', band.muted);
-    tag.querySelector('.tagText').textContent = 'B' + (i + 1) + '·K' + (band.knob + 1) + (band.muted ? '·M' : '');
+    tag.querySelector('.tagText').textContent = 'B' + (i + 1) + (band.muted ? '·M' : '');
     drawGlyph(tag.querySelector('canvas'), band, 18, 12, T.ink);
   });
 }
@@ -655,9 +662,6 @@ function renderSettings() {
   $('bandName').textContent = 'Band ' + (sel + 1);
   $('bandMeta').textContent = formatHz(band.hzMin) + ' – ' + formatHz(band.hzMax) + ' Hz'
     + (cfg.autoRange ? ' · in auto' : ' · in ' + band.inMin.toFixed(2) + '–' + band.inMax.toFixed(2));
-  document.querySelectorAll('.knobBtn').forEach((el, i) => {
-    el.classList.toggle('on', i === band.knob);
-  });
   $('outLabel').textContent = band.outMin.toFixed(2) + ' – ' + band.outMax.toFixed(2);
   const track = $('outTrack');
   const w = track.clientWidth - 10;
@@ -668,10 +672,12 @@ function renderSettings() {
   $('muteToggle').classList.toggle('on', band.muted);
 }
 
-document.querySelectorAll('.knobBtn').forEach((el, i) => {
+document.querySelectorAll('.outPreset').forEach((el) => {
   el.addEventListener('click', () => {
-    cfg.bands[sel].knob = i;
-    renderSettings(); renderChips(); placeTags(); persist();
+    const band = cfg.bands[sel];
+    band.outMin = Number(el.dataset.lo);
+    band.outMax = Number(el.dataset.hi);
+    renderSettings(); drawCurve(); renderChips(); persist();
   });
 });
 
@@ -719,7 +725,6 @@ function renderChips() {
     chip.classList.toggle('mutedChip', band.muted);
     chip.querySelector('.chipName').textContent = 'B' + (i + 1);
     chip.querySelector('.chipHz').textContent = formatHz(band.hzMin) + '–' + formatHz(band.hzMax);
-    chip.querySelector('.chipKnob').textContent = 'K' + (band.knob + 1);
     drawGlyph(chip.querySelector('canvas'), band, 18, 12, theme().muted);
   });
 }
@@ -736,6 +741,146 @@ function selectBand(index) {
   renderSettings();
   renderChips();
 }
+
+// ── preview ─────────────────────────────────────────────────────────────
+//
+// Ableton-style: synthetic test signals through the SELECTED band's whole
+// chain - window, glide ballistics, curve, output range - drawn as a
+// scrolling scope. What the knob will do, audible music not required.
+
+const pvOverlay = $('pvOverlay');
+const pvScope = $('pvScope');
+const pvCtx = pvScope.getContext('2d');
+let pvSig = 'pulse';
+let pvRaf = 0;
+let pvTimer = 0;
+let pvT = 0;
+let pvLast = 0;
+let pvLevel = 0;
+const PV_SECONDS = 4;
+const PV_STEP = 1 / 30;
+let pvIn = [];
+let pvOut = [];
+
+function pvSignal(t) {
+  if (pvSig === 'pulse') {
+    // A kick every 0.8 s: one sharp burst, then near-silence. The tail the
+    // output shows comes from the glide, which is the point of the demo.
+    const phase = t % 0.8;
+    const spike = phase < 0.06 ? 0.85 : 0;
+    return Math.min(1, Math.max(0, spike + 0.07 + (Math.random() - 0.5) * 0.03));
+  }
+  if (pvSig === 'noisy') {
+    const spike = (t % 1.7) < 0.06 ? 0.5 : 0;
+    return Math.min(1, Math.max(0,
+      0.30 + 0.10 * Math.sin(t * 1.3) + (Math.random() - 0.5) * 0.22 + spike));
+  }
+  // swell
+  return Math.min(1, Math.max(0,
+    0.45 + 0.35 * Math.sin(t * Math.PI * 2 * 0.35) + (Math.random() - 0.5) * 0.04));
+}
+
+function pvChain(sig) {
+  // Mirror the live pipeline: asymmetric glide on the LEVEL, then window,
+  // curve, output range.
+  const a = pvLevel < sig ? GLIDE_ATTACK : Math.max(0.05, Math.min(0.9, cfg.smoothing));
+  pvLevel += (sig - pvLevel) * a;
+  const band = cfg.bands[sel];
+  let u;
+  if (cfg.autoRange) {
+    u = clamp01((pvLevel - 0.10) / 0.85);
+  } else {
+    const inMin = clamp01(band.inMin);
+    const inMax = Math.max(inMin + 0.01, clamp01(band.inMax));
+    u = clamp01((pvLevel - inMin) / (inMax - inMin));
+  }
+  return band.outMin + bandCurveValue(band, u) * (band.outMax - band.outMin);
+}
+
+function pvDraw() {
+  const T = theme();
+  const w = 600, h = 230;
+  pvCtx.clearRect(0, 0, w, h);
+  pvCtx.strokeStyle = T.ruleA(0.5);
+  pvCtx.lineWidth = 1;
+  for (const v of [0.25, 0.5, 0.75]) {
+    const y = Math.round(h - v * h) + 0.5;
+    pvCtx.beginPath(); pvCtx.moveTo(0, y); pvCtx.lineTo(w, y); pvCtx.stroke();
+  }
+  const trace = (arr, color, width) => {
+    pvCtx.strokeStyle = color;
+    pvCtx.lineWidth = width;
+    pvCtx.beginPath();
+    for (let i = 0; i < arr.length; i++) {
+      const x = (i / (PV_SECONDS / PV_STEP)) * w;
+      const y = h - clamp01(arr[i]) * h;
+      if (i === 0) pvCtx.moveTo(x, y); else pvCtx.lineTo(x, y);
+    }
+    pvCtx.stroke();
+  };
+  trace(pvIn, T.faint, 1.2);
+  trace(pvOut, T.led, 2);
+}
+
+function pvTick(now) {
+  if (pvOverlay.hidden) return;
+  if (!pvLast) pvLast = now;
+  // Wall-clock scheduling, not per-frame increments: a throttled tab still
+  // simulates the RIGHT amount of time when frames do arrive (capped per
+  // frame so a background stint cannot demand thousands of steps at once).
+  const target = pvT + (now - pvLast) / 1000;
+  pvLast = now;
+  let budget = 60;
+  while (pvT < target && budget-- > 0) {
+    pvT += PV_STEP;
+    const sig = pvSignal(pvT);
+    pvIn.push(sig);
+    pvOut.push(pvChain(sig));
+    const cap = PV_SECONDS / PV_STEP;
+    if (pvIn.length > cap) { pvIn.shift(); pvOut.shift(); }
+  }
+  if (budget < 0) pvT = target;
+  pvDraw();
+  pvSchedule();
+}
+
+// rAF when the surface is live, a timer backstop when it is throttled or
+// hidden - the preview keeps moving either way.
+function pvSchedule() {
+  pvRaf = requestAnimationFrame(pvTick);
+  clearTimeout(pvTimer);
+  pvTimer = setTimeout(() => {
+    cancelAnimationFrame(pvRaf);
+    pvTick(performance.now());
+  }, 300);
+}
+
+function pvOpen() {
+  const dpr = window.devicePixelRatio || 1;
+  pvScope.width = 600 * dpr; pvScope.height = 230 * dpr;
+  pvScope.style.width = '600px'; pvScope.style.height = '230px';
+  pvCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  $('pvTitle').textContent = 'Preview — Band ' + (sel + 1);
+  pvIn = []; pvOut = []; pvT = 0; pvLast = 0; pvLevel = 0;
+  pvOverlay.hidden = false;
+  pvSchedule();
+}
+
+function pvClose() {
+  pvOverlay.hidden = true;
+  cancelAnimationFrame(pvRaf);
+  clearTimeout(pvTimer);
+}
+
+$('openPreview').addEventListener('click', pvOpen);
+$('pvClose').addEventListener('click', pvClose);
+pvOverlay.addEventListener('click', (e) => { if (e.target === pvOverlay) pvClose(); });
+document.querySelectorAll('.pvSig').forEach((el) => {
+  el.addEventListener('click', () => {
+    pvSig = el.dataset.s;
+    document.querySelectorAll('.pvSig').forEach((x) => x.classList.toggle('on', x === el));
+  });
+});
 
 // ── auto toggle, status, wiring ─────────────────────────────────────────
 

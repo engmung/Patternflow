@@ -133,10 +133,16 @@ inline float smoothLevel[4] = {0, 0, 0, 0};
 
 inline void smoothLevels(const float* level) {
   // alpha_60 so that two 60 Hz steps equal one 30 Hz step of `smoothing`.
+  // Glide ballistics: rises take the fast fixed attack (0.65 at 30 Hz),
+  // falls take the damped release - the same split the extension and the
+  // phone app run, so one Damping value means one feel everywhere.
   const float a30 = constrain(smoothing, 0.05f, 0.9f);
-  const float a60 = 1.0f - sqrtf(1.0f - a30);
-  for (int i = 0; i < 4; i++)
-    smoothLevel[i] += (level[i] - smoothLevel[i]) * a60;
+  const float rel60 = 1.0f - sqrtf(1.0f - a30);
+  const float atk60 = 1.0f - sqrtf(1.0f - 0.65f);
+  for (int i = 0; i < 4; i++) {
+    const float a = level[i] > smoothLevel[i] ? atk60 : rel60;
+    smoothLevel[i] += (level[i] - smoothLevel[i]) * a;
+  }
 }
 
 // Defaults sized from MUSIC, measured 2026-08-30: thirty seconds of a real

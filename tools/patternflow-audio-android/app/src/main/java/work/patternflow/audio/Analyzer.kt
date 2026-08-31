@@ -176,7 +176,10 @@ class Analyzer {
             for (k in lo..max(lo, hi)) sum += binDb[k]
             val energy = clamp01(((sum / (max(lo, hi) - lo + 1)) - DB_FLOOR) / DB_SPAN)
 
-            smoothLevel[b] += (energy - smoothLevel[b]) * alpha
+            // Glide: fast fixed attack, damped release - the same split the
+            // extension and the firmware run.
+            val a = if (energy > smoothLevel[b]) 0.65f else alpha
+            smoothLevel[b] += (energy - smoothLevel[b]) * a
             val level = smoothLevel[b]
             levels[b] = level
 
