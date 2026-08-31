@@ -71,26 +71,6 @@
 #define PF_WIFI_RETRY_INTERVAL_MS 5000
 #endif
 
-// ── Wi-Fi setup portal (SoftAP fallback) ─────────────────────
-// A device that cannot join any network opens an access point of its own
-// ("Patternflow-Setup-XXXX", open) and captive-portal serves the /wifi page
-// at 192.168.4.1, so a phone can hand it a network without USB. Opens a few
-// seconds after boot when nothing is provisioned at all, or after the
-// timeout below when real credentials keep failing; closes itself once the
-// device connects. See src/core_wifi_portal.h.
-#ifndef PF_WIFI_PORTAL_ENABLED
-#define PF_WIFI_PORTAL_ENABLED 1
-#endif
-#ifndef PF_WIFI_PORTAL_AFTER_MS
-#define PF_WIFI_PORTAL_AFTER_MS 45000
-#endif
-// Deliberately short: the full brand name pushed the SSID past 20 chars and
-// some phones (field-reported on Samsung) mishandle long AP names during
-// captive setup — the sheet never offered. Four hex chars of MAC follow.
-#ifndef PF_WIFI_PORTAL_NAME
-#define PF_WIFI_PORTAL_NAME "PF-Setup"
-#endif
-
 // ── Improv-Serial Wi-Fi provisioning ─────────────────────────
 // Lets the browser flasher (ESP Web Tools, behind the website's "Flash"
 // button) set Wi-Fi over USB serial right after flashing, instead of baking

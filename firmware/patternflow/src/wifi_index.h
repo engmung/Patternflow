@@ -12,13 +12,7 @@
 static const char WIFI_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8">
-<!-- defer is load-bearing: this page is the setup portal's payload, and a
-     head script without it blocks first paint until the console chrome
-     arrives — over a power-save phone camped on the SoftAP that fetch can
-     stall, and the person stares at a white page that has, in fact, been
-     fully delivered. Deferred, the form renders instantly and the chrome
-     (theme, header) catches up whenever it lands. -->
-<script src="/pf-console.js" defer></script>
+<script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Wi-Fi</title>
 <style>
@@ -138,15 +132,10 @@ var max=5;
 // The list reloads every 5 s; an unsaved pick in the dropdown must survive
 // that, or choosing a slot and reaching for Save loses the choice.
 var bootDirty=false;
-// Whether the device is on a network right now. When it is not (this page
-// is being served from the setup AP), saving auto-connects: there is no
-// session to protect, and joining is the whole point of being here.
-var connectedState=false;
 
 function load(){
   fetch('/api/wifi').then(function(r){return r.json()}).then(function(d){
     max=d.max;
-    connectedState=!!d.connected;
     $('st').textContent=d.connected?(d.ip):d.status;
     $('list').innerHTML='';
     var bootSel=$('boot');
@@ -233,12 +222,9 @@ $('f').onsubmit=function(e){
   e.preventDefault();
   var ssid=$('ssid').value.trim();
   if(!ssid){say('enter a network name',1);return}
-  // The confirm guards a live session against being dropped — only relevant
-  // when there IS one. Disconnected (setup portal), saving joins right away.
-  if($('now').checked&&connectedState&&
-     !confirm('Switch to "'+ssid+'" now?\n\nThis page will stop responding '+
-              'if the new network is different from the one you are on.'))return;
-  var now=$('now').checked||!connectedState;
+  var now=$('now').checked;
+  if(now&&!confirm('Switch to "'+ssid+'" now?\n\nThis page will stop responding '+
+                   'if the new network is different from the one you are on.'))return;
   var body='ssid='+encodeURIComponent(ssid)+'&pass='+encodeURIComponent($('pass').value);
   if(now)body+='&connect=1';
   fetch('/api/wifi',{method:'POST',
@@ -246,11 +232,8 @@ $('f').onsubmit=function(e){
     .then(function(r){return r.json()}).then(function(d){
       if(!d.ok){say(d.error||'failed',1);return}
       $('pass').value='';$('ssid').value='';$('now').checked=false;
-      say(d.switching?(connectedState?
-            ('saved '+d.ssid+' — switching, reconnect on that network'):
-            ('saved '+d.ssid+' — joining now. This setup network closes itself; '+
-             'the panel\'s NETWORK screen shows its new address.')):
-          ('saved '+d.ssid));
+      say(d.switching?('saved '+d.ssid+' — switching, reconnect on that network'):
+                      ('saved '+d.ssid));
       load();
     }).catch(function(){say('failed',1)});
 };
