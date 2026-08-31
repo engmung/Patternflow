@@ -1,25 +1,26 @@
 "use client";
 
-// Capture — the lab's output stage. A second, independent render of the
-// layer stack for pictures and clips rather than for the LED panel: pick a
-// print/screen size, a look (auto, re-rendered, pixel blocks, or LED dots),
-// a turn, pause on the moment you want, and save a PNG or record an
-// MP4/WebM.
+// Capture — the camera back: settings and the shutter, no window of its own.
+// The picture lives where pictures live: the Preview panel, whose 📷 camera
+// view (the viewfinder) shows the output render when you ask for it. This
+// panel picks the output (size, look, turn, backdrop), owns the 🔗 Director
+// link, and fires the exports; the shared capture session (lib/lab/capture/
+// session) runs the worker both panels talk to.
 //
-// Everything runs in lib/lab/capture (a worker with its own engine). This
-// component only holds the controls and shows the bitmaps the worker sends;
-// it reads the store like the preview does and never writes to it.
+// What an export captures, in two sentences: linked (🔗), the show is the
+// truth — Record renders the whole timeline, Save PNG replays it to the
+// playhead, frame-exact. Unlinked, the knobs are the truth — with the
+// viewfinder on you capture the moment you see; with it off you get a fresh
+// take, warmed a couple of seconds in so patterns never export cold.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { IDockviewPanelProps } from "dockview-react";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import { buildAnySizePrompt } from "@/lib/lab/capture/anySizePrompt";
-import { CaptureClient, captureSupported, type ProjectSlice } from "@/lib/lab/capture/client";
+import { captureSession } from "@/lib/lab/capture/session";
 import { resolveGeometry } from "@/lib/lab/capture/core";
 import { captureFileName, downloadBlob } from "@/lib/lab/capture/download";
 import {
-  loadCaptureSettings,
   normalizeCaptureSettings,
   presetFor,
   saveCaptureSettings,
@@ -34,29 +35,26 @@ import {
   SIZED_STYLES,
   type AutoVerdict,
   type CaptureSettings,
-  type FrameMessage,
 } from "@/lib/lab/capture/types";
+import { bakeShowV2 } from "@/lib/lab/director/bake";
+import { sampleShow, toKnobFrames } from "@/lib/lab/director/sample";
+import { showTransport } from "@/lib/lab/director/transport";
+import { showHasContent } from "@/lib/lab/director/types";
 import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
 import local from "./CapturePanel.module.css";
 
-const PROJECT_SEND_DEBOUNCE_MS = 40;
-const HUD_INTERVAL_MS = 200;
+// Show renders bypass the clip length cap (a show is as long as it is), but
+// an hour of 4K frames is a mistake more often than a plan — soft-confirm
+// past two minutes, refuse past ten.
+const SHOW_RENDER_CONFIRM_SECONDS = 120;
+const SHOW_RENDER_MAX_SECONDS = 600;
+/** Fresh takes (viewfinder off, unlinked) run this far in before capturing. */
+const FRESH_TAKE_WARM_SECONDS = 2;
+/** Linked stills replay the show at this rate — state-exact by playhead. */
+const STILL_REPLAY_FPS = 30;
 
 type LayerError = { id: string; name: string; text: string };
-
-type Hud = {
-  time: number;
-  playing: boolean;
-  renderMs: number;
-  fps: number;
-  width: number;
-  height: number;
-  errors: LayerError[];
-  auto: AutoVerdict | null;
-  /** Linear scale of the live stage vs the export size; null = exact. */
-  preview: number | null;
-};
 
 function nameErrors(errors: Record<string, string>): LayerError[] {
   const layers = useLabStore.getState().layers;
@@ -68,17 +66,6 @@ function nameErrors(errors: Record<string, string>): LayerError[] {
 }
 
 type ExportState = { kind: "image" | "video"; done: number; total: number };
-
-function projectSlice(): ProjectSlice {
-  const state = useLabStore.getState();
-  return {
-    matrix: state.matrix,
-    layers: state.layers,
-    activeLayerId: state.activeLayerId,
-    knobs: state.knobs,
-    ranges: state.ranges,
-  };
-}
 
 function captureTitle(): string {
   const state = useLabStore.getState();
@@ -92,30 +79,31 @@ function focusCodeLayer() {
   return isCodeLayer(active) ? active : state.layers.find(isCodeLayer);
 }
 
-export default function CapturePanel(props: IDockviewPanelProps) {
-  const [supported] = useState(() => captureSupported());
-  const [settings, setSettings] = useState<CaptureSettings>(() => loadCaptureSettings());
-  const [hud, setHud] = useState<Hud>({
-    time: 0,
-    playing: false,
-    renderMs: 0,
-    fps: 0,
-    width: 0,
-    height: 0,
-    errors: [],
-    auto: null,
-    preview: null,
-  });
+export default function CapturePanel() {
+  const supported = captureSession.supported;
+  const [settings, setSettings] = useState<CaptureSettings>(() => captureSession.settings());
+  const [verdict, setVerdict] = useState<AutoVerdict | null>(null);
+  const [errors, setErrors] = useState<LayerError[]>([]);
   const [exporting, setExporting] = useState<ExportState | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
-  const matrix = useLabStore((state) => state.matrix);
 
-  const clientRef = useRef<CaptureClient | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const bitmapContextRef = useRef<ImageBitmapRenderingContext | null>(null);
-  const hudRef = useRef({ lastAt: 0, frames: 0, windowStart: 0, fps: 0 });
+  // 🔗 Director link — linked, the show is the truth for every export; the
+  // link lives on the shared show transport so the Director's Render…
+  // shortcut can flip it on from over there.
+  const [follow, setFollowUi] = useState(() => showTransport.get().follow);
+  useEffect(() => showTransport.subscribe((state) => setFollowUi(state.follow)), []);
+  const director = useLabStore((state) => state.director);
+  const hasShow = showHasContent(director);
+  const showSeconds = hasShow ? bakeShowV2(director).perf.length : 0;
+  const linked = follow && hasShow;
+
+  // 📷 viewfinder — the Preview panel's camera view, switched from either side.
+  const [view, setViewUi] = useState(() => captureSession.getState().view);
+  useEffect(() => captureSession.subscribe((state) => setViewUi(state.view)), []);
+
+  const matrix = useLabStore((state) => state.matrix);
   const exportingRef = useRef(false);
 
   const geometry = resolveGeometry(settings, matrix);
@@ -129,122 +117,57 @@ export default function CapturePanel(props: IDockviewPanelProps) {
     );
   }, []);
 
-  // ── worker lifetime ──
+  // Worker events: verdict for the auto row, errors while frames flow,
+  // progress for the export bar.
   useEffect(() => {
     if (!supported) return;
-    const panelApi = props.api;
-    let sendTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const onFrame = (frame: FrameMessage) => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        if (canvas.width !== frame.width) canvas.width = frame.width;
-        if (canvas.height !== frame.height) canvas.height = frame.height;
-        const context =
-          bitmapContextRef.current ??
-          (bitmapContextRef.current = canvas.getContext("bitmaprenderer"));
-        if (context) context.transferFromImageBitmap(frame.bitmap);
-        else frame.bitmap.close();
-      } else {
-        frame.bitmap.close();
-      }
-      // Ack once the browser has had a chance to paint: this is what paces
-      // the worker to the display instead of to its own render speed.
-      requestAnimationFrame(() => clientRef.current?.frameShown());
-
-      const now = performance.now();
-      const stats = hudRef.current;
-      stats.frames += 1;
-      if (now - stats.windowStart > 1000) {
-        stats.fps = (stats.frames * 1000) / Math.max(1, now - stats.windowStart);
-        stats.frames = 0;
-        stats.windowStart = now;
-      }
-      if (now - stats.lastAt > HUD_INTERVAL_MS) {
-        stats.lastAt = now;
-        setHud({
-          time: frame.time,
-          playing: frame.playing,
-          renderMs: frame.renderMs,
-          fps: stats.fps,
-          width: frame.width,
-          height: frame.height,
-          errors: nameErrors(frame.errors),
-          auto: frame.auto,
-          preview: frame.preview,
-        });
-      }
-    };
-
-    const client = new CaptureClient({
-      onFrame,
-      onState: (state) => {
-        setHud((current) => ({ ...current, time: state.time, playing: state.playing }));
-      },
-      onProgress: (done, total) => {
+    return captureSession.on({
+      auto: setVerdict,
+      errors: (raw) => setErrors(nameErrors(raw)),
+      progress: (done, total) => {
         setExporting((current) => (current ? { ...current, done, total } : current));
       },
-      onFatal: (text) => setFatal(text),
+      fatal: setFatal,
     });
-    clientRef.current = client;
-    client.sendSettings(loadCaptureSettings());
-    client.sendProject(projectSlice());
-
-    const sendProject = () => {
-      if (sendTimer !== null) clearTimeout(sendTimer);
-      sendTimer = setTimeout(() => {
-        sendTimer = null;
-        client.sendProject(projectSlice());
-      }, PROJECT_SEND_DEBOUNCE_MS);
-    };
-    const unsubscribe = useLabStore.subscribe((state, previous) => {
-      if (
-        state.layers !== previous.layers ||
-        state.matrix !== previous.matrix ||
-        state.knobs !== previous.knobs ||
-        state.ranges !== previous.ranges ||
-        state.activeLayerId !== previous.activeLayerId
-      ) {
-        sendProject();
-      }
-    });
-
-    // Hidden tab or hidden panel: the worker idles instead of rendering into
-    // the void.
-    const syncVisible = () => {
-      client.setVisible(panelApi.isVisible && document.visibilityState === "visible");
-    };
-    const visibility = panelApi.onDidVisibilityChange(syncVisible);
-    document.addEventListener("visibilitychange", syncVisible);
-    syncVisible();
-
-    return () => {
-      if (sendTimer !== null) clearTimeout(sendTimer);
-      unsubscribe();
-      visibility.dispose();
-      document.removeEventListener("visibilitychange", syncVisible);
-      client.dispose();
-      clientRef.current = null;
-      bitmapContextRef.current = null;
-    };
-  }, [supported, props.api]);
+  }, [supported]);
 
   // Settings reach the worker and disk together.
   useEffect(() => {
-    clientRef.current?.sendSettings(settings);
+    captureSession.applySettings(settings);
     saveCaptureSettings(settings);
   }, [settings]);
 
   // ── exports ──
   const saveImage = async () => {
-    const client = clientRef.current;
-    if (!client || exportingRef.current) return;
+    if (exportingRef.current) return;
+    captureSession.sendProjectNow();
     exportingRef.current = true;
     setExporting({ kind: "image", done: 0, total: 1 });
     setMessage(null);
     const title = captureTitle();
     try {
-      const blob = await client.exportImage();
+      let blob: Blob;
+      if (linked) {
+        // The show's frame at the playhead: replay the automation from 0,
+        // frame-exact with a show render paused there.
+        const state = useLabStore.getState();
+        const t = showTransport.get().time;
+        const frames = Math.max(1, Math.round(t * STILL_REPLAY_FPS) + 1);
+        const sampled = sampleShow(state.director, STILL_REPLAY_FPS, frames);
+        blob = await captureSession.exportImage({
+          automation: {
+            fps: STILL_REPLAY_FPS,
+            frames,
+            knobs: toKnobFrames(sampled, state.ranges, state.knobs),
+          },
+        });
+      } else if (view) {
+        // The moment on the viewfinder, at full size.
+        blob = await captureSession.exportImage();
+      } else {
+        // No window anywhere: a fresh take, warmed in so it isn't frame 0.
+        blob = await captureSession.exportImage({ warmSeconds: FRESH_TAKE_WARM_SECONDS });
+      }
       const name = captureFileName(title, geometry.output, "png");
       downloadBlob(blob, name);
       setMessage({ text: `Saved ${name}`, error: false });
@@ -257,15 +180,56 @@ export default function CapturePanel(props: IDockviewPanelProps) {
   };
 
   const recordVideo = async () => {
-    const client = clientRef.current;
-    if (!client || exportingRef.current) return;
+    if (exportingRef.current) return;
+    captureSession.sendProjectNow();
+
+    // Linked: pre-sample the Director timeline into per-frame knob values
+    // (the same sampler the panel plays from) and hand it to the worker,
+    // which resets the pattern clock and replays the show.
+    let automation;
+    let warmSeconds: number | undefined;
+    let request = settings.video;
+    if (linked) {
+      const state = useLabStore.getState();
+      const duration = bakeShowV2(state.director).perf.length;
+      if (duration > SHOW_RENDER_MAX_SECONDS) {
+        setMessage({
+          text: `This show is ${Math.round(duration)} s — show renders cap at ${SHOW_RENDER_MAX_SECONDS} s. Shorten the show (or record a clip of it playing).`,
+          error: true,
+        });
+        return;
+      }
+      if (
+        duration > SHOW_RENDER_CONFIRM_SECONDS &&
+        !window.confirm(
+          `Render the whole ${Math.round(duration)} s show at ${settings.video.fps} fps? This can take a while.`,
+        )
+      ) {
+        return;
+      }
+      const frames = Math.max(1, Math.round(duration * settings.video.fps));
+      const sampled = sampleShow(state.director, settings.video.fps, frames);
+      automation = {
+        fps: settings.video.fps,
+        frames,
+        knobs: toKnobFrames(sampled, state.ranges, state.knobs),
+      };
+      request = { ...settings.video, seconds: duration };
+    } else if (!view) {
+      // Viewfinder off: a fresh warmed take (with it on, the clip records
+      // from the moment on screen).
+      warmSeconds = FRESH_TAKE_WARM_SECONDS;
+    }
+
     exportingRef.current = true;
-    const total = Math.round(settings.video.seconds * settings.video.fps);
+    const total = automation
+      ? automation.frames
+      : Math.round(settings.video.seconds * settings.video.fps);
     setExporting({ kind: "video", done: 0, total });
     setMessage(null);
     const title = captureTitle();
     try {
-      const { blob, extension } = await client.exportVideo(settings.video);
+      const { blob, extension } = await captureSession.exportVideo(request, automation, warmSeconds);
       const name = captureFileName(title, geometry.output, extension);
       downloadBlob(blob, name);
       setMessage({
@@ -329,65 +293,16 @@ export default function CapturePanel(props: IDockviewPanelProps) {
 
   return (
     <div className={dock.panel}>
-      {/* transport */}
-      <div className={`${dock.panelBar} ${local.bar}`}>
-        <button
-          type="button"
-          data-active={hud.playing ? "true" : undefined}
-          title={hud.playing ? "Pause the stage on this frame" : "Play"}
-          disabled={busy}
-          onClick={() => (hud.playing ? clientRef.current?.pause() : clientRef.current?.play())}
-        >
-          {hud.playing ? "❚❚ Pause" : "▶ Play"}
-        </button>
-        <button
-          type="button"
-          title="Start over: fresh pattern state, time zero"
-          disabled={busy}
-          onClick={() => clientRef.current?.restart()}
-        >
-          ⟲
-        </button>
-        <span className={local.group}>
-          <button
-            type="button"
-            title={`Back one frame (1/${settings.video.fps} s) — moves the clock only`}
-            disabled={busy}
-            onClick={() => clientRef.current?.step(-1)}
-          >
-            ◀
-          </button>
-          <button
-            type="button"
-            title={`Forward one frame (1/${settings.video.fps} s)`}
-            disabled={busy}
-            onClick={() => clientRef.current?.step(1)}
-          >
-            ▶
-          </button>
-        </span>
-        <span style={{ flex: 1 }} />
-        <span className={styles.stats}>
-          <span className={local.readoutStrong}>t {hud.time.toFixed(2)} s</span>
-          <span className={styles.dotSep}>·</span>
-          <span>{hud.renderMs.toFixed(1)} ms</span>
-          <span className={styles.dotSep}>·</span>
-          <span>{hud.playing ? `${hud.fps.toFixed(0)} fps` : "paused"}</span>
-          <span className={styles.dotSep}>·</span>
-          {hud.preview !== null ? (
-            <span title="The stage shows this look at reduced size to stay fluid — it only blows the panel frame up, so the picture is identical, just fewer pixels. Exports always render the full size.">
-              preview {Math.round(hud.preview * 100)}%
-            </span>
-          ) : (
-            <span title="Every output pixel — what you see is exactly the export. Native re-runs the pattern's code on the real grid, so big sizes trade frame rate for truth.">
-              exact 100%
-            </span>
-          )}
-        </span>
-      </div>
-
       {/* output */}
       <div className={`${dock.panelBar} ${local.bar}`}>
+        <button
+          type="button"
+          data-active={view ? "true" : undefined}
+          title="Camera view: show this output render in the Preview panel — like looking through the camera. The project frame, prompts and hardware export stay on the pattern's own grid."
+          onClick={() => captureSession.setView(!view)}
+        >
+          📷 Viewfinder
+        </button>
         <label>
           look
           <select
@@ -582,12 +497,12 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           </>
         )}
 
-        {settings.style === "auto" && hud.auto && (
-          <span className={local.verdict} data-verdict={hud.auto.verdict} title={hud.auto.detail}>
-            auto → {hud.auto.description}
-            {hud.auto.verdict === "upscale" &&
-              hud.auto.reason !== "too-dark" &&
-              hud.auto.reason !== "non-deterministic" && (
+        {settings.style === "auto" && verdict && (
+          <span className={local.verdict} data-verdict={verdict.verdict} title={verdict.detail}>
+            auto → {verdict.description}
+            {verdict.verdict === "upscale" &&
+              verdict.reason !== "too-dark" &&
+              verdict.reason !== "non-deterministic" && (
                 <button
                   type="button"
                   title="Copy a prompt that asks an AI to rewrite this code in frame-relative units, so it re-renders at any size. Paste the answer into the Code panel; Auto re-checks it."
@@ -604,15 +519,34 @@ export default function CapturePanel(props: IDockviewPanelProps) {
       <div className={`${dock.panelBar} ${local.bar}`}>
         <button
           type="button"
-          title={`Save the current frame as a ${geometry.output.width}×${geometry.output.height} PNG${
-            settings.backdrop === "transparent" ? " with transparency" : ""
-          }`}
+          title={
+            linked
+              ? `Save the show's frame at the Director playhead as a ${geometry.output.width}×${geometry.output.height} PNG — the automation is replayed from 0, frame-exact.`
+              : view
+                ? `Save the viewfinder's moment as a ${geometry.output.width}×${geometry.output.height} PNG${settings.backdrop === "transparent" ? " with transparency" : ""}`
+                : `Save a fresh take (warmed ${FRESH_TAKE_WARM_SECONDS} s in, knobs as they are) as a ${geometry.output.width}×${geometry.output.height} PNG${settings.backdrop === "transparent" ? " with transparency" : ""}`
+          }
           disabled={busy}
           onClick={() => void saveImage()}
         >
           Save PNG
         </button>
         <span className={styles.dotSep}>|</span>
+        <label
+          title={
+            hasShow
+              ? "Follow the Director: Record renders the whole show with its automation driving the knobs, Save PNG replays it to the playhead. Off, the knobs as they are are the truth."
+              : "Add keyframes in the Director to link the capture to a show"
+          }
+        >
+          <input
+            type="checkbox"
+            checked={linked}
+            disabled={!hasShow || busy}
+            onChange={(event) => showTransport.setFollow(event.target.checked)}
+          />
+          🔗 Director
+        </label>
         <label>
           <select
             value={settings.video.fps}
@@ -627,21 +561,27 @@ export default function CapturePanel(props: IDockviewPanelProps) {
             ))}
           </select>
         </label>
-        <label>
-          <input
-            className={local.secondsInput}
-            type="number"
-            inputMode="decimal"
-            min={1}
-            max={CAPTURE_SECONDS_MAX}
-            step={0.5}
-            value={settings.video.seconds}
-            aria-label="Clip length in seconds"
-            disabled={busy}
-            onChange={(event) => updateVideo({ seconds: Number(event.target.value) })}
-          />
-          s
-        </label>
+        {!linked ? (
+          <label>
+            <input
+              className={local.secondsInput}
+              type="number"
+              inputMode="decimal"
+              min={1}
+              max={CAPTURE_SECONDS_MAX}
+              step={0.5}
+              value={settings.video.seconds}
+              aria-label="Clip length in seconds"
+              disabled={busy}
+              onChange={(event) => updateVideo({ seconds: Number(event.target.value) })}
+            />
+            s
+          </label>
+        ) : (
+          <span className={local.readout} title="The show's length — a render never ends before the last cue">
+            {showSeconds.toFixed(1)} s
+          </span>
+        )}
         <label>
           <select
             value={settings.video.format}
@@ -663,7 +603,7 @@ export default function CapturePanel(props: IDockviewPanelProps) {
             <span className={local.readoutStrong}>
               {exporting.done}/{exporting.total}
             </span>
-            <button type="button" onClick={() => clientRef.current?.cancelExport()}>
+            <button type="button" onClick={() => captureSession.cancelExport()}>
               Cancel
             </button>
           </>
@@ -671,11 +611,17 @@ export default function CapturePanel(props: IDockviewPanelProps) {
           <button
             type="button"
             className={local.record}
-            title={`Render ${settings.video.seconds} s from the current moment at a fixed ${settings.video.fps} fps — frame-exact, however slow the render. A transparent backdrop flattens onto black.`}
+            title={
+              linked
+                ? `Render the Director show from t = 0 — ${showSeconds.toFixed(1)} s at a fixed ${settings.video.fps} fps, the automation driving the knobs frame by frame. Frame-exact, however slow the render.`
+                : view
+                  ? `Render ${settings.video.seconds} s from the viewfinder's moment at a fixed ${settings.video.fps} fps — frame-exact, however slow the render. A transparent backdrop flattens onto black.`
+                  : `Render a fresh ${settings.video.seconds} s take (warmed ${FRESH_TAKE_WARM_SECONDS} s in, knobs as they are) at a fixed ${settings.video.fps} fps. A transparent backdrop flattens onto black.`
+            }
             disabled={busy}
             onClick={() => void recordVideo()}
           >
-            ● Record
+            {linked ? "● Render show" : "● Record"}
           </button>
         )}
         {exporting?.kind === "image" && <span className={local.readout}>rendering…</span>}
@@ -688,20 +634,16 @@ export default function CapturePanel(props: IDockviewPanelProps) {
       </div>
 
       <div className={local.body}>
-        <div className={local.stageBox}>
-          <canvas
-            ref={canvasRef}
-            className={`${local.stageCanvas} ${
-              settings.backdrop === "transparent" ? local.stageCanvasTransparent : ""
-            }`}
-            width={geometry.output.width}
-            height={geometry.output.height}
-            aria-label={`Capture stage, ${geometry.output.width} × ${geometry.output.height}`}
-          />
+        <div className={local.hint}>
+          {linked
+            ? "🔗 Linked — the show is the truth: Record renders the whole timeline, Save PNG the playhead's frame. Scrub in the Director, watch in the Preview."
+            : view
+              ? "📷 Camera view is on — the Preview panel shows this output render; exports capture the moment you see."
+              : "Exports run blind but never cold: a fresh take, warmed a couple of seconds in, with the knobs as they are. Turn on the Viewfinder to see the output in the Preview panel first."}
         </div>
-        {hud.errors.length > 0 && (
+        {errors.length > 0 && (
           <div className={local.errorList}>
-            {hud.errors.map((entry) => (
+            {errors.map((entry) => (
               <div key={entry.id} className={styles.errorBox} style={{ marginTop: 0 }}>
                 {entry.name} at {geometry.render.width}×{geometry.render.height}: {entry.text}
               </div>

@@ -212,6 +212,12 @@ export class CaptureCore {
     this.settings = settings;
   }
 
+  /** Swap the knob values the engine renders with — a show render drives
+      these per frame; everything else about the project stays put. */
+  setKnobs(knobs: number[]) {
+    if (this.project) this.project = { ...this.project, knobs };
+  }
+
   geometry(): CaptureGeometry | null {
     if (!this.project) return null;
     return resolveGeometry(this.settings, this.project.matrix, this.autoLook);

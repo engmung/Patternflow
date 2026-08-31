@@ -4,6 +4,17 @@
 // animation loop: reads the store imperatively each frame, drives the shared
 // LabEngine, paints the composite, and mirrors per-layer errors back into the
 // store (throttled) for the Layers/Code panels.
+//
+// Camera view (📷): Blender's numpad-0 for the lab. When the Capture panel's
+// viewfinder is on, this panel shows the CAPTURE OUTPUT render — the capture
+// worker's frames at the output size, look, backdrop and turn — instead of
+// the matrix composite; a chip in the header names the borrowed view and
+// clicks back out. The project matrix (and everything keyed to it: prompts,
+// hardware export, publishing) never changes — this is a view, not a mode.
+// The engine loop keeps running underneath so layer errors keep flowing.
+// This hook into lib/lab/capture/session is the one place the lab touches
+// the capture add-on; removing capture means removing this and the lab is
+// whole again.
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -14,6 +25,7 @@ import {
   formatMatrix,
 } from "@/lib/patternMatrix";
 import { labEngine } from "@/lib/lab/engine";
+import { captureSession, type CaptureSessionState } from "@/lib/lab/capture/session";
 import { useLabStore } from "@/lib/lab/store";
 import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
@@ -26,7 +38,25 @@ const RESOLUTION_PRESETS = [
 
 export default function PreviewPanel() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cameraCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [stats, setStats] = useState({ fps: 0, ms: 0 });
+  const [camera, setCamera] = useState<CaptureSessionState>(() => captureSession.getState());
+  const cameraOnRef = useRef(camera.view);
+  useEffect(
+    () =>
+      captureSession.subscribe((state) => {
+        cameraOnRef.current = state.view;
+        setCamera(state);
+      }),
+    [],
+  );
+  // While camera view is on, the capture worker paints into this canvas.
+  useEffect(() => {
+    if (!camera.view) return;
+    const canvas = cameraCanvasRef.current;
+    if (!canvas) return;
+    return captureSession.attachViewfinder(canvas);
+  }, [camera.view]);
   const matrix = useLabStore((state) => state.matrix);
   const setMatrix = useLabStore((state) => state.setMatrix);
   const activeError = useLabStore(
@@ -81,7 +111,7 @@ export default function PreviewPanel() {
       );
       lastRenderMs = frame.renderMs;
 
-      const canvas = canvasRef.current;
+      const canvas = cameraOnRef.current ? null : canvasRef.current;
       if (canvas) {
         if (canvas.width !== frame.width) canvas.width = frame.width;
         if (canvas.height !== frame.height) canvas.height = frame.height;
@@ -178,6 +208,16 @@ export default function PreviewPanel() {
             ))}
           </span>
         )}
+        {camera.view && (
+          <button
+            type="button"
+            className={styles.cameraChip}
+            title="Camera view — showing the Capture output render. The project frame stays as picked here; click to go back to it."
+            onClick={() => captureSession.setView(false)}
+          >
+            📷 {camera.output ? `${camera.output.width} × ${camera.output.height}` : "output"} · exit
+          </button>
+        )}
         {matrix.width * matrix.height > MATRIX_HEAVY_PIXELS && (
           <span
             className={styles.frameWarning}
@@ -192,15 +232,39 @@ export default function PreviewPanel() {
         <div className={dock.previewCanvasBox}>
           <div
             className={dock.previewFrame}
-            style={{ aspectRatio: `${matrix.width} / ${matrix.height}`, width: "100%" }}
+            style={
+              camera.view
+                ? {
+                    aspectRatio: camera.output
+                      ? `${camera.output.width} / ${camera.output.height}`
+                      : `${matrix.width} / ${matrix.height}`,
+                    width: "100%",
+                  }
+                : { aspectRatio: `${matrix.width} / ${matrix.height}`, width: "100%" }
+            }
           >
-            <canvas
-              ref={canvasRef}
-              width={matrix.width}
-              height={matrix.height}
-              style={{ aspectRatio: `${matrix.width} / ${matrix.height}` }}
-              aria-label={`Composite preview, ${formatMatrix(matrix)}`}
-            />
+            {camera.view ? (
+              <canvas
+                key="camera"
+                ref={cameraCanvasRef}
+                className={dock.cameraCanvas}
+                style={
+                  camera.output
+                    ? { aspectRatio: `${camera.output.width} / ${camera.output.height}` }
+                    : undefined
+                }
+                aria-label="Camera view — the capture output render"
+              />
+            ) : (
+              <canvas
+                key="matrix"
+                ref={canvasRef}
+                width={matrix.width}
+                height={matrix.height}
+                style={{ aspectRatio: `${matrix.width} / ${matrix.height}` }}
+                aria-label={`Composite preview, ${formatMatrix(matrix)}`}
+              />
+            )}
           </div>
         </div>
         {activeError && <div className={styles.errorBox}>{activeError}</div>}

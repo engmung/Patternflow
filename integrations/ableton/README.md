@@ -4,6 +4,8 @@ Turn a knob on Patternflow and hear the sound change: this folder connects the d
 
 The wire protocol is documented in [docs/osc-spec.md](../../docs/osc-spec.md). The firmware side is built in (see below); everything in this folder runs on the computer.
 
+Coming from the Pattern Lab's **Director**? Its `.mid` export puts a show's knob automation straight into a Live clip — that path (and how it pairs with this bridge) is [docs/director-midi.md](../../docs/director-midi.md).
+
 ```
 integrations/ableton/
 ├── max/

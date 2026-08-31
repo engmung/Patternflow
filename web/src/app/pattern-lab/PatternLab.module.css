@@ -255,6 +255,27 @@
   border-color: #171512;
 }
 
+/* Camera view chip in the Preview header — names the borrowed view, exits on click. */
+.cameraChip {
+  padding: 0 8px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(20, 90, 180, 0.45);
+  border-radius: 5px;
+  background: rgba(40, 120, 220, 0.12);
+  color: #1c4f8a;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cameraChip:hover {
+  background: rgba(40, 120, 220, 0.2);
+}
+
 .frameWarning {
   padding: 0 8px;
   min-height: 32px;
