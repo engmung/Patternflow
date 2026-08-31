@@ -1,8 +1,32 @@
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { NextConfig } from "next";
 import createMDX from "@next/mdx";
 import { CAMPAIGN_ROUTES } from "./src/lib/campaignRoutes";
 
+const isProd = process.env.NODE_ENV === "production";
+
+// The ?v= on the sandbox iframe URL, derived from the sandbox document itself.
+//
+// It used to be a number a human bumped by hand, and the hand forgot: the
+// OKLab/OKLCH ramp modes (9413106) edited public/pattern-sandbox.html without
+// touching lib/community/sandboxUrl.ts, and because this file is served
+// immutable for a year, every browser that had ever loaded ?v=5 kept running
+// the pre-OKLab runtime — which does not know the mode names, so it dropped
+// every `// @ramp oklch…` annotation on the floor and painted those patterns
+// with the default ramp instead. Desktop looked fine (a fresh cache), phones
+// did not (a warm one). A hash cannot forget.
+const PATTERN_SANDBOX_VERSION = crypto
+  .createHash("sha256")
+  .update(fs.readFileSync(path.join(process.cwd(), "public", "pattern-sandbox.html")))
+  .digest("hex")
+  .slice(0, 10);
+
 const nextConfig: NextConfig = {
+  // Inlined into the client bundle at build time; read by
+  // lib/community/sandboxUrl.ts, which is the only thing that should use it.
+  env: { PATTERN_SANDBOX_VERSION },
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   // Native module — must stay a runtime require, not a bundled dependency.
   serverExternalPackages: ["better-sqlite3"],
@@ -128,11 +152,21 @@ const nextConfig: NextConfig = {
         // Every pattern card boots its own sandboxed iframe from this one
         // document, so the feed loads it dozens of times per visit. Without
         // this header each load is a round trip to the origin (a Raspberry
-        // Pi), and the cards visibly warm up one by one. Safe to cache hard:
-        // the URL carries ?v= (see lib/community/sandboxUrl.ts), and bumping
-        // it on change is already the rule.
+        // Pi), and the cards visibly warm up one by one. Safe to cache hard
+        // in production: the URL carries ?v=<hash of this very file>, so a
+        // changed document is a changed URL by construction.
+        //
+        // Not in development, though. The hash is computed once when the
+        // config loads, and editing public/ does not reload the config — so a
+        // year-long immutable copy of the file you are editing is exactly
+        // wrong. `next dev` revalidates instead.
         source: "/pattern-sandbox.html",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: [
+          {
+            key: "Cache-Control",
+            value: isProd ? "public, max-age=31536000, immutable" : "no-store",
+          },
+        ],
       },
     ];
   },
