@@ -11,6 +11,7 @@ import type {
   CaptureSettings,
   FrameMessage,
   FromWorker,
+  ShaderStatus,
   ShowAutomation,
   ToWorker,
   VideoRequest,
@@ -34,6 +35,8 @@ export type CaptureClientHandlers = {
   onFatal: (message: string) => void;
   /** The auto probe's standalone verdict (frames don't flow while idle). */
   onAuto?: (auto: AutoVerdict | null) => void;
+  /** Compile result for the shader twin — answered even with no frames. */
+  onShader?: (status: ShaderStatus) => void;
 };
 
 type Pending =
@@ -111,6 +114,9 @@ export class CaptureClient {
       case "auto":
         this.handlers.onAuto?.(message.auto);
         return;
+      case "shader-status":
+        this.handlers.onShader?.(message.status);
+        return;
       case "fatal":
         this.failAll(message.message);
         this.handlers.onFatal(message.message);
@@ -153,6 +159,24 @@ export class CaptureClient {
 
   sendSettings(settings: CaptureSettings) {
     this.send({ type: "settings", settings });
+  }
+
+  /** The GLSL twin, or null to drop it, with the layer whose ramp it reads. */
+  sendShader(source: string | null, layerId: string | null) {
+    this.send({ type: "shader", source, layerId });
+  }
+
+  /**
+   * A knob button, pressed on the stage's own engine. The live preview keeps
+   * its own; both get the press so what the panel plays and what the stage
+   * exports react the same way.
+   */
+  pressButton(index: number) {
+    this.send({ type: "button", index, down: true });
+  }
+
+  releaseButton(index: number) {
+    this.send({ type: "button", index, down: false });
   }
 
   setVisible(visible: boolean) {

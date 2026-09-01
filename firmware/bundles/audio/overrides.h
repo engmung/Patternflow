@@ -42,8 +42,11 @@
 // running this claims to be core, which is the one thing a variant must
 // never do: somebody who did not flash it has no other way to find out what
 // is on it, and the update banner would offer them a core release on top.
+// This define IS the version — shelf.sh's argument only names the folder.
+// v0.4.0 shipped still believing it was v0.3.1 because nothing tied the two
+// together; shelf.sh now refuses an image that does not contain its version.
 #define PF_VARIANT "audio"
-#define PF_VARIANT_VERSION "v0.3.1"
+#define PF_VARIANT_VERSION "v0.4.0"
 
 // ── The on-board microphone drives the knobs ────────────────────────────
 //

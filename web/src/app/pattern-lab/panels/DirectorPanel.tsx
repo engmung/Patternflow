@@ -642,7 +642,7 @@ export default function DirectorPanel(props: IDockviewPanelProps) {
         <button
           type="button"
           disabled={!hasContent}
-          title="Open Capture linked to the Director (🔗) — render the show to video there, with the automation driving the knobs"
+          title="Open Graphic Export linked to the Director (🔗) — render the show to video there, with the automation driving the knobs"
           onClick={() => {
             // A shortcut, not a hierarchy: flip the shared link on and front
             // the Capture panel (if the user closed it, the link still holds

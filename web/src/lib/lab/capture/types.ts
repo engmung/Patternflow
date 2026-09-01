@@ -17,6 +17,16 @@
 import type { MatrixSize } from "@/lib/patternMatrix";
 import type { Layer, PixelLayer } from "../types";
 
+/**
+ * Which renderer fills the stage.
+ *   pattern  the lab's own engine runs the layer stack — the panel's picture,
+ *            the device's truth, and what every look below describes.
+ *   shader   a GLSL twin of the composition runs on the GPU instead
+ *            (shaderStage.ts). Output only: nothing about the pattern, the
+ *            project or the hardware export changes when this is on.
+ */
+export type CaptureSource = "pattern" | "shader";
+
 /** What the user picks. */
 export type CaptureStyle = "auto" | "native" | "pixel" | "led";
 /** What actually gets painted once `auto` has been resolved. */
@@ -54,6 +64,7 @@ export type CaptureRotation = 0 | 90 | 180 | 270;
 export const CAPTURE_ROTATIONS: CaptureRotation[] = [0, 90, 180, 270];
 
 export type CaptureSettings = {
+  source: CaptureSource;
   style: CaptureStyle;
   /**
    * Output size for `auto` / `native`. Native runs the pattern code at
@@ -86,6 +97,7 @@ export const CAPTURE_FPS = [24, 30, 60] as const;
 export const CAPTURE_SECONDS_MAX = 60;
 
 export const DEFAULT_CAPTURE_SETTINGS: CaptureSettings = {
+  source: "pattern",
   style: "auto",
   width: 1024,
   height: 512,
@@ -175,6 +187,19 @@ export type ShowAutomation = {
 export type ToWorker =
   | { type: "project"; project: WireProject }
   | { type: "settings"; settings: CaptureSettings }
+  /**
+   * The GLSL twin's source, or null to drop it. Compiled on arrival so a paste
+   * is answered even with the viewfinder off. `layerId` says which code layer
+   * it belongs to — that layer's colour ramp is what the shader's `ramp()`
+   * helper reads, live.
+   */
+  | { type: "shader"; source: string | null; layerId: string | null }
+  /**
+   * A knob's push button. The stage runs its own engine, so the live
+   * preview's presses never reached it — a pattern that resets or triggers on
+   * a button was unreachable in an export until these started flowing.
+   */
+  | { type: "button"; index: number; down: boolean }
   | { type: "visible"; visible: boolean }
   | { type: "play" }
   | { type: "pause" }
@@ -224,9 +249,22 @@ export type FrameMessage = {
   preview: number | null;
 };
 
+/** What the shader stage has to say about the source it was handed. */
+export type ShaderStatus = {
+  /** Present = the stage holds a source; the panel can switch to it. */
+  loaded: boolean;
+  /** Compile/link error, remapped to the user's line numbers. */
+  error: string | null;
+  /** True when the driver gave the feedback pass float render targets. */
+  floatFeedback: boolean;
+  /** Whether the source declares a mainState feedback pass. */
+  feedback: boolean;
+};
+
 export type FromWorker =
   | { type: "ready" }
   | FrameMessage
+  | { type: "shader-status"; status: ShaderStatus }
   /** The auto probe's verdict, standalone — frames only flow while the
       viewfinder shows, but the Capture controls always want this. */
   | { type: "auto"; auto: AutoVerdict | null }

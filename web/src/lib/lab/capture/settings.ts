@@ -71,6 +71,10 @@ export function normalizeCaptureSettings(input: unknown): CaptureSettings {
       ? Math.max(1, Math.min(CAPTURE_SECONDS_MAX, Math.round(video.seconds * 10) / 10))
       : base.video.seconds;
   return {
+    // Settings from before the shader twin (2026-09) have no source at all,
+    // and a stored "shader" is only an intent — the panel switches back to
+    // the pattern when the layer it belonged to has no shader.
+    source: pick(raw.source, ["pattern", "shader"] as const, base.source),
     // "smooth" was a look until 2026-08; stored settings carrying it fall
     // back to auto here.
     style: pick(raw.style, ["auto", "native", "pixel", "led"] as const, base.style),
