@@ -1,6 +1,7 @@
 "use client";
 
-// Capture — the camera back: settings and the shutter, no window of its own.
+// Graphic Export — the camera back: settings and the shutter, no window of its
+// own.
 // The picture lives where pictures live: the Preview panel, whose 📷 camera
 // view (the viewfinder) shows the output render when you ask for it. This
 // panel picks the output (size, look, turn, backdrop), owns the 🔗 Director
@@ -17,6 +18,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import { buildAnySizePrompt } from "@/lib/lab/capture/anySizePrompt";
+import { buildShaderPrompt } from "@/lib/lab/capture/shaderPrompt";
+import { loadShaderSource, saveShaderSource } from "@/lib/lab/capture/shaderStore";
 import { captureSession } from "@/lib/lab/capture/session";
 import { resolveGeometry } from "@/lib/lab/capture/core";
 import { captureFileName, downloadBlob } from "@/lib/lab/capture/download";
@@ -35,6 +38,7 @@ import {
   SIZED_STYLES,
   type AutoVerdict,
   type CaptureSettings,
+  type ShaderStatus,
 } from "@/lib/lab/capture/types";
 import { bakeShowV2 } from "@/lib/lab/director/bake";
 import { sampleShow, toKnobFrames } from "@/lib/lab/director/sample";
@@ -53,6 +57,19 @@ const SHOW_RENDER_MAX_SECONDS = 600;
 const FRESH_TAKE_WARM_SECONDS = 2;
 /** Linked stills replay the show at this rate — state-exact by playhead. */
 const STILL_REPLAY_FPS = 30;
+/** A paste settles before it costs a compile. */
+const SHADER_SEND_DEBOUNCE_MS = 400;
+
+const SHADER_PLACEHOLDER = [
+  "Paste the shader here.",
+  "",
+  "void mainImage(out vec4 fragColor, in vec2 fragCoord) { … }",
+  "and, for anything that carries state between frames,",
+  "void mainState(out vec4 stateOut, in vec2 fragCoord) { … }",
+  "",
+  "uResolution · uTime · uFrame · uKnob · uKnobNorm · uBtnPressed · uBtnHeld",
+  "stateAt(fragCoord) · stateOffset(fragCoord, vec2(1.0, 0.0))",
+].join("\n");
 
 type LayerError = { id: string; name: string; text: string };
 
@@ -79,6 +96,13 @@ function focusCodeLayer() {
   return isCodeLayer(active) ? active : state.layers.find(isCodeLayer);
 }
 
+/** The same layer's id, as a store selector — the shader twin is filed under it. */
+function selectFocusCodeLayerId(state: ReturnType<typeof useLabStore.getState>): string | null {
+  const active = state.layers.find((layer) => layer.id === state.activeLayerId);
+  const layer = isCodeLayer(active) ? active : state.layers.find(isCodeLayer);
+  return layer?.id ?? null;
+}
+
 export default function CapturePanel() {
   const supported = captureSession.supported;
   const [settings, setSettings] = useState<CaptureSettings>(() => captureSession.settings());
@@ -88,6 +112,25 @@ export default function CapturePanel() {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
   const [promptCopied, setPromptCopied] = useState(false);
+  const [shaderPromptCopied, setShaderPromptCopied] = useState(false);
+
+  // ── the shader twin ──
+  // Source lives per code layer in the capture module's own storage; the panel
+  // is its editor, the worker compiles it, and the pattern never notices.
+  const focusLayerId = useLabStore(selectFocusCodeLayerId);
+  const [shaderText, setShaderText] = useState("");
+  const [shaderStatus, setShaderStatus] = useState<ShaderStatus | null>(null);
+  const [shaderFor, setShaderFor] = useState<string | null>(null);
+  const shaderSent = useRef<{ id: string | null; source: string } | null>(null);
+  // A different code layer is a different twin. Adjusting state during the
+  // render that noticed is React's own answer here — an effect for it would
+  // paint one frame of the previous layer's shader first.
+  if (focusLayerId !== shaderFor) {
+    const layer = focusCodeLayer();
+    setShaderFor(focusLayerId);
+    setShaderText(focusLayerId && layer ? loadShaderSource(focusLayerId, layer.code) : "");
+    setShaderStatus(null);
+  }
 
   // 🔗 Director link — linked, the show is the truth for every export; the
   // link lives on the shared show transport so the Director's Render…
@@ -106,7 +149,13 @@ export default function CapturePanel() {
   const matrix = useLabStore((state) => state.matrix);
   const exportingRef = useRef(false);
 
-  const geometry = resolveGeometry(settings, matrix);
+  // A shader always renders the output frame itself — the matrix looks
+  // (pixel, LED, the auto fallback) describe the lab's engine, not this one.
+  const shaderMode = settings.source === "shader";
+  const geometry = resolveGeometry(
+    shaderMode ? { ...settings, style: "native" } : settings,
+    matrix,
+  );
 
   const update = useCallback((patch: Partial<CaptureSettings>) => {
     setSettings((current) => normalizeCaptureSettings({ ...current, ...patch }));
@@ -123,6 +172,7 @@ export default function CapturePanel() {
     if (!supported) return;
     return captureSession.on({
       auto: setVerdict,
+      shader: setShaderStatus,
       errors: (raw) => setErrors(nameErrors(raw)),
       progress: (done, total) => {
         setExporting((current) => (current ? { ...current, done, total } : current));
@@ -136,6 +186,25 @@ export default function CapturePanel() {
     captureSession.applySettings(settings);
     saveCaptureSettings(settings);
   }, [settings]);
+
+  // The shader reaches the worker (and disk) on a trailing timer, so a paste
+  // costs one compile rather than one per keystroke — except when the layer
+  // itself changed, which is a swap, not an edit.
+  useEffect(() => {
+    const send = () => {
+      shaderSent.current = { id: focusLayerId, source: shaderText };
+      const layer = focusCodeLayer();
+      if (focusLayerId && layer) saveShaderSource(focusLayerId, layer.code, shaderText);
+      captureSession.setShaderSource(shaderText || null, focusLayerId);
+    };
+    if (shaderSent.current?.id !== focusLayerId) {
+      send();
+      return;
+    }
+    if (shaderSent.current.source === shaderText) return;
+    const timer = window.setTimeout(send, SHADER_SEND_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [shaderText, focusLayerId]);
 
   // ── exports ──
   const saveImage = async () => {
@@ -264,6 +333,28 @@ export default function CapturePanel() {
     }
   };
 
+  const copyShaderPrompt = async () => {
+    const layer = focusCodeLayer();
+    if (!layer) {
+      setMessage({ text: "No code layer to convert.", error: true });
+      return;
+    }
+    const state = useLabStore.getState();
+    try {
+      await navigator.clipboard.writeText(
+        buildShaderPrompt(layer.code, matrix, layer.ramp, state.ranges),
+      );
+      setShaderPromptCopied(true);
+      window.setTimeout(() => setShaderPromptCopied(false), 1200);
+      setMessage({
+        text: `GLSL prompt for "${layer.name}" copied — paste it into any AI, then paste the shader it returns into the box below. The pattern itself is left alone.`,
+        error: false,
+      });
+    } catch {
+      setMessage({ text: "Clipboard access was refused.", error: true });
+    }
+  };
+
   // ── native size entry ──
   const widthRef = useRef<HTMLInputElement | null>(null);
   const heightRef = useRef<HTMLInputElement | null>(null);
@@ -280,7 +371,7 @@ export default function CapturePanel() {
     return (
       <div className={dock.panel}>
         <div className={local.hint}>
-          Capture needs Web Workers and OffscreenCanvas — a current Chrome, Edge, Firefox or Safari.
+          Graphic Export needs Web Workers and OffscreenCanvas — a current Chrome, Edge, Firefox or Safari.
         </div>
       </div>
     );
@@ -304,21 +395,36 @@ export default function CapturePanel() {
           📷 Viewfinder
         </button>
         <label>
-          look
+          source
           <select
-            value={settings.style}
-            aria-label="Output look"
-            title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Pixel scales the panel frame up as crisp blocks. LED draws each pixel as a round light."
-            onChange={(event) => update({ style: event.target.value as CaptureSettings["style"] })}
+            value={settings.source}
+            aria-label="Render source"
+            title="Pattern renders the layer stack with the lab's own engine — the panel's picture, and what the hardware export bakes. Shader renders a GLSL twin of it on the GPU instead: output only, for sizes and frame rates the JS cannot reach."
+            onChange={(event) => update({ source: event.target.value as CaptureSettings["source"] })}
           >
-            <option value="auto">Auto</option>
-            <option value="native">Native (re-rendered)</option>
-            <option value="pixel">Pixel blocks</option>
-            <option value="led">LED dots</option>
+            <option value="pattern">Pattern (JS)</option>
+            <option value="shader">Shader (GLSL)</option>
           </select>
         </label>
 
-        {SIZED_STYLES.includes(settings.style) ? (
+        {!shaderMode && (
+          <label>
+            look
+            <select
+              value={settings.style}
+              aria-label="Output look"
+              title="Auto re-runs the pattern at the output size when a test render shows its code scales, and upscales the panel frame otherwise. Native always re-runs it. Pixel scales the panel frame up as crisp blocks. LED draws each pixel as a round light."
+              onChange={(event) => update({ style: event.target.value as CaptureSettings["style"] })}
+            >
+              <option value="auto">Auto</option>
+              <option value="native">Native (re-rendered)</option>
+              <option value="pixel">Pixel blocks</option>
+              <option value="led">LED dots</option>
+            </select>
+          </label>
+        )}
+
+        {shaderMode || SIZED_STYLES.includes(settings.style) ? (
           <span className={local.group}>
             <select
               value={preset?.id ?? "custom"}
@@ -425,10 +531,18 @@ export default function CapturePanel() {
           backdrop
           <select
             value={
-              settings.backdrop === "black" ? "black" : `${settings.backdrop}-${settings.cutout}`
+              settings.backdrop === "black"
+                ? "black"
+                : // A shader writes its own alpha, so it has no cutout model to
+                  // pick — the two transparency rows collapse into one option.
+                  `${settings.backdrop}-${shaderMode ? "dark" : settings.cutout}`
             }
             aria-label="Backdrop"
-            title="What sits behind the picture. 'Unpainted' keeps black paint and clears only untouched pixels; 'dark → clear' fades black away like light on paper."
+            title={
+              shaderMode
+                ? "What sits behind the picture. Transparency comes from the shader's own alpha."
+                : "What sits behind the picture. 'Unpainted' keeps black paint and clears only untouched pixels; 'dark → clear' fades black away like light on paper."
+            }
             onChange={(event) => {
               const value = event.target.value;
               if (value === "black") {
@@ -443,7 +557,12 @@ export default function CapturePanel() {
             }}
           >
             <option value="black">Panel black</option>
-            {settings.style === "led" ? (
+            {shaderMode ? (
+              <>
+                <option value="transparent-dark">Transparent</option>
+                <option value="color-dark">Solid color</option>
+              </>
+            ) : settings.style === "led" ? (
               <>
                 <option value="transparent-dark">Transparent</option>
                 <option value="color-dark">Solid color</option>
@@ -468,7 +587,7 @@ export default function CapturePanel() {
           />
         )}
 
-        {settings.style === "led" && (
+        {!shaderMode && settings.style === "led" && (
           <>
             <span className={local.slider} title="Dot diameter as a share of the cell">
               dot
@@ -497,7 +616,7 @@ export default function CapturePanel() {
           </>
         )}
 
-        {settings.style === "auto" && verdict && (
+        {!shaderMode && settings.style === "auto" && verdict && (
           <span className={local.verdict} data-verdict={verdict.verdict} title={verdict.detail}>
             auto → {verdict.description}
             {verdict.verdict === "upscale" &&
@@ -511,6 +630,17 @@ export default function CapturePanel() {
                   {promptCopied ? "Copied" : "Copy any-size prompt"}
                 </button>
               )}
+            {/* The one verdict a rewrite usually cannot lift: the code already
+                re-renders at any size, it just has nothing finer to draw. */}
+            {verdict.reason === "no-detail" && (
+              <button
+                type="button"
+                title="Switch this panel to a GLSL twin of the pattern — the way to fill a print size with real detail when the pattern samples a fixed internal grid"
+                onClick={() => update({ source: "shader" })}
+              >
+                Try a shader twin
+              </button>
+            )}
           </span>
         )}
       </div>
@@ -634,8 +764,54 @@ export default function CapturePanel() {
       </div>
 
       <div className={local.body}>
+        {shaderMode && (
+          <div className={local.shader}>
+            <div className={local.shaderBar}>
+              <button
+                type="button"
+                title="Copy a prompt that asks an AI to write this pattern as a GLSL fragment shader — same composition, resolution-independent, with the knobs and the ramp carried over. The pattern itself is never edited."
+                onClick={() => void copyShaderPrompt()}
+              >
+                {shaderPromptCopied ? "Copied" : "Copy GLSL prompt"}
+              </button>
+              <span className={local.readout} data-state={shaderStatus?.error ? "error" : undefined}>
+                {!shaderText.trim()
+                  ? "no shader yet — the stage is showing the pattern"
+                  : shaderStatus?.error
+                    ? "compile failed — the stage is showing the pattern"
+                    : shaderStatus?.loaded
+                      ? `compiled${shaderStatus.feedback ? ` · feedback pass (${shaderStatus.floatFeedback ? "float" : "8-bit"})` : ""}`
+                      : "compiling…"}
+              </span>
+              {shaderText.trim().length > 0 && (
+                <button
+                  type="button"
+                  title="Drop this layer's shader twin and go back to the pattern"
+                  onClick={() => setShaderText("")}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <textarea
+              className={local.shaderEditor}
+              value={shaderText}
+              spellCheck={false}
+              aria-label="Shader source"
+              placeholder={SHADER_PLACEHOLDER}
+              onChange={(event) => setShaderText(event.target.value)}
+            />
+            {shaderStatus?.error && (
+              <div className={styles.errorBox} style={{ marginTop: 0 }}>
+                {shaderStatus.error}
+              </div>
+            )}
+          </div>
+        )}
         <div className={local.hint}>
-          {linked
+          {shaderMode
+            ? "The shader is output only: the panel, the Director and the hardware export all keep running the pattern. Sizes, turns and the knobs work exactly as they do for one, and a shader that calls ramp(v) follows the Color Ramp panel live — the difference is that it fills a print size with real detail, at speed."
+            : linked
             ? "🔗 Linked — the show is the truth: Record renders the whole timeline, Save PNG the playhead's frame. Scrub in the Director, watch in the Preview."
             : view
               ? "📷 Camera view is on — the Preview panel shows this output render; exports capture the moment you see."

@@ -168,3 +168,49 @@
   font-size: 11px;
   line-height: 1.6;
 }
+
+/* ── the shader twin's editor ──
+   Only shown while the source is Shader: a bar (prompt, status, clear) over a
+   plain monospace box. Deliberately not Monaco — a shader arrives by paste,
+   and a second editor instance costs more than it gives here. */
+.shader {
+  display: grid;
+  gap: 8px;
+  padding: 10px 14px 0;
+}
+
+.shaderBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.shaderBar .readout[data-state="error"] {
+  color: #8a5a10;
+}
+
+.shaderEditor {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid rgba(23, 21, 18, 0.15);
+  border-radius: 4px;
+  background: rgba(23, 21, 18, 0.03);
+  color: rgba(23, 21, 18, 0.9);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  tab-size: 2;
+}
+
+.shaderEditor:focus {
+  outline: none;
+  border-color: rgba(23, 21, 18, 0.4);
+  background: rgba(23, 21, 18, 0.02);
+}
+
+.shaderEditor::placeholder {
+  color: rgba(23, 21, 18, 0.35);
+}

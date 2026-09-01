@@ -7,7 +7,7 @@
 //
 // Nobody can tell from the source, so the probe renders instead: the stack at
 // its own matrix and at an aspect-true multiple, both box-filtered down to the
-// matrix grid, and compares two things —
+// matrix grid, and compares three things —
 //
 //   layout     mean |difference| after a 3×3 blur (the blur forgives the
 //              jagged-vs-antialiased edges a correct re-render always has)
@@ -15,6 +15,11 @@
 //              in pixel units comes back with N× the stripes (ratio ≫ 1) or
 //              paints only its old frame (ratio ≪ 1); one that scales stays
 //              near 1.
+//   detail     what the first two structurally cannot see: whether the big
+//              render is finer than the grid it came from, or the same picture
+//              in bigger blocks. Both metrics compare box-filtered copies, and
+//              a block upscale filters down to exactly the original — a
+//              perfect score for a render that gained nothing.
 //
 // Thresholds come from all 46 bundled presets (scripts/_probe-experiment.ts):
 // the scale-safe ones sit at layout ≤ 22 / density 0.83–1.0, the baked ones
@@ -32,6 +37,7 @@ export type ProbeReason =
   | "scales"
   | "frame-baked"
   | "layout-changes"
+  | "no-detail"
   | "too-dark"
   | "non-deterministic"
   | "errors";
@@ -41,10 +47,29 @@ export type ProbeResult = {
   reason: ProbeReason;
   /** Grid the comparison render ran at. */
   probed: MatrixSize;
-  metrics: { layout: number; density: number; luminance: number; noise: number };
+  metrics: {
+    layout: number;
+    density: number;
+    luminance: number;
+    noise: number;
+    /** Share of the big render's cells that hold detail below matrix scale. */
+    detail: number;
+  };
 };
 
 export const PROBE_LAYOUT_MAX = 27;
+/**
+ * Below this share of textured cells the big render carries no information the
+ * matrix render did not — it is the same picture in bigger blocks.
+ *
+ * The usual author is a pattern that samples a fixed internal field (a
+ * simulation grid, a sprite table) with nearest lookups: honest code, and the
+ * shape an AI "any size" rewrite of a simulation comes back in. A composition
+ * of large flat cells lands here too at some knob settings, which is not a
+ * fault of the code — in both cases the upscale is pixel-identical to the
+ * native render and costs a fraction of it, so the verdict is the same.
+ */
+export const PROBE_DETAIL_MIN = 0.02;
 export const PROBE_DENSITY_MIN = 0.55;
 export const PROBE_DENSITY_MAX = 1.5;
 export const PROBE_LUMINANCE_MIN = 10;
@@ -143,6 +168,45 @@ function variation(source: Float32Array, width: number, height: number): number 
   return sum / (width * height);
 }
 
+/**
+ * The share of factor×factor cells whose pixels are not all identical — i.e.
+ * how much of the big render is finer than the matrix grid it came from. An
+ * exact nearest blow-up scores 0; a genuine re-render scores its edges, which
+ * for any real composition is a large fraction of the frame.
+ */
+export function blockDetail(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  factor: number,
+): number {
+  if (factor < 2) return 1;
+  let cells = 0;
+  let textured = 0;
+  for (let by = 0; by + factor <= height; by += factor) {
+    for (let bx = 0; bx + factor <= width; bx += factor) {
+      cells++;
+      const first = (by * width + bx) * 4;
+      let differs = false;
+      for (let y = by; y < by + factor && !differs; y++) {
+        for (let x = bx; x < bx + factor; x++) {
+          const index = (y * width + x) * 4;
+          if (
+            data[index] !== data[first] ||
+            data[index + 1] !== data[first + 1] ||
+            data[index + 2] !== data[first + 2]
+          ) {
+            differs = true;
+            break;
+          }
+        }
+      }
+      if (differs) textured++;
+    }
+  }
+  return cells === 0 ? 1 : textured / cells;
+}
+
 function luminance(source: Float32Array): number {
   let sum = 0;
   for (let i = 0; i < source.length; i += 3) {
@@ -209,6 +273,8 @@ export function probeScaling(project: CaptureProject): ProbeResult {
   let densityMin = Infinity;
   let densityMax = 0;
   let judged = 0;
+  let detail = 0;
+  const factor = Math.round(probed.width / matrix.width);
 
   for (let index = 0; index < small.samples.length; index++) {
     const a = boxDown(small.samples[index], matrix.width, matrix.height, matrix.width, matrix.height);
@@ -230,10 +296,16 @@ export function probeScaling(project: CaptureProject): ProbeResult {
     const ratio = variation(b, matrix.width, matrix.height) / variationA;
     densityMin = Math.min(densityMin, ratio);
     densityMax = Math.max(densityMax, ratio);
+    // Judged frames only: a dark or flat one is all identical cells and would
+    // read as a block upscale whatever the code does.
+    detail = Math.max(
+      detail,
+      blockDetail(big.samples[index], probed.width, probed.height, factor),
+    );
   }
 
   const density = judged > 0 ? (densityMin + densityMax) / 2 : 1;
-  const metrics = { layout, density, luminance: lum, noise };
+  const metrics = { layout, density, luminance: lum, noise, detail };
   const result = (verdict: ProbeVerdict, reason: ProbeReason): ProbeResult => ({
     verdict,
     reason,
@@ -250,6 +322,10 @@ export function probeScaling(project: CaptureProject): ProbeResult {
     return result("upscale", "frame-baked");
   }
   if (layout > PROBE_LAYOUT_MAX) return result("upscale", "layout-changes");
+  // Last, and only for code that passed everything else: it re-renders
+  // faithfully but adds nothing. Upscaling the matrix frame is then the same
+  // picture for a fraction of the work — and the panel can say so.
+  if (detail < PROBE_DETAIL_MIN) return result("upscale", "no-detail");
   return result("native", "scales");
 }
 
@@ -296,6 +372,8 @@ export function describeProbe(result: ProbeResult): string {
       return "upscaled — the frame size is baked into the code (re-rendering would tile or crop it)";
     case "layout-changes":
       return "upscaled — the picture changes with resolution";
+    case "no-detail":
+      return "upscaled — it re-renders at any size but draws nothing finer there, so the blow-up is the same picture for a fraction of the work";
     case "too-dark":
       return "upscaled — too dark or too flat to verify a re-render";
     case "non-deterministic":

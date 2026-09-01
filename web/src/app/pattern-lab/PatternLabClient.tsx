@@ -4,7 +4,7 @@
 //
 // The old lab was one pattern + one fixed two-column layout. This shell hosts
 // eight dockable panels (dockview) over a layer-stack project (zustand):
-// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Capture. Panels rearrange
+// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Graphic Export. Panels rearrange
 // Photoshop-style — drag tabs, split groups, float — and the arrangement
 // persists to localStorage alongside the project itself.
 //
@@ -72,7 +72,7 @@ const PANEL_DEFS = [
   { id: "ramp", title: "Color Ramp" },
   // Output stage (stills/clips at print sizes) — an add-on module, see
   // lib/lab/capture. Registered here and nowhere else.
-  { id: "capture", title: "Capture" },
+  { id: "capture", title: "Graphic Export" },
   // Knob automation over time (lib/lab/director) — the show that publishes
   // alongside the pattern.
   { id: "director", title: "Director" },
@@ -126,7 +126,7 @@ function buildDefaultLayout(api: DockviewApi) {
   api.addPanel({
     id: "capture",
     component: "capture",
-    title: "Capture",
+    title: "Graphic Export",
     position: { referencePanel: "code", direction: "within" },
   });
   api.addPanel({
@@ -404,6 +404,14 @@ export default function PatternLabClient() {
         } catch {
           // A half-built layout is still usable; panels can be opened manually.
         }
+      }
+      // Titles belong to PANEL_DEFS, not to the saved layout: a restored dock
+      // remembers the name a panel had when it was last moved, so a rename
+      // (Capture → Graphic Export, 2026-09) would only reach people who reset
+      // their layout otherwise.
+      for (const def of PANEL_DEFS) {
+        const panel = api.getPanel(def.id);
+        if (panel && panel.title !== def.title) panel.api.setTitle(def.title);
       }
       syncOpenPanels(api);
 

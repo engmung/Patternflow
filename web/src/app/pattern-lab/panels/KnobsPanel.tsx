@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { labEngine } from "@/lib/lab/engine";
+import { captureSession } from "@/lib/lab/capture/session";
 import { useLabStore } from "@/lib/lab/store";
 import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
@@ -51,6 +52,28 @@ function getDigitStep(text: string, index: number) {
   }
 
   return 10 ** -(index - decimalIndex);
+}
+
+/**
+ * A press goes to both engines: the live preview's, and — when the Graphic
+ * Export stage is running — its own. They are separate engines with separate
+ * pattern state, so a button that reseeds or triggers has to be told twice or
+ * the export never sees the moment you pressed for. The session ignores the
+ * call when no stage exists.
+ */
+function pressKnobButton(index: number) {
+  labEngine.pressButton(index);
+  captureSession.pressButton(index);
+}
+
+function releaseKnobButton(index: number) {
+  labEngine.releaseButton(index);
+  captureSession.releaseButton(index);
+}
+
+function releaseAllKnobButtons() {
+  labEngine.releaseAllButtons();
+  captureSession.releaseAllButtons();
 }
 
 export default function KnobsPanel() {
@@ -113,7 +136,7 @@ export default function KnobsPanel() {
 
   // Encoder buttons release on any global pointer-up, mirroring hardware.
   useEffect(() => {
-    const releaseAll = () => labEngine.releaseAllButtons();
+    const releaseAll = () => releaseAllKnobButtons();
     window.addEventListener("pointerup", releaseAll);
     window.addEventListener("pointercancel", releaseAll);
     window.addEventListener("blur", releaseAll);
@@ -234,19 +257,19 @@ export default function KnobsPanel() {
                   title="Encoder button (short press) — hits the active code layer"
                   onPointerDown={(event) => {
                     event.preventDefault();
-                    labEngine.pressButton(index);
+                    pressKnobButton(index);
                   }}
-                  onPointerUp={() => labEngine.releaseButton(index)}
-                  onPointerLeave={() => labEngine.releaseButton(index)}
+                  onPointerUp={() => releaseKnobButton(index)}
+                  onPointerLeave={() => releaseKnobButton(index)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      labEngine.pressButton(index);
+                      pressKnobButton(index);
                     }
                   }}
                   onKeyUp={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
-                      labEngine.releaseButton(index);
+                      releaseKnobButton(index);
                     }
                   }}
                 >
