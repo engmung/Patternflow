@@ -4,7 +4,7 @@
 // keeps is a staging canvas for the frame pixels.
 
 import type { CaptureFrame } from "./core";
-import type { CaptureSettings } from "./types";
+import type { CaptureGeometry, CaptureSettings } from "./types";
 
 type Canvas2D = OffscreenCanvas | HTMLCanvasElement;
 type Context2D = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
@@ -55,8 +55,8 @@ export class StagePainter {
    * coordinates (render × scale) and lands turned clockwise by `rotation`
    * inside the output frame.
    */
-  private turn(context: Context2D, frame: CaptureFrame) {
-    const { output, rotation } = frame.geometry;
+  private turn(context: Context2D, geometry: CaptureGeometry) {
+    const { output, rotation } = geometry;
     if (rotation === 90) {
       context.translate(output.width, 0);
       context.rotate(Math.PI / 2);
@@ -69,13 +69,46 @@ export class StagePainter {
     }
   }
 
+  /**
+   * Place an already-rendered picture — the shader stage's GL canvas — in the
+   * output frame: backdrop, turn, blit. It arrives at the render size with
+   * straight alpha, so the backdrop control means the same thing it does for
+   * a pattern; the cutout controls do not apply, the shader's own alpha is
+   * the cutout.
+   */
+  paintCanvas(
+    canvas: Canvas2D,
+    source: CanvasImageSource,
+    geometry: CaptureGeometry,
+    settings: CaptureSettings,
+  ) {
+    const { output, render, scale, offsetX, offsetY } = geometry;
+    resize(canvas, output.width, output.height);
+    const context = context2D(canvas);
+    this.backdrop(context, settings, output.width, output.height);
+    this.turn(context, geometry);
+    context.imageSmoothingEnabled = false;
+    context.drawImage(
+      source,
+      0,
+      0,
+      render.width,
+      render.height,
+      offsetX,
+      offsetY,
+      render.width * scale,
+      render.height * scale,
+    );
+    context.imageSmoothingEnabled = true;
+  }
+
   paint(canvas: Canvas2D, frame: CaptureFrame, settings: CaptureSettings) {
     const { output, render, scale, look, offsetX, offsetY } = frame.geometry;
     resize(canvas, output.width, output.height);
     const context = context2D(canvas);
     this.backdrop(context, settings, output.width, output.height);
     const staging = this.stage(frame);
-    this.turn(context, frame);
+    this.turn(context, frame.geometry);
     // Where the scaled render lands inside the unturned box.
     const drawWidth = render.width * scale;
     const drawHeight = render.height * scale;

@@ -5,7 +5,7 @@
 // LabEngine, paints the composite, and mirrors per-layer errors back into the
 // store (throttled) for the Layers/Code panels.
 //
-// Camera view (📷): Blender's numpad-0 for the lab. When the Capture panel's
+// Camera view (📷): Blender's numpad-0 for the lab. When the Graphic Export
 // viewfinder is on, this panel shows the CAPTURE OUTPUT render — the capture
 // worker's frames at the output size, look, backdrop and turn — instead of
 // the matrix composite; a chip in the header names the borrowed view and
@@ -212,7 +212,7 @@ export default function PreviewPanel() {
           <button
             type="button"
             className={styles.cameraChip}
-            title="Camera view — showing the Capture output render. The project frame stays as picked here; click to go back to it."
+            title="Camera view — showing the Graphic Export render. The project frame stays as picked here; click to go back to it."
             onClick={() => captureSession.setView(false)}
           >
             📷 {camera.output ? `${camera.output.width} × ${camera.output.height}` : "output"} · exit

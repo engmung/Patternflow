@@ -12,10 +12,13 @@
 // encodes it; a clip steps the clock at a fixed 1/fps from the current
 // moment, so what the stage shows when you press Record is the first frame.
 
-import { CaptureCore, clampScale, mergeWireProject, resolveGeometry, type CaptureFrame } from "./core";
+import { CaptureCore, clampScale, mergeWireProject, resolveGeometry } from "./core";
 import type { MatrixSize } from "@/lib/patternMatrix";
 import { StagePainter } from "./paint";
 import { describeProbe, probeKey, probeScaling, type ProbeResult } from "./probe";
+import { ShaderStage } from "./shaderStage";
+import { buildShaderRampLUT } from "./shaderRamp";
+import { isCodeLayer, type RampState } from "../types";
 import {
   DEFAULT_CAPTURE_SETTINGS,
   type AutoVerdict,
@@ -23,6 +26,7 @@ import {
   type CaptureProject,
   type CaptureSettings,
   type FromWorker,
+  type ShaderStatus,
   type ShowAutomation,
   type ToWorker,
   type VideoRequest,
@@ -43,6 +47,7 @@ const EXPORT_PREVIEW_INTERVAL_MS = 120;
 const PREVIEW_PIXEL_BUDGET = 1_200_000;
 
 const core = new CaptureCore(DEFAULT_CAPTURE_SETTINGS);
+const shader = new ShaderStage((width, height) => new OffscreenCanvas(width, height));
 const painter = new StagePainter((width, height) => new OffscreenCanvas(width, height));
 const stage = new OffscreenCanvas(1, 1);
 
@@ -68,7 +73,155 @@ function post(message: FromWorker, transfer?: Transferable[]) {
 }
 
 function postState() {
-  post({ type: "state", time: core.time, playing });
+  post({ type: "state", time: stageTime(), playing });
+}
+
+// ── the two renderers, behind one shape ──
+// Everything below this line — the live tick, stills, clips, show automation,
+// warm-ups — drives `stepStage` and never asks which renderer answered.
+
+/**
+ * A frame from whichever stage is running: enough for the frame message plus
+ * the one thing only the renderer knows, how to put itself on a canvas.
+ */
+type StageStep = {
+  geometry: CaptureGeometry;
+  time: number;
+  renderMs: number;
+  errors: Record<string, string>;
+  paint(target: OffscreenCanvas, settings: CaptureSettings): void;
+};
+
+/**
+ * The shader answers only when the panel asked for it AND it compiled: a
+ * broken twin falls back to the pattern rather than showing black, and the
+ * panel says why through the shader status.
+ */
+function usingShader(): boolean {
+  return core.settings.source === "shader" && shader.hasSource && shader.error === null;
+}
+
+/**
+ * The layer whose colour ramp the twin reads: the one the panel filed it
+ * under, else the active code layer, else the topmost — the same rule the
+ * panel uses to pick what a prompt targets.
+ */
+function shaderLayer() {
+  if (!project) return null;
+  const named = project.layers.find((layer) => layer.id === shaderLayerId);
+  if (isCodeLayer(named)) return named;
+  const active = project.layers.find((layer) => layer.id === project!.activeLayerId);
+  if (isCodeLayer(active)) return active;
+  return project.layers.find(isCodeLayer) ?? null;
+}
+
+/**
+ * Keep the shader's ramp texture in step with the panel. Ramp state is
+ * immutable in the store, so identity is enough to tell an edit from a
+ * re-render — no rebuild while a knob is being dragged.
+ */
+function syncShaderRamp(): boolean {
+  const layer = shaderLayer();
+  const ramp: RampState | null = layer ? layer.ramp : null;
+  if (ramp === shaderRamp) return false;
+  shaderRamp = ramp;
+  if (ramp) shader.setRamp(buildShaderRampLUT(ramp), ramp.mode !== "step");
+  return true;
+}
+
+function shaderStatus(): ShaderStatus {
+  return {
+    loaded: shader.hasSource,
+    error: shader.error,
+    floatFeedback: shader.floatFeedback,
+    feedback: shader.hasFeedback,
+  };
+}
+
+function postShaderStatus() {
+  post({ type: "shader-status", status: shaderStatus() });
+}
+
+/**
+ * Knobs a render drives itself — a show's automation frame by frame, a clip's
+ * pinned values — overriding the live project's for the length of the export.
+ * Null outside one, so the stage follows the panel again the moment it ends.
+ */
+let knobOverride: number[] | null = null;
+
+/** The code layer the twin belongs to, and the ramp last uploaded for it. */
+let shaderLayerId: string | null = null;
+let shaderRamp: RampState | null = null;
+
+function setStageKnobs(knobs: number[] | null) {
+  knobOverride = knobs;
+  if (knobs) core.setKnobs(knobs);
+}
+
+/** Knobs as the shader wants them: the real values, and the same 0..1. */
+function shaderKnobs() {
+  if (!project) return;
+  const values = knobOverride ?? project.knobs;
+  const normalized = values.map((value, index) => {
+    const range = project!.ranges[index] ?? [0, 1];
+    const span = Math.max(0.0001, range[1] - range[0]);
+    return (value - range[0]) / span;
+  });
+  shader.setKnobs(values, normalized);
+}
+
+/**
+ * The shader always renders at the output size — a GPU has no reason to be
+ * spared, and its feedback state is bound to the grid it runs on, so a
+ * reduced preview would be a different simulation, not a smaller picture.
+ * Rotation still turns the frame, exactly as it does for a pattern.
+ */
+function shaderGeometry(): CaptureGeometry | null {
+  if (!project) return null;
+  return resolveGeometry({ ...core.settings, style: "native" }, project.matrix);
+}
+
+function stageTime(): number {
+  return usingShader() ? shader.time : core.time;
+}
+
+function stageGeometry(): CaptureGeometry | null {
+  return usingShader() ? shaderGeometry() : core.geometry();
+}
+
+/** Fresh take on whichever stage is running. */
+function resetStage() {
+  if (usingShader()) {
+    shader.reset();
+    return;
+  }
+  core.reset();
+}
+
+function stepStage(dt: number, geometryOverride?: CaptureGeometry): StageStep | null {
+  if (usingShader()) {
+    const geometry = geometryOverride ?? shaderGeometry();
+    if (!geometry) return null;
+    shaderKnobs();
+    const frame = shader.step(dt, geometry);
+    if (!frame) return null;
+    return {
+      geometry: frame.geometry,
+      time: frame.time,
+      renderMs: frame.renderMs,
+      errors: {},
+      paint: (target, settings) => painter.paintCanvas(target, frame.canvas, frame.geometry, settings),
+    };
+  }
+  const frame = core.step(dt, geometryOverride);
+  if (!frame) return null;
+  return {
+    geometry: frame.geometry,
+    time: frame.time,
+    renderMs: frame.renderMs,
+    errors: frame.errors,
+    paint: (target, settings) => painter.paint(target, frame, settings),
+  };
 }
 
 /**
@@ -77,7 +230,7 @@ function postState() {
  * hiccup on the stage, never on the lab.
  */
 function refreshProbe() {
-  if (!project || core.settings.style !== "auto") return;
+  if (!project || core.settings.style !== "auto" || usingShader()) return;
   const key = probeKey(project);
   if (probe && probe.key === key) return;
   probe = { key, result: probeScaling(project) };
@@ -117,12 +270,16 @@ const WARM_STEP = 1 / 30;
 /** How far the stage runs in when it wakes cold (matches fresh takes). */
 const STAGE_WARM_SECONDS = 2;
 
-/** Run a fresh-take warm-up: `seconds` of pattern time at matrix size. */
+/**
+ * Run a fresh-take warm-up: `seconds` of pattern time at matrix size — or,
+ * for a shader, at the output size, because its feedback state IS the frame
+ * and warming a smaller one would warm a different simulation.
+ */
 function warmTo(seconds: number) {
   if (!project) return;
-  const warm = warmGeometry(project.matrix);
   const steps = Math.max(1, Math.round(seconds / WARM_STEP));
-  for (let index = 0; index < steps; index++) core.step(WARM_STEP, warm);
+  const warm = usingShader() ? shaderGeometry() ?? undefined : warmGeometry(project.matrix);
+  for (let index = 0; index < steps; index++) stepStage(WARM_STEP, warm);
 }
 
 /** The verdict travels on its own: the controls need it with no frames flowing. */
@@ -131,18 +288,18 @@ function postAuto() {
 }
 
 function autoVerdict(): AutoVerdict | null {
-  if (core.settings.style !== "auto" || !probe) return null;
+  if (core.settings.style !== "auto" || !probe || usingShader()) return null;
   const { metrics, probed } = probe.result;
   return {
     verdict: probe.result.verdict,
     reason: probe.result.reason,
     description: describeProbe(probe.result),
-    detail: `probed at ${probed.width}×${probed.height} · layout ${metrics.layout.toFixed(1)} · density ×${metrics.density.toFixed(2)} · luminance ${metrics.luminance.toFixed(0)} · noise ${metrics.noise.toFixed(1)}`,
+    detail: `probed at ${probed.width}×${probed.height} · layout ${metrics.layout.toFixed(1)} · density ×${metrics.density.toFixed(2)} · detail ${(metrics.detail * 100).toFixed(0)}% · luminance ${metrics.luminance.toFixed(0)} · noise ${metrics.noise.toFixed(1)}`,
   };
 }
 
 function frameMessage(
-  frame: CaptureFrame,
+  frame: StageStep,
   bitmap: ImageBitmap,
   preview: number | null = null,
 ): FromWorker {
@@ -168,7 +325,7 @@ function frameMessage(
  * so cover fits, offsets and rotation stay exactly the export's, smaller.
  */
 function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor: number } | null {
-  if (!project) return null;
+  if (!project || usingShader()) return null;
   // Native re-runs the pattern code on the stage grid: shrink that grid and
   // pixel-unit math draws a different picture, not a smaller one. Never
   // reduce it — a slow exact stage is a preview, a fast different one isn't.
@@ -196,12 +353,12 @@ function previewFor(full: CaptureGeometry): { geometry: CaptureGeometry; factor:
 }
 
 function renderAndPost(dt: number) {
-  const full = core.geometry();
+  const full = stageGeometry();
   if (!full) return;
   const preview = previewFor(full);
-  const frame = core.step(dt, preview?.geometry);
+  const frame = stepStage(dt, preview?.geometry);
   if (!frame) return;
-  painter.paint(stage, frame, core.settings);
+  frame.paint(stage, core.settings);
   const bitmap = stage.transferToImageBitmap();
   awaitingAck = true;
   post(frameMessage(frame, bitmap, preview?.factor ?? null), [bitmap]);
@@ -216,6 +373,8 @@ function requestTick() {
 function tick() {
   tickScheduled = false;
   if (exporting || awaitingAck || !visible || !core.ready) return;
+  // A shader take is exact, so the pattern's frame-shown pacing is all the
+  // budget it needs; nothing else about the loop changes.
   const now = performance.now();
   if (playing) {
     const dt = Math.min(MAX_DT, Math.max(0, (now - lastTick) / 1000));
@@ -245,42 +404,45 @@ async function exportImage(
   exporting = true;
   try {
     if (!project) throw new Error("Nothing to capture yet.");
-    let frame: CaptureFrame | null = null;
+    let frame: StageStep | null = null;
     if (automation) {
       // The show's frame at the playhead: replay the automation from t = 0 —
       // state and all — at matrix size, and render only the last frame big.
-      // Frame-exact with what a show render shows at that moment.
-      core.reset();
+      // Frame-exact with what a show render shows at that moment. A shader
+      // replays at the output size throughout: its state lives on that grid.
+      resetStage();
       const dt = 1 / automation.fps;
-      const warm = warmGeometry(project.matrix);
+      const warm = usingShader() ? shaderGeometry() ?? undefined : warmGeometry(project.matrix);
       for (let index = 0; index < automation.frames; index++) {
         const base = index * 4;
-        core.setKnobs([
+        setStageKnobs([
           automation.knobs[base],
           automation.knobs[base + 1],
           automation.knobs[base + 2],
           automation.knobs[base + 3],
         ]);
-        frame = core.step(dt, index < automation.frames - 1 ? warm : undefined);
+        frame = stepStage(dt, index < automation.frames - 1 ? warm : undefined);
       }
-      if (!frame) frame = core.step(0);
+      if (!frame) frame = stepStage(0);
     } else if (warmSeconds && warmSeconds > 0) {
       // Viewfinder off: a fresh take, warmed a moment in — deterministic,
       // and never a cold t = 0 frame of a pattern that starts dark.
-      core.reset();
+      resetStage();
       warmTo(warmSeconds);
-      frame = core.step(0);
+      frame = stepStage(0);
     } else {
       // The stage's current moment — exactly what the viewfinder shows.
-      frame = core.step(0);
+      frame = stepStage(0);
     }
     if (!frame) throw new Error("Nothing to capture yet.");
-    painter.paint(stage, frame, core.settings);
+    frame.paint(stage, core.settings);
     const blob = await stage.convertToBlob({ type: "image/png" });
     post({ type: "image", requestId, blob });
   } catch (error) {
     post({ type: "failed", requestId, message: describe(error) });
   } finally {
+    setStageKnobs(null);
+    if (project) core.setProject(project);
     exporting = false;
     // The stage canvas still holds the still; repaint it for the live view.
     markDirty();
@@ -302,15 +464,15 @@ async function exportVideo(
   // overrides them per frame from the automation instead.
   const pinnedKnobs = project ? [...project.knobs] : null;
   try {
-    const geometry = core.geometry();
+    const geometry = stageGeometry();
     if (!geometry) throw new Error("Nothing to capture yet.");
     // A show is a take from t = 0: fresh pattern state. A clip with the
     // viewfinder off is a fresh take too, warmed a moment in; with it on,
     // the clip records from the stage's current moment — what you see.
     if (automation) {
-      core.reset();
+      resetStage();
     } else if (warmSeconds && warmSeconds > 0 && project) {
-      core.reset();
+      resetStage();
       warmTo(warmSeconds);
     }
 
@@ -366,18 +528,18 @@ async function exportVideo(
         if (cancelRequested) throw new Error("cancelled");
         if (automation) {
           const base = index * 4;
-          core.setKnobs([
+          setStageKnobs([
             automation.knobs[base],
             automation.knobs[base + 1],
             automation.knobs[base + 2],
             automation.knobs[base + 3],
           ]);
         } else if (pinnedKnobs) {
-          core.setKnobs(pinnedKnobs);
+          setStageKnobs(pinnedKnobs);
         }
-        const frame = core.step(dt);
+        const frame = stepStage(dt);
         if (!frame) throw new Error("Project vanished mid-render.");
-        painter.paint(stage, frame, settings);
+        frame.paint(stage, settings);
         if (encodeCanvas !== stage) {
           const context = encodeCanvas.getContext("2d")!;
           context.fillStyle = settings.backdrop === "color" ? settings.backdropColor : "#000000";
@@ -412,6 +574,7 @@ async function exportVideo(
     post({ type: "failed", requestId, message: describe(error) });
   } finally {
     core.setSettings(liveSettings);
+    setStageKnobs(null);
     // Back to the live project wholesale — knobs and any edits that streamed
     // in while the export ran.
     if (project) core.setProject(project);
@@ -438,6 +601,8 @@ scope.onmessage = (event) => {
     case "project": {
       project = mergeWireProject(project, message.project);
       core.setProject(project);
+      // A ramp edit arrives as a project update like any other: repaint.
+      if (syncShaderRamp() && usingShader()) markDirty();
       // First project: probe right away so the very first frame is already
       // the right look; afterwards let edits and drags settle.
       if (!probe) {
@@ -450,9 +615,41 @@ scope.onmessage = (event) => {
       return;
     }
     case "settings": {
+      const before = core.settings.source;
       core.setSettings(message.settings);
+      // Switching renderer is a cut, not a dissolve: the incoming stage starts
+      // its own take rather than inheriting a clock it never ran.
+      if (message.settings.source !== before) {
+        resetStage();
+        warmTo(STAGE_WARM_SECONDS);
+        postState();
+      }
       refreshProbe();
       postAuto();
+      markDirty();
+      return;
+    }
+    case "shader": {
+      shaderLayerId = message.layerId;
+      shader.setSource(message.source);
+      syncShaderRamp();
+      shader.prepare();
+      postShaderStatus();
+      if (core.settings.source === "shader") {
+        postAuto();
+        markDirty();
+      }
+      return;
+    }
+    case "button": {
+      if (message.down) {
+        core.pressButton(message.index);
+        shader.pressButton(message.index);
+      } else {
+        core.releaseButton(message.index);
+        shader.releaseButton(message.index);
+      }
+      // A press has to reach a frame to be seen: a paused stage renders one.
       markDirty();
       return;
     }
@@ -462,7 +659,7 @@ scope.onmessage = (event) => {
         // The stage idles until the viewfinder opens; a first frame at the
         // pattern's cold t = 0 is black more often than not. Wake it the way
         // a fresh take starts: warmed a moment in, at matrix size.
-        if (core.ready && core.time === 0) warmTo(STAGE_WARM_SECONDS);
+        if (core.ready && stageTime() === 0) warmTo(STAGE_WARM_SECONDS);
         lastTick = performance.now();
         markDirty();
       }
@@ -482,7 +679,7 @@ scope.onmessage = (event) => {
       return;
     }
     case "restart": {
-      core.reset();
+      resetStage();
       lastTick = performance.now();
       postState();
       markDirty();
@@ -495,7 +692,9 @@ scope.onmessage = (event) => {
       // Backwards only moves the clock: pattern state cannot be un-updated,
       // so a negative step re-draws the earlier moment without an update.
       if (message.frames >= 0) {
-        for (let index = 0; index < message.frames; index++) core.step(dt);
+        for (let index = 0; index < message.frames; index++) stepStage(dt);
+      } else if (usingShader()) {
+        shader.time = Math.max(0, shader.time + message.frames * dt);
       } else {
         core.time = Math.max(0, core.time + message.frames * dt);
       }

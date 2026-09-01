@@ -218,6 +218,20 @@ export class CaptureCore {
     if (this.project) this.project = { ...this.project, knobs };
   }
 
+  /**
+   * The knob push buttons, forwarded to this stage's own engine. The Knobs
+   * panel presses the live preview's engine; without these the stage never
+   * saw a press, so a pattern that reseeds or triggers on a button could not
+   * be driven into the state you wanted to export.
+   */
+  pressButton(index: number) {
+    this.engine.pressButton(index);
+  }
+
+  releaseButton(index: number) {
+    this.engine.releaseButton(index);
+  }
+
   geometry(): CaptureGeometry | null {
     if (!this.project) return null;
     return resolveGeometry(this.settings, this.project.matrix, this.autoLook);

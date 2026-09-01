@@ -22,6 +22,7 @@ import type {
   AutoVerdict,
   CaptureSettings,
   FrameMessage,
+  ShaderStatus,
   ShowAutomation,
   VideoRequest,
 } from "./types";
@@ -41,6 +42,8 @@ export type CaptureSessionEvents = {
   /** Per-layer errors from the latest frame, named for people. */
   errors?: (errors: Record<string, string>) => void;
   auto?: (auto: AutoVerdict | null) => void;
+  /** How the shader twin compiled, whenever a source arrives. */
+  shader?: (status: ShaderStatus) => void;
   progress?: (done: number, total: number) => void;
   fatal?: (message: string) => void;
 };
@@ -54,6 +57,17 @@ type Session = {
   attachViewfinder(canvas: HTMLCanvasElement): () => void;
   /** Settings changes flow through here (the Capture panel owns the state). */
   applySettings(settings: CaptureSettings): void;
+  /** The GLSL twin for a code layer, or null to drop it. */
+  setShaderSource(source: string | null, layerId: string | null): void;
+  /**
+   * Knob push buttons. The Knobs panel presses the live engine directly; these
+   * carry the same press to the stage's engine — and to a shader's uBtn
+   * uniforms — so what you can trigger in the preview you can also export.
+   * They never start the worker: no camera, nothing to press.
+   */
+  pressButton(index: number): void;
+  releaseButton(index: number): void;
+  releaseAllButtons(): void;
   /** Latest settings the session pushed — for output-size labels. */
   settings(): CaptureSettings;
   /** Flush the project to the worker NOW (exports call this first). */
@@ -72,6 +86,8 @@ function createSession(): Session {
   const supported = captureSupported();
   let client: CaptureClient | null = null;
   let settings: CaptureSettings = loadCaptureSettings();
+  let shaderSource: string | null = null;
+  let shaderLayerId: string | null = null;
   let view = false;
   let output: { width: number; height: number } | null = null;
   let canvas: HTMLCanvasElement | null = null;
@@ -166,12 +182,16 @@ function createSession(): Session {
       onAuto: (auto) => {
         for (const listener of eventListeners) listener.auto?.(auto);
       },
+      onShader: (status) => {
+        for (const listener of eventListeners) listener.shader?.(status);
+      },
       onFatal: (message) => {
         for (const listener of eventListeners) listener.fatal?.(message);
       },
     });
     client.sendSettings(settings);
     client.sendProject(projectSlice());
+    if (shaderSource) client.sendShader(shaderSource, shaderLayerId);
     useLabStore.subscribe((state, previous) => {
       if (
         state.layers !== previous.layers ||
@@ -221,6 +241,20 @@ function createSession(): Session {
     applySettings(next) {
       settings = next;
       ensure()?.sendSettings(next);
+    },
+    setShaderSource(source, layerId) {
+      shaderSource = source && source.trim() ? source : null;
+      shaderLayerId = layerId;
+      ensure()?.sendShader(shaderSource, layerId);
+    },
+    pressButton(index) {
+      client?.pressButton(index);
+    },
+    releaseButton(index) {
+      client?.releaseButton(index);
+    },
+    releaseAllButtons() {
+      for (let index = 0; index < 4; index++) client?.releaseButton(index);
     },
     settings: () => settings,
     sendProjectNow() {

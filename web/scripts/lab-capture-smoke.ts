@@ -12,7 +12,19 @@ import {
   unmultiply,
   unpremultiply,
 } from "../src/lib/lab/capture/core";
-import { probeScaling } from "../src/lib/lab/capture/probe";
+import { blockDetail, PROBE_LAYOUT_MAX, probeScaling } from "../src/lib/lab/capture/probe";
+import {
+  buildFragmentSource,
+  checkShaderSource,
+  declaresPass,
+  remapShaderLog,
+  SHADER_PREAMBLE,
+} from "../src/lib/lab/capture/shaderSource";
+import { buildShaderPrompt } from "../src/lib/lab/capture/shaderPrompt";
+import { SHADER_RAMP_SIZE, buildShaderRampLUT } from "../src/lib/lab/capture/shaderRamp";
+import { rampStateToHarness } from "../src/lib/lab/engine";
+import { sampleRampRGBA } from "../src/lib/patternHarness";
+import { DEFAULT_RAMP_STATE, type RampState } from "../src/lib/lab/types";
 import { normalizeCaptureSettings } from "../src/lib/lab/capture/settings";
 import { DEFAULT_CAPTURE_SETTINGS, type WireProject } from "../src/lib/lab/capture/types";
 import { codeLayerFromSource } from "../src/lib/lab/store";
@@ -112,6 +124,62 @@ export function draw(display, params, time) {
   for (let y = 0; y < display.height; y++) for (let x = 0; x < display.width; x++) display.setValue(x, y, 0.01);
 }`));
   assert(dark.verdict === "upscale" && dark.reason === "too-dark", `dark pattern: ${dark.reason}`);
+
+  // The blind spot the "no-detail" verdict closes: this one re-renders happily
+  // at any size and draws the SAME picture in bigger blocks, because it samples
+  // a fixed internal field. Layout and density score it perfect — a block
+  // upscale box-filters back to exactly the original — so only the detail
+  // metric catches it. (This is the shape an AI "any size" rewrite of a
+  // simulation pattern comes back in.)
+  const upsampler = probeScaling(project(`export function setup(params) {
+  params.W = 32; params.H = 16;
+  params.field = new Float32Array(params.W * params.H);
+  for (let y = 0; y < params.H; y++) for (let x = 0; x < params.W; x++)
+    params.field[y * params.W + x] = ((x * 7 + y * 13) % 11) / 10;
+}
+export function draw(display, params, time) {
+  for (let y = 0; y < display.height; y++) {
+    const sy = Math.min(params.H - 1, (y * params.H / display.height) | 0);
+    for (let x = 0; x < display.width; x++) {
+      const sx = Math.min(params.W - 1, (x * params.W / display.width) | 0);
+      display.setValue(x, y, params.field[sy * params.W + sx]);
+    }
+  }
+}`));
+  assert(
+    upsampler.verdict === "upscale" && upsampler.reason === "no-detail",
+    `self-upscaling pattern: ${upsampler.reason} ${JSON.stringify(upsampler.metrics)}`,
+  );
+  assert(
+    upsampler.metrics.layout < PROBE_LAYOUT_MAX && upsampler.metrics.density > 0.55,
+    "and it got there past a perfect layout/density score",
+  );
+  assert(safe.metrics.detail > 0.2, `a real re-render carries detail: ${safe.metrics.detail}`);
+}
+
+// ── block detail ──
+{
+  const grid = (width: number, height: number, fill: (x: number, y: number) => number) => {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const value = fill(x, y);
+        const index = (y * width + x) * 4;
+        data[index] = value;
+        data[index + 1] = value;
+        data[index + 2] = value;
+        data[index + 3] = 255;
+      }
+    }
+    return data;
+  };
+  // A 4× nearest blow-up: every 4×4 cell is one colour.
+  const blown = grid(32, 32, (x, y) => (((x >> 2) + (y >> 2)) % 2) * 200);
+  assert(blockDetail(blown, 32, 32, 4) === 0, "an exact block upscale has no detail");
+  // The same picture actually re-rendered finer.
+  const fine = grid(32, 32, (x, y) => ((x + y) % 2) * 200);
+  assert(blockDetail(fine, 32, 32, 4) === 1, "a per-pixel picture is all detail");
+  assert(blockDetail(fine, 32, 32, 1) === 1, "factor 1 cannot judge and says so");
 }
 
 // ── stretch ──
@@ -256,6 +324,113 @@ export function draw(display, params, time) {
   assert(core.time === 0, "reset zeroes time");
   const fresh = core.step(0);
   assert(fresh && fresh.time === 0, "fresh frame at t=0");
+}
+
+// ── shader twin: the half that runs without a GPU ──
+{
+  const image = "void mainImage(out vec4 fragColor, in vec2 fragCoord) { fragColor = vec4(1.0); }";
+  const ok = checkShaderSource(image);
+  assert(ok.ok && !ok.hasState, "a bare image shader passes with no state pass");
+
+  const withState = `${image}
+void mainState(out vec4 stateOut, in vec2 fragCoord) { stateOut = stateAt(fragCoord); }`;
+  const both = checkShaderSource(withState);
+  assert(both.ok && both.hasState, "a feedback shader declares both passes");
+  assert(declaresPass(withState, "state") && declaresPass(image, "image"), "entry detection");
+
+  // A mention in a comment is not a declaration.
+  assert(
+    !declaresPass(`// void mainState(out vec4 s, in vec2 f) — not implemented
+${image}`, "state"),
+    "a commented-out entry does not count",
+  );
+
+  assert(!checkShaderSource("").ok, "an empty shader is refused");
+  assert(!checkShaderSource("void main() {}").ok, "a shader with no mainImage is refused");
+  const versioned = checkShaderSource(`#version 300 es
+${image}`);
+  assert(!versioned.ok && versioned.error.includes("#version"), "the version line is the stage's job");
+  const declared = checkShaderSource(`out vec4 fragColor;
+${image}`);
+  assert(!declared.ok && declared.error.includes("out vec4"), "the output is the stage's job");
+
+  const built = buildFragmentSource(withState, "state");
+  assert(built.startsWith("#version 300 es"), "version first");
+  assert(built.includes(SHADER_PREAMBLE), "preamble intact");
+  assert(built.includes(withState), "the user's source goes in verbatim");
+  assert(built.includes("mainState(pfOut, gl_FragCoord.xy);"), "the state pass calls mainState");
+  assert(
+    buildFragmentSource(withState, "image").includes("mainImage(pfOut, gl_FragCoord.xy);"),
+    "the image pass calls mainImage",
+  );
+  // #line 1 after the preamble means driver line numbers are the user's own.
+  assert(built.includes("#line 1"), "user line numbering is restored");
+  assert(
+    remapShaderLog("ERROR: 0:7: 'x' : undeclared identifier") === "ERROR: line 7: 'x' : undeclared identifier",
+    "a fault in the user's code is reported at the line they wrote",
+  );
+  // Drivers pad their logs with NULs; the text goes straight into the panel.
+  assert(!remapShaderLog("ERROR: 0:7: bad" + String.fromCharCode(0)).includes(String.fromCharCode(0)), "control characters are stripped");
+  assert(
+    remapShaderLog("ERROR: 0:100003: syntax error").startsWith("ERROR: wrapper:"),
+    "a fault in the wrapper is not reported as line 100003",
+  );
+
+  // The prompt carries the contract, the knob ranges and the ramp.
+  const prompt = buildShaderPrompt(
+    "export function draw(display, params, time) { display.setValue(0, 0, 1); }",
+    matrix,
+    DEFAULT_RAMP_STATE,
+    [[0.04, 0.059], [0, 1], [0, 1], [0, 1]],
+  );
+  assert(prompt.includes("void mainImage(out vec4 fragColor, in vec2 fragCoord)"), "prompt states the entry point");
+  assert(prompt.includes("0.04") && prompt.includes("0.059"), "prompt carries the real knob range");
+  assert(prompt.includes("#000000") && prompt.includes("#ffffff"), "prompt describes the ramp");
+  assert(prompt.includes("ramp(v)") && prompt.includes("DO NOT bake"), "prompt sends colour through the live ramp");
+  assert(prompt.includes("uState"), "prompt documents the feedback texture");
+}
+
+// ── the ramp as a texture ──
+{
+  assert(SHADER_PREAMBLE.includes("uniform sampler2D uRamp"), "the ramp uniform is in the contract");
+  assert(SHADER_PREAMBLE.includes("vec4 ramp(float v)"), "so is the helper");
+  // The helper must land on texel centres, or ramp(0) and ramp(1) read short.
+  assert(
+    SHADER_PREAMBLE.includes(`${SHADER_RAMP_SIZE - 1}.0 + 0.5) / ${SHADER_RAMP_SIZE}.0`),
+    "the helper maps 0..1 onto texel centres",
+  );
+
+  const ramp: RampState = {
+    stops: [
+      { position: 0, color: "#000000", alpha: 1 },
+      { position: 0.4, color: "#ff5500", alpha: 0.5 },
+      { position: 1, color: "#00ccff", alpha: 1 },
+    ],
+    mode: "oklab",
+    wrap: false,
+  };
+  const lut = buildShaderRampLUT(ramp);
+  assert(lut.length === SHADER_RAMP_SIZE * 4, "one RGBA row");
+  // Every entry is the runtime's own sampler, so the twin cannot drift from
+  // the panel: same evaluator, same modes, same alpha, only more finely cut.
+  const harness = rampStateToHarness(ramp);
+  for (const index of [0, 1, 137, SHADER_RAMP_SIZE >> 1, SHADER_RAMP_SIZE - 1]) {
+    const [r, g, b, a] = sampleRampRGBA(harness, index / (SHADER_RAMP_SIZE - 1));
+    const got = [lut[index * 4], lut[index * 4 + 1], lut[index * 4 + 2], lut[index * 4 + 3]];
+    const want = [Math.round(r), Math.round(g), Math.round(b), Math.round(a * 255)];
+    assert(
+      got.every((value, channel) => value === want[channel]),
+      `ramp LUT entry ${index}: ${got} vs ${want}`,
+    );
+  }
+  const midStop = Math.round(0.4 * (SHADER_RAMP_SIZE - 1));
+  assert(
+    lut[3] === 255 && Math.abs(lut[midStop * 4 + 3] - 128) <= 1,
+    `alpha stops travel: ends ${lut[3]}, 0.4 stop ${lut[midStop * 4 + 3]}`,
+  );
+  // A ramp with no stops must still be readable rather than transparent black.
+  const empty = buildShaderRampLUT({ stops: [], mode: "linear", wrap: false });
+  assert(empty[0] === 255 && empty[3] === 255, "an empty ramp reads white, not garbage");
 }
 
 console.log("lab-capture-smoke: OK");
