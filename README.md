@@ -187,7 +187,7 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 | `custom_components/` | The Home Assistant integration itself. At the root because that is the only path HACS reads; its tests, lint config and scripts live in `integrations/homeassistant/` |
 | `integrations/` | Host-software bridges: Ableton Live / Max for Live (OSC knob mapping), Home Assistant (device, entities and a dashboard card) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [HTTP API](docs/rest-api.md) · [OSC Spec](docs/osc-spec.md) · [Director → MIDI](docs/director-midi.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Audio Guide](AUDIO_GUIDE.md) · [Feature Guide](FEATURE_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [HTTP API](docs/rest-api.md) · [OSC Spec](docs/osc-spec.md) · [Director → MIDI](docs/director-midi.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
