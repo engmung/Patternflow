@@ -136,6 +136,19 @@ if ! scan "$BIN"; then
 fi
 echo "  scan clean"
 
+# ── The version the binary believes ─────────────────────────────────────
+#
+# The version argument only names the folder. What the panel actually reports
+# at /api/status is PF_VARIANT_VERSION from the bundle's overrides.h — and
+# audio v0.4.0 shipped still believing it was v0.3.1, because nothing tied
+# the two together. Editions bake the exact string, so demand it. (Core's
+# version lives elsewhere and its release flow already stamps it.)
+if [ "$NAME" != "core" ] && ! grep -qaF -- "$VERSION" "$BIN"; then
+  echo "  the image does not contain \"$VERSION\" — the binary believes another version." >&2
+  echo "  Set PF_VARIANT_VERSION in firmware/bundles/$NAME/overrides.h to $VERSION and rerun." >&2
+  exit 1
+fi
+
 # ── Stage ───────────────────────────────────────────────────────────────
 #
 # Four parts, and boot_app0 is the one people forget. It is not a build
