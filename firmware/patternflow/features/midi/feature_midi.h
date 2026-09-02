@@ -49,6 +49,9 @@ inline void appendStatus(String& json) {
   json += (int)PF_MIDI_CHANNEL;
   json += ",\"outDiv\":";
   json += PatternflowMidi::outDivisor;
+  json += ",\"outMode\":\"";
+  json += PatternflowMidi::outAbsolute ? "abs" : "rel";
+  json += "\"";
   json += ",\"host\":\"";
   json += PatternflowMidiRtp::host;
   json += "\",\"rtpPeers\":";

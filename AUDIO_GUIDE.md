@@ -183,7 +183,7 @@ and a pattern selector. The contract is [`docs/midi-spec.md`](docs/midi-spec.md)
 | **CC 24–27** → knob 1–4, **relative** | 64 = still, 65 = one detent up, 63 = one down. Endless encoders. |
 | **Notes 60–63** → button 1–4 | A pad press is a button press. |
 | **Program Change** → pattern | Index on `/patterns`. Remembered like a knob pick. |
-| **Out:** CC 24–27, notes 60–63, Program Change | The encoders, the buttons and pattern changes, as they happen. |
+| **Out:** CC 24–27, notes 60–63, Program Change | The encoders (as an ordinary 0–127 knob value the panel keeps for you), the buttons and pattern changes, as they happen. |
 
 This is the missing half of [`docs/director-midi.md`](docs/director-midi.md):
 the Director's `.mid` export writes CC 20–23, so drop the clip on a MIDI
@@ -191,12 +191,14 @@ track, set the track's output to the panel's port, and the show plays on the
 panel from Live — the same automation the `.pfs` plays natively, now under
 the DAW's transport. Ableton's *Remote* switch on the port's input lets the
 panel's knobs MIDI-map to anything in the set, the way the OSC bridge does
-without a Max device.
+without a Max device. Map with a couple of detents in either direction; the
+panel sends a plain knob value, so there is nothing for Live to guess.
 
-**If a knob moves the mapped parameter too much per turn**, two dials:
-in Live's MIDI-map list, narrow that mapping's Min/Max; or on the panel,
-`POST http://patternflow.local/api/midi?outDiv=4` makes it one MIDI step
-per four detents (1–16, remembered across reboots; default 1).
+**If a knob moves the mapped parameter too much (or too little) per turn**,
+`POST http://patternflow.local/api/midi?outDiv=N` sets how many detents
+make one MIDI step (1–16, remembered across reboots; default 1 — one turn of
+the encoder is 20 steps, so 6 turns sweep a parameter; at 4 it is 25).
+Narrowing the mapping's Min/Max in Live's map list works too.
 
 **So you do not reconnect after every panel reboot**, tell the panel your
 computer's address once — `POST http://patternflow.local/api/midi?host=192.168.0.23`

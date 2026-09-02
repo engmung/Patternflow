@@ -2,7 +2,9 @@
 // PatternFlow - /api/midi: the one MIDI setting a person changes
 //
 //   GET  /api/midi              channel, outbound sensitivity, host, session
-//   POST /api/midi?outDiv=N     detents per relative-CC step, 1..16, persisted
+//   POST /api/midi?outDiv=N     detents per outbound step, 1..16, persisted
+//   POST /api/midi?outMode=abs|rel  knobs out as a virtual 0..127 position
+//                               (default) or as 64±steps. Persisted.
 //   POST /api/midi?host=<ip>    the host to invite on boot and whenever no
 //                               session is up; empty string = wait to be
 //                               invited. Persisted.
@@ -30,7 +32,9 @@ inline void sendState() {
   json += (int)PF_MIDI_CHANNEL;
   json += ",\"outDiv\":";
   json += PatternflowMidi::outDivisor;
-  json += ",\"host\":\"";
+  json += ",\"outMode\":\"";
+  json += PatternflowMidi::outAbsolute ? "abs" : "rel";
+  json += "\",\"host\":\"";
   json += PatternflowMidiRtp::host;
   json += "\",\"runtime\":";
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
@@ -54,6 +58,14 @@ inline void begin() {
     if (s.hasArg("outDiv") && !PatternflowMidi::setOutDivisor(s.arg("outDiv").toInt())) {
       s.send(400, "application/json", "{\"ok\":false,\"error\":\"outDiv must be 1..16\"}");
       return;
+    }
+    if (s.hasArg("outMode")) {
+      String m = s.arg("outMode");
+      if (m != "abs" && m != "rel") {
+        s.send(400, "application/json", "{\"ok\":false,\"error\":\"outMode must be abs or rel\"}");
+        return;
+      }
+      PatternflowMidi::setOutAbsolute(m == "abs");
     }
     if (s.hasArg("host") && !PatternflowMidiRtp::setHost(s.arg("host"))) {
       s.send(400, "application/json", "{\"ok\":false,\"error\":\"host must be an IPv4 address or empty\"}");

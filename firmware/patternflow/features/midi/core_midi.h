@@ -74,15 +74,41 @@ constexpr int OUT_DIVISOR_MAX = 16;
 inline int outDivisor = PF_MIDI_OUT_DIVISOR;
 inline int outAccum[4] = {0, 0, 0, 0};
 
+// Outbound encoding for the knobs. The encoders are endless, so the honest
+// message is relative (64 ± steps) - and Live guesses what a CC means from
+// the first values it sees while mapping, and guessed wrong three different
+// ways in one session: signed-bit (one direction jumps 63), absolute (the
+// parameter sits at 63..65 and barely moves). So the default is ABSOLUTE: the
+// panel keeps a virtual 0..127 position per knob, moves it by the divided
+// steps, clamps, and sends the position. Every DAW reads that as an ordinary
+// knob with nothing to detect; the DAW's takeover mode handles pickup. `rel`
+// stays for hosts that map relative encoders properly (Max, TouchDesigner).
+#ifndef PF_MIDI_OUT_ABSOLUTE
+#define PF_MIDI_OUT_ABSOLUTE 1
+#endif
+inline bool outAbsolute = PF_MIDI_OUT_ABSOLUTE;
+inline int  outPos[4] = {64, 64, 64, 64};
+
 inline void loadSettings() {
   Preferences p;
   if (p.begin("pf_midi", true)) {
     runtimeEnabled = p.getBool("on", true);
     outDivisor = p.getInt("outDiv", PF_MIDI_OUT_DIVISOR);
+    outAbsolute = p.getBool("outAbs", PF_MIDI_OUT_ABSOLUTE);
     p.end();
   }
   if (outDivisor < 1) outDivisor = 1;
   if (outDivisor > OUT_DIVISOR_MAX) outDivisor = OUT_DIVISOR_MAX;
+}
+
+inline void setOutAbsolute(bool abs) {
+  outAbsolute = abs;
+  for (auto& a : outAccum) a = 0;
+  Preferences p;
+  if (p.begin("pf_midi", false)) {
+    p.putBool("outAbs", abs);
+    p.end();
+  }
 }
 
 inline bool setOutDivisor(int div) {
@@ -237,7 +263,19 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
       outAccum[i] -= steps * outDivisor;
       if (steps > 63) steps = 63;
       if (steps < -63) steps = -63;
-      if (steps != 0) emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + steps));
+      if (steps != 0) {
+        if (outAbsolute) {
+          int pos = outPos[i] + steps;
+          if (pos < 0) pos = 0;
+          if (pos > 127) pos = 127;
+          if (pos != outPos[i]) {
+            outPos[i] = pos;
+            emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)pos);
+          }
+        } else {
+          emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + steps));
+        }
+      }
     }
     if (input.btnPressed[i] && !injectedPress[i]) emit(0x90 | ch, PF_MIDI_NOTE_BASE + i, 127);
     injectedPress[i] = false;
