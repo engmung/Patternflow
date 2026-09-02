@@ -57,7 +57,7 @@ Three shapes of reason, and they are not the same:
   needing it to behave identically at the next gig, pinned to a core version
   and not moving.
 
-The card on [patternflow.work/variants](https://patternflow.work/variants)
+The card on [patternflow.work/editions](https://patternflow.work/editions)
 says which of the three each bundle is, because a person choosing needs to
 know whether they are picking up something unfinished or something frozen.
 

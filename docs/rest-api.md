@@ -297,7 +297,7 @@ Two orderings exist and they are not the same.
 - **Physical**: K1–K4 left to right on the front panel. This is what an encoder turn produces and what a person means.
 - **Logical**: the order patterns read parameters in (hue, speed, mode, freq/offset). `knobs[]` in a sidecar, the OSC and MQTT indices, and `InputFrame` are all logical.
 
-The mapping lives in `web/src/lib/patternflowControls.ts` as `LOGICAL_KNOB_TO_WEB_KNOB = ['c1','c2','c4','c3']` — note that K3 and K4 swap. Convert once, at the boundary of your client, and say in a comment which side of it you are on.
+The mapping lives in `web/src/lib/pattern/controls.ts` as `LOGICAL_KNOB_TO_WEB_KNOB = ['c1','c2','c4','c3']` — note that K3 and K4 swap. Convert once, at the boundary of your client, and say in a comment which side of it you are on.
 
 Scale constants live in the same file and are the contract for anything converting between a parameter value and encoder detents: `ENCODER_CLICKS_PER_TURN = 24`, `TURNS_PER_FULL_RANGE = 2` — so 48 detents cross a parameter's entire declared range, whatever that range is.
 

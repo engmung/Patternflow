@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a shelf image: the thing patternflow.work/variants installs in one
+# Build a shelf image: the thing patternflow.work/editions installs in one
 # click. Publishable, which means no Wi-Fi credentials in it.
 #
 #   ./shelf.sh audio v0.3.0
@@ -205,5 +205,5 @@ echo "staged: $OUT"
 ls -l "$OUT" | tail -4 | awk '{printf "  %8s  %s\n", $5, $9}'
 echo ""
 echo "next, by hand and on purpose:"
-echo "  - point the card at it in web/src/app/variants/variants-data.ts"
+echo "  - point the card at it in web/src/app/editions/editions-data.ts"
 echo "  - deploy the site"

@@ -56,7 +56,7 @@ itself and any settings it needs different.
 
 **An edition** is a composition somebody published — a firmware with a name, a
 version of its own, and a card on
-[patternflow.work/variants](https://patternflow.work/variants) that installs it
+[patternflow.work/editions](https://patternflow.work/editions) that installs it
 in one click. Three exist:
 
 | | carries | whose |
@@ -65,9 +65,20 @@ in one click. Three exist:
 | **Audio** | OSC, MIDI, browser audio, the on-board microphone | SeungHun Lee |
 | **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
 
-The word "feature" is retired. It suggested something optional or third-party,
+The word "addon" is retired. It suggested something optional or third-party,
 and none of these are: they are first-class capabilities that happen to live
 behind an interface.
+
+### Where each word lives in the tree, and the old names that stay
+
+| word | in the tree | older spelling still in use, and why |
+|---|---|---|
+| feature | `firmware/patternflow/features/<name>/` | `addon` — shimmed for out-of-tree compositions until they migrate (see *The rename* below) |
+| composition | `firmware/bundles/<name>/` — the two files | the directory is called `bundles/`; a *bundle* is a composition's folder, nothing more |
+| edition | the shelf at [patternflow.work/editions](https://patternflow.work/editions) | **`variant`** on the wire: `PF_VARIANT` / `PF_VARIANT_VERSION` in `overrides.h`, the `variant` field in `/api/status`, `/api/variant-bin/` on the site, `VARIANT_BIN_DIR` on the host. Those are contracts other software reads, so they keep their names; `/variants` redirects to `/editions` |
+
+Prose written from here on says feature, composition and edition. A word from
+the right-hand column in new prose is a mistake unless it names the wire.
 
 ---
 

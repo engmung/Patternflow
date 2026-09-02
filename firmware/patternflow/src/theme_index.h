@@ -105,7 +105,7 @@ if(v&&d.version)v.textContent=(d.variant&&d.variant!=='core'?'core v':'v')+d.ver
 var vb=document.getElementById('pfVariant');
 if(vb&&d.variant&&d.variant!=='core'){
 vb.textContent=d.variant+(d.variantVersion?' '+d.variantVersion:'');
-vb.href='https://patternflow.work/variants#'+encodeURIComponent(d.variant);
+vb.href='https://patternflow.work/editions#'+encodeURIComponent(d.variant);
 vb.style.display='inline-flex';
 }
 // One status fetch, shared. A page that needs to know what this build

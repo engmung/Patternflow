@@ -106,7 +106,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi and USB. Network MIDI (a MIDI port in any DAW — Ableton, Logic, Bitwig), bidirectional OSC (Max/TouchDesigner/Resolume), MQTT and audio-react each ship in an [edition](docs/EDITIONS.md) you install in one click — the way patterns do — and switching keeps your patterns, networks and settings |
-| **Editions** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/variants). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
+| **Editions** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/editions). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly, first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 
@@ -159,7 +159,7 @@ The Arduino IDE is only needed for firmware feature development or targeting an 
   <img src="./docs/media/daw-ableton.jpg" width="100%" alt="Patternflow beside an Ableton Live session, with the Patternflow Bridge Max for Live device open and the four knobs mapped to Live parameters" />
 </p>
 
-Each of these lives in an **edition** — a firmware you install from [the shelf](https://patternflow.work/variants) in one click, the same way patterns arrive, and switching keeps your patterns, Wi-Fi networks and settings. MIDI, OSC and audio-react are in **Audio**; MQTT is in **Performance**, alongside sequences and the Director. Why it is arranged that way, and how to build your own: [`docs/EDITIONS.md`](docs/EDITIONS.md).
+Each of these lives in an **edition** — a firmware you install from [the shelf](https://patternflow.work/editions) in one click, the same way patterns arrive, and switching keeps your patterns, Wi-Fi networks and settings. MIDI, OSC and audio-react are in **Audio**; MQTT is in **Performance**, alongside sequences and the Director. Why it is arranged that way, and how to build your own: [`docs/EDITIONS.md`](docs/EDITIONS.md).
 
 **MIDI, over the network.** *New.* The panel is a MIDI port: RTP-MIDI over Wi-Fi, native on macOS and iOS, one free driver on Windows. Its four knobs and buttons map to anything in Ableton with Ctrl-M, and a DAW drives the panel back with plain CC and Program Change — the Pattern Lab's Director exports a show as exactly those four CC lanes, so a show can play on the panel from Live's transport. Sensitivity per knob, an absolute or relative mode, and the session that reconnects itself all live on the panel's console. Step by step with screenshots: [`docs/midi-ableton.md`](docs/midi-ableton.md); the contract: [`docs/midi-spec.md`](docs/midi-spec.md).
 
