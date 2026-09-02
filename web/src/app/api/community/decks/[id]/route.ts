@@ -8,7 +8,7 @@ import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
 import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/notify";
 import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { serializePerformance, validatePerformance } from "@/lib/community/performance";
+import { serializePerformance, validatePerformance } from "@/lib/pattern/pfst";
 import { deckPatterns, decks } from "@/lib/community/schema";
 import { cleanDescription, cleanTitle } from "@/lib/community/validate";
 import { cleanVisibility, type Visibility } from "@/lib/community/visibility";

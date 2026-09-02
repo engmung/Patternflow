@@ -24,7 +24,7 @@ import {
 } from "@/lib/community/validate";
 import { cleanVisibility, forkBlocked } from "@/lib/community/visibility";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
-import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
+import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/pattern/share";
 
 // POST /api/community/patterns — publish (or fork-publish) a pattern.
 // GET  /api/community/patterns — one batch of the feed, for infinite scroll.

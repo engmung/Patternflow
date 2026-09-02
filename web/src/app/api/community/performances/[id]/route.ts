@@ -9,7 +9,7 @@ import {
   encodePfst,
   normalizePerformance,
   pfsFilename,
-} from "@/lib/community/performance";
+} from "@/lib/pattern/pfst";
 import { getPatternStub, getPerformanceStub } from "@/lib/community/queries";
 import { patternPerformances, patterns } from "@/lib/community/schema";
 import { canView } from "@/lib/community/visibility";

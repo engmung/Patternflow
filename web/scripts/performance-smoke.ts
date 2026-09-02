@@ -17,7 +17,7 @@ import {
   pfsFilename,
   serializePerformance,
   validatePerformance,
-} from "../src/lib/community/performance";
+} from "../src/lib/pattern/pfst";
 
 let failed = 0;
 function check(label: string, ok: boolean) {

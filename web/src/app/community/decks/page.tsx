@@ -8,7 +8,7 @@ import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { toDeckCardItem } from "@/lib/community/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import ShippedPackCard from "@/components/community/ShippedPackCard";
-import { SHIPPED_PACKS } from "@/lib/packs";
+import { SHIPPED_PACKS } from "@/lib/pattern/packs";
 import styles from "@/components/community/Community.module.css";
 
 // The shelf. Decks are ordered sets somebody staked a public slot on — two per

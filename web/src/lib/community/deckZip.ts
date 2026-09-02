@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { unzipSync, zipSync } from "fflate";
 import { enqueueBuild, getBuild } from "./builds";
 import { getDb } from "./db";
-import { encodePfst, normalizePerformance, pfsFilename } from "./performance";
+import { encodePfst, normalizePerformance, pfsFilename } from "@/lib/pattern/pfst";
 import { deckPatterns, decks, patterns as patternsTable } from "./schema";
 
 // A deck's downloadable pack.

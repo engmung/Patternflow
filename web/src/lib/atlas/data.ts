@@ -13,7 +13,7 @@
 // prompt is English-only — it is written for AIs, not for readers.
 //
 // The generation prompt (BASE) mirrors Pattern Lab's COPY PROMPT assembly
-// (lib/gemini.ts: buildVariantCopyPrompt → buildTechGuide) verbatim, with the
+// (lib/ai/gemini.ts: buildVariantCopyPrompt → buildTechGuide) verbatim, with the
 // atlas taste/craft directions layered where the lab puts VARIANT_*_DIRECTION.
 // If gemini.ts's wording changes, change it here too.
 

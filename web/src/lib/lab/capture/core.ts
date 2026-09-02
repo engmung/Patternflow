@@ -6,7 +6,7 @@
 // the stage has its own pattern state and its own time, like a render view
 // next to a viewport.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import { LabEngine } from "../engine";
 import type { Layer, PixelLayer } from "../types";
 import {

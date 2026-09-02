@@ -1,3 +1,5 @@
+import { BUS_WIRE_MAX } from "@/lib/pattern/controls";
+
 // Performance JSON (proposal §7.1) + the packed PFST v1 show table.
 //
 // A performance is a timed cue list (pattern / four absolute params 0..1000 /
@@ -82,7 +84,7 @@ export type Performance = {
 export function clamp1000(n: unknown): number {
   let v = Math.round(Number(n));
   if (!Number.isFinite(v)) v = 500;
-  return Math.min(1000, Math.max(0, v));
+  return Math.min(BUS_WIRE_MAX, Math.max(0, v));
 }
 
 /** v1 cues sit on whole seconds; v2 cues on the 0.1 s grid. */

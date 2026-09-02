@@ -17,7 +17,9 @@
 // Bounded on purpose: the newest few, a couple of hundred KB. A shader lost to
 // pruning is one re-paste; a full quota breaks saving settings too.
 
-const STORAGE_KEY = "patternflow_lab_shader_v1";
+import { LAB_STORAGE, readJson, writeJson } from "../persist";
+
+const STORAGE_KEY = LAB_STORAGE.shader;
 const MAX_ENTRIES = 12;
 const MAX_TOTAL_CHARS = 200_000;
 
@@ -38,27 +40,19 @@ function keysFor(layerId: string, code: string): string[] {
 }
 
 function read(): Store {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    const store: Store = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!value || typeof value !== "object") continue;
-      const entry = value as { source?: unknown; at?: unknown };
-      if (typeof entry.source !== "string") continue;
-      store[key] = { source: entry.source, at: typeof entry.at === "number" ? entry.at : 0 };
-    }
-    return store;
-  } catch {
-    return {};
+  const parsed = readJson(STORAGE_KEY);
+  if (!parsed || typeof parsed !== "object") return {};
+  const store: Store = {};
+  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const entry = value as { source?: unknown; at?: unknown };
+    if (typeof entry.source !== "string") continue;
+    store[key] = { source: entry.source, at: typeof entry.at === "number" ? entry.at : 0 };
   }
+  return store;
 }
 
 function write(store: Store) {
-  if (typeof window === "undefined") return;
   const entries = Object.entries(store).sort((a, b) => b[1].at - a[1].at);
   const kept: Store = {};
   let total = 0;
@@ -67,11 +61,8 @@ function write(store: Store) {
     if (total > MAX_TOTAL_CHARS) break;
     kept[key] = entry;
   }
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(kept));
-  } catch {
-    // Quota or private mode: the shader stays in the panel for this session.
-  }
+  // Quota or private mode: the shader stays in the panel for this session.
+  writeJson(STORAGE_KEY, kept);
 }
 
 export function loadShaderSource(layerId: string, code: string): string {

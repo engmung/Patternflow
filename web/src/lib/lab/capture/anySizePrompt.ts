@@ -17,7 +17,7 @@
 // That is the case the shader twin exists for (shaderPrompt.ts) — this prompt
 // is the one to reach for when a pattern is merely written in pixel units.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 
 export function buildAnySizePrompt(code: string, matrix: MatrixSize): string {
   const { width, height } = matrix;

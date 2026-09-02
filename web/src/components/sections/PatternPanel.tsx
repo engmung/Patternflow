@@ -9,7 +9,7 @@ import Editor from '@monaco-editor/react';
 import { showcasePresets } from '@/lib/presets';
 import { captureEvent } from '@/lib/posthogEvents';
 import { communityHref } from '@/lib/community/apiBase';
-import { useMediaQuery } from '@/lib/useMediaQuery';
+import { useMediaQuery } from '@/lib/hooks/useMediaQuery';
 import styles from './PatternPanel.module.css';
 
 const getVariantPrompt = (code: string) => `I am writing custom LED patterns in JavaScript for Patternflow's 128x64 LED matrix web preview.

@@ -17,7 +17,7 @@ import {
   type Performance,
   type PerformanceCue,
   type SparseParam,
-} from "@/lib/community/performance";
+} from "@/lib/pattern/pfst";
 import {
   DIRECTOR_MAX_SECONDS,
   type DirectorKeyframe,

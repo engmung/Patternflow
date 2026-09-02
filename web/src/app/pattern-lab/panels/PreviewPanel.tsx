@@ -23,7 +23,7 @@ import {
   MATRIX_MIN,
   clampMatrixDimension,
   formatMatrix,
-} from "@/lib/patternMatrix";
+} from "@/lib/pattern/matrix";
 import { labEngine } from "@/lib/lab/engine";
 import { captureSession, type CaptureSessionState } from "@/lib/lab/capture/session";
 import { useLabStore } from "@/lib/lab/store";

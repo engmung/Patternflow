@@ -15,7 +15,7 @@ import {
   batchRowsForSlot,
   gapForSlot,
 } from "@/lib/community/feedView";
-import { useIsMobile } from "@/lib/useMediaQuery";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import styles from "./Community.module.css";
 
 // Infinite scroll, one scrollbar: the page itself. The grid grows downward as

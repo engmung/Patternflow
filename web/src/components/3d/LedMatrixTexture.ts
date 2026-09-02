@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { getKnobValueDelta, LOGICAL_KNOB_RANGES, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/patternflowControls';
-import { compilePatternCode, type PatternModule, type PatternParams } from '@/lib/patternHarness';
+import { getKnobValueDelta, LOGICAL_KNOB_RANGES, LOGICAL_KNOB_TO_WEB_KNOB, toEncoderDelta } from '@/lib/pattern/controls';
+import { compilePatternCode, type PatternModule, type PatternParams } from '@/lib/pattern/harness';
 
 type WebKnobValues = Record<'c1' | 'c2' | 'c3' | 'c4', number>;
 

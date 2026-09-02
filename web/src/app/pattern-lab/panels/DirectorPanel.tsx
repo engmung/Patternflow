@@ -32,7 +32,7 @@ import {
   serializePerformance,
   validatePerformance,
   PFST_MAX_CUES,
-} from "@/lib/community/performance";
+} from "@/lib/pattern/pfst";
 import { readPerformanceFile } from "@/lib/community/performanceFile";
 import {
   bakeLaneV2,

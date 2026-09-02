@@ -15,7 +15,7 @@ import {
   stripShareWrapping,
   type ShareLineage,
   type ShareMeta,
-} from "../src/lib/sharePattern";
+} from "../src/lib/pattern/share";
 import { licensedJsText } from "../src/lib/community/download";
 
 let failures = 0;

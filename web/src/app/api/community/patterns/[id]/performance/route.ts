@@ -12,7 +12,7 @@ import {
   serializePerformance,
   summarizePerformanceJson,
   validatePerformance,
-} from "@/lib/community/performance";
+} from "@/lib/pattern/pfst";
 import { resolvePerformance } from "@/lib/community/performances";
 import { listPatternPerformances, newId } from "@/lib/community/queries";
 import { rateLimit } from "@/lib/community/ratelimit";

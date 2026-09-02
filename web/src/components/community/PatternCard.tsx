@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { authClient } from "@/lib/community/auth-client";
 import AuthModal from "@/components/community/AuthModal";
-import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
@@ -13,7 +13,7 @@ import {
   formatMatrix,
   isStockPanelFrame,
   matrixFromCode,
-} from "@/lib/patternMatrix";
+} from "@/lib/pattern/matrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
 import {

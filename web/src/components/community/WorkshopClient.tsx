@@ -13,8 +13,8 @@ import {
   parseQuestions,
 } from "@/lib/community/workshop";
 import type { TerritoryListItem } from "@/lib/community/queries";
-import { useDragPan } from "@/lib/useDragPan";
-import { useIsMobile } from "@/lib/useMediaQuery";
+import { useDragPan } from "@/lib/hooks/useDragPan";
+import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import AuthModal from "./AuthModal";
 import NewThreadModal from "./NewThreadModal";
 import PresenceLayer, { type PresenceView } from "./PresenceLayer";

@@ -14,7 +14,7 @@ import {
   listPatternPerformances,
   listPatternPorts,
 } from "@/lib/community/queries";
-import { summarizePerformanceJson } from "@/lib/community/performance";
+import { summarizePerformanceJson } from "@/lib/pattern/pfst";
 import { resolvePerformance } from "@/lib/community/performances";
 import { resolveHeader } from "@/lib/community/ports";
 import { provenanceFor } from "@/lib/community/provenance";

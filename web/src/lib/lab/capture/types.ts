@@ -14,7 +14,7 @@
 // Capture panel removes the feature; the rest of the lab does not know it is
 // there.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import type { Layer, PixelLayer } from "../types";
 
 /**

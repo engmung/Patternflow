@@ -23,7 +23,7 @@ import {
   encodePfst,
   serializePerformance,
   validatePerformance,
-} from "../src/lib/community/performance";
+} from "../src/lib/pattern/pfst";
 import { sampleShow, toKnobFrames } from "../src/lib/lab/director/sample";
 import { MIDI_LANE_CCS, showToMidi } from "../src/lib/lab/director/exporters/midi";
 import { deserializeProject, serializeProject } from "../src/lib/lab/serialize";

@@ -7,7 +7,7 @@
 import Editor from "@monaco-editor/react";
 import { useState } from "react";
 import { livePresets } from "@/lib/presets";
-import { buildVariantCopyPrompt } from "@/lib/gemini";
+import { buildVariantCopyPrompt } from "@/lib/ai/gemini";
 import { hasStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useActiveLayer, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";

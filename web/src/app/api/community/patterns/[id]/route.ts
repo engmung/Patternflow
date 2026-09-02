@@ -28,7 +28,7 @@ import {
   cleanTitle,
 } from "@/lib/community/validate";
 import { cleanVisibility } from "@/lib/community/visibility";
-import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
+import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/pattern/share";
 
 // PATCH /api/community/patterns/[id] — the author edits their own pattern.
 //

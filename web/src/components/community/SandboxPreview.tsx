@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   logicalKnobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
-} from "@/lib/patternflowControls";
+} from "@/lib/pattern/controls";
 import { PATTERN_SANDBOX_URL } from "@/lib/community/sandboxUrl";
 
 // Live pattern preview for community (i.e. untrusted) code.

@@ -25,7 +25,7 @@
 // the scale-safe ones sit at layout ≤ 22 / density 0.83–1.0, the baked ones
 // at layout ≥ 35 or density outside 0.3–2 — no overlap at 4× or 8×.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import { LabEngine } from "../engine";
 import type { CaptureProject } from "./types";
 import { stretchNearest } from "./core";

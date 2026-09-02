@@ -10,12 +10,12 @@ import {
   PatternRuntime,
   createIdleInput,
   knobTargetToDelta,
-} from "@/lib/patternHarness";
+} from "@/lib/pattern/harness";
 import {
   knobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
-} from "@/lib/patternflowControls";
-import { DEFAULT_MATRIX, parseMatrixAnnotation } from "@/lib/patternMatrix";
+} from "@/lib/pattern/controls";
+import { DEFAULT_MATRIX, parseMatrixAnnotation } from "@/lib/pattern/matrix";
 import {
   COLOR_MODES,
   GEMINI_MODEL,
@@ -25,7 +25,7 @@ import {
   saveGeminiKey,
   type ColorMode,
   type ThinkingLevelKey,
-} from "@/lib/gemini";
+} from "@/lib/ai/gemini";
 import { captureEvent } from "@/lib/posthogEvents";
 import { livePresets } from "@/lib/presets";
 import { rampStateToHarness } from "@/lib/lab/engine";

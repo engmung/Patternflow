@@ -17,8 +17,8 @@
 // firmware's own note says a live preview should be if one ever came back.
 
 import { knobSetupFromCode } from "@/lib/community/knobs";
-import { LOGICAL_KNOB_WRAP, logicalKnobUnitsPerTurn } from "@/lib/patternflowControls";
-import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
+import { LOGICAL_KNOB_WRAP, logicalKnobUnitsPerTurn } from "@/lib/pattern/controls";
+import { describeMatrixShape, matrixFromCode } from "@/lib/pattern/matrix";
 import { PRESET_CODE } from "./presetCode";
 import { SandboxDriver } from "./sandbox";
 import { CARD_STYLES } from "./styles";
