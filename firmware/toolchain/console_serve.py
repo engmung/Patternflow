@@ -52,6 +52,7 @@ ROUTES = {
     "/weather": "weather",
     "/mqtt": "mqtt",
     "/audio": "audio",
+    "/midi": "midi",
 }
 
 # Assets the device serves out of its own headers, extracted live so a change
@@ -385,6 +386,14 @@ class Handler(BaseHTTPRequestHandler):
                 "tzOffsetMin": 540, "clockOverlay": False,
                 "layoutExtended": False, "timeSynced": True,
                 "localTime": "23:13:54", "knobs": [0.0, 0.0, 0.0, 0.0],
+            })
+        if path.startswith("/api/midi"):
+            return self.send_json({
+                "ok": True, "channel": 1, "outDiv": [1, 1, 4, 1], "outMul": [1, 2, 1, 1], "outMode": "abs",
+                "host": "192.168.0.176", "you": "192.168.0.176",
+                "runtime": True, "rtpPeers": 1, "rtpPeer": "DESKTOP-STUDIO",
+                "ip": "192.168.0.180", "port": 5004,
+                "outPos": [64, 90, 12, 127], "rx": 812, "tx": 40,
             })
         if path.startswith("/api/mqtt"):
             return self.send_json({

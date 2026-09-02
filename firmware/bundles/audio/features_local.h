@@ -32,8 +32,13 @@
 #include "osc/feature_osc.h"
 #include "audio/feature_audio.h"
 #include "audio_in/feature_audio_in.h"
+#include "midi/feature_midi.h"
 
-#define PF_FEATURE_LIST              \
-  &PFFeatureOsc::descriptor,         \
-      &PFFeatureAudio::descriptor,   \
-      &PFFeatureAudioIn::descriptor
+// MIDI sits with OSC for the same reason OSC is here: it is how a panel talks
+// to a DAW. Last, so the audio lanes have spoken before MIDI's deltas merge.
+//
+// features/ble/ (Wi-Fi setup from a phone over Bluetooth) is deliberately NOT
+// here: it costs ~12 KB of internal RAM while linked, and on the one phone it
+// was tried with the panel never appeared in the chooser. It stays in the
+// tree as an opt-in feature for whoever wants to finish it.
+#define PF_FEATURE_LIST                &PFFeatureOsc::descriptor,               &PFFeatureAudio::descriptor,         &PFFeatureAudioIn::descriptor,       &PFFeatureMidi::descriptor

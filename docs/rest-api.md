@@ -6,13 +6,13 @@ One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still 
 
 Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. The Home Assistant integration in `integrations/homeassistant/` is built against this file. If you build another one, build it against this file, not against the firmware source.
 
-`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software. The MQTT topic layout is documented in the header comment of `firmware/patternflow/addons/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
+`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. The MQTT topic layout is documented in the header comment of `firmware/patternflow/addons/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 
 ## Transport
 
 | | |
 |---|---|
-| Base URL | `http://patternflow.local/` — mDNS, hostname from `PF_OTA_HOSTNAME`. The raw IP works too and is the fallback on clients with poor mDNS (Android). |
+| Base URL | `http://patternflow.local/` — mDNS, hostname from `PF_OTA_HOSTNAME`. The panel also answers to **`http://patternflow/`** over NetBIOS (Windows, no mDNS needed) and to a per-panel alias **`patternflow-<4 hex>.local`** (reported as `hostAlias` in `/api/status`, so two panels on one network are addressable apart). The raw IP works too and is the last resort on clients with no name resolution (Android). Every link from the console to patternflow.work carries `?device=<ip>`; the site remembers it, so its "send to my panel" buttons stop depending on any name. |
 | Port | **80** for everything documented here. One server carries the console, the API and `/update`. A build with the audio feature adds a WebSocket on **81** (`PF_AUDIO_WS_PORT`) for streaming audio clients — its wire protocol is [`audio-ws-spec.md`](audio-ws-spec.md). |
 | Advertised over mDNS | `_http._tcp` on port 80 (`core_web_update.h`, whenever `PF_WEBUPDATE_ENABLED`) and `_arduino._tcp` (ArduinoOTA, whenever `PF_OTA_ENABLED`). The first carries no TXT records at all and the second only ArduinoOTA's own (board type, auth flags) — nothing Patternflow-specific either way. A discovering client must probe `GET /api/status` to confirm what it found. |
 | Concurrency | **One connection.** See [Rules that will bite you](#rules-that-will-bite-you). |
@@ -375,19 +375,19 @@ A client that has to key on something stable should use the hostname and require
 
 ## Choosing a transport
 
-| | HTTP | OSC | MQTT |
-|---|---|---|---|
-| Read device state | **yes**, everything | announce burst + heartbeat | knob / pattern / sleep topics, in Publisher role |
-| Read knob positions | **yes**, `/api/mqtt`, any role | on change | in Publisher role |
-| Write knobs | **no** | **yes**, deltas | **yes**, Subscriber role only |
-| Switch pattern | **yes** | yes | Subscriber role only |
-| Sleep / wake | **yes** | no | **yes**, either role |
-| Install / delete patterns | **yes** | no | no |
-| Wi-Fi, firmware, calibration | **yes** | no | no |
-| Latency | poll-bound, seconds | sub-frame | broker-bound |
-| Needs infrastructure | nothing | nothing | a broker |
+| | HTTP | OSC | MIDI | MQTT |
+|---|---|---|---|---|
+| Read device state | **yes**, everything | announce burst + heartbeat | pattern changes only (Program Change) | knob / pattern / sleep topics, in Publisher role |
+| Read knob positions | **yes**, `/api/mqtt`, any role | on change | on change, relative (CC 24–27) | in Publisher role |
+| Write knobs | **no** | **yes**, deltas | **yes**, absolute (CC 20–23) and deltas (CC 24–27) | **yes**, Subscriber role only |
+| Switch pattern | **yes** | yes | yes, Program Change | Subscriber role only |
+| Sleep / wake | **yes** | no | no | **yes**, either role |
+| Install / delete patterns | **yes** | no | no | no |
+| Wi-Fi, firmware, calibration | **yes** | no | no | no |
+| Latency | poll-bound, seconds | sub-frame | sub-frame | broker-bound |
+| Needs infrastructure | nothing | nothing | an RTP-MIDI driver on the host (built into macOS/iOS; rtpMIDI on Windows) | a broker |
 
-In short: HTTP is the management and state transport, OSC is the low-latency performance transport, MQTT is the one that reaches into home automation and mirrors one panel onto another. A home-automation client wants HTTP for everything except knob writes, and MQTT for those.
+In short: HTTP is the management and state transport, OSC and MIDI are the low-latency performance transports (MIDI is the one a DAW already speaks, and the only one with absolute knob values — [`midi-spec.md`](midi-spec.md)), MQTT is the one that reaches into home automation and mirrors one panel onto another. A home-automation client wants HTTP for everything except knob writes, and MQTT for those.
 
 ## Conventions for future additions
 

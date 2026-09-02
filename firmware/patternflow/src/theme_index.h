@@ -122,6 +122,16 @@ c.onchange=function(){var on=c.checked;
 document.documentElement.setAttribute('data-theme',on?'light':'dark');
 try{localStorage.setItem('pf-theme',on?'light':'dark')}catch(e){}};
 }
+// Every link from here to the site carries this panel's address, so the site
+// can point "send to my panel" straight at it and stop depending on
+// patternflow.local resolving on that phone. Done at click time, because
+// pages set some of these hrefs after status arrives.
+document.addEventListener('click',function(e){
+var t=e.target;var a=t&&t.closest?t.closest('a[href]'):null;if(!a)return;
+if(!/^https:\/\/([a-z0-9-]+\.)*patternflow\.work([\/?#]|$)/.test(a.href))return;
+var ip=(window.pfStatus&&window.pfStatus.ip)||location.hostname;if(!ip)return;
+try{var u=new URL(a.href);if(!u.searchParams.has('device')){u.searchParams.set('device',ip);a.href=u.toString();}}catch(x){}
+},true);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount);
 else mount();
 })();
