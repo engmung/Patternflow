@@ -6,7 +6,7 @@ One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still 
 
 Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. The Home Assistant integration in `integrations/homeassistant/` is built against this file. If you build another one, build it against this file, not against the firmware source.
 
-`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software. The MQTT topic layout is documented in the header comment of `firmware/patternflow/addons/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
+`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. The MQTT topic layout is documented in the header comment of `firmware/patternflow/addons/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 
 ## Transport
 
@@ -375,19 +375,19 @@ A client that has to key on something stable should use the hostname and require
 
 ## Choosing a transport
 
-| | HTTP | OSC | MQTT |
-|---|---|---|---|
-| Read device state | **yes**, everything | announce burst + heartbeat | knob / pattern / sleep topics, in Publisher role |
-| Read knob positions | **yes**, `/api/mqtt`, any role | on change | in Publisher role |
-| Write knobs | **no** | **yes**, deltas | **yes**, Subscriber role only |
-| Switch pattern | **yes** | yes | Subscriber role only |
-| Sleep / wake | **yes** | no | **yes**, either role |
-| Install / delete patterns | **yes** | no | no |
-| Wi-Fi, firmware, calibration | **yes** | no | no |
-| Latency | poll-bound, seconds | sub-frame | broker-bound |
-| Needs infrastructure | nothing | nothing | a broker |
+| | HTTP | OSC | MIDI | MQTT |
+|---|---|---|---|---|
+| Read device state | **yes**, everything | announce burst + heartbeat | pattern changes only (Program Change) | knob / pattern / sleep topics, in Publisher role |
+| Read knob positions | **yes**, `/api/mqtt`, any role | on change | on change, relative (CC 24–27) | in Publisher role |
+| Write knobs | **no** | **yes**, deltas | **yes**, absolute (CC 20–23) and deltas (CC 24–27) | **yes**, Subscriber role only |
+| Switch pattern | **yes** | yes | yes, Program Change | Subscriber role only |
+| Sleep / wake | **yes** | no | no | **yes**, either role |
+| Install / delete patterns | **yes** | no | no | no |
+| Wi-Fi, firmware, calibration | **yes** | no | no | no |
+| Latency | poll-bound, seconds | sub-frame | sub-frame | broker-bound |
+| Needs infrastructure | nothing | nothing | an RTP-MIDI driver on the host (built into macOS/iOS; rtpMIDI on Windows) | a broker |
 
-In short: HTTP is the management and state transport, OSC is the low-latency performance transport, MQTT is the one that reaches into home automation and mirrors one panel onto another. A home-automation client wants HTTP for everything except knob writes, and MQTT for those.
+In short: HTTP is the management and state transport, OSC and MIDI are the low-latency performance transports (MIDI is the one a DAW already speaks, and the only one with absolute knob values — [`midi-spec.md`](midi-spec.md)), MQTT is the one that reaches into home automation and mirrors one panel onto another. A home-automation client wants HTTP for everything except knob writes, and MQTT for those.
 
 ## Conventions for future additions
 

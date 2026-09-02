@@ -1,0 +1,113 @@
+/* Wi-Fi setup over Bluetooth. Same paper as /update: one action, the steps
+   around it, the fallbacks under it. */
+
+.wrap {
+  min-height: 100vh;
+  max-width: 60ch;
+  margin: 0 auto;
+  padding: 72px 24px 96px;
+  background: var(--pf-cream);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.kicker {
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-muted);
+}
+
+.title {
+  margin: 10px 0 14px;
+  font-family: var(--pretendard);
+  font-size: clamp(32px, 6vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 44ch;
+  color: var(--pf-ink-muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.card {
+  margin-top: 36px;
+  padding: 24px;
+  border: 1px solid var(--pf-rule);
+  border-radius: 12px;
+  background: var(--pf-paper, #fff);
+}
+
+.steps {
+  margin: 0 0 24px;
+  padding-left: 20px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+
+.steps li + li {
+  margin-top: 10px;
+}
+
+.steps code,
+.fallback code {
+  font-family: var(--pf-mono);
+  font-size: 0.92em;
+}
+
+.launch {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.go {
+  align-self: flex-start;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.go:hover {
+  opacity: 0.9;
+}
+
+.state {
+  margin: 0;
+  font-size: 14px;
+  color: var(--pf-ink-muted);
+}
+
+.bad {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--pf-ink-muted);
+}
+
+.fallback {
+  margin-top: 32px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--pf-ink-muted);
+}
+
+.fallback p + p {
+  margin-top: 12px;
+}
+
+.fallback a,
+.bad a {
+  color: inherit;
+  text-decoration: underline;
+}

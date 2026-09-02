@@ -114,7 +114,10 @@ section fully before writing code.
 
 Existing features to learn from: `osc` (UDP in/out), `audio` (WebSocket
 server, [`docs/audio-ws-spec.md`](docs/audio-ws-spec.md)), `audio_in` (device
-task + HTTP API + console page + NVS persistence), `mqtt`, `show`, `weather`.
+task + HTTP API + console page + NVS persistence), `midi` (a transport-agnostic
+mapping with the network transport beside it, [`docs/midi-spec.md`](docs/midi-spec.md)),
+`ble` (a radio that starts itself only when needed and hands its memory back),
+`mqtt`, `show`, `weather`.
 
 ### What done looks like
 
