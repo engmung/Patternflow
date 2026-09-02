@@ -44,9 +44,22 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # `next build` type-checks only what it bundles; scripts/ and the smoke
+      # suites are outside that, and a type error there used to surface as a
+      # crash the first time somebody ran the script.
+      - name: Typecheck
+        run: npm run typecheck
+
       # Build is the hard gate: broken code can't reach main.
       - name: Build
         run: npm run build
+
+      # The smoke suites. Twenty of them existed and CI ran two; the rest ran
+      # when somebody remembered. `check:ci` is every suite that needs nothing
+      # a runner lacks (the module builder wants the Xtensa toolchain, so
+      # `check:module` stays local).
+      - name: Smoke suites
+        run: npm run check:ci
 
       # The Home Assistant card ships as a committed bundle, because HACS and a
       # manual copy both hand Home Assistant a directory rather than a build.
