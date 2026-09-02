@@ -24,7 +24,15 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
+// Initiator as well as listener: a panel that remembers its host can invite
+// it on every boot, so a session survives the panel rebooting without a
+// person reopening rtpMIDI (Windows) or Audio MIDI Setup (macOS). The host
+// is a setting (POST /api/midi?host=<ip>), because the library keeps a
+// listener's address to itself and there is no other way to learn it.
+#define APPLEMIDI_INITIATOR
 #include <AppleMIDI.h>
+
+#include <Preferences.h>
 
 #include "core_midi.h"
 
@@ -47,6 +55,41 @@ inline Interface midi(session);
 
 inline bool started = false;
 inline int  peers = 0;
+inline String host;                 // "" = wait to be invited
+inline uint32_t lastInviteMs = 0;
+constexpr uint32_t REINVITE_MS = 20000;   // the library gives up after ~13 s of silence
+
+inline void loadHost() {
+  Preferences p;
+  if (p.begin("pf_midi", true)) {
+    host = p.getString("host", "");
+    p.end();
+  }
+}
+
+inline bool setHost(const String& h) {
+  IPAddress ip;
+  if (h.length() && !ip.fromString(h)) return false;
+  host = h;
+  Preferences p;
+  if (p.begin("pf_midi", false)) {
+    p.putString("host", host);
+    p.end();
+  }
+  lastInviteMs = 0;   // invite (or stop inviting) on the next tick
+  return true;
+}
+
+// Invite the remembered host, and keep inviting while nobody is connected.
+inline void inviteIfDue() {
+  if (host.length() == 0 || peers > 0) return;
+  uint32_t now = millis();
+  if (lastInviteMs != 0 && now - lastInviteMs < REINVITE_MS) return;
+  lastInviteMs = now;
+  IPAddress ip;
+  if (!ip.fromString(host)) return;
+  session.sendInvite(ip, PF_MIDI_RTP_PORT);
+}
 inline char peerName[APPLEMIDI_NAMESPACE::DefaultSettings::MaxSessionNameLen + 1] = "";
 
 inline void sink(uint8_t status, uint8_t d1, uint8_t d2) {
@@ -89,6 +132,7 @@ inline void begin() {
   // Bonjour: the host's Network MIDI panel lists us by name. MDNS itself is
   // started by the core (OTA's hostname); this only adds a service record.
   MDNS.addService("apple-midi", "udp", PF_MIDI_RTP_PORT);
+  loadHost();
 
   Serial.printf("[MIDI] rtp listening on %s:%u as \"%s\"\n",
                 WiFi.localIP().toString().c_str(), PF_MIDI_RTP_PORT, PF_MIDI_SESSION_NAME);
@@ -104,6 +148,7 @@ inline void handle() {
   for (int i = 0; i < PF_MIDI_RX_BUDGET; i++) {
     if (!midi.read()) break;
   }
+  inviteIfDue();
 }
 
 }  // namespace PatternflowMidiRtp

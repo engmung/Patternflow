@@ -25,7 +25,7 @@ The mapping below is transport-independent. What ships today:
 
 | | |
 |---|---|
-| **RTP-MIDI** (AppleMIDI, RFC 6295) over Wi-Fi | The panel is a session **listener** on UDP **5004** (control) / **5005** (data), session name `Patternflow`, advertised over Bonjour as `_apple-midi._udp` so it appears by name. macOS/iOS: *Audio MIDI Setup → Network* (or any CoreMIDI app). Windows: the free [rtpMIDI](https://www.tobias-erichsen.de/software/rtpmidi.html) driver — add the panel by name or IP, connect, and it is a MIDI port in Live. Linux: `rtpmidid`. Two participants at most. |
+| **RTP-MIDI** (AppleMIDI, RFC 6295) over Wi-Fi | The panel is a session **listener** on UDP **5004** (control) / **5005** (data) — and an initiator toward one remembered host, see Settings —, session name `Patternflow`, advertised over Bonjour as `_apple-midi._udp` so it appears by name. macOS/iOS: *Audio MIDI Setup → Network* (or any CoreMIDI app). Windows: the free [rtpMIDI](https://www.tobias-erichsen.de/software/rtpmidi.html) driver — add the panel by name or IP, connect, and it is a MIDI port in Live. Linux: `rtpmidid`. Two participants at most. |
 
 Channel: **1** by default (`PF_MIDI_CHANNEL`; `0` listens on every channel
 and sends on 1). MIDI Thru is off — the panel never echoes a host's messages
@@ -79,8 +79,9 @@ as `OSC` and `AUD`.
 
 | | |
 |---|---|
-| `GET /api/midi` | channel, `outDiv`, session state, counters |
+| `GET /api/midi` | channel, `outDiv`, `host`, session state, counters |
 | `POST /api/midi?outDiv=N` | outbound sensitivity: detents per relative-CC step, `1..16`, persisted on the panel. The encoders have 20 detents a turn, so `1` is 20 steps per turn and `4` is 5. Default `1` (`PF_MIDI_OUT_DIVISOR`). |
+| `POST /api/midi?host=<ip>` | A host to **invite**: the panel sends the session invitation itself on boot and again every 20 s while no session is up, so a panel that reboots comes back into the DAW without anyone reopening rtpMIDI or Audio MIDI Setup. The host must accept invitations (rtpMIDI: *Who may connect to me: Anyone*; macOS: the same setting in the Network MIDI window). Empty string clears it. Persisted. |
 
 ## Why these numbers
 
@@ -96,4 +97,4 @@ as `OSC` and `AUD`.
 
 - **1.0** — CC 20–23 absolute in; CC 24–27 relative in/out; notes 60–63
   buttons in/out; Program Change in/out; RTP-MIDI listener on 5004;
-  `outDiv` sensitivity over `/api/midi`.
+  `outDiv` sensitivity and a remembered `host` to invite, over `/api/midi`.

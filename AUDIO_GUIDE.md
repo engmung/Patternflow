@@ -198,6 +198,12 @@ in Live's MIDI-map list, narrow that mapping's Min/Max; or on the panel,
 `POST http://patternflow.local/api/midi?outDiv=4` makes it one MIDI step
 per four detents (1–16, remembered across reboots; default 1).
 
+**So you do not reconnect after every panel reboot**, tell the panel your
+computer's address once — `POST http://patternflow.local/api/midi?host=192.168.0.23`
+(your PC's LAN IP) — and it invites the computer itself on every boot and
+whenever the session drops. rtpMIDI must allow incoming connections
+(*Who may connect to me: Anyone*, the default).
+
 The `MIDI` row on the panel's NETWORK screen switches it off without
 reflashing; `/api/status` reports the session, sensitivity and message
 counts under `midi`.
