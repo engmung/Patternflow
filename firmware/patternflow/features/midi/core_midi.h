@@ -71,7 +71,6 @@ inline bool runtimeEnabled = true;
 #define PF_MIDI_OUT_DIVISOR 1
 #endif
 constexpr int OUT_DIVISOR_MAX = 16;
-inline int outDivisor = PF_MIDI_OUT_DIVISOR;
 inline int outAccum[4] = {0, 0, 0, 0};
 
 // ...and the other direction: steps per detent, for a hand that wants a
@@ -82,7 +81,28 @@ inline int outAccum[4] = {0, 0, 0, 0};
 #define PF_MIDI_OUT_MULTIPLIER 1
 #endif
 constexpr int OUT_MULTIPLIER_MAX = 8;
-inline int outMultiplier = PF_MIDI_OUT_MULTIPLIER;
+
+// Per knob. A knob on a filter cutoff and a knob on a pattern's speed do not
+// want the same ratio, so each carries its own; the page moves them together
+// unless told otherwise.
+inline int outDivisor[4]    = {PF_MIDI_OUT_DIVISOR, PF_MIDI_OUT_DIVISOR, PF_MIDI_OUT_DIVISOR, PF_MIDI_OUT_DIVISOR};
+inline int outMultiplier[4] = {PF_MIDI_OUT_MULTIPLIER, PF_MIDI_OUT_MULTIPLIER, PF_MIDI_OUT_MULTIPLIER, PF_MIDI_OUT_MULTIPLIER};
+
+inline int clampDiv(int v) { return v < 1 ? 1 : (v > OUT_DIVISOR_MAX ? OUT_DIVISOR_MAX : v); }
+inline int clampMul(int v) { return v < 1 ? 1 : (v > OUT_MULTIPLIER_MAX ? OUT_MULTIPLIER_MAX : v); }
+
+inline void saveGains() {
+  Preferences p;
+  if (!p.begin("pf_midi", false)) return;
+  char key[8];
+  for (int i = 0; i < 4; i++) {
+    snprintf(key, sizeof(key), "div%d", i);
+    p.putInt(key, outDivisor[i]);
+    snprintf(key, sizeof(key), "mul%d", i);
+    p.putInt(key, outMultiplier[i]);
+  }
+  p.end();
+}
 
 // Outbound encoding for the knobs. The encoders are endless, so the honest
 // message is relative (64 ± steps) - and Live guesses what a CC means from
@@ -103,28 +123,34 @@ inline void loadSettings() {
   Preferences p;
   if (p.begin("pf_midi", true)) {
     runtimeEnabled = p.getBool("on", true);
-    outDivisor = p.getInt("outDiv", PF_MIDI_OUT_DIVISOR);
-    outMultiplier = p.getInt("outMul", PF_MIDI_OUT_MULTIPLIER);
+    // The per-knob keys, falling back to the single values an earlier build
+    // wrote, so a panel that had one sensitivity keeps it on all four.
+    int legacyDiv = p.getInt("outDiv", PF_MIDI_OUT_DIVISOR);
+    int legacyMul = p.getInt("outMul", PF_MIDI_OUT_MULTIPLIER);
+    char key[8];
+    for (int i = 0; i < 4; i++) {
+      snprintf(key, sizeof(key), "div%d", i);
+      outDivisor[i] = clampDiv(p.getInt(key, legacyDiv));
+      snprintf(key, sizeof(key), "mul%d", i);
+      outMultiplier[i] = clampMul(p.getInt(key, legacyMul));
+    }
     outAbsolute = p.getBool("outAbs", PF_MIDI_OUT_ABSOLUTE);
     p.end();
   }
-  if (outDivisor < 1) outDivisor = 1;
-  if (outDivisor > OUT_DIVISOR_MAX) outDivisor = OUT_DIVISOR_MAX;
-  if (outMultiplier < 1) outMultiplier = 1;
-  if (outMultiplier > OUT_MULTIPLIER_MAX) outMultiplier = OUT_MULTIPLIER_MAX;
 }
 
-inline bool setOutMultiplier(int mul) {
-  if (mul < 1 || mul > OUT_MULTIPLIER_MAX) return false;
-  outMultiplier = mul;
-  if (mul > 1) outDivisor = 1;
-  for (auto& a : outAccum) a = 0;
-  Preferences p;
-  if (p.begin("pf_midi", false)) {
-    p.putInt("outMul", outMultiplier);
-    p.putInt("outDiv", outDivisor);
-    p.end();
+// knob = 0..3, or -1 for all four. Setting either side resets the other, so a
+// knob is always exactly one of xN, 1:1 or 1/N - and 1:1 is reachable from
+// either parameter.
+inline bool setOutMultiplier(int knob, int mul) {
+  if (mul < 1 || mul > OUT_MULTIPLIER_MAX || knob < -1 || knob > 3) return false;
+  for (int i = 0; i < 4; i++) {
+    if (knob != -1 && i != knob) continue;
+    outMultiplier[i] = mul;
+    outDivisor[i] = 1;   // a gain is one number: xN, 1:1 or 1/N
+    outAccum[i] = 0;
   }
+  saveGains();
   return true;
 }
 
@@ -138,17 +164,15 @@ inline void setOutAbsolute(bool abs) {
   }
 }
 
-inline bool setOutDivisor(int div) {
-  if (div < 1 || div > OUT_DIVISOR_MAX) return false;
-  outDivisor = div;
-  if (div > 1) outMultiplier = 1;
-  for (auto& a : outAccum) a = 0;
-  Preferences p;
-  if (p.begin("pf_midi", false)) {
-    p.putInt("outDiv", outDivisor);
-    p.putInt("outMul", outMultiplier);
-    p.end();
+inline bool setOutDivisor(int knob, int div) {
+  if (div < 1 || div > OUT_DIVISOR_MAX || knob < -1 || knob > 3) return false;
+  for (int i = 0; i < 4; i++) {
+    if (knob != -1 && i != knob) continue;
+    outDivisor[i] = div;
+    outMultiplier[i] = 1;
+    outAccum[i] = 0;
   }
+  saveGains();
   return true;
 }
 
@@ -288,9 +312,9 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
       // detent. Division truncates toward zero, so the remainder keeps the
       // sign of the motion and a change of direction cancels it naturally.
       outAccum[i] += d;
-      int steps = outAccum[i] / outDivisor;
-      outAccum[i] -= steps * outDivisor;
-      steps *= outMultiplier;
+      int steps = outAccum[i] / outDivisor[i];
+      outAccum[i] -= steps * outDivisor[i];
+      steps *= outMultiplier[i];
       if (steps > 63) steps = 63;
       if (steps < -63) steps = -63;
       if (steps != 0) {

@@ -389,7 +389,7 @@ class Handler(BaseHTTPRequestHandler):
             })
         if path.startswith("/api/midi"):
             return self.send_json({
-                "ok": True, "channel": 1, "outDiv": 1, "outMul": 1, "outMode": "abs",
+                "ok": True, "channel": 1, "outDiv": [1, 1, 4, 1], "outMul": [1, 2, 1, 1], "outMode": "abs",
                 "host": "192.168.0.176", "you": "192.168.0.176",
                 "runtime": True, "rtpPeers": 1, "rtpPeer": "DESKTOP-STUDIO",
                 "ip": "192.168.0.180", "port": 5004,

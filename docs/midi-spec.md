@@ -53,7 +53,7 @@ just more input, and the audio lanes yield to both.
 
 | Message | When |
 |---|---|
-| **CC 24–27** | Encoder 1–4 turned by a hand. **Default (`outMode=abs`):** the value is a virtual position `0..127` the panel keeps per knob — starts at 64, moves by `outMul` steps per `outDiv` detents, clamps at the ends — so every DAW reads it as an ordinary knob with nothing to auto-detect; the DAW's takeover mode handles pickup after a clamp. **`outMode=rel`:** `64 ± steps` this frame (binary offset), for hosts that map relative encoders explicitly (Max, TouchDesigner). Live's map-time auto-detection of relative encoders is not reliable with this stream; that is why `abs` is the default. |
+| **CC 24–27** | Encoder 1–4 turned by a hand. **Default (`outMode=abs`):** the value is a virtual position `0..127` the panel keeps per knob — starts at 64, moves by that knob's `outMul` steps per `outDiv` detents, clamps at the ends — so every DAW reads it as an ordinary knob with nothing to auto-detect; the DAW's takeover mode handles pickup after a clamp. **`outMode=rel`:** `64 ± steps` this frame (binary offset), for hosts that map relative encoders explicitly (Max, TouchDesigner). Live's map-time auto-detection of relative encoders is not reliable with this stream; that is why `abs` is the default. |
 | **Note-on 60–63**, velocity 127 | Encoder button 1–4 pressed |
 | **Note-off 60–63** | Released |
 | **Program Change `n`** | The pattern changed (by anyone: knob, console, OSC, MIDI, a show), for `n ≤ 127` |
@@ -68,7 +68,7 @@ same track that automates it does not double-record.
 carries
 
 ```json
-"midi": {"runtime": true, "channel": 1, "outDiv": 1, "rtpPeers": 1, "rtpPeer": "MacBook", "rx": 812, "tx": 40}
+"midi": {"runtime": true, "channel": 1, "outDiv": [1,1,4,1], "outMul": [1,2,1,1], "outMode": "abs", "host": "192.168.0.23", "rtpPeers": 1, "rtpPeer": "MacBook", "rx": 812, "tx": 40}
 ```
 
 `runtime` is the device's own switch (the `MIDI` row on the NETWORK screen);
@@ -82,6 +82,7 @@ as `OSC` and `AUD`.
 | `GET /api/midi` | channel, `outDiv`, `outMul`, `outMode`, `host`, session state, counters |
 | `POST /api/midi?outMode=abs\|rel` | knobs out as a virtual position (default) or as relative steps. Persisted. |
 | `POST /api/midi?outMul=N` | outbound sensitivity the other way: steps per detent, `1..8`. Setting one of `outMul`/`outDiv` above 1 resets the other to 1; the console page shows both as one scale from ×8 through 1:1 to 1/16. |
+| `...&knob=1..4` | Apply `outMul`/`outDiv` to one knob; without it, to all four. Each knob keeps its own ratio; `GET` reports `outMul` and `outDiv` as four-element arrays. |
 | `POST /api/midi?outDiv=N` | outbound sensitivity: detents per outbound step, `1..16`, persisted on the panel. The encoders have 20 detents a turn, so `1` is 20 steps per turn and `4` is 5. Default `1` (`PF_MIDI_OUT_DIVISOR`). |
 | `POST /api/midi?host=<ip>` | A host to **invite**: the panel sends the session invitation itself on boot and again every 20 s while no session is up, so a panel that reboots comes back into the DAW without anyone reopening rtpMIDI or Audio MIDI Setup. The host must accept invitations (rtpMIDI: *Who may connect to me: Anyone*; macOS: the same setting in the Network MIDI window). Empty string clears it. Persisted. |
 

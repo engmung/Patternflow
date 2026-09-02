@@ -6,6 +6,7 @@
 //   POST /api/midi?on=0|1       the MIDI row on the NETWORK screen, from here
 //   POST /api/midi?outDiv=N     detents per outbound step, 1..16, persisted
 //   POST /api/midi?outMul=N     steps per detent, 1..8 (the other direction)
+//        ...&knob=1..4          apply to one knob; absent = all four
 //   POST /api/midi?outMode=abs|rel  knobs out as a virtual 0..127 position
 //                               (default) or as 64±steps. Persisted.
 //   POST /api/midi?host=<ip>    the host to invite on boot and whenever no
@@ -37,11 +38,11 @@ inline bool initialized = false;
 inline void sendState() {
   String json = "{\"ok\":true,\"channel\":";
   json += (int)PF_MIDI_CHANNEL;
-  json += ",\"outDiv\":";
-  json += PatternflowMidi::outDivisor;
-  json += ",\"outMul\":";
-  json += PatternflowMidi::outMultiplier;
-  json += ",\"outMode\":\"";
+  json += ",\"outDiv\":[";
+  for (int i = 0; i < 4; i++) { if (i) json += ','; json += PatternflowMidi::outDivisor[i]; }
+  json += "],\"outMul\":[";
+  for (int i = 0; i < 4; i++) { if (i) json += ','; json += PatternflowMidi::outMultiplier[i]; }
+  json += "],\"outMode\":\"";
   json += PatternflowMidi::outAbsolute ? "abs" : "rel";
   json += "\",\"host\":\"";
   json += PatternflowMidiRtp::host;
@@ -86,12 +87,20 @@ inline void begin() {
   s.on("/api/midi", HTTP_GET, []() { sendState(); });
   s.on("/api/midi", HTTP_POST, []() {
     WebServer& s = PatternflowHttp::server();
-    if (s.hasArg("outDiv") && !PatternflowMidi::setOutDivisor(s.arg("outDiv").toInt())) {
+    int knob = -1;
+    if (s.hasArg("knob")) {
+      knob = s.arg("knob").toInt() - 1;
+      if (knob < 0 || knob > 3) {
+        s.send(400, "application/json", "{\"ok\":false,\"error\":\"knob must be 1..4\"}");
+        return;
+      }
+    }
+    if (s.hasArg("outDiv") && !PatternflowMidi::setOutDivisor(knob, s.arg("outDiv").toInt())) {
       s.send(400, "application/json", "{\"ok\":false,\"error\":\"outDiv must be 1..16\"}");
       return;
     }
     if (s.hasArg("on")) PatternflowMidi::setRuntimeEnabled(s.arg("on") == "1");
-    if (s.hasArg("outMul") && !PatternflowMidi::setOutMultiplier(s.arg("outMul").toInt())) {
+    if (s.hasArg("outMul") && !PatternflowMidi::setOutMultiplier(knob, s.arg("outMul").toInt())) {
       s.send(400, "application/json", "{\"ok\":false,\"error\":\"outMul must be 1..8\"}");
       return;
     }

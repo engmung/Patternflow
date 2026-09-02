@@ -165,7 +165,8 @@ protocol macOS calls *Network MIDI*). Once a session is up the panel is an
 ordinary MIDI port in any DAW: four knobs in, four knobs out, four buttons,
 and a pattern selector. The contract is [`docs/midi-spec.md`](docs/midi-spec.md).
 
-**Connect:**
+**Connect** — the Windows walk-through with screenshots is
+[`docs/midi-ableton.md`](docs/midi-ableton.md); the short version:
 
 - **macOS / iOS** — *Audio MIDI Setup → Window → Show MIDI Studio → Network*.
   `Patternflow` appears in the directory by itself (Bonjour); select it and
@@ -195,9 +196,9 @@ without a Max device. Map with a couple of detents in either direction; the
 panel sends a plain knob value, so there is nothing for Live to guess.
 
 **If a knob moves the mapped parameter too much (or too little) per turn**,
-the console's **MIDI** page has one sensitivity slider from ×8 (a quarter
-turn sweeps a parameter) through 1:1 to 1/16 (ten turns). It is remembered
-across reboots; the same page shows the four values the DAW is seeing, the
+the console's **MIDI** page has a sensitivity slider per knob from ×8 (a
+quarter turn sweeps a parameter) through 1:1 to 1/16 (ten turns), moved
+together or one by one. It is remembered across reboots; the same page shows the four values the DAW is seeing, the
 session, and the computer the panel should call on boot.
 
 **So you do not reconnect after every panel reboot**, tell the panel your

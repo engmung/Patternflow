@@ -47,10 +47,11 @@ inline void appendStatus(String& json) {
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
   json += ",\"channel\":";
   json += (int)PF_MIDI_CHANNEL;
-  json += ",\"outDiv\":";
-  json += PatternflowMidi::outDivisor;
-  json += ",\"outMul\":";
-  json += PatternflowMidi::outMultiplier;
+  json += ",\"outDiv\":[";
+  for (int i = 0; i < 4; i++) { if (i) json += ','; json += PatternflowMidi::outDivisor[i]; }
+  json += "],\"outMul\":[";
+  for (int i = 0; i < 4; i++) { if (i) json += ','; json += PatternflowMidi::outMultiplier[i]; }
+  json += "]";
   json += ",\"outMode\":\"";
   json += PatternflowMidi::outAbsolute ? "abs" : "rel";
   json += "\"";

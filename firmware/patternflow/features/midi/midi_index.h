@@ -47,10 +47,14 @@ cursor:pointer;text-align:left;font-family:inherit;color:inherit}
 .sens{margin-top:14px}
 .sens .top{display:flex;align-items:baseline;gap:10px}
 .sens .top b{font-size:13px;font-weight:600}
-.sens .top span{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:auto}
-.sens input[type=range]{width:100%;margin:10px 0 4px;accent-color:var(--led)}
-.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint)}
-.sens .what{font-size:12px;color:var(--muted);margin:6px 0 0}
+.sens .top label{margin-left:auto;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}
+.sens .top label input{accent-color:var(--led)}
+.g{display:grid;grid-template-columns:28px 1fr 150px;align-items:center;gap:12px;padding:5px 0}
+.g .k{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.g input[type=range]{width:100%;margin:0;accent-color:var(--led)}
+.g .r{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);margin:2px 0 0 40px}
+@media(max-width:480px){.g{grid-template-columns:28px 1fr 96px}}
 .knobs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
 .knob{border:1px solid var(--rule-soft);background:var(--panel);padding:8px 8px 10px}
 .knob .n{font-family:var(--mono);font-size:10px;color:var(--faint);display:flex;justify-content:space-between}
@@ -129,10 +133,12 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
       <p>Sends +1 / −1 per step (64 ± n). For hosts that map endless encoders explicitly: Max, TouchDesigner, custom code.</p></button>
   </div>
   <div class="sens">
-    <div class="top"><b>Sensitivity</b><span id="divv">-</span></div>
-    <input type="range" id="div" min="0" max="11" step="1" value="4">
-    <div class="scale"><span>fast · 8 steps per detent</span><span>1 : 1</span><span>fine · 16 detents per step</span></div>
-    <p class="what" id="what">-</p>
+    <div class="top"><b>Sensitivity</b><label><input type="checkbox" id="link" checked> move all four together</label></div>
+    <div class="g"><span class="k">K1</span><input type="range" min="0" max="11" step="1" value="4" data-k="0"><span class="r">-</span></div>
+    <div class="g"><span class="k">K2</span><input type="range" min="0" max="11" step="1" value="4" data-k="1"><span class="r">-</span></div>
+    <div class="g"><span class="k">K3</span><input type="range" min="0" max="11" step="1" value="4" data-k="2"><span class="r">-</span></div>
+    <div class="g"><span class="k">K4</span><input type="range" min="0" max="11" step="1" value="4" data-k="3"><span class="r">-</span></div>
+    <div class="scale"><span>fast · 8 steps / detent</span><span>1 : 1</span><span>fine · 16 detents / step</span></div>
   </div>
   <div class="knobs" id="knobs">
     <div class="knob"><div class="n"><span>K1</span><span>CC 24</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
@@ -161,12 +167,12 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
   <p class="note">Ableton: in Preferences → MIDI, switch <b>Track</b> and <b>Remote</b> on for the port's Input and <b>Track</b> on for its Output. Then Ctrl/Cmd-M, click a parameter, turn a knob.</p>
 </section>
 
-<footer>RTP-MIDI (AppleMIDI) · <a href="https://github.com/engmung/Patternflow/blob/main/docs/midi-spec.md">the contract</a></footer>
+<footer>RTP-MIDI (AppleMIDI) · <a href="https://github.com/engmung/Patternflow/blob/main/docs/midi-ableton.md">setup, step by step</a> · <a href="https://github.com/engmung/Patternflow/blob/main/docs/midi-spec.md">the contract</a></footer>
 </div>
 <script>
 function $(i){return document.getElementById(i)}
 function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
-var last=null,hostDirty=false,dragging=false;
+var last=null,hostDirty=false,dragging=false,linkTouched=false;
 function post(params,okText){
   var body=new URLSearchParams();
   for(var k in params)body.set(k,params[k]);
@@ -182,12 +188,16 @@ function gainIndex(mul,div){
   for(var i=0;i<GAINS.length;i++)if(GAINS[i][0]===mul&&GAINS[i][1]===div)return i;
   return mul>1?0:GAINS.length-1;
 }
-function gainText(g){return g[0]>1?(g[0]+' steps / detent'):(g[1]>1?(g[1]+' detents / step'):'1 : 1')}
-function turns(g){
-  // 20 detents a turn; 127 steps end to end.
+function gainText(g){return g[0]>1?('\u00d7'+g[0]):(g[1]>1?('1/'+g[1]):'1 : 1')}
+// 20 detents a turn; 127 steps end to end.
+function rowText(g,abs){
   var perTurn=20*g[0]/g[1];
-  return {perTurn:perTurn,sweep:127/perTurn};
+  var t=gainText(g)+' \u00b7 '+(Math.round(perTurn*10)/10)+'/turn';
+  if(abs)t+=' \u00b7 '+(Math.round(127/perTurn*10)/10)+' turns';
+  return t;
 }
+function sliders(){return document.querySelectorAll('.g input[type=range]')}
+function arr(v){return Array.isArray(v)?v:[v,v,v,v]}
 function paint(d){
   last=d;
   var con=d.rtpPeers>0;
@@ -208,12 +218,17 @@ function paint(d){
   var abs=d.outMode!=='rel';
   $('m-abs').className='ch'+(abs?' on':'');
   $('m-rel').className='ch'+(abs?'':' on');
-  if(!dragging){$('div').value=gainIndex(d.outMul||1,d.outDiv||1);}
-  var g=GAINS[Number($('div').value)];
-  $('divv').textContent=gainText(g);
-  var t=turns(g);
-  $('what').textContent='One turn of a knob = '+(Math.round(t.perTurn*10)/10)+' steps'+
-    (abs?(' · end to end ≈ '+(Math.round(t.sweep*100)/100)+' turns'):'');
+  var muls=arr(d.outMul||1),divs=arr(d.outDiv||1);
+  var sl=sliders();
+  for(var s=0;s<4;s++){
+    if(!dragging)sl[s].value=gainIndex(muls[s],divs[s]);
+    var g=GAINS[Number(sl[s].value)];
+    sl[s].parentNode.querySelector('.r').textContent=rowText(g,abs);
+  }
+  if(!dragging&&!linkTouched){
+    var same=muls.every(function(m,i){return m===muls[0]&&divs[i]===divs[0]});
+    $('link').checked=same;
+  }
   var ks=document.querySelectorAll('#knobs .knob');
   for(var i=0;i<4;i++){
     var v=(d.outPos||[64,64,64,64])[i];
@@ -229,8 +244,16 @@ function poll(){
 }
 $('m-abs').onclick=function(){post({outMode:'abs'},'knobs send their value')};
 $('m-rel').onclick=function(){post({outMode:'rel'},'knobs send relative steps')};
-$('div').oninput=function(){dragging=true;if(last){var g=GAINS[Number(this.value)];var d=Object.assign({},last);d.outMul=g[0];d.outDiv=g[1];paint(d)}};
-$('div').onchange=function(){dragging=false;var g=GAINS[Number(this.value)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'sensitivity saved')};
+$('link').onchange=function(){linkTouched=true;if(this.checked){var v=sliders()[0].value;var g=GAINS[Number(v)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'all four set to '+gainText(g))}};
+Array.prototype.forEach.call(sliders(),function(el){
+  el.oninput=function(){dragging=true;
+    if($('link').checked){var v=this.value;Array.prototype.forEach.call(sliders(),function(o){o.value=v})}
+    if(last)paint(last)};
+  el.onchange=function(){dragging=false;var g=GAINS[Number(this.value)];
+    var p=g[0]>1?{outMul:g[0]}:{outDiv:g[1]};
+    if(!$('link').checked)p.knob=Number(this.getAttribute('data-k'))+1;
+    post(p,($('link').checked?'all four':'K'+p.knob)+' \u2192 '+gainText(g))};
+});
 $('on').onchange=function(){post({on:this.checked?'1':'0'},this.checked?'MIDI on':'MIDI off')};
 $('f-host').oninput=function(){hostDirty=true};
 $('hostf').onsubmit=function(e){e.preventDefault();hostDirty=false;
