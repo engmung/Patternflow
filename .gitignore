@@ -30,7 +30,6 @@ out/
 # Local staging for a release upload (bins duplicated from the flasher folder).
 firmware/release/
 firmware/patternflow/patternflow_secrets.h
-firmware/patternflow_stream/patternflow_stream.ino/stream_secrets.h
 
 # KiCad 자동 생성/백업
 *.kicad_prl
@@ -111,12 +110,10 @@ __pycache__/
 firmware/patternflow/pio_src/
 firmware/patternflow/lib/
 
-# A variant's addon list. The core never has one — it belongs to whoever
-# forked or built against this tree, and must never be committed here.
-firmware/patternflow/addons/addons_local.h
-
-# A variant's settings overrides. Core never has one.
-firmware/patternflow/addons/overrides.h
+# An out-of-tree edition's feature list and settings overrides, dropped into
+# features/ by whoever forked or built against this tree. The core never has
+# either, and they must never be committed here. (In-tree editions keep theirs
+# under firmware/bundles/<name>/ instead, and those ARE committed.)
 firmware/patternflow/features/overrides.h
 firmware/patternflow/features/features_local.h
 firmware/patternflow/features/addons_local.h

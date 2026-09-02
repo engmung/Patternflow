@@ -1,34 +1,18 @@
 # `.agents/` — AI Agent Harness
 
-This directory contains the AI agent harness for Patternflow. It configures how AI coding agents (Antigravity, Cursor, Claude Code) understand and work on this project.
+This directory is the Antigravity harness folder for Patternflow. It is version-controlled and public — part of the open-source release.
 
-It is version-controlled and public — part of the open-source release.
+## What is here
 
-## Why this exists
+Nothing an agent needs to read first. The root `AGENTS.md` is the single context file, loaded in every session by Antigravity, Cursor and Claude Code alike; it carries the repository map, the hard rules, the build commands and the versioning conventions.
 
-Patternflow extends Nam June Paik's *Participation TV* by opening up not just the artwork but the methods of making it. The hardware is open, the firmware is open, and the development workflow is open too. If you fork this project and use an AI coding agent, your agent picks up the same conventions, skills, and project context that the author uses.
+The skills and workflows that used to live here (`add-pattern`, `update-bom`, `release-version`, `firmware-cleanup`, `/release`, `/update-build-doc`) were retired on 2026-09-03. They were written against the v1/v2 firmware and board — patterns as functions inside `patternflow.ino`, an SMD BOM, version numbers in folder names — and an agent following them today would edit the firmware core (which `AGENTS.md` forbids) or "correct" the v3 BOM back to v2. The procedures they described now live where they are kept current:
 
-## Structure
-
-- `rules/project-context.md` — Detailed project context loaded when agents need deep understanding of the codebase. Architecture, tech stack, conventions, license structure.
-- `skills/` — Specialized capabilities the agent loads on demand based on your request:
-  - `update-bom/` — Sync the BOM in `BUILD_GUIDE.md` against the schematic
-  - `release-version/` — Tag and document a new release
-  - `add-pattern/` — Add a new generative pattern to the firmware
-  - `firmware-cleanup/` — Prepare firmware code for public release
-- `workflows/` — Slash commands invoked manually:
-  - `release.md` → `/release`
-  - `update-build-doc.md` → `/update-build-doc`
-
-## How agents use this
-
-The root `AGENTS.md` (at the repository root) is loaded in every session. Files in `.agents/` are loaded selectively based on the task. Skills auto-trigger when their `description` field matches your request; workflows are explicit slash commands.
-
-## Compatibility
-
-- **Antigravity** — Full native support (`.agents/` is the canonical format).
-- **Cursor / Claude Code** — Read `AGENTS.md` at the root via the cross-tool standard. Skills are not auto-loaded but can be invoked manually by referencing the relevant `.agents/skills/<name>/SKILL.md`.
+- releasing → `docs/RELEASING.md` and `.github/workflows/firmware-release.yml`
+- writing a pattern → `firmware/CUSTOM_PATTERNS.md`, `PATTERN_GUIDE.md`
+- writing a feature or an edition → `FEATURE_GUIDE.md`, `docs/EDITIONS.md`
+- the BOM → `hardware/bom/README.md` (the CSV is the source of truth)
 
 ## Contributing to the harness
 
-If you find yourself repeatedly explaining the same thing to your agent while working on Patternflow, that's a candidate for a new skill. PRs that add or improve skills are welcome.
+If you find yourself repeatedly explaining the same thing to your agent while working on Patternflow, that is a candidate for a new skill under `skills/<name>/SKILL.md`. Write it against the current tree, and name the file it derives its facts from, so the next reader can tell when it has gone stale.
