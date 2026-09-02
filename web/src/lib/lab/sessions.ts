@@ -18,7 +18,9 @@
 // localStorage budget, and a quota failure drops the oldest and retries
 // rather than breaking the save.
 
-const KEY = "patternflow_lab_sessions_v1";
+import { LAB_STORAGE, readJson, removeStorage, writeJson } from "./persist";
+
+const KEY = LAB_STORAGE.sessions;
 
 export const MAX_SESSIONS = 3;
 
@@ -34,41 +36,25 @@ export type SessionMeta = {
 type StoredSession = SessionMeta & { json: string };
 
 function read(): StoredSession[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (entry): entry is StoredSession =>
-        typeof entry === "object" &&
-        entry !== null &&
-        typeof (entry as StoredSession).id === "string" &&
-        typeof (entry as StoredSession).json === "string",
-    );
-  } catch {
-    return [];
-  }
+  const parsed = readJson(KEY);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter(
+    (entry): entry is StoredSession =>
+      typeof entry === "object" &&
+      entry !== null &&
+      typeof (entry as StoredSession).id === "string" &&
+      typeof (entry as StoredSession).json === "string",
+  );
 }
 
 /** Writes, shedding the oldest entries until it fits. */
 function write(sessions: StoredSession[]): void {
-  if (typeof window === "undefined") return;
   const queue = sessions.slice(0, MAX_SESSIONS);
   while (queue.length > 0) {
-    try {
-      window.localStorage.setItem(KEY, JSON.stringify(queue));
-      return;
-    } catch {
-      queue.pop(); // quota — give up the oldest and try again
-    }
+    if (writeJson(KEY, queue)) return;
+    queue.pop(); // quota — give up the oldest and try again
   }
-  try {
-    window.localStorage.removeItem(KEY);
-  } catch {
-    /* private mode */
-  }
+  removeStorage(KEY);
 }
 
 export function listSessions(): SessionMeta[] {

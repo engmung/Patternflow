@@ -13,18 +13,14 @@ import {
   sampleRampRGBA,
   srgbToOklab,
   type RampMode,
-} from "@/lib/patternHarness";
-import { codeUsesValueField } from "@/lib/patternRamp";
+} from "@/lib/pattern/harness";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { rampStateToHarness } from "@/lib/lab/engine";
 import { DEFAULT_RAMP_STATE } from "@/lib/lab/types";
 import { useFocusCodeLayer, useLabStore } from "@/lib/lab/store";
+import { rgbToHex } from "@/lib/pattern/color";
 import styles from "../PatternLab.module.css";
 import dock from "../LabPanels.module.css";
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
-  return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
-}
 
 /** "hsvShort" → "hsv short" — camelCase mode ids read as plain words. */
 function modeLabel(mode: string): string {

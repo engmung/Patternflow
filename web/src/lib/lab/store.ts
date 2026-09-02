@@ -11,10 +11,10 @@ import {
   matchMatrixAnnotation,
   parseMatrixAnnotation,
   type MatrixSize,
-} from "@/lib/patternMatrix";
-import { parseRampAnnotation, stripRampAnnotation } from "@/lib/patternRamp";
+} from "@/lib/pattern/matrix";
+import { parseRampAnnotation, stripRampAnnotation } from "@/lib/pattern/ramp";
 import { livePresets } from "@/lib/presets";
-import { clearDraft, loadGallery, saveGallery } from "@/lib/labDraft";
+import { clearDraft, loadGallery, saveGallery } from "@/lib/lab/legacyDraft";
 import {
   applyKnobEntries,
   defaultKnobState,

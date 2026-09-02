@@ -27,6 +27,7 @@ import {
 } from "@/lib/lab/pixelTools";
 import { labEngine } from "@/lib/lab/engine";
 import { buildPixelPatternCode } from "@/lib/lab/pixelToCode";
+import { hexToRgb, rgbToHex } from "@/lib/pattern/color";
 import { useActiveLayer, useLabStore } from "@/lib/lab/store";
 import { isPixelLayer } from "@/lib/lab/types";
 import styles from "../PatternLab.module.css";
@@ -95,20 +96,22 @@ function historyFor(id: string) {
   return history;
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const value = parseInt(hex.slice(1), 16);
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-}
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
-  return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
-}
-
 export default function PixelPanel() {
   const layer = useActiveLayer();
   const bumpPixelLayer = useLabStore((state) => state.bumpPixelLayer);
   const addPixelLayer = useLabStore((state) => state.addPixelLayer);
+
+  // The undo stacks are keyed by layer id and live for the tab. A layer that
+  // is deleted took up to MAX_UNDO frames of RGBA with it and nothing ever
+  // let go — so the set of live ids is watched, and a stack whose layer is
+  // gone is dropped.
+  const liveLayerIds = useLabStore((state) => state.layers.map((entry) => entry.id).join("\n"));
+  useEffect(() => {
+    const live = new Set(liveLayerIds.split("\n"));
+    for (const id of Array.from(histories.keys())) {
+      if (!live.has(id)) histories.delete(id);
+    }
+  }, [liveLayerIds]);
 
   const [tool, setTool] = useState<Tool>("pen");
   const [size, setSize] = useState(1);

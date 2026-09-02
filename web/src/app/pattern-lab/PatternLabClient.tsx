@@ -5,7 +5,7 @@
 // The old lab was one pattern + one fixed two-column layout. This shell hosts
 // nine dockable panels (dockview) over a layer-stack project (zustand):
 // Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Graphic Export,
-// Director — the list is PANEL_DEFS below. Panels rearrange
+// Director — the list is panels/registry.tsx. Panels rearrange
 // Photoshop-style — drag tabs, split groups, float — and the arrangement
 // persists to localStorage alongside the project itself.
 //
@@ -15,18 +15,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  DockviewReact,
-  type DockviewApi,
-  type DockviewReadyEvent,
-  type IDockviewPanelProps,
-} from "dockview-react";
+import { DockviewReact, type DockviewApi, type DockviewReadyEvent } from "dockview-react";
 import type { DockviewTheme } from "dockview";
 import "dockview/dist/styles/dockview.css";
 import "./lab-dock.css";
 
-import { withMatrixAnnotation } from "@/lib/patternMatrix";
-import { codeUsesValueField, withRampAnnotation } from "@/lib/patternRamp";
+import { withMatrixAnnotation } from "@/lib/pattern/matrix";
+import { codeUsesValueField, withRampAnnotation } from "@/lib/pattern/ramp";
 import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
 import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
 import PublishModal from "@/components/community/PublishModal";
@@ -35,22 +30,14 @@ import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { onEditorReveal } from "@/lib/lab/editorReveal";
 import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
+import { readStorage, removeStorage, writeStorage } from "@/lib/lab/persist";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
 import { buildStackAnnotation, importCodeIntoLab, stripStackAnnotation } from "@/lib/lab/stackShare";
 import { useLabStore } from "@/lib/lab/store";
 import type { CodeLayer } from "@/lib/lab/types";
 import HardwareModal from "./HardwareModal";
-
-import PreviewPanel from "./panels/PreviewPanel";
-import LayersPanel from "./panels/LayersPanel";
-import KnobsPanel from "./panels/KnobsPanel";
-import RampPanel from "./panels/RampPanel";
-import CodePanel from "./panels/CodePanel";
-import PixelPanel from "./panels/PixelPanel";
-import GalleryPanel from "./panels/GalleryPanel";
-import CapturePanel from "./panels/CapturePanel";
-import DirectorPanel from "./panels/DirectorPanel";
+import { PANELS, buildDefaultLayout, panelComponents, panelDef, type PanelId } from "./panels/registry";
 
 import styles from "./PatternLab.module.css";
 import dock from "./LabPanels.module.css";
@@ -63,107 +50,12 @@ const labTheme: DockviewTheme = {
   dndTabIndicator: "line",
 };
 
-const PANEL_DEFS = [
-  { id: "preview", title: "Preview" },
-  { id: "layers", title: "Layers" },
-  { id: "code", title: "Code" },
-  { id: "pixel", title: "Pixel" },
-  { id: "gallery", title: "Gallery" },
-  { id: "knobs", title: "Knobs" },
-  { id: "ramp", title: "Color Ramp" },
-  // Output stage (stills/clips at print sizes) — an add-on module, see
-  // lib/lab/capture. Registered here and nowhere else.
-  { id: "capture", title: "Graphic Export" },
-  // Knob automation over time (lib/lab/director) — the show that publishes
-  // alongside the pattern.
-  { id: "director", title: "Director" },
-] as const;
-
-type PanelId = (typeof PANEL_DEFS)[number]["id"];
-
-const panelComponents: Record<PanelId, React.FunctionComponent<IDockviewPanelProps>> = {
-  preview: PreviewPanel,
-  layers: LayersPanel,
-  code: CodePanel,
-  pixel: PixelPanel,
-  gallery: GalleryPanel,
-  knobs: KnobsPanel,
-  ramp: RampPanel,
-  capture: CapturePanel,
-  director: DirectorPanel,
-};
-
 function Watermark() {
   return (
     <div className={dock.panelHint} style={{ height: "100%", display: "grid", placeItems: "center" }}>
       All panels are closed — reopen them from the Panels menu above.
     </div>
   );
-}
-
-function buildDefaultLayout(api: DockviewApi) {
-  // Order matters: the three columns are split first, THEN the columns are
-  // split vertically — otherwise a "below" split lands at root level and
-  // spans the full width.
-  api.addPanel({ id: "preview", component: "preview", title: "Preview" });
-  api.addPanel({
-    id: "code",
-    component: "code",
-    title: "Code",
-    position: { referencePanel: "preview", direction: "right" },
-  });
-  api.addPanel({
-    id: "pixel",
-    component: "pixel",
-    title: "Pixel",
-    position: { referencePanel: "code", direction: "within" },
-  });
-  api.addPanel({
-    id: "gallery",
-    component: "gallery",
-    title: "Gallery",
-    position: { referencePanel: "code", direction: "within" },
-  });
-  api.addPanel({
-    id: "capture",
-    component: "capture",
-    title: "Graphic Export",
-    position: { referencePanel: "code", direction: "within" },
-  });
-  api.addPanel({
-    id: "director",
-    component: "director",
-    title: "Director",
-    position: { referencePanel: "code", direction: "within" },
-  });
-  api.addPanel({
-    id: "knobs",
-    component: "knobs",
-    title: "Knobs",
-    position: { referencePanel: "code", direction: "right" },
-  });
-  api.addPanel({
-    id: "ramp",
-    component: "ramp",
-    title: "Color Ramp",
-    position: { referencePanel: "knobs", direction: "below" },
-  });
-  api.addPanel({
-    id: "layers",
-    component: "layers",
-    title: "Layers",
-    position: { referencePanel: "preview", direction: "below" },
-  });
-
-  api.getPanel("code")?.api.setActive();
-
-  // Rough proportions: preview column / editor column / controls column.
-  const total = api.width || 1400;
-  api.getPanel("preview")?.api.setSize({ width: Math.round(total * 0.3) });
-  api.getPanel("knobs")?.api.setSize({ width: Math.round(total * 0.24) });
-  const height = api.height || 800;
-  api.getPanel("layers")?.api.setSize({ height: Math.round(height * 0.34) });
-  api.getPanel("ramp")?.api.setSize({ height: Math.round(height * 0.42) });
 }
 
 // Publish/export: a single plain code layer travels as-is (with its ramp and
@@ -359,7 +251,7 @@ export default function PatternLabClient() {
           return;
         }
         if (!open) return;
-        const def = PANEL_DEFS.find((entry) => entry.id === kind);
+        const def = panelDef(kind);
         if (!def) return;
         api.addPanel({ id: def.id, component: def.id, title: def.title });
         syncOpenPanels(api);
@@ -374,7 +266,7 @@ export default function PatternLabClient() {
 
       let restored = false;
       try {
-        const raw = window.localStorage.getItem(LAYOUT_STORAGE);
+        const raw = readStorage(LAYOUT_STORAGE);
         if (raw) {
           const parsed = JSON.parse(raw);
           // Restoring a layout that places nothing gives you an empty
@@ -392,11 +284,7 @@ export default function PatternLabClient() {
         // Drop the unusable one rather than leaving it to be rejected again on
         // every future load — onDidLayoutChange is subscribed below, so
         // nothing overwrites it until the first panel is moved.
-        try {
-          window.localStorage.removeItem(LAYOUT_STORAGE);
-        } catch {
-          // Private mode — nothing was persisted anyway.
-        }
+        removeStorage(LAYOUT_STORAGE);
         try {
           // Whatever a failed fromJSON managed to add is still in there, and
           // building the default on top of it collides on panel ids.
@@ -406,11 +294,11 @@ export default function PatternLabClient() {
           // A half-built layout is still usable; panels can be opened manually.
         }
       }
-      // Titles belong to PANEL_DEFS, not to the saved layout: a restored dock
+      // Titles belong to the registry, not to the saved layout: a restored dock
       // remembers the name a panel had when it was last moved, so a rename
       // (Capture → Graphic Export, 2026-09) would only reach people who reset
       // their layout otherwise.
-      for (const def of PANEL_DEFS) {
+      for (const def of PANELS) {
         const panel = api.getPanel(def.id);
         if (panel && panel.title !== def.title) panel.api.setTitle(def.title);
       }
@@ -428,7 +316,7 @@ export default function PatternLabClient() {
             // taken then is a layout that restores as nothing at all. It is
             // never a state worth remembering, so it is never written.
             if (layoutViewCount(next) === 0) return;
-            window.localStorage.setItem(LAYOUT_STORAGE, JSON.stringify(next));
+            writeStorage(LAYOUT_STORAGE, JSON.stringify(next));
           } catch {
             // Quota/private mode — layout just won't persist.
           }
@@ -453,11 +341,7 @@ export default function PatternLabClient() {
   const resetLayout = () => {
     const api = apiRef.current;
     if (!api) return;
-    try {
-      window.localStorage.removeItem(LAYOUT_STORAGE);
-    } catch {
-      // ignore
-    }
+    removeStorage(LAYOUT_STORAGE);
     api.clear();
     buildDefaultLayout(api);
     syncOpenPanels(api);
@@ -609,7 +493,7 @@ export default function PatternLabClient() {
             </button>
             {panelsMenuOpen && (
               <div className={dock.menuPop} onMouseLeave={() => setPanelsMenuOpen(false)}>
-                {PANEL_DEFS.map((def) => (
+                {PANELS.map((def) => (
                   <button
                     key={def.id}
                     type="button"
