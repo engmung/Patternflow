@@ -44,6 +44,7 @@ PAGES = [
     ("weather", "features/weather/weather_index.h"),
     ("mqtt", "features/mqtt/mqtt_index.h"),
     ("audio-in", "features/audio_in/audio_in_index.h"),
+    ("midi", "features/midi/midi_index.h"),
 ]
 
 OPEN = 'R"HTML('

@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { PostHogProvider } from "@/providers/PostHogProvider";
 import { Analytics } from "@vercel/analytics/next";
+import DeviceHostCapture from "@/components/DeviceHostCapture";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
@@ -179,6 +180,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${dmSans.variable} ${silkscreen.variable} ${newsreader.variable} antialiased`}
       >
+        <DeviceHostCapture />
         <PostHogProvider>
           <ThemeProvider>
             {children}

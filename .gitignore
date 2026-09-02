@@ -117,3 +117,6 @@ firmware/patternflow/addons/addons_local.h
 
 # A variant's settings overrides. Core never has one.
 firmware/patternflow/addons/overrides.h
+firmware/patternflow/features/overrides.h
+firmware/patternflow/features/features_local.h
+firmware/patternflow/features/addons_local.h

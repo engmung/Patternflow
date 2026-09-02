@@ -47,10 +47,12 @@ if [ "${1:-}" = "all" ]; then
     [mqtt]='[MQTT] '
     [show]='[SHOW] '
     [weather]='openweathermap'
+    [midi]='[MIDI] rtp listening'
+    [ble]='[BLE] setup advertising'
   )
   declare -A WANT=(
     [default]=''
-    [audio]='osc audio audio_in'
+    [audio]='osc audio audio_in midi'
     [performance]='mqtt show weather'
   )
   # Outside PF_BUILD_DIR: PlatformIO prunes directories it does not know
@@ -72,7 +74,7 @@ if [ "${1:-}" = "all" ]; then
     cp "$BUILD_DIR/firmware/firmware.bin" "$OUTDIR/$ed.bin"
     verdict=ok
     detail=""
-    for f in osc audio audio_in mqtt show weather; do
+    for f in osc audio audio_in mqtt show weather midi ble; do
       case " ${WANT[$ed]} " in *" $f "*) want=1 ;; *) want=0 ;; esac
       if grep -qaF -- "${MARK[$f]}" "$OUTDIR/$ed.bin"; then have=1; else have=0; fi
       if [ "$want" != "$have" ]; then

@@ -2,6 +2,17 @@
 
 All notable changes to Patternflow will be documented in this file.
 
+## [Unreleased]
+
+### Added — Audio edition v0.5.0
+- **The panel is a MIDI device.** A new `midi` feature (`features/midi/`) makes it an RTP-MIDI port over Wi-Fi — macOS/iOS natively, Windows through rtpMIDI. CC 20–23 pin the four knobs absolutely (the same controllers the Director's `.mid` export writes, so a Live clip made from a show now drives the panel), CC 24–27 turn them relatively, notes 60–63 are the buttons, Program Change picks the pattern; the encoders, buttons and pattern changes go back out the same way. `POST /api/midi?outDiv=N` sets how many detents make one outbound step (1–16, persisted) — one per detent was a lot of parameter per wrist in the first Live session. Contract: `docs/midi-spec.md`. Costs ~6 KB of internal RAM on the audio edition. A `tools/rtpmidi-probe/` script exercises the whole map from a PC with no MIDI driver.
+- **A Bluetooth Wi-Fi-setup feature, in the tree but in no edition.** `features/ble/` speaks Improv-BLE (the flasher's Improv-Serial RPC on a GATT service) and its lifecycle works on hardware: advertise only while the panel cannot join, take credentials after a touch on the panel, join, then stop the stack and return the controller's memory. It is not composed anywhere: linking it costs ~12 KB of internal RAM (libbt's IRAM code) and ~36 KB more while advertising, and the one phone it was tried with never listed the panel in Chrome's chooser. Left as an opt-in for whoever wants to finish it; the header records what was measured and the two traps below.
+### Added — core
+- **The panel answers to more names.** `http://patternflow/` over NetBIOS for Windows machines whose mDNS is broken or blocked, and a per-panel mDNS alias `patternflow-<4 hex of the MAC>.local` (`hostAlias` in `/api/status`) so two panels on one network stop fighting over one name. Both re-announced on every reconnect. And every link from the console to patternflow.work now carries `?device=<ip>`, which the site stores where its "Send over Wi-Fi" buttons look — so anyone who has opened the console once, by any route, gets uploads that never depend on `.local` resolving. The Android case, which no firmware can fix at the resolver, is fixed at the link.
+
+### Notes
+- Two traps found on the way, recorded in `features/ble/core_ble_improv.h`: the coexistence module aborts if Bluetooth starts while Wi-Fi power save is off (the core runs `WIFI_PS_NONE`), so modem sleep is switched on for the radio's lifetime; and NimBLE 2.x deletes callback objects it was handed, so they are heap-allocated.
+
 ## [3.7.1] - 2026-08-28
 
 The 3.7.0 seam shipped without the line that runs it.

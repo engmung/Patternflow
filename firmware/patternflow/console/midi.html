@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<script src="/pf-console.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patternflow - MIDI</title>
+<style>
+:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
+--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
+--panel:#131110;
+--sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);
+line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:680px;margin:0 auto;padding:32px 20px 64px}
+header{display:flex;align-items:center;gap:8px;padding-bottom:12px;
+border-bottom:1px solid var(--rule)}
+.dot{width:7px;height:7px;background:var(--led);border-radius:1px}
+h1{font-size:15px;font-weight:600;margin:0;flex:1}
+.sub{font-family:var(--mono);font-size:11px;color:var(--faint)}
+section{margin-top:26px}
+h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+color:var(--muted);margin:0 0 10px}
+.lead{border:1px solid var(--rule);background:var(--panel);padding:14px 16px}
+.lead b{display:block;font-size:14px;font-weight:600}
+.lead p{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
+.lead.on{border-color:var(--ok)}
+.lead.off{border-color:var(--rule);opacity:.6}
+.choice{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.ch{display:block;border:1px solid var(--rule);background:var(--panel);padding:12px 12px;
+cursor:pointer;text-align:left;font-family:inherit;color:inherit}
+.ch:hover{border-color:var(--muted)}
+.ch.on{border-color:var(--led);box-shadow:inset 0 0 0 1px var(--led)}
+.ch b{display:block;font-size:13px;font-weight:600;margin-bottom:2px}
+.ch p{margin:0;font-size:12px;color:var(--muted);line-height:1.4}
+.sens{margin-top:14px}
+.sens .top{display:flex;align-items:baseline;gap:10px}
+.sens .top b{font-size:13px;font-weight:600}
+.sens .top label{margin-left:auto;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}
+.sens .top label input{accent-color:var(--led)}
+.g{display:grid;grid-template-columns:28px 1fr 150px;align-items:center;gap:12px;padding:5px 0}
+.g .k{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.g input[type=range]{width:100%;margin:0;accent-color:var(--led)}
+.g .r{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);margin:2px 0 0 40px}
+@media(max-width:480px){.g{grid-template-columns:28px 1fr 96px}}
+.knobs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.knob{border:1px solid var(--rule-soft);background:var(--panel);padding:8px 8px 10px}
+.knob .n{font-family:var(--mono);font-size:10px;color:var(--faint);display:flex;justify-content:space-between}
+.knob .bar{height:4px;background:var(--rule);margin-top:8px;position:relative}
+.knob .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--led);width:50%}
+.knob .v{font-family:var(--mono);font-size:13px;margin-top:6px}
+.field{display:flex;align-items:center;gap:12px;padding:6px 0}
+.field label{flex:0 0 118px;font-size:13px;color:var(--muted)}
+.field input{flex:1;min-width:0;font:inherit;font-family:var(--mono);font-size:12px;
+padding:7px 9px;background:var(--panel);color:var(--ink);
+border:1px solid var(--rule);border-radius:2px}
+.field input:focus{outline:none;border-color:var(--led)}
+.field input::placeholder{color:var(--faint)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px}
+.save,.forget,.ghost{font:inherit;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer}
+.save{border:1px solid var(--led);background:var(--led);color:var(--panel);font-weight:600}
+.ghost{border:1px solid var(--rule);background:none;color:var(--ink)}
+.forget{border:1px solid var(--rule);background:none;color:var(--muted)}
+.forget:hover,.ghost:hover{border-color:var(--led);color:var(--led)}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);padding:6px 0}
+.check input{accent-color:var(--led)}
+.note{font-size:12px;color:var(--faint);margin:8px 0 14px;line-height:1.45}
+.note code,dd code{font-family:var(--mono);font-size:11px;color:var(--ink)}
+#msg{margin-top:10px;font-family:var(--mono);font-size:11px;min-height:16px}
+#msg.err{color:var(--led)}#msg.good{color:var(--ok)}
+dl{margin:0;border-top:1px solid var(--rule-soft)}
+.row{display:flex;align-items:baseline;gap:12px;padding:7px 2px;
+border-bottom:1px solid var(--rule-soft)}
+dt{flex:1;font-size:13px;color:var(--muted);margin:0}
+dd{margin:0;font-family:var(--mono);font-size:12px;text-align:right}
+.ok{color:var(--ok)}.bad{color:var(--led)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+color:var(--faint);padding:4px 2px;border-bottom:1px solid var(--rule-soft)}
+td{padding:6px 2px;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--muted)}
+td:first-child{font-family:var(--mono);font-size:11px;color:var(--ink);white-space:nowrap;width:1%;padding-right:14px}
+footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
+font-family:var(--mono);font-size:11px;color:var(--faint)}
+a{color:var(--muted)}
+html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#6B6558;--faint:#9A9486;--ghost:#E0D9CC;--rule:#D9D1C2;--rule-soft:#E8E2D6;--led:#FF5C2E;--ok:#2F8A55;--warn:#B88120;--card:#FFFCFA;--fg:#1A1814}
+@media(max-width:480px){.choice{grid-template-columns:1fr}.knobs{grid-template-columns:repeat(2,1fr)}
+.field{display:block}.field label{display:block;margin-bottom:4px}.field input{width:100%}}
+</style></head><body><div class="wrap">
+<header><span class="dot"></span><h1>MIDI</h1><span class="sub" id="st">-</span></header>
+
+<section>
+  <h2>Session</h2>
+  <div class="lead" id="lead"><b id="lead-t">-</b><p id="lead-p"></p></div>
+  <form id="hostf" autocomplete="off">
+    <div class="field"><label for="f-host">Computer to invite</label>
+      <input id="f-host" placeholder="e.g. 192.168.0.23 — empty: wait to be connected" inputmode="decimal" maxlength="15"></div>
+    <div class="actions">
+      <button type="submit" class="save">Save</button>
+      <button type="button" class="ghost" id="usethis">Use this computer</button>
+      <button type="button" class="forget" id="clearhost">Clear</button>
+    </div>
+  </form>
+  <div id="msg"></div>
+  <p class="note">With a computer saved, the panel opens the session itself on every boot and whenever
+    it drops — no reconnecting in rtpMIDI or Audio MIDI Setup. The computer has to accept invitations
+    (rtpMIDI: <em>Who may connect to me: Anyone</em>). Without one, connect from the computer: the panel
+    is listed as <code>Patternflow</code>, or add it by address below.</p>
+  <dl>
+    <div class="row"><dt>Address</dt><dd id="addr">-</dd></div>
+    <div class="row"><dt>Channel</dt><dd id="chan">-</dd></div>
+    <div class="row"><dt>Received · sent</dt><dd id="cnt">-</dd></div>
+  </dl>
+</section>
+
+<section>
+  <h2>Knobs → MIDI</h2>
+  <div class="choice">
+    <button class="ch" id="m-abs" type="button"><b>Knob value</b>
+      <p>The panel keeps a 0–127 position per knob and sends it. Any DAW reads it as an ordinary knob — nothing to detect. Use this for Ableton.</p></button>
+    <button class="ch" id="m-rel" type="button"><b>Relative steps</b>
+      <p>Sends +1 / −1 per step (64 ± n). For hosts that map endless encoders explicitly: Max, TouchDesigner, custom code.</p></button>
+  </div>
+  <div class="sens">
+    <div class="top"><b>Sensitivity</b><label><input type="checkbox" id="link" checked> move all four together</label></div>
+    <div class="g"><span class="k">K1</span><input type="range" min="0" max="11" step="1" value="4" data-k="0"><span class="r">-</span></div>
+    <div class="g"><span class="k">K2</span><input type="range" min="0" max="11" step="1" value="4" data-k="1"><span class="r">-</span></div>
+    <div class="g"><span class="k">K3</span><input type="range" min="0" max="11" step="1" value="4" data-k="2"><span class="r">-</span></div>
+    <div class="g"><span class="k">K4</span><input type="range" min="0" max="11" step="1" value="4" data-k="3"><span class="r">-</span></div>
+    <div class="scale"><span>fast · 8 steps / detent</span><span>1 : 1</span><span>fine · 16 detents / step</span></div>
+  </div>
+  <div class="knobs" id="knobs">
+    <div class="knob"><div class="n"><span>K1</span><span>CC 24</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
+    <div class="knob"><div class="n"><span>K2</span><span>CC 25</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
+    <div class="knob"><div class="n"><span>K3</span><span>CC 26</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
+    <div class="knob"><div class="n"><span>K4</span><span>CC 27</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
+  </div>
+  <p class="note" id="knobnote">Live positions as the DAW sees them. They start at 64 on boot and stop at the ends; the DAW's takeover mode (Live: Preferences → MIDI → Takeover Mode) smooths the pickup.</p>
+</section>
+
+<section>
+  <h2>Switch</h2>
+  <label class="check"><input type="checkbox" id="on"> MIDI on this panel</label>
+  <p class="note">Same switch as the <b>MIDI</b> row on the panel's NETWORK screen. Off keeps the port open and drops everything.</p>
+</section>
+
+<section>
+  <h2>The map</h2>
+  <table>
+    <tr><th>Message</th><th>In (host → panel)</th><th>Out (panel → host)</th></tr>
+    <tr><td>CC 20–23</td><td>Knob 1–4, absolute 0–127 → pinned until a hand turns that knob. The Director's <code>.mid</code> writes these.</td><td>—</td></tr>
+    <tr><td>CC 24–27</td><td>Knob 1–4, relative (64 ± n)</td><td>Knob 1–4 turned, in the mode chosen above</td></tr>
+    <tr><td>Note 60–63</td><td>Button 1–4 (on = press, held while held)</td><td>Button 1–4 pressed / released</td></tr>
+    <tr><td>Prog Change</td><td>Select pattern by index</td><td>Pattern changed</td></tr>
+  </table>
+  <p class="note">Ableton: in Preferences → MIDI, switch <b>Track</b> and <b>Remote</b> on for the port's Input and <b>Track</b> on for its Output. Then Ctrl/Cmd-M, click a parameter, turn a knob.</p>
+</section>
+
+<footer>RTP-MIDI (AppleMIDI) · <a href="https://github.com/engmung/Patternflow/blob/main/docs/midi-ableton.md">setup, step by step</a> · <a href="https://github.com/engmung/Patternflow/blob/main/docs/midi-spec.md">the contract</a></footer>
+</div>
+<script>
+function $(i){return document.getElementById(i)}
+function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
+var last=null,hostDirty=false,dragging=false,linkTouched=false;
+function post(params,okText){
+  var body=new URLSearchParams();
+  for(var k in params)body.set(k,params[k]);
+  return fetch('/api/midi',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
+    if(d.ok===false){say(d.error||'failed','err');return d}
+    paint(d);if(okText)say(okText,'good');return d;
+  }).catch(function(){say('no answer from the panel','err')});
+}
+// One scale: steps per detent on the left, detents per step on the right,
+// 1:1 in the middle. Each entry is [multiplier, divisor]; only one is ever > 1.
+var GAINS=[[8,1],[4,1],[3,1],[2,1],[1,1],[1,2],[1,3],[1,4],[1,6],[1,8],[1,12],[1,16]];
+function gainIndex(mul,div){
+  for(var i=0;i<GAINS.length;i++)if(GAINS[i][0]===mul&&GAINS[i][1]===div)return i;
+  return mul>1?0:GAINS.length-1;
+}
+function gainText(g){return g[0]>1?('\u00d7'+g[0]):(g[1]>1?('1/'+g[1]):'1 : 1')}
+// 20 detents a turn; 127 steps end to end.
+function rowText(g,abs){
+  var perTurn=20*g[0]/g[1];
+  var t=gainText(g)+' \u00b7 '+(Math.round(perTurn*10)/10)+'/turn';
+  if(abs)t+=' \u00b7 '+(Math.round(127/perTurn*10)/10)+' turns';
+  return t;
+}
+function sliders(){return document.querySelectorAll('.g input[type=range]')}
+function arr(v){return Array.isArray(v)?v:[v,v,v,v]}
+function paint(d){
+  last=d;
+  var con=d.rtpPeers>0;
+  $('st').textContent=!d.runtime?'off':(con?('connected · '+(d.rtpPeer||'')):'listening');
+  $('st').className='sub '+(con&&d.runtime?'ok':'');
+  var lead=$('lead');
+  if(!d.runtime){lead.className='lead off';$('lead-t').textContent='MIDI is switched off';$('lead-p').textContent='Turn it on below, or the MIDI row on the panel.';}
+  else if(con){lead.className='lead on';$('lead-t').textContent='Connected to '+(d.rtpPeer||'a computer');
+    $('lead-p').textContent='The panel is a MIDI port there now.'+(d.host?' It will reconnect on its own.':'');}
+  else{lead.className='lead';$('lead-t').textContent=d.host?('Calling '+d.host+'…'):'Listening';
+    $('lead-p').textContent=d.host?'Inviting every 20 s. Check that rtpMIDI / Network MIDI is open and accepts invitations.':'Connect from your computer, or save its address below and the panel will call it.';}
+  if(!hostDirty)$('f-host').value=d.host||'';
+  $('usethis').textContent='Use this computer'+(d.you?' ('+d.you+')':'');
+  $('usethis').style.display=d.you?'':'none';
+  $('addr').textContent=(d.ip||'-')+':'+(d.port||5004)+'  ·  Patternflow';
+  $('chan').textContent=d.channel===0?'all':('ch '+d.channel);
+  $('cnt').textContent=(d.rx||0)+' · '+(d.tx||0);
+  var abs=d.outMode!=='rel';
+  $('m-abs').className='ch'+(abs?' on':'');
+  $('m-rel').className='ch'+(abs?'':' on');
+  var muls=arr(d.outMul||1),divs=arr(d.outDiv||1);
+  var sl=sliders();
+  for(var s=0;s<4;s++){
+    if(!dragging)sl[s].value=gainIndex(muls[s],divs[s]);
+    var g=GAINS[Number(sl[s].value)];
+    sl[s].parentNode.querySelector('.r').textContent=rowText(g,abs);
+  }
+  if(!dragging&&!linkTouched){
+    var same=muls.every(function(m,i){return m===muls[0]&&divs[i]===divs[0]});
+    $('link').checked=same;
+  }
+  var ks=document.querySelectorAll('#knobs .knob');
+  for(var i=0;i<4;i++){
+    var v=(d.outPos||[64,64,64,64])[i];
+    ks[i].querySelector('i').style.width=abs?((v/127*100)+'%'):'0%';
+    ks[i].querySelector('.v').textContent=abs?v:'±n';
+  }
+  $('knobnote').style.display=abs?'':'none';
+  $('on').checked=!!d.runtime;
+}
+function poll(){
+  fetch('/api/midi',{cache:'no-store'}).then(function(r){return r.json()}).then(paint)
+    .catch(function(){$('st').textContent='offline';$('st').className='sub bad'});
+}
+$('m-abs').onclick=function(){post({outMode:'abs'},'knobs send their value')};
+$('m-rel').onclick=function(){post({outMode:'rel'},'knobs send relative steps')};
+$('link').onchange=function(){linkTouched=true;if(this.checked){var v=sliders()[0].value;var g=GAINS[Number(v)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'all four set to '+gainText(g))}};
+Array.prototype.forEach.call(sliders(),function(el){
+  el.oninput=function(){dragging=true;
+    if($('link').checked){var v=this.value;Array.prototype.forEach.call(sliders(),function(o){o.value=v})}
+    if(last)paint(last)};
+  el.onchange=function(){dragging=false;var g=GAINS[Number(this.value)];
+    var p=g[0]>1?{outMul:g[0]}:{outDiv:g[1]};
+    if(!$('link').checked)p.knob=Number(this.getAttribute('data-k'))+1;
+    post(p,($('link').checked?'all four':'K'+p.knob)+' \u2192 '+gainText(g))};
+});
+$('on').onchange=function(){post({on:this.checked?'1':'0'},this.checked?'MIDI on':'MIDI off')};
+$('f-host').oninput=function(){hostDirty=true};
+$('hostf').onsubmit=function(e){e.preventDefault();hostDirty=false;
+  post({host:$('f-host').value.trim()},$('f-host').value.trim()?'saved — inviting':'cleared')};
+$('usethis').onclick=function(){if(last&&last.you){$('f-host').value=last.you;hostDirty=false;post({host:last.you},'saved — inviting')}};
+$('clearhost').onclick=function(){$('f-host').value='';hostDirty=false;post({host:''},'cleared — waiting to be connected')};
+poll();setInterval(poll,1500);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+</script>
+</body></html>
