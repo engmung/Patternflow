@@ -31,8 +31,14 @@ Four rules:
       the core compiles to. config.h and net_config.h are exempt, because
       providing feature DEFAULTS is their entire job ("settings tune a
       feature, they never add one") and every #ifndef there is that.
-  R4  Features do not include each other. Six directories, zero coupling;
+  R4  Features do not include each other. One directory each, zero coupling;
       an edition is a set, not a stack.
+  R5  The core's console pages name no feature either. console/*.html whose
+      header lands in src/, and the shared chrome in theme_index.h, are the
+      core's user-facing text - and two of the three original violations
+      lived exactly there (the nav table, the home page's feature rows).
+      Rules 1-3 blank raw strings before scanning, so they could never see
+      it; this one reads the page text with its comments stripped.
 
 License: MIT
 """
@@ -130,6 +136,66 @@ def feature_flag_prefixes() -> list[str]:
     return sorted({"PF_" + d.name.upper() for d in feature_subdirs()})
 
 
+# What a feature looks like in prose. Derived by hand rather than from the
+# directory names because the words a page would use are not the directory
+# names: nobody writes "audio_in" in a sentence, everybody writes "microphone".
+# Case-insensitive except the acronyms, which are only ever upper-case.
+PAGE_MARKERS: dict[str, re.Pattern[str]] = {
+    "osc": re.compile(r"\bOSC\b"),
+    "mqtt": re.compile(r"\bMQTT\b"),
+    "midi": re.compile(r"\bMIDI\b"),
+    "ble": re.compile(r"\b(BLE|Bluetooth)\b"),
+    "weather": re.compile(r"\bweather\b", re.I),
+    "audio": re.compile(r"\b(audio|microphone|sound)\b", re.I),
+    "show": re.compile(r"\b(sequences?|show player|director)\b", re.I),
+}
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+
+
+def core_page_texts() -> list[tuple[str, str]]:
+    """(label, text) for every page the core serves, comments blanked.
+
+    Which pages are the core's is console_pages.py's PAGES list: a header
+    under src/ is core, under features/ is a feature's. theme_index.h is the
+    chrome every page loads, and it is core by construction.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from console_pages import PAGES  # noqa: E402
+
+    out: list[tuple[str, str]] = []
+    for name, header in PAGES:
+        if not header.startswith("src/"):
+            continue
+        page = SKETCH / "console" / f"{name}.html"
+        if page.exists():
+            out.append((f"console/{name}.html",
+                        page.read_text(encoding="utf-8", errors="replace")))
+    theme = SKETCH / "src" / "theme_index.h"
+    if theme.exists():
+        raw = theme.read_text(encoding="utf-8", errors="replace")
+        bodies = "\n".join(m.group(0) for m in RAW_STRING.finditer(raw))
+        out.append(("src/theme_index.h (page text)", bodies))
+    cleaned: list[tuple[str, str]] = []
+    for label, text in out:
+        for pattern in (HTML_COMMENT, BLOCK_COMMENT, LINE_COMMENT):
+            text = blank_out(text, pattern)
+        cleaned.append((label, text))
+    return cleaned
+
+
+def check_core_pages() -> list[str]:
+    found: list[str] = []
+    for label, text in core_page_texts():
+        for feature, pattern in PAGE_MARKERS.items():
+            for m in pattern.finditer(text):
+                line = text.count("\n", 0, m.start()) + 1
+                found.append(
+                    f"{label}:{line}: a core page says \"{m.group(0)}\" - "
+                    f"that is {FEATURE_DIR}/{feature}/ talking; the core does "
+                    f"not know it exists. Let the feature add its own row.")
+    return found
+
+
 def main() -> int:
     violations: list[str] = []
     cores = core_files()
@@ -198,6 +264,9 @@ def main() -> int:
                     f"{rel}:{line}: feature {d.name} includes from "
                     f"{FEATURE_DIR}/{target}/ - features do not know each "
                     f"other; an edition is a set, not a stack")
+
+    # R5 - the core's pages name no feature
+    violations.extend(check_core_pages())
 
     if violations:
         print("the core/feature boundary is breached:\n")
