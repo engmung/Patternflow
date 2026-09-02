@@ -32,6 +32,7 @@
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include <esp_heap_caps.h>
+#include "core_names.h"
 
 #include "core_http.h"
 #include "core_bus.h"
@@ -139,6 +140,9 @@ inline void handleStatus() {
   json += "\",\"rssi\":";
   json += up ? WiFi.RSSI() : 0;
   json += ",\"host\":\"" PF_OTA_HOSTNAME "\",";
+  json += "\"hostAlias\":\"";
+  json += PatternflowNames::alias();
+  json += "\",";
   // Actual transmit power, in dBm. Core sets 13 as a conformance fix and a
   // variant may override it, so the number a panel is really running at
   // stopped being knowable from the firmware version alone — and the panel

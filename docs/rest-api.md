@@ -12,7 +12,7 @@ Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. 
 
 | | |
 |---|---|
-| Base URL | `http://patternflow.local/` — mDNS, hostname from `PF_OTA_HOSTNAME`. The raw IP works too and is the fallback on clients with poor mDNS (Android). |
+| Base URL | `http://patternflow.local/` — mDNS, hostname from `PF_OTA_HOSTNAME`. The panel also answers to **`http://patternflow/`** over NetBIOS (Windows, no mDNS needed) and to a per-panel alias **`patternflow-<4 hex>.local`** (reported as `hostAlias` in `/api/status`, so two panels on one network are addressable apart). The raw IP works too and is the last resort on clients with no name resolution (Android). Every link from the console to patternflow.work carries `?device=<ip>`; the site remembers it, so its "send to my panel" buttons stop depending on any name. |
 | Port | **80** for everything documented here. One server carries the console, the API and `/update`. A build with the audio feature adds a WebSocket on **81** (`PF_AUDIO_WS_PORT`) for streaming audio clients — its wire protocol is [`audio-ws-spec.md`](audio-ws-spec.md). |
 | Advertised over mDNS | `_http._tcp` on port 80 (`core_web_update.h`, whenever `PF_WEBUPDATE_ENABLED`) and `_arduino._tcp` (ArduinoOTA, whenever `PF_OTA_ENABLED`). The first carries no TXT records at all and the second only ArduinoOTA's own (board type, auth flags) — nothing Patternflow-specific either way. A discovering client must probe `GET /api/status` to confirm what it found. |
 | Concurrency | **One connection.** See [Rules that will bite you](#rules-that-will-bite-you). |

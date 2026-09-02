@@ -39,6 +39,7 @@
 #include <Arduino.h>
 #include "config.h"
 #include "core_wifi.h"
+#include "core_names.h"
 
 #if PF_WEBUPDATE_ENABLED
 #include <WiFi.h>
@@ -241,8 +242,13 @@ inline bool isCompiledIn() {
 // PatternflowWifi; this runs on the connect edge. Idempotent.
 inline void begin() {
 #if PF_WEBUPDATE_ENABLED
-  if (initialized) return;
   if (WiFi.status() != WL_CONNECTED) return;
+  if (initialized) {
+    // Every reconnect, not just the first: the per-panel mDNS alias carries
+    // an address and a new lease may have changed it (core_names.h).
+    PatternflowNames::announce();
+    return;
+  }
 
 #if !PF_OTA_ENABLED
   // ArduinoOTA normally brings up mDNS; with OTA compiled out, start it
@@ -250,6 +256,7 @@ inline void begin() {
   MDNS.begin(PF_OTA_HOSTNAME);
 #endif
   MDNS.addService("http", "tcp", HTTP_PORT);
+  PatternflowNames::announce();
 
   server().on("/update", HTTP_GET, []() {
     PFSend::progmem(server(), WEB_UPDATE_HTML);
