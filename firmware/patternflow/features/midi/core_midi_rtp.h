@@ -133,6 +133,11 @@ inline void begin() {
   // started by the core (OTA's hostname); this only adds a service record.
   MDNS.addService("apple-midi", "udp", PF_MIDI_RTP_PORT);
   loadHost();
+  // Give the host's own reconnect a head start before we invite it: rtpMIDI
+  // re-joins a remembered panel by itself within seconds of it coming back,
+  // and an invitation fired at the same moment produced TWO sessions with
+  // the same computer - every note delivered twice.
+  lastInviteMs = millis();
 
   Serial.printf("[MIDI] rtp listening on %s:%u as \"%s\"\n",
                 WiFi.localIP().toString().c_str(), PF_MIDI_RTP_PORT, PF_MIDI_SESSION_NAME);
