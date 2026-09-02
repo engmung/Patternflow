@@ -83,9 +83,9 @@ inline const PFFeature descriptor = {
     setRuntimeEnabled,
     appendStatus,
     nullptr,       // drawOverlay
-    nullptr,       // navPath - no console page
-    nullptr,       // navLabel
-    nullptr,       // navDesc
+    "/midi",       // navPath - the console header link
+    "MIDI",        // navLabel
+    "The panel as a MIDI port: the session, how far a knob turn goes, and the map.",
 };
 
 }  // namespace PFFeatureMidi

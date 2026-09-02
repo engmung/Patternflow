@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - /api/midi: the one MIDI setting a person changes
 //
+//   GET  /midi                  the page
 //   GET  /api/midi              channel, outbound sensitivity, host, session
+//   POST /api/midi?on=0|1       the MIDI row on the NETWORK screen, from here
 //   POST /api/midi?outDiv=N     detents per outbound step, 1..16, persisted
 //   POST /api/midi?outMode=abs|rel  knobs out as a virtual 0..127 position
 //                               (default) or as 64±steps. Persisted.
@@ -18,8 +20,12 @@
 #pragma once
 
 #include <Arduino.h>
+#include <WiFi.h>
 
 #include "../../src/core_http.h"
+#include "../../src/core_patterns_http.h"
+#include "../../src/core_send.h"
+#include "midi_index.h"
 #include "core_midi.h"
 #include "core_midi_rtp.h"
 
@@ -40,7 +46,20 @@ inline void sendState() {
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
   json += ",\"rtpPeers\":";
   json += PatternflowMidiRtp::peers;
-  json += ",\"rx\":";
+  json += ",\"rtpPeer\":\"";
+  json += PatternflowMidiRtp::peerName;
+  json += "\",\"you\":\"";
+  json += PatternflowHttp::server().client().remoteIP().toString();
+  json += "\",\"ip\":\"";
+  json += WiFi.localIP().toString();
+  json += "\",\"port\":";
+  json += (int)PF_MIDI_RTP_PORT;
+  json += ",\"outPos\":[";
+  for (int i = 0; i < 4; i++) {
+    if (i) json += ',';
+    json += PatternflowMidi::outPos[i];
+  }
+  json += "],\"rx\":";
   json += PatternflowMidi::rxCount;
   json += ",\"tx\":";
   json += PatternflowMidi::txCount;
@@ -48,10 +67,19 @@ inline void sendState() {
   PatternflowHttp::server().send(200, "application/json", json);
 }
 
+inline void handleIndex() {
+  if (PatternflowPatternsHttp::noteConsolePageOpened()) {
+    PatternflowPatternsHttp::sendConsoleWakePage();
+    return;
+  }
+  PFSend::progmem(PatternflowHttp::server(), MIDI_INDEX_HTML);
+}
+
 inline void begin() {
   if (initialized) return;
   initialized = true;
   WebServer& s = PatternflowHttp::server();
+  s.on("/midi", HTTP_GET, handleIndex);
   s.on("/api/midi", HTTP_GET, []() { sendState(); });
   s.on("/api/midi", HTTP_POST, []() {
     WebServer& s = PatternflowHttp::server();
@@ -59,6 +87,7 @@ inline void begin() {
       s.send(400, "application/json", "{\"ok\":false,\"error\":\"outDiv must be 1..16\"}");
       return;
     }
+    if (s.hasArg("on")) PatternflowMidi::setRuntimeEnabled(s.arg("on") == "1");
     if (s.hasArg("outMode")) {
       String m = s.arg("outMode");
       if (m != "abs" && m != "rel") {
