@@ -213,8 +213,12 @@ export const VARIANTS: Variant[] = [
     status: 'available',
     summary:
       'Sound, and nothing else in the way — a microphone soldered to the ' +
-      'board, so the panel hears the room with no computer in it.',
+      'board, so the panel hears the room with no computer in it. And the ' +
+      'panel as a MIDI port in any DAW.',
     adds: [
+      'MIDI over Wi-Fi — a MIDI port in Ableton, Logic or Bitwig; knobs and ' +
+        'buttons map with Ctrl-M, a clip drives the panel back, per-knob ' +
+        'sensitivity on the console, the session reconnects itself',
       'OSC — Ableton, Max and TouchDesigner, both directions',
       'Browser and tab audio through the Chrome extension',
       'On-board PDM microphone — four wires to GPIO43/44, no computer needed',
@@ -225,8 +229,8 @@ export const VARIANTS: Variant[] = [
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.4.0',
-      url: 'https://patternflow.work/flash/bin/audio-v0.4.0/patternflow.ino.bin',
+      version: 'v0.5.0',
+      url: 'https://patternflow.work/flash/bin/audio-v0.5.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:
