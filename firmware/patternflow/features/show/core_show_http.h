@@ -14,6 +14,7 @@
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
+#include "show_config.h"
 
 #include "../../net_config.h"
 #include "../../src/core_patterns_http.h"

@@ -1,4 +1,5 @@
 #pragma once
+#include "osc_config.h"
 
 #include <Arduino.h>
 #include "config.h"

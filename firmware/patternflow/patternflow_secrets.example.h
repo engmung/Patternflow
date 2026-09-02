@@ -5,9 +5,10 @@
 // Copy this file to patternflow_secrets.h and fill in your values.
 // patternflow_secrets.h is gitignored so credentials never get committed.
 //
-// net_config.h includes the real file BEFORE applying its own defaults,
-// so you only need to #define what you want to change — leave a line out
-// to accept the default shown in net_config.h.
+// net_config.h includes the real file BEFORE applying its own defaults, and
+// each feature's features/<name>/<name>_config.h does the same — so you only
+// need to #define what you want to change; leave a line out to accept the
+// default shown there.
 // ═══════════════════════════════════════════════════════════
 
 // ── Wi-Fi (shared by OTA, OSC, and audio-react) ──
@@ -47,7 +48,7 @@
 // Ships in the Performance edition. There it is inert until configured: the
 // role (Off / Publisher / Subscriber) is chosen at http://<device-ip>/mqtt,
 // and nothing is dialled until a broker host is set here. It costs internal
-// heap while connected — see the measurements in net_config.h.
+// heap while connected — see the measurements in features/mqtt/mqtt_config.h.
 // #define PF_MQTT_HOST "broker.example.lan"
 // #define PF_MQTT_PORT 1883
 // #define PF_MQTT_USER "patternflow"

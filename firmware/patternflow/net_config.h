@@ -1,16 +1,22 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - Network feature configuration
+// PatternFlow - Network configuration (core)
 //
-// One place for everything Wi-Fi touches: the shared Wi-Fi connection
-// and the features that ride on it — OTA (wireless flashing), OSC
-// (Ableton/Max sidechannel), the audio-react WebSocket server, and the
-// browser self-update page.
+// Everything the DEVICE needs to be on a network: the shared Wi-Fi
+// connection, Improv provisioning, its own name and version, OTA, the
+// browser self-update page, and the scale of the absolute bus.
+//
+// Nothing here belongs to a feature. Each feature's tunables — OSC ports,
+// the audio WebSocket port, MQTT broker settings, weather polling — live in
+// features/<name>/<name>_config.h, next to the code that reads them, and are
+// only compiled when a composition carries that feature. Until 2026-09 they
+// sat in this file, which made a core header 40 % feature settings and gave
+// every flag two places to be defaulted.
 //
 // Per-device secrets and toggles live in patternflow_secrets.h (gitignored).
 // That file is included FIRST below, so anything it #defines wins; the
-// #ifndef blocks here only fill in defaults for whatever it left unset.
-// No #undef gymnastics required — just leave a line out of the secrets
-// file to accept the default.
+// #ifndef blocks here — and in every feature's config header — only fill in
+// defaults for whatever it left unset. No #undef gymnastics required: leave a
+// line out of the secrets file to accept the default.
 //
 // Copy patternflow_secrets.example.h to patternflow_secrets.h to start.
 // License: MIT
@@ -20,10 +26,8 @@
 // Per-device overrides first. Without this file every default below applies
 // (Wi-Fi placeholders, OTA on).
 //
-// These settings TUNE a feature; they do not decide whether it is in the
-// build. PF_OSC_ENABLED sits inside features/osc/, so it is only read when the
-// composition names the OSC descriptor — see features/features.h and
-// docs/EDITIONS.md. A build with no features reads none of them.
+// A feature's settings TUNE it; they never decide whether it is in the build.
+// That is the composition's job — see features/features.h and docs/EDITIONS.md.
 #if __has_include("patternflow_secrets.h")
 #include "patternflow_secrets.h"
 #endif
@@ -114,15 +118,6 @@
 #define PF_VARIANT_VERSION ""
 #endif
 
-// -- Show player (.pfs sequences, /show) ---------------------
-// Declared here rather than inside core_show_http.h so anything can test
-// it: /api/status builds its `caps` list from these flags, and a flag
-// defined only inside the feature it guards is invisible to every file
-// that does not include that feature.
-#ifndef PF_SHOW_HTTP_ENABLED
-#define PF_SHOW_HTTP_ENABLED 1
-#endif
-
 // ── OTA (wireless flashing from Arduino IDE / espota.py) ─────
 // On by default. Loop cost is one UDP poll per frame when idle.
 #ifndef PF_OTA_ENABLED
@@ -168,164 +163,21 @@
 #define PF_WEBUPDATE_ALWAYS_ARMED 1
 #endif
 
-// ── OSC (Ableton/Max sidechannel) ────────────────────────────
-// Sends knob/button/state out and accepts knob/pattern/content commands back.
+// ── The absolute lanes (core) ────────────────────────────────
+// Any feature may push a normalized 0..1 value onto one of the four lanes
+// (audio bands, weather channels, a show) and the core's input layer turns
+// it into virtual knob deltas (applyLaneMotion), so EVERY encoder-driven
+// pattern reacts with no per-pattern code. This is how many knob clicks a
+// full 0..1 swing maps to. Higher = stronger response. No per-frame clamp,
+// so the value tracks without lag.
 //
-// On by default so that a build from a clean checkout matches the firmware we
-// release. It used to be opt-in from patternflow_secrets.h, but that file is
-// gitignored — so anyone building without one (a fresh clone, CI, the web
-// build service) silently got firmware with OSC missing, showing "OSC n/a" on
-// the knob-2 status screen while everything else looked right.
-//
-// Costs nothing when unused: with no remote configured it only listens, and
-// sends nothing until something talks to it first. Set to 0 in
-// patternflow_secrets.h to compile it out.
-#ifndef PF_OSC_ENABLED
-#define PF_OSC_ENABLED 1
-#endif
-// Where outgoing OSC goes. Leave EMPTY (the default) to auto-learn: the
-// device locks onto whoever sends it the first valid OSC packet — the M4L
-// bridge's Connect button (/patternflow/ping) does exactly that. Set a
-// static IP here only if the host side can't send ("send-only" setups).
-#ifndef PF_OSC_REMOTE_HOST
-#define PF_OSC_REMOTE_HOST ""
-#endif
-#ifndef PF_OSC_REMOTE_PORT
-#define PF_OSC_REMOTE_PORT 9000
-#endif
-#ifndef PF_OSC_LOCAL_PORT
-#define PF_OSC_LOCAL_PORT 9001
-#endif
-
-// ── Audio-react WebSocket server ─────────────────────────────
-// Hosts a tiny UI on the device. A browser captures audio (file / tab /
-// mic), runs an FFT, and pushes each band's energy as a normalized 0..1
-// value over WebSocket. The input layer turns that into virtual knob
-// deltas (applyLaneMotion), so EVERY encoder-driven pattern reacts
-// to audio with no per-pattern code.
-#ifndef PF_AUDIO_ENABLED
-#define PF_AUDIO_ENABLED 1
-#endif
-#ifndef PF_AUDIO_HTTP_PORT
-#define PF_AUDIO_HTTP_PORT 80
-#endif
-#ifndef PF_AUDIO_WS_PORT
-#define PF_AUDIO_WS_PORT 81
-#endif
-// How many knob clicks a full 0..1 swing on an absolute lane maps to. Higher
-// = stronger response. No per-frame clamp, so the value tracks without lag.
-//
-// Not audio's, despite where it sits: the weather feature drives the same lanes
-// and takes the same scale. The old name is kept below because a firmware
-// built elsewhere may already set it in its overrides.h, and a rename that
-// silently ignores somebody's setting is worse than an untidy header.
+// The old name is honoured below because a firmware built elsewhere may
+// already set it in its overrides.h, and a rename that silently ignores
+// somebody's setting is worse than an untidy header.
 #ifndef PF_LANE_MOTION_SCALE
 #ifdef PF_AUDIO_VIRTUAL_KNOB_SCALE
 #define PF_LANE_MOTION_SCALE PF_AUDIO_VIRTUAL_KNOB_SCALE
 #else
 #define PF_LANE_MOTION_SCALE 48.0f
 #endif
-#endif
-
-// ── MQTT (mirror one panel onto another, or into home automation) ──
-// A second sidechannel next to OSC, aimed at brokers rather than DAWs:
-// knob clicks and the pattern name go out as retained topics, and a panel
-// set to Subscriber follows them. Two panels on one broker stay in sync;
-// Home Assistant sees plain values on plain topics.
-//
-// The role (Off / Publisher / Subscriber) is chosen at runtime on /mqtt
-// and kept in NVS — compiling this in does NOT make the device talk to
-// anything. Nothing connects until a role is picked AND a broker host is
-// set, so the default build is inert.
-//
-// Broker credentials belong in patternflow_secrets.h (gitignored), never
-// here: this file ships in the repo and lands in every published .bin.
-//
-// This costs internal DRAM: ~600 B of statics, plus ~1.8 KB for the socket
-// while a role is connected. That is worth knowing because the web console
-// needs roughly 10 KB of internal heap free to send a page — below that it
-// enters the truncated "starved send" state core_patterns_http.h describes.
-//
-// Measured on a 128x64 board, 2026-08-11 (free internal heap):
-//
-//     34 compiled-in presets              11,052   1 KB of margin
-//       + MQTT, role off                   9,756   /patterns truncates
-//       + MQTT connected                   7,972   /patterns returns nothing
-//     Origin only, 47 modules on FATFS    16,648   /patterns in 0.55 s
-//
-// So the cost that mattered was never MQTT, it was the preset list: modules
-// on FATFS take PSRAM slots and no internal heap at all (47 of them moved the
-// figure by 0 bytes), while every compiled-in preset takes DRAM. With Origin
-// as the only preset there is room for this and change to spare.
-
-// ── Weather (OpenWeather current conditions / FlowLocal island) ────────
-// Core fetches over HTTPS; /weather stores API key + location in NVS.
-// The clock overlay and the night/wake schedule read local time from here;
-// knob channels 1..4 can carry condition / temp / humidity / feels-like.
-#ifndef PF_WEATHER_ENABLED
-#define PF_WEATHER_ENABLED 1
-#endif
-#ifndef PF_WEATHER_HTTP_ENABLED
-#define PF_WEATHER_HTTP_ENABLED PF_WEATHER_ENABLED
-#endif
-#ifndef PF_WEATHER_POLL_MS
-#define PF_WEATHER_POLL_MS (30UL * 60UL * 1000UL)  // every 30 minutes
-#endif
-// Linear map for temp / feels-like -> knob 0..1 (metric C).
-#ifndef PF_WEATHER_TEMP_MIN_C
-#define PF_WEATHER_TEMP_MIN_C (-20.0f)
-#endif
-#ifndef PF_WEATHER_TEMP_MAX_C
-#define PF_WEATHER_TEMP_MAX_C (40.0f)
-#endif
-
-#ifndef PF_MQTT_ENABLED
-#define PF_MQTT_ENABLED 1
-#endif
-#ifndef PF_MQTT_HTTP_ENABLED
-#define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
-#endif
-// Empty (the default) = no broker configured; the role picker says so and
-// nothing is dialled. Set it in patternflow_secrets.h.
-#ifndef PF_MQTT_HOST
-#define PF_MQTT_HOST ""
-#endif
-#ifndef PF_MQTT_PORT
-#define PF_MQTT_PORT 1883
-#endif
-// Empty user = connect anonymously (brokers on a trusted LAN often allow it).
-#ifndef PF_MQTT_USER
-#define PF_MQTT_USER ""
-#endif
-#ifndef PF_MQTT_PASS
-#define PF_MQTT_PASS ""
-#endif
-// How long a banner published to <prefix>/message stays on the panel.
-// Counted from each receipt, so a new message restarts it and a retained one
-// shows once per connect rather than sticking forever.
-#ifndef PF_MQTT_MESSAGE_DURATION_MS
-#define PF_MQTT_MESSAGE_DURATION_MS 10000
-#endif
-// Topic root: <prefix>/knob/1..4, <prefix>/pattern, <prefix>/message and
-// <prefix>/sleep (plus <prefix>/sleep/state outbound).
-//
-// A banner is a BROADCAST — every panel subscribed on this prefix shows it.
-// That is the design, not a leak (@SimonePDA, who runs the shared broker):
-// the topic list is fixed and short precisely so a broker can be locked to
-// it, and a per-device topic like <prefix>/<id>/message would need a
-// wildcard ACL, which is the thing that lets anyone invent topics. Broadcast
-// is what a tight ACL costs, and for "tell the panels something" it is also
-// what you want.
-//
-// <prefix>/sleep is a broadcast for the same reason and with the same reach:
-// one "1" on the shared prefix puts EVERY panel on it to sleep. That is the
-// right behaviour for a venue at the end of a night and the wrong one if you
-// only meant your own device — which is what the per-panel prefix below is
-// for. Send it non-retained unless you genuinely want panels to come back
-// asleep after every reconnect.
-//
-// Give each panel its own prefix when several share a broker and should NOT
-// mirror each other.
-#ifndef PF_MQTT_PREFIX
-#define PF_MQTT_PREFIX "patternflow"
 #endif
