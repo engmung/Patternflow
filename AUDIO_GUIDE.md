@@ -27,11 +27,10 @@ Any of these puts the same firmware on your panel:
 - Build it yourself: `./firmware/bundles/build.sh audio` (add
   `flash <hostname>` to send it over Wi-Fi).
 
-The edition bundles five features: **OSC** (Max/TouchDesigner/Ableton, see
+The edition bundles four features: **OSC** (Max/TouchDesigner/Ableton, see
 [`docs/osc-spec.md`](docs/osc-spec.md)), **audio** (the streaming path the
-extension uses), **audio_in** (the microphone and the mapping engine),
-**MIDI** (the panel as a network MIDI port, [`docs/midi-spec.md`](docs/midi-spec.md))
-and **BLE** (Wi-Fi setup from a phone over Bluetooth, [below](#wi-fi-setup-from-a-phone-bluetooth)).
+extension uses), **audio_in** (the microphone and the mapping engine) and
+**MIDI** (the panel as a network MIDI port, [`docs/midi-spec.md`](docs/midi-spec.md)).
 
 ## The Chrome extension
 
@@ -198,40 +197,6 @@ The `MIDI` row on the panel's NETWORK screen switches it off without
 reflashing; `/api/status` reports the session and message counts under
 `midi`.
 
-## Wi-Fi setup from a phone (Bluetooth)
-
-A panel that leaves the network it knows — a new flat, a venue, a friend's
-studio — has had one way to learn a new one without the console: a computer
-and the USB flasher. This edition adds a second: **a phone, over Bluetooth**.
-
-How it behaves, so it costs nothing while it is not needed:
-
-- A panel with **no network saved** advertises as `Patternflow-XXXX` from
-  boot.
-- A panel whose saved networks **keep failing** advertises after about
-  45 seconds (a router that is merely rebooting still wins).
-- Once it joins, it stays reachable for a few seconds so the phone can read
-  the result, then **switches the radio off and returns its memory**. It
-  does not come back until the next boot.
-
-**To use it:** open [patternflow.work/setup](https://patternflow.work/setup)
-in **Chrome on Android** (or Chrome/Edge on a laptop with Bluetooth — not
-Safari, and not any iPhone: there is no Web Bluetooth there), press
-*Connect a panel*, pick `Patternflow-XXXX`, **touch the panel** when asked
-(any knob or button — that is the panel agreeing to take a network from a
-stranger), and type the network and password. The dialog hands you the
-panel's console address when it is on.
-
-The protocol is [Improv Wi-Fi over BLE](https://www.improv-wifi.com/ble/),
-so [improv-wifi.com](https://www.improv-wifi.com/) and the Home Assistant
-app work too. The `BLE` row on the NETWORK screen turns the whole thing off.
-
-What it costs: linking the Bluetooth stack takes about 12 KB of the
-internal RAM a loadable pattern could otherwise claim, whether or not the
-radio ever starts; while it is advertising, about 36 KB more. That is why it
-lives in this edition and not in the default firmware — see
-[`docs/EDITIONS.md`](docs/EDITIONS.md).
-
 ## OSC — Ableton today, anything tomorrow
 
 The edition also speaks **OSC** — plain OSC 1.0 over UDP, both directions.
@@ -283,14 +248,6 @@ You were pointed here to work on Patternflow's audio path. The map:
 `core_midi_rtp.h` the RTP-MIDI listener on UDP 5004/5005 over lathoub's
 AppleMIDI library. Contract: [`docs/midi-spec.md`](docs/midi-spec.md).
 `tools/rtpmidi-probe/` exercises the whole map from a PC with no MIDI driver.
-
-**Firmware — Bluetooth setup** ([`firmware/patternflow/features/ble/`](firmware/patternflow/features/ble/)):
-`core_ble_improv.h` is the Improv-BLE GATT service on NimBLE and the
-radio's lifecycle (advertise only while the panel cannot join; release the
-controller's memory after). Two things it must keep doing: switch Wi-Fi
-modem sleep on before the controller starts (the coexistence module aborts
-otherwise) and hand NimBLE heap-allocated callback objects (it deletes
-them). `core_ble_http.h` is `/api/ble`. The site's page is `web/src/app/setup/`.
 
 **Firmware — the stream path**
 ([`firmware/patternflow/features/audio/`](firmware/patternflow/features/audio/)):

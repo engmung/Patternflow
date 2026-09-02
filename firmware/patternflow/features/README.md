@@ -178,7 +178,7 @@ Then one line in `features.h`, and nothing else in the tree changes.
 | `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
 | `osc/` | Max / TouchDesigner / Ableton, both directions | The fifth, and the first that did not fit — see below. |
 | `midi/` | RTP-MIDI in and out: CC 20–23 absolute, 24–27 relative, notes, Program Change | Transport-agnostic mapping in `core_midi.h`; the network transport beside it. `docs/midi-spec.md`. |
-| `ble/` | Wi-Fi provisioning from a phone over Improv-BLE | The first feature that switches itself OFF: advertises only while the panel cannot join, then releases the controller's memory. The `onUserInput` hook is its authorization. |
+| `ble/` | Wi-Fi provisioning from a phone over Improv-BLE | **In no edition.** The lifecycle works on hardware (advertise only while the panel cannot join, release the controller's memory after) but linking it costs ~12 KB of internal RAM and the one phone it was tried with never listed the panel. Opt-in for whoever finishes it; the header records what was measured. |
 
 `PF_FEATURES_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of
 static RAM, against 1,412,457 and 92,920 with all five loaded. The sketch is

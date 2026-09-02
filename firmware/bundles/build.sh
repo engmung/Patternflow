@@ -52,7 +52,7 @@ if [ "${1:-}" = "all" ]; then
   )
   declare -A WANT=(
     [default]=''
-    [audio]='osc audio audio_in midi ble'
+    [audio]='osc audio audio_in midi'
     [performance]='mqtt show weather'
   )
   # Outside PF_BUILD_DIR: PlatformIO prunes directories it does not know

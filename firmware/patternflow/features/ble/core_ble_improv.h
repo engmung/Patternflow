@@ -38,6 +38,20 @@
 // the feature's loop hook on the render core. Same shape as OSC's pending
 // actions.
 //
+// ── Status (2026-09-02): in the tree, in no edition ────────────────────
+//
+// The lifecycle above was proven on hardware (fake boot network -> advertise
+// -> join -> release), and every advertising step reports success. What did
+// not happen: the one Android phone it was tried with never listed the panel
+// in Chrome's Web Bluetooth chooser, from improv-wifi.com, in either the
+// provisioned or the unprovisioned state. Undiagnosed - the PC has no BLE
+// adapter to scan with. Combined with the cost (linking: ~12 KB of internal
+// RAM, mostly libbt's IRAM code; advertising: ~36 KB more; with Wi-Fi and
+// the audio features up the panel dips to ~10 KB free and the console
+// stops answering), it was taken out of the Audio edition. Whoever picks
+// this up: scan with nRF Connect first and compare against an ESPHome
+// improv_ble device before touching the firmware.
+//
 // Spec: https://www.improv-wifi.com/ble/
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -180,30 +194,34 @@ inline void logHeap(const char* label) {
 }
 
 // ── Advertising ──────────────────────────────────────────────────────────
-// The advertisement carries the 128-bit service (what the browser filters
-// on) and the 0x4677 service data (state + capabilities, what the phone
-// shows before connecting). That is 31 bytes exactly, so the name goes in
-// the scan response.
+// The advertisement carries the 128-bit service UUID - the one thing the
+// browser's chooser filters on - and nothing else, so it can never crowd
+// the 31-byte packet. The Improv service data (state + capabilities, what a
+// discovering app shows before connecting) and the name ride in the scan
+// response; Chrome merges both packets before matching a filter.
+//
+// Every step logs its return value: an advertisement that failed to set
+// leaves the radio advertising an EMPTY packet, which looks from a phone
+// exactly like a panel that is not there.
 inline void refreshAdvertising() {
   NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
   if (!adv) return;
-  bool was = adv->isAdvertising();
-  if (was) adv->stop();
+  if (adv->isAdvertising()) adv->stop();
 
   NimBLEAdvertisementData data;
-  data.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
-  data.addServiceUUID(NimBLEUUID(UUID_SERVICE));
-  uint8_t sd[6] = {improvState, CAP_IDENTIFY, 0, 0, 0, 0};
-  data.setServiceData(NimBLEUUID(ADV_SERVICE_DATA_UUID), sd, sizeof(sd));
-  adv->setAdvertisementData(data);
+  bool okFlags = data.setFlags(BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP);
+  bool okUuid = data.setCompleteServices(NimBLEUUID(UUID_SERVICE));
+  bool okAdv = adv->setAdvertisementData(data);
 
   NimBLEAdvertisementData scan;
-  scan.setName(deviceName);
-  adv->setScanResponseData(scan);
+  uint8_t sd[6] = {improvState, CAP_IDENTIFY, 0, 0, 0, 0};
+  bool okSd = scan.setServiceData(NimBLEUUID(ADV_SERVICE_DATA_UUID), sd, sizeof(sd));
+  bool okName = scan.setName(deviceName);
+  bool okScan = adv->setScanResponseData(scan);
 
-  // Only ever one phone at a time; the loop restarts advertising on
-  // disconnect, NimBLE would also do it but explicit is easier to reason about.
-  adv->start();
+  bool okStart = adv->start();
+  Serial.printf("[BLE] adv flags=%d uuid=%d set=%d | scan sd=%d name=%d set=%d | start=%d\n",
+                okFlags, okUuid, okAdv, okSd, okName, okScan, okStart);
 }
 
 inline void setState(uint8_t s) {

@@ -55,7 +55,6 @@
     "drizzle-orm": "^0.45.2",
     "feed": "^5.2.1",
     "gray-matter": "^4.0.3",
-    "improv-wifi-sdk": "^1.4.1",
     "leva": "^0.10.1",
     "mediabunny": "^1.55.2",
     "next": "16.3.0",

@@ -33,11 +33,12 @@
 #include "audio/feature_audio.h"
 #include "audio_in/feature_audio_in.h"
 #include "midi/feature_midi.h"
-#include "ble/feature_ble.h"
 
 // MIDI sits with OSC for the same reason OSC is here: it is how a panel talks
-// to a DAW. BLE is the phone's way to hand this panel a Wi-Fi network when no
-// computer is around; it runs the radio only until the join succeeds, then
-// gives the memory back (features/ble/core_ble_improv.h). Both are last so
-// the audio lanes have spoken before MIDI's deltas merge.
-#define PF_FEATURE_LIST                &PFFeatureOsc::descriptor,               &PFFeatureAudio::descriptor,         &PFFeatureAudioIn::descriptor,       &PFFeatureMidi::descriptor,          &PFFeatureBle::descriptor
+// to a DAW. Last, so the audio lanes have spoken before MIDI's deltas merge.
+//
+// features/ble/ (Wi-Fi setup from a phone over Bluetooth) is deliberately NOT
+// here: it costs ~12 KB of internal RAM while linked, and on the one phone it
+// was tried with the panel never appeared in the chooser. It stays in the
+// tree as an opt-in feature for whoever wants to finish it.
+#define PF_FEATURE_LIST                &PFFeatureOsc::descriptor,               &PFFeatureAudio::descriptor,         &PFFeatureAudioIn::descriptor,       &PFFeatureMidi::descriptor

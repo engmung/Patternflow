@@ -45,7 +45,7 @@ A bundle earns its place when it carries something the default **cannot**:
 
 | | why not in the default |
 |---|---|
-| **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, MIDI over the network, and a Bluetooth radio for phone-side Wi-Fi setup that costs internal RAM the default build keeps for patterns |
+| **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, and MIDI over the network |
 
 Three shapes of reason, and they are not the same:
 

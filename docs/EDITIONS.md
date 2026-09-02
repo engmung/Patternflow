@@ -62,7 +62,7 @@ in one click. Three exist:
 | | carries | whose |
 |---|---|---|
 | **Patternflow** | nothing — the device itself | the product |
-| **Audio** | OSC, MIDI, browser audio, the on-board microphone, Bluetooth Wi-Fi setup | SeungHun Lee |
+| **Audio** | OSC, MIDI, browser audio, the on-board microphone | SeungHun Lee |
 | **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
 
 The word "feature" is retired. It suggested something optional or third-party,
