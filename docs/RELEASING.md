@@ -49,6 +49,9 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
 
 ## Current release line
 
-- `v1.0.0` -- first public buildable release.
-- `v1.1.0` -- unified multi-pattern firmware and browser flasher.
-- `v2.0.0` -- GPIO0 cold-boot fix, cleaned silkscreen, custom pattern workflow, and substantially complete web platform.
+`CHANGELOG.md` is the record — one section per release, newest first — and the [releases page](https://github.com/engmung/Patternflow/releases) carries the notes and the flashable images. The shape of the line, for orientation:
+
+- `v1.x` -- first public buildable release, then the multi-pattern firmware and browser flasher.
+- `v2.x` -- the v2.0 board (GPIO0 cold-boot fix, cleaned silkscreen), custom pattern workflow, the web platform. `v2.1.0` is the last release for v2.x hardware.
+- `v3.0.0` -- the v3.0 board. Every later `v3.x` is firmware/web on unchanged hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
+- Editions (`audio`, `performance`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - shared console chrome + theme (PROGMEM JS bundle)
 //
-// Served at /pf-console.js by core_audio_ws.h and loaded by every console
+// Served at /pf-console.js by core_http.h and loaded by every console
 // page as one parser-blocking <script src> in <head>. One file owns the
 // whole cross-page system; the pages themselves carry zero nav or theme
 // markup:

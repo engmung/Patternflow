@@ -17,7 +17,7 @@
 // all four of its demo tables in both directions — so a table encoded here is
 // indistinguishable from one it saved.
 //
-// Layout (device: firmware/patternflow/addons/show/core_show.h):
+// Layout (device: firmware/patternflow/features/show/core_show.h):
 //   header 76 bytes
 //     magic[4]="PFST"  version u8=1  flags u8 (bit0 loop)  length u16 s
 //     cueCount u16  poolBytes u16  title[32]  id[32] (NUL-padded)
