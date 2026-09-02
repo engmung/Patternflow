@@ -193,9 +193,14 @@ the DAW's transport. Ableton's *Remote* switch on the port's input lets the
 panel's knobs MIDI-map to anything in the set, the way the OSC bridge does
 without a Max device.
 
+**If a knob moves the mapped parameter too much per turn**, two dials:
+in Live's MIDI-map list, narrow that mapping's Min/Max; or on the panel,
+`POST http://patternflow.local/api/midi?outDiv=4` makes it one MIDI step
+per four detents (1–16, remembered across reboots; default 1).
+
 The `MIDI` row on the panel's NETWORK screen switches it off without
-reflashing; `/api/status` reports the session and message counts under
-`midi`.
+reflashing; `/api/status` reports the session, sensitivity and message
+counts under `midi`.
 
 ## OSC — Ableton today, anything tomorrow
 

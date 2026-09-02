@@ -15,13 +15,17 @@
 
 #include "../pf_feature.h"
 #include "core_midi.h"
+#include "core_midi_http.h"
 #include "core_midi_rtp.h"
 
 namespace PFFeatureMidi {
 
 inline void setup() { PatternflowMidi::loadSettings(); }
 
-inline void onNetwork() { PatternflowMidiRtp::begin(); }
+inline void onNetwork() {
+  PatternflowMidiRtp::begin();
+  PatternflowMidiHttp::begin();
+}
 
 inline void loop(const PFFeatureFrame&) {
   if (PatternflowMidi::runtimeEnabled) PatternflowMidiRtp::handle();
@@ -43,6 +47,8 @@ inline void appendStatus(String& json) {
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
   json += ",\"channel\":";
   json += (int)PF_MIDI_CHANNEL;
+  json += ",\"outDiv\":";
+  json += PatternflowMidi::outDivisor;
   json += ",\"rtpPeers\":";
   json += PatternflowMidiRtp::peers;
   json += ",\"rtpPeer\":\"";

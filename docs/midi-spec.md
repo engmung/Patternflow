@@ -53,7 +53,7 @@ just more input, and the audio lanes yield to both.
 
 | Message | When |
 |---|---|
-| **CC 24–27**, value `64 ± d` | Encoder 1–4 turned by a hand: `d` detents this frame (clamped ±63). Relative on purpose — the panel has no absolute position to report; a DAW's *relative (binary offset)* MIDI-map mode reads it directly. |
+| **CC 24–27**, value `64 ± d` | Encoder 1–4 turned by a hand: `d` steps this frame (clamped ±63). Relative on purpose — the panel has no absolute position to report; a DAW's *relative (binary offset)* MIDI-map mode reads it directly. One step per detent by default; `outDiv` (below) makes it one step per N detents, remainders carried, for finer control per turn. |
 | **Note-on 60–63**, velocity 127 | Encoder button 1–4 pressed |
 | **Note-off 60–63** | Released |
 | **Program Change `n`** | The pattern changed (by anyone: knob, console, OSC, MIDI, a show), for `n ≤ 127` |
@@ -68,12 +68,19 @@ same track that automates it does not double-record.
 carries
 
 ```json
-"midi": {"runtime": true, "channel": 1, "rtpPeers": 1, "rtpPeer": "MacBook", "rx": 812, "tx": 40}
+"midi": {"runtime": true, "channel": 1, "outDiv": 1, "rtpPeers": 1, "rtpPeer": "MacBook", "rx": 812, "tx": 40}
 ```
 
 `runtime` is the device's own switch (the `MIDI` row on the NETWORK screen);
 off means the port stays open and everything is dropped, the same convention
 as `OSC` and `AUD`.
+
+## Settings
+
+| | |
+|---|---|
+| `GET /api/midi` | channel, `outDiv`, session state, counters |
+| `POST /api/midi?outDiv=N` | outbound sensitivity: detents per relative-CC step, `1..16`, persisted on the panel. The encoders have 20 detents a turn, so `1` is 20 steps per turn and `4` is 5. Default `1` (`PF_MIDI_OUT_DIVISOR`). |
 
 ## Why these numbers
 
@@ -88,4 +95,5 @@ as `OSC` and `AUD`.
 ## Version history
 
 - **1.0** — CC 20–23 absolute in; CC 24–27 relative in/out; notes 60–63
-  buttons in/out; Program Change in/out; RTP-MIDI listener on 5004.
+  buttons in/out; Program Change in/out; RTP-MIDI listener on 5004;
+  `outDiv` sensitivity over `/api/midi`.

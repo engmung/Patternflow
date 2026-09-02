@@ -61,12 +61,40 @@ namespace PatternflowMidi {
 // The device's NETWORK screen row; persisted in the feature's own namespace.
 inline bool runtimeEnabled = true;
 
+// Outbound sensitivity: detents per relative-CC step. A DAW moves a mapped
+// parameter a fixed amount per step, and one detent per step turned out to be
+// a lot of parameter per wrist on the first Live session - the panel's
+// encoders have 20 detents a turn, so at 1 a full turn is 20 steps and at 4
+// it is 5. Remainders accumulate, so slow turns still arrive. Runtime, via
+// POST /api/midi?outDiv=N, persisted; PF_MIDI_OUT_DIVISOR is the default.
+#ifndef PF_MIDI_OUT_DIVISOR
+#define PF_MIDI_OUT_DIVISOR 1
+#endif
+constexpr int OUT_DIVISOR_MAX = 16;
+inline int outDivisor = PF_MIDI_OUT_DIVISOR;
+inline int outAccum[4] = {0, 0, 0, 0};
+
 inline void loadSettings() {
   Preferences p;
   if (p.begin("pf_midi", true)) {
     runtimeEnabled = p.getBool("on", true);
+    outDivisor = p.getInt("outDiv", PF_MIDI_OUT_DIVISOR);
     p.end();
   }
+  if (outDivisor < 1) outDivisor = 1;
+  if (outDivisor > OUT_DIVISOR_MAX) outDivisor = OUT_DIVISOR_MAX;
+}
+
+inline bool setOutDivisor(int div) {
+  if (div < 1 || div > OUT_DIVISOR_MAX) return false;
+  outDivisor = div;
+  for (auto& a : outAccum) a = 0;
+  Preferences p;
+  if (p.begin("pf_midi", false)) {
+    p.putInt("outDiv", div);
+    p.end();
+  }
+  return true;
 }
 
 inline void setRuntimeEnabled(bool on) {
@@ -201,9 +229,15 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
     if (d != 0) d -= injectedDelta[i];
     injectedDelta[i] = 0;
     if (d != 0) {
-      if (d > 63) d = 63;
-      if (d < -63) d = -63;
-      emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + d));
+      // Sensitivity: whole steps go out, the remainder waits for the next
+      // detent. Division truncates toward zero, so the remainder keeps the
+      // sign of the motion and a change of direction cancels it naturally.
+      outAccum[i] += d;
+      int steps = outAccum[i] / outDivisor;
+      outAccum[i] -= steps * outDivisor;
+      if (steps > 63) steps = 63;
+      if (steps < -63) steps = -63;
+      if (steps != 0) emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + steps));
     }
     if (input.btnPressed[i] && !injectedPress[i]) emit(0x90 | ch, PF_MIDI_NOTE_BASE + i, 127);
     injectedPress[i] = false;
