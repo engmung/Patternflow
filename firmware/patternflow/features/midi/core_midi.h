@@ -74,6 +74,16 @@ constexpr int OUT_DIVISOR_MAX = 16;
 inline int outDivisor = PF_MIDI_OUT_DIVISOR;
 inline int outAccum[4] = {0, 0, 0, 0};
 
+// ...and the other direction: steps per detent, for a hand that wants a
+// parameter to sweep in a quarter turn. 1..8; only one of the two is ever
+// above 1 (setting one resets the other), so the page shows a single scale
+// from x8 through 1:1 to 1/16.
+#ifndef PF_MIDI_OUT_MULTIPLIER
+#define PF_MIDI_OUT_MULTIPLIER 1
+#endif
+constexpr int OUT_MULTIPLIER_MAX = 8;
+inline int outMultiplier = PF_MIDI_OUT_MULTIPLIER;
+
 // Outbound encoding for the knobs. The encoders are endless, so the honest
 // message is relative (64 ± steps) - and Live guesses what a CC means from
 // the first values it sees while mapping, and guessed wrong three different
@@ -94,11 +104,28 @@ inline void loadSettings() {
   if (p.begin("pf_midi", true)) {
     runtimeEnabled = p.getBool("on", true);
     outDivisor = p.getInt("outDiv", PF_MIDI_OUT_DIVISOR);
+    outMultiplier = p.getInt("outMul", PF_MIDI_OUT_MULTIPLIER);
     outAbsolute = p.getBool("outAbs", PF_MIDI_OUT_ABSOLUTE);
     p.end();
   }
   if (outDivisor < 1) outDivisor = 1;
   if (outDivisor > OUT_DIVISOR_MAX) outDivisor = OUT_DIVISOR_MAX;
+  if (outMultiplier < 1) outMultiplier = 1;
+  if (outMultiplier > OUT_MULTIPLIER_MAX) outMultiplier = OUT_MULTIPLIER_MAX;
+}
+
+inline bool setOutMultiplier(int mul) {
+  if (mul < 1 || mul > OUT_MULTIPLIER_MAX) return false;
+  outMultiplier = mul;
+  if (mul > 1) outDivisor = 1;
+  for (auto& a : outAccum) a = 0;
+  Preferences p;
+  if (p.begin("pf_midi", false)) {
+    p.putInt("outMul", outMultiplier);
+    p.putInt("outDiv", outDivisor);
+    p.end();
+  }
+  return true;
 }
 
 inline void setOutAbsolute(bool abs) {
@@ -114,10 +141,12 @@ inline void setOutAbsolute(bool abs) {
 inline bool setOutDivisor(int div) {
   if (div < 1 || div > OUT_DIVISOR_MAX) return false;
   outDivisor = div;
+  if (div > 1) outMultiplier = 1;
   for (auto& a : outAccum) a = 0;
   Preferences p;
   if (p.begin("pf_midi", false)) {
-    p.putInt("outDiv", div);
+    p.putInt("outDiv", outDivisor);
+    p.putInt("outMul", outMultiplier);
     p.end();
   }
   return true;
@@ -261,6 +290,7 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
       outAccum[i] += d;
       int steps = outAccum[i] / outDivisor;
       outAccum[i] -= steps * outDivisor;
+      steps *= outMultiplier;
       if (steps > 63) steps = 63;
       if (steps < -63) steps = -63;
       if (steps != 0) {

@@ -130,8 +130,8 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
   </div>
   <div class="sens">
     <div class="top"><b>Sensitivity</b><span id="divv">-</span></div>
-    <input type="range" id="div" min="1" max="16" step="1" value="1">
-    <div class="scale"><span>fast · 1 detent per step</span><span>fine · 16 detents per step</span></div>
+    <input type="range" id="div" min="0" max="11" step="1" value="4">
+    <div class="scale"><span>fast · 8 steps per detent</span><span>1 : 1</span><span>fine · 16 detents per step</span></div>
     <p class="what" id="what">-</p>
   </div>
   <div class="knobs" id="knobs">
@@ -175,11 +175,18 @@ function post(params,okText){
     paint(d);if(okText)say(okText,'good');return d;
   }).catch(function(){say('no answer from the panel','err')});
 }
-function turns(div){
+// One scale: steps per detent on the left, detents per step on the right,
+// 1:1 in the middle. Each entry is [multiplier, divisor]; only one is ever > 1.
+var GAINS=[[8,1],[4,1],[3,1],[2,1],[1,1],[1,2],[1,3],[1,4],[1,6],[1,8],[1,12],[1,16]];
+function gainIndex(mul,div){
+  for(var i=0;i<GAINS.length;i++)if(GAINS[i][0]===mul&&GAINS[i][1]===div)return i;
+  return mul>1?0:GAINS.length-1;
+}
+function gainText(g){return g[0]>1?(g[0]+' steps / detent'):(g[1]>1?(g[1]+' detents / step'):'1 : 1')}
+function turns(g){
   // 20 detents a turn; 127 steps end to end.
-  var perTurn=20/div;
-  var sweep=127/perTurn;
-  return {perTurn:perTurn,sweep:sweep};
+  var perTurn=20*g[0]/g[1];
+  return {perTurn:perTurn,sweep:127/perTurn};
 }
 function paint(d){
   last=d;
@@ -201,12 +208,12 @@ function paint(d){
   var abs=d.outMode!=='rel';
   $('m-abs').className='ch'+(abs?' on':'');
   $('m-rel').className='ch'+(abs?'':' on');
-  if(!dragging){$('div').value=d.outDiv||1;}
-  var div=Number($('div').value);
-  $('divv').textContent=div+(div===1?' detent':' detents')+' / step';
-  var t=turns(div);
+  if(!dragging){$('div').value=gainIndex(d.outMul||1,d.outDiv||1);}
+  var g=GAINS[Number($('div').value)];
+  $('divv').textContent=gainText(g);
+  var t=turns(g);
   $('what').textContent='One turn of a knob = '+(Math.round(t.perTurn*10)/10)+' steps'+
-    (abs?(' · end to end ≈ '+(Math.round(t.sweep*10)/10)+' turns'):'');
+    (abs?(' · end to end ≈ '+(Math.round(t.sweep*100)/100)+' turns'):'');
   var ks=document.querySelectorAll('#knobs .knob');
   for(var i=0;i<4;i++){
     var v=(d.outPos||[64,64,64,64])[i];
@@ -222,8 +229,8 @@ function poll(){
 }
 $('m-abs').onclick=function(){post({outMode:'abs'},'knobs send their value')};
 $('m-rel').onclick=function(){post({outMode:'rel'},'knobs send relative steps')};
-$('div').oninput=function(){dragging=true;if(last){var d=Object.assign({},last);d.outDiv=Number(this.value);paint(d)}};
-$('div').onchange=function(){dragging=false;post({outDiv:this.value},'sensitivity saved')};
+$('div').oninput=function(){dragging=true;if(last){var g=GAINS[Number(this.value)];var d=Object.assign({},last);d.outMul=g[0];d.outDiv=g[1];paint(d)}};
+$('div').onchange=function(){dragging=false;var g=GAINS[Number(this.value)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'sensitivity saved')};
 $('on').onchange=function(){post({on:this.checked?'1':'0'},this.checked?'MIDI on':'MIDI off')};
 $('f-host').oninput=function(){hostDirty=true};
 $('hostf').onsubmit=function(e){e.preventDefault();hostDirty=false;

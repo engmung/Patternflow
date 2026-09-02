@@ -195,10 +195,10 @@ without a Max device. Map with a couple of detents in either direction; the
 panel sends a plain knob value, so there is nothing for Live to guess.
 
 **If a knob moves the mapped parameter too much (or too little) per turn**,
-`POST http://patternflow.local/api/midi?outDiv=N` sets how many detents
-make one MIDI step (1–16, remembered across reboots; default 1 — one turn of
-the encoder is 20 steps, so 6 turns sweep a parameter; at 4 it is 25).
-Narrowing the mapping's Min/Max in Live's map list works too.
+the console's **MIDI** page has one sensitivity slider from ×8 (a quarter
+turn sweeps a parameter) through 1:1 to 1/16 (ten turns). It is remembered
+across reboots; the same page shows the four values the DAW is seeing, the
+session, and the computer the panel should call on boot.
 
 **So you do not reconnect after every panel reboot**, tell the panel your
 computer's address once — `POST http://patternflow.local/api/midi?host=192.168.0.23`

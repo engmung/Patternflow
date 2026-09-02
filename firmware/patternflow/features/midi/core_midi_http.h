@@ -5,6 +5,7 @@
 //   GET  /api/midi              channel, outbound sensitivity, host, session
 //   POST /api/midi?on=0|1       the MIDI row on the NETWORK screen, from here
 //   POST /api/midi?outDiv=N     detents per outbound step, 1..16, persisted
+//   POST /api/midi?outMul=N     steps per detent, 1..8 (the other direction)
 //   POST /api/midi?outMode=abs|rel  knobs out as a virtual 0..127 position
 //                               (default) or as 64±steps. Persisted.
 //   POST /api/midi?host=<ip>    the host to invite on boot and whenever no
@@ -38,6 +39,8 @@ inline void sendState() {
   json += (int)PF_MIDI_CHANNEL;
   json += ",\"outDiv\":";
   json += PatternflowMidi::outDivisor;
+  json += ",\"outMul\":";
+  json += PatternflowMidi::outMultiplier;
   json += ",\"outMode\":\"";
   json += PatternflowMidi::outAbsolute ? "abs" : "rel";
   json += "\",\"host\":\"";
@@ -88,6 +91,10 @@ inline void begin() {
       return;
     }
     if (s.hasArg("on")) PatternflowMidi::setRuntimeEnabled(s.arg("on") == "1");
+    if (s.hasArg("outMul") && !PatternflowMidi::setOutMultiplier(s.arg("outMul").toInt())) {
+      s.send(400, "application/json", "{\"ok\":false,\"error\":\"outMul must be 1..8\"}");
+      return;
+    }
     if (s.hasArg("outMode")) {
       String m = s.arg("outMode");
       if (m != "abs" && m != "rel") {
