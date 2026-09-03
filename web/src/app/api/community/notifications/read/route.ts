@@ -1,7 +1,7 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled } from "@/lib/community/db";
-import { markNotificationsRead } from "@/lib/community/queries";
+import { communityEnabled } from "@/lib/community/server/db";
+import { markNotificationsRead } from "@/lib/community/server/queries";
 
 // POST /api/community/notifications/read — the notifications page calls this
 // once after it has actually rendered. It is not done during the page render:

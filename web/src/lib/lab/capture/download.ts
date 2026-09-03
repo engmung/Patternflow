@@ -1,6 +1,6 @@
 // ── Save-to-disk ─────────────────────────────────────────────────────────────
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 
 function slug(text: string): string {
   const cleaned = text

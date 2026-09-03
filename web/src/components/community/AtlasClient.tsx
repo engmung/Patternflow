@@ -30,7 +30,7 @@ import {
   type AtlasStatusId,
 } from "@/lib/atlas/data";
 import { knobSetupFromCode } from "@/lib/community/knobs";
-import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
+import { describeMatrixShape, matrixFromCode } from "@/lib/pattern/matrix";
 import PatternCanvas from "./PatternCanvas";
 import SandboxPreview from "./SandboxPreview";
 import commStyles from "./Community.module.css";

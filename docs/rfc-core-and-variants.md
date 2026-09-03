@@ -2,6 +2,8 @@
 
 *Restructuring the firmware. Written 2026-08-26.*
 
+> **Vocabulary, 2026-09-03.** This RFC says *addon* and *variant*; the tree it produced says *feature* (a directory under `firmware/patternflow/features/`) and *edition* (a named firmware under `firmware/bundles/`). The current words, and the rules, are in [`EDITIONS.md`](EDITIONS.md); this document is kept as written.
+
 > **Status, 28 August 2026.** The seam shipped in 3.7.0: every feature is a
 > module in this tree, a named firmware is two files, and nothing edits a core
 > file to exist. **The code is not splitting up** — §2.13 has the measurement

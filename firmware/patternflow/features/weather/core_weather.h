@@ -10,6 +10,7 @@
 // API key + location live in NVS (never in a .pfm). License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
+#include "weather_config.h"
 
 #include <Arduino.h>
 #include <HTTPClient.h>

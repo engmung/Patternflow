@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { decodePfst, type PerformanceCue } from "../src/lib/community/performance";
+import { decodePfst, type PerformanceCue } from "../src/lib/pattern/pfst";
 
 // Resolve vectors from THIS file, not the cwd the runner happened to use.
 const VECTORS = path.resolve(

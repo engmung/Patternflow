@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - shared console chrome + theme (PROGMEM JS bundle)
 //
-// Served at /pf-console.js by core_audio_ws.h and loaded by every console
+// Served at /pf-console.js by core_http.h and loaded by every console
 // page as one parser-blocking <script src> in <head>. One file owns the
 // whole cross-page system; the pages themselves carry zero nav or theme
 // markup:
@@ -105,7 +105,7 @@ if(v&&d.version)v.textContent=(d.variant&&d.variant!=='core'?'core v':'v')+d.ver
 var vb=document.getElementById('pfVariant');
 if(vb&&d.variant&&d.variant!=='core'){
 vb.textContent=d.variant+(d.variantVersion?' '+d.variantVersion:'');
-vb.href='https://patternflow.work/variants#'+encodeURIComponent(d.variant);
+vb.href='https://patternflow.work/editions#'+encodeURIComponent(d.variant);
 vb.style.display='inline-flex';
 }
 // One status fetch, shared. A page that needs to know what this build

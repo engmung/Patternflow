@@ -1,9 +1,9 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { newId, reportTarget } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { newId, reportTarget } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { reports } from "@/lib/community/schema";
+import { reports } from "@/lib/community/server/schema";
 import { REPORT_REASONS, cleanReportDetail, isReportTargetType } from "@/lib/community/validate";
 
 // POST /api/community/reports — flag a pattern, post or comment for review.

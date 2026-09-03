@@ -11,7 +11,7 @@ import {
   ATTACHMENT_MAX_PER_PARENT,
   formatBytes,
 } from "@/lib/community/workshop";
-import type { AttachmentView } from "@/lib/community/queries";
+import type { AttachmentView } from "@/lib/community/server/queries";
 import { COMMENT_MAX } from "@/lib/community/validate";
 import AttachmentList from "./AttachmentList";
 import AuthModal from "./AuthModal";

@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { listReports } from "@/lib/community/queries";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { listReports } from "@/lib/community/server/queries";
 import ReportQueue from "@/components/community/ReportQueue";
 
 // The moderation queue. Reports were write-only until this page existed —

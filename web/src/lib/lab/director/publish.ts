@@ -4,7 +4,7 @@
 // encoder refuses). Callers pass this to PublishModal so a pattern and its
 // show publish together in one Share.
 
-import { serializePerformance, validatePerformance } from "@/lib/community/performance";
+import { serializePerformance, validatePerformance } from "@/lib/pattern/pfst";
 import { labPatternName, useLabStore } from "../store";
 import { bakeShowV2 } from "./bake";
 import { showHasContent } from "./types";

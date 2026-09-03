@@ -1,12 +1,12 @@
 import fs from "node:fs/promises";
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { attachmentPath, sniffImage } from "@/lib/community/attachments";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { attachmentPath, sniffImage } from "@/lib/community/server/attachments";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { getAttachment } from "@/lib/community/queries";
-import { postAttachments } from "@/lib/community/schema";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { getAttachment } from "@/lib/community/server/queries";
+import { postAttachments } from "@/lib/community/server/schema";
 
 // GET /api/community/attachments/[id] — hand back a file from a thread.
 // DELETE the same — take one back off.

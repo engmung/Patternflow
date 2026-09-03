@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { notifyPerformanceAdded } from "@/lib/community/notify";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { notifyPerformanceAdded } from "@/lib/community/server/notify";
 import {
   encodePfst,
   normalizePerformance,
@@ -12,11 +12,11 @@ import {
   serializePerformance,
   summarizePerformanceJson,
   validatePerformance,
-} from "@/lib/community/performance";
+} from "@/lib/pattern/pfst";
 import { resolvePerformance } from "@/lib/community/performances";
-import { listPatternPerformances, newId } from "@/lib/community/queries";
+import { listPatternPerformances, newId } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { patternPerformances, patterns } from "@/lib/community/schema";
+import { patternPerformances, patterns } from "@/lib/community/server/schema";
 import { cleanDescription } from "@/lib/community/validate";
 import { canView } from "@/lib/community/visibility";
 

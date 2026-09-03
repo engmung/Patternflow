@@ -18,7 +18,7 @@ import SendModuleModal from "@/components/community/SendModuleModal";
 import { buildsConfigured } from "@/lib/community/apiBase";
 import { COLLECTION_EVENT, deckAdd, deckHas, deckRemove } from "@/lib/community/deck";
 import { knobSetupFromCode } from "@/lib/community/knobs";
-import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
+import { describeMatrixShape, matrixFromCode } from "@/lib/pattern/matrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
 import { communityPatternUrl } from "@/lib/community/license";

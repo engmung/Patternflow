@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import {
   QUESTION_MAX,
   TERRITORY_DESC_MAX,
@@ -14,8 +14,8 @@ import {
   cleanTerritoryTitle,
   overlongQuestion,
 } from "@/lib/community/workshop";
-import { getTerritoryByCode } from "@/lib/community/queries";
-import { territories } from "@/lib/community/schema";
+import { getTerritoryByCode } from "@/lib/community/server/queries";
+import { territories } from "@/lib/community/server/schema";
 
 // PATCH  /api/community/territories/[code] — edit one, or archive/restore it.
 // DELETE /api/community/territories/[code] — only when nothing hangs off it.

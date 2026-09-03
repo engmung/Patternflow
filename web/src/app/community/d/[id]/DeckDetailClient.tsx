@@ -7,7 +7,7 @@ import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
 import ShareDeckPackModal from "@/components/community/ShareDeckPackModal";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
-import { summarizePerformanceJson } from "@/lib/community/performance";
+import { summarizePerformanceJson } from "@/lib/pattern/pfst";
 import { readPerformanceFile } from "@/lib/community/performanceFile";
 import {
   deckItems,
@@ -22,7 +22,7 @@ import {
 } from "@/lib/community/visibility";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { useDeviceHost } from "@/lib/community/deviceHost";
-import type { DeckPageItem } from "@/lib/community/serialize";
+import type { DeckPageItem } from "@/lib/community/server/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
 

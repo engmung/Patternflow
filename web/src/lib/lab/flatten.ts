@@ -20,9 +20,9 @@
 // layers can never collide; the wrapper feeds each layer a private display
 // writing into its own RGBA buffer, then composites bottom → top.
 
-import { buildRampLUTRGBA } from "@/lib/patternHarness";
-import { withMatrixAnnotation, type MatrixSize } from "@/lib/patternMatrix";
-import { codeUsesValueField } from "@/lib/patternRamp";
+import { buildRampLUTRGBA } from "@/lib/pattern/harness";
+import { withMatrixAnnotation, type MatrixSize } from "@/lib/pattern/matrix";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { KNOBS_ANNOTATION_RE, buildKnobsAnnotationLine, defaultKnobState } from "./annotations";
 import { rampStateToHarness } from "./engine";
 import { bytesToBase64 } from "./serialize";

@@ -6,15 +6,11 @@ on:
   pull_request:
     paths:
       - "web/**"
-      # The Home Assistant card is built from web/src but committed into the
-      # integration, so a change to the built artifact has to be checked too.
-      - "custom_components/patternflow/www/**"
       - ".github/workflows/web-ci.yml"
   push:
     branches: [main]
     paths:
       - "web/**"
-      - "custom_components/patternflow/www/**"
       - ".github/workflows/web-ci.yml"
 
 # Cancel an in-progress run if newer commits are pushed to the same ref.
@@ -44,18 +40,20 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # `next build` type-checks only what it bundles; scripts/ and the smoke
+      # suites are outside that, and a type error there used to surface as a
+      # crash the first time somebody ran the script.
+      - name: Typecheck
+        run: npm run typecheck
+
       # Build is the hard gate: broken code can't reach main.
       - name: Build
         run: npm run build
 
-      # The Home Assistant card ships as a committed bundle, because HACS and a
-      # manual copy both hand Home Assistant a directory rather than a build.
-      # That makes the artifact rotting the real risk: this rebuilds it and
-      # fails if what is committed no longer matches web/src.
-      - name: Check the Home Assistant card is up to date
-        run: npm run check:ha-card
+      # The smoke suites. Twenty of them existed and CI ran two; the rest ran
+      # when somebody remembered. `check:ci` is every suite that needs nothing
+      # a runner lacks (the module builder wants the Xtensa toolchain, so
+      # `check:module` stays local).
+      - name: Smoke suites
+        run: npm run check:ci
 
-      # And that the bundle loads, and still speaks the same protocol as the
-      # sandbox document shipped beside it.
-      - name: Smoke-test the Home Assistant card
-        run: npm run check:ha-card-smoke

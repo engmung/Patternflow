@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import BodyComposer from "./BodyComposer";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/community/workshop";
-import type { AttachmentView } from "@/lib/community/queries";
+import type { AttachmentView } from "@/lib/community/server/queries";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
 import AttachmentList from "./AttachmentList";
 import CommentSection, { type CommentView } from "./CommentSection";

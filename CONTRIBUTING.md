@@ -1,6 +1,6 @@
 # Contributing to Patternflow
 
-Patternflow is moving from a single public build guide toward a set of build paths, pattern tools, and community contributions.
+Patternflow has a set of build paths (the official PCB in a 3D-printed enclosure, breadboard electronics, other panel sizes), pattern tools, a community site, and firmware editions — and contributions to any of them.
 
 This file is intentionally a starting point. The contribution process will become more detailed as more people build, test, and modify Patternflow.
 
@@ -8,7 +8,7 @@ This file is intentionally a starting point. The contribution process will becom
 
 - Build Patternflow and share photos, problems, and notes.
 - Improve the build documentation when a step is unclear.
-- Test alternate build paths, especially breadboard electronics and future laser-cut enclosure files.
+- Test the alternate build paths — breadboard electronics, other panel sizes, other printers — and report what breaks.
 - Suggest better sourcing options for parts.
 - Share custom patterns with the community.
 - Report firmware, web, or documentation issues.
@@ -20,7 +20,7 @@ Custom patterns are welcome as community work, but official bundled firmware pat
 **Licensing — inbound = outbound.** By sending a pattern *to this repository* (Discord, issue, or PR) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
 
 **Publishing to the Community is a different thing.** Patterns posted to the
-[Community site](https://patternflow.work/community) are not repository
+[Community site](https://community.patternflow.work/community) are not repository
 contributions — you pick their license yourself when you publish (CC-BY-SA 4.0
 by default, or CC-BY 4.0), and nothing here applies to them. See the
 [License Summary](docs/LICENSE-SUMMARY.md).

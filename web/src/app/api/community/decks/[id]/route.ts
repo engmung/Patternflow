@@ -1,15 +1,15 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { DECK_MAX, PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
-import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/notify";
-import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/queries";
+import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/server/notify";
+import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { serializePerformance, validatePerformance } from "@/lib/community/performance";
-import { deckPatterns, decks } from "@/lib/community/schema";
+import { serializePerformance, validatePerformance } from "@/lib/pattern/pfst";
+import { deckPatterns, decks } from "@/lib/community/server/schema";
 import { cleanDescription, cleanTitle } from "@/lib/community/validate";
 import { cleanVisibility, type Visibility } from "@/lib/community/visibility";
 

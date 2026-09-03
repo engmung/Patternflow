@@ -31,9 +31,9 @@ function check(label: string, actual: unknown, expected: unknown) {
 }
 
 async function main() {
-  const { getDb } = await import("../src/lib/community/db");
-  const schema = await import("../src/lib/community/schema");
-  const queries = await import("../src/lib/community/queries");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const schema = await import("../src/lib/community/server/schema");
+  const queries = await import("../src/lib/community/server/queries");
   const { canView, forkBlocked } = await import("../src/lib/community/visibility");
   const { checkDeckPattern, cleanPatternIds } = await import("../src/lib/community/deckShare");
   const { DECK_MAX, PUBLIC_DECKS_MAX } = await import("../src/lib/community/deck");

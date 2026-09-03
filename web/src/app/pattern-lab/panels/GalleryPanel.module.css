@@ -1,0 +1,314 @@
+/* ── GalleryPanel: its own classes ─────────────────────────────────────────
+   Moved out of PatternLab.module.css on 2026-09; only this file uses them. */
+
+.galleryPane {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.queue {
+  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
+}
+
+.queueHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  color: rgba(23, 21, 18, 0.62);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.queueHeader button {
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.queueHeader button:hover {
+  border-color: #171512;
+}
+
+.queueList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.jobRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid rgba(23, 21, 18, 0.1);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+}
+
+.jobRow input[type="checkbox"] {
+  flex: 0 0 auto;
+  accent-color: #171512;
+}
+
+.jobDot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(23, 21, 18, 0.3);
+}
+
+.jobRow[data-status="running"] .jobDot {
+  background: #8a5d00;
+  animation: jobPulse 1s ease-in-out infinite;
+}
+
+.jobRow[data-status="done"] .jobDot {
+  background: #177246;
+}
+
+.jobRow[data-status="error"] .jobDot {
+  background: #b42318;
+}
+
+.jobLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.jobLabel em {
+  font-style: normal;
+  color: rgba(23, 21, 18, 0.5);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.jobError {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #b42318;
+  font-size: var(--pf-fs-mono);
+}
+
+.jobTime {
+  margin-left: auto;
+  color: rgba(23, 21, 18, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+.galleryToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
+}
+
+.galleryToolbar button {
+  min-height: 28px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 10px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.galleryToolbar button:hover {
+  border-color: #171512;
+}
+
+.galleryToolbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.galleryToolbar .toolbarActive {
+  background: #171512;
+  color: #f7f3ea;
+  border-color: #171512;
+}
+
+.toolbarHint {
+  margin-left: auto;
+  color: rgba(23, 21, 18, 0.55);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+}
+
+.deleteButton {
+  border-color: rgba(180, 35, 24, 0.5) !important;
+  color: #b42318 !important;
+}
+
+.deleteButton:hover:not(:disabled) {
+  border-color: #b42318 !important;
+  background: #fff4f2 !important;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.galleryGrid li {
+  border-right: 1px solid rgba(23, 21, 18, 0.14);
+  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
+}
+
+.variantCardSelected {
+  background: #e8dcc2;
+}
+
+.variantCardSelected:hover {
+  background: #e1d2b2;
+}
+
+.variantCardSelected .variantFrame {
+  outline: 2px solid #171512;
+  outline-offset: 1px;
+}
+
+.selectBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #171512;
+  color: #f7f3ea;
+  font-size: var(--pf-fs-mono);
+  line-height: 1;
+}
+
+.pinBadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  padding: 2px 5px;
+  background: #8a5d00;
+  color: #fffdf8;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.variantCard {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 10px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.variantCard:hover {
+  background: #f4eede;
+}
+
+.variantCardActive {
+  background: #e8dcc2;
+}
+
+.variantCardActive:hover {
+  background: #e1d2b2;
+}
+
+.variantFrame {
+  position: relative;
+  aspect-ratio: 1 / 2;
+  width: 100%;
+  background: #09090b;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+}
+
+.variantFrame canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.variantError {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 6px;
+  background: rgba(180, 35, 24, 0.92);
+  color: #fff;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.variantMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.variantMeta strong {
+  font-size: 12px;
+}
+
+.variantMeta span {
+  color: rgba(23, 21, 18, 0.62);
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.keyField {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 10px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+}
+
+.keyField:focus {
+  outline: 1px solid #171512;
+  outline-offset: 1px;
+}

@@ -18,6 +18,7 @@
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
+#include "audio_config.h"
 
 #include <Preferences.h>
 #include "../pf_feature.h"

@@ -40,7 +40,7 @@ for why any of this exists.
 
 ---
 
-## The three files
+## The four files
 
 | file | what it is |
 | --- | --- |

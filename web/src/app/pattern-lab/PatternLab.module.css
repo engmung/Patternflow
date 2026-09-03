@@ -1,28 +1,7 @@
-.shell {
-  min-height: 100vh;
-  background: #f7f3ea;
-  color: #171512;
-  font-family: var(--font-inter), system-ui, sans-serif;
-  padding: 16px;
-  box-sizing: border-box;
-}
-
-/* Compact top navigation bar for Pattern Lab */
-.labHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 14px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
-  background: rgba(247, 243, 234, 0.85);
-}
-
-.labBrandBlock {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
+/* ── Pattern Lab: shared styles ──────────────────────────────────────────────
+   What more than one panel draws with. Each panel's own classes live beside
+   the panel (<Panel>.module.css) since 2026-09; a rule is here because two
+   files use it, or because the shell (PatternLabClient) does. */
 
 .labBrand {
   color: inherit;
@@ -78,11 +57,12 @@
 
 @media (max-width: 1080px) {
   .labName {
-    position: static;
-    transform: none;
-    width: 150px;
-    text-align: left;
-  }
+      position: static;
+      transform: none;
+      width: 150px;
+      text-align: left;
+    }
+
 }
 
 .labNav {
@@ -103,11 +83,6 @@
   color: #171512;
 }
 
-.shellDragging {
-  cursor: ns-resize;
-  user-select: none;
-}
-
 .header {
   display: flex;
   align-items: center;
@@ -115,14 +90,6 @@
   gap: 18px;
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(23, 21, 18, 0.18);
-}
-
-.brand {
-  color: inherit;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-decoration: none;
 }
 
 .headerMeta,
@@ -142,25 +109,6 @@
   font-size: 12px;
   line-height: 1.45;
   text-transform: uppercase;
-}
-
-.workspace {
-  display: grid;
-  grid-template-columns: minmax(360px, 0.92fr) minmax(520px, 1.08fr);
-  align-items: stretch;
-  gap: 22px;
-  margin-top: 22px;
-  min-height: calc(100vh - 104px);
-}
-
-.previewColumn,
-.editorColumn {
-  border: 1px solid rgba(23, 21, 18, 0.18);
-  background: #fffdf8;
-}
-
-.previewColumn {
-  padding: 18px;
 }
 
 .previewHeader {
@@ -192,12 +140,6 @@
   opacity: 0.4;
 }
 
-.headerControls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
 .headerToggle,
 .headerSelect {
   appearance: none;
@@ -220,175 +162,6 @@
   background: #f7f3ea;
 }
 
-/* Direct W×H entry, sitting next to the frame picker. */
-.customMatrix {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.customMatrixField {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: rgba(23, 21, 18, 0.5);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-}
-
-.customMatrixField input {
-  width: 58px;
-  min-height: 32px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  border-radius: 5px;
-  background: #ffffff;
-  color: #171512;
-  padding: 0 6px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.customMatrixField input:focus {
-  outline: none;
-  border-color: #171512;
-}
-
-/* Camera view chip in the Preview header — names the borrowed view, exits on click. */
-.cameraChip {
-  padding: 0 8px;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid rgba(20, 90, 180, 0.45);
-  border-radius: 5px;
-  background: rgba(40, 120, 220, 0.12);
-  color: #1c4f8a;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.cameraChip:hover {
-  background: rgba(40, 120, 220, 0.2);
-}
-
-.frameWarning {
-  padding: 0 8px;
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid rgba(180, 110, 20, 0.45);
-  border-radius: 5px;
-  background: rgba(220, 150, 40, 0.12);
-  color: #8a5a10;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  cursor: help;
-}
-
-/* Mobile-first AI workflow: Copy prompt & Paste response buttons. Hidden on desktop. */
-.mobileActions {
-  display: none;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin-bottom: 12px;
-}
-
-.mobileCopyPromptBtn,
-.mobilePasteBtn {
-  min-height: 44px;
-  border-radius: 6px;
-  padding: 0 10px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mobileCopyPromptBtn {
-  border: 1px solid rgba(23, 21, 18, 0.28);
-  background: #ffffff;
-  color: #171512;
-}
-
-.mobileCopyPromptBtn:active {
-  background: #f0eae1;
-}
-
-.mobilePasteBtn {
-  border: 1px solid #e8552e;
-  background: #e8552e;
-  color: #ffffff;
-}
-
-.mobilePasteBtn:active {
-  background: #d44722;
-  border-color: #d44722;
-}
-
-.matrixFrame {
-  position: relative;
-  width: 100%;
-  /* Overridden inline with the active pattern's frame; 2:1 is the stock panel
-     and the fallback. Capped so a tall frame can't push the knobs off screen —
-     when the cap bites, the canvas just letterboxes inside the stage. */
-  aspect-ratio: 2 / 1;
-  max-height: 58vh;
-  margin-inline: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #111111;
-  background: #030303;
-  border-radius: 0;
-  overflow: hidden;
-}
-
-.matrixFrame canvas {
-  display: block;
-  height: 100%;
-  max-height: 100%;
-  width: auto;
-  max-width: 100%;
-  object-fit: contain;
-  image-rendering: pixelated;
-}
-
-.screenRotator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 200%;
-  height: 50%;
-  transform: translate(-50%, -50%) rotate(-90deg);
-  transform-origin: center center;
-  background: #09090b;
-  overflow: hidden;
-}
-
-.screenRotator canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  object-fit: fill;
-  image-rendering: pixelated;
-}
-
 .errorBox {
   margin-top: 12px;
   border: 1px solid #b42318;
@@ -402,338 +175,6 @@
      message; without this the newline collapses and the two run together. */
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.controls {
-  display: grid;
-  gap: 12px;
-  margin-top: 14px;
-}
-
-/* Two lines per knob: name · value · push on top, then a full-width slider
-   flanked by its min/max fields — long enough to tune precisely. */
-.knobLine {
-  display: grid;
-  gap: 4px;
-}
-
-.knobHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.knobName {
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.knobSlider {
-  display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) 60px;
-  align-items: center;
-  gap: 8px;
-}
-
-.knobSlider input[type="range"] {
-  width: 100%;
-  accent-color: #171512;
-}
-
-.knobValue {
-  margin-left: auto;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  font-weight: 500;
-  text-align: right;
-}
-
-.knobButton {
-  min-height: 24px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 8px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-  cursor: pointer;
-  user-select: none;
-  touch-action: none;
-}
-
-.knobButton:hover {
-  border-color: #171512;
-}
-
-.knobButton:active {
-  background: #171512;
-  color: #f7f3ea;
-  border-color: #171512;
-}
-
-.rangeValue {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 24px;
-  border: 1px solid rgba(23, 21, 18, 0.2);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 5px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  user-select: none;
-}
-
-.rangeInput {
-  width: 100%;
-  min-height: 24px;
-  border: 1px solid #171512;
-  background: #ffffff;
-  color: #171512;
-  padding: 0 5px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-}
-
-.rangeInput:focus {
-  outline: 1px solid #171512;
-  outline-offset: 1px;
-}
-
-.rangeDigit,
-.rangeStatic {
-  display: inline-flex;
-  align-items: center;
-  min-width: 6px;
-  min-height: 22px;
-}
-
-.rangeExtra {
-  min-width: 0;
-  width: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.rangeValue:not(.anyRangeDragging):hover .rangeExtra,
-.rangeValue:focus-within .rangeExtra,
-.rangeDragging .rangeExtra {
-  min-width: 7px;
-  width: auto;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.rangeDigit {
-  cursor: ns-resize;
-}
-
-.rangeDigit:hover {
-  background: #171512;
-  color: #f7f3ea;
-}
-
-.rangeDigit:active {
-  background: #171512;
-  color: #f7f3ea;
-}
-
-.rampPanel {
-  margin-top: 12px;
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-}
-
-.rampHeader {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.rampHeader > span {
-  font-weight: 600;
-}
-
-.rampHeader select {
-  min-height: 28px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.rampToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  color: rgba(23, 21, 18, 0.75);
-  user-select: none;
-}
-
-.rampToggle input {
-  accent-color: #171512;
-}
-
-.rampTrack {
-  position: relative;
-  height: 34px;
-  cursor: copy;
-  touch-action: none;
-  user-select: none;
-}
-
-.rampBar {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  pointer-events: none;
-}
-
-.rampHandle {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 14px;
-  margin-left: -7px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: ew-resize;
-  touch-action: none;
-}
-
-.rampHandle span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
-  margin-left: -2px;
-  border: 1px solid #171512;
-  box-shadow: 0 0 0 1px #f7f3ea;
-  pointer-events: none;
-}
-
-.rampHandle:focus-visible {
-  outline: 1px dashed #171512;
-  outline-offset: 2px;
-}
-
-.rampHandleActive span {
-  width: 8px;
-  margin-left: -4px;
-  border-width: 2px;
-}
-
-.rampLuma {
-  display: block;
-  width: 100%;
-  height: 8px;
-  margin-top: 6px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-}
-
-.rampLumaRow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  color: rgba(23, 21, 18, 0.5);
-  text-transform: uppercase;
-}
-
-.rampLumaBadge {
-  margin-left: auto;
-}
-
-.rampLumaMixed {
-  color: #171512;
-}
-
-.rampStopEdit {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.rampStopEdit input[type="color"] {
-  width: 38px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  cursor: pointer;
-}
-
-.rampStopPos {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-}
-
-.rampStopDelete {
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 8px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.rampStopDelete:hover:not(:disabled) {
-  border-color: #b3261e;
-  color: #b3261e;
-}
-
-.rampStopDelete:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.rampResetBtn {
-  min-height: 26px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 8px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.rampResetBtn:hover {
-  border-color: #171512;
-  background: #f0eae1;
-}
-
-.rampHint {
-  margin-left: auto;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  color: rgba(23, 21, 18, 0.5);
-  text-transform: uppercase;
 }
 
 .actionRow {
@@ -764,26 +205,6 @@
   background: #171512 !important;
   color: #f7f3ea !important;
   border-color: #171512 !important;
-}
-
-.editorActions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.presetStep {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.presetStep span {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  min-width: 44px;
-  text-align: center;
 }
 
 .editorHeader .guideButton {
@@ -821,13 +242,6 @@
   border-color: #171512 !important;
 }
 
-.editorColumn {
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .editorHeader {
   flex: 0 0 auto;
   min-height: 64px;
@@ -840,12 +254,6 @@
   display: block;
   font-size: 14px;
   font-weight: 700;
-}
-
-.editorPane {
-  flex: 1 1 auto;
-  min-height: 720px;
-  height: 100%;
 }
 
 .emptyState {
@@ -897,11 +305,6 @@
   border-color: #171512 !important;
 }
 
-.galleryPane {
-  height: 100%;
-  overflow-y: auto;
-}
-
 .editorHeader .genField {
   display: flex;
   align-items: center;
@@ -935,81 +338,6 @@
   cursor: pointer;
 }
 
-.queue {
-  border-bottom: 1px solid rgba(23, 21, 18, 0.18);
-}
-
-.queueHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.queueHeader button {
-  min-height: 28px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 10px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.queueHeader button:hover {
-  border-color: #171512;
-}
-
-.queueList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.jobRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-top: 1px solid rgba(23, 21, 18, 0.1);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-}
-
-.jobRow input[type="checkbox"] {
-  flex: 0 0 auto;
-  accent-color: #171512;
-}
-
-.jobDot {
-  flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(23, 21, 18, 0.3);
-}
-
-.jobRow[data-status="running"] .jobDot {
-  background: #8a5d00;
-  animation: jobPulse 1s ease-in-out infinite;
-}
-
-.jobRow[data-status="done"] .jobDot {
-  background: #177246;
-}
-
-.jobRow[data-status="error"] .jobDot {
-  background: #b42318;
-}
-
 @keyframes jobPulse {
   0%,
   100% {
@@ -1018,222 +346,6 @@
   50% {
     opacity: 0.3;
   }
-}
-
-.jobLabel {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.jobLabel em {
-  font-style: normal;
-  color: rgba(23, 21, 18, 0.5);
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.jobError {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #b42318;
-  font-size: var(--pf-fs-mono);
-}
-
-.jobTime {
-  margin-left: auto;
-  color: rgba(23, 21, 18, 0.55);
-  font-variant-numeric: tabular-nums;
-}
-
-.galleryToolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 14px;
-  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.galleryToolbar button {
-  min-height: 28px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 10px;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.galleryToolbar button:hover {
-  border-color: #171512;
-}
-
-.galleryToolbar button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.galleryToolbar .toolbarActive {
-  background: #171512;
-  color: #f7f3ea;
-  border-color: #171512;
-}
-
-.toolbarHint {
-  margin-left: auto;
-  color: rgba(23, 21, 18, 0.55);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-}
-
-.deleteButton {
-  border-color: rgba(180, 35, 24, 0.5) !important;
-  color: #b42318 !important;
-}
-
-.deleteButton:hover:not(:disabled) {
-  border-color: #b42318 !important;
-  background: #fff4f2 !important;
-}
-
-.galleryGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.galleryGrid li {
-  border-right: 1px solid rgba(23, 21, 18, 0.14);
-  border-bottom: 1px solid rgba(23, 21, 18, 0.14);
-}
-
-.variantCardSelected {
-  background: #e8dcc2;
-}
-
-.variantCardSelected:hover {
-  background: #e1d2b2;
-}
-
-.variantCardSelected .variantFrame {
-  outline: 2px solid #171512;
-  outline-offset: 1px;
-}
-
-.selectBadge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: #171512;
-  color: #f7f3ea;
-  font-size: var(--pf-fs-mono);
-  line-height: 1;
-}
-
-.pinBadge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  z-index: 2;
-  padding: 2px 5px;
-  background: #8a5d00;
-  color: #fffdf8;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  line-height: 1;
-}
-
-.variantCard {
-  display: grid;
-  gap: 8px;
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 10px;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.variantCard:hover {
-  background: #f4eede;
-}
-
-.variantCardActive {
-  background: #e8dcc2;
-}
-
-.variantCardActive:hover {
-  background: #e1d2b2;
-}
-
-.variantFrame {
-  position: relative;
-  aspect-ratio: 1 / 2;
-  width: 100%;
-  background: #09090b;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid rgba(23, 21, 18, 0.2);
-}
-
-.variantFrame canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-}
-
-.variantError {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  padding: 6px;
-  background: rgba(180, 35, 24, 0.92);
-  color: #fff;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  line-height: 1.4;
-  text-align: center;
-}
-
-.variantMeta {
-  display: grid;
-  gap: 2px;
-}
-
-.variantMeta strong {
-  font-size: 12px;
-}
-
-.variantMeta span {
-  color: rgba(23, 21, 18, 0.62);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  line-height: 1.4;
 }
 
 .variantActions {
@@ -1256,22 +368,6 @@
 
 .variantActions button:hover {
   border-color: #171512;
-}
-
-.keyField {
-  width: 100%;
-  min-height: 38px;
-  border: 1px solid rgba(23, 21, 18, 0.3);
-  background: #ffffff;
-  color: #171512;
-  padding: 0 10px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-}
-
-.keyField:focus {
-  outline: 1px solid #171512;
-  outline-offset: 1px;
 }
 
 .modalOverlay {
@@ -1375,121 +471,49 @@
 }
 
 @media (max-width: 980px) {
-  .shell {
-    padding: 12px;
-  }
-
   .header,
-  .previewHeader,
-  .editorHeader {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+    .previewHeader,
+    .editorHeader {
+      align-items: flex-start;
+      flex-direction: column;
+    }
 
   .previewHeader {
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .previewColumn {
-    padding: 12px;
-  }
-
-  .editorActions {
-    width: 100%;
-    gap: 8px;
-  }
+      gap: 10px;
+      margin-bottom: 12px;
+    }
 
   .editorHeader button {
-    min-height: 36px;
-    padding: 0 10px;
-    font-size: 11px;
-  }
+      min-height: 36px;
+      padding: 0 10px;
+      font-size: 11px;
+    }
 
   .editorHeader .pasteButton,
-  .editorHeader .clearButton {
-    display: inline-flex;
-  }
-
-  .workspace {
-    grid-template-columns: 1fr;
-    gap: 14px;
-    margin-top: 14px;
-    min-height: auto;
-  }
+    .editorHeader .clearButton {
+      display: inline-flex;
+    }
 
   .stats {
-    justify-content: flex-start;
-    text-align: left;
-  }
-
-  /* Mobile AI workflow action bar sitting right above the simulator. */
-  .mobileActions {
-    display: grid;
-  }
-
-  /* Keep the preview compact so the knobs stay on screen. */
-  .matrixFrame {
-    max-height: 38vh;
-  }
-
-  /* Compact mobile knob rows: reduced gaps and vertical height. */
-  .controls {
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .knobLine {
-    gap: 2px;
-    padding: 6px 8px;
-    background: rgba(23, 21, 18, 0.03);
-    border-radius: 6px;
-  }
-
-  .knobHead {
-    gap: 6px;
-  }
-
-  .knobSlider {
-    grid-template-columns: 48px minmax(0, 1fr) 48px;
-    gap: 4px;
-  }
-
-  .knobSlider input[type="range"] {
-    min-height: 22px;
-  }
-
-  .knobButton {
-    min-height: 22px;
-    padding: 0 6px;
-    font-size: 10px;
-  }
-
-  .rangeValue,
-  .rangeInput {
-    min-height: 22px;
-    font-size: 11px;
-  }
+      justify-content: flex-start;
+      text-align: left;
+    }
 
   /* Action buttons become full-width rows — easy to hit, nothing truncated. */
   .actionRow {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
 
   .actionRow button {
-    width: 100%;
-    min-height: 44px;
-  }
+      width: 100%;
+      min-height: 44px;
+    }
 
-  .editorPane {
-    min-height: 420px;
-  }
 }
 
 /* ── Community fork badge ── */
-
 .forkBadge {
   display: inline-flex;
   align-items: center;
@@ -1511,108 +535,4 @@
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-}
-
-/* ── Hardware flow (HardwareModal) ─────────────────────────────────────
-   The paste boxes are where the actual work lands, so they read as code:
-   monospace, a real field border, and the cream the rest of the lab uses.
-   Left unstyled they render as bare text on the modal background, which
-   looks like a layout bug rather than an input. */
-.hwPaste {
-  display: block;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgba(23, 21, 18, 0.3);
-  background: #fffdf8;
-  color: #171512;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  line-height: 1.55;
-  resize: vertical;
-}
-
-.hwPaste:focus {
-  outline: none;
-  border-color: #171512;
-}
-
-.hwPaste::placeholder {
-  color: rgba(23, 21, 18, 0.42);
-}
-
-.hwField {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-  font-size: 12px;
-}
-
-.hwField input {
-  flex: 1;
-  min-height: 30px;
-  padding: 4px 8px;
-  border: 1px solid rgba(23, 21, 18, 0.3);
-  background: #fffdf8;
-  color: #171512;
-  font: inherit;
-  font-size: 13px;
-}
-
-.hwField input:focus {
-  outline: none;
-  border-color: #171512;
-}
-
-/* One layer of a stack: its prompt, its paste box, and whether it parsed. */
-.hwUnit {
-  margin: 0 0 10px;
-  padding: 10px;
-  border: 1px solid rgba(23, 21, 18, 0.2);
-  background: #fbf7ee;
-}
-
-.hwUnitHead {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.hwUnitName {
-  flex: 1;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.hwUnitHead button {
-  min-height: 26px;
-  padding: 0 10px;
-  border: 1px solid rgba(23, 21, 18, 0.22);
-  background: #ffffff;
-  color: #171512;
-  font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.hwUnitHead button:hover {
-  border-color: #171512;
-}
-
-/* Reads at a glance: did this layer's paste actually parse? */
-.hwOk {
-  color: #2e7d4f;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-}
-
-.hwBad {
-  color: #c2410c;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
 }

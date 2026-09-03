@@ -251,6 +251,15 @@ feel free to explore.
 
 ---
 
+### 4-4. Two more panels: Director and Graphic Export
+
+Both live in the same workspace, under **Panels ▾** if they are closed.
+
+- **Director** automates the knobs over time. Each of the four knobs gets a lane; double-click a lane to drop a keyframe, drag it, and choose whether the segment to the next keyframe holds or eases (the ease handles pull like Blender's). The result is a *show* — a `.pfs` file the panel plays by itself (the Performance edition) — and it publishes alongside the pattern when you share, or exports as a MIDI clip for a DAW. `docs/pfst-v2-spec.md` describes the file; `docs/director-midi.md` the MIDI side.
+- **Graphic Export** renders the pattern at print and screen sizes: PNG stills and MP4/WebM clips, entirely in your browser. Patterns that bake the 128×64 frame into their math are upscaled pixel-for-pixel; ones that scale get a true re-render, and the panel tells you which it did. A poster gets its own renderer (a GLSL twin of the pattern), so a 4K still is not a stretched panel.
+
+Neither changes what goes to the device — the pattern is still the code layer; these are two ways of taking it somewhere else.
+
 ## 5. Verifying on your device
 
 **Do this before you share. Every time.** The reason is simple:

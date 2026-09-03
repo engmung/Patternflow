@@ -24,17 +24,29 @@ CI checks the two stay in sync.
 
 ## What goes where
 
-| page            | URL         | served by                          |
-| --------------- | ----------- | ---------------------------------- |
-| `home.html`     | `/`         | `src/core_home_http.h`             |
-| `patterns.html` | `/patterns` | `src/core_patterns_http.h`         |
-| `status.html`   | `/status`   | `src/core_status_http.h`           |
-| `wifi.html`     | `/wifi`     | `src/core_wifi_http.h`             |
-| `update.html`   | `/update`   | `src/core_web_update.h`            |
-| `show.html`     | `/show`     | `features/show/core_show_http.h`     |
-| `weather.html`  | `/weather`  | `features/weather/core_weather_http.h` |
-| `mqtt.html`     | `/mqtt`     | `features/mqtt/core_mqtt_http.h`     |
-| `audio.html`    | `/audio`    | `features/audio/core_audio_ws.h`     |
+| page             | URL         | served by                                | HTML lands in                          |
+| ---------------- | ----------- | ---------------------------------------- | -------------------------------------- |
+| `home.html`      | `/`         | `src/core_home_http.h`                   | `src/home_index.h`                     |
+| `patterns.html`  | `/patterns` | `src/core_patterns_http.h`               | `src/patterns_index.h`                 |
+| `status.html`    | `/status`   | `src/core_status_http.h`                 | `src/status_index.h`                   |
+| `wifi.html`      | `/wifi`     | `src/core_wifi_http.h`                   | `src/wifi_index.h`                     |
+| `update.html`    | `/update`   | `src/core_web_update.h`                  | `src/web_update_index.h`               |
+| `show.html`      | `/show`     | `features/show/core_show_http.h`         | `features/show/show_index.h`           |
+| `weather.html`   | `/weather`  | `features/weather/core_weather_http.h`   | `features/weather/weather_index.h`     |
+| `mqtt.html`      | `/mqtt`     | `features/mqtt/core_mqtt_http.h`         | `features/mqtt/mqtt_index.h`           |
+| `audio-in.html`  | `/audio-in` | `features/audio_in/core_audio_in_http.h` | `features/audio_in/audio_in_index.h`   |
+| `midi.html`      | `/midi`     | `features/midi/core_midi_http.h`         | `features/midi/midi_index.h`           |
+
+The list `console_pages.py` splices is `PAGES` at the top of that script — add a
+row there when you add a page. `audio-in.html` is itself generated, from the
+browser extension's mapping editor, by `firmware/toolchain/build_audio_in_page.py`;
+edit the extension, run that, then `console_pages.py build`. CI runs
+`build_audio_in_page.py --check`, so a page that was not rebaked after an
+editor change fails there rather than shipping stale.
+
+Pages under `src/` belong to the core and may not name a feature — not in a
+nav row, not in a sentence (see `docs/EDITIONS.md`). Pages under `features/`
+belong to their feature.
 
 The shared header band, nav and light/dark toggle are not in these files.
 They live in `src/theme_index.h`, served at `/pf-console.js`, and every page

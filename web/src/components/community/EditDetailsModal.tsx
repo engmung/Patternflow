@@ -9,7 +9,7 @@ import {
   TITLE_MAX,
   type MadeHow,
 } from "@/lib/community/validate";
-import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/sharePattern";
+import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/pattern/share";
 import { captureEvent } from "@/lib/posthogEvents";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {

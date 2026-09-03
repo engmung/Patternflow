@@ -29,8 +29,8 @@ import {
   completeBuild,
   failBuild,
   parseBuildPatterns,
-} from "../src/lib/community/builds";
-import { describeSweep, sweepRetention } from "../src/lib/community/retention";
+} from "../src/lib/community/server/builds";
+import { describeSweep, sweepRetention } from "../src/lib/community/server/retention";
 import { runModuleBuildZipped } from "../src/lib/firmware/moduleRunner";
 
 const WORKER_ID = process.env.WORKER_ID ?? `worker-${process.pid}`;

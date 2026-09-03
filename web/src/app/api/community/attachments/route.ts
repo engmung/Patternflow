@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { attachmentDir, attachmentPath } from "@/lib/community/attachments";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { attachmentDir, attachmentPath } from "@/lib/community/server/attachments";
 import {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_PER_PARENT,
@@ -20,9 +20,9 @@ import {
   getPostCommentStub,
   getPostStub,
   newId,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { postAttachments } from "@/lib/community/schema";
+import { postAttachments } from "@/lib/community/server/schema";
 
 // POST /api/community/attachments — hang files on a thread or one of its
 // replies. multipart/form-data: postId, optional commentId, and `files`.

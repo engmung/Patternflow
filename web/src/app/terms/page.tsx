@@ -216,7 +216,7 @@ export default function TermsPage() {
           </ul>
           <p>
             These are not aspirations. A job runs daily and deletes what is past its window; the
-            code is in the open, in <code>web/src/lib/community/retention.ts</code>.
+            code is in the open, in <code>web/src/lib/community/server/retention.ts</code>.
           </p>
 
           <h3>Who else sees it</h3>

@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { livePresets } from "@/lib/presets";
-import { packInstallUrl, packZipPath, type PatternPack } from "@/lib/packs";
+import { packInstallUrl, packZipPath, type PatternPack } from "@/lib/pattern/packs";
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import PatternCanvas from "./PatternCanvas";
 import styles from "./Community.module.css";

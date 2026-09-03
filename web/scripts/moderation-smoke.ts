@@ -9,7 +9,7 @@ import {
   adminUsernames,
   isAdminUsername,
   moderatorHeaderPatchOnly,
-} from "../src/lib/community/admin";
+} from "../src/lib/community/server/admin";
 import {
   REPORT_REASONS,
   cleanReportDetail,

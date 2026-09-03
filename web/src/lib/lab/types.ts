@@ -11,9 +11,9 @@
 // Convention: `layers[0]` is the TOP of the stack (what the Layers panel shows
 // first), so compositing walks the array back-to-front.
 
-import type { RampMode } from "@/lib/patternHarness";
-import type { MatrixSize } from "@/lib/patternMatrix";
-import type { ColorMode, PatternVariant, ThinkingLevelKey } from "@/lib/gemini";
+import type { RampMode } from "@/lib/pattern/harness";
+import type { MatrixSize } from "@/lib/pattern/matrix";
+import type { ColorMode, PatternVariant, ThinkingLevelKey } from "@/lib/ai/settings";
 import type { DirectorShow } from "./director/types";
 
 export type KnobRange = [number, number];

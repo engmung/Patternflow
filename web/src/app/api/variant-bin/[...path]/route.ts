@@ -21,7 +21,7 @@ import type { NextRequest } from "next/server";
 //
 // So one-click install only works for images served from somewhere we control
 // the headers, which is the same boundary as "somebody vouched for this
-// build" — see the note in variants-data.ts. Everything else links out to the
+// build" — see the note in editions-data.ts. Everything else links out to the
 // maintainer's own releases and is downloaded by hand.
 //
 // On Vercel `VARIANT_BIN_DIR` is unset and every request 404s. That is

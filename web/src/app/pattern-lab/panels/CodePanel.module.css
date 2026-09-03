@@ -1,0 +1,15 @@
+/* ── CodePanel: its own classes ─────────────────────────────────────────
+   Moved out of PatternLab.module.css on 2026-09; only this file uses them. */
+
+.presetStep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.presetStep span {
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  min-width: 44px;
+  text-align: center;
+}

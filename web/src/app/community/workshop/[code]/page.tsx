@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { communityEnabled } from "@/lib/community/db";
+import { communityEnabled } from "@/lib/community/server/db";
 import { formatSince } from "@/lib/community/workshop";
 import {
   countPosts,
@@ -9,7 +9,7 @@ import {
   listPosts,
   listTerritories,
   listTerritoryPins,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import NewThreadButton from "@/components/community/NewThreadButton";
 import styles from "@/components/community/Community.module.css";
 

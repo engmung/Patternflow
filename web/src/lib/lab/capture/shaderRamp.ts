@@ -14,7 +14,7 @@
 
 import { rampStateToHarness } from "../engine";
 import type { RampState } from "../types";
-import { sampleRampRGBA } from "@/lib/patternHarness";
+import { sampleRampRGBA } from "@/lib/pattern/harness";
 
 /** Entries in the ramp texture; the GLSL helper is built around this number. */
 export const SHADER_RAMP_SIZE = 1024;

@@ -26,10 +26,10 @@ import {
   PATTERN_MATRIX_HEIGHT,
   PATTERN_MATRIX_WIDTH,
   buildRampLUTRGBA,
-} from "@/lib/patternHarness";
-import { knobDetentStep } from "@/lib/patternflowControls";
-import type { MatrixSize } from "@/lib/patternMatrix";
-import { codeUsesValueField } from "@/lib/patternRamp";
+} from "@/lib/pattern/harness";
+import { knobDetentStep } from "@/lib/pattern/controls";
+import type { MatrixSize } from "@/lib/pattern/matrix";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { KNOBS_ANNOTATION_RE } from "./annotations";
 import { rampStateToHarness } from "./engine";
 import type { CodeLayer, KnobRange, Layer } from "./types";

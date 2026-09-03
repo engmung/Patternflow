@@ -35,12 +35,12 @@ function check(label: string, actual: unknown, expected: unknown) {
 }
 
 async function main() {
-  const { getDb } = await import("../src/lib/community/db");
-  const { artifactDir } = await import("../src/lib/community/builds");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const { artifactDir } = await import("../src/lib/community/server/builds");
   const { sweepRetention, SESSION_MAX_AGE_DAYS, BUILD_MAX_AGE_DAYS } = await import(
-    "../src/lib/community/retention"
+    "../src/lib/community/server/retention"
   );
-  const schema = await import("../src/lib/community/schema");
+  const schema = await import("../src/lib/community/server/schema");
 
   const db = getDb();
   const dir = artifactDir();

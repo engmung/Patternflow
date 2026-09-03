@@ -8,6 +8,7 @@
 // 7 bits and deduped, so ramps are dense, holds are single events, and the
 // envelope a DAW draws is what the panel played.
 
+import { BUS_WIRE_MAX } from "@/lib/pattern/controls";
 import { sampleShow } from "../sample";
 import type { DirectorShow } from "../types";
 
@@ -72,7 +73,7 @@ export function showToMidi(
     for (let lane = 0; lane < 4; lane++) {
       const wire = sampled.wire[lane][f];
       if (Number.isNaN(wire)) continue; // before the lane's first cue: silent
-      const value = Math.max(0, Math.min(127, Math.round((wire * 127) / 1000)));
+      const value = Math.max(0, Math.min(127, Math.round((wire * 127) / BUS_WIRE_MAX)));
       if (value === last[lane]) continue;
       last[lane] = value;
       events.push({ tick, bytes: [0xb0, MIDI_LANE_CCS[lane], value] });

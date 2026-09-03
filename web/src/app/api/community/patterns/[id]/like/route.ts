@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { countLikes, getPatternStub, hasLiked } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { countLikes, getPatternStub, hasLiked } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { likes } from "@/lib/community/schema";
+import { likes } from "@/lib/community/server/schema";
 import { canView } from "@/lib/community/visibility";
 
 // POST /api/community/patterns/[id]/like — toggle the viewer's like.

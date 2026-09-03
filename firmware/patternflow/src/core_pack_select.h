@@ -1,8 +1,12 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - Director-marked modules for /patterns ZIP export
+// PatternFlow - remotely marked modules for /patterns ZIP export
 //
-// MQTT (Director mode) writes this list; the Patterns page reads it and
-// checks those rows. RAM only — send again after reboot.
+// A list of module slugs somebody selected from OUTSIDE the panel; the
+// Patterns page (core) reads it and pre-checks those rows for download.
+// Whatever drives a remote selection writes it — today that is a Director
+// session over MQTT, tomorrow it could be anything — which is why the list
+// is core ground rather than a feature's: the reader is the core's own page.
+// RAM only — send again after reboot.
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
@@ -17,8 +21,8 @@ constexpr uint8_t MAX = 64;
 
 inline uint32_t rev = 0;
 inline uint8_t count = 0;
-// 2.5 KB, used only while a Director session is marking modules — PSRAM on
-// first use, never internal DRAM (see the note in core_show.h).
+// 2.5 KB, used only while something is marking modules — PSRAM on first
+// use, never internal DRAM (PFMem, core_mem.h: internal heap is the console's).
 inline char (*slugs)[MODULE_NAME_BYTES] = nullptr;
 
 inline void bump() {

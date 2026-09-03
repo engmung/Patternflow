@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
     "worker": "tsx scripts/build-worker.ts",
     "build:enqueue": "tsx scripts/enqueue-test-build.ts",
     "build:status": "tsx scripts/build-status.ts",
@@ -29,18 +30,16 @@
     "check:flatten": "tsx scripts/lab-flatten-smoke.ts",
     "check:labedit": "tsx scripts/lab-edit-smoke.ts",
     "check:performance": "tsx scripts/performance-smoke.ts",
-    "build:ha-card": "tsx scripts/build-ha-card.ts",
-    "check:ha-card": "tsx scripts/build-ha-card.ts --check",
-    "check:ha-card-smoke": "tsx scripts/ha-card-smoke.ts",
     "check:pixelcode": "tsx scripts/lab-pixel-code-smoke.ts",
     "check:director": "tsx scripts/lab-director-smoke.ts",
-    "check:pfstvectors": "tsx scripts/pfst-v2-vectors-smoke.ts"
+    "check:pfstvectors": "tsx scripts/pfst-v2-vectors-smoke.ts",
+    "check:ramp": "tsx scripts/ramp-oklab-smoke.ts",
+    "check:panels": "vitest run",
+    "check:ci": "npm run check:license && npm run check:moderation && npm run check:headermod && npm run check:retention && npm run check:deck && npm run check:pack && npm run check:sharing && npm run check:notify && npm run check:ports && npm run check:workshop && npm run check:sandbox && npm run check:capture && npm run check:thumbs && npm run check:flatten && npm run check:labedit && npm run check:performance && npm run check:pixelcode && npm run check:director && npm run check:pfstvectors && npm run check:ramp && npm run check:panels"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.6",
     "@google/genai": "^2.9.0",
     "@mdx-js/loader": "^3.1.1",
-    "@mdx-js/react": "^3.1.1",
     "@monaco-editor/react": "^4.7.0",
     "@next/mdx": "^16.2.4",
     "@react-three/drei": "^10.7.7",
@@ -55,7 +54,6 @@
     "drizzle-orm": "^0.45.2",
     "feed": "^5.2.1",
     "gray-matter": "^4.0.3",
-    "leva": "^0.10.1",
     "mediabunny": "^1.55.2",
     "next": "16.3.0",
     "posthog-js": "^1.371.4",
@@ -69,6 +67,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -77,8 +78,10 @@
     "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }

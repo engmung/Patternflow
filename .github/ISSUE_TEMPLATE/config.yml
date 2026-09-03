@@ -13,5 +13,5 @@ contact_links:
     url: https://discord.gg/Vr9QtsxeTk
     about: New here? Join the server, then jump into the channels above.
   - name: Contributing guide
-    url: https://github.com/engmung/PatternFlow/blob/main/CONTRIBUTING.md
+    url: https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md
     about: How to contribute docs, firmware, hardware, or web changes.

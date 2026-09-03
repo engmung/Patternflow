@@ -16,7 +16,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. No prio
 ## Table of Contents
 
 1. [Bill of Materials](#1-bill-of-materials-bom)
-2. [Power Input — Screw Terminal Only](#2-power-input--screw-terminal-only)
+2. [Power Input — Use the Screw Terminal](#2-power-input--use-the-screw-terminal)
 3. [Order the PCB](#3-order-the-pcb)
 4. [3D Printing](#4-3d-printing)
 5. [PCB Assembly](#5-pcb-assembly)
@@ -108,7 +108,7 @@ Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.0_gerber.
 
 ## 4. 3D Printing
 
-**Bambu / MakerWorld users — this section is one click:** the case lives on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles (the same 4-plate project is in the repo as [`hardware/case/patternflow_v3.3mf`](hardware/case/patternflow_v3.3mf)). Slicing manually instead? Case folders are named by **printer bed size** — see [`hardware/case/`](hardware/case/):
+**Bambu / MakerWorld users — this section is one click:** the case lives on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles (the same 4-plate project is in the repo as [`hardware/case/bed_256mm/patternflow_v3.3mf`](hardware/case/bed_256mm/patternflow_v3.3mf)). Slicing manually instead? Case folders are named by **printer bed size** — see [`hardware/case/`](hardware/case/):
 
 | Your printer bed | Print | Notes |
 |---|---|---|

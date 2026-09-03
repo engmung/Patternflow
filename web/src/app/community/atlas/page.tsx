@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { listAtlasPins, listPatternsByUser } from "@/lib/community/queries";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { listAtlasPins, listPatternsByUser } from "@/lib/community/server/queries";
 import AtlasClient from "@/components/community/AtlasClient";
 
 // The atlas: a map of pattern-technique space, sibling to the workshop map.

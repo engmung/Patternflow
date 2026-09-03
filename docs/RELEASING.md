@@ -12,43 +12,35 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
 
 ## Release checklist
 
-1. Make sure all intended changes are committed.
-2. Update `CHANGELOG.md` with the new version at the top.
-3. Update version references in `README.md`, `BUILD_GUIDE.md`, web copy, and firmware docs.
-4. Confirm the build guide matches the current PCB schematic and BOM.
-5. Run the web production build from `web/`:
+1. Make sure all intended changes are committed, and `./firmware/bundles/build.sh all` is green if anything under `firmware/` moved.
+2. Bump the version the firmware reports: `PF_IMPROV_FW_VERSION` in `firmware/patternflow/net_config.h` (written `X.Y.Z`, no `v`). `shelf.sh` refuses a core image whose define disagrees with the version it is being shelved as.
+3. Turn `CHANGELOG.md`'s `[Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and open a fresh `[Unreleased]` above it.
+4. Update the version the docs claim: the "current" line in `AGENTS.md`, the *Moving fast* note in `README.md`, and any guide that names a release.
+5. If hardware changed: confirm `BUILD_GUIDE.md`'s parts table, `hardware/bom/bom_v*.csv` and the schematic agree.
+6. Stage the images the site serves:
 
    ```bash
-   npm run build
+   ./firmware/bundles/shelf.sh core vX.Y.Z
    ```
 
-6. Commit the release docs:
+   then point `web/public/flash/manifest.json` at the new folder. An edition that also moved gets its own `shelf.sh <edition> vA.B.C` and a card update in `web/src/app/editions/editions-data.ts`. The shelf retires the previous folder of the same name — older images stay on their tags.
+7. Run the web checks from `web/`: `npm run lint && npm run typecheck && npm run check:ci && npm run build`.
+8. Commit and tag:
 
    ```bash
    git commit -m "release: vX.Y.Z"
-   ```
-
-7. Tag the release:
-
-   ```bash
    git tag -a vX.Y.Z -m "Release vX.Y.Z"
+   git push origin dev && git push --tags
    ```
 
-8. Push branch and tags:
-
-   ```bash
-   git push origin dev
-   git push --tags
-   ```
-
-9. Create the GitHub Release from the tag and attach stable firmware/build artifacts.
-10. Confirm the **Home Assistant Release** workflow went green and `patternflow-homeassistant.zip`
-    is attached, before announcing. HACS points at the newest release of the whole repository
-    regardless of what the release changed, so a release without that asset is one HACS offers
-    and then fails to download. Re-run it with `workflow_dispatch` if it did not fire.
+9. Create the GitHub Release from the tag. Publishing it triggers **Firmware release assets**, which attaches the four flash images from the tag plus a generated `FLASHING.md` with offsets and hashes.
+10. Confirm it went green before announcing; re-run it with `workflow_dispatch` if it did not fire.
 
 ## Current release line
 
-- `v1.0.0` -- first public buildable release.
-- `v1.1.0` -- unified multi-pattern firmware and browser flasher.
-- `v2.0.0` -- GPIO0 cold-boot fix, cleaned silkscreen, custom pattern workflow, and substantially complete web platform.
+`CHANGELOG.md` is the record — one section per release, newest first — and the [releases page](https://github.com/engmung/Patternflow/releases) carries the notes and the flashable images. The shape of the line, for orientation:
+
+- `v1.x` -- first public buildable release, then the multi-pattern firmware and browser flasher.
+- `v2.x` -- the v2.0 board (GPIO0 cold-boot fix, cleaned silkscreen), custom pattern workflow, the web platform. `v2.1.0` is the last release for v2.x hardware.
+- `v3.0.0` -- the v3.0 board. Every later `v3.x` is firmware/web on unchanged hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
+- Editions (`audio`, `performance`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.

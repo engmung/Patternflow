@@ -16,6 +16,8 @@ on:
       - "firmware/patternflow/src/*_index.h"
       - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
+      - "firmware/toolchain/build_audio_in_page.py"
+      - "tools/patternflow-audio-extension/**"
       - ".github/workflows/console-sync.yml"
   push:
     branches: [main]
@@ -24,6 +26,8 @@ on:
       - "firmware/patternflow/src/*_index.h"
       - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
+      - "firmware/toolchain/build_audio_in_page.py"
+      - "tools/patternflow-audio-extension/**"
 
 concurrency:
   group: console-sync-${{ github.ref }}
@@ -41,3 +45,8 @@ jobs:
           python-version: "3.x"
       - name: Headers match console/*.html
         run: python firmware/toolchain/console_pages.py check
+      # audio-in.html is itself generated, from the browser extension's mapping
+      # editor. The step above proves the header matches the page; this proves
+      # the page matches the editor it was assembled from.
+      - name: audio-in.html matches the extension's editor
+        run: python firmware/toolchain/build_audio_in_page.py --check

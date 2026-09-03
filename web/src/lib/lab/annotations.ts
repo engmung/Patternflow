@@ -1,42 +1,32 @@
-// ── @knobs annotation (shared by the lab store and panels) ───────────────────
-// Patterns declare knob names + ranges with one comment line:
-//   // @knobs Folds=3..12, Speed=0.1..10, Zoom=2..17, Contrast=0.1..1
-// Loading code with this line renames the layer's knobs and applies the ranges
-// ("-" skips a slot). The pattern reads input.knobValues directly, so the user
-// can still retune any range afterwards and the pattern follows.
+// ── @knobs in the lab ────────────────────────────────────────────────────────
+// Loading code with a `// @knobs …` line renames the project's knobs and
+// applies the ranges ("-" skips a slot). The pattern reads input.knobValues
+// directly, so the user can still retune any range afterwards and the
+// pattern follows. The line itself — its grammar, parser and printer — is
+// lib/pattern/knobs.ts, shared with the community; this file is the lab's
+// knob STATE on top of it.
 
-import { LOGICAL_KNOB_DEFAULTS, LOGICAL_KNOB_RANGES } from "@/lib/patternflowControls";
+import { LOGICAL_KNOB_DEFAULTS, LOGICAL_KNOB_RANGES } from "@/lib/pattern/controls";
+import {
+  DEFAULT_KNOB_LABELS,
+  KNOBS_ANNOTATION_RE,
+  buildKnobsAnnotationLine,
+  matchKnobsAnnotation,
+  parseKnobsAnnotation,
+  stripKnobsAnnotation,
+  type KnobAnnotationEntry,
+} from "@/lib/pattern/knobs";
 import type { KnobRange } from "./types";
 
-export const KNOBS_ANNOTATION_RE = /^[ \t]*\/\/[ \t]*@knobs[ \t]+(.+)$/m;
-
-export const DEFAULT_KNOB_LABELS = ["Knob 1", "Knob 2", "Knob 3", "Knob 4"];
-
-export type KnobAnnotationEntry = { name: string; min: number; max: number } | null;
-
-export function matchKnobsAnnotation(code: string): string | null {
-  return code.match(KNOBS_ANNOTATION_RE)?.[0] ?? null;
-}
-
-export function parseKnobsAnnotation(code: string): KnobAnnotationEntry[] | null {
-  const match = code.match(KNOBS_ANNOTATION_RE);
-  if (!match) return null;
-  const result: KnobAnnotationEntry[] = [null, null, null, null];
-  match[1]
-    .split(",")
-    .slice(0, 4)
-    .forEach((part, index) => {
-      const entry = part.trim();
-      if (!entry || entry === "-") return;
-      const m = entry.match(/^(.+?)\s*=\s*(-?\d*\.?\d+)\s*\.\.\s*(-?\d*\.?\d+)$/);
-      if (!m) return;
-      const min = Number(m[2]);
-      const max = Number(m[3]);
-      if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return;
-      result[index] = { name: m[1].trim().slice(0, 14), min, max };
-    });
-  return result.some(Boolean) ? result : null;
-}
+export {
+  DEFAULT_KNOB_LABELS,
+  KNOBS_ANNOTATION_RE,
+  buildKnobsAnnotationLine,
+  matchKnobsAnnotation,
+  parseKnobsAnnotation,
+  stripKnobsAnnotation,
+};
+export type { KnobAnnotationEntry };
 
 export function defaultKnobState(): { knobs: number[]; ranges: KnobRange[]; labels: string[] } {
   return {
@@ -46,29 +36,11 @@ export function defaultKnobState(): { knobs: number[]; ranges: KnobRange[]; labe
   };
 }
 
-/**
- * The `@knobs` line for a given knob state.
- *
- * Ranges live in the lab, not in the code — the same arrangement as `@matrix`
- * and `@ramp`, where the annotation is how the state LEAVES the lab rather
- * than where it is kept. Retuning a range therefore has to be written back at
- * export, or the published pattern carries whatever ranges it was imported
- * with and the retune is silently lost.
- */
-export function buildKnobsAnnotationLine(labels: string[], ranges: KnobRange[]): string {
-  const trim = (value: number) => `${Math.round(value * 1000) / 1000}`;
-  const entries = labels.map((label, index) => {
-    const range = ranges[index] ?? [0, 1];
-    // Commas and equals signs are the annotation's own separators.
-    const name = label.replace(/[,=]/g, " ").trim() || "-";
-    return `${name}=${trim(range[0])}..${trim(range[1])}`;
-  });
-  return `// @knobs ${entries.join(", ")}`;
-}
-
-export function stripKnobsAnnotation(code: string): string {
-  return code.replace(KNOBS_ANNOTATION_RE, "").replace(/^\n/, "");
-}
+// Ranges live in the lab, not in the code — the same arrangement as `@matrix`
+// and `@ramp`, where the annotation is how the state LEAVES the lab rather
+// than where it is kept. Retuning a range therefore has to be written back at
+// export (withKnobsAnnotation below), or the published pattern carries
+// whatever ranges it was imported with and the retune is silently lost.
 
 /** True when nothing about the knobs has been named or retuned. */
 export function knobStateIsDefault(labels: string[], ranges: KnobRange[]): boolean {

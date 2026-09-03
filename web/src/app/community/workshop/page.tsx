@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
 import {
   countUnmoved,
   getTerritoryByCode,
@@ -12,7 +12,7 @@ import {
   listRecentThreads,
   listTerritories,
   listTerritoryPins,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import WorkshopClient from "@/components/community/WorkshopClient";
 
 // The map: where Patternflow could go, and who is working where.

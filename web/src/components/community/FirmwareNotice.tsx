@@ -65,7 +65,7 @@ export default function FirmwareNotice() {
         <strong>{LATEST}</strong> is out — the firmware split into editions: the core instrument,
         Audio, and Performance. One-click install, switch any time, your settings stay.
       </span>
-      <Link href="/variants" className={styles.fwNoticeLink}>
+      <Link href="/editions" className={styles.fwNoticeLink}>
         Pick an edition →
       </Link>
       <button

@@ -23,7 +23,7 @@ import {
 import { buildShaderPrompt } from "../src/lib/lab/capture/shaderPrompt";
 import { SHADER_RAMP_SIZE, buildShaderRampLUT } from "../src/lib/lab/capture/shaderRamp";
 import { rampStateToHarness } from "../src/lib/lab/engine";
-import { sampleRampRGBA } from "../src/lib/patternHarness";
+import { sampleRampRGBA } from "../src/lib/pattern/harness";
 import { DEFAULT_RAMP_STATE, type RampState } from "../src/lib/lab/types";
 import { normalizeCaptureSettings } from "../src/lib/lab/capture/settings";
 import { DEFAULT_CAPTURE_SETTINGS, type WireProject } from "../src/lib/lab/capture/types";

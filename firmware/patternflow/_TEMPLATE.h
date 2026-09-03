@@ -5,11 +5,15 @@
 // Lineage: original         (or "remixed from @someone's ...")
 // Generated from web/src/lib/presets/<file>.ts  (the JS pattern is the source of truth)
 //
-// To make a new pattern, copy this file, rename the namespace, and register it
-// in pattern_registry.h:
-//   custom<N>.h              -> sketch ROOT (your patterns; reusable slots, editable as IDE tabs)
-//   presets/preset_<name>.h  -> presets/ subfolder (curated; change includes to "../src/...")
-// The includes below are the ROOT form (for custom patterns).
+// To make a new PRESET (compiled into the firmware), copy this file to
+// presets/preset_<name>.h, rename the namespace, change the includes below to
+// the "../config.h" / "../src/..." form, and register it in pattern_registry.h.
+// Every compiled-in preset costs internal DRAM; the registry ships Origin alone.
+//
+// A pattern of your OWN belongs in a .pfm module instead — firmware/modules/,
+// built by firmware/toolchain/build_module.py, uploaded at /patterns over
+// Wi-Fi. No rebuild, no reflash. See firmware/CUSTOM_PATTERNS.md.
+// The includes below are the sketch-root form, as this file sits there.
 
 #pragma once
 #include <Arduino.h>

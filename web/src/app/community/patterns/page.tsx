@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { countFeed, likedPatternIds, listFeed, parseFeedSort } from "@/lib/community/queries";
-import { toCardItem } from "@/lib/community/serialize";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { countFeed, likedPatternIds, listFeed, parseFeedSort } from "@/lib/community/server/queries";
+import { toCardItem } from "@/lib/community/server/serialize";
 import { FEED_FIRST_PAINT } from "@/lib/community/feedView";
 import CommunityFeedClient from "@/components/community/CommunityFeedClient";
 

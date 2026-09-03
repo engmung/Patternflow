@@ -31,7 +31,7 @@
 //
 // This is not a tidy-up, it is a memory decision. Every compiled-in preset
 // costs internal DRAM, and the web console needs roughly 10 KB of internal
-// heap free to send a page: with the full 34-preset list a 128x64 board sat
+// heap free to send a page: with every preset of the time (34) compiled in, a 128x64 board sat
 // at ~11 KB, so three extra modules — or any new feature — pushed /patterns
 // into the truncated "starved send" state core_patterns_http.h describes.
 // Shipping one preset and letting people choose the rest is what makes the

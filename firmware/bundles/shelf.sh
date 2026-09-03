@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Build a shelf image: the thing patternflow.work/variants installs in one
+# Build a shelf image: the thing patternflow.work/editions installs in one
 # click. Publishable, which means no Wi-Fi credentials in it.
 #
 #   ./shelf.sh audio v0.3.0
@@ -141,9 +141,25 @@ echo "  scan clean"
 # The version argument only names the folder. What the panel actually reports
 # at /api/status is PF_VARIANT_VERSION from the bundle's overrides.h — and
 # audio v0.4.0 shipped still believing it was v0.3.1, because nothing tied
-# the two together. Editions bake the exact string, so demand it. (Core's
-# version lives elsewhere and its release flow already stamps it.)
-if [ "$NAME" != "core" ] && ! grep -qaF -- "$VERSION" "$BIN"; then
+# the two together. Editions bake the exact string, so demand it.
+#
+# Core is not exempt. Its version is PF_IMPROV_FW_VERSION in net_config.h,
+# written as "3.8.0" (no v), and nothing else stamps it: the same drift is
+# possible, so the same check runs — the define must say what the shelf says,
+# and the binary must carry it.
+if [ "$NAME" = "core" ]; then
+  CORE_VERSION="${VERSION#v}"
+  DECLARED="$(sed -n 's/^#define PF_IMPROV_FW_VERSION[[:space:]]*"\([^"]*\)".*/\1/p' firmware/patternflow/net_config.h | head -n1)"
+  if [ "$DECLARED" != "$CORE_VERSION" ]; then
+    echo "  net_config.h declares PF_IMPROV_FW_VERSION \"$DECLARED\", but this is being shelved as $VERSION." >&2
+    echo "  Bump the define (and CHANGELOG.md) to $CORE_VERSION and rerun." >&2
+    exit 1
+  fi
+  if ! grep -qaF -- "$CORE_VERSION" "$BIN"; then
+    echo "  the image does not contain \"$CORE_VERSION\" — the binary believes another version." >&2
+    exit 1
+  fi
+elif ! grep -qaF -- "$VERSION" "$BIN"; then
   echo "  the image does not contain \"$VERSION\" — the binary believes another version." >&2
   echo "  Set PF_VARIANT_VERSION in firmware/bundles/$NAME/overrides.h to $VERSION and rerun." >&2
   exit 1
@@ -162,10 +178,32 @@ cp "$BUILD_DIR/firmware/bootloader.bin" "$OUT/patternflow.ino.bootloader.bin"
 cp "$BUILD_DIR/firmware/partitions.bin" "$OUT/patternflow.ino.partitions.bin"
 cp "$BOOT_APP0"                        "$OUT/boot_app0.bin"
 
+# ── One live image per name ─────────────────────────────────────────────
+#
+# The flasher's manifest and the shelf card only ever point at the newest
+# image, and every older one is still on its release tag (firmware-release.yml
+# reads them from there). Keeping them in the tree meant 22 folders and 26 MB
+# by 2026-09 for three that were served. So an older folder of the same name
+# leaves when its successor arrives — including core's pre-shelf spelling,
+# the bare "v3.x.y" folders.
+shopt -s nullglob
+for old in web/public/flash/bin/"$NAME"-v*; do
+  [ "$old" = "$OUT" ] && continue
+  echo "  retiring $old (still on its release tag)"
+  rm -rf "$old"
+done
+if [ "$NAME" = "core" ]; then
+  for old in web/public/flash/bin/v[0-9]*; do
+    echo "  retiring $old (still on its release tag)"
+    rm -rf "$old"
+  done
+fi
+shopt -u nullglob
+
 echo ""
 echo "staged: $OUT"
 ls -l "$OUT" | tail -4 | awk '{printf "  %8s  %s\n", $5, $9}'
 echo ""
 echo "next, by hand and on purpose:"
-echo "  - point the card at it in web/src/app/variants/variants-data.ts"
+echo "  - point the card at it in web/src/app/editions/editions-data.ts"
 echo "  - deploy the site"

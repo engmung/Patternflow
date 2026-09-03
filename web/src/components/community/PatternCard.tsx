@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { authClient } from "@/lib/community/auth-client";
 import AuthModal from "@/components/community/AuthModal";
-import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
 import {
@@ -13,7 +13,7 @@ import {
   formatMatrix,
   isStockPanelFrame,
   matrixFromCode,
-} from "@/lib/patternMatrix";
+} from "@/lib/pattern/matrix";
 import SandboxPreview from "@/components/community/SandboxPreview";
 import { buildsConfigured, communityApiUrl, COMMUNITY_FETCH_INIT } from "@/lib/community/apiBase";
 import {
@@ -30,27 +30,8 @@ import styles from "./Community.module.css";
 // 2. Knob overlay appears only while cursor is directly over the matrix screen (with top/bottom dodging).
 // 3. Moving cursor over the card title/footer completely hides the knob overlay for a 100% clean view of the live pattern!
 
-export type PatternCardItem = {
-  id: string;
-  title: string;
-  code: string;
-  parentId: string | null;
-  createdAt: string; // ISO
-  username: string | null;
-  displayUsername: string | null;
-  likeCount: number;
-  forkCount: number;
-  /** Ships a verified firmware header — flashable as-is. */
-  hasCpp: boolean;
-  /** "public" | "private" — a chip appears when private,
-   *  which only ever happens on the owner's own profile. */
-  visibility: string;
-  /** Distinct other people whose public decks carry this pattern. */
-  deckCount: number;
-  /** Whether the signed-in viewer already liked it — lights the card heart.
-   *  Optional: surfaces that don't compute it get a heart that assumes no. */
-  viewerLiked?: boolean;
-};
+import type { PatternCardItem } from "@/lib/community/cardTypes";
+export type { PatternCardItem };
 
 export function formatDate(iso: string): string {
   return iso.slice(0, 10);

@@ -9,21 +9,17 @@ import {
   createIdleInput,
   knobTargetToDelta,
   type ColorRamp,
-} from "@/lib/patternHarness";
+} from "@/lib/pattern/harness";
 import {
   knobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
-} from "@/lib/patternflowControls";
-import type { MatrixSize } from "@/lib/patternMatrix";
+} from "@/lib/pattern/controls";
+import { hexToRgb } from "@/lib/pattern/color";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import { applyMaskToCoverage, compositeLayers, type CompositeEntry } from "./compositor";
 import type { CodeLayer, Layer, RampState } from "./types";
 
 const RECOMPILE_DEBOUNCE_MS = 180;
-
-function hexToRgb(hex: string): [number, number, number] {
-  const value = parseInt(hex.slice(1), 16);
-  return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
-}
 
 export function rampStateToHarness(ramp: RampState): ColorRamp {
   return {

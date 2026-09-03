@@ -306,8 +306,8 @@ inline void handleParams() {
     String raw = server().arg(key);
     raw.trim();
     long value = raw.toInt();
-    if (raw.length() == 0 || value < 0 || value > 1000) {
-      error = String(key) + " must be 0..1000";
+    if (raw.length() == 0 || value < 0 || value > PF_BUS_MAX) {
+      error = String(key) + " must be 0.." + String(PF_BUS_MAX);
       break;
     }
     PatternflowBus::applyRemoteParam(i, value);

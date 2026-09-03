@@ -19,8 +19,8 @@ import {
   oklabToSrgb,
   type ColorRamp,
   type RampMode,
-} from "../src/lib/patternHarness";
-import { buildRampAnnotationLine, parseRampAnnotation } from "../src/lib/patternRamp";
+} from "../src/lib/pattern/harness";
+import { buildRampAnnotationLine, parseRampAnnotation } from "../src/lib/pattern/ramp";
 
 let failures = 0;
 

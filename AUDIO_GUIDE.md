@@ -21,7 +21,7 @@ written for AI coding agents; everything above it is for people.
 
 Any of these puts the same firmware on your panel:
 
-- **One click:** [patternflow.work/variants](https://patternflow.work/variants)
+- **One click:** [patternflow.work/editions](https://patternflow.work/editions)
   → Audio → flash from the browser.
 - A release's `patternflow-audio.ino.bin` via the console's `/update` page.
 - Build it yourself: `./firmware/bundles/build.sh audio` (add

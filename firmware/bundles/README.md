@@ -28,7 +28,7 @@ lives in an edition built from these two files.
 ./firmware/bundles/build.sh all      # every composition + the marker scan
                                      # proving each binary carries exactly
                                      # its features
-./firmware/bundles/shelf.sh audio v0.4.0   # a publishable image: secrets
+./firmware/bundles/shelf.sh audio v0.5.0   # a publishable image: secrets
                                      # moved aside, scanner proven against a
                                      # control build, four files staged for
                                      # the shelf
@@ -46,6 +46,7 @@ A bundle earns its place when it carries something the default **cannot**:
 | | why not in the default |
 |---|---|
 | **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, and MIDI over the network |
+| **performance** | the show player, MQTT in every role, weather — Simone Majocchi's performance-director firmware, pinned so a show behaves the same at the next gig |
 
 Three shapes of reason, and they are not the same:
 
@@ -56,7 +57,7 @@ Three shapes of reason, and they are not the same:
   needing it to behave identically at the next gig, pinned to a core version
   and not moving.
 
-The card on [patternflow.work/variants](https://patternflow.work/variants)
+The card on [patternflow.work/editions](https://patternflow.work/editions)
 says which of the three each bundle is, because a person choosing needs to
 know whether they are picking up something unfinished or something frozen.
 

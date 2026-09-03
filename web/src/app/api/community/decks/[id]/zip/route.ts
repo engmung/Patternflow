@@ -1,14 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { artifactDir } from "@/lib/community/builds";
-import { communityEnabled } from "@/lib/community/db";
+import { artifactDir } from "@/lib/community/server/builds";
+import { communityEnabled } from "@/lib/community/server/db";
 import {
   decoratePackWithPerformance,
   deckZipFilename,
   ensureDeckZip,
   invalidateDeckZip,
-} from "@/lib/community/deckZip";
-import { getDeck } from "@/lib/community/queries";
+} from "@/lib/community/server/deckZip";
+import { getDeck } from "@/lib/community/server/queries";
 
 // GET /api/community/decks/[id]/zip — the deck as an installable pack.
 //

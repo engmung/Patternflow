@@ -1,8 +1,9 @@
 # Patterns
 
-Patterns are header-only `.h` files compiled into the firmware and flashed.
-There is no runtime/filesystem loading — adding or changing a pattern means a
-reflash.
+A pattern reaches the panel one of two ways: as a curated **preset** compiled
+into the firmware, or as a **`.pfm` module** uploaded over Wi-Fi and loaded
+from the FATFS partition at runtime — no reflash, no reboot. Modules are the
+normal path; presets are the showcase and the fallback a bare board boots into.
 
 ## Two kinds
 
@@ -26,8 +27,10 @@ FATFS partition (on the device, not in this repo)
   Build one with `firmware/toolchain/build_module.py`.
 
 > The old `custom1.h`–`custom3.h` slots in the sketch root are **gone** —
-> modules are what they were for, and no longer cost a rebuild. Their patterns
-> live on under `firmware/modules/`.
+> modules are what they were for, and no longer cost a rebuild. Only `Origin`
+> is compiled in today; the rest of the curated set ships as the Basics pack
+> (`web/public/packs/basics.zip`, built from `presets/` by
+> `firmware/toolchain/make_pack.py`) and installs from the Patterns page.
 
 ## Source of truth
 
@@ -169,7 +172,7 @@ The preset sources are still in `presets/` as the editable originals —
 
 Two things about that set which the file itself won't tell you:
 
-- **Not every pattern made the cut.** 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529 and 0530 were left out for performance lag or rendering problems on real ESP32 hardware. A pattern that looks fine in the browser can still miss frame budget on the device.
+- **Not every pattern made the cut.** 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529 and 0530 were left out for performance lag or rendering problems on real ESP32 hardware. A pattern that looks fine in the browser can still miss frame budget on the device. 0609, 0614, 0614-2, 0619, 0622 and 0624 were posted after the module loader made the compiled-in showcase unnecessary and were never ported. `firmware/toolchain/check_presets.py` (run in CI) keeps this list honest: a new web preset has to be ported or added there with a reason.
 - **Patterns posted to Instagram after 0602 aren't bundled here.** They're on Discord; convert them yourself, or install them as `.pfm` modules.
 
 Anything not compiled in is one upload away — build a module and send it to the device over Wi-Fi, no reflash.

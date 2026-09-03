@@ -18,7 +18,7 @@ import {
   describeSweep,
   previewRetention,
   sweepRetention,
-} from "../src/lib/community/retention";
+} from "../src/lib/community/server/retention";
 
 const dryRun = process.argv.includes("--dry-run");
 

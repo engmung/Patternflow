@@ -51,6 +51,10 @@ const nextConfig: NextConfig = {
   ],
   async redirects() {
     return [
+      // The shelf was /variants until 2026-09. The word the docs settled on is
+      // "edition" (docs/EDITIONS.md); the old URL is baked into every 3.8.0
+      // console page and printed in release notes, so it stays forever.
+      { source: "/variants", destination: "/editions", permanent: true },
       {
         source: "/journal/:slug",
         has: [{ type: "query", key: "lang", value: "en" }],

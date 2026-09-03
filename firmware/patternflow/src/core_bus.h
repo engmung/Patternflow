@@ -24,6 +24,13 @@
 #include <Arduino.h>
 #include "core_encoders.h"  // InputFrame
 
+// The wire scale of an absolute channel: 0..PF_BUS_MAX, integer. Everything
+// that writes the bus — MQTT param/1..4, POST /api/params, a .pfs cue, a MIDI
+// CC — speaks this scale, and the site's Director bakes to it
+// (BUS_WIRE_MAX in web/src/lib/pattern/controls.ts). abi/pf_params.h clamps
+// to the same literal and cannot be changed to this name: the ABI is frozen.
+#define PF_BUS_MAX 1000
+
 namespace PatternflowBus {
 
 // Held until physical encoder motion releases a channel.
@@ -43,7 +50,7 @@ constexpr uint32_t ABSOLUTE_RELEASE_GRACE_MS = 250;
 inline void applyRemoteParam(int index, long value) {
   if (index < 0 || index > 3) return;
   if (value < 0) value = 0;
-  if (value > 1000) value = 1000;
+  if (value > PF_BUS_MAX) value = PF_BUS_MAX;
   paramHeld[index] = true;
   paramValue[index] = (uint16_t)value;
   paramHeldAtMs[index] = millis();
