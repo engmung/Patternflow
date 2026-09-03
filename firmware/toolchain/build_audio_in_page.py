@@ -309,5 +309,20 @@ page = (
     '</body>\n</html>\n'
 )
 
+import sys
+
+if '--check' in sys.argv:
+    # CI: the page on disk must be what this script would write now — so an
+    # edit to the extension's editor, or to the adapter/overrides above, that
+    # was not baked into console/audio-in.html fails the build instead of
+    # shipping a stale page under a fresh-looking header.
+    current = OUT.read_text(encoding='utf-8') if OUT.exists() else ''
+    if current == page:
+        print('console/audio-in.html is up to date (editor %s)' % src_hash)
+        sys.exit(0)
+    print('console/audio-in.html is stale: rerun firmware/toolchain/build_audio_in_page.py, '
+          'then firmware/toolchain/console_pages.py build', file=sys.stderr)
+    sys.exit(1)
+
 io.open(OUT, 'w', encoding='utf-8', newline='\n').write(page)
 print('wrote', OUT.relative_to(ROOT).as_posix(), len(page), 'bytes (editor %s)' % src_hash)

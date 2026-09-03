@@ -40,7 +40,9 @@ CI checks the two stay in sync.
 The list `console_pages.py` splices is `PAGES` at the top of that script — add a
 row there when you add a page. `audio-in.html` is itself generated, from the
 browser extension's mapping editor, by `firmware/toolchain/build_audio_in_page.py`;
-edit the extension, run that, then `console_pages.py build`.
+edit the extension, run that, then `console_pages.py build`. CI runs
+`build_audio_in_page.py --check`, so a page that was not rebaked after an
+editor change fails there rather than shipping stale.
 
 Pages under `src/` belong to the core and may not name a feature — not in a
 nav row, not in a sentence (see `docs/EDITIONS.md`). Pages under `features/`
