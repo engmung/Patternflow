@@ -41,6 +41,14 @@ word, 5–7 in the high); one OR of six reads then holds every plane's
 rebuilt if the colour depth changes. Bit-exact with the loop it replaced —
 6.2 million plane words compared — and 7.0 ms on the same panel.
 
+3.9.3 takes two columns per step: `x` and `x + 1` are adjacent `uint16_t`
+words in every plane, so both halves of the panel for both columns are one
+aligned 32-bit read-modify-write per plane (`PF_CLEAR32`; which column lands
+in the low half follows `ESP32_TX_FIFO_POSITION_ADJUST`, decided at compile
+time). The CIE table the on-time sum reads is copied to DRAM (`pfCie`) and
+the function is `IRAM_ATTR`. 6.9 ms — most of what is left is the DMA
+engine reading the same memory while the CPU writes it.
+
 ### 2. `resumeDMAoutput()` — the way back from `stopDMAoutput()`
 
 Upstream's `stopDMAoutput()` is a one-way trip ("Screen will forever be black

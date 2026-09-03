@@ -75,8 +75,8 @@ constexpr bool ABSOLUTE_READY = true;
 
     for (int i = 0; i < nodeCount; i++) {
       float seed = PFMath::fastSin(i * 12.87f + 94.11f) * 742.12f;
-      float cx = w * 0.5f + PFMath::fastCos(fmodf(seed, 1.0f) * 6.28f + t * 0.22f) * (w * 0.38f);
-      float cy = h * 0.5f + PFMath::fastSin(fmodf(seed * 2.3f, 1.0f) * 6.28f + t * 0.4f) * (h * 0.35f);
+      float cx = w * 0.5f + PFMath::fastCos(PFMath::jsMod(seed, 1.0f) * 6.28f + t * 0.22f) * (w * 0.38f);
+      float cy = h * 0.5f + PFMath::fastSin(PFMath::jsMod(seed * 2.3f, 1.0f) * 6.28f + t * 0.4f) * (h * 0.35f);
       nodes[i] = { cx, cy };
     }
 

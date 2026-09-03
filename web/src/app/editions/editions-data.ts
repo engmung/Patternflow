@@ -157,8 +157,8 @@ export const EDITIONS: Edition[] = [
       'The largest block a pattern can claim — 92 KB, against 74 KB elsewhere',
     ],
     hosted: {
-      version: 'v3.9.2',
-      url: 'https://patternflow.work/flash/bin/core-v3.9.2/patternflow.ino.bin',
+      version: 'v3.9.3',
+      url: 'https://patternflow.work/flash/bin/core-v3.9.3/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow',
     note:
@@ -191,8 +191,8 @@ export const EDITIONS: Edition[] = [
       'Weather — temperature and wind mapped onto the knobs',
     ],
     hosted: {
-      version: 'v0.2.2',
-      url: 'https://patternflow.work/flash/bin/performance-v0.2.2/patternflow.ino.bin',
+      version: 'v0.2.3',
+      url: 'https://patternflow.work/flash/bin/performance-v0.2.3/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
     note:
@@ -229,8 +229,8 @@ export const EDITIONS: Edition[] = [
     // Served from here, so the panel's own /update page can fetch it. Under
     // /flash/bin, which already sends the CORS header that fetch needs.
     hosted: {
-      version: 'v0.5.2',
-      url: 'https://patternflow.work/flash/bin/audio-v0.5.2/patternflow.ino.bin',
+      version: 'v0.5.3',
+      url: 'https://patternflow.work/flash/bin/audio-v0.5.3/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/audio',
     note:

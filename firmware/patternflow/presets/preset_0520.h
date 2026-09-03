@@ -112,7 +112,7 @@ float time = params.timeAcc;
             val = constrain(val * 1.8f, 0.0f, 1.0f);
 
             // Colorful color combinations tied to local phase and fluidity
-            float hue = fmodf((float)((0.2f + params.mutation * (x / w) + f1 * 0.1f + t * 0.04f)), (float)(1.0f));
+            float hue = PFMath::jsMod((float)((0.2f + params.mutation * (x / w) + f1 * 0.1f + t * 0.04f)), (float)(1.0f));
             if (hue < 0) hue += 1.0f;
 
             // Induce white light at the bright centerlines

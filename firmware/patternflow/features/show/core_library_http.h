@@ -294,6 +294,9 @@ inline bool pullPattern(const String& host, const String& name, String& detail) 
     detail = "finalize failed";
     return false;
   }
+  // A module file changed under this slug: the registry's sidecar cache
+  // must read it again on the next rebuild.
+  sidecarForgetSlug(slug);
   detail = dest;
   return true;
 }

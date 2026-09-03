@@ -94,11 +94,11 @@ float time = params.timeAcc;
       int gx = floorf(x / cellSize);
       int gy = floorf(y / cellSize);
       
-      float lx = (fmodf((float)(x), (float)(cellSize))) - cellSize * 0.5f;
-      float ly = (fmodf((float)(y), (float)(cellSize))) - cellSize * 0.5f;
+      float lx = (PFMath::jsMod((float)(x), (float)(cellSize))) - cellSize * 0.5f;
+      float ly = (PFMath::jsMod((float)(y), (float)(cellSize))) - cellSize * 0.5f;
 
       // Checkerboard phase offset causes adjacent cells to "spin" inversely
-      float isEven = fmodf((float)((gx + gy)), (float)(2.0f)) == 0;
+      float isEven = PFMath::jsMod((float)((gx + gy)), (float)(2.0f)) == 0;
       float phase = isEven ? t * 2.0f : -t * 2.0f;
 
       // Simulated rotation via coordinate transform

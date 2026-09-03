@@ -89,13 +89,13 @@ void draw() {float time = params.timeAcc;
             } else if (normVal < 0.5f) {
                 r = 0; g = 0; b = 0;
             } else if (normVal < 0.7f) {
-                if (fmodf((float)(x), (float)(3.0f)) == 0 && fmodf((float)(y), (float)(3.0f)) == 0) {
-                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((hBase + 0.33f)), (float)(1.0f)), 0.8f, 1.0f, rgb_r, rgb_g, rgb_b);
+                if (PFMath::jsMod((float)(x), (float)(3.0f)) == 0 && PFMath::jsMod((float)(y), (float)(3.0f)) == 0) {
+                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((hBase + 0.33f)), (float)(1.0f)), 0.8f, 1.0f, rgb_r, rgb_g, rgb_b);
                     r = rgb_r; g = rgb_g; b = rgb_b;
                 }
             } else {
-                if (fmodf((float)((x + y)), (float)(4.0f)) < 2) {
-                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((hBase + 0.66f)), (float)(1.0f)), 0.9f, 1.0f, rgb_r, rgb_g, rgb_b);
+                if (PFMath::jsMod((float)((x + y)), (float)(4.0f)) < 2) {
+                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((hBase + 0.66f)), (float)(1.0f)), 0.9f, 1.0f, rgb_r, rgb_g, rgb_b);
                     r = rgb_r; g = rgb_g; b = rgb_b;
                 }
             }

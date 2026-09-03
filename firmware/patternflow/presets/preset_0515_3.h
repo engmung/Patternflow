@@ -97,7 +97,7 @@ float time = params.timeAcc;
       float field = abs(v1 + v2 + v3 + v4) * (0.4f + params.chaos * 0.1f);
       float val = powf(constrain(1.2f - field, 0.0f, 1.0f), 3.0f);
 
-      float hue = fmodf((float)((params.hueBase + (x + y) * 0.003f + field * 0.4f)), (float)(1.0f));
+      float hue = PFMath::jsMod((float)((params.hueBase + (x + y) * 0.003f + field * 0.4f)), (float)(1.0f));
       uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(hue, 0.9f, val * 0.9f + 0.1f, rgb_r, rgb_g, rgb_b);
       PFCanvas::setPixel(x, y, rgb_r, rgb_g, rgb_b);
     }

@@ -41,6 +41,16 @@ inline float fract(float x) {
   return x - floorf(x);
 }
 
+// JavaScript's `%` on floats: the sign of the dividend, the magnitude below
+// |m|. A pattern ported from the lab reaches for fmodf here, and in a module
+// that is a call into the host's libm on every pixel; this is one division
+// and one truncation, a single instruction each on this FPU. The same value
+// as fmodf to a last-bit rounding for anything a pattern feeds it; |x / m|
+// has to stay under 2^31, and m must not be 0.
+inline float jsMod(float x, float m) {
+  return x - m * (float)(int)(x / m);
+}
+
 inline float fastSin(float x) {
   // The `& (SIZE-1)` mask wraps both positive and negative indices into
   // [0, SIZE), so the explicit floorf + branch path is redundant. (int)

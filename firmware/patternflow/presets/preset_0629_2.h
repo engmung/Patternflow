@@ -129,7 +129,7 @@ void draw() {
                 float adjusted_intensity = constrain(0.05f + intensity * 1.1f, 0.0f, 1.0f);
                 float hue = params.palette + (angle * 0.159154943f) + (forceX * 0.2f);
 
-                hue = fmodf(hue, 1.0f);
+                hue = PFMath::jsMod(hue, 1.0f);
                 if (hue < 0.0f) hue += 1.0f;
 
                 PFColor::hsvToRgb(hue, 0.85f, adjusted_intensity, r, g, b);

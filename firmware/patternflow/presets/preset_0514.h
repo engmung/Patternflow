@@ -111,8 +111,8 @@ float time = params.timeAcc;
       float intensity = tex1 * (1 - params.depth * 0.4f) + tex2 * params.depth * 1.2f;
       intensity = constrain(intensity, 0, 1.0f);
 
-      float lx = (fmodf((float)(x), (float)(cellSize))) / cellSize - 0.5f;
-      float ly = (fmodf((float)(y), (float)(cellSize))) / cellSize - 0.5f;
+      float lx = (PFMath::jsMod((float)(x), (float)(cellSize))) / cellSize - 0.5f;
+      float ly = (PFMath::jsMod((float)(y), (float)(cellSize))) / cellSize - 0.5f;
 
       uint8_t r = 0, g = 0, b = 0;
       if (intensity < 0.35f) {

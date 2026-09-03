@@ -79,11 +79,11 @@ float globalTime = params.time;
 
   for (int y = 0; y < PANEL_RES_H; y++) {
     int blockY = floorf(y / params.blockSize);
-    float innerY = (fmodf((float)(y), (float)(params.blockSize))) / params.blockSize - 0.5f;
+    float innerY = (PFMath::jsMod((float)(y), (float)(params.blockSize))) / params.blockSize - 0.5f;
 
     for (int x = 0; x < PANEL_RES_W; x++) {
       int blockX = floorf(x / params.blockSize);
-      float innerX = (fmodf((float)(x), (float)(params.blockSize))) / params.blockSize - 0.5f;
+      float innerX = (PFMath::jsMod((float)(x), (float)(params.blockSize))) / params.blockSize - 0.5f;
 
       // Compute individual cellular energy levels
       float cellEnergy = PFMath::fastSin(blockX * 0.35f + blockY * 0.25f + params.time) * 0.5f + 0.5f;
@@ -107,7 +107,7 @@ float globalTime = params.time;
           float edgeProfile = 1.0f - (radiusSq / maxRadius);
           
           // Color selection based completely on cell parity and local energy states
-          if (fmodf((float)((blockX + blockY)), (float)(2.0f)) == 0) {
+          if (PFMath::jsMod((float)((blockX + blockY)), (float)(2.0f)) == 0) {
             // Bright Orange/Yellow block cells
             r = 255;
             g = 80 + cellEnergy * 175;

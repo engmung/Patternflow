@@ -1,3 +1,4 @@
+#include <string.h>
 #include "ESP32-HUB75-MatrixPanel-I2S-DMA.h"
 
 #if defined(SPIRAM_DMA_BUFFER)
@@ -428,7 +429,28 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::updateMatrixDMABuffer(uint16_t x_coord, uint
 // Bit-exact with the loop it replaces: the DMA words are identical.
 static uint32_t pfSpreadLo[256];
 static uint32_t pfSpreadHi[256];
+// lumConvTab is const, so it lives in flash and reaches the loop through the
+// cache; the on-time sum reads it six times a pixel pair. A copy in DRAM.
+static uint16_t pfCie[256];
 static uint8_t pfSpreadDepth = 0;
+
+// Both halves of the panel for one column: the post-processed bytes, their
+// on-time, and every plane's bits spread into (lo, hi).
+#define PF_PLANES_FOR(srcT, srcB, lo, hi, onTime)                              \
+  {                                                                            \
+    uint8_t _t[3], _m[3];                                                      \
+    PF_POST_PIXEL((srcT), _t);                                                 \
+    PF_POST_PIXEL((srcB), _m);                                                 \
+    (onTime) += (uint32_t)pfCie[_t[0]] + pfCie[_t[1]] + pfCie[_t[2]] +         \
+                (uint32_t)pfCie[_m[0]] + pfCie[_m[1]] + pfCie[_m[2]];          \
+    (lo) = pfSpreadLo[_t[0]] | (pfSpreadLo[_t[1]] << 1) | (pfSpreadLo[_t[2]] << 2) | \
+           (pfSpreadLo[_m[0]] << 3) | (pfSpreadLo[_m[1]] << 4) | (pfSpreadLo[_m[2]] << 5); \
+    (hi) = pfSpreadHi[_t[0]] | (pfSpreadHi[_t[1]] << 1) | (pfSpreadHi[_t[2]] << 2) | \
+           (pfSpreadHi[_m[0]] << 3) | (pfSpreadHi[_m[1]] << 4) | (pfSpreadHi[_m[2]] << 5); \
+  }
+
+// Two adjacent columns share one aligned 32-bit word in every plane.
+#define PF_CLEAR32 (((uint32_t)BITMASK_RGB12_CLEAR << 16) | (uint32_t)BITMASK_RGB12_CLEAR)
 
 static void pfBuildSpread(uint8_t depth)
 {
@@ -440,6 +462,7 @@ static void pfBuildSpread(uint8_t depth)
 #else
     const uint16_t cie = lumConvTab[v];
 #endif
+    pfCie[v] = cie;
     uint32_t lo = 0, hi = 0;
     for (uint8_t d = 0; d < depth; d++)
     {
@@ -461,9 +484,9 @@ static void pfBuildSpread(uint8_t depth)
 // Rec.601 luma pivot for the saturation boost, then the caller's gamma/WB LUT.
 // Kept as a macro so it stays inside the pixel loop with no call overhead.
 #define PF_POST_PIXEL(src, dst)                                       {                                                                     int _r = (src)[0], _g = (src)[1], _b = (src)[2];                    int _y = (_r * 77 + _g * 150 + _b * 29) >> 8;                       _r = _y + (((_r - _y) * satBoostQ8) >> 8);                          _g = _y + (((_g - _y) * satBoostQ8) >> 8);                          _b = _y + (((_b - _y) * satBoostQ8) >> 8);                          if (_r < 0) _r = 0; else if (_r > 255) _r = 255;                    if (_g < 0) _g = 0; else if (_g > 255) _g = 255;                    if (_b < 0) _b = 0; else if (_b > 255) _b = 255;                    (dst)[0] = lutR[_r]; (dst)[1] = lutG[_g]; (dst)[2] = lutB[_b];    }
-void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
-                                     const uint8_t *lutR, const uint8_t *lutG, const uint8_t *lutB,
-                                     int satBoostQ8)
+void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
+                                               const uint8_t *lutR, const uint8_t *lutG, const uint8_t *lutB,
+                                               int satBoostQ8)
 {
   if (!initialized || rgb == nullptr)
     return;
@@ -492,42 +515,61 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
     for (uint8_t d = 0; d < depth; d++)
       plane[d] = getRowDataPtr(row, d);
 
-    for (uint16_t x = 0; x < w; x++)
+    // Two columns per step. x and x + 1 are adjacent uint16_t words in every
+    // plane, so both halves of the panel for both columns — two pixel pairs —
+    // are one aligned 32-bit read-modify-write per plane instead of two. The
+    // DMA engine is reading this memory the whole time, and every access that
+    // has to arbitrate with it is the cost; halving them is the point.
+    // Which column takes the low half is the FIFO order's business, decided
+    // once by the macro at compile time.
+    const bool aLow = (ESP32_TX_FIFO_POSITION_ADJUST(0) == 0);
+    uint16_t x = 0;
+    for (; x + 1 < w; x += 2)
     {
-      const uint16_t idx = ESP32_TX_FIFO_POSITION_ADJUST(x);
-      const size_t o = (size_t)x * 3;
+      uint32_t loA, hiA, loB, hiB;
+      PF_PLANES_FOR(top + (size_t)x * 3, bot + (size_t)x * 3, loA, hiA, onTime);
+      PF_PLANES_FOR(top + (size_t)(x + 1) * 3, bot + (size_t)(x + 1) * 3, loB, hiB, onTime);
 
-      // Saturation boost + per-channel gamma/WB, applied HERE so the caller
-      // never has to keep a second full-frame buffer — internal RAM is the
-      // scarce resource on this part, and the pattern's own canvas must stay
-      // untouched or the gamma would compound frame after frame.
-      uint8_t t[3], m[3];
-      PF_POST_PIXEL(top + o, t);
-      PF_POST_PIXEL(bot + o, m);
-
-#ifdef NO_CIE1931
-      const uint16_t r1 = t[0], g1 = t[1], b1 = t[2];
-      const uint16_t r2 = m[0], g2 = m[1], b2 = m[2];
-#else
-      const uint16_t r1 = lumConvTab[t[0]], g1 = lumConvTab[t[1]], b1 = lumConvTab[t[2]];
-      const uint16_t r2 = lumConvTab[m[0]], g2 = lumConvTab[m[1]], b2 = lumConvTab[m[2]];
+      uint8_t d = depth;
+      while (d > 5)
+      {
+        --d;
+        const uint32_t bA = (hiA >> (6 * (d - 5))) & 0x3Fu;
+        const uint32_t bB = (hiB >> (6 * (d - 5))) & 0x3Fu;
+        const uint32_t both = aLow ? (bA | (bB << 16)) : (bB | (bA << 16));
+        ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + x;
+        uint32_t word;
+        memcpy(&word, p, sizeof(word));
+        word = (word & PF_CLEAR32) | both;
+        memcpy(p, &word, sizeof(word));
+#if defined(SPIRAM_DMA_BUFFER)
+        Cache_WriteBack_Addr((uint32_t)p, sizeof(word));
 #endif
+      }
+      while (d)
+      {
+        --d;
+        const uint32_t bA = (loA >> (6 * d)) & 0x3Fu;
+        const uint32_t bB = (loB >> (6 * d)) & 0x3Fu;
+        const uint32_t both = aLow ? (bA | (bB << 16)) : (bB | (bA << 16));
+        ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + x;
+        uint32_t word;
+        memcpy(&word, p, sizeof(word));
+        word = (word & PF_CLEAR32) | both;
+        memcpy(p, &word, sizeof(word));
+#if defined(SPIRAM_DMA_BUFFER)
+        Cache_WriteBack_Addr((uint32_t)p, sizeof(word));
+#endif
+      }
+    }
 
-      // Post-CIE, so this is the duty each channel will actually be driven at
-      // — the thing current is proportional to, rather than the raw byte the
-      // pattern wrote.
-      onTime += (uint32_t)r1 + g1 + b1 + (uint32_t)r2 + g2 + b2;
-
-      // Every plane's word at once. Slot order inside a 6-bit group is the
-      // DMA word's: BIT_R1 BIT_G1 BIT_B1 BIT_R2 BIT_G2 BIT_B2 (bits 0..5).
-      const uint32_t lo = pfSpreadLo[t[0]] | (pfSpreadLo[t[1]] << 1) | (pfSpreadLo[t[2]] << 2) |
-                          (pfSpreadLo[m[0]] << 3) | (pfSpreadLo[m[1]] << 4) | (pfSpreadLo[m[2]] << 5);
-      const uint32_t hi = pfSpreadHi[t[0]] | (pfSpreadHi[t[1]] << 1) | (pfSpreadHi[t[2]] << 2) |
-                          (pfSpreadHi[m[0]] << 3) | (pfSpreadHi[m[1]] << 4) | (pfSpreadHi[m[2]] << 5);
-
-      // One read-modify-write per plane for BOTH halves. The untouched bits
-      // are the row address and the LAT/OE strobes, which the buffer setup
-      // owns.
+    // An odd last column, one word at a time. Every HUB75 width is even, so
+    // this is for completeness rather than any panel we know of.
+    if (x < w)
+    {
+      uint32_t lo, hi;
+      PF_PLANES_FOR(top + (size_t)x * 3, bot + (size_t)x * 3, lo, hi, onTime);
+      const uint16_t idx = ESP32_TX_FIFO_POSITION_ADJUST(x);
       uint8_t d = depth;
       while (d > 5)
       {

@@ -64,8 +64,10 @@ if [ "${1:-}" = "all" ]; then
     printf '%-12s building… ' "$ed"
     t0=$(date +%s)
     log="$OUTDIR/$ed.log"
-    if [ "$ed" = default ]; then ok=0; "$0" >"$log" 2>&1 || ok=$?
-    else ok=0; "$0" "$ed" >"$log" 2>&1 || ok=$?; fi
+    # Through bash, not by executing "$0": the checkout on a CI runner does
+    # not carry the executable bit this file has at a desk.
+    if [ "$ed" = default ]; then ok=0; bash "$0" >"$log" 2>&1 || ok=$?
+    else ok=0; bash "$0" "$ed" >"$log" 2>&1 || ok=$?; fi
     if [ "$ok" != 0 ]; then
       echo "build FAILED — last lines of $log:"
       tail -15 "$log"
@@ -111,6 +113,22 @@ if [ -n "$BUNDLE" ] && [ "$BUNDLE" != "flash" ]; then
 else
   echo "bundle:  (default — no features)"
 fi
+
+# The vendored libraries that toolchain/sync_ino_to_src.py clones into lib/
+# have to exist before PlatformIO resolves lib_deps - and it resolves them
+# before any extra script runs. At a desk lib/ is there from the first build;
+# on a fresh checkout (a CI runner) the order is the difference between a
+# build and "Could not find the package with 'lib/WebSockets'". Same repos,
+# same depth as the script, which then finds them and only writes its
+# library.json.
+for pair in \
+  "HUB75 https://github.com/mrfaptastic/ESP32-HUB75-MatrixPanel-DMA.git" \
+  "Adafruit_GFX https://github.com/adafruit/Adafruit-GFX-Library.git" \
+  "Adafruit_BusIO https://github.com/adafruit/Adafruit_BusIO.git" \
+  "WebSockets https://github.com/Links2004/arduinoWebSockets.git"; do
+  read -r name url <<< "$pair"
+  [ -d "$SKETCH/lib/$name" ] || git clone -q --depth 1 "$url" "$SKETCH/lib/$name"
+done
 
 ( cd "$SKETCH" && PLATFORMIO_BUILD_DIR="$BUILD_DIR" python -m platformio run -e firmware )
 

@@ -420,6 +420,7 @@ inline bool removeModuleFiles(const char* slug) {
   char sidecar[MODULE_PATH_BYTES];
   snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
   if (FFat.exists(sidecar)) FFat.remove(sidecar);
+  sidecarForgetSlug(slug);
   return true;
 }
 
@@ -762,6 +763,9 @@ inline void handleUploadDone() {
     }
   }
 
+  // A new .pfm or a new .json under this slug: whatever the cache remembered
+  // about it is stale.
+  sidecarForgetSlug(uploadSlug);
   if (lastInBatch) requestReload();
   Serial.printf("[PATTERNS-HTTP] uploaded %s (%u bytes, %d patterns)\n", uploadPath,
                 (unsigned)uploadBytes, NUM_PATTERNS);

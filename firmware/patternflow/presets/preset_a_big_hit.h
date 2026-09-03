@@ -92,7 +92,7 @@ void draw() {float time = params.timeAcc;
             val = constrain(val * 2.5f, 0.0f, 1.0f);
 
             // Deep organic color shifting based on position
-            float hue = fmodf((float)((params.hueBase + nx * 0.1f + ny * 0.1f + field * 0.05f)), (float)(1.0f));
+            float hue = PFMath::jsMod((float)((params.hueBase + nx * 0.1f + ny * 0.1f + field * 0.05f)), (float)(1.0f));
             
             uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(hue, 1.0f - val * 0.2f, val, rgb_r, rgb_g, rgb_b); // Desaturate slightly at absolute brightest centers
             PFCanvas::setPixel(x, y, rgb_r, rgb_g, rgb_b);

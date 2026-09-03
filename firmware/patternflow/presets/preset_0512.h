@@ -89,18 +89,18 @@ void draw() {float time = params.timeAcc;
                 r = rgb_r; g = rgb_g; b = rgb_b;
             } else if (val < 5.0f && dist < targetDist) {
                 // Inner petal glow
-                uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((params.hueBase + 0.1f)), (float)(1.0f)), 0.9f, 1.0f - (val / 5.0f), rgb_r, rgb_g, rgb_b);
+                uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((params.hueBase + 0.1f)), (float)(1.0f)), 0.9f, 1.0f - (val / 5.0f), rgb_r, rgb_g, rgb_b);
                 r = rgb_r; g = rgb_g; b = rgb_b;
             } else if (dist < targetDist * 0.4f) {
                 // Core
-                if (fmodf((float)((x + y + floorf(t * 10))), (float)(3.0f)) == 0) {
-                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((params.hueBase + 0.4f)), (float)(1.0f)), 1.0f, 1.0f, rgb_r, rgb_g, rgb_b);
+                if (PFMath::jsMod((float)((x + y + floorf(t * 10))), (float)(3.0f)) == 0) {
+                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((params.hueBase + 0.4f)), (float)(1.0f)), 1.0f, 1.0f, rgb_r, rgb_g, rgb_b);
                     r = rgb_r; g = rgb_g; b = rgb_b;
                 }
             } else if (val < 10.0f && dist > targetDist) {
                 // Outer aura
-                if (floorf(fmodf((float)((angle * 20.0f)), (float)(2.0f))) == 0) {
-                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((params.hueBase + 0.6f)), (float)(1.0f)), 1.0f, 0.4f * (1.0f - val/10.0f), rgb_r, rgb_g, rgb_b);
+                if (floorf(PFMath::jsMod((float)((angle * 20.0f)), (float)(2.0f))) == 0) {
+                    uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((params.hueBase + 0.6f)), (float)(1.0f)), 1.0f, 0.4f * (1.0f - val/10.0f), rgb_r, rgb_g, rgb_b);
                     r = rgb_r; g = rgb_g; b = rgb_b;
                 }
             }
