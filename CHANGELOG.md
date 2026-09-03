@@ -7,7 +7,8 @@ All notable changes to Patternflow will be documented in this file.
 ## [3.9.1] - 2026-09-03
 
 ### Added — core
-- **Dual-core FreeRTOS network offloading.** Network and HTTP server servicing (`PatternflowHttp`, OTA, Improv) is offloaded to a dedicated FreeRTOS worker task (`pf-net`) pinned to Core 0 with a tuned 3 KB stack. Core 1 remains exclusively dedicated to real-time 60 FPS HUB75 LED rendering and pattern calculations, ensuring visual animation never stutters during heavy web console traffic or module uploads.
+- **Dual-core FreeRTOS network offloading & non-blocking Wi-Fi auto-reconnect.** Network, HTTP server servicing (`PatternflowHttp`, OTA, Improv), and Wi-Fi background maintenance (`PatternflowWifi::tick()`) are offloaded to a dedicated FreeRTOS worker task (`pf-net`) pinned to Core 0 with a tuned 3 KB stack. Core 1 remains exclusively dedicated to real-time 60 FPS HUB75 LED rendering, ensuring visual animation never stutters during Wi-Fi reconnection or heavy web console traffic.
+- **Web Console Live Knobs Sliders.** Added mobile-optimized, responsive real-time sliders for K1–K4 (0..1000) on the console home dashboard (`home.html`). Allows remote real-time mixing of active pattern parameters from a phone or browser with 40 ms debounced HTTP updates and two-way synchronization with physical encoder turns.
 
 ### Added — Audio edition v0.5.1
 - **Web Console Audio-React (AUD) toggle & Extension link.** Added a one-click `Audio-React (AUD)` toggle to the `/audio-in` console bar to enable/disable browser audio knob-driving directly from the browser without physical knob combinations, backed by a new `/api/audio` GET/POST endpoint and persistent NVS storage. Renamed console navigation label from `Mic` to `Audio`, and added a direct link to the Chrome Audio Extension guide.

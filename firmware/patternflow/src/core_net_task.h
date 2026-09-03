@@ -10,6 +10,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "core_wifi.h"
 #include "core_http.h"
 #include "core_improv.h"
 #include "core_ota.h"
@@ -24,7 +25,10 @@ inline volatile uint32_t iterations = 0;
 
 inline void netWorker(void* arg) {
   while (running) {
-    // 1. WebServer handleClient (serves console, /api/*)
+    // 1. Maintain Wi-Fi & handle auto-reconnect on Core 0
+    PatternflowWifi::tick();
+
+    // 2. WebServer handleClient (serves console, /api/*)
     PatternflowHttp::handle();
 
     // 2. Improv Serial provisioning

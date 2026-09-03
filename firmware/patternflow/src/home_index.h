@@ -83,6 +83,30 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
        min-height:14px;margin-top:7px}
   .pwr-note.err{color:var(--led)}
 
+  /* ── Live parameter sliders (K1..K4) ────────────────────────── */
+  .ctrls{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+  .ctrls-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
+  .ctrls-k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .ctrls-hint{font-family:var(--mono);font-size:10px;color:var(--faint)}
+  .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .slider-row:last-child{margin-bottom:0}
+  .s-label{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);width:20px;flex:none}
+  .slider-row input[type=range]{
+    flex:1;height:6px;appearance:none;-webkit-appearance:none;background:var(--ghost);
+    border-radius:3px;outline:none;cursor:pointer;accent-color:var(--led);touch-action:none
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb{
+    appearance:none;-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:var(--ink);border:2px solid var(--led);cursor:pointer;transition:transform .1s ease
+  }
+  .slider-row input[type=range]:active::-webkit-slider-thumb{
+    transform:scale(1.2);background:var(--led)
+  }
+  .slider-row input[type=range]::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid var(--led);cursor:pointer
+  }
+  .s-val{font-family:var(--mono);font-size:11.5px;color:var(--ink);width:32px;text-align:right;flex:none}
+
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:16px}
   .stat{padding:10px 0 9px;border-top:1px solid var(--rule)}
   .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -163,6 +187,33 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
       </div>
     </div>
     <div class="pwr-note" id="pwrnote"></div>
+
+    <div class="ctrls" id="ctrls">
+      <div class="ctrls-hdr">
+        <span class="ctrls-k">Live Knobs</span>
+        <span class="ctrls-hint mono">K1–K4 · 0..1000</span>
+      </div>
+      <div class="slider-row">
+        <span class="s-label">K1</span>
+        <input type="range" class="pf-slider" id="sl-0" min="0" max="1000" step="1" value="500">
+        <span class="s-val" id="sv-0">500</span>
+      </div>
+      <div class="slider-row">
+        <span class="s-label">K2</span>
+        <input type="range" class="pf-slider" id="sl-1" min="0" max="1000" step="1" value="500">
+        <span class="s-val" id="sv-1">500</span>
+      </div>
+      <div class="slider-row">
+        <span class="s-label">K3</span>
+        <input type="range" class="pf-slider" id="sl-2" min="0" max="1000" step="1" value="500">
+        <span class="s-val" id="sv-2">500</span>
+      </div>
+      <div class="slider-row">
+        <span class="s-label">K4</span>
+        <input type="range" class="pf-slider" id="sl-3" min="0" max="1000" step="1" value="500">
+        <span class="s-val" id="sv-3">500</span>
+      </div>
+    </div>
 
     <div class="stats">
       <div class="stat"><span class="k">Patterns</span><div class="v" id="s-pat">&mdash;</div></div>
@@ -346,6 +397,7 @@ function tick(){
         'and keeps your patterns and settings.';
       $('s-ed-block').href='https://patternflow.work/editions';
     }
+    if(s.params)updateSliders(s.params);
     checkUpdate(s.version,s.variant);
   }).catch(function(){$('nowsub').textContent='cannot reach device'});
 }
@@ -411,6 +463,65 @@ function checkUpdate(deviceVersion,variant){
       }
     }).catch(function(){/* offline LAN or no CORS — say nothing */});
 }
+
+// ── Live parameter sliders (K1..K4) ──────────────────────────
+var activeSlider = -1;
+var sliderSendTimer = null;
+var pendingParams = [null, null, null, null];
+
+function updateSliders(params) {
+  if (!params || params.length < 4) return;
+  for (var i = 0; i < 4; i++) {
+    if (activeSlider === i) continue;
+    var sl = $('sl-' + i), sv = $('sv-' + i);
+    if (sl && sv) {
+      sl.value = params[i];
+      sv.textContent = params[i];
+    }
+  }
+}
+
+function sendParam(idx, val) {
+  pendingParams[idx] = val;
+  if (sliderSendTimer) clearTimeout(sliderSendTimer);
+  sliderSendTimer = setTimeout(function() {
+    var qs = [];
+    for (var i = 0; i < 4; i++) {
+      if (pendingParams[i] !== null) {
+        qs.push('p' + (i + 1) + '=' + pendingParams[i]);
+        pendingParams[i] = null;
+      }
+    }
+    if (qs.length) {
+      fetch('/api/params', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: qs.join('&')
+      }).catch(function() {});
+    }
+  }, 40);
+}
+
+function initSliders() {
+  for (var i = 0; i < 4; i++) {
+    (function(idx) {
+      var sl = $('sl-' + idx), sv = $('sv-' + idx);
+      if (!sl) return;
+      var onStart = function() { activeSlider = idx; };
+      var onEnd = function() { activeSlider = -1; };
+      sl.addEventListener('touchstart', onStart, {passive: true});
+      sl.addEventListener('touchend', onEnd, {passive: true});
+      sl.addEventListener('mousedown', onStart);
+      window.addEventListener('mouseup', onEnd);
+      sl.addEventListener('input', function() {
+        var v = sl.value;
+        if (sv) sv.textContent = v;
+        sendParam(idx, v);
+      });
+    })(i);
+  }
+}
+initSliders();
 
 tick();
 setInterval(tick,3000);

@@ -375,10 +375,9 @@ void setup() {
   // (and re-announced on reconnect), so patterns render immediately whether
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
-
-  // Improv-Serial: lets the browser flasher set Wi-Fi over USB after a web
-  // flash. Just listens on Serial; no Wi-Fi required to be up yet.
   PatternflowImprov::begin();
+  // Start Core 0 network task right away so Wi-Fi polling runs in background
+  PatternflowNetTask::begin();
 
   // Wireless-update progress is drawn from inside the upload handler: the
   // whole multipart POST is consumed in one handleClient() call, so the
@@ -1171,9 +1170,17 @@ void loop() {
   // seconds of boot would forget a pattern that never misbehaved.
   clearPatternLatchIfStable();
 
-  // Maintain Wi-Fi (non-blocking): retries while down, and on each fresh
-  // (re)connection starts the network services. begin() is idempotent.
-  PatternflowWifi::tick();
+  // Network I/O and Wi-Fi tick are serviced on Core 0 when dual-core task is running.
+  // Fall back to main loop polling if the task failed to create.
+  if (!PatternflowNetTask::isDualCoreActive()) {
+    PatternflowWifi::tick();
+    PatternflowImprov::handle();
+    PatternflowOta::handle();
+    PatternflowHttp::handle();
+    PatternflowWebUpdate::handle();
+  }
+
+  // Once connected (or reconnected), start the network services.
   if (PatternflowWifi::consumeJustConnected()) {
     PatternflowOta::begin();
     PatternflowHomeHttp::begin();
@@ -1184,18 +1191,7 @@ void loop() {
     PatternflowWifiHttp::begin();
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");
-    // Spin off network handling to Core 0 so Core 1 is dedicated to rendering
-    PatternflowNetTask::begin();
     reportHeap("services up");
-  }
-
-  // Network I/O is serviced on Core 0 when dual-core task is running.
-  // Fall back to main loop polling if the task failed to create.
-  if (!PatternflowNetTask::isDualCoreActive()) {
-    PatternflowImprov::handle();
-    PatternflowOta::handle();
-    PatternflowHttp::handle();
-    PatternflowWebUpdate::handle();
   }
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
