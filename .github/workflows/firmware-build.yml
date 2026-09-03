@@ -1,0 +1,66 @@
+name: Firmware builds
+
+# The three editions, compiled, on every firmware change.
+#
+# For two months this repository shipped a firmware whose CI compiled nothing:
+# the boundary and ABI checks in firmware-checks.yml finish in seconds and
+# catch what a grep can catch, but a core change that broke only one edition
+# was found by whoever next ran `firmware/bundles/build.sh all` at their desk.
+# The 3.9.1 cycle moved the network onto its own core across a dozen files
+# and reached dev without a compiler ever seeing it in CI. That is what this
+# workflow closes: the same `build.sh all` — default, audio, performance, then
+# the marker scan that proves each image carries exactly its own features —
+# on a runner, with the PlatformIO packages cached so a warm run is minutes.
+#
+# No secrets file exists on the runner, so every image here is built the way
+# a published one is (the placeholder SSID, not somebody's Wi-Fi). Nothing is
+# uploaded: the shelf is cut by shelf.sh, by hand, on purpose.
+on:
+  pull_request:
+    paths:
+      - "firmware/**"
+      - ".github/workflows/firmware-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "firmware/**"
+  workflow_dispatch:
+
+concurrency:
+  group: firmware-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The xtensa toolchain and the Arduino core are ~700 MB; the build tree
+      # under ~/pf-build keeps the framework's objects between editions and
+      # between runs. Keyed on platformio.ini, which names both.
+      - name: Cache PlatformIO packages and the build tree
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/pf-build
+          key: pio-${{ runner.os }}-${{ hashFiles('firmware/patternflow/platformio.ini') }}
+          restore-keys: |
+            pio-${{ runner.os }}-
+
+      - name: Install PlatformIO
+        run: pip install --quiet platformio==6.1.19
+
+      - name: Build every edition and scan the images for their features
+        run: bash firmware/bundles/build.sh all
+
+      - name: Image sizes
+        run: ls -l "$HOME/pf-build-editions"/*.bin

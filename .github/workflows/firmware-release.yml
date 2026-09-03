@@ -60,19 +60,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check the tag looks like a release
-        run: |
-          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
-            echo "::error::'$TAG' is not a vX.Y.Z release tag"
-            exit 1
-          }
-
       # A release with no images under its own version is not worth failing the
       # run over — v1/v2-era tags predate this layout, and a prerelease may not
-      # have had a build cut. Say so and stop.
+      # have had a build cut. Say so and stop. The same for a tag that is not
+      # a core version at all: an edition's own write-up (`audio-v0.5.2`) is a
+      # release too, and its image is attached by hand from the shelf.
       - name: Take the images from the tag
         id: find
         run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::notice::$TAG is not a core vX.Y.Z tag — nothing to attach from the shelf"
+            echo "found=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || {
             echo "::error::no tag $TAG in this repository"
             exit 1
