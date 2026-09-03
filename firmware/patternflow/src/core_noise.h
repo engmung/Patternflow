@@ -59,10 +59,14 @@ inline float lerpF(float a, float b, float t) {
 }
 
 inline float perlin2D(float x, float y) {
-  int X = (int)floorf(x) & 255;
-  int Y = (int)floorf(y) & 255;
-  x -= floorf(x);
-  y -= floorf(y);
+  // One floor per axis; the fractional part is the same subtraction it
+  // always was, from the integer already in hand.
+  const int xi = (int)floorf(x);
+  const int yi = (int)floorf(y);
+  int X = xi & 255;
+  int Y = yi & 255;
+  x -= (float)xi;
+  y -= (float)yi;
   float u = fade(x);
   float v = fade(y);
   int A = perm[X] + Y;

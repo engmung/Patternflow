@@ -23,11 +23,20 @@ inline void hsvToRgb(float h, float s, float v,
 
   float c = v * s;
   float hh = h * 6.0f;
-  float x = c * (1.0f - fabsf(fmodf(hh, 2.0f) - 1.0f));
+  // Sector and position within it. hh is in [0, 6]: 6.0f happens when h
+  // rounds up to just under 1, and lands in sector 5 at f = 1 - the same
+  // red that sector 0 at f = 0 gives. No fmodf: this runs once per pixel in
+  // a module's inner loop, and fmodf there is a call into the host's libm,
+  // a hundred-odd cycles, where this is one truncation.
+  int i = (int)hh;
+  if (i > 5) i = 5;
+  float f = hh - (float)i;
+  // 1 - |fmod(hh, 2) - 1| is f in an even sector and 1 - f in an odd one.
+  float x = c * ((i & 1) ? (1.0f - f) : f);
   float m = v - c;
 
   float rf = 0.0f, gf = 0.0f, bf = 0.0f;
-  switch ((int)hh % 6) {
+  switch (i) {
     case 0: rf = c; gf = x; bf = 0; break;
     case 1: rf = x; gf = c; bf = 0; break;
     case 2: rf = 0; gf = c; bf = x; break;

@@ -4,6 +4,16 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.9.2] - 2026-09-03
+
+### Changed — core
+- **Pushing a frame to the panel costs 7.0 ms, down from 9.9.** The whole-frame blit in the vendored HUB75 driver used to extract each colour plane's bit from six CIE values with six masked tests per plane — thirty-six per pixel pair, and that loop was 60% of every frame. Two 256-entry tables now spread a channel's plane bits across 6-bit slots, so every plane's word comes from one OR of six reads and each plane is a shift and a mask. Bit-exact with the loop it replaces (the DMA words are identical; 6.2 million plane words were checked), so nothing about the picture changes — only the time. Origin runs at 13.8 ms a frame where it ran at 16.6; a heavy pattern like `0510` drops from 24.8 to 21.8. Every pattern gets it, installed modules included.
+- **`PFColor::hsvToRgb` no longer calls `fmodf`.** The sector and its fraction come from one truncation. Mathematically the same colour (a last-bit rounding difference that never reaches an 8-bit channel), but `fmodf` in a module is a call into the host's libm on every pixel; `0510` rebuilt against the new header renders 1.0 ms faster a frame. Reaches a module when it is rebuilt — the site's build service and the toolchain pick it up now; the modules already on a panel, and the prebuilt ones in the shipped Basics pack, keep the code they were built with.
+- `PFNoise::perlin2D` takes one floor per axis instead of two. The other two of a four-point list this cycle was handed — a joint `fastSinCos` and a bit-trick `fastHypot` — were declined: the compiler already inlines `sqrtf` and `floorf` to single FPU instructions here, and the trig lookup saves a few cycles nobody would measure.
+
+### Editions
+- Audio v0.5.2 and Performance v0.2.2 are the same firmware on the new core — the network task and the faster frame push — with no feature changes of their own.
+
 ## [3.9.1] - 2026-09-03
 
 ### Added — core
