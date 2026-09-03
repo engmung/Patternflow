@@ -22,10 +22,14 @@ import "./lab-dock.css";
 
 import { withMatrixAnnotation } from "@/lib/pattern/matrix";
 import { codeUsesValueField, withRampAnnotation } from "@/lib/pattern/ramp";
-import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
-import { clearLabHandoff, readLabHandoff } from "@/lib/community/handoff";
-import PublishModal from "@/components/community/PublishModal";
-import { CODE_MAX } from "@/lib/community/validate";
+import {
+  CODE_MAX,
+  PublishModal,
+  buildsConfigured,
+  clearLabHandoff,
+  communityConfigured,
+  readLabHandoff,
+} from "./community";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
 import { onEditorReveal } from "@/lib/lab/editorReveal";

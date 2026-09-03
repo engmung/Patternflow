@@ -33,7 +33,7 @@ import {
   validatePerformance,
   PFST_MAX_CUES,
 } from "@/lib/pattern/pfst";
-import { readPerformanceFile } from "@/lib/community/performanceFile";
+import { readPerformanceFile } from "../community";
 import {
   bakeShowV2,
   resolveLane,
