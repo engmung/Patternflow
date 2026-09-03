@@ -775,7 +775,19 @@ inline bool consumeSelectIdx(int& out) {
 
 inline void handleSelect() {
   int index = -1;
-  if (server().hasArg("index")) {
+  if (server().hasArg("step")) {
+    int step = server().arg("step").toInt();
+    int dir = (step >= 0) ? 1 : -1;
+    int cur = (activePatternIdx >= 0) ? activePatternIdx : 0;
+    int candidate = cur;
+    for (int guard = 0; guard < NUM_PATTERNS; guard++) {
+      candidate = ((candidate + dir) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
+      if (!patterns[candidate].hidden) {
+        index = candidate;
+        break;
+      }
+    }
+  } else if (server().hasArg("index")) {
     index = server().arg("index").toInt();
   } else if (server().hasArg("name")) {
     String name = server().arg("name");

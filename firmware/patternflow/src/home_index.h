@@ -60,7 +60,17 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
 
   /* ── Device card (one small status poll — the device never streams pixels) ── */
   .screen{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 6px}
+  .now-hdr{display:flex;justify-content:space-between;align-items:center}
   .now-k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .now-nav{display:flex;gap:5px}
+  .now-btn{
+    background:transparent;border:1px solid var(--rule);color:var(--muted);
+    font-family:var(--mono);font-size:12px;line-height:1;width:28px;height:24px;
+    border-radius:2px;cursor:pointer;display:inline-flex;align-items:center;
+    justify-content:center;transition:all .15s ease
+  }
+  .now-btn:hover{color:var(--ink);border-color:var(--led)}
+  .now-btn:active{background:var(--ghost);transform:scale(0.92)}
   .now{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:7px 0 3px;min-height:29px;overflow-wrap:anywhere}
   .now-sub{font-family:var(--mono);font-size:11px;color:var(--muted);min-height:15px}
   /* ── Panel switch ─────────────────────────────────────────────
@@ -175,7 +185,13 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
   <div class="grid">
   <div class="left">
   <div class="screen">
-    <span class="now-k">Now playing</span>
+    <div class="now-hdr">
+      <span class="now-k">Now playing</span>
+      <div class="now-nav">
+        <button class="now-btn" id="pat-prev" title="Previous pattern" type="button">&larr;</button>
+        <button class="now-btn" id="pat-next" title="Next pattern" type="button">&rarr;</button>
+      </div>
+    </div>
     <div class="now" id="now">&mdash;</div>
     <div class="now-sub" id="nowsub"></div>
 
@@ -548,6 +564,26 @@ function initSliders() {
   }
 }
 initSliders();
+
+// ── Quick pattern stepping (← / →) ───────────────────────────
+function stepPattern(dir) {
+  var prev = $('now').textContent;
+  $('now').textContent = dir > 0 ? 'Next…' : 'Prev…';
+  fetch('/api/patterns/select?step=' + dir, {cache: 'no-store'})
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok && d.name) {
+        $('now').textContent = d.name;
+        $('nowsub').textContent = 'switched';
+      }
+      setTimeout(tick, 300);
+    })
+    .catch(function() {
+      $('now').textContent = prev;
+    });
+}
+$('pat-prev').addEventListener('click', function() { stepPattern(-1); });
+$('pat-next').addEventListener('click', function() { stepPattern(1); });
 
 tick();
 setInterval(tick,3000);
