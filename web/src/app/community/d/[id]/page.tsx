@@ -1,11 +1,11 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { getDeck, listDeckItems } from "@/lib/community/queries";
-import { toDeckPageItem } from "@/lib/community/serialize";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { getDeck, listDeckItems } from "@/lib/community/server/queries";
+import { toDeckPageItem } from "@/lib/community/server/serialize";
 import { canView } from "@/lib/community/visibility";
 import DeckDetailClient from "./DeckDetailClient";
 

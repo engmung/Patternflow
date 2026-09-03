@@ -1,11 +1,11 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { cleanPinNote, cleanTerritoryCode } from "@/lib/community/workshop";
-import { notifyNewThread } from "@/lib/community/notify";
-import { getTerritoryByCode, newId } from "@/lib/community/queries";
+import { notifyNewThread } from "@/lib/community/server/notify";
+import { getTerritoryByCode, newId } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { posts, territoryPins } from "@/lib/community/schema";
+import { posts, territoryPins } from "@/lib/community/server/schema";
 import { cleanPostBody, cleanTitle } from "@/lib/community/validate";
 
 // POST /api/community/posts — start a thread inside a territory (login

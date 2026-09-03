@@ -172,7 +172,7 @@ The preset sources are still in `presets/` as the editable originals —
 
 Two things about that set which the file itself won't tell you:
 
-- **Not every pattern made the cut.** 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529 and 0530 were left out for performance lag or rendering problems on real ESP32 hardware. A pattern that looks fine in the browser can still miss frame budget on the device.
+- **Not every pattern made the cut.** 0516, 0517, 0519-2, 0524, 0524-2, 0526, 0529 and 0530 were left out for performance lag or rendering problems on real ESP32 hardware. A pattern that looks fine in the browser can still miss frame budget on the device. 0609, 0614, 0614-2, 0619, 0622 and 0624 were posted after the module loader made the compiled-in showcase unnecessary and were never ported. `firmware/toolchain/check_presets.py` (run in CI) keeps this list honest: a new web preset has to be ported or added there with a reason.
 - **Patterns posted to Instagram after 0602 aren't bundled here.** They're on Discord; convert them yourself, or install them as `.pfm` modules.
 
 Anything not compiled in is one upload away — build a module and send it to the device over Wi-Fi, no reflash.

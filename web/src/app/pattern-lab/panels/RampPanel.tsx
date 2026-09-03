@@ -13,18 +13,14 @@ import {
   sampleRampRGBA,
   srgbToOklab,
   type RampMode,
-} from "@/lib/patternHarness";
-import { codeUsesValueField } from "@/lib/patternRamp";
+} from "@/lib/pattern/harness";
+import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { rampStateToHarness } from "@/lib/lab/engine";
 import { DEFAULT_RAMP_STATE } from "@/lib/lab/types";
 import { useFocusCodeLayer, useLabStore } from "@/lib/lab/store";
-import styles from "../PatternLab.module.css";
+import { rgbToHex } from "@/lib/pattern/color";
+import local from "./RampPanel.module.css";
 import dock from "../LabPanels.module.css";
-
-function rgbToHex(r: number, g: number, b: number): string {
-  const toByte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
-  return `#${((toByte(r) << 16) | (toByte(g) << 8) | toByte(b)).toString(16).padStart(6, "0")}`;
-}
 
 /** "hsvShort" → "hsv short" — camelCase mode ids read as plain words. */
 function modeLabel(mode: string): string {
@@ -248,7 +244,7 @@ export default function RampPanel() {
           ))}
         </select>
         <label
-          className={styles.rampToggle}
+          className={local.rampToggle}
           title="Cyclic ramp — blends past the last stop back into the first"
         >
           <input
@@ -259,7 +255,7 @@ export default function RampPanel() {
           wrap
         </label>
         <label
-          className={styles.rampToggle}
+          className={local.rampToggle}
           title="Recolor this layer: map each drawn pixel's luminance through the ramp (works on RGB patterns too)"
         >
           <input
@@ -274,13 +270,13 @@ export default function RampPanel() {
       <div className={`${dock.panelBody} ${dock.rampDock}`}>
         <div
           ref={rampTrackRef}
-          className={styles.rampTrack}
+          className={local.rampTrack}
           title="Click to add a stop · drag a line to move it"
           onPointerDown={addStopAt}
         >
           <canvas
             ref={rampBarRef}
-            className={styles.rampBar}
+            className={local.rampBar}
             width={256}
             height={14}
             aria-label="Ramp gradient preview"
@@ -289,7 +285,7 @@ export default function RampPanel() {
             <button
               key={index}
               type="button"
-              className={`${styles.rampHandle}${index === activeStopIndex ? ` ${styles.rampHandleActive}` : ""}`}
+              className={`${local.rampHandle}${index === activeStopIndex ? ` ${local.rampHandleActive}` : ""}`}
               style={{ left: `${stop.position * 100}%` }}
               aria-label={`Ramp stop at ${stop.position.toFixed(2)}`}
               title={`${stop.color} @ ${stop.position.toFixed(2)}${stop.alpha < 1 ? ` · ${Math.round(stop.alpha * 100)}% alpha` : ""} — drag to move, Delete to remove`}
@@ -308,17 +304,17 @@ export default function RampPanel() {
 
         <canvas
           ref={lumaBarRef}
-          className={styles.rampLuma}
+          className={local.rampLuma}
           width={256}
           height={8}
           aria-label="Ramp luminance preview"
           title="Perceptual lightness (OKLab L) of the ramp — the squint test: structure should survive in grayscale"
         />
         {rampAnalysis && (
-          <div className={styles.rampLumaRow}>
+          <div className={local.rampLumaRow}>
             <span>luminance</span>
             <span
-              className={`${styles.rampLumaBadge}${rampAnalysis.trend === "mixed" && !ramp.wrap ? ` ${styles.rampLumaMixed}` : ""}`}
+              className={`${local.rampLumaBadge}${rampAnalysis.trend === "mixed" && !ramp.wrap ? ` ${local.rampLumaMixed}` : ""}`}
               title="Lightness trend across the ramp. Monotonic reads as ordered values on the panel; non-monotonic is a stylistic choice, not an error."
             >
               {ramp.wrap ? "cyclic" : LUMA_TREND_LABEL[rampAnalysis.trend]}
@@ -328,7 +324,7 @@ export default function RampPanel() {
 
         {activeStop && (
           <>
-            <div className={styles.rampStopEdit}>
+            <div className={local.rampStopEdit}>
               <input
                 type="color"
                 value={activeStop.color}
@@ -337,10 +333,10 @@ export default function RampPanel() {
                   updateLayerRampStop(layer.id, activeStopIndex, { color: event.target.value })
                 }
               />
-              <span className={styles.rampStopPos}>@ {activeStop.position.toFixed(2)}</span>
+              <span className={local.rampStopPos}>@ {activeStop.position.toFixed(2)}</span>
               <button
                 type="button"
-                className={styles.rampStopDelete}
+                className={local.rampStopDelete}
                 disabled={ramp.stops.length <= 1}
                 title={
                   ramp.stops.length <= 1 ? "The ramp needs at least one stop" : "Remove this stop"
@@ -351,7 +347,7 @@ export default function RampPanel() {
               </button>
               <button
                 type="button"
-                className={styles.rampResetBtn}
+                className={local.rampResetBtn}
                 title="Reset to the default ramp: 0 = black, 1 = white"
                 onClick={() =>
                   setLayerRampStops(
@@ -364,7 +360,7 @@ export default function RampPanel() {
               </button>
               <button
                 type="button"
-                className={styles.rampResetBtn}
+                className={local.rampResetBtn}
                 title="Make the low end of the ramp transparent — the classic setup for layering value fields"
                 onClick={() => {
                   const lowest = ramp.stops.reduce(
@@ -400,7 +396,7 @@ export default function RampPanel() {
         )}
 
         {!usesValueField && !layer.recolor && (
-          <p className={styles.rampHint}>
+          <p className={local.rampHint}>
             This layer draws RGB directly — the ramp applies when the code uses display.setValue,
             or when recolor is on.
           </p>

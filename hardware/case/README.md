@@ -4,7 +4,7 @@
 
 > **These cases fit the v3.0 board.** If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
 
-> 🖨️ **Bambu printer? One-click path:** the case is on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles — open in Bambu Studio and print. The same project ships in this repo as [`patternflow_v3.3mf`](patternflow_v3.3mf) (4 pre-arranged plates, settings included). The STLs below are for everyone else.
+> 🖨️ **Bambu printer? One-click path:** the case is on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles — open in Bambu Studio and print. The same project ships in this repo as [`patternflow_v3.3mf`](bed_256mm/patternflow_v3.3mf) (4 pre-arranged plates, settings included). The STLs below are for everyone else.
 
 ## Which folder do I print?
 
@@ -22,6 +22,8 @@ The original mass-production-oriented design: a single-piece body plus a snap-fi
 **`encloser.stl`** — everything in one STL (body, closing part, LED-panel mount), all **white** PLA; knobs from [`knobs/`](knobs/) in black. Same design as the print-&-assembly-verified 256 mm kit, just uncut.
 
 ## `bed_256mm/` — the standard build
+
+**`patternflow_v3.3mf`** is the Bambu Studio project for this kit — four pre-arranged plates with the print settings below, the same file the MakerWorld listing serves. Open it and print; the STL is for every other slicer.
 
 **`encloser.stl`** puts the whole body in one file: frame and back-panel halves plus the LED-panel mounting part, all in **white** PLA. ~10 hours total on a P1S. Print the knobs separately from [`knobs/`](knobs/), in **black**. The LED-panel mount is sized for the panel linked in the [BOM](../bom/). **Print & assembly verified** — the [assembly video](https://youtu.be/J9C9bZgkNKs) builds from this exact file.
 
@@ -61,7 +63,6 @@ Everything that fits the v2.x board generation, kept for existing builds. **None
 ## `source/`
 
 - `patternflow_case.blend` — Blender 4.x source for every printed part.
-- `patternflow_v1.svg` / `patternflow_v2.svg` — legacy laser-cut acrylic case designs (v1-era).
 
 > **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~45 MB file. Download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) instead. The STL files are regular files and download fine either way.
 
@@ -71,3 +72,7 @@ To re-export STLs after editing:
 2. Select the entire collection for one part.
 3. `File → Export → Stl (.stl)`, with **Selection Only** checked.
 4. Save with the matching filename in the bed-size folder.
+
+## `legacy_lasercut/`
+
+`patternflow_v1.svg` / `patternflow_v2.svg` — the v1-era laser-cut acrylic case drawings, from before the printed enclosure. Kept for the record; nothing current is built from them.

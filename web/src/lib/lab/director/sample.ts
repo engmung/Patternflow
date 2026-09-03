@@ -7,6 +7,7 @@
 // panel played. Future emitters — CSV, a live CC/OSC bus — should start
 // here too, not from the keyframes.
 
+import { BUS_WIRE_MAX } from "@/lib/pattern/controls";
 import { bakeShowV2, resolveLane, resolvedLaneValue } from "./bake";
 import type { DirectorShow } from "./types";
 
@@ -64,7 +65,7 @@ export function toKnobFrames(
     const live = fallback[lane] ?? range[0];
     for (let f = 0; f < sampled.frames; f++) {
       const v = wire[f];
-      out[f * 4 + lane] = Number.isNaN(v) ? live : range[0] + (v / 1000) * (range[1] - range[0]);
+      out[f * 4 + lane] = Number.isNaN(v) ? live : range[0] + (v / BUS_WIRE_MAX) * (range[1] - range[0]);
     }
   }
   return out;

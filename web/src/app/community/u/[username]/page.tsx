@@ -2,19 +2,19 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { communityEnabled } from "@/lib/community/db";
-import { getAuth } from "@/lib/community/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { getAuth } from "@/lib/community/server/auth";
 import {
   getUserByUsername,
   likedPatternIds,
   listDecksByUser,
   listPatternsByUser,
-} from "@/lib/community/queries";
-import { toCardItem, toDeckCardItem } from "@/lib/community/serialize";
+} from "@/lib/community/server/queries";
+import { toCardItem, toDeckCardItem } from "@/lib/community/server/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import PatternCard from "@/components/community/PatternCard";
 import SignOutLink from "@/components/community/SignOutLink";
-import { isAdminUsername } from "@/lib/community/admin";
+import { isAdminUsername } from "@/lib/community/server/admin";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import styles from "@/components/community/Community.module.css";
 

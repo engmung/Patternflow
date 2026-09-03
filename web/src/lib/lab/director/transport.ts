@@ -16,6 +16,7 @@
 //
 // Runtime state only — nothing here persists with the project.
 
+import { BUS_WIRE_MAX } from "@/lib/pattern/controls";
 import { bakeShowV2, resolveLane, resolvedLaneValue } from "./bake";
 import { showHasContent, type DirectorKeyframe, type DirectorShow } from "./types";
 import { useLabStore } from "../store";
@@ -81,7 +82,7 @@ function createTransport(): ShowTransport {
       if (!force && lastWire[lane] === v) continue;
       lastWire[lane] = v;
       const range = state.ranges[lane] ?? [0, 1];
-      state.setKnob(lane, range[0] + (v / 1000) * (range[1] - range[0]));
+      state.setKnob(lane, range[0] + (v / BUS_WIRE_MAX) * (range[1] - range[0]));
     }
   };
 

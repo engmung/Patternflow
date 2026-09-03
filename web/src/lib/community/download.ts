@@ -7,7 +7,7 @@ import {
   slugifyName,
   type ShareLineage,
   type ShareMeta,
-} from "@/lib/sharePattern";
+} from "@/lib/pattern/share";
 
 // Community downloads reuse the Discord share flow's licence machinery: the
 // stored code is clean, and the header + attribution footer are injected here

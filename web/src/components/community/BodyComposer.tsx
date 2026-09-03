@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAutoGrow } from "@/lib/useAutoGrow";
+import { useAutoGrow } from "@/lib/hooks/useAutoGrow";
 import PostBody from "./PostBody";
 import styles from "./Community.module.css";
 

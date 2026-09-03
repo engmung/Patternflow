@@ -6,7 +6,7 @@
 // regenerated from it on the way out — nothing is lost by normalising on the
 // way in, since the table carries everything a recording is.
 
-import { decodePfst, normalizePerformance, serializePerformance } from "./performance";
+import { decodePfst, normalizePerformance, serializePerformance } from "@/lib/pattern/pfst";
 
 /** Canonical JSON text for a picked file, or the reason it cannot be read. */
 export async function readPerformanceFile(

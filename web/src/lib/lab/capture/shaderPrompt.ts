@@ -13,7 +13,7 @@
 // Color Ramp panel out of the twin; the ramp travels as a texture instead
 // (shaderRamp.ts), so editing a stop repaints the export live.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import { parseKnobsAnnotation } from "../annotations";
 import type { KnobRange, RampState } from "../types";
 

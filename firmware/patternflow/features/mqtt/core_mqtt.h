@@ -37,6 +37,7 @@
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
+#include "mqtt_config.h"
 
 #include <Arduino.h>
 #include "../../config.h"
@@ -787,7 +788,7 @@ inline void publishParam(int index, uint16_t value) {
   char topic[48];
   char payload[8];
   topicParam(topic, sizeof(topic), index);
-  if (value > 1000) value = 1000;
+  if (value > PF_BUS_MAX) value = PF_BUS_MAX;
   snprintf(payload, sizeof(payload), "%u", (unsigned)value);
   client.publish(topic, payload, retainLeafTopic());
 }

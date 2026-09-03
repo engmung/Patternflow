@@ -13,7 +13,7 @@
 // moment, so what the stage shows when you press Record is the first frame.
 
 import { CaptureCore, clampScale, mergeWireProject, resolveGeometry } from "./core";
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import { StagePainter } from "./paint";
 import { describeProbe, probeKey, probeScaling, type ProbeResult } from "./probe";
 import { ShaderStage } from "./shaderStage";

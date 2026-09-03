@@ -5,7 +5,7 @@ import {
   type LicenseOption,
   type ShareLineage,
   type ShareMeta,
-} from "@/lib/sharePattern";
+} from "@/lib/pattern/share";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Licence baking.

@@ -8,12 +8,12 @@
 // (patternflow_lab_draft_v1 + patternflow_ramp_v1) is lifted into a one-layer
 // project, so nobody loses work by opening the new lab once.
 
-import { RAMP_MODES, type RampMode } from "@/lib/patternHarness";
-import { COLOR_MODES, THINKING_LEVELS } from "@/lib/gemini";
-import type { ColorMode, ThinkingLevelKey } from "@/lib/gemini";
-import { isValidMatrix, DEFAULT_MATRIX, type MatrixSize } from "@/lib/patternMatrix";
-import { loadDraft } from "@/lib/labDraft";
-import { PATTERN_KNOB_COUNT } from "@/lib/patternHarness";
+import { RAMP_MODES, type RampMode } from "@/lib/pattern/harness";
+import { COLOR_MODES, THINKING_LEVELS } from "@/lib/ai/settings";
+import type { ColorMode, ThinkingLevelKey } from "@/lib/ai/settings";
+import { isValidMatrix, DEFAULT_MATRIX, type MatrixSize } from "@/lib/pattern/matrix";
+import { loadDraft } from "@/lib/lab/legacyDraft";
+import { PATTERN_KNOB_COUNT } from "@/lib/pattern/harness";
 import {
   BLEND_MODES,
   DEFAULT_RAMP_STATE,
@@ -33,7 +33,8 @@ import {
   type RampState,
 } from "./types";
 import { defaultKnobState, matchKnobsAnnotation } from "./annotations";
-import { matchMatrixAnnotation } from "@/lib/patternMatrix";
+import { LAB_STORAGE, readStorage, removeStorage, writeStorage } from "./persist";
+import { matchMatrixAnnotation } from "@/lib/pattern/matrix";
 import {
   DEFAULT_CURVE_CP,
   DIRECTOR_MAX_SECONDS,
@@ -43,8 +44,8 @@ import {
   type DirectorShow,
 } from "./director/types";
 
-export const PROJECT_STORAGE = "patternflow_lab_project_v2";
-export const LAYOUT_STORAGE = "patternflow_lab_layout_v1";
+export const PROJECT_STORAGE = LAB_STORAGE.project;
+export const LAYOUT_STORAGE = LAB_STORAGE.layout;
 
 /**
  * How many panels a serialized dockview layout actually PLACES.
@@ -76,7 +77,7 @@ export function layoutViewCount(layout: unknown): number {
   return walk(grid?.root);
 }
 /** Old single-pattern lab keys, read once for migration. */
-const LEGACY_RAMP_STORAGE = "patternflow_ramp_v1";
+const LEGACY_RAMP_STORAGE = LAB_STORAGE.legacyRamp;
 
 const MAX_CODE_CHARS = 200_000;
 const MAX_LAYERS = 24;
@@ -485,41 +486,21 @@ function readDirector(raw: unknown): DirectorShow {
 }
 
 // ── storage IO ──
-function readStorage(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 export function loadProject(): (LabProject & { savedAt: number }) | null {
   const raw = readStorage(PROJECT_STORAGE);
   if (!raw) return null;
   return deserializeProject(raw);
 }
 
+/** False on quota / private mode — losing autosave must never break the editor. */
 export function saveProject(project: LabProject): boolean {
-  if (typeof window === "undefined") return false;
   const json = serializeProject(project);
   if (!json) return false;
-  try {
-    window.localStorage.setItem(PROJECT_STORAGE, json);
-    return true;
-  } catch {
-    // Quota / private mode — losing autosave must never break the editor.
-    return false;
-  }
+  return writeStorage(PROJECT_STORAGE, json);
 }
 
 export function clearProject() {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.removeItem(PROJECT_STORAGE);
-  } catch {
-    // ignore
-  }
+  removeStorage(PROJECT_STORAGE);
 }
 
 // ── v1 migration ──

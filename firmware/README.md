@@ -11,7 +11,7 @@ The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads fou
 One image ships on the board, and it is not the only one you can run. Features
 are modules in this tree; a build is a choice of which ones compile in; a
 published build is an **edition**, installed from
-[the shelf](https://patternflow.work/variants) in one click, with your
+[the shelf](https://patternflow.work/editions) in one click, with your
 patterns and settings intact.
 
 **[docs/EDITIONS.md](../docs/EDITIONS.md)** is where that starts: what a
@@ -108,7 +108,7 @@ firmware/
 ├── patternflow/                 # The sketch (PlatformIO project; open patternflow.ino)
 │   ├── patternflow.ino          # Main sketch: input routing, mode dispatch — THE CORE
 │   ├── config.h                 # Hardware configuration (pin mappings, limits, LED calibration)
-│   ├── net_config.h             # Wi-Fi / OTA / self-update defaults + feature TUNING defaults
+│   ├── net_config.h             # Wi-Fi / Improv / OTA / self-update defaults (core only)
 │   ├── pattern_registry.h       # Presets compiled in (Origin) + .pfm modules discovered on FATFS
 │   ├── platformio.ini           # The build. bundles/build.sh drives it.
 │   ├── presets/                 # Curated presets (35). Only Origin is compiled in; the
@@ -845,7 +845,7 @@ You normally do **not** need to configure the laptop's IP: the device learns the
 #define PF_OSC_REMOTE_PORT 9000
 ```
 
-`patternflow_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed. The defaults for everything you leave unset live in `net_config.h`.
+`patternflow_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed. The defaults for everything you leave unset live in `net_config.h` (Wi-Fi, OTA, the device's own settings) and in each feature's `features/<name>/<name>_config.h` (OSC ports, the audio WebSocket port, MQTT broker settings, weather polling) — every one `#ifndef`-guarded, so a line in your secrets file wins.
 
 `PF_OSC_ENABLED` defaults to `1` in `net_config.h`, but it only matters on a build that carries the `osc` feature (the Audio edition); the default firmware has no OSC to enable. Set `#define PF_OSC_ENABLED 0` in `patternflow_secrets.h` to compile it out of an edition that would otherwise have it — the K2 info screen then shows `OFF (compile-time)`, meaning no runtime toggle can turn it on without a rebuild.
 

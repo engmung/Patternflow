@@ -199,8 +199,8 @@ inline bool channelMatches(uint8_t ch) {
 
 inline uint8_t outChannel() { return PF_MIDI_CHANNEL == 0 ? 1 : PF_MIDI_CHANNEL; }
 
-// 0..127 → 0..1000, rounded, 127 → 1000 exactly.
-inline long midiToBus(uint8_t v) { return ((long)v * 1000 + 63) / 127; }
+// 0..127 → 0..PF_BUS_MAX, rounded, 127 → PF_BUS_MAX exactly.
+inline long midiToBus(uint8_t v) { return ((long)v * PF_BUS_MAX + 63) / 127; }
 
 // ── Handlers a transport calls (from the render task) ────────────────────
 inline void onControlChange(uint8_t ch, uint8_t cc, uint8_t value) {

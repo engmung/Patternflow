@@ -20,7 +20,7 @@
 // The buffer is cropped to the sprite's bounding box first — a 128×64
 // canvas with a small drawing in it shrinks from ~44 KB to a few KB.
 
-import { withMatrixAnnotation } from "@/lib/patternMatrix";
+import { withMatrixAnnotation } from "@/lib/pattern/matrix";
 import { rleEncodeRGBA } from "./flatten";
 import { bytesToBase64 } from "./serialize";
 import type { PixelLayer } from "./types";

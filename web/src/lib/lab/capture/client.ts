@@ -4,7 +4,7 @@
 // promises. The panel is the only consumer; nothing in the store knows the
 // worker exists.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
 import type { Layer } from "../types";
 import type {
   AutoVerdict,

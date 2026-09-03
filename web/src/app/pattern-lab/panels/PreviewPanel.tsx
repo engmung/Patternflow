@@ -23,11 +23,12 @@ import {
   MATRIX_MIN,
   clampMatrixDimension,
   formatMatrix,
-} from "@/lib/patternMatrix";
+} from "@/lib/pattern/matrix";
 import { labEngine } from "@/lib/lab/engine";
 import { captureSession, type CaptureSessionState } from "@/lib/lab/capture/session";
 import { useLabStore } from "@/lib/lab/store";
 import styles from "../PatternLab.module.css";
+import local from "./PreviewPanel.module.css";
 import dock from "../LabPanels.module.css";
 
 const RESOLUTION_PRESETS = [
@@ -181,9 +182,9 @@ export default function PreviewPanel() {
           <option value="custom">Custom…</option>
         </select>
         {showCustomMatrix && (
-          <span className={styles.customMatrix}>
+          <span className={local.customMatrix}>
             {(["width", "height"] as const).map((edge, index) => (
-              <span key={edge} className={styles.customMatrixField}>
+              <span key={edge} className={local.customMatrixField}>
                 {index === 1 && <span aria-hidden="true">×</span>}
                 <input
                   key={`${edge}-${matrix[edge]}`}
@@ -211,7 +212,7 @@ export default function PreviewPanel() {
         {camera.view && (
           <button
             type="button"
-            className={styles.cameraChip}
+            className={local.cameraChip}
             title="Camera view — showing the Graphic Export render. The project frame stays as picked here; click to go back to it."
             onClick={() => captureSession.setView(false)}
           >
@@ -220,7 +221,7 @@ export default function PreviewPanel() {
         )}
         {matrix.width * matrix.height > MATRIX_HEAVY_PIXELS && (
           <span
-            className={styles.frameWarning}
+            className={local.frameWarning}
             title="Large frames cost proportionally more per preview frame, and the ESP32 has to fill every one of those pixels too."
           >
             heavy

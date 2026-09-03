@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { ENTRY_BY_ID } from "@/lib/atlas/data";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { listAtlasPins } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { listAtlasPins } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { atlasPins, patterns } from "@/lib/community/schema";
+import { atlasPins, patterns } from "@/lib/community/server/schema";
 
 // GET    /api/community/atlas — every pattern pinned on the atlas.
 // POST   — place or move a pin: { patternId, x, y, entryId?, kind? } in the

@@ -149,7 +149,7 @@
            it goes to that edition's card, on the default it goes to the shelf,
            because "where are the other ones" is the question the default
            raises. -->
-      <a class="stat" id="s-ed-block" href="https://patternflow.work/variants">
+      <a class="stat" id="s-ed-block" href="https://patternflow.work/editions">
         <span class="k">Edition</span>
         <div class="v" id="s-ed">&mdash;</div>
         <div class="sub" id="s-ed-sub"></div>
@@ -307,13 +307,13 @@ function tick(){
       $('s-ed').textContent=ed+(s.variantVersion?' '+s.variantVersion:'');
       $('s-ed-sub').textContent='This panel runs the '+ed+' edition. '+
         'Tap for what it carries, or to go back to the standard firmware.';
-      $('s-ed-block').href='https://patternflow.work/variants#'+encodeURIComponent(ed);
+      $('s-ed-block').href='https://patternflow.work/editions#'+encodeURIComponent(ed);
     }else{
       $('s-ed').textContent='Patternflow';
       $('s-ed-sub').textContent='The standard firmware. Other editions carry '+
         'what this one does not — tap to see them. Installing one is a click '+
         'and keeps your patterns and settings.';
-      $('s-ed-block').href='https://patternflow.work/variants';
+      $('s-ed-block').href='https://patternflow.work/editions';
     }
     checkUpdate(s.version,s.variant);
   }).catch(function(){$('nowsub').textContent='cannot reach device'});

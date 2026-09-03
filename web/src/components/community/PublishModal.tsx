@@ -23,7 +23,7 @@ import {
   LICENSE_OPTIONS,
   forkLicenseOptions,
   licenseById,
-} from "@/lib/sharePattern";
+} from "@/lib/pattern/share";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";

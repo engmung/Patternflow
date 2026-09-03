@@ -5424,7 +5424,7 @@ button.legendWalk:hover {
 }
 
 /* ── Narrow screens ──
-   Keep this media query in sync with MOBILE_MEDIA_QUERY in lib/useMediaQuery.ts. */
+   Keep this media query in sync with MOBILE_MEDIA_QUERY in lib/hooks/useMediaQuery.ts. */
 
 @media (max-width: 900px) {
   .detailLayout {

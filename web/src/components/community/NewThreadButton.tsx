@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
-import type { TerritoryListItem } from "@/lib/community/queries";
+import type { TerritoryListItem } from "@/lib/community/server/queries";
 import AuthModal from "./AuthModal";
 import NewThreadModal from "./NewThreadModal";
 import styles from "./Community.module.css";

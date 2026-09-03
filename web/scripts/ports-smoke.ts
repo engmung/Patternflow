@@ -31,9 +31,9 @@ function check(label: string, actual: unknown, expected: unknown) {
 
 async function main() {
   const { eq } = await import("drizzle-orm");
-  const { getDb } = await import("../src/lib/community/db");
-  const schema = await import("../src/lib/community/schema");
-  const queries = await import("../src/lib/community/queries");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const schema = await import("../src/lib/community/server/schema");
+  const queries = await import("../src/lib/community/server/queries");
   const { resolveHeader } = await import("../src/lib/community/ports");
 
   const db = getDb();

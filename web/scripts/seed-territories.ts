@@ -1,6 +1,6 @@
-import { getDb } from "../src/lib/community/db";
-import { newId } from "../src/lib/community/queries";
-import { territories } from "../src/lib/community/schema";
+import { getDb } from "../src/lib/community/server/db";
+import { newId } from "../src/lib/community/server/queries";
+import { territories } from "../src/lib/community/server/schema";
 
 // Seeds the map with the directions the project is actually open to.
 //

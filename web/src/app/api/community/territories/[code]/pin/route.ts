@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { cleanPinNote, cleanTerritoryCode } from "@/lib/community/workshop";
-import { getTerritoryByCode, listTerritoryPins, newId } from "@/lib/community/queries";
+import { getTerritoryByCode, listTerritoryPins, newId } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { territoryPins } from "@/lib/community/schema";
+import { territoryPins } from "@/lib/community/server/schema";
 
 // POST /api/community/territories/[code]/pin — "I'm working here."
 // DELETE — take it back.

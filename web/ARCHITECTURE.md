@@ -14,20 +14,20 @@ The `web/` app is the Patternflow site at [patternflow.work](https://patternflow
 | `/inside/[build]` | One community build's page |
 | `/pattern-lab` | The pattern workspace — see below |
 | `/community/**` | The community: feed, pattern pages (`/p/[id]`), profiles (`/u/[username]`), decks (`/d/[id]`, `/decks`), the Workshop (`/workshop/[code]`), territories and the atlas, notifications, featured, reports. Renders a pointer to the community host unless `COMMUNITY_ENABLED=1` |
-| `/variants` | The edition shelf: every firmware you can put on a panel, official and community, with one-click install |
+| `/editions` | The edition shelf: every firmware you can put on a panel, official and community, with one-click install. `/variants` (the URL until 2026-09, baked into shipped console pages) redirects here permanently |
 | `/update` | The device's firmware-update handoff: the browser downloads an image and POSTs it to the panel over the LAN, because the panel cannot fetch over TLS |
 | `/flash` (static) | esp-web-tools flasher driven by `public/flash/manifest.json` + the images in `public/flash/bin/` — only the currently served ones are committed |
 | `/journal` · `/journal/[slug]` (+ `/en`) | Bilingual (ko/en) MDX journal with per-article OG image generation |
 | `/roadmap` | Roadmap rendered from `roadmap-data.ts` plus GitHub issue progress via `/api/roadmap` |
 | `/compliance` | Printed on the box — never move, redirect or noindex it |
 | `/terms` · `/business` · `/contact` | Static pages |
-| `/api/community/**` | The community's JSON API (30-odd routes: patterns, decks, posts, comments, builds, workshop, moderation…). Every route guards on `communityEnabled()` |
+| `/api/community/**` | The community's JSON API (30-odd routes: patterns, decks, posts, comments, builds, workshop, moderation…). Every route guards on `communityEnabled()`, and `src/proxy.ts` closes the whole prefix with a 404 on a deployment without the community, so a route that forgets is still closed |
 | `/api/auth/[...all]` | Better Auth |
 | `/api/variant-bin/[...path]` | Serves hosted edition images from `VARIANT_BIN_DIR` with the CORS headers `/update` needs |
 | `/api/roadmap` | Open issues + sub-issue progress (10 min revalidate; optional `GITHUB_TOKEN`) |
 | `feed.xml` · `sitemap.ts` · `robots.ts` | Feeds and SEO plumbing |
 
-`src/proxy.ts` (Next.js proxy/middleware) routes journal visitors between ko/en using the `pf-journal-lang` cookie and `Accept-Language`.
+`src/proxy.ts` (Next.js proxy/middleware) routes journal visitors between ko/en using the `pf-journal-lang` cookie, and answers 404 for `/api/community/*` wherever `COMMUNITY_ENABLED` is not set.
 
 ## Landing page composition
 
@@ -49,19 +49,19 @@ Cross-component landing state (active tab, virtual knob values, bloom toggle) li
 
 ## Pattern system
 
-Mirrors the firmware; the same JS runs in the browser, in the community's sandbox iframe, in the lab's worker and in the Home Assistant card.
+Mirrors the firmware; the same JS runs in the browser, in the community's sandbox iframe and in the lab's worker.
 
 - **`src/lib/presets/`** — JS pattern sources, one file per pattern. **Source of truth** for the firmware preset `.h` files (`firmware/patternflow/presets/`; the web has more presets than the firmware — the cut list is in `firmware/patternflow/README.md`). `_TEMPLATE.ts` is the skeleton; `index.ts` the registry.
-- **`src/lib/patternHarness.ts`** — runs pattern JS on a 128×64 virtual matrix with 4 virtual encoders (24 detents/turn), matching device semantics (`knobDeltas`, `btnPressed`/`btnHeld`); also the OKLab/OKLCH colour ramp math and the LUT builders. `public/pattern-sandbox.html` carries an ES5 port of the ramp math for the sandbox iframe — **keep the two in sync** (`next.config.ts` records the bug that drift caused).
-- **Annotations** — a pattern's frame, ramp, knob ranges and layer stack travel *inside its code* as one-line comments so they survive every copy: `@matrix` (`src/lib/patternMatrix.ts`), `@ramp` (`src/lib/patternRamp.ts`), `@knobs` (`src/lib/lab/annotations.ts`; the community's reader in `src/lib/community/knobs.ts` mirrors it), `@stack` (`src/lib/lab/stackShare.ts`).
-- **`src/lib/patternflowControls.ts`** — knob-scale constants shared with the firmware and the Home Assistant card.
-- **`src/lib/sharePattern.ts`** — licence header + attribution footer, injected at export time only.
-- **`src/lib/packs.ts`** — the Basics pack that ships with the firmware (`public/packs/`, built by `firmware/toolchain/make_pack.py`).
-- **`src/lib/gemini.ts`** — bring-your-own-key Gemini generation. The key lives in `localStorage` and calls go straight from the browser to Google; no server proxy, no bundled key.
+- **`src/lib/pattern/harness.ts`** — runs pattern JS on a 128×64 virtual matrix with 4 virtual encoders (24 detents/turn), matching device semantics (`knobDeltas`, `btnPressed`/`btnHeld`); also the OKLab/OKLCH colour ramp math and the LUT builders. `public/pattern-sandbox.html` carries an ES5 port of the ramp math for the sandbox iframe — **keep the two in sync** (`next.config.ts` records the bug that drift caused).
+- **Annotations** — a pattern's frame, ramp, knob ranges and layer stack travel *inside its code* as one-line comments so they survive every copy: `@matrix` (`src/lib/pattern/matrix.ts`), `@ramp` (`src/lib/pattern/ramp.ts`), `@knobs` (`src/lib/pattern/knobs.ts` — the lab's knob state in `src/lib/lab/annotations.ts` and the community's card reader in `src/lib/community/knobs.ts` both build on it), `@stack` (`src/lib/lab/stackShare.ts`).
+- **`src/lib/pattern/controls.ts`** — knob-scale constants shared with the firmware.
+- **`src/lib/pattern/share.ts`** — licence header + attribution footer, injected at export time only.
+- **`src/lib/pattern/packs.ts`** — the Basics pack that ships with the firmware (`public/packs/`, built by `firmware/toolchain/make_pack.py`).
+- **`src/lib/ai/gemini.ts`** — bring-your-own-key Gemini generation. The key lives in `localStorage` and calls go straight from the browser to Google; no server proxy, no bundled key.
 
 ## Pattern Lab (`src/app/pattern-lab/` + `src/lib/lab/`)
 
-A layered, dockable workspace: nine panels over a layer-stack project. Panels are registered in `PatternLabClient.tsx` (`PANEL_DEFS` + `panelComponents` + the default dock layout); the project is one Zustand store, `src/lib/lab/store.ts`, which the render engine (`engine.ts`) reads imperatively each frame and the panels subscribe to.
+A layered, dockable workspace: nine panels over a layer-stack project. A panel is one entry in `panels/registry.tsx` (id, title, component, where it docks by default) plus its component file — the shell derives the dockview component map, the Panels menu and the default layout from that list, and the four heavy editors load on demand. The project is one Zustand store, `src/lib/lab/store.ts`, which the render engine (`engine.ts`) reads imperatively each frame and the panels subscribe to; its actions are composed from one slice per concern under `src/lib/lab/store/` (project, layers, knobs, ramp, director, gallery), with the helpers they share in `store/shared.ts`. Everything the lab keeps in `localStorage` is listed in `src/lib/lab/persist.ts`, with the read/write helpers every persistence site uses. Pixel undo stacks are `src/lib/lab/pixelHistory.ts`.
 
 | Panel | Where | What |
 | :--- | :--- | :--- |
@@ -69,21 +69,19 @@ A layered, dockable workspace: nine panels over a layer-stack project. Panels ar
 | Pixel | `panels/PixelPanel.tsx` + `lib/lab/pixelTools.ts` | Pixel-art editor; `pixelToCode.ts` turns a sprite into standalone pattern code |
 | Gallery | `panels/GalleryPanel.tsx` | Gemini variant generation queue |
 | Graphic Export | `panels/CapturePanel.tsx` + `lib/lab/capture/` | Stills and clips at print sizes, rendered by a second engine in a Web Worker (WebCodecs + `mediabunny`, all client-side), plus a GLSL shader twin for posters. `probe.ts` decides whether a pattern can be re-rendered at another size or must be upscaled |
-| Director | `panels/DirectorPanel.tsx` + `lib/lab/director/` | Knob automation over time — keyframes, bezier eases — baked to `.pfs` show files (`src/lib/community/performance.ts` is the codec) and exported as MIDI |
+| Director | `panels/DirectorPanel.tsx` + `lib/lab/director/` | Knob automation over time — keyframes, bezier eases — baked to `.pfs` show files (`src/lib/pattern/pfst.ts` is the codec) and exported as MIDI |
 
-Exports flatten the visible stack to one standalone pattern (`flatten.ts`); `hExport.ts` writes the C++ header; `HardwareModal.tsx` sends it to the build service or the panel. Persistence is `localStorage`: the project (`serialize.ts`, `patternflow_lab_project_v2`), the dock layout, a ring of parked sessions (`sessions.ts`), capture settings and shaders under their own keys, and the legacy v1 draft/gallery keys read by `src/lib/labDraft.ts`.
+Each panel owns its stylesheet (`panels/<Panel>.module.css`); `PatternLab.module.css` keeps only what two or more files draw with, and `LabPanels.module.css` the dock chrome. The lab reaches the community through exactly one file, `community.ts` (the publish and send modals, the configured switches, the handoff, the `.pfs` reader) — ESLint refuses any other import of `@/components/community` or `@/lib/community` from under the lab.
+
+Exports flatten the visible stack to one standalone pattern (`flatten.ts`); `hExport.ts` writes the C++ header; `HardwareModal.tsx` sends it to the build service or the panel. Persistence is `localStorage`: the project (`serialize.ts`, `patternflow_lab_project_v2`), the dock layout, a ring of parked sessions (`sessions.ts`), capture settings and shaders under their own keys, and the legacy v1 draft/gallery keys read by `src/lib/lab/legacyDraft.ts`.
 
 ## Community (`src/lib/community/` + `src/components/community/`)
 
-SQLite via Drizzle (`schema.ts`; migrations in `web/drizzle/`, applied on first open by `db.ts`), Better Auth (`auth.ts`), reads in `queries.ts`, attachments and thumbnails on disk under `communityDataDir()` (default `web/data/`, gitignored — set `COMMUNITY_DB_PATH` on a real deployment). Server-only modules (`db`, `schema`, `queries`, `auth`, `attachments`, `retention`, `builds`) sit beside `"use client"` ones (`auth-client`, `deviceHost`, `download`, `handoff`, `knobs`, `thumbs`); nothing but the file header says which is which, so check before importing one from a client component.
+SQLite via Drizzle (`server/schema.ts`; migrations in `web/drizzle/`, applied on first open by `server/db.ts`), Better Auth (`server/auth.ts`), reads in `server/queries/` — one file per domain (patterns, decks, workshop, moderation, users, notifications, plus the shared sub-selects), re-exported by `server/queries.ts` — attachments and thumbnails on disk under `communityDataDir()` (default `web/data/`, gitignored — set `COMMUNITY_DB_PATH` on a real deployment). **`lib/community/server/` is the server side** — everything that touches SQLite, the filesystem or a session — and ESLint refuses a value import of it from `components/` or a `*Client.tsx` (type imports are fine; a value crosses through an API route). The rest of `lib/community/` is either `"use client"` (`auth-client`, `deviceHost`, `download`, `handoff`, `knobs`, `thumbs`) or pure and usable anywhere (`validate`, `license`, `deck`, `workshop`, `cors`, …).
 
-Patterns render in a sandboxed iframe (`public/pattern-sandbox.html`, driven by `components/community/SandboxPreview.tsx`; the same `pf-*` message protocol is spoken by `src/ha-card/sandbox.ts`). Pattern Lab hands off to the community through `handoff.ts` (fork vs. edit-in-place), and publishes through `components/community/PublishModal.tsx`.
+Patterns render in a sandboxed iframe (`public/pattern-sandbox.html`, driven by `components/community/SandboxPreview.tsx`). Pattern Lab hands off to the community through `handoff.ts` (fork vs. edit-in-place), and publishes through `components/community/PublishModal.tsx`.
 
 The **firmware build service** (`/api/community/builds` + `scripts/build-worker.ts` + `src/lib/firmware/moduleRunner.ts`) compiles a submitted header into a `.pfm` module with the firmware toolchain. It is gated behind `BUILD_ENABLED` and off by default: compiling submitted C++ is arbitrary code execution at compile time.
-
-## Home Assistant card
-
-`src/ha-card/` is not a Next route: `scripts/build-ha-card.ts` bundles it with esbuild into `custom_components/patternflow/www/patternflow-card.js`, which is committed because HACS hands Home Assistant a directory. CI rebuilds it and fails if the committed bundle drifts (`check:ha-card`).
 
 ## Content pipeline
 
@@ -115,4 +113,4 @@ PostHog (`src/providers/PostHogProvider.tsx`, event helpers in `src/lib/posthogE
 - **Layering:** `lib/` is the bottom. `app/` and `components/` import from it; it never imports from them (ESLint enforces it). A type a component and a serializer share belongs in `lib/` — `lib/community/cardTypes.ts` is the precedent.
 - Adding a preset: add the JS file under `src/lib/presets/`, register it in `index.ts`, then generate the firmware `.h` with the Pattern Lab "Copy C++ prompt" flow.
 - Tests are the `check:*` scripts in `package.json` — bespoke smoke suites under `scripts/*-smoke.ts`, one per subsystem. `npm run check:ci` runs every one that needs nothing a CI runner lacks; `check:module` wants the Xtensa toolchain and stays local.
-- CI (`.github/workflows/web-ci.yml`) lints, typechecks (`npm run typecheck`), builds, runs `check:ci`, and verifies the Home Assistant card bundle on every PR touching `web/`.
+- CI (`.github/workflows/web-ci.yml`) lints, typechecks (`npm run typecheck`), builds and runs `check:ci` on every PR touching `web/`.

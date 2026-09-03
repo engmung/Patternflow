@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { unzipSync } from "fflate";
-import { artifactDir, getBuild } from "@/lib/community/builds";
-import { communityEnabled } from "@/lib/community/db";
+import { artifactDir, getBuild } from "@/lib/community/server/builds";
+import { communityEnabled } from "@/lib/community/server/db";
 
 // GET /api/community/builds/[id]/modules — the built .pfm modules.
 //

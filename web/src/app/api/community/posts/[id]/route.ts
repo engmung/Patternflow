@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { clearNotificationsFor } from "@/lib/community/notify";
-import { getPostStub } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { clearNotificationsFor } from "@/lib/community/server/notify";
+import { getPostStub } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { posts } from "@/lib/community/schema";
+import { posts } from "@/lib/community/server/schema";
 import { cleanPostBody, cleanTitle } from "@/lib/community/validate";
 
 // PATCH / DELETE /api/community/posts/[id] — the author edits or removes their

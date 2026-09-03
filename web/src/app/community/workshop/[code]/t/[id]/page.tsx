@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
 import {
   getPost,
   getTerritoryByCode,
@@ -11,7 +11,7 @@ import {
   listPostComments,
   listPosts,
   listTerritoryPins,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import type { CommentView } from "@/components/community/CommentSection";
 import PostDetailClient from "@/components/community/PostDetailClient";
 

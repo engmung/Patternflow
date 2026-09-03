@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { renderPatternThumb } from "@/lib/community/thumbs";
 import { knobSetupFromCode } from "@/lib/community/knobs";
-import { describeMatrixShape, matrixFromCode } from "@/lib/patternMatrix";
+import { describeMatrixShape, matrixFromCode } from "@/lib/pattern/matrix";
 import SandboxPreview from "./SandboxPreview";
 import styles from "./Community.module.css";
 

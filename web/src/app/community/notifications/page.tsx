@@ -1,8 +1,8 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { listNotifications } from "@/lib/community/queries";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { listNotifications } from "@/lib/community/server/queries";
 import NotificationsList from "@/components/community/NotificationsList";
 import styles from "@/components/community/Community.module.css";
 

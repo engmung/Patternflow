@@ -42,6 +42,7 @@
 //
 // License: MIT
 #pragma once
+#include "audio_config.h"
 
 #include <Arduino.h>
 #include "../../config.h"

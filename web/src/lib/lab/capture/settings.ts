@@ -2,7 +2,8 @@
 // Output presets plus localStorage persistence, under the capture module's
 // own key — the project format (serialize.ts) is untouched.
 
-import type { MatrixSize } from "@/lib/patternMatrix";
+import type { MatrixSize } from "@/lib/pattern/matrix";
+import { LAB_STORAGE, readJson, writeJson } from "../persist";
 import { clampScale, clampSide } from "./core";
 import {
   CAPTURE_FPS,
@@ -13,7 +14,7 @@ import {
   type CaptureSettings,
 } from "./types";
 
-export const CAPTURE_SETTINGS_STORAGE = "patternflow_lab_capture_v1";
+export const CAPTURE_SETTINGS_STORAGE = LAB_STORAGE.capture;
 
 export type SizePreset = { id: string; label: string; width: number; height: number };
 
@@ -96,20 +97,11 @@ export function normalizeCaptureSettings(input: unknown): CaptureSettings {
 }
 
 export function loadCaptureSettings(): CaptureSettings {
-  if (typeof window === "undefined") return DEFAULT_CAPTURE_SETTINGS;
-  try {
-    const raw = window.localStorage.getItem(CAPTURE_SETTINGS_STORAGE);
-    return raw ? normalizeCaptureSettings(JSON.parse(raw)) : DEFAULT_CAPTURE_SETTINGS;
-  } catch {
-    return DEFAULT_CAPTURE_SETTINGS;
-  }
+  const raw = readJson(CAPTURE_SETTINGS_STORAGE);
+  return raw ? normalizeCaptureSettings(raw) : DEFAULT_CAPTURE_SETTINGS;
 }
 
+/** Quota / private mode are swallowed — the stage still works, it just forgets. */
 export function saveCaptureSettings(settings: CaptureSettings) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CAPTURE_SETTINGS_STORAGE, JSON.stringify(settings));
-  } catch {
-    // Quota / private mode — the stage still works, it just forgets.
-  }
+  writeJson(CAPTURE_SETTINGS_STORAGE, settings);
 }

@@ -28,9 +28,10 @@ Four rules:
       registry includes the preset seam.
   R3  Behavioural core - the sketch, src/, abi/ - takes no #if / #ifdef
       branch on a feature's flags: which features exist must not change what
-      the core compiles to. config.h and net_config.h are exempt, because
-      providing feature DEFAULTS is their entire job ("settings tune a
-      feature, they never add one") and every #ifndef there is that.
+      the core compiles to. config.h and net_config.h are exempt: their job
+      is #ifndef defaults ("settings tune a feature, they never add one"),
+      and the exemption stays although a feature's own defaults now live in
+      features/<name>/<name>_config.h rather than in net_config.h.
   R4  Features do not include each other. One directory each, zero coupling;
       an edition is a set, not a stack.
   R5  The core's console pages name no feature either. console/*.html whose

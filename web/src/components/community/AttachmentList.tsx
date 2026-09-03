@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
-import type { AttachmentView } from "@/lib/community/queries";
+import type { AttachmentView } from "@/lib/community/server/queries";
 import { formatBytes, isImageFilename } from "@/lib/community/workshop";
 import styles from "./Community.module.css";
 

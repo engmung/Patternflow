@@ -1,8 +1,8 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { MAX_FEED_PAGE_SIZE } from "@/lib/community/feedView";
-import { notifyForkPublished } from "@/lib/community/notify";
+import { notifyForkPublished } from "@/lib/community/server/notify";
 import {
   countFeed,
   getPatternStub,
@@ -10,10 +10,10 @@ import {
   listFeed,
   newId,
   parseFeedSort,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { patterns } from "@/lib/community/schema";
-import { toCardItem } from "@/lib/community/serialize";
+import { patterns } from "@/lib/community/server/schema";
+import { toCardItem } from "@/lib/community/server/serialize";
 import {
   CODE_MAX,
   cleanCode,
@@ -24,7 +24,7 @@ import {
 } from "@/lib/community/validate";
 import { cleanVisibility, forkBlocked } from "@/lib/community/visibility";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
-import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/sharePattern";
+import { LICENSE_OPTIONS, forkLicenseAllowed, stripShareWrapping } from "@/lib/pattern/share";
 
 // POST /api/community/patterns — publish (or fork-publish) a pattern.
 // GET  /api/community/patterns — one batch of the feed, for infinite scroll.

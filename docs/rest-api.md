@@ -4,7 +4,7 @@
 
 One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still lists sleep mode and the absolute parameter bus under `[Unreleased]`, since those entries are held back to release together with the performance-director firmware. The *code* shipped — the `v3.5.1` tag contains all of it, and the firmware tree has not changed since. Everything documented here is in a released build.
 
-Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. The Home Assistant integration in `integrations/homeassistant/` is built against this file. If you build another one, build it against this file, not against the firmware source.
+Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. Anything that drives a panel — a bridge, a card, a script — is built against this file, not against the firmware source.
 
 `docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. The MQTT topic layout is documented in the header comment of `firmware/patternflow/features/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 
@@ -297,7 +297,7 @@ Two orderings exist and they are not the same.
 - **Physical**: K1–K4 left to right on the front panel. This is what an encoder turn produces and what a person means.
 - **Logical**: the order patterns read parameters in (hue, speed, mode, freq/offset). `knobs[]` in a sidecar, the OSC and MQTT indices, and `InputFrame` are all logical.
 
-The mapping lives in `web/src/lib/patternflowControls.ts` as `LOGICAL_KNOB_TO_WEB_KNOB = ['c1','c2','c4','c3']` — note that K3 and K4 swap. Convert once, at the boundary of your client, and say in a comment which side of it you are on.
+The mapping lives in `web/src/lib/pattern/controls.ts` as `LOGICAL_KNOB_TO_WEB_KNOB = ['c1','c2','c4','c3']` — note that K3 and K4 swap. Convert once, at the boundary of your client, and say in a comment which side of it you are on.
 
 Scale constants live in the same file and are the contract for anything converting between a parameter value and encoder detents: `ENCODER_CLICKS_PER_TURN = 24`, `TURNS_PER_FULL_RANGE = 2` — so 48 detents cross a parameter's entire declared range, whatever that range is.
 

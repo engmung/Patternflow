@@ -6,7 +6,7 @@
 
 import { buildPixelPatternCode } from "../src/lib/lab/pixelToCode";
 import { createPixelLayer } from "../src/lib/lab/types";
-import { PatternRuntime, createIdleInput } from "../src/lib/patternHarness";
+import { PatternRuntime, createIdleInput } from "../src/lib/pattern/harness";
 
 const W = 128;
 const H = 64;

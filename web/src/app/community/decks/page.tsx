@@ -1,14 +1,14 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
-import { listDecksByUser, listPublicDecks } from "@/lib/community/queries";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { listDecksByUser, listPublicDecks } from "@/lib/community/server/queries";
 import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
-import { toDeckCardItem } from "@/lib/community/serialize";
+import { toDeckCardItem } from "@/lib/community/server/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import ShippedPackCard from "@/components/community/ShippedPackCard";
-import { SHIPPED_PACKS } from "@/lib/packs";
+import { SHIPPED_PACKS } from "@/lib/pattern/packs";
 import styles from "@/components/community/Community.module.css";
 
 // The shelf. Decks are ordered sets somebody staked a public slot on — two per

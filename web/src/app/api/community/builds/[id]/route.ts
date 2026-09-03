@@ -1,6 +1,6 @@
-import { getBuild, parseBuildPatterns, queuePosition } from "@/lib/community/builds";
+import { getBuild, parseBuildPatterns, queuePosition } from "@/lib/community/server/builds";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled } from "@/lib/community/db";
+import { communityEnabled } from "@/lib/community/server/db";
 
 // GET /api/community/builds/[id] — poll a build.
 //

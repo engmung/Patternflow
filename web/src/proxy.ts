@@ -65,10 +65,27 @@ function enPathFromKorean(pathname: string) {
   return normalizedPathname;
 }
 
+// The community API exists only where COMMUNITY_ENABLED=1 (the Pi). Every
+// route under /api/community checks that itself, thirty times over — and a
+// new route that forgets is open by default. This is the one place that
+// closes the door for all of them, whatever any single handler does. Same
+// test as lib/community/db.ts's communityEnabled(); duplicated rather than
+// imported because the proxy must not pull better-sqlite3 into its bundle.
+function communityApiClosed(pathname: string): boolean {
+  return pathname.startsWith("/api/community") && process.env.COMMUNITY_ENABLED !== "1";
+}
+
 export function proxy(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const pathname = normalizeJournalPath(request.nextUrl.pathname);
   const explicitLang = searchParams.get("lang");
+
+  if (communityApiClosed(pathname)) {
+    return NextResponse.json(
+      { error: "The community runs on its own host; this deployment does not serve it." },
+      { status: 404 },
+    );
+  }
 
   if (JOURNAL_ASSET_EXTENSION_PATTERN.test(pathname)) {
     return NextResponse.next();
@@ -105,5 +122,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/journal", "/journal/:path*"],
+  matcher: ["/journal", "/journal/:path*", "/api/community/:path*"],
 };

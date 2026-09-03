@@ -10,12 +10,12 @@ import {
   PatternRuntime,
   createIdleInput,
   knobTargetToDelta,
-} from "@/lib/patternHarness";
+} from "@/lib/pattern/harness";
 import {
   knobUnitsPerTurn,
   LOGICAL_KNOB_WRAP,
-} from "@/lib/patternflowControls";
-import { DEFAULT_MATRIX, parseMatrixAnnotation } from "@/lib/patternMatrix";
+} from "@/lib/pattern/controls";
+import { DEFAULT_MATRIX, parseMatrixAnnotation } from "@/lib/pattern/matrix";
 import {
   COLOR_MODES,
   GEMINI_MODEL,
@@ -25,13 +25,14 @@ import {
   saveGeminiKey,
   type ColorMode,
   type ThinkingLevelKey,
-} from "@/lib/gemini";
+} from "@/lib/ai/gemini";
 import { captureEvent } from "@/lib/posthogEvents";
 import { livePresets } from "@/lib/presets";
 import { rampStateToHarness } from "@/lib/lab/engine";
 import { useFocusCodeLayer, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer, type GalleryItem, type GenJob, type KnobRange } from "@/lib/lab/types";
 import styles from "../PatternLab.module.css";
+import local from "./GalleryPanel.module.css";
 import dock from "../LabPanels.module.css";
 
 const MAX_GALLERY = 48;
@@ -179,12 +180,12 @@ function VariantPreview({
   return (
     <button
       type="button"
-      className={`${styles.variantCard}${active && !selectMode ? ` ${styles.variantCardActive}` : ""}${selected ? ` ${styles.variantCardSelected}` : ""}`}
+      className={`${local.variantCard}${active && !selectMode ? ` ${local.variantCardActive}` : ""}${selected ? ` ${local.variantCardSelected}` : ""}`}
       onClick={onSelect}
       aria-pressed={selectMode ? selected : undefined}
       title={selectMode ? "Click to select" : "Click to load into the active code layer"}
     >
-      <div className={styles.variantFrame}>
+      <div className={local.variantFrame}>
         <canvas
           ref={canvasRef}
           width={cardMatrix.width}
@@ -192,14 +193,14 @@ function VariantPreview({
           style={{ aspectRatio: `${cardMatrix.width} / ${cardMatrix.height}` }}
           aria-label={`${name} preview`}
         />
-        {error && <div className={styles.variantError}>{error}</div>}
+        {error && <div className={local.variantError}>{error}</div>}
         {pinned && (
-          <span className={styles.pinBadge} aria-hidden="true">
+          <span className={local.pinBadge} aria-hidden="true">
             PIN
           </span>
         )}
         {selected && (
-          <span className={styles.selectBadge} aria-hidden="true">
+          <span className={local.selectBadge} aria-hidden="true">
             ✓
           </span>
         )}
@@ -207,7 +208,7 @@ function VariantPreview({
           <span
             role="button"
             tabIndex={0}
-            className={styles.pinBadge}
+            className={local.pinBadge}
             style={{ left: "auto", right: 4, cursor: "pointer" }}
             title="Add as a new layer on top of the stack"
             aria-label="Add as new layer"
@@ -227,7 +228,7 @@ function VariantPreview({
           </span>
         )}
       </div>
-      <div className={styles.variantMeta}>
+      <div className={local.variantMeta}>
         <strong>{name}</strong>
       </div>
     </button>
@@ -486,10 +487,10 @@ export default function GalleryPanel() {
       </div>
 
       <div className={dock.panelBody}>
-        <div className={styles.galleryPane}>
+        <div className={local.galleryPane}>
           {jobs.length > 0 && (
-            <div className={styles.queue}>
-              <div className={styles.queueHeader}>
+            <div className={local.queue}>
+              <div className={local.queueHeader}>
                 <span>Queue</span>
                 {jobs.some((job) => job.status !== "running") && (
                   <button
@@ -508,11 +509,11 @@ export default function GalleryPanel() {
                   </button>
                 )}
               </div>
-              <ul className={styles.queueList}>
+              <ul className={local.queueList}>
                 {jobs.map((job) => {
                   const elapsed = (job.finishedAt ?? Math.max(now, job.startedAt)) - job.startedAt;
                   return (
-                    <li key={job.id} className={styles.jobRow} data-status={job.status}>
+                    <li key={job.id} className={local.jobRow} data-status={job.status}>
                       {selectMode && (
                         <input
                           type="checkbox"
@@ -521,8 +522,8 @@ export default function GalleryPanel() {
                           aria-label="Select job"
                         />
                       )}
-                      <span className={styles.jobDot} aria-hidden />
-                      <span className={styles.jobLabel}>
+                      <span className={local.jobDot} aria-hidden />
+                      <span className={local.jobLabel}>
                         {job.status === "running"
                           ? `Generating ${job.count}…`
                           : job.status === "done"
@@ -531,11 +532,11 @@ export default function GalleryPanel() {
                         <em>{job.thinkingLevel.toLowerCase()}</em>
                       </span>
                       {job.status === "error" && job.error && (
-                        <span className={styles.jobError} title={job.error}>
+                        <span className={local.jobError} title={job.error}>
                           {job.error}
                         </span>
                       )}
-                      <span className={styles.jobTime}>{formatDuration(elapsed)}</span>
+                      <span className={local.jobTime}>{formatDuration(elapsed)}</span>
                     </li>
                   );
                 })}
@@ -544,10 +545,10 @@ export default function GalleryPanel() {
           )}
 
           {(gallery.length > 0 || jobs.length > 0) && (
-            <div className={styles.galleryToolbar}>
+            <div className={local.galleryToolbar}>
               {selectMode ? (
                 <>
-                  <button type="button" className={styles.toolbarActive} onClick={exitSelectMode}>
+                  <button type="button" className={local.toolbarActive} onClick={exitSelectMode}>
                     Done
                   </button>
                   <button
@@ -570,13 +571,13 @@ export default function GalleryPanel() {
                   </button>
                   <button
                     type="button"
-                    className={styles.deleteButton}
+                    className={local.deleteButton}
                     onClick={deleteSelected}
                     disabled={selected.size === 0}
                   >
                     Delete{selected.size > 0 ? ` (${selected.size})` : ""}
                   </button>
-                  <span className={styles.toolbarHint}>
+                  <span className={local.toolbarHint}>
                     {selected.size} selected — click items to toggle
                   </span>
                 </>
@@ -588,7 +589,7 @@ export default function GalleryPanel() {
                   {pinnedCount > 0 && pinnedCount < gallery.length && (
                     <button
                       type="button"
-                      className={styles.deleteButton}
+                      className={local.deleteButton}
                       onClick={() => setGallery((current) => current.filter((item) => item.pinned))}
                     >
                       Delete unpinned ({gallery.length - pinnedCount})
@@ -607,7 +608,7 @@ export default function GalleryPanel() {
               </p>
             )
           ) : (
-            <ol className={styles.galleryGrid}>
+            <ol className={local.galleryGrid}>
               {[...gallery]
                 .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
                 .map((item) => (
@@ -653,7 +654,7 @@ export default function GalleryPanel() {
                 in this browser (localStorage) and sent directly to Google — never to our servers.
               </p>
               <input
-                className={`${styles.keyField} ph-no-capture`}
+                className={`${local.keyField} ph-no-capture`}
                 type="password"
                 autoComplete="off"
                 spellCheck={false}

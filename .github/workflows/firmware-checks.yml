@@ -24,6 +24,7 @@ on:
       - "firmware/bundles/**"
       - "firmware/modules/**"
       - "firmware/toolchain/**"
+      - "web/src/lib/presets/**"
       - ".github/workflows/firmware-checks.yml"
   push:
     branches: [main]
@@ -53,3 +54,5 @@ jobs:
         run: python firmware/toolchain/check_abi_freeze.py
       - name: No mangled literals or raw control bytes
         run: python firmware/toolchain/check_sources.py
+      - name: Web and firmware presets are still twins
+        run: python firmware/toolchain/check_presets.py

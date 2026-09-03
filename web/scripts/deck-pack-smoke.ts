@@ -22,8 +22,8 @@
 
 import { unzipSync, zipSync } from "fflate";
 
-import { decoratePackWithPerformance, fingerprintDeck } from "../src/lib/community/deckZip";
-import { decodePfst } from "../src/lib/community/performance";
+import { decoratePackWithPerformance, fingerprintDeck } from "../src/lib/community/server/deckZip";
+import { decodePfst } from "../src/lib/pattern/pfst";
 
 let failures = 0;
 function check(label: string, actual: unknown, expected: unknown) {

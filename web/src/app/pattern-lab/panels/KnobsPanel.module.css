@@ -1,0 +1,181 @@
+/* ── KnobsPanel: its own classes ─────────────────────────────────────────
+   Moved out of PatternLab.module.css on 2026-09; only this file uses them. */
+
+.controls {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* Two lines per knob: name · value · push on top, then a full-width slider
+   flanked by its min/max fields — long enough to tune precisely. */
+.knobLine {
+  display: grid;
+  gap: 4px;
+}
+
+.knobHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.knobName {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.knobSlider {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) 60px;
+  align-items: center;
+  gap: 8px;
+}
+
+.knobSlider input[type="range"] {
+  width: 100%;
+  accent-color: #171512;
+}
+
+.knobValue {
+  margin-left: auto;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.knobButton {
+  min-height: 24px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 8px;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.knobButton:hover {
+  border-color: #171512;
+}
+
+.knobButton:active {
+  background: #171512;
+  color: #f7f3ea;
+  border-color: #171512;
+}
+
+.rangeValue {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 24px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  background: #ffffff;
+  color: #171512;
+  padding: 0 5px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+  user-select: none;
+}
+
+.rangeInput {
+  width: 100%;
+  min-height: 24px;
+  border: 1px solid #171512;
+  background: #ffffff;
+  color: #171512;
+  padding: 0 5px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}
+
+.rangeInput:focus {
+  outline: 1px solid #171512;
+  outline-offset: 1px;
+}
+
+.rangeDigit,
+.rangeStatic {
+  display: inline-flex;
+  align-items: center;
+  min-width: 6px;
+  min-height: 22px;
+}
+
+.rangeExtra {
+  min-width: 0;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rangeValue:not(.anyRangeDragging):hover .rangeExtra,
+.rangeValue:focus-within .rangeExtra,
+.rangeDragging .rangeExtra {
+  min-width: 7px;
+  width: auto;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.rangeDigit {
+  cursor: ns-resize;
+}
+
+.rangeDigit:hover {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+.rangeDigit:active {
+  background: #171512;
+  color: #f7f3ea;
+}
+
+@media (max-width: 980px) {
+  /* Compact mobile knob rows: reduced gaps and vertical height. */
+  .controls {
+      gap: 6px;
+      margin-top: 10px;
+    }
+  
+  .knobLine {
+      gap: 2px;
+      padding: 6px 8px;
+      background: rgba(23, 21, 18, 0.03);
+      border-radius: 6px;
+    }
+  
+  .knobHead {
+      gap: 6px;
+    }
+  
+  .knobSlider {
+      grid-template-columns: 48px minmax(0, 1fr) 48px;
+      gap: 4px;
+    }
+  
+  .knobSlider input[type="range"] {
+      min-height: 22px;
+    }
+  
+  .knobButton {
+      min-height: 22px;
+      padding: 0 6px;
+      font-size: 10px;
+    }
+  
+  .rangeValue,
+    .rangeInput {
+      min-height: 22px;
+      font-size: 11px;
+    }
+  }

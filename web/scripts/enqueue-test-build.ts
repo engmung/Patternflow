@@ -14,9 +14,9 @@ import { loadEnv } from "./loadEnv";
 loadEnv();
 
 async function main() {
-  const { enqueueBuild } = await import("../src/lib/community/builds");
-  const { getDb } = await import("../src/lib/community/db");
-  const { user } = await import("../src/lib/community/schema");
+  const { enqueueBuild } = await import("../src/lib/community/server/builds");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const { user } = await import("../src/lib/community/server/schema");
 
   const args = process.argv.slice(2);
   const pfm = args.includes("--pfm");
