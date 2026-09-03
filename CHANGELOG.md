@@ -8,7 +8,7 @@ All notable changes to Patternflow will be documented in this file.
 
 ### Added — core
 - **Dual-core FreeRTOS network offloading & non-blocking Wi-Fi auto-reconnect.** Network, HTTP server servicing (`PatternflowHttp`, OTA, Improv), and Wi-Fi background maintenance (`PatternflowWifi::tick()`) are offloaded to a dedicated FreeRTOS worker task (`pf-net`) pinned to Core 0 with a tuned 3 KB stack. Core 1 remains exclusively dedicated to real-time 60 FPS HUB75 LED rendering, ensuring visual animation never stutters during Wi-Fi reconnection or heavy web console traffic.
-- **Web Console Live Knobs Sliders.** Added mobile-optimized, responsive real-time sliders for K1–K4 (0..100) on the console home dashboard (`home.html`), powered by an in-flight non-blocking request queue and dual-mode dispatch (injecting both absolute values and relative deltas) for seamless compatibility across both modern and legacy patterns.
+- **Web Console Live Knobs Sliders.** Added mobile-optimized, responsive real-time sliders for K1–K4 on the console home dashboard (`home.html`), designed with a clean, number-free aesthetic and powered by an in-flight non-blocking request queue and dual-mode dispatch (injecting both absolute values and relative deltas) for seamless compatibility across both modern and legacy patterns.
 - **Quick pattern stepping & home console stepper buttons.** Added `GET /api/patterns/select?step=+1|-1` endpoint to step through installed patterns while automatically skipping hidden entries. Injected responsive `←` and `→` quick-stepper buttons right next to the "Now playing" title on the console home dashboard (`home.html`), allowing one-touch browsing of patterns without navigating away to the library page.
 
 ### Added — Audio edition v0.5.1

@@ -66,8 +66,7 @@
   .ctrls{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
   .ctrls-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px}
   .ctrls-k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
-  .ctrls-hint{font-family:var(--mono);font-size:10px;color:var(--faint)}
-  .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .slider-row:last-child{margin-bottom:0}
   .s-label{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);width:20px;flex:none}
   .slider-row input[type=range]{
@@ -84,7 +83,6 @@
   .slider-row input[type=range]::-moz-range-thumb{
     width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid var(--led);cursor:pointer
   }
-  .s-val{font-family:var(--mono);font-size:11.5px;color:var(--ink);width:32px;text-align:right;flex:none}
 
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:16px}
   .stat{padding:10px 0 9px;border-top:1px solid var(--rule)}
@@ -176,27 +174,22 @@
     <div class="ctrls" id="ctrls">
       <div class="ctrls-hdr">
         <span class="ctrls-k">Live Knobs</span>
-        <span class="ctrls-hint mono">K1–K4 · 0..100</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K1</span>
         <input type="range" class="pf-slider" id="sl-0" min="0" max="100" step="1" value="50">
-        <span class="s-val" id="sv-0">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K2</span>
         <input type="range" class="pf-slider" id="sl-1" min="0" max="100" step="1" value="50">
-        <span class="s-val" id="sv-1">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K3</span>
         <input type="range" class="pf-slider" id="sl-2" min="0" max="100" step="1" value="50">
-        <span class="s-val" id="sv-2">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K4</span>
         <input type="range" class="pf-slider" id="sl-3" min="0" max="100" step="1" value="50">
-        <span class="s-val" id="sv-3">50</span>
       </div>
     </div>
 
@@ -461,10 +454,9 @@ function updateSliders(params) {
     if (activeSlider === i) continue;
     var v = Math.round(params[i] / 10);
     if (v < 0) v = 0; if (v > 100) v = 100;
-    var sl = $('sl-' + i), sv = $('sv-' + i);
-    if (sl && sv) {
+    var sl = $('sl-' + i);
+    if (sl) {
       sl.value = v;
-      sv.textContent = v;
       lastReported[i] = v;
     }
   }
@@ -513,7 +505,7 @@ function onSliderInput(idx, val) {
 function initSliders() {
   for (var i = 0; i < 4; i++) {
     (function(idx) {
-      var sl = $('sl-' + idx), sv = $('sv-' + idx);
+      var sl = $('sl-' + idx);
       if (!sl) return;
       var onStart = function() { activeSlider = idx; };
       var onEnd = function() {
@@ -526,7 +518,6 @@ function initSliders() {
       window.addEventListener('mouseup', onEnd);
       sl.addEventListener('input', function() {
         var v = sl.value;
-        if (sv) sv.textContent = v;
         onSliderInput(idx, v);
       });
     })(i);
