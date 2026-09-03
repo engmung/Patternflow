@@ -4,7 +4,7 @@
 
 One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still lists sleep mode and the absolute parameter bus under `[Unreleased]`, since those entries are held back to release together with the performance-director firmware. The *code* shipped — the `v3.5.1` tag contains all of it, and the firmware tree has not changed since. Everything documented here is in a released build.
 
-Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. The Home Assistant integration in `integrations/homeassistant/` is built against this file. If you build another one, build it against this file, not against the firmware source.
+Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. Anything that drives a panel — a bridge, a card, a script — is built against this file, not against the firmware source.
 
 `docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. The MQTT topic layout is documented in the header comment of `firmware/patternflow/features/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 

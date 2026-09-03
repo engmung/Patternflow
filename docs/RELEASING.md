@@ -33,8 +33,8 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
    git push origin dev && git push --tags
    ```
 
-9. Create the GitHub Release from the tag. Publishing it triggers two workflows: **Firmware release assets** attaches the four flash images from the tag plus a generated `FLASHING.md` with offsets and hashes, and **Home Assistant Release** attaches `patternflow-homeassistant.zip`.
-10. Confirm both went green before announcing. HACS points at the newest release of the whole repository regardless of what the release changed, so a release without the Home Assistant asset is one HACS offers and then fails to download. Re-run either with `workflow_dispatch` if it did not fire.
+9. Create the GitHub Release from the tag. Publishing it triggers **Firmware release assets**, which attaches the four flash images from the tag plus a generated `FLASHING.md` with offsets and hashes.
+10. Confirm it went green before announcing; re-run it with `workflow_dispatch` if it did not fire.
 
 ## Current release line
 

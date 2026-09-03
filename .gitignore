@@ -100,10 +100,6 @@ firmware/patternflow/data/patterns/
 # Python bytecode from the firmware toolchain scripts
 __pycache__/
 
-# setuptools metadata from `pip install` in integrations/homeassistant. That
-# pyproject exists only to pin the dev tooling — nothing is ever built from it.
-*.egg-info/
-.pytest_cache/
 
 # PlatformIO (firmware/patternflow) — generated/cloned, never committed
 .pio/
