@@ -191,27 +191,27 @@ const char HOME_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
     <div class="ctrls" id="ctrls">
       <div class="ctrls-hdr">
         <span class="ctrls-k">Live Knobs</span>
-        <span class="ctrls-hint mono">K1–K4 · 0..1000</span>
+        <span class="ctrls-hint mono">K1–K4 · 0..100</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K1</span>
-        <input type="range" class="pf-slider" id="sl-0" min="0" max="1000" step="1" value="500">
-        <span class="s-val" id="sv-0">500</span>
+        <input type="range" class="pf-slider" id="sl-0" min="0" max="100" step="1" value="50">
+        <span class="s-val" id="sv-0">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K2</span>
-        <input type="range" class="pf-slider" id="sl-1" min="0" max="1000" step="1" value="500">
-        <span class="s-val" id="sv-1">500</span>
+        <input type="range" class="pf-slider" id="sl-1" min="0" max="100" step="1" value="50">
+        <span class="s-val" id="sv-1">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K3</span>
-        <input type="range" class="pf-slider" id="sl-2" min="0" max="1000" step="1" value="500">
-        <span class="s-val" id="sv-2">500</span>
+        <input type="range" class="pf-slider" id="sl-2" min="0" max="100" step="1" value="50">
+        <span class="s-val" id="sv-2">50</span>
       </div>
       <div class="slider-row">
         <span class="s-label">K4</span>
-        <input type="range" class="pf-slider" id="sl-3" min="0" max="1000" step="1" value="500">
-        <span class="s-val" id="sv-3">500</span>
+        <input type="range" class="pf-slider" id="sl-3" min="0" max="100" step="1" value="50">
+        <span class="s-val" id="sv-3">50</span>
       </div>
     </div>
 
@@ -464,42 +464,65 @@ function checkUpdate(deviceVersion,variant){
     }).catch(function(){/* offline LAN or no CORS — say nothing */});
 }
 
-// ── Live parameter sliders (K1..K4) ──────────────────────────
+// ── Live parameter sliders (K1..K4 · 0..100) ──────────────────
 var activeSlider = -1;
-var sliderSendTimer = null;
-var pendingParams = [null, null, null, null];
+var inFlight = false;
+var queuedParams = {};
+var lastReported = [50, 50, 50, 50];
 
 function updateSliders(params) {
   if (!params || params.length < 4) return;
   for (var i = 0; i < 4; i++) {
     if (activeSlider === i) continue;
+    var v = Math.round(params[i] / 10);
+    if (v < 0) v = 0; if (v > 100) v = 100;
     var sl = $('sl-' + i), sv = $('sv-' + i);
     if (sl && sv) {
-      sl.value = params[i];
-      sv.textContent = params[i];
+      sl.value = v;
+      sv.textContent = v;
+      lastReported[i] = v;
     }
   }
 }
 
-function sendParam(idx, val) {
-  pendingParams[idx] = val;
-  if (sliderSendTimer) clearTimeout(sliderSendTimer);
-  sliderSendTimer = setTimeout(function() {
-    var qs = [];
-    for (var i = 0; i < 4; i++) {
-      if (pendingParams[i] !== null) {
-        qs.push('p' + (i + 1) + '=' + pendingParams[i]);
-        pendingParams[i] = null;
-      }
+function pumpParams() {
+  if (inFlight) return; // Drop redundant updates while in-flight; keep newest in queue
+  var keys = Object.keys(queuedParams);
+  if (!keys.length) return;
+
+  var bodyParts = [];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    bodyParts.push(k + '=' + encodeURIComponent(queuedParams[k]));
+  }
+  queuedParams = {};
+  inFlight = true;
+
+  fetch('/api/params', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: bodyParts.join('&')
+  }).catch(function() {
+  }).finally(function() {
+    inFlight = false;
+    if (Object.keys(queuedParams).length) {
+      pumpParams(); // Flush pending latest updates
     }
-    if (qs.length) {
-      fetch('/api/params', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: qs.join('&')
-      }).catch(function() {});
-    }
-  }, 40);
+  });
+}
+
+function onSliderInput(idx, val) {
+  var v = parseInt(val, 10);
+  if (isNaN(v)) return;
+  var d = v - lastReported[idx];
+  lastReported[idx] = v;
+
+  // pX (0..1000 for modern PFParams) + dX (relative delta for legacy patterns)
+  queuedParams['p' + (idx + 1)] = v * 10;
+  queuedParams['d' + (idx + 1)] = (queuedParams['d' + (idx + 1)] || 0) + d;
+
+  pumpParams();
 }
 
 function initSliders() {
@@ -508,7 +531,10 @@ function initSliders() {
       var sl = $('sl-' + idx), sv = $('sv-' + idx);
       if (!sl) return;
       var onStart = function() { activeSlider = idx; };
-      var onEnd = function() { activeSlider = -1; };
+      var onEnd = function() {
+        activeSlider = -1;
+        pumpParams();
+      };
       sl.addEventListener('touchstart', onStart, {passive: true});
       sl.addEventListener('touchend', onEnd, {passive: true});
       sl.addEventListener('mousedown', onStart);
@@ -516,7 +542,7 @@ function initSliders() {
       sl.addEventListener('input', function() {
         var v = sl.value;
         if (sv) sv.textContent = v;
-        sendParam(idx, v);
+        onSliderInput(idx, v);
       });
     })(i);
   }

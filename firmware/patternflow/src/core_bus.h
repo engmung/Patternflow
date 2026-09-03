@@ -37,6 +37,7 @@ namespace PatternflowBus {
 inline bool paramHeld[4] = {false, false, false, false};
 inline uint16_t paramValue[4] = {500, 500, 500, 500};
 inline uint32_t paramHeldAtMs[4] = {0, 0, 0, 0};
+inline int16_t pendingDelta[4] = {0, 0, 0, 0};
 
 // Last finished frame's knob positions, kept so the core can answer
 // "where are the knobs" over HTTP. Absolute accumulated clicks, the
@@ -46,11 +47,27 @@ inline long knobValue[4] = {0, 0, 0, 0};
 // Ignore encoder chatter briefly after an absolute set (Director spam / noise).
 constexpr uint32_t ABSOLUTE_RELEASE_GRACE_MS = 250;
 
+inline void applyRemoteDelta(int index, int delta) {
+  if (index < 0 || index > 3) return;
+  pendingDelta[index] += delta;
+}
+
 // Write one channel and hold it. The only way a value enters the bus.
 inline void applyRemoteParam(int index, long value) {
   if (index < 0 || index > 3) return;
   if (value < 0) value = 0;
   if (value > PF_BUS_MAX) value = PF_BUS_MAX;
+
+  // Track delta for legacy patterns that only read knobDeltas:
+  if (paramHeld[index]) {
+    int diff = (int)value - (int)paramValue[index];
+    if (diff != 0) {
+      int d = diff / 10;
+      if (d == 0) d = (diff > 0) ? 1 : -1;
+      pendingDelta[index] += d;
+    }
+  }
+
   paramHeld[index] = true;
   paramValue[index] = (uint16_t)value;
   paramHeldAtMs[index] = millis();
@@ -64,12 +81,14 @@ inline void releaseAbsolute(int index) {
     return;
   }
   paramHeld[index] = false;
+  pendingDelta[index] = 0;
 }
 
 inline void clearAbsoluteAll() {
   for (int i = 0; i < 4; ++i) {
     paramHeld[i] = false;
     paramHeldAtMs[i] = 0;
+    pendingDelta[i] = 0;
   }
 }
 
@@ -122,7 +141,14 @@ inline void fillAbsolute(InputFrame& input) {
     input.paramAbsoluteActive[i] = paramHeld[i];
     input.paramAbsolute[i] = paramValue[i];
     if (paramHeld[i]) {
-      input.knobDeltas[i] = 0;
+      // If there is pending remote delta, inject it into knobDeltas
+      // so legacy patterns that don't read paramAbsolute still respond!
+      if (pendingDelta[i] != 0) {
+        input.knobDeltas[i] += pendingDelta[i];
+        pendingDelta[i] = 0;
+      } else {
+        input.knobDeltas[i] = 0;
+      }
       input.knobAudioActive[i] = false;
     }
   }
