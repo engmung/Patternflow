@@ -26,7 +26,7 @@
 // postMessage. This is the community's XSS boundary — never embed this page
 // with allow-same-origin, and never eval community code outside this page.
 //
-// The runtime mirrors web/src/lib/patternHarness.ts (compile semantics,
+// The runtime mirrors web/src/lib/pattern/harness.ts (compile semantics,
 // setPixel/setValue, knob input shape). Keep the two in sync when the pattern
 // contract changes.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ var DETENTS_PER_TURN = 20;
 
 // ── @matrix ─────────────────────────────────────────────────────────────────
 // A pattern carries the pixel grid it was composed for as a comment line (see
-// web/src/lib/patternMatrix.ts — keep the two parsers in sync). Without this,
+// web/src/lib/pattern/matrix.ts — keep the two parsers in sync). Without this,
 // a 64×128 pattern would be rendered into a 128×64 canvas and come out cropped.
 var MATRIX_LINE_RE = /^[ \t]*\/\/[ \t]*@matrix[ \t]+(\d{1,4})[ \t]*[x×*][ \t]*(\d{1,4})[ \t]*$/m;
 var MATRIX_MIN = 8;
@@ -65,9 +65,9 @@ function clampByte(v) {
 }
 
 // ── Color ramp ──────────────────────────────────────────────────────────────
-// Full port of the harness ramp (patternHarness.ts): 5 interpolation modes,
+// Full port of the harness ramp (lib/pattern/harness.ts): 5 interpolation modes,
 // cyclic wrap, and the recolor post-pass. Shared patterns carry their ramp as
-// a `// @ramp …` comment line (see web/src/lib/patternRamp.ts — keep the two
+// a `// @ramp …` comment line (see web/src/lib/pattern/ramp.ts — keep the two
 // parsers in sync); without one, a default lab ramp keeps setValue()
 // output presentable.
 
@@ -103,7 +103,7 @@ function hsvToRgbTuple(h, s, v) {
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
-// ── OKLab / OKLCH (port of patternHarness.ts — keep in sync) ────────────────
+// ── OKLab / OKLCH (port of lib/pattern/harness.ts — keep in sync) ────────────────
 // Perceptual interpolation: sRGB/HSV blends drift in lightness; OKLab keeps it
 // honest, OKLCH follows the hue arc. Out-of-gamut blends are pulled back by
 // reducing chroma at constant L and hue (never per-channel clipping).
