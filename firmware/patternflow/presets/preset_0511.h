@@ -67,17 +67,17 @@ void draw() {float time = params.timeAcc;
 
     for (int y = 0; y < PANEL_RES_H; y++) {
         float rowIdx = floorf(y / rh);
-        float ly = fmodf((float)(y), (float)(rh));
+        float ly = PFMath::jsMod((float)(y), (float)(rh));
         float halfRh = (int)(rh) >> 1;
         
         // Each row has a unique speed and direction based on its index
-        float speedMult = (fmodf((float)(rowIdx), (float)(2.0f)) == 0 ? 1 : -1) * ((fmodf((float)(rowIdx), (float)(3.0f))) * 0.5f + 0.5f);
+        float speedMult = (PFMath::jsMod((float)(rowIdx), (float)(2.0f)) == 0 ? 1 : -1) * ((PFMath::jsMod((float)(rowIdx), (float)(3.0f))) * 0.5f + 0.5f);
         float rowOffset = t * 20.0f * speedMult;
 
         for (int x = 0; x < PANEL_RES_W; x++) {
             float adjX = x + rowOffset;
             float segIdx = floorf(adjX / sw);
-            float lx = floorf(fmodf((float)(adjX), (float)(sw)));
+            float lx = floorf(PFMath::jsMod((float)(adjX), (float)(sw)));
             if (lx < 0) lx += sw; // JS modulo fix for negative numbers
             
             float halfSw = (int)(sw) >> 1;
@@ -101,12 +101,12 @@ void draw() {float time = params.timeAcc;
                 if (ly > halfRh - 2 && ly < halfRh + 2 && lx < sw * 0.8f) { draw = true; hOffset = 0.0f; }
             } else if (val < 0.4f) {
                 // Caution Chevrons
-                if (fmodf((float)((lx + ly)), (float)(6.0f)) < 3) { draw = true; hOffset = 0.2f; }
+                if (PFMath::jsMod((float)((lx + ly)), (float)(6.0f)) < 3) { draw = true; hOffset = 0.2f; }
             } else if (val < 0.6f) {
                 // Empty Space (Spacing block)
             } else if (val < 0.8f) {
                 // Data nodes (Dots)
-                if (fmodf((float)(lx), (float)(4.0f)) == 0 && fmodf((float)(ly), (float)(4.0f)) == 0) { draw = true; hOffset = 0.6f; }
+                if (PFMath::jsMod((float)(lx), (float)(4.0f)) == 0 && PFMath::jsMod((float)(ly), (float)(4.0f)) == 0) { draw = true; hOffset = 0.6f; }
             } else {
                 // Signal waveform (Sine within segment)
                 float waveY = halfRh + PFMath::fastSin(lx * 0.5f) * (halfRh - 1);
@@ -120,7 +120,7 @@ void draw() {float time = params.timeAcc;
             }
 
             if (draw) {
-                uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(fmodf((float)((params.hueBase + hOffset)), (float)(1.0f)), 0.9f, 1.0f, rgb_r, rgb_g, rgb_b);
+                uint8_t rgb_r, rgb_g, rgb_b; PFColor::hsvToRgb(PFMath::jsMod((float)((params.hueBase + hOffset)), (float)(1.0f)), 0.9f, 1.0f, rgb_r, rgb_g, rgb_b);
                 r = rgb_r; g = rgb_g; b = rgb_b;
             }
             PFCanvas::setPixel(x, y, r, g, b);

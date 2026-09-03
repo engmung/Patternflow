@@ -93,7 +93,7 @@ float globalTime = params.time;
       
       // Calculate a distinct phase per cell grid structural group
       float wavePhase = params.time + cellX * 0.4f + cellY * 0.3f;
-      if (fmodf((float)(cellX), (float)(2.0f)) == 0) {
+      if (PFMath::jsMod((float)(cellX), (float)(2.0f)) == 0) {
         wavePhase += params.phaseSplit;
       }
 
@@ -101,8 +101,8 @@ float globalTime = params.time;
       float signal = PFMath::fastSin(wavePhase) * 0.5f + 0.5f;
       
       // Determine if this pixel is part of the core cell or its shell boundary
-      int localX = fmodf((float)(x), (float)(size));
-      int localY = fmodf((float)(y), (float)(size));
+      int localX = PFMath::jsMod((float)(x), (float)(size));
+      int localY = PFMath::jsMod((float)(y), (float)(size));
       bool isEdge = (localX == 0 || localX == size - 1 || localY == 0 || localY == size - 1);
       
       int bright = 0;

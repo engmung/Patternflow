@@ -87,7 +87,7 @@ void draw() {
 
             if (bitActive) {
                 float hu = smoothS * 0.3f + 0.5f + (float)(patternVal % 16) / 32.0f;
-                hu = fmodf(hu, 1.0f);
+                hu = PFMath::jsMod(hu, 1.0f);
                 if (hu < 0.0f) hu += 1.0f;
 
                 PFColor::hsvToRgb(hu, hsv_s, hsv_v, r, g, b);

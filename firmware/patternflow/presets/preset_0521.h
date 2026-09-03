@@ -97,11 +97,11 @@ float time = params.timeAcc;
     }
 
     for (int x = 0; x < w; x++) {
-      int sx = floorf((fmodf((float)((x + hShift + w)), (float)(w))) / pSize) * pSize;
+      int sx = floorf((PFMath::jsMod((float)((x + hShift + w)), (float)(w))) / pSize) * pSize;
       int sy = floorf(y / pSize) * pSize;
 
       float streamSeed = PFMath::fastSin(floorf(sx / 8) * 54.12f) * 0.5f + 0.5f;
-      int drop = floorf(fmodf((float)((sy / 4 - t * (0.6f + streamSeed * 0.4f))), (float)(16.0f)));
+      int drop = floorf(PFMath::jsMod((float)((sy / 4 - t * (0.6f + streamSeed * 0.4f))), (float)(16.0f)));
       if (drop < 0) drop += 16;
       int rainMass = drop < 6 ? 1.0f : 0.0f;
 
@@ -115,8 +115,8 @@ float time = params.timeAcc;
       float bgWave = PFMath::fastSin(sqrtf(cx * cx + cy * cy) * 0.15f - t) * 0.25f;
       totalSignal += bgWave;
 
-      int mx = fmodf((float)(x), (float)(4.0f));
-      int my = fmodf((float)(y), (float)(4.0f));
+      int mx = PFMath::jsMod((float)(x), (float)(4.0f));
+      int my = PFMath::jsMod((float)(y), (float)(4.0f));
       float thresh = ditherPattern[my * 4 + mx] / 16.0f;
 
       uint8_t r = 0, g = 0, b = 0;

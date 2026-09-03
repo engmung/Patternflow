@@ -107,7 +107,7 @@ float time = params.timeAcc;
       float hue = hueBase;
       if (m1 > 0 && m2 > 0) {
         // overlap gives a bright highlight and different hue
-        hue = fmodf((float)((hueBase + 0.5f)), (float)(1.0f));
+        hue = PFMath::jsMod((float)((hueBase + 0.5f)), (float)(1.0f));
         intensity = 1.2f;
       } else if (m1 > 0) {
         hue = hueBase;

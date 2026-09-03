@@ -92,7 +92,7 @@ constexpr bool ABSOLUTE_READY = true;
 
         for (int curve = 0; curve < numCurves; curve++) {
             float curvePhase = ((float)curve / numCurves) * 3.14159265f * 2.0f;
-            float hue = fmodf((float)curve / numCurves + t * 0.01f, 1.0f);
+            float hue = PFMath::jsMod((float)curve / numCurves + t * 0.01f, 1.0f);
             if (hue < 0.0f) hue += 1.0f;
 
             for (int i = 0; i < points; i++) {

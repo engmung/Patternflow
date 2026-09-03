@@ -111,7 +111,7 @@ void draw() {float time = params.timeAcc;
             float absNx = abs(nx);
 
             uint8_t r = 0, g = 0, b = 0;
-            float mask = fmodf((float)((gx + gy)), (float)(2.0f)) == 0;
+            float mask = PFMath::jsMod((float)((gx + gy)), (float)(2.0f)) == 0;
             
             if (mask) {
                 if (absNx < 0.3f && absNy < 0.3f) {

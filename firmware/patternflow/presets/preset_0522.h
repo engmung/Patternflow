@@ -107,7 +107,7 @@ float time = params.timeAcc;
 
       // 3. Calculate scrolling bits on warped space
       float cellSeed = PFMath::fastSin(floorf(sy / 5) * 62.19f) * 0.5f + 0.5f;
-      int flow = floorf(fmodf((float)((sx / 4 - t * (1.1f + cellSeed * 0.3f))), (float)(16.0f)));
+      int flow = floorf(PFMath::jsMod((float)((sx / 4 - t * (1.1f + cellSeed * 0.3f))), (float)(16.0f)));
       if (flow < 0) flow += 16;
       float gateMass = flow < 4 ? 1.0f : 0.0f;
 
@@ -119,8 +119,8 @@ float time = params.timeAcc;
       float spaceWave = PFMath::fastSin(sqrtf(dx * dx + dy * dy) * 0.12f - t) * 0.2f;
       totalSignal += spaceWave;
 
-      int mx = fmodf((float)(x), (float)(4.0f));
-      int my = fmodf((float)(y), (float)(4.0f));
+      int mx = PFMath::jsMod((float)(x), (float)(4.0f));
+      int my = PFMath::jsMod((float)(y), (float)(4.0f));
       float thresh = ditherPattern[my * 4 + mx] / 16.0f;
 
       uint8_t r = 0, g = 0, b = 0;
@@ -128,7 +128,7 @@ float time = params.timeAcc;
         if (gateMass > 0.0f && (sx == 0 || sy == 0)) {
           // Pass psychedelic neon sky blue beam through vertex centerline of mirror symmetry
           r = 0; g = 220; b = 255;
-        } else if (bitField > 0.0f && fmodf((float)((sx * sy)), (float)(3.0f)) == 0) {
+        } else if (bitField > 0.0f && PFMath::jsMod((float)((sx * sy)), (float)(3.0f)) == 0) {
           // Flash neon violet/magenta at orthogonal high-dimension node blocks
           r = 255; g = 0; b = 180;
         } else {

@@ -4,6 +4,17 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.9.3] - 2026-09-03
+
+### Changed — core
+- **Rebuilding the pattern list no longer stops the render for two seconds.** After an install batch, and on deleting the module that is drawing, the registry rescanned `/patterns` and opened every module's sidecar twice; with forty modules that was 2.4 s with the frame held (3.9.1's `loopSyncMaxUs` put the number on it). The sidecar's two facts are now cached by path and forgotten only by the writer that changed them (upload, delete, format, library pull), and the scan reads the directory with `readdir` instead of opening every entry to build a `File`. Deleting the drawing module answers in 0.29 s where it took 2.4; the render pauses 55 ms where it paused 2,160. Boot still reads every sidecar, once.
+- **`PFMath::jsMod` — JavaScript's `%` without `fmodf`.** A pattern ported from the lab reached for `fmodf` on every pixel for a hue wrap like `(h + 0.33) % 1`, and in a module that is a call into the host's libm. `jsMod(x, m)` is one division and one truncation with JS's sign rule; the 22 preset twins that used `fmodf` (52 calls) now use it, and the lab's C++ prompt says to. `0510` rebuilt: 20.8 → 17.9 ms a frame.
+- **The frame push writes two columns at a time.** Adjacent columns share one aligned 32-bit word in every plane, so the blit does one read-modify-write per plane for two pixel pairs instead of two; the CIE table it sums on-time from lives in DRAM, and the function in IRAM. Bit-exact, like 3.9.2's tables. 7.0 → 6.9 ms; the DMA engine's own reads of that memory are what remains.
+
+### Added
+- **Firmware compiled in CI.** `.github/workflows/firmware-build.yml` runs `firmware/bundles/build.sh all` — default, audio, performance and the marker scan that proves each image carries exactly its features — on every pull request that touches `firmware/`, with the PlatformIO packages cached. Until now the checks in CI were greps; the compiler ran at a desk.
+- **Edition write-ups are releases too.** The firmware-release workflow no longer fails on a tag that is not a core `vX.Y.Z`; an edition's own release (`audio-v0.5.3`) attaches its image by hand from the shelf. The first one is the Audio edition's, and a journal post (draft) says the same in the site's voice.
+
 ## [3.9.2] - 2026-09-03
 
 ### Changed — core

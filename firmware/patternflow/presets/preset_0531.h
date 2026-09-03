@@ -93,7 +93,7 @@ float globalTime = params.time;
       float compositeSignal = (n1 + n2 + n3) / 3.0f * 0.5f + 0.5f; // Normalized 0 to 1
       
       // Map to 5 distinct discrete material color bands
-      float evaluationVal = fmodf((float)((compositeSignal + params.colorShift)), (float)(1.0f));
+      float evaluationVal = PFMath::jsMod((float)((compositeSignal + params.colorShift)), (float)(1.0f));
       int bandIndex = floorf(evaluationVal * 5);
       
       uint8_t r = 0, g = 0, b = 0;

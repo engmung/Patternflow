@@ -112,7 +112,7 @@ float time = params.timeAcc;
     float bandFract = (y * params.bands) - bandId;
     
     // Alternate direction and speed per band
-    float dir = (fmodf((float)(bandId), (float)(2.0f)) == 0) ? 1 : -1;
+    float dir = (PFMath::jsMod((float)(bandId), (float)(2.0f)) == 0) ? 1 : -1;
     float bandSpeed = dir * (1.0f + noise2D(bandId, 0.0f) * 2.0f) * t;
     
     // Shear offset based on band noise
@@ -123,7 +123,7 @@ float time = params.timeAcc;
       float n = noise2D(shearedX * 0.05f, y * 0.05f);
       
       // Color logic: alternating bands use split complementary hues
-      float localHue = (fmodf((float)(bandId), (float)(2.0f)) == 0) ? n * 0.2f : params.split + n * 0.2f;
+      float localHue = (PFMath::jsMod((float)(bandId), (float)(2.0f)) == 0) ? n * 0.2f : params.split + n * 0.2f;
       
       // Add a slight darkening at the edges of the bands to separate them
       float edgeDarken = PFMath::fastSin(bandFract * PI);

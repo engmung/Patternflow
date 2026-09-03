@@ -399,7 +399,7 @@ void draw() {
             float u = (float)y;
             float v = (float)(W - 1 - x);
 
-            float val = 0.03f + 0.02f * fmodf(v, 2.0f) + flash * 0.15f;
+            float val = 0.03f + 0.02f * PFMath::jsMod(v, 2.0f) + flash * 0.15f;
 
             if (u < 1.0f || u > vw - 2.0f) val = 0.3f;
 

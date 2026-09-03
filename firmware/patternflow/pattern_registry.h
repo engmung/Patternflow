@@ -1,6 +1,7 @@
 #pragma once
 
 #include <FFat.h>
+#include <dirent.h>
 #include <FS.h>
 
 #include "src/core_encoders.h"
@@ -153,6 +154,62 @@ int moduleCapacity = 0;
 int numModules = 0;
 bool moduleStorageMounted = false;
 
+// ── The sidecar cache ────────────────────────────────────────────────
+//
+// Rebuilding the list after an install or a delete used to open every
+// module's .json twice — once for the name, once for absoluteReady. With
+// forty modules that was two seconds, and the render stopped for all of it
+// (3.9.1's loopSyncMaxUs is what finally put a number on it). The two facts
+// a sidecar holds are kept here by module path. Everything that writes a
+// module file — upload, delete, format, the library pull — forgets the entry
+// it touched, so a rebuild reads only what changed. Boot still reads them
+// all, once. On a board with no PSRAM there is no cache and every rebuild
+// reads, as before.
+char (*sidecarPaths)[MODULE_PATH_BYTES] = nullptr;
+char (*sidecarNames)[MODULE_NAME_BYTES] = nullptr;
+bool* sidecarAbs = nullptr;
+int sidecarCount = 0;
+
+inline int sidecarFind(const char* path) {
+  for (int i = 0; i < sidecarCount; i++) {
+    if (strcmp(sidecarPaths[i], path) == 0) return i;
+  }
+  return -1;
+}
+
+inline void sidecarForgetPath(const char* path) {
+  int i = sidecarFind(path);
+  if (i < 0) return;
+  int last = sidecarCount - 1;
+  if (i != last) {
+    snprintf(sidecarPaths[i], MODULE_PATH_BYTES, "%s", sidecarPaths[last]);
+    snprintf(sidecarNames[i], MODULE_NAME_BYTES, "%s", sidecarNames[last]);
+    sidecarAbs[i] = sidecarAbs[last];
+  }
+  sidecarCount = last;
+}
+
+// By slug, for the writers: they know the slug, the cache knows the path.
+inline void sidecarForgetSlug(const char* slug) {
+  char path[MODULE_PATH_BYTES];
+  snprintf(path, sizeof(path), "%s/%s.pfm", MODULE_DIR, slug);
+  sidecarForgetPath(path);
+}
+
+inline void sidecarForgetAll() { sidecarCount = 0; }
+
+inline void sidecarRemember(const char* path, const char* name, bool absReady) {
+  if (!sidecarPaths) return;
+  int i = sidecarFind(path);
+  if (i < 0) {
+    if (sidecarCount >= MAX_MODULE_PATTERNS) return;
+    i = sidecarCount++;
+    snprintf(sidecarPaths[i], MODULE_PATH_BYTES, "%s", path);
+  }
+  snprintf(sidecarNames[i], MODULE_NAME_BYTES, "%s", name);
+  sidecarAbs[i] = absReady;
+}
+
 // Modules have no compiled-in labels to show before they are loaded.
 const char* const MODULE_KNOB_LABELS[4] = {"Knob 1", "Knob 2", "Knob 3", "Knob 4"};
 
@@ -185,8 +242,13 @@ inline bool allocPatternStorage() {
       allocPreferSpiram(MODULE_NAME_BYTES * MAX_MODULE_PATTERNS));
   modulePaths = static_cast<char(*)[MODULE_PATH_BYTES]>(
       allocPreferSpiram(MODULE_PATH_BYTES * MAX_MODULE_PATTERNS));
+  sidecarPaths = static_cast<char(*)[MODULE_PATH_BYTES]>(
+      allocPreferSpiram(MODULE_PATH_BYTES * MAX_MODULE_PATTERNS));
+  sidecarNames = static_cast<char(*)[MODULE_NAME_BYTES]>(
+      allocPreferSpiram(MODULE_NAME_BYTES * MAX_MODULE_PATTERNS));
+  sidecarAbs = static_cast<bool*>(allocPreferSpiram(MAX_MODULE_PATTERNS));
 
-  if (patterns && moduleNames && modulePaths) {
+  if (patterns && moduleNames && modulePaths && sidecarPaths && sidecarNames && sidecarAbs) {
     moduleCapacity = MAX_MODULE_PATTERNS;
     return true;
   }
@@ -195,8 +257,14 @@ inline bool allocPatternStorage() {
   free(patterns);
   free(moduleNames);
   free(modulePaths);
+  free(sidecarPaths);
+  free(sidecarNames);
+  free(sidecarAbs);
   moduleNames = nullptr;
   modulePaths = nullptr;
+  sidecarPaths = nullptr;
+  sidecarNames = nullptr;
+  sidecarAbs = nullptr;
   patterns = presetsOnlyList;
   moduleCapacity = 0;
   return false;
@@ -221,8 +289,14 @@ inline void displayNameFromSlug(const char* slug, char* out, size_t outSize) {
 }
 
 // Deliberately a substring scan rather than a JSON parser: the sidecar is our
-// own generated file and this runs once per module at boot.
-inline void readSidecarName(const char* modulePath, char* out, size_t outSize) {
+// own generated file. One open for both facts it holds: the display name
+// (left as it was when the sidecar has none) and whether the module was
+// built against the absolute-param helpers — a missing sidecar or a missing
+// key both mean "no", since every module built before the bus existed is
+// delta-only by definition.
+inline void readSidecar(const char* modulePath, char* nameOut, size_t nameSize,
+                        bool& absReady) {
+  absReady = false;
   char jsonPath[MODULE_PATH_BYTES];
   snprintf(jsonPath, sizeof(jsonPath), "%s", modulePath);
   char* extension = strrchr(jsonPath, '.');
@@ -235,36 +309,35 @@ inline void readSidecarName(const char* modulePath, char* out, size_t outSize) {
   metadata.close();
 
   int key = json.indexOf("\"name\"");
-  if (key < 0) return;
-  int colon = json.indexOf(':', key + 6);
-  int open = colon < 0 ? -1 : json.indexOf('"', colon + 1);
-  int close = open < 0 ? -1 : json.indexOf('"', open + 1);
-  if (open < 0 || close <= open + 1) return;
-  snprintf(out, outSize, "%s", json.substring(open + 1, close).c_str());
+  if (key >= 0) {
+    int colon = json.indexOf(':', key + 6);
+    int open = colon < 0 ? -1 : json.indexOf('"', colon + 1);
+    int close = open < 0 ? -1 : json.indexOf('"', open + 1);
+    if (open >= 0 && close > open + 1) {
+      snprintf(nameOut, nameSize, "%s", json.substring(open + 1, close).c_str());
+    }
+  }
+
+  key = json.indexOf("\"absoluteReady\"");
+  if (key >= 0) {
+    int colon = json.indexOf(':', key + 15);
+    if (colon >= 0) {
+      String tail = json.substring(colon + 1);
+      tail.trim();
+      absReady = tail.startsWith("true");
+    }
+  }
 }
 
-// Same sidecar, different key: whether the module was built against the
-// absolute-param helpers. Missing sidecar or missing key both mean "no" —
-// every module built before the bus existed is delta-only by definition.
-inline bool readSidecarAbsoluteReady(const char* modulePath) {
-  char jsonPath[MODULE_PATH_BYTES];
-  snprintf(jsonPath, sizeof(jsonPath), "%s", modulePath);
-  char* extension = strrchr(jsonPath, '.');
-  if (!extension) return false;
-  snprintf(extension, sizeof(jsonPath) - (extension - jsonPath), ".json");
-
-  File metadata = FFat.open(jsonPath, FILE_READ);
-  if (!metadata) return false;
-  String json = metadata.readString();
-  metadata.close();
-
-  int key = json.indexOf("\"absoluteReady\"");
-  if (key < 0) return false;
-  int colon = json.indexOf(':', key + 15);
-  if (colon < 0) return false;
-  String tail = json.substring(colon + 1);
-  tail.trim();
-  return tail.startsWith("true");
+// The cached answer for a path the scan has just been over, reading the
+// sidecar only if the cache has no room for it.
+inline bool sidecarAbsFor(const char* modulePath) {
+  int i = sidecarFind(modulePath);
+  if (i >= 0) return sidecarAbs[i];
+  char name[MODULE_NAME_BYTES];
+  bool absReady = false;
+  readSidecar(modulePath, name, sizeof(name), absReady);
+  return absReady;
 }
 
 // Mount the partition the presets never needed. Label "ffat" is what the
@@ -305,6 +378,7 @@ inline bool mountModuleStorage() {
 // automatically when a mount failed; a crash mid-write corrupted the FAT, the
 // next boot "helpfully" wiped it, and every installed module was lost.
 inline bool formatModuleStorage() {
+  sidecarForgetAll();
   FFat.end();
   moduleStorageMounted = false;
   bool ok = FFat.format(true, (char*)"ffat");
@@ -368,23 +442,28 @@ inline void scanModules() {
   if (moduleCapacity == 0) return;
   if (!mountModuleStorage()) return;
 
-  File directory = FFat.open(MODULE_DIR);
-  if (!directory || !directory.isDirectory()) {
+  // readdir, not File::openNextFile. The Arduino iterator opens every entry
+  // it hands back in order to build a File, and on this FATFS that is ~10 ms
+  // a file - with forty modules and their sidecars, most of what a rebuild
+  // still cost once the sidecars were cached. A directory entry's name is
+  // all the scan needs.
+  char dirPath[MODULE_PATH_BYTES];
+  snprintf(dirPath, sizeof(dirPath), "/ffat%s", MODULE_DIR);
+  DIR* directory = opendir(dirPath);
+  if (!directory) {
     Serial.printf("[PATTERNS] no %s directory - presets only\n", MODULE_DIR);
     return;
   }
 
-  for (File file = directory.openNextFile(); file; file = directory.openNextFile()) {
-    if (file.isDirectory() || numModules >= moduleCapacity) {
-      file.close();
-      continue;
-    }
-    String path = file.path();
-    file.close();
-    if (!path.endsWith(".pfm")) continue;
+  for (struct dirent* entry = readdir(directory); entry; entry = readdir(directory)) {
+    if (numModules >= moduleCapacity) break;
+    if (entry->d_type == DT_DIR) continue;
+    const char* name = entry->d_name;
+    const size_t n = strlen(name);
+    if (n < 5 || strcmp(name + n - 4, ".pfm") != 0) continue;
 
     const int slot = numModules;
-    snprintf(modulePaths[slot], MODULE_PATH_BYTES, "%s", path.c_str());
+    snprintf(modulePaths[slot], MODULE_PATH_BYTES, "%s/%s", MODULE_DIR, name);
 
     char slug[MODULE_NAME_BYTES];
     const char* filename = strrchr(modulePaths[slot], '/');
@@ -393,10 +472,17 @@ inline void scanModules() {
     if (extension) *extension = '\0';
 
     displayNameFromSlug(slug, moduleNames[slot], MODULE_NAME_BYTES);
-    readSidecarName(modulePaths[slot], moduleNames[slot], MODULE_NAME_BYTES);
+    int cached = sidecarFind(modulePaths[slot]);
+    if (cached >= 0) {
+      snprintf(moduleNames[slot], MODULE_NAME_BYTES, "%s", sidecarNames[cached]);
+    } else {
+      bool absReady = false;
+      readSidecar(modulePaths[slot], moduleNames[slot], MODULE_NAME_BYTES, absReady);
+      sidecarRemember(modulePaths[slot], moduleNames[slot], absReady);
+    }
     numModules++;
   }
-  directory.close();
+  closedir(directory);
 
   // FAT hands back directory entries in whatever order it likes, and the index
   // is what OSC addresses and the knob position mean — sort so a pattern keeps
@@ -434,7 +520,7 @@ inline void buildPatternList() {
     patterns[NUM_PATTERNS++] = {
       moduleNames[i], MODULE_KNOB_LABELS, nullptr, nullptr, nullptr, modulePaths[i],
       false,  // hidden - an installed pattern is always browsable
-      readSidecarAbsoluteReady(modulePaths[i]),
+      sidecarAbsFor(modulePaths[i]),
     };
   }
 }

@@ -202,6 +202,7 @@ PFMath::buildSinLUT();                       // call from setup() — idempotent
 PFMath::fastSin(angle);                      // ~5x faster than sinf in pixel loops
 PFMath::fastCos(angle);
 PFMath::fract(x);                            // x - floor(x)
+PFMath::jsMod(x, m);                         // JavaScript's x % m (sign of x), no fmodf
 PFMath::lerp(a, b, t);
 PFMath::approxLength(x, y);                  // ~5% accurate sqrt(x*x + y*y)
 ```

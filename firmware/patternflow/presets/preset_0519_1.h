@@ -126,7 +126,7 @@ float time = params.timeAcc;
         float q = val * (1 - f * sat);
         float v_t = val * (1 - (1 - f) * sat);
         float rv, gv, bv;
-        switch ((int)(fmodf((float)(i), (float)(6.0f)))) {
+        switch ((int)(PFMath::jsMod((float)(i), (float)(6.0f)))) {
           case 0: {
       rv = val; gv = v_t; bv = p;
       break;
