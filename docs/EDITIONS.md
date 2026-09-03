@@ -431,6 +431,13 @@ questions and this project answers them differently. Somebody else's firmware
 is still welcome — that is what the community tier is for — but the features
 that make this Patternflow live here.
 
+Two things live near the tree without being in it, and both are on purpose:
+`features/ble/` (Improv over Bluetooth) is in the tree and in no edition,
+because no phone showed it in its pick list; and the Wi-Fi setup portal is a
+parked branch, `feat/wifi-setup-portal`, in no edition and not to be merged as
+it stands — it predates the seam and edits the core. What that attempt learned
+is in [`investigations/2026-08-the-wifi-portal-a-samsung-never-drew.md`](investigations/2026-08-the-wifi-portal-a-samsung-never-drew.md).
+
 ---
 
 ## Reading order
