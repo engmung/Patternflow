@@ -3,8 +3,9 @@
 // Pattern Lab v2 — a layered, dockable pattern editing workspace.
 //
 // The old lab was one pattern + one fixed two-column layout. This shell hosts
-// eight dockable panels (dockview) over a layer-stack project (zustand):
-// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Graphic Export. Panels rearrange
+// nine dockable panels (dockview) over a layer-stack project (zustand):
+// Preview, Layers, Code, Pixel, Gallery, Knobs, Color Ramp, Graphic Export,
+// Director — the list is PANEL_DEFS below. Panels rearrange
 // Photoshop-style — drag tabs, split groups, float — and the arrangement
 // persists to localStorage alongside the project itself.
 //

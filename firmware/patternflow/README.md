@@ -1,8 +1,9 @@
 # Patterns
 
-Patterns are header-only `.h` files compiled into the firmware and flashed.
-There is no runtime/filesystem loading — adding or changing a pattern means a
-reflash.
+A pattern reaches the panel one of two ways: as a curated **preset** compiled
+into the firmware, or as a **`.pfm` module** uploaded over Wi-Fi and loaded
+from the FATFS partition at runtime — no reflash, no reboot. Modules are the
+normal path; presets are the showcase and the fallback a bare board boots into.
 
 ## Two kinds
 
@@ -26,8 +27,10 @@ FATFS partition (on the device, not in this repo)
   Build one with `firmware/toolchain/build_module.py`.
 
 > The old `custom1.h`–`custom3.h` slots in the sketch root are **gone** —
-> modules are what they were for, and no longer cost a rebuild. Their patterns
-> live on under `firmware/modules/`.
+> modules are what they were for, and no longer cost a rebuild. Only `Origin`
+> is compiled in today; the rest of the curated set ships as the Basics pack
+> (`web/public/packs/basics.zip`, built from `presets/` by
+> `firmware/toolchain/make_pack.py`) and installs from the Patterns page.
 
 ## Source of truth
 

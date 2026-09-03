@@ -9,18 +9,8 @@ import styles from "./Community.module.css";
 // order is the work. Static thumbnails only: a page of decks with a live
 // sandbox per slot would be dozens of iframes.
 
-export type DeckCardItem = {
-  id: string;
-  title: string;
-  description: string | null;
-  visibility: string;
-  createdAt: string; // ISO
-  username: string | null;
-  displayUsername: string | null;
-  patternCount: number;
-  /** First few patterns in running order. */
-  preview: { id: string; title: string; code: string }[];
-};
+import type { DeckCardItem } from "@/lib/community/cardTypes";
+export type { DeckCardItem };
 
 /** Cells in the strip — four patterns and an overflow count. */
 const STRIP_CELLS = 5;

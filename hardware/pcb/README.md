@@ -1,8 +1,8 @@
 # Patternflow PCB
 
-Custom board for the Patternflow LED synthesizer — ESP32-S3 DevKit on sockets, four EC11 encoders, HUB75 out, hybrid power input. KiCad 10 project.
+Custom board for the Patternflow LED synthesizer — ESP32-S3 DevKit on sockets, four EC11 encoders, HUB75 out, screw-terminal power input. KiCad 10 project.
 
-**Current revision: v3.0** — fabricated, assembled, and verified, including both power inputs ([#114](https://github.com/engmung/Patternflow/issues/114)). All through-hole, no SMD passives; every part is listed by MPN in the [BOM](../bom/).
+**Current revision: v3.0** — fabricated, assembled, and verified on the screw-terminal input. The board also carries a USB-C power footprint, but that input is **on hold**: a USB-C-powered board ran for 20–30 minutes and then smoked at a connector pin ([#221](https://github.com/engmung/Patternflow/issues/221)), so it stays unpopulated until the cause is understood. All through-hole, no SMD passives; every part is listed by MPN in the [BOM](../bom/).
 
 ## Board
 
@@ -13,7 +13,7 @@ Custom board for the Patternflow LED synthesizer — ESP32-S3 DevKit on sockets,
 - **U1** — ESP32-S3 DevKit (N16R8) on 2× 1×22 female sockets; the DevKit itself is never soldered
 - **SW1–SW4** — EC11 rotary encoders, inserted from the **back** (silkscreen reminds you: *encoder facing other side*)
 - **J1** — 2×8 box header; the panel's HUB75 ribbon plugs in here
-- **Power, two options on one board**: **USB1** (Type-C, needs the R1/R2 5.1k CC pull-downs; the THT signal pins are hard to solder — see [#114](https://github.com/engmung/Patternflow/issues/114)) or **J4** (2-pin screw terminal on the back — the beginner bypass: strip a USB cable, screw the wires in)
+- **Power — J4 only**: a 2-pin screw terminal on the back. Strip a USB cable from any power bank and screw the wires in. **USB1** (Type-C) and its **R1/R2** CC pull-downs are on the board but must be left unpopulated — the input is on hold after a delayed burnout ([#221](https://github.com/engmung/Patternflow/issues/221)); "it seems to work" is not evidence, the failure took half an hour to appear
 - **J3** — +5V out to the LED matrix · **C11** — 1000µF bulk cap for the boot transient
 
 ## Schematic

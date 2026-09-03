@@ -229,7 +229,7 @@ function applyPendingSlugs(slugs,rev,announce,force){
   updateBulk();
   if(announce!==false && revChanged && (slugs||[]).length){
     var missed=(slugs||[]).length-n;
-    var msg='Director marked '+n+' module'+(n===1?'':'s')+' for download';
+    var msg='The link marked '+n+' module'+(n===1?'':'s')+' for download';
     if(missed>0)msg+=', '+missed+' not on this list';
     say(msg,n?'good':'err');
   }
@@ -608,7 +608,7 @@ function runQ(i){
   var isPfs=/\.pfs$/i.test(it.name);
   if(isPfs&&!hasShows){
     it.st='fail';it.pct=0;
-    it.err='this firmware has no Sequences — Performance edition adds them';
+    it.err='this firmware cannot play .pfs files — an edition on the shelf can';
     renderQ();setTimeout(function(){runQ(i+1)},350);return;
   }
   xhr.open('PUT',isPfs?'/api/shows':'/api/patterns');

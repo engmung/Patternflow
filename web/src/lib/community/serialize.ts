@@ -1,5 +1,4 @@
-import type { DeckCardItem } from "@/components/community/DeckCard";
-import type { PatternCardItem } from "@/components/community/PatternCard";
+import type { DeckCardItem, PatternCardItem } from "./cardTypes";
 import type { DeckItem, DeckListItem, FeedItem } from "./queries";
 
 /** Server → client boundary: Dates become ISO strings. `likedIds` (from

@@ -112,17 +112,20 @@ Drop the generated header file into the firmware folder:
 ```
 firmware/patternflow/
 ├── patternflow.ino
-├── config.h                   ← hardware pins / display / limits
-├── net_config.h               ← Wi-Fi / OTA / OSC / audio-react config
+├── config.h                   ← hardware pins / display / limits / LED calibration
+├── net_config.h               ← Wi-Fi / OTA defaults (+ feature tuning defaults)
 ├── patternflow_secrets.example.h  ← copy to patternflow_secrets.h for credentials
 ├── pattern_registry.h         ← edit this
 ├── _TEMPLATE.h                ← starting point for a new preset
-├── presets/                   ← the curated patterns compiled into firmware.bin
-│   ├── preset_origin.h
-│   ├── preset_wave_saw.h
-│   ├── preset_0510.h  …       ← 34 presets, all named preset_*.h
+├── presets/                   ← the curated patterns; 35 files, all named preset_*.h
+│   ├── preset_origin.h        ← the one compiled into firmware.bin
+│   ├── preset_wave_saw.h      ← …the rest ship as the Basics pack (web/public/packs/)
+│   ├── preset_0510.h  …
 │   └── preset_yourname.h      ← drop your file here
-└── src/                       ← Arduino IDE doesn't show these as tabs
+├── abi/                       ← what a .pfm module is compiled against
+├── features/                  ← OSC, audio, MQTT, shows… — not the core's business
+├── console/                   ← the device's web pages as plain HTML
+└── src/                       ← the foundation every pattern draws through
     ├── core_display.h
     ├── core_encoders.h
     ├── core_canvas.h          ← every new pattern draws through this
@@ -130,39 +133,37 @@ firmware/patternflow/
     ├── core_color.h           ← shared HSV/ramp/pow-LUT helpers
     ├── core_noise.h           ← shared Perlin/value noise + cell hash
     ├── core_tables.h          ← precomputed per-pixel radius/angle tables
+    ├── core_mem.h             ← PSRAM-first allocator for big buffers
     ├── core_module_loader.h   ← runs .pfm modules off FATFS
     ├── core_wifi.h            ← shared Wi-Fi bring-up
-    ├── core_osc.h             ← OSC sidechannel
-    ├── core_audio_ws.h        ← browser audio-react server
-    ├── audio_index.h          ← bundled audio UI
-    ├── core_web_update.h      ← wireless flashing from the browser
-    └── core_ota.h             ← ArduinoOTA
+    ├── core_http.h            ← the one port-80 web server
+    └── core_web_update.h      ← wireless flashing from the browser
 ```
 
-A pattern living in `presets/` reaches the foundation one level up — `#include "../src/core_canvas.h"` — which is what `_TEMPLATE.h` already does.
+A pattern living in `presets/` reaches the foundation one level up — `#include "../src/core_canvas.h"` — which is what `_TEMPLATE.h` describes.
 
-The `src/` folder holds the foundation: generated patterns include the ones they need (`#include "src/core_canvas.h"`, etc.) and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. The Live Editor's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
+The `src/` folder holds the foundation: generated patterns include the ones they need (`#include "src/core_canvas.h"`, etc.) and call helpers like `PFMath::fastSin`, `PFColor::hsvToRgb`, `PFCanvas::setPixel`. Pattern Lab's "Copy C++ prompt" already teaches the LLM to use these — you should not need to edit the generated file by hand.
 
 Open `pattern_registry.h` and add two things:
 
 ```cpp
 #include "src/core_encoders.h"
 #include "presets/preset_origin.h"
-#include "presets/preset_wave_saw.h"
 #include "presets/preset_yourname.h"   // ← 1. include your header
 
 // ...
 
 PatternEntry presetPatterns[] = {
   PATTERN_ENTRY(Origin),
-  PATTERN_ENTRY(WaveSaw),
   PATTERN_ENTRY(YourNamespace),        // ← 2. add the namespace
 };
 ```
 
 `YourNamespace` is whatever name the AI gave the C++ namespace during the conversion step. It's at the top of your generated `preset_yourname.h`. Match it exactly — C++ is case-sensitive and won't compile if it's off.
 
-Open `patternflow.ino` in Arduino IDE, select the right port, hit upload. The device picks up the new pattern on the next boot.
+Every compiled-in preset costs internal DRAM the web console needs (that is why the registry ships Origin alone — the comment above `presetPatterns[]` has the numbers), so compile in one or two, not thirty.
+
+Build and flash with the bundled toolchain — `./firmware/bundles/build.sh flash patternflow.local` sends the default firmware to the panel over Wi-Fi (`build.sh all` if you touched anything under `src/`). The device picks up the new pattern on the next boot.
 
 ---
 

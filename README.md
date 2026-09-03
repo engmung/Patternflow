@@ -106,7 +106,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
 | **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi and USB. Network MIDI (a MIDI port in any DAW — Ableton, Logic, Bitwig), bidirectional OSC (Max/TouchDesigner/Resolume), MQTT and audio-react each ship in an [edition](docs/EDITIONS.md) you install in one click — the way patterns do — and switching keeps your patterns, networks and settings |
-| **Firmware** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/variants). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
+| **Editions** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/variants). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly, first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
 | **License** | MIT (firmware & web code) · CC-BY-SA 4.0 (hardware, docs, bundled patterns) · community patterns are licensed by their authors ([summary](docs/LICENSE-SUMMARY.md)) |
 
@@ -177,7 +177,7 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 
 ## Repository & documentation
 
-> **Moving fast.** [v3.3.0 is out](https://github.com/engmung/Patternflow/releases/tag/v3.3.0): the panel's color is tunable while you look at it, and ramps interpolate in OKLab instead of collapsing to grey. [v3.2.0](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) made patterns install over Wi-Fi as `.pfm` modules, no reflash. On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+> **Moving fast.** [v3.8.0 is out](https://github.com/engmung/Patternflow/releases/tag/v3.8.0): the firmware split into [editions](docs/EDITIONS.md) — core, Audio (on-board microphone, OSC, network MIDI) and Performance (sequences, MQTT, weather) — installable in one click and switchable without losing your patterns. [v3.2.0](https://github.com/engmung/Patternflow/releases/tag/v3.2.0) made patterns install over Wi-Fi as `.pfm` modules, no reflash. On v2.x hardware? Everything you need stays bundled at [v2.1.0](https://github.com/engmung/Patternflow/releases/tag/v2.1.0). Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 | Folder | Contents |
 | :--- | :--- |

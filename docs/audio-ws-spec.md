@@ -67,5 +67,5 @@ is no keep-alive requirement.
 
 - **1** — first written contract: `a=` / `k=` / `d=` / `off=N` / `off`,
   lane semantics, the unknown-prefix rule, the one-in-flight pacing rule.
-  Matches firmware 3.8.0 (Audio edition v0.3.1) and extension as shipped in
+  Matches firmware 3.8.0 (Audio edition v0.3.1 onward) and the extension as shipped in
   `tools/patternflow-audio-extension/`.

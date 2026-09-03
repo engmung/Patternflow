@@ -79,10 +79,19 @@ guides describe. Just install core **2.0.x** rather than the latest.
 > appears on the other socket.
 
 ### Required libraries
-PlatformIO clones these for you. For the Arduino IDE, install them via the
+PlatformIO clones these for you (`lib_deps` in `patternflow/platformio.ini`
+is the authoritative list). For the Arduino IDE, install them via the
 Library Manager:
 - `ESP32-HUB75-MatrixPanel-DMA` (for driving the matrix)
 - `Adafruit GFX Library` (dependency)
+- `WebSockets` by Markus Sattler / Links2004 (audio-react, Audio edition)
+- `NimBLE-Arduino` (the `ble` feature — in the tree, in no edition)
+- `AppleMIDI` by lathoub (network MIDI, Audio edition)
+
+> The Arduino IDE builds the default firmware. It does not build the editions:
+> their feature set is chosen by `firmware/bundles/<name>/features_local.h`,
+> which only `bundles/build.sh` wires in. Use PlatformIO for anything that is
+> not the plain device.
 
 > The HUB75 library is also **vendored** under `patternflow/src/hub75/`, and that
 > copy is the one that compiles — it carries Patternflow's additions
@@ -90,57 +99,77 @@ Library Manager:
 > installed/cloned copy only needs to satisfy headers, so its exact version does
 > not matter. See `src/hub75/VENDORED.md`.
 
-The experimental OSC output uses the ESP32 Arduino core's built-in `WiFi` and `WiFiUdp` libraries, so it does not require an extra OSC library.
-
-The experimental audio-react WebSocket control uses:
-- `WebServer` from the ESP32 Arduino core
-- `WebSockets` by Markus Sattler / Links2004
+OSC uses the ESP32 Arduino core's built-in `WiFi` and `WiFiUdp` libraries, so it does not require an extra OSC library. The MQTT client (`pubsubclient`) and the HUB75 driver are vendored under `patternflow/src/`.
 
 ## Project layout
 
 ```
 firmware/
-├── patternflow/                 # The Arduino sketch (open patternflow.ino)
-│   ├── patternflow.ino          # Main sketch: input routing, mode dispatch
-│   ├── config.h                 # Hardware configuration (pin mappings, limits)
-│   ├── net_config.h             # Wi-Fi / OTA / OSC / audio-react / self-update config
-│   ├── pattern_registry.h       # Presets compiled in + .pfm modules discovered on FATFS
-│   ├── presets/                 # Curated presets (34), compiled into firmware.bin
+├── patternflow/                 # The sketch (PlatformIO project; open patternflow.ino)
+│   ├── patternflow.ino          # Main sketch: input routing, mode dispatch — THE CORE
+│   ├── config.h                 # Hardware configuration (pin mappings, limits, LED calibration)
+│   ├── net_config.h             # Wi-Fi / OTA / self-update defaults + feature TUNING defaults
+│   ├── pattern_registry.h       # Presets compiled in (Origin) + .pfm modules discovered on FATFS
+│   ├── platformio.ini           # The build. bundles/build.sh drives it.
+│   ├── presets/                 # Curated presets (35). Only Origin is compiled in; the
+│   │                            # rest ship as the Basics pack (web/public/packs/)
 │   ├── abi/                     # Host ⇄ module contract for loadable patterns
 │   │   ├── pf_abi.h             # Frozen C ABI: PFHostAPI, PFPatternModule, PF_ABI_VERSION
+│   │   ├── pf_params.h          # The absolute parameter bus
 │   │   └── pf_module.h          # Module SDK — the ONE header a .pfm pattern includes
 │   ├── patternflow_secrets.example.h  # Template (copy to patternflow_secrets.h)
-│   └── src/                     # Foundation — not shown in the Arduino IDE tab bar
-│       ├── core_display.h       # HUB75 driver init + refresh-rate config
-│       ├── core_encoders.h      # Encoder ISRs + InputFrame contract
-│       ├── core_canvas.h        # 128×64 RGB888 framebuffer + gamma/WB/sat
-│       ├── core_math.h          # PFMath — shared verbatim with modules
-│       ├── core_color.h         # PFColor — shared verbatim with modules
-│       ├── core_noise.h         # PFNoise — shared verbatim with modules
-│       ├── core_mem.h           # PSRAM-first allocator (PFMem)
-│       ├── core_tables.h        # Panel-space polar tables (host-owned, 32 KB each)
-│       ├── core_module_loader.h # ELF loader/relocator for .pfm modules
-│       ├── core_power.h         # Total power clamp (measures demand, caps brightness)
-│       ├── core_sleep.h         # Sleep mode: panel off, board idle, still on the network
-│       ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
-│       ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
-│       ├── core_osc.h           # OSC sidechannel (UDP)
-│       ├── core_mqtt.h          # MQTT sidechannel (knobs, pattern, params, sleep)
-│       ├── core_audio_ws.h      # Shared port-80 WebServer + audio-react WebSocket
-│       ├── core_web_update.h    # Browser self-update (/update)
-│       ├── core_patterns_http.h # Module manager (/patterns + /api/patterns)
-│       ├── core_status_http.h   # Diagnostics (/status + /api/status)
-│       ├── core_wifi_http.h     # Wi-Fi manager (/wifi + /api/wifi)
-│       └── *_index.h            # PROGMEM HTML bundles for the pages above
+│   ├── src/                     # Foundation — the core, feature-free (see docs/EDITIONS.md)
+│   │   ├── core_display.h       # HUB75 driver init + refresh-rate config
+│   │   ├── core_encoders.h      # Encoder ISRs + InputFrame contract
+│   │   ├── core_canvas.h        # 128×64 RGB888 framebuffer + gamma/WB/sat
+│   │   ├── core_math.h          # PFMath — shared verbatim with modules
+│   │   ├── core_color.h         # PFColor — shared verbatim with modules
+│   │   ├── core_noise.h         # PFNoise — shared verbatim with modules
+│   │   ├── core_mem.h           # PSRAM-first allocator (PFMem)
+│   │   ├── core_tables.h        # Panel-space polar tables (host-owned, 32 KB each)
+│   │   ├── core_module_loader.h # ELF loader/relocator for .pfm modules
+│   │   ├── core_power.h         # Total power clamp (measures demand, caps brightness)
+│   │   ├── core_sleep.h         # Sleep mode: panel off, board idle, still on the network
+│   │   ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
+│   │   ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
+│   │   ├── core_http.h          # The one port-80 WebServer every page registers on
+│   │   ├── core_bus.h           # Absolute knob bus (0..1000 wire scale)
+│   │   ├── core_web_update.h    # Browser self-update (/update)
+│   │   ├── core_patterns_http.h # Module manager (/patterns + /api/patterns)
+│   │   ├── core_status_http.h   # Diagnostics (/status + /api/status)
+│   │   ├── core_wifi_http.h     # Wi-Fi manager (/wifi + /api/wifi)
+│   │   ├── *_index.h            # PROGMEM HTML for the pages above (generated from console/)
+│   │   ├── hub75/, webserver/, pubsubclient/   # Vendored libraries (see their VENDORED.md)
+│   │   └── fonts/
+│   ├── features/                # Everything that is not the device: one directory each
+│   │   ├── pf_feature.h         # The hook interface a feature implements
+│   │   ├── pf_features.h        # The dispatcher
+│   │   ├── features.h           # The default list (empty) and the escape hatch
+│   │   ├── osc/  audio/  audio_in/  midi/  ble/  mqtt/  show/  weather/
+│   │   └── README.md            # What a feature is and the hooks it can answer
+│   ├── console/                 # The device's web pages as plain HTML — edit these
+│   └── toolchain/               # PlatformIO extra_scripts (must stay sketch-relative)
+├── bundles/                     # Editions: two files each naming a feature set
+│   ├── audio/  performance/     # features_local.h + overrides.h
+│   ├── build.sh                 # build the default, a named edition, or `all`
+│   └── shelf.sh                 # stage a publishable image for the site
 ├── modules/                     # Loadable-pattern sources (one dir per pattern)
 │   └── <slug>/pattern.cpp       # + optional module.json sidecar
-└── toolchain/
+├── encoder_test/                # Standalone encoder diagnostic sketch
+└── toolchain/                   # Repo-level tooling
     ├── build_module.py          # pattern.cpp → <slug>.pfm (Xtensa relocatable ELF)
+    ├── make_pack.py             # presets → a .zip pattern pack the site serves
     ├── port_preset.py           # firmware .h → freestanding module source
+    ├── console_pages.py         # console/*.html ⇄ *_index.h (extract / build / check)
+    ├── console_serve.py         # the console on localhost with a fake device behind it
+    ├── build_audio_in_page.py   # assembles console/audio-in.html from the extension's editor
+    ├── check_boundaries.py      # CI: the core names no feature
+    ├── check_abi_freeze.py      # CI: the module ABI has not moved
+    ├── check_sources.py         # CI: sources the build expects are present
     └── module.ld                # Collapses a module to .text/.rodata/.data/.bss
 ```
 
-The `src/` subfolder holds the foundation that patterns build on. Arduino IDE compiles everything underneath the sketch folder, but `.h` files inside subfolders **do not appear as tabs** — so the IDE stays focused on the files you actually edit (the sketch, config, registry, and patterns) while the foundation stays out of the way. Patterns and the main sketch reference these helpers via `#include "src/core_*.h"`.
+`src/` holds the foundation that patterns build on; `features/` holds everything the device can do beyond being a panel with four knobs, and the core never names any of it — that rule, and why, is [`docs/EDITIONS.md`](../docs/EDITIONS.md). Patterns and the main sketch reference the helpers via `#include "src/core_*.h"`.
 
 The foundation files are stateless utilities — no global state to coordinate, safe to include from any pattern.
 
@@ -589,19 +618,19 @@ All hardware-specific pins and limits are centralized in `config.h`.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
 
 ### LED panel calibration
-LED panels render the same RGB triplets differently than a calibrated monitor — the LED primaries are at different wavelengths than sRGB phosphors, red LEDs are brighter per PWM duty than blue, and linear PWM doesn't match perceptual brightness. The defaults below are a mild correction tuned for typical HUB75 panels; every value can be overridden per panel:
+LED panels render the same RGB triplets differently than a calibrated monitor — the LED primaries are at different wavelengths than sRGB phosphors, red LEDs are brighter per PWM duty than blue, and the panel reads washed-out next to a monitor showing the same frame. The defaults are the ones that ship in `config.h` (tuned by eye on 2026-08-09 against the Calibration preset, on the maintainer's panel); every value is `#ifndef`-guarded, so a panel can override any of them from `patternflow_secrets.h`:
 
 ```cpp
-#define LED_GAMMA_R   2.5f   // steeper than baseline — curbs red dominance
-#define LED_GAMMA_G   2.4f   // baseline
-#define LED_GAMMA_B   2.2f   // gentler — keeps blues from collapsing
-#define LED_WB_R      0.92f  // trim red gain
-#define LED_WB_G      0.92f  // trim green gain
-#define LED_WB_B      1.00f  // keep blue
-#define LED_SAT_BOOST 1.10f  // pull saturated colors away from gray
+#define LED_GAMMA_R   1.0f    // the pow-LUT already handles perceptual response;
+#define LED_GAMMA_G   1.0f    // extra gamma here only made the panel darker
+#define LED_GAMMA_B   1.0f
+#define LED_WB_R      0.930f  // this panel leans warm — red trimmed hardest
+#define LED_WB_G      1.000f
+#define LED_WB_B      0.975f
+#define LED_SAT_BOOST 1.62f   // strong: matches design intent on real patterns
 ```
 
-To revert to the previous single-gamma behavior, set all three gammas to 2.4, all WB gains to 1.0, and `LED_SAT_BOOST` to 1.0.
+Tune live from `/api/display` (the `/status` page has the sliders), then land the converged numbers in your secrets file. The comments in `config.h` above each value record how they were arrived at.
 
 ### Refresh rate (anti-flicker for video)
 `core_display.h` configures the panel for ~240Hz refresh:
@@ -818,7 +847,7 @@ You normally do **not** need to configure the laptop's IP: the device learns the
 
 `patternflow_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed. The defaults for everything you leave unset live in `net_config.h`.
 
-Without a `patternflow_secrets.h` file, OSC stays off (the default `PF_OSC_ENABLED 0` in `net_config.h` applies) and the K2 info screen will show `OFF (compile-time)` — meaning no rebuild can turn it on except by providing the secrets file and reflashing.
+`PF_OSC_ENABLED` defaults to `1` in `net_config.h`, but it only matters on a build that carries the `osc` feature (the Audio edition); the default firmware has no OSC to enable. Set `#define PF_OSC_ENABLED 0` in `patternflow_secrets.h` to compile it out of an edition that would otherwise have it — the K2 info screen then shows `OFF (compile-time)`, meaning no runtime toggle can turn it on without a rebuild.
 
 ### Runtime: toggle from the device (no rebuild)
 Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
@@ -937,8 +966,8 @@ Things that fit cleanly on top of the current foundation. Not promises — just 
 ### D. NVS preset save / restore (per pattern)
 *Which* pattern was running now survives a reboot, but its knob values do not — patterns integrate `knobDeltas` into their own namespace statics and nothing can read those back out generically. Doing this properly means each pattern saving its own values on change (debounced) and loading them in `setup()`. The brightness and pattern slots already prove the NVS plumbing; the absolute param bus (`PFParams`) is the one existing path that could carry values in the other direction, for `absoluteReady` patterns.
 
-### E. Merge `patternflow_stream` into the main firmware
-`patternflow_stream/` is a separate sketch that receives pixels over WebSocket. With the new `ContentMode` shape it could be a third mode (`CONTENT_STREAM`) inside the main sketch, so one firmware build serves patterns, video, and live streaming. Larger change; worth it once a use case actually wants both.
+### E. Live pixel streaming as a feature
+A sketch that received pixels over WebSocket (`patternflow_stream/`) lived beside the main firmware until 2026-09; it predated the module loader and the feature seam and no longer compiled against the core, so it was removed. The idea is still sound — as a `features/stream/` directory driving the canvas from a socket, in an edition, it would cost the core nothing.
 
 ## License
 

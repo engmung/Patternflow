@@ -16,7 +16,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. No prio
 ## Table of Contents
 
 1. [Bill of Materials](#1-bill-of-materials-bom)
-2. [Power Input — Screw Terminal Only](#2-power-input--screw-terminal-only)
+2. [Power Input — Use the Screw Terminal](#2-power-input--use-the-screw-terminal)
 3. [Order the PCB](#3-order-the-pcb)
 4. [3D Printing](#4-3d-printing)
 5. [PCB Assembly](#5-pcb-assembly)

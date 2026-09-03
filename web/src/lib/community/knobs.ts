@@ -5,7 +5,7 @@ import {
 } from "@/lib/patternflowControls";
 
 // @knobs annotation support for the community detail page.
-// Mirrors Pattern Lab's parser (PatternLabClient.tsx) — kept standalone on
+// Mirrors Pattern Lab's parser (lib/lab/annotations.ts) — kept standalone on
 // purpose so the community surface never reaches into the lab's internals.
 // Default values are set to the MIDPOINT of each range ((min + max) / 2).
 

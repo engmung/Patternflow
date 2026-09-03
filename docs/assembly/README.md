@@ -40,7 +40,7 @@ The custom PCB path is stable. PCBA may become a later electronics path for peop
 
 To bring the hardware to life you flash it with firmware, and you can **create and run your own generative patterns with AI coding assistants**.
 
-Custom patterns no longer need a local toolchain: Patternflow's build server compiles a firmware image containing your pattern and the browser writes it over USB (after the first flash sets up Wi-Fi, updates can go over the air). The Arduino IDE route remains only for firmware feature development or targeting a different LED matrix resolution.
+Custom patterns no longer need a local toolchain or a reflash: a pattern built in the browser installs on the panel over Wi-Fi as a `.pfm` module in seconds (the browser flasher writes the firmware itself over USB once, and sets up Wi-Fi while it is at it). The PlatformIO route remains only for firmware feature development or targeting a different LED matrix resolution.
 
 - **[Create custom patterns (recommended)](firmware/custom-patterns.md)** — make a pattern in the [Live Editor](https://patternflow.work) or [Pattern Lab](https://patternflow.work/pattern-lab), preview it live, and install it from the browser.
 

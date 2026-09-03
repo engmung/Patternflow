@@ -1,0 +1,35 @@
+name: Docs point at files that exist
+
+# Nothing used to watch the documentation. The 2026-08-30 addons/ → features/
+# rename left eight dead paths in contract docs (rest-api.md, pfst-v2-spec.md,
+# the RFC log) and nobody noticed for four days, because no grep runs on
+# docs/. This one does: every relative link in every Markdown file has to
+# resolve to a file in the tree. Stdlib Python, no network, seconds.
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".github/scripts/check_links.py"
+      - ".github/workflows/docs-links.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - ".github/scripts/check_links.py"
+
+concurrency:
+  group: docs-links-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Relative links resolve
+        run: python .github/scripts/check_links.py

@@ -4,10 +4,12 @@ Running log of the restructuring proposed in
 [rfc-core-and-variants.md](rfc-core-and-variants.md), against the six-step
 migration order in §2.11. Updated as steps land.
 
-**Where it stands: steps 1–3 done; step 4 is being built on a branch.** Everything so far is
-neutral — no feature has left the core, nothing behaves differently, and
-the tree is in a state that can simply be left alone if the discussion in
-the RFC issue changes the plan.
+**Where it stands: all four steps are done.** Step 4 shipped in 3.7.0 and
+the editions in 3.8.0; the tree now has the `features/` + `bundles/` layout
+that [`EDITIONS.md`](EDITIONS.md) describes, and that document — not this
+log — is where the current vocabulary lives (this log says *addon* and
+*variant* where the tree now says *feature* and *edition*). The entries below
+are kept as they were written.
 
 | step | what | state |
 | --- | --- | --- |
@@ -126,8 +128,9 @@ derived from what already-integrated features happened to need, which is
 evidence about the past. Porting real features onto it turns the open
 question into a measurement. **Nothing here is merged.**
 
-The seam is three files (`addons/pf_addon.h`, `pf_addons.h`, `addons.h`)
-documented in [`firmware/patternflow/addons/README.md`](../firmware/patternflow/addons/README.md).
+The seam is three files (`addons/pf_addon.h`, `pf_addons.h`, `addons.h` —
+since renamed `features/pf_feature.h`, `pf_features.h`, `features.h`)
+documented in [`firmware/patternflow/features/README.md`](../firmware/patternflow/features/README.md).
 The rule it enforces: a variant adds a directory and one line, so its whole
 diff against the core is additions and `git merge upstream` cannot conflict.
 

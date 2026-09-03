@@ -14,7 +14,7 @@ intermediate cues a curve would otherwise need. Both fit inside the v1
 layout, which is why v1 tables still load unchanged.
 
 **Status:** shipped in Patternflow firmware v3.6.3
-(`firmware/patternflow/addons/show/core_show.h`) and in the site's
+(`firmware/patternflow/features/show/core_show.h`) and in the site's
 encoder/decoder
 (`web/src/lib/community/performance.ts`). v1 tables are byte-identical to
 what they always were.
@@ -154,7 +154,7 @@ messages are events and never interpolate, whatever the flag says.
 ## 4. Reference implementation
 
 From `firmware/patternflow/src/core_show.h` as it ships in v3.6.3 — about
-50 lines total. (The player moved to `addons/show/core_show.h` after that
+50 lines total. (The player moved to `features/show/core_show.h` after that
 release; the code below is unchanged by the move.)
 
 ### 4.1 State

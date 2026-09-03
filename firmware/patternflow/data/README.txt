@@ -1,13 +1,20 @@
-Place your .pfv files in this directory.
+This directory mirrors the device's FATFS partition.
 
-They will be uploaded to the ESP32 FATFS partition using:
-  Arduino IDE → Tools → ESP32 Sketch Data Upload
+  data/patterns/<slug>.pfm   loadable pattern modules (gitignored — build outputs)
+
+The normal way a .pfm reaches a panel is over Wi-Fi: upload it on the device's
+/patterns page, or let the site install it. This folder exists for the other
+route — writing the whole partition over USB:
+
+  python firmware/toolchain/build_module.py --all     # modules/ -> data/patterns/
+  cd firmware/patternflow && pio run -t uploadfs      # data/ -> FATFS
 
 Requirements:
-  - Install "ESP32 Sketch Data Upload" plugin for Arduino IDE
-  - Board partition must include a FATFS partition (e.g., "16M Flash (3MB APP/9.9MB FATFS)")
-  - Total .pfv file size must fit within the FATFS partition (~9.9 MB)
+  - The partition table in platformio.ini (partitions/app3M_fat9M_16MB.csv)
+    reserves ~9 MB of FATFS; everything in data/ must fit.
+  - uploadfs REPLACES the partition. Modules people uploaded over Wi-Fi are
+    gone afterwards unless they are in data/patterns/ too.
 
 File naming:
-  - Use simple names: clip1.pfv, fire.pfv, ocean.pfv
-  - Avoid spaces and special characters
+  - Lowercase slugs, no spaces: origin.pfm, layer_stack.pfm
+  - The slug must match the module's NAME (build_module.py derives it).
