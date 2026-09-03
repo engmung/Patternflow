@@ -33,6 +33,7 @@ source — the fast way to iterate on the editor itself.
 6. Click the Patternflow Audio extension button.
 7. Set the device host to `patternflow.local` or the board IP address.
 8. Press **Start**.
+9. Ensure **Audio-React (AUD)** is switched ON on the device (at the top of the console's `/audio-in` page or via the panel's NETWORK screen).
 
 Use the extension for YouTube, Spotify Web, browser games, or any other tab
 or system audio. The built-in `http://patternflow.local/` page remains useful
