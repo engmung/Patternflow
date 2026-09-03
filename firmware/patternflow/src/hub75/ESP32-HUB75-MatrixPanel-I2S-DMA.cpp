@@ -416,6 +416,48 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::updateMatrixDMABuffer(uint16_t x_coord, uint
 
 /* PATTERNFLOW ADDITION (not upstream) — see the header for why this exists. */
 
+// The bitplane transpose, done once per channel value instead of once per
+// plane per channel. A plane wants bit (d + MASK_OFFSET) of each of the six
+// CIE values; the loop used to extract it with six masked tests per plane —
+// about thirty-six per pixel pair, and that loop was 60% of every frame
+// (presentUs 9.9 ms of 16.5 on the 128x64 panel at 6 bits). These tables
+// spread the top `depth` bits of a post-LUT byte's CIE value across 6-bit
+// slots, slot d holding bit d, so one OR of six table reads yields every
+// plane's R1 G1 B1 R2 G2 B2 at once and each plane is then a shift and a
+// mask. Planes 0-4 live in the low word (30 bits), 5-7 in the high one.
+// Bit-exact with the loop it replaces: the DMA words are identical.
+static uint32_t pfSpreadLo[256];
+static uint32_t pfSpreadHi[256];
+static uint8_t pfSpreadDepth = 0;
+
+static void pfBuildSpread(uint8_t depth)
+{
+  const uint8_t maskOffset = 16 - depth;
+  for (int v = 0; v < 256; v++)
+  {
+#ifdef NO_CIE1931
+    const uint16_t cie = (uint16_t)v;
+#else
+    const uint16_t cie = lumConvTab[v];
+#endif
+    uint32_t lo = 0, hi = 0;
+    for (uint8_t d = 0; d < depth; d++)
+    {
+#ifdef NO_CIE1931
+      const uint16_t mask = d;
+#else
+      const uint16_t mask = PIXEL_COLOR_MASK_BIT(d, maskOffset);
+#endif
+      const uint32_t bit = (cie & mask) ? 1u : 0u;
+      if (d < 5) lo |= bit << (6 * d);
+      else       hi |= bit << (6 * (d - 5));
+    }
+    pfSpreadLo[v] = lo;
+    pfSpreadHi[v] = hi;
+  }
+  pfSpreadDepth = depth;
+}
+
 // Rec.601 luma pivot for the saturation boost, then the caller's gamma/WB LUT.
 // Kept as a macro so it stays inside the pixel loop with no call overhead.
 #define PF_POST_PIXEL(src, dst)                                       {                                                                     int _r = (src)[0], _g = (src)[1], _b = (src)[2];                    int _y = (_r * 77 + _g * 150 + _b * 29) >> 8;                       _r = _y + (((_r - _y) * satBoostQ8) >> 8);                          _g = _y + (((_g - _y) * satBoostQ8) >> 8);                          _b = _y + (((_b - _y) * satBoostQ8) >> 8);                          if (_r < 0) _r = 0; else if (_r > 255) _r = 255;                    if (_g < 0) _g = 0; else if (_g > 255) _g = 255;                    if (_b < 0) _b = 0; else if (_b > 255) _b = 255;                    (dst)[0] = lutR[_r]; (dst)[1] = lutG[_g]; (dst)[2] = lutB[_b];    }
@@ -429,6 +471,7 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
   const uint16_t w = PIXELS_PER_ROW;
   const uint8_t depth = m_cfg.getPixelColorDepthBits();
   const uint8_t rows = ROWS_PER_FRAME;
+  if (pfSpreadDepth != depth) pfBuildSpread(depth);
 
   // Total LED on-time this frame asks for, summed as we go. The per-pixel
   // linear values are computed below anyway and live in registers when we add
@@ -475,38 +518,37 @@ void MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
       // pattern wrote.
       onTime += (uint32_t)r1 + g1 + b1 + (uint32_t)r2 + g2 + b2;
 
+      // Every plane's word at once. Slot order inside a 6-bit group is the
+      // DMA word's: BIT_R1 BIT_G1 BIT_B1 BIT_R2 BIT_G2 BIT_B2 (bits 0..5).
+      const uint32_t lo = pfSpreadLo[t[0]] | (pfSpreadLo[t[1]] << 1) | (pfSpreadLo[t[2]] << 2) |
+                          (pfSpreadLo[m[0]] << 3) | (pfSpreadLo[m[1]] << 4) | (pfSpreadLo[m[2]] << 5);
+      const uint32_t hi = pfSpreadHi[t[0]] | (pfSpreadHi[t[1]] << 1) | (pfSpreadHi[t[2]] << 2) |
+                          (pfSpreadHi[m[0]] << 3) | (pfSpreadHi[m[1]] << 4) | (pfSpreadHi[m[2]] << 5);
+
+      // One read-modify-write per plane for BOTH halves. The untouched bits
+      // are the row address and the LAT/OE strobes, which the buffer setup
+      // owns.
       uint8_t d = depth;
-      do
+      while (d > 5)
       {
         --d;
-#ifdef NO_CIE1931
-        const uint16_t mask = d;
-#else
-        const uint16_t mask = PIXEL_COLOR_MASK_BIT(d, MASK_OFFSET);
-#endif
-        // Bit order per the header: BIT_B2 BIT_G2 BIT_R2, BIT_B1 BIT_G1 BIT_R1
-        uint16_t bits = (bool)(b1 & mask);
-        bits <<= 1;
-        bits |= (bool)(g1 & mask);
-        bits <<= 1;
-        bits |= (bool)(r1 & mask);
-
-        uint16_t low = (bool)(b2 & mask);
-        low <<= 1;
-        low |= (bool)(g2 & mask);
-        low <<= 1;
-        low |= (bool)(r2 & mask);
-        bits |= (uint16_t)(low << BITS_RGB2_OFFSET);
-
-        // One read-modify-write for BOTH halves. The untouched bits are the
-        // row address and the LAT/OE strobes, which the buffer setup owns.
+        const uint16_t bits = (uint16_t)((hi >> (6 * (d - 5))) & 0x3Fu);
         ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + idx;
         *p = (*p & BITMASK_RGB12_CLEAR) | bits;
-
 #if defined(SPIRAM_DMA_BUFFER)
         Cache_WriteBack_Addr((uint32_t)p, sizeof(ESP32_I2S_DMA_STORAGE_TYPE));
 #endif
-      } while (d);
+      }
+      while (d)
+      {
+        --d;
+        const uint16_t bits = (uint16_t)((lo >> (6 * d)) & 0x3Fu);
+        ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + idx;
+        *p = (*p & BITMASK_RGB12_CLEAR) | bits;
+#if defined(SPIRAM_DMA_BUFFER)
+        Cache_WriteBack_Addr((uint32_t)p, sizeof(ESP32_I2S_DMA_STORAGE_TYPE));
+#endif
+      }
     }
   }
 

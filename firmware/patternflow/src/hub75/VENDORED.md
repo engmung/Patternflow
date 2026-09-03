@@ -30,6 +30,17 @@ RAM is the scarce resource on this part).
 Colour output is identical to the per-pixel path: same `lumConvTab` CIE1931
 curve, same bit masks.
 
+Since 3.9.2 the bitplane transpose inside the blit is table-driven. A plane
+wants bit `d + MASK_OFFSET` of each of the six CIE values, and the loop used
+to extract it with six masked tests per plane — thirty-six per pixel pair,
+which was 60 % of a frame on the 128x64 panel at 6 bits (9.9 ms of 16.5).
+`pfBuildSpread()` fills two 256-entry tables, indexed by the post-LUT byte,
+that spread that byte's plane bits across 6-bit slots (planes 0–4 in the low
+word, 5–7 in the high); one OR of six reads then holds every plane's
+`R1 G1 B1 R2 G2 B2`, and each plane is a shift and a mask. The tables are
+rebuilt if the colour depth changes. Bit-exact with the loop it replaced —
+6.2 million plane words compared — and 7.0 ms on the same panel.
+
 ### 2. `resumeDMAoutput()` — the way back from `stopDMAoutput()`
 
 Upstream's `stopDMAoutput()` is a one-way trip ("Screen will forever be black

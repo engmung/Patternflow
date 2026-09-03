@@ -212,7 +212,9 @@ inline void present() {
   // and read-modify-writes each plane twice per word — the top and bottom
   // halves of a two-scan panel share a uint16_t but arrive as separate calls.
   // Blitting a whole frame knows both halves at once and knows the row pointers
-  // are constant across a row. Measured on this panel: 12.3 ms -> see /status.
+  // are constant across a row. Measured on this panel: 12.3 ms per-pixel,
+  // 9.9 ms with the row pointers hoisted, 7.0 ms since the bitplane
+  // transpose became two table reads per channel (3.9.2) -> see /status.
   //
   // Saturation boost and the gamma/WB LUTs are applied inside the blit, so the
   // canvas buffer keeps the pattern's raw values. Post-processing in place here
