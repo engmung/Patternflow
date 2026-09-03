@@ -66,10 +66,10 @@ A layered, dockable workspace: nine panels over a layer-stack project. A panel i
 | Panel | Where | What |
 | :--- | :--- | :--- |
 | Preview, Layers, Code, Knobs, Color Ramp | `panels/` | The editor proper. Layers are code (JS) or pixel (RGBA buffer, edited in place and versioned by `rev`); ramps are per layer, knobs are one shared set |
-| Pixel | `panels/PixelPanel.tsx` + `lib/lab/pixelTools.ts` | Pixel-art editor; `pixelToCode.ts` turns a sprite into standalone pattern code |
+| Pixel | `panels/PixelPanel.tsx` + `panels/pixel/` + `lib/lab/pixelTools.ts` | Pixel-art editor. The panel composes one hook per concern (`usePixelToolState`, `usePixelSelection`, `usePixelViewport`, `usePixelCanvases`, `usePixelPointer`, `usePixelKeyboard`) and two toolbar components; `pixelToCode.ts` turns a sprite into standalone pattern code |
 | Gallery | `panels/GalleryPanel.tsx` | Gemini variant generation queue |
 | Graphic Export | `panels/CapturePanel.tsx` + `lib/lab/capture/` | Stills and clips at print sizes, rendered by a second engine in a Web Worker (WebCodecs + `mediabunny`, all client-side), plus a GLSL shader twin for posters. `probe.ts` decides whether a pattern can be re-rendered at another size or must be upscaled |
-| Director | `panels/DirectorPanel.tsx` + `lib/lab/director/` | Knob automation over time — keyframes, bezier eases — baked to `.pfs` show files (`src/lib/pattern/pfst.ts` is the codec) and exported as MIDI |
+| Director | `panels/DirectorPanel.tsx` + `panels/director/` + `lib/lab/director/` | Knob automation over time — keyframes, bezier eases — baked to `.pfs` show files (`src/lib/pattern/pfst.ts` is the codec) and exported as MIDI. The panel composes `useTransportView`, `useTimelineZoom`, `useShowEditing`, the file helpers and two bars; the lanes are `DirectorLanes.tsx` |
 
 Each panel owns its stylesheet (`panels/<Panel>.module.css`); `PatternLab.module.css` keeps only what two or more files draw with, and `LabPanels.module.css` the dock chrome. The lab reaches the community through exactly one file, `community.ts` (the publish and send modals, the configured switches, the handoff, the `.pfs` reader) — ESLint refuses any other import of `@/components/community` or `@/lib/community` from under the lab.
 
@@ -112,5 +112,5 @@ PostHog (`src/providers/PostHogProvider.tsx`, event helpers in `src/lib/posthogE
 - Styling: Tailwind v4 (`@import "tailwindcss"` in `globals.css`) + global custom CSS; larger components use CSS Modules (`*.module.css`).
 - **Layering:** `lib/` is the bottom. `app/` and `components/` import from it; it never imports from them (ESLint enforces it). A type a component and a serializer share belongs in `lib/` — `lib/community/cardTypes.ts` is the precedent.
 - Adding a preset: add the JS file under `src/lib/presets/`, register it in `index.ts`, then generate the firmware `.h` with the Pattern Lab "Copy C++ prompt" flow.
-- Tests are the `check:*` scripts in `package.json` — bespoke smoke suites under `scripts/*-smoke.ts`, one per subsystem. `npm run check:ci` runs every one that needs nothing a CI runner lacks; `check:module` wants the Xtensa toolchain and stays local.
+- Tests are the `check:*` scripts in `package.json` — bespoke smoke suites under `scripts/*-smoke.ts`, one per subsystem — plus `check:panels`, a Vitest + jsdom + Testing Library harness (`vitest.config.ts`, `test/setup.ts`) for the Pattern Lab panels, where pointer gestures, keyboard shortcuts, undo and the Director's keyframes need a DOM. Those tests live beside the panels (`panels/*.test.tsx`) and read the store's buffers rather than the canvas, which jsdom does not have. `npm run check:ci` runs every one that needs nothing a CI runner lacks; `check:module` wants the Xtensa toolchain and stays local.
 - CI (`.github/workflows/web-ci.yml`) lints, typechecks (`npm run typecheck`), builds and runs `check:ci` on every PR touching `web/`.
