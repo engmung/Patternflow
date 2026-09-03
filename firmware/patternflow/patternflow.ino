@@ -104,6 +104,7 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
+#include "src/core_loop_sync.h"
 #include "src/core_net_task.h"
 
 // ── Device state ──────────────────────────────────────────────
@@ -376,7 +377,9 @@ void setup() {
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
   PatternflowImprov::begin();
-  // Start Core 0 network task right away so Wi-Fi polling runs in background
+  // The network task (Core 0): Wi-Fi, the console, Improv, OTA. Started now
+  // so joining Wi-Fi never waits on the first frame; the HTTP server itself
+  // is not serviced until loop() has registered every route.
   PatternflowNetTask::begin();
 
   // Wireless-update progress is drawn from inside the upload handler: the
@@ -1170,8 +1173,9 @@ void loop() {
   // seconds of boot would forget a pattern that never misbehaved.
   clearPatternLatchIfStable();
 
-  // Network I/O and Wi-Fi tick are serviced on Core 0 when dual-core task is running.
-  // Fall back to main loop polling if the task failed to create.
+  // Wi-Fi, the console, Improv, OTA and the self-update's housekeeping are
+  // serviced by the network task on Core 0. Only if that task could not be
+  // created does loop() poll them itself, as it did before 3.9.1.
   if (!PatternflowNetTask::isDualCoreActive()) {
     PatternflowWifi::tick();
     PatternflowImprov::handle();
@@ -1192,7 +1196,14 @@ void loop() {
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");
     reportHeap("services up");
+    // Every route exists: the network task may serve the console now.
+    PatternflowNetTask::servicesReady = true;
   }
+
+  // The frame boundary. Whatever a handler on the network core needed done
+  // on this task — evicting or restoring the module, walking the pattern
+  // list, touching a feature's client — runs here, before the frame.
+  PFLoopSync::service();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.

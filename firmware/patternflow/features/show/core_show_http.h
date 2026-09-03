@@ -18,6 +18,7 @@
 
 #include "../../net_config.h"
 #include "../../src/core_patterns_http.h"
+#include "../../src/core_loop_sync.h"
 
 #if PF_SHOW_HTTP_ENABLED && PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
@@ -319,7 +320,7 @@ inline void handleList() {
   sendJson(200, json);
 }
 
-inline void handleControl() {
+inline void controlOnLoop() {
   String op = server().hasArg("op") ? server().arg("op") : String();
   op.toLowerCase();
   if (op == "stop") {
@@ -449,7 +450,7 @@ inline void handleControl() {
   sendJson(400, "{\"ok\":false,\"error\":\"op must be play, playlist, pause, resume, stop, loop or variance\"}");
 }
 
-inline void handleSchedule() {
+inline void scheduleOnLoop() {
   bool en = server().arg("enabled") == "1";
   bool repeat = server().arg("repeat") == "1";
   bool clock = server().arg("nightClock") == "1";
@@ -468,7 +469,7 @@ inline void handleSchedule() {
   sendJson(200, json);
 }
 
-inline void handleDelete() {
+inline void deleteOnLoop() {
   char slug[PatternflowShow::SLUG_BYTES];
   if (!slugFromName(server().arg("slug"), slug, sizeof(slug))) {
     sendJson(400, "{\"ok\":false,\"error\":\"missing slug\"}");
@@ -582,6 +583,14 @@ inline void handlePutDone() {
   json += '}';
   sendJson(200, json);
 }
+
+// The show engine is ticked by the feature loop on the render core, and
+// these start, stop, reconfigure or delete what it is ticking. The HTTP
+// server runs on the network core, so the bodies above are handed to the
+// loop task and run at the frame boundary (core_loop_sync.h).
+inline void handleControl() { PFLoopSync::run([] { controlOnLoop(); }); }
+inline void handleSchedule() { PFLoopSync::run([] { scheduleOnLoop(); }); }
+inline void handleDelete() { PFLoopSync::run([] { deleteOnLoop(); }); }
 
 inline void begin() {
   if (initialized) return;

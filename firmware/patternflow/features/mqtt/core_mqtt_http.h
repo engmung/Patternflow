@@ -16,6 +16,7 @@
 
 #include "../../net_config.h"
 #include "../../src/core_patterns_http.h"
+#include "../../src/core_loop_sync.h"
 
 #ifndef PF_MQTT_HTTP_ENABLED
 #define PF_MQTT_HTTP_ENABLED PF_MQTT_ENABLED
@@ -144,7 +145,7 @@ inline void handleGet() {
   sendStatus(200);
 }
 
-inline void handlePost() {
+inline void postOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
 
   if (PatternflowMqtt::isDirectorMode() || PatternflowMqtt::isFlowLocalMode()) {
@@ -212,7 +213,7 @@ inline void handlePost() {
   sendStatus(200);
 }
 
-inline void handleConfig() {
+inline void configOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
 
   if (PatternflowMqtt::isDirectorMode() || PatternflowMqtt::isFlowLocalMode()) {
@@ -246,7 +247,7 @@ inline void handleConfig() {
   sendStatus(200);
 }
 
-inline void handleDirector() {
+inline void directorOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   String host = server().hasArg("host") ? server().arg("host") : String();
   host.trim();
@@ -260,7 +261,7 @@ inline void handleDirector() {
   sendStatus(200);
 }
 
-inline void handleFlowLocal() {
+inline void flowLocalOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   String host = server().hasArg("host") ? server().arg("host") : String();
   host.trim();
@@ -274,7 +275,7 @@ inline void handleFlowLocal() {
   sendStatus(200);
 }
 
-inline void handleMode() {
+inline void modeOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   String mode = server().hasArg("mode") ? server().arg("mode") : String();
   mode.toLowerCase();
@@ -297,13 +298,23 @@ inline void handleMode() {
                 "{\"ok\":false,\"error\":\"mode must be director, flowlocal, or normal\"}");
 }
 
-inline void handleForget() {
+inline void forgetOnLoop() {
   PatternflowPatternsHttp::noteConsoleApiCall();
   PatternflowMqtt::clearConfig();
   PatternflowMqtt::applyChannel(PatternflowMqtt::CHANNEL_OFF, PatternflowMqtt::ROLE_OFF);
   persistChannelAndRole();
   sendStatus(200);
 }
+
+// PubSubClient is not thread-safe, and the feature loop on the render core
+// calls client.loop() every frame. Anything here that reconnects, changes
+// mode or clears the config runs on the loop task (core_loop_sync.h).
+inline void handlePost() { PFLoopSync::run([] { postOnLoop(); }); }
+inline void handleConfig() { PFLoopSync::run([] { configOnLoop(); }); }
+inline void handleDirector() { PFLoopSync::run([] { directorOnLoop(); }); }
+inline void handleFlowLocal() { PFLoopSync::run([] { flowLocalOnLoop(); }); }
+inline void handleMode() { PFLoopSync::run([] { modeOnLoop(); }); }
+inline void handleForget() { PFLoopSync::run([] { forgetOnLoop(); }); }
 
 inline void begin() {
   if (initialized) return;

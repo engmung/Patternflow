@@ -46,6 +46,10 @@ inline void setRuntimeEnabled(bool on) {
 
 inline void onNetwork() {
   PatternflowAudio::begin();
+  // onNetwork runs on every (re)connection; the routes are registered once.
+  static bool routesUp = false;
+  if (routesUp) return;
+  routesUp = true;
   WebServer& s = PatternflowHttp::server();
   s.on("/api/audio", HTTP_GET, []() {
     String j = "{\"audioRuntime\":";

@@ -238,6 +238,11 @@ inline void handleStatus() {
   json += xPortGetCoreID();
   json += ",\"netStackMin\":";
   json += PatternflowNetTask::stackMinFree;
+  // Handlers that had to run on the loop task, and the longest one waited.
+  json += ",\"loopSyncServed\":";
+  json += PFLoopSync::served;
+  json += ",\"loopSyncMaxUs\":";
+  json += PFLoopSync::maxWaitUs;
   json += ",\"colorBits\":";
   json += dma_display->getCfg().getPixelColorDepthBits();
   json += ",\"refreshHz\":";

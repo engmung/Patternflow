@@ -751,7 +751,9 @@ inline bool fetchOnce() {
     return false;
   }
 
-  fetchInFlight = true;
+  // Two callers now — the scheduler on the render core and POST
+  // /api/weather/fetch on the network core — so the claim is atomic.
+  if (__atomic_exchange_n(&fetchInFlight, true, __ATOMIC_ACQ_REL)) return false;
 
   float la = lat;
   float lo = lon;

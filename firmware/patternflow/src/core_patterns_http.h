@@ -32,6 +32,7 @@
 #include <esp_heap_caps.h>
 
 #include "core_http.h"
+#include "core_loop_sync.h"  // handlers run on the network core; the module and the list are the frame's
 #include "core_send.h"     // low-heap page sender — pages serve WITHOUT pausing the pattern
 #include "core_pack_select.h"
 #include "patterns_index.h"
@@ -84,7 +85,12 @@ inline void evictResidentModule() {
   }
 }
 
-inline void captureSelectionOnce() {
+// Evicting the module and rebuilding the list are the frame's business:
+// draw() may be inside the module, and it indexes the list. The handlers
+// that call these run on the network core (core_net_task.h), so the bodies
+// are handed to the loop task and run at the frame boundary. From loop()
+// itself — tick() below — they run inline.
+inline void captureSelectionOnceNow() {
   if (restorePending) {
     // Show / night schedule / MQTT may reload a module while the console
     // still holds the pause. Evict again or the wake page loops forever.
@@ -109,7 +115,11 @@ inline void captureSelectionOnce() {
   }
 }
 
-inline void restoreSelection() {
+inline void captureSelectionOnce() {
+  PFLoopSync::run([] { captureSelectionOnceNow(); });
+}
+
+inline void restoreSelectionNow() {
   restorePending = false;
   buildPatternList();
   if (restorePath[0]) {
@@ -121,6 +131,10 @@ inline void restoreSelection() {
     }
   }
   activatePattern(restorePresetIdx >= 0 ? restorePresetIdx : 0);
+}
+
+inline void restoreSelection() {
+  PFLoopSync::run([] { restoreSelectionNow(); });
 }
 
 // The rescan-and-reload above touches FATFS and the ELF loader — tens of
@@ -296,6 +310,9 @@ inline void handleList() {
   json += ",\"free\":";
   json += moduleStorageMounted ? (uint32_t)(FFat.totalBytes() - FFat.usedBytes()) : 0;
   json += ",\"patterns\":[";
+  // The list is rebuilt by tick() on the loop task after an upload; walk it
+  // there, not underneath that.
+  PFLoopSync::run([&] {
   for (int i = 0; i < NUM_PATTERNS; i++) {
     if (i) json += ',';
     json += "{\"index\":";
@@ -317,6 +334,7 @@ inline void handleList() {
     }
     json += '}';
   }
+  });
   json += "],\"pendingRev\":";
   json += PatternflowPackSelect::rev;
   json += ",\"pending\":[";
@@ -774,51 +792,65 @@ inline bool consumeSelectIdx(int& out) {
 }
 
 inline void handleSelect() {
+  // Read the request here; resolve it against the list on the loop task,
+  // which is the only place the list is guaranteed whole.
+  const bool byStep = server().hasArg("step");
+  const int step = byStep ? server().arg("step").toInt() : 0;
+  const bool byIndex = server().hasArg("index");
+  const int wantIndex = byIndex ? server().arg("index").toInt() : -1;
+  const String wantName = server().hasArg("name") ? server().arg("name") : String();
+
   int index = -1;
-  if (server().hasArg("step")) {
-    int step = server().arg("step").toInt();
-    int dir = (step >= 0) ? 1 : -1;
-    int cur = (activePatternIdx >= 0) ? activePatternIdx : 0;
-    int candidate = cur;
-    for (int guard = 0; guard < NUM_PATTERNS; guard++) {
-      candidate = ((candidate + dir) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
-      if (!patterns[candidate].hidden) {
-        index = candidate;
-        break;
+  String name;
+  PFLoopSync::run([&] {
+    if (byStep) {
+      // ?step=+1|-1: the next (or previous) pattern that is not hidden,
+      // wrapping, from wherever the panel is now.
+      int dir = (step >= 0) ? 1 : -1;
+      int candidate = (activePatternIdx >= 0) ? activePatternIdx : 0;
+      for (int guard = 0; guard < NUM_PATTERNS; guard++) {
+        candidate = ((candidate + dir) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
+        if (!patterns[candidate].hidden) {
+          index = candidate;
+          break;
+        }
+      }
+    } else if (byIndex) {
+      index = wantIndex;
+    } else if (wantName.length()) {
+      for (int i = 0; i < NUM_PATTERNS; i++) {
+        if (wantName.equals(patterns[i].name)) {
+          index = i;
+          break;
+        }
       }
     }
-  } else if (server().hasArg("index")) {
-    index = server().arg("index").toInt();
-  } else if (server().hasArg("name")) {
-    String name = server().arg("name");
-    for (int i = 0; i < NUM_PATTERNS; i++) {
-      if (name.equals(patterns[i].name)) {
-        index = i;
-        break;
-      }
+    if (index < 0 || index >= NUM_PATTERNS) {
+      index = -1;
+      return;
     }
-  }
+    name = patterns[index].name;
+    pendingSelectIdx = index;
+    // An explicit pick supersedes a pending console restore: without this,
+    // the pattern chosen from the page ran until the console went idle and
+    // then snapped back to whatever was playing before the page was opened.
+    // Left alone only while an upload batch still owns the eviction.
+    if (restorePending &&
+        (!lastUploadActivityMs || millis() - lastUploadActivityMs > 3000)) {
+      restorePending = false;
+    }
+  });
 
   server().sendHeader("Cache-Control", "no-store");
   server().sendHeader("Access-Control-Allow-Origin", "*");
-  if (index < 0 || index >= NUM_PATTERNS) {
+  if (index < 0) {
     server().send(404, "application/json", "{\"ok\":false,\"error\":\"no such pattern\"}");
     return;
-  }
-
-  pendingSelectIdx = index;
-  // An explicit pick supersedes a pending console restore: without this, the
-  // pattern chosen from the page ran until the console went idle and then
-  // snapped back to whatever was playing before the page was opened. Left
-  // alone only while an upload batch still owns the eviction.
-  if (restorePending &&
-      (!lastUploadActivityMs || millis() - lastUploadActivityMs > 3000)) {
-    restorePending = false;
   }
   String body = "{\"ok\":true,\"index\":";
   body += index;
   body += ",\"name\":\"";
-  body += patterns[index].name;
+  body += name;
   body += "\"}";
   server().send(200, "application/json", body);
 }

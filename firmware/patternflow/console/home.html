@@ -492,12 +492,12 @@ function pumpParams() {
 function onSliderInput(idx, val) {
   var v = parseInt(val, 10);
   if (isNaN(v)) return;
-  var d = v - lastReported[idx];
   lastReported[idx] = v;
 
-  // pX (0..1000 for modern PFParams) + dX (relative delta for legacy patterns)
+  // pX on the 0..1000 bus. The device derives the clicks a legacy pattern
+  // reads from the change in the held value, so no dX alongside — sending
+  // both counted every move twice.
   queuedParams['p' + (idx + 1)] = v * 10;
-  queuedParams['d' + (idx + 1)] = (queuedParams['d' + (idx + 1)] || 0) + d;
 
   pumpParams();
 }

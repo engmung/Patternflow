@@ -101,6 +101,16 @@ section fully before writing code.
   with its reason, including `PF_VARIANT` / `PF_VARIANT_VERSION` (the name
   and version the panel reports; `shelf.sh` refuses an image whose version
   string doesn't match).
+- **Your HTTP handlers run on the network core, not the frame's.** Since
+  3.9.1 the console's server is serviced by a task on Core 0 while `loop()`
+  renders on Core 1. A handler that reads a word of state, or writes a value
+  the next frame picks up, needs nothing. One that touches what the frame is
+  using right now — starts or stops something your `loop` hook is ticking,
+  reconnects a client it polls, frees a buffer it reads — wraps that part in
+  `PFLoopSync::run([&] { ... })` (`src/core_loop_sync.h`): the body runs on
+  the loop task at the frame boundary and the handler waits for it.
+  [`show/`](firmware/patternflow/features/show/), `mqtt/` and `weather/`
+  show the shape.
 
 ### The seam, file by file
 
