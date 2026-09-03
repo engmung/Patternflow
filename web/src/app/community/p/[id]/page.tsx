@@ -2,9 +2,9 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { isAdminSession } from "@/lib/community/admin";
-import { communityEnabled } from "@/lib/community/db";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { communityEnabled } from "@/lib/community/server/db";
+import { getAuth } from "@/lib/community/server/auth";
 import {
   getPattern,
   getPatternStub,
@@ -13,7 +13,7 @@ import {
   listDecksWithPattern,
   listPatternPerformances,
   listPatternPorts,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import { summarizePerformanceJson } from "@/lib/pattern/pfst";
 import { resolvePerformance } from "@/lib/community/performances";
 import { resolveHeader } from "@/lib/community/ports";

@@ -34,15 +34,15 @@ function check(label: string, actual: unknown, expected: unknown) {
 
 async function main() {
   const { eq } = await import("drizzle-orm");
-  const { getDb } = await import("../src/lib/community/db");
-  const schema = await import("../src/lib/community/schema");
-  const queries = await import("../src/lib/community/queries");
-  const notify = await import("../src/lib/community/notify");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const schema = await import("../src/lib/community/server/schema");
+  const queries = await import("../src/lib/community/server/queries");
+  const notify = await import("../src/lib/community/server/notify");
   const workshop = await import("../src/lib/community/workshop");
   const { attachmentDir, attachmentPath, sniffImage } = await import(
-    "../src/lib/community/attachments"
+    "../src/lib/community/server/attachments"
   );
-  const { sweepOrphanAttachments } = await import("../src/lib/community/retention");
+  const { sweepOrphanAttachments } = await import("../src/lib/community/server/retention");
 
   const db = getDb();
 

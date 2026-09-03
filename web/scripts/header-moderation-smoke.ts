@@ -42,9 +42,9 @@ const FIXED = "#pragma once // repaired by the moderator";
 
 async function main() {
   const { eq } = await import("drizzle-orm");
-  const { getAuth } = await import("../src/lib/community/auth");
-  const { getDb } = await import("../src/lib/community/db");
-  const schema = await import("../src/lib/community/schema");
+  const { getAuth } = await import("../src/lib/community/server/auth");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const schema = await import("../src/lib/community/server/schema");
   const patternRoute = await import("../src/app/api/community/patterns/[id]/route");
   const portRoute = await import("../src/app/api/community/ports/[id]/route");
 

@@ -1,9 +1,9 @@
 import { inArray } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { featuredPatterns, patterns } from "@/lib/community/schema";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { featuredPatterns, patterns } from "@/lib/community/server/schema";
 
 // PUT /api/community/featured — set the marquee, in order.
 //

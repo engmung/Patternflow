@@ -1,4 +1,4 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { DECK_MAX } from "@/lib/community/deck";
 import {
   countActiveBuilds,
@@ -6,9 +6,9 @@ import {
   supersedeQueuedBuilds,
   type BuildFormat,
   type BuildPatternInput,
-} from "@/lib/community/builds";
+} from "@/lib/community/server/builds";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled } from "@/lib/community/db";
+import { communityEnabled } from "@/lib/community/server/db";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { CPP_MAX } from "@/lib/community/validate";
 import { validateCustomPattern } from "@/lib/firmware/assemble";

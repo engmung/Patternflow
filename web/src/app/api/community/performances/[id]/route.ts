@@ -1,17 +1,17 @@
 import { eq } from "drizzle-orm";
 
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { clearNotificationsFor } from "@/lib/community/notify";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { clearNotificationsFor } from "@/lib/community/server/notify";
 import {
   encodePfst,
   normalizePerformance,
   pfsFilename,
 } from "@/lib/pattern/pfst";
-import { getPatternStub, getPerformanceStub } from "@/lib/community/queries";
-import { patternPerformances, patterns } from "@/lib/community/schema";
+import { getPatternStub, getPerformanceStub } from "@/lib/community/server/queries";
+import { patternPerformances, patterns } from "@/lib/community/server/schema";
 import { canView } from "@/lib/community/visibility";
 
 // GET    /api/community/performances/[id] — one specific recording, as the

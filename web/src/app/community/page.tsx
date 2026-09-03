@@ -1,14 +1,14 @@
 import { headers } from "next/headers";
-import { getAuth } from "@/lib/community/auth";
-import { communityEnabled } from "@/lib/community/db";
+import { getAuth } from "@/lib/community/server/auth";
+import { communityEnabled } from "@/lib/community/server/db";
 import {
   countFeed,
   likedPatternIds,
   listFeatured,
   listFeed,
   parseFeedSort,
-} from "@/lib/community/queries";
-import { toCardItem } from "@/lib/community/serialize";
+} from "@/lib/community/server/queries";
+import { toCardItem } from "@/lib/community/server/serialize";
 import { FEED_FIRST_PAINT } from "@/lib/community/feedView";
 import CommunityFeedClient from "@/components/community/CommunityFeedClient";
 import Marquee from "@/components/community/Marquee";

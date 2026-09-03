@@ -22,7 +22,7 @@ import {
 } from "@/lib/community/visibility";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { useDeviceHost } from "@/lib/community/deviceHost";
-import type { DeckPageItem } from "@/lib/community/serialize";
+import type { DeckPageItem } from "@/lib/community/server/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
 

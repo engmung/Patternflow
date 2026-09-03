@@ -1,22 +1,22 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession, moderatorHeaderPatchOnly } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession, moderatorHeaderPatchOnly } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import {
   clearNotificationsFor,
   notifyHeaderModerated,
   notifyPerformancePinned,
   notifyPortPinned,
-} from "@/lib/community/notify";
+} from "@/lib/community/server/notify";
 import {
   getPattern,
   getPatternStub,
   getPerformanceStub,
   getPortStub,
-} from "@/lib/community/queries";
+} from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { patternHeaders, patterns } from "@/lib/community/schema";
+import { patternHeaders, patterns } from "@/lib/community/server/schema";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
   CODE_MAX,

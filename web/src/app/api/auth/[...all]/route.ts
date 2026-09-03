@@ -1,6 +1,6 @@
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled } from "@/lib/community/db";
-import { getAuth } from "@/lib/community/auth";
+import { communityEnabled } from "@/lib/community/server/db";
+import { getAuth } from "@/lib/community/server/auth";
 
 // Better Auth catch-all (sign-up, sign-in, session, sign-out, …).
 // Lazy so that deployments without COMMUNITY_ENABLED never open the database.

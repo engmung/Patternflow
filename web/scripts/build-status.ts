@@ -9,9 +9,9 @@ import { loadEnv } from "./loadEnv";
 loadEnv();
 
 async function main() {
-  const { getBuild, parseBuildPatterns, artifactDir } = await import("../src/lib/community/builds");
-  const { getDb } = await import("../src/lib/community/db");
-  const { builds } = await import("../src/lib/community/schema");
+  const { getBuild, parseBuildPatterns, artifactDir } = await import("../src/lib/community/server/builds");
+  const { getDb } = await import("../src/lib/community/server/db");
+  const { builds } = await import("../src/lib/community/server/schema");
   const { desc } = await import("drizzle-orm");
   const path = await import("node:path");
 

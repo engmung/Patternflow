@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { username } from "better-auth/plugins";
 import { getDb } from "./db";
 import * as schema from "./schema";
-import { USERNAME_RE } from "./validate";
+import { USERNAME_RE } from "../validate";
 
 // Better Auth owns hashing, sessions, and CSRF — never hand-roll any of that.
 // Username + password is the primary credential; email is optional and only

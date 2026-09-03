@@ -1,6 +1,6 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import {
   STAGE_HEIGHT,
   STAGE_WIDTH,
@@ -8,9 +8,9 @@ import {
   cleanStageCoord,
   cleanStatus,
 } from "@/lib/community/workshop";
-import { countUnmoved, listPresence } from "@/lib/community/queries";
+import { countUnmoved, listPresence } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { presence } from "@/lib/community/schema";
+import { presence } from "@/lib/community/server/schema";
 
 // GET  /api/community/presence — everyone standing on the constellation,
 //      plus how many accounts are still parked at the core.

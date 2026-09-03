@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { clearNotificationsFor } from "@/lib/community/notify";
-import { getCommentStub } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { clearNotificationsFor } from "@/lib/community/server/notify";
+import { getCommentStub } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { comments, postComments } from "@/lib/community/schema";
+import { comments, postComments } from "@/lib/community/server/schema";
 import { COMMENT_MAX, cleanComment } from "@/lib/community/validate";
 
 // DELETE /api/community/comments/[id]?on=pattern|post

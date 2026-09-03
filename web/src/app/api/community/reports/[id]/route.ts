@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { reports } from "@/lib/community/schema";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { reports } from "@/lib/community/server/schema";
 
 // PATCH /api/community/reports/[id] — a moderator closes a report.
 //

@@ -1,10 +1,10 @@
 import { eq, isNotNull } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { getPostStub } from "@/lib/community/queries";
-import { posts } from "@/lib/community/schema";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { getPostStub } from "@/lib/community/server/queries";
+import { posts } from "@/lib/community/server/schema";
 
 // POST /api/community/posts/[id]/pin — moderators set (or clear) THE notice.
 //

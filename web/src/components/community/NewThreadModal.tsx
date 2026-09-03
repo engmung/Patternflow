@@ -11,7 +11,7 @@ import {
   ATTACHMENT_MAX_PER_PARENT,
   formatBytes,
 } from "@/lib/community/workshop";
-import type { TerritoryListItem } from "@/lib/community/queries";
+import type { TerritoryListItem } from "@/lib/community/server/queries";
 import { POST_BODY_MAX, TITLE_MAX } from "@/lib/community/validate";
 import styles from "./Community.module.css";
 

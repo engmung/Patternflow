@@ -12,7 +12,7 @@ import {
   formatSince,
   parseQuestions,
 } from "@/lib/community/workshop";
-import type { TerritoryListItem } from "@/lib/community/queries";
+import type { TerritoryListItem } from "@/lib/community/server/queries";
 import { useDragPan } from "@/lib/hooks/useDragPan";
 import { useIsMobile } from "@/lib/hooks/useMediaQuery";
 import AuthModal from "./AuthModal";

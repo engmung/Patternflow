@@ -1,10 +1,10 @@
-import { getAuth } from "@/lib/community/auth";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
-import { notifyCommentAdded } from "@/lib/community/notify";
-import { getPatternStub, newId } from "@/lib/community/queries";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { notifyCommentAdded } from "@/lib/community/server/notify";
+import { getPatternStub, newId } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { comments } from "@/lib/community/schema";
+import { comments } from "@/lib/community/server/schema";
 import { cleanComment } from "@/lib/community/validate";
 import { canView } from "@/lib/community/visibility";
 

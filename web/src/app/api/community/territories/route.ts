@@ -1,7 +1,7 @@
-import { isAdminSession } from "@/lib/community/admin";
-import { getAuth } from "@/lib/community/auth";
+import { isAdminSession } from "@/lib/community/server/admin";
+import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
-import { communityEnabled, getDb } from "@/lib/community/db";
+import { communityEnabled, getDb } from "@/lib/community/server/db";
 import {
   cleanQuestions,
   cleanSpan,
@@ -10,8 +10,8 @@ import {
   cleanTerritoryDescription,
   cleanTerritoryTitle,
 } from "@/lib/community/workshop";
-import { getTerritoryByCode, listTerritoriesForAdmin, newId } from "@/lib/community/queries";
-import { territories } from "@/lib/community/schema";
+import { getTerritoryByCode, listTerritoriesForAdmin, newId } from "@/lib/community/server/queries";
+import { territories } from "@/lib/community/server/schema";
 
 // POST /api/community/territories — draw a new direction on the map.
 //

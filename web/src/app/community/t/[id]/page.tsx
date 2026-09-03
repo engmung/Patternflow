@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import { communityEnabled } from "@/lib/community/db";
-import { getPost } from "@/lib/community/queries";
+import { communityEnabled } from "@/lib/community/server/db";
+import { getPost } from "@/lib/community/server/queries";
 
 // /community/t/[id] — a thread by id alone.
 //

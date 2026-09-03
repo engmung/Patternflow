@@ -34,6 +34,29 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // The community's server side — SQLite, Drizzle, Better Auth, the filesystem
+  // — is lib/community/server/. A client component that imports it pulls
+  // better-sqlite3 into a browser bundle, which fails late and confusingly.
+  // Components and *Client.tsx files may import its TYPES (erased at compile
+  // time) and nothing else; a value they need crosses through an API route.
+  {
+    files: ["src/components/**/*.{ts,tsx}", "src/app/**/*Client.tsx", "src/lib/community/!(server)/**"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/lib/community/server/*", "**/community/server/*"],
+              allowTypeImports: true,
+              message:
+                "lib/community/server/ runs on the server only — reach it through an API route, or import just the type.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
