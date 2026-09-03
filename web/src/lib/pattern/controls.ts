@@ -3,7 +3,7 @@ import { PATTERN_DETENTS_PER_TURN } from "./harness";
 // Detents in one full turn of the physical encoder. One fact, one constant:
 // harness.ts owns it (see the note there — the reference Bourns
 // PEC11R-...-S0024 is 24, not the 20 assumed for a long time) and this is the
-// name the knob math and the Home Assistant card have always used for it.
+// name the knob math has always used for it.
 export const ENCODER_CLICKS_PER_TURN = PATTERN_DETENTS_PER_TURN;
 
 // The device's absolute bus speaks integers 0..1000 (PF_BUS_MAX in

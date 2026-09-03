@@ -49,12 +49,12 @@ Cross-component landing state (active tab, virtual knob values, bloom toggle) li
 
 ## Pattern system
 
-Mirrors the firmware; the same JS runs in the browser, in the community's sandbox iframe, in the lab's worker and in the Home Assistant card.
+Mirrors the firmware; the same JS runs in the browser, in the community's sandbox iframe and in the lab's worker.
 
 - **`src/lib/presets/`** — JS pattern sources, one file per pattern. **Source of truth** for the firmware preset `.h` files (`firmware/patternflow/presets/`; the web has more presets than the firmware — the cut list is in `firmware/patternflow/README.md`). `_TEMPLATE.ts` is the skeleton; `index.ts` the registry.
 - **`src/lib/pattern/harness.ts`** — runs pattern JS on a 128×64 virtual matrix with 4 virtual encoders (24 detents/turn), matching device semantics (`knobDeltas`, `btnPressed`/`btnHeld`); also the OKLab/OKLCH colour ramp math and the LUT builders. `public/pattern-sandbox.html` carries an ES5 port of the ramp math for the sandbox iframe — **keep the two in sync** (`next.config.ts` records the bug that drift caused).
 - **Annotations** — a pattern's frame, ramp, knob ranges and layer stack travel *inside its code* as one-line comments so they survive every copy: `@matrix` (`src/lib/pattern/matrix.ts`), `@ramp` (`src/lib/pattern/ramp.ts`), `@knobs` (`src/lib/pattern/knobs.ts` — the lab's knob state in `src/lib/lab/annotations.ts` and the community's card reader in `src/lib/community/knobs.ts` both build on it), `@stack` (`src/lib/lab/stackShare.ts`).
-- **`src/lib/pattern/controls.ts`** — knob-scale constants shared with the firmware and the Home Assistant card.
+- **`src/lib/pattern/controls.ts`** — knob-scale constants shared with the firmware.
 - **`src/lib/pattern/share.ts`** — licence header + attribution footer, injected at export time only.
 - **`src/lib/pattern/packs.ts`** — the Basics pack that ships with the firmware (`public/packs/`, built by `firmware/toolchain/make_pack.py`).
 - **`src/lib/ai/gemini.ts`** — bring-your-own-key Gemini generation. The key lives in `localStorage` and calls go straight from the browser to Google; no server proxy, no bundled key.
@@ -79,13 +79,9 @@ Exports flatten the visible stack to one standalone pattern (`flatten.ts`); `hEx
 
 SQLite via Drizzle (`server/schema.ts`; migrations in `web/drizzle/`, applied on first open by `server/db.ts`), Better Auth (`server/auth.ts`), reads in `server/queries/` — one file per domain (patterns, decks, workshop, moderation, users, notifications, plus the shared sub-selects), re-exported by `server/queries.ts` — attachments and thumbnails on disk under `communityDataDir()` (default `web/data/`, gitignored — set `COMMUNITY_DB_PATH` on a real deployment). **`lib/community/server/` is the server side** — everything that touches SQLite, the filesystem or a session — and ESLint refuses a value import of it from `components/` or a `*Client.tsx` (type imports are fine; a value crosses through an API route). The rest of `lib/community/` is either `"use client"` (`auth-client`, `deviceHost`, `download`, `handoff`, `knobs`, `thumbs`) or pure and usable anywhere (`validate`, `license`, `deck`, `workshop`, `cors`, …).
 
-Patterns render in a sandboxed iframe (`public/pattern-sandbox.html`, driven by `components/community/SandboxPreview.tsx`; the same `pf-*` message protocol is spoken by `src/ha-card/sandbox.ts`). Pattern Lab hands off to the community through `handoff.ts` (fork vs. edit-in-place), and publishes through `components/community/PublishModal.tsx`.
+Patterns render in a sandboxed iframe (`public/pattern-sandbox.html`, driven by `components/community/SandboxPreview.tsx`). Pattern Lab hands off to the community through `handoff.ts` (fork vs. edit-in-place), and publishes through `components/community/PublishModal.tsx`.
 
 The **firmware build service** (`/api/community/builds` + `scripts/build-worker.ts` + `src/lib/firmware/moduleRunner.ts`) compiles a submitted header into a `.pfm` module with the firmware toolchain. It is gated behind `BUILD_ENABLED` and off by default: compiling submitted C++ is arbitrary code execution at compile time.
-
-## Home Assistant card
-
-`src/ha-card/` is not a Next route: `scripts/build-ha-card.ts` bundles it with esbuild into `custom_components/patternflow/www/patternflow-card.js`, which is committed because HACS hands Home Assistant a directory. CI rebuilds it and fails if the committed bundle drifts (`check:ha-card`).
 
 ## Content pipeline
 
@@ -117,4 +113,4 @@ PostHog (`src/providers/PostHogProvider.tsx`, event helpers in `src/lib/posthogE
 - **Layering:** `lib/` is the bottom. `app/` and `components/` import from it; it never imports from them (ESLint enforces it). A type a component and a serializer share belongs in `lib/` — `lib/community/cardTypes.ts` is the precedent.
 - Adding a preset: add the JS file under `src/lib/presets/`, register it in `index.ts`, then generate the firmware `.h` with the Pattern Lab "Copy C++ prompt" flow.
 - Tests are the `check:*` scripts in `package.json` — bespoke smoke suites under `scripts/*-smoke.ts`, one per subsystem — plus `check:panels`, a Vitest + jsdom + Testing Library harness (`vitest.config.ts`, `test/setup.ts`) for the Pattern Lab panels, where pointer gestures, keyboard shortcuts, undo and the Director's keyframes need a DOM. Those tests live beside the panels (`panels/*.test.tsx`) and read the store's buffers rather than the canvas, which jsdom does not have. `npm run check:ci` runs every one that needs nothing a CI runner lacks; `check:module` wants the Xtensa toolchain and stays local.
-- CI (`.github/workflows/web-ci.yml`) lints, typechecks (`npm run typecheck`), builds, runs `check:ci`, and verifies the Home Assistant card bundle on every PR touching `web/`.
+- CI (`.github/workflows/web-ci.yml`) lints, typechecks (`npm run typecheck`), builds and runs `check:ci` on every PR touching `web/`.
