@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { labEngine } from "@/lib/lab/engine";
 import { captureSession } from "@/lib/lab/capture/session";
 import { useLabStore } from "@/lib/lab/store";
-import styles from "../PatternLab.module.css";
+import local from "./KnobsPanel.module.css";
 import dock from "../LabPanels.module.css";
 
 const pixelsPerDigitStep = 10;
@@ -176,7 +176,7 @@ export default function KnobsPanel() {
     if (editingRange?.index === index && editingRange.edge === edge) {
       return (
         <input
-          className={styles.rangeInput}
+          className={local.rangeInput}
           value={editingRange.value}
           autoFocus
           inputMode="decimal"
@@ -198,7 +198,7 @@ export default function KnobsPanel() {
 
     return (
       <div
-        className={`${styles.rangeValue}${activeRangeId ? ` ${styles.anyRangeDragging}` : ""}${activeRangeId === rangeId ? ` ${styles.rangeDragging}` : ""}`}
+        className={`${local.rangeValue}${activeRangeId ? ` ${local.anyRangeDragging}` : ""}${activeRangeId === rangeId ? ` ${local.rangeDragging}` : ""}`}
         role="spinbutton"
         aria-label={`${knobLabels[index]} ${edge}`}
         aria-valuenow={value}
@@ -215,7 +215,7 @@ export default function KnobsPanel() {
             return (
               <span
                 key={`${char}-${charIndex}`}
-                className={`${styles.rangeStatic}${isExtraPrecision ? ` ${styles.rangeExtra}` : ""}`}
+                className={`${local.rangeStatic}${isExtraPrecision ? ` ${local.rangeExtra}` : ""}`}
               >
                 {char}
               </span>
@@ -224,7 +224,7 @@ export default function KnobsPanel() {
           return (
             <span
               key={`${char}-${charIndex}`}
-              className={`${styles.rangeDigit}${isExtraPrecision ? ` ${styles.rangeExtra}` : ""}`}
+              className={`${local.rangeDigit}${isExtraPrecision ? ` ${local.rangeExtra}` : ""}`}
               title={`${step}`}
               onPointerDown={(event) => startRangeDrag(event, index, edge, step)}
             >
@@ -244,15 +244,15 @@ export default function KnobsPanel() {
         </label>
       </div>
       <div className={dock.panelBody}>
-        <div className={`${styles.controls} ${dock.knobsDock}`}>
+        <div className={`${local.controls} ${dock.knobsDock}`}>
           {knobs.map((value, index) => (
-            <div key={index} className={styles.knobLine}>
-              <div className={styles.knobHead}>
-                <span className={styles.knobName}>{knobLabels[index]}</span>
-                <strong className={styles.knobValue}>{formatKnob(value)}</strong>
+            <div key={index} className={local.knobLine}>
+              <div className={local.knobHead}>
+                <span className={local.knobName}>{knobLabels[index]}</span>
+                <strong className={local.knobValue}>{formatKnob(value)}</strong>
                 <button
                   type="button"
-                  className={styles.knobButton}
+                  className={local.knobButton}
                   aria-label={`${knobLabels[index]} button`}
                   title="Encoder button (short press) — hits the active code layer"
                   onPointerDown={(event) => {
@@ -276,7 +276,7 @@ export default function KnobsPanel() {
                   Push
                 </button>
               </div>
-              <div className={styles.knobSlider}>
+              <div className={local.knobSlider}>
                 {renderRangeValue(index, "min")}
                 <input
                   type="range"

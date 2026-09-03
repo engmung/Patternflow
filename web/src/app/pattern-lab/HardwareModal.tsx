@@ -1,9 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { buildsConfigured, communityConfigured } from "@/lib/community/apiBase";
-import SendModuleModal from "@/components/community/SendModuleModal";
-import PublishModal from "@/components/community/PublishModal";
+import { PublishModal, SendModuleModal, buildsConfigured, communityConfigured } from "./community";
 import { assembleH, buildHExport, cleanPastedUnit, enforcePatternName } from "@/lib/lab/hExport";
 import { buildCppPrompt } from "@/lib/lab/cppPrompt";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
@@ -11,6 +9,7 @@ import { needsFlatten } from "@/lib/lab/flatten";
 import { labPatternName, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import styles from "./PatternLab.module.css";
+import local from "./HardwareModal.module.css";
 
 // Getting a composition onto hardware, in the order the work actually happens.
 //
@@ -161,7 +160,7 @@ export default function HardwareModal({
 
               {stacked ? (
                 <>
-                  <label className={styles.hwField}>
+                  <label className={local.hwField}>
                     <span>Name</span>
                     <input
                       type="text"
@@ -177,15 +176,15 @@ export default function HardwareModal({
                     partial port still builds.
                   </p>
                   {exportData.units.map((unit) => (
-                    <div key={unit.index} className={styles.hwUnit}>
-                      <div className={styles.hwUnitHead}>
-                        <span className={styles.hwUnitName}>
+                    <div key={unit.index} className={local.hwUnit}>
+                      <div className={local.hwUnitHead}>
+                        <span className={local.hwUnitName}>
                           L{unit.index} · {unit.name}
                           {unit.isMask ? " · mask" : ""}
                         </span>
-                        {unitState(unit.index) === true && <span className={styles.hwOk}>parsed ✓</span>}
+                        {unitState(unit.index) === true && <span className={local.hwOk}>parsed ✓</span>}
                         {unitState(unit.index) === false && (
-                          <span className={styles.hwBad}>not a namespace L{unit.index} block</span>
+                          <span className={local.hwBad}>not a namespace L{unit.index} block</span>
                         )}
                         <button
                           type="button"
@@ -195,7 +194,7 @@ export default function HardwareModal({
                         </button>
                       </div>
                       <textarea
-                        className={styles.hwPaste}
+                        className={local.hwPaste}
                         value={pastes[unit.index] ?? ""}
                         onChange={(event) =>
                           setPastes((current) => ({ ...current, [unit.index]: event.target.value }))
@@ -215,7 +214,7 @@ export default function HardwareModal({
                     </button>
                   </div>
                   <textarea
-                    className={styles.hwPaste}
+                    className={local.hwPaste}
                     value={single}
                     onChange={(event) => setSingle(event.target.value)}
                     placeholder="Paste the .h the model gives you — it starts with #pragma once"
@@ -223,7 +222,7 @@ export default function HardwareModal({
                     rows={12}
                   />
                   {single.trim().length > 0 && (
-                    <p className={headerLooksReal ? styles.hwOk : styles.hwBad}>
+                    <p className={headerLooksReal ? local.hwOk : local.hwBad}>
                       {headerLooksReal
                         ? "Looks like a header ✓"
                         : "A Patternflow header starts with #pragma once"}

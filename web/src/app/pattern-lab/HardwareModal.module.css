@@ -1,0 +1,106 @@
+/* ── HardwareModal: its own classes ─────────────────────────────────────────
+   Moved out of PatternLab.module.css on 2026-09; only this file uses them. */
+
+/* ── Hardware flow (HardwareModal) ─────────────────────────────────────
+   The paste boxes are where the actual work lands, so they read as code:
+   monospace, a real field border, and the cream the rest of the lab uses.
+   Left unstyled they render as bare text on the modal background, which
+   looks like a layout bug rather than an input. */
+.hwPaste {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  color: #171512;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.hwPaste:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+.hwPaste::placeholder {
+  color: rgba(23, 21, 18, 0.42);
+}
+
+.hwField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.hwField input {
+  flex: 1;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid rgba(23, 21, 18, 0.3);
+  background: #fffdf8;
+  color: #171512;
+  font: inherit;
+  font-size: 13px;
+}
+
+.hwField input:focus {
+  outline: none;
+  border-color: #171512;
+}
+
+/* One layer of a stack: its prompt, its paste box, and whether it parsed. */
+.hwUnit {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid rgba(23, 21, 18, 0.2);
+  background: #fbf7ee;
+}
+
+.hwUnitHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.hwUnitName {
+  flex: 1;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hwUnitHead button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #ffffff;
+  color: #171512;
+  font: inherit;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: var(--pf-fs-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hwUnitHead button:hover {
+  border-color: #171512;
+}
+
+/* Reads at a glance: did this layer's paste actually parse? */
+.hwOk {
+  color: #2e7d4f;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}
+
+.hwBad {
+  color: #c2410c;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 11px;
+}

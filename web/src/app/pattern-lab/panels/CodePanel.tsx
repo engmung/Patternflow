@@ -12,6 +12,7 @@ import { hasStackAnnotation, importCodeIntoLab } from "@/lib/lab/stackShare";
 import { useActiveLayer, useLabStore } from "@/lib/lab/store";
 import { isCodeLayer } from "@/lib/lab/types";
 import styles from "../PatternLab.module.css";
+import local from "./CodePanel.module.css";
 import dock from "../LabPanels.module.css";
 import CodeGuideModal from "./CodeGuideModal";
 
@@ -102,7 +103,7 @@ export default function CodePanel() {
       <div className={dock.panelBar}>
         <label title="Editing this layer's code">{layer.name}</label>
         <div
-          className={styles.presetStep}
+          className={local.presetStep}
           title={activeLabIndex >= 0 ? labPresets[activeLabIndex].name : "Lab presets"}
         >
           <button type="button" onClick={() => stepLabPreset(-1)} aria-label="Previous lab preset">
