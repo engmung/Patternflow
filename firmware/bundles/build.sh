@@ -64,8 +64,10 @@ if [ "${1:-}" = "all" ]; then
     printf '%-12s building… ' "$ed"
     t0=$(date +%s)
     log="$OUTDIR/$ed.log"
-    if [ "$ed" = default ]; then ok=0; "$0" >"$log" 2>&1 || ok=$?
-    else ok=0; "$0" "$ed" >"$log" 2>&1 || ok=$?; fi
+    # Through bash, not by executing "$0": the checkout on a CI runner does
+    # not carry the executable bit this file has at a desk.
+    if [ "$ed" = default ]; then ok=0; bash "$0" >"$log" 2>&1 || ok=$?
+    else ok=0; bash "$0" "$ed" >"$log" 2>&1 || ok=$?; fi
     if [ "$ok" != 0 ]; then
       echo "build FAILED — last lines of $log:"
       tail -15 "$log"
