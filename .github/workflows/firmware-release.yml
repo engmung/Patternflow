@@ -73,13 +73,21 @@ jobs:
       - name: Take the images from the tag
         id: find
         run: |
-          DIR="web/public/flash/bin/$TAG"
           git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || {
             echo "::error::no tag $TAG in this repository"
             exit 1
           }
-          if ! git ls-tree -r --name-only "$TAG" -- "$DIR" | grep -q .; then
-            echo "::notice::$TAG has no images at $DIR — nothing to attach"
+          # Since the shelf (2026-08) the core's folder is core-<tag>; releases
+          # before it used the bare tag. Take whichever the tag carries.
+          DIR=""
+          for candidate in "web/public/flash/bin/core-$TAG" "web/public/flash/bin/$TAG"; do
+            if git ls-tree -r --name-only "$TAG" -- "$candidate" | grep -q .; then
+              DIR="$candidate"
+              break
+            fi
+          done
+          if [ -z "$DIR" ]; then
+            echo "::notice::$TAG has no images under web/public/flash/bin/ — nothing to attach"
             echo "found=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi

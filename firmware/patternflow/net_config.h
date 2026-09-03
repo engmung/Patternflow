@@ -88,7 +88,7 @@
 // Firmware version string reported to the flasher (Improv device-info RPC).
 // Keep in sync with web/public/flash/manifest.json.
 #ifndef PF_IMPROV_FW_VERSION
-#define PF_IMPROV_FW_VERSION "3.8.0"
+#define PF_IMPROV_FW_VERSION "3.9.0"
 #endif
 
 // ── Variant identity (RFC: docs/rfc-core-and-variants.md) ────

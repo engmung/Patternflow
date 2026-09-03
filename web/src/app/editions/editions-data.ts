@@ -157,8 +157,8 @@ export const EDITIONS: Edition[] = [
       'The largest block a pattern can claim — 92 KB, against 74 KB elsewhere',
     ],
     hosted: {
-      version: 'v3.8.0',
-      url: 'https://patternflow.work/flash/bin/core-v3.8.0/patternflow.ino.bin',
+      version: 'v3.9.0',
+      url: 'https://patternflow.work/flash/bin/core-v3.9.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow',
     note:
