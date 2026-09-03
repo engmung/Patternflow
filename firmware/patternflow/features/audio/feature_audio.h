@@ -34,8 +34,40 @@ inline void setup() {
   prefs.end();
 }
 
+inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
+
+inline void setRuntimeEnabled(bool on) {
+  PatternflowAudio::setRuntimeEnabled(on);
+  Preferences prefs;
+  prefs.begin("patternflow", /*readOnly=*/false);
+  prefs.putBool("audio_runtime", on);
+  prefs.end();
+}
+
 inline void onNetwork() {
   PatternflowAudio::begin();
+  WebServer& s = PatternflowHttp::server();
+  s.on("/api/audio", HTTP_GET, []() {
+    String j = "{\"audioRuntime\":";
+    j += isRuntimeEnabled() ? "true" : "false";
+    j += ",\"audioClients\":";
+    j += PatternflowAudio::clientCount();
+    j += "}";
+    PatternflowHttp::server().sendHeader("Cache-Control", "no-store");
+    PatternflowHttp::server().send(200, "application/json", j);
+  });
+  s.on("/api/audio", HTTP_POST, []() {
+    WebServer& s = PatternflowHttp::server();
+    if (s.hasArg("on")) {
+      const String v = s.arg("on");
+      setRuntimeEnabled(v == "1" || v == "true");
+    }
+    String j = "{\"ok\":true,\"audioRuntime\":";
+    j += isRuntimeEnabled() ? "true" : "false";
+    j += "}";
+    s.sendHeader("Cache-Control", "no-store");
+    s.send(200, "application/json", j);
+  });
 }
 
 inline void loop(const PFFeatureFrame&) {
@@ -53,8 +85,6 @@ inline void fillInput(InputFrame& input) {
   }
 }
 
-inline bool isRuntimeEnabled() { return PatternflowAudio::isRuntimeEnabled(); }
-
 // Whether audio is switched on, and whether anything is connected — both
 // specific to this feature. What the lanes are actually doing is core's to
 // report (`lanes` / `laneActive` in /api/status): audio is not the only
@@ -71,14 +101,6 @@ inline void appendStatus(String& json) {
   json += PatternflowAudio::isRuntimeEnabled() ? "true" : "false";
   json += ",\"audioClients\":";
   json += PatternflowAudio::clientCount();
-}
-
-inline void setRuntimeEnabled(bool on) {
-  PatternflowAudio::setRuntimeEnabled(on);
-  Preferences prefs;
-  prefs.begin("patternflow", /*readOnly=*/false);
-  prefs.putBool("audio_runtime", on);
-  prefs.end();
 }
 
 inline const PFFeature descriptor = {

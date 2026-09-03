@@ -39,6 +39,7 @@
 #include "core_canvas.h"   // presentUs
 #include "core_send.h"
 #include "core_sleep.h"    // panel-off state
+#include "core_net_task.h"
 
 #include "status_index.h"
 #endif
@@ -232,8 +233,11 @@ inline void handleStatus() {
   // reading them back is the only way to know what the panel is really doing.
   json += ",\"presentUs\":";
   json += PFCanvas::presentUs;
-  json += ",\"loopCore\":";
+  json += ",\"loopCore\":1";
+  json += ",\"httpCore\":";
   json += xPortGetCoreID();
+  json += ",\"netStackMin\":";
+  json += PatternflowNetTask::stackMinFree;
   json += ",\"colorBits\":";
   json += dma_display->getCfg().getPixelColorDepthBits();
   json += ",\"refreshHz\":";

@@ -4,6 +4,14 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.9.1] - 2026-09-03
+
+### Added — core
+- **Dual-core FreeRTOS network offloading.** Network and HTTP server servicing (`PatternflowHttp`, OTA, Improv) is offloaded to a dedicated FreeRTOS worker task (`pf-net`) pinned to Core 0 with a tuned 3 KB stack. Core 1 remains exclusively dedicated to real-time 60 FPS HUB75 LED rendering and pattern calculations, ensuring visual animation never stutters during heavy web console traffic or module uploads.
+
+### Added — Audio edition v0.5.1
+- **Web Console Audio-React (AUD) toggle & Extension link.** Added a one-click `Audio-React (AUD)` toggle to the `/audio-in` console bar to enable/disable browser audio knob-driving directly from the browser without physical knob combinations, backed by a new `/api/audio` GET/POST endpoint and persistent NVS storage. Renamed console navigation label from `Mic` to `Audio`, and added a direct link to the Chrome Audio Extension guide.
+
 ## [3.9.0] - 2026-09-03
 
 A tidy-up under the hood. **Nothing changes in how the panel is used**: the same knobs, the same console, the same shelf, the same patterns and `.pfm` modules. The tree was audited end to end after two months at three hundred commits a month, and this release is what that produced — documentation that describes the code as it is, CI that runs every check that existed, firmware settings filed with the feature that reads them, a web `lib/` with a shape, a Pattern Lab whose panels are registered in one place and tested under a DOM, and the Home Assistant integration moved out to its author's own repository. Two things did arrive on the shelf during this cycle — the Audio edition's network MIDI (v0.5.0) and the panel answering to more names — and they are listed below; their proper write-ups, with the walk-throughs they deserve, come with the feature releases to follow.

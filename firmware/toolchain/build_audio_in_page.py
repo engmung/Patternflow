@@ -48,7 +48,11 @@ body = body.group(0)
 
 DEVICE_BAR = '''
   <div class="deviceBar">
-    <button id="micToggle" class="toggleWrap" type="button">
+    <button id="audToggle" class="toggleWrap" type="button" title="Enable browser tab and extension audio reaction (AUD)">
+      <span class="toggle"><span class="dotK"></span></span>
+      <span class="toggleLabel">Audio-React (AUD)</span>
+    </button>
+    <button id="micToggle" class="toggleWrap" type="button" title="Enable on-board microphone">
       <span class="toggle"><span class="dotK"></span></span>
       <span class="toggleLabel">Microphone</span>
     </button>
@@ -59,6 +63,7 @@ DEVICE_BAR = '''
     </div>
     <span id="deviceNote" class="hint"></span>
     <span class="spacer"></span>
+    <a id="extGuideLink" class="ghostBtn" href="https://github.com/engmung/Patternflow/tree/dev/tools/patternflow-audio-extension#readme" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px" title="Install Chrome Audio Extension">Extension ↗</a>
     <button id="resetAll" class="ghostBtn" type="button">Reset mapping</button>
   </div>
 '''
@@ -126,6 +131,7 @@ ADAPTER = r'''
   var polling = false;
   var micOn = false;
   var phoneLive = false;
+  var audOn = false;
 
   function poll() {
     fetch('/api/audio-in?levels=1').then(function (r) { return r.json(); }).then(function (j) {
@@ -177,6 +183,10 @@ ADAPTER = r'''
         var gainEl = document.getElementById('micGain');
         gainEl.value = String(j.micGain || 8);
         document.getElementById('micGainVal').textContent = Number(j.micGain || 8).toFixed(1);
+        fetch('/api/audio').then(function (r) { return r.json(); }).then(function (a) {
+          audOn = !!a.audioRuntime;
+          syncBar();
+        }).catch(function () {});
         syncBar();
         return {
           host: 'this device',
@@ -228,6 +238,8 @@ ADAPTER = r'''
 
   // ── the device bar ────────────────────────────────────────────────────
   function syncBar() {
+    var audT = document.getElementById('audToggle');
+    if (audT) audT.classList.toggle('on', audOn);
     var t = document.getElementById('micToggle');
     if (t) t.classList.toggle('on', micOn);
     var note = document.getElementById('deviceNote');
@@ -239,6 +251,18 @@ ADAPTER = r'''
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    var audBtn = document.getElementById('audToggle');
+    if (audBtn) {
+      audBtn.addEventListener('click', function () {
+        audOn = !audOn;
+        syncBar();
+        fetch('/api/audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'on=' + (audOn ? 1 : 0)
+        }).catch(function () {});
+      });
+    }
     document.getElementById('micToggle').addEventListener('click', function () {
       micOn = !micOn;
       syncBar();

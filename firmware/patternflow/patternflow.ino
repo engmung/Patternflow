@@ -104,6 +104,7 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
+#include "src/core_net_task.h"
 
 // ── Device state ──────────────────────────────────────────────
 //
@@ -1183,33 +1184,23 @@ void loop() {
     PatternflowWifiHttp::begin();
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");
+    // Spin off network handling to Core 0 so Core 1 is dedicated to rendering
+    PatternflowNetTask::begin();
     reportHeap("services up");
   }
 
-  // Improv-Serial provisioning: drains any browser-flasher Wi-Fi setup
-  // traffic on Serial and reports connect success/failure back. Cheap when
-  // idle (one Serial.available() check).
-  PatternflowImprov::handle();
-
-  // One libc localtime snapshot per frame — avoids getLocalTime(0) flicker
-  // when Wi-Fi/CPU load makes per-call reads fail mid-draw.
-
-  // OTA must run early in the loop so a long pattern render doesn't
-  // starve the upload handler. Cheap when no upload is in flight.
-  PatternflowOta::handle();
-
-  // The console's HTTP server. Feature-owned servers (the audio websocket on
-  // :81) are serviced by PFFeatures::loop below, not here.
-  PatternflowHttp::handle();
+  // Network I/O is serviced on Core 0 when dual-core task is running.
+  // Fall back to main loop polling if the task failed to create.
+  if (!PatternflowNetTask::isDualCoreActive()) {
+    PatternflowImprov::handle();
+    PatternflowOta::handle();
+    PatternflowHttp::handle();
+    PatternflowWebUpdate::handle();
+  }
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
   PatternflowPatternsHttp::tick();
-
-  // Browser self-update housekeeping: boot-valid marking and the deferred
-  // post-flash reboot. (Upload traffic itself arrives through the shared
-  // HTTP server serviced just above.)
-  PatternflowWebUpdate::handle();
 
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
