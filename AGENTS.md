@@ -34,8 +34,8 @@ It is standalone (not Eurorack), powered from a 5 V power bank through a screw t
 - KiCad exports: Export Gerbers from `hardware/pcb/kicad/patternflow.kicad_pcb`. Export STLs from `hardware/case/source/patternflow_case.blend`.
 
 ## Versioning
-- Project: v3.9.2 (current, released 2026-09-03), using unified semantic versioning across firmware, hardware, web, and docs — the firmware reports it as `PF_IMPROV_FW_VERSION` in `net_config.h`, and `CHANGELOG.md` gets a section per release. Current hardware is the v3.0 board; every v3.x release since has been firmware/web on unchanged hardware.
-- Editions carry their own version line, independent of the project version (`PF_VARIANT_VERSION` in `firmware/bundles/<name>/overrides.h`): Audio v0.5.2, Performance v0.2.2 at the time of writing. The shelf (`web/src/app/editions/editions-data.ts`) and the flasher manifest (`web/public/flash/manifest.json`) name the images that are live; only those images are kept in `web/public/flash/bin/` — older ones live on their release tags.
+- Project: v3.9.3 (current, released 2026-09-03), using unified semantic versioning across firmware, hardware, web, and docs — the firmware reports it as `PF_IMPROV_FW_VERSION` in `net_config.h`, and `CHANGELOG.md` gets a section per release. Current hardware is the v3.0 board; every v3.x release since has been firmware/web on unchanged hardware.
+- Editions carry their own version line, independent of the project version (`PF_VARIANT_VERSION` in `firmware/bundles/<name>/overrides.h`): Audio v0.5.3, Performance v0.2.3 at the time of writing. The shelf (`web/src/app/editions/editions-data.ts`) and the flasher manifest (`web/public/flash/manifest.json`) name the images that are live; only those images are kept in `web/public/flash/bin/` — older ones live on their release tags.
 - Firmware source lives in `firmware/patternflow/`; use release tags for versioning instead of encoding the release in the folder name. Tags are `vX.Y.Z`.
 - Conventions: filenames lowercase with underscores; commit messages start with the area (`firmware:`, `web:`, `docs:`, `hardware:`) then a short present-tense summary.
 
