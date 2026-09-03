@@ -13,7 +13,7 @@ All notable changes to Patternflow will be documented in this file.
 
 ### Added
 - **Firmware compiled in CI.** `.github/workflows/firmware-build.yml` runs `firmware/bundles/build.sh all` — default, audio, performance and the marker scan that proves each image carries exactly its features — on every pull request that touches `firmware/`, with the PlatformIO packages cached. Until now the checks in CI were greps; the compiler ran at a desk.
-- **Edition write-ups are releases too.** The firmware-release workflow no longer fails on a tag that is not a core `vX.Y.Z`; an edition's own release (`audio-v0.5.3`) attaches its image by hand from the shelf. The first one is the Audio edition's, and a journal post (draft) says the same in the site's voice.
+- **Edition write-ups are releases too.** The firmware-release workflow no longer fails on a tag that is not a core `vX.Y.Z`; an edition's own release (`audio-v0.5.3`) attaches its image by hand from the shelf. The first one is the Audio edition's.
 
 ## [3.9.2] - 2026-09-03
 
