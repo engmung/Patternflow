@@ -15,6 +15,7 @@
 
 #include "../../net_config.h"
 #include "../../src/core_patterns_http.h"
+#include "../../src/core_loop_sync.h"
 
 #ifndef PF_WEATHER_HTTP_ENABLED
 #define PF_WEATHER_HTTP_ENABLED PF_WEATHER_ENABLED
@@ -142,7 +143,7 @@ inline void handleGet() {
   sendStatus(200);
 }
 
-inline void handleConfig() {
+inline void configOnLoop() {
   bool en = server().hasArg("enabled") &&
             (server().arg("enabled") == "1" || server().arg("enabled") == "true");
   bool metric = !server().hasArg("metric") ||
@@ -186,12 +187,12 @@ inline void handleFetch() {
   sendStatus(ok ? 200 : 502);
 }
 
-inline void handleForget() {
+inline void forgetOnLoop() {
   PatternflowWeather::forget();
   sendStatus(200);
 }
 
-inline void handleActivate() {
+inline void activateOnLoop() {
   int index = -1;
   for (int i = 0; i < NUM_PATTERNS; i++) {
     if (patterns[i].name && strcmp(patterns[i].name, "Weather") == 0) {
@@ -225,6 +226,15 @@ inline void handleActivate() {
   server().sendHeader("Cache-Control", "no-store");
   server().send(200, "application/json", body);
 }
+
+// The scheduler and the Weather pattern read this config from the render
+// core every frame; rewriting it is done there (core_loop_sync.h). The
+// manual fetch is left on the network core on purpose — a blocking HTTPS
+// round trip is exactly what should not hold a frame — guarded by the
+// same in-flight flag the scheduled fetch honours.
+inline void handleConfig() { PFLoopSync::run([] { configOnLoop(); }); }
+inline void handleForget() { PFLoopSync::run([] { forgetOnLoop(); }); }
+inline void handleActivate() { PFLoopSync::run([] { activateOnLoop(); }); }
 
 inline void begin() {
   if (initialized) return;

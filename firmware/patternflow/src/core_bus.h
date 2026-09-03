@@ -37,6 +37,11 @@ namespace PatternflowBus {
 inline bool paramHeld[4] = {false, false, false, false};
 inline uint16_t paramValue[4] = {500, 500, 500, 500};
 inline uint32_t paramHeldAtMs[4] = {0, 0, 0, 0};
+// Relative clicks waiting for the next frame — what a legacy pattern that
+// only reads knobDeltas gets while a lane is held. Written by the network
+// core (POST /api/params), drained by the frame: atomics, or a click can
+// vanish between the two.
+inline int32_t pendingDelta[4] = {0, 0, 0, 0};
 
 // Last finished frame's knob positions, kept so the core can answer
 // "where are the knobs" over HTTP. Absolute accumulated clicks, the
@@ -46,11 +51,32 @@ inline long knobValue[4] = {0, 0, 0, 0};
 // Ignore encoder chatter briefly after an absolute set (Director spam / noise).
 constexpr uint32_t ABSOLUTE_RELEASE_GRACE_MS = 250;
 
+inline void applyRemoteDelta(int index, int delta) {
+  if (index < 0 || index > 3) return;
+  __atomic_fetch_add(&pendingDelta[index], (int32_t)delta, __ATOMIC_RELAXED);
+}
+
 // Write one channel and hold it. The only way a value enters the bus.
 inline void applyRemoteParam(int index, long value) {
   if (index < 0 || index > 3) return;
   if (value < 0) value = 0;
   if (value > PF_BUS_MAX) value = PF_BUS_MAX;
+
+  // A legacy pattern reads knobDeltas and nothing else, so a held value has
+  // to reach it as clicks: ten bus units per click, never fewer than one for
+  // a change. Derived here, from the change in the held value, so every
+  // absolute writer — the console's sliders, OSC, a show — moves such a
+  // pattern the same way. A client must not also send the clicks as dX for
+  // the same move; that counted every step twice, once.
+  if (paramHeld[index]) {
+    int diff = (int)value - (int)paramValue[index];
+    if (diff != 0) {
+      int d = diff / 10;
+      if (d == 0) d = (diff > 0) ? 1 : -1;
+      __atomic_fetch_add(&pendingDelta[index], (int32_t)d, __ATOMIC_RELAXED);
+    }
+  }
+
   paramHeld[index] = true;
   paramValue[index] = (uint16_t)value;
   paramHeldAtMs[index] = millis();
@@ -64,12 +90,14 @@ inline void releaseAbsolute(int index) {
     return;
   }
   paramHeld[index] = false;
+  __atomic_store_n(&pendingDelta[index], 0, __ATOMIC_RELAXED);
 }
 
 inline void clearAbsoluteAll() {
   for (int i = 0; i < 4; ++i) {
     paramHeld[i] = false;
     paramHeldAtMs[i] = 0;
+    __atomic_store_n(&pendingDelta[i], 0, __ATOMIC_RELAXED);
   }
 }
 
@@ -122,7 +150,10 @@ inline void fillAbsolute(InputFrame& input) {
     input.paramAbsoluteActive[i] = paramHeld[i];
     input.paramAbsolute[i] = paramValue[i];
     if (paramHeld[i]) {
-      input.knobDeltas[i] = 0;
+      // Held: the remote owns the lane, so the only clicks a legacy pattern
+      // sees are the ones the held value produced — not the encoder's.
+      input.knobDeltas[i] =
+          (int)__atomic_exchange_n(&pendingDelta[i], 0, __ATOMIC_RELAXED);
       input.knobAudioActive[i] = false;
     }
   }

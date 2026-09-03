@@ -45,7 +45,8 @@ locally, and streams four knob lanes to the panel over your LAN.
 
 **Use:** open a tab with sound → click the extension → **Start** (it captures
 the active tab) → enter your panel's address (`patternflow.local` or its IP)
-→ the knobs move with the music.
+→ the knobs move with the music. (Make sure **Audio-React (AUD)** is turned on
+at the top of the console's **Audio** page or via the panel's NETWORK screen.)
 
 **Then open the editor** (*Editor ↗* in the popup) — this is where it gets
 good. Each of the four knobs is a **box drawn on the live spectrum**: the
@@ -124,7 +125,7 @@ Stick the mic wherever sound reaches it. Done.
 
 ### Turn it on
 
-Console → **Audio** page (`/audio-in`) → flip **Microphone** on. That's the
+Console → **Audio** page (`/audio-in`) → flip **Microphone** or **Audio-React (AUD)** on. That's the
 whole switch: on means listening and driving the knobs, off releases the
 hardware completely. The **gain** slider (1–16, default 8) is there if your
 room runs quiet — PDM mics on this chip are famously low-amplitude, and gain

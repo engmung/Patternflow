@@ -25,13 +25,13 @@ Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. 
 
 Three properties of this server are not obvious from the endpoint list, and each one has already cost a feature.
 
-**One connection at a time, and the render loop pays for it.** The vendored `WebServer` accepts a single client, and the panel is not being drawn while a response is being sent. A device-streamed frame preview (`GET /api/frame`, 24 KB per poll) was built, shipped and removed the same day: polling it while a pattern module was resident captured the render loop for seconds at a time and piled requests up until the device read as dead. `/remote` and `/api/knob` were removed alongside it as unused. **Issue requests strictly sequentially**, and treat a poll interval under a second as a bug rather than a feature. The lesson that came out of that day is written into the firmware as a design rule: a live pattern preview renders in the client from the pattern's own JS — *the device never streams pixels*.
+**One connection at a time.** The vendored `WebServer` accepts a single client. Until 3.9.1 the render loop paid for every response — the panel was not being drawn while one was sent; since 3.9.1 the server is serviced by a task on the other core, and a page load no longer costs a frame. The connection rule stands. A device-streamed frame preview (`GET /api/frame`, 24 KB per poll) was built, shipped and removed the same day: polling it while a pattern module was resident captured the render loop for seconds at a time and piled requests up until the device read as dead. `/remote` and `/api/knob` were removed alongside it as unused. **Issue requests strictly sequentially**, and treat a poll interval under a second as a bug rather than a feature. The lesson that came out of that day is written into the firmware as a design rule: a live pattern preview renders in the client from the pattern's own JS — *the device never streams pixels*.
 
 **Opening an HTML console page no longer pauses the pattern** (since 3.6.3). It used to, and the old rule is worth knowing because the flag it left behind is still in the payload: on the core-3 builds a resident `.pfm` and a page render could not share the ~15 KB of post-services DRAM, so every console page evicted the module and held it out for 25 s of idle. The PlatformIO core-2 builds freed ~96 KB, and the page sender streams PROGMEM in small slices under a hard 5-second budget — so `GET /`, `/status`, `/patterns`, `/wifi`, `/mqtt`, `/show` and `/weather` all serve with the pattern running.
 
 Two things stayed true. **Installing patterns still evicts the running module for the duration of the upload batch** — the panel shows PAUSED and restores itself — which is what `status.consolePaused` reports now; treat it as "an install is in progress", not "somebody looked at the console". And a page load still momentarily competes with the render loop on this one-connection server, so sending a person to `http://patternflow.local/` is fine and expected; **polling HTML pages remains a bug** — automated clients keep to `/api/*`.
 
-**Some writes report the state before they take effect.** Stopping a DMA engine, reclocking the CPU, reading FATFS and running the ELF relocator are not things a handler does inside an open HTTP transaction — the firmware queues them and `loop()` performs them. `POST /api/sleep` and `GET /api/patterns/select` therefore return the *previous* state. Set your own state optimistically and let the next poll confirm it; do not parse the reply's state field as the new value.
+**Some writes report the state before they take effect.** Stopping a DMA engine, reclocking the CPU, reading FATFS and running the ELF relocator are not things a handler does inside an open HTTP transaction — the firmware queues them and `loop()` performs them. `POST /api/sleep` and `GET /api/patterns/select` therefore return the *previous* state. Set your own state optimistically and let the next poll confirm it; do not parse the reply's state field as the new value. (Since 3.9.1 the same rule holds from the other side: handlers run on the network core, and the few that must touch what the frame is using are executed on the loop task at the frame boundary — `loopSyncServed` in status counts them.)
 
 ## Device state
 
@@ -54,6 +54,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "lanes": [0.0, 0.0, 0.0, 0.0], "laneActive": [false, false, false, false],
   "consolePaused": false,
   "frameUs": 16400, "presentUs": 3100, "loopCore": 1,
+  "httpCore": 0, "netStackMin": 6200, "loopSyncServed": 3, "loopSyncMaxUs": 9800,
   "colorBits": 6, "refreshHz": 121,
   "loadError": "", "load": { "total": 0, "read": 0, "relocate": 0, "setup": 0 },
   "mqttRole": "off", "mqttState": "idle", "mqttConnected": false
@@ -76,12 +77,15 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `lanes` / `laneActive` | The continuous 0..1 lane per knob and whether something is driving it — the audio WebSocket, the on-board microphone, weather. Sits between the absolute bus and the encoders in priority; see [`audio-ws-spec.md`](audio-ws-spec.md) for the semantics. |
 | `consolePaused` | A pattern-install batch is in progress and the module is evicted. Not an error. (Console pages stopped pausing the pattern in 3.6.3 — the name is older than that.) |
 | `frameUs` / `presentUs` | Smoothed frame time and the part of it spent pushing pixels. `1e6 / frameUs` is the honest fps. |
+| `loopCore` / `httpCore` | Which core renders (1) and which answered this request — `0` on 3.9.1 and later, `1` when the network task could not be created and `loop()` is serving. |
+| `netStackMin` | The network task's stack high-water mark in bytes: the least it has ever had free. Falling toward zero is the thing to watch after a firmware update. |
+| `loopSyncServed` / `loopSyncMaxUs` | How many handlers had to run on the loop task (a module eviction, a show start, an MQTT reconnect) and the longest one waited for a frame boundary. |
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
 | `loadError` | Why the last module load failed, empty when it did not. Without it a refusal is invisible from the network. |
 | `variant` | Which firmware this is: `"core"`, or a variant's own name. What the site's variant list matches, and what stops the update banner offering a core build on top of someone's chosen firmware. |
 | `caps` | What this build can do. **Probe this rather than assuming a feature exists.** The default build reports `["patterns","params","sleep"]` and nothing else; each [edition](EDITIONS.md) adds its own — Audio adds `osc` and `audio`, Performance adds `weather`, `mqtt` and `shows`. `patterns` and `params` are on every build. |
 | `mqttRole` | `"off"`, `"publisher"` or `"subscriber"`. Decides whether the device obeys knob and pattern topics — see [Knobs](#knobs-and-parameters). |
-| `featureNav` | `[path, label, one-line description]` per console page the loaded features serve, e.g. `[["/audio-in","Mic","The panel hears the room…"]]`. What the console header and home screen build their feature links from; empty on the default build. |
+| `featureNav` | `[path, label, one-line description]` per console page the loaded features serve, e.g. `[["/audio-in","Audio","The panel hears the room…"]]`. What the console header and home screen build their feature links from; empty on the default build. |
 
 ### `POST /api/params`
 
@@ -96,9 +100,17 @@ see it only if they declare `ABSOLUTE_READY` and were built at module ABI 2.
     curl -X POST http://patternflow.local/api/params -d "p1=750&p3=250"
     → {"ok":true,"params":[750,500,250,500],"active":[true,false,true,false]}
 
-**One shot per request, by contract.** This server takes a single connection
-and pauses drawing while it answers, so a slider must debounce rather than
-stream a value per pixel of travel.
+**One request in flight, by contract.** This server takes a single
+connection, so a slider keeps one request in flight and sends the newest
+value when it returns — what the console's own sliders do — rather than
+streaming a value per pixel of travel.
+
+`d1`..`d4` add **relative clicks** to a lane instead, for a client that has
+only those (an encoder of its own). A legacy pattern — one that reads
+`knobDeltas` and nothing else — follows a held value too: the device turns
+the change in it into clicks, ten bus units per click, so `p1=750` moves
+such a pattern the same way the encoder would. Do not send `pN` and `dN` for
+the same move; that is the same clicks twice.
 
 This is the plain-HTTP door to a capability that used to require an MQTT
 broker; it exists so that MQTT can live in a variant without taking remote
@@ -171,6 +183,7 @@ A device's pattern list has two halves. **Presets** are compiled into `firmware.
 |---|---|
 | `index` | Registry index, 0 – `patterns-1` |
 | `name` | Display name, exact match. Only if you have no index. |
+| `step` | `+1` or `-1`: the next or previous pattern that is not hidden, wrapping, from wherever the panel is now. What the home page's `←` / `→` send. |
 
 ```json
 { "ok": true, "index": 3, "name": "Firefly Hollow" }
@@ -317,6 +330,17 @@ nothing it can do that a script cannot.
 `micDropped` in `/api/status`'s `audioIn` block counts capture hops discarded
 because analysis fell behind; flat is healthy, climbing means overload.
 
+### Audio-React (Audio edition)
+
+Gated on `"audio"` in `caps`. The switch that lets the browser extension and
+the phone capture drive the knobs — the same one the panel's NETWORK screen
+toggles — from the console's `/audio-in` bar.
+
+| Endpoint | Meaning |
+|---|---|
+| `GET /api/audio` | `audioRuntime` (the switch) and `audioClients` (WebSocket senders connected on :81). |
+| `POST /api/audio` | `on=0/1`. Persisted in NVS; answers with the new state. |
+
 ## Wi-Fi
 
 Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWORKS` are remembered and tried in order.
@@ -400,5 +424,6 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
+- **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
 - **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.
 - **1.0** — first written contract for the HTTP API. Covers status, sleep, display calibration, patterns (list / select / sidecar / install / delete), the MQTT status and configuration endpoints, Wi-Fi, and firmware update; documents the single-connection rule, the console-pause rule, the queued-write rule, and the knob read/write asymmetry.

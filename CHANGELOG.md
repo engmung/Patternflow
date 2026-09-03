@@ -4,6 +4,16 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.9.1] - 2026-09-03
+
+### Added — core
+- **The network runs on its own core.** Wi-Fi maintenance, the console's HTTP server, Improv-Serial and OTA moved to a FreeRTOS task pinned to Core 0 (`src/core_net_task.h`); `loop()` on Core 1 is input, features, draw and present, and nothing else. A Wi-Fi reconnect or a page load no longer costs the render a frame. Handlers that touch what the frame is using — evicting or restoring the resident module, walking the pattern list, the show engine, the MQTT client, weather's config — are handed to the loop task and run at the frame boundary (`src/core_loop_sync.h`); the rule for feature authors is in `FEATURE_GUIDE.md`. `/api/status` reports `httpCore`, `netStackMin`, `loopSyncServed` and `loopSyncMaxUs`. If the task cannot be created, `loop()` serves the network as it did before.
+- **Live knobs on the console home page.** Four sliders under *Now playing* write the absolute bus (`POST /api/params`), one request in flight at a time with the newest value queued behind it. A legacy pattern that reads only `knobDeltas` follows too: the device turns the change in a held value into clicks, so the sliders, OSC and a show all move such a pattern the same way. `d1`..`d4` on `/api/params` add relative clicks for a client that has only those.
+- **Stepping through patterns from the home page.** `←` / `→` beside the pattern name call `GET /api/patterns/select?step=+1|-1`, which skips hidden entries and wraps.
+
+### Added — Audio edition v0.5.1
+- **Audio-React on the console.** The `/audio-in` page (nav label now *Audio*) gains an *Audio-React (AUD)* toggle — the switch that lets the browser extension and the phone capture drive the knobs, which until now lived only on the panel's NETWORK screen — backed by `GET`/`POST /api/audio` (`on=0/1`, persisted), and a link to the extension's guide.
+
 ## [3.9.0] - 2026-09-03
 
 A tidy-up under the hood. **Nothing changes in how the panel is used**: the same knobs, the same console, the same shelf, the same patterns and `.pfm` modules. The tree was audited end to end after two months at three hundred commits a month, and this release is what that produced — documentation that describes the code as it is, CI that runs every check that existed, firmware settings filed with the feature that reads them, a web `lib/` with a shape, a Pattern Lab whose panels are registered in one place and tested under a DOM, and the Home Assistant integration moved out to its author's own repository. Two things did arrive on the shelf during this cycle — the Audio edition's network MIDI (v0.5.0) and the panel answering to more names — and they are listed below; their proper write-ups, with the walk-throughs they deserve, come with the feature releases to follow.

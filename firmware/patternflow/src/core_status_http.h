@@ -39,6 +39,7 @@
 #include "core_canvas.h"   // presentUs
 #include "core_send.h"
 #include "core_sleep.h"    // panel-off state
+#include "core_net_task.h"
 
 #include "status_index.h"
 #endif
@@ -232,8 +233,16 @@ inline void handleStatus() {
   // reading them back is the only way to know what the panel is really doing.
   json += ",\"presentUs\":";
   json += PFCanvas::presentUs;
-  json += ",\"loopCore\":";
+  json += ",\"loopCore\":1";
+  json += ",\"httpCore\":";
   json += xPortGetCoreID();
+  json += ",\"netStackMin\":";
+  json += PatternflowNetTask::stackMinFree;
+  // Handlers that had to run on the loop task, and the longest one waited.
+  json += ",\"loopSyncServed\":";
+  json += PFLoopSync::served;
+  json += ",\"loopSyncMaxUs\":";
+  json += PFLoopSync::maxWaitUs;
   json += ",\"colorBits\":";
   json += dma_display->getCfg().getPixelColorDepthBits();
   json += ",\"refreshHz\":";
@@ -298,20 +307,25 @@ inline void handleParams() {
   for (int i = 0; i < 4; i++) {
     // Built without character escapes on purpose: a literal NUL once
     // landed here through the editing path, and this cannot repeat.
-    char key[3];
-    key[0] = 0x70;             // p
-    key[1] = (char)(0x31 + i); // 1..4
-    key[2] = 0;
-    if (!server().hasArg(key)) continue;
-    String raw = server().arg(key);
-    raw.trim();
-    long value = raw.toInt();
-    if (raw.length() == 0 || value < 0 || value > PF_BUS_MAX) {
-      error = String(key) + " must be 0.." + String(PF_BUS_MAX);
-      break;
+    char key[3] = {'p', (char)('1' + i), 0};
+    if (server().hasArg(key)) {
+      String raw = server().arg(key);
+      raw.trim();
+      long value = raw.toInt();
+      if (raw.length() == 0 || value < 0 || value > PF_BUS_MAX) {
+        error = String(key) + " must be 0.." + String(PF_BUS_MAX);
+        break;
+      }
+      PatternflowBus::applyRemoteParam(i, value);
+      written++;
     }
-    PatternflowBus::applyRemoteParam(i, value);
-    written++;
+
+    char dKey[3] = {'d', (char)('1' + i), 0};
+    if (server().hasArg(dKey)) {
+      long dVal = server().arg(dKey).toInt();
+      PatternflowBus::applyRemoteDelta(i, (int)dVal);
+      written++;
+    }
   }
 
   server().sendHeader("Cache-Control", "no-store");

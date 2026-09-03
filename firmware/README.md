@@ -133,6 +133,8 @@ firmware/
 │   │   ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
 │   │   ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
 │   │   ├── core_http.h          # The one port-80 WebServer every page registers on
+│   │   ├── core_net_task.h      # The network task on Core 0: Wi-Fi, HTTP, Improv, OTA
+│   │   ├── core_loop_sync.h     # Hands a handler's frame-touching work to the loop task
 │   │   ├── core_bus.h           # Absolute knob bus (0..1000 wire scale)
 │   │   ├── core_web_update.h    # Browser self-update (/update)
 │   │   ├── core_patterns_http.h # Module manager (/patterns + /api/patterns)

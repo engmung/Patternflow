@@ -387,9 +387,9 @@ inline bool isConnected() {
 // True exactly once after each successful (re)connection. The caller uses
 // this to (re)start network services.
 inline bool consumeJustConnected() {
-  bool e = justConnectedEdge;
-  justConnectedEdge = false;
-  return e;
+  // Set by tick() on the network core, consumed by loop() on the other:
+  // one atomic exchange, so an edge cannot land between a read and a clear.
+  return __atomic_exchange_n(&justConnectedEdge, false, __ATOMIC_ACQ_REL);
 }
 
 // Short status word for the on-device info screen. Failure labels stay

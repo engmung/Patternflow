@@ -229,8 +229,8 @@ inline const PFFeature descriptor = {
     appendStatus,
     nullptr,       // drawOverlay
     "/audio-in",   // navPath - the console header link
-    "Mic",         // navLabel
-    "The panel hears the room — a live spectrum, and four bands you "
+    "Audio",       // navLabel
+    "The panel hears the room or browser audio — a live spectrum, and four bands you "
     "shape into the knobs.",
 };
 
