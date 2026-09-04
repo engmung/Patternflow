@@ -2,8 +2,8 @@
  * Sandbox clock smoke — `npm run check:sandbox`.
  *
  * Drives the REAL tick()/step()/wake() out of public/pattern-sandbox.html with
- * a controlled clock. The script text is taken verbatim; the only addition is a
- * line exposing `live`, appended here rather than shipped.
+ * a controlled clock. The script text is taken verbatim; the page exposes its
+ * `live` state as globalThis.__pfLive for exactly this.
  *
  * What this guards, and why it needs a fake clock rather than a browser: the
  * live preview turns wall-clock time into simulation time, and getting that
@@ -78,10 +78,10 @@ function boot(): Harness {
   sandbox.self = sandbox;
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(`${script}\n;globalThis.__live = live;`, sandbox);
+  vm.runInContext(script as string, sandbox);
 
   return {
-    live: () => sandbox.__live as Harness extends never ? never : { runtime: { params: Record<string, number> } },
+    live: () => sandbox.__pfLive as Harness extends never ? never : { runtime: { params: Record<string, number> } },
     send: (data) => handler?.({ data }),
     frame: (ms) => { clock += ms; const fn = pending; pending = null; fn?.(clock); },
     asleep: () => pending === null,

@@ -8,7 +8,6 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
 
 import {
   RAMP_MODES,
@@ -191,48 +190,17 @@ for (const ref of REFS) {
   );
 }
 
-// ── 8. Sandbox parity: the plain-JS port must build the same LUT bytes
+// ── 8. Sandbox parity: the sandbox is BUILT from this TypeScript now
+// (scripts/build-sandbox.ts bundles lib/pattern/harness.ts into
+// public/pattern-sandbox.html), so there is no plain-JS port to diff. What can
+// still go wrong is the shipped file being something other than that build.
 {
   const html = fs.readFileSync(path.resolve(__dirname, "../public/pattern-sandbox.html"), "utf8");
-  const start = html.indexOf("// ── Color ramp");
-  const end = html.indexOf("var RAMP_LINE_RE");
-  if (start < 0 || end < 0 || end <= start) {
-    check("sandbox ramp code found", false, "slice markers missing — update ramp-oklab-smoke.ts");
-  } else {
-    const context = vm.createContext({ Math, Uint8Array, isFinite });
-    vm.runInContext(
-      `function clampByte(v){ if (!isFinite(v)) return 0; return Math.max(0, Math.min(255, Math.round(v))); }\n${html.slice(start, end)}`,
-      context,
-    );
-    const sandboxBuild = vm.runInContext("buildRampLUT", context) as (
-      stops: { position: number; color: [number, number, number] }[],
-      mode: string,
-      wrap: boolean,
-    ) => Uint8Array;
-
-    let maxDiff = 0;
-    let where = "";
-    const stops = [
-      { position: 0.0, color: [8, 24, 64] as [number, number, number] },
-      { position: 0.35, color: [255, 77, 0] as [number, number, number] },
-      { position: 0.7, color: [0, 200, 120] as [number, number, number] },
-      { position: 1.0, color: [255, 232, 154] as [number, number, number] },
-    ];
-    for (const mode of RAMP_MODES) {
-      for (const wrap of [false, true]) {
-        const ts = buildRampLUT({ stops, mode, wrap });
-        const js = sandboxBuild(stops, mode, wrap);
-        for (let i = 0; i < ts.length; i++) {
-          const diff = Math.abs(ts[i] - js[i]);
-          if (diff > maxDiff) {
-            maxDiff = diff;
-            where = `mode ${mode} wrap ${wrap} byte ${i}`;
-          }
-        }
-      }
-    }
-    check("sandbox port matches TypeScript LUT", maxDiff === 0, `max diff ${maxDiff} at ${where}`);
-  }
+  check(
+    "sandbox is built from the harness",
+    html.includes("Built by scripts/build-sandbox.ts"),
+    "public/pattern-sandbox.html lacks the build banner — run `npm run build:sandbox`",
+  );
 }
 
 if (failures > 0) {

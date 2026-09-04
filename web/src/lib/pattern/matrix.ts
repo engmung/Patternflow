@@ -20,8 +20,9 @@
 // before; anything else is letterboxed. That keeps every existing 128×64
 // pattern pixel-identical while making other frames possible.
 //
-// Parsed by this module (lab, community pages) AND by
-// public/pattern-sandbox.html (plain-JS port) — keep the two in sync.
+// Parsed here for the lab, the community pages and the sandbox alike —
+// public/pattern-sandbox.html is built from this module
+// (scripts/build-sandbox.ts), so there is no second parser to keep in step.
 
 export type MatrixSize = { width: number; height: number };
 
