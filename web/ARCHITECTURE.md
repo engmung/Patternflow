@@ -81,7 +81,7 @@ SQLite via Drizzle (`server/schema.ts`; migrations in `web/drizzle/`, applied on
 
 Patterns render in a sandboxed iframe (`public/pattern-sandbox.html`, driven by `components/community/SandboxPreview.tsx`). Pattern Lab hands off to the community through `handoff.ts` (fork vs. edit-in-place), and publishes through `components/community/PublishModal.tsx`.
 
-The **firmware build service** (`/api/community/builds` + `scripts/build-worker.ts` + `src/lib/firmware/moduleRunner.ts`) compiles a submitted header into a `.pfm` module with the firmware toolchain. It is gated behind `BUILD_ENABLED` and off by default: compiling submitted C++ is arbitrary code execution at compile time.
+The **firmware build service** (`/api/community/builds` + `scripts/build-worker.ts` + `src/lib/firmware/moduleRunner.ts`) compiles a submitted header into a `.pfm` module with the firmware toolchain. It is gated behind `BUILD_ENABLED` and off by default: compiling submitted C++ is arbitrary code execution at compile time. The community host runs it inside a systemd sandbox (no network, read-only system, three writable paths, resource limits) — the drop-in, what it does not cover, and the two steps left are in [`docs/SERVICES.md`](../docs/SERVICES.md).
 
 ## Content pipeline
 

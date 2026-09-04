@@ -37,6 +37,96 @@ OOM 킬은 `dmesg -T | grep -i "killed process"` 로 봅니다.
 - **위치**: `/etc/systemd/system/patternflow-worker.service`
 - **환경변수 중요 사항**: `Environment=PATH`에 `arduino-cli` 설치 경로(`~/.local/bin` 또는 `/usr/local/bin`) 포함 필수
 
+#### 워커는 격리된 채로 돈다 — `hardening.conf` (2026-09-04)
+
+워커는 사용자가 제출한 C++를 컴파일한다. 컴파일 시점의 임의 코드 실행이
+가능한 구조라, 유닛에 systemd 샌드박스를 걸어 둔 상태로만 켠다.
+`/etc/systemd/system/patternflow-worker.service.d/hardening.conf`:
+
+```ini
+[Service]
+NoNewPrivileges=yes
+PrivateNetwork=yes            # 워커는 네트워크를 쓰지 않는다 (로컬 SQLite 폴링 → 파일 산출)
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/patternflow-data /home/pi/Patternflow/.build-worker /home/pi/Patternflow/firmware/modules/.build
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+MemoryMax=1G
+CPUQuota=200%
+TasksMax=128
+Nice=10
+```
+
+`MemoryDenyWriteExecute`는 넣지 않는다 — Node(V8)가 죽는다. 쓰기 경로 세 개는
+strace로 확인한 전부다: 데이터 디렉터리(DB·WAL·산출물), 워커 작업 디렉터리,
+레포 안 모듈 빌드 캐시. `systemd-analyze security patternflow-worker`가
+9.2(UNSAFE)에서 1.7(OK)로 내려갔고, 정상 빌드·자원 폭탄(120 s 타임아웃 뒤 워커
+생존)·다음 빌드 정상 수주까지 확인했다.
+
+**이 격리가 막지 않는 것.** 컴파일러는 워커와 같은 사용자(`pi`)로 돌기 때문에,
+`pi`가 읽을 수 있는 파일은 제출된 헤더의 `#include`로 읽힌다. 컴파일 오류는
+문제의 줄을 그대로 인용하고, 그 오류 문자열은 빌드 상태 API로 제출자에게
+돌아간다 — 즉 `web/.env.local`(인증 시크릿)이나 `community.db`(비밀번호
+해시)를 `#include`하면 내용 일부가 새어 나갈 수 있다. `/etc/shadow`가 막힌 건
+격리 덕이 아니라 원래 root 전용이라서다. 남은 두 단계:
+
+1. **시크릿을 유닛 밖으로.** 워커가 `.env.local`을 읽는 대신 root 전용
+   `EnvironmentFile=/etc/patternflow/worker.env`(0600)로 변수를 받고,
+   `InaccessiblePaths=/home/pi/Patternflow/web/.env.local -/home/pi/.ssh
+   -/home/pi/backups`로 시크릿과 백업을 안 보이게 한다. 검증은 `pi`가 읽을 수
+   있는 카나리 파일(`/home/pi/canary.txt`에 아무 문장)을 `#include`해서 그
+   문장이 빌드 오류에 나오는지로 한다 — `/etc/shadow`는 검증이 아니다.
+2. **컴파일러만 따로 가둔다.** DB는 워커에게 필요하니 유닛 단위로는 못 숨긴다.
+   `build_module.py`는 `PF_XTENSA_BIN`이 가리키는 디렉터리의 컴파일러를
+   쓰므로, 거기에 `bwrap`으로 실제 툴체인을 실행하는 래퍼 스크립트를 두면
+   컴파일러의 눈에는 툴체인·펌웨어 헤더·작업 디렉터리만 보인다. 그때는 유닛의
+   `RestrictNamespaces`와 `SystemCallFilter`를 bwrap이 필요한 만큼(`user mnt`,
+   `@mount`) 열어야 한다.
+
+### 호스트 업데이트 절차
+
+레포는 `/home/pi/Patternflow`, 데이터는 `/home/pi/patternflow-data`
+(DB `community.db`, `attachments/`, `builds/`), 백업은 매일 04:00 크론이
+`/home/pi/backups/`에 `.backup`으로 뜬다. Node는
+`/home/pi/Desktop/nodejs/node-v21.7.2-linux-arm64`, 터널은 `cloudflared.service`.
+
+```bash
+# 1. 백업 (DB는 온라인 .backup으로, WAL 일관성 유지)
+sqlite3 /home/pi/patternflow-data/community.db ".backup '/home/pi/backups/community-$(date +%F)_pre_update.db'"
+cp -r /home/pi/patternflow-data/attachments /home/pi/backups/attachments-$(date +%F)_pre_update
+git -C /home/pi/Patternflow rev-parse HEAD   # 롤백 기준점을 적어 둔다
+
+# 2. 코드
+cd /home/pi/Patternflow && git fetch origin && git checkout main && git pull --ff-only
+cd web && npm ci && npm run build
+
+# 3. 재시작 (DB 마이그레이션은 서버가 첫 접속 때 자동 적용)
+sudo systemctl restart patternflow-community patternflow-worker
+
+# 4. 확인
+curl -sI https://community.patternflow.work/editions | head -1      # 200
+curl -sI https://community.patternflow.work/variants | head -1      # 308
+curl -sI https://community.patternflow.work/api/community/patterns | head -1   # 200
+journalctl -u patternflow-community -n 30 --no-pager                 # 마이그레이션 오류 없음
+```
+
+`.env.local`은 건드리지 않는다. 키 목록은 `web/.env.example`이 전부다.
+
 ---
 
 ## 2. 주요 관리 명령어
