@@ -72,9 +72,38 @@ def out(cmd: list[str], *, cwd: Path = ROOT, check: bool = True) -> str:
                           encoding="utf-8", errors="replace").stdout.strip()
 
 
+def find_bash() -> str:
+    """The bash that can run shelf.sh: Git Bash at a Windows desk, bash elsewhere.
+
+    On Windows a bare "bash" handed to CreateProcess resolves to
+    System32\\bash.exe - the WSL relay - even when Git's bash is first on the
+    PATH that `which` sees. The first cut of 3.9.4 died there, silently
+    inside a filtered log: "execvpe(/bin/bash) failed".
+    """
+    if sys.platform != "win32":
+        return "bash"
+    import shutil
+    candidates = [
+        Path(r"C:\Program Files\Git\usr\bin\bash.exe"),
+        Path(r"C:\Program Files\Git\bin\bash.exe"),
+        Path(r"C:\Program Files (x86)\Git\usr\bin\bash.exe"),
+    ]
+    found = shutil.which("bash")
+    if found and "System32" not in found and "WindowsApps" not in found:
+        candidates.insert(0, Path(found))
+    for c in candidates:
+        if c.is_file():
+            return str(c)
+    die("no Git Bash found - shelf.sh and the web checks need it")
+    return "bash"
+
+
+BASH = find_bash()
+
+
 def bash(script: str, *, cwd: Path = ROOT, check: bool = True) -> subprocess.CompletedProcess:
     # One shell for every platform: Git Bash at a desk, bash on a runner.
-    return run(["bash", "-c", script], cwd=cwd, check=check)
+    return run([BASH, "-c", script], cwd=cwd, check=check)
 
 
 def read(path: Path) -> tuple[str, bool]:
