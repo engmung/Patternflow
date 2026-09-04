@@ -61,14 +61,15 @@ ProtectKernelModules=yes
 ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
-RestrictNamespaces=yes
+# bwrap이 컴파일러를 가두려면 네임스페이스와 mount 계열이 필요하다 (아래 2단계)
+RestrictNamespaces=user mnt pid ipc uts net cgroup
 RestrictRealtime=yes
 RestrictSUIDSGID=yes
 LockPersonality=yes
 CapabilityBoundingSet=
 SystemCallArchitectures=native
-SystemCallFilter=@system-service
-SystemCallFilter=~@privileged @resources
+SystemCallFilter=@system-service @mount
+SystemCallFilter=~@resources
 UMask=0077
 MemoryMax=1G
 CPUQuota=200%
@@ -102,14 +103,28 @@ strace로 확인한 전부다: 데이터 디렉터리(DB·WAL·산출물), 워�
    `backups`, `.config`는 `InaccessiblePaths`. 재검증: 카나리는
    `Permission denied`, `.env.local`은 0바이트, 백업 디렉터리는
    `Permission denied`, 정상 빌드 0.5 s.
-2. **컴파일러만 따로 가둔다 (남음).** DB는 워커에게 필요하니 유닛 단위로는 못 숨긴다.
-   `build_module.py`는 `PF_XTENSA_BIN`이 가리키는 디렉터리의 컴파일러를
-   쓰므로, 거기에 `bwrap`으로 실제 툴체인을 실행하는 래퍼 스크립트를 두면
-   컴파일러의 눈에는 툴체인·펌웨어 헤더·작업 디렉터리만 보인다. 그때는 유닛의
-   `RestrictNamespaces`와 `SystemCallFilter`를 bwrap이 필요한 만큼(`user mnt`,
-   `@mount`) 열어야 한다. 준비 상태는 확인됐다: `/usr/bin/bwrap` 있음,
-   `user.max_user_namespaces` 31907, `build_module.py`의 `toolchain_roots()`가
-   `PF_XTENSA_BIN`을 최우선으로 본다.
+2. **컴파일러만 따로 가둔다 (완료, 2026-09-04).** DB는 워커에게 필요하니
+   유닛 단위로는 못 숨긴다. `build_module.py`는 `PF_XTENSA_BIN`이 가리키는
+   디렉터리에서 `xtensa-esp32s3-elf-g++`를 찾고 `nm`은 그 옆 것을 쓰므로,
+   `/etc/patternflow/xtensa-sandbox/`(root 소유 0755)에 그 둘의 래퍼를 두고
+   `worker.env`에 `PF_XTENSA_BIN=/etc/patternflow/xtensa-sandbox`를 넣었다.
+   래퍼는 `bwrap --unshare-all --die-with-parent --new-session`으로 실제
+   툴체인(`~/.arduino15/packages/esp32/tools/esp-x32/2601`, g++가 cc1plus·as·ld를
+   찾도록 루트째)·`/usr` `/lib` `/bin` `/etc/ld.so.cache`·`firmware/patternflow`·
+   `firmware/toolchain`을 읽기 전용으로, `.build-worker`·`modules/.build`·`/tmp`
+   (유닛의 PrivateTmp라 호스트와 무관)를 쓰기로 바인드하고 `--chdir /`에서
+   실제 g++를 실행한다. 컴파일러의 눈에 그 밖의 파일은 **없다**. 재검증:
+   데이터 디렉터리의 카나리와 `web/package.json` 모두 `No such file or
+   directory`, 정상 빌드 0.5 s(오버헤드 없음), 자원 폭탄은 120 s 타임아웃 뒤
+   워커 생존, seccomp 추가 허용 0개, `systemd-analyze security` 2.7(OK).
+   `~@privileged`는 뺐다 — bwrap이 사용자 네임스페이스 안에서 `capset`을 쓴다.
+
+**남은 노출은 작다.** 컴파일러에게 보이는 쓰기 디렉터리 `.build-worker/modules/<job id>/`는
+빌드가 끝나도 지워지지 않으므로(`moduleRunner`는 워커가 준 workDir를 남긴다),
+다른 제출자의 헤더가 그 아래 남아 있다. 읽으려면 16자리 16진수 job id를 알아야
+하고 `#include`로는 디렉터리를 나열할 수 없다. 닫고 싶으면 워커가 잡을 마친 뒤
+그 디렉터리를 지우게 하면 된다(레포 쪽, 몇 줄). drop-in에 남은
+`-/home/pi/canary.txt`는 파일이 없어 무해하다.
 
 ### 호스트 업데이트 절차
 
