@@ -334,13 +334,18 @@ def cmd_publish(args: argparse.Namespace) -> None:
     run(["gh", "pr", "merge", url, "--merge"])
 
     run(["gh", "release", "create", core, "--title", title, "--notes-file", str(notes)])
+    # The edition images go up under their release names; gh names an asset
+    # after the file, so they are copied into a temp dir under those names.
+    import tempfile
+    import time
+    staging = Path(tempfile.mkdtemp(prefix="pf-release-"))
     uploads = []
     for name in EDITIONS:
         folders = sorted(BIN_DIR.glob(f"{name}-v*"))
         if not folders:
             continue
         image = folders[-1] / "patternflow.ino.bin"
-        target = ROOT / "web" / f".patternflow-{name}.ino.bin"
+        target = staging / f"patternflow-{name}.ino.bin"
         target.write_bytes(image.read_bytes())
         uploads.append(target)
     if uploads:
@@ -349,9 +354,10 @@ def cmd_publish(args: argparse.Namespace) -> None:
         finally:
             for u in uploads:
                 u.unlink(missing_ok=True)
+            staging.rmdir()
 
     print("  waiting for 'Firmware release assets' to attach the core images…")
-    subprocess.run(["sleep", "25"])
+    time.sleep(25)
     run_id = out(["gh", "run", "list", "--workflow", "firmware-release.yml", "--limit", "1",
                   "--json", "databaseId", "--jq", ".[0].databaseId"])
     run(["gh", "run", "watch", run_id, "--exit-status"])
