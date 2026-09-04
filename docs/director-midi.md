@@ -142,7 +142,8 @@ cannot also feed a synth. Three ways round it, least hassle first.
   (Core Library) on that same track, source *Mod Wheel*, and *Map* it onto any
   parameter in the set; mapping does not care which track the target is on.
   Its Min/Max decides how far that parameter travels, so the light can swing
-  end to end while a filter only breathes. The catch: it is a copy, not a
+  end to end while a filter only breathes — and setting Min above Max inverts
+  it, so the same curve that opens the pattern closes the filter. The catch: it is a copy, not a
   link — edit one lane and the other keeps the old shape.
 - **A CC-mapping device.** Expression Control reads only Velocity, Mod Wheel,
   Pitch Bend, Aftertouch and Keytrack — never a chosen CC number. The
