@@ -85,6 +85,80 @@ Record the mapped parameters onto their tracks (or record the loopback input
 into another MIDI clip) and you have plain Live automation you can edit with
 Live's tools, detached from the file.
 
+### Route D — send it to the panel
+
+The three routes above aim the clip at things inside Live. This one aims it
+at the panel itself: the same CC 20–23, out over the network and straight
+onto the four knobs. It needs the **Audio edition** on the panel, which is
+where the `midi` feature lives.
+
+**Once, to make the panel a MIDI port:**
+
+1. Windows: install [rtpMIDI](https://www.tobias-erichsen.de/software/rtpmidi.html),
+   open it, make a session and tick *Enabled*, then find `Patternflow` in the
+   Directory and press *Connect*. macOS: *Audio MIDI Setup → Network*, the
+   same idea. (The panel can also invite your machine itself, so it comes
+   back after a reboot with nobody reopening anything — the host field on the
+   device's `/midi` page.)
+2. Live → *Preferences → Link, Tempo & MIDI*. On that port's **Output** row,
+   switch **Track** on. The **Remote** switch on its *Input* row is the other
+   direction, the Bridge's; both can be on at once.
+
+**Then, to send a lane:**
+
+3. Make a MIDI track (Ctrl/Cmd-Shift-T) and **put no instrument on it.** An
+   instrument makes the track's output audio, and the chooser you need turns
+   from *MIDI To* into *Audio To*. If you want a synth too, that is a second
+   track.
+4. In that track's In/Out section (Ctrl/Cmd-Alt-I if it is hidden), set
+   **MIDI To** to the port and the channel below it to **Ch. 1** — the panel
+   listens on channel 1 unless its `/midi` page says otherwise. MIDI carries
+   sixteen channels down one wire and ignores the fifteen that are not its
+   own; that is all that setting is for.
+5. Drop the `.mid` on that track — or draw your own: an empty clip, its
+   *Envelopes* box, **MIDI Ctrl** then **20 Undefined**, Draw Mode off (**B**)
+   and the grid off (**Ctrl/Cmd-4**) so breakpoints land anywhere. Alt-drag a
+   segment between two breakpoints to bend it into a curve. Press play.
+
+Knob 1 follows CC 20, the others follow 21, 22 and 23. The lane's floor is 0
+and its ceiling is 127, and that is the whole of that knob's range on the
+panel — one MIDI step is about 8 of the device's 1000. A value **holds** until
+a hand turns that encoder, so automation and hands share the panel and the
+hand always wins.
+
+Loop the clip and that is an LFO: the shape drawn once, the clip's length its
+period, tempo-locked for nothing. Draw two cycles into one lane and one into
+another and the four knobs drift out of phase, which is most of what makes a
+pattern stop looking like a loop.
+
+#### The same curve turning sound as well
+
+A track's *MIDI To* points at one destination, so the track feeding the panel
+cannot also feed a synth. Three ways round it, least hassle first.
+
+- **Copy the lane onto the mod wheel.** Select the CC 20 envelope, copy it,
+  switch the chooser to **1 (Mod Wheel)** and paste — Live copies envelopes
+  between parameters, not just through time. Then put **Expression Control**
+  (Core Library) on that same track, source *Mod Wheel*, and *Map* it onto any
+  parameter in the set; mapping does not care which track the target is on.
+  Its Min/Max decides how far that parameter travels, so the light can swing
+  end to end while a filter only breathes. The catch: it is a copy, not a
+  link — edit one lane and the other keeps the old shape.
+- **A CC-mapping device.** Expression Control reads only Velocity, Mod Wheel,
+  Pitch Bend, Aftertouch and Keytrack — never a chosen CC number. The
+  community fills that gap (CCMapper, CC map8 and others on maxforlive.com),
+  and those are a file you drag in rather than an install.
+- **A virtual cable.** loopMIDI (Windows) or the IAC Driver (macOS):
+  duplicate the track, aim the copy at the virtual port, switch that port's
+  *Input → Remote* on, and MIDI-map (Ctrl/Cmd-M) the moving CC onto anything
+  at all. This is Route B pointed at the panel's twin, and it is the only one
+  of the three that needs no copying and reaches Live's own instruments.
+
+Whichever you pick, choose the target by what that knob already does. If knob
+1 sets a pattern's speed, put it on something that gets faster; if it sets
+colour, put it on a filter. Then the eye and the ear are saying the same
+thing, which is the whole point of running one curve into both.
+
 ## Light and sound together
 
 The `.mid` drives the DAW. The **device plays the same show natively**:
@@ -97,15 +171,18 @@ on the device and press play together. For filmed work, the alignment slate
 in [`integrations/ableton/docs/recording-sync.md`](../integrations/ableton/docs/recording-sync.md)
 is the precise version of "press together".
 
-What this export does **not** do is drive the device from Live: OSC's knob
-messages are relative deltas ([`osc-spec.md`](osc-spec.md)), so there is no
-absolute-automation path from a DAW to the panel today — the `.pfs` *is* the
-device's automation format. The reverse direction exists and is great: the
-**Patternflow Bridge** ([`integrations/ableton/`](../integrations/ableton/README.md))
-maps the physical knobs to Live parameters over Wi-Fi, which pairs naturally
-with a show playing on the device — the show turns the light *and* your
-sound rig at once, with the `.mid` as the studio-side copy of the same
-gestures.
+Driving the device *from* Live has its own section above (Route D) — this
+paragraph used to say there was no way, which was true until the panel became
+a MIDI port. CC 20–23 over RTP-MIDI is the absolute-automation path from a DAW
+to the panel, and this file plays down it unchanged. OSC's knob messages are
+relative deltas ([`osc-spec.md`](osc-spec.md)), which is why MIDI is the
+transport that carries a Director lane.
+
+The **Patternflow Bridge** ([`integrations/ableton/`](../integrations/ableton/README.md))
+is the other half: it maps the physical knobs to Live parameters over Wi-Fi,
+so a hand on the panel plays the rig. Together with Route D the panel is an
+ordinary two-way instrument in the set — it plays Live, Live plays it, and a
+show can play both.
 
 And to place the third sibling: the **Audio edition** drives the knobs *from*
 sound (levels over WebSocket, [`audio-ws-spec.md`](audio-ws-spec.md)) —
