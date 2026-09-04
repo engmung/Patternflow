@@ -2,7 +2,7 @@
 
 Files in this folder are **unverified, in-development board revisions**. They have not been fabricated and validated yet.
 
-**Do not send these to a fab.** For a working board, order [`../patternflow_v3.0_gerber.zip`](../) — the current recommended revision.
+**Do not send these to a fab.** For a working board, order [`../patternflow_v3.9_gerber.zip`](../) — the current recommended revision.
 
 | File | Status |
 |---|---|

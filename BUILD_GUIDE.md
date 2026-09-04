@@ -8,7 +8,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. No prio
 
 **What's new in v3** (vs. v2.x):
 
-- **Simple screw-terminal power** — strip a USB cable, screw two wires in, done. (A USB-C input is on the board too, but it's **on hold pending a fix** — see Section 2.)
+- **Simple screw-terminal power** — strip a USB cable, screw two wires in, done. It is the board's only power input (see Section 2).
 - **No SMD passives** — every part you solder is through-hole
 - **Snap-fit enclosure** — the back panel clicks shut, wall-mount holes are built in, and the LED matrix needs no bump trimming
 - Smaller board. **v2.x boards do not fit v3 cases, and vice versa.**
@@ -30,7 +30,7 @@ This guide walks you through building a Patternflow v3.0.0 from scratch. No prio
 
 ## 1. Bill of Materials (BOM)
 
-The authoritative parts list is [`hardware/bom/bom_v3.0.csv`](hardware/bom/bom_v3.0.csv) — every part specified by manufacturer part number. Read the [BOM README](hardware/bom/README.md) for sourcing notes before ordering.
+The authoritative parts list is [`hardware/bom/bom_v3.9.csv`](hardware/bom/bom_v3.9.csv) — every part specified by manufacturer part number. Read the [BOM README](hardware/bom/README.md) for sourcing notes before ordering. (Holding a v3.0 board? Use [`bom_v3.0.csv`](hardware/bom/bom_v3.0.csv) and see the note in Section 2.)
 
 Budget **US$100–200**. The lower end is the well-sourced build where nothing goes wrong: 3D printing filament ~$30, LED matrix panel ~$20, ESP32-S3 ~$13, PCB + remaining parts (encoders, connectors, etc.) ~$35. Shipping, minimum order quantities on the small parts, and a reprint or two are what take it up from there — so treat ~$100 as the floor rather than the estimate.
 
@@ -41,8 +41,6 @@ Budget **US$100–200**. The lower end is the well-sourced build where nothing g
 | U1 | 1 | ESP32-S3 DevKit | N16R8, 44-pin, 25.4mm row spacing | ESP32-S3-DevKitC-1-N16R8 (Espressif) | AliExpress modules are usually fine too (see the GPIO0 note, §5). Plugs into sockets — never soldered. |
 | — | 2 | Female pin socket | 1×22, 2.54mm | PPPC221LFBN-RC (Sullins) | Soldered into the U1 rows; the DevKit rides on top. |
 | SW1–SW4 | 4 | Rotary encoder w/ switch | EC11, 5-pin, 20mm shaft | PEC11R-4220F-S0024 (Bourns) | Insert from the **back** of the board. Cheap EC11 packs work but fail more often. |
-| USB1 | — | USB-C receptacle | — | — | ⏸️ **On hold — leave unpopulated for now.** The USB-C input isn't running reliably yet; a fix is in progress (Section 2). |
-| R1, R2 | — | Resistor 5.1kΩ | — | — | ⏸️ **On hold** — these are the USB-C CC pull-downs; skip them while `USB1` is on hold. |
 | J1 | 1 | Box header | 2×8, 2.54mm, vertical | 61201621621 (Würth) | HUB75 ribbon from the panel plugs in here. Match silkscreen orientation. |
 | J3 | 1 | Screw terminal | 2-pin, 5.0mm | TB002-500-02BE (CUI Devices) | +5V out to the panel. Every build needs it. |
 | J4 | 1 | Screw terminal | 2-pin, 5.0mm | TB002-500-02BE (CUI Devices) | **Power input** (back of board). Required on every build. |
@@ -62,7 +60,6 @@ Key sourcing rules (details in the BOM README):
 - **LED matrix panel: the linked listing is the verified, zero-surprises path** — the case is dimensioned around that exact panel. You're free to buy a different one, but **check two things first**: ① the **driver IC** must be a classic shift-register type (74HC595, FM6124, FM6126A, ICN2037, ICN2038S, DP5125D, DP3246, MBI5124, SM162xx). S-PWM "video wall" panels — ICN2053, FM6353, FM6363C/FM6373C, MBI505x, listings leading with "3840 Hz" or a Novastar/Colorlight receiving card — stay **completely dark** no matter what you configure, and *"HUB75E" on the listing is not a compatibility promise*. The catch: **the driver IC is almost never printed in the listing**, so the practical check is to read the buyer reviews for anyone running it off an ESP32/Arduino/Raspberry Pi, then ask the seller. Read **[LED Panel Compatibility](docs/panel-compatibility.md)** before ordering — it has the review keywords, a copy-paste question for the seller, and a prompt for handing the listing to an AI assistant. ② Compare its mounting-screw positions against the case — if they differ, print the adjustable-mount version (Section 4) or **adapt the enclosure yourself** from the Blender source (`hardware/case/source/`). Verify before you buy, not after.
 - **ESP32-S3**: Espressif is the reference part, but AliExpress modules are usually fine — if yours hits the cold-boot issue, one 10k resistor fixes it ([#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoders**: any 5-pin EC11 with a push switch works — the cheapest packs just fail more often. Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
-- **USB-C connector**: not needed for now — the USB-C input is on hold while it's fixed and tested (Section 2). Skip it unless you're deliberately helping test that path.
 
 ### What you also need (not in BOM)
 
@@ -75,13 +72,13 @@ Key sourcing rules (details in the BOM README):
 
 ## 2. Power Input — Use the Screw Terminal
 
-**Power the board through `J4`, the 2-pin screw terminal on the back.** Strip a USB cable, clamp the two wires in, done. That's the whole procedure, and it's what every build in this guide uses.
+**Power the board through `J4`, the 2-pin screw terminal on the back.** Strip a USB cable, clamp the two wires in, done. That's the whole procedure — and on a v3.9 board it's the only one, because the board carries no other power connector.
 
-> ⏸️ **The USB-C input (`USB1`) is on hold — don't use it for now.** The board carries a USB-C footprint, but it isn't running reliably yet, so **leave `USB1`, `R1`, and `R2` unpopulated** until this note says otherwise. It's being reworked and re-tested; the guide will be updated when it passes.
+> 📦 **Holding a v3.0 board?** It has a USB-C receptacle footprint (`USB1`) and two CC pull-downs (`R1`, `R2`). **Leave all three unpopulated** and power through `J4` exactly as described here — don't buy those parts.
 >
-> **What happened** ([#221](https://github.com/engmung/Patternflow/issues/221)): a board powered through USB-C ran **completely fine for 20–30+ minutes** — no heat, no symptoms — and then suddenly started **smoking at one of the connector pins**, rapidly frying the receptacle and the power path around it. It is still open whether that's a hand-soldering defect on those tight-pitch pins or a structural limit of this 14-pin THT part under the LED matrix's peak current.
+> **What happened** ([#221](https://github.com/engmung/Patternflow/issues/221)): a board powered through USB-C ran **completely fine for 20–30+ minutes** — no heat, no symptoms — and then suddenly started **smoking at one of the connector pins**, rapidly frying the receptacle and the power path around it. Whether that was a hand-soldering defect on those tight-pitch pins or a structural limit of the 14-pin THT part under the LED matrix's peak current was never settled — so rather than ship an input nobody should populate, **v3.9 removed the footprint entirely.**
 >
-> ⚠️ **This is why "it seems to work" proves nothing here.** The failure is *delayed* — passing your multimeter checks and running for half an hour does not mean the joint is safe. Until the cause is pinned down, don't put this input into service.
+> ⚠️ **This is why "it seems to work" proves nothing here.** The failure is *delayed* — passing your multimeter checks and running for half an hour does not mean the joint is safe.
 >
 > The screw terminal has none of this history — it's the original, proven Patternflow power input, and it's exactly as capable.
 
@@ -90,11 +87,10 @@ Key sourcing rules (details in the BOM README):
 | Populate | `J4` (2-pin screw terminal, back of board) |
 | Power cable | Any USB cable, stripped, wires screwed in (see Section 7) |
 | Difficulty | Easy — a screwdriver, no soldering iron |
-| Leave empty (for now) | `USB1`, `R1`, `R2` |
 
 <img src="docs/build-guide/images/v3/16_power_path_compare.jpg" width="85%">
 
-***Build the board on the left.*** `J4` carries the screw terminal; `USB1` and the `R1`/`R2` pads stay bare. The board on the right has the USB-C receptacle and its CC pull-downs populated (circled) — **hold off on that configuration for now.**
+***Build the board on the left.*** `J4` carries the screw terminal. On the right is a v3.0 board with the USB-C receptacle and its CC pull-downs populated (circled) — **that configuration is retired**, and v3.9 has no footprint for it.
 
 ## 3. Order the PCB
 
@@ -102,9 +98,9 @@ The easiest way is the **PCBWay shared project** — no Gerber upload needed, an
 
 <a href="https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html"><img src="https://www.pcbway.com/project/img/images/frompcbway-1220.png" alt="PCB from PCBWay" /></a>
 
-Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.0_gerber.zip`** to the fab of your choice (JLCPCB tends to be the cheapest), or start from the KiCad source in `hardware/pcb/kicad/`.
+Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.9_gerber.zip`** to the fab of your choice (JLCPCB tends to be the cheapest), or start from the KiCad source in `hardware/pcb/kicad/`.
 
-> ⚠️ **v3.0 only.** Do not order v2.1 for this guide — the v2.1 board is a different size and **will not fit the v3 cases**. Anything in `hardware/pcb/gerber/experiment/` is unverified; don't order it either.
+> ⚠️ **v3.x only.** Do not order v2.1 for this guide — the v2.1 board is a different size and **will not fit the v3 cases**. Anything in `hardware/pcb/gerber/experiment/` is unverified; don't order it either.
 
 ## 4. 3D Printing
 
@@ -113,7 +109,7 @@ Any fab works, though — upload **`hardware/pcb/gerber/patternflow_v3.0_gerber.
 | Your printer bed | Print | Notes |
 |---|---|---|
 | **256 mm** (P1S / X1C / A1 class) | `bed_256mm/encloser.stl` | Body frame, back panels, and LED-panel mount in one STL. **White PLA.** ~10 h total. |
-| **~330 mm+** (H2S class) | `bed_330mm/encloser.stl` | The one-piece original — body, closing part, and LED-panel mount in one STL, **no bonding at all**. **White PLA.** |
+| **~330 mm+** (H2S class) | `bed_330mm/encloser.stl` | The one-piece original — body, closing part, and LED-panel mount in one STL, **no bonding at all**. **White PLA.** Adds a USB pass-through to the DevKit and a cable exit slot — **for wired MIDI/OSC and flashing, not for power** (power is always `J4`, Section 2). |
 | **Everyone** | `knobs/knobs_20mm.stl` | **Required for every build** — all four knobs in one plate, as its own separate print job. **Black PLA.** (15 mm-shaft encoders → `knobs_15mm.stl`.) |
 
 Two colors, on purpose: **body in white, knobs in black** — that contrast is the Patternflow look. Printing the knob plate as a separate job keeps it simple (no color changes mid-print).
@@ -148,9 +144,9 @@ The whole PCB assembly is covered in **one YouTube video** — soldering order i
 
 All parts are through-hole, and the video covers the complete order.
 
-> ⏸️ **Skip the USB-C connector for now.** The video shows `USB1` being soldered (11:00–15:18) — it was filmed before that input went on hold. **Leave `USB1`, `R1`, and `R2` unpopulated** (Section 2); everything else in the video applies exactly as shown.
+> 📦 **The video was filmed on a v3.0 board — skip the USB-C segment.** It shows `USB1` being soldered (11:00–15:18); **v3.9 has no USB-C footprint at all**, so that step simply doesn't exist on your board. Everything else applies exactly as shown. (Holding a v3.0 board? Leave `USB1`, `R1`, and `R2` unpopulated — Section 2.)
 >
-> And this is why those pins deserve respect whenever the input does come back — the pitch is tight enough that a bridge is easy to make and hard to spot ([#221](https://github.com/engmung/Patternflow/issues/221)):
+> And these photos are why that input is gone — the pitch is tight enough that a bridge is easy to make and hard to spot ([#221](https://github.com/engmung/Patternflow/issues/221)):
 >
 > | ❌ A bridge like this shorts +5 V to ground | ✅ What a clean joint looks like |
 > |---|---|
@@ -305,7 +301,7 @@ The stock flasher image ships with **OSC disabled at compile time** — live con
 ## 10. Known Issues & Design Notes
 
 - **Tight LED panel fit / bonded-seam gaps** — see the Section 4 bonding notes and Section 6 ([#169](https://github.com/engmung/Patternflow/issues/169)).
-- **⏸️ USB-C input on hold — delayed burnout under investigation.** A USB-C-powered board ran normally for 20–30+ minutes, then smoked at a connector pin and destroyed the receptacle and surrounding power path ([#221](https://github.com/engmung/Patternflow/issues/221)). Whether that's a soldering defect on the tight-pitch THT pins or a structural limit of the part under the matrix's peak current is still open; alternative power-only connectors are being evaluated for a future revision. **Power every build through the `J4` screw terminal** (Section 2) meanwhile. This note will be updated once the cause is settled.
+- **USB-C input removed in v3.9.** A USB-C-powered v3.0 board ran normally for 20–30+ minutes, then smoked at a connector pin and destroyed the receptacle and surrounding power path ([#221](https://github.com/engmung/Patternflow/issues/221)). Whether that was a soldering defect on the tight-pitch THT pins or a structural limit of the part under the matrix's peak current was never settled — so the footprint came off the board instead of shipping an input that must not be populated. **Every build powers through the `J4` screw terminal** (Section 2); on a v3.0 board, leave `USB1`/`R1`/`R2` bare.
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.

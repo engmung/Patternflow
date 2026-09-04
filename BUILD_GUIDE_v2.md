@@ -70,7 +70,7 @@ This is the current detailed path for a hand-soldered official PCB plus a PLA 3D
 
 PCB: order from your preferred fab using the **`patternflow_v2.1_gerber.zip`** Gerbers in [`hardware/pcb/gerber/`](hardware/pcb/gerber/) (or the KiCad source in `hardware/pcb/kicad/`). I used PCBway (sponsored).
 
-> ⚠️ **For this (v2) guide, order v2.1 only.** This guide and its case files are built around the v2.1 board. The newer **v3.0 board** (`patternflow_v3.0_gerber.zip`, verified in [#114](https://github.com/engmung/Patternflow/issues/114)) is a different size — it does **not** fit the v2 cases described here, and v2.1 boards don't fit the v3 cases. The v3 board has its own guide — the main [BUILD_GUIDE.md](BUILD_GUIDE.md).
+> ⚠️ **For this (v2) guide, order v2.1 only.** This guide and its case files are built around the v2.1 board. The newer **v3 board** (`patternflow_v3.9_gerber.zip`; the v3 generation was verified in [#114](https://github.com/engmung/Patternflow/issues/114)) is a different size — it does **not** fit the v2 cases described here, and v2.1 boards don't fit the v3 cases. The v3 board has its own guide — the main [BUILD_GUIDE.md](BUILD_GUIDE.md).
 
 > ⚠️ **Don't order through the PCBWay shared project for this guide.** The [Patternflow PCBWay project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html) now carries the **v3.0 board**, which does not fit the v2 cases described here. For a v2 build, download `patternflow_v2.1_gerber.zip` and upload it to your fab yourself.
 

@@ -2,7 +2,7 @@
 
 3D-printable enclosure for the Patternflow LED synthesizer. Folders are named by **printer bed size** — find the folder that fits your printer.
 
-> **These cases fit the v3.0 board.** If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
+> **These cases fit the v3 board — both v3.9 and v3.0.** The two revisions share an identical outline and mounting-hole pattern (v3.9 only removed the USB-C footprint), so either drops into the same enclosure. If you built (or are building) a v2.x board, use [`legacy_v2/`](legacy_v2/) — the v3 board is a different size and the two generations are **not** interchangeable.
 
 > 🖨️ **Bambu printer? One-click path:** the case is on **[MakerWorld](https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case#profileId-3459015)** with tuned print profiles — open in Bambu Studio and print. The same project ships in this repo as [`patternflow_v3.3mf`](bed_256mm/patternflow_v3.3mf) (4 pre-arranged plates, settings included). The STLs below are for everyone else.
 
@@ -11,7 +11,7 @@
 | Your printer bed | Print | Design | Status |
 |---|---|---|---|
 | **256 mm** (Bambu P1S / X1C / A1 class) | [`bed_256mm/encloser.stl`](bed_256mm/) | The snap-fit design split for a 256 mm bed — body frame, back panels, and LED-panel mount in one STL | ✅ Standard option, ~10 h total |
-| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/encloser.stl`](bed_330mm/) | The one-piece original — body, closing part, and LED-panel mount in one STL, no bonding at all | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)) |
+| **~330 mm+** (Bambu H2S-class) | [`bed_330mm/encloser.stl`](bed_330mm/) | The one-piece original — body, closing part, and LED-panel mount in one STL, no bonding at all. Also has a **USB pass-through to the DevKit and a cable exit slot** (data only — see below) | ✅ Main design ([#113](https://github.com/engmung/Patternflow/issues/113)) |
 
 **Whichever body you print, also print [`knobs/knobs_20mm.stl`](knobs/) — required for every build.** Knobs go in **black**, everything else in **white**; run the knob plate as its own print job. (15 mm-shaft encoders → `knobs_15mm.stl`; 15 mm and 20 mm shafts are functionally identical, and the [BOM](../bom/)'s reference part, PEC11R-4220F-S0024, is 20 mm.)
 
@@ -20,6 +20,10 @@
 The original mass-production-oriented design: a single-piece body plus a snap-fit closing part, wall-mount hanger hole included. No bonding step at all. Does **not** fit a 256 mm bed.
 
 **`encloser.stl`** — everything in one STL (body, closing part, LED-panel mount), all **white** PLA; knobs from [`knobs/`](knobs/) in black. Same design as the print-&-assembly-verified 256 mm kit, just uncut.
+
+**Wired access to the DevKit (330 mm only).** Two openings the 256 mm variant doesn't have yet: a **pass-through between the power-bank bay and the ESP32**, so a USB-C lead reaches the DevKit's own port with the case shut — that's for wired features like MIDI and OSC, and for flashing — and a **cable exit slot below the battery compartment**, so a cable leaves the enclosure instead of being pinched under the back panel.
+
+> ⚠️ **The DevKit port is for data, not power.** Power enters at `J4`, the screw terminal, on every build — see [BUILD_GUIDE §2](../../BUILD_GUIDE.md#2-power-input--use-the-screw-terminal). Never run the panel's supply through the DevKit's USB port.
 
 ## `bed_256mm/` — the standard build
 
@@ -41,7 +45,7 @@ The full photo sequence lives in the [build guide](../../BUILD_GUIDE.md) — §4
 
 ## `legacy_v2/` — v2.x boards only
 
-Everything that fits the v2.x board generation, kept for existing builds. **None of these fit the v3.0 board.** Follow the [v2 build guide](../../BUILD_GUIDE_v2.md).
+Everything that fits the v2.x board generation, kept for existing builds. **None of these fit the v3 board.** Follow the [v2 build guide](../../BUILD_GUIDE_v2.md).
 
 | File | What |
 |---|---|
@@ -62,9 +66,9 @@ Everything that fits the v2.x board generation, kept for existing builds. **None
 
 ## `source/`
 
-- `patternflow_case.blend` — Blender 4.x source for every printed part.
+- `patternflow_case.blend` — Blender source for every printed part. Saved with **Blender 5.2 LTS**; older Blender releases will not open it.
 
-> **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~45 MB file. Download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) instead. The STL files are regular files and download fine either way.
+> **Note — downloading the .blend.** The Blender source is stored in Git LFS, so GitHub's *Code → Download ZIP* gives you a small pointer file instead of the real ~52 MB file. Download it from the [latest release assets](https://github.com/engmung/Patternflow/releases/latest) instead. The STL files are regular files and download fine either way.
 
 To re-export STLs after editing:
 
