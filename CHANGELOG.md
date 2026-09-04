@@ -4,6 +4,8 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.9.4] - 2026-09-04
+
 ### Changed — web
 - **One pattern runtime.** The community's sandbox page (`public/pattern-sandbox.html`, the XSS boundary every preview and thumbnail renders inside) was a hand-kept plain-JS copy of the lab's runtime, with "keep the two in sync" notes on both sides. It is now built from the lab's own code: `scripts/build-sandbox.ts` bundles `src/sandbox/sandbox.ts` — only the canvas, the live loop and the postMessage protocol — with `lib/pattern/harness.ts`, `ramp.ts` and `matrix.ts`, and `check:sandbox-sync` (in `check:ci`) fails when the committed page is not that build. Two drifts came out in the wash: the sandbox turned a knob 20 detents a revolution where the lab and the encoder turn 24, and a pattern that threw reported its message without the line the lab quotes. The default ramp for a `setValue` pattern with no `@ramp` line is kept; every other output was compared pixel for pixel against the old page before it was replaced.
 
