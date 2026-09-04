@@ -52,6 +52,10 @@ PrivateDevices=yes
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=/home/pi/patternflow-data /home/pi/Patternflow/.build-worker /home/pi/Patternflow/firmware/modules/.build
+# 시크릿은 유닛 밖: 워커가 쓰는 변수만 root 전용 파일로, .env.local은 빈 파일로 보이게
+EnvironmentFile=/etc/patternflow/worker.env
+BindReadOnlyPaths=/dev/null:/home/pi/Patternflow/web/.env.local
+InaccessiblePaths=-/home/pi/.ssh -/home/pi/backups -/home/pi/.config
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
 ProtectControlGroups=yes
@@ -83,20 +87,29 @@ strace로 확인한 전부다: 데이터 디렉터리(DB·WAL·산출물), 워�
 문제의 줄을 그대로 인용하고, 그 오류 문자열은 빌드 상태 API로 제출자에게
 돌아간다 — 즉 `web/.env.local`(인증 시크릿)이나 `community.db`(비밀번호
 해시)를 `#include`하면 내용 일부가 새어 나갈 수 있다. `/etc/shadow`가 막힌 건
-격리 덕이 아니라 원래 root 전용이라서다. 남은 두 단계:
+격리 덕이 아니라 원래 root 전용이라서다. 카나리 파일(`/home/pi/canary.txt`에
+`CANARY-7f3a`)을 `#include`한 빌드의 오류 문자열에 그 문장이 그대로 나오는
+것으로 재현했다. 두 단계 중 첫째는 끝났다:
 
-1. **시크릿을 유닛 밖으로.** 워커가 `.env.local`을 읽는 대신 root 전용
-   `EnvironmentFile=/etc/patternflow/worker.env`(0600)로 변수를 받고,
-   `InaccessiblePaths=/home/pi/Patternflow/web/.env.local -/home/pi/.ssh
-   -/home/pi/backups`로 시크릿과 백업을 안 보이게 한다. 검증은 `pi`가 읽을 수
-   있는 카나리 파일(`/home/pi/canary.txt`에 아무 문장)을 `#include`해서 그
-   문장이 빌드 오류에 나오는지로 한다 — `/etc/shadow`는 검증이 아니다.
-2. **컴파일러만 따로 가둔다.** DB는 워커에게 필요하니 유닛 단위로는 못 숨긴다.
+1. **시크릿은 유닛 밖 (완료, 2026-09-04).** 워커가 필요로 하는 변수
+   (`COMMUNITY_ENABLED`, `BUILD_ENABLED`, `BUILD_FQBN`, `COMMUNITY_DB_PATH`)는
+   root 전용 `/etc/patternflow/worker.env`(0600)에서 `EnvironmentFile=`로
+   받는다. `.env.local`은 `InaccessiblePaths`로 막으면 워커가 못 뜬다 —
+   `scripts/loadEnv.ts`의 `existsSync`는 접근 불가 파일에도 `true`를 돌려주고,
+   그다음 `process.loadEnvFile`이 EACCES에 예외를 던진다. 그래서
+   `BindReadOnlyPaths=/dev/null:…/.env.local`로 **빈 파일로 보이게** 한다:
+   워커는 빈 파일을 조용히 넘기고, `#include`는 0바이트를 읽는다. `.ssh`,
+   `backups`, `.config`는 `InaccessiblePaths`. 재검증: 카나리는
+   `Permission denied`, `.env.local`은 0바이트, 백업 디렉터리는
+   `Permission denied`, 정상 빌드 0.5 s.
+2. **컴파일러만 따로 가둔다 (남음).** DB는 워커에게 필요하니 유닛 단위로는 못 숨긴다.
    `build_module.py`는 `PF_XTENSA_BIN`이 가리키는 디렉터리의 컴파일러를
    쓰므로, 거기에 `bwrap`으로 실제 툴체인을 실행하는 래퍼 스크립트를 두면
    컴파일러의 눈에는 툴체인·펌웨어 헤더·작업 디렉터리만 보인다. 그때는 유닛의
    `RestrictNamespaces`와 `SystemCallFilter`를 bwrap이 필요한 만큼(`user mnt`,
-   `@mount`) 열어야 한다.
+   `@mount`) 열어야 한다. 준비 상태는 확인됐다: `/usr/bin/bwrap` 있음,
+   `user.max_user_namespaces` 31907, `build_module.py`의 `toolchain_roots()`가
+   `PF_XTENSA_BIN`을 최우선으로 본다.
 
 ### 호스트 업데이트 절차
 
