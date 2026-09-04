@@ -22,6 +22,8 @@ out/
 *.hex
 *.elf
 *.bin
+# The clock's digit glyphs: generated, committed, and served by console_serve.py
+!firmware/patternflow/features/clock/clock_glyphs.bin
 # ...except the stock images the browser flasher serves: those are release
 # artifacts the site needs at runtime, and they were force-added until now.
 # Build them from a checkout WITHOUT patternflow_secrets.h — that file's

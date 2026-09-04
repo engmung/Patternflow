@@ -258,9 +258,11 @@ export const EDITIONS: Edition[] = [
       'A panel that also tells you things: the time over whatever pattern ' +
       'is running, and the weather outside turning up as light.',
     adds: [
-      'A clock over any pattern — a corner or the centre, three sizes up to ' +
-        'seven-segment digits, seconds, the date, twelve or twenty-four ' +
-        'hours, a colour of your choosing',
+      'A clock over any pattern — anti-aliased digits in a corner or the ' +
+        'centre, seven-segment digits, or the pattern showing only inside ' +
+        'huge digits; seconds, the date, a colour or a gradient',
+      'A live preview on the panel\'s own console page that draws the same ' +
+        'glyphs the panel does, and sends every change as you make it',
       'Time zones with their summer-time rule, so the clock moves itself in ' +
         'spring and autumn',
       'Weather — temperature, humidity and wind on the knob lanes, from ' +

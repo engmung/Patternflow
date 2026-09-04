@@ -1,19 +1,22 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - a clock, as a feature
 //
-// A wall clock over whatever pattern is running: a corner or the centre,
-// three sizes, seconds, a date, twelve or twenty-four hours, a colour, and
-// the time zone as a real zone with its DST rule rather than an offset.
+// A wall clock composed over whatever pattern is running: anti-aliased
+// digits in a corner or the centre, seven-segment digits, or the pattern
+// showing only inside huge digits; a colour or a gradient; the time zone as
+// a real zone with its DST rule rather than an offset.
 //
-// Two ports before this one drew a clock — weather's corner HH:MM:SS and
-// the show scheduler's face on Black — and the core already keeps the time
+// Two ports before this one drew a clock - weather's corner HH:MM:SS and
+// the show scheduler's face on Black - and the core already keeps the time
 // (src/core_clock.h) precisely because "what time is it" was never a weather
 // question. This is the other half of that observation: neither is showing
 // it. So the clock is its own feature, in any composition that wants one,
 // with nothing else attached.
 //
-// Hooks: setup, onNetwork, loop, appendStatus, drawOverlay, nav. No core
-// edits beyond the POSIX-zone entry point in core_clock.h.
+// It is also the first feature on the composeFrame hook: it draws on the
+// frame's way to the panel, with alpha, rather than over the panel after
+// the fact. Hooks: setup, onNetwork, loop, appendStatus, composeFrame, nav.
+// Core edits: the POSIX-zone entry points in core_clock.h, and that hook.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -35,13 +38,18 @@ inline void onNetwork() {
   PatternflowClockFace::setTimezone(PatternflowClockFace::tz);
 }
 
-inline void loop(const PFFeatureFrame&) { PatternflowClockFace::assertZone(); }
+inline void loop(const PFFeatureFrame& frame) {
+  PatternflowClockFace::noteFrame(frame);
+  PatternflowClockFace::assertZone();
+}
 
 inline void appendStatus(String& json) {
   json += ",\"clock\":{\"on\":";
   json += PatternflowClockFace::enabled ? "true" : "false";
   json += ",\"synced\":";
   json += PatternflowClockFace::synced() ? "true" : "false";
+  json += ",\"style\":";
+  json += (int)PatternflowClockFace::style;
   json += ",\"tz\":\"";
   for (const char* p = PatternflowClockFace::tz; *p; ++p) {
     if (*p == '"' || *p == '\\') json += '\\';
@@ -50,7 +58,9 @@ inline void appendStatus(String& json) {
   json += "\"}";
 }
 
-inline void drawOverlay(const PFFeatureFrame& frame) { PatternflowClockFace::draw(frame); }
+inline const uint8_t* composeFrame(const uint8_t* frame, int w, int h) {
+  return PatternflowClockFace::compose(frame, w, h);
+}
 
 inline const PFFeature descriptor = {
     "clock",
@@ -69,11 +79,12 @@ inline const PFFeature descriptor = {
     nullptr,       // isRuntimeEnabled
     nullptr,       // setRuntimeEnabled
     appendStatus,
-    drawOverlay,
+    nullptr,       // drawOverlay - this feature composes instead
     "/clock",      // navPath - the console header link
     "Clock",       // navLabel
-    "A clock over any pattern: the zone, a corner or the centre, three sizes, "
-    "seconds and the date.",
+    "A clock over any pattern, or the pattern inside the digits: the zone, "
+    "where, how big, in what colour.",
+    composeFrame,
 };
 
 }  // namespace PFFeatureClock

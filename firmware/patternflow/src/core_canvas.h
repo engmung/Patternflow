@@ -201,9 +201,26 @@ inline void setPixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
 // maths in the pattern, or the fixed cost of getting a frame out.
 inline uint32_t presentUs = 0;
 
+// A frame filter, run once per present() before the blit. Whoever is
+// registered here is handed the finished canvas and may answer with a
+// different buffer to show instead - its own scratch with something composed
+// over the pattern - or null to show the canvas as it is. The canvas itself
+// is never touched on this path: patterns that accumulate across frames
+// (trails, feedback) own its contents, and post-processing them in place
+// would compound every frame. The sketch wires this to the feature
+// dispatcher; the core does not know who answers.
+typedef const uint8_t* (*ComposeFn)(const uint8_t* canvas, int w, int h);
+inline ComposeFn composeHook = nullptr;
+
 inline void present() {
   uint32_t presentStartedUs = micros();
   if (!gammaLUTReady) buildGammaLUT();
+
+  const uint8_t* shown = buffer;
+  if (composeHook) {
+    const uint8_t* alt = composeHook(buffer, W, H);
+    if (alt) shown = alt;
+  }
 
   // One call for the whole frame instead of 8,192 per-pixel calls.
   //
@@ -220,7 +237,7 @@ inline void present() {
   // canvas buffer keeps the pattern's raw values. Post-processing in place here
   // would compound gamma every frame for any pattern that does not rewrite
   // every pixel.
-  dma_display->blitRGB888(buffer, gammaLUT_R, gammaLUT_G, gammaLUT_B, satBoostQ8);
+  dma_display->blitRGB888(shown, gammaLUT_R, gammaLUT_G, gammaLUT_B, satBoostQ8);
 
   uint32_t us = micros() - presentStartedUs;
   presentUs = presentUs ? (presentUs * 7 + us) / 8 : us;

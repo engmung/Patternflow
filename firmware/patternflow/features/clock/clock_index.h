@@ -38,10 +38,13 @@ color:var(--muted);margin:0 0 10px}
 padding:7px 9px;background:var(--panel);color:var(--ink);
 border:1px solid var(--rule);border-radius:2px}
 .field input[type=color]{flex:0 0 64px;height:32px;padding:2px}
+.field input[type=range]{padding:0;border:none;background:none;accent-color:var(--led)}
+.field .val{flex:0 0 40px;font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
 .field input:focus,.field select:focus{outline:none;border-color:var(--led)}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
 .save{font:inherit;font-size:12px;padding:6px 12px;border-radius:2px;cursor:pointer;
-border:1px solid var(--led);background:var(--led);color:var(--panel);font-weight:600}
+border:1px solid var(--rule);background:none;color:var(--ink)}
+.save:hover{border-color:var(--led)}
 .check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);padding:6px 0}
 .check input{accent-color:var(--led)}
 .note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
@@ -56,16 +59,61 @@ dd{margin:0;font-family:var(--mono);font-size:12px;text-align:right}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
+.preview{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.preview canvas{background:#000;border:1px solid var(--rule);border-radius:2px;image-rendering:pixelated}
+.preview .side{flex:1;min-width:160px}
+.bg{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.bg button{font:inherit;font-size:11px;padding:4px 9px;border-radius:2px;cursor:pointer;
+border:1px solid var(--rule);background:none;color:var(--muted)}
+.bg button.on{border-color:var(--led);color:var(--ink)}
+[hidden]{display:none!important}
 html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#6B6558;--faint:#9A9486;--ghost:#E0D9CC;--rule:#D9D1C2;--rule-soft:#E8E2D6;--led:#FF5C2E;--ok:#2F8A55;--warn:#B88120;--card:#FFFCFA;--fg:#1A1814}
 @media(max-width:420px){.field{display:block}.field label{display:block;margin-bottom:4px}.field input,.field select{width:100%}}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Clock</h1><span class="sub" id="st">-</span></header>
 
-<form id="cfg" autocomplete="off">
+<section>
+  <h2>Preview</h2>
+  <div class="preview">
+    <canvas id="pv" width="64" height="128"></canvas>
+    <div class="side">
+      <p class="note" style="margin-top:0">The layout and the digits, exactly as the panel draws them,
+      over a stand-in for whatever pattern is running. Every change below goes to the panel as you
+      make it — the panel is the real preview; this is for when you are not next to it.</p>
+      <div class="bg">
+        <button type="button" data-bg="dark" class="on">dark</button>
+        <button type="button" data-bg="bright">bright</button>
+        <button type="button" data-bg="colour">colour</button>
+      </div>
+      <div id="msg"></div>
+    </div>
+  </div>
+</section>
+
 <section>
   <h2>On the panel</h2>
-  <label class="check"><input type="checkbox" id="f-on"> Show the clock over every pattern</label>
-  <div class="field"><label for="f-pos">Where</label>
+  <label class="check"><input type="checkbox" id="f-on"> Show the clock</label>
+  <div class="field"><label for="f-style">Style</label>
+    <select id="f-style">
+      <option value="0">Overlay — digits over the pattern</option>
+      <option value="1">Digital — seven-segment</option>
+      <option value="2">Clip — the pattern inside huge digits</option>
+      <option value="3">Clip, inverted — digits cut out of the pattern</option>
+    </select></div>
+  <div class="field"><label for="f-rot">Panel</label>
+    <select id="f-rot">
+      <option value="1">Upright</option>
+      <option value="0">On its side, wide</option>
+      <option value="3">Upright, turned round</option>
+      <option value="2">Wide, upside down</option>
+    </select></div>
+  <div class="field" data-for="01"><label for="f-size">Size</label>
+    <select id="f-size">
+      <option value="0">Small</option>
+      <option value="1">Medium</option>
+      <option value="2">Large</option>
+    </select></div>
+  <div class="field" data-for="01"><label for="f-pos">Where</label>
     <select id="f-pos">
       <option value="0">Top left</option>
       <option value="1">Top right</option>
@@ -73,27 +121,21 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
       <option value="3">Bottom right</option>
       <option value="4">Centre</option>
     </select></div>
-  <div class="field"><label for="f-size">Size</label>
-    <select id="f-size">
-      <option value="0">Small — fine print in a corner</option>
-      <option value="1">Medium — the banner face</option>
-      <option value="2">Large — seven-segment digits</option>
-    </select></div>
-  <div class="field"><label for="f-rot">Panel</label>
-    <select id="f-rot">
-      <option value="0">Wide (0°)</option>
-      <option value="1">Stood on end (90°)</option>
-      <option value="2">Wide, upside down (180°)</option>
-      <option value="3">Stood on end, the other way (270°)</option>
-    </select></div>
-  <label class="check"><input type="checkbox" id="f-sec"> Seconds</label>
+  <label class="check" data-for="01"><input type="checkbox" id="f-sec"> Seconds</label>
   <label class="check"><input type="checkbox" id="f-h12"> 12-hour</label>
-  <label class="check"><input type="checkbox" id="f-date"> Date underneath</label>
-  <label class="check"><input type="checkbox" id="f-blink"> Blink the colon (large digits only)</label>
-  <div class="field"><label for="f-ink">Colour</label>
-    <input id="f-ink" type="color" value="#f5f5f5"></div>
-  <p class="note">Drawn after the pattern, with a one-pixel black outline so the pattern
-  shows through around the digits. Off while the panel's own menus are up.</p>
+  <label class="check" data-for="01"><input type="checkbox" id="f-date"> Date underneath</label>
+  <label class="check" data-for="1"><input type="checkbox" id="f-blink"> Blink the colon</label>
+  <div class="field" data-for="01"><label for="f-ink">Colour</label>
+    <input id="f-ink" type="color" value="#f5f5f5">
+    <input id="f-ink2" type="color" value="#ff5c2e">
+    <label class="check" style="flex:1;padding:0"><input type="checkbox" id="f-grad"> gradient, top to bottom</label></div>
+  <div class="field" data-for="23"><label for="f-dim">Outside</label>
+    <input id="f-dim" type="range" min="0" max="100" value="0"><span class="val" id="f-dim-v">0 %</span></div>
+  <label class="check" data-for="23"><input type="checkbox" id="f-fade"> Crossfade when the minute changes</label>
+  <p class="note">Overlay digits are Inter Bold with a soft shadow; the clip styles use Bebas Neue,
+  tall enough that hours over minutes fill an upright panel. Everything is blended into the
+  frame on its way to the panel, so the pattern shows through the edges. Off while the panel's
+  own menus are up.</p>
 </section>
 
 <section>
@@ -122,14 +164,12 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
       <option value="custom">Custom (POSIX TZ string)…</option>
     </select></div>
   <div class="field" id="customrow" hidden><label for="f-tz">POSIX</label>
-    <input id="f-tz" placeholder="e.g. CET-1CEST,M3.5.0,M10.5.0/3" maxlength="47"></div>
+    <input id="f-tz" placeholder="e.g. CET-1CEST,M3.5.0,M10.5.0/3" maxlength="47">
+    <button type="button" class="save" id="tzapply">Apply</button></div>
   <p class="note">A zone carries its summer-time rule, so the clock moves itself in spring
   and autumn. The Weather page's UTC offset is the older setting and cannot; when the two
   disagree, this one wins.</p>
-  <div class="actions"><button type="submit" class="save" id="save">Save</button></div>
-  <div id="msg"></div>
 </section>
-</form>
 
 <section>
   <h2>As the panel sees it</h2>
@@ -143,32 +183,43 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
   12:00 while it waits is worse than none.</p>
 </section>
 
-<footer>pool.ntp.org · time.google.com</footer>
+<footer>pool.ntp.org · time.google.com · Inter, Bebas Neue (OFL)</footer>
 </div>
 <script>
 function $(i){return document.getElementById(i)}
 function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
+
+// ── state ─────────────────────────────────────────────────────────────
+var S=null;          // last /api/clock answer
+var G=null;          // the glyph blob
+var bgMode='dark';
+var devTime=null, devTimeAt=0;   // "HH:MM:SS" as the panel reported it, and when
 var cfgFilled=false;
-function zoneKnown(tz){
-  var o=$('f-zone').options;
-  for(var i=0;i<o.length;i++){if(o[i].value===tz)return true}
-  return false;
-}
+
+function ids(){return ['on','style','size','pos','rot','sec','h12','date','blink','grad','fade']}
 function fill(d){
+  S=d;
   if(!cfgFilled){
     $('f-on').checked=!!d.on;
-    $('f-pos').value=String(d.pos);
+    $('f-style').value=String(d.style);
     $('f-size').value=String(d.size);
+    $('f-pos').value=String(d.pos);
     $('f-rot').value=String(d.rot);
     $('f-sec').checked=!!d.sec;
     $('f-h12').checked=!!d.h12;
     $('f-date').checked=!!d.date;
     $('f-blink').checked=!!d.blink;
+    $('f-grad').checked=!!d.grad;
+    $('f-fade').checked=!!d.fade;
     $('f-ink').value='#'+(d.ink||'F5F5F5').toLowerCase();
+    $('f-ink2').value='#'+(d.ink2||'FF5C2E').toLowerCase();
+    $('f-dim').value=d.dim||0;$('f-dim-v').textContent=(d.dim||0)+' %';
     if(zoneKnown(d.tz)){$('f-zone').value=d.tz;$('customrow').hidden=true}
     else{$('f-zone').value='custom';$('f-tz').value=d.tz||'';$('customrow').hidden=false}
     cfgFilled=true;
+    showFor();
   }
+  if(d.synced&&d.time){devTime=d.time;devTimeAt=Date.now()}
   $('st').textContent=d.on?(d.synced?'on':'waiting for NTP'):'off';
   $('st').className='sub '+(d.on&&d.synced?'ok':'');
   $('time').textContent=d.synced?(d.time||'-'):'syncing…';
@@ -176,36 +227,287 @@ function fill(d){
   $('zone').textContent=(d.zone?d.zone+' · ':'')+(d.tz||'-');
   $('sync').textContent=d.synced?'synced':'not yet';
   $('sync').className=d.synced?'ok':'';
+  if(!G&&d.glyphsRev!==undefined)loadGlyphs(d.glyphsRev);
+  sizeCanvas();
+}
+function zoneKnown(tz){
+  var o=$('f-zone').options;
+  for(var i=0;i<o.length;i++){if(o[i].value===tz)return true}
+  return false;
+}
+// Controls that only apply to some styles: data-for lists the style digits.
+function showFor(){
+  var st=$('f-style').value;
+  var els=document.querySelectorAll('[data-for]');
+  for(var i=0;i<els.length;i++)els[i].hidden=els[i].getAttribute('data-for').indexOf(st)<0;
 }
 function poll(){
   fetch('/api/clock',{cache:'no-store'}).then(function(r){return r.json()}).then(fill)
     .catch(function(){$('st').textContent='offline'});
 }
+
+// ── sending: every change goes to the panel, debounced ────────────────
+var pending=null,timer=null;
+function queue(fields){
+  pending=Object.assign(pending||{},fields);
+  clearTimeout(timer);
+  timer=setTimeout(flush,250);
+}
+function flush(){
+  if(!pending)return;
+  var body=new URLSearchParams();
+  for(var k in pending)body.set(k,pending[k]);
+  pending=null;
+  say('sending…');
+  fetch('/api/clock',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
+    fill(d);say(d.ok?'on the panel':'failed',d.ok?'good':'err');
+  }).catch(function(){say('send failed','err')});
+}
+function current(){
+  return {on:$('f-on').checked?'1':'0',style:$('f-style').value,size:$('f-size').value,
+    pos:$('f-pos').value,rot:$('f-rot').value,sec:$('f-sec').checked?'1':'0',
+    h12:$('f-h12').checked?'1':'0',date:$('f-date').checked?'1':'0',
+    blink:$('f-blink').checked?'1':'0',grad:$('f-grad').checked?'1':'0',
+    fade:$('f-fade').checked?'1':'0',ink:$('f-ink').value.replace('#',''),
+    ink2:$('f-ink2').value.replace('#',''),dim:$('f-dim').value};
+}
+function wire(id,ev){
+  $(id).addEventListener(ev||'change',function(){
+    if(id==='f-style')showFor();
+    if(id==='f-dim')$('f-dim-v').textContent=$('f-dim').value+' %';
+    queue(current());
+    sizeCanvas();
+  });
+}
+['f-on','f-style','f-size','f-pos','f-rot','f-sec','f-h12','f-date','f-blink','f-grad','f-fade'].forEach(function(i){wire(i)});
+wire('f-ink','input');wire('f-ink2','input');wire('f-dim','input');
 $('f-zone').onchange=function(){
   var custom=$('f-zone').value==='custom';
   $('customrow').hidden=!custom;
-  if(custom)$('f-tz').focus();
+  if(custom){$('f-tz').focus();return}
+  queue({tz:$('f-zone').value});
 };
-$('cfg').onsubmit=function(e){
-  e.preventDefault();
-  var body=new URLSearchParams();
-  body.set('on',$('f-on').checked?'1':'0');
-  body.set('pos',$('f-pos').value);
-  body.set('size',$('f-size').value);
-  body.set('rot',$('f-rot').value);
-  body.set('sec',$('f-sec').checked?'1':'0');
-  body.set('h12',$('f-h12').checked?'1':'0');
-  body.set('date',$('f-date').checked?'1':'0');
-  body.set('blink',$('f-blink').checked?'1':'0');
-  body.set('ink',$('f-ink').value.replace('#',''));
-  var tz=$('f-zone').value==='custom'?$('f-tz').value.trim():$('f-zone').value;
-  if(tz)body.set('tz',tz);
-  say('saving…');
-  fetch('/api/clock',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
-    cfgFilled=false;fill(d);
-    say(d.ok?'saved':'failed',d.ok?'good':'err');
-  }).catch(function(){say('save failed','err')});
+$('tzapply').onclick=function(){var z=$('f-tz').value.trim();if(z)queue({tz:z})};
+$('f-tz').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('tzapply').onclick()}};
+var bgs=document.querySelectorAll('.bg button');
+for(var i=0;i<bgs.length;i++)bgs[i].onclick=function(){
+  for(var j=0;j<bgs.length;j++)bgs[j].className='';
+  this.className='on';bgMode=this.getAttribute('data-bg');
 };
+
+// ── the glyphs: the same bytes the firmware compiles in ────────────────
+function loadGlyphs(rev){
+  fetch('/clock/glyphs.bin?v='+rev).then(function(r){return r.arrayBuffer()}).then(function(buf){
+    var b=new Uint8Array(buf);
+    if(b.length<5||String.fromCharCode(b[0],b[1],b[2],b[3])!=='PFG1')return;
+    var n=b[4],sets=[];
+    for(var i=0;i<n;i++){var p=5+6*i;sets.push({h:b[p],w:b[p+1],cw:b[p+2],gap:b[p+3],off:b[p+4]|(b[p+5]<<8)})}
+    G={b:b,sets:sets};
+  }).catch(function(){});
+}
+function cellW(g,glyph){return glyph===10?g.cw:g.w}
+function alpha4(g,glyph,x,y){
+  var w=cellW(g,glyph),rb=(w+1)>>1,digitBytes=g.h*((g.w+1)>>1);
+  var cell=g.off+(glyph<10?glyph*digitBytes:10*digitBytes);
+  var v=G.b[cell+y*rb+(x>>1)];
+  return (x&1)?(v&15):(v>>4);
+}
+
+// A 3x5 stand-in for the panel's chrome font (TomThumb), for the date line.
+// Same advance (4 px) and height (5), so the block lands where the panel's does.
+var F35={'0':[7,5,5,5,7],'1':[2,6,2,2,7],'2':[7,1,7,4,7],'3':[7,1,7,1,7],'4':[5,5,7,1,1],
+'5':[7,4,7,1,7],'6':[7,4,7,5,7],'7':[7,1,1,1,1],'8':[7,5,7,5,7],'9':[7,5,7,1,7],
+'A':[2,5,7,5,5],'B':[6,5,6,5,6],'C':[7,4,4,4,7],'D':[6,5,5,5,6],'E':[7,4,6,4,7],'F':[7,4,6,4,4],
+'G':[7,4,5,5,7],'H':[5,5,7,5,5],'I':[7,2,2,2,7],'J':[1,1,1,5,7],'K':[5,5,6,5,5],'L':[4,4,4,4,7],
+'M':[5,7,7,5,5],'N':[6,5,5,5,5],'O':[7,5,5,5,7],'P':[7,5,7,4,4],'Q':[7,5,5,7,1],'R':[6,5,6,5,5],
+'S':[7,4,7,1,7],'T':[7,2,2,2,2],'U':[5,5,5,5,7],'V':[5,5,5,5,2],'W':[5,5,7,7,5],'X':[5,5,2,5,5],
+'Y':[5,5,2,2,2],'Z':[7,1,2,4,7],' ':[0,0,0,0,0]};
+
+// ── compose: a mirror of core_clock_face.h, in virtual space ───────────
+var fb=null,fbW=0,fbH=0;      // RGB float frame, virtual orientation
+function vdims(){
+  var w=S?S.w:128,h=S?S.h:64,rot=parseInt($('f-rot').value,10);
+  return (rot&1)?[h,w]:[w,h];
+}
+function sizeCanvas(){
+  var d=vdims(),cv=$('pv');
+  var scale=Math.max(2,Math.floor(384/Math.max(d[0],d[1])));
+  cv.width=d[0]*scale;cv.height=d[1]*scale;cv.dataset.scale=scale;
+  if(fbW!==d[0]||fbH!==d[1]){fbW=d[0];fbH=d[1];fb=new Float32Array(fbW*fbH*3)}
+}
+function ink(){var v=$('f-ink').value;return [parseInt(v.substr(1,2),16),parseInt(v.substr(3,2),16),parseInt(v.substr(5,2),16)]}
+function ink2(){var v=$('f-ink2').value;return [parseInt(v.substr(1,2),16),parseInt(v.substr(3,2),16),parseInt(v.substr(5,2),16)]}
+var gradTop=0,gradH=1;
+function inkAt(y){
+  var a=ink();if(!$('f-grad').checked||gradH<=1)return a;
+  var b=ink2(),t=Math.min(1,Math.max(0,(y-gradTop)/(gradH-1)));
+  return [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t,a[2]*(1-t)+b[2]*t];
+}
+function blend(x,y,r,g,b,a){
+  if(a<=0||x<0||y<0||x>=fbW||y>=fbH)return;
+  var i=(y*fbW+x)*3,t=a/255;
+  fb[i]=fb[i]*(1-t)+r*t;fb[i+1]=fb[i+1]*(1-t)+g*t;fb[i+2]=fb[i+2]*(1-t)+b*t;
+}
+function paintGlyph(g,glyph,x,y,pass){
+  var w=cellW(g,glyph);
+  for(var yy=0;yy<g.h;yy++)for(var xx=0;xx<w;xx++){
+    var a4=alpha4(g,glyph,xx,yy);if(!a4)continue;
+    var a=a4*17;
+    if(pass===0){blend(x+xx+1,y+yy+1,0,0,0,(a*3)/4|0);blend(x+xx,y+yy+1,0,0,0,a/3|0);blend(x+xx+1,y+yy,0,0,0,a/3|0)}
+    else{var c=inkAt(y+yy);blend(x+xx,y+yy,c[0],c[1],c[2],a)}
+  }
+}
+function lineWidth(g,s){
+  var w=0,n=0;
+  for(var i=0;i<s.length;i++){var c=s[i];if(c===':')w+=g.cw;else if(c>='0'&&c<='9')w+=g.w;else continue;n++}
+  if(n>1)w+=(n-1)*g.gap;return w;
+}
+function paintLine(g,s,x,y,pass){
+  var cx=x;
+  for(var i=0;i<s.length;i++){var c=s[i],gl;
+    if(c===':')gl=10;else if(c>='0'&&c<='9')gl=c.charCodeAt(0)-48;else continue;
+    paintGlyph(g,gl,cx,y,pass);cx+=cellW(g,gl)+g.gap}
+}
+function paintSmall(s,x,y,pass){
+  var cx=x;
+  for(var i=0;i<s.length;i++){
+    var rows=F35[s[i].toUpperCase()]||F35[' '];
+    for(var yy=0;yy<5;yy++)for(var xx=0;xx<3;xx++){
+      if(rows[yy]&(4>>xx)){
+        if(pass===0)blend(cx+xx+1,y+yy+1,0,0,0,190);
+        else{var c=inkAt(y+yy);blend(cx+xx,y+yy,c[0],c[1],c[2],255)}
+      }
+    }
+    cx+=4;
+  }
+}
+function place(bw,bh){
+  var pos=parseInt($('f-pos').value,10),m=2,x,y;
+  switch(pos){case 0:x=m;y=m;break;case 1:x=fbW-bw-m;y=m;break;case 2:x=m;y=fbH-bh-m;break;
+    case 3:x=fbW-bw-m;y=fbH-bh-m;break;default:x=(fbW-bw)/2|0;y=(fbH-bh)/2|0}
+  return [Math.max(0,x),Math.max(0,y)];
+}
+function nowParts(){
+  var d=new Date(),h,m,s;
+  if(devTime){var p=devTime.split(':');var t=(+p[0])*3600+(+p[1])*60+(+p[2])+((Date.now()-devTimeAt)/1000|0);t%=86400;
+    h=t/3600|0;m=(t/60|0)%60;s=t%60}
+  else{h=d.getHours();m=d.getMinutes();s=d.getSeconds()}
+  return [h,m,s];
+}
+function dispHour(h){if(!$('f-h12').checked)return h;h%=12;return h===0?12:h}
+function two(n){return (n<10?'0':'')+n}
+function timeString(){var t=nowParts();var s=two(dispHour(t[0]))+':'+two(t[1]);if($('f-sec').checked)s+=':'+two(t[2]);return s}
+function dateString(){
+  var d=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(S&&S.today){var p=S.today.split(' ');if(p.length>=3)return p[0]+' '+p[1]+' '+p[2]}
+  return days[d.getDay()]+' '+mon[d.getMonth()]+' '+two(d.getDate());
+}
+function setFor(size){var i=Math.min(size,G.sets.length-1);return G.sets[i]}
+
+function composeOverlay(){
+  var line=timeString(),size=parseInt($('f-size').value,10);
+  var g=setFor(size),tw=lineWidth(g,line);
+  for(var s=size;tw>fbW-4&&s>0;s--){g=setFor(s-1);tw=lineWidth(g,line)}
+  var th=g.h,date=$('f-date').checked?dateString():'',dw=date?date.length*4:0,dh=date?5:0;
+  var bw=Math.max(tw,dw),bh=th+(date?dh+2:0),p=place(bw,bh);
+  gradTop=p[1];gradH=bh;
+  for(var pass=0;pass<2;pass++){
+    paintLine(g,line,p[0]+((bw-tw)/2|0),p[1],pass);
+    if(date)paintSmall(date,p[0]+((bw-dw)/2|0),p[1]+th+2,pass);
+  }
+}
+function segGeom(digits,colons,maxW,maxH){
+  var best=3;
+  for(var dw=3;dw<64;dw++){var t=Math.max(1,(dw+2)/5|0),gap=Math.max(1,dw/6|0);
+    var width=digits*dw+colons*t+(digits+colons-1)*gap,dh=2*dw-t;
+    if(width>maxW||dh>maxH)break;best=dw}
+  var t=Math.max(1,(best+2)/5|0);
+  return {dw:best,t:t,gap:Math.max(1,best/6|0),dh:2*best-t,colon:t};
+}
+var SEG=[0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F];
+function segRect(x,y,w,h,pass){
+  if(pass===0){for(var yy=y-1;yy<y+h+1;yy++)for(var xx=x-1;xx<x+w+1;xx++)blend(xx,yy,0,0,0,170)}
+  else{for(var yy=y;yy<y+h;yy++){var c=inkAt(yy);for(var xx=x;xx<x+w;xx++)blend(xx,yy,c[0],c[1],c[2],255)}}
+}
+function segDigit(g,x,y,bits,pass){
+  var dw=g.dw,dh=g.dh,t=g.t,half=(dh+t)/2|0,mid=(dh-t)/2|0;
+  if(bits&1)segRect(x,y,dw,t,pass);if(bits&2)segRect(x+dw-t,y,t,half,pass);
+  if(bits&4)segRect(x+dw-t,y+mid,t,half,pass);if(bits&8)segRect(x,y+dh-t,dw,t,pass);
+  if(bits&16)segRect(x,y+mid,t,half,pass);if(bits&32)segRect(x,y,t,half,pass);
+  if(bits&64)segRect(x,y+mid,dw,t,pass);
+}
+function composeDigital(){
+  var line=timeString(),digits=0,colons=0;
+  for(var i=0;i<line.length;i++){if(line[i]===':')colons++;else digits++}
+  var size=parseInt($('f-size').value,10),shorter=Math.min(fbW,fbH);
+  var maxH=size===0?shorter/5|0:(size===1?shorter/3|0:shorter*45/100|0);
+  var g=segGeom(digits,colons,fbW-4,Math.max(5,maxH));
+  var tw=0,n=0;for(var i=0;i<line.length;i++){tw+=line[i]===':'?g.colon:g.dw;n++}tw+=(n-1)*g.gap;
+  var th=g.dh,date=$('f-date').checked?dateString():'',dw=date?date.length*4:0,dh=date?5:0;
+  var bw=Math.max(tw,dw),bh=th+(date?dh+2:0),p=place(bw,bh);
+  gradTop=p[1];gradH=bh;
+  var lit=!$('f-blink').checked||(nowParts()[2]&1)===0;
+  for(var pass=0;pass<2;pass++){
+    var cx=p[0]+((bw-tw)/2|0);
+    for(var i=0;i<line.length;i++){var c=line[i];
+      if(c===':'){if(lit){segRect(cx,p[1]+(g.dh/4|0)-(g.t/2|0),g.t,g.t,pass);segRect(cx,p[1]+(3*g.dh/4|0)-(g.t/2|0),g.t,g.t,pass)}cx+=g.colon+g.gap}
+      else{segDigit(g,cx,p[1],SEG[c.charCodeAt(0)-48],pass);cx+=g.dw+g.gap}}
+    if(date)paintSmall(date,p[0]+((bw-dw)/2|0),p[1]+th+2,pass);
+  }
+}
+function clipLayout(){
+  var rows=fbH>=fbW,best=null;
+  for(var i=0;i<G.sets.length;i++){var g=G.sets[i];
+    if(rows){var rg=Math.max(2,g.h/6|0);if(2*g.w+g.gap<=fbW-2&&2*g.h+rg<=fbH-2&&(!best||g.h>best.h))best=g}
+    else{var mid=(g.w/2|0)+g.gap;if(4*g.w+2*g.gap+mid<=fbW-2&&g.h<=fbH-2&&(!best||g.h>best.h))best=g}}
+  if(!best)return null;
+  var g=best,L={g:g,rows:rows};
+  if(rows){var rg=Math.max(2,g.h/6|0),pw=2*g.w+g.gap,th=2*g.h+rg;
+    L.x0=L.x1=(fbW-pw)/2|0;L.y0=(fbH-th)/2|0;L.y1=L.y0+g.h+rg}
+  else{var mid=(g.w/2|0)+g.gap,pw=2*g.w+g.gap,tw=2*pw+mid;
+    L.x0=(fbW-tw)/2|0;L.x1=L.x0+pw+mid;L.y0=L.y1=(fbH-g.h)/2|0}
+  return L;
+}
+function composeClip(inverse){
+  var mask=new Uint8Array(fbW*fbH),L=clipLayout();
+  if(L){var t=nowParts(),hh=dispHour(t[0]),mm=t[1],g=L.g;
+    var put=function(gl,x,y){var w=cellW(g,gl);for(var yy=0;yy<g.h;yy++)for(var xx=0;xx<w;xx++){var a=alpha4(g,gl,xx,yy);
+      var px=x+xx,py=y+yy;if(a&&px>=0&&py>=0&&px<fbW&&py<fbH)mask[py*fbW+px]=a*17}};
+    put(hh/10|0,L.x0,L.y0);put(hh%10,L.x0+g.w+g.gap,L.y0);put(mm/10|0,L.x1,L.y1);put(mm%10,L.x1+g.w+g.gap,L.y1)}
+  var dim=parseInt($('f-dim').value,10)*255/100|0;
+  for(var i=0;i<fbW*fbH;i++){var a=mask[i];if(inverse)a=255-a;var f=(dim+((255-dim)*a)/255)/255;
+    fb[i*3]*=f;fb[i*3+1]*=f;fb[i*3+2]*=f}
+}
+
+// ── the stand-in background ────────────────────────────────────────────
+function background(tm){
+  var t=tm/1000;
+  for(var y=0;y<fbH;y++)for(var x=0;x<fbW;x++){
+    var i=(y*fbW+x)*3,u=x/fbW,v=y/fbH,r,g,b;
+    if(bgMode==='dark'){var k=0.5+0.5*Math.sin(u*3+t*0.4)*Math.cos(v*2-t*0.3);r=8+30*k;g=10+20*k;b=30+60*k}
+    else if(bgMode==='bright'){var n=0.5+0.5*Math.sin((u*7+v*5)*3+t*0.9)*Math.sin(v*9-t*0.6);r=160+80*n;g=170+70*n;b=150+90*n}
+    else{var a=0.5+0.5*Math.sin(u*6+t),bb=0.5+0.5*Math.sin(v*5-t*1.3),c=0.5+0.5*Math.sin((u+v)*4+t*0.7);r=255*a;g=255*bb;b=255*c}
+    fb[i]=r;fb[i+1]=g;fb[i+2]=b;
+  }
+}
+function frame(tm){
+  requestAnimationFrame(frame);
+  if(!fb)return;
+  background(tm);
+  if(G&&$('f-on').checked){
+    var st=$('f-style').value;
+    if(st==='0')composeOverlay();else if(st==='1')composeDigital();else composeClip(st==='3');
+  }
+  var cv=$('pv'),ctx=cv.getContext('2d'),s=parseInt(cv.dataset.scale||'2',10);
+  ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+  for(var y=0;y<fbH;y++)for(var x=0;x<fbW;x++){
+    var i=(y*fbW+x)*3;
+    ctx.fillStyle='rgb('+(fb[i]|0)+','+(fb[i+1]|0)+','+(fb[i+2]|0)+')';
+    ctx.fillRect(x*s,y*s,s>2?s-1:s,s>2?s-1:s);
+  }
+}
+sizeCanvas();
+requestAnimationFrame(frame);
 poll();setInterval(poll,5000);
 document.addEventListener('visibilitychange',function(){
   if(!document.hidden)poll();

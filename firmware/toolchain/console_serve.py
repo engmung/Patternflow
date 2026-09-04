@@ -28,6 +28,7 @@ device before you believe it.
 """
 
 import json
+import time
 import os
 import posixpath
 import re
@@ -221,6 +222,21 @@ class Handler(BaseHTTPRequestHandler):
                                  % ROUTES[path], code=404)
             return self.send(read(f))
 
+        # The clock's glyph blob, the same bytes the firmware compiles in
+        # (build_clock_glyphs.py writes both).
+        if path == "/clock/glyphs.bin":
+            f = os.path.join(SKETCH, "features", "clock", "clock_glyphs.bin")
+            if not os.path.exists(f):
+                return self.send("no clock_glyphs.bin - run build_clock_glyphs.py", code=404)
+            with open(f, "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         if path in RAW_ASSETS:
             rel, tag, ctype = RAW_ASSETS[path]
             try:
@@ -389,11 +405,15 @@ class Handler(BaseHTTPRequestHandler):
                 "localTime": "23:13:54", "knobs": [0.0, 0.0, 0.0, 0.0],
             })
         if path.startswith("/api/clock"):
+            now = time.localtime()
             return self.send_json({
-                "ok": True, "on": True, "tz": "KST-9", "pos": 1, "size": 0,
-                "rot": 1, "sec": False, "h12": False, "date": False,
-                "blink": False, "ink": "F5F5F5", "synced": True,
-                "time": "23:13:54", "today": "Thu Sep 04 2026", "zone": "KST",
+                "ok": True, "on": True, "tz": "KST-9", "style": 0, "pos": 1,
+                "size": 0, "rot": 1, "sec": False, "h12": False,
+                "date": False, "blink": False, "ink": "F5F5F5",
+                "ink2": "FF5C2E", "grad": False, "dim": 0, "fade": True,
+                "w": 128, "h": 64, "glyphsRev": 0, "synced": True,
+                "time": time.strftime("%H:%M:%S", now),
+                "today": time.strftime("%a %b %d %Y", now), "zone": "KST",
             })
         if path.startswith("/api/midi"):
             return self.send_json({
