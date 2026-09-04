@@ -96,6 +96,7 @@ each row says which port proved it.
 | `navPath` + `navLabel` + `navDesc` | the console header links the page, and the home screen gives it a row with that one-line description — the core never learns the path | /show, /mqtt, /weather, /audio-in |
 | `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
+| `composeFrame(frame, w, h)` | the finished canvas on its way to the panel, before the blit — return a buffer to show instead, or null | the clock feature: alpha-blended digits, and the pattern masked to the inside of them |
 
 `PFFeatureFrame` carries what those hooks need so a feature never reaches into
 the sketch's globals: `dt`, `patternName`, `running`, `chromeVisible` (the
@@ -178,6 +179,7 @@ Then one line in `features.h`, and nothing else in the tree changes.
 | `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
 | `osc/` | Max / TouchDesigner / Ableton, both directions | The fifth, and the first that did not fit — see below. |
 | `midi/` | RTP-MIDI in and out: CC 20–23 absolute, 24–27 relative, notes, Program Change | Transport-agnostic mapping in `core_midi.h`; the network transport beside it. `docs/midi-spec.md`. |
+| `clock/` | the time cut out of the running pattern, `/clock`, `/api/clock` | Settings in its own NVS namespace, a page with a live preview, and the first user of `composeFrame`: huge anti-aliased digits the pattern shows through (typefaces rasterised offline by `toolchain/build_clock_glyphs.py`, several faces), with what fills the digits and what surrounds them chosen separately. Owns the time zone as a POSIX string with its DST rule; the core keeps the time (`src/core_clock.h`), this shows it. |
 | `ble/` | Wi-Fi provisioning from a phone over Improv-BLE | **In no edition.** The lifecycle works on hardware (advertise only while the panel cannot join, release the controller's memory after) but linking it costs ~12 KB of internal RAM and the one phone it was tried with never listed the panel. Opt-in for whoever finishes it; the header records what was measured. |
 
 `PF_FEATURES_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of

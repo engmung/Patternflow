@@ -157,6 +157,21 @@ struct PFFeature {
   //
   // Plain text, no quotes - it rides inside /api/status JSON unescaped.
   const char* navDesc;
+
+  // The finished canvas, on its way to the panel - before the blit, so what
+  // a feature draws here is blended with the pattern's own pixels rather than
+  // stamped over them after the fact. Return a buffer to show instead (the
+  // feature's own scratch, w*h*3 bytes, RGB888 row-major) or null to leave
+  // the frame alone. Never write into `frame`: it is the pattern's canvas and
+  // may be the state the pattern carries into its next frame.
+  //
+  // drawOverlay is the older, cheaper path - GFX primitives straight onto the
+  // panel after the blit, fine for a few glyphs. This one exists for anything
+  // that needs alpha, a soft edge, or the whole frame: an anti-aliased clock,
+  // a mask that lets the pattern through only inside the digits. Per frame;
+  // a full pass over the frame is ~8 k pixels and must stay well under a
+  // millisecond.
+  const uint8_t* (*composeFrame)(const uint8_t* frame, int w, int h);
 };
 
 // ── Legacy name shim (2026-08-30) ───────────────────────────────────────

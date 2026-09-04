@@ -128,7 +128,9 @@ task + HTTP API + console page + NVS persistence), `midi` (a transport-agnostic
 mapping with the network transport beside it, [`docs/midi-spec.md`](docs/midi-spec.md)),
 `ble` (a radio that starts itself only when needed and hands its memory back;
 in no edition yet),
-`mqtt`, `show`, `weather`.
+`mqtt`, `show`, `weather`, and `clock` — settings in NVS, a page with a live
+preview, and the first user of `composeFrame` (drawing into the frame with
+alpha, before the blit) — the one to read first.
 
 ### What done looks like
 

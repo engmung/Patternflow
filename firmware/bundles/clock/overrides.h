@@ -1,0 +1,22 @@
+// ═══════════════════════════════════════════════════════════
+// Patternflow Clock — what this edition calls itself, and what it sets
+//
+// Included from config.h before any default, so anything `#ifndef`-guarded
+// anywhere in the tree can be set here. Nothing in this file is a core
+// file, and the build script puts it back the way it found it.
+//
+// License: MIT
+// ═══════════════════════════════════════════════════════════
+#pragma once
+
+// Reported in /api/status as `variant` and `variantVersion`, worn as a badge
+// on every console page, and shown on the shelf card. This version is the
+// edition's own and moves at whatever pace suits it — it has nothing to say
+// about the core version, which is reported separately.
+#define PF_VARIANT          "clock"
+#define PF_VARIANT_VERSION  "v0.1.0"
+
+// Nothing else is changed. The radio stays at the conformance-tested setting,
+// no preset rides along, and a panel switching to this edition keeps its
+// Wi-Fi, its brightness and its patterns — that is the rule for being on the
+// shelf at all, not a courtesy.

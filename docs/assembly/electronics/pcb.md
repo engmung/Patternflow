@@ -7,9 +7,9 @@ This path uses the custom Patternflow KiCad PCB in `hardware/pcb/`, populated by
 ## What This Path Means
 
 - Order the Patternflow PCB — easiest via the [PCBWay shared project](https://www.pcbway.com/project/shareproject/Patternflow_An_LED_synthesizer_776d796c.html) (no Gerber upload), or from any fab with the Gerber zip below.
-- Hand-solder the through-hole parts (the v3.0 board has no SMD passives at all).
+- Hand-solder the through-hole parts (the v3.9 board has no surface-mount parts at all).
 - Mount the ESP32-S3 module on female headers.
-- Power comes in via `J4`, the back-side 2-pin screw terminal — strip a USB cable, screw the wires in, done. ⏸️ The board also carries a USB-C footprint, but that input is **on hold** — leave `USB1`, `R1`, and `R2` unpopulated until [#221](https://github.com/engmung/Patternflow/issues/221) is resolved (see [BUILD_GUIDE.md §2](../../../BUILD_GUIDE.md#2-power-input--use-the-screw-terminal)).
+- Power comes in via `J4`, the back-side 2-pin screw terminal — strip a USB cable, screw the wires in, done. It is the board's only power input: v3.0's USB-C footprint was withdrawn after a delayed burnout ([#221](https://github.com/engmung/Patternflow/issues/221)) and v3.9 no longer carries it (see [BUILD_GUIDE.md §2](../../../BUILD_GUIDE.md#2-power-input--use-the-screw-terminal)).
 
 The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3d-print.md).
 
@@ -18,8 +18,8 @@ The custom PCB path pairs with the current [3D printed enclosure](../enclosure/3
 | File | Purpose |
 | --- | --- |
 | `hardware/pcb/kicad/` | Editable KiCad source |
-| `hardware/pcb/gerber/patternflow_v3.0_gerber.zip` | Current production Gerber (verified in [#114](https://github.com/engmung/Patternflow/issues/114)) |
-| `hardware/bom/bom_v3.0.csv` | Machine-readable BOM (every part by MPN) |
+| `hardware/pcb/gerber/patternflow_v3.9_gerber.zip` | Current production Gerber — v3.0 ([#114](https://github.com/engmung/Patternflow/issues/114)) with the USB-C input removed |
+| `hardware/bom/bom_v3.9.csv` | Machine-readable BOM (every part by MPN) |
 | `hardware/pcb/schematic.pdf` | Schematic PDF |
 
 For the exact BOM, soldering order, wiring, and first boot checks, follow the current detailed guide:

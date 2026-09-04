@@ -1,0 +1,494 @@
+// ═══════════════════════════════════════════════════════════
+// PatternFlow - /clock console page (PROGMEM HTML)
+// License: MIT
+// ═══════════════════════════════════════════════════════════
+// The page body below is generated from console/clock.html — edit that,
+// then run: python firmware/toolchain/console_pages.py build
+#pragma once
+
+#include <Arduino.h>
+
+static const char CLOCK_INDEX_HTML[] PROGMEM = R"HTML(<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8">
+<script src="/pf-console.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Patternflow - Clock</title>
+<style>
+:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
+--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
+--panel:#131110;--lift:#1B1914;
+--sans:'Inter',ui-sans-serif,system-ui,sans-serif;
+--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);
+line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:28px 20px 64px}
+header{display:flex;align-items:center;gap:12px;padding-bottom:12px;
+border-bottom:1px solid var(--rule)}
+.dot{width:7px;height:7px;background:var(--led);border-radius:1px}
+h1{font-size:15px;font-weight:600;margin:0}
+.sub{font-family:var(--mono);font-size:11px;color:var(--faint);flex:1}
+h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+color:var(--muted);margin:0 0 10px}
+.cols{display:grid;grid-template-columns:352px minmax(0,1fr);gap:40px;align-items:start;margin-top:22px}
+.stage{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+.screen{display:flex;align-items:center;justify-content:center;height:420px;
+background:var(--panel);border:1px solid var(--rule);border-radius:2px}
+.screen canvas{background:#000;box-shadow:0 0 0 1px var(--rule-soft);image-rendering:pixelated}
+.presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 12px;
+border:1px solid var(--rule);border-radius:2px;background:var(--panel);color:var(--muted);
+font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--faint)}
+.chip.on{border-color:var(--led);color:var(--ink);background:var(--lift)}
+.chip canvas{image-rendering:pixelated}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.segs{display:flex}
+.seg{display:inline-flex;align-items:center;height:34px;padding:0 12px;border:1px solid var(--rule);
+background:var(--panel);color:var(--muted);font:inherit;font-size:12px;cursor:pointer;margin-right:-1px;position:relative}
+.seg:first-child{border-radius:2px 0 0 2px}.seg:last-child{border-radius:0 2px 2px 0;margin-right:0}
+.seg:hover{color:var(--ink)}
+.seg.on{border-color:var(--led);color:var(--ink);background:var(--lift);z-index:1}
+section{margin-top:26px}
+.stage section{margin-top:0}
+.row{display:flex;align-items:center;gap:12px;min-height:34px;padding:3px 0}
+.row>label{flex:0 0 96px;font-size:13px;color:var(--muted)}
+.row .val{flex:0 0 48px;font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;background:var(--rule);border-radius:1px;outline:none;margin:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--led);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--led);cursor:pointer}
+select,input[type=text]{font:inherit;font-family:var(--mono);font-size:12px;padding:7px 9px;
+background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:2px;min-width:0}
+select:focus,input[type=text]:focus{outline:none;border-color:var(--led)}
+.sws{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.sw{width:22px;height:22px;border-radius:2px;border:2px solid transparent;padding:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.sw.on{border-color:var(--ink)}
+.sws input[type=text]{width:88px}
+.switch{display:inline-flex;align-items:center;gap:10px;background:none;border:none;padding:0;cursor:pointer;
+font:inherit;font-size:13px;color:var(--muted)}
+.switch i{width:34px;height:20px;border-radius:10px;border:1px solid var(--rule);background:var(--panel);position:relative;display:inline-block}
+.switch i::after{content:"";position:absolute;top:2px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--muted)}
+.switch.on i{border-color:var(--led);background:var(--led)}
+.switch.on i::after{left:17px;background:var(--cream)}
+.switch.big i{width:38px;height:22px}.switch.big i::after{top:3px}.switch.big.on i::after{left:19px}
+.note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
+#msg{font-family:var(--mono);font-size:11px;color:var(--faint);min-height:16px}
+#msg.good{color:var(--ok)}#msg.err{color:var(--led)}
+dl{margin:0;border-top:1px solid var(--rule-soft)}
+.drow{display:flex;align-items:baseline;gap:12px;padding:7px 2px;border-bottom:1px solid var(--rule-soft)}
+dt{flex:1;font-size:13px;color:var(--muted);margin:0}
+dd{margin:0;font-family:var(--mono);font-size:12px;text-align:right}
+.ok{color:var(--ok)}
+footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
+font-family:var(--mono);font-size:11px;color:var(--faint)}
+a{color:var(--muted)}
+[hidden]{display:none!important}
+html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FFFCFA;--lift:#EFE8DC;--ink:#1A1814;--muted:#6B6558;--faint:#9A9486;--ghost:#E0D9CC;--rule:#D9D1C2;--rule-soft:#E8E2D6;--led:#FF5C2E;--ok:#2F8A55;--warn:#B88120;--card:#FFFCFA;--fg:#1A1814}
+@media(max-width:760px){
+  .wrap{padding:16px 16px 48px}
+  .cols{display:block;margin-top:0}
+  .stage{position:sticky;top:0;z-index:2;background:var(--cream);margin:0 -16px;padding:12px 16px;
+    border-bottom:1px solid var(--rule);display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:stretch}
+  .screen{height:auto;background:none;border:none;border-radius:0}
+  .screen canvas{height:176px;width:auto}
+  .screen canvas.wide{height:96px}
+  .stage .side{display:flex;flex-direction:column;justify-content:space-between;gap:8px}
+  .presets{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stage dl{display:none}
+  .row{flex-wrap:wrap}.row>label{flex:0 0 72px}
+  .segs{flex-wrap:wrap}.seg{flex:1 1 auto;justify-content:center;height:40px}
+  .chip{height:44px}
+}
+</style></head><body><div class="wrap">
+<header><span class="dot"></span><h1>Clock</h1><span class="sub" id="st">-</span>
+  <button type="button" class="switch big" id="f-on"><span>Show the clock</span><i></i></button></header>
+
+<div class="cols">
+  <div class="stage">
+    <div class="screen"><canvas id="pv" width="192" height="384"></canvas></div>
+    <div class="side">
+      <section>
+        <h2>Presets</h2>
+        <div class="presets">
+          <button type="button" class="chip" data-preset="cut">Cut-out</button>
+          <button type="button" class="chip" data-preset="sten">Stencil</button>
+          <button type="button" class="chip" data-preset="over">Over it</button>
+          <button type="button" class="chip" data-preset="plain">Plain</button>
+        </div>
+      </section>
+      <dl>
+        <div class="drow"><dt>Panel time</dt><dd id="time">-</dd></div>
+        <div class="drow"><dt>Zone</dt><dd id="zone">-</dd></div>
+        <div class="drow"><dt>NTP</dt><dd id="sync">-</dd></div>
+      </dl>
+      <div id="msg">-</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <section>
+      <h2>Face</h2>
+      <div class="chips" id="faces"></div>
+    </section>
+
+    <section>
+      <h2>Panel</h2>
+      <div class="chips" id="rots">
+        <button type="button" class="chip" data-v="1"><svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="18" rx="1"/><path d="M5 7h6M5 13h6"/></svg>Upright</button>
+        <button type="button" class="chip" data-v="0"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="20" height="12" rx="1"/><path d="M5 8h4M13 8h4"/></svg>Wide</button>
+        <button type="button" class="chip" data-v="3"><svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="1" width="12" height="18" rx="1"/><path d="M5 7h6M5 13h6M8 16v2"/></svg>Upright, turned</button>
+        <button type="button" class="chip" data-v="2"><svg width="22" height="16" viewBox="0 0 22 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="2" width="20" height="12" rx="1"/><path d="M5 8h4M13 8h4M11 12v2"/></svg>Wide, flipped</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Layout</h2>
+      <div class="row"><label for="f-gap">Gap</label><input id="f-gap" type="range" min="0" max="32" value="10"><span class="val" id="f-gap-v">10 px</span></div>
+      <div class="row"><label>Between</label>
+        <div class="segs" id="seps">
+          <button type="button" class="seg" data-v="0">Nothing</button>
+          <button type="button" class="seg" data-v="1">Bar · the pattern</button>
+          <button type="button" class="seg" data-v="2">Bar · ink</button>
+        </div></div>
+      <div class="row" id="sepwrow"><label for="f-sepw">Bar</label><input id="f-sepw" type="range" min="1" max="8" value="2"><span class="val" id="f-sepw-v">2 px</span></div>
+      <p class="note">Upright, the bar sits between hours and minutes; on its side it is the face's own colon.</p>
+    </section>
+
+    <section>
+      <h2>Fill</h2>
+      <div class="row"><label>Digits</label>
+        <div class="segs" id="ins">
+          <button type="button" class="seg" data-v="0">The pattern shows through</button>
+          <button type="button" class="seg" data-v="1">Solid ink</button>
+        </div></div>
+      <div class="row"><label>Outside</label>
+        <div class="segs" id="outs">
+          <button type="button" class="seg" data-v="0">The pattern, dimmed</button>
+          <button type="button" class="seg" data-v="1">A colour</button>
+        </div></div>
+      <div class="row" id="dimrow"><label for="f-dim">Dimmed to</label><input id="f-dim" type="range" min="0" max="100" value="0"><span class="val" id="f-dim-v">0 %</span></div>
+      <div class="row" id="inkrow"><label>Ink</label>
+        <div class="sws" id="inks">
+          <button type="button" class="sw" data-v="F5F5F5" style="background:#F5F5F5"></button>
+          <button type="button" class="sw" data-v="FF5C2E" style="background:#FF5C2E"></button>
+          <button type="button" class="sw" data-v="D9A03F" style="background:#D9A03F"></button>
+          <button type="button" class="sw" data-v="57B87F" style="background:#57B87F"></button>
+          <button type="button" class="sw" data-v="4EA8DE" style="background:#4EA8DE"></button>
+          <button type="button" class="sw" data-v="C77DFF" style="background:#C77DFF"></button>
+          <input type="text" id="f-ink" maxlength="7" spellcheck="false">
+        </div></div>
+      <div class="row" id="bgrow"><label>Outside</label>
+        <div class="sws" id="bgs">
+          <button type="button" class="sw" data-v="000000" style="background:#000000"></button>
+          <button type="button" class="sw" data-v="1A1814" style="background:#1A1814"></button>
+          <button type="button" class="sw" data-v="24222E" style="background:#24222E"></button>
+          <button type="button" class="sw" data-v="2E1A14" style="background:#2E1A14"></button>
+          <button type="button" class="sw" data-v="FF5C2E" style="background:#FF5C2E"></button>
+          <button type="button" class="sw" data-v="F4EFE6" style="background:#F4EFE6"></button>
+          <input type="text" id="f-bg" maxlength="7" spellcheck="false">
+        </div></div>
+      <p class="note">Pattern inside, black outside is the clock as cut-out. Solid ink on the pattern is the same layout as an overlay. Solid on solid is a plain clock.</p>
+    </section>
+
+    <section>
+      <h2>Time</h2>
+      <div class="row"><label for="f-zone">Zone</label>
+        <select id="f-zone" style="flex:1">
+          <option value="UTC0">UTC</option>
+          <option value="GMT0BST,M3.5.0/1,M10.5.0">London, Dublin, Lisbon</option>
+          <option value="CET-1CEST,M3.5.0,M10.5.0/3">Berlin, Paris, Rome, Madrid, Amsterdam</option>
+          <option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Athens, Helsinki, Kyiv</option>
+          <option value="MSK-3">Moscow, Istanbul</option>
+          <option value="&lt;+04&gt;-4">Dubai</option>
+          <option value="IST-5:30">India</option>
+          <option value="&lt;+07&gt;-7">Bangkok, Jakarta</option>
+          <option value="CST-8">Shanghai, Singapore, Taipei, Manila</option>
+          <option value="KST-9">Seoul</option>
+          <option value="JST-9">Tokyo</option>
+          <option value="AEST-10AEDT,M10.1.0,M4.1.0/3">Sydney, Melbourne</option>
+          <option value="NZST-12NZDT,M9.5.0,M4.1.0/3">Auckland</option>
+          <option value="HST10">Honolulu</option>
+          <option value="PST8PDT,M3.2.0,M11.1.0">Los Angeles, Vancouver</option>
+          <option value="MST7MDT,M3.2.0,M11.1.0">Denver</option>
+          <option value="CST6CDT,M3.2.0,M11.1.0">Chicago, Mexico City</option>
+          <option value="EST5EDT,M3.2.0,M11.1.0">New York, Toronto</option>
+          <option value="&lt;-03&gt;3">São Paulo, Buenos Aires</option>
+          <option value="custom">Custom (POSIX TZ string)…</option>
+        </select></div>
+      <div class="row" id="customrow" hidden><label for="f-tz">POSIX</label>
+        <input id="f-tz" type="text" style="flex:1" placeholder="e.g. CET-1CEST,M3.5.0,M10.5.0/3 — Enter applies" maxlength="47"></div>
+      <div class="row" style="gap:24px">
+        <button type="button" class="switch" id="f-h12"><i></i><span>12-hour</span></button>
+        <button type="button" class="switch" id="f-fade"><i></i><span>Crossfade the minute change</span></button>
+      </div>
+      <p class="note">A zone carries its summer-time rule, so the clock moves itself in spring and autumn. Nothing is drawn until NTP has answered once after boot — a clock reading 12:00 while it waits is worse than none.</p>
+    </section>
+  </div>
+</div>
+
+<footer>pool.ntp.org · time.google.com · faces under the SIL Open Font License; adding one is a line in <span style="font-family:var(--mono)">build_clock_glyphs.py</span></footer>
+</div>
+<script>
+function $(i){return document.getElementById(i)}
+function all(sel,root){return Array.prototype.slice.call((root||document).querySelectorAll(sel))}
+
+// ── state: the settings as the panel holds them ───────────────────────
+var V={on:false,face:0,rot:1,h12:false,gap:10,sep:0,sepw:2,'in':0,out:0,dim:0,ink:'F5F5F5',bg:'000000',fade:true,tz:'KST-9'};
+var S=null;          // last /api/clock answer
+var G=null;          // the glyph blob: {faces:[{name,sets:[{h,w,cw,gap,off}]}], b}
+var devTime=null,devTimeAt=0,sentAt=0,filled=false;
+
+function fill(d){
+  S=d;
+  if(!filled){
+    V.on=!!d.on;V.face=d.face||0;V.rot=d.rot;V.h12=!!d.h12;V.gap=d.gap;V.sep=d.sep;V.sepw=d.sepw;
+    V['in']=d['in'];V.out=d.out;V.dim=d.dim||0;V.ink=(d.ink||'F5F5F5').toUpperCase();V.bg=(d.bg||'000000').toUpperCase();
+    V.fade=!!d.fade;V.tz=d.tz||'UTC0';
+    facesInto(d.faces||[]);
+    filled=true;
+    reflect();
+  }
+  if(d.synced&&d.time){devTime=d.time;devTimeAt=Date.now()}
+  $('st').textContent=d.on?(d.synced?'on':'waiting for NTP'):'off';
+  $('time').textContent=d.synced?(d.time||'-'):'syncing…';
+  $('zone').textContent=(d.zone?d.zone+' · ':'')+(d.tz||'-');
+  $('sync').textContent=d.synced?'synced':'not yet';
+  $('sync').className=d.synced?'ok':'';
+  if(!G&&d.glyphsRev!==undefined)loadGlyphs(d.glyphsRev);
+  sizeCanvas();
+}
+function poll(){
+  fetch('/api/clock',{cache:'no-store'}).then(function(r){return r.json()}).then(fill)
+    .catch(function(){$('st').textContent='offline'});
+}
+
+// every control reads V; reflect() is the one place the page is redrawn from it
+function reflect(){
+  $('f-on').classList.toggle('on',V.on);
+  $('f-h12').classList.toggle('on',V.h12);
+  $('f-fade').classList.toggle('on',V.fade);
+  all('#faces .chip').forEach(function(b){b.classList.toggle('on',+b.dataset.v===V.face)});
+  all('#rots .chip').forEach(function(b){b.classList.toggle('on',+b.dataset.v===V.rot)});
+  all('#seps .seg').forEach(function(b){b.classList.toggle('on',+b.dataset.v===V.sep)});
+  all('#ins .seg').forEach(function(b){b.classList.toggle('on',+b.dataset.v===V['in'])});
+  all('#outs .seg').forEach(function(b){b.classList.toggle('on',+b.dataset.v===V.out)});
+  all('#inks .sw').forEach(function(b){b.classList.toggle('on',b.dataset.v===V.ink)});
+  all('#bgs .sw').forEach(function(b){b.classList.toggle('on',b.dataset.v===V.bg)});
+  $('f-gap').value=V.gap;$('f-gap-v').textContent=V.gap+' px';
+  $('f-sepw').value=V.sepw;$('f-sepw-v').textContent=V.sepw+' px';
+  $('f-dim').value=V.dim;$('f-dim-v').textContent=V.dim+' %';
+  if(document.activeElement!==$('f-ink'))$('f-ink').value='#'+V.ink;
+  if(document.activeElement!==$('f-bg'))$('f-bg').value='#'+V.bg;
+  $('sepwrow').hidden=V.sep===0;
+  $('dimrow').hidden=V.out!==0;
+  $('bgrow').hidden=V.out!==1;
+  $('inkrow').hidden=!(V['in']===1||V.sep===2);
+  var known=false,o=$('f-zone').options;
+  for(var i=0;i<o.length;i++){if(o[i].value===V.tz)known=true}
+  $('f-zone').value=known?V.tz:'custom';
+  $('customrow').hidden=known;
+  if(!known&&document.activeElement!==$('f-tz'))$('f-tz').value=V.tz;
+  var P=presetOf();
+  all('.presets .chip').forEach(function(b){b.classList.toggle('on',b.dataset.preset===P)});
+  sizeCanvas();
+}
+var PRESETS={cut:{'in':0,out:0,dim:0},sten:{'in':0,out:1},over:{'in':1,out:0,dim:100},plain:{'in':1,out:1}};
+function presetOf(){
+  for(var k in PRESETS){var p=PRESETS[k];
+    if(V['in']===p['in']&&V.out===p.out&&(p.dim===undefined||V.dim===p.dim))return k}
+  return '';
+}
+
+// ── sending: every change goes to the panel, debounced ────────────────
+var pending=null,timer=null;
+function set(patch){
+  for(var k in patch)V[k]=patch[k];
+  reflect();
+  pending=Object.assign(pending||{},patch);
+  clearTimeout(timer);
+  timer=setTimeout(flush,250);
+  say('sending…','');
+}
+function flush(){
+  if(!pending)return;
+  var body=new URLSearchParams();
+  for(var k in pending){var v=pending[k];body.set(k,typeof v==='boolean'?(v?'1':'0'):String(v))}
+  pending=null;
+  fetch('/api/clock',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
+    sentAt=Date.now();fill(d);say(d.ok?'on the panel':'failed',d.ok?'good':'err');
+  }).catch(function(){say('send failed','err')});
+}
+function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
+
+// ── wiring ────────────────────────────────────────────────────────────
+$('f-on').onclick=function(){set({on:!V.on})};
+$('f-h12').onclick=function(){set({h12:!V.h12})};
+$('f-fade').onclick=function(){set({fade:!V.fade})};
+function wireGroup(id,key){
+  $(id).addEventListener('click',function(e){
+    var b=e.target.closest('[data-v]');if(!b)return;
+    var o={};o[key]=isNaN(+b.dataset.v)?b.dataset.v:+b.dataset.v;set(o);
+  });
+}
+wireGroup('rots','rot');wireGroup('seps','sep');wireGroup('ins','in');wireGroup('outs','out');
+wireGroup('inks','ink');wireGroup('bgs','bg');
+$('faces').addEventListener('click',function(e){var b=e.target.closest('[data-v]');if(b)set({face:+b.dataset.v})});
+all('.presets .chip').forEach(function(b){b.onclick=function(){set(PRESETS[b.dataset.preset])}});
+function wireRange(id,key,unit){
+  var el=$(id);
+  el.addEventListener('input',function(){V[key]=+el.value;$(id+'-v').textContent=el.value+' '+unit;sizeCanvas()});
+  el.addEventListener('change',function(){var o={};o[key]=+el.value;set(o)});
+}
+wireRange('f-gap','gap','px');wireRange('f-sepw','sepw','px');wireRange('f-dim','dim','%');
+function wireHex(id,key){
+  $(id).addEventListener('change',function(){
+    var h=$(id).value.trim().replace('#','').toUpperCase();
+    if(/^[0-9A-F]{6}$/.test(h)){var o={};o[key]=h;set(o)}else{$(id).value='#'+V[key]}
+  });
+}
+wireHex('f-ink','ink');wireHex('f-bg','bg');
+$('f-zone').onchange=function(){
+  var z=$('f-zone').value;
+  if(z==='custom'){$('customrow').hidden=false;$('f-tz').focus();return}
+  set({tz:z});
+};
+$('f-tz').addEventListener('change',function(){var z=$('f-tz').value.trim();if(z)set({tz:z})});
+$('f-tz').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('f-tz').blur()}};
+
+// ── the glyphs: the same bytes the firmware compiles in ────────────────
+function loadGlyphs(rev){
+  fetch('/clock/glyphs.bin?v='+rev).then(function(r){return r.arrayBuffer()}).then(function(buf){
+    var b=new Uint8Array(buf);
+    if(b.length<5||String.fromCharCode(b[0],b[1],b[2],b[3])!=='PFG2')return;
+    var n=b[4],p=5,faces=[];
+    for(var i=0;i<n;i++){
+      var name='';for(var k=0;k<16&&b[p+k];k++)name+=String.fromCharCode(b[p+k]);
+      var ns=b[p+16];p+=17;var sets=[];
+      for(var j=0;j<ns;j++){sets.push({h:b[p],w:b[p+1],cw:b[p+2],gap:b[p+3],off:b[p+4]|(b[p+5]<<8)});p+=6}
+      faces.push({name:name,sets:sets});
+    }
+    G={b:b,faces:faces};
+    facesInto(faces.map(function(f){return f.name}));
+  }).catch(function(){});
+}
+function cellW(g,glyph){return glyph===10?g.cw:g.w}
+function alpha4(g,glyph,x,y){
+  var w=cellW(g,glyph),rb=(w+1)>>1,digitBytes=g.h*((g.w+1)>>1);
+  var cell=g.off+(glyph<10?glyph*digitBytes:10*digitBytes);
+  var v=G.b[cell+y*rb+(x>>1)];
+  return (x&1)?(v&15):(v>>4);
+}
+// One chip per face, each showing its own "12" drawn from the smallest set.
+function facesInto(names){
+  var box=$('faces');
+  if(box.children.length===names.length&&!G)return;
+  box.innerHTML='';
+  names.forEach(function(name,i){
+    var b=document.createElement('button');b.type='button';b.className='chip';b.dataset.v=String(i);
+    if(G&&G.faces[i]&&G.faces[i].sets.length){
+      var g=G.faces[i].sets[0],cw=g.w*2+g.gap,c=document.createElement('canvas');
+      c.width=cw;c.height=g.h;c.style.height='22px';c.style.width=Math.round(22*cw/g.h)+'px';
+      var ctx=c.getContext('2d'),img=ctx.createImageData(cw,g.h),ink=getComputedStyle(document.body).getPropertyValue('--ink').trim()||'#EDE7DB';
+      var r=parseInt(ink.substr(1,2),16),gg=parseInt(ink.substr(3,2),16),bl=parseInt(ink.substr(5,2),16);
+      [[1,0],[2,g.w+g.gap]].forEach(function(d){
+        for(var y=0;y<g.h;y++)for(var x=0;x<g.w;x++){var a=alpha4(g,d[0],x,y);if(!a)continue;
+          var o=(y*cw+x+d[1])*4;img.data[o]=r;img.data[o+1]=gg;img.data[o+2]=bl;img.data[o+3]=a*17}});
+      ctx.putImageData(img,0,0);b.appendChild(c);
+    }
+    var s=document.createElement('span');s.textContent=name;b.appendChild(s);
+    box.appendChild(b);
+  });
+  reflect();
+}
+
+// ── the preview: a mirror of core_clock_face.h, in virtual space ───────
+var fb=null,fbW=0,fbH=0,SCALE=3;
+function vdims(){
+  var w=S?S.w:128,h=S?S.h:64;
+  return (V.rot&1)?[h,w]:[w,h];
+}
+function sizeCanvas(){
+  var d=vdims(),cv=$('pv');
+  if(cv.width!==d[0]*SCALE||cv.height!==d[1]*SCALE){cv.width=d[0]*SCALE;cv.height=d[1]*SCALE}
+  cv.classList.toggle('wide',d[0]>d[1]);
+  if(fbW!==d[0]||fbH!==d[1]){fbW=d[0];fbH=d[1];fb=new Float32Array(fbW*fbH*3)}
+}
+function hex(h){return [parseInt(h.substr(0,2),16),parseInt(h.substr(2,2),16),parseInt(h.substr(4,2),16)]}
+function nowParts(){
+  var d=new Date(),h,m,s;
+  if(devTime){var p=devTime.split(':');var t=(+p[0])*3600+(+p[1])*60+(+p[2])+((Date.now()-devTimeAt)/1000|0);t%=86400;
+    h=t/3600|0;m=(t/60|0)%60;s=t%60}
+  else{h=d.getHours();m=d.getMinutes();s=d.getSeconds()}
+  return [h,m,s];
+}
+function dispHour(h){if(!V.h12)return h;h%=12;return h===0?12:h}
+function layout(){
+  var rows=fbH>=fbW,gap=V.gap,face=G.faces[Math.min(V.face,G.faces.length-1)],best=null;
+  for(var i=0;i<face.sets.length;i++){var g=face.sets[i],fits;
+    if(rows)fits=(2*g.w+g.gap<=fbW-2)&&(2*g.h+gap<=fbH-2);
+    else fits=(4*g.w+2*g.gap+gap<=fbW-2)&&(g.h<=fbH-2);
+    if(fits&&(!best||g.h>best.h))best=g}
+  if(!best)return null;
+  var g=best,L={g:g,rows:rows},pw=2*g.w+g.gap;
+  if(rows){var th=2*g.h+gap;L.x0=L.x1=(fbW-pw)/2|0;L.y0=(fbH-th)/2|0;L.y1=L.y0+g.h+gap;L.midW=gap}
+  else{var mid=gap;if(V.sep!==0&&mid<g.cw+2*g.gap)mid=g.cw+2*g.gap;var tw=2*pw+mid;
+    L.x0=(fbW-tw)/2|0;L.x1=L.x0+pw+mid;L.y0=L.y1=(fbH-g.h)/2|0;L.midW=mid}
+  return L;
+}
+function putGlyph(mask,g,gl,x,y){
+  var w=cellW(g,gl);
+  for(var yy=0;yy<g.h;yy++)for(var xx=0;xx<w;xx++){var a=alpha4(g,gl,xx,yy);
+    var px=x+xx,py=y+yy;if(a&&px>=0&&py>=0&&px<fbW&&py<fbH)mask[py*fbW+px]=a*17}
+}
+function putRect(mask,x,y,w,h){
+  for(var yy=y;yy<y+h;yy++)for(var xx=x;xx<x+w;xx++)if(xx>=0&&yy>=0&&xx<fbW&&yy<fbH)mask[yy*fbW+xx]=255;
+}
+function putSeparator(mask,L){
+  var g=L.g,gap=V.gap,pw=2*g.w+g.gap;
+  if(L.rows){var t=Math.min(V.sepw,gap);if(t<1)return;putRect(mask,L.x0,L.y0+g.h+((gap-t)/2|0),pw,t)}
+  else putGlyph(mask,g,10,L.x0+pw+((L.midW-g.cw)/2|0),L.y0);
+}
+function compose(){
+  var n=fbW*fbH,mask=new Uint8Array(n),bar=new Uint8Array(n),L=layout();
+  if(L){var t=nowParts(),hh=dispHour(t[0]),mm=t[1],g=L.g;
+    putGlyph(mask,g,hh/10|0,L.x0,L.y0);putGlyph(mask,g,hh%10,L.x0+g.w+g.gap,L.y0);
+    putGlyph(mask,g,mm/10|0,L.x1,L.y1);putGlyph(mask,g,mm%10,L.x1+g.w+g.gap,L.y1);
+    if(V.sep===1)putSeparator(mask,L);else if(V.sep===2)putSeparator(bar,L)}
+  var inP=V['in']===0,outP=V.out===0,dim=V.dim/100,ink=hex(V.ink),bg=hex(V.bg);
+  for(var i=0;i<n;i++){var a=mask[i]/255,j=i*3;
+    var sr=fb[j],sg=fb[j+1],sb=fb[j+2];
+    var oR=outP?sr*dim:bg[0],oG=outP?sg*dim:bg[1],oB=outP?sb*dim:bg[2];
+    var iR=inP?sr:ink[0],iG=inP?sg:ink[1],iB=inP?sb:ink[2];
+    var r=oR*(1-a)+iR*a,gg=oG*(1-a)+iG*a,b=oB*(1-a)+iB*a;
+    if(V.sep===2&&bar[i]){var s=bar[i]/255;r=r*(1-s)+ink[0]*s;gg=gg*(1-s)+ink[1]*s;b=b*(1-s)+ink[2]*s}
+    fb[j]=r;fb[j+1]=gg;fb[j+2]=b}
+}
+function background(tm){
+  var t=tm/1000;
+  for(var y=0;y<fbH;y++)for(var x=0;x<fbW;x++){
+    var i=(y*fbW+x)*3,u=x/fbW,v=y/fbH;
+    var a=0.5+0.5*Math.sin(u*6+t),bb=0.5+0.5*Math.sin(v*5-t*1.3),c=0.5+0.5*Math.sin((u+v)*4+t*0.7);
+    fb[i]=255*a;fb[i+1]=255*bb;fb[i+2]=255*c;
+  }
+}
+function frame(tm){
+  requestAnimationFrame(frame);
+  if(!fb||document.hidden)return;
+  background(tm);
+  if(G&&V.on)compose();
+  var cv=$('pv'),ctx=cv.getContext('2d'),s=SCALE;
+  ctx.fillStyle='#000';ctx.fillRect(0,0,cv.width,cv.height);
+  for(var y=0;y<fbH;y++)for(var x=0;x<fbW;x++){
+    var i=(y*fbW+x)*3;
+    ctx.fillStyle='rgb('+(fb[i]|0)+','+(fb[i+1]|0)+','+(fb[i+2]|0)+')';
+    ctx.fillRect(x*s,y*s,s-1,s-1);
+  }
+}
+sizeCanvas();
+requestAnimationFrame(frame);
+poll();setInterval(poll,5000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+</script>
+</body></html>
+)HTML";

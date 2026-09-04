@@ -155,6 +155,19 @@ inline void drawOverlay(const PFFeatureFrame& frame) {
   }
 }
 
+// Chained: each feature is handed what the one before it produced, in list
+// order, and the last answer is what the panel shows. Null from everyone
+// means the canvas goes out untouched, at no cost.
+inline const uint8_t* composeFrame(const uint8_t* frame, int w, int h) {
+  const uint8_t* cur = frame;
+  for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
+    if (!PF_FEATURES[i]->composeFrame) continue;
+    const uint8_t* r = PF_FEATURES[i]->composeFrame(cur, w, h);
+    if (r) cur = r;
+  }
+  return cur == frame ? nullptr : cur;
+}
+
 // Feeds /api/status nav: `["/path","Label"]` pairs for features that serve a
 // page. Emitted as a whole array because the console header wants it in one
 // piece, unlike caps which the core interleaves with its own.

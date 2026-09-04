@@ -246,4 +246,40 @@ export const EDITIONS: Edition[] = [
       'missing mic from a quiet room, says so on the Mic page, and lets ' +
       'nothing drive the knobs until you turn it on.',
   },
+  {
+    id: 'clock',
+    name: 'Patternflow Clock',
+    tier: 'official',
+    reason: 'not-universal',
+    maintainer: 'SeungHun Lee',
+    maintainerHref: 'https://github.com/engmung',
+    status: 'available',
+    summary:
+      'A panel that tells the time: the hours and minutes cut out of ' +
+      'whatever pattern is running, in a choice of faces.',
+    adds: [
+      'Huge digits the pattern shows through — hours over minutes upright, ' +
+        'four across on a wide panel — or solid digits over the pattern, or ' +
+        'a plain clock on a colour of your choosing',
+      'Seven faces, every one open-licensed; adding your own is a TTF and ' +
+        'one line in the generator',
+      'A live preview on the panel\'s own console page that draws the same ' +
+        'glyphs the panel does, and sends every change as you make it',
+      'Time zones with their summer-time rule, so the clock moves itself in ' +
+        'spring and autumn',
+    ],
+    hosted: {
+      version: 'v0.1.0',
+      url: 'https://patternflow.work/flash/bin/clock-v0.1.0/patternflow.ino.bin',
+    },
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/clock',
+    note:
+      'For a panel on a shelf or a desk that you glance at. It carries ' +
+      'nothing but the clock — no broker, no sequences, no sound, no ' +
+      'weather — because a clock should not need any of that to exist. ' +
+      'The digits are cut into the frame on its way to the panel, so the ' +
+      'edges stay soft and the pattern keeps moving inside them; the clock ' +
+      'stays off while the panel\'s own menus are up. It was a request ' +
+      'from outside, and this is the edition made for it.',
+  },
 ];

@@ -28,6 +28,7 @@ device before you believe it.
 """
 
 import json
+import time
 import os
 import posixpath
 import re
@@ -53,6 +54,7 @@ ROUTES = {
     "/mqtt": "mqtt",
     "/audio": "audio",
     "/midi": "midi",
+    "/clock": "clock",
 }
 
 # Assets the device serves out of its own headers, extracted live so a change
@@ -62,7 +64,7 @@ RAW_ASSETS = {
     "/patterns/fflate.js": ("src/fflate_js.h", "FFLATE", "application/javascript"),
 }
 
-CAPS_FULL = ["patterns", "params", "osc", "sleep", "shows", "weather", "mqtt", "audio"]
+CAPS_FULL = ["patterns", "params", "osc", "sleep", "shows", "weather", "mqtt", "audio", "clock"]
 CAPS_BARE = ["patterns", "params", "osc", "sleep"]
 
 
@@ -219,6 +221,21 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send("no console/%s.html — run console_pages.py extract"
                                  % ROUTES[path], code=404)
             return self.send(read(f))
+
+        # The clock's glyph blob, the same bytes the firmware compiles in
+        # (build_clock_glyphs.py writes both).
+        if path == "/clock/glyphs.bin":
+            f = os.path.join(SKETCH, "features", "clock", "clock_glyphs.bin")
+            if not os.path.exists(f):
+                return self.send("no clock_glyphs.bin - run build_clock_glyphs.py", code=404)
+            with open(f, "rb") as fh:
+                body = fh.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         if path in RAW_ASSETS:
             rel, tag, ctype = RAW_ASSETS[path]
@@ -386,6 +403,18 @@ class Handler(BaseHTTPRequestHandler):
                 "tzOffsetMin": 540, "clockOverlay": False,
                 "layoutExtended": False, "timeSynced": True,
                 "localTime": "23:13:54", "knobs": [0.0, 0.0, 0.0, 0.0],
+            })
+        if path.startswith("/api/clock"):
+            now = time.localtime()
+            return self.send_json({
+                "ok": True, "on": True, "tz": "KST-9", "h12": False, "rot": 1,
+                "face": 0, "faces": ["Bebas Neue", "Anton", "Oswald", "Saira XCond",
+                                     "Barlow Cond", "Six Caps", "Squada One"],
+                "gap": 10, "sep": 0, "sepw": 2, "in": 0, "out": 0, "dim": 0,
+                "ink": "F5F5F5", "bg": "000000", "fade": True,
+                "w": 128, "h": 64, "glyphsRev": 0, "synced": True,
+                "time": time.strftime("%H:%M:%S", now),
+                "today": time.strftime("%a %b %d %Y", now), "zone": "KST",
             })
         if path.startswith("/api/midi"):
             return self.send_json({

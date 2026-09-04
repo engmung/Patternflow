@@ -369,6 +369,10 @@ void setup() {
   PatternflowStatusHttp::extraStatus = PFFeatures::appendStatus;
   PatternflowStatusHttp::extraCaps = PFFeatures::emitCaps;
   PatternflowStatusHttp::extraNav = PFFeatures::emitNav;
+  // Same arrangement for the frame on its way to the panel: the canvas
+  // exposes one hook, the dispatcher fans it out, and only this file knows
+  // both ends.
+  PFCanvas::composeHook = PFFeatures::composeFrame;
   PFFeatures::setup();
 
   // Start Wi-Fi non-blocking: boot does NOT wait for the join. OSC, OTA,

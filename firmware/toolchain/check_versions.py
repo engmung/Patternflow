@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-EDITIONS = ("audio", "performance")
+EDITIONS = ("audio", "performance", "clock")
 
 
 def text(rel: str) -> str:
@@ -50,10 +50,16 @@ def main() -> int:
     agents = text("AGENTS.md")
     agents_core = one(r"- Project: (v\d+\.\d+\.\d+) \(current, released \d{4}-\d{2}-\d{2}\)", agents,
                       "the 'Project: vX (current…)' line in AGENTS.md", problems)
-    agents_audio = one(r"Audio (v\d+\.\d+\.\d+), Performance v\d+\.\d+\.\d+ at the time of writing", agents,
-                       "the 'Audio vA, Performance vB' line in AGENTS.md", problems)
-    agents_perf = one(r"Audio v\d+\.\d+\.\d+, Performance (v\d+\.\d+\.\d+) at the time of writing", agents,
-                      "the 'Audio vA, Performance vB' line in AGENTS.md", problems)
+    # "Audio vA, Performance vB, Utility vC at the time of writing" - one
+    # clause per edition, in EDITIONS order.
+    agents_editions: dict[str, str | None] = {}
+    clause = r"(v\d+\.\d+\.\d+)"
+    line = ", ".join(f"{n.capitalize()} {clause}" for n in EDITIONS) + " at the time of writing"
+    m = re.search(line, agents)
+    if not m:
+        problems.append("the editions' 'at the time of writing' line in AGENTS.md: not found")
+    for i, name in enumerate(EDITIONS):
+        agents_editions[name] = m.group(i + 1) if m else None
 
     manifest = json.loads(text("web/public/flash/manifest.json"))
     manifest_v = manifest.get("version")
@@ -83,7 +89,7 @@ def main() -> int:
             problems.append(f"manifest.json part {path} is not under bin/core-{core_v}/")
         if not (ROOT / "web/public/flash" / path).is_file():
             problems.append(f"manifest.json names a file that does not exist: web/public/flash/{path}")
-    for name, want_agents in (("audio", agents_audio), ("performance", agents_perf)):
+    for name, want_agents in agents_editions.items():
         v = editions.get(name)
         if v and want_agents and v != want_agents:
             problems.append(f"{name}: overrides.h says {v}, AGENTS.md says {want_agents}")
