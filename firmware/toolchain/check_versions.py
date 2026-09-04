@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-EDITIONS = ("audio", "performance", "utility")
+EDITIONS = ("audio", "performance", "clock")
 
 
 def text(rel: str) -> str:

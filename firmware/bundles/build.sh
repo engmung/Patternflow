@@ -30,7 +30,7 @@ BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
 #
 #   ./firmware/bundles/build.sh all
 #
-# It builds default, audio, performance and utility, then scans each image for one
+# It builds default, audio, performance and clock, then scans each image for one
 # marker string per feature — a literal that lives only in that feature's
 # sources, verified by grep before it was trusted here. An edition must
 # contain its own features' markers and NONE of the others'. That checks the
@@ -55,14 +55,14 @@ if [ "${1:-}" = "all" ]; then
     [default]=''
     [audio]='osc audio audio_in midi'
     [performance]='mqtt show weather'
-    [utility]='weather clock'
+    [clock]='clock'
   )
   # Outside PF_BUILD_DIR: PlatformIO prunes directories it does not know
   # from its own build root, and it does not know this one.
   OUTDIR="${BUILD_DIR}-editions"
   mkdir -p "$OUTDIR"
   overall=0
-  for ed in default audio performance utility; do
+  for ed in default audio performance clock; do
     printf '%-12s building… ' "$ed"
     t0=$(date +%s)
     log="$OUTDIR/$ed.log"

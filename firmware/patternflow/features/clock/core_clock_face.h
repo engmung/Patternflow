@@ -1,25 +1,29 @@
 // ═══════════════════════════════════════════════════════════
-// PatternFlow - the clock face: a wall clock composed over the running pattern
+// PatternFlow - the clock face: the time, cut out of the running pattern
 //
 // What time it is comes from the core (src/core_clock.h: NTP, one cached
 // reading per 500 ms). This file is everything a person decides about
 // showing it, and the drawing itself.
 //
-// It draws on the frame's way to the panel (the composeFrame hook), not on
-// the panel after the fact: the pattern's finished canvas is copied to a
-// scratch buffer, the clock is blended into the copy with real alpha, and
-// the copy is what gets blitted. The canvas is never written - patterns that
-// accumulate across frames own it.
+// One idea, adjustable: huge digits - hours over minutes on an upright
+// panel, four across on a wide one - and the pattern shows through them.
+// Inside the digits, the pattern or a solid colour; outside them, the
+// pattern dimmed to taste or a solid colour; between the two rows a bar
+// (or, across, the face's own colon) that is either cut from the pattern
+// too or drawn in colour. So the same layout is a clip, a stencil, a solid
+// clock on a coloured ground, or digits over the pattern - whichever fills
+// are chosen. The minute change crossfades.
 //
-// Four styles:
-//   overlay   anti-aliased digits (Inter Bold, rasterised offline into
-//             clock_glyphs.h) with a soft drop shadow; three sizes
-//   digital   seven-segment digits drawn as rectangles, sized to the panel
-//   clip      the pattern shows only INSIDE huge digits - hours over minutes
-//             on an upright panel, four across on a wide one; outside them
-//             the frame is black, or dimmed to a chosen level; the minute
-//             change crossfades
-//   inverse   the same mask the other way round: digits cut out of the pattern
+// The digits come from clock_glyphs.h: typefaces rasterised offline into
+// 4-bit alpha cells by toolchain/build_clock_glyphs.py, several faces, two
+// sizes each. The layout picks the tallest set of the chosen face that fits
+// the panel, so a new face is a generator line and nothing here changes.
+//
+// It draws on the frame's way to the panel (the composeFrame hook), not on
+// the panel after the fact: the pattern's finished canvas is read, the
+// result is written to a scratch buffer, and the scratch is what gets
+// blitted. The canvas is never written - patterns that accumulate across
+// frames own it.
 //
 // Orientation is a quarter-turn count. 1 is upright - the panel stood on
 // end, the way its own menus read - and the default; 0 is the wide way.
@@ -42,7 +46,6 @@
 
 #include "../../src/core_clock.h"
 #include "../../src/core_mem.h"
-#include "../../src/core_ui_text.h"     // the chrome font, for the date line
 #include "../../presets/preset_calib.h" // the test card owns the panel while it is up
 #include "../pf_feature.h"
 #include "clock_glyphs.h"
@@ -52,26 +55,24 @@ namespace PatternflowClockFace {
 constexpr size_t TZ_BYTES = 48;
 constexpr const char* NVS_NS = "pfclock";
 
-enum Pos : uint8_t { TopLeft = 0, TopRight = 1, BottomLeft = 2, BottomRight = 3, Center = 4 };
-enum Size : uint8_t { Small = 0, Medium = 1, Large = 2 };
-enum Style : uint8_t { Overlay = 0, Digital = 1, Clip = 2, ClipInverse = 3 };
+enum Fill : uint8_t { FillPattern = 0, FillColour = 1 };
+enum Sep : uint8_t { SepOff = 0, SepPattern = 1, SepColour = 2 };
 
 // ── Settings ─────────────────────────────────────────────────────────────
 inline bool enabled = false;
 inline char tz[TZ_BYTES] = PF_CLOCK_DEFAULT_TZ;
-inline uint8_t style = Overlay;
-inline uint8_t size = Small;
-inline uint8_t pos = TopRight;
-inline uint8_t rotation = 1;  // quarter turns; 1 = upright, the default
-inline bool showSeconds = false;
 inline bool twelveHour = false;
-inline bool showDate = false;
-inline bool blinkColon = false;
-inline uint8_t inkR = 245, inkG = 245, inkB = 245;
-inline uint8_t ink2R = 255, ink2G = 92, ink2B = 46;
-inline bool gradient = false;
-inline uint8_t dimPct = 0;   // clip: how bright the outside stays, 0..100
-inline bool fade = true;     // clip: crossfade the minute change
+inline uint8_t rotation = 1;   // quarter turns; 1 = upright, the default
+inline uint8_t face = 0;       // index into the glyph blob's faces
+inline uint8_t gap = 10;       // px between the rows (upright) or the pairs (wide)
+inline uint8_t sep = SepOff;   // the bar between the rows / the colon across
+inline uint8_t sepW = 2;       // the bar's thickness, px
+inline uint8_t inside = FillPattern;
+inline uint8_t outside = FillPattern;
+inline uint8_t dimPct = 0;     // outside, when it is the pattern: how bright, 0..100
+inline uint8_t inkR = 245, inkG = 245, inkB = 245;   // solid digits, the coloured bar
+inline uint8_t bgR = 0, bgG = 0, bgB = 0;            // the outside, when it is a colour
+inline bool fade = true;       // crossfade the minute change
 
 // Bumped by whoever changes a setting, so a cached mask is rebuilt.
 inline uint32_t layoutEpoch = 0;
@@ -80,16 +81,16 @@ inline uint32_t packRGB(uint8_t r, uint8_t g, uint8_t b) {
   return ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
 }
 inline uint32_t inkPacked() { return packRGB(inkR, inkG, inkB); }
-inline uint32_t ink2Packed() { return packRGB(ink2R, ink2G, ink2B); }
+inline uint32_t bgPacked() { return packRGB(bgR, bgG, bgB); }
 inline void setInkPacked(uint32_t v) {
   inkR = (uint8_t)(v >> 16);
   inkG = (uint8_t)(v >> 8);
   inkB = (uint8_t)v;
 }
-inline void setInk2Packed(uint32_t v) {
-  ink2R = (uint8_t)(v >> 16);
-  ink2G = (uint8_t)(v >> 8);
-  ink2B = (uint8_t)v;
+inline void setBgPacked(uint32_t v) {
+  bgR = (uint8_t)(v >> 16);
+  bgG = (uint8_t)(v >> 8);
+  bgB = (uint8_t)v;
 }
 
 #if PF_CLOCK_ENABLED
@@ -104,6 +105,63 @@ inline void posixFromOffsetMinutes(int32_t minutesEast, char* out, size_t n) {
   else snprintf(out, n, "UTC%c%d", sign, (int)(m / 60));
 }
 
+// ── The glyph blob ───────────────────────────────────────────────────────
+// Layout in build_clock_glyphs.py (version 2: faces, each with sets). Read
+// straight out of flash: on the ESP32-S3 a PROGMEM array is ordinary memory.
+// Everything goes through `glyphs`, so a later loader can point it at a
+// blob read from FATFS and nothing below changes.
+inline const uint8_t* glyphs = CLOCK_GLYPHS;
+
+struct GlyphSet {
+  uint8_t h, w, cw, gap;
+  uint16_t off;
+};
+constexpr int COLON = 10;
+constexpr int NAME_BYTES = 16;
+constexpr int MAX_FACES = 16;
+
+inline int faceTable[MAX_FACES];  // offset of each face record
+inline int faceCountCached = -1;
+
+inline int faceCount() {
+  if (faceCountCached >= 0) return faceCountCached;
+  const uint8_t* b = glyphs;
+  if (memcmp(b, "PFG2", 4) != 0) {
+    faceCountCached = 0;
+    return 0;
+  }
+  int n = b[4];
+  if (n > MAX_FACES) n = MAX_FACES;
+  int p = 5;
+  for (int i = 0; i < n; i++) {
+    faceTable[i] = p;
+    p += NAME_BYTES + 1 + 6 * b[p + NAME_BYTES];
+  }
+  faceCountCached = n;
+  return n;
+}
+inline const char* faceName(int i) {
+  if (i < 0 || i >= faceCount()) return "";
+  return (const char*)(glyphs + faceTable[i]);
+}
+inline int faceSets(int i) {
+  if (i < 0 || i >= faceCount()) return 0;
+  return glyphs[faceTable[i] + NAME_BYTES];
+}
+inline GlyphSet faceSet(int i, int j) {
+  const uint8_t* p = glyphs + faceTable[i] + NAME_BYTES + 1 + 6 * j;
+  return {p[0], p[1], p[2], p[3], (uint16_t)(p[4] | ((uint16_t)p[5] << 8))};
+}
+inline int cellWidth(const GlyphSet& g, int glyph) { return glyph == COLON ? g.cw : g.w; }
+inline uint8_t glyphAlpha4(const GlyphSet& g, int glyph, int x, int y) {
+  const int digitBytes = g.h * ((g.w + 1) >> 1);
+  const int rb = (cellWidth(g, glyph) + 1) >> 1;
+  const uint8_t* cell = glyphs + g.off + (glyph < COLON ? glyph * digitBytes : 10 * digitBytes);
+  uint8_t v = cell[y * rb + (x >> 1)];
+  return (x & 1) ? (v & 15) : (v >> 4);
+}
+
+// ── Settings persistence ─────────────────────────────────────────────────
 inline void loadConfig() {
   Preferences p;
   bool haveOwn = false;
@@ -111,18 +169,17 @@ inline void loadConfig() {
     haveOwn = p.isKey("tz");
     enabled = p.getBool("on", false);
     if (haveOwn) p.getString("tz", tz, sizeof(tz));
-    style = p.getUChar("style", Overlay);
-    size = p.getUChar("size", Small);
-    pos = p.getUChar("pos", TopRight);
-    rotation = p.getUChar("rot", 1);
-    showSeconds = p.getBool("sec", false);
     twelveHour = p.getBool("h12", false);
-    showDate = p.getBool("date", false);
-    blinkColon = p.getBool("blink", false);
-    setInkPacked(p.getUInt("ink", 0xF5F5F5));
-    setInk2Packed(p.getUInt("ink2", 0xFF5C2E));
-    gradient = p.getBool("grad", false);
+    rotation = p.getUChar("rot", 1);
+    face = p.getUChar("face", 0);
+    gap = p.getUChar("gap", 10);
+    sep = p.getUChar("sep", SepOff);
+    sepW = p.getUChar("sepw", 2);
+    inside = p.getUChar("in", FillPattern);
+    outside = p.getUChar("out", FillPattern);
     dimPct = p.getUChar("dim", 0);
+    setInkPacked(p.getUInt("ink", 0xF5F5F5));
+    setBgPacked(p.getUInt("bg", 0x000000));
     fade = p.getBool("fade", true);
     p.end();
   }
@@ -138,11 +195,15 @@ inline void loadConfig() {
       old.end();
     }
   }
-  if (style > ClipInverse) style = Overlay;
-  if (size > Large) size = Small;
-  if (pos > Center) pos = TopRight;
-  if (dimPct > 100) dimPct = 100;
   rotation &= 3;
+  if (face >= faceCount()) face = 0;
+  if (gap > 32) gap = 32;
+  if (sep > SepColour) sep = SepOff;
+  if (sepW < 1) sepW = 1;
+  if (sepW > 8) sepW = 8;
+  if (inside > FillColour) inside = FillPattern;
+  if (outside > FillColour) outside = FillPattern;
+  if (dimPct > 100) dimPct = 100;
   layoutEpoch++;
 }
 
@@ -151,18 +212,17 @@ inline void saveConfig() {
   if (!p.begin(NVS_NS, false)) return;
   p.putBool("on", enabled);
   p.putString("tz", tz);
-  p.putUChar("style", style);
-  p.putUChar("size", size);
-  p.putUChar("pos", pos);
-  p.putUChar("rot", rotation);
-  p.putBool("sec", showSeconds);
   p.putBool("h12", twelveHour);
-  p.putBool("date", showDate);
-  p.putBool("blink", blinkColon);
-  p.putUInt("ink", inkPacked());
-  p.putUInt("ink2", ink2Packed());
-  p.putBool("grad", gradient);
+  p.putUChar("rot", rotation);
+  p.putUChar("face", face);
+  p.putUChar("gap", gap);
+  p.putUChar("sep", sep);
+  p.putUChar("sepw", sepW);
+  p.putUChar("in", inside);
+  p.putUChar("out", outside);
   p.putUChar("dim", dimPct);
+  p.putUInt("ink", inkPacked());
+  p.putUInt("bg", bgPacked());
   p.putBool("fade", fade);
   p.end();
   layoutEpoch++;
@@ -197,50 +257,11 @@ inline void noteFrame(const PFFeatureFrame& f) {
   running = f.running;
 }
 
-// ── The glyph blob ───────────────────────────────────────────────────────
-// Layout in build_clock_glyphs.py. Read straight out of flash: on the
-// ESP32-S3 a PROGMEM array is ordinary memory.
-struct GlyphSet {
-  uint8_t h, w, cw, gap;
-  uint16_t off;
-};
-constexpr int COLON = 10;
-
-inline int setCount() { return CLOCK_GLYPHS[4]; }
-inline GlyphSet glyphSet(int i) {
-  const uint8_t* p = CLOCK_GLYPHS + 5 + 6 * i;
-  return {p[0], p[1], p[2], p[3], (uint16_t)(p[4] | ((uint16_t)p[5] << 8))};
-}
-inline int cellWidth(const GlyphSet& g, int glyph) { return glyph == COLON ? g.cw : g.w; }
-inline uint8_t glyphAlpha4(const GlyphSet& g, int glyph, int x, int y) {
-  const int digitBytes = g.h * ((g.w + 1) >> 1);
-  const int rb = (cellWidth(g, glyph) + 1) >> 1;
-  const uint8_t* cell = CLOCK_GLYPHS + g.off + (glyph < COLON ? glyph * digitBytes : 10 * digitBytes);
-  uint8_t v = cell[y * rb + (x >> 1)];
-  return (x & 1) ? (v & 15) : (v >> 4);
-}
-
-// The sets sorted as the generator emits them: Inter S, M, L, then the two
-// condensed sets meant for the clip styles. "The largest that fits" walks
-// them all by height.
-inline const GlyphSet* setForSize(uint8_t sz) {
-  static GlyphSet cache[8];
-  static bool cached = false;
-  if (!cached) {
-    int n = setCount();
-    for (int i = 0; i < n && i < 8; i++) cache[i] = glyphSet(i);
-    cached = true;
-  }
-  int i = sz == Small ? 0 : (sz == Medium ? 1 : 2);
-  if (i >= setCount()) i = setCount() - 1;
-  return &cache[i];
-}
-
 // ── Geometry ─────────────────────────────────────────────────────────────
-// Everything below lays out in VIRTUAL space - the panel as the viewer sees
-// it after `rotation` quarter turns - and maps each pixel to the native
-// frame at the last moment. Same convention as Adafruit GFX setRotation, so
-// 1 is what the weather clock and the device's own menus call upright.
+// The layout is done in VIRTUAL space - the panel as the viewer sees it
+// after `rotation` quarter turns - and each pixel is mapped to the native
+// frame when the masks are built. Same convention as Adafruit GFX
+// setRotation, so 1 is what the device's own menus call upright.
 inline int nativeW = 0, nativeH = 0;
 inline int vW = 0, vH = 0;
 
@@ -268,126 +289,6 @@ inline void setGeometry(int w, int h) {
   }
 }
 
-inline void placeBlock(int bw, int bh, int* x, int* y) {
-  const int m = 2;
-  switch (pos) {
-    case TopLeft: *x = m; *y = m; break;
-    case TopRight: *x = vW - bw - m; *y = m; break;
-    case BottomLeft: *x = m; *y = vH - bh - m; break;
-    case BottomRight: *x = vW - bw - m; *y = vH - bh - m; break;
-    default: *x = (vW - bw) / 2; *y = (vH - bh) / 2; break;
-  }
-  if (*x < 0) *x = 0;
-  if (*y < 0) *y = 0;
-}
-
-// ── Painting into the scratch frame ──────────────────────────────────────
-inline uint8_t* scratch = nullptr;
-
-inline void blendPx(int vx, int vy, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-  if (!a) return;
-  int i = nativeIndex(vx, vy);
-  if (i < 0) return;
-  uint8_t* p = scratch + i * 3;
-  if (a == 255) {
-    p[0] = r;
-    p[1] = g;
-    p[2] = b;
-    return;
-  }
-  const uint16_t ia = 255 - a;
-  p[0] = (uint8_t)((p[0] * ia + r * a + 127) / 255);
-  p[1] = (uint8_t)((p[1] * ia + g * a + 127) / 255);
-  p[2] = (uint8_t)((p[2] * ia + b * a + 127) / 255);
-}
-
-// The ink at a virtual row: flat, or a top-to-bottom gradient across the
-// block being drawn.
-inline int gradTop = 0, gradH = 1;
-inline void inkAt(int vy, uint8_t* r, uint8_t* g, uint8_t* b) {
-  if (!gradient || gradH <= 1) {
-    *r = inkR; *g = inkG; *b = inkB;
-    return;
-  }
-  int t = (vy - gradTop) * 255 / (gradH - 1);
-  if (t < 0) t = 0;
-  if (t > 255) t = 255;
-  *r = (uint8_t)((inkR * (255 - t) + ink2R * t) / 255);
-  *g = (uint8_t)((inkG * (255 - t) + ink2G * t) / 255);
-  *b = (uint8_t)((inkB * (255 - t) + ink2B * t) / 255);
-}
-
-// One glyph cell. Pass 0 lays the shadow (black, offset, softened), pass 1
-// the ink - two passes over the whole string so a neighbour's shadow never
-// darkens a digit already inked.
-inline void paintGlyph(const GlyphSet& g, int glyph, int x, int y, int pass) {
-  const int w = cellWidth(g, glyph);
-  for (int yy = 0; yy < g.h; yy++) {
-    for (int xx = 0; xx < w; xx++) {
-      uint8_t a4 = glyphAlpha4(g, glyph, xx, yy);
-      if (!a4) continue;
-      uint8_t a = (uint8_t)(a4 * 17);
-      if (pass == 0) {
-        blendPx(x + xx + 1, y + yy + 1, 0, 0, 0, (uint8_t)((a * 3) / 4));
-        blendPx(x + xx, y + yy + 1, 0, 0, 0, (uint8_t)(a / 3));
-        blendPx(x + xx + 1, y + yy, 0, 0, 0, (uint8_t)(a / 3));
-      } else {
-        uint8_t r, gg, b;
-        inkAt(y + yy, &r, &gg, &b);
-        blendPx(x + xx, y + yy, r, gg, b, a);
-      }
-    }
-  }
-}
-
-// A line of the chrome font (TomThumb) for the date - the same glyph walk
-// core_ui_text.h does, plotted through the blend so it lands in the scratch
-// frame under the same rotation as the digits.
-inline int gfxAdvance(const GFXfont* f, const char* s) {
-  const uint8_t first = pgm_read_byte(&f->first), last = pgm_read_byte(&f->last);
-  const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&f->glyph);
-  int adv = 0;
-  for (const uint8_t* p = (const uint8_t*)s; *p; ++p) {
-    if (*p < first || *p > last) continue;
-    adv += (int)pgm_read_byte(&glyphs[*p - first].xAdvance);
-  }
-  return adv;
-}
-inline int gfxHeight(const GFXfont* f) { return (int)pgm_read_byte(&f->yAdvance) - 1; }
-
-inline void paintGfxText(const GFXfont* f, const char* s, int x, int yTop, int pass) {
-  const uint8_t first = pgm_read_byte(&f->first), last = pgm_read_byte(&f->last);
-  const GFXglyph* glyphs = (const GFXglyph*)pgm_read_ptr(&f->glyph);
-  const uint8_t* bitmap = (const uint8_t*)pgm_read_ptr(&f->bitmap);
-  const int baseline = yTop + (int)pgm_read_byte(&f->yAdvance) - 1;
-  int cx = x;
-  for (const uint8_t* p = (const uint8_t*)s; *p; ++p) {
-    if (*p < first || *p > last) continue;
-    const GFXglyph* gl = &glyphs[*p - first];
-    uint16_t bo = pgm_read_word(&gl->bitmapOffset);
-    uint8_t w = pgm_read_byte(&gl->width), h = pgm_read_byte(&gl->height);
-    int8_t xo = (int8_t)pgm_read_byte(&gl->xOffset), yo = (int8_t)pgm_read_byte(&gl->yOffset);
-    uint8_t bits = 0, bit = 0;
-    for (uint8_t yy = 0; yy < h; yy++) {
-      for (uint8_t xx = 0; xx < w; xx++) {
-        if (!(bit++ & 7)) bits = pgm_read_byte(&bitmap[bo++]);
-        if (bits & 0x80) {
-          const int px = cx + xo + xx, py = baseline + yo + yy;
-          if (pass == 0) blendPx(px + 1, py + 1, 0, 0, 0, 190);
-          else {
-            uint8_t r, g, b;
-            inkAt(py, &r, &g, &b);
-            blendPx(px, py, r, g, b, 255);
-          }
-        }
-        bits <<= 1;
-      }
-    }
-    cx += (int)pgm_read_byte(&gl->xAdvance);
-  }
-}
-
-// ── Text ─────────────────────────────────────────────────────────────────
 inline int displayHour(const struct tm& t) {
   int h = t.tm_hour;
   if (twelveHour) {
@@ -397,204 +298,67 @@ inline int displayHour(const struct tm& t) {
   return h;
 }
 
-inline void formatTime(const struct tm& t, char* out, size_t n) {
-  if (showSeconds) snprintf(out, n, "%02d:%02d:%02d", displayHour(t), t.tm_min, t.tm_sec);
-  else snprintf(out, n, "%02d:%02d", displayHour(t), t.tm_min);
-}
-
-inline void formatDate(const struct tm& t, char* out, size_t n) {
-  // "Thu Sep 04" - C locale, ten characters, 40 px in the chrome font.
-  strftime(out, n, "%a %b %d", &t);
-}
-
-// Width of a digits-and-colons string in a set, gaps included.
-inline int glyphLineWidth(const GlyphSet& g, const char* s) {
-  int w = 0, n = 0;
-  for (const char* p = s; *p; ++p) {
-    if (*p == ':') w += g.cw;
-    else if (*p >= '0' && *p <= '9') w += g.w;
-    else continue;
-    n++;
-  }
-  if (n > 1) w += (n - 1) * g.gap;
-  return w;
-}
-
-inline void paintGlyphLine(const GlyphSet& g, const char* s, int x, int y, int pass) {
-  int cx = x;
-  for (const char* p = s; *p; ++p) {
-    int glyph;
-    if (*p == ':') glyph = COLON;
-    else if (*p >= '0' && *p <= '9') glyph = *p - '0';
-    else continue;
-    paintGlyph(g, glyph, cx, y, pass);
-    cx += cellWidth(g, glyph) + g.gap;
-  }
-}
-
-// ── Style: overlay ───────────────────────────────────────────────────────
-inline void composeOverlay(const struct tm& t) {
-  char line[12];
-  formatTime(t, line, sizeof(line));
-  char date[16] = {};
-  if (showDate) formatDate(t, date, sizeof(date));
-
-  // The chosen size, or the next one down until the line fits the panel.
-  const GlyphSet* g = setForSize(size);
-  int tw = glyphLineWidth(*g, line);
-  for (uint8_t s = size; tw > vW - 4 && s > Small; s--) {
-    g = setForSize((uint8_t)(s - 1));
-    tw = glyphLineWidth(*g, line);
-  }
-  const int th = g->h;
-
-  const GFXfont* df = PF_UI_FONT_CHROME;
-  const int dw = showDate && df ? gfxAdvance(df, date) : 0;
-  const int dh = showDate && df ? gfxHeight(df) : 0;
-  const int bw = tw > dw ? tw : dw;
-  const int bh = th + (showDate ? dh + 2 : 0);
-  int x, y;
-  placeBlock(bw, bh, &x, &y);
-  gradTop = y;
-  gradH = bh;
-
-  for (int pass = 0; pass < 2; pass++) {
-    paintGlyphLine(*g, line, x + (bw - tw) / 2, y, pass);
-    if (showDate && df) paintGfxText(df, date, x + (bw - dw) / 2, y + th + 2, pass);
-  }
-}
-
-// ── Style: digital (seven-segment) ───────────────────────────────────────
-struct SegGeom {
-  int dw, dh, t, gap, colon;
+// Where the digits go: hours over minutes when the panel is upright or
+// square, four across when it is wide. The tallest set of the chosen face
+// that fits, with the gap the person asked for.
+struct Layout {
+  GlyphSet g;
+  bool rows;            // two rows (HH over MM) rather than one line
+  int x0, y0;           // hours pair origin
+  int x1, y1;           // minutes pair origin
+  int midW;             // the gap between the pairs (wide) - the colon lives in it
 };
 
-inline SegGeom segGeomFor(int digits, int colons, int maxW, int maxH) {
-  int best = 3;
-  for (int dw = 3; dw < 64; dw++) {
-    int t = (dw + 2) / 5;
-    if (t < 1) t = 1;
-    int gap = dw / 6;
-    if (gap < 1) gap = 1;
-    int width = digits * dw + colons * t + (digits + colons - 1) * gap;
-    int dh = 2 * dw - t;
-    if (width > maxW || dh > maxH) break;
-    best = dw;
+inline bool layoutFor(Layout* out) {
+  const bool rows = vH >= vW;
+  int f = face < faceCount() ? face : 0;
+  if (faceCount() == 0) return false;
+  bool have = false;
+  GlyphSet best{};
+  for (int i = 0; i < faceSets(f); i++) {
+    GlyphSet g = faceSet(f, i);
+    bool fits;
+    if (rows) fits = (2 * g.w + g.gap <= vW - 2) && (2 * g.h + gap <= vH - 2);
+    else fits = (4 * g.w + 2 * g.gap + gap <= vW - 2) && (g.h <= vH - 2);
+    if (fits && (!have || g.h > best.h)) {
+      best = g;
+      have = true;
+    }
   }
-  SegGeom g{};
-  g.dw = best;
-  g.t = (best + 2) / 5;
-  if (g.t < 1) g.t = 1;
-  g.gap = best / 6;
-  if (g.gap < 1) g.gap = 1;
-  g.dh = 2 * best - g.t;
-  g.colon = g.t;
-  return g;
-}
-
-inline int segTextWidth(const SegGeom& g, const char* s) {
-  int w = 0, n = 0;
-  for (const char* p = s; *p; ++p) {
-    if (*p == ':') w += g.colon;
-    else if (*p >= '0' && *p <= '9') w += g.dw;
-    else continue;
-    n++;
-  }
-  if (n > 1) w += (n - 1) * g.gap;
-  return w;
-}
-
-inline uint8_t segBits(char c) {
-  static const uint8_t T[10] = {0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F};
-  return (c >= '0' && c <= '9') ? T[c - '0'] : 0;
-}
-
-inline void segRect(int x, int y, int w, int h, int pass) {
-  if (pass == 0) {
-    for (int yy = y - 1; yy < y + h + 1; yy++)
-      for (int xx = x - 1; xx < x + w + 1; xx++) blendPx(xx, yy, 0, 0, 0, 170);
+  if (!have) return false;
+  out->g = best;
+  out->rows = rows;
+  const GlyphSet& g = best;
+  const int pairW = 2 * g.w + g.gap;
+  if (rows) {
+    const int totalH = 2 * g.h + gap;
+    out->x0 = out->x1 = (vW - pairW) / 2;
+    out->y0 = (vH - totalH) / 2;
+    out->y1 = out->y0 + g.h + gap;
+    out->midW = gap;
   } else {
-    for (int yy = y; yy < y + h; yy++) {
-      uint8_t r, g, b;
-      inkAt(yy, &r, &g, &b);
-      for (int xx = x; xx < x + w; xx++) blendPx(xx, yy, r, g, b, 255);
-    }
+    // Across, the gap has to hold the colon when there is one.
+    int mid = gap;
+    if (sep != SepOff && mid < g.cw + 2 * g.gap) mid = g.cw + 2 * g.gap;
+    const int totalW = 2 * pairW + mid;
+    out->x0 = (vW - totalW) / 2;
+    out->x1 = out->x0 + pairW + mid;
+    out->y0 = out->y1 = (vH - g.h) / 2;
+    out->midW = mid;
   }
+  return true;
 }
 
-inline void segDigit(const SegGeom& g, int x, int y, uint8_t bits, int pass) {
-  const int dw = g.dw, dh = g.dh, t = g.t;
-  const int half = (dh + t) / 2;
-  const int mid = (dh - t) / 2;
-  if (bits & 0x01) segRect(x, y, dw, t, pass);
-  if (bits & 0x02) segRect(x + dw - t, y, t, half, pass);
-  if (bits & 0x04) segRect(x + dw - t, y + mid, t, half, pass);
-  if (bits & 0x08) segRect(x, y + dh - t, dw, t, pass);
-  if (bits & 0x10) segRect(x, y + mid, t, half, pass);
-  if (bits & 0x20) segRect(x, y, t, half, pass);
-  if (bits & 0x40) segRect(x, y + mid, dw, t, pass);
-}
-
-inline void segColon(const SegGeom& g, int x, int y, int pass, bool lit) {
-  if (!lit) return;
-  const int t = g.t;
-  segRect(x, y + g.dh / 4 - t / 2, t, t, pass);
-  segRect(x, y + (3 * g.dh) / 4 - t / 2, t, t, pass);
-}
-
-inline void composeDigital(const struct tm& t) {
-  char line[12];
-  formatTime(t, line, sizeof(line));
-  int digits = 0, colons = 0;
-  for (const char* p = line; *p; ++p) {
-    if (*p == ':') colons++;
-    else if (*p >= '0' && *p <= '9') digits++;
-  }
-  // Small / medium / large as fractions of the panel's shorter side.
-  const int shorter = vW < vH ? vW : vH;
-  const int maxH = size == Small ? shorter / 5 : (size == Medium ? shorter / 3 : shorter * 45 / 100);
-  SegGeom g = segGeomFor(digits, colons, vW - 4, maxH < 5 ? 5 : maxH);
-  const int tw = segTextWidth(g, line);
-  const int th = g.dh;
-
-  char date[16] = {};
-  const GFXfont* df = PF_UI_FONT_CHROME;
-  int dw = 0, dh = 0;
-  if (showDate && df) {
-    formatDate(t, date, sizeof(date));
-    dw = gfxAdvance(df, date);
-    dh = gfxHeight(df);
-  }
-  const int bw = tw > dw ? tw : dw;
-  const int bh = th + (showDate ? dh + 2 : 0);
-  int x, y;
-  placeBlock(bw, bh, &x, &y);
-  gradTop = y;
-  gradH = bh;
-  const bool lit = !blinkColon || (t.tm_sec & 1) == 0;
-
-  for (int pass = 0; pass < 2; pass++) {
-    int cx = x + (bw - tw) / 2;
-    for (const char* p = line; *p; ++p) {
-      if (*p == ':') {
-        segColon(g, cx, y, pass, lit);
-        cx += g.colon + g.gap;
-      } else if (*p >= '0' && *p <= '9') {
-        segDigit(g, cx, y, segBits(*p), pass);
-        cx += g.dw + g.gap;
-      }
-    }
-    if (showDate && df) paintGfxText(df, date, x + (bw - dw) / 2, y + th + 2, pass);
-  }
-}
-
-// ── Style: clip ──────────────────────────────────────────────────────────
+// ── Masks ────────────────────────────────────────────────────────────────
 //
-// A mask over the native frame, one byte of coverage per pixel, rebuilt
-// when the minute (or a setting) changes and blended per frame. Two of them,
-// so the minute change can crossfade from the old digits to the new.
+// Coverage per native pixel, 0..255. `digits` is what the time cuts out
+// (plus the separator when it is cut from the pattern too); `bar` is the
+// separator when it is drawn in colour. Two digit masks, so the minute
+// change can crossfade from the old digits to the new.
+inline uint8_t* scratch = nullptr;
 inline uint8_t* maskA = nullptr;
 inline uint8_t* maskB = nullptr;
+inline uint8_t* barMask = nullptr;
 inline bool maskIsA = true;
 inline uint32_t maskKey = 0xFFFFFFFFu;
 inline uint32_t fadeStartMs = 0;
@@ -603,58 +367,6 @@ constexpr uint32_t FADE_MS = 400;
 
 inline uint8_t* maskCur() { return maskIsA ? maskA : maskB; }
 inline uint8_t* maskOld() { return maskIsA ? maskB : maskA; }
-
-// The digits' placement for the clip style: hours over minutes when the
-// panel is upright or square, four in a row when it is wide. The largest
-// set that fits, walking every set by height.
-struct ClipLayout {
-  const GlyphSet* g;
-  bool rows;            // two rows (HH over MM) rather than one line
-  int x0, y0;           // hours cell origin
-  int x1, y1;           // minutes cell origin
-};
-
-inline bool clipLayout(ClipLayout* out) {
-  static GlyphSet sets[8];
-  static int n = 0;
-  if (!n) {
-    n = setCount();
-    if (n > 8) n = 8;
-    for (int i = 0; i < n; i++) sets[i] = glyphSet(i);
-  }
-  const bool rows = vH >= vW;
-  const GlyphSet* best = nullptr;
-  for (int i = 0; i < n; i++) {
-    const GlyphSet& g = sets[i];
-    if (rows) {
-      const int rowGap = g.h / 6 < 2 ? 2 : g.h / 6;
-      if (2 * g.w + g.gap <= vW - 2 && 2 * g.h + rowGap <= vH - 2 && (!best || g.h > best->h)) best = &g;
-    } else {
-      const int mid = g.w / 2 + g.gap;
-      if (4 * g.w + 2 * g.gap + mid <= vW - 2 && g.h <= vH - 2 && (!best || g.h > best->h)) best = &g;
-    }
-  }
-  if (!best) return false;
-  out->g = best;
-  out->rows = rows;
-  const GlyphSet& g = *best;
-  if (rows) {
-    const int rowGap = g.h / 6 < 2 ? 2 : g.h / 6;
-    const int pairW = 2 * g.w + g.gap;
-    const int totalH = 2 * g.h + rowGap;
-    out->x0 = out->x1 = (vW - pairW) / 2;
-    out->y0 = (vH - totalH) / 2;
-    out->y1 = out->y0 + g.h + rowGap;
-  } else {
-    const int mid = g.w / 2 + g.gap;
-    const int pairW = 2 * g.w + g.gap;
-    const int totalW = 2 * pairW + mid;
-    out->x0 = (vW - totalW) / 2;
-    out->x1 = out->x0 + pairW + mid;
-    out->y0 = out->y1 = (vH - g.h) / 2;
-  }
-  return true;
-}
 
 inline void maskGlyph(uint8_t* m, const GlyphSet& g, int glyph, int x, int y) {
   const int w = cellWidth(g, glyph);
@@ -668,68 +380,45 @@ inline void maskGlyph(uint8_t* m, const GlyphSet& g, int glyph, int x, int y) {
   }
 }
 
-inline void buildMask(uint8_t* m, const struct tm& t) {
-  memset(m, 0, (size_t)nativeW * nativeH);
-  ClipLayout L;
-  if (!clipLayout(&L)) return;
-  const int hh = displayHour(t), mm = t.tm_min;
-  const GlyphSet& g = *L.g;
-  maskGlyph(m, g, hh / 10, L.x0, L.y0);
-  maskGlyph(m, g, hh % 10, L.x0 + g.w + g.gap, L.y0);
-  maskGlyph(m, g, mm / 10, L.x1, L.y1);
-  maskGlyph(m, g, mm % 10, L.x1 + g.w + g.gap, L.y1);
+inline void maskRect(uint8_t* m, int x, int y, int w, int h) {
+  for (int yy = y; yy < y + h; yy++)
+    for (int xx = x; xx < x + w; xx++) {
+      int i = nativeIndex(xx, yy);
+      if (i >= 0) m[i] = 255;
+    }
 }
 
-inline const uint8_t* composeClip(const uint8_t* canvas, const struct tm& t) {
+// The separator: a bar between the rows, the face's colon across.
+inline void maskSeparator(uint8_t* m, const Layout& L) {
+  const GlyphSet& g = L.g;
+  if (L.rows) {
+    const int pairW = 2 * g.w + g.gap;
+    int t = sepW;
+    if (t > gap) t = gap;
+    if (t < 1) return;
+    const int y = L.y0 + g.h + (gap - t) / 2;
+    maskRect(m, L.x0, y, pairW, t);
+  } else {
+    const int pairW = 2 * g.w + g.gap;
+    const int x = L.x0 + pairW + (L.midW - g.cw) / 2;
+    maskGlyph(m, g, COLON, x, L.y0);
+  }
+}
+
+inline void buildMasks(uint8_t* digits, const struct tm& t) {
   const size_t n = (size_t)nativeW * nativeH;
-  if (!maskA) maskA = (uint8_t*)PFMem::alloc(n);
-  if (!maskB) maskB = (uint8_t*)PFMem::alloc(n);
-  if (!maskA || !maskB) return nullptr;
-
-  const uint32_t key = ((uint32_t)displayHour(t) * 60u + (uint32_t)t.tm_min) ^ (layoutEpoch << 12);
-  const uint32_t now = millis();
-  if (key != maskKey) {
-    const uint32_t prev = maskKey;
-    const bool first = (prev == 0xFFFFFFFFu);
-    maskIsA = !maskIsA;
-    buildMask(maskCur(), t);
-    maskKey = key;
-    // Only a minute change fades - a settings change should land at once.
-    // The minute lives in the low 12 bits, the settings epoch above them.
-    fading = fade && !first && (((key ^ prev) >> 12) == 0);
-    fadeStartMs = now;
-  }
-  const uint8_t* cur = maskCur();
-  const uint8_t* old = maskOld();
-  const bool inverse = (style == ClipInverse);
-  const uint16_t dim = (uint16_t)dimPct * 255 / 100;
-  uint16_t ft = 255;
-  if (fading) {
-    uint32_t el = now - fadeStartMs;
-    if (el >= FADE_MS) fading = false;
-    else ft = (uint16_t)(el * 255 / FADE_MS);
-  }
-
-  const uint8_t* src = canvas;
-  uint8_t* dst = scratch;
-  for (size_t i = 0; i < n; i++, src += 3, dst += 3) {
-    uint16_t a = cur[i];
-    if (fading) a = (uint16_t)((old[i] * (255 - ft) + cur[i] * ft) / 255);
-    if (inverse) a = 255 - a;
-    const uint16_t f = dim + ((255 - dim) * a) / 255;  // 0..255
-    if (f >= 255) {
-      dst[0] = src[0];
-      dst[1] = src[1];
-      dst[2] = src[2];
-    } else if (f == 0) {
-      dst[0] = dst[1] = dst[2] = 0;
-    } else {
-      dst[0] = (uint8_t)((src[0] * f) / 255);
-      dst[1] = (uint8_t)((src[1] * f) / 255);
-      dst[2] = (uint8_t)((src[2] * f) / 255);
-    }
-  }
-  return scratch;
+  memset(digits, 0, n);
+  memset(barMask, 0, n);
+  Layout L;
+  if (!layoutFor(&L)) return;
+  const int hh = displayHour(t), mm = t.tm_min;
+  const GlyphSet& g = L.g;
+  maskGlyph(digits, g, hh / 10, L.x0, L.y0);
+  maskGlyph(digits, g, hh % 10, L.x0 + g.w + g.gap, L.y0);
+  maskGlyph(digits, g, mm / 10, L.x1, L.y1);
+  maskGlyph(digits, g, mm % 10, L.x1 + g.w + g.gap, L.y1);
+  if (sep == SepPattern) maskSeparator(digits, L);
+  else if (sep == SepColour) maskSeparator(barMask, L);
 }
 
 // ── The hook ─────────────────────────────────────────────────────────────
@@ -738,20 +427,88 @@ inline const uint8_t* compose(const uint8_t* canvas, int w, int h) {
   if (CalibPattern::overrideOn) return nullptr;
   struct tm t;
   if (!PatternflowClock::localTime(&t)) return nullptr;  // unsynced: nothing, not 12:00
-  if (!scratch) scratch = (uint8_t*)PFMem::alloc((size_t)w * h * 3);
-  if (!scratch) return nullptr;
+
+  const size_t n = (size_t)w * h;
+  if (!scratch) scratch = (uint8_t*)PFMem::alloc(n * 3);
+  if (!maskA) maskA = (uint8_t*)PFMem::alloc(n);
+  if (!maskB) maskB = (uint8_t*)PFMem::alloc(n);
+  if (!barMask) barMask = (uint8_t*)PFMem::alloc(n);
+  if (!scratch || !maskA || !maskB || !barMask) return nullptr;
   setGeometry(w, h);
 
-  if (style == Clip || style == ClipInverse) return composeClip(canvas, t);
+  // Rebuild when the minute or a setting changes. The minute lives in the
+  // low 12 bits of the key, the settings epoch above them: only a minute
+  // change fades, a settings change lands at once.
+  const uint32_t key = ((uint32_t)displayHour(t) * 60u + (uint32_t)t.tm_min) ^ (layoutEpoch << 12);
+  const uint32_t now = millis();
+  if (key != maskKey) {
+    const uint32_t prev = maskKey;
+    const bool first = (prev == 0xFFFFFFFFu);
+    maskIsA = !maskIsA;
+    buildMasks(maskCur(), t);
+    maskKey = key;
+    fading = fade && !first && (((key ^ prev) >> 12) == 0);
+    fadeStartMs = now;
+  }
+  const uint8_t* cur = maskCur();
+  const uint8_t* old = maskOld();
+  uint16_t ft = 255;
+  if (fading) {
+    uint32_t el = now - fadeStartMs;
+    if (el >= FADE_MS) fading = false;
+    else ft = (uint16_t)(el * 255 / FADE_MS);
+  }
+  const bool inPattern = (inside == FillPattern);
+  const bool outPattern = (outside == FillPattern);
+  const uint16_t dim = (uint16_t)dimPct * 255 / 100;
+  const bool bar = (sep == SepColour);
 
-  memcpy(scratch, canvas, (size_t)w * h * 3);
-  if (style == Digital) composeDigital(t);
-  else composeOverlay(t);
+  const uint8_t* src = canvas;
+  uint8_t* dst = scratch;
+  for (size_t i = 0; i < n; i++, src += 3, dst += 3) {
+    uint16_t a = cur[i];
+    if (fading) a = (uint16_t)((old[i] * (255 - ft) + cur[i] * ft) / 255);
+    // What is outside, and what is inside, at this pixel.
+    uint16_t oR, oG, oB, iR, iG, iB;
+    if (outPattern) {
+      oR = (src[0] * dim) / 255;
+      oG = (src[1] * dim) / 255;
+      oB = (src[2] * dim) / 255;
+    } else {
+      oR = bgR; oG = bgG; oB = bgB;
+    }
+    if (inPattern) {
+      iR = src[0]; iG = src[1]; iB = src[2];
+    } else {
+      iR = inkR; iG = inkG; iB = inkB;
+    }
+    uint16_t r, g, b;
+    if (a >= 255) { r = iR; g = iG; b = iB; }
+    else if (a == 0) { r = oR; g = oG; b = oB; }
+    else {
+      r = (oR * (255 - a) + iR * a) / 255;
+      g = (oG * (255 - a) + iG * a) / 255;
+      b = (oB * (255 - a) + iB * a) / 255;
+    }
+    if (bar) {
+      const uint16_t s = barMask[i];
+      if (s) {
+        r = (r * (255 - s) + inkR * s) / 255;
+        g = (g * (255 - s) + inkG * s) / 255;
+        b = (b * (255 - s) + inkB * s) / 255;
+      }
+    }
+    dst[0] = (uint8_t)r;
+    dst[1] = (uint8_t)g;
+    dst[2] = (uint8_t)b;
+  }
   return scratch;
 }
 
 #else  // !PF_CLOCK_ENABLED
 
+inline int faceCount() { return 0; }
+inline const char* faceName(int) { return ""; }
 inline void loadConfig() {}
 inline void saveConfig() {}
 inline void setTimezone(const char*) {}

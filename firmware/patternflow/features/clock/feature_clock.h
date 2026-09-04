@@ -1,10 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - a clock, as a feature
 //
-// A wall clock composed over whatever pattern is running: anti-aliased
-// digits in a corner or the centre, seven-segment digits, or the pattern
-// showing only inside huge digits; a colour or a gradient; the time zone as
-// a real zone with its DST rule rather than an offset.
+// The time, cut out of whatever pattern is running: huge digits that the
+// pattern shows through, or solid ones on it, in a choice of faces; the
+// time zone as a real zone with its DST rule rather than an offset.
 //
 // Two ports before this one drew a clock - weather's corner HH:MM:SS and
 // the show scheduler's face on Black - and the core already keeps the time
@@ -48,8 +47,8 @@ inline void appendStatus(String& json) {
   json += PatternflowClockFace::enabled ? "true" : "false";
   json += ",\"synced\":";
   json += PatternflowClockFace::synced() ? "true" : "false";
-  json += ",\"style\":";
-  json += (int)PatternflowClockFace::style;
+  json += ",\"face\":";
+  json += (int)PatternflowClockFace::face;
   json += ",\"tz\":\"";
   for (const char* p = PatternflowClockFace::tz; *p; ++p) {
     if (*p == '"' || *p == '\\') json += '\\';
@@ -82,8 +81,8 @@ inline const PFFeature descriptor = {
     nullptr,       // drawOverlay - this feature composes instead
     "/clock",      // navPath - the console header link
     "Clock",       // navLabel
-    "A clock over any pattern, or the pattern inside the digits: the zone, "
-    "where, how big, in what colour.",
+    "The time cut out of the running pattern: the face, the zone, what "
+    "fills the digits and what surrounds them.",
     composeFrame,
 };
 

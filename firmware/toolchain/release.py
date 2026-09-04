@@ -44,7 +44,7 @@ AGENTS = ROOT / "AGENTS.md"
 MANIFEST = ROOT / "web/public/flash/manifest.json"
 EDITIONS_TS = ROOT / "web/src/app/editions/editions-data.ts"
 BIN_DIR = ROOT / "web/public/flash/bin"
-EDITIONS = ("audio", "performance", "utility")
+EDITIONS = ("audio", "performance", "clock")
 CO_AUTHOR = "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 TRAILER = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 

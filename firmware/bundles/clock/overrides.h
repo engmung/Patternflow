@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// Patternflow Utility — what this edition calls itself, and what it sets
+// Patternflow Clock — what this edition calls itself, and what it sets
 //
 // Included from config.h before any default, so anything `#ifndef`-guarded
 // anywhere in the tree can be set here. Nothing in this file is a core
@@ -13,7 +13,7 @@
 // on every console page, and shown on the shelf card. This version is the
 // edition's own and moves at whatever pace suits it — it has nothing to say
 // about the core version, which is reported separately.
-#define PF_VARIANT          "utility"
+#define PF_VARIANT          "clock"
 #define PF_VARIANT_VERSION  "v0.1.0"
 
 // Nothing else is changed. The radio stays at the conformance-tested setting,

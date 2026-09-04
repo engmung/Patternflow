@@ -64,7 +64,7 @@ in one click. Four exist:
 | **Patternflow** | nothing — the device itself | the product |
 | **Audio** | OSC, MIDI, browser audio, the on-board microphone | SeungHun Lee |
 | **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
-| **Utility** | a clock over any pattern, weather | SeungHun Lee |
+| **Clock** | the time, cut out of the running pattern | SeungHun Lee |
 
 The word "addon" is retired. It suggested something optional or third-party,
 and none of these are: they are first-class capabilities that happen to live

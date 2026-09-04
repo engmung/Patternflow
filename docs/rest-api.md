@@ -341,7 +341,7 @@ toggles — from the console's `/audio-in` bar.
 | `GET /api/audio` | `audioRuntime` (the switch) and `audioClients` (WebSocket senders connected on :81). |
 | `POST /api/audio` | `on=0/1`. Persisted in NVS; answers with the new state. |
 
-## Clock (Utility edition)
+## Clock (Clock edition)
 
 Gated on `"clock"` in `caps`; the page is `/clock`. Settings persist in NVS
 under the feature's own namespace, and `/api/status` carries a `clock` block
@@ -349,9 +349,9 @@ under the feature's own namespace, and `/api/status` carries a `clock` block
 
 | Endpoint | Meaning |
 |---|---|
-| `GET /api/clock` | Every setting — `on`; `tz`, a POSIX TZ string (`KST-9`, `CET-1CEST,M3.5.0,M10.5.0/3` — note the inverted sign, and that this form carries the DST rule); `style` (0 overlay: anti-aliased digits over the pattern, 1 digital: seven-segment, 2 clip: the pattern shows only inside huge digits, 3 clip inverted); `pos` (0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right, 4 centre; overlay and digital); `size` (0 small, 1 medium, 2 large; overlay and digital); `rot` (quarter turns of the panel; 1 is upright, the way the device's own menus read, and the default; 0 is the wide way); `sec`, `h12` (no AM/PM marker), `date`, `blink` (digital); `ink` and `ink2` as `RRGGBB` with `grad` for a top-to-bottom gradient; `dim` (clip: how bright the outside stays, 0–100); `fade` (clip: crossfade the minute change) — plus `w`/`h` (the panel's native size), `glyphsRev` (the digit set compiled in), and what the panel currently believes: `synced`, `time` (`HH:MM:SS`), `today`, `zone` (the abbreviation in force, so summer time is visible). |
+| `GET /api/clock` | Every setting — `on`; `tz`, a POSIX TZ string (`KST-9`, `CET-1CEST,M3.5.0,M10.5.0/3` — note the inverted sign, and that this form carries the DST rule); `h12` (no AM/PM marker); `rot` (quarter turns of the panel; 1 is upright, the way the device's own menus read, and the default; 0 is the wide way); `face` (an index into `faces`, the names of the typefaces compiled in); `gap` (px between the rows upright, between the pairs wide); `sep` (what sits between: 0 nothing, 1 a bar cut from the pattern like the digits, 2 a bar in the ink colour — across, the face's own colon instead of a bar); `sepw` (the bar's thickness); `in` (inside the digits: 0 the pattern, 1 the ink colour); `out` (outside them: 0 the pattern at `dim` percent, 1 the `bg` colour); `ink` and `bg` as `RRGGBB`; `fade` (crossfade the minute change) — plus `w`/`h` (the panel's native size), `glyphsRev` (the digit set compiled in), and what the panel currently believes: `synced`, `time` (`HH:MM:SS`), `today`, `zone` (the abbreviation in force, so summer time is visible). |
 | `POST /api/clock` | Any subset of the same fields, form-encoded; partial updates are the point — the page sends each control as it changes. A changed `tz` restarts NTP against the new zone. Answers as `GET`. |
-| `GET /clock/glyphs.bin` | The digit glyphs the firmware draws from, as compiled in (`Cache-Control: immutable`; the page keys on `glyphsRev`). The page's preview draws the same pixels as the panel from this. Format in `firmware/toolchain/build_clock_glyphs.py`. |
+| `GET /clock/glyphs.bin` | The digit glyphs the firmware draws from, as compiled in — every face, two sizes each (`Cache-Control: immutable`; the page keys on `glyphsRev`). The page's preview draws the same pixels as the panel from this and lists the faces from the same bytes. Format, and how to add a face, in `firmware/toolchain/build_clock_glyphs.py`. |
 
 The zone is the clock's. Another feature may set the C library's `TZ` from a
 setting of its own — the weather page's UTC offset does, on save — and the

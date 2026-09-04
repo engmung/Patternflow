@@ -407,10 +407,11 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/clock"):
             now = time.localtime()
             return self.send_json({
-                "ok": True, "on": True, "tz": "KST-9", "style": 0, "pos": 1,
-                "size": 0, "rot": 1, "sec": False, "h12": False,
-                "date": False, "blink": False, "ink": "F5F5F5",
-                "ink2": "FF5C2E", "grad": False, "dim": 0, "fade": True,
+                "ok": True, "on": True, "tz": "KST-9", "h12": False, "rot": 1,
+                "face": 0, "faces": ["Bebas Neue", "Anton", "Oswald", "Saira XCond",
+                                     "Barlow Cond", "Six Caps", "Squada One"],
+                "gap": 10, "sep": 0, "sepw": 2, "in": 0, "out": 0, "dim": 0,
+                "ink": "F5F5F5", "bg": "000000", "fade": True,
                 "w": 128, "h": 64, "glyphsRev": 0, "synced": True,
                 "time": time.strftime("%H:%M:%S", now),
                 "today": time.strftime("%a %b %d %Y", now), "zone": "KST",

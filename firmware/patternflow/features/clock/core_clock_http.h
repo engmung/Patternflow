@@ -3,19 +3,20 @@
 //
 //   GET  /clock              the page
 //   GET  /clock/glyphs.bin   the digit glyphs, as compiled in - the page's
-//                            preview draws the same pixels as the panel
+//                            preview draws the same pixels as the panel, and
+//                            lists the faces from the same bytes
 //   GET  /api/clock          every setting, plus the panel's time as it sees it
 //   POST /api/clock          any subset of:
-//        on=0|1  tz=<POSIX TZ>  style=0..3  size=0..2  pos=0..4  rot=0..3
-//        sec=0|1  h12=0|1  date=0|1  blink=0|1  ink=RRGGBB  ink2=RRGGBB
-//        grad=0|1  dim=0..100  fade=0|1     - persisted, answers as GET
+//        on=0|1  tz=<POSIX TZ>  h12=0|1  rot=0..3  face=0..N-1  gap=0..32
+//        sep=0|1|2  sepw=1..8  in=0|1  out=0|1  dim=0..100
+//        ink=RRGGBB  bg=RRGGBB  fade=0|1     - persisted, answers as GET
 //
-// style: 0 overlay (anti-aliased digits), 1 digital (seven-segment),
-//        2 clip (the pattern shows only inside huge digits), 3 clip inverse.
-// pos:   0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right, 4 centre.
-// size:  0 small, 1 medium, 2 large (overlay and digital).
-// rot:   quarter turns of the panel; 1 is upright, the way its menus read.
-// dim:   clip - how bright the outside stays, percent.
+// rot:  quarter turns of the panel; 1 is upright, the way its menus read.
+// gap:  px between the rows (upright) or between the pairs (wide).
+// sep:  the bar between the rows / the colon across - 0 none, 1 cut from
+//       the pattern like the digits, 2 drawn in the ink colour.
+// in:   inside the digits - 0 the pattern, 1 the ink colour.
+// out:  outside them - 0 the pattern at `dim` percent, 1 the bg colour.
 //
 // The face reads these settings from the render core every frame, so the
 // write happens there (core_loop_sync.h) - the rule every feature's config
@@ -71,35 +72,43 @@ inline void appendHex(String& json, const char* key, uint32_t rgb) {
 inline void sendState(int code) {
   using namespace PatternflowClockFace;
   String json;
-  json.reserve(512);
+  json.reserve(640);
   json = "{\"ok\":true,\"on\":";
   json += enabled ? "true" : "false";
   json += ",";
   appendJsonString(json, "tz", tz);
-  json += ",\"style\":";
-  json += (int)style;
-  json += ",\"pos\":";
-  json += (int)pos;
-  json += ",\"size\":";
-  json += (int)size;
-  json += ",\"rot\":";
-  json += (int)rotation;
-  json += ",\"sec\":";
-  json += showSeconds ? "true" : "false";
   json += ",\"h12\":";
   json += twelveHour ? "true" : "false";
-  json += ",\"date\":";
-  json += showDate ? "true" : "false";
-  json += ",\"blink\":";
-  json += blinkColon ? "true" : "false";
+  json += ",\"rot\":";
+  json += (int)rotation;
+  json += ",\"face\":";
+  json += (int)face;
+  json += ",\"faces\":[";
+  for (int i = 0; i < faceCount(); i++) {
+    if (i) json += ',';
+    json += "\"";
+    for (const char* p = faceName(i); *p; ++p) {
+      if (*p == '"' || *p == '\\') json += '\\';
+      json += *p;
+    }
+    json += "\"";
+  }
+  json += "],\"gap\":";
+  json += (int)gap;
+  json += ",\"sep\":";
+  json += (int)sep;
+  json += ",\"sepw\":";
+  json += (int)sepW;
+  json += ",\"in\":";
+  json += (int)inside;
+  json += ",\"out\":";
+  json += (int)outside;
+  json += ",\"dim\":";
+  json += (int)dimPct;
   json += ",";
   appendHex(json, "ink", inkPacked());
   json += ",";
-  appendHex(json, "ink2", ink2Packed());
-  json += ",\"grad\":";
-  json += gradient ? "true" : "false";
-  json += ",\"dim\":";
-  json += (int)dimPct;
+  appendHex(json, "bg", bgPacked());
   json += ",\"fade\":";
   json += fade ? "true" : "false";
   // The panel as the pattern sees it (native), for the page's preview.
@@ -156,10 +165,10 @@ inline bool flag(const char* name, bool current) {
   return v == "1" || v == "true" || v == "on";
 }
 
-inline uint8_t small(const char* name, uint8_t current, uint8_t max) {
+inline uint8_t small(const char* name, uint8_t current, uint8_t lo, uint8_t hi) {
   if (!server().hasArg(name)) return current;
   long v = server().arg(name).toInt();
-  if (v < 0 || v > max) return current;
+  if (v < lo || v > hi) return current;
   return (uint8_t)v;
 }
 
@@ -178,20 +187,20 @@ inline bool hexArg(const char* name, uint32_t* out) {
 inline void configOnLoop() {
   using namespace PatternflowClockFace;
   enabled = flag("on", enabled);
-  style = small("style", style, ClipInverse);
-  size = small("size", size, Large);
-  pos = small("pos", pos, Center);
-  rotation = small("rot", rotation, 3);
-  showSeconds = flag("sec", showSeconds);
   twelveHour = flag("h12", twelveHour);
-  showDate = flag("date", showDate);
-  blinkColon = flag("blink", blinkColon);
-  gradient = flag("grad", gradient);
+  rotation = small("rot", rotation, 0, 3);
+  int nf = faceCount();
+  face = small("face", face, 0, (uint8_t)(nf > 0 ? nf - 1 : 0));
+  gap = small("gap", gap, 0, 32);
+  sep = small("sep", sep, 0, SepColour);
+  sepW = small("sepw", sepW, 1, 8);
+  inside = small("in", inside, 0, FillColour);
+  outside = small("out", outside, 0, FillColour);
+  dimPct = small("dim", dimPct, 0, 100);
   fade = flag("fade", fade);
-  dimPct = small("dim", dimPct, 100);
   uint32_t rgb;
   if (hexArg("ink", &rgb)) setInkPacked(rgb);
-  if (hexArg("ink2", &rgb)) setInk2Packed(rgb);
+  if (hexArg("bg", &rgb)) setBgPacked(rgb);
   if (server().hasArg("tz")) {
     String z = server().arg("tz");
     z.trim();

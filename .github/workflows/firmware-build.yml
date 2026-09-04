@@ -8,7 +8,7 @@ name: Firmware builds
 # was found by whoever next ran `firmware/bundles/build.sh all` at their desk.
 # The 3.9.1 cycle moved the network onto its own core across a dozen files
 # and reached dev without a compiler ever seeing it in CI. That is what this
-# workflow closes: the same `build.sh all` — default, audio, performance, utility, then
+# workflow closes: the same `build.sh all` — default, audio, performance, clock, then
 # the marker scan that proves each image carries exactly its own features —
 # on a runner, with the PlatformIO packages cached so a warm run is minutes.
 #
