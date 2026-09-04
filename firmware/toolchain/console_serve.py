@@ -53,6 +53,7 @@ ROUTES = {
     "/mqtt": "mqtt",
     "/audio": "audio",
     "/midi": "midi",
+    "/clock": "clock",
 }
 
 # Assets the device serves out of its own headers, extracted live so a change
@@ -62,7 +63,7 @@ RAW_ASSETS = {
     "/patterns/fflate.js": ("src/fflate_js.h", "FFLATE", "application/javascript"),
 }
 
-CAPS_FULL = ["patterns", "params", "osc", "sleep", "shows", "weather", "mqtt", "audio"]
+CAPS_FULL = ["patterns", "params", "osc", "sleep", "shows", "weather", "mqtt", "audio", "clock"]
 CAPS_BARE = ["patterns", "params", "osc", "sleep"]
 
 
@@ -386,6 +387,13 @@ class Handler(BaseHTTPRequestHandler):
                 "tzOffsetMin": 540, "clockOverlay": False,
                 "layoutExtended": False, "timeSynced": True,
                 "localTime": "23:13:54", "knobs": [0.0, 0.0, 0.0, 0.0],
+            })
+        if path.startswith("/api/clock"):
+            return self.send_json({
+                "ok": True, "on": True, "tz": "KST-9", "pos": 1, "size": 0,
+                "rot": 1, "sec": False, "h12": False, "date": False,
+                "blink": False, "ink": "F5F5F5", "synced": True,
+                "time": "23:13:54", "today": "Thu Sep 04 2026", "zone": "KST",
             })
         if path.startswith("/api/midi"):
             return self.send_json({

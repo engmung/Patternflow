@@ -246,4 +246,38 @@ export const EDITIONS: Edition[] = [
       'missing mic from a quiet room, says so on the Mic page, and lets ' +
       'nothing drive the knobs until you turn it on.',
   },
+  {
+    id: 'utility',
+    name: 'Patternflow Utility',
+    tier: 'official',
+    reason: 'not-universal',
+    maintainer: 'SeungHun Lee',
+    maintainerHref: 'https://github.com/engmung',
+    status: 'available',
+    summary:
+      'A panel that also tells you things: the time over whatever pattern ' +
+      'is running, and the weather outside turning up as light.',
+    adds: [
+      'A clock over any pattern — a corner or the centre, three sizes up to ' +
+        'seven-segment digits, seconds, the date, twelve or twenty-four ' +
+        'hours, a colour of your choosing',
+      'Time zones with their summer-time rule, so the clock moves itself in ' +
+        'spring and autumn',
+      'Weather — temperature, humidity and wind on the knob lanes, from ' +
+        'OpenWeather with your own key',
+    ],
+    hosted: {
+      version: 'v0.1.0',
+      url: 'https://patternflow.work/flash/bin/utility-v0.1.0/patternflow.ino.bin',
+    },
+    source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/utility',
+    note:
+      'For a panel on a shelf or a desk that you glance at. It carries no ' +
+      'control surface — no broker, no sequences, no sound — because a ' +
+      'clock should not need one to exist. The clock is drawn after the ' +
+      'pattern has finished its frame, outlined so the pattern shows ' +
+      'through, and stays off while the panel\'s own menus are up. Weather ' +
+      'is the same feature the Performance edition carries; the clock was ' +
+      'a request from outside, and this is the edition made for it.',
+  },
 ];

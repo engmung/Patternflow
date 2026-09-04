@@ -1,6 +1,6 @@
 # Patternflow HTTP API Specification
 
-**Spec version: 1.0** · applies to firmware **≥ 3.5.1**.
+**Spec version: 1.3** · applies to firmware **≥ 3.5.1**; the version history at the end says which release each later endpoint arrived with.
 
 One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still lists sleep mode and the absolute parameter bus under `[Unreleased]`, since those entries are held back to release together with the performance-director firmware. The *code* shipped — the `v3.5.1` tag contains all of it, and the firmware tree has not changed since. Everything documented here is in a released build.
 
@@ -341,6 +341,21 @@ toggles — from the console's `/audio-in` bar.
 | `GET /api/audio` | `audioRuntime` (the switch) and `audioClients` (WebSocket senders connected on :81). |
 | `POST /api/audio` | `on=0/1`. Persisted in NVS; answers with the new state. |
 
+## Clock (Utility edition)
+
+Gated on `"clock"` in `caps`; the page is `/clock`. Settings persist in NVS
+under the feature's own namespace, and `/api/status` carries a `clock` block
+(`on`, `synced`, `tz`).
+
+| Endpoint | Meaning |
+|---|---|
+| `GET /api/clock` | Every setting — `on`; `tz`, a POSIX TZ string (`KST-9`, `CET-1CEST,M3.5.0,M10.5.0/3` — note the inverted sign, and that this form carries the DST rule); `pos` (0 top-left, 1 top-right, 2 bottom-left, 3 bottom-right, 4 centre); `size` (0 small, 1 medium, 2 large seven-segment); `rot` (quarter turns of the panel; 1 is stood on end, as the device's own menus are); `sec`, `h12`, `date`, `blink`; `ink` as `RRGGBB` — plus what the panel currently believes: `synced`, `time` (`HH:MM:SS`), `today`, `zone` (the abbreviation in force, so summer time is visible). |
+| `POST /api/clock` | Any subset of the same fields, form-encoded; partial updates are the point. A changed `tz` restarts NTP against the new zone. Answers as `GET`. |
+
+The zone is the clock's. Another feature may set the C library's `TZ` from a
+setting of its own — the weather page's UTC offset does, on save — and the
+clock puts it back within a second. Nothing is drawn while `synced` is false.
+
 ## Wi-Fi
 
 Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWORKS` are remembered and tried in order.
@@ -424,6 +439,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
+- **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
 - **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.
 - **1.0** — first written contract for the HTTP API. Covers status, sleep, display calibration, patterns (list / select / sidecar / install / delete), the MQTT status and configuration endpoints, Wi-Fi, and firmware update; documents the single-connection rule, the console-pause rule, the queued-write rule, and the knob read/write asymmetry.

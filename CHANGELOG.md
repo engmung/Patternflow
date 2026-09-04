@@ -4,6 +4,12 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Utility edition** (`firmware/bundles/utility/`, v0.1.0) — a clock over any pattern, and weather; nothing that drives the panel from elsewhere. The fourth card on `/editions`, cut for a request from outside: a clock, as a utility, with no control surface attached.
+- **`features/clock/`** — a wall clock drawn over the running pattern: a corner or the centre; three sizes (the chrome font, the title font, and seven-segment digits drawn as rectangles and sized to the panel, so they fit any panel in any orientation); seconds, the date, 12/24 h, a blinking colon, a colour — all with a 1 px black outline so the pattern shows through. `/clock` sets it up; `GET`/`POST /api/clock` is the contract (`docs/rest-api.md` 1.3). The time zone is a POSIX TZ string with its DST rule — the weather page's UTC offset cannot say when summer time starts — and the clock owns it: whatever else sets `TZ` is put back within a second. On first boot the offset a panel had already given the weather page is read, never written, as the starting zone. Nothing is drawn until NTP has answered once.
+- Core: `PatternflowClock::beginSyncTz()` and `assertTz()` in `src/core_clock.h`, the POSIX-zone entry points beside the minutes-offset one. The only core change.
+- The tooling knows the fourth composition: `build.sh all` builds and scans `utility` (the clock's marker is `[CLOCK] /clock ready`), `release.py cut --utility vX`, `check_versions.py`, the console page list and the fake device (`/api/clock`).
+
 ## [3.9.4] - 2026-09-04
 
 ### Changed — web

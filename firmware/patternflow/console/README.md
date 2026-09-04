@@ -36,6 +36,7 @@ CI checks the two stay in sync.
 | `mqtt.html`      | `/mqtt`     | `features/mqtt/core_mqtt_http.h`         | `features/mqtt/mqtt_index.h`           |
 | `audio-in.html`  | `/audio-in` | `features/audio_in/core_audio_in_http.h` | `features/audio_in/audio_in_index.h`   |
 | `midi.html`      | `/midi`     | `features/midi/core_midi_http.h`         | `features/midi/midi_index.h`           |
+| `clock.html`     | `/clock`    | `features/clock/core_clock_http.h`       | `features/clock/clock_index.h`         |
 
 The list `console_pages.py` splices is `PAGES` at the top of that script — add a
 row there when you add a page. `audio-in.html` is itself generated, from the

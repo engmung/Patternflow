@@ -57,13 +57,14 @@ itself and any settings it needs different.
 **An edition** is a composition somebody published — a firmware with a name, a
 version of its own, and a card on
 [patternflow.work/editions](https://patternflow.work/editions) that installs it
-in one click. Three exist:
+in one click. Four exist:
 
 | | carries | whose |
 |---|---|---|
 | **Patternflow** | nothing — the device itself | the product |
 | **Audio** | OSC, MIDI, browser audio, the on-board microphone | SeungHun Lee |
 | **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
+| **Utility** | a clock over any pattern, weather | SeungHun Lee |
 
 The word "addon" is retired. It suggested something optional or third-party,
 and none of these are: they are first-class capabilities that happen to live

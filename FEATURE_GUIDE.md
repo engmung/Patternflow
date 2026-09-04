@@ -128,7 +128,8 @@ task + HTTP API + console page + NVS persistence), `midi` (a transport-agnostic
 mapping with the network transport beside it, [`docs/midi-spec.md`](docs/midi-spec.md)),
 `ble` (a radio that starts itself only when needed and hands its memory back;
 in no edition yet),
-`mqtt`, `show`, `weather`.
+`mqtt`, `show`, `weather`, and `clock` — the smallest of them (settings in
+NVS, a page, an overlay, one hook of each kind) and the one to read first.
 
 ### What done looks like
 

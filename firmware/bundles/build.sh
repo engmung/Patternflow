@@ -30,7 +30,7 @@ BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
 #
 #   ./firmware/bundles/build.sh all
 #
-# It builds default, audio and performance, then scans each image for one
+# It builds default, audio, performance and utility, then scans each image for one
 # marker string per feature — a literal that lives only in that feature's
 # sources, verified by grep before it was trusted here. An edition must
 # contain its own features' markers and NONE of the others'. That checks the
@@ -49,18 +49,20 @@ if [ "${1:-}" = "all" ]; then
     [weather]='openweathermap'
     [midi]='[MIDI] rtp listening'
     [ble]='[BLE] setup advertising'
+    [clock]='[CLOCK] /clock ready'
   )
   declare -A WANT=(
     [default]=''
     [audio]='osc audio audio_in midi'
     [performance]='mqtt show weather'
+    [utility]='weather clock'
   )
   # Outside PF_BUILD_DIR: PlatformIO prunes directories it does not know
   # from its own build root, and it does not know this one.
   OUTDIR="${BUILD_DIR}-editions"
   mkdir -p "$OUTDIR"
   overall=0
-  for ed in default audio performance; do
+  for ed in default audio performance utility; do
     printf '%-12s building… ' "$ed"
     t0=$(date +%s)
     log="$OUTDIR/$ed.log"
@@ -76,7 +78,7 @@ if [ "${1:-}" = "all" ]; then
     cp "$BUILD_DIR/firmware/firmware.bin" "$OUTDIR/$ed.bin"
     verdict=ok
     detail=""
-    for f in osc audio audio_in mqtt show weather midi ble; do
+    for f in osc audio audio_in mqtt show weather midi ble clock; do
       case " ${WANT[$ed]} " in *" $f "*) want=1 ;; *) want=0 ;; esac
       if grep -qaF -- "${MARK[$f]}" "$OUTDIR/$ed.bin"; then have=1; else have=0; fi
       if [ "$want" != "$have" ]; then

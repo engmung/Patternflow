@@ -47,6 +47,7 @@ A bundle earns its place when it carries something the default **cannot**:
 |---|---|
 | **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, and MIDI over the network |
 | **performance** | the show player, MQTT in every role, weather — Simone Majocchi's performance-director firmware, pinned so a show behaves the same at the next gig |
+| **utility** | a clock over the running pattern, and weather — for a panel on a shelf that also tells you things, without a control surface attached to do it |
 
 Three shapes of reason, and they are not the same:
 

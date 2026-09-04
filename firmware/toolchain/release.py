@@ -44,7 +44,7 @@ AGENTS = ROOT / "AGENTS.md"
 MANIFEST = ROOT / "web/public/flash/manifest.json"
 EDITIONS_TS = ROOT / "web/src/app/editions/editions-data.ts"
 BIN_DIR = ROOT / "web/public/flash/bin"
-EDITIONS = ("audio", "performance")
+EDITIONS = ("audio", "performance", "utility")
 CO_AUTHOR = "Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 TRAILER = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 
@@ -181,14 +181,15 @@ def bump_agents(core: str, today: str, editions_now: dict[str, str]) -> None:
     text, crlf = read(AGENTS)
     text = sub_once(text, r"- Project: v\d+\.\d+\.\d+ \(current, released \d{4}-\d{2}-\d{2}\)",
                     f"- Project: {core} (current, released {today})", "the 'Project: vX (current, released …)' line in AGENTS.md")
-    audio = editions_now.get("audio")
-    perf = editions_now.get("performance")
-    if audio and perf:
-        text = sub_once(text, r"Audio v\d+\.\d+\.\d+, Performance v\d+\.\d+\.\d+ at the time of writing",
-                        f"Audio {audio}, Performance {perf} at the time of writing",
-                        "the 'Audio vA, Performance vB at the time of writing' line in AGENTS.md")
+    if all(editions_now.get(n) for n in EDITIONS):
+        # "Audio vA, Performance vB, Utility vC at the time of writing" - one
+        # clause per edition, in EDITIONS order, so adding an edition is one
+        # tuple entry here and one clause in AGENTS.md.
+        pattern = ", ".join(rf"{n.capitalize()} v\d+\.\d+\.\d+" for n in EDITIONS) + " at the time of writing"
+        repl = ", ".join(f"{n.capitalize()} {editions_now[n]}" for n in EDITIONS) + " at the time of writing"
+        text = sub_once(text, pattern, repl, "the editions' 'at the time of writing' line in AGENTS.md")
     write(AGENTS, text, crlf)
-    print(f"  AGENTS.md: current {core}, Audio {audio}, Performance {perf}")
+    print(f"  AGENTS.md: current {core}, " + ", ".join(f"{n.capitalize()} {editions_now.get(n)}" for n in EDITIONS))
 
 
 def shelf(name: str, version: str) -> None:

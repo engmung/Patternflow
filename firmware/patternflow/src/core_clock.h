@@ -26,6 +26,8 @@
 #pragma once
 
 #include <Arduino.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 namespace PatternflowClock {
@@ -44,6 +46,29 @@ constexpr uint32_t REFRESH_MS = 500;
 inline void beginSync(int tzOffsetMinutes) {
   started = true;
   configTime((long)tzOffsetMinutes * 60L, 0, "pool.ntp.org", "time.google.com");
+}
+
+// The same, for a zone given as a POSIX TZ string ("KST-9",
+// "CET-1CEST,M3.5.0,M10.5.0/3") - the form the C library reads, and the only
+// one that carries a DST rule. A minutes offset cannot say when summer time
+// starts.
+inline void beginSyncTz(const char* posixTz) {
+  if (!posixTz || !posixTz[0]) return;
+  started = true;
+  configTzTime(posixTz, "pool.ntp.org", "time.google.com");
+  cachedOk = false;  // the caller's next read is already in the new zone
+}
+
+// Put TZ back if something else has set it, without touching SNTP. Two
+// features may each hold a zone setting; whichever owns it calls this from
+// its loop. The check is a strcmp, so calling it often costs nothing.
+inline void assertTz(const char* posixTz) {
+  if (!posixTz || !posixTz[0]) return;
+  const char* cur = getenv("TZ");
+  if (cur && strcmp(cur, posixTz) == 0) return;
+  setenv("TZ", posixTz, 1);
+  tzset();
+  cachedOk = false;  // the next reader re-derives local time in the new zone
 }
 
 inline void refresh() {
