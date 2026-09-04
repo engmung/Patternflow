@@ -25,6 +25,10 @@ on:
       - "firmware/modules/**"
       - "firmware/toolchain/**"
       - "web/src/lib/presets/**"
+      # The version lives in six files; check_versions.py reads these three too.
+      - "web/public/flash/**"
+      - "web/src/app/editions/editions-data.ts"
+      - "AGENTS.md"
       - ".github/workflows/firmware-checks.yml"
   push:
     branches: [main]
@@ -33,6 +37,9 @@ on:
       - "firmware/bundles/**"
       - "firmware/modules/**"
       - "firmware/toolchain/**"
+      - "web/public/flash/**"
+      - "web/src/app/editions/editions-data.ts"
+      - "AGENTS.md"
 
 concurrency:
   group: firmware-checks-${{ github.ref }}
@@ -56,3 +63,5 @@ jobs:
         run: python firmware/toolchain/check_sources.py
       - name: Web and firmware presets are still twins
         run: python firmware/toolchain/check_presets.py
+      - name: The six places a version lives agree
+        run: python firmware/toolchain/check_versions.py

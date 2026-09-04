@@ -10,7 +10,34 @@ The project version covers firmware, PCB, case files, web, and docs together. Us
 - **MINOR** (`v2.1.0`) -- new patterns, new web features, compatible case or PCB improvements.
 - **MAJOR** (`v3.0.0`) -- hardware-incompatible changes, major interaction changes, or a new build path.
 
+## Two commands
+
+Since 3.9.3 the checklist below is a script. On `dev`, with a clean tree and
+the `[Unreleased]` section of `CHANGELOG.md` written:
+
+```bash
+python firmware/toolchain/release.py cut v3.9.4 --audio v0.5.4 --performance v0.2.4
+```
+
+bumps the versions, dates the changelog section, updates `AGENTS.md`, runs
+`shelf.sh` for the core and each named edition, points the flasher manifest
+and the `/editions` cards at the new images, runs the web checks, commits
+`release: v3.9.4` and tags it. Name only the editions that should be re-cut;
+the others keep their image. Then write the release notes and
+
+```bash
+python firmware/toolchain/release.py publish v3.9.4 --notes notes.md
+```
+
+pushes, opens the dev → main pull request from the changelog section, waits
+for its checks, merges, creates the GitHub release from the notes, attaches
+the edition images under their release names, and waits for the workflow
+that attaches the core images. `README.md`'s *Moving fast* note is prose and
+stays yours. `cut --no-build --no-commit` is the dry run.
+
 ## Release checklist
+
+What the two commands do, step by step - and the way to do it by hand.
 
 1. Make sure all intended changes are committed, and `./firmware/bundles/build.sh all` is green if anything under `firmware/` moved.
 2. Bump the version the firmware reports: `PF_IMPROV_FW_VERSION` in `firmware/patternflow/net_config.h` (written `X.Y.Z`, no `v`). `shelf.sh` refuses a core image whose define disagrees with the version it is being shelved as.

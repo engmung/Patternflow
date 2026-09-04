@@ -7,8 +7,9 @@
 //
 // Format: `@ramp <mode> [wrap] [recolor] <pos>:<#rrggbb> ...` — mode is one of
 // the harness RampModes; stops are position:hex pairs sorted or not (parser
-// tolerates any order). Parsed by this module (lab, community pages) AND by
-// public/pattern-sandbox.html (plain-JS port) — keep the two in sync.
+// tolerates any order). Parsed here for the lab, the community pages and the
+// sandbox alike — public/pattern-sandbox.html is built from this module
+// (scripts/build-sandbox.ts), so there is no second parser to keep in step.
 
 import { RAMP_MODES, type RampMode } from "@/lib/pattern/harness";
 
