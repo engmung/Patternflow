@@ -54,7 +54,14 @@ select:focus,input[type=text]:focus{outline:none;border-color:var(--led)}
 .sws{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .sw{width:22px;height:22px;border-radius:2px;border:2px solid transparent;padding:0;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
 .sw.on{border-color:var(--ink)}
-.sws input[type=text]{width:88px}
+/* The browser's own colour picker — a wheel on a phone, a spectrum with an
+   eyedropper on a desktop. Nothing to load; it is an input type. */
+.pick{width:40px;height:22px;padding:0;border:1px solid var(--rule);border-radius:2px;
+background:none;cursor:pointer;vertical-align:middle}
+.pick::-webkit-color-swatch-wrapper{padding:2px}
+.pick::-webkit-color-swatch{border:none;border-radius:1px}
+.pick::-moz-color-swatch{border:none;border-radius:1px}
+.pick:hover{border-color:var(--faint)}
 .switch{display:inline-flex;align-items:center;gap:10px;background:none;border:none;padding:0;cursor:pointer;
 font:inherit;font-size:13px;color:var(--muted)}
 .switch i{width:34px;height:20px;border-radius:10px;border:1px solid var(--rule);background:var(--panel);position:relative;display:inline-block}
@@ -138,11 +145,10 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
       <div class="row"><label>Between</label>
         <div class="segs" id="seps">
           <button type="button" class="seg" data-v="0">Nothing</button>
-          <button type="button" class="seg" data-v="1">Bar · the pattern</button>
-          <button type="button" class="seg" data-v="2">Bar · ink</button>
+          <button type="button" class="seg" data-v="1">A bar</button>
         </div></div>
       <div class="row" id="sepwrow"><label for="f-sepw">Bar</label><input id="f-sepw" type="range" min="1" max="8" value="2"><span class="val" id="f-sepw-v">2 px</span></div>
-      <p class="note">Upright, the bar sits between hours and minutes; on its side it is the face's own colon.</p>
+      <p class="note">The bar is cut from the pattern exactly as the digits are. Upright it sits between hours and minutes; on its side it is the face's own colon.</p>
     </section>
 
     <section>
@@ -166,7 +172,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
           <button type="button" class="sw" data-v="57B87F" style="background:#57B87F"></button>
           <button type="button" class="sw" data-v="4EA8DE" style="background:#4EA8DE"></button>
           <button type="button" class="sw" data-v="C77DFF" style="background:#C77DFF"></button>
-          <input type="text" id="f-ink" maxlength="7" spellcheck="false">
+          <input type="color" class="pick" id="f-ink" title="Pick any colour">
         </div></div>
       <div class="row" id="bgrow"><label>Outside</label>
         <div class="sws" id="bgs">
@@ -176,7 +182,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
           <button type="button" class="sw" data-v="2E1A14" style="background:#2E1A14"></button>
           <button type="button" class="sw" data-v="FF5C2E" style="background:#FF5C2E"></button>
           <button type="button" class="sw" data-v="F4EFE6" style="background:#F4EFE6"></button>
-          <input type="text" id="f-bg" maxlength="7" spellcheck="false">
+          <input type="color" class="pick" id="f-bg" title="Pick any colour">
         </div></div>
       <p class="note">Pattern inside, black outside is the clock as cut-out. Solid ink on the pattern is the same layout as an overlay. Solid on solid is a plain clock.</p>
     </section>
@@ -273,7 +279,7 @@ function reflect(){
   $('sepwrow').hidden=V.sep===0;
   $('dimrow').hidden=V.out!==0;
   $('bgrow').hidden=V.out!==1;
-  $('inkrow').hidden=!(V['in']===1||V.sep===2);
+  $('inkrow').hidden=V['in']!==1;
   var known=false,o=$('f-zone').options;
   for(var i=0;i<o.length;i++){if(o[i].value===V.tz)known=true}
   $('f-zone').value=known?V.tz:'custom';
@@ -331,13 +337,13 @@ function wireRange(id,key,unit){
   el.addEventListener('change',function(){var o={};o[key]=+el.value;set(o)});
 }
 wireRange('f-gap','gap','px');wireRange('f-sepw','sepw','px');wireRange('f-dim','dim','%');
-function wireHex(id,key){
-  $(id).addEventListener('change',function(){
-    var h=$(id).value.trim().replace('#','').toUpperCase();
-    if(/^[0-9A-F]{6}$/.test(h)){var o={};o[key]=h;set(o)}else{$(id).value='#'+V[key]}
-  });
+// Dragging in the picker paints the preview; letting go is what the panel hears.
+function wireColour(id,key){
+  var el=$(id);
+  el.addEventListener('input',function(){V[key]=el.value.replace('#','').toUpperCase();reflect()});
+  el.addEventListener('change',function(){var o={};o[key]=el.value.replace('#','').toUpperCase();set(o)});
 }
-wireHex('f-ink','ink');wireHex('f-bg','bg');
+wireColour('f-ink','ink');wireColour('f-bg','bg');
 $('f-zone').onchange=function(){
   var z=$('f-zone').value;
   if(z==='custom'){$('customrow').hidden=false;$('f-tz').focus();return}
@@ -440,19 +446,17 @@ function putSeparator(mask,L){
   else putGlyph(mask,g,10,L.x0+pw+((L.midW-g.cw)/2|0),L.y0);
 }
 function compose(){
-  var n=fbW*fbH,mask=new Uint8Array(n),bar=new Uint8Array(n),L=layout();
+  var n=fbW*fbH,mask=new Uint8Array(n),L=layout();
   if(L){var t=nowParts(),hh=dispHour(t[0]),mm=t[1],g=L.g;
     putGlyph(mask,g,hh/10|0,L.x0,L.y0);putGlyph(mask,g,hh%10,L.x0+g.w+g.gap,L.y0);
     putGlyph(mask,g,mm/10|0,L.x1,L.y1);putGlyph(mask,g,mm%10,L.x1+g.w+g.gap,L.y1);
-    if(V.sep===1)putSeparator(mask,L);else if(V.sep===2)putSeparator(bar,L)}
+    if(V.sep===1)putSeparator(mask,L)}
   var inP=V['in']===0,outP=V.out===0,dim=V.dim/100,ink=hex(V.ink),bg=hex(V.bg);
   for(var i=0;i<n;i++){var a=mask[i]/255,j=i*3;
     var sr=fb[j],sg=fb[j+1],sb=fb[j+2];
     var oR=outP?sr*dim:bg[0],oG=outP?sg*dim:bg[1],oB=outP?sb*dim:bg[2];
     var iR=inP?sr:ink[0],iG=inP?sg:ink[1],iB=inP?sb:ink[2];
-    var r=oR*(1-a)+iR*a,gg=oG*(1-a)+iG*a,b=oB*(1-a)+iB*a;
-    if(V.sep===2&&bar[i]){var s=bar[i]/255;r=r*(1-s)+ink[0]*s;gg=gg*(1-s)+ink[1]*s;b=b*(1-s)+ink[2]*s}
-    fb[j]=r;fb[j+1]=gg;fb[j+2]=b}
+    fb[j]=oR*(1-a)+iR*a;fb[j+1]=oG*(1-a)+iG*a;fb[j+2]=oB*(1-a)+iB*a}
 }
 function background(tm){
   var t=tm/1000;

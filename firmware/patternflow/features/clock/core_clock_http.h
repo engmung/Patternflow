@@ -8,13 +8,13 @@
 //   GET  /api/clock          every setting, plus the panel's time as it sees it
 //   POST /api/clock          any subset of:
 //        on=0|1  tz=<POSIX TZ>  h12=0|1  rot=0..3  face=0..N-1  gap=0..32
-//        sep=0|1|2  sepw=1..8  in=0|1  out=0|1  dim=0..100
+//        sep=0|1  sepw=1..8  in=0|1  out=0|1  dim=0..100
 //        ink=RRGGBB  bg=RRGGBB  fade=0|1     - persisted, answers as GET
 //
 // rot:  quarter turns of the panel; 1 is upright, the way its menus read.
 // gap:  px between the rows (upright) or between the pairs (wide).
-// sep:  the bar between the rows / the colon across - 0 none, 1 cut from
-//       the pattern like the digits, 2 drawn in the ink colour.
+// sep:  the bar between the rows, the face's own colon across - 0 none,
+//       1 cut from the pattern exactly as the digits are.
 // in:   inside the digits - 0 the pattern, 1 the ink colour.
 // out:  outside them - 0 the pattern at `dim` percent, 1 the bg colour.
 //
@@ -192,7 +192,7 @@ inline void configOnLoop() {
   int nf = faceCount();
   face = small("face", face, 0, (uint8_t)(nf > 0 ? nf - 1 : 0));
   gap = small("gap", gap, 0, 32);
-  sep = small("sep", sep, 0, SepColour);
+  sep = small("sep", sep, 0, SepPattern);
   sepW = small("sepw", sepW, 1, 8);
   inside = small("in", inside, 0, FillColour);
   outside = small("out", outside, 0, FillColour);

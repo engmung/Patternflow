@@ -269,8 +269,8 @@ export const EDITIONS: Edition[] = [
         'spring and autumn',
     ],
     hosted: {
-      version: 'v0.1.0',
-      url: 'https://patternflow.work/flash/bin/clock-v0.1.0/patternflow.ino.bin',
+      version: 'v0.1.1',
+      url: 'https://patternflow.work/flash/bin/clock-v0.1.1/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/clock',
     note:

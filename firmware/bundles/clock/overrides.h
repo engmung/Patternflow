@@ -14,7 +14,7 @@
 // edition's own and moves at whatever pace suits it — it has nothing to say
 // about the core version, which is reported separately.
 #define PF_VARIANT          "clock"
-#define PF_VARIANT_VERSION  "v0.1.0"
+#define PF_VARIANT_VERSION  "v0.1.1"
 
 // Nothing else is changed. The radio stays at the conformance-tested setting,
 // no preset rides along, and a panel switching to this edition keeps its

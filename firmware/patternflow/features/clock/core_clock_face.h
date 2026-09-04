@@ -8,11 +8,11 @@
 // One idea, adjustable: huge digits - hours over minutes on an upright
 // panel, four across on a wide one - and the pattern shows through them.
 // Inside the digits, the pattern or a solid colour; outside them, the
-// pattern dimmed to taste or a solid colour; between the two rows a bar
-// (or, across, the face's own colon) that is either cut from the pattern
-// too or drawn in colour. So the same layout is a clip, a stencil, a solid
-// clock on a coloured ground, or digits over the pattern - whichever fills
-// are chosen. The minute change crossfades.
+// pattern dimmed to taste or a solid colour; between the two rows an
+// optional bar (across, the face's own colon), cut from the pattern exactly
+// as the digits are. So the same layout is a clip, a stencil, a solid clock
+// on a coloured ground, or digits over the pattern - whichever fills are
+// chosen. The minute change crossfades.
 //
 // The digits come from clock_glyphs.h: typefaces rasterised offline into
 // 4-bit alpha cells by toolchain/build_clock_glyphs.py, several faces, two
@@ -56,7 +56,7 @@ constexpr size_t TZ_BYTES = 48;
 constexpr const char* NVS_NS = "pfclock";
 
 enum Fill : uint8_t { FillPattern = 0, FillColour = 1 };
-enum Sep : uint8_t { SepOff = 0, SepPattern = 1, SepColour = 2 };
+enum Sep : uint8_t { SepOff = 0, SepPattern = 1 };
 
 // ── Settings ─────────────────────────────────────────────────────────────
 inline bool enabled = false;
@@ -198,7 +198,9 @@ inline void loadConfig() {
   rotation &= 3;
   if (face >= faceCount()) face = 0;
   if (gap > 32) gap = 32;
-  if (sep > SepColour) sep = SepOff;
+  // A panel that had the ink-coloured bar (a third option, retired before it
+  // was released) reads back as the pattern-cut bar rather than as nothing.
+  if (sep > SepPattern) sep = SepPattern;
   if (sepW < 1) sepW = 1;
   if (sepW > 8) sepW = 8;
   if (inside > FillColour) inside = FillPattern;
@@ -351,14 +353,12 @@ inline bool layoutFor(Layout* out) {
 
 // ── Masks ────────────────────────────────────────────────────────────────
 //
-// Coverage per native pixel, 0..255. `digits` is what the time cuts out
-// (plus the separator when it is cut from the pattern too); `bar` is the
-// separator when it is drawn in colour. Two digit masks, so the minute
-// change can crossfade from the old digits to the new.
+// Coverage per native pixel, 0..255: `digits` is what the time cuts out of
+// the frame, separator included. Two of them, so the minute change can
+// crossfade from the old digits to the new.
 inline uint8_t* scratch = nullptr;
 inline uint8_t* maskA = nullptr;
 inline uint8_t* maskB = nullptr;
-inline uint8_t* barMask = nullptr;
 inline bool maskIsA = true;
 inline uint32_t maskKey = 0xFFFFFFFFu;
 inline uint32_t fadeStartMs = 0;
@@ -408,7 +408,6 @@ inline void maskSeparator(uint8_t* m, const Layout& L) {
 inline void buildMasks(uint8_t* digits, const struct tm& t) {
   const size_t n = (size_t)nativeW * nativeH;
   memset(digits, 0, n);
-  memset(barMask, 0, n);
   Layout L;
   if (!layoutFor(&L)) return;
   const int hh = displayHour(t), mm = t.tm_min;
@@ -418,7 +417,6 @@ inline void buildMasks(uint8_t* digits, const struct tm& t) {
   maskGlyph(digits, g, mm / 10, L.x1, L.y1);
   maskGlyph(digits, g, mm % 10, L.x1 + g.w + g.gap, L.y1);
   if (sep == SepPattern) maskSeparator(digits, L);
-  else if (sep == SepColour) maskSeparator(barMask, L);
 }
 
 // ── The hook ─────────────────────────────────────────────────────────────
@@ -432,8 +430,7 @@ inline const uint8_t* compose(const uint8_t* canvas, int w, int h) {
   if (!scratch) scratch = (uint8_t*)PFMem::alloc(n * 3);
   if (!maskA) maskA = (uint8_t*)PFMem::alloc(n);
   if (!maskB) maskB = (uint8_t*)PFMem::alloc(n);
-  if (!barMask) barMask = (uint8_t*)PFMem::alloc(n);
-  if (!scratch || !maskA || !maskB || !barMask) return nullptr;
+  if (!scratch || !maskA || !maskB) return nullptr;
   setGeometry(w, h);
 
   // Rebuild when the minute or a setting changes. The minute lives in the
@@ -461,7 +458,6 @@ inline const uint8_t* compose(const uint8_t* canvas, int w, int h) {
   const bool inPattern = (inside == FillPattern);
   const bool outPattern = (outside == FillPattern);
   const uint16_t dim = (uint16_t)dimPct * 255 / 100;
-  const bool bar = (sep == SepColour);
 
   const uint8_t* src = canvas;
   uint8_t* dst = scratch;
@@ -489,14 +485,6 @@ inline const uint8_t* compose(const uint8_t* canvas, int w, int h) {
       r = (oR * (255 - a) + iR * a) / 255;
       g = (oG * (255 - a) + iG * a) / 255;
       b = (oB * (255 - a) + iB * a) / 255;
-    }
-    if (bar) {
-      const uint16_t s = barMask[i];
-      if (s) {
-        r = (r * (255 - s) + inkR * s) / 255;
-        g = (g * (255 - s) + inkG * s) / 255;
-        b = (b * (255 - s) + inkB * s) / 255;
-      }
     }
     dst[0] = (uint8_t)r;
     dst[1] = (uint8_t)g;
