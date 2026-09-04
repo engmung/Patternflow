@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
+import { CROWD_SUPPLY_URL } from '@/lib/crowdSupply';
 import BuildCard from './InsideGlobe/BuildCard';
 import BuildIndex from './InsideGlobe/BuildIndex';
 import { builds } from './InsideGlobe/builds';
@@ -164,15 +165,22 @@ export default function InsidePanel({ content }: InsidePanelProps) {
                 <strong>150 subscribers</strong>, and <strong>USB-C power went back on hold</strong>.
               </span>
             </li>
-            <li className={styles.storyCurrent}>
+            <li>
               <time>26.8</time>
               <span>
-                Taking the <strong>Crowd Supply campaign</strong> to launch, and putting a real
-                foundation under the{' '}
-                <Link href="/community">
-                  <strong>Community</strong>
-                </Link>
-                .
+                The{' '}
+                <a href={CROWD_SUPPLY_URL} target="_blank" rel="noreferrer">
+                  <strong>Crowd Supply campaign launched</strong>
+                </a>
+                , alongside the release of <strong>firmware editions</strong> (Audio &amp; Performance)
+                and global coverage across music and synthesizer media.
+              </span>
+            </li>
+            <li className={styles.storyCurrent}>
+              <time>26.9</time>
+              <span>
+                Driving the <strong>Crowd Supply campaign to funding success</strong>, preparing for{' '}
+                <strong>mass production &amp; fulfillment</strong>, and continuing to refine the core instrument ecosystem.
               </span>
             </li>
             <li>
