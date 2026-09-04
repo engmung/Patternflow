@@ -34,7 +34,7 @@ export type RoadmapEdge = { from: string; to: string; note: string };
 // second before the client resolves the real date), and todaySeoul() is the
 // live value. Both are Asia/Seoul, so the line moves at midnight KST rather
 // than at whatever midnight the visitor's machine happens to be in.
-export const NOW = '2026-07-31';
+export const NOW = '2026-09-03';
 
 export function todaySeoul(): string {
   // en-CA formats as YYYY-MM-DD.
@@ -294,6 +294,20 @@ export const NODES: RoadmapNode[] = [
       { label: 'hardware/case (v3.0.0)', href: `${REPO}/tree/v3.0.0/hardware/case` },
       { label: 'MakerWorld listing', href: 'https://makerworld.com/ko/models/3072492-patternflow-open-source-led-synthesizer-case' },
     ],
+  },
+  {
+    id: 'case-petg',
+    lane: 'case',
+    date: '2026-08-23',
+    title: 'PETG enclosure upgrade',
+    titleKo: 'PETG 인클로저 소재 전환',
+    status: 'done',
+    level: 2,
+    detail:
+      'Switched from PLA to heat-resistant PETG for mass production and international shipping stability, preventing heat warping during transit. Sponsored by PCBWay for Crowd Supply reward units.',
+    detailKo:
+      '글로벌 배송 중 고온에 의한 열변형을 방지하기 위해 3D 프린팅 소재를 PLA에서 내열성이 뛰어난 PETG로 전환했습니다. PCBWay 지원을 통해 크라우드 서플라이 리워드 완제품에 적용되었습니다.',
+    links: [{ label: 'Journal (Right Before Launch)', href: 'https://patternflow.work/journal/right-before-launch' }],
   },
 
   // Guides
@@ -592,6 +606,40 @@ export const NODES: RoadmapNode[] = [
     ],
   },
   {
+    id: 'fw-editions',
+    lane: 'firmware',
+    date: '2026-08-31',
+    title: 'Firmware editions & feature seam',
+    titleKo: '펌웨어 에디션 및 Feature Seam 분리',
+    status: 'done',
+    level: 1,
+    detail:
+      'v3.8.0 split the firmware into standalone editions over an unchanged core: Patternflow (core), Patternflow Audio (on-board PDM mic, network MIDI, browser audio-react, OSC), and Patternflow Performance (MQTT, show player, weather). Features attach through a frozen function-pointer seam (pf_feature.h); the core never names or branches on a feature. Switchable in one click from the web shelf without wiping patterns, networks or settings. CI enforces boundaries with check_boundaries.py.',
+    detailKo:
+      'v3.8.0에서 펌웨어가 변경 없는 코어 위에 독립 에디션 체계로 분리되었습니다. Patternflow(코어), Patternflow Audio(온보드 PDM 마이크, 네트워크 MIDI, 브라우저 오디오 반응, OSC), Patternflow Performance(MQTT, 시퀀스 플레이어, 날씨)로 구성됩니다. 각 기능은 함수 포인터 seam(pf_feature.h)을 통해 연결되며, 코어는 기능 이름을 직접 참조하지 않습니다. 웹 선반에서 패턴과 Wi-Fi 설정을 유지한 채 원클릭으로 교체 가능하며, CI의 check_boundaries.py가 경계를 엄격히 검증합니다.',
+    links: [
+      { label: 'EDITIONS.md', href: `${REPO}/blob/main/docs/EDITIONS.md` },
+      { label: 'Release v3.8.0', href: `${REPO}/releases/tag/v3.8.0` },
+    ],
+  },
+  {
+    id: 'fw-dualcore-pipeline',
+    lane: 'firmware',
+    date: '2026-09-03',
+    title: 'Dual-core tasking & frame acceleration',
+    titleKo: 'FreeRTOS 듀얼코어 분리 및 렌더링 가속',
+    status: 'done',
+    level: 1,
+    detail:
+      'v3.9.1–v3.9.3: Wi-Fi, HTTP and OTA moved to a dedicated FreeRTOS task pinned to Core 0, leaving Core 1 exclusively for 60fps input, draw and present. Pushing a frame dropped from 9.9ms to 6.9ms via 256-entry CIE bit-spread lookup tables. Pattern list rebuilding no longer pauses rendering (2.4s to 55ms) via cached sidecars, and PFMath::jsMod replaces fmodf libm calls for 15% faster frame times. CI now compiles all three editions automatically.',
+    detailKo:
+      'v3.9.1~v3.9.3 릴리즈: Wi-Fi, HTTP 콘솔 및 OTA 처리를 Core 0에 할당된 FreeRTOS 태스크로 분리하여 Core 1이 오직 60fps 렌더링과 인풋에만 전념하도록 격리했습니다. 256칸 CIE 룩업 테이블로 프레임 전송 시간을 9.9ms에서 6.9ms로 단축했고, 사이드카 캐싱으로 패턴 목록 재스캔 시 렌더 중단을 2.4초에서 55ms로 없앴으며, PFMath::jsMod로 libm fmodf 호출을 제거했습니다. CI에서 3개 에디션 자동 컴파일 검증도 구축되었습니다.',
+    links: [
+      { label: 'Release v3.9.3', href: `${REPO}/releases/tag/v3.9.3` },
+      { label: 'CHANGELOG.md', href: `${REPO}/blob/main/CHANGELOG.md` },
+    ],
+  },
+  {
     id: 'fw-resolution',
     lane: 'firmware',
     date: '2026-09-15',
@@ -762,6 +810,20 @@ export const NODES: RoadmapNode[] = [
       '램프를 sRGB와 HSV뿐 아니라 OKLab·OKLCH 공간에서 보간할 수 있게 했습니다. 이걸로 사라지는 두 가지 실패가 제너러티브 색이 아마추어처럼 보이는 주된 이유입니다. sRGB에서 보색 정지점을 섞으면 중간이 회색으로 죽고, HSV에서 색상만 돌리면 명도가 요동칩니다. HSV는 인간 시각의 모델이 아니라 모니터 신호를 원기둥으로 재배열한 것이기 때문입니다. 색역을 벗어나는 보간은 채널을 잘라내는 대신 명도와 색상을 고정한 채 채도만 낮춰 되돌립니다. 채널을 자르면 색이 가장 가까운 원색 쪽으로 휘어버립니다. 램프 패널에는 램프의 명도를 회색 띠로 그리고 단조성을 함께 표시합니다. 눈을 가늘게 뜨고 확인하던 테스트를 상시 계기로 만든 것입니다. 램프는 웹에서 256칸 룩업 테이블로 구워지기 때문에, 새 모드는 기기 쪽 코드를 한 줄도 고치지 않고 펌웨어·C++ 변환·로더블 모듈까지 그대로 도달했습니다.',
     issues: [287],
     links: [{ label: 'PR #287', href: `${REPO}/pull/287` }],
+  },
+  {
+    id: 'tools-director-export',
+    lane: 'tools',
+    date: '2026-08-23',
+    title: 'Director & Graphic Export',
+    titleKo: '디렉터(Director) 및 그래픽 내보내기',
+    status: 'done',
+    level: 1,
+    detail:
+      'Pattern Lab gained the Director panel (a multi-lane timeline sequencer for 4-knob parameter automation, exporting .pfs performance files and Ableton-compatible .mid tracks) and Graphic Export (rendering patterns directly into high-res print-ready PNG posters and looping MP4 video clips in the browser).',
+    detailKo:
+      '패턴랩에 디렉터(Director) 패널(4개 노브 파라미터 오토메이션 타임라인 시퀀서, .pfs 쇼 파일 및 Ableton 호환 .mid 트랙 내보내기 지원)과 그래픽 내보내기(인쇄용 고해상도 PNG 명함/포스터 및 브라우저 내 무손실 루핑 MP4 영상 클립 렌더링) 기능이 추가되었습니다.',
+    links: [{ label: 'Pattern Lab', href: 'https://patternflow.work/pattern-lab' }],
   },
   {
     id: 'tools-multiagent',
@@ -987,22 +1049,50 @@ export const NODES: RoadmapNode[] = [
     status: 'done',
     level: 2,
     detail:
-      'Accepted into the Seoul Foundation for Arts and Culture\'s arts startup incubating programme — the second support track after the Seoul Design Startup Center residency, and the one that sits on the art side of the split this project keeps straddling.',
+      'Accepted into the Seoul Foundation for Arts and Culture\'s arts startup incubating programme — the second support track after the Seoul Design Startup Center residency. Later relinquished in August when selected for the KAMS program due to concurrent public grant restrictions.',
     detailKo:
-      '서울문화재단 예술창업인큐베이팅에 합격했습니다. 서울디자인창업센터 입주에 이은 두 번째 지원 트랙이고, 이 프로젝트가 계속 걸쳐 있는 예술과 사업 사이에서 예술 쪽에 놓인 트랙입니다.',
+      '서울문화재단 예술창업인큐베이팅에 합격했습니다. 서울디자인창업센터 입주에 이은 두 번째 지원 트랙이었으나, 이후 8월 예술경영지원센터(예경) 프로그램에 최종 선정되며 중복 수혜 제한으로 인해 포기하게 됩니다.',
+  },
+  {
+    id: 'biz-kams',
+    lane: 'community',
+    date: '2026-08-21',
+    title: 'KAMS arts startup support (20:1)',
+    titleKo: '예술경영지원센터 예비창업 선정 (20:1)',
+    status: 'done',
+    level: 2,
+    detail:
+      'Selected for the Korea Arts Management Service (KAMS) Arts Pre-Startup Support Program against 20:1 competition (notified 21 Aug), offering 5M KRW in support and market validation. Chosen over the SFAC program to focus on global market preparation.',
+    detailKo:
+      '예술경영지원센터(예경) 예술분야 예비창업 지원사업에 20:1의 치열한 경쟁률을 뚫고 최종 선정되었습니다(8월 21일 선정 통보). 500만 원 상당의 간접 지원과 글로벌 시장 검증을 지원받으며, 중복 수혜 불가 규정에 따라 서울문화재단 지원 대신 예경 트랙을 선택해 집중하기로 했습니다.',
+    links: [{ label: 'Journal (Right Before Launch)', href: 'https://patternflow.work/journal/right-before-launch' }],
   },
   {
     id: 'biz-launch',
     lane: 'community',
-    date: '2026-09-25',
+    date: '2026-08-26',
     title: 'Campaign launch',
     titleKo: '크라우드 서플라이 런칭',
+    status: 'done',
+    level: 1,
+    detail:
+      'The Crowd Supply campaign officially went live: assembled instruments ($269), DIY kits and PETG cases shipping worldwide on the v3 hardware. Launched to immediate global attention across synthesizer, maker and electronic music publications.',
+    detailKo:
+      'Crowd Supply 정식 펀딩이 공식 런칭되었습니다. 완제품($269), DIY 키트, PETG 케이스를 v3 하드웨어 기준으로 전 세계에 배송하며, 글로벌 신디사이저·메이커·일렉트로닉 뮤직 전문 미디어들의 집중 조명을 받았습니다.',
+    links: [{ label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/engmung/patternflow' }],
+  },
+  {
+    id: 'biz-campaign-success',
+    lane: 'community',
+    date: '2026-09-25',
+    title: 'Campaign funding & production',
+    titleKo: '펀딩 목표 달성 및 양산·물류 준비',
     status: 'planned',
     level: 1,
     detail:
-      'The Crowd Supply campaign itself: assembled instruments, DIY kits and cases shipped worldwide, on the v3 hardware. Everything since the USB-C rework has been aimed at this.',
+      'Driving the Crowd Supply campaign past its funding goal, finalizing component sourcing, completing CE/FCC lab testing, and setting up global fulfillment logistics.',
     detailKo:
-      'Crowd Supply 정식 펀딩입니다. 완제품, DIY 키트, 케이스를 v3 하드웨어 기준으로 전 세계에 배송합니다. USB-C 개편 이후의 모든 작업이 이 지점을 향해 있었습니다.',
+      '크라우드 서플라이 펀딩 목표 금액 달성을 견인하고, 주요 부품 공급망 확정, CE/FCC 시험실 인증 마무리 및 글로벌 배송 물류 체계를 확립하는 단계입니다.',
     links: [{ label: 'Crowd Supply page', href: 'https://www.crowdsupply.com/engmung/patternflow' }],
   },
   {
@@ -1149,12 +1239,104 @@ export const NODES: RoadmapNode[] = [
       'Creative Applications Network에 "Patternflow – An open-source LED synthesizer reinterpreting Participation TV"가 게재되었습니다. 7월 3일에 요청해 13일에 실렸습니다. 알아서 다뤄준 것이 아니라 직접 요청한 건입니다. CAN은 보여줄 것이 생기기 한참 전부터 선망하던 예술 쪽 매거진이었습니다.',
     links: [{ label: 'Creative Applications Article', href: 'https://www.creativeapplications.net/news/patternflow-an-open-source-led-synthesizer-reinterpreting-participation-tv/' }],
   },
+  {
+    id: 'media-mixmag',
+    lane: 'media',
+    date: '2026-08-28',
+    title: 'Mixmag Asia',
+    titleKo: '믹스맥 아시아 (Mixmag Asia)',
+    status: 'done',
+    level: 1,
+    detail:
+      '"Patternflow: an open-source LED synth built by a community of sound & visuals" — organic feature by the Asian headquarters of Mixmag, the world\'s leading electronic dance music publication, spotlighting the solo designer journey from Seoul, homage to Nam June Paik, and the 150+ builder community.',
+    detailKo:
+      '세계 최고 권위의 일렉트로닉 댄스 뮤직 매거진 Mixmag 아시아 본부에 "Patternflow: an open-source LED synth built by a community of sound & visuals" 기사가 자발적으로 게재되었습니다. 서울의 1인 디자이너 개발 서사, 백남준 오마주, 150+ 커뮤니티 생태계를 집중 조명했습니다.',
+    links: [{ label: 'Mixmag Asia Article', href: 'https://mixmag.asia/read/patternflow-open-source-led-synthesizer-seunghun-lee-community-made-tech/' }],
+  },
+  {
+    id: 'media-matrixsynth',
+    lane: 'media',
+    date: '2026-08-30',
+    title: 'MATRIXSYNTH',
+    titleKo: '매트릭스신스 (MATRIXSYNTH)',
+    status: 'done',
+    level: 2,
+    detail:
+      '"Playing light like an instrument — Open Source ESP32-S3 LED Synthesizer" — pitch pickup on the premier 20-year synthesizer archive webzine, spreading the 3-minute demo video, full hardware specs, and Crowd Supply campaign.',
+    detailKo:
+      '20년 역사의 전 세계 1위 신디사이저 전문 아카이브 웹진 MATRIXSYNTH에 피칭 성사되어 "Playing light like an instrument — Open Source ESP32-S3 LED Synthesizer"가 소개되었습니다. 3분 데모 영상, 제품 스펙 및 크라우드 서플라이 펀딩 링크가 즉시 전파되었습니다.',
+    links: [{ label: 'MATRIXSYNTH Feature', href: 'https://www.matrixsynth.com/2026/08/playing-light-like-instrument-open.html' }],
+  },
+  {
+    id: 'media-synthtopia',
+    lane: 'media',
+    date: '2026-08-30',
+    title: 'Synthtopia',
+    titleKo: '신스토피아 (Synthtopia)',
+    status: 'done',
+    level: 1,
+    detail:
+      '"Patternflow Is An Open-Source Light Synthesizer & Music Controller" by Synthhead on America\'s #1 synthesizer and music tech blog, spotlighting 8,192-pixel live calculation, wireless Ableton OSC, and the $269 assembled unit on Crowd Supply.',
+    detailKo:
+      '미국 1위 신디사이저 및 음악 기술 블로그 Synthtopia(작성자: Synthhead)에 "Patternflow Is An Open-Source Light Synthesizer & Music Controller"가 게재되었습니다. 8,192픽셀 실시간 연산 스펙, 에이블톤 무선 OSC 연동, $269 완제품 펀딩을 최상단에 배치했습니다.',
+    links: [{ label: 'Synthtopia Article', href: 'https://www.synthtopia.com/content/2026/08/30/patternflow-is-an-open-source-light-synthesizer-music-controller/' }],
+  },
+  {
+    id: 'media-mmr',
+    lane: 'media',
+    date: '2026-08-31',
+    title: 'MMR Magazine',
+    titleKo: 'MMR 매거진 (MMR Magazine)',
+    status: 'done',
+    level: 2,
+    detail:
+      '"Open-Source Patternflow Device Combines Light and Music Control" — published in Musical Merchandise Review (MMR Magazine, est. 1879), the 140-year-old US music industry B2B trade journal, registering Patternflow to the instrument trade as a next-gen visual controller.',
+    detailKo:
+      '1879년 창간되어 140년 역사를 지닌 미국 악기 산업/유통 B2B 1위 전문지 MMR Magazine에 "Open-Source Patternflow Device Combines Light and Music Control"이 실려, 미국 공식 악기 유통업계에 차세대 비주얼 컨트롤러 신제품으로 등재되었습니다.',
+    links: [{ label: 'MMR Magazine Article', href: 'https://mmrmag.com/open-source-patternflow-device-combines-light-and-music-control/' }],
+  },
+  {
+    id: 'media-amazona',
+    lane: 'media',
+    date: '2026-08-31',
+    title: 'AMAZONA.de',
+    titleKo: '아마조나 (AMAZONA.de)',
+    status: 'done',
+    level: 1,
+    detail:
+      '"Engmung Patternflow, Visualisierungs-Synthesizer" by Thilo Goldschmitz on Europe and Germany\'s #1 synthesizer magazine, written after direct editorial outreach to gather photos and details, targeting European synth enthusiasts.',
+    detailKo:
+      '유럽 및 독일어권 1위 신디사이저 전문 매거진 AMAZONA.de(작성자: Thilo Goldschmitz)에 "Engmung Patternflow, Visualisierungs-Synthesizer" 기사가 게재되었습니다. 에디터가 직접 연락해 사진을 수급한 후 작성되어, 독일/유럽 신스 매니아층을 집중 타깃했습니다.',
+    links: [{ label: 'AMAZONA.de Article', href: 'https://www.amazona.de/engmung-patternflow-visualisierungs-synthesizer/' }],
+  },
+  {
+    id: 'media-midifan',
+    lane: 'media',
+    date: '2026-09-02',
+    title: 'Midifan',
+    titleKo: '미디판 (Midifan)',
+    status: 'done',
+    level: 1,
+    detail:
+      '"开源灯光合成器与音乐控制器 Patternflow 开启众筹，也可以自己 DIY" by Wode on Greater China\'s leading 25-year-old computer music portal, introducing the Crowd Supply launch and DIY open-source path to the Asian music tech community.',
+    detailKo:
+      '25년 역사의 중화권(중국/대만/홍콩) 1위 컴퓨터 음악/신스 전문 포털 Midifan(작성자: Wode)에 "开源灯光合成器与音乐控制器 Patternflow 开启众筹，也可以自己 DIY"가 게재되어, 아시아 중화권 최대 커뮤니티에 크라우드펀딩 런칭 및 DIY 오픈소스 프로젝트가 동시 소개되었습니다.',
+    links: [{ label: 'Midifan Article', href: 'https://www.midifan.com/modulenews-detailview-60651.htm' }],
+  },
 ];
 
 export const EDGES: RoadmapEdge[] = [
   { from: 'biz-exhibition', to: 'pcb-v22', note: 'the exhibited unit died — and the SMD parts turned out to be optional' },
   { from: 'pcb-v3', to: 'case-v3', note: 'new board size and port positions — the case had to follow' },
+  { from: 'case-v3', to: 'case-petg', note: 'shipping durability demanded PETG' },
   { from: 'biz-cs-150', to: 'biz-launch', note: '150 subscribers unlocked launch prep' },
+  { from: 'biz-sfac', to: 'biz-kams', note: '20:1 selection at KAMS superseded SFAC due to concurrent grant rules' },
+  { from: 'biz-kams', to: 'biz-launch', note: 'pre-startup market validation for the launch' },
+  { from: 'fw-editions', to: 'biz-launch', note: 'audio and performance editions ready for backers' },
+  { from: 'biz-launch', to: 'biz-campaign-success', note: 'funding the campaign unlocks mass production' },
+  { from: 'biz-launch', to: 'media-mixmag', note: 'launch coverage across global music & synth media' },
+  { from: 'biz-launch', to: 'media-synthtopia', note: 'synth enthusiasts discover Patternflow' },
+  { from: 'biz-launch', to: 'media-amazona', note: 'European synth press pickup' },
   { from: 'fw-browser-build', to: 'community-discussions', note: 'build & flash in the browser makes sharing worth doing' },
   { from: 'fw-modules', to: 'biz-market', note: 'a pattern installs in seconds — the precondition for licensing one' },
   { from: 'fw-resolution', to: 'biz-market', note: 'any panel, any size' },

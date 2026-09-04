@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/Code-MIT-green?style=flat-square)](./LICENSE-MIT)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/Hardware-CC_BY--SA_4.0-orange?style=flat-square)](./LICENSE-CC-BY-SA)
 [![Release](https://img.shields.io/github/v/release/engmung/Patternflow?style=flat-square&color=purple&label=Release)](../../releases)
-[![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Launching_Q4_2026-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
+[![Crowd Supply](https://img.shields.io/badge/Crowd_Supply-Campaign_Live-d4502b?style=flat-square)](https://www.crowdsupply.com/engmung/patternflow)
 [![Discord](https://img.shields.io/discord/1497757947827327067?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2)](https://discord.gg/Vr9QtsxeTk)
 
 <p align="center">
@@ -60,7 +60,7 @@ The **[Full Build Guide](BUILD_GUIDE.md)** covers the official route: the custom
   <img src="./docs/media/web-build-map.png" width="100%" alt="Build map: a globe of Patternflows built around the world, with the story of every build" />
 </p>
 
-If you'd rather have one arrive assembled, tested, and flashed, the **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** launches **Q4 2026**. Subscribe on the page and you'll hear the moment it opens.
+If you'd rather have one arrive assembled, tested, and flashed, the **[Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow)** is currently live. Back the campaign to have an assembled unit, DIY kit, or custom enclosure shipped worldwide.
 
 ### 2. Patterns
 
@@ -204,8 +204,9 @@ Builds, documentation fixes, part sourcing tips, and custom patterns are all wel
 | **May 2026** | Reached **100 GitHub stars** · the first collaborator joined · Crowd Supply agreement · Discord community growing |
 | **Jun 2026** | [Crowd Supply pre-launch page](https://www.crowdsupply.com/engmung/patternflow) live, backed by countless refinements toward mass production · Instagram passed **1,000 followers** · first community-made pattern shared |
 | **Jul 2026** | Refining the design for mass production · growing an active community · outreach and promotion |
-| **Aug 2026** | Community rebuilt end to end (the live wall, decks, and the Workshop) · patterns now install as Wi-Fi modules, and the [Pattern Guide](PATTERN_GUIDE.md) documents the whole loop · Crowd Supply launch prep in full swing |
-| **Next** | Launch the Crowd Supply campaign (**Q4 2026**) at the lowest sustainable price · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
+| **Aug 2026** | [Crowd Supply campaign](https://www.crowdsupply.com/engmung/patternflow) officially launched worldwide · firmware split into [editions](docs/EDITIONS.md) (Audio & Performance) over an unchanged core · global press wave across Mixmag, Synthtopia, AMAZONA.de, and MATRIXSYNTH |
+| **Sep 2026** | Driving the Crowd Supply campaign to funding success · preparing mass production and fulfillment logistics · FreeRTOS dual-core network isolation, fast CIE frame push, and continuous ecosystem polish |
+| **Next** | Deliver rewards to backers at the highest quality · send Patternflow further out into the world · collaborate with more artists · earn academic recognition |
 | **2028** | Grow Patternflow into a self-sustaining community and ecosystem, then move on to the next project |
 
 Longer write-ups and the full story behind each step live on the **[journal](https://patternflow.work/journal)**: the whole process, written up at least weekly since the beginning, the thinking and the emotions included, and the parts that went badly too. If you want to know why this project exists and what it costs to keep alive, start there.
