@@ -36,12 +36,15 @@
 // somebody else's work on their own terms, and a reader deciding what to
 // flash needs to know which they are looking at.
 export type Tier =
-  // Built from this repository, published here. Its code is in the tree,
-  // where the compiler keeps it honest against every core change.
+  // Built from this repository, published here, and part of the product:
+  // what the board is sold as doing. Its code is in the tree, where the
+  // compiler keeps it honest against every core change.
   | 'official'
-  // Somebody else's firmware, their repository, their release schedule.
-  // Not a lesser thing — a different thing, and the difference is who to
-  // ask when it breaks.
+  // Everything else on the shelf. Somebody else's firmware, their repository,
+  // their release schedule — or one built from this tree that is a side
+  // project rather than a promise (the clock). Not a lesser thing — a
+  // different thing, and the difference is who to ask when it breaks and how
+  // far it is promised.
   | 'community';
 
 // Why a firmware exists that is not the default. Three different answers,
@@ -249,7 +252,7 @@ export const EDITIONS: Edition[] = [
   {
     id: 'clock',
     name: 'Patternflow Clock',
-    tier: 'official',
+    tier: 'community',
     reason: 'not-universal',
     maintainer: 'SeungHun Lee',
     maintainerHref: 'https://github.com/engmung',

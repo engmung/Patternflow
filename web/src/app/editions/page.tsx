@@ -64,22 +64,20 @@ export default function EditionsPage() {
 
         <h2 className={styles.sectionHead}>Community</h2>
         <p className={styles.sectionNote}>
-          Somebody else&rsquo;s firmware, their repository, their release
-          schedule. Not a lesser thing &mdash; a different one, and the
-          difference is who to ask when it breaks.
+          Everything that is not the product. Somebody else&rsquo;s firmware,
+          their repository, their release schedule &mdash; or a side project
+          from this tree, published but not promised. Not a lesser thing; a
+          different one, and the difference is who to ask when it breaks.
         </p>
-        {COMMUNITY.length > 0 ? (
-          <ul className={styles.list}>
-            {COMMUNITY.map((v) => (
-              <EditionCard key={v.id} edition={v} />
-            ))}
-          </ul>
-        ) : (
-          <ul className={styles.list}>
-            {/* An empty slot, on purpose. A list of things somebody else made
-                reads as a catalogue; a list with a gap at the end reads as a
-                place where things keep arriving, and the difference is
-                whether anybody thinks to build one. */}
+        <ul className={styles.list}>
+          {COMMUNITY.map((v) => (
+            <EditionCard key={v.id} edition={v} />
+          ))}
+          {/* Always the last slot, however many cards sit before it. A list
+              of finished things reads as a catalogue; a list with a gap at
+              the end reads as a place where things keep arriving, and the
+              difference is whether anybody thinks to build one. */}
+          {(
             <li className={styles.makeCard}>
               <span className={styles.plus} aria-hidden="true">
                 +
@@ -115,8 +113,8 @@ export default function EditionsPage() {
                 </div>
               </div>
             </li>
-          </ul>
-        )}
+          )}
+        </ul>
 
         <section className={styles.how}>
           <h2>What switching costs you</h2>
