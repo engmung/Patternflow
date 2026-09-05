@@ -7,13 +7,16 @@
 // leaves the ceiling on loadable patterns exactly where it was (73,716 bytes
 // either way) on a board using 45 % of its flash.
 //
-// Two tiers, and the difference is who to ask when it breaks:
+// Two tiers, and the line between them is a judgement, not a rule:
 //
-//   official   built from the Patternflow repository, published here. A core
-//              change has to compile against all of them before it lands, so
-//              they cannot silently rot.
-//   community  somebody else's firmware, their repository, their schedule.
-//              Not a lesser thing. A different one.
+//   official   what the maintainer thinks Patternflow is about - the
+//              firmwares he likes enough to stand behind as the thing itself.
+//              Built from this repository, published here; a core change has
+//              to compile against all of them before it lands.
+//   community  everything else on the shelf. Somebody else's firmware on
+//              their own terms, or something from this tree that is good fun
+//              without being what Patternflow is for. Not a lesser thing. A
+//              different one.
 //
 // Hand-curated either way, and the curation is the point: somebody read it
 // before the name went up. There is no application form.
@@ -36,12 +39,15 @@
 // somebody else's work on their own terms, and a reader deciding what to
 // flash needs to know which they are looking at.
 export type Tier =
-  // Built from this repository, published here. Its code is in the tree,
-  // where the compiler keeps it honest against every core change.
+  // What the maintainer thinks Patternflow is about: the firmwares he likes
+  // enough to stand behind as the thing itself. Built from this repository
+  // and published here, where the compiler keeps them honest against every
+  // core change.
   | 'official'
-  // Somebody else's firmware, their repository, their release schedule.
-  // Not a lesser thing — a different thing, and the difference is who to
-  // ask when it breaks.
+  // Everything else on the shelf. Somebody else's firmware, their repository,
+  // their release schedule — or one built from this tree (the clock) that is
+  // good fun without being what Patternflow is for. Not a lesser thing — a
+  // different thing, and the difference is who to ask when it breaks.
   | 'community';
 
 // Why a firmware exists that is not the default. Three different answers,
@@ -249,7 +255,7 @@ export const EDITIONS: Edition[] = [
   {
     id: 'clock',
     name: 'Patternflow Clock',
-    tier: 'official',
+    tier: 'community',
     reason: 'not-universal',
     maintainer: 'SeungHun Lee',
     maintainerHref: 'https://github.com/engmung',

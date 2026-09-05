@@ -16,10 +16,12 @@ const COMMUNITY = EDITIONS.filter((v) => v.tier === "community");
 // needs to stop moving — and each card says which.
 //
 // Two tiers, and the distinction matters more than the list does. Official
-// firmwares are built from this repository, so a change to the core has to
-// compile against all of them before it lands. Community ones are somebody
-// else's work on their own terms. The difference is not quality; it is who to
-// ask when it breaks.
+// is what the maintainer thinks Patternflow is about - built from this
+// repository, so a change to the core has to compile against all of them
+// before it lands. Community is everything else: somebody else's work on
+// their own terms, or something from this tree that is fun without being
+// the point. The difference is not quality; it is what Patternflow is, and
+// who to ask when it breaks.
 //
 // The console links here, and a panel running anything but the default says
 // so in its own header.
@@ -52,9 +54,10 @@ export default function EditionsPage() {
 
         <h2 className={styles.sectionHead}>Official</h2>
         <p className={styles.sectionNote}>
-          Built from the Patternflow repository and published here. The code is
-          in that tree, where a change to the core has to compile against every
-          one of these before it lands.
+          What I think Patternflow is about &mdash; the firmwares I like enough
+          to stand behind as the thing itself. Built from the Patternflow
+          repository and published here, where a change to the core has to
+          compile against every one of these before it lands.
         </p>
         <ul className={styles.list}>
           {OFFICIAL.map((v) => (
@@ -64,22 +67,20 @@ export default function EditionsPage() {
 
         <h2 className={styles.sectionHead}>Community</h2>
         <p className={styles.sectionNote}>
-          Somebody else&rsquo;s firmware, their repository, their release
-          schedule. Not a lesser thing &mdash; a different one, and the
-          difference is who to ask when it breaks.
+          Everything else. Somebody else&rsquo;s firmware, their repository,
+          their release schedule &mdash; or something from this tree that is
+          good fun without being what Patternflow is for. Not a lesser thing;
+          a different one, and the difference is who to ask when it breaks.
         </p>
-        {COMMUNITY.length > 0 ? (
-          <ul className={styles.list}>
-            {COMMUNITY.map((v) => (
-              <EditionCard key={v.id} edition={v} />
-            ))}
-          </ul>
-        ) : (
-          <ul className={styles.list}>
-            {/* An empty slot, on purpose. A list of things somebody else made
-                reads as a catalogue; a list with a gap at the end reads as a
-                place where things keep arriving, and the difference is
-                whether anybody thinks to build one. */}
+        <ul className={styles.list}>
+          {COMMUNITY.map((v) => (
+            <EditionCard key={v.id} edition={v} />
+          ))}
+          {/* Always the last slot, however many cards sit before it. A list
+              of finished things reads as a catalogue; a list with a gap at
+              the end reads as a place where things keep arriving, and the
+              difference is whether anybody thinks to build one. */}
+          {(
             <li className={styles.makeCard}>
               <span className={styles.plus} aria-hidden="true">
                 +
@@ -115,8 +116,8 @@ export default function EditionsPage() {
                 </div>
               </div>
             </li>
-          </ul>
-        )}
+          )}
+        </ul>
 
         <section className={styles.how}>
           <h2>What switching costs you</h2>
