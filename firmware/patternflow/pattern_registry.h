@@ -528,6 +528,11 @@ inline void buildPatternList() {
 // Make `index` the running pattern. Presets were already set up at boot, so
 // this only costs anything for a module: read the .pfm, relocate it, run its
 // setup(). Returns false if a module failed to load, leaving nothing active.
+// When the running pattern started running. The sketch's thumbnail capture
+// wants a pattern to have been on the panel for a few seconds before its
+// frame is worth keeping - a module's first frames are often its setup.
+inline uint32_t activatedAtMs = 0;
+
 inline bool activatePattern(int index) {
   if (index < 0 || index >= NUM_PATTERNS) return false;
   if (index == activePatternIdx) return true;
@@ -537,6 +542,7 @@ inline bool activatePattern(int index) {
     // Hand the module's executable RAM back before running a preset.
     if (PFModuleLoader::active) PFModuleLoader::unload();
     activePatternIdx = index;
+    activatedAtMs = millis();
     return true;
   }
 
@@ -556,6 +562,7 @@ inline bool activatePattern(int index) {
     snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
   }
   activePatternIdx = index;
+  activatedAtMs = millis();
   return true;
 }
 

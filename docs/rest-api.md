@@ -200,7 +200,9 @@ An explicit pick here supersedes a pending console restore — without that, a p
 | Parameter | |
 |---|---|
 | `slug` | Module slug. Sanitised the same way uploads are. |
-| `ext` | `pfm` (default) or `json` |
+| `ext` | `pfm` (default), `json`, or `thumb` (since 1.4) |
+
+`ext=thumb` returns the panel's own picture of the pattern: the 128×64 frame it last drew, taken off the canvas when the pattern was left after running for a couple of seconds and kept beside the module as `/patterns/<slug>.thumb`. Eight bytes of header (`PFT1`, width and height as little-endian u16) then width×height RGB565 pixels, 16,392 bytes for this panel. `404` until the pattern has been played once; presets (`origin`) get one the same way. The device draws these while browsing with K4 — see the firmware README on SELECT mode — and a console or site can show them for the same reason.
 
 `ext=json` returns the module's **sidecar** — the only place per-pattern metadata is exposed over HTTP:
 
@@ -442,7 +444,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.4** (2026-09-06) — status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
+- **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
 - **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.
