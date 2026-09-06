@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <esp_heap_caps.h>
+#include <soc/soc_memory_layout.h>   // esp_ptr_external_ram(): where a section landed
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
@@ -142,6 +143,27 @@ struct LoadedSection {
 
 inline LoadedSection sections[MAX_SECTIONS];
 inline int sectionCount = 0;
+
+// Where a module's DATA goes (its code always needs internal, executable
+// RAM). Internal RAM is what the console lives on: Wi-Fi, lwIP and every
+// HTTP connection allocate from it, and below ~10 KB the server answers
+// nothing while the panel draws on as if all were well. A section larger
+// than PF_MODULE_DATA_INTERNAL_MAX, or one that would leave less than
+// PF_MODULE_INTERNAL_RESERVE free, is placed in PSRAM first (see the section
+// loop). 16 KB keeps a pattern's flags, LUTs and small state where they
+// are fastest; 24 KB is roughly what the console needs to serve pages and
+// accept an upload at the same time, with a margin.
+#ifndef PF_MODULE_DATA_INTERNAL_MAX
+#define PF_MODULE_DATA_INTERNAL_MAX 16384
+#endif
+#ifndef PF_MODULE_INTERNAL_RESERVE
+#define PF_MODULE_INTERNAL_RESERVE 24576
+#endif
+// Bytes of the resident module's sections in internal RAM and in PSRAM -
+// /api/status reports them next to the load timing, so "this pattern ate the
+// console" is a number rather than a hunch.
+inline uint32_t lastInternalBytes = 0;
+inline uint32_t lastPsramBytes = 0;
 inline void* moduleAllocs[MAX_MODULE_ALLOCS] = {};
 inline int moduleAllocCount = 0;
 inline const PFPatternModule* active = nullptr;
@@ -614,6 +636,8 @@ inline bool load(fs::FS& filesystem, const char* path) {
     }
   }
 
+  lastInternalBytes = 0;
+  lastPsramBytes = 0;
   for (uint16_t i = 1; i < header->shnum; ++i) {
     const Elf32Shdr& section = sectionHeaders[i];
     if (!(section.flags & SHF_ALLOC) || section.size == 0) continue;
@@ -632,11 +656,32 @@ inline bool load(fs::FS& filesystem, const char* path) {
             heap_caps_malloc(allocationSize, MALLOC_CAP_EXEC | MALLOC_CAP_32BIT));
       }
     } else {
-      // Prefer internal 8-bit RAM: module code does l8ui/s8i on .bss flags
-      // (e.g. sinLUTReady). EXEC heap is 32-bit-only, so data must not land
-      // there, and PSRAM has been a flaky partner for early-boot module data.
-      memory = static_cast<uint8_t*>(
-          heap_caps_calloc(1, allocationSize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+      // Data: internal 8-bit RAM when it is small, PSRAM when it is not.
+      // Module code does l8ui/s8i on .bss flags (e.g. sinLUTReady), so the
+      // EXEC heap (32-bit only) is never an option, and small state is
+      // fastest where it always was. But this used to be internal-first at
+      // any size, and internal RAM is what the console lives on. Measured
+      // 2026-09-06: a module whose data came to ~42 KB landed there in
+      // full, the free internal heap went from 53 KB to 2.7 KB after
+      // services, and every HTTP connection died at the SYN while the
+      // panel drew on as if nothing were wrong - "the console will not
+      // open" with no error anywhere. PSRAM is where the canvas already
+      // is; a pattern's tables are no different. So a section over
+      // PF_MODULE_DATA_INTERNAL_MAX, or one that would leave the internal
+      // heap under PF_MODULE_INTERNAL_RESERVE, goes to PSRAM first and
+      // falls back to internal only when PSRAM refuses.
+      const size_t internalFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+      const bool psramFirst = allocationSize > (size_t)PF_MODULE_DATA_INTERNAL_MAX ||
+                              internalFree < allocationSize + (size_t)PF_MODULE_INTERNAL_RESERVE;
+      memory = nullptr;
+      if (psramFirst) {
+        memory = static_cast<uint8_t*>(
+            heap_caps_calloc(1, allocationSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+      }
+      if (!memory) {
+        memory = static_cast<uint8_t*>(
+            heap_caps_calloc(1, allocationSize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+      }
       if (!memory) {
         memory = static_cast<uint8_t*>(
             heap_caps_calloc(1, allocationSize, MALLOC_CAP_8BIT));
@@ -651,6 +696,8 @@ inline bool load(fs::FS& filesystem, const char* path) {
       unload();
       return fail("not enough executable/data RAM");
     }
+    if (esp_ptr_external_ram(memory)) lastPsramBytes += allocationSize;
+    else lastInternalBytes += allocationSize;
     LoadedSection& loaded = sections[sectionCount++];
     loaded.index = i;
     loaded.elfAddress = section.addr;

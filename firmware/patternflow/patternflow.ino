@@ -99,6 +99,7 @@
 #include "src/core_sleep.h"
 #include "src/core_banner.h"
 #include "pattern_registry.h"
+#include "src/core_thumbs.h"
 // After the registry: the pattern manager serves and mutates that list.
 #include "src/core_patterns_http.h"
 #include "src/core_status_http.h"
@@ -213,6 +214,27 @@ const uint32_t PATTERN_SAVE_DELAY_MS = 3000;
 // Origin is compiled in and cannot fail this way, so remembering it costs no
 // NVS traffic at all.
 bool patternLatchArmed = false;
+
+// ── SELECT-mode browsing ────────────────────────────────────────
+// The knob moves the highlight; the pattern loads only once the knob has
+// rested for SELECT_SETTLE_MS. Until it does, the panel shows the
+// highlighted pattern's thumbnail (src/core_thumbs.h says why: a module's
+// setup() can take seconds, and loading on every detent froze the loop for
+// that long while the encoder kept counting). A thumbnail is taken when a
+// pattern is LEFT, provided it has run for THUMB_MIN_RUN_MS and the canvas
+// still holds its frame rather than another pattern's thumbnail.
+const uint32_t SELECT_SETTLE_MS = 350;
+// Detents per pattern while browsing. One per detent overshot: a hand that
+// meant one pattern landed two or three along, and once the load stopped
+// holding the frame that overshoot was the whole of what still felt wrong.
+// Whole steps move the highlight; the remainder waits for the next detent
+// and a change of direction cancels it, so nothing creeps.
+const int SELECT_DETENTS_PER_STEP = 3;
+int selectAccum = 0;
+const uint32_t THUMB_MIN_RUN_MS = 2000;   // after setup() returns; a heavy module's first two seconds are already its picture
+bool selectPending = false;         // the highlight moved and nothing has loaded since
+uint32_t selectMovedAtMs = 0;
+bool canvasShowsThumb = false;      // the canvas holds a thumbnail, not the running pattern
 const uint32_t PATTERN_LATCH_CLEAR_MS = 15000;
 
 // Shown whenever no pattern is resident: the web console paused it, or a module
@@ -235,6 +257,9 @@ bool updateDirty = false;
 
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
+// How long the value has to be still before it is written to NVS - the
+// console's slider sends a step for every pixel of a drag.
+const uint32_t BRIGHTNESS_SAVE_DELAY_MS = 3000;
 const uint32_t OSC_INFO_IDLE_MS = 8000;
 const uint32_t NET_INFO_REDRAW_MS = 250;
 const uint32_t KNOB_MAP_IDLE_MS = 8000;
@@ -336,6 +361,50 @@ void clearPatternLatchIfStable() {
   prefs.putBool("pat_trying", false);
 }
 
+// ── Thumbnails ───────────────────────────────────────────────
+// Keep the running pattern's last frame as its picture, if it is worth
+// keeping: it has run for a while (the first frames of a module are its
+// setup), the canvas holds its frame and not a thumbnail painted over it,
+// and nothing is being drawn over the pattern (the calibration card). Called
+// on every path that is about to replace the running pattern, and when
+// SELECT opens - before the first thumbnail lands on the canvas.
+void snapshotActiveIfRipe() {
+  if (activePatternIdx < 0 || !patterns) return;
+  if (canvasShowsThumb) return;
+  if (CalibPattern::overrideOn) return;
+  if (patterns[activePatternIdx].hidden) return;
+  if ((uint32_t)(millis() - activatedAtMs) < THUMB_MIN_RUN_MS) return;
+  char slug[MODULE_NAME_BYTES];
+  patternSlugAt(activePatternIdx, slug, sizeof(slug));
+  if (!slug[0]) return;
+  PFThumbs::capture(slug, moduleStorageMounted);
+}
+
+// The outgoing pattern's picture taken first, then the switch - on the
+// loader task, so the frame never waits for a setup() (pattern_registry.h,
+// "Loading without stopping the frame"). Every switch that is not the boot
+// restore goes through here.
+bool activateWithSnapshot(int index) {
+  snapshotActiveIfRipe();
+  return activatePatternAsync(index);
+}
+
+// A pattern that is not running: its picture, if it has one. With
+// blankIfNone the panel goes dark under the overlay's name (SELECT, where a
+// stale picture would be a lie); without it the caller holds the frame that
+// is already on the panel. Returns whether a picture was painted.
+bool drawPatternThumbnail(int index, bool blankIfNone) {
+  char slug[MODULE_NAME_BYTES];
+  patternSlugAt(index, slug, sizeof(slug));
+  const uint16_t* px = slug[0] ? PFThumbs::get(slug) : nullptr;
+  if (!px && !blankIfNone) return false;
+  if (px) PFThumbs::paint(px);
+  else PFCanvas::clear();
+  PFCanvas::present();
+  canvasShowsThumb = true;
+  return px != nullptr;
+}
+
 // ── Boot ──────────────────────────────────────────────────────
 //
 // Order matters and the reasons sit on the individual lines. The one rule
@@ -347,6 +416,14 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n=== Patternflow OS Booting... ===");
+  // Why we are booting. A board that rebooted itself and one that was
+  // unplugged look the same from the network — uptime back near zero — and
+  // two reboots nobody noticed in one afternoon are what put this line here.
+  // "poweron" is a hand on the plug; "task_wdt", "panic" or "brownout" is a
+  // bug, and on a serial logger the lines above this one say which.
+  // /api/status carries the same word as resetReason.
+  Serial.printf("[BOOT] reset reason: %s\n",
+                PatternflowStatusHttp::resetReasonName());
 
   reportHeap("boot");
   initEncoders();
@@ -1208,6 +1285,9 @@ void loop() {
   // on this task — evicting or restoring the module, walking the pattern
   // list, touching a feature's client — runs here, before the frame.
   PFLoopSync::service();
+  // A pattern the loader task finished with becomes the running one here,
+  // before anything below looks at what is running.
+  serviceAsyncLoad();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
@@ -1387,12 +1467,17 @@ void loop() {
     }
   }
 
-  // Persist brightness once the adjustment session ends — avoids hammering
-  // NVS on every knob detent.
-  if (brightnessDirty && !brightnessAdjusting) {
-    prefs.putUChar("brightness", currentBrightness);
-    brightnessDirty = false;
-    Serial.printf("[NVS] brightness saved: %u\n", currentBrightness);
+  // Persist brightness once the adjustment has settled — avoids hammering
+  // NVS on every knob detent, or on every step of the console's slider
+  // (core_display_http.h moves the same three words a detent does, from the
+  // network core; if it moves them again while this writes, dirty stays set
+  // and the next pass writes the newer value).
+  if (brightnessDirty && !brightnessAdjusting &&
+      (now - brightnessIdleAtMs) > BRIGHTNESS_SAVE_DELAY_MS) {
+    const uint8_t saved = currentBrightness;
+    prefs.putUChar("brightness", saved);
+    if (currentBrightness == saved) brightnessDirty = false;
+    Serial.printf("[NVS] brightness saved: %u\n", saved);
   }
 
   // K2 longpress → enter/exit the NETWORK status + toggle screen.
@@ -1535,6 +1620,11 @@ void loop() {
       // any leftover absolute holds so browsing can never fight a pinned
       // channel's zeroed deltas.
       PatternflowBus::clearAbsoluteAll();
+      // The running pattern's picture, before the first thumbnail is painted
+      // over its frame.
+      snapshotActiveIfRipe();
+      selectPending = false;
+      selectAccum = 0;
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
@@ -1542,6 +1632,10 @@ void loop() {
       CalibPattern::overrideOn = false;
       Serial.printf(">>> SELECT MODE ENTERED: %s\n", patterns[currentPatternIdx].name);
     } else {
+      // Leaving with the knob still on a choice that has not loaded: load it
+      // now rather than run whatever was underneath the thumbnail.
+      if (currentPatternIdx != activePatternIdx) activateWithSnapshot(currentPatternIdx);
+      selectPending = false;
       currentMode = MODE_RUNNING;
       dma_display->setRotation(0);
       Serial.printf(">>> RUNNING MODE: %s\n", patterns[currentPatternIdx].name);
@@ -1575,7 +1669,7 @@ void loop() {
   if (!PatternflowPatternsHttp::isConsolePaused() &&
       PFFeatures::takePattern(&featurePatternIdx, &featurePickWasAPerson) &&
       featurePatternIdx >= 0 && featurePatternIdx < NUM_PATTERNS) {
-    if (activatePattern(featurePatternIdx)) {
+    if (activateWithSnapshot(featurePatternIdx)) {
       currentPatternIdx = featurePatternIdx;
       currentMode = MODE_RUNNING;
       // Hidden patterns arrive unannounced. This used to compare the name
@@ -1603,7 +1697,7 @@ void loop() {
   if (!PFFeatures::patternClaimed() &&
       PatternflowPatternsHttp::consumeSelectIdx(httpPatternIdx) &&
       httpPatternIdx >= 0 && httpPatternIdx < NUM_PATTERNS &&
-      activatePattern(httpPatternIdx)) {
+      activateWithSnapshot(httpPatternIdx)) {
     currentPatternIdx = httpPatternIdx;
     currentMode = MODE_RUNNING;
     contentNoticeTimer = CONTENT_NOTICE_SECONDS;
@@ -1659,6 +1753,11 @@ void loop() {
     if (brightnessAdjusting) {
       drawBrightnessNotice();
     }
+  } else if (currentMode == MODE_RUNNING && loadInFlight) {
+    // The pattern is on its way in on the other core. Its picture if it has
+    // one; otherwise the frame already on the panel stays until it lands.
+    pausedDirty = true;
+    if (!drawPatternThumbnail(loadTargetIdx, false)) frameDrawn = false;
   } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
     // Same throttled-redraw scheme as the info screens: this is static text and
     // repainting it every loop races the panel scanout.
@@ -1673,6 +1772,7 @@ void loop() {
     pausedDirty = true;
     updateActivePattern(dt, input);
     drawActivePattern();
+    canvasShowsThumb = false;
     drawBannerOverlay();
     {
       PFFeatureFrame frame{dt, currentContentName(), true, chromeVisible(),
@@ -1691,8 +1791,14 @@ void loop() {
       drawBrightnessNotice();
     }
   } else {
+    int selectSteps = 0;
     if (input.knobDeltas[3] != 0) {
-      currentPatternIdx += input.knobDeltas[3];
+      selectAccum += input.knobDeltas[3];
+      selectSteps = selectAccum / SELECT_DETENTS_PER_STEP;   // truncates toward zero
+      selectAccum -= selectSteps * SELECT_DETENTS_PER_STEP;
+    }
+    if (selectSteps != 0) {
+      currentPatternIdx += selectSteps;
       // Floored modulo: OSC /knob/4/delta can deliver a delta more negative
       // than -NUM_PATTERNS in one frame, and C++'s % keeps the sign — a plain
       // "+= NUM_PATTERNS once" would leave a negative index into patterns[].
@@ -1700,20 +1806,35 @@ void loop() {
       // Step over hidden entries in whichever direction the knob is going.
       // Bounded by NUM_PATTERNS so an all-hidden list cannot spin forever.
       {
-        int step = input.knobDeltas[3] > 0 ? 1 : -1;
+        int step = selectSteps > 0 ? 1 : -1;
         for (int guard = 0; guard < NUM_PATTERNS && patterns[currentPatternIdx].hidden; guard++) {
           currentPatternIdx =
               ((currentPatternIdx + step) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
         }
       }
-      // Presets are already resident so this returns immediately; landing on a
-      // module costs a read + relocate + setup(). Measure that before deciding
-      // whether browsing needs to defer the load until the knob settles.
-      activatePattern(currentPatternIdx);
+      // Not loaded here. It was measured (2026-09-06): landing on a module
+      // costs its read, relocate and setup(), and setup() is the pattern's
+      // own precomputation - 10 ms for a light one, 2.3 s for "Branched
+      // flow", 2.9 s for "Two-stream". Loading on every detent froze the
+      // loop for that long while the encoder kept counting, and the
+      // accumulated detents landed all at once when the loop came back:
+      // a panel that sat still for two seconds and then jumped five
+      // patterns. So the knob moves the highlight and nothing else; the load
+      // waits until the knob has rested, and the thumbnail stands in.
+      selectPending = true;
+      selectMovedAtMs = now;
       // Marked, not written: savePatternIfSettled() holds off until SELECT is
       // left and the choice has stopped moving.
       notePatternChanged();
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
+    }
+    if (selectPending && (uint32_t)(now - selectMovedAtMs) >= SELECT_SETTLE_MS) {
+      // One attempt per rest: a module that fails to load is not retried
+      // every frame. While the load runs the panel keeps showing the last
+      // frame it was handed - the thumbnail - so the seconds a heavy setup()
+      // takes read as the picture holding, not the panel freezing.
+      selectPending = false;
+      if (currentPatternIdx != activePatternIdx) activateWithSnapshot(currentPatternIdx);
     }
 
     // Live preview behind the overlay so you can see what you're choosing.
@@ -1724,11 +1845,18 @@ void loop() {
     // deltas / buttons) so browsing with K4 doesn't drive the pattern's own
     // parameters — it just animates over time.
     dma_display->setRotation(0);
-    InputFrame preview = {};
-    preview.now = input.now;
-    for (int i = 0; i < 4; i++) preview.knobs[i] = input.knobs[i];
-    updateActivePattern(dt, preview);
-    drawActivePattern();
+    if (currentPatternIdx == activePatternIdx && !loadInFlight) {
+      InputFrame preview = {};
+      preview.now = input.now;
+      for (int i = 0; i < 4; i++) preview.knobs[i] = input.knobs[i];
+      updateActivePattern(dt, preview);
+      drawActivePattern();
+      canvasShowsThumb = false;
+    } else {
+      // The highlight is on a pattern that is not loaded (yet): its picture
+      // from the last time it ran, or nothing but the name until it has.
+      drawPatternThumbnail(currentPatternIdx, true);
+    }
 
     dma_display->setRotation(1);
     drawSelectingMode();

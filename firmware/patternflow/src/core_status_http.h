@@ -23,6 +23,8 @@
 
 #include "../net_config.h"
 
+#include <esp_system.h>   // esp_reset_reason(): needed with or without the endpoint
+
 #ifndef PF_STATUS_HTTP_ENABLED
 #define PF_STATUS_HTTP_ENABLED 1
 #endif
@@ -46,8 +48,35 @@
 
 // Smoothed frame time, owned by the sketch's loop().
 extern uint32_t renderFrameUs;
+// Panel brightness as set; the sketch owns it (K1 and /api/display move it).
+extern uint8_t currentBrightness;
 
 namespace PatternflowStatusHttp {
+
+// Why the board is running right now, as a word. Two reboots in one
+// afternoon went unnoticed because from the network they look exactly like
+// a power cut — uptime back near zero and every other number healthy — and
+// the serial logger was not attached for either. `uptime` says THAT the
+// board restarted; this says whether it was a hand on the plug ("poweron"),
+// a request ("sw": the reboot button, a finished update) or a bug ("panic",
+// "task_wdt", "int_wdt", "brownout"). Outside the PF_STATUS_HTTP_ENABLED
+// gate because setup() prints it at boot whether or not the endpoint is
+// compiled in.
+inline const char* resetReasonName() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON:   return "poweron";
+    case ESP_RST_EXT:       return "ext";
+    case ESP_RST_SW:        return "sw";
+    case ESP_RST_PANIC:     return "panic";
+    case ESP_RST_INT_WDT:   return "int_wdt";
+    case ESP_RST_TASK_WDT:  return "task_wdt";
+    case ESP_RST_WDT:       return "wdt";
+    case ESP_RST_DEEPSLEEP: return "deepsleep";
+    case ESP_RST_BROWNOUT:  return "brownout";
+    case ESP_RST_SDIO:      return "sdio";
+    default:                return "unknown";
+  }
+}
 
 #if PF_STATUS_HTTP_ENABLED
 
@@ -124,6 +153,10 @@ inline void handleStatus() {
   json += "\"uptime\":";
   json += (uint32_t)(millis() / 1000);
   json += ',';
+  // Next to uptime on purpose: the two are read together (see resetReasonName).
+  json += "\"resetReason\":\"";
+  json += resetReasonName();
+  json += "\",";
   json += "\"panel\":\"";
   json += PANEL_RES_W;
   json += 'x';
@@ -178,12 +211,23 @@ inline void handleStatus() {
   json += (activePatternIdx >= 0 && patterns && patterns[activePatternIdx].modulePath)
               ? "true" : "false";
   json += ',';
+  // A module is being loaded on the other core: `active` reads "-" for the
+  // second or three that takes, and this says why.
+  json += "\"loading\":";
+  json += loadInFlight ? "true" : "false";
+  json += ',';
 
   // Sleep. Worth a field of its own rather than leaving it to be inferred: a
   // sleeping device answers every other question here looking perfectly
   // healthy, and "the panel is dark" is the one thing the page can't show.
   json += "\"sleep\":";
   json += PatternflowSleep::isSleeping() ? "true" : "false";
+  json += ',';
+  // Brightness as set, 5..255. Here rather than only on /api/display so the
+  // console's slider follows K1 from the poll it already makes; what the
+  // power clamp actually applies is /api/display's power_applied.
+  json += "\"brightness\":";
+  json += (unsigned)currentBrightness;
   json += ',';
 
   // The other reason the panel can be dark while everything here reads fine:
@@ -260,6 +304,12 @@ inline void handleStatus() {
   json += PFModuleLoader::lastRelocateUs;
   json += ",\"setup\":";
   json += PFModuleLoader::lastSetupUs;
+  // Where the module's sections landed. `internal` is the number that
+  // decides whether the console survives the pattern (see the loader).
+  json += ",\"internal\":";
+  json += PFModuleLoader::lastInternalBytes;
+  json += ",\"psram\":";
+  json += PFModuleLoader::lastPsramBytes;
   json += "}";
 
   // Whoever registered extraStatus appends its fields — an MQTT bridge
@@ -277,7 +327,7 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), STATUS_INDEX_HTML);
+  PFSend::gz(server(), STATUS_INDEX_HTML_GZ, STATUS_INDEX_HTML_GZ_LEN);
 }
 
 // POST /api/sleep  on=1|0|toggle

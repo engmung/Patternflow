@@ -73,10 +73,79 @@ static char* readBytesWithTimeout(WiFiClient& client, size_t maxLength, size_t& 
   return buf;
 }
 
+// PATTERNFLOW FIX: the three readers below replace every client.readStringUntil()
+// in this file and the raw body loop's client.readBytes(). Both sit on Arduino's
+// Stream::timedRead() — `do { c = read(); } while (millis() - start < _timeout)`
+// over a non-blocking read() — a pure spin. The timeout bounds the gap between
+// two bytes, not the request: a request that trickles in over a slow link
+// keeps the spin alive for as long as it trickles. Since 3.9.1 this server is
+// serviced by a task pinned to Core 0 (core_net_task.h), where the Task WDT
+// watches the idle task with a 5 s panic; a spinning server starves it and
+// the board reboots. (Before 3.9.1 the same spin ran on Core 1, whose idle
+// task is not watched, and only froze the render.)
+//
+// These wait with delay(1) between checks, bounded by the client's stream
+// timeout exactly as timedRead() was, and give up when the client is gone.
+// Callers see what they saw before: a line without its CR/LF, an empty
+// String when nothing arrives (which still ends the header block), a short
+// body on timeout (which still aborts the request). readBytesWithTimeout()
+// and _uploadReadByte() already delay between checks and are left as they are.
+
+// True once a byte is waiting. False when the stream timeout passes with
+// nothing arriving, or the client has disconnected.
+static bool waitForByte(WiFiClient& client)
+{
+  const unsigned long timeout = client.getTimeout();
+  const unsigned long start = millis();
+  while (!client.available()) {
+    if (!client.connected()) return false;
+    if (millis() - start >= timeout) return false;
+    delay(1);
+  }
+  return true;
+}
+
+// One line, without its CR/LF. Mirrors the readStringUntil('\r') +
+// readStringUntil('\n') pair it replaces: read up to the CR, then discard
+// through the LF. A line that times out part-way comes back short, and the
+// LF is only waited for once a CR has actually been seen.
+static String readLine(WiFiClient& client)
+{
+  String line;
+  while (waitForByte(client)) {
+    int c = client.read();
+    if (c < 0) break;
+    if (c == '\r') {
+      while (waitForByte(client)) {
+        c = client.read();
+        if (c < 0 || c == '\n') break;
+      }
+      break;
+    }
+    line += (char)c;
+  }
+  return line;
+}
+
+// Up to `want` bytes into `buf`; returns how many arrived. Same contract as
+// Stream::readBytes(): stops short when the timeout passes between bytes or
+// the client is gone.
+static size_t readBody(WiFiClient& client, uint8_t* buf, size_t want)
+{
+  size_t got = 0;
+  while (got < want) {
+    if (!waitForByte(client)) break;
+    int n = client.read(buf + got, want - got);
+    if (n <= 0) break;
+    got += (size_t)n;
+  }
+  return got;
+}
+
 bool WebServer::_parseRequest(WiFiClient& client) {
   // Read the first line of HTTP request
-  String req = client.readStringUntil('\r');
-  client.readStringUntil('\n');
+  // PATTERNFLOW FIX: readLine() here and at every former readStringUntil pair below.
+  String req = readLine(client);
   //reset header value
   for (int i = 0; i < _headerKeysCount; ++i) {
     _currentHeaders[i].value =String();
@@ -139,8 +208,7 @@ bool WebServer::_parseRequest(WiFiClient& client) {
     bool isEncoded = false;
     //parse headers
     while(1){
-      req = client.readStringUntil('\r');
-      client.readStringUntil('\n');
+      req = readLine(client);  // PATTERNFLOW FIX
       if (req == "") break;//no moar headers
       int headerDiv = req.indexOf(':');
       if (headerDiv == -1){
@@ -189,10 +257,11 @@ bool WebServer::_parseRequest(WiFiClient& client) {
         // HTTP_RAW_BUFLEN, so the final chunk of every raw body sits in
         // readBytes() until the 5 s stream timeout expires before returning
         // short — a fixed ~5 s stall on every PUT (measured: a 1436-byte body
-        // completes in 0.4 s, a 1437-byte body in 5.5 s).
+        // completes in 0.4 s, a 1437-byte body in 5.5 s). readBody() does
+        // the waiting without spinning — see the readers above.
         size_t remaining = _clientContentLength - _currentRaw->totalSize;
         size_t want = remaining < (size_t)HTTP_RAW_BUFLEN ? remaining : (size_t)HTTP_RAW_BUFLEN;
-        _currentRaw->currentSize = client.readBytes(_currentRaw->buf, want);
+        _currentRaw->currentSize = readBody(client, _currentRaw->buf, want);
         _currentRaw->totalSize += _currentRaw->currentSize;
         if (_currentRaw->currentSize == 0) {
           _currentRaw->status = RAW_ABORTED;
@@ -243,8 +312,7 @@ bool WebServer::_parseRequest(WiFiClient& client) {
     String headerValue;
     //parse headers
     while(1){
-      req = client.readStringUntil('\r');
-      client.readStringUntil('\n');
+      req = readLine(client);  // PATTERNFLOW FIX
       if (req == "") break;//no moar headers
       int headerDiv = req.indexOf(':');
       if (headerDiv == -1){
@@ -358,12 +426,13 @@ bool WebServer::_parseForm(WiFiClient& client, String boundary, uint32_t len){
   log_v("Parse Form: Boundary: %s Length: %d", boundary.c_str(), len);
   String line;
   int retry = 0;
+  // PATTERNFLOW FIX: readLine() here and for every line this parser reads
+  // below; it consumes the LF itself, so the separate '\n' read is gone.
   do {
-    line = client.readStringUntil('\r');
+    line = readLine(client);
     ++retry;
   } while (line.length() == 0 && retry < 3);
 
-  client.readStringUntil('\n');
   //start reading the form
   if (line == ("--"+boundary)){
    if(_postArgs) delete[] _postArgs;
@@ -376,8 +445,7 @@ bool WebServer::_parseForm(WiFiClient& client, String boundary, uint32_t len){
       String argFilename;
       bool argIsFile = false;
 
-      line = client.readStringUntil('\r');
-      client.readStringUntil('\n');
+      line = readLine(client);
       if (line.length() > 19 && line.substring(0, 19).equalsIgnoreCase(F("Content-Disposition"))){
         int nameStart = line.indexOf('=');
         if (nameStart != -1){
@@ -397,19 +465,16 @@ bool WebServer::_parseForm(WiFiClient& client, String boundary, uint32_t len){
           log_v("PostArg Name: %s", argName.c_str());
           using namespace mime;
           argType = FPSTR(mimeTable[txt].mimeType);
-          line = client.readStringUntil('\r');
-          client.readStringUntil('\n');
+          line = readLine(client);
           if (line.length() > 12 && line.substring(0, 12).equalsIgnoreCase(FPSTR(Content_Type))){
             argType = line.substring(line.indexOf(':')+2);
             //skip next line
-            client.readStringUntil('\r');
-            client.readStringUntil('\n');
+            readLine(client);
           }
           log_v("PostArg Type: %s", argType.c_str());
           if (!argIsFile){
             while(1){
-              line = client.readStringUntil('\r');
-              client.readStringUntil('\n');
+              line = readLine(client);
               if (line.startsWith("--"+boundary)) break;
               if (argValue.length() > 0) argValue += "\n";
               argValue += line;
@@ -485,8 +550,7 @@ bool WebServer::_parseForm(WiFiClient& client, String boundary, uint32_t len){
                 _currentUpload->type.c_str(),
                 (int)_currentUpload->totalSize);
             if (!client.connected()) return _parseFormUploadAborted();
-            line = client.readStringUntil('\r');
-            client.readStringUntil('\n');
+            line = readLine(client);
             if (line == "--") {     // extra two dashes mean we reached the end of all form fields
                 log_v("Done Parsing POST");
                 break;

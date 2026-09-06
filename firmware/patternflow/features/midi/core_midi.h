@@ -22,7 +22,8 @@
 //   in   Program Change                   pattern index (0-based). A person's
 //                    choice: it persists across reboots like a knob pick.
 //
-//   out  CC 24..27   the encoders, relative (64 ± detents this frame)
+//   out  CC 24..27   the encoders: a virtual position, or 64 ± steps since
+//                    the last message. Paced - see "Pacing" below.
 //   out  note 60..63 the buttons (velocity 127 on press, note-off on release)
 //   out  Program Change                   the pattern changed
 //
@@ -119,6 +120,52 @@ inline void saveGains() {
 inline bool outAbsolute = PF_MIDI_OUT_ABSOLUTE;
 inline int  outPos[4] = {64, 64, 64, 64};
 
+// ── Pacing ──────────────────────────────────────────────────────────────
+// One CC per knob per frame was the natural rate when only a hand turned
+// the encoders: a wrist makes a few detents a frame at most, and only while
+// it moves. The audio edition changed who turns them. The microphone drives
+// the knobs through lanes, applyLaneMotion turns a lane into knobDeltas, and
+// by the time the frame reaches us that motion is indistinguishable from a
+// hand - so a lane that wanders 1/127 of its travel every frame is a CC
+// every frame, per knob, at 60 fps. Measured on a panel in a QUIET room
+// (rawPeak 0.0025): 26..43 messages a second, each one a UDP packet through
+// AppleMIDI. The Wi-Fi driver has eight static TX buffers, shared with
+// everything else the panel sends; that rate kept them full, the serial log
+// became a wall of `endPacket(): could not send data: 12` (ENOMEM), and the
+// console's TCP traffic starved behind it - a 26 KB page took 5..7 s and
+// arrived truncated.
+//
+// So the knobs are paced: at most one CC per knob per
+// PF_MIDI_OUT_MIN_INTERVAL_MS, trailing-edge - the last value always goes
+// out, it just may wait up to one interval. In absolute mode the virtual
+// position still moves every frame; what is sent is where it IS when the
+// interval is up, if that differs from what the host last heard, so a lane
+// that jitters back to where it started sends nothing at all. In relative
+// mode the steps sum between messages and go out as one 64 ± sum; a sum
+// that would leave ±63 goes out at once rather than lose motion. 50 ms is
+// 20 messages a second per knob - more than a hand produces, and the
+// trailing value lands within three frames of the hand stopping. Notes and
+// Program Change are not paced: they are events, one per press or pick,
+// and a press must not queue behind a knob.
+#ifndef PF_MIDI_OUT_MIN_INTERVAL_MS
+#define PF_MIDI_OUT_MIN_INTERVAL_MS 50
+#endif
+// A lane is not a hand. The row in docs/midi-spec.md reads "encoder turned
+// by a hand", and a knob the microphone (or the browser audio path, or a
+// weather value) is moving through a lane is not that: the DAW would record
+// the room's noise floor as automation, and on the audio edition that stream
+// is what filled the Wi-Fi transmit queue in the first place. After
+// applyLaneMotion a frame whose knobAudioActive[i] is still set got that
+// knob's delta from the lane and nothing else - a hand on the encoder clears
+// the flag for five seconds - so this is one check. Set to 1 to echo lane
+// motion anyway; the pacing above still applies.
+#ifndef PF_MIDI_OUT_LANE_MOTION
+#define PF_MIDI_OUT_LANE_MOTION 0
+#endif
+inline uint32_t outLastSentMs[4] = {0, 0, 0, 0};     // when each knob last went out
+inline int      outSentPos[4]    = {64, 64, 64, 64}; // abs: the position the host has
+inline int      outRelPending[4] = {0, 0, 0, 0};     // rel: steps not yet sent
+
 inline void loadSettings() {
   Preferences p;
   if (p.begin("pf_midi", true)) {
@@ -157,6 +204,7 @@ inline bool setOutMultiplier(int knob, int mul) {
 inline void setOutAbsolute(bool abs) {
   outAbsolute = abs;
   for (auto& a : outAccum) a = 0;
+  for (auto& r : outRelPending) r = 0;   // steps summed for one encoding mean nothing in the other
   Preferences p;
   if (p.begin("pf_midi", false)) {
     p.putBool("outAbs", abs);
@@ -178,6 +226,9 @@ inline bool setOutDivisor(int knob, int div) {
 
 inline void setRuntimeEnabled(bool on) {
   runtimeEnabled = on;
+  // Switching MIDI off must not leave up to one interval of steps waiting
+  // to go out the moment it comes back on.
+  if (!on) for (auto& r : outRelPending) r = 0;
   Preferences p;
   if (p.begin("pf_midi", false)) {
     p.putBool("on", on);
@@ -298,6 +349,7 @@ inline int  lastPatternIdx = -1;
 inline void observeFrame(const InputFrame& input, int patternIdx) {
   if (!runtimeEnabled) return;
   const uint8_t ch = outChannel() - 1;   // status nibble is 0-based
+  const uint32_t now = input.now;        // the frame's millis(): one clock for all four knobs
   for (int i = 0; i < 4; i++) {
     // The hand's share only: what MIDI put in this frame is not news to MIDI.
     // A lane the core silenced (held by the absolute bus, or a menu owning
@@ -307,6 +359,9 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
     int d = input.knobDeltas[i];
     if (d != 0) d -= injectedDelta[i];
     injectedDelta[i] = 0;
+#if !PF_MIDI_OUT_LANE_MOTION
+    if (input.knobAudioActive[i]) d = 0;   // a lane's motion, not a hand's
+#endif
     if (d != 0) {
       // Sensitivity: whole steps go out, the remainder waits for the next
       // detent. Division truncates toward zero, so the remainder keeps the
@@ -319,16 +374,36 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
       if (steps < -63) steps = -63;
       if (steps != 0) {
         if (outAbsolute) {
+          // The position moves every frame; whether it is sent is the
+          // pacer's call, below.
           int pos = outPos[i] + steps;
           if (pos < 0) pos = 0;
           if (pos > 127) pos = 127;
-          if (pos != outPos[i]) {
-            outPos[i] = pos;
-            emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)pos);
-          }
+          outPos[i] = pos;
         } else {
-          emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + steps));
+          outRelPending[i] += steps;
         }
+      }
+    }
+    // The pacer runs every frame, motion or not: a frame with no motion is
+    // the one that flushes the trailing value. Unsigned subtraction, so the
+    // millis() wrap at 49 days is a non-event.
+    const bool due = (uint32_t)(now - outLastSentMs[i]) >= (uint32_t)PF_MIDI_OUT_MIN_INTERVAL_MS;
+    if (outAbsolute) {
+      if (due && outPos[i] != outSentPos[i]) {
+        outSentPos[i] = outPos[i];
+        outLastSentMs[i] = now;
+        emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)outPos[i]);
+      }
+    } else {
+      // A sum outside ±63 cannot wait: one message carries 63 steps at
+      // most, and what does not fit stays pending rather than being lost.
+      const int sum = outRelPending[i];
+      if (sum != 0 && (due || sum > 63 || sum < -63)) {
+        const int send = sum > 63 ? 63 : (sum < -63 ? -63 : sum);
+        outRelPending[i] = sum - send;
+        outLastSentMs[i] = now;
+        emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + send));
       }
     }
     if (input.btnPressed[i] && !injectedPress[i]) emit(0x90 | ch, PF_MIDI_NOTE_BASE + i, 127);

@@ -37,6 +37,7 @@
 #include "core_pack_select.h"
 #include "patterns_index.h"
 #include "fflate_js.h"
+#include "core_thumbs.h"
 #endif
 
 namespace PatternflowPatternsHttp {
@@ -91,6 +92,7 @@ inline void evictResidentModule() {
 // are handed to the loop task and run at the frame boundary. From loop()
 // itself — tick() below — they run inline.
 inline void captureSelectionOnceNow() {
+  waitForAsyncLoad();   // a module halfway in cannot be evicted
   if (restorePending) {
     // Show / night schedule / MQTT may reload a module while the console
     // still holds the pause. Evict again or the wake page loops forever.
@@ -120,6 +122,7 @@ inline void captureSelectionOnce() {
 }
 
 inline void restoreSelectionNow() {
+  waitForAsyncLoad();
   restorePending = false;
   buildPatternList();
   if (restorePath[0]) {
@@ -279,6 +282,7 @@ inline void sendJsonAndClose(int code, const String& body) {
 inline void handleFormat() {
   captureSelectionOnce();
   bool ok = formatModuleStorage();
+  PFThumbs::forgetAll();   // the files went with the volume
   requestReload();
   sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}"
                               : "{\"ok\":false,\"error\":\"format failed\"}");
@@ -286,17 +290,17 @@ inline void handleFormat() {
 
 inline void handleIndex() {
   if (noteConsolePageOpened()) { sendConsoleWakePage(); return; }
-  PFSend::progmem(server(), PATTERNS_INDEX_HTML);
+  PFSend::gz(server(), PATTERNS_INDEX_HTML_GZ, PATTERNS_INDEX_HTML_GZ_LEN);
 }
 
 // The unzip library for dropping a whole pattern pack on the page (see the
 // ZIP note in patterns_index.h). Served from flash rather than a CDN so a
 // device on a LAN with no internet still unpacks; the page only asks for it
-// when a .zip is actually dropped, so the 32 KB costs nothing otherwise.
+// when a .zip is actually dropped, so the library costs nothing otherwise.
 inline void handleFflateJs() {
   noteConsoleApiCall();
-  PFSend::progmem(server(), FFLATE_JS, "application/javascript",
-                  "public, max-age=86400");
+  PFSend::gz(server(), FFLATE_JS_GZ, FFLATE_JS_GZ_LEN, "application/javascript",
+             "public, max-age=86400");
 }
 
 inline void handleList() {
@@ -382,8 +386,11 @@ inline void handleFile() {
   }
   String ext = server().hasArg("ext") ? server().arg("ext") : String("pfm");
   ext.toLowerCase();
-  if (ext != "pfm" && ext != "json") {
-    sendJson(400, "{\"ok\":false,\"error\":\"ext must be pfm or json\"}");
+  // thumb: the panel's own picture of the pattern (src/core_thumbs.h), for a
+  // console or a site that wants to show what a pattern looks like without
+  // running it. 404 until the pattern has been played once.
+  if (ext != "pfm" && ext != "json" && ext != "thumb") {
+    sendJson(400, "{\"ok\":false,\"error\":\"ext must be pfm, json or thumb\"}");
     return;
   }
   char path[MODULE_PATH_BYTES];
@@ -421,6 +428,7 @@ inline bool removeModuleFiles(const char* slug) {
   snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
   if (FFat.exists(sidecar)) FFat.remove(sidecar);
   sidecarForgetSlug(slug);
+  PFThumbs::forget(slug);
   return true;
 }
 

@@ -24,6 +24,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "core_loop_sync.h"   // onLoopTask(): present() belongs to the frame
 // Vendored HUB75 driver (src/hub75/), not the Library Manager copy: it
 // carries one addition, blitRGB888(), that upstream has no equivalent for.
 // See src/hub75/VENDORED.md.
@@ -213,6 +214,11 @@ typedef const uint8_t* (*ComposeFn)(const uint8_t* canvas, int w, int h);
 inline ComposeFn composeHook = nullptr;
 
 inline void present() {
+  // The panel is the loop task's. A module's setup() now runs on a loader
+  // task (pattern_registry.h) while the loop keeps drawing, and a setup()
+  // that presents from there would blit into a frame the loop is flipping.
+  // Before attach() there is no loop task yet and this is a no-op.
+  if (!PFLoopSync::onLoopTask()) return;
   uint32_t presentStartedUs = micros();
   if (!gammaLUTReady) buildGammaLUT();
 

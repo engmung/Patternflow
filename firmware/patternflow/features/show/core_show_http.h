@@ -200,7 +200,7 @@ inline void appendStatus(String& json) {
 }
 
 inline void handleIndex() {
-  PFSend::progmem(server(), SHOW_INDEX_HTML);
+  PFSend::gz(server(), SHOW_INDEX_HTML_GZ, SHOW_INDEX_HTML_GZ_LEN);
 }
 
 inline bool isPfsPath(const char* path) {

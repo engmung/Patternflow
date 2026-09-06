@@ -453,7 +453,11 @@ inline void update(const InputFrame& input, const char* contentName, int pattern
   }
 
   for (int i = 0; i < 4; i++) {
-    if (input.knobDeltas[i] != 0) {
+    // A knob a lane is moving still carries a delta here; whether that goes
+    // to the host is PF_OSC_OUT_LANE_MOTION's call (osc_config.h says why
+    // it is off by default).
+    const bool laneMotion = PF_OSC_OUT_LANE_MOTION ? false : input.knobAudioActive[i];
+    if (input.knobDeltas[i] != 0 && !laneMotion) {
       sendKnobEvent(i, input.knobs[i], input.knobDeltas[i]);
     }
 

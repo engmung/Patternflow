@@ -682,7 +682,7 @@ For the original defaults:
 
   Exits on a second K2 longpress, a **K2 click**, or after 8 seconds of idle.
 - **Encoder 3 longpress (≥1s)** — enter/exit the KNOB MAP screen: it shows which physical knob is which number (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left), and turning any knob lights its digit green so each one can be verified without leaving the screen. Knob input is swallowed while it's up, so the pattern underneath never sees it. Exits on a K3 click, a second K3 longpress, or after 8 seconds of idle.
-- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation cycles patterns; longpress again to confirm.
+- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation moves the highlight through the list — three detents per pattern, so a hand does not overshoot — and the panel shows each pattern's **thumbnail** (the frame it last drew, kept from the last time it ran); the highlighted pattern loads once the knob has rested for a third of a second — on the other core, so the knob keeps answering while a heavy pattern's setup runs — then runs live behind the overlay. A pattern that has never run shows nothing but its name until it has. Longpress again to confirm — a choice the knob was still resting on loads right then.
 
 ### One detent, one step
 Knob deltas are linear: a pattern sees exactly the number of detents that were turned, however fast the turn was.
