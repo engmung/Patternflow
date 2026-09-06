@@ -15,7 +15,7 @@
 // edition's own and moves at whatever pace suits it — it has nothing to say
 // about the core version, which is reported separately.
 #define PF_VARIANT          "performance"
-#define PF_VARIANT_VERSION  "v0.2.3"
+#define PF_VARIANT_VERSION  "v0.2.4"
 
 // ── The show player's night face ────────────────────────────────────────
 //

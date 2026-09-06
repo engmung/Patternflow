@@ -254,6 +254,9 @@ bool updateShowing = false;
 uint32_t updateIdleAtMs = 0;
 uint32_t updateDrawnAtMs = 0;
 bool updateDirty = false;
+// The percentage the upload handler last reported, from the network core;
+// loop() draws it. -1 when nothing is being received.
+volatile int uploadPctShown = -1;
 
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
@@ -463,13 +466,16 @@ void setup() {
   // is not serviced until loop() has registered every route.
   PatternflowNetTask::begin();
 
-  // Wireless-update progress is drawn from inside the upload handler: the
-  // whole multipart POST is consumed in one handleClient() call, so the
-  // main loop never runs while the image streams in. This callback keeps
-  // the panel honest during those seconds (same task — drawing is safe).
+  // Wireless-update progress. The upload handler runs on the network core
+  // (since 3.9.1), so this callback must not draw: for a while it did, and
+  // the UPDATE card and the pattern's frames took turns on the panel — two
+  // tasks flipping one DMA buffer, a picture that tore for the length of
+  // the upload. It records the percentage and raises the UPDATE screen;
+  // loop() draws it, the way it draws every other card.
   PatternflowWebUpdate::progressCallback = [](int pct) {
-    drawUpdateScreen(pct);
-    dma_display->flipDMABuffer();
+    uploadPctShown = pct;
+    updateShowing = true;
+    updateDirty = true;
     updateIdleAtMs = millis();
   };
 
@@ -620,8 +626,19 @@ void drawScreenHeader(const char* title) {
 // Notices sit on the same tight scrim the SELECT overlay uses (text bounds
 // + 2px) instead of a full-width black band — less of the live pattern is
 // blotted out and every overlay text now shares one look.
+// The name of what just arrived, for a few seconds over the pattern.
+// Upright — portrait, like every other card — where it used to run along the
+// long axis and read sideways on a panel stood on its end; and wrapped the
+// way the SELECT screen wraps it, since a community pattern's name is as
+// likely to be "Two-stream phase-space vortices" as "Origin".
 void drawContentNotice() {
-  drawCenteredTextScrim(currentContentName(), 30, dma_display->color565(255, 255, 255), 1);
+  char name[MODULE_NAME_BYTES];
+  asciiFold(currentContentName(), name, sizeof(name));
+  dma_display->setRotation(1);
+  PatternflowUiText::drawWrappedName(name, dma_display->height() / 2,
+                                     dma_display->color565(255, 255, 255));
+  PatternflowUiText::useDefaultFont();
+  dma_display->setRotation(0);
 }
 
 // Label plus a thin LED-orange level bar on one shared scrim — the bar
@@ -1727,15 +1744,15 @@ void loop() {
       frameDrawn = false;
     }
   } else if (updateShowing || PatternflowWebUpdate::isRebootPending()) {
-    // Same throttled-redraw scheme as the NETWORK screen. This only paints
-    // the idle / done / failed states — during an actual flash the loop is
-    // blocked inside handleClient(), and the progress callback installed in
-    // setup() draws instead. The isRebootPending() arm covers always-armed
-    // uploads that land while a pattern is running: the DONE / REBOOTING
-    // card shows for the ~1.2 s before restart instead of snapping back to
-    // the pattern.
+    // Same throttled-redraw scheme as the NETWORK screen, for every state
+    // of the card — idle, receiving, done, failed. The upload handler runs
+    // on the network core and only reports (uploadPctShown, updateDirty);
+    // the drawing stays here, on the one task that owns the panel. The
+    // isRebootPending() arm covers always-armed uploads that land while a
+    // pattern is running: the DONE / REBOOTING card shows for the ~1.2 s
+    // before restart instead of snapping back to the pattern.
     if (updateDirty || (now - updateDrawnAtMs) >= NET_INFO_REDRAW_MS) {
-      drawUpdateScreen(-1);
+      drawUpdateScreen(PatternflowWebUpdate::isUploading() ? uploadPctShown : -1);
       updateDrawnAtMs = now;
       updateDirty = false;
     } else {
