@@ -95,8 +95,9 @@ inline void parseFrame(const String& s) {
 inline WebServer& server() { return PatternflowPatternsHttp::server(); }
 
 inline void handleIndex() {
-  server().sendHeader("Cache-Control", "no-store");
-  PFSend::progmem(server(), AUDIO_IN_INDEX_HTML);
+  // gz() sends Cache-Control: no-store itself (its default); the header
+  // this used to add on top was the same one twice.
+  PFSend::gz(server(), AUDIO_IN_INDEX_HTML_GZ, AUDIO_IN_INDEX_HTML_GZ_LEN);
 }
 
 // Everything the page needs in one object. `level` is the raw band, exactly

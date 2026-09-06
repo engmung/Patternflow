@@ -137,7 +137,7 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), MQTT_INDEX_HTML);
+  PFSend::gz(server(), MQTT_INDEX_HTML_GZ, MQTT_INDEX_HTML_GZ_LEN);
 }
 
 inline void handleGet() {

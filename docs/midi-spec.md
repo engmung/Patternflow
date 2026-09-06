@@ -1,6 +1,6 @@
 # Patternflow MIDI Specification
 
-**Spec version: 1.0** · applies to the `midi` feature (Audio edition ≥ v0.5.0)
+**Spec version: 1.1** · applies to the `midi` feature (Audio edition ≥ v0.5.0)
 
 Patternflow is a MIDI device: four knobs and four buttons in, four knobs and
 four buttons out, and a pattern selector. This document is the contract
@@ -53,7 +53,7 @@ just more input, and the audio lanes yield to both.
 
 | Message | When |
 |---|---|
-| **CC 24–27** | Encoder 1–4 turned by a hand. **Default (`outMode=abs`):** the value is a virtual position `0..127` the panel keeps per knob — starts at 64, moves by that knob's `outMul` steps per `outDiv` detents, clamps at the ends — so every DAW reads it as an ordinary knob with nothing to auto-detect; the DAW's takeover mode handles pickup after a clamp. **`outMode=rel`:** `64 ± steps` this frame (binary offset), for hosts that map relative encoders explicitly (Max, TouchDesigner). Live's map-time auto-detection of relative encoders is not reliable with this stream; that is why `abs` is the default. |
+| **CC 24–27** | Encoder 1–4 turned by a hand. **Default (`outMode=abs`):** the value is a virtual position `0..127` the panel keeps per knob — starts at 64, moves by that knob's `outMul` steps per `outDiv` detents, clamps at the ends — so every DAW reads it as an ordinary knob with nothing to auto-detect; the DAW's takeover mode handles pickup after a clamp. **`outMode=rel`:** `64 ± steps` since the previous message (binary offset), for hosts that map relative encoders explicitly (Max, TouchDesigner). Live's map-time auto-detection of relative encoders is not reliable with this stream; that is why `abs` is the default. **Pacing (1.1):** at most one message per knob every 50 ms (≤ 20/s per knob, `PF_MIDI_OUT_MIN_INTERVAL_MS`), trailing-edge so the final value always arrives — in `abs` only a position that differs from the last one sent goes out, in `rel` the steps sum between messages and a sum leaving ±63 is sent at once. **Hand motion only (1.1):** a knob that a lane is moving — the on-board microphone, the browser or phone audio path, a weather value — is not reported; `PF_MIDI_OUT_LANE_MOTION 1` at build time echoes it anyway. |
 | **Note-on 60–63**, velocity 127 | Encoder button 1–4 pressed |
 | **Note-off 60–63** | Released |
 | **Program Change `n`** | The pattern changed (by anyone: knob, console, OSC, MIDI, a show), for `n ≤ 127` |
@@ -98,6 +98,15 @@ as `OSC` and `AUD`.
 
 ## Version history
 
+- **1.1** (2026-09-06) — outbound CC 24–27 paced: one message per knob per
+  50 ms at most (`PF_MIDI_OUT_MIN_INTERVAL_MS`), the final value always sent;
+  `rel` carries the steps summed since the previous message. On the Audio
+  edition a microphone lane moving a knob 1/127 per frame was one UDP
+  packet per frame, enough to exhaust the Wi-Fi TX buffers and starve the
+  console. Lane motion (microphone, browser/phone audio, weather) is no
+  longer reported at all — the row always said "turned by a hand" —
+  unless the build sets `PF_MIDI_OUT_LANE_MOTION`. Notes and Program Change
+  are unchanged.
 - **1.0** — CC 20–23 absolute in; CC 24–27 relative in/out; notes 60–63
   buttons in/out; Program Change in/out; RTP-MIDI listener on 5004;
   `outDiv` sensitivity, `outMode` (absolute position by default) and a

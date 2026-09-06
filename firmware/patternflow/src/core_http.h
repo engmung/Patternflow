@@ -49,8 +49,8 @@ inline void registerChrome() {
   // Short-lived cache: one fetch covers a whole console visit, but a
   // firmware update still reaches the browser within five minutes.
   httpServer.on("/pf-console.js", []() {
-    PFSend::progmem(httpServer, PF_CONSOLE_JS, "application/javascript",
-                    "max-age=300");
+    PFSend::gz(httpServer, PF_CONSOLE_JS_GZ, PF_CONSOLE_JS_GZ_LEN,
+               "application/javascript", "max-age=300");
   });
   httpServer.onNotFound([]() {
     httpServer.send(404, "text/plain", "Not found");

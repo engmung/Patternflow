@@ -259,7 +259,7 @@ inline void begin() {
   PatternflowNames::announce();
 
   server().on("/update", HTTP_GET, []() {
-    PFSend::progmem(server(), WEB_UPDATE_HTML);
+    PFSend::gz(server(), WEB_UPDATE_HTML_GZ, WEB_UPDATE_HTML_GZ_LEN);
   });
   server().on("/update", HTTP_POST, handleUploadDone, handleUpload);
   server().on("/update/status", HTTP_GET, handleStatus);

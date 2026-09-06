@@ -286,17 +286,17 @@ inline void handleFormat() {
 
 inline void handleIndex() {
   if (noteConsolePageOpened()) { sendConsoleWakePage(); return; }
-  PFSend::progmem(server(), PATTERNS_INDEX_HTML);
+  PFSend::gz(server(), PATTERNS_INDEX_HTML_GZ, PATTERNS_INDEX_HTML_GZ_LEN);
 }
 
 // The unzip library for dropping a whole pattern pack on the page (see the
 // ZIP note in patterns_index.h). Served from flash rather than a CDN so a
 // device on a LAN with no internet still unpacks; the page only asks for it
-// when a .zip is actually dropped, so the 32 KB costs nothing otherwise.
+// when a .zip is actually dropped, so the library costs nothing otherwise.
 inline void handleFflateJs() {
   noteConsoleApiCall();
-  PFSend::progmem(server(), FFLATE_JS, "application/javascript",
-                  "public, max-age=86400");
+  PFSend::gz(server(), FFLATE_JS_GZ, FFLATE_JS_GZ_LEN, "application/javascript",
+             "public, max-age=86400");
 }
 
 inline void handleList() {

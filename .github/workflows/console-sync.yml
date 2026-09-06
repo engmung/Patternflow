@@ -8,12 +8,15 @@ name: Console pages in sync
 # `console_pages.py build` silently overwrites it with the older HTML. The
 # work disappears with no error anywhere.
 #
-# So the only thing this checks is that every header still matches its HTML.
+# So this checks that every header still matches its HTML - and that the
+# gzip twin `build` lays under each literal (theme_index.h and fflate_js.h
+# carry one too, with no HTML of their own) still decompresses to it.
 on:
   pull_request:
     paths:
       - "firmware/patternflow/console/**"
       - "firmware/patternflow/src/*_index.h"
+      - "firmware/patternflow/src/fflate_js.h"
       - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
       - "firmware/toolchain/build_audio_in_page.py"
@@ -24,6 +27,7 @@ on:
     paths:
       - "firmware/patternflow/console/**"
       - "firmware/patternflow/src/*_index.h"
+      - "firmware/patternflow/src/fflate_js.h"
       - "firmware/patternflow/features/**/*_index.h"
       - "firmware/toolchain/console_pages.py"
       - "firmware/toolchain/build_audio_in_page.py"

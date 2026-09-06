@@ -40,3 +40,13 @@
 #ifndef PF_OSC_LOCAL_PORT
 #define PF_OSC_LOCAL_PORT 9001
 #endif
+// Whether a knob that a LANE is moving - the microphone, the browser audio
+// path, a weather value - is reported out as /patternflow/knob/N/delta and
+// /clicks. Off: the spec's row says "encoder turned", and on the audio
+// edition a microphone jittering four knobs would be two datagrams per knob
+// per frame to the host - the same flood that filled the Wi-Fi transmit
+// queue over MIDI and starved the console. A hand on the encoder always
+// reports (it silences the lane for five seconds, so the two never mix).
+#ifndef PF_OSC_OUT_LANE_MOTION
+#define PF_OSC_OUT_LANE_MOTION 0
+#endif

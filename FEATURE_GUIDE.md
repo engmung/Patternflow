@@ -120,7 +120,7 @@ section fully before writing code.
 | `features/pf_features.h` | The dispatcher: walks `PF_FEATURE_LIST`, null-check per feature per hook. |
 | `features/features.h` | Core-owned composition point; includes `features_local.h` if present, steps aside if not. |
 | `features/feature_presets.h` | Patterns contributed *by* features (rarely needed). |
-| `features/<name>/<name>_index.h` | A feature's console page — generated from `console/<name>.html` by `firmware/toolchain/console_pages.py build`. Edit the HTML, never the header. |
+| `features/<name>/<name>_index.h` | A feature's console page — generated from `console/<name>.html` by `firmware/toolchain/console_pages.py build`, which also lays the gzip twin (`<NAME>_GZ`, the bytes the device actually sends) under the literal. Edit the HTML, never the header. |
 
 Existing features to learn from: `osc` (UDP in/out), `audio` (WebSocket
 server, [`docs/audio-ws-spec.md`](docs/audio-ws-spec.md)), `audio_in` (device
