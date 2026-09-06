@@ -224,6 +224,13 @@ bool patternLatchArmed = false;
 // pattern is LEFT, provided it has run for THUMB_MIN_RUN_MS and the canvas
 // still holds its frame rather than another pattern's thumbnail.
 const uint32_t SELECT_SETTLE_MS = 350;
+// Detents per pattern while browsing. One per detent overshot: a hand that
+// meant one pattern landed two or three along, and once the load stopped
+// holding the frame that overshoot was the whole of what still felt wrong.
+// Whole steps move the highlight; the remainder waits for the next detent
+// and a change of direction cancels it, so nothing creeps.
+const int SELECT_DETENTS_PER_STEP = 3;
+int selectAccum = 0;
 const uint32_t THUMB_MIN_RUN_MS = 2000;   // after setup() returns; a heavy module's first two seconds are already its picture
 bool selectPending = false;         // the highlight moved and nothing has loaded since
 uint32_t selectMovedAtMs = 0;
@@ -1609,6 +1616,7 @@ void loop() {
       // over its frame.
       snapshotActiveIfRipe();
       selectPending = false;
+      selectAccum = 0;
       currentMode = MODE_SELECTING;
       contentNoticeTimer = 0.0f;
       // Physical escape hatch for the calibration overlay: whoever is at the
@@ -1775,8 +1783,14 @@ void loop() {
       drawBrightnessNotice();
     }
   } else {
+    int selectSteps = 0;
     if (input.knobDeltas[3] != 0) {
-      currentPatternIdx += input.knobDeltas[3];
+      selectAccum += input.knobDeltas[3];
+      selectSteps = selectAccum / SELECT_DETENTS_PER_STEP;   // truncates toward zero
+      selectAccum -= selectSteps * SELECT_DETENTS_PER_STEP;
+    }
+    if (selectSteps != 0) {
+      currentPatternIdx += selectSteps;
       // Floored modulo: OSC /knob/4/delta can deliver a delta more negative
       // than -NUM_PATTERNS in one frame, and C++'s % keeps the sign — a plain
       // "+= NUM_PATTERNS once" would leave a negative index into patterns[].
@@ -1784,7 +1798,7 @@ void loop() {
       // Step over hidden entries in whichever direction the knob is going.
       // Bounded by NUM_PATTERNS so an all-hidden list cannot spin forever.
       {
-        int step = input.knobDeltas[3] > 0 ? 1 : -1;
+        int step = selectSteps > 0 ? 1 : -1;
         for (int guard = 0; guard < NUM_PATTERNS && patterns[currentPatternIdx].hidden; guard++) {
           currentPatternIdx =
               ((currentPatternIdx + step) % NUM_PATTERNS + NUM_PATTERNS) % NUM_PATTERNS;
