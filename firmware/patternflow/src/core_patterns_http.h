@@ -37,6 +37,7 @@
 #include "core_pack_select.h"
 #include "patterns_index.h"
 #include "fflate_js.h"
+#include "core_thumbs.h"
 #endif
 
 namespace PatternflowPatternsHttp {
@@ -279,6 +280,7 @@ inline void sendJsonAndClose(int code, const String& body) {
 inline void handleFormat() {
   captureSelectionOnce();
   bool ok = formatModuleStorage();
+  PFThumbs::forgetAll();   // the files went with the volume
   requestReload();
   sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}"
                               : "{\"ok\":false,\"error\":\"format failed\"}");
@@ -382,8 +384,11 @@ inline void handleFile() {
   }
   String ext = server().hasArg("ext") ? server().arg("ext") : String("pfm");
   ext.toLowerCase();
-  if (ext != "pfm" && ext != "json") {
-    sendJson(400, "{\"ok\":false,\"error\":\"ext must be pfm or json\"}");
+  // thumb: the panel's own picture of the pattern (src/core_thumbs.h), for a
+  // console or a site that wants to show what a pattern looks like without
+  // running it. 404 until the pattern has been played once.
+  if (ext != "pfm" && ext != "json" && ext != "thumb") {
+    sendJson(400, "{\"ok\":false,\"error\":\"ext must be pfm, json or thumb\"}");
     return;
   }
   char path[MODULE_PATH_BYTES];
@@ -421,6 +426,7 @@ inline bool removeModuleFiles(const char* slug) {
   snprintf(sidecar, sizeof(sidecar), "%s/%s.json", MODULE_DIR, slug);
   if (FFat.exists(sidecar)) FFat.remove(sidecar);
   sidecarForgetSlug(slug);
+  PFThumbs::forget(slug);
   return true;
 }
 
