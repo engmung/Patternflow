@@ -72,6 +72,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `active` | **Display name** of the running pattern, or `"-"`. Not a slug and not an index. |
 | `activeIsModule` | `true` for an uploaded `.pfm`, `false` for a preset compiled into `firmware.bin`. |
 | `sleep` | Panel off / board idling. A sleeping device answers every other field here looking perfectly healthy. |
+| `brightness` | Panel brightness as set, 5–255. K1's long-press session and `GET /api/display?brightness=` move the same value; what the power clamp lets through is `power_applied` on `/api/display`. Since 1.4. |
 | `knobs` | The four encoders' absolute accumulated click counts — the same numbers the running pattern sees. Signed, unbounded, and meaningful only as a difference: there is no scale and no zero. |
 | `params` | The absolute parameter bus, 0..1000 per lane. What `POST /api/params`, OSC and MQTT all write to. |
 | `paramActive` | Per lane: is a remote writer currently holding it? Goes `false` a beat after somebody turns that encoder, because a hand in the room outranks the network. |
@@ -146,12 +147,13 @@ Any subset of these may be set in the query string; the response always reports 
 | `wb_r` `wb_g` `wb_b` | 0 – 1.5 | White balance per channel |
 | `gamma_r` `gamma_g` `gamma_b` | 0.2 – 5 | Gamma per channel |
 | `sat` | 0 – 4 | Saturation boost |
+| `brightness` | 5 – 255 | Panel brightness, the value K1's long-press session sets. Applied through the power clamp on the next frame; written to NVS once it has been still for 3 s. Since 1.4. |
 | `screen` | 0 – 3, or `-1` | Summons the calibration test card over the running pattern; `-1` dismisses it |
 | `level` | 8 – 255 | Drive level of the WHITE test screen |
 | `power_budget` | mA | Total power clamp budget |
 | `power_limit` | `0` / `1` | Enable the clamp |
 
-Read-only in the response: `brightness` (owned by the K1 long-press UI and NVS — there is **no** way to set it over HTTP), `calib`, `sleep`, `power_ma`, `power_demand`, `power_limiting`, `power_applied`.
+Read-only in the response: `calib`, `sleep`, `power_ma`, `power_demand`, `power_limiting`, `power_applied`.
 
 Colour values are session-only; a reboot restores the `config.h` defaults. The point is the tuning loop — put a test card on the panel, drag sliders until it looks right, then copy the converged numbers into `config.h` as the new shipped defaults.
 
@@ -445,7 +447,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
+- **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
 - **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.

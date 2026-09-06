@@ -48,6 +48,8 @@
 
 // Smoothed frame time, owned by the sketch's loop().
 extern uint32_t renderFrameUs;
+// Panel brightness as set; the sketch owns it (K1 and /api/display move it).
+extern uint8_t currentBrightness;
 
 namespace PatternflowStatusHttp {
 
@@ -220,6 +222,12 @@ inline void handleStatus() {
   // healthy, and "the panel is dark" is the one thing the page can't show.
   json += "\"sleep\":";
   json += PatternflowSleep::isSleeping() ? "true" : "false";
+  json += ',';
+  // Brightness as set, 5..255. Here rather than only on /api/display so the
+  // console's slider follows K1 from the poll it already makes; what the
+  // power clamp actually applies is /api/display's power_applied.
+  json += "\"brightness\":";
+  json += (unsigned)currentBrightness;
   json += ',';
 
   // The other reason the panel can be dark while everything here reads fine:

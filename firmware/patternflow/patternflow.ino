@@ -257,6 +257,9 @@ bool updateDirty = false;
 
 const uint32_t MODE_HOLD_MS = 1000;
 const uint32_t BRIGHTNESS_IDLE_MS = 5000;
+// How long the value has to be still before it is written to NVS - the
+// console's slider sends a step for every pixel of a drag.
+const uint32_t BRIGHTNESS_SAVE_DELAY_MS = 3000;
 const uint32_t OSC_INFO_IDLE_MS = 8000;
 const uint32_t NET_INFO_REDRAW_MS = 250;
 const uint32_t KNOB_MAP_IDLE_MS = 8000;
@@ -1464,12 +1467,17 @@ void loop() {
     }
   }
 
-  // Persist brightness once the adjustment session ends — avoids hammering
-  // NVS on every knob detent.
-  if (brightnessDirty && !brightnessAdjusting) {
-    prefs.putUChar("brightness", currentBrightness);
-    brightnessDirty = false;
-    Serial.printf("[NVS] brightness saved: %u\n", currentBrightness);
+  // Persist brightness once the adjustment has settled — avoids hammering
+  // NVS on every knob detent, or on every step of the console's slider
+  // (core_display_http.h moves the same three words a detent does, from the
+  // network core; if it moves them again while this writes, dirty stays set
+  // and the next pass writes the newer value).
+  if (brightnessDirty && !brightnessAdjusting &&
+      (now - brightnessIdleAtMs) > BRIGHTNESS_SAVE_DELAY_MS) {
+    const uint8_t saved = currentBrightness;
+    prefs.putUChar("brightness", saved);
+    if (currentBrightness == saved) brightnessDirty = false;
+    Serial.printf("[NVS] brightness saved: %u\n", saved);
   }
 
   // K2 longpress → enter/exit the NETWORK status + toggle screen.
