@@ -566,6 +566,126 @@ inline bool activatePattern(int index) {
   return true;
 }
 
+// ── Loading without stopping the frame ───────────────────────────────
+// activatePattern() above holds the loop for as long as the module's
+// setup() takes, and that is the pattern's own precomputation: 10 ms for a
+// light one, 2.3 s for "Branched flow", 2.9 s for "Two-stream". Held on the
+// loop task that is the panel standing still and the knob going dead - and
+// a person who keeps turning meanwhile finds every detent applied at once
+// when the loop comes back. Thumbnails hid the stillness; this removes it.
+//
+// The read, relocate and setup() run on a task of their own on Core 0
+// (the network core, which has the room: the render never leaves Core 1).
+// The loop task does the two things that touch what a frame is using -
+// unloading the outgoing module before the task starts, and adopting the
+// incoming one after it finishes - so nothing draws a module that is
+// halfway in or out. Between the two the loop draws the incoming pattern's
+// thumbnail. One load at a time; a request that arrives while one is in
+// flight is remembered, and the LATEST such request is what loads next -
+// a knob that moved on through five patterns loads the one it rests on.
+//
+// What the task may do concurrently with the frame: allocate (the heap is
+// locked), read the volume (so is the VFS), write the canvas (a torn
+// thumbnail for one frame, and setup() rarely draws). What it may not do
+// is present() - core_canvas.h refuses that from any task but the loop.
+// Handlers that evict or rebuild the list (uploads, deletes, format) run on
+// the loop task through PFLoopSync and call waitForAsyncLoad() first.
+//
+// Boot restore keeps the synchronous path: nothing is drawing yet, and a
+// module that will not load must fail before loop() starts, where the
+// boot latch expects it to.
+constexpr uint32_t LOAD_TASK_STACK = 12288;   // setup() ran on the loop's 8 KB; a margin over that
+
+inline volatile bool loadInFlight = false;    // a task is loading loadTargetIdx
+inline volatile bool loadFinished = false;    // ...and has finished; the loop adopts the result
+inline volatile bool loadResult = false;
+inline int loadTargetIdx = -1;
+inline int loadQueuedIdx = -1;                // asked for while busy; latest wins
+
+inline void loaderTask(void*) {
+  const bool ok = PFModuleLoader::load(FFat, patterns[loadTargetIdx].modulePath);
+  loadResult = ok;
+  __atomic_store_n(&loadFinished, true, __ATOMIC_RELEASE);
+  vTaskDelete(nullptr);
+}
+
+// Loop task: the result of a finished load becomes the running pattern.
+inline void finishAsyncLoad() {
+  const int index = loadTargetIdx;
+  if (loadResult) {
+    const int moduleSlot = index - (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT);
+    if (moduleSlot >= 0 && moduleSlot < numModules && PFModuleLoader::active) {
+      snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
+    }
+    activePatternIdx = index;
+    activatedAtMs = millis();
+  } else {
+    Serial.printf("[PATTERNS] %s failed: %s\n", patterns[index].modulePath, PFModuleLoader::error());
+    activePatternIdx = -1;
+  }
+  loadTargetIdx = -1;
+  loadFinished = false;
+  __atomic_store_n(&loadInFlight, false, __ATOMIC_RELEASE);
+}
+
+// Make `index` the running pattern without holding the frame. Presets are
+// resident and switch at once; a module switches when its task is done.
+// Returns false only for an index that does not exist.
+inline bool activatePatternAsync(int index) {
+  if (index < 0 || index >= NUM_PATTERNS) return false;
+  if (loadInFlight) {
+    loadQueuedIdx = index;
+    return true;
+  }
+  if (index == activePatternIdx) return true;
+  const PatternEntry& entry = patterns[index];
+  if (!entry.modulePath) return activatePattern(index);
+
+  // The outgoing module leaves here, on the loop task, while nothing is
+  // drawing it. From this frame on the loop draws the thumbnail.
+  if (PFModuleLoader::active) PFModuleLoader::unload();
+  activePatternIdx = -1;
+  loadTargetIdx = index;
+  loadResult = false;
+  loadFinished = false;
+  __atomic_store_n(&loadInFlight, true, __ATOMIC_RELEASE);
+  if (xTaskCreatePinnedToCore(loaderTask, "pf-load", LOAD_TASK_STACK, nullptr, 1, nullptr,
+                              0 /* Core 0 */) != pdPASS) {
+    // No room for a task: the old way, one frame held for the load.
+    loadInFlight = false;
+    loadTargetIdx = -1;
+    Serial.println("[PATTERNS] no RAM for a loader task - loading on the frame");
+    return activatePattern(index);
+  }
+  return true;
+}
+
+// From loop(), every frame, before anything looks at the running pattern.
+inline void serviceAsyncLoad() {
+  if (!loadInFlight || !__atomic_load_n(&loadFinished, __ATOMIC_ACQUIRE)) return;
+  finishAsyncLoad();
+  if (loadQueuedIdx >= 0) {
+    const int next = loadQueuedIdx;
+    loadQueuedIdx = -1;
+    if (next != activePatternIdx) activatePatternAsync(next);
+  }
+}
+
+// From a PFLoopSync body that is about to evict the module or rebuild the
+// list: a load that is in flight lands first, so the eviction has something
+// definite to evict. Anything queued behind it is dropped - the batch's own
+// restore decides what runs afterwards.
+inline void waitForAsyncLoad() {
+  while (loadInFlight) {
+    if (__atomic_load_n(&loadFinished, __ATOMIC_ACQUIRE)) {
+      finishAsyncLoad();
+      break;
+    }
+    delay(5);
+  }
+  loadQueuedIdx = -1;
+}
+
 // ── Naming a pattern from outside the list ───────────────────────────
 // Two callers need to talk about a pattern by something other than its index:
 // MQTT (which addresses patterns by name or slug on the wire) and the sketch's
