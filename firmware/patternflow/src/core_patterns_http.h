@@ -92,6 +92,7 @@ inline void evictResidentModule() {
 // are handed to the loop task and run at the frame boundary. From loop()
 // itself — tick() below — they run inline.
 inline void captureSelectionOnceNow() {
+  waitForAsyncLoad();   // a module halfway in cannot be evicted
   if (restorePending) {
     // Show / night schedule / MQTT may reload a module while the console
     // still holds the pause. Evict again or the wake page loops forever.
@@ -121,6 +122,7 @@ inline void captureSelectionOnce() {
 }
 
 inline void restoreSelectionNow() {
+  waitForAsyncLoad();
   restorePending = false;
   buildPatternList();
   if (restorePath[0]) {

@@ -370,23 +370,29 @@ void snapshotActiveIfRipe() {
   PFThumbs::capture(slug, moduleStorageMounted);
 }
 
-// activatePattern() with the outgoing pattern's picture taken first. Every
-// switch that is not the boot restore goes through here.
+// The outgoing pattern's picture taken first, then the switch - on the
+// loader task, so the frame never waits for a setup() (pattern_registry.h,
+// "Loading without stopping the frame"). Every switch that is not the boot
+// restore goes through here.
 bool activateWithSnapshot(int index) {
   snapshotActiveIfRipe();
-  return activatePattern(index);
+  return activatePatternAsync(index);
 }
 
-// The highlighted-but-unloaded pattern in SELECT: its picture, or a dark
-// panel with nothing but the name the overlay draws.
-void drawPatternThumbnail(int index) {
+// A pattern that is not running: its picture, if it has one. With
+// blankIfNone the panel goes dark under the overlay's name (SELECT, where a
+// stale picture would be a lie); without it the caller holds the frame that
+// is already on the panel. Returns whether a picture was painted.
+bool drawPatternThumbnail(int index, bool blankIfNone) {
   char slug[MODULE_NAME_BYTES];
   patternSlugAt(index, slug, sizeof(slug));
   const uint16_t* px = slug[0] ? PFThumbs::get(slug) : nullptr;
+  if (!px && !blankIfNone) return false;
   if (px) PFThumbs::paint(px);
   else PFCanvas::clear();
   PFCanvas::present();
   canvasShowsThumb = true;
+  return px != nullptr;
 }
 
 // ── Boot ──────────────────────────────────────────────────────
@@ -1269,6 +1275,9 @@ void loop() {
   // on this task — evicting or restoring the module, walking the pattern
   // list, touching a feature's client — runs here, before the frame.
   PFLoopSync::service();
+  // A pattern the loader task finished with becomes the running one here,
+  // before anything below looks at what is running.
+  serviceAsyncLoad();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
@@ -1728,6 +1737,11 @@ void loop() {
     if (brightnessAdjusting) {
       drawBrightnessNotice();
     }
+  } else if (currentMode == MODE_RUNNING && loadInFlight) {
+    // The pattern is on its way in on the other core. Its picture if it has
+    // one; otherwise the frame already on the panel stays until it lands.
+    pausedDirty = true;
+    if (!drawPatternThumbnail(loadTargetIdx, false)) frameDrawn = false;
   } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
     // Same throttled-redraw scheme as the info screens: this is static text and
     // repainting it every loop races the panel scanout.
@@ -1809,7 +1823,7 @@ void loop() {
     // deltas / buttons) so browsing with K4 doesn't drive the pattern's own
     // parameters — it just animates over time.
     dma_display->setRotation(0);
-    if (currentPatternIdx == activePatternIdx) {
+    if (currentPatternIdx == activePatternIdx && !loadInFlight) {
       InputFrame preview = {};
       preview.now = input.now;
       for (int i = 0; i < 4; i++) preview.knobs[i] = input.knobs[i];
@@ -1819,7 +1833,7 @@ void loop() {
     } else {
       // The highlight is on a pattern that is not loaded (yet): its picture
       // from the last time it ran, or nothing but the name until it has.
-      drawPatternThumbnail(currentPatternIdx);
+      drawPatternThumbnail(currentPatternIdx, true);
     }
 
     dma_display->setRotation(1);

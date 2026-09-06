@@ -209,6 +209,11 @@ inline void handleStatus() {
   json += (activePatternIdx >= 0 && patterns && patterns[activePatternIdx].modulePath)
               ? "true" : "false";
   json += ',';
+  // A module is being loaded on the other core: `active` reads "-" for the
+  // second or three that takes, and this says why.
+  json += "\"loading\":";
+  json += loadInFlight ? "true" : "false";
+  json += ',';
 
   // Sleep. Worth a field of its own rather than leaving it to be inferred: a
   // sleeping device answers every other question here looking perfectly
