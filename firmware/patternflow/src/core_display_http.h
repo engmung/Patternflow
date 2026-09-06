@@ -52,6 +52,10 @@
 // Global brightness lives in the sketch (K1 longpress UI + NVS); shown here
 // read-only for context while tuning.
 extern uint8_t currentBrightness;
+// The two words the K1 session sets beside the value, so loop() saves it to
+// NVS once it has been still (patternflow.ino, BRIGHTNESS_SAVE_DELAY_MS).
+extern bool brightnessDirty;
+extern uint32_t brightnessIdleAtMs;
 
 namespace PatternflowDisplayHttp {
 
@@ -107,6 +111,21 @@ inline void handleDisplay() {
   }
   if (server().hasArg("level")) {
     CalibPattern::requestedLevel = (int)server().arg("level").toInt();
+  }
+
+  // Global brightness, 5..255 - the same value K1's long-press session
+  // sets, from the console's slider. Only the value moves here: the frame
+  // applies it through the power clamp on its next pass, so the clamp keeps
+  // the last word, and loop() writes it to NVS once it has been still for a
+  // few seconds. A byte and two words, written from the network core and
+  // read by the frame - nothing here needs a lock.
+  if (server().hasArg("brightness")) {
+    const int b = (int)server().arg("brightness").toInt();
+    if (b >= 5 && b <= 255) {
+      currentBrightness = (uint8_t)b;
+      brightnessIdleAtMs = millis();
+      brightnessDirty = true;
+    }
   }
 
   // Power clamp: budget is settable here, the rest is read-only telemetry.

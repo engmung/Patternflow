@@ -61,6 +61,11 @@
   .pwr-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);
        min-height:14px;margin-top:7px}
   .pwr-note.err{color:var(--led)}
+  /* ── Brightness ── under the switch: the other thing a hand at the panel
+     does (K1's long-press session), so the console has it too. */
+  .bri{display:flex;align-items:center;gap:12px;margin-top:10px}
+  .bri .pwr-k{flex:none}
+  .bri-v{font-family:var(--mono);font-size:11px;color:var(--muted);width:34px;text-align:right;flex:none}
 
   /* ── Live parameter sliders (K1..K4) ────────────────────────── */
   .ctrls{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
@@ -69,18 +74,18 @@
   .slider-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
   .slider-row:last-child{margin-bottom:0}
   .s-label{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);width:20px;flex:none}
-  .slider-row input[type=range]{
+  .slider-row input[type=range],.bri input[type=range]{
     flex:1;height:6px;appearance:none;-webkit-appearance:none;background:var(--ghost);
     border-radius:3px;outline:none;cursor:pointer;accent-color:var(--led);touch-action:none
   }
-  .slider-row input[type=range]::-webkit-slider-thumb{
+  .slider-row input[type=range],.bri input[type=range]::-webkit-slider-thumb{
     appearance:none;-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
     background:var(--ink);border:2px solid var(--led);cursor:pointer;transition:transform .1s ease
   }
-  .slider-row input[type=range]:active::-webkit-slider-thumb{
+  .slider-row input[type=range],.bri input[type=range]:active::-webkit-slider-thumb{
     transform:scale(1.2);background:var(--led)
   }
-  .slider-row input[type=range]::-moz-range-thumb{
+  .slider-row input[type=range],.bri input[type=range]::-moz-range-thumb{
     width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid var(--led);cursor:pointer
   }
 
@@ -170,6 +175,11 @@
       </div>
     </div>
     <div class="pwr-note" id="pwrnote"></div>
+    <div class="bri">
+      <span class="pwr-k">Brightness</span>
+      <input type="range" class="pf-slider" id="bri" min="2" max="100" step="1" value="80" aria-label="Panel brightness">
+      <span class="bri-v" id="bri-v">&mdash;</span>
+    </div>
 
     <div class="ctrls" id="ctrls">
       <div class="ctrls-hdr">
@@ -347,6 +357,7 @@ function tick(){
         (s.activeIsModule?'module':'built in');
     }
     paintPower(s.sleep);
+    paintBrightness(s.brightness);
     $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
     if(s.fsMounted){
       $('s-fs').textContent=Math.round((s.fsTotal-s.fsUsed)/1048576*10)/10+' MB free';
@@ -418,6 +429,37 @@ function setPower(asleep){
 }
 $('p-on').addEventListener('click',function(){setPower(false)});
 $('p-sleep').addEventListener('click',function(){setPower(true)});
+
+// ── Brightness ────────────────────────────────────────────────
+// A view of the device's value like the switch above: K1's long-press
+// session moves the same number, and the 3 s poll keeps the slider honest
+// unless a hand is on it. GET /api/display?brightness= is the write - one
+// request in flight, the newest value waiting behind it, so a drag cannot
+// queue up on the one-connection server.
+var briActive=false,briInFlight=false,briQueued=-1,briSettleUntil=0;
+function briPct(b){return Math.max(2,Math.min(100,Math.round(b*100/255)))}
+function paintBrightness(b){
+  if(briActive||Date.now()<briSettleUntil||typeof b!=='number')return;
+  var p=briPct(b);$('bri').value=p;$('bri-v').textContent=p+'%';
+}
+function pumpBri(){
+  if(briInFlight||briQueued<0)return;
+  var p=briQueued;briQueued=-1;briInFlight=true;
+  var v=Math.max(5,Math.min(255,Math.round(p*255/100)));
+  fetch('/api/display?brightness='+v,{cache:'no-store'})
+    .catch(function(){note('cannot reach device','err')})
+    .finally(function(){briInFlight=false;if(briQueued>=0)pumpBri()});
+}
+$('bri').addEventListener('input',function(){
+  var p=parseInt(this.value,10);if(isNaN(p))return;
+  $('bri-v').textContent=p+'%';briQueued=p;briSettleUntil=Date.now()+1500;pumpBri();
+});
+(function(){
+  var sl=$('bri');
+  var on=function(){briActive=true},off=function(){briActive=false;briSettleUntil=Date.now()+1500};
+  sl.addEventListener('touchstart',on,{passive:true});sl.addEventListener('touchend',off,{passive:true});
+  sl.addEventListener('mousedown',on);window.addEventListener('mouseup',off);
+})();
 
 // ── Update check (runs in the browser, never on the device) ───
 var updChecked=false;
