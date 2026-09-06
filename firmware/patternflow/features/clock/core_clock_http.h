@@ -144,7 +144,7 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), CLOCK_INDEX_HTML);
+  PFSend::gz(server(), CLOCK_INDEX_HTML_GZ, CLOCK_INDEX_HTML_GZ_LEN);
 }
 
 // The glyph blob, straight out of flash. Immutable for the life of a

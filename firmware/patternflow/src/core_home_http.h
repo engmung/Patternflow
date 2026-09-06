@@ -30,7 +30,13 @@ inline void handleRoot() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(PatternflowHttp::server(), HOME_INDEX_HTML);
+  // Served from the gzip array generated right after the literal in
+  // home_index.h — every page header carries a NAME_GZ / NAME_GZ_LEN pair
+  // (same for the other console pages). The raw literal stays in the header:
+  // it is what the console tooling diffs against console/*.html and what a
+  // person reads. Nothing references it any more, so the linker leaves it
+  // out of the image.
+  PFSend::gz(PatternflowHttp::server(), HOME_INDEX_HTML_GZ, HOME_INDEX_HTML_GZ_LEN);
 }
 
 inline void begin() {

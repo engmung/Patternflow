@@ -347,6 +347,14 @@ void setup() {
   Serial.begin(115200);
   delay(500);
   Serial.println("\n=== Patternflow OS Booting... ===");
+  // Why we are booting. A board that rebooted itself and one that was
+  // unplugged look the same from the network — uptime back near zero — and
+  // two reboots nobody noticed in one afternoon are what put this line here.
+  // "poweron" is a hand on the plug; "task_wdt", "panic" or "brownout" is a
+  // bug, and on a serial logger the lines above this one say which.
+  // /api/status carries the same word as resetReason.
+  Serial.printf("[BOOT] reset reason: %s\n",
+                PatternflowStatusHttp::resetReasonName());
 
   reportHeap("boot");
   initEncoders();

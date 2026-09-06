@@ -284,6 +284,13 @@ void WebServer::handleClient() {
 
     log_v("New client: client.localIP()=%s", _currentClient.localIP().toString().c_str());
 
+    // PATTERNFLOW FIX: the stream timeout the parser's readers wait against
+    // (Parsing.cpp readLine/readBody). Stock sets it only after
+    // _parseRequest() succeeds, so the first request after boot parsed
+    // against Stream's 1 s default; operator= does not copy _timeout, so it
+    // was the member client that quietly kept 5 s for every request after.
+    _currentClient.setTimeout(HTTP_MAX_SEND_WAIT / 1000);
+
     _currentStatus = HC_WAIT_READ;
     _statusChange = millis();
   }

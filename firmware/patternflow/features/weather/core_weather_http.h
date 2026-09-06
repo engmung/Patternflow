@@ -135,7 +135,7 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), WEATHER_INDEX_HTML);
+  PFSend::gz(server(), WEATHER_INDEX_HTML_GZ, WEATHER_INDEX_HTML_GZ_LEN);
 }
 
 inline void handleGet() {

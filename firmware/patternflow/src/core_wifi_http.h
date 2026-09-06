@@ -181,7 +181,7 @@ inline void handleIndex() {
     PatternflowPatternsHttp::sendConsoleWakePage();
     return;
   }
-  PFSend::progmem(server(), WIFI_INDEX_HTML);
+  PFSend::gz(server(), WIFI_INDEX_HTML_GZ, WIFI_INDEX_HTML_GZ_LEN);
 }
 
 inline void begin() {

@@ -1,6 +1,6 @@
 # Patternflow HTTP API Specification
 
-**Spec version: 1.3** · applies to firmware **≥ 3.5.1**; the version history at the end says which release each later endpoint arrived with.
+**Spec version: 1.4** · applies to firmware **≥ 3.5.1**; the version history at the end says which release each later endpoint arrived with.
 
 One piece of bookkeeping, because it misleads at a glance: `CHANGELOG.md` still lists sleep mode and the absolute parameter bus under `[Unreleased]`, since those entries are held back to release together with the performance-director firmware. The *code* shipped — the `v3.5.1` tag contains all of it, and the firmware tree has not changed since. Everything documented here is in a released build.
 
@@ -19,7 +19,7 @@ Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. 
 | Authentication | **None.** No token, no password, no session. Anyone on the LAN can call anything here, including `POST /update`. This is a deliberate trust model, the same one ArduinoOTA's empty-password default has; `PF_WEBUPDATE_ALWAYS_ARMED 0` is the one lever that narrows it. |
 | CORS | Only `/api/patterns/select` and `/api/display` send `Access-Control-Allow-Origin: *`. Everything else is same-origin only, so a browser page on another origin cannot read it. Server-side clients are unaffected. |
 | Cache | Every JSON endpoint sends `Cache-Control: no-store`. |
-| Encoding | Responses are `application/json`, hand-assembled in the firmware. Request parameters are **query-string or form-encoded, never a JSON body** — `POST /api/sleep?on=1` and a form body with `on=1` are the same call. |
+| Encoding | Responses are `application/json`, hand-assembled in the firmware. Request parameters are **query-string or form-encoded, never a JSON body** — `POST /api/sleep?on=1` and a form body with `on=1` are the same call. The console **pages** (`/`, `/status`, `/patterns`, `/wifi`, `/update`, the feature pages, `/pf-console.js` and the unzip library the patterns page fetches) are sent with `Content-Encoding: gzip` since 1.4, regardless of `Accept-Encoding` — a browser decodes that without being asked; a script fetching a page wants `curl --compressed` or its equivalent. Nothing under `/api/` is compressed. |
 
 ## Rules that will bite you
 
@@ -27,7 +27,7 @@ Three properties of this server are not obvious from the endpoint list, and each
 
 **One connection at a time.** The vendored `WebServer` accepts a single client. Until 3.9.1 the render loop paid for every response — the panel was not being drawn while one was sent; since 3.9.1 the server is serviced by a task on the other core, and a page load no longer costs a frame. The connection rule stands. A device-streamed frame preview (`GET /api/frame`, 24 KB per poll) was built, shipped and removed the same day: polling it while a pattern module was resident captured the render loop for seconds at a time and piled requests up until the device read as dead. `/remote` and `/api/knob` were removed alongside it as unused. **Issue requests strictly sequentially**, and treat a poll interval under a second as a bug rather than a feature. The lesson that came out of that day is written into the firmware as a design rule: a live pattern preview renders in the client from the pattern's own JS — *the device never streams pixels*.
 
-**Opening an HTML console page no longer pauses the pattern** (since 3.6.3). It used to, and the old rule is worth knowing because the flag it left behind is still in the payload: on the core-3 builds a resident `.pfm` and a page render could not share the ~15 KB of post-services DRAM, so every console page evicted the module and held it out for 25 s of idle. The PlatformIO core-2 builds freed ~96 KB, and the page sender streams PROGMEM in small slices under a hard 5-second budget — so `GET /`, `/status`, `/patterns`, `/wifi`, `/mqtt`, `/show` and `/weather` all serve with the pattern running.
+**Opening an HTML console page no longer pauses the pattern** (since 3.6.3). It used to, and the old rule is worth knowing because the flag it left behind is still in the payload: on the core-3 builds a resident `.pfm` and a page render could not share the ~15 KB of post-services DRAM, so every console page evicted the module and held it out for 25 s of idle. The PlatformIO core-2 builds freed ~96 KB, and the page sender streams each page out of flash a TCP segment at a time — gzip-compressed since 1.4, so about a third of the bytes cross the air, and no longer under the hard 5-second budget that used to cut a 26 KB page short on a slow Wi-Fi link while the header promised all of it (the budget still applies when `loop()` itself is serving, `httpCore: 1`; on the network task a send is abandoned only when the peer stops accepting bytes for ~20 s, and then the connection is closed rather than left looking complete). So `GET /`, `/status`, `/patterns`, `/wifi`, `/mqtt`, `/show` and `/weather` all serve with the pattern running.
 
 Two things stayed true. **Installing patterns still evicts the running module for the duration of the upload batch** — the panel shows PAUSED and restores itself — which is what `status.consolePaused` reports now; treat it as "an install is in progress", not "somebody looked at the console". And a page load still momentarily competes with the render loop on this one-connection server, so sending a person to `http://patternflow.local/` is fine and expected; **polling HTML pages remains a bug** — automated clients keep to `/api/*`.
 
@@ -41,7 +41,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 
 ```json
 {
-  "version": "3.5.1", "uptime": 4213, "panel": "128x64",
+  "version": "3.5.1", "uptime": 4213, "resetReason": "poweron", "panel": "128x64",
   "wifi": true, "ssid": "studio", "ip": "192.168.1.42", "rssi": -54,
   "host": "patternflow",
   "heapInternal": 11052, "heapLargest": 8192, "heapPsram": 4194304,
@@ -56,7 +56,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "frameUs": 16400, "presentUs": 3100, "loopCore": 1,
   "httpCore": 0, "netStackMin": 6200, "loopSyncServed": 3, "loopSyncMaxUs": 9800,
   "colorBits": 6, "refreshHz": 121,
-  "loadError": "", "load": { "total": 0, "read": 0, "relocate": 0, "setup": 0 },
+  "loadError": "", "load": { "total": 0, "read": 0, "relocate": 0, "setup": 0, "internal": 0, "psram": 0 },
   "mqttRole": "off", "mqttState": "idle", "mqttConnected": false
 }
 ```
@@ -65,6 +65,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 |---|---|
 | `version` | Firmware version string (`PF_IMPROV_FW_VERSION`). |
 | `uptime` | Seconds since boot. |
+| `resetReason` | Why the board is running, `esp_reset_reason()` by name: `"poweron"` (the plug), `"sw"` (the reboot button, a finished update), `"panic"`, `"task_wdt"`, `"int_wdt"`, `"wdt"`, `"brownout"`, `"deepsleep"`, `"ext"`, `"sdio"` or `"unknown"`. Read it together with `uptime`: a small uptime and anything but `"poweron"` or `"sw"` means the board restarted on its own — which from the network otherwise looks exactly like a power cut. The same word is printed once on serial at boot (`[BOOT] reset reason: …`). Since 1.4. |
 | `panel` | Physical matrix, `"<w>x<h>"`. The closest thing to a model number. |
 | `host` | mDNS hostname, i.e. `PF_OTA_HOSTNAME`. **Not unique** — every device ships as `"patternflow"`. See [Identifying a device](#identifying-a-device). |
 | `heapInternal` | Free internal DRAM. The scarce one: HUB75's DMA buffers live there, and below roughly 10 KB the console starts answering with headers and no body while Wi-Fi and OSC carry on looking healthy. Worth watching. |
@@ -82,6 +83,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `loopSyncServed` / `loopSyncMaxUs` | How many handlers had to run on the loop task (a module eviction, a show start, an MQTT reconnect) and the longest one waited for a frame boundary. |
 | `colorBits` / `refreshHz` | What the HUB75 driver actually settled on — it trades colour depth against the requested refresh rate, so these are read back rather than configured. |
 | `loadError` | Why the last module load failed, empty when it did not. Without it a refusal is invisible from the network. |
+| `load` | The last module load, in µs: `total`, `read` (flash), `relocate`, `setup` (the pattern's own). Since 1.4 also where its sections landed, in bytes: `internal` and `psram`. A big `internal` is the number to look at when the console dies the moment a pattern is chosen — the loader now sends data sections over 16 KB, or any that would leave under 24 KB of internal heap, to PSRAM (`PF_MODULE_DATA_INTERNAL_MAX`, `PF_MODULE_INTERNAL_RESERVE`). |
 | `variant` | Which firmware this is: `"core"`, or a variant's own name. What the site's variant list matches, and what stops the update banner offering a core build on top of someone's chosen firmware. |
 | `caps` | What this build can do. **Probe this rather than assuming a feature exists.** The default build reports `["patterns","params","sleep"]` and nothing else; each [edition](EDITIONS.md) adds its own — Audio adds `osc` and `audio`, Performance adds `weather`, `mqtt` and `shows`. `patterns` and `params` are on every build. |
 | `mqttRole` | `"off"`, `"publisher"` or `"subscriber"`. Decides whether the device obeys knob and pattern topics — see [Knobs](#knobs-and-parameters). |
@@ -440,6 +442,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
+- **1.4** (2026-09-06) — status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
 - **1.1** (2026-08-30) — status gains `lanes`/`laneActive` (the continuous lane per knob) and `featureNav` (feature-served console pages); the microphone endpoints (`/api/audio-in`) are documented; port 81's WebSocket is promoted from "not part of this contract" to its own spec, [`audio-ws-spec.md`](audio-ws-spec.md); the endpoint-gating convention now describes composition gating.

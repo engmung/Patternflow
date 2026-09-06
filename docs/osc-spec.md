@@ -1,6 +1,6 @@
 # Patternflow OSC Specification
 
-**Spec version: 1.0** · applies to firmware ≥ 2.1.0
+**Spec version: 1.1** · applies to firmware ≥ 2.1.0
 
 Patternflow speaks plain OSC over UDP on the local Wi-Fi network. This document is the contract between the firmware and any host software (the Max for Live bridge in `integrations/ableton/`, TouchDesigner, VCV Rack, Processing, custom scripts…). If you build a new integration, build it against this file, not against the firmware source.
 
@@ -23,7 +23,7 @@ Numeric arguments may be sent as OSC `int32` (`i`) or `float32` (`f`); the devic
 
 | Address | Args | When |
 |---|---|---|
-| `/patternflow/knob/N/delta` | int | Encoder N (1–4) turned; signed detent delta for this frame |
+| `/patternflow/knob/N/delta` | int | Encoder N (1–4) turned by a hand; signed detent delta for this frame. A knob a lane is moving (microphone, browser/phone audio, weather) is not reported since 1.1 — `PF_OSC_OUT_LANE_MOTION 1` at build time echoes it. |
 | `/patternflow/knob/N/clicks` | int | Same event; absolute accumulated click count |
 | `/patternflow/button/N/press` | int (1) | Encoder button N pressed |
 | `/patternflow/button/N/held` | int (0/1) | Hold state changed |
@@ -59,4 +59,5 @@ Unknown addresses are ignored silently. The device drains up to 8 datagrams per 
 
 ## Version history
 
+- **1.1** (2026-09-06) — `knob/N/delta` and `knob/N/clicks` report hand motion only: a knob a lane is moving is not echoed (it never was promised, and on the audio edition a microphone jittering four knobs is two datagrams per knob per frame). `PF_OSC_OUT_LANE_MOTION` restores the old behaviour.
 - **1.0** — knob/button/pattern/status out; ping/knob/pattern/content in; auto-learned remote host; int+float args accepted.
