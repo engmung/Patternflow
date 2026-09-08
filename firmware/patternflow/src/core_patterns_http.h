@@ -40,6 +40,8 @@
 #include "core_thumbs.h"
 #endif
 
+extern int currentPatternIdx;
+
 namespace PatternflowPatternsHttp {
 
 #if PF_PATTERNS_HTTP_ENABLED
@@ -58,6 +60,12 @@ inline char uploadSlug[MODULE_NAME_BYTES] = {};
 inline char uploadPath[MODULE_PATH_BYTES] = {};
 inline char uploadError[96] = {};
 inline bool uploadFailed = false;
+inline bool uploadCreated = false;
+inline volatile bool storageOperationActive = false;
+struct StorageOperation {
+  StorageOperation() { __atomic_store_n(&storageOperationActive, true, __ATOMIC_RELEASE); }
+  ~StorageOperation() { __atomic_store_n(&storageOperationActive, false, __ATOMIC_RELEASE); }
+};
 inline size_t uploadBytes = 0;
 
 inline bool isCompiledIn() { return true; }
@@ -91,13 +99,16 @@ inline void evictResidentModule() {
 // that call these run on the network core (core_net_task.h), so the bodies
 // are handed to the loop task and run at the frame boundary. From loop()
 // itself — tick() below — they run inline.
-inline void captureSelectionOnceNow() {
-  waitForAsyncLoad();   // a module halfway in cannot be evicted
+inline bool captureSelectionOnceNow() {
+  if (!tryFinishAsyncLoad()) return false;
+  patternLoadsHeld = true;
+  if (loadQueuedIdx >= 0) rememberHeldSelection(loadQueuedIdx);
+  loadQueuedIdx = -1;
   if (restorePending) {
     // Show / night schedule / MQTT may reload a module while the console
     // still holds the pause. Evict again or the wake page loops forever.
     evictResidentModule();
-    return;
+    return true;
   }
   restorePending = true;
   restorePath[0] = '\0';
@@ -115,29 +126,39 @@ inline void captureSelectionOnceNow() {
   } else {
     evictResidentModule();
   }
+  return true;
 }
 
-inline void captureSelectionOnce() {
-  PFLoopSync::run([] { captureSelectionOnceNow(); });
+inline bool captureSelectionOnce() {
+  return PFLoopSync::runWhen([] { return captureSelectionOnceNow(); });
 }
 
-inline void restoreSelectionNow() {
-  waitForAsyncLoad();
+inline bool restoreSelectionNow() {
+  if (!tryFinishAsyncLoad()) return false;
+  loadQueuedIdx = -1;
   restorePending = false;
   buildPatternList();
-  if (restorePath[0]) {
-    for (int i = 0; i < NUM_PATTERNS; i++) {
-      if (patterns[i].modulePath && strcmp(patterns[i].modulePath, restorePath) == 0) {
-        activatePattern(i);
-        return;
+  const char* wantedPath = heldSelectionValid ? heldPatternPath : restorePath;
+  int wanted = heldSelectionValid ? heldPresetIdx : restorePresetIdx;
+  if (wantedPath[0]) {
+    wanted = -1;
+    for (int i = 0; i < NUM_PATTERNS; ++i) {
+      if (patterns[i].modulePath && strcmp(patterns[i].modulePath, wantedPath) == 0) {
+        wanted = i;
+        break;
       }
     }
   }
-  activatePattern(restorePresetIdx >= 0 ? restorePresetIdx : 0);
+  patternLoadsHeld = false;
+  heldSelectionValid = false;
+  // Rescanning may renumber even the old selection. Publish its new index.
+  ::currentPatternIdx = wanted >= 0 && wanted < NUM_PATTERNS ? wanted : 0;
+  activatePatternAsync(::currentPatternIdx);
+  return true;
 }
 
-inline void restoreSelection() {
-  PFLoopSync::run([] { restoreSelectionNow(); });
+inline bool restoreSelection() {
+  return PFLoopSync::runWhen([] { return restoreSelectionNow(); });
 }
 
 // The rescan-and-reload above touches FATFS and the ELF loader — tens of
@@ -163,6 +184,7 @@ inline bool isConsolePaused() { return restorePending; }
 // Play Now / wake alarm owns the panel. Do not snap back to whatever was
 // running before the console opened.
 inline void releaseConsolePause() {
+  if (patternLoadsHeld) return;
   restorePending = false;
   lastConsoleActivityMs = 0;
 }
@@ -216,9 +238,9 @@ inline void noteConsoleApiCall() {
 }
 
 inline void tick() {
+  if (__atomic_load_n(&storageOperationActive, __ATOMIC_ACQUIRE)) return;
   if (reloadRequestedAtMs && millis() - reloadRequestedAtMs >= 150) {
-    reloadRequestedAtMs = 0;
-    restoreSelection();
+    if (restoreSelection()) reloadRequestedAtMs = 0;
     return;
   }
   // A batch that dies partway (page closed, network drop) has evicted the
@@ -226,18 +248,14 @@ inline void tick() {
   // than leaving it dark until the next successful upload.
   if (restorePending && !reloadRequestedAtMs && lastUploadActivityMs &&
       millis() - lastUploadActivityMs > 5000) {
-    lastUploadActivityMs = 0;
-    Serial.println("[PATTERNS-HTTP] batch abandoned - restoring");
-    restoreSelection();
+    if (restoreSelection()) lastUploadActivityMs = 0;
     return;
   }
   // Console finished with: give the pattern back.
   if (restorePending && !reloadRequestedAtMs && !lastUploadActivityMs &&
       lastConsoleActivityMs &&
       millis() - lastConsoleActivityMs > CONSOLE_IDLE_RESTORE_MS) {
-    lastConsoleActivityMs = 0;
-    Serial.println("[PATTERNS-HTTP] console idle - resuming pattern");
-    restoreSelection();
+    if (restoreSelection()) lastConsoleActivityMs = 0;
   }
 }
 
@@ -280,7 +298,11 @@ inline void sendJsonAndClose(int code, const String& body) {
 
 // Explicit, destructive, button-initiated. See formatModuleStorage.
 inline void handleFormat() {
-  captureSelectionOnce();
+  StorageOperation operation;
+  if (!captureSelectionOnce()) {
+    sendJson(503, "{\"ok\":false,\"error\":\"pattern still loading; retry\"}");
+    return;
+  }
   bool ok = formatModuleStorage();
   PFThumbs::forgetAll();   // the files went with the volume
   requestReload();
@@ -445,6 +467,7 @@ inline bool removeModuleFiles(const char* slug) {
 // kilobyte of URI, and this server's query parsing is the part of the stack
 // with the longest history of quietly mangling long inputs.
 inline void handleDeleteMany() {
+  StorageOperation operation;
   if (!moduleStorageMounted) {
     sendJson(409, "{\"ok\":false,\"error\":\"storage not mounted\"}");
     return;
@@ -456,7 +479,10 @@ inline void handleDeleteMany() {
     return;
   }
 
-  captureSelectionOnce();
+  if (!captureSelectionOnce()) {
+    sendJson(503, "{\"ok\":false,\"error\":\"pattern still loading; retry\"}");
+    return;
+  }
 
   int removed = 0;
   int missing = 0;
@@ -525,6 +551,7 @@ inline void handleDeleteMany() {
 }
 
 inline void handleDelete() {
+  StorageOperation operation;
   if (!server().hasArg("slug")) {
     sendJson(400, "{\"ok\":false,\"error\":\"missing slug\"}");
     return;
@@ -541,14 +568,17 @@ inline void handleDelete() {
   }
 
   // Drop it out of executable RAM before the file goes, in case it is running.
-  captureSelectionOnce();
+  if (!captureSelectionOnce()) {
+    sendJson(503, "{\"ok\":false,\"error\":\"pattern still loading; retry\"}");
+    return;
+  }
   if (!removeModuleFiles(slug)) {
-    restoreSelection();
+    requestReload();
     sendJson(404, "{\"ok\":false,\"error\":\"no such module\"}");
     return;
   }
 
-  restoreSelection();
+  requestReload();
   Serial.printf("[PATTERNS-HTTP] deleted %s (%d patterns)\n", slug, NUM_PATTERNS);
   sendJson(200, "{\"ok\":true}");
 }
@@ -558,7 +588,18 @@ inline void handleUpload() {
   HTTPUpload& upload = server().upload();
 
   lastUploadActivityMs = millis();
+  if (upload.status == UPLOAD_FILE_ABORTED) {
+    if (uploadFile) uploadFile.close();
+    if (uploadCreated && uploadPath[0]) FFat.remove(uploadPath);
+    uploadCreated = false;
+    uploadFailed = true;
+    __atomic_store_n(&storageOperationActive, false, __ATOMIC_RELEASE);
+    if (restorePending) requestReload();
+    return;
+  }
   if (upload.status == UPLOAD_FILE_START) {
+    __atomic_store_n(&storageOperationActive, true, __ATOMIC_RELEASE);
+    uploadCreated = false;
     uploadFailed = false;
     uploadError[0] = '\0';
     uploadBytes = 0;
@@ -602,7 +643,12 @@ inline void handleUpload() {
     }
 
     // Evict the resident module for the whole batch — see captureSelectionOnce.
-    captureSelectionOnce();
+    if (!captureSelectionOnce()) {
+      uploadFailed = true;
+      uploadPath[0] = '\0'; // no file opened: do not delete an original on failure
+      snprintf(uploadError, sizeof(uploadError), "pattern still loading; retry");
+      return;
+    }
 
     uploadFile = FFat.open(uploadPath, FILE_WRITE);
     if (!uploadFile) {
@@ -611,6 +657,7 @@ inline void handleUpload() {
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       return;
     }
+    uploadCreated = true;
     Serial.printf("[PATTERNS-HTTP] upload start %s\n", uploadPath);
     return;
   }
@@ -645,7 +692,18 @@ inline void handlePutBody() {
   HTTPRaw& raw = server().raw();
   lastUploadActivityMs = millis();
 
+  if (raw.status == RAW_ABORTED) {
+    if (uploadFile) uploadFile.close();
+    if (uploadCreated && uploadPath[0]) FFat.remove(uploadPath);
+    uploadCreated = false;
+    uploadFailed = true;
+    __atomic_store_n(&storageOperationActive, false, __ATOMIC_RELEASE);
+    if (restorePending) requestReload();
+    return;
+  }
   if (raw.status == RAW_START) {
+    __atomic_store_n(&storageOperationActive, true, __ATOMIC_RELEASE);
+    uploadCreated = false;
     uploadFailed = false;
     uploadError[0] = '\0';
     uploadBytes = 0;
@@ -687,7 +745,12 @@ inline void handlePutBody() {
                isJson ? "json" : "pfm");
     }
 
-    captureSelectionOnce();
+    if (!captureSelectionOnce()) {
+      uploadFailed = true;
+      uploadPath[0] = '\0'; // no file opened: do not delete an original on failure
+      snprintf(uploadError, sizeof(uploadError), "pattern still loading; retry");
+      return;
+    }
 
     uploadFile = FFat.open(uploadPath, FILE_WRITE);
     if (!uploadFile) {
@@ -696,6 +759,7 @@ inline void handlePutBody() {
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       return;
     }
+    uploadCreated = true;
     Serial.printf("[PATTERNS-HTTP] put start %s\n", uploadPath);
     return;
   }
@@ -726,6 +790,7 @@ inline void handlePutBody() {
 
 // Runs once the whole body has been consumed.
 inline void handleUploadDone() {
+  StorageOperation operation;
   // Batched install (the /patterns page, or its ?src= one-click flow) marks
   // every file but the final one as last=0, so the rescan-and-reload runs
   // once per batch instead of once per file. Multipart carries it as a form
@@ -736,7 +801,7 @@ inline void handleUploadDone() {
   else if (server().hasHeader("X-PF-Last")) lastInBatch = server().header("X-PF-Last") != "0";
 
   if (uploadFailed) {
-    if (uploadPath[0] && FFat.exists(uploadPath)) FFat.remove(uploadPath);
+    if (uploadCreated && uploadPath[0] && FFat.exists(uploadPath)) FFat.remove(uploadPath);
     Serial.printf("[PATTERNS-HTTP] upload failed: %s (heap %u)\n", uploadError,
                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     if (lastInBatch && restorePending) requestReload();
@@ -847,7 +912,7 @@ inline void handleSelect() {
     // the pattern chosen from the page ran until the console went idle and
     // then snapped back to whatever was playing before the page was opened.
     // Left alone only while an upload batch still owns the eviction.
-    if (restorePending &&
+    if (restorePending && !patternLoadsHeld &&
         (!lastUploadActivityMs || millis() - lastUploadActivityMs > 3000)) {
       restorePending = false;
     }

@@ -1,6 +1,6 @@
 # Patternflow MIDI Specification
 
-**Spec version: 1.1** · applies to the `midi` feature (Audio edition ≥ v0.5.0)
+**Spec version: 1.2 (unreleased diagnostics)** · the released 1.1 mapping applies to the `midi` feature (Audio edition ≥ v0.5.0)
 
 Patternflow is a MIDI device: four knobs and four buttons in, four knobs and
 four buttons out, and a pattern selector. This document is the contract
@@ -75,6 +75,27 @@ carries
 off means the port stays open and everything is dropped, the same convention
 as `OSC` and `AUD`.
 
+Unreleased 1.2 adds `rxDetail` to both `midi` in `/api/status` and the root of
+`GET /api/midi`. These are cumulative diagnostics since boot, not settings:
+
+| Field | Meaning |
+|---|---|
+| `worker` | The independent transport worker is running. `false` means the frame-polling fallback; MIDI still works, but receive capacity again depends on frame time. |
+| `abs`, `rel` | Four accepted CC counters, one per knob, after channel/runtime filtering. Absolute and relative controllers are counted separately. |
+| `queueDropped`, `txQueueDropped` | Incoming/outgoing event queue overflow counts. The finite queues preserve accepted event order; they cannot guarantee delivery at unlimited rates. |
+| `packetGaps` | Positive RTP sequence gaps reported by the transport. Includes possible loss or reordering; it is not an exact count of lost CCs. |
+| `parseErrors`, `bufferOverflows` | Library parse and buffer-full reports. |
+| `pollMaxGapUs`, `pollMaxUs` | Maximum interval between transport slices and maximum slice wall time. Scheduling and socket calls can exceed the nominal slice budget. |
+| `queueMaxAgeUs` | Maximum time from a parsed event entering the queue to frame-side dispatch. Excludes time before parsing and panel presentation. |
+| `stackMin` | Minimum free bytes observed on the transport worker's 4,096-byte stack; zero before measurement. |
+
+The transport is serviced independently of display frames. Events cross a
+fixed 128-entry receive queue and a 64-entry transmit queue; their payload
+storage uses PSRAM. The frame task alone applies incoming controls. The wire
+mapping, channel and precedence rules above are unchanged. Disabling MIDI
+ignores controls and output while continuing session maintenance and draining
+received events, so re-enabling does not replay an accumulating disabled queue.
+
 ## Settings
 
 | | |
@@ -98,6 +119,9 @@ as `OSC` and `AUD`.
 
 ## Version history
 
+- **1.2** (unreleased) — additive receive diagnostics, transport service
+  independent of display frames, and suppression of outbound CCs generated
+  from absolute-bus compatibility clicks. No new transport or CC mapping.
 - **1.1** (2026-09-06) — outbound CC 24–27 paced: one message per knob per
   50 ms at most (`PF_MIDI_OUT_MIN_INTERVAL_MS`), the final value always sent;
   `rel` carries the steps summed since the previous message. On the Audio

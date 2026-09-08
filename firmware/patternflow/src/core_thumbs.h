@@ -34,6 +34,7 @@
 #include <Arduino.h>
 #include <FFat.h>
 #include <string.h>
+#include <esp_heap_caps.h>
 
 #include "core_canvas.h"
 #include "core_mem.h"
@@ -60,6 +61,8 @@ struct Slot {
   uint16_t* px;        // PSRAM, or null until captured or read
   bool diskChecked;    // the file has been looked for once this boot
   bool savedThisBoot;  // written once per boot; leaving a pattern twice does not rewrite it
+  bool savePending;
+  uint32_t generation; // invalidates an I/O result after deletion/reinstallation
 };
 
 // The slot table lives in PSRAM too: internal RAM is what the console is
@@ -68,6 +71,25 @@ inline Slot* slots = nullptr;
 inline int slotCount = 0;
 inline uint32_t captures = 0;
 inline uint32_t reads = 0;
+inline uint32_t writes = 0;
+inline uint32_t ioMaxUs = 0;
+inline uint32_t captureMaxUs = 0;
+inline uint32_t nextGeneration = 0;
+
+// One immutable job, at most one extra frame of PSRAM. The loop owns the
+// cache and submits snapshots; the existing network task owns disk I/O.
+// No extra task/stack and no lock held across a file read or write.
+enum IoState : uint8_t { IO_IDLE, IO_PENDING, IO_RUNNING, IO_DONE };
+inline uint8_t ioState = IO_IDLE;
+struct IoJob {
+  Slot* slot;
+  uint32_t generation;
+  char path[64];
+  uint16_t* px;
+  bool write;
+  bool ok;
+};
+inline IoJob io{};
 
 inline void pathFor(const char* slug, char* out, size_t n) {
   snprintf(out, n, "%s/%s.thumb", DIR, slug);
@@ -84,69 +106,141 @@ inline Slot* slotFor(const char* slug) {
   if (!slug || !slug[0]) return nullptr;
   Slot* s = find(slug);
   if (s) return s;
-  if (!slots) slots = static_cast<Slot*>(PFMem::alloc(sizeof(Slot) * MAX_SLOTS));
+  // Pictures are expendable. Never spend the console's internal heap when
+  // PSRAM is unavailable or full just to keep a browsing thumbnail.
+  if (!slots) slots = static_cast<Slot*>(
+      heap_caps_calloc(MAX_SLOTS, sizeof(Slot), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   if (!slots || slotCount >= MAX_SLOTS) return nullptr;
   s = &slots[slotCount++];
-  memset(s, 0, sizeof(*s));
+  // A formatted volume can reuse a slot while an old job still holds its
+  // address. Keep generation atomic even during reuse.
+  s->px = nullptr;
+  s->diskChecked = false;
+  s->savedThisBoot = false;
+  s->savePending = false;
   snprintf(s->slug, SLUG_BYTES, "%s", slug);
+  __atomic_store_n(&s->generation, ++nextGeneration, __ATOMIC_RELEASE);
   return s;
 }
 
 inline bool ensurePixels(Slot& s) {
-  if (!s.px) s.px = static_cast<uint16_t*>(PFMem::alloc(BYTES));
+  if (!s.px) s.px = static_cast<uint16_t*>(
+      heap_caps_malloc(BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   return s.px != nullptr;
 }
 
-inline bool readFromDisk(Slot& s) {
-  char path[64];
-  pathFor(s.slug, path, sizeof(path));
+inline bool readFromDisk(IoJob& job) {
   // exists() first: opening a missing file logs an error from the VFS layer,
   // and most patterns have no picture until they have been played.
-  if (!FFat.exists(path)) return false;
-  File f = FFat.open(path, FILE_READ);
+  if (!FFat.exists(job.path)) return false;
+  File f = FFat.open(job.path, FILE_READ);
   if (!f) return false;
   uint8_t hdr[HEADER_BYTES];
   bool ok = f.read(hdr, HEADER_BYTES) == HEADER_BYTES &&
             memcmp(hdr, MAGIC, sizeof(MAGIC)) == 0 &&
             (hdr[4] | (hdr[5] << 8)) == W && (hdr[6] | (hdr[7] << 8)) == H;
-  if (ok && ensurePixels(s)) ok = f.read(reinterpret_cast<uint8_t*>(s.px), BYTES) == BYTES;
+  if (ok) ok = f.read(reinterpret_cast<uint8_t*>(job.px), BYTES) == BYTES;
   f.close();
-  if (ok) reads++;
   return ok;
 }
 
-inline bool writeToDisk(Slot& s) {
-  char path[64];
-  pathFor(s.slug, path, sizeof(path));
-  File f = FFat.open(path, FILE_WRITE);
+inline bool writeToDisk(const IoJob& job) {
+  File f = FFat.open(job.path, FILE_WRITE);
   if (!f) return false;
   const uint8_t hdr[HEADER_BYTES] = {MAGIC[0], MAGIC[1], MAGIC[2], MAGIC[3],
                                      (uint8_t)W, (uint8_t)(W >> 8), (uint8_t)H, (uint8_t)(H >> 8)};
   bool ok = f.write(hdr, HEADER_BYTES) == HEADER_BYTES &&
-            f.write(reinterpret_cast<const uint8_t*>(s.px), BYTES) == BYTES;
+            f.write(reinterpret_cast<const uint8_t*>(job.px), BYTES) == BYTES;
   f.close();
   return ok;
+}
+
+// Network task only, between HTTP requests. Deletion/format handlers run
+// on this same task: a stale queued save cannot recreate a deleted file.
+inline void serviceDisk() {
+  uint8_t pending = IO_PENDING;
+  if (!__atomic_compare_exchange_n(&ioState, &pending, IO_RUNNING, false,
+                                   __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) return;
+  const uint32_t started = micros();
+  io.ok = false;
+  if (__atomic_load_n(&io.slot->generation, __ATOMIC_ACQUIRE) == io.generation)
+    io.ok = io.write ? writeToDisk(io) : readFromDisk(io);
+  const uint32_t elapsed = micros() - started;
+  if (elapsed > ioMaxUs) ioMaxUs = elapsed;
+  __atomic_store_n(&ioState, IO_DONE, __ATOMIC_RELEASE);
+}
+
+// Loop task only. A completed read becomes visible between frames. A
+// captured newer picture always wins over a read already in flight.
+inline void collectIO() {
+  if (__atomic_load_n(&ioState, __ATOMIC_ACQUIRE) != IO_DONE) return;
+  Slot& s = *io.slot;
+  if (s.generation == io.generation) {
+    if (io.write) {
+      s.savedThisBoot = io.ok;
+      if (io.ok) {
+        s.savePending = false;
+        writes++;
+      }
+    } else {
+      s.diskChecked = true;
+      if (io.ok && !s.px) {
+        s.px = io.px;
+        io.px = nullptr;
+        reads++;
+      }
+    }
+  }
+  free(io.px);
+  io = {};
+  __atomic_store_n(&ioState, IO_IDLE, __ATOMIC_RELEASE);
+}
+
+inline bool queueIO(Slot& s, bool write) {
+  if (__atomic_load_n(&ioState, __ATOMIC_ACQUIRE) != IO_IDLE) return false;
+  uint16_t* px = static_cast<uint16_t*>(
+      heap_caps_malloc(BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  if (!px) return false;
+  if (write) memcpy(px, s.px, BYTES);
+  io.slot = &s;
+  io.generation = s.generation;
+  pathFor(s.slug, io.path, sizeof(io.path));
+  io.px = px;
+  io.write = write;
+  io.ok = false;
+  __atomic_store_n(&ioState, IO_PENDING, __ATOMIC_RELEASE);
+  return true;
+}
+
+inline void service() {
+  collectIO();
+  for (int i = 0; i < slotCount; ++i) {
+    Slot& s = slots[i];
+    if (s.savePending && !s.savedThisBoot && s.px && queueIO(s, true)) {
+      s.savePending = false;
+      return;
+    }
+  }
 }
 
 // The picture for a slug, or null when nobody has taken one. The volume is
 // consulted once per slug per boot; after that it is the PSRAM copy or nothing.
 inline const uint16_t* get(const char* slug) {
+  collectIO();
   Slot* s = slotFor(slug);
   if (!s) return nullptr;
   if (!s->px && !s->diskChecked) {
-    s->diskChecked = true;
-    if (!readFromDisk(*s) && s->px) {
-      free(s->px);
-      s->px = nullptr;
-    }
+    queueIO(*s, false);
   }
   return s->px;
 }
 
 // Take what is on the canvas right now as `slug`'s picture. Written to the
-// volume the first time per boot (about 16 KB, a few tens of milliseconds
-// on the loop task, once per pattern), refreshed in PSRAM every time.
+// volume in the background, refreshed in PSRAM every time. Capture never
+// opens a file: entering SELECT or switching patterns only copies pixels.
 inline bool capture(const char* slug, bool volumeMounted) {
+  const uint32_t started = micros();
+  collectIO();
   Slot* s = slotFor(slug);
   if (!s || !ensurePixels(*s)) return false;
   const uint8_t* src = PFCanvas::buffer;
@@ -156,7 +250,9 @@ inline bool capture(const char* slug, bool volumeMounted) {
   }
   s->diskChecked = true;
   captures++;
-  if (volumeMounted && !s->savedThisBoot) s->savedThisBoot = writeToDisk(*s);
+  if (volumeMounted && !s->savedThisBoot) s->savePending = true;
+  const uint32_t elapsed = micros() - started;
+  if (elapsed > captureMaxUs) captureMaxUs = elapsed;
   return true;
 }
 
@@ -176,12 +272,16 @@ inline void paint(const uint16_t* px) {
 // The slot stays (slugs are few) and will look at the volume again if the
 // same slug is ever installed back.
 inline void forget(const char* slug) {
+  PFLoopSync::run([&] {
   if (Slot* s = find(slug)) {
+    __atomic_store_n(&s->generation, ++nextGeneration, __ATOMIC_RELEASE);
     if (s->px) free(s->px);
     s->px = nullptr;
     s->diskChecked = false;
     s->savedThisBoot = false;
+    s->savePending = false;
   }
+  });
   char path[64];
   pathFor(slug, path, sizeof(path));
   if (FFat.exists(path)) FFat.remove(path);
@@ -189,10 +289,14 @@ inline void forget(const char* slug) {
 
 // The volume was formatted: every file is gone, so every copy is stale.
 inline void forgetAll() {
+  PFLoopSync::run([] {
   for (int i = 0; i < slotCount; i++) {
+    __atomic_store_n(&slots[i].generation, ++nextGeneration, __ATOMIC_RELEASE);
     if (slots[i].px) free(slots[i].px);
+    slots[i].px = nullptr;
   }
   slotCount = 0;
+  });
 }
 
 }  // namespace PFThumbs

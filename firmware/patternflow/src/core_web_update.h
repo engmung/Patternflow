@@ -250,12 +250,6 @@ inline void begin() {
     return;
   }
 
-#if !PF_OTA_ENABLED
-  // ArduinoOTA normally brings up mDNS; with OTA compiled out, start it
-  // here so patternflow.local still resolves.
-  MDNS.begin(PF_OTA_HOSTNAME);
-#endif
-  MDNS.addService("http", "tcp", HTTP_PORT);
   PatternflowNames::announce();
 
   server().on("/update", HTTP_GET, []() {

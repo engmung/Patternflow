@@ -1,11 +1,21 @@
 # Vendored: WebServer (arduino-esp32 core 2.0.17)
 
 Copied verbatim from the Arduino core's bundled library
-(`libraries/WebServer/src`, core 2.0.17 / IDF 4.4.7), plus **two Patternflow
+(`libraries/WebServer/src`, core 2.0.17 / IDF 4.4.7), plus **three Patternflow
 fixes**. Same arrangement as `src/hub75` and `src/pubsubclient`: every firmware
 include points at this copy (`#include "webserver/WebServer.h"`), so the
 Library Manager / core-bundled version is never compiled and its version does
 not matter.
+
+## Fix 3 (2026-09-07): cooperative network maintenance while reading
+
+The wait loops in `waitForByte()`, `readBytesWithTimeout()` and
+`_uploadReadByte()` call `PFNetMaintenance::poll()` before sleeping. Its
+owner-task check and 25 ms cadence permit Wi-Fi/name maintenance while a
+slow request occupies this synchronous server. The hook cannot re-enter HTTP.
+The parser's byte counts, timeout rules and wire contract are unchanged.
+Other synchronous library operations can still cause maintenance gaps; this
+is not a general asynchronous-server conversion.
 
 ## Fix 1 (Parsing.cpp, raw body loop): ask for what remains
 

@@ -29,11 +29,14 @@
 
 #include <Arduino.h>
 #include <type_traits>
+#include "core_runtime.h"
+#include "core_net_maintenance.h"
 
 namespace PFLoopSync {
 
 inline TaskHandle_t loopTask = nullptr;           // captured by attach()
 inline void (*volatile pendingFn)(void*) = nullptr;
+inline bool (*pendingAttempt)(void*) = nullptr;
 inline void* volatile pendingArg = nullptr;
 inline SemaphoreHandle_t doneSignal = nullptr;    // binary: loop -> caller
 inline SemaphoreHandle_t callerLock = nullptr;    // one request at a time
@@ -58,32 +61,49 @@ inline bool onLoopTask() {
 
 // From loop(), at the frame boundary: run whatever is waiting.
 inline void service() {
-  void (*fn)(void*) = pendingFn;
+  void (*fn)(void*) = __atomic_load_n(&pendingFn, __ATOMIC_ACQUIRE);
   if (!fn) return;
+  // A conditional request owns its caller's storage until it completes.
+  // Not ready means another frame, never a wait inside this task.
+  const uint32_t startedUs = micros();
+  if (pendingAttempt && !pendingAttempt(pendingArg)) {
+    PFRuntime::noteSync(micros() - startedUs);
+    return;
+  }
   fn(pendingArg);
-  pendingFn = nullptr;
+  PFRuntime::noteSync(micros() - startedUs);
+  pendingAttempt = nullptr;
+  __atomic_store_n(&pendingFn, (void (*)(void*))nullptr, __ATOMIC_RELEASE);
   xSemaphoreGive(doneSignal);
 }
 
 // Run fn(arg) on the loop task and wait for it. Inline when already there.
-inline void runRaw(void (*fn)(void*), void* arg) {
+inline bool runRaw(void (*fn)(void*), void* arg, bool (*attempt)(void*) = nullptr) {
   if (onLoopTask()) {
+    if (attempt && !attempt(arg)) return false;
     fn(arg);
-    return;
+    return true;
   }
   xSemaphoreTake(callerLock, portMAX_DELAY);
   const uint32_t t0 = micros();
   pendingArg = arg;
-  pendingFn = fn;  // written last: service() keys on it
+  pendingAttempt = attempt;
+  __atomic_store_n(&pendingFn, fn, __ATOMIC_RELEASE);
   // Wait in slices so a loop that has stopped servicing is visible on
   // Serial rather than a silent hang of the console.
-  while (xSemaphoreTake(doneSignal, pdMS_TO_TICKS(2000)) != pdTRUE) {
-    Serial.println("[LOOP-SYNC] still waiting for the loop task");
+  uint32_t lastLogUs = t0;
+  while (xSemaphoreTake(doneSignal, pdMS_TO_TICKS(25)) != pdTRUE) {
+    PFNetMaintenance::poll();
+    if (micros() - lastLogUs >= 2000000) {
+      Serial.println("[LOOP-SYNC] still waiting for the loop task");
+      lastLogUs = micros();
+    }
   }
   const uint32_t waited = micros() - t0;
   if (waited > maxWaitUs) maxWaitUs = waited;
   served++;
   xSemaphoreGive(callerLock);
+  return true;
 }
 
 // Any callable, captures included:  PFLoopSync::run([&] { ... });
@@ -91,6 +111,16 @@ template <class F>
 inline void run(F&& f) {
   using Fn = typename std::remove_reference<F>::type;
   runRaw([](void* p) { (*static_cast<Fn*>(p))(); }, (void*)&f);
+}
+
+// Retry a short, transactional attempt at each frame boundary. Returning
+// false must leave the operation uncommitted. A caller already on the loop
+// cannot wait for itself: it receives false and must retry later or reply busy.
+template <class F>
+inline bool runWhen(F&& attempt) {
+  using Fn = typename std::remove_reference<F>::type;
+  return runRaw([](void*) {}, (void*)&attempt,
+                [](void* p) { return (*static_cast<Fn*>(p))(); });
 }
 
 }  // namespace PFLoopSync

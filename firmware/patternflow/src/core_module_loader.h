@@ -20,8 +20,10 @@
 #include "config.h"
 #include "abi/pf_abi.h"
 #include "core_canvas.h"
+#include "core_module_memory.h"
 #include "core_encoders.h"
 #include "core_mem.h"
+#include "core_module_elf.h"
 #include "core_tables.h"
 
 // Single-precision divide is a libgcc call on the S3 (its FPU does mul/add in
@@ -68,69 +70,11 @@ double __floatundidf(unsigned long long);
 
 namespace PFModuleLoader {
 
-constexpr uint32_t ELF_MAGIC = 0x464c457f;
-constexpr uint16_t ET_REL = 1;
-constexpr uint16_t EM_XTENSA = 94;
-constexpr uint32_t SHT_SYMTAB = 2;
-constexpr uint32_t SHT_RELA = 4;
-constexpr uint32_t SHT_NOBITS = 8;
-constexpr uint32_t SHT_INIT_ARRAY = 14;
-constexpr uint32_t SHF_ALLOC = 0x2;
-constexpr uint32_t SHF_EXECINSTR = 0x4;
-constexpr uint8_t R_XTENSA_NONE = 0;
-constexpr uint8_t R_XTENSA_32 = 1;
-constexpr uint8_t R_XTENSA_ASM_EXPAND = 11;
-constexpr uint8_t R_XTENSA_SLOT0_OP = 20;
 // module.ld collapses a module to .text/.rodata/.data/.bss, so four is what
 // every stock preset actually produces. The headroom is for .init_array (see
 // runInitArray) and for whatever a community pattern's toolchain adds.
 constexpr int MAX_SECTIONS = 8;
 constexpr int MAX_MODULE_ALLOCS = 16;
-
-struct Elf32Ehdr {
-  uint8_t ident[16];
-  uint16_t type;
-  uint16_t machine;
-  uint32_t version;
-  uint32_t entry;
-  uint32_t phoff;
-  uint32_t shoff;
-  uint32_t flags;
-  uint16_t ehsize;
-  uint16_t phentsize;
-  uint16_t phnum;
-  uint16_t shentsize;
-  uint16_t shnum;
-  uint16_t shstrndx;
-};
-
-struct Elf32Shdr {
-  uint32_t name;
-  uint32_t type;
-  uint32_t flags;
-  uint32_t addr;
-  uint32_t offset;
-  uint32_t size;
-  uint32_t link;
-  uint32_t info;
-  uint32_t addralign;
-  uint32_t entsize;
-};
-
-struct Elf32Sym {
-  uint32_t name;
-  uint32_t value;
-  uint32_t size;
-  uint8_t info;
-  uint8_t other;
-  uint16_t shndx;
-};
-
-struct Elf32Rela {
-  uint32_t offset;
-  uint32_t info;
-  int32_t addend;
-};
 
 struct LoadedSection {
   uint16_t index = 0;
@@ -144,28 +88,22 @@ struct LoadedSection {
 inline LoadedSection sections[MAX_SECTIONS];
 inline int sectionCount = 0;
 
-// Where a module's DATA goes (its code always needs internal, executable
-// RAM). Internal RAM is what the console lives on: Wi-Fi, lwIP and every
-// HTTP connection allocate from it, and below ~10 KB the server answers
-// nothing while the panel draws on as if all were well. A section larger
-// than PF_MODULE_DATA_INTERNAL_MAX, or one that would leave less than
-// PF_MODULE_INTERNAL_RESERVE free, is placed in PSRAM first (see the section
-// loop). 16 KB keeps a pattern's flags, LUTs and small state where they
-// are fastest; 24 KB is roughly what the console needs to serve pages and
-// accept an upload at the same time, with a margin.
-#ifndef PF_MODULE_DATA_INTERNAL_MAX
-#define PF_MODULE_DATA_INTERNAL_MAX 16384
-#endif
-#ifndef PF_MODULE_INTERNAL_RESERVE
-#define PF_MODULE_INTERNAL_RESERVE 24576
-#endif
+// Module data, executable sections and temporary ELF images use the shared
+// admission policy in core_module_memory.h. Large data prefers PSRAM; every
+// permitted internal fallback preserves the configured service reserve.
 // Bytes of the resident module's sections in internal RAM and in PSRAM -
 // /api/status reports them next to the load timing, so "this pattern ate the
 // console" is a number rather than a hunch.
 inline uint32_t lastInternalBytes = 0;
 inline uint32_t lastPsramBytes = 0;
+// Executable bytes the last module the loader priced asked for, whether or not
+// it went on to load. Published beside the budget it was weighed against, so a
+// refusal is arithmetic anyone can redo from the console.
+inline uint32_t lastCodeBytes = 0;
 inline void* moduleAllocs[MAX_MODULE_ALLOCS] = {};
 inline int moduleAllocCount = 0;
+inline uint32_t runtimeBytes = 0;
+inline uint32_t runtimePeakBytes = 0;
 inline const PFPatternModule* active = nullptr;
 inline float* tableR = nullptr;
 inline float* tableTheta = nullptr;
@@ -176,10 +114,6 @@ inline bool fail(const char* message) {
   snprintf(lastError, sizeof(lastError), "%s", message);
   Serial.printf("[MODULE] %s\n", lastError);
   return false;
-}
-
-inline bool rangeValid(size_t offset, size_t bytes, size_t total) {
-  return offset <= total && bytes <= total - offset;
 }
 
 inline LoadedSection* sectionByIndex(uint16_t index) {
@@ -209,8 +143,8 @@ inline const LoadedSection* sectionContaining(const void* address) {
 inline bool isInitArraySection(const Elf32Shdr& section, const char* names,
                                size_t namesSize) {
   if (section.type == SHT_INIT_ARRAY) return true;
-  if (!names || section.name >= namesSize) return false;
-  return strcmp(names + section.name, ".init_array") == 0;
+  const char* name = tableString(names, namesSize, section.name);
+  return name && strcmp(name, ".init_array") == 0;
 }
 
 // C++ global constructors. GCC emits them as a table of function pointers in
@@ -247,7 +181,10 @@ inline uintptr_t mapDefinedSymbol(const Elf32Sym& symbol) {
 // is a no-op for the same reason unload() exists.
 inline void* moduleAlloc(size_t bytes);  // defined below
 inline void* pfModuleMalloc(size_t bytes) { return moduleAlloc(bytes); }
-inline void* pfModuleCalloc(size_t count, size_t size) { return moduleAlloc(count * size); }
+inline void* pfModuleCalloc(size_t count, size_t size) {
+  if (size && count > SIZE_MAX / size) return nullptr;
+  return moduleAlloc(count * size);
+}
 inline void pfModuleFree(void*) {}
 // Report success, register nothing — see the atexit note in resolveSymbol().
 inline int pfModuleAtexit(void (*)(void)) { return 0; }
@@ -444,9 +381,21 @@ inline uintptr_t resolveHostSymbol(const char* symbol) {
 #undef PF_HOST_FN
 
 inline void* moduleAlloc(size_t bytes) {
-  if (moduleAllocCount >= MAX_MODULE_ALLOCS) return nullptr;
-  void* memory = PFMem::alloc(bytes);
-  if (memory) moduleAllocs[moduleAllocCount++] = memory;
+  if (moduleAllocCount >= MAX_MODULE_ALLOCS ||
+      !PFModuleMemory::fits(bytes, PF_MODULE_RUNTIME_MAX_BYTES, runtimeBytes)) {
+    ++PFModuleMemory::refusals;
+    return nullptr;
+  }
+  // Zeroed: abi/pf_abi.h documents alloc() as "PSRAM-preferred zeroed" and HEAD
+  // honoured it through PFMem::alloc (core_mem.h memsets). The rework dropped
+  // the zeroing, so a pattern that allocates a trail map or accumulator and
+  // reads it before writing has been reading whatever the last module left.
+  void* memory = PFModuleMemory::data(bytes, true, true);
+  if (memory) {
+    moduleAllocs[moduleAllocCount++] = memory;
+    runtimeBytes += bytes;
+    if (runtimeBytes > runtimePeakBytes) runtimePeakBytes = runtimeBytes;
+  }
   return memory;
 }
 
@@ -499,11 +448,17 @@ inline void unload() {
   for (int i = 0; i < moduleAllocCount; ++i) free(moduleAllocs[i]);
   memset(moduleAllocs, 0, sizeof(moduleAllocs));
   moduleAllocCount = 0;
+  runtimeBytes = 0;
   for (int i = 0; i < sectionCount; ++i) {
     free(sections[i].memory);
     sections[i] = {};
   }
   sectionCount = 0;
+  // Nothing is resident: /api/status must stop reporting the footprint of a
+  // module that left, or the partial footprint of one that never arrived.
+  lastInternalBytes = 0;
+  lastPsramBytes = 0;
+  PFModuleMemory::endLoad();
 }
 
 inline bool copyExecutable(uint8_t* destination, const uint8_t* source, size_t bytes) {
@@ -574,14 +529,8 @@ inline bool looksLikeModule(fs::FS& filesystem, const char* path, char* why, siz
     snprintf(why, whySize, "not an ELF file (corrupt upload?)");
     return false;
   }
-  if (header.type != ET_REL || header.machine != EM_XTENSA) {
-    snprintf(why, whySize, "wrong ELF kind - rebuild with build_module.py");
-    return false;
-  }
-  // Section headers live at the END of the image, so this catches the
-  // truncation a plain size check would miss.
-  if (header.shoff + (uint32_t)header.shnum * sizeof(Elf32Shdr) > size) {
-    snprintf(why, whySize, "truncated - section table past end of file");
+  if (!moduleHeaderValid(header, size)) {
+    snprintf(why, whySize, "unsupported or truncated ELF - rebuild with build_module.py");
     return false;
   }
   return true;
@@ -596,8 +545,7 @@ inline bool load(fs::FS& filesystem, const char* path) {
   File file = filesystem.open(path, FILE_READ);
   if (!file) return fail("cannot open module");
   size_t fileSize = file.size();
-  uint8_t* image = static_cast<uint8_t*>(ps_malloc(fileSize));
-  if (!image) image = static_cast<uint8_t*>(malloc(fileSize));
+  uint8_t* image = static_cast<uint8_t*>(PFModuleMemory::data(fileSize, false, true));
   if (!image) {
     file.close();
     return fail("not enough RAM for ELF file");
@@ -612,12 +560,7 @@ inline bool load(fs::FS& filesystem, const char* path) {
   lastReadUs = micros() - startedUs;
 
   const Elf32Ehdr* header = reinterpret_cast<const Elf32Ehdr*>(image);
-  uint32_t magic;
-  memcpy(&magic, header->ident, sizeof(magic));
-  if (magic != ELF_MAGIC || header->ident[4] != 1 || header->ident[5] != 1 ||
-      header->type != ET_REL || header->machine != EM_XTENSA ||
-      header->shentsize != sizeof(Elf32Shdr) ||
-      !rangeValid(header->shoff, (size_t)header->shnum * sizeof(Elf32Shdr), fileSize)) {
+  if (!moduleHeaderValid(*header, fileSize)) {
     free(image);
     return fail("unsupported ELF format");
   }
@@ -636,85 +579,112 @@ inline bool load(fs::FS& filesystem, const char* path) {
     }
   }
 
-  lastInternalBytes = 0;
-  lastPsramBytes = 0;
+  // Pass 1 - price. Everything admission needs is already in the section
+  // headers: which sections are allocatable, how big each is once rounded, and
+  // which of them are executable. Validate and sum here, so nothing is
+  // allocated until the verdict is known and there is no half-placed module to
+  // unwind - and so the verdict does not depend on the order the sections
+  // happen to be walked in.
+  size_t plannedSize[MAX_SECTIONS] = {};
+  uint16_t plannedIndex[MAX_SECTIONS] = {};
+  int planned = 0;
+  size_t codeBytes = 0;
   for (uint16_t i = 1; i < header->shnum; ++i) {
     const Elf32Shdr& section = sectionHeaders[i];
     if (!(section.flags & SHF_ALLOC) || section.size == 0) continue;
-    if (sectionCount >= MAX_SECTIONS) {
+    if (planned >= MAX_SECTIONS) {
       free(image);
       unload();
-      return fail("module has more than four loadable sections");
+      return fail("too many loadable sections");
     }
-    size_t allocationSize = (section.size + 3) & ~size_t(3);
-    uint8_t* memory;
-    if (section.flags & SHF_EXECINSTR) {
-      memory = static_cast<uint8_t*>(
-          heap_caps_malloc(allocationSize, MALLOC_CAP_EXEC | MALLOC_CAP_INTERNAL | MALLOC_CAP_32BIT));
-      if (!memory) {
-        memory = static_cast<uint8_t*>(
-            heap_caps_malloc(allocationSize, MALLOC_CAP_EXEC | MALLOC_CAP_32BIT));
-      }
-    } else {
-      // Data: internal 8-bit RAM when it is small, PSRAM when it is not.
-      // Module code does l8ui/s8i on .bss flags (e.g. sinLUTReady), so the
-      // EXEC heap (32-bit only) is never an option, and small state is
-      // fastest where it always was. But this used to be internal-first at
-      // any size, and internal RAM is what the console lives on. Measured
-      // 2026-09-06: a module whose data came to ~42 KB landed there in
-      // full, the free internal heap went from 53 KB to 2.7 KB after
-      // services, and every HTTP connection died at the SYN while the
-      // panel drew on as if nothing were wrong - "the console will not
-      // open" with no error anywhere. PSRAM is where the canvas already
-      // is; a pattern's tables are no different. So a section over
-      // PF_MODULE_DATA_INTERNAL_MAX, or one that would leave the internal
-      // heap under PF_MODULE_INTERNAL_RESERVE, goes to PSRAM first and
-      // falls back to internal only when PSRAM refuses.
-      const size_t internalFree = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
-      const bool psramFirst = allocationSize > (size_t)PF_MODULE_DATA_INTERNAL_MAX ||
-                              internalFree < allocationSize + (size_t)PF_MODULE_INTERNAL_RESERVE;
-      memory = nullptr;
-      if (psramFirst) {
-        memory = static_cast<uint8_t*>(
-            heap_caps_calloc(1, allocationSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-      }
-      if (!memory) {
-        memory = static_cast<uint8_t*>(
-            heap_caps_calloc(1, allocationSize, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-      }
-      if (!memory) {
-        memory = static_cast<uint8_t*>(
-            heap_caps_calloc(1, allocationSize, MALLOC_CAP_8BIT));
-      }
-      if (!memory) {
-        memory = static_cast<uint8_t*>(
-            heap_caps_calloc(1, allocationSize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-      }
-    }
-    if (!memory) {
+    size_t allocationSize;
+    if (!sectionAllocationSize(section.size, allocationSize) ||
+        (section.type != SHT_NOBITS &&
+         !rangeValid(section.offset, section.size, fileSize))) {
       free(image);
       unload();
-      return fail("not enough executable/data RAM");
+      return fail("invalid module section size or range");
     }
-    if (esp_ptr_external_ram(memory)) lastPsramBytes += allocationSize;
-    else lastInternalBytes += allocationSize;
-    LoadedSection& loaded = sections[sectionCount++];
-    loaded.index = i;
-    loaded.elfAddress = section.addr;
-    loaded.size = section.size;
-    loaded.memory = memory;
-    loaded.executable = (section.flags & SHF_EXECINSTR) != 0;
-    loaded.initArray = isInitArraySection(section, sectionNames, sectionNamesSize);
-    if (section.type != SHT_NOBITS) {
-      if (!rangeValid(section.offset, section.size, fileSize)) {
+    plannedIndex[planned] = i;
+    plannedSize[planned] = allocationSize;
+    ++planned;
+    if (section.flags & SHF_EXECINSTR) codeBytes += allocationSize;
+  }
+  lastCodeBytes = (uint32_t)codeBytes;
+
+  // Admission - one decision, for the whole module, about the only part of it
+  // that has nowhere else to live. Refusing here refuses before a byte has been
+  // taken, and names the two numbers that disagreed instead of eight words that
+  // could equally mean a full heap.
+  if (!PFModuleMemory::admitCode(codeBytes)) {
+    const unsigned room = (unsigned)PFModuleMemory::budget();
+    const unsigned freeNow = (unsigned)PFModuleMemory::serviceFree();
+    // Count it. The right-hand side of this comparison is ambient - an HTTP
+    // response in flight, an rtpMIDI session, a DHCP renew all move it, and a
+    // dip under the reserve makes room read as zero however small the module
+    // is. That is a transient, not a verdict, and loadPatternJob() already
+    // knows how to wait one out: it retries precisely while refusals keep
+    // moving. Failing without counting is what turns a 50 ms dip into "the
+    // pattern does not come on".
+    ++PFModuleMemory::refusals;
+    (void)room;
+    free(image);
+    unload();
+    snprintf(lastError, sizeof(lastError), "code %u B needs %u free, have %u",
+             (unsigned)codeBytes,
+             (unsigned)(codeBytes + (size_t)PF_MODULE_INTERNAL_RESERVE), freeNow);
+    Serial.printf("[MODULE] %s\n", lastError);
+    return false;
+  }
+
+  // Pass 2 - place, executable sections first. Code takes the share admission
+  // set aside for it before any data allocation can spend it, so the reserve is
+  // consumed in the order it was priced. sections[] is looked up by ELF index
+  // everywhere (sectionByIndex), so its order here does not matter.
+  lastInternalBytes = 0;
+  lastPsramBytes = 0;
+  for (int pass = 0; pass < 2; ++pass) {
+    for (int q = 0; q < planned; ++q) {
+      const uint16_t i = plannedIndex[q];
+      const Elf32Shdr& section = sectionHeaders[i];
+      const bool executable = (section.flags & SHF_EXECINSTR) != 0;
+      if (executable != (pass == 0)) continue;
+      const size_t allocationSize = plannedSize[q];
+      uint8_t* memory = executable
+          ? static_cast<uint8_t*>(PFModuleMemory::code(allocationSize))
+          : static_cast<uint8_t*>(PFModuleMemory::data(
+                allocationSize, true, allocationSize > PF_MODULE_DATA_INTERNAL_MAX));
+      if (!memory) {
+        // Sample before free()/unload(), or the line reports the heap as it is
+        // after the cleanup and contradicts the failure it is explaining.
+        const unsigned freeNow = (unsigned)PFModuleMemory::serviceFree();
+        const unsigned largest = (unsigned)heap_caps_get_largest_free_block(
+            executable ? PFModuleMemory::internalCode : PFModuleMemory::internalData);
         free(image);
         unload();
-        return fail("section outside ELF file");
+        snprintf(lastError, sizeof(lastError), "no %s RAM: %u B, free %u, blk %u",
+                 executable ? "exec" : "data", (unsigned)allocationSize, freeNow,
+                 largest);
+        Serial.printf("[MODULE] %s\n", lastError);
+        return false;
       }
-      if (section.flags & SHF_EXECINSTR) copyExecutable(memory, image + section.offset, section.size);
-      else memcpy(memory, image + section.offset, section.size);
+      if (esp_ptr_external_ram(memory)) lastPsramBytes += allocationSize;
+      else lastInternalBytes += allocationSize;
+      LoadedSection& loaded = sections[sectionCount++];
+      loaded.index = i;
+      loaded.elfAddress = section.addr;
+      loaded.size = section.size;
+      loaded.memory = memory;
+      loaded.executable = executable;
+      loaded.initArray = isInitArraySection(section, sectionNames, sectionNamesSize);
+      if (section.type != SHT_NOBITS) {
+        if (executable) copyExecutable(memory, image + section.offset, section.size);
+        else memcpy(memory, image + section.offset, section.size);
+      }
     }
   }
+  // Placement is over; setup()'s api->alloc() must not spend the load budget.
+  PFModuleMemory::endLoad();
 
   const Elf32Sym* symbols = nullptr;
   size_t symbolCount = 0;
@@ -756,7 +726,8 @@ inline bool load(fs::FS& filesystem, const char* path) {
       uint8_t type = relocation.info & 0xff;
       if (type == R_XTENSA_NONE || type == R_XTENSA_SLOT0_OP ||
           type == R_XTENSA_ASM_EXPAND) continue;
-      if (type != R_XTENSA_32 || relocation.offset + sizeof(uint32_t) > target->size) {
+      if (type != R_XTENSA_32 ||
+          !rangeValid(relocation.offset, sizeof(uint32_t), target->size)) {
         free(image);
         unload();
         return fail("unsupported Xtensa relocation");
@@ -768,25 +739,26 @@ inline bool load(fs::FS& filesystem, const char* path) {
         return fail("bad relocation symbol");
       }
       const Elf32Sym& symbol = symbols[symbolIndex];
+      const char* symbolName = tableString(strings, stringsSize, symbol.name);
       uintptr_t address;
       if (symbol.shndx == 0) {
-        if (symbol.name >= stringsSize) address = 0;
-        else address = resolveHostSymbol(strings + symbol.name);
+        address = symbolName ? resolveHostSymbol(symbolName) : 0;
       } else {
         address = mapDefinedSymbol(symbol);
       }
       if (!address) {
+        // Both symbol and its name belong to image. Copy the diagnostic
+        // BEFORE freeing it; even reading symbol.shndx afterwards is a UAF.
+        if (symbol.shndx == 0 && symbolName) {
+          snprintf(lastError, sizeof(lastError), "unresolved symbol: %s",
+                   symbolName);
+        } else {
+          snprintf(lastError, sizeof(lastError), "unresolved module symbol");
+        }
         free(image);
         unload();
-        // Include the symbol name when we can — much easier to diagnose
-        // missing libm hooks from the serial log.
-        if (symbol.shndx == 0 && symbol.name < stringsSize) {
-          snprintf(lastError, sizeof(lastError), "unresolved symbol: %s",
-                   strings + symbol.name);
-          Serial.printf("[MODULE] %s\n", lastError);
-          return false;
-        }
-        return fail("unresolved module symbol");
+        Serial.printf("[MODULE] %s\n", lastError);
+        return false;
       }
       // Xtensa partial-link emits SHT_RELA with addend 0 and keeps the real
       // offset in the place being patched (REL semantics in a RELA container).
@@ -812,8 +784,8 @@ inline bool load(fs::FS& filesystem, const char* path) {
   uintptr_t entryAddress = 0;
   for (size_t i = 0; i < symbolCount; ++i) {
     const Elf32Sym& symbol = symbols[i];
-    if (symbol.name < stringsSize &&
-        strcmp(strings + symbol.name, PF_MODULE_ENTRY_SYMBOL) == 0) {
+    const char* symbolName = tableString(strings, stringsSize, symbol.name);
+    if (symbolName && strcmp(symbolName, PF_MODULE_ENTRY_SYMBOL) == 0) {
       entryAddress = mapDefinedSymbol(symbol);
       break;
     }

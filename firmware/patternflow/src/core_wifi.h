@@ -46,6 +46,14 @@ inline bool started = false;
 inline bool connectedNow = false;
 inline bool justConnectedEdge = false;
 inline uint32_t lastBeginMs = 0;
+inline bool retryCurrentNetwork = false;
+inline uint32_t connectedAddress = 0;
+inline uint32_t disconnects = 0;
+inline uint32_t retryAttempts = 0;
+inline uint32_t lastReconnectMs = 0;
+inline uint32_t disconnectedAtMs = 0;
+inline bool reconnectRequested = false;
+inline uint32_t reconnectRequestedAtMs = 0;
 
 // Last definitive failure (NO_SSID / AUTH_FAIL), latched for statusText().
 // The retry loop bounces the raw WiFi.status() between a failure code and
@@ -276,6 +284,7 @@ inline void begin() {
   loadCredentials();
   WiFi.persistent(false);       // don't thrash NVS with creds every boot
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname(PF_OTA_HOSTNAME);
   WiFi.setSleep(false);         // lower latency for OSC/OTA/WS
   WiFi.setAutoReconnect(true);  // let the IDF re-join on transient drops
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
@@ -313,7 +322,9 @@ inline void applyCredentials(const String& ssid, const String& pass) {
 
   // Force a clean reconnect with the new creds (mirrors the retry path).
   connectedNow = false;
-  justConnectedEdge = false;
+  __atomic_store_n(&justConnectedEdge, false, __ATOMIC_RELEASE);
+  connectedAddress = 0;
+  retryCurrentNetwork = false;
   latchedFailure = WL_IDLE_STATUS;  // stale failure was for the old creds
   WiFi.disconnect();
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
@@ -324,15 +335,30 @@ inline void applyCredentials(const String& ssid, const String& pass) {
 inline bool hasStoredCredentials() { return credsFromNvs; }
 inline const String& currentSsid() { return activeSsid; }
 
+// The HTTP reply gets time to leave before the network owner drops its link.
+// Reuses credentials in RAM; no NVS write or provisioning round trip.
+inline void requestReconnect() {
+  reconnectRequestedAtMs = millis();
+  reconnectRequested = true;
+}
+
 // Call once per loop. Maintains the connection and exposes a one-shot
 // "just connected" edge via consumeJustConnected().
 inline void tick() {
+  const uint32_t now = millis();
+  if (reconnectRequested && (uint32_t)(now - reconnectRequestedAtMs) >= 500) {
+    reconnectRequested = false;
+    WiFi.reconnect();
+  }
   bool connected = (WiFi.status() == WL_CONNECTED);
 
   if (connected) {
+    const uint32_t address = (uint32_t)WiFi.localIP();
     if (!connectedNow) {
       connectedNow = true;
-      justConnectedEdge = true;
+      if (disconnects) lastReconnectMs = now - disconnectedAtMs;
+      retryCurrentNetwork = false;
+      __atomic_store_n(&justConnectedEdge, true, __ATOMIC_RELEASE);
       Serial.printf("[WiFi] connected — IP %s\n",
                     WiFi.localIP().toString().c_str());
       // Whatever just worked becomes the first thing tried next boot, so a
@@ -341,20 +367,31 @@ inline void tick() {
         addNetwork(savedSsids[attemptIdx], savedPasses[attemptIdx]);
         attemptIdx = 0;
       }
+    } else if (address != connectedAddress) {
+      // DHCP can renew to a different address without a sampled down edge.
+      __atomic_store_n(&justConnectedEdge, true, __ATOMIC_RELEASE);
     }
+    connectedAddress = address;
     return;
   }
 
   // Disconnected (or never joined).
   if (connectedNow) {
     connectedNow = false;
+    connectedAddress = 0;
+    disconnectedAtMs = now;
+    disconnects++;
+    retryCurrentNetwork = true;
     Serial.println("[WiFi] connection lost; retrying...");
-    lastBeginMs = 0;  // retry promptly on a fresh drop
+    // Let auto-reconnect recover a brief drop. The old zero timestamp
+    // immediately disconnected it again and jumped to a DIFFERENT saved
+    // network, making one lost beacon turn into a tour of absent SSIDs.
+    lastBeginMs = now;
   }
 
-  uint32_t now = millis();
   if (now - lastBeginMs >= RETRY_INTERVAL_MS) {
     lastBeginMs = now;
+    retryAttempts++;
 
     // With more than one network remembered, each retry tries the next one.
     // A present network normally authenticates well inside one 5 s window, and
@@ -362,7 +399,9 @@ inline void tick() {
     // is in range. Deliberately no WiFi.scanNetworks() here: a scan allocates
     // internal RAM, and on this board that is the resource the web console is
     // already short of (see /status).
-    if (savedCountValue > 1) {
+    if (retryCurrentNetwork) {
+      retryCurrentNetwork = false;  // one explicit retry of the working SSID
+    } else if (savedCountValue > 1) {
       attemptIdx = (attemptIdx + 1) % savedCountValue;
       activeSsid = savedSsids[attemptIdx];
       activePass = savedPasses[attemptIdx];
@@ -420,6 +459,7 @@ inline String ipString() {
 inline void begin() {}
 inline void tick() {}
 inline void applyCredentials(const String&, const String&) {}
+inline void requestReconnect() {}
 inline bool hasStoredCredentials() { return false; }
 inline const String& currentSsid() { static String s; return s; }
 inline int savedCount() { return 0; }

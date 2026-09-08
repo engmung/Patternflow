@@ -36,6 +36,9 @@ namespace PatternflowMidiHttp {
 inline bool initialized = false;
 
 inline void sendState() {
+  char peer[sizeof(PatternflowMidiRtp::peerName)];
+  int peers;
+  PatternflowMidiRtp::copyPeer(peer, sizeof(peer), peers);
   String json = "{\"ok\":true,\"channel\":";
   json += (int)PF_MIDI_CHANNEL;
   json += ",\"outDiv\":[";
@@ -49,9 +52,9 @@ inline void sendState() {
   json += "\",\"runtime\":";
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
   json += ",\"rtpPeers\":";
-  json += PatternflowMidiRtp::peers;
+  json += peers;
   json += ",\"rtpPeer\":\"";
-  json += PatternflowMidiRtp::peerName;
+  json += peer;
   json += "\",\"you\":\"";
   json += PatternflowHttp::server().client().remoteIP().toString();
   json += "\",\"ip\":\"";
@@ -67,6 +70,7 @@ inline void sendState() {
   json += PatternflowMidi::rxCount;
   json += ",\"tx\":";
   json += PatternflowMidi::txCount;
+  PatternflowMidiRtp::appendDiagnostics(json);
   json += "}";
   PatternflowHttp::server().send(200, "application/json", json);
 }

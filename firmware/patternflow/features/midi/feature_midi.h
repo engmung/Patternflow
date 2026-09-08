@@ -20,7 +20,10 @@
 
 namespace PFFeatureMidi {
 
-inline void setup() { PatternflowMidi::loadSettings(); }
+inline void setup() {
+  PatternflowMidi::loadSettings();
+  PatternflowMidiRtp::prepare();
+}
 
 inline void onNetwork() {
   PatternflowMidiRtp::begin();
@@ -28,7 +31,7 @@ inline void onNetwork() {
 }
 
 inline void loop(const PFFeatureFrame&) {
-  if (PatternflowMidi::runtimeEnabled) PatternflowMidiRtp::handle();
+  PatternflowMidiRtp::handle();
 }
 
 inline void fillInput(InputFrame& input) { PatternflowMidi::fillInput(input); }
@@ -43,6 +46,9 @@ inline bool isRuntimeEnabled() { return PatternflowMidi::runtimeEnabled; }
 inline void setRuntimeEnabled(bool on) { PatternflowMidi::setRuntimeEnabled(on); }
 
 inline void appendStatus(String& json) {
+  char peer[sizeof(PatternflowMidiRtp::peerName)];
+  int peers;
+  PatternflowMidiRtp::copyPeer(peer, sizeof(peer), peers);
   json += ",\"midi\":{\"runtime\":";
   json += PatternflowMidi::runtimeEnabled ? "true" : "false";
   json += ",\"channel\":";
@@ -58,13 +64,14 @@ inline void appendStatus(String& json) {
   json += ",\"host\":\"";
   json += PatternflowMidiRtp::host;
   json += "\",\"rtpPeers\":";
-  json += PatternflowMidiRtp::peers;
+  json += peers;
   json += ",\"rtpPeer\":\"";
-  json += PatternflowMidiRtp::peerName;
+  json += peer;
   json += "\",\"rx\":";
   json += PatternflowMidi::rxCount;
   json += ",\"tx\":";
   json += PatternflowMidi::txCount;
+  PatternflowMidiRtp::appendDiagnostics(json);
   json += "}";
 }
 

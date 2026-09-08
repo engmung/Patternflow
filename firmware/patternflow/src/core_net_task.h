@@ -35,6 +35,8 @@
 #include "core_improv.h"
 #include "core_ota.h"
 #include "core_web_update.h"
+#include "core_names.h"
+#include "core_thumbs.h"
 
 namespace PatternflowNetTask {
 
@@ -50,9 +52,13 @@ inline volatile uint32_t stackMinFree = 0;
 inline volatile uint32_t iterations = 0;
 
 inline void netWorker(void*) {
+  PFNetMaintenance::attach([] {
+    PatternflowWifi::tick();
+    if (servicesReady) PatternflowNames::tick();
+  });
   while (running) {
     // Wi-Fi: retries while down, notes each (re)connection for loop().
-    PatternflowWifi::tick();
+    PFNetMaintenance::poll();
     // Improv-Serial: the browser flasher's Wi-Fi setup over USB.
     PatternflowImprov::handle();
     // The console and every /api/* route — once loop() says they exist.
@@ -60,6 +66,7 @@ inline void netWorker(void*) {
     // ArduinoOTA, and the self-update's boot-valid mark + deferred reboot.
     PatternflowOta::handle();
     PatternflowWebUpdate::handle();
+    PFThumbs::serviceDisk();
 
     iterations++;
     if ((iterations & 0x7F) == 0) {

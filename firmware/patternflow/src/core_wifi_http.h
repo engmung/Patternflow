@@ -176,6 +176,11 @@ inline void handleReboot() {
   ESP.restart();
 }
 
+inline void handleReconnect() {
+  sendJson(200, "{\"ok\":true,\"reconnecting\":true}");
+  PatternflowWifi::requestReconnect();
+}
+
 inline void handleIndex() {
   if (PatternflowPatternsHttp::noteConsolePageOpened()) {
     PatternflowPatternsHttp::sendConsoleWakePage();
@@ -194,6 +199,7 @@ inline void begin() {
   server().on("/api/wifi", HTTP_DELETE, handleDelete);
   server().on("/api/wifi/boot", HTTP_POST, handleBoot);
   server().on("/api/wifi/reboot", HTTP_POST, handleReboot);
+  server().on("/api/wifi/reconnect", HTTP_POST, handleReconnect);
 
   PatternflowHttp::begin();  // idempotent; whoever is first starts it
 

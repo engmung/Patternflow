@@ -75,6 +75,8 @@ inline void begin() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   ArduinoOTA.setHostname(PF_OTA_HOSTNAME);
+  // Name service startup/retry belongs to core_names.h on the network task.
+  ArduinoOTA.setMdnsEnabled(false);
 
   // Empty string = no authentication. setPassword with an empty string
   // would still set an MD5 hash internally and confuse the handshake,

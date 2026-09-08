@@ -465,6 +465,7 @@ void setup() {
   // so joining Wi-Fi never waits on the first frame; the HTTP server itself
   // is not serviced until loop() has registered every route.
   PatternflowNetTask::begin();
+  beginPatternLoader(); // one reusable stack, before any module fragments the heap
 
   // Wireless-update progress. The upload handler runs on the network core
   // (since 3.9.1), so this callback must not draw: for a while it did, and
@@ -1266,6 +1267,7 @@ void applyLaneMotion(InputFrame& input, bool enabled) {
 // nothing failed to compile, and every feature's timer silently stopped for a
 // release. If you are moving code in here, check it is still dispatched.
 void loop() {
+  PFRuntime::LoopScope runtime([] { return loadInFlight; });
   // Above the sleep block on purpose: a board that is asleep still has to be
   // able to disarm the latch, or a device told to sleep within the first few
   // seconds of boot would forget a pattern that never misbehaved.
@@ -1280,10 +1282,13 @@ void loop() {
     PatternflowOta::handle();
     PatternflowHttp::handle();
     PatternflowWebUpdate::handle();
+    if (PatternflowNetTask::servicesReady) PatternflowNames::tick();
+    PFThumbs::serviceDisk();
   }
 
   // Once connected (or reconnected), start the network services.
   if (PatternflowWifi::consumeJustConnected()) {
+    if (!PatternflowNetTask::servicesReady) PatternflowNames::begin();
     PatternflowOta::begin();
     PatternflowHomeHttp::begin();
     PatternflowWebUpdate::begin();
@@ -1291,6 +1296,7 @@ void loop() {
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
+    PatternflowNames::announce();
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");
     reportHeap("services up");
@@ -1305,6 +1311,7 @@ void loop() {
   // A pattern the loader task finished with becomes the running one here,
   // before anything below looks at what is running.
   serviceAsyncLoad();
+  PFThumbs::service();
 
   // Deferred module-list rebuilds requested by uploads/deletes — run here,
   // outside any HTTP transaction.
@@ -1313,6 +1320,7 @@ void loop() {
   unsigned long now = millis();
   float dt = (now - lastMs) / 1000.0f;
   lastMs = now;
+  runtime.housekeepingDone();
   const uint32_t frameStartedUs = micros();
 
   // Every feature's per-frame hook: the MQTT keepalive, the show player's tick,
@@ -1774,7 +1782,13 @@ void loop() {
     // The pattern is on its way in on the other core. Its picture if it has
     // one; otherwise the frame already on the panel stays until it lands.
     pausedDirty = true;
-    if (!drawPatternThumbnail(loadTargetIdx, false)) frameDrawn = false;
+    static int previewTarget = -1;
+    static uint32_t previewAtMs = 0;
+    if (previewTarget != loadTargetIdx || !canvasShowsThumb || now - previewAtMs >= 64) {
+      previewTarget = loadTargetIdx;
+      previewAtMs = now;
+      if (!drawPatternThumbnail(loadTargetIdx, false)) frameDrawn = false;
+    } else frameDrawn = false;
   } else if (currentMode == MODE_RUNNING && activePatternIdx < 0) {
     // Same throttled-redraw scheme as the info screens: this is static text and
     // repainting it every loop races the panel scanout.
