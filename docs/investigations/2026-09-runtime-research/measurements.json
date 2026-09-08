@@ -1,0 +1,6808 @@
+{
+  "date": "2026-09-07",
+  "unit": "microseconds unless key states otherwise",
+  "conditions": {
+    "project": "3.9.5 unreleased working changes",
+    "edition": "Audio 0.5.4",
+    "panel": "128x64, 8 colour bits, 260 Hz",
+    "brightness": 97,
+    "audioSource": "off",
+    "browserAudioClients": 0,
+    "probeCountersAndEventsBytes": 2544
+  },
+  "loopAndPreview": [
+    {
+      "label": "steady_Origin",
+      "load": {
+        "total": 2260141,
+        "read": 6642,
+        "relocate": 2356,
+        "setup": 2250997,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "medianFrameUs": 12734.5,
+      "heapInternalLast": 45096,
+      "probe": {
+        "durationMs": 16380,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 1282,
+            "meanUs": 12756,
+            "maxUs": 14872,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "housekeeping",
+            "n": 1283,
+            "meanUs": 46,
+            "maxUs": 109,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 1283,
+            "meanUs": 4,
+            "maxUs": 13,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 1283,
+            "meanUs": 4,
+            "maxUs": 13,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 1283,
+            "meanUs": 7,
+            "maxUs": 28,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 1283,
+            "meanUs": 5,
+            "maxUs": 17,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 1283,
+            "meanUs": 438,
+            "maxUs": 821,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 1283,
+            "meanUs": 51,
+            "maxUs": 121,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 1283,
+            "meanUs": 6,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 1283,
+            "meanUs": 49,
+            "maxUs": 127,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "draw",
+            "n": 1282,
+            "meanUs": 11945,
+            "maxUs": 13042,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "preview",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "present",
+            "n": 1283,
+            "meanUs": 5900,
+            "maxUs": 6020,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 8137,
+            "meanUs": 990,
+            "maxUs": 11395,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 8138,
+            "meanUs": 3,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 1283,
+            "meanUs": 316,
+            "maxUs": 550,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 1283,
+            "meanUs": 115,
+            "maxUs": 245,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": []
+      }
+    },
+    {
+      "label": "steady_Ripple Grid",
+      "load": {
+        "total": 29190,
+        "read": 21108,
+        "relocate": 4822,
+        "setup": 3142,
+        "internal": 2240,
+        "psram": 4120
+      },
+      "medianFrameUs": 18777.0,
+      "heapInternalLast": 42364,
+      "probe": {
+        "durationMs": 16131,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 854,
+            "meanUs": 18858,
+            "maxUs": 20843,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "housekeeping",
+            "n": 855,
+            "meanUs": 46,
+            "maxUs": 113,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 855,
+            "meanUs": 4,
+            "maxUs": 11,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 855,
+            "meanUs": 4,
+            "maxUs": 13,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 855,
+            "meanUs": 6,
+            "maxUs": 18,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 855,
+            "meanUs": 4,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 855,
+            "meanUs": 449,
+            "maxUs": 2083,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 855,
+            "meanUs": 56,
+            "maxUs": 125,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 855,
+            "meanUs": 4,
+            "maxUs": 20,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 855,
+            "meanUs": 7,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "draw",
+            "n": 854,
+            "meanUs": 18080,
+            "maxUs": 18630,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "present",
+            "n": 854,
+            "meanUs": 5903,
+            "maxUs": 6033,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 8020,
+            "meanUs": 990,
+            "maxUs": 10908,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 8021,
+            "meanUs": 2,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 855,
+            "meanUs": 318,
+            "maxUs": 525,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 855,
+            "meanUs": 125,
+            "maxUs": 1706,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": []
+      }
+    },
+    {
+      "label": "steady_Two-stream phase-space vortices",
+      "load": {
+        "total": 3518453,
+        "read": 32816,
+        "relocate": 3641,
+        "setup": 3481800,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "medianFrameUs": 43439,
+      "heapInternalLast": 40952,
+      "probe": {
+        "durationMs": 16508,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 378,
+            "meanUs": 43473,
+            "maxUs": 48586,
+            "p50UpperUs": 64000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 379,
+            "meanUs": 57,
+            "maxUs": 99,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 379,
+            "meanUs": 4,
+            "maxUs": 13,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 379,
+            "meanUs": 5,
+            "maxUs": 13,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 379,
+            "meanUs": 11,
+            "maxUs": 22,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 379,
+            "meanUs": 7,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 379,
+            "meanUs": 469,
+            "maxUs": 1650,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 379,
+            "meanUs": 64,
+            "maxUs": 113,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 379,
+            "meanUs": 6,
+            "maxUs": 19,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 379,
+            "meanUs": 32276,
+            "maxUs": 37363,
+            "p50UpperUs": 64000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 379,
+            "meanUs": 10338,
+            "maxUs": 10928,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "preview",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "present",
+            "n": 379,
+            "meanUs": 5908,
+            "maxUs": 6045,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 8177,
+            "meanUs": 997,
+            "maxUs": 13358,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 8178,
+            "meanUs": 2,
+            "maxUs": 42,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 379,
+            "meanUs": 327,
+            "maxUs": 473,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 379,
+            "meanUs": 129,
+            "maxUs": 1307,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 78831027,
+            "us": 43731
+          },
+          {
+            "name": "loop",
+            "atUs": 78874767,
+            "us": 44469
+          },
+          {
+            "name": "loop",
+            "atUs": 78919243,
+            "us": 43497
+          },
+          {
+            "name": "loop",
+            "atUs": 78962750,
+            "us": 43407
+          },
+          {
+            "name": "loop",
+            "atUs": 79006162,
+            "us": 43321
+          },
+          {
+            "name": "loop",
+            "atUs": 79049491,
+            "us": 43517
+          },
+          {
+            "name": "loop",
+            "atUs": 79093014,
+            "us": 43471
+          },
+          {
+            "name": "loop",
+            "atUs": 79136490,
+            "us": 43415
+          },
+          {
+            "name": "loop",
+            "atUs": 79179913,
+            "us": 43322
+          },
+          {
+            "name": "loop",
+            "atUs": 79223240,
+            "us": 48320
+          },
+          {
+            "name": "loop",
+            "atUs": 79271568,
+            "us": 43323
+          },
+          {
+            "name": "loop",
+            "atUs": 79314897,
+            "us": 43328
+          },
+          {
+            "name": "loop",
+            "atUs": 79358233,
+            "us": 43405
+          },
+          {
+            "name": "loop",
+            "atUs": 79401645,
+            "us": 43746
+          },
+          {
+            "name": "loop",
+            "atUs": 79445398,
+            "us": 43373
+          },
+          {
+            "name": "loop",
+            "atUs": 79488779,
+            "us": 43296
+          },
+          {
+            "name": "loop",
+            "atUs": 79532080,
+            "us": 43352
+          },
+          {
+            "name": "loop",
+            "atUs": 79575439,
+            "us": 43298
+          },
+          {
+            "name": "loop",
+            "atUs": 79618742,
+            "us": 43293
+          },
+          {
+            "name": "loop",
+            "atUs": 79662043,
+            "us": 43798
+          },
+          {
+            "name": "loop",
+            "atUs": 79705849,
+            "us": 43372
+          },
+          {
+            "name": "loop",
+            "atUs": 79749228,
+            "us": 43396
+          },
+          {
+            "name": "loop",
+            "atUs": 79792634,
+            "us": 43475
+          },
+          {
+            "name": "loop",
+            "atUs": 79836115,
+            "us": 43760
+          },
+          {
+            "name": "loop",
+            "atUs": 79879882,
+            "us": 44383
+          },
+          {
+            "name": "loop",
+            "atUs": 79924274,
+            "us": 43458
+          },
+          {
+            "name": "loop",
+            "atUs": 79967737,
+            "us": 43408
+          },
+          {
+            "name": "loop",
+            "atUs": 80011152,
+            "us": 43392
+          },
+          {
+            "name": "loop",
+            "atUs": 80054549,
+            "us": 43474
+          },
+          {
+            "name": "loop",
+            "atUs": 80098031,
+            "us": 43486
+          },
+          {
+            "name": "loop",
+            "atUs": 80141523,
+            "us": 43436
+          },
+          {
+            "name": "loop",
+            "atUs": 80184966,
+            "us": 43470
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Branched flow_hold0_0",
+      "load": {
+        "total": 2567388,
+        "read": 16826,
+        "relocate": 3028,
+        "setup": 2547182,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "medianFrameUs": 30593,
+      "heapInternalLast": 40676,
+      "probe": {
+        "durationMs": 9361,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 550,
+            "meanUs": 16974,
+            "maxUs": 36504,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 551,
+            "meanUs": 55,
+            "maxUs": 110,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 551,
+            "meanUs": 5,
+            "maxUs": 24,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 551,
+            "meanUs": 3,
+            "maxUs": 46,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 551,
+            "meanUs": 9,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 551,
+            "meanUs": 5,
+            "maxUs": 17,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 551,
+            "meanUs": 473,
+            "maxUs": 1662,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 551,
+            "meanUs": 65,
+            "maxUs": 112,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 551,
+            "meanUs": 15,
+            "maxUs": 3774,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 240,
+            "meanUs": 11845,
+            "maxUs": 18369,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 240,
+            "meanUs": 15300,
+            "maxUs": 18093,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 310,
+            "meanUs": 7415,
+            "maxUs": 10237,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 551,
+            "meanUs": 5918,
+            "maxUs": 8296,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3986,
+            "meanUs": 1163,
+            "maxUs": 24233,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3987,
+            "meanUs": 3,
+            "maxUs": 104,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2567645,
+            "maxUs": 2567645,
+            "p50UpperUs": 2567645,
+            "p95UpperUs": 2567645,
+            "p99UpperUs": 2567645
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 24,
+            "maxUs": 41,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 551,
+            "meanUs": 330,
+            "maxUs": 545,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 551,
+            "meanUs": 128,
+            "maxUs": 1323,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 86489931,
+            "us": 2567645
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Branched flow_hold1_1",
+      "load": {
+        "total": 2740092,
+        "read": 10744,
+        "relocate": 10143,
+        "setup": 2718996,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "medianFrameUs": 30438,
+      "heapInternalLast": 40692,
+      "probe": {
+        "durationMs": 9357,
+        "probeBytes": 2544,
+        "holdPreview": true,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 4515,
+            "meanUs": 2063,
+            "maxUs": 37021,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "housekeeping",
+            "n": 4516,
+            "meanUs": 35,
+            "maxUs": 112,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 4516,
+            "meanUs": 3,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 4516,
+            "meanUs": 2,
+            "maxUs": 48,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 4516,
+            "meanUs": 3,
+            "maxUs": 32,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 4516,
+            "meanUs": 3,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 4516,
+            "meanUs": 432,
+            "maxUs": 1966,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 4516,
+            "meanUs": 37,
+            "maxUs": 136,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 4516,
+            "meanUs": 5,
+            "maxUs": 4154,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 235,
+            "meanUs": 11760,
+            "maxUs": 19087,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 235,
+            "meanUs": 15251,
+            "maxUs": 18045,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 4280,
+            "meanUs": 7,
+            "maxUs": 11293,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "present",
+            "n": 237,
+            "meanUs": 5918,
+            "maxUs": 9023,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3940,
+            "meanUs": 1177,
+            "maxUs": 34080,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 4000
+          },
+          {
+            "name": "disk",
+            "n": 3941,
+            "meanUs": 3,
+            "maxUs": 937,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2740400,
+            "maxUs": 2740400,
+            "p50UpperUs": 2740400,
+            "p95UpperUs": 2740400,
+            "p99UpperUs": 2740400
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 20,
+            "maxUs": 33,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 4516,
+            "meanUs": 322,
+            "maxUs": 1332,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 4516,
+            "meanUs": 102,
+            "maxUs": 1629,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 100923762,
+            "us": 2740400
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Branched flow_hold1_2",
+      "load": {
+        "total": 2724992,
+        "read": 16105,
+        "relocate": 4986,
+        "setup": 2703668,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "medianFrameUs": 30539,
+      "heapInternalLast": 40704,
+      "probe": {
+        "durationMs": 9475,
+        "probeBytes": 2544,
+        "holdPreview": true,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 4510,
+            "meanUs": 2094,
+            "maxUs": 36404,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "housekeeping",
+            "n": 4511,
+            "meanUs": 35,
+            "maxUs": 473,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 4511,
+            "meanUs": 3,
+            "maxUs": 24,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 4511,
+            "meanUs": 2,
+            "maxUs": 49,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 4511,
+            "meanUs": 3,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 4511,
+            "meanUs": 3,
+            "maxUs": 398,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 4511,
+            "meanUs": 432,
+            "maxUs": 1904,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 4511,
+            "meanUs": 38,
+            "maxUs": 471,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 4511,
+            "meanUs": 5,
+            "maxUs": 3532,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 240,
+            "meanUs": 11650,
+            "maxUs": 18613,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 240,
+            "meanUs": 15347,
+            "maxUs": 18200,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 4270,
+            "meanUs": 7,
+            "maxUs": 9872,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "present",
+            "n": 241,
+            "meanUs": 5915,
+            "maxUs": 8273,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 4002,
+            "meanUs": 1167,
+            "maxUs": 35118,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 4000
+          },
+          {
+            "name": "disk",
+            "n": 4003,
+            "meanUs": 3,
+            "maxUs": 939,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2727276,
+            "maxUs": 2727276,
+            "p50UpperUs": 2727276,
+            "p95UpperUs": 2727276,
+            "p99UpperUs": 2727276
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 23,
+            "maxUs": 44,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 4511,
+            "meanUs": 321,
+            "maxUs": 603,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 4511,
+            "meanUs": 102,
+            "maxUs": 1448,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 115470701,
+            "us": 2727276
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Branched flow_hold0_3",
+      "load": {
+        "total": 2547312,
+        "read": 16648,
+        "relocate": 2697,
+        "setup": 2527827,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "medianFrameUs": 30507,
+      "heapInternalLast": 40664,
+      "probe": {
+        "durationMs": 9402,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 549,
+            "meanUs": 17064,
+            "maxUs": 36910,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 550,
+            "meanUs": 55,
+            "maxUs": 109,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 550,
+            "meanUs": 5,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 550,
+            "meanUs": 3,
+            "maxUs": 31,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 550,
+            "meanUs": 10,
+            "maxUs": 32,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 550,
+            "meanUs": 5,
+            "maxUs": 17,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 550,
+            "meanUs": 473,
+            "maxUs": 1907,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 550,
+            "meanUs": 65,
+            "maxUs": 132,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 550,
+            "meanUs": 15,
+            "maxUs": 4265,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 243,
+            "meanUs": 11828,
+            "maxUs": 17647,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 242,
+            "meanUs": 15339,
+            "maxUs": 18190,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 307,
+            "meanUs": 7413,
+            "maxUs": 11415,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 549,
+            "meanUs": 5921,
+            "maxUs": 9852,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 4049,
+            "meanUs": 1144,
+            "maxUs": 27547,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 4050,
+            "meanUs": 3,
+            "maxUs": 932,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2547529,
+            "maxUs": 2547529,
+            "p50UpperUs": 2547529,
+            "p95UpperUs": 2547529,
+            "p99UpperUs": 2547529
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 19,
+            "maxUs": 34,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 550,
+            "meanUs": 330,
+            "maxUs": 538,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 550,
+            "meanUs": 129,
+            "maxUs": 1518,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 130008695,
+            "us": 2547529
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Two-stream phase-space vortices_hold0_0",
+      "load": {
+        "total": 3307191,
+        "read": 10980,
+        "relocate": 7480,
+        "setup": 3288580,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "medianFrameUs": 40965,
+      "heapInternalLast": 40924,
+      "probe": {
+        "durationMs": 9355,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 571,
+            "meanUs": 16299,
+            "maxUs": 46566,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 572,
+            "meanUs": 59,
+            "maxUs": 103,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 572,
+            "meanUs": 5,
+            "maxUs": 39,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 572,
+            "meanUs": 4,
+            "maxUs": 35,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 572,
+            "meanUs": 11,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 572,
+            "meanUs": 7,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 572,
+            "meanUs": 483,
+            "maxUs": 1686,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 572,
+            "meanUs": 66,
+            "maxUs": 122,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 572,
+            "meanUs": 16,
+            "maxUs": 3915,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 172,
+            "meanUs": 20805,
+            "maxUs": 33373,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 172,
+            "meanUs": 12928,
+            "maxUs": 18094,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 399,
+            "meanUs": 7397,
+            "maxUs": 11400,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 572,
+            "meanUs": 5923,
+            "maxUs": 9434,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3806,
+            "meanUs": 1220,
+            "maxUs": 27043,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3807,
+            "meanUs": 3,
+            "maxUs": 930,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3307454,
+            "maxUs": 3307454,
+            "p50UpperUs": 3307454,
+            "p95UpperUs": 3307454,
+            "p99UpperUs": 3307454
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 22,
+            "maxUs": 40,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 572,
+            "meanUs": 335,
+            "maxUs": 528,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 572,
+            "meanUs": 132,
+            "maxUs": 1341,
+            "p50UpperUs": 250,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 151356072,
+            "us": 42669
+          },
+          {
+            "name": "loop",
+            "atUs": 151398747,
+            "us": 42549
+          },
+          {
+            "name": "loop",
+            "atUs": 151441301,
+            "us": 42680
+          },
+          {
+            "name": "loop",
+            "atUs": 151483988,
+            "us": 42709
+          },
+          {
+            "name": "loop",
+            "atUs": 151526703,
+            "us": 42756
+          },
+          {
+            "name": "loop",
+            "atUs": 151569467,
+            "us": 42778
+          },
+          {
+            "name": "loop",
+            "atUs": 151612251,
+            "us": 42800
+          },
+          {
+            "name": "loop",
+            "atUs": 151655058,
+            "us": 42874
+          },
+          {
+            "name": "loop",
+            "atUs": 151697939,
+            "us": 45256
+          },
+          {
+            "name": "loop",
+            "atUs": 151743202,
+            "us": 44651
+          },
+          {
+            "name": "loop",
+            "atUs": 151787860,
+            "us": 42834
+          },
+          {
+            "name": "loop",
+            "atUs": 151830699,
+            "us": 43283
+          },
+          {
+            "name": "loop",
+            "atUs": 151873989,
+            "us": 42912
+          },
+          {
+            "name": "loop",
+            "atUs": 151916907,
+            "us": 42802
+          },
+          {
+            "name": "loop",
+            "atUs": 151959718,
+            "us": 42968
+          },
+          {
+            "name": "loop",
+            "atUs": 152002692,
+            "us": 42799
+          },
+          {
+            "name": "loop",
+            "atUs": 152045497,
+            "us": 43199
+          },
+          {
+            "name": "loop",
+            "atUs": 152088704,
+            "us": 44535
+          },
+          {
+            "name": "loop",
+            "atUs": 152133248,
+            "us": 43250
+          },
+          {
+            "name": "loop",
+            "atUs": 152176506,
+            "us": 42828
+          },
+          {
+            "name": "loop",
+            "atUs": 152219339,
+            "us": 42820
+          },
+          {
+            "name": "loop",
+            "atUs": 152262164,
+            "us": 42854
+          },
+          {
+            "name": "loop",
+            "atUs": 152305025,
+            "us": 42863
+          },
+          {
+            "name": "loop",
+            "atUs": 152347894,
+            "us": 42855
+          },
+          {
+            "name": "loop",
+            "atUs": 152390757,
+            "us": 42820
+          },
+          {
+            "name": "loop",
+            "atUs": 152433582,
+            "us": 42817
+          },
+          {
+            "name": "loop",
+            "atUs": 152476407,
+            "us": 42924
+          },
+          {
+            "name": "loop",
+            "atUs": 152519339,
+            "us": 42885
+          },
+          {
+            "name": "loop",
+            "atUs": 152562230,
+            "us": 42939
+          },
+          {
+            "name": "loop",
+            "atUs": 152605178,
+            "us": 42896
+          },
+          {
+            "name": "loop",
+            "atUs": 152648079,
+            "us": 42946
+          },
+          {
+            "name": "loop",
+            "atUs": 152691033,
+            "us": 42983
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Two-stream phase-space vortices_hold1_1",
+      "load": {
+        "total": 3764614,
+        "read": 10848,
+        "relocate": 11984,
+        "setup": 3741512,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "medianFrameUs": 37348,
+      "heapInternalLast": 40952,
+      "probe": {
+        "durationMs": 9463,
+        "probeBytes": 2544,
+        "holdPreview": true,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 5638,
+            "meanUs": 1662,
+            "maxUs": 47786,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 5639,
+            "meanUs": 44,
+            "maxUs": 118,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 5639,
+            "meanUs": 4,
+            "maxUs": 39,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 5639,
+            "meanUs": 2,
+            "maxUs": 49,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 5639,
+            "meanUs": 6,
+            "maxUs": 27,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 5639,
+            "meanUs": 5,
+            "maxUs": 18,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 5639,
+            "meanUs": 447,
+            "maxUs": 1855,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 5639,
+            "meanUs": 40,
+            "maxUs": 229,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 5639,
+            "meanUs": 7,
+            "maxUs": 4318,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 165,
+            "meanUs": 20171,
+            "maxUs": 34937,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 164,
+            "meanUs": 13096,
+            "maxUs": 18056,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 5474,
+            "meanUs": 8,
+            "maxUs": 11396,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "present",
+            "n": 166,
+            "meanUs": 5930,
+            "maxUs": 9798,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3730,
+            "meanUs": 1255,
+            "maxUs": 27911,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 4000
+          },
+          {
+            "name": "disk",
+            "n": 3731,
+            "meanUs": 4,
+            "maxUs": 3155,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3764971,
+            "maxUs": 3764971,
+            "p50UpperUs": 3764971,
+            "p95UpperUs": 3764971,
+            "p99UpperUs": 3764971
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 24,
+            "maxUs": 42,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 5639,
+            "meanUs": 331,
+            "maxUs": 1261,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 5639,
+            "meanUs": 108,
+            "maxUs": 1409,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 165902750,
+            "us": 43692
+          },
+          {
+            "name": "loop",
+            "atUs": 165946449,
+            "us": 42667
+          },
+          {
+            "name": "loop",
+            "atUs": 165989123,
+            "us": 42678
+          },
+          {
+            "name": "loop",
+            "atUs": 166031807,
+            "us": 42618
+          },
+          {
+            "name": "loop",
+            "atUs": 166074430,
+            "us": 42739
+          },
+          {
+            "name": "loop",
+            "atUs": 166117176,
+            "us": 42683
+          },
+          {
+            "name": "loop",
+            "atUs": 166159864,
+            "us": 42679
+          },
+          {
+            "name": "loop",
+            "atUs": 166202551,
+            "us": 42637
+          },
+          {
+            "name": "loop",
+            "atUs": 166245193,
+            "us": 42718
+          },
+          {
+            "name": "loop",
+            "atUs": 166287920,
+            "us": 45873
+          },
+          {
+            "name": "loop",
+            "atUs": 166333801,
+            "us": 42693
+          },
+          {
+            "name": "loop",
+            "atUs": 166376500,
+            "us": 42620
+          },
+          {
+            "name": "loop",
+            "atUs": 166419129,
+            "us": 42666
+          },
+          {
+            "name": "loop",
+            "atUs": 166461801,
+            "us": 42626
+          },
+          {
+            "name": "loop",
+            "atUs": 166504436,
+            "us": 42703
+          },
+          {
+            "name": "loop",
+            "atUs": 166547144,
+            "us": 42781
+          },
+          {
+            "name": "loop",
+            "atUs": 166589931,
+            "us": 43158
+          },
+          {
+            "name": "loop",
+            "atUs": 166633096,
+            "us": 42793
+          },
+          {
+            "name": "loop",
+            "atUs": 166675894,
+            "us": 42833
+          },
+          {
+            "name": "loop",
+            "atUs": 166718738,
+            "us": 42822
+          },
+          {
+            "name": "loop",
+            "atUs": 166761565,
+            "us": 42762
+          },
+          {
+            "name": "loop",
+            "atUs": 166804334,
+            "us": 42936
+          },
+          {
+            "name": "loop",
+            "atUs": 166847277,
+            "us": 42795
+          },
+          {
+            "name": "loop",
+            "atUs": 166890078,
+            "us": 42971
+          },
+          {
+            "name": "loop",
+            "atUs": 166933056,
+            "us": 43849
+          },
+          {
+            "name": "loop",
+            "atUs": 166976913,
+            "us": 42876
+          },
+          {
+            "name": "loop",
+            "atUs": 167019798,
+            "us": 42876
+          },
+          {
+            "name": "loop",
+            "atUs": 167062680,
+            "us": 42840
+          },
+          {
+            "name": "loop",
+            "atUs": 167105526,
+            "us": 42862
+          },
+          {
+            "name": "loop",
+            "atUs": 167148396,
+            "us": 42900
+          },
+          {
+            "name": "loop",
+            "atUs": 167191301,
+            "us": 42871
+          },
+          {
+            "name": "loop",
+            "atUs": 167234179,
+            "us": 42873
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Two-stream phase-space vortices_hold1_2",
+      "load": {
+        "total": 3756441,
+        "read": 16036,
+        "relocate": 6419,
+        "setup": 3733697,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "medianFrameUs": 36206,
+      "heapInternalLast": 40956,
+      "probe": {
+        "durationMs": 9347,
+        "probeBytes": 2544,
+        "holdPreview": true,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 5638,
+            "meanUs": 1650,
+            "maxUs": 47737,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 5639,
+            "meanUs": 44,
+            "maxUs": 113,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 5639,
+            "meanUs": 4,
+            "maxUs": 37,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 5639,
+            "meanUs": 2,
+            "maxUs": 40,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 5639,
+            "meanUs": 6,
+            "maxUs": 22,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 5639,
+            "meanUs": 5,
+            "maxUs": 18,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 5639,
+            "meanUs": 446,
+            "maxUs": 1287,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 5639,
+            "meanUs": 40,
+            "maxUs": 479,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 5639,
+            "meanUs": 7,
+            "maxUs": 4582,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 161,
+            "meanUs": 20464,
+            "maxUs": 36358,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 161,
+            "meanUs": 12997,
+            "maxUs": 18169,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 5477,
+            "meanUs": 8,
+            "maxUs": 9860,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "present",
+            "n": 162,
+            "meanUs": 5921,
+            "maxUs": 8277,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3669,
+            "meanUs": 1264,
+            "maxUs": 35713,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 4000
+          },
+          {
+            "name": "disk",
+            "n": 3670,
+            "meanUs": 4,
+            "maxUs": 995,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3756816,
+            "maxUs": 3756816,
+            "p50UpperUs": 3756816,
+            "p95UpperUs": 3756816,
+            "p99UpperUs": 3756816
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 20,
+            "maxUs": 33,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 5639,
+            "meanUs": 331,
+            "maxUs": 1165,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 5639,
+            "meanUs": 108,
+            "maxUs": 900,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 180343238,
+            "us": 42692
+          },
+          {
+            "name": "loop",
+            "atUs": 180385936,
+            "us": 42618
+          },
+          {
+            "name": "loop",
+            "atUs": 180428562,
+            "us": 42682
+          },
+          {
+            "name": "loop",
+            "atUs": 180471251,
+            "us": 42595
+          },
+          {
+            "name": "loop",
+            "atUs": 180513851,
+            "us": 42690
+          },
+          {
+            "name": "loop",
+            "atUs": 180556549,
+            "us": 42697
+          },
+          {
+            "name": "loop",
+            "atUs": 180599253,
+            "us": 42707
+          },
+          {
+            "name": "loop",
+            "atUs": 180641968,
+            "us": 42650
+          },
+          {
+            "name": "loop",
+            "atUs": 180684623,
+            "us": 47499
+          },
+          {
+            "name": "loop",
+            "atUs": 180732130,
+            "us": 42731
+          },
+          {
+            "name": "loop",
+            "atUs": 180774867,
+            "us": 42573
+          },
+          {
+            "name": "loop",
+            "atUs": 180817445,
+            "us": 43004
+          },
+          {
+            "name": "loop",
+            "atUs": 180860457,
+            "us": 42627
+          },
+          {
+            "name": "loop",
+            "atUs": 180903089,
+            "us": 42671
+          },
+          {
+            "name": "loop",
+            "atUs": 180945769,
+            "us": 42651
+          },
+          {
+            "name": "loop",
+            "atUs": 180988425,
+            "us": 42711
+          },
+          {
+            "name": "loop",
+            "atUs": 181031141,
+            "us": 42756
+          },
+          {
+            "name": "loop",
+            "atUs": 181073904,
+            "us": 42786
+          },
+          {
+            "name": "loop",
+            "atUs": 181116697,
+            "us": 43995
+          },
+          {
+            "name": "loop",
+            "atUs": 181160702,
+            "us": 42806
+          },
+          {
+            "name": "loop",
+            "atUs": 181203513,
+            "us": 42775
+          },
+          {
+            "name": "loop",
+            "atUs": 181246296,
+            "us": 42864
+          },
+          {
+            "name": "loop",
+            "atUs": 181289169,
+            "us": 42802
+          },
+          {
+            "name": "loop",
+            "atUs": 181331977,
+            "us": 43301
+          },
+          {
+            "name": "loop",
+            "atUs": 181375285,
+            "us": 42815
+          },
+          {
+            "name": "loop",
+            "atUs": 181418105,
+            "us": 42879
+          },
+          {
+            "name": "loop",
+            "atUs": 181460992,
+            "us": 42879
+          },
+          {
+            "name": "loop",
+            "atUs": 181503876,
+            "us": 42734
+          },
+          {
+            "name": "loop",
+            "atUs": 181546616,
+            "us": 42895
+          },
+          {
+            "name": "loop",
+            "atUs": 181589519,
+            "us": 42878
+          },
+          {
+            "name": "loop",
+            "atUs": 181632402,
+            "us": 42828
+          },
+          {
+            "name": "loop",
+            "atUs": 181675237,
+            "us": 42820
+          }
+        ]
+      }
+    },
+    {
+      "label": "switch_Two-stream phase-space vortices_hold0_3",
+      "load": {
+        "total": 3305470,
+        "read": 11072,
+        "relocate": 10074,
+        "setup": 3284157,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "medianFrameUs": 41035,
+      "heapInternalLast": 40960,
+      "probe": {
+        "durationMs": 9347,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 571,
+            "meanUs": 16315,
+            "maxUs": 47792,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 572,
+            "meanUs": 58,
+            "maxUs": 103,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 572,
+            "meanUs": 5,
+            "maxUs": 36,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 572,
+            "meanUs": 3,
+            "maxUs": 50,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 572,
+            "meanUs": 11,
+            "maxUs": 22,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 572,
+            "meanUs": 7,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 572,
+            "meanUs": 485,
+            "maxUs": 1665,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 572,
+            "meanUs": 67,
+            "maxUs": 140,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 572,
+            "meanUs": 17,
+            "maxUs": 4005,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 172,
+            "meanUs": 20878,
+            "maxUs": 36275,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 172,
+            "meanUs": 12904,
+            "maxUs": 18109,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 399,
+            "meanUs": 7397,
+            "maxUs": 11389,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 572,
+            "meanUs": 5923,
+            "maxUs": 9432,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3806,
+            "meanUs": 1218,
+            "maxUs": 27066,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3807,
+            "meanUs": 2,
+            "maxUs": 60,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3305754,
+            "maxUs": 3305754,
+            "p50UpperUs": 3305754,
+            "p95UpperUs": 3305754,
+            "p99UpperUs": 3305754
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 21,
+            "maxUs": 40,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 572,
+            "meanUs": 337,
+            "maxUs": 537,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 572,
+            "meanUs": 133,
+            "maxUs": 1326,
+            "p50UpperUs": 250,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 194738597,
+            "us": 42742
+          },
+          {
+            "name": "loop",
+            "atUs": 194781347,
+            "us": 42753
+          },
+          {
+            "name": "loop",
+            "atUs": 194824107,
+            "us": 43043
+          },
+          {
+            "name": "loop",
+            "atUs": 194867158,
+            "us": 42772
+          },
+          {
+            "name": "loop",
+            "atUs": 194909937,
+            "us": 42718
+          },
+          {
+            "name": "loop",
+            "atUs": 194952660,
+            "us": 43081
+          },
+          {
+            "name": "loop",
+            "atUs": 194995749,
+            "us": 42877
+          },
+          {
+            "name": "loop",
+            "atUs": 195038631,
+            "us": 42968
+          },
+          {
+            "name": "loop",
+            "atUs": 195081608,
+            "us": 46781
+          },
+          {
+            "name": "loop",
+            "atUs": 195128397,
+            "us": 42891
+          },
+          {
+            "name": "loop",
+            "atUs": 195171297,
+            "us": 42923
+          },
+          {
+            "name": "loop",
+            "atUs": 195214227,
+            "us": 42869
+          },
+          {
+            "name": "loop",
+            "atUs": 195257102,
+            "us": 42927
+          },
+          {
+            "name": "loop",
+            "atUs": 195300037,
+            "us": 42928
+          },
+          {
+            "name": "loop",
+            "atUs": 195342972,
+            "us": 44121
+          },
+          {
+            "name": "loop",
+            "atUs": 195387102,
+            "us": 42930
+          },
+          {
+            "name": "loop",
+            "atUs": 195430037,
+            "us": 42898
+          },
+          {
+            "name": "loop",
+            "atUs": 195472940,
+            "us": 43040
+          },
+          {
+            "name": "loop",
+            "atUs": 195515989,
+            "us": 42971
+          },
+          {
+            "name": "loop",
+            "atUs": 195558966,
+            "us": 42951
+          },
+          {
+            "name": "loop",
+            "atUs": 195601926,
+            "us": 42984
+          },
+          {
+            "name": "loop",
+            "atUs": 195644915,
+            "us": 42891
+          },
+          {
+            "name": "loop",
+            "atUs": 195687816,
+            "us": 42893
+          },
+          {
+            "name": "loop",
+            "atUs": 195730714,
+            "us": 42861
+          },
+          {
+            "name": "loop",
+            "atUs": 195773581,
+            "us": 42897
+          },
+          {
+            "name": "loop",
+            "atUs": 195816488,
+            "us": 42982
+          },
+          {
+            "name": "loop",
+            "atUs": 195859477,
+            "us": 42922
+          },
+          {
+            "name": "loop",
+            "atUs": 195902407,
+            "us": 42894
+          },
+          {
+            "name": "loop",
+            "atUs": 195945307,
+            "us": 42882
+          },
+          {
+            "name": "loop",
+            "atUs": 195988197,
+            "us": 42956
+          },
+          {
+            "name": "loop",
+            "atUs": 196031161,
+            "us": 42960
+          },
+          {
+            "name": "loop",
+            "atUs": 196074126,
+            "us": 43401
+          }
+        ]
+      }
+    }
+  ],
+  "warmup": [
+    {
+      "target": "Branched flow",
+      "load": {
+        "total": 2531892,
+        "read": 16926,
+        "relocate": 2895,
+        "setup": 2511896,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "frameUs": 30857,
+      "probe": {
+        "durationMs": 8193,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 531,
+            "meanUs": 15331,
+            "maxUs": 36264,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 532,
+            "meanUs": 55,
+            "maxUs": 626,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 532,
+            "meanUs": 6,
+            "maxUs": 553,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 532,
+            "meanUs": 3,
+            "maxUs": 35,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 532,
+            "meanUs": 9,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 532,
+            "meanUs": 5,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 532,
+            "meanUs": 469,
+            "maxUs": 1629,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 532,
+            "meanUs": 65,
+            "maxUs": 124,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 532,
+            "meanUs": 14,
+            "maxUs": 3608,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 227,
+            "meanUs": 7676,
+            "maxUs": 17003,
+            "p50UpperUs": 125,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 226,
+            "meanUs": 16193,
+            "maxUs": 18299,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 306,
+            "meanUs": 7411,
+            "maxUs": 9493,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 532,
+            "meanUs": 5916,
+            "maxUs": 7158,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3444,
+            "meanUs": 1172,
+            "maxUs": 21008,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3445,
+            "meanUs": 3,
+            "maxUs": 1021,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2532159,
+            "maxUs": 2532159,
+            "p50UpperUs": 2532159,
+            "p95UpperUs": 2532159,
+            "p99UpperUs": 2532159
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 20,
+            "maxUs": 37,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 532,
+            "meanUs": 330,
+            "maxUs": 753,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 532,
+            "meanUs": 126,
+            "maxUs": 1284,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 404527695,
+            "us": 2532159
+          }
+        ]
+      }
+    },
+    {
+      "target": "R Branched",
+      "load": {
+        "total": 602460,
+        "read": 23169,
+        "relocate": 10025,
+        "setup": 569121,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "frameUs": 30826,
+      "probe": {
+        "durationMs": 8173,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 1061,
+            "meanUs": 7665,
+            "maxUs": 35698,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 1062,
+            "meanUs": 44,
+            "maxUs": 625,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 1062,
+            "meanUs": 4,
+            "maxUs": 562,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 1062,
+            "meanUs": 2,
+            "maxUs": 15,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 1062,
+            "meanUs": 4,
+            "maxUs": 22,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 1062,
+            "meanUs": 5,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 1062,
+            "meanUs": 461,
+            "maxUs": 1754,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 1062,
+            "meanUs": 51,
+            "maxUs": 119,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 1062,
+            "meanUs": 10,
+            "maxUs": 4317,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 288,
+            "meanUs": 9546,
+            "maxUs": 18538,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 287,
+            "meanUs": 15782,
+            "maxUs": 18054,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 774,
+            "meanUs": 64,
+            "maxUs": 192,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "present",
+            "n": 288,
+            "meanUs": 5904,
+            "maxUs": 5936,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3908,
+            "meanUs": 1025,
+            "maxUs": 23859,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3909,
+            "meanUs": 9,
+            "maxUs": 24170,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 602734,
+            "maxUs": 602734,
+            "p50UpperUs": 1024000,
+            "p95UpperUs": 1024000,
+            "p99UpperUs": 1024000
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 27,
+            "maxUs": 49,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 1062,
+            "meanUs": 335,
+            "maxUs": 1177,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 1062,
+            "meanUs": 117,
+            "maxUs": 951,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 417810693,
+            "us": 602734
+          }
+        ]
+      }
+    },
+    {
+      "target": "R Branched",
+      "load": {
+        "total": 526518,
+        "read": 17812,
+        "relocate": 2833,
+        "setup": 505707,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "frameUs": 30704,
+      "probe": {
+        "durationMs": 8213,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 355,
+            "meanUs": 23049,
+            "maxUs": 34681,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 356,
+            "meanUs": 53,
+            "maxUs": 618,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 356,
+            "meanUs": 6,
+            "maxUs": 555,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 356,
+            "meanUs": 4,
+            "maxUs": 38,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 356,
+            "meanUs": 9,
+            "maxUs": 20,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 356,
+            "meanUs": 5,
+            "maxUs": 15,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 356,
+            "meanUs": 460,
+            "maxUs": 1651,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 356,
+            "meanUs": 59,
+            "maxUs": 121,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 356,
+            "meanUs": 16,
+            "maxUs": 3667,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 293,
+            "meanUs": 9506,
+            "maxUs": 17697,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 292,
+            "meanUs": 15790,
+            "maxUs": 18115,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 63,
+            "meanUs": 7459,
+            "maxUs": 9817,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "present",
+            "n": 356,
+            "meanUs": 5912,
+            "maxUs": 7511,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3959,
+            "meanUs": 1021,
+            "maxUs": 21579,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3960,
+            "meanUs": 2,
+            "maxUs": 153,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 526763,
+            "maxUs": 526763,
+            "p50UpperUs": 1024000,
+            "p95UpperUs": 1024000,
+            "p99UpperUs": 1024000
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 20,
+            "maxUs": 36,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 356,
+            "meanUs": 323,
+            "maxUs": 475,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 356,
+            "meanUs": 126,
+            "maxUs": 1316,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 431216696,
+            "us": 526763
+          }
+        ]
+      }
+    },
+    {
+      "target": "Branched flow",
+      "load": {
+        "total": 2535774,
+        "read": 11372,
+        "relocate": 8080,
+        "setup": 2516178,
+        "internal": 3912,
+        "psram": 46672
+      },
+      "frameUs": 30822,
+      "probe": {
+        "durationMs": 8239,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 534,
+            "meanUs": 15367,
+            "maxUs": 36511,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 535,
+            "meanUs": 55,
+            "maxUs": 610,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 535,
+            "meanUs": 6,
+            "maxUs": 565,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 535,
+            "meanUs": 3,
+            "maxUs": 37,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 535,
+            "meanUs": 10,
+            "maxUs": 23,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 535,
+            "meanUs": 5,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 535,
+            "meanUs": 465,
+            "maxUs": 1993,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 535,
+            "meanUs": 63,
+            "maxUs": 113,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 535,
+            "meanUs": 14,
+            "maxUs": 3727,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 227,
+            "meanUs": 7635,
+            "maxUs": 18570,
+            "p50UpperUs": 125,
+            "p95UpperUs": 16000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "draw",
+            "n": 227,
+            "meanUs": 16275,
+            "maxUs": 18281,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 307,
+            "meanUs": 7408,
+            "maxUs": 11439,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 535,
+            "meanUs": 5920,
+            "maxUs": 9857,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3475,
+            "meanUs": 1167,
+            "maxUs": 26869,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3476,
+            "meanUs": 3,
+            "maxUs": 666,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 2536146,
+            "maxUs": 2536146,
+            "p50UpperUs": 2536146,
+            "p95UpperUs": 2536146,
+            "p99UpperUs": 2536146
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 21,
+            "maxUs": 38,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 535,
+            "meanUs": 327,
+            "maxUs": 495,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 535,
+            "meanUs": 125,
+            "maxUs": 1636,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "load",
+            "atUs": 444616694,
+            "us": 2536146
+          }
+        ]
+      }
+    },
+    {
+      "target": "Two-stream phase-space vortices",
+      "load": {
+        "total": 3254208,
+        "read": 18947,
+        "relocate": 3275,
+        "setup": 3231799,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "frameUs": 42314,
+      "probe": {
+        "durationMs": 8206,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 573,
+            "meanUs": 14258,
+            "maxUs": 46844,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 574,
+            "meanUs": 59,
+            "maxUs": 614,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 574,
+            "meanUs": 6,
+            "maxUs": 557,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 574,
+            "meanUs": 3,
+            "maxUs": 33,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 574,
+            "meanUs": 11,
+            "maxUs": 28,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 574,
+            "meanUs": 6,
+            "maxUs": 21,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 574,
+            "meanUs": 477,
+            "maxUs": 1448,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 574,
+            "meanUs": 65,
+            "maxUs": 125,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 574,
+            "meanUs": 17,
+            "maxUs": 4208,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 179,
+            "meanUs": 11132,
+            "maxUs": 35619,
+            "p50UpperUs": 125,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "draw",
+            "n": 179,
+            "meanUs": 15183,
+            "maxUs": 18051,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 394,
+            "meanUs": 7390,
+            "maxUs": 9109,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 574,
+            "meanUs": 5918,
+            "maxUs": 7143,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3275,
+            "meanUs": 1234,
+            "maxUs": 23337,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3276,
+            "meanUs": 3,
+            "maxUs": 28,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3254697,
+            "maxUs": 3254697,
+            "p50UpperUs": 3254697,
+            "p95UpperUs": 3254697,
+            "p99UpperUs": 3254697
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 25,
+            "maxUs": 41,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 574,
+            "meanUs": 334,
+            "maxUs": 511,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 574,
+            "meanUs": 129,
+            "maxUs": 1057,
+            "p50UpperUs": 250,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 462642609,
+            "us": 42197
+          },
+          {
+            "name": "loop",
+            "atUs": 462684812,
+            "us": 42212
+          },
+          {
+            "name": "loop",
+            "atUs": 462727031,
+            "us": 42319
+          },
+          {
+            "name": "loop",
+            "atUs": 462769359,
+            "us": 42310
+          },
+          {
+            "name": "loop",
+            "atUs": 462811674,
+            "us": 42366
+          },
+          {
+            "name": "loop",
+            "atUs": 462854049,
+            "us": 42402
+          },
+          {
+            "name": "loop",
+            "atUs": 462896457,
+            "us": 42345
+          },
+          {
+            "name": "loop",
+            "atUs": 462938807,
+            "us": 42428
+          },
+          {
+            "name": "loop",
+            "atUs": 462981245,
+            "us": 46844
+          },
+          {
+            "name": "loop",
+            "atUs": 463028097,
+            "us": 42578
+          },
+          {
+            "name": "loop",
+            "atUs": 463070684,
+            "us": 43576
+          },
+          {
+            "name": "loop",
+            "atUs": 463114269,
+            "us": 42489
+          },
+          {
+            "name": "loop",
+            "atUs": 463156772,
+            "us": 42399
+          },
+          {
+            "name": "loop",
+            "atUs": 463199176,
+            "us": 42446
+          },
+          {
+            "name": "loop",
+            "atUs": 463241628,
+            "us": 42882
+          },
+          {
+            "name": "loop",
+            "atUs": 463284518,
+            "us": 42482
+          },
+          {
+            "name": "loop",
+            "atUs": 463327005,
+            "us": 42754
+          },
+          {
+            "name": "loop",
+            "atUs": 463369766,
+            "us": 42475
+          },
+          {
+            "name": "loop",
+            "atUs": 463412246,
+            "us": 42393
+          },
+          {
+            "name": "loop",
+            "atUs": 463454644,
+            "us": 42518
+          },
+          {
+            "name": "loop",
+            "atUs": 463497169,
+            "us": 42439
+          },
+          {
+            "name": "loop",
+            "atUs": 463539613,
+            "us": 42543
+          },
+          {
+            "name": "loop",
+            "atUs": 463582165,
+            "us": 42515
+          },
+          {
+            "name": "loop",
+            "atUs": 463624686,
+            "us": 42409
+          },
+          {
+            "name": "loop",
+            "atUs": 463667103,
+            "us": 42523
+          },
+          {
+            "name": "loop",
+            "atUs": 463709634,
+            "us": 42480
+          },
+          {
+            "name": "loop",
+            "atUs": 463752121,
+            "us": 42586
+          },
+          {
+            "name": "loop",
+            "atUs": 463794718,
+            "us": 42556
+          },
+          {
+            "name": "loop",
+            "atUs": 463837281,
+            "us": 42566
+          },
+          {
+            "name": "loop",
+            "atUs": 463879855,
+            "us": 42558
+          },
+          {
+            "name": "loop",
+            "atUs": 463922418,
+            "us": 42535
+          },
+          {
+            "name": "loop",
+            "atUs": 463964960,
+            "us": 42686
+          }
+        ]
+      }
+    },
+    {
+      "target": "R Two-stream",
+      "load": {
+        "total": 824757,
+        "read": 23007,
+        "relocate": 9020,
+        "setup": 792561,
+        "internal": 2788,
+        "psram": 58256
+      },
+      "frameUs": 43003,
+      "probe": {
+        "durationMs": 8197,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 1244,
+            "meanUs": 6548,
+            "maxUs": 89673,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 1245,
+            "meanUs": 47,
+            "maxUs": 624,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 1245,
+            "meanUs": 5,
+            "maxUs": 558,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 1245,
+            "meanUs": 2,
+            "maxUs": 15,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 1245,
+            "meanUs": 5,
+            "maxUs": 28,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 1245,
+            "meanUs": 5,
+            "maxUs": 16,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 1245,
+            "meanUs": 472,
+            "maxUs": 1817,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 1245,
+            "meanUs": 51,
+            "maxUs": 131,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 1245,
+            "meanUs": 45,
+            "maxUs": 46668,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 232,
+            "meanUs": 16307,
+            "maxUs": 33352,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 232,
+            "meanUs": 14052,
+            "maxUs": 18188,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 1012,
+            "meanUs": 75,
+            "maxUs": 449,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "present",
+            "n": 233,
+            "meanUs": 5906,
+            "maxUs": 6007,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3845,
+            "meanUs": 1048,
+            "maxUs": 27157,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3846,
+            "meanUs": 7,
+            "maxUs": 17274,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 825127,
+            "maxUs": 825127,
+            "p50UpperUs": 1024000,
+            "p95UpperUs": 1024000,
+            "p99UpperUs": 1024000
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 21,
+            "maxUs": 36,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 1245,
+            "meanUs": 343,
+            "maxUs": 809,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 1245,
+            "meanUs": 121,
+            "maxUs": 1318,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 475965836,
+            "us": 43065
+          },
+          {
+            "name": "loop",
+            "atUs": 476008907,
+            "us": 42999
+          },
+          {
+            "name": "loop",
+            "atUs": 476051912,
+            "us": 43022
+          },
+          {
+            "name": "loop",
+            "atUs": 476094941,
+            "us": 42982
+          },
+          {
+            "name": "loop",
+            "atUs": 476137929,
+            "us": 43024
+          },
+          {
+            "name": "loop",
+            "atUs": 476180961,
+            "us": 43055
+          },
+          {
+            "name": "loop",
+            "atUs": 476224022,
+            "us": 43121
+          },
+          {
+            "name": "loop",
+            "atUs": 476267151,
+            "us": 43093
+          },
+          {
+            "name": "loop",
+            "atUs": 476310249,
+            "us": 44568
+          },
+          {
+            "name": "loop",
+            "atUs": 476354833,
+            "us": 45836
+          },
+          {
+            "name": "loop",
+            "atUs": 476400677,
+            "us": 43124
+          },
+          {
+            "name": "loop",
+            "atUs": 476443807,
+            "us": 43183
+          },
+          {
+            "name": "loop",
+            "atUs": 476486998,
+            "us": 43190
+          },
+          {
+            "name": "loop",
+            "atUs": 476530193,
+            "us": 43082
+          },
+          {
+            "name": "loop",
+            "atUs": 476573283,
+            "us": 43106
+          },
+          {
+            "name": "loop",
+            "atUs": 476616394,
+            "us": 43113
+          },
+          {
+            "name": "loop",
+            "atUs": 476659512,
+            "us": 43186
+          },
+          {
+            "name": "loop",
+            "atUs": 476702706,
+            "us": 43220
+          },
+          {
+            "name": "loop",
+            "atUs": 476745932,
+            "us": 43267
+          },
+          {
+            "name": "loop",
+            "atUs": 476789206,
+            "us": 43233
+          },
+          {
+            "name": "loop",
+            "atUs": 476832446,
+            "us": 43128
+          },
+          {
+            "name": "loop",
+            "atUs": 476875582,
+            "us": 43377
+          },
+          {
+            "name": "loop",
+            "atUs": 476918966,
+            "us": 43237
+          },
+          {
+            "name": "loop",
+            "atUs": 476962208,
+            "us": 43209
+          },
+          {
+            "name": "loop",
+            "atUs": 477005424,
+            "us": 43196
+          },
+          {
+            "name": "loop",
+            "atUs": 477048625,
+            "us": 43154
+          },
+          {
+            "name": "loop",
+            "atUs": 477091787,
+            "us": 43114
+          },
+          {
+            "name": "loop",
+            "atUs": 477134906,
+            "us": 43103
+          },
+          {
+            "name": "loop",
+            "atUs": 477178015,
+            "us": 43136
+          },
+          {
+            "name": "loop",
+            "atUs": 477221159,
+            "us": 43183
+          },
+          {
+            "name": "loop",
+            "atUs": 477264347,
+            "us": 43156
+          },
+          {
+            "name": "loop",
+            "atUs": 477307510,
+            "us": 43107
+          }
+        ]
+      }
+    },
+    {
+      "target": "R Two-stream",
+      "load": {
+        "total": 682547,
+        "read": 17729,
+        "relocate": 2967,
+        "setup": 661704,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "frameUs": 43290,
+      "probe": {
+        "durationMs": 8162,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 318,
+            "meanUs": 25649,
+            "maxUs": 47799,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 319,
+            "meanUs": 58,
+            "maxUs": 617,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 319,
+            "meanUs": 6,
+            "maxUs": 546,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 319,
+            "meanUs": 4,
+            "maxUs": 38,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 319,
+            "meanUs": 12,
+            "maxUs": 409,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 319,
+            "meanUs": 6,
+            "maxUs": 18,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 319,
+            "meanUs": 472,
+            "maxUs": 2055,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 319,
+            "meanUs": 62,
+            "maxUs": 140,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 319,
+            "meanUs": 22,
+            "maxUs": 4480,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 236,
+            "meanUs": 16728,
+            "maxUs": 36597,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 236,
+            "meanUs": 13906,
+            "maxUs": 18284,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 82,
+            "meanUs": 7414,
+            "maxUs": 9044,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 16000
+          },
+          {
+            "name": "present",
+            "n": 318,
+            "meanUs": 5913,
+            "maxUs": 7120,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3896,
+            "meanUs": 1030,
+            "maxUs": 31089,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3897,
+            "meanUs": 2,
+            "maxUs": 71,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 682809,
+            "maxUs": 682809,
+            "p50UpperUs": 1024000,
+            "p95UpperUs": 1024000,
+            "p99UpperUs": 1024000
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 19,
+            "maxUs": 33,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 319,
+            "meanUs": 328,
+            "maxUs": 457,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 319,
+            "meanUs": 132,
+            "maxUs": 1676,
+            "p50UpperUs": 125,
+            "p95UpperUs": 250,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 489318709,
+            "us": 42975
+          },
+          {
+            "name": "loop",
+            "atUs": 489361690,
+            "us": 43384
+          },
+          {
+            "name": "loop",
+            "atUs": 489405081,
+            "us": 43029
+          },
+          {
+            "name": "loop",
+            "atUs": 489448115,
+            "us": 43207
+          },
+          {
+            "name": "loop",
+            "atUs": 489491329,
+            "us": 43033
+          },
+          {
+            "name": "loop",
+            "atUs": 489534367,
+            "us": 43078
+          },
+          {
+            "name": "loop",
+            "atUs": 489577452,
+            "us": 43082
+          },
+          {
+            "name": "loop",
+            "atUs": 489620539,
+            "us": 45340
+          },
+          {
+            "name": "loop",
+            "atUs": 489665887,
+            "us": 47799
+          },
+          {
+            "name": "loop",
+            "atUs": 489713693,
+            "us": 43138
+          },
+          {
+            "name": "loop",
+            "atUs": 489756837,
+            "us": 43197
+          },
+          {
+            "name": "loop",
+            "atUs": 489800042,
+            "us": 43225
+          },
+          {
+            "name": "loop",
+            "atUs": 489843273,
+            "us": 43494
+          },
+          {
+            "name": "loop",
+            "atUs": 489886774,
+            "us": 43174
+          },
+          {
+            "name": "loop",
+            "atUs": 489929953,
+            "us": 43173
+          },
+          {
+            "name": "loop",
+            "atUs": 489973132,
+            "us": 43242
+          },
+          {
+            "name": "loop",
+            "atUs": 490016382,
+            "us": 43178
+          },
+          {
+            "name": "loop",
+            "atUs": 490059565,
+            "us": 43227
+          },
+          {
+            "name": "loop",
+            "atUs": 490102800,
+            "us": 43170
+          },
+          {
+            "name": "loop",
+            "atUs": 490145975,
+            "us": 43185
+          },
+          {
+            "name": "loop",
+            "atUs": 490189168,
+            "us": 43179
+          },
+          {
+            "name": "loop",
+            "atUs": 490232353,
+            "us": 43149
+          },
+          {
+            "name": "loop",
+            "atUs": 490275507,
+            "us": 43140
+          },
+          {
+            "name": "loop",
+            "atUs": 490318655,
+            "us": 43109
+          },
+          {
+            "name": "loop",
+            "atUs": 490361770,
+            "us": 43204
+          },
+          {
+            "name": "loop",
+            "atUs": 490404982,
+            "us": 43106
+          },
+          {
+            "name": "loop",
+            "atUs": 490448093,
+            "us": 43110
+          },
+          {
+            "name": "loop",
+            "atUs": 490491210,
+            "us": 43482
+          },
+          {
+            "name": "loop",
+            "atUs": 490534699,
+            "us": 43114
+          },
+          {
+            "name": "loop",
+            "atUs": 490577819,
+            "us": 43112
+          },
+          {
+            "name": "loop",
+            "atUs": 490620939,
+            "us": 43155
+          },
+          {
+            "name": "loop",
+            "atUs": 490664099,
+            "us": 44419
+          }
+        ]
+      }
+    },
+    {
+      "target": "Two-stream phase-space vortices",
+      "load": {
+        "total": 3258746,
+        "read": 10815,
+        "relocate": 8813,
+        "setup": 3238959,
+        "internal": 3644,
+        "psram": 57400
+      },
+      "frameUs": 42494,
+      "probe": {
+        "durationMs": 8174,
+        "probeBytes": 2544,
+        "holdPreview": false,
+        "stages": [
+          {
+            "name": "loop",
+            "n": 569,
+            "meanUs": 14286,
+            "maxUs": 46380,
+            "p50UpperUs": 16000,
+            "p95UpperUs": 64000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "housekeeping",
+            "n": 570,
+            "meanUs": 60,
+            "maxUs": 612,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "loopSync",
+            "n": 570,
+            "meanUs": 6,
+            "maxUs": 554,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "adopt",
+            "n": 570,
+            "meanUs": 3,
+            "maxUs": 40,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "thumbService",
+            "n": 570,
+            "meanUs": 12,
+            "maxUs": 26,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "catalog",
+            "n": 570,
+            "meanUs": 6,
+            "maxUs": 17,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "featureLoop",
+            "n": 570,
+            "meanUs": 475,
+            "maxUs": 1406,
+            "p50UpperUs": 500,
+            "p95UpperUs": 1000,
+            "p99UpperUs": 1000
+          },
+          {
+            "name": "input",
+            "n": 570,
+            "meanUs": 66,
+            "maxUs": 121,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "persist",
+            "n": 570,
+            "meanUs": 17,
+            "maxUs": 4214,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "update",
+            "n": 175,
+            "meanUs": 11405,
+            "maxUs": 34980,
+            "p50UpperUs": 125,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 64000
+          },
+          {
+            "name": "draw",
+            "n": 175,
+            "meanUs": 15284,
+            "maxUs": 18357,
+            "p50UpperUs": 32000,
+            "p95UpperUs": 32000,
+            "p99UpperUs": 32000
+          },
+          {
+            "name": "preview",
+            "n": 394,
+            "meanUs": 7394,
+            "maxUs": 11337,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "present",
+            "n": 570,
+            "meanUs": 5922,
+            "maxUs": 9807,
+            "p50UpperUs": 8000,
+            "p95UpperUs": 8000,
+            "p99UpperUs": 8000
+          },
+          {
+            "name": "http",
+            "n": 3258,
+            "meanUs": 1233,
+            "maxUs": 23557,
+            "p50UpperUs": 1000,
+            "p95UpperUs": 2000,
+            "p99UpperUs": 2000
+          },
+          {
+            "name": "disk",
+            "n": 3259,
+            "meanUs": 3,
+            "maxUs": 202,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "load",
+            "n": 1,
+            "meanUs": 3259152,
+            "maxUs": 3259152,
+            "p50UpperUs": 3259152,
+            "p95UpperUs": 3259152,
+            "p99UpperUs": 3259152
+          },
+          {
+            "name": "setup",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "unload",
+            "n": 2,
+            "meanUs": 19,
+            "maxUs": 34,
+            "p50UpperUs": 125,
+            "p95UpperUs": 125,
+            "p99UpperUs": 125
+          },
+          {
+            "name": "hook0",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook1",
+            "n": 570,
+            "meanUs": 332,
+            "maxUs": 514,
+            "p50UpperUs": 500,
+            "p95UpperUs": 500,
+            "p99UpperUs": 500
+          },
+          {
+            "name": "hook2",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook3",
+            "n": 570,
+            "meanUs": 129,
+            "maxUs": 941,
+            "p50UpperUs": 250,
+            "p95UpperUs": 250,
+            "p99UpperUs": 250
+          },
+          {
+            "name": "hook4",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook5",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook6",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook7",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          },
+          {
+            "name": "hook8",
+            "n": 0,
+            "meanUs": 0,
+            "maxUs": 0,
+            "p50UpperUs": 0,
+            "p95UpperUs": 0,
+            "p99UpperUs": 0
+          }
+        ],
+        "events": [
+          {
+            "name": "loop",
+            "atUs": 502605219,
+            "us": 42195
+          },
+          {
+            "name": "loop",
+            "atUs": 502647419,
+            "us": 42245
+          },
+          {
+            "name": "loop",
+            "atUs": 502689671,
+            "us": 42306
+          },
+          {
+            "name": "loop",
+            "atUs": 502731983,
+            "us": 42300
+          },
+          {
+            "name": "loop",
+            "atUs": 502774289,
+            "us": 42635
+          },
+          {
+            "name": "loop",
+            "atUs": 502816932,
+            "us": 43520
+          },
+          {
+            "name": "loop",
+            "atUs": 502860459,
+            "us": 42819
+          },
+          {
+            "name": "loop",
+            "atUs": 502903286,
+            "us": 42447
+          },
+          {
+            "name": "loop",
+            "atUs": 502945742,
+            "us": 46380
+          },
+          {
+            "name": "loop",
+            "atUs": 502992130,
+            "us": 42633
+          },
+          {
+            "name": "loop",
+            "atUs": 503034771,
+            "us": 42436
+          },
+          {
+            "name": "loop",
+            "atUs": 503077212,
+            "us": 42471
+          },
+          {
+            "name": "loop",
+            "atUs": 503119693,
+            "us": 42430
+          },
+          {
+            "name": "loop",
+            "atUs": 503162128,
+            "us": 42560
+          },
+          {
+            "name": "loop",
+            "atUs": 503204699,
+            "us": 42519
+          },
+          {
+            "name": "loop",
+            "atUs": 503247224,
+            "us": 42440
+          },
+          {
+            "name": "loop",
+            "atUs": 503289669,
+            "us": 42484
+          },
+          {
+            "name": "loop",
+            "atUs": 503332161,
+            "us": 42551
+          },
+          {
+            "name": "loop",
+            "atUs": 503374717,
+            "us": 42494
+          },
+          {
+            "name": "loop",
+            "atUs": 503417220,
+            "us": 42504
+          },
+          {
+            "name": "loop",
+            "atUs": 503459732,
+            "us": 42511
+          },
+          {
+            "name": "loop",
+            "atUs": 503502251,
+            "us": 42561
+          },
+          {
+            "name": "loop",
+            "atUs": 503544817,
+            "us": 42390
+          },
+          {
+            "name": "loop",
+            "atUs": 503587212,
+            "us": 42467
+          },
+          {
+            "name": "loop",
+            "atUs": 503629687,
+            "us": 42516
+          },
+          {
+            "name": "loop",
+            "atUs": 503672208,
+            "us": 42541
+          },
+          {
+            "name": "loop",
+            "atUs": 503714760,
+            "us": 42583
+          },
+          {
+            "name": "loop",
+            "atUs": 503757349,
+            "us": 42477
+          },
+          {
+            "name": "loop",
+            "atUs": 503799832,
+            "us": 42603
+          },
+          {
+            "name": "loop",
+            "atUs": 503842443,
+            "us": 44378
+          },
+          {
+            "name": "loop",
+            "atUs": 503886829,
+            "us": 42743
+          },
+          {
+            "name": "loop",
+            "atUs": 503929579,
+            "us": 42622
+          }
+        ]
+      }
+    }
+  ],
+  "uploadOverlap": {
+    "elapsedIncludingPacingMs": 3304,
+    "reply": {
+      "ok": true,
+      "slug": "research_branched",
+      "bytes": 11408,
+      "patterns": 11
+    },
+    "probe": {
+      "durationMs": 6585,
+      "probeBytes": 2544,
+      "holdPreview": false,
+      "stages": [
+        {
+          "name": "loop",
+          "n": 572,
+          "meanUs": 9917,
+          "maxUs": 2020090,
+          "p50UpperUs": 2000,
+          "p95UpperUs": 32000,
+          "p99UpperUs": 32000
+        },
+        {
+          "name": "housekeeping",
+          "n": 572,
+          "meanUs": 3539,
+          "maxUs": 1990655,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 1000
+        },
+        {
+          "name": "loopSync",
+          "n": 573,
+          "meanUs": 3480,
+          "maxUs": 1990565,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "adopt",
+          "n": 573,
+          "meanUs": 3,
+          "maxUs": 144,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "thumbService",
+          "n": 573,
+          "meanUs": 8,
+          "maxUs": 404,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "catalog",
+          "n": 572,
+          "meanUs": 7,
+          "maxUs": 147,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 250
+        },
+        {
+          "name": "featureLoop",
+          "n": 572,
+          "meanUs": 583,
+          "maxUs": 6537,
+          "p50UpperUs": 500,
+          "p95UpperUs": 2000,
+          "p99UpperUs": 8000
+        },
+        {
+          "name": "input",
+          "n": 572,
+          "meanUs": 57,
+          "maxUs": 775,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 500
+        },
+        {
+          "name": "persist",
+          "n": 572,
+          "meanUs": 14,
+          "maxUs": 4313,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "update",
+          "n": 121,
+          "meanUs": 7,
+          "maxUs": 17,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "draw",
+          "n": 121,
+          "meanUs": 17839,
+          "maxUs": 18054,
+          "p50UpperUs": 32000,
+          "p95UpperUs": 32000,
+          "p99UpperUs": 32000
+        },
+        {
+          "name": "preview",
+          "n": 125,
+          "meanUs": 7421,
+          "maxUs": 11046,
+          "p50UpperUs": 8000,
+          "p95UpperUs": 8000,
+          "p99UpperUs": 8000
+        },
+        {
+          "name": "present",
+          "n": 246,
+          "meanUs": 5927,
+          "maxUs": 9448,
+          "p50UpperUs": 8000,
+          "p95UpperUs": 8000,
+          "p99UpperUs": 8000
+        },
+        {
+          "name": "http",
+          "n": 1892,
+          "meanUs": 2321,
+          "maxUs": 2258161,
+          "p50UpperUs": 1000,
+          "p95UpperUs": 2000,
+          "p99UpperUs": 2000
+        },
+        {
+          "name": "disk",
+          "n": 1893,
+          "meanUs": 2,
+          "maxUs": 16,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "load",
+          "n": 1,
+          "meanUs": 3032323,
+          "maxUs": 3032323,
+          "p50UpperUs": 3032323,
+          "p95UpperUs": 3032323,
+          "p99UpperUs": 3032323
+        },
+        {
+          "name": "setup",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "unload",
+          "n": 4,
+          "meanUs": 21,
+          "maxUs": 38,
+          "p50UpperUs": 125,
+          "p95UpperUs": 125,
+          "p99UpperUs": 125
+        },
+        {
+          "name": "hook0",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook1",
+          "n": 572,
+          "meanUs": 410,
+          "maxUs": 5072,
+          "p50UpperUs": 500,
+          "p95UpperUs": 1000,
+          "p99UpperUs": 4000
+        },
+        {
+          "name": "hook2",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook3",
+          "n": 572,
+          "meanUs": 161,
+          "maxUs": 4399,
+          "p50UpperUs": 125,
+          "p95UpperUs": 500,
+          "p99UpperUs": 2000
+        },
+        {
+          "name": "hook4",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook5",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook6",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook7",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        },
+        {
+          "name": "hook8",
+          "n": 0,
+          "meanUs": 0,
+          "maxUs": 0,
+          "p50UpperUs": 0,
+          "p95UpperUs": 0,
+          "p99UpperUs": 0
+        }
+      ],
+      "events": [
+        {
+          "name": "load",
+          "atUs": 388471697,
+          "us": 3032323
+        },
+        {
+          "name": "loopSync",
+          "atUs": 389513706,
+          "us": 1990565
+        },
+        {
+          "name": "housekeeping",
+          "atUs": 389513685,
+          "us": 1990655
+        },
+        {
+          "name": "loop",
+          "atUs": 389513683,
+          "us": 2020090
+        },
+        {
+          "name": "http",
+          "atUs": 389491658,
+          "us": 2258161
+        }
+      ]
+    }
+  }
+}
