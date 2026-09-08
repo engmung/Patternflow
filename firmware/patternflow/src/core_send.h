@@ -52,6 +52,9 @@
 
 #include <Arduino.h>
 #include <pgmspace.h>
+#include <lwip/sockets.h>
+#include <errno.h>
+#include "core_net_maintenance.h"
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include "core_loop_sync.h"       // onLoopTask(): which of the two budgets applies
 
@@ -66,8 +69,7 @@ constexpr size_t SLICE_BYTES = 1436;
 
 // Loop task: the render is stalled for the duration, and five seconds covers
 // every page at module-resident heap (measured 0.5–4.4 s before gzip made
-// each of them smaller). Checked between slices; one write() can itself wait
-// up to 10 s on a dead peer (see drain), as it always could.
+// each of them smaller). Checked between nonblocking send attempts.
 constexpr uint32_t LOOP_BUDGET_MS = 5000;
 // Network task: give up on a peer that has accepted nothing for this long...
 constexpr uint32_t NET_STALL_MS = 20000;
@@ -100,6 +102,7 @@ inline void drain(WebServer& server, const uint8_t* src, size_t total) {
   size_t offset = 0;
   uint8_t slice[SLICE_BYTES];
   while (offset < total && client.connected()) {
+    PFNetMaintenance::poll();
     const uint32_t now = millis();
     const bool giveUp = onLoop
         ? (now - startedMs > LOOP_BUDGET_MS)
@@ -111,16 +114,15 @@ inline void drain(WebServer& server, const uint8_t* src, size_t total) {
     size_t n = total - offset;
     if (n > sizeof(slice)) n = sizeof(slice);
     memcpy_P(slice, src + offset, n);
-    const size_t wrote = client.write(slice, n);
-    if (wrote == 0) {
-      // WiFiClient::write() has already waited: it select()s for up to
-      // WIFI_CLIENT_SELECT_TIMEOUT_US (1 s) per try, WIFI_CLIENT_MAX_WRITE_RETRY
-      // (10) tries, before returning 0 with nothing sent — so a zero here is
-      // usually ten seconds old, and NET_STALL_MS is two of them. It also
-      // returns 0 at once when select() itself fails; the short sleep keeps
-      // that case from spinning. The task watchdog on Core 0 expects the
-      // idle task to run every 5 s, and a handler spinning there is a
-      // reboot, not a slow page.
+    // WiFiClient::write can retry internally for ~10 s. A nonblocking socket
+    // send gives this loop ownership of the existing progress/stall budgets.
+    const int wrote = ::send(client.fd(), slice, n, MSG_DONTWAIT);
+    if (wrote < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR) {
+      cut(client, offset, total, millis() - startedMs);
+      return;
+    }
+    if (wrote <= 0) {
+      // Preserve slow-link tolerance without starving maintenance or IDLE0.
       delay(5);
       continue;
     }

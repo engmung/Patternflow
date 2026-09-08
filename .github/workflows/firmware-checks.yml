@@ -1,6 +1,6 @@
 name: Core knows no features
 
-# Two fast source-level checks on every firmware change:
+# Source contracts and native regressions on every firmware change:
 #
 #   check_boundaries.py — the core/feature boundary, mechanically. The rule
 #   ("the core names no feature") lived in comments and was violated three
@@ -12,11 +12,9 @@ name: Core knows no features
 #   patch-script damage that compiles into garbage or reports its error
 #   thirty lines from the cause.
 #
-# Neither needs a toolchain, so both finish in seconds. The three-edition
-# compile stays local (`firmware/bundles/build.sh all`) — the ~80 s xtensa
-# build per edition is not worth a runner on every push, and the boundary
-# violations that break only one edition are exactly what these greps catch
-# before the compiler would.
+# The blit, thumbnail mailbox, network recovery and ELF bounds also run on a
+# host C++ compiler with ASan/UBSan. The four-composition Xtensa compile stays
+# local (`firmware/bundles/build.sh all`) and remains required for core edits.
 on:
   pull_request:
     paths:
@@ -25,6 +23,7 @@ on:
       - "firmware/modules/**"
       - "firmware/toolchain/**"
       - "web/src/lib/presets/**"
+      - "web/public/packs/basics.zip"
       # The version lives in six files; check_versions.py reads these three too.
       - "web/public/flash/**"
       - "web/src/app/editions/editions-data.ts"
@@ -37,6 +36,7 @@ on:
       - "firmware/bundles/**"
       - "firmware/modules/**"
       - "firmware/toolchain/**"
+      - "web/public/packs/basics.zip"
       - "web/public/flash/**"
       - "web/src/app/editions/editions-data.ts"
       - "AGENTS.md"
@@ -59,6 +59,20 @@ jobs:
         run: python firmware/toolchain/check_boundaries.py
       - name: The module ABI does not move silently
         run: python firmware/toolchain/check_abi_freeze.py
+      - name: Module ELF bounds and shipped patterns
+        run: python firmware/toolchain/check_module_elf.py --sanitize
+      - name: HUB75 colour planes and control bits
+        run: python firmware/toolchain/check_blit.py --sanitize
+      - name: Thumbnail mailbox ownership and invalidation
+        run: python firmware/toolchain/check_thumbs.py --sanitize
+      - name: Wi-Fi and name-service recovery
+        run: python firmware/toolchain/check_network.py --sanitize
+      - name: Runtime admission and frame-boundary lifecycle
+        run: python firmware/toolchain/check_runtime.py --sanitize
+      - name: HTTP backpressure and bounded send attempts
+        run: python firmware/toolchain/check_send.py --sanitize
+      - name: MIDI event ownership and remote-input echo suppression
+        run: python firmware/toolchain/check_midi.py --sanitize
       - name: No mangled literals or raw control bytes
         run: python firmware/toolchain/check_sources.py
       - name: Web and firmware presets are still twins

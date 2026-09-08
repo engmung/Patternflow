@@ -192,7 +192,80 @@ Patterns must not call `dma_display->drawPixelRGB888()` directly. Global brightn
 `present()` runs three post-processing steps before pushing pixels:
 1. **Saturation boost** — pulls each pixel away from its Rec.601 luma in 8.8 fixed-point. Gray pixels are mathematically unchanged; saturated colors land closer to where the JS preview puts them. LED panels look washed out vs. a calibrated monitor, so a mild boost (default 1.10×) compensates.
 2. **Per-channel gamma + white balance** — three 256-entry LUTs (one per channel) with the WB gain pre-multiplied into the gamma curve. HUB75 panels are linear PWM with unbalanced LED primaries (red is brighter per duty, blue is dimmer), so a single global gamma can't cover both correction needs. The pre-folded LUT means the inner loop pays the same cost as a single lookup.
-3. **DMA push** — pixels are written to the HUB75 panel via `dma_display->drawPixelRGB888()`.
+3. **DMA push** — the vendored driver's `blitRGB888()` composes both scan halves and two adjacent columns per word, preserving the DMA control bits. Saturation and LUT work above are fused into that pass.
+
+The current word-aligned blit measured **6.86 → 5.90 ms** on the bench's
+128×64, 8-bit, 260 Hz configuration, with identical output. It needs no extra
+framebuffer. See the [performance and recovery bench report](../docs/investigations/2026-09-firmware-runtime.md)
+for the controlled comparison and its limits.
+
+The follow-up [runtime research](../docs/investigations/2026-09-firmware-runtime.md)
+measures whole-loop delays, upload/load overlap, simulation warm-up and memory
+policy. It separates tested improvements from experimental results and proposed
+architecture work; its temporary profiler is not part of a normal build.
+
+The resulting common-runtime implementation adds a small permanent `runtime`
+snapshot to `/api/status`. Its whole-loop maximum includes work outside the
+rendered-frame timer; `?resetTiming=1` returns the previous snapshot and begins
+a new window. This is scheduling evidence, not a physical encoder-to-photon
+measurement.
+
+Pattern activation uses one reusable Core-0 worker with a **12,288-byte stack
+reserved at boot**. Keeping that stack resident costs RAM between selections,
+but avoids repeatedly finding a large contiguous block in a fragmented heap.
+If it cannot be created, a later activation can retry; it never runs arbitrary
+module setup on the render loop as a fallback. Boot restoration still uses
+the synchronous path before interactive rendering begins. An allocation refusal
+can be temporary while HTTP/UDP buffers are in use. The worker retries only
+that failure class, at most five times with 1.5 seconds of total backoff.
+Corrupt files and unresolved symbols fail immediately; the frame never waits
+on the retry delay. `moduleMemory.loaderRetries` distinguishes recovered
+admission attempts from a final `loadError`.
+
+Storage mutations use conditional frame-boundary attempts. An unfinished
+loader leaves the request pending while frames continue. Once quiescent,
+activation is held during file changes, and later selections retain their
+module path across catalog reordering. Catalog restoration starts an
+asynchronous load. The single-core HTTP fallback replies busy when it cannot
+complete the attempt inline. An open upload body prevents idle recovery from
+starting a module against partially written storage; abort removes that partial
+file and schedules restoration.
+
+`src/core_module_memory.h` applies a 24,576-byte internal **byte-addressable**
+service reserve to module allocations, including PSRAM-to-internal fallbacks.
+Admission checks the relevant largest block and rechecks service RAM after an
+allocation. Executable IRAM is not presumed interchangeable with byte RAM.
+This protects against module allocations consuming the reserve; unrelated
+system/feature allocations can still reduce free memory. Large data prefers
+PSRAM; small data can remain internal. Module dynamic allocations keep their
+16-slot, unload-as-a-group lifetime and add a configurable 4 MiB limit
+(`PF_MODULE_RUNTIME_MAX_BYTES`); `moduleMemory` reports usage and refusals.
+
+During loading, the loop waits out an 8 ms minimum period and running-mode
+previews refresh at most every 64 ms unless their target/canvas changes.
+Input and feature hooks still run each loop. Normal rendering has no new cap.
+These policies apply to existing and future modules without editing pattern
+code or changing the ABI.
+
+The network worker's Wi-Fi/name maintenance hook is also serviced while the
+HTTP parser waits, a conditional loop request is pending, or a page-body
+socket is backpressured. Nonblocking sends retain the existing 20 s stall /
+120 s total budgets. No HTTP re-entry or extra task is involved. Filesystem
+operations and other synchronous library calls can still delay maintenance;
+`netMaintenance.maxGapMs` exposes those gaps.
+
+The Audio edition's MIDI feature additionally owns a separate 4,096-byte
+Core-0 transport worker. A display frame can be long enough to overflow the
+SDK's six-datagram UDP mailbox when four independent CCs arrive together.
+The worker parses and sends RTP-MIDI between frames, while fixed queues hand
+events to/from the frame task. Their 1,536 bytes of payload storage live in
+PSRAM; queue indices and synchronization remain internal. The worker never
+changes the parameter bus or a pattern directly. If storage or worker creation
+fails, frame polling remains available and `midi.rxDetail.worker` reports
+false. This implementation lives entirely in `features/midi/`.
+
+See the [implementation and MIDI follow-up report](../docs/investigations/2026-09-firmware-runtime.md)
+for measured before/after results and remaining limitations.
 
 All five calibration values are tunable from `config.h` — see "LED panel calibration" below.
 
@@ -683,6 +756,15 @@ For the original defaults:
   Exits on a second K2 longpress, a **K2 click**, or after 8 seconds of idle.
 - **Encoder 3 longpress (≥1s)** — enter/exit the KNOB MAP screen: it shows which physical knob is which number (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left), and turning any knob lights its digit green so each one can be verified without leaving the screen. Knob input is swallowed while it's up, so the pattern underneath never sees it. Exits on a K3 click, a second K3 longpress, or after 8 seconds of idle.
 - **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation moves the highlight through the list — three detents per pattern, so a hand does not overshoot — and the panel shows each pattern's **thumbnail** (the frame it last drew, kept from the last time it ran); the highlighted pattern loads once the knob has rested for a third of a second — on the other core, so the knob keeps answering while a heavy pattern's setup runs — then runs live behind the overlay. A pattern that has never run shows nothing but its name until it has. Longpress again to confirm — a choice the knob was still resting on loads right then.
+
+Thumbnail ownership follows the frame boundary too: the loop owns the PSRAM
+cache, and the existing network task reads/writes one immutable job at a time.
+Capturing a picture copies pixels; it opens no file. A completed read is adopted
+between frames, and deletion/format invalidates jobs by generation. The optional
+cache and its one 16 KB work buffer use PSRAM exclusively; allocation failure
+leaves the name-only preview. No extra task stack is reserved. This separation
+does not shorten a module's own `setup()`; the asynchronous loader still handles
+that wait. `/api/status.thumbs` separates capture cost from background I/O cost.
 
 ### One detent, one step
 Knob deltas are linear: a pattern sees exactly the number of detents that were turned, however fast the turn was.

@@ -533,6 +533,20 @@ inline void buildPatternList() {
 // frame is worth keeping - a module's first frames are often its setup.
 inline uint32_t activatedAtMs = 0;
 
+// Storage mutations hold activation; selections retain identity across rescan.
+inline bool patternLoadsHeld = false;
+inline bool heldSelectionValid = false;
+inline char heldPatternPath[MODULE_PATH_BYTES] = {};
+inline int heldPresetIdx = -1;
+inline void rememberHeldSelection(int index) {
+  heldSelectionValid = true;
+  heldPatternPath[0] = '\0';
+  heldPresetIdx = -1;
+  if (patterns[index].modulePath)
+    snprintf(heldPatternPath, sizeof(heldPatternPath), "%s", patterns[index].modulePath);
+  else heldPresetIdx = index;
+}
+
 inline bool activatePattern(int index) {
   if (index < 0 || index >= NUM_PATTERNS) return false;
   if (index == activePatternIdx) return true;
@@ -589,12 +603,21 @@ inline bool activatePattern(int index) {
 // thumbnail for one frame, and setup() rarely draws). What it may not do
 // is present() - core_canvas.h refuses that from any task but the loop.
 // Handlers that evict or rebuild the list (uploads, deletes, format) run on
-// the loop task through PFLoopSync and call waitForAsyncLoad() first.
+// the loop task through PFLoopSync and retry until tryFinishAsyncLoad() succeeds.
 //
 // Boot restore keeps the synchronous path: nothing is drawing yet, and a
 // module that will not load must fail before loop() starts, where the
 // boot latch expects it to.
-constexpr uint32_t LOAD_TASK_STACK = 12288;   // setup() ran on the loop's 8 KB; a margin over that
+// This stack and the incoming module's .text contend for the same internal RAM
+// in the same window, so every byte over-reserved here is a byte a pattern
+// cannot have. 12288 was a guess ("a margin over" the loop's 8 KB) and the
+// instrumentation says it was 4 KB too generous: across Branched flow,
+// Two-stream, 2D Burgers, ttt and Wave Cascade the high-water use is a flat
+// 2,980 B. 8192 is both ~2.7x that and the size this same read + relocate +
+// setup() work demonstrably ran on before the async loader existed. The
+// high-water is published as moduleMemory.loaderStackMin; raise this if it ever
+// falls below ~1024.
+constexpr uint32_t LOAD_TASK_STACK = 8192;
 
 inline volatile bool loadInFlight = false;    // a task is loading loadTargetIdx
 inline volatile bool loadFinished = false;    // ...and has finished; the loop adopts the result
@@ -602,11 +625,47 @@ inline volatile bool loadResult = false;
 inline int loadTargetIdx = -1;
 inline int loadQueuedIdx = -1;                // asked for while busy; latest wins
 
-inline void loaderTask(void*) {
-  const bool ok = PFModuleLoader::load(FFat, patterns[loadTargetIdx].modulePath);
+inline TaskHandle_t patternLoaderWorker = nullptr;
+inline uint32_t patternLoaderStackMin = 0;
+inline uint32_t patternLoaderRetries = 0;
+inline void loadPatternJob() {
+  // The worker outlives any one load, so a stray notification must never index
+  // patterns[-1] on the way to dereferencing a module path.
+  if (loadTargetIdx < 0 || loadTargetIdx >= NUM_PATTERNS) {
+    loadResult = false;
+    __atomic_store_n(&loadFinished, true, __ATOMIC_RELEASE);
+    return;
+  }
+  uint32_t refusals = PFModuleMemory::refusals;
+  bool ok = PFModuleLoader::load(FFat, patterns[loadTargetIdx].modulePath);
+  // HTTP/UDP buffers can briefly consume the admission headroom. Retry
+  // only an allocation failure, on this worker, with a finite 1.5 s backoff.
+  // Corrupt ELF / unresolved symbols fail immediately; a successful setup
+  // is never run twice. Failed loads have released their partial sections.
+  constexpr uint32_t pauses[] = {50, 100, 200, 400, 750};
+  for (uint32_t pause : pauses) {
+    if (ok || PFModuleMemory::refusals == refusals) break;
+    ++patternLoaderRetries;
+    vTaskDelay(pdMS_TO_TICKS(pause));
+    refusals = PFModuleMemory::refusals;
+    ok = PFModuleLoader::load(FFat, patterns[loadTargetIdx].modulePath);
+  }
+  patternLoaderStackMin = uxTaskGetStackHighWaterMark(nullptr);
   loadResult = ok;
   __atomic_store_n(&loadFinished, true, __ATOMIC_RELEASE);
-  vTaskDelete(nullptr);
+}
+inline void loaderTask(void*) {
+  for (;;) {
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    loadPatternJob();
+  }
+}
+// Reserve once during boot, before modules fragment the internal heap.
+// Reuse the same stack for every selection; no extra concurrent loader.
+inline bool beginPatternLoader() {
+  if (patternLoaderWorker) return true;
+  return xTaskCreatePinnedToCore(loaderTask, "pf-load", LOAD_TASK_STACK, nullptr, 1,
+                                &patternLoaderWorker, 0) == pdPASS;
 }
 
 // Loop task: the result of a finished load becomes the running pattern.
@@ -630,9 +689,13 @@ inline void finishAsyncLoad() {
 
 // Make `index` the running pattern without holding the frame. Presets are
 // resident and switch at once; a module switches when its task is done.
-// Returns false only for an index that does not exist.
+// Task creation failure preserves the old module and returns false.
 inline bool activatePatternAsync(int index) {
   if (index < 0 || index >= NUM_PATTERNS) return false;
+  if (patternLoadsHeld) {
+    rememberHeldSelection(index);
+    return true;
+  }
   if (loadInFlight) {
     loadQueuedIdx = index;
     return true;
@@ -641,6 +704,9 @@ inline bool activatePatternAsync(int index) {
   const PatternEntry& entry = patterns[index];
   if (!entry.modulePath) return activatePattern(index);
 
+  if (!beginPatternLoader()) {
+    return PFModuleLoader::fail("not enough RAM for loader task");
+  }
   // The outgoing module leaves here, on the loop task, while nothing is
   // drawing it. From this frame on the loop draws the thumbnail.
   if (PFModuleLoader::active) PFModuleLoader::unload();
@@ -649,14 +715,7 @@ inline bool activatePatternAsync(int index) {
   loadResult = false;
   loadFinished = false;
   __atomic_store_n(&loadInFlight, true, __ATOMIC_RELEASE);
-  if (xTaskCreatePinnedToCore(loaderTask, "pf-load", LOAD_TASK_STACK, nullptr, 1, nullptr,
-                              0 /* Core 0 */) != pdPASS) {
-    // No room for a task: the old way, one frame held for the load.
-    loadInFlight = false;
-    loadTargetIdx = -1;
-    Serial.println("[PATTERNS] no RAM for a loader task - loading on the frame");
-    return activatePattern(index);
-  }
+  xTaskNotifyGive(patternLoaderWorker);
   return true;
 }
 
@@ -671,19 +730,13 @@ inline void serviceAsyncLoad() {
   }
 }
 
-// From a PFLoopSync body that is about to evict the module or rebuild the
-// list: a load that is in flight lands first, so the eviction has something
-// definite to evict. Anything queued behind it is dropped - the batch's own
-// restore decides what runs afterwards.
-inline void waitForAsyncLoad() {
-  while (loadInFlight) {
-    if (__atomic_load_n(&loadFinished, __ATOMIC_ACQUIRE)) {
-      finishAsyncLoad();
-      break;
-    }
-    delay(5);
-  }
-  loadQueuedIdx = -1;
+// A short frame-boundary attempt: leave unfinished setup to its worker.
+// Mutations get first refusal before serviceAsyncLoad starts a queued load.
+inline bool tryFinishAsyncLoad() {
+  if (!loadInFlight) return true;
+  if (!__atomic_load_n(&loadFinished, __ATOMIC_ACQUIRE)) return false;
+  finishAsyncLoad();
+  return true;
 }
 
 // ── Naming a pattern from outside the list ───────────────────────────

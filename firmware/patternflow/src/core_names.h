@@ -48,6 +48,13 @@ namespace PatternflowNames {
 
 inline char aliasBuf[24] = "";
 inline bool netbiosUp = false;
+inline bool mdnsUp = false;
+inline bool ready = false;
+inline bool requested = true;
+inline uint32_t lastAttemptMs = 0;
+inline uint32_t announcedAddress = 0;
+inline uint32_t announcements = 0;
+constexpr uint32_t RETRY_MS = 5000;
 
 // "patternflow-a1b2": the shared name plus the last two bytes of the STA MAC,
 // which is what the panel shows on its NETWORK screen and status page.
@@ -60,24 +67,75 @@ inline const char* alias() {
   return aliasBuf;
 }
 
-// Call on every connect edge, after mDNS itself is up (ArduinoOTA or
-// core_web_update starts it). Idempotent for NetBIOS; the alias is
-// re-delegated each time so it always carries the current address.
+// Bootstrap before the first feature onNetwork() hook, preserving its
+// existing expectation that mDNS exists when it registers a service. Only
+// called before the network task is allowed to service routes/tick().
+inline void begin() {
+  if (!mdnsUp) mdnsUp = MDNS.begin(PF_OTA_HOSTNAME);
+}
+
+// Called by the frame's connect hook. Re-announcement and retries happen
+// on the network task so reconnects do not perform this work on a frame.
 inline void announce() {
-  if (!PatternflowWifi::isConnected()) return;
+  __atomic_store_n(&requested, true, __ATOMIC_RELEASE);
+}
+
+// Sole owner of mDNS startup and retries. ArduinoOTA used to start it once
+// and the web updater assumed it worked, so a transient allocation failure
+// left a working IP-only device until reboot. Keep successfully registered
+// services and retry only the missing pieces; never tear down a healthy
+// responder (features may have registered services of their own).
+inline void tick() {
+  if (!PatternflowWifi::isConnected()) {
+    ready = false;
+    announcedAddress = 0;
+    return;
+  }
+  const uint32_t now = millis();
+  const uint32_t address = (uint32_t)WiFi.localIP();
+  const bool forced = __atomic_exchange_n(&requested, false, __ATOMIC_ACQ_REL);
+  // The worker can observe the new link before loop() consumes its connect
+  // edge. Coalesce that late request instead of removing/re-probing an alias
+  // we just registered for this address.
+  if (ready && announcedAddress == address &&
+      (!forced || (uint32_t)(now - lastAttemptMs) < RETRY_MS)) return;
+  if (!forced && (uint32_t)(now - lastAttemptMs) < RETRY_MS) return;
+  lastAttemptMs = now;
+  ready = false;
+
+  if (!mdnsUp) {
+    mdnsUp = MDNS.begin(PF_OTA_HOSTNAME);
+    if (!mdnsUp) return;
+  }
+  if (!mdns_service_exists("_http", "_tcp", nullptr) &&
+      mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0) != ESP_OK) return;
+#if PF_OTA_ENABLED
+  if (!mdns_service_exists("_arduino", "_tcp", nullptr)) {
+    MDNS.enableArduino(3232, PF_OTA_PASSWORD[0] != '\0');
+    if (!mdns_service_exists("_arduino", "_tcp", nullptr)) return;
+  }
+#endif
 
   if (!netbiosUp) {
     netbiosUp = NBNS.begin(PF_OTA_HOSTNAME);
     Serial.printf("[NAMES] NetBIOS \"%s\" %s\n", PF_OTA_HOSTNAME, netbiosUp ? "up" : "FAILED");
   }
 
-  mdns_ip_addr_t addr;
-  memset(&addr, 0, sizeof(addr));
-  addr.addr.type = ESP_IPADDR_TYPE_V4;
-  addr.addr.u_addr.ip4.addr = (uint32_t)WiFi.localIP();
-  addr.next = nullptr;
-  mdns_delegate_hostname_remove(alias());   // harmless when absent
-  esp_err_t rc = mdns_delegate_hostname_add(alias(), &addr);
+  esp_err_t rc = ESP_OK;
+  // NetBIOS may fail independently. Retrying it must not remove a working
+  // mDNS alias and force another probe every five seconds.
+  if (announcedAddress != address) {
+    mdns_ip_addr_t addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.addr.type = ESP_IPADDR_TYPE_V4;
+    addr.addr.u_addr.ip4.addr = address;
+    addr.next = nullptr;
+    mdns_delegate_hostname_remove(alias());   // harmless when absent
+    rc = mdns_delegate_hostname_add(alias(), &addr);
+    if (rc == ESP_OK) announcedAddress = address;
+  }
+  ready = rc == ESP_OK && netbiosUp;
+  if (ready) announcements++;
   Serial.printf("[NAMES] mDNS %s.local + %s.local (%s)\n", PF_OTA_HOSTNAME, alias(),
                 rc == ESP_OK ? "ok" : esp_err_to_name(rc));
 }
@@ -85,7 +143,9 @@ inline void announce() {
 #else
 
 inline const char* alias() { return PF_OTA_HOSTNAME; }
+inline void begin() {}
 inline void announce() {}
+inline void tick() {}
 
 #endif
 

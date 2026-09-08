@@ -43,6 +43,7 @@
 
 #include "../../src/core_bus.h"
 #include "../../src/core_encoders.h"
+#include "midi_queue.h"
 
 #ifndef PF_MIDI_CHANNEL
 #define PF_MIDI_CHANNEL 1
@@ -258,10 +259,12 @@ inline void onControlChange(uint8_t ch, uint8_t cc, uint8_t value) {
   if (!runtimeEnabled || !channelMatches(ch)) return;
   rxCount++;
   if (cc >= PF_MIDI_CC_ABS_BASE && cc < PF_MIDI_CC_ABS_BASE + 4) {
+    PatternflowMidiTransport::absReceived[cc - PF_MIDI_CC_ABS_BASE].fetch_add(1, std::memory_order_relaxed);
     PatternflowBus::applyRemoteParam(cc - PF_MIDI_CC_ABS_BASE, midiToBus(value));
     return;
   }
   if (cc >= PF_MIDI_CC_REL_BASE && cc < PF_MIDI_CC_REL_BASE + 4) {
+    PatternflowMidiTransport::relReceived[cc - PF_MIDI_CC_REL_BASE].fetch_add(1, std::memory_order_relaxed);
     pendingDelta[cc - PF_MIDI_CC_REL_BASE] += (int)value - 64;
     return;
   }
@@ -359,6 +362,10 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
     int d = input.knobDeltas[i];
     if (d != 0) d -= injectedDelta[i];
     injectedDelta[i] = 0;
+    // The absolute bus creates compatibility clicks for legacy patterns.
+    // Those clicks belong to the remote owner, including an inbound CC;
+    // reflecting them as physical encoder output feeds automation back.
+    if (input.paramAbsoluteActive[i]) d = 0;
 #if !PF_MIDI_OUT_LANE_MOTION
     if (input.knobAudioActive[i]) d = 0;   // a lane's motion, not a hand's
 #endif
@@ -393,7 +400,7 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
       if (due && outPos[i] != outSentPos[i]) {
         outSentPos[i] = outPos[i];
         outLastSentMs[i] = now;
-        emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)outPos[i]);
+        emit(0xB0 | ch, (uint8_t)(PF_MIDI_CC_REL_BASE + i), (uint8_t)outPos[i]);
       }
     } else {
       // A sum outside ±63 cannot wait: one message carries 63 steps at
@@ -403,16 +410,16 @@ inline void observeFrame(const InputFrame& input, int patternIdx) {
         const int send = sum > 63 ? 63 : (sum < -63 ? -63 : sum);
         outRelPending[i] = sum - send;
         outLastSentMs[i] = now;
-        emit(0xB0 | ch, PF_MIDI_CC_REL_BASE + i, (uint8_t)(64 + send));
+        emit(0xB0 | ch, (uint8_t)(PF_MIDI_CC_REL_BASE + i), (uint8_t)(64 + send));
       }
     }
-    if (input.btnPressed[i] && !injectedPress[i]) emit(0x90 | ch, PF_MIDI_NOTE_BASE + i, 127);
+    if (input.btnPressed[i] && !injectedPress[i]) emit(0x90 | ch, (uint8_t)(PF_MIDI_NOTE_BASE + i), 127);
     injectedPress[i] = false;
     // Held minus the note we are holding ourselves: a physical release.
     const bool physHeld = input.btnHeld[i] && !noteHeld[i];
     if (physHeld != lastHeld[i]) {
       lastHeld[i] = physHeld;
-      if (!physHeld) emit(0x80 | ch, PF_MIDI_NOTE_BASE + i, 0);
+      if (!physHeld) emit(0x80 | ch, (uint8_t)(PF_MIDI_NOTE_BASE + i), 0);
     }
   }
   if (patternIdx != lastPatternIdx) {

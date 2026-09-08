@@ -524,7 +524,13 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
     // once by the macro at compile time.
     const bool aLow = (ESP32_TX_FIFO_POSITION_ADJUST(0) == 0);
     uint16_t x = 0;
-    for (; x + 1 < w; x += 2)
+    // DMA allocation is word-aligned. With an even width, every plane and
+    // every two-column offset is too. Tell the compiler that fact below:
+    // memcpy on a uint16_t* otherwise becomes four byte loads, a stack
+    // spill, and four byte stores on Xtensa, not the intended word access.
+    // Odd widths use the scalar path since alternate planes are unaligned.
+    const uint16_t pairedWidth = (w & 1) ? 0 : w;
+    for (; x + 1 < pairedWidth; x += 2)
     {
       uint32_t loA, hiA, loB, hiB;
       PF_PLANES_FOR(top + (size_t)x * 3, bot + (size_t)x * 3, loA, hiA, onTime);
@@ -538,10 +544,11 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
         const uint32_t bB = (hiB >> (6 * (d - 5))) & 0x3Fu;
         const uint32_t both = aLow ? (bA | (bB << 16)) : (bB | (bA << 16));
         ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + x;
+        void *aligned = __builtin_assume_aligned(p, sizeof(uint32_t));
         uint32_t word;
-        memcpy(&word, p, sizeof(word));
+        memcpy(&word, aligned, sizeof(word));
         word = (word & PF_CLEAR32) | both;
-        memcpy(p, &word, sizeof(word));
+        memcpy(aligned, &word, sizeof(word));
 #if defined(SPIRAM_DMA_BUFFER)
         Cache_WriteBack_Addr((uint32_t)p, sizeof(word));
 #endif
@@ -553,19 +560,19 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
         const uint32_t bB = (loB >> (6 * d)) & 0x3Fu;
         const uint32_t both = aLow ? (bA | (bB << 16)) : (bB | (bA << 16));
         ESP32_I2S_DMA_STORAGE_TYPE *p = plane[d] + x;
+        void *aligned = __builtin_assume_aligned(p, sizeof(uint32_t));
         uint32_t word;
-        memcpy(&word, p, sizeof(word));
+        memcpy(&word, aligned, sizeof(word));
         word = (word & PF_CLEAR32) | both;
-        memcpy(p, &word, sizeof(word));
+        memcpy(aligned, &word, sizeof(word));
 #if defined(SPIRAM_DMA_BUFFER)
         Cache_WriteBack_Addr((uint32_t)p, sizeof(word));
 #endif
       }
     }
 
-    // An odd last column, one word at a time. Every HUB75 width is even, so
-    // this is for completeness rather than any panel we know of.
-    if (x < w)
+    // Scalar fallback for odd widths, one column at a time.
+    for (; x < w; ++x)
     {
       uint32_t lo, hi;
       PF_PLANES_FOR(top + (size_t)x * 3, bot + (size_t)x * 3, lo, hi, onTime);

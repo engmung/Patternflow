@@ -1,0 +1,1503 @@
+{
+  "date": "2026-09-08",
+  "scope": "ESP32-S3, 128x64, 8-bit HUB75, 260 Hz; unchanged pattern modules; working-tree firmware",
+  "midiIsolatedBaseline": [
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 199
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 208
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1073,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 215
+    },
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2392,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "txDuringWindow": 235
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 221
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 492,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 233
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 589,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 237
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 1512,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        976,
+        102,
+        236,
+        370
+      ],
+      "txDuringWindow": 264
+    }
+  ],
+  "midiWorkerFirstTrial": [
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1200,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        300,
+        300,
+        300,
+        300
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2400,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        600,
+        600,
+        600,
+        600
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1200,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        300,
+        300,
+        300,
+        300
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2400,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        600,
+        600,
+        600,
+        600
+      ]
+    }
+  ],
+  "midiFinalConcurrentHostBuild": [
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 594,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 6,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        149,
+        148,
+        147
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1140,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 60,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        291,
+        287,
+        284,
+        278
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2356,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 11,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        589,
+        589,
+        589,
+        589
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1128,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 72,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        288,
+        287,
+        279,
+        274
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2400,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        600,
+        600,
+        600,
+        600
+      ]
+    }
+  ],
+  "midiFinalIdleHost": [
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "senderMaxLateUs": 545,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "senderMaxLateUs": 626,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1200,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "senderMaxLateUs": 969,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        300,
+        300,
+        300,
+        300
+      ]
+    },
+    {
+      "pattern": "Origin",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2400,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "senderMaxLateUs": 645,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        600,
+        600,
+        600,
+        600
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "senderMaxLateUs": 578,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 30,
+      "sent": 600,
+      "received": 600,
+      "expectedParams": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "params": [
+        496,
+        630,
+        764,
+        898
+      ],
+      "senderMaxLateUs": 583,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        150,
+        150,
+        150,
+        150
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": false,
+      "updatesPerKnobPerSecond": 60,
+      "sent": 1200,
+      "received": 1200,
+      "expectedParams": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "params": [
+        8,
+        142,
+        276,
+        409
+      ],
+      "senderMaxLateUs": 590,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        300,
+        300,
+        300,
+        300
+      ]
+    },
+    {
+      "pattern": "Two-stream phase-space vortices",
+      "bundled": true,
+      "updatesPerKnobPerSecond": 120,
+      "sent": 2400,
+      "received": 2400,
+      "expectedParams": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "params": [
+        39,
+        173,
+        307,
+        441
+      ],
+      "senderMaxLateUs": 638,
+      "senderLateFrames": 0,
+      "txDuringWindow": 0,
+      "diagnosticDeltas": {
+        "queueDropped": 0,
+        "txQueueDropped": 0,
+        "packetGaps": 0,
+        "parseErrors": 0,
+        "bufferOverflows": 0
+      },
+      "perKnobReceived": [
+        600,
+        600,
+        600,
+        600
+      ]
+    }
+  ],
+  "catalog": [
+    {
+      "name": "Origin",
+      "frameUs": 12710,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 32768,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 0,
+        "loaderRetries": 0,
+        "serviceFree": 31088,
+        "execLargest": 21492,
+        "refusals": 0
+      },
+      "load": {
+        "total": 14300,
+        "read": 6577,
+        "relocate": 2188,
+        "setup": 5379,
+        "internal": 3156,
+        "psram": 37180
+      }
+    },
+    {
+      "name": "0515-4",
+      "frameUs": 29311,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 32768,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9328,
+        "loaderRetries": 0,
+        "serviceFree": 27680,
+        "execLargest": 17396,
+        "refusals": 0
+      },
+      "load": {
+        "total": 30185,
+        "read": 22003,
+        "relocate": 5834,
+        "setup": 2193,
+        "internal": 2004,
+        "psram": 4116
+      }
+    },
+    {
+      "name": "0531",
+      "frameUs": 18924,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 32768,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9312,
+        "loaderRetries": 0,
+        "serviceFree": 22912,
+        "execLargest": 12276,
+        "refusals": 0
+      },
+      "load": {
+        "total": 26939,
+        "read": 18978,
+        "relocate": 4193,
+        "setup": 3652,
+        "internal": 5624,
+        "psram": 0
+      }
+    },
+    {
+      "name": "0601",
+      "frameUs": 32061,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 32768,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9312,
+        "loaderRetries": 0,
+        "serviceFree": 22320,
+        "execLargest": 11252,
+        "refusals": 0
+      },
+      "load": {
+        "total": 34284,
+        "read": 24185,
+        "relocate": 8009,
+        "setup": 1986,
+        "internal": 5980,
+        "psram": 0
+      }
+    },
+    {
+      "name": "2D Burgers shock web",
+      "frameUs": 42433,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 163840,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 24596,
+        "execLargest": 14324,
+        "refusals": 1
+      },
+      "load": {
+        "total": 743617,
+        "read": 397755,
+        "relocate": 1707,
+        "setup": 343917,
+        "internal": 3704,
+        "psram": 5680
+      }
+    },
+    {
+      "name": "Branched flow",
+      "frameUs": 30703,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 65536,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 24392,
+        "execLargest": 12276,
+        "refusals": 1
+      },
+      "load": {
+        "total": 2997212,
+        "read": 27203,
+        "relocate": 10107,
+        "setup": 2959768,
+        "internal": 3912,
+        "psram": 46672
+      }
+    },
+    {
+      "name": "ForSoundTest",
+      "frameUs": 10477,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 26440,
+        "execLargest": 16372,
+        "refusals": 1
+      },
+      "load": {
+        "total": 25639,
+        "read": 22722,
+        "relocate": 2800,
+        "setup": 1,
+        "internal": 1872,
+        "psram": 0
+      }
+    },
+    {
+      "name": "LedSpiralWave",
+      "frameUs": 37015,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 25784,
+        "execLargest": 15860,
+        "refusals": 1
+      },
+      "load": {
+        "total": 29194,
+        "read": 18355,
+        "relocate": 5058,
+        "setup": 5602,
+        "internal": 2508,
+        "psram": 4120
+      }
+    },
+    {
+      "name": "Ripple Grid",
+      "frameUs": 19129,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 21948,
+        "execLargest": 12276,
+        "refusals": 1
+      },
+      "load": {
+        "total": 30994,
+        "read": 25429,
+        "relocate": 2725,
+        "setup": 2718,
+        "internal": 6360,
+        "psram": 0
+      }
+    },
+    {
+      "name": "RippleCellGrid2",
+      "frameUs": 20120,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 0,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 21920,
+        "execLargest": 9716,
+        "refusals": 1
+      },
+      "load": {
+        "total": 81233,
+        "read": 20689,
+        "relocate": 6539,
+        "setup": 53878,
+        "internal": 6396,
+        "psram": 0
+      }
+    },
+    {
+      "name": "Sandglass",
+      "frameUs": 20343,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 32768,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 25996,
+        "execLargest": 13812,
+        "refusals": 1
+      },
+      "load": {
+        "total": 169546,
+        "read": 122866,
+        "relocate": 3629,
+        "setup": 42890,
+        "internal": 2328,
+        "psram": 38008
+      }
+    },
+    {
+      "name": "ttt",
+      "frameUs": 35070,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 65536,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 21840,
+        "execLargest": 11252,
+        "refusals": 1
+      },
+      "load": {
+        "total": 42591,
+        "read": 23220,
+        "relocate": 5882,
+        "setup": 13338,
+        "internal": 6452,
+        "psram": 0
+      }
+    },
+    {
+      "name": "Two-stream phase-space vortices",
+      "frameUs": 42428,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 32768,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 1,
+        "serviceFree": 25604,
+        "execLargest": 12788,
+        "refusals": 1
+      },
+      "load": {
+        "total": 3747267,
+        "read": 21569,
+        "relocate": 7556,
+        "setup": 3718017,
+        "internal": 2716,
+        "psram": 58328
+      }
+    },
+    {
+      "name": "Wave Cascade",
+      "frameUs": 23394,
+      "moduleMemory": {
+        "reserve": 24576,
+        "runtimeBytes": 32768,
+        "runtimePeakBytes": 163840,
+        "runtimeLimit": 4194304,
+        "loaderStackBytes": 12288,
+        "loaderStackMin": 9184,
+        "loaderRetries": 2,
+        "serviceFree": 24796,
+        "execLargest": 15348,
+        "refusals": 2
+      },
+      "load": {
+        "total": 1016521,
+        "read": 406122,
+        "relocate": 1588,
+        "setup": 608583,
+        "internal": 3504,
+        "psram": 4124
+      }
+    }
+  ],
+  "moduleSha256": {
+    "0515_4": "4a281f59855ab08229831c324b7e5ea0e1962895153ed213ae53a5e938a451e7",
+    "0531": "efb3497660669852eb3a4d3c29cded8077675aefe074fec9b7ab114ef1a7cfd0",
+    "0601": "cc1b388a4277f292f93f1d823d54297161aad2b89660e6015c0656c66ee0d704",
+    "2d_burgers_shock_web": "e75ad1aafb3d92dca7dfbda5bbd54dae6b340e142099c2a38a53af285b82d6d9",
+    "branched_flow": "965e2179edabe71eb7571639f455fb84950b69de1efbcfc7a40407a69e1908e7",
+    "forsoundtest": "0c2e5f6d0cb5117b283f8ccf42cd218bddb9f20ad8f75364269e97b6b785c3cf",
+    "ledspiralwave": "03fd918e4efb1d9b28475b8368240b017672a86df779e2b8cb5407b121e4b97e",
+    "ripple_grid": "6177d4c3730432ca97232d561db91fd32134be98782c1d01451cbfd35578279e",
+    "ripplecellgrid2": "34785fe7ce3a014960f43a3ac65ab6b5f1e777675367e5612eb9ddab4b4f93ba",
+    "sandglass": "58ff401f4f147f4b5ed8906a843a9454fc4ebe72f5f3307d07a48afe9f13fe8a",
+    "ttt": "8f38ae9918d91bdf1b76dc252f8ee3567cd832a0af993d2f7593920134942aa3",
+    "two_stream_phase_space_vortices": "10ea8572f22f0afeefbfb1cffc8501f3c4eabcfdf34c1826afe9a674e1286d89",
+    "wave_cascade": "fc458d11afda3b40dc8559a512bcf5b4a540e5e26c4caaed364de81df1c75a88"
+  },
+  "coreWindows": [
+    {
+      "label": "steady_Origin",
+      "runtime": {
+        "loops": 479,
+        "lastUs": 12981,
+        "maxUs": 16905,
+        "over50ms": 0,
+        "housekeepingMaxUs": 74,
+        "syncMaxUs": 0
+      }
+    },
+    {
+      "label": "steady_Ripple Grid",
+      "runtime": {
+        "loops": 325,
+        "lastUs": 18356,
+        "maxUs": 22641,
+        "over50ms": 0,
+        "housekeepingMaxUs": 637,
+        "syncMaxUs": 583
+      }
+    },
+    {
+      "label": "steady_Two-stream phase-space vortices",
+      "runtime": {
+        "loops": 133,
+        "lastUs": 42909,
+        "maxUs": 49349,
+        "over50ms": 0,
+        "housekeepingMaxUs": 75,
+        "syncMaxUs": 0
+      }
+    },
+    {
+      "label": "steady_Branched flow",
+      "runtime": {
+        "loops": 188,
+        "lastUs": 31052,
+        "maxUs": 35661,
+        "over50ms": 0,
+        "housekeepingMaxUs": 92,
+        "syncMaxUs": 0
+      }
+    },
+    {
+      "label": "upload_overlap_0",
+      "runtime": {
+        "loops": 1335,
+        "lastUs": 44844,
+        "maxUs": 44844,
+        "over50ms": 0,
+        "housekeepingMaxUs": 28458,
+        "syncMaxUs": 585
+      }
+    },
+    {
+      "label": "delete_overlap_0",
+      "runtime": {
+        "loops": 1144,
+        "lastUs": 48427,
+        "maxUs": 49364,
+        "over50ms": 0,
+        "housekeepingMaxUs": 16010,
+        "syncMaxUs": 627
+      }
+    },
+    {
+      "label": "upload_overlap_1",
+      "runtime": {
+        "loops": 1314,
+        "lastUs": 47243,
+        "maxUs": 48918,
+        "over50ms": 0,
+        "housekeepingMaxUs": 29624,
+        "syncMaxUs": 585
+      }
+    },
+    {
+      "label": "delete_overlap_1",
+      "runtime": {
+        "loops": 1144,
+        "lastUs": 44128,
+        "maxUs": 49812,
+        "over50ms": 0,
+        "housekeepingMaxUs": 15637,
+        "syncMaxUs": 649
+      }
+    },
+    {
+      "label": "aborted_upload",
+      "runtime": {
+        "loops": 3673,
+        "lastUs": 18521,
+        "maxUs": 35716,
+        "over50ms": 0,
+        "housekeepingMaxUs": 15796,
+        "syncMaxUs": 58
+      }
+    },
+    {
+      "label": "slow_header",
+      "runtime": {
+        "loops": 256,
+        "lastUs": 21085,
+        "maxUs": 23240,
+        "over50ms": 0,
+        "housekeepingMaxUs": 74,
+        "syncMaxUs": 0
+      }
+    }
+  ],
+  "midiOverlapConcurrentHostBuild": {
+    "sentCC": 4800,
+    "sentClock": 1200,
+    "receivedCC": 4795,
+    "expectedParams": [
+      102,
+      236,
+      370,
+      504
+    ],
+    "params": [
+      102,
+      236,
+      370,
+      504
+    ],
+    "slowHeader": [
+      "passed"
+    ],
+    "reflected": [],
+    "diagnosticDeltas": {
+      "queueDropped": 0,
+      "txQueueDropped": 0,
+      "packetGaps": 8,
+      "parseErrors": 0,
+      "bufferOverflows": 0
+    }
+  },
+  "midiOverlapIdleHost": {
+    "sentCC": 4800,
+    "sentClock": 1200,
+    "receivedCC": 4799,
+    "expectedParams": [
+      102,
+      236,
+      370,
+      504
+    ],
+    "params": [
+      102,
+      236,
+      370,
+      504
+    ],
+    "slowHeader": [
+      "passed"
+    ],
+    "reflected": [],
+    "senderMaxLateUs": 3406,
+    "senderLateFrames": 0,
+    "diagnosticDeltas": {
+      "queueDropped": 0,
+      "txQueueDropped": 0,
+      "packetGaps": 2,
+      "parseErrors": 0,
+      "bufferOverflows": 0
+    }
+  }
+}

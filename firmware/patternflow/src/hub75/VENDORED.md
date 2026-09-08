@@ -46,8 +46,23 @@ words in every plane, so both halves of the panel for both columns are one
 aligned 32-bit read-modify-write per plane (`PF_CLEAR32`; which column lands
 in the low half follows `ESP32_TX_FIFO_POSITION_ADJUST`, decided at compile
 time). The CIE table the on-time sum reads is copied to DRAM (`pfCie`) and
-the function is `IRAM_ATTR`. 6.9 ms — most of what is left is the DMA
-engine reading the same memory while the CPU writes it.
+the function is `IRAM_ATTR`. It measured 6.9 ms.
+
+The September 2026 disassembly check found that the intended word access was
+still four byte accesses each way: the `uint16_t*` passed to `memcpy` did not
+tell Xtensa GCC the pointer was word-aligned. The paired path now supplies
+`__builtin_assume_aligned(p, 4)` to `memcpy`. DMA allocation is word-aligned,
+each even-width plane has a word-sized stride, and `x` advances by two, so the
+assumption holds. Odd widths use the scalar path throughout. `memcpy` retains
+strict-aliasing safety; a cast-and-dereference would not.
+
+On the same 128×64, 8-bit bench configuration, `presentUs` fell from 6.86 to
+5.90 ms. DMA contention may still matter, but it did not explain the byte
+accesses. `python firmware/toolchain/check_blit.py` compares the actual blit
+against a scalar colour/control-bit reference across widths, depths, LUTs,
+saturation values and both FIFO orders (over 30 million words). See the
+[bench report](../../../../docs/investigations/2026-09-firmware-runtime.md)
+for measurements.
 
 ### 2. `resumeDMAoutput()` — the way back from `stopDMAoutput()`
 

@@ -177,6 +177,19 @@ inline void handleStatus() {
   json += "\"hostAlias\":\"";
   json += PatternflowNames::alias();
   json += "\",";
+#ifdef PF_WIFI_NEEDED
+  json += "\"network\":{\"disconnects\":";
+  json += PatternflowWifi::disconnects;
+  json += ",\"retries\":";
+  json += PatternflowWifi::retryAttempts;
+  json += ",\"reconnectMs\":";
+  json += PatternflowWifi::lastReconnectMs;
+  json += ",\"namesReady\":";
+  json += PatternflowNames::ready ? "true" : "false";
+  json += ",\"announcements\":";
+  json += PatternflowNames::announcements;
+  json += "},";
+#endif
   // Actual transmit power, in dBm. Core sets 13 as a conformance fix and a
   // variant may override it, so the number a panel is really running at
   // stopped being knowable from the firmware version alone — and the panel
@@ -280,9 +293,20 @@ inline void handleStatus() {
   json += ",\"loopCore\":1";
   json += ",\"httpCore\":";
   json += xPortGetCoreID();
+  json += ",\"netMaintenance\":{\"calls\":"; json += PFNetMaintenance::calls;
+  json += ",\"maxGapMs\":"; json += PFNetMaintenance::maxGapMs;
+  json += "}";
   json += ",\"netStackMin\":";
   json += PatternflowNetTask::stackMinFree;
   // Handlers that had to run on the loop task, and the longest one waited.
+  const auto runtime = PFRuntime::snapshot(server().arg("resetTiming") == "1");
+  json += ",\"runtime\":{\"loops\":"; json += runtime.loops;
+  json += ",\"lastUs\":"; json += runtime.lastUs;
+  json += ",\"maxUs\":"; json += runtime.maxUs;
+  json += ",\"over50ms\":"; json += runtime.over50ms;
+  json += ",\"housekeepingMaxUs\":"; json += runtime.housekeepingMaxUs;
+  json += ",\"syncMaxUs\":"; json += runtime.syncMaxUs;
+  json += "}";
   json += ",\"loopSyncServed\":";
   json += PFLoopSync::served;
   json += ",\"loopSyncMaxUs\":";
@@ -294,7 +318,9 @@ inline void handleStatus() {
   // Why the last module load failed, if it did. Without it a refusal is
   // invisible from the network: the panel just stops and nothing says why.
   json += ",\"loadError\":\"";
-  json += PFModuleLoader::error();
+  // A worker may still recover from a temporary admission refusal. Its
+  // error text is mutable until the frame adopts the published result.
+  if (!__atomic_load_n(&loadInFlight, __ATOMIC_ACQUIRE)) json += PFModuleLoader::error();
   json += "\"";
   json += ",\"load\":{\"total\":";
   json += PFModuleLoader::lastTotalUs;
@@ -310,6 +336,34 @@ inline void handleStatus() {
   json += PFModuleLoader::lastInternalBytes;
   json += ",\"psram\":";
   json += PFModuleLoader::lastPsramBytes;
+  json += "}";
+  json += ",\"moduleMemory\":{\"reserve\":"; json += PF_MODULE_INTERNAL_RESERVE;
+  json += ",\"runtimeBytes\":"; json += PFModuleLoader::runtimeBytes;
+  json += ",\"runtimePeakBytes\":"; json += PFModuleLoader::runtimePeakBytes;
+  json += ",\"runtimeLimit\":"; json += PF_MODULE_RUNTIME_MAX_BYTES;
+  json += ",\"loaderStackBytes\":"; json += patternLoaderWorker ? LOAD_TASK_STACK : 0;
+  json += ",\"loaderStackMin\":"; json += patternLoaderStackMin;
+  json += ",\"loaderRetries\":"; json += patternLoaderRetries;
+  json += ",\"serviceFree\":";
+  json += heap_caps_get_free_size(PFModuleMemory::internalData);
+  // Admission is one comparison; publish both sides of it. A module loads when
+  // codeBytes <= budget, and both numbers are readable while it is running.
+  json += ",\"budget\":"; json += (uint32_t)PFModuleMemory::budget();
+  json += ",\"codeBytes\":"; json += PFModuleLoader::lastCodeBytes;
+  json += ",\"execLargest\":";
+  json += heap_caps_get_largest_free_block(PFModuleMemory::internalCode);
+  json += ",\"refusals\":"; json += PFModuleMemory::refusals;
+  json += "}";
+  json += ",\"thumbs\":{\"captures\":";
+  json += PFThumbs::captures;
+  json += ",\"reads\":";
+  json += PFThumbs::reads;
+  json += ",\"writes\":";
+  json += PFThumbs::writes;
+  json += ",\"captureMaxUs\":";
+  json += PFThumbs::captureMaxUs;
+  json += ",\"ioMaxUs\":";
+  json += PFThumbs::ioMaxUs;
   json += "}";
 
   // Whoever registered extraStatus appends its fields — an MQTT bridge

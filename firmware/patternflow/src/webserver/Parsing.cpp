@@ -24,6 +24,7 @@
 #include "WiFiServer.h"
 #include "WiFiClient.h"
 #include "WebServer.h"
+#include "../core_net_maintenance.h"
 #include "detail/mimetable.h"
 
 #ifndef WEBSERVER_MAX_POST_ARGS
@@ -48,7 +49,7 @@ static char* readBytesWithTimeout(WiFiClient& client, size_t maxLength, size_t& 
   while (dataLength < maxLength) {
     int tries = timeout_ms;
     size_t newLength;
-    while (!(newLength = client.available()) && tries--) delay(1);
+    while (!(newLength = client.available()) && tries--) { PFNetMaintenance::poll(); delay(1); }
     if (!newLength) {
       break;
     }
@@ -100,6 +101,7 @@ static bool waitForByte(WiFiClient& client)
   while (!client.available()) {
     if (!client.connected()) return false;
     if (millis() - start >= timeout) return false;
+    PFNetMaintenance::poll();
     delay(1);
   }
   return true;
@@ -413,6 +415,7 @@ int WebServer::_uploadReadByte(WiFiClient& client) {
 
   if (res < 0) {
     while(!client.available() && client.connected())
+      PFNetMaintenance::poll();
       delay(2);
 
     res = client.read();
