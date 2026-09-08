@@ -4,6 +4,8 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.10.0] - 2026-09-08
+
 ### Improved — Audio MIDI
 - Network MIDI socket service runs independently of pattern rendering, with ordered, bounded event queues and PSRAM payload storage. Incoming controls still apply on the render task. Per-knob receive counters, queue overflow and RTP/parser diagnostics expose where traffic is lost.
 - Absolute-bus compatibility clicks no longer appear as physical encoder MIDI output, preventing incoming automation from being reflected as outbound CCs.
