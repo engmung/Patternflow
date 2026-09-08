@@ -200,7 +200,11 @@ inline void begin() {
 
   // Socket service must not wait for a heavy pattern's next frame. The
   // queues retain event order; no bus, pattern or InputFrame is touched here.
-  if (!queueReady || xTaskCreatePinnedToCore(worker, "pf_midi", WORKER_STACK_BYTES, nullptr, 1, &workerTask, 0) != pdPASS) {
+  // "pf-midi" is the TASK name, hyphenated like pf-net, pf-load and pf-audio.
+  // The "pf_midi" elsewhere in this feature is the NVS namespace and must keep
+  // its underscore: renaming it would orphan every device's saved gains, host
+  // and output mode on the next update.
+  if (!queueReady || xTaskCreatePinnedToCore(worker, "pf-midi", WORKER_STACK_BYTES, nullptr, 1, &workerTask, 0) != pdPASS) {
     workerTask = nullptr;
     Serial.println("[MIDI] worker unavailable; using frame polling");
   }
