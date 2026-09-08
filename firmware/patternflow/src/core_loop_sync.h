@@ -101,7 +101,11 @@ inline bool runRaw(void (*fn)(void*), void* arg, bool (*attempt)(void*) = nullpt
   }
   const uint32_t waited = micros() - t0;
   if (waited > maxWaitUs) maxWaitUs = waited;
-  served++;
+  // Not served++: C++20 deprecates increment on a volatile-qualified type,
+  // and CI builds the host tests as C++20 with -Werror. A separate read and
+  // write is the same single-writer store this always was - only this task
+  // writes it, and the reader is a status page.
+  served = served + 1;
   xSemaphoreGive(callerLock);
   return true;
 }
