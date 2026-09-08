@@ -120,7 +120,10 @@ inline void writeNetworks() {
   Preferences p;
   if (!p.begin(WIFI_NVS_NS, /*readOnly=*/false)) return;
   p.putInt("count", savedCountValue);
-  char key[8];
+  // 16, not 8: NVS caps a key at 15 characters, and this is the width at
+  // which the compiler can prove "ssid%d" cannot truncate for any int.
+  // At 8 it cannot, and CI builds the host tests with -Werror.
+  char key[16];
   for (int i = 0; i < savedCountValue; i++) {
     snprintf(key, sizeof(key), "ssid%d", i);
     p.putString(key, savedSsids[i]);
@@ -145,7 +148,7 @@ inline void loadCredentials() {
   if (p.begin(WIFI_NVS_NS, /*readOnly=*/true)) {
     int count = p.getInt("count", -1);
     if (count >= 0) {
-      char key[8];
+      char key[16];   // see writeNetworks(): 15 is the NVS key limit
       for (int i = 0; i < count && i < MAX_NETWORKS; i++) {
         snprintf(key, sizeof(key), "ssid%d", i);
         String ssid = p.getString(key, "");
