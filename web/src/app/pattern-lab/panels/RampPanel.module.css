@@ -15,21 +15,23 @@
 }
 
 .paletteActions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: max-content 1fr;
   align-items: center;
-  gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
+  gap: 6px 8px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
 }
 
 .paletteActions button {
+  border-radius: 4px;
+  font-size: 12px;
   min-height: 30px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #fffdf8;
   color: #171512;
   padding: 4px 8px;
-  font: inherit;
+  font-family: inherit;
   cursor: pointer;
 }
 
@@ -39,9 +41,17 @@
 }
 
 .paletteHistory {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
   display: flex;
   gap: 4px;
   margin-left: auto;
+}
+
+.paletteHistory button {
+  font-size: 11px;
+  padding: 4px 6px;
 }
 
 .paletteActions button:disabled {
@@ -56,6 +66,10 @@
 .paletteActions button:focus-visible {
   outline: 2px solid #171512;
   outline-offset: 2px;
+}
+
+.paletteActions > label {
+  grid-column: 1 / -1;
 }
 
 .rampTrack {
@@ -122,10 +136,10 @@
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  color: rgba(23, 21, 18, 0.5);
-  text-transform: uppercase;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
+  color: #756f64;
+  text-transform: none;
 }
 
 .rampLumaBadge {
@@ -153,20 +167,22 @@
 }
 
 .rampStopPos {
-  font-family: var(--font-jetbrains), monospace;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 11px;
 }
 
 .rampStopDelete {
-  min-height: 26px;
+  min-height: 28px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
   padding: 0 8px;
   font: inherit;
-  font-family: var(--font-jetbrains), monospace;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 11px;
-  text-transform: uppercase;
+  text-transform: none;
   cursor: pointer;
 }
 
@@ -181,15 +197,16 @@
 }
 
 .rampResetBtn {
-  min-height: 26px;
+  min-height: 28px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
   padding: 0 8px;
   font: inherit;
-  font-family: var(--font-jetbrains), monospace;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 11px;
-  text-transform: uppercase;
+  text-transform: none;
   cursor: pointer;
 }
 
@@ -200,8 +217,23 @@
 
 .rampHint {
   margin-left: auto;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  color: rgba(23, 21, 18, 0.5);
-  text-transform: uppercase;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
+  color: #756f64;
+  text-transform: none;
+}
+
+@container ramp-controls (max-width: 210px) {
+  .paletteActions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .paletteActions > label {
+    flex-basis: 100%;
+  }
+
+  .paletteHistory {
+    margin-left: 0;
+  }
 }

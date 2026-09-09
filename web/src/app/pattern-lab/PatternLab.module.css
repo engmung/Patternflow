@@ -21,21 +21,33 @@
   letter-spacing: 0.01em;
 }
 
-/* The piece's name — the header input every hand-off shares. Dead center
-   of the header (absolute, so the uneven left/right groups can't skew it);
-   narrow windows drop it back into the flow so it never overlaps buttons. */
+.projectIdentity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.projectMeta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 17px;
+}
+
 .labName {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 240px;
-  padding: 4px 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 8px;
   background: transparent;
   border: 1px solid transparent;
-  border-bottom-color: rgba(23, 21, 18, 0.25);
-  border-radius: 0;
+  border-radius: 4px;
   color: #171512;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   letter-spacing: 0.01em;
   text-align: center;
@@ -47,22 +59,14 @@
 }
 
 .labName:hover {
-  border-bottom-color: rgba(23, 21, 18, 0.45);
+  background: rgba(255, 253, 248, 0.7);
+  border-color: rgba(23, 21, 18, 0.18);
 }
 
 .labName:focus {
-  outline: none;
-  border-bottom-color: #ff5c2e;
-}
-
-@media (max-width: 1080px) {
-  .labName {
-      position: static;
-      transform: none;
-      width: 150px;
-      text-align: left;
-    }
-
+  outline: 2px solid #9b4827;
+  outline-offset: 1px;
+  background: #fffdf8;
 }
 
 .labNav {
@@ -129,6 +133,7 @@
 
 .stats {
   display: flex;
+  text-transform: none;
   align-items: center;
   gap: 8px;
   color: rgba(23, 21, 18, 0.62);
@@ -148,12 +153,12 @@
   background: #ffffff;
   color: #171512;
   padding: 0 10px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
   font-weight: 600;
   border-radius: 5px;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
 .headerToggle:hover,
@@ -163,9 +168,51 @@
 }
 
 .saveStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: #6b655a;
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 17px;
   white-space: nowrap;
+}
+
+.saveDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #68826b;
+  flex: none;
+}
+
+.saveStatus[data-state="pending"] .saveDot,
+.saveStatus[data-state="idle"] .saveDot {
+  background: #a58a56;
+}
+
+.saveStatus[data-state="error"] {
+  color: #b42318;
+}
+
+.saveStatus[data-state="error"] .saveDot {
+  background: currentColor;
+}
+
+.headerToggle[data-primary="true"] {
+  background: #171512;
+  border-color: #171512;
+  color: #fffdf8;
+}
+
+.headerToggle[data-primary="true"]:hover {
+  background: #38342d;
+}
+
+.headerToggle:focus-visible,
+.headerSelect:focus-visible,
+.labNav a:focus-visible {
+  outline: 2px solid #9b4827;
+  outline-offset: 2px;
 }
 
 .storageNotice {
@@ -379,14 +426,16 @@
 
 .variantActions button {
   flex: 1;
-  min-height: 30px;
+  min-height: 34px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
   font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
   cursor: pointer;
 }
 
@@ -406,6 +455,8 @@
 }
 
 .modalCard {
+  border-radius: 8px;
+  box-shadow: 0 20px 64px rgba(23, 21, 18, 0.25);
   width: min(560px, 100%);
   max-height: 90vh;
   overflow-y: auto;
@@ -429,6 +480,7 @@
 }
 
 .modalHeader button {
+  border-radius: 4px;
   min-width: 30px;
   min-height: 30px;
   border: 1px solid rgba(23, 21, 18, 0.22);
@@ -445,7 +497,7 @@
 
 .modalBody {
   padding: 16px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -542,12 +594,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  border: 1px solid rgba(232, 85, 46, 0.5);
-  border-radius: 999px;
-  color: #e8552e;
-  font-family: var(--pf-mono, monospace);
+  min-width: 0;
+  color: #925035;
   font-size: 11px;
+}
+
+.forkBadge > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .forkBadge button {
@@ -559,4 +614,16 @@
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
+  flex: none;
+}
+
+.variantActions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.variantActions button:focus-visible,
+.modalHeader button:focus-visible {
+  outline: 2px solid #9b4827;
+  outline-offset: 2px;
 }

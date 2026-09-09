@@ -2,7 +2,7 @@
    shared panel styles (LabPanels.module.css) stay untouched. */
 
 .bar {
-  row-gap: 4px;
+  row-gap: 6px;
 }
 
 .group {
@@ -38,7 +38,7 @@
   align-items: center;
   gap: 4px;
   color: rgba(23, 21, 18, 0.6);
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .slider input[type="range"] {
@@ -164,8 +164,8 @@
 .hint {
   padding: 14px;
   color: rgba(23, 21, 18, 0.6);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -200,7 +200,7 @@
   background: rgba(23, 21, 18, 0.03);
   color: rgba(23, 21, 18, 0.9);
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.6;
   tab-size: 2;
 }

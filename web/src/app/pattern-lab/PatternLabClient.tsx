@@ -326,8 +326,11 @@ export default function PatternLabClient() {
             Patternflow
           </Link>
           <span className={styles.labTitle}>Pattern Lab</span>
+        </div>
+        <div className={styles.projectIdentity}>
           <input
             type="text"
+            aria-label="Pattern name"
             className={styles.labName}
             value={pieceName}
             maxLength={60}
@@ -335,45 +338,42 @@ export default function PatternLabClient() {
             title="The piece's name — To hardware uses it as NAME (so the .pfm module matches), the Director stamps it into the show, and publishing suggests it. Layer names stay layer names."
             onChange={(event) => setPieceName(event.target.value)}
           />
-          {forkOf && (
-            <span
-              className={styles.forkBadge}
-              title="Sharing to the community will publish this as a fork of the linked pattern. Click × if this is no longer a remix of it."
-            >
-              forking from {forkOf.title}
-              <button type="button" aria-label="Detach fork lineage" onClick={() => setForkOf(null)}>
-                ×
-              </button>
-            </span>
-          )}
-          {editOf && (
-            <span
-              className={styles.forkBadge}
-              title="Your own post, reopened. Sharing UPDATES it — same page, same likes, comments and forks. Click × to publish this as a separate new pattern instead; the version you started from is under Recent ▾."
-            >
-              editing {editOf.title}
-              <button
-                type="button"
-                aria-label="Publish as a new pattern instead of updating this one"
-                onClick={() => setEditOf(null)}
-              >
-                ×
-              </button>
-            </span>
-          )}
-          {restoredAt !== null && (
+          <div className={styles.projectMeta}>
             <span
               className={styles.saveStatus}
-              title={`Restored your last session (${new Date(restoredAt).toLocaleString()}). Earlier work is under Recent.`}
+              data-state={saveStatus}
+              title={`Saved only in this browser.${restoredAt !== null ? ` Restored your last session (${new Date(restoredAt).toLocaleString()}). Earlier work is under Recent.` : ""}`}
             >
-              restored
+              <span className={styles.saveDot} aria-hidden="true" />
+              {saveStatus === "error" ? "Unsaved" : saveStatus === "pending" ? "Saving…" : saveStatus === "idle" && restoredAt === null ? "Local draft" : "Saved locally"}
             </span>
-          )}
-          {saveStatus !== "idle" && (
-            <span className={styles.saveStatus} title="Saved only in this browser">
-              {saveStatus === "error" ? "Unsaved" : saveStatus === "pending" ? "Saving…" : "Saved locally"}
-            </span>
-          )}
+            {forkOf && (
+              <span
+                className={styles.forkBadge}
+                title="Sharing to the community will publish this as a fork of the linked pattern. Click × if this is no longer a remix of it."
+              >
+                <span>forking from {forkOf.title}</span>
+                <button type="button" aria-label="Detach fork lineage" onClick={() => setForkOf(null)}>
+                  ×
+                </button>
+              </span>
+            )}
+            {editOf && (
+              <span
+                className={styles.forkBadge}
+                title="Your own post, reopened. Sharing UPDATES it — same page, same likes, comments and forks. Click × to publish this as a separate new pattern instead; the version you started from is under Recent ▾."
+              >
+                <span>editing {editOf.title}</span>
+                <button
+                  type="button"
+                  aria-label="Publish as a new pattern instead of updating this one"
+                  onClick={() => setEditOf(null)}
+                >
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
         </div>
 
         <div className={dock.dockHeaderGroup}>
@@ -399,6 +399,7 @@ export default function PatternLabClient() {
               type="button"
               className={styles.headerToggle}
               title="Convert this composition to a .h header, then build it, install it on the board, or publish it hardware-ready"
+              data-primary="true"
               onClick={() => setHardwareOpen(true)}
             >
               To hardware

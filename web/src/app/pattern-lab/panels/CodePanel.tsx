@@ -137,6 +137,7 @@ export default function CodePanel() {
         </button>
         <button
           type="button"
+          className={local.promptButton}
           onClick={copyVariantPrompt}
           title="Copy the AI variation prompt for this layer (ChatGPT / Claude / Gemini)"
         >
@@ -159,8 +160,9 @@ export default function CodePanel() {
           onChange={(value) => updateLayerCode(layer.id, value ?? "")}
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
-            lineHeight: 20,
+            fontSize: 14,
+            lineHeight: 22,
+            padding: { top: 8 },
             scrollBeyondLastLine: false,
             automaticLayout: true,
             overviewRulerLanes: 0,

@@ -10,6 +10,12 @@
 .presetStep span {
   font-family: var(--font-jetbrains), monospace;
   font-size: 12px;
-  min-width: 44px;
+  min-width: 32px;
   text-align: center;
+}
+
+button.promptButton {
+  border-color: #817561;
+  background: #eee7d8;
+  font-weight: 600;
 }

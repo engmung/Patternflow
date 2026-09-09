@@ -2,16 +2,17 @@
    Moved out of PatternLab.module.css on 2026-09; only this file uses them. */
 
 .controls {
+  container: knob-controls / inline-size;
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
+  gap: 14px;
+  margin-top: 2px;
 }
 
 /* Two lines per knob: name · value · push on top, then a full-width slider
    flanked by its min/max fields — long enough to tune precisely. */
 .knobLine {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .knobHead {
@@ -21,7 +22,10 @@
 }
 
 .knobName {
-  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -47,15 +51,16 @@
 }
 
 .knobButton {
-  min-height: 24px;
+  min-height: 26px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
   padding: 0 8px;
   font: inherit;
   font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
+  font-size: 11px;
+  text-transform: none;
   cursor: pointer;
   user-select: none;
   touch-action: none;
@@ -75,25 +80,27 @@
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 24px;
+  min-height: 26px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.2);
   background: #ffffff;
   color: #171512;
   padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: 12px;
   user-select: none;
 }
 
 .rangeInput {
   width: 100%;
-  min-height: 24px;
+  min-height: 26px;
+  border-radius: 4px;
   border: 1px solid #171512;
   background: #ffffff;
   color: #171512;
   padding: 0 5px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .rangeInput:focus {
@@ -144,7 +151,7 @@
   /* Compact mobile knob rows: reduced gaps and vertical height. */
   .controls {
       gap: 6px;
-      margin-top: 10px;
+      margin-top: 2px;
     }
   
   .knobLine {
@@ -170,12 +177,43 @@
   .knobButton {
       min-height: 22px;
       padding: 0 6px;
-      font-size: 10px;
+      font-size: 11px;
     }
   
   .rangeValue,
     .rangeInput {
       min-height: 22px;
-      font-size: 11px;
+      font-size: 12px;
     }
   }
+
+/* Dock panels can be narrow even when the browser is wide. */
+@container knob-controls (max-width: 210px) {
+  .knobLine {
+    padding: 0;
+    background: none;
+  }
+
+  .knobHead {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .knobName {
+    grid-column: 1 / -1;
+  }
+
+  .knobValue {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .knobButton {
+    justify-self: end;
+  }
+
+  .knobSlider {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 4px;
+  }
+}
