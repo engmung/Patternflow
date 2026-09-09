@@ -5,7 +5,7 @@
 // a checkerboard, which is what lets a value field fade out and reveal the
 // layers underneath.
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   RAMP_MODES,
   buildRampLUTRGBA,
@@ -16,9 +16,11 @@ import {
 } from "@/lib/pattern/harness";
 import { codeUsesValueField } from "@/lib/pattern/ramp";
 import { rampStateToHarness } from "@/lib/lab/engine";
-import { DEFAULT_RAMP_STATE } from "@/lib/lab/types";
+import { DEFAULT_RAMP_STATE, type CodeLayer } from "@/lib/lab/types";
 import { useFocusCodeLayer, useLabStore } from "@/lib/lab/store";
 import { rgbToHex } from "@/lib/pattern/color";
+import { randomRampColors } from "@/lib/lab/rampPalettes";
+import { useRampHistory } from "./ramp/useRampHistory";
 import local from "./RampPanel.module.css";
 import dock from "../LabPanels.module.css";
 
@@ -38,6 +40,22 @@ const LUMA_TREND_LABEL: Record<LumaTrend, string> = {
 
 export default function RampPanel() {
   const layer = useFocusCodeLayer();
+  const addCodeLayer = useLabStore((state) => state.addCodeLayer);
+  if (!layer) {
+    return (
+      <div className={dock.panel}>
+        <div className={dock.panelHint}>
+          The color ramp chains to a code layer — none is in the stack yet.
+          <button type="button" onClick={addCodeLayer}>+ Add code layer</button>
+        </div>
+      </div>
+    );
+  }
+  // Remounting on focus changes isolates both an in-flight drag and history.
+  return <RampEditor key={layer.id} layer={layer} />;
+}
+
+function RampEditor({ layer }: { layer: CodeLayer }) {
   const setLayerRampMode = useLabStore((state) => state.setLayerRampMode);
   const setLayerRampWrap = useLabStore((state) => state.setLayerRampWrap);
   const setLayerRecolor = useLabStore((state) => state.setLayerRecolor);
@@ -45,21 +63,17 @@ export default function RampPanel() {
   const addLayerRampStop = useLabStore((state) => state.addLayerRampStop);
   const deleteLayerRampStop = useLabStore((state) => state.deleteLayerRampStop);
   const setLayerRampStops = useLabStore((state) => state.setLayerRampStops);
-  const addCodeLayer = useLabStore((state) => state.addCodeLayer);
-  const selectedStopIndex = useLabStore((state) => state.rampSelection[layer?.id ?? ""] ?? 0);
+  const selectedStopIndex = useLabStore((state) => state.rampSelection[layer.id] ?? 0);
   const setRampSelection = useLabStore((state) => state.setRampSelection);
+  const { edit, beginGesture, endGesture, undo, redo, canUndo, canRedo } = useRampHistory(layer.id);
+  const [keepStops, setKeepStops] = useState(false);
 
   const rampBarRef = useRef<HTMLCanvasElement | null>(null);
   const lumaBarRef = useRef<HTMLCanvasElement | null>(null);
   const rampTrackRef = useRef<HTMLDivElement | null>(null);
   const stopDragRef = useRef<{ index: number } | null>(null);
-  const layerIdRef = useRef<string | null>(null);
-  const layerId = layer?.id ?? null;
-  useEffect(() => {
-    layerIdRef.current = layerId;
-  }, [layerId]);
-
-  const ramp = layer?.ramp ?? null;
+  const layerId = layer.id;
+  const ramp = layer.ramp;
 
   // LUT + perceptual-lightness read of the ramp, shared by both preview strips.
   // OKLab L of the RGB only — alpha is layering, not color — with the trend
@@ -162,13 +176,13 @@ export default function RampPanel() {
   useEffect(() => {
     const handlePointerMove = (event: PointerEvent) => {
       const drag = stopDragRef.current;
-      const id = layerIdRef.current;
-      if (!drag || !id) return;
+      if (!drag) return;
       event.preventDefault();
-      updateLayerRampStop(id, drag.index, { position: rampPositionFromClientX(event.clientX) });
+      edit(() => updateLayerRampStop(layerId, drag.index, { position: rampPositionFromClientX(event.clientX) }));
     };
     const endDrag = () => {
       stopDragRef.current = null;
+      endGesture();
     };
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", endDrag);
@@ -180,20 +194,7 @@ export default function RampPanel() {
       window.removeEventListener("pointercancel", endDrag);
       window.removeEventListener("blur", endDrag);
     };
-  }, [rampPositionFromClientX, updateLayerRampStop]);
-
-  if (!layer || !ramp) {
-    return (
-      <div className={dock.panel}>
-        <div className={dock.panelHint}>
-          The color ramp chains to a code layer — none is in the stack yet.
-          <button type="button" onClick={addCodeLayer}>
-            + Add code layer
-          </button>
-        </div>
-      </div>
-    );
-  }
+  }, [edit, endGesture, layerId, rampPositionFromClientX, updateLayerRampStop]);
 
   const activeStopIndex = Math.min(selectedStopIndex, ramp.stops.length - 1);
   const activeStop = ramp.stops[activeStopIndex];
@@ -208,7 +209,8 @@ export default function RampPanel() {
     // adding a stop never visibly changes the gradient.
     const [r, g, b, a] = sampleRampRGBA(rampStateToHarness(ramp), position);
     const newIndex = ramp.stops.length;
-    addLayerRampStop(layer.id, { position, color: rgbToHex(r, g, b), alpha: a });
+    beginGesture();
+    edit(() => addLayerRampStop(layer.id, { position, color: rgbToHex(r, g, b), alpha: a }));
     setRampSelection(layer.id, newIndex);
     stopDragRef.current = { index: newIndex };
   };
@@ -217,12 +219,13 @@ export default function RampPanel() {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    beginGesture();
     setRampSelection(layer.id, index);
     stopDragRef.current = { index };
   };
 
   const deleteStop = (index: number) => {
-    deleteLayerRampStop(layer.id, index);
+    edit(() => deleteLayerRampStop(layer.id, index));
     setRampSelection(layer.id, index === activeStopIndex ? 0 : Math.max(0, activeStopIndex - 1));
   };
 
@@ -235,7 +238,7 @@ export default function RampPanel() {
           value={ramp.mode}
           aria-label="Ramp interpolation mode"
           title="How colors blend between stops"
-          onChange={(event) => setLayerRampMode(layer.id, event.target.value as RampMode)}
+          onChange={(event) => edit(() => setLayerRampMode(layer.id, event.target.value as RampMode))}
         >
           {RAMP_MODES.map((mode) => (
             <option key={mode} value={mode}>
@@ -250,7 +253,7 @@ export default function RampPanel() {
           <input
             type="checkbox"
             checked={ramp.wrap}
-            onChange={(event) => setLayerRampWrap(layer.id, event.target.checked)}
+            onChange={(event) => edit(() => setLayerRampWrap(layer.id, event.target.checked))}
           />
           wrap
         </label>
@@ -261,13 +264,34 @@ export default function RampPanel() {
           <input
             type="checkbox"
             checked={layer.recolor}
-            onChange={(event) => setLayerRecolor(layer.id, event.target.checked)}
+            onChange={(event) => edit(() => setLayerRecolor(layer.id, event.target.checked))}
           />
           recolor
         </label>
       </div>
 
       <div className={`${dock.panelBody} ${dock.rampDock}`}>
+        <div className={local.paletteActions}>
+          <button
+            type="button"
+            className={local.paletteRandom}
+            onClick={() => edit(() => {
+              setLayerRampStops(layer.id, randomRampColors(ramp, keepStops));
+              if (!keepStops) setRampSelection(layer.id, 0);
+            })}
+            title={keepStops ? "Randomize each stop’s hue, saturation and brightness" : "Generate 2–12 stops with new positions and independent random colors"}
+          >
+            {keepStops ? "Random colors" : "Random ramp"}
+          </button>
+          <label className={local.rampToggle} title="Keep the current stop count, positions and opacity; randomize only the colors">
+            <input type="checkbox" checked={keepStops} onChange={(event) => setKeepStops(event.target.checked)} />
+            keep stops
+          </label>
+          <div className={local.paletteHistory}>
+            <button type="button" onClick={undo} disabled={!canUndo} aria-label="Undo ramp change" title="Undo this layer's ramp edit (while this editor stays open)">Undo</button>
+            <button type="button" onClick={redo} disabled={!canRedo} aria-label="Redo ramp change" title="Redo this layer's ramp edit">Redo</button>
+          </div>
+        </div>
         <div
           ref={rampTrackRef}
           className={local.rampTrack}
@@ -329,8 +353,10 @@ export default function RampPanel() {
                 type="color"
                 value={activeStop.color}
                 aria-label="Selected stop color"
+                onPointerDown={beginGesture}
+                onBlur={endGesture}
                 onChange={(event) =>
-                  updateLayerRampStop(layer.id, activeStopIndex, { color: event.target.value })
+                  edit(() => updateLayerRampStop(layer.id, activeStopIndex, { color: event.target.value }))
                 }
               />
               <span className={local.rampStopPos}>@ {activeStop.position.toFixed(2)}</span>
@@ -350,10 +376,10 @@ export default function RampPanel() {
                 className={local.rampResetBtn}
                 title="Reset to the default ramp: 0 = black, 1 = white"
                 onClick={() =>
-                  setLayerRampStops(
+                  edit(() => setLayerRampStops(
                     layer.id,
                     DEFAULT_RAMP_STATE.stops.map((stop) => ({ ...stop })),
-                  )
+                  ))
                 }
               >
                 Reset
@@ -368,7 +394,7 @@ export default function RampPanel() {
                       stop.position < ramp.stops[best].position ? index : best,
                     0,
                   );
-                  updateLayerRampStop(layer.id, lowest, { alpha: 0 });
+                  edit(() => updateLayerRampStop(layer.id, lowest, { alpha: 0 }));
                 }}
               >
                 Fade low
@@ -384,10 +410,14 @@ export default function RampPanel() {
                 value={activeStop.alpha}
                 aria-label="Selected stop alpha"
                 title="Opacity of this stop — transparent stops let lower layers show through"
+                onPointerDown={beginGesture}
+                onKeyDown={beginGesture}
+                onKeyUp={endGesture}
+                onBlur={endGesture}
                 onChange={(event) =>
-                  updateLayerRampStop(layer.id, activeStopIndex, {
+                  edit(() => updateLayerRampStop(layer.id, activeStopIndex, {
                     alpha: Number(event.target.value),
-                  })
+                  }))
                 }
               />
               <span className={dock.rampAlphaValue}>{Math.round(activeStop.alpha * 100)}%</span>

@@ -13,12 +13,12 @@
 }
 
 .dockHeader {
-  position: relative; /* anchors the centered piece-name input */
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(170px, 280px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 12px;
+  gap: 16px;
+  padding: 8px 14px;
   border-bottom: 1px solid rgba(23, 21, 18, 0.18);
   background: rgba(247, 243, 234, 0.95);
   flex: 0 0 auto;
@@ -30,6 +30,31 @@
   flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
+}
+
+.dockHeaderGroup:last-child {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 1160px) {
+  .dockHeader {
+    grid-template-columns: auto minmax(150px, 1fr) auto;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 800px) {
+  .dockHeader {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 1fr);
+    gap: 8px 12px;
+  }
+
+  .dockHeaderGroup:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
 }
 
 .dockHost {
@@ -61,6 +86,7 @@
   padding: 6px;
   background: #fffdf8;
   border: 1px solid rgba(23, 21, 18, 0.25);
+  border-radius: 6px;
   box-shadow: 0 12px 32px rgba(23, 21, 18, 0.18);
 }
 
@@ -72,11 +98,11 @@
   gap: 10px;
   border: 0;
   background: none;
-  padding: 6px 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  padding: 8px 10px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
   color: #171512;
   cursor: pointer;
   text-align: left;
@@ -111,19 +137,22 @@
   border-bottom: 1px solid rgba(23, 21, 18, 0.12);
   background: #fbf7ee;
   flex: 0 0 auto;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
 }
 
 .panelBar button {
+  min-height: 28px;
+  border-radius: 4px;
+  line-height: 18px;
   appearance: none;
   border: 1px solid rgba(23, 21, 18, 0.3);
   background: #fffdf8;
   color: #171512;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
   padding: 3px 8px;
   cursor: pointer;
 }
@@ -150,11 +179,13 @@
 
 .panelBar select,
 .panelBar input[type="number"] {
+  min-height: 28px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.3);
   background: #fffdf8;
   color: inherit;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   padding: 3px 4px;
 }
 
@@ -166,7 +197,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  text-transform: uppercase;
+  text-transform: none;
   color: rgba(23, 21, 18, 0.6);
 }
 
@@ -177,12 +208,13 @@
 }
 
 .panelHint {
+  text-wrap: pretty;
   padding: 14px;
-  color: rgba(23, 21, 18, 0.55);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  color: #756f64;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
   line-height: 1.6;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .panelHint button {
@@ -262,6 +294,8 @@
 }
 
 .layerRow {
+  min-height: 34px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -324,8 +358,8 @@
 }
 
 .layerType {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 9px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
   letter-spacing: 0.06em;
   padding: 1px 5px;
   border: 1px solid currentColor;
@@ -342,8 +376,8 @@
 }
 
 .layerMeta {
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 9px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
   opacity: 0.55;
   flex: 0 0 auto;
 }
@@ -356,8 +390,8 @@
   border-top: 1px solid rgba(23, 21, 18, 0.12);
   background: #fbf7ee;
   flex: 0 0 auto;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
 }
 
 .layerControlRow {
@@ -369,9 +403,9 @@
 .layerControlRow > span {
   width: 58px;
   flex: 0 0 auto;
-  text-transform: uppercase;
+  text-transform: none;
   color: rgba(23, 21, 18, 0.6);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .layerControlRow input[type="range"] {
@@ -381,11 +415,14 @@
 }
 
 .layerControlRow select {
+  min-height: 28px;
+  border-radius: 4px;
+  min-width: 0;
   flex: 1 1 auto;
   border: 1px solid rgba(23, 21, 18, 0.3);
   background: #fffdf8;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 4px;
 }
 
@@ -393,15 +430,15 @@
   width: 40px;
   text-align: right;
   flex: 0 0 auto;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .layerMaskLabel {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
-  text-transform: uppercase;
+  font-size: 11px;
+  text-transform: none;
   cursor: pointer;
 }
 
@@ -440,10 +477,10 @@
   gap: 10px;
   padding: 4px 8px;
   border-top: 1px solid rgba(23, 21, 18, 0.12);
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
   color: rgba(23, 21, 18, 0.6);
-  text-transform: uppercase;
+  text-transform: none;
   flex: 0 0 auto;
   flex-wrap: wrap;
 }
@@ -471,6 +508,14 @@
   background: none;
 }
 
+.panelBar .swatch {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  border-radius: 3px;
+}
+
 .toolSep {
   width: 1px;
   align-self: stretch;
@@ -481,6 +526,7 @@
 /* ── Ramp panel (dock variant) ── */
 
 .rampDock {
+  container: ramp-controls / inline-size;
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -491,9 +537,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
-  text-transform: uppercase;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 11px;
+  text-transform: none;
   color: rgba(23, 21, 18, 0.65);
 }
 
@@ -523,4 +569,17 @@
   background: rgba(23, 21, 18, 0.25);
   border: 3px solid #fffdf8;
   border-radius: 6px;
+}
+
+/* Keyboard focus stays visible throughout the panel controls. */
+.panelBar :is(button, select, input):focus-visible,
+.menuPop button:focus-visible,
+.layerControlRow select:focus-visible {
+  outline: 2px solid #9b4827;
+  outline-offset: 2px;
+}
+
+/* Scrolling keeps the ramp and controls at their intended height. */
+.rampDock > * {
+  flex-shrink: 0;
 }

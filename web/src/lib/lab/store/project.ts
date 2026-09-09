@@ -31,8 +31,6 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSlice {
       set({ hydrated: true, gallery: loadGallery() });
     },
 
-    // Used before anything replaces the canvas wholesale, so a community open
-    // can never eat work in progress. Returns whether anything was stashed.
     discardProject: () => {
       clearProject();
       clearDraft(); // also clears the legacy draft + gallery keys
@@ -98,6 +96,9 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSlice {
           (state.name.trim() ||
             (state.editOf?.title ?? state.forkOf?.title ?? state.layers[0]?.name ?? "Untitled work")),
         state.layers.length,
+        // An automatic published-version snapshot must not evict the work
+        // that was parked immediately before opening this pattern.
+        { keepPrevious: true },
       );
     },
 
@@ -106,7 +107,9 @@ export function createProjectSlice(set: SliceSet, get: SliceGet): ProjectSlice {
       if (!json) return false;
       const restored = deserializeProject(json);
       if (!restored) return false;
-      get().stashCurrent();
+      // An empty canvas needs no backup. Otherwise a failed park must leave
+      // both the current canvas and the requested session untouched.
+      if (get().layers.length > 0 && !get().stashCurrent()) return false;
       const { savedAt, ...project } = restored;
       set({ ...project, restoredAt: savedAt || Date.now() });
       return true;

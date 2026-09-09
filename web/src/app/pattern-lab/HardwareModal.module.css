@@ -9,23 +9,26 @@
 .hwPaste {
   display: block;
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  border-radius: 4px;
   border: 1px solid rgba(23, 21, 18, 0.3);
   background: #fffdf8;
   color: #171512;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.55;
   resize: vertical;
 }
 
 .hwPaste:focus {
-  outline: none;
+  outline: 2px solid #9b4827;
+  outline-offset: 1px;
   border-color: #171512;
 }
 
 .hwPaste::placeholder {
-  color: rgba(23, 21, 18, 0.42);
+  color: #756f64;
 }
 
 .hwField {
@@ -37,6 +40,8 @@
 }
 
 .hwField input {
+  border-radius: 4px;
+  min-width: 0;
   flex: 1;
   min-height: 30px;
   padding: 4px 8px;
@@ -48,7 +53,8 @@
 }
 
 .hwField input:focus {
-  outline: none;
+  outline: 2px solid #9b4827;
+  outline-offset: 1px;
   border-color: #171512;
 }
 
@@ -76,15 +82,16 @@
 }
 
 .hwUnitHead button {
-  min-height: 26px;
+  min-height: 30px;
+  border-radius: 4px;
   padding: 0 10px;
   border: 1px solid rgba(23, 21, 18, 0.22);
   background: #ffffff;
   color: #171512;
   font: inherit;
-  font-family: var(--font-jetbrains), monospace;
-  font-size: var(--pf-fs-mono);
-  text-transform: uppercase;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 12px;
+  text-transform: none;
   cursor: pointer;
 }
 

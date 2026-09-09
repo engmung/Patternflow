@@ -189,7 +189,14 @@ type SerializedProject = {
 };
 
 export function serializeProject(project: LabProject): string | null {
-  const layers: SerializedLayer[] = project.layers.slice(0, MAX_LAYERS).map((layer) => {
+  // A successful save must contain the whole authored layer stack. Refuse a
+  // project the reader cannot restore instead of reporting a truncated save.
+  if (
+    project.layers.length > MAX_LAYERS ||
+    project.layers.some((layer) => layer.type === "code" && layer.code.length > MAX_CODE_CHARS)
+  ) return null;
+
+  const layers: SerializedLayer[] = project.layers.map((layer) => {
     if (layer.type === "code") {
       return {
         type: "code",
@@ -200,7 +207,7 @@ export function serializeProject(project: LabProject): string | null {
         blend: layer.blend,
         role: layer.role,
         maskInvert: layer.maskInvert,
-        code: layer.code.slice(0, MAX_CODE_CHARS),
+        code: layer.code,
         ramp: layer.ramp,
         recolor: layer.recolor,
       };
@@ -258,7 +265,12 @@ function readGen(raw: unknown): GenSettings {
   };
 }
 
-function readLayer(raw: SerializedLayer): Layer | null {
+function isRecord(raw: unknown): raw is Record<string, unknown> {
+  return raw !== null && typeof raw === "object" && !Array.isArray(raw);
+}
+
+function readLayer(raw: unknown): Layer | null {
+  if (!isRecord(raw)) return null;
   const id = typeof raw.id === "string" && raw.id ? raw.id : layerId();
   const name = typeof raw.name === "string" ? raw.name.slice(0, 60) : "Layer";
   const common = {
@@ -320,7 +332,7 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
   const raw = parsed as Record<string, unknown>;
   if (raw.version !== 2 || !Array.isArray(raw.layers)) return null;
 
-  const layers = (raw.layers as SerializedLayer[])
+  const layers = raw.layers
     .slice(0, MAX_LAYERS)
     .map(readLayer)
     .filter((layer): layer is Layer => layer !== null);
@@ -363,8 +375,9 @@ export function deserializeProject(json: string): (LabProject & { savedAt: numbe
   // fallback so nothing resets.
   let knobSource: Record<string, unknown> = raw;
   if (!Array.isArray(raw.knobs)) {
-    const legacyCarrier = (raw.layers as SerializedLayer[]).find(
-      (entry) => entry.type === "code" && Array.isArray(entry.knobs),
+    const legacyCarrier = raw.layers.find(
+      (entry): entry is SerializedLayer =>
+        isRecord(entry) && entry.type === "code" && Array.isArray(entry.knobs),
     );
     if (legacyCarrier) knobSource = legacyCarrier;
   }
@@ -416,6 +429,7 @@ function readEditRef(raw: unknown): EditRef {
 // ── Director show — defensive read, absent on older projects ──
 const MAX_DIRECTOR_KEYFRAMES = 512;
 const MAX_DIRECTOR_MESSAGES = 256;
+const MAX_DIRECTOR_PATTERN_CUES = 256;
 
 function readDirectorTime(raw: unknown): number {
   // 0.1 s grid, NOT whole seconds — rounding to integers here silently
@@ -440,6 +454,9 @@ function readKeyframe(raw: unknown): DirectorKeyframe | null {
     t: readDirectorTime(entry.t),
     v: Math.min(1000, Math.max(0, v)),
     mode: entry.mode === "curve" ? "curve" : "hold",
+    // Older hand-shaped curves had no h field: leave it absent so they keep
+    // their manual semantics. Never reinterpret legacy cp as automatic.
+    ...(entry.h === "auto" || entry.h === "manual" ? { h: entry.h } : {}),
     cp,
   };
 }
@@ -449,9 +466,9 @@ function readDirector(raw: unknown): DirectorShow {
   if (!raw || typeof raw !== "object") return show;
   const entry = raw as Record<string, unknown>;
   if (typeof entry.title === "string") show.title = entry.title.slice(0, 60);
-  const length = Math.round(Number(entry.length));
-  if (Number.isFinite(length) && length >= 1) {
-    show.length = Math.min(DIRECTOR_MAX_SECONDS, length);
+  const length = readDirectorTime(entry.length);
+  if (length > 0) {
+    show.length = length;
   }
   show.loop = entry.loop === true;
   if (Array.isArray(entry.lanes)) {
@@ -479,6 +496,19 @@ function readDirector(raw: unknown): DirectorShow {
             text: message.text.slice(0, 200),
           },
         ];
+      })
+      .sort((a, b) => a.t - b.t);
+  }
+  if (Array.isArray(entry.patternCues)) {
+    show.patternCues = entry.patternCues
+      .slice(0, MAX_DIRECTOR_PATTERN_CUES)
+      .flatMap((rawCue) => {
+        if (!isRecord(rawCue) || typeof rawCue.name !== "string" || !rawCue.name) return [];
+        return [{
+          id: typeof rawCue.id === "string" && rawCue.id ? rawCue.id : directorId(),
+          t: readDirectorTime(rawCue.t),
+          name: rawCue.name,
+        }];
       })
       .sort((a, b) => a.t - b.t);
   }

@@ -6,17 +6,17 @@
 .dockview-theme-patternflow {
   --dv-group-view-background-color: #fffdf8;
   --dv-tabs-and-actions-container-background-color: #efe9da;
-  --dv-tabs-and-actions-container-height: 30px;
-  --dv-tabs-and-actions-container-font-size: 11px;
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-tabs-and-actions-container-font-size: 12px;
 
   --dv-activegroup-visiblepanel-tab-background-color: #fffdf8;
   --dv-activegroup-hiddenpanel-tab-background-color: #efe9da;
   --dv-inactivegroup-visiblepanel-tab-background-color: #f7f3ea;
   --dv-inactivegroup-hiddenpanel-tab-background-color: #efe9da;
   --dv-activegroup-visiblepanel-tab-color: #171512;
-  --dv-activegroup-hiddenpanel-tab-color: rgba(23, 21, 18, 0.5);
+  --dv-activegroup-hiddenpanel-tab-color: #756f64;
   --dv-inactivegroup-visiblepanel-tab-color: rgba(23, 21, 18, 0.72);
-  --dv-inactivegroup-hiddenpanel-tab-color: rgba(23, 21, 18, 0.42);
+  --dv-inactivegroup-hiddenpanel-tab-color: #756f64;
 
   --dv-tab-divider-color: rgba(23, 21, 18, 0.14);
   --dv-separator-border: rgba(23, 21, 18, 0.18);
@@ -39,7 +39,7 @@
   --dv-context-menu-background-color: #fffdf8;
   --dv-context-menu-color: #171512;
 
-  --dv-tab-font-size: 11px;
+  --dv-tab-font-size: 12px;
   --dv-border-radius: 0;
   --dv-tab-border-radius: 0;
 
@@ -47,9 +47,10 @@
 }
 
 .dockview-theme-patternflow .dv-tab {
-  font-family: var(--font-jetbrains), monospace;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .dockview-theme-patternflow .dv-groupview {

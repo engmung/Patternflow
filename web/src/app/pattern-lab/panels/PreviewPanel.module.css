@@ -14,7 +14,7 @@
   gap: 6px;
   color: rgba(23, 21, 18, 0.5);
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .customMatrixField input {
@@ -26,7 +26,7 @@
   color: #171512;
   padding: 0 6px;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-align: center;
 }
@@ -48,7 +48,7 @@
   background: rgba(40, 120, 220, 0.12);
   color: #1c4f8a;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -67,8 +67,8 @@
   background: rgba(220, 150, 40, 0.12);
   color: #8a5a10;
   font-family: var(--font-jetbrains), monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
+  text-transform: none;
   cursor: help;
 }

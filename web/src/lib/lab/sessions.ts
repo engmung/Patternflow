@@ -47,14 +47,15 @@ function read(): StoredSession[] {
   );
 }
 
-/** Writes, shedding the oldest entries until it fits. */
-function write(sessions: StoredSession[]): void {
+/** Try smaller rings, but leave the previous stored ring intact on failure. */
+function write(sessions: StoredSession[], keepPrevious: boolean): boolean {
   const queue = sessions.slice(0, MAX_SESSIONS);
-  while (queue.length > 0) {
-    if (writeJson(KEY, queue)) return;
+  const minimum = keepPrevious && queue.length > 1 ? 2 : 1;
+  while (queue.length >= minimum) {
+    if (writeJson(KEY, queue)) return true;
     queue.pop(); // quota — give up the oldest and try again
   }
-  removeStorage(KEY);
+  return false;
 }
 
 export function listSessions(): SessionMeta[] {
@@ -69,9 +70,14 @@ export function listSessions(): SessionMeta[] {
 
 /**
  * Push a serialized project onto the ring. Returns false when there was
- * nothing worth keeping.
+ * nothing worth keeping or the new work could not be saved.
  */
-export function stashSession(json: string, title: string, layerCount: number): boolean {
+export function stashSession(
+  json: string,
+  title: string,
+  layerCount: number,
+  options: { keepPrevious?: boolean } = {},
+): boolean {
   if (typeof window === "undefined") return false;
   if (!json || layerCount === 0) return false;
   const entry: StoredSession = {
@@ -82,8 +88,7 @@ export function stashSession(json: string, title: string, layerCount: number): b
     bytes: json.length,
     json,
   };
-  write([entry, ...read()]);
-  return true;
+  return write([entry, ...read()], options.keepPrevious === true);
 }
 
 /** Serialized project for a session, or null if it is gone. */
@@ -92,5 +97,7 @@ export function readSession(id: string): string | null {
 }
 
 export function deleteSession(id: string): void {
-  write(read().filter((entry) => entry.id !== id));
+  const remaining = read().filter((entry) => entry.id !== id);
+  if (remaining.length === 0) removeStorage(KEY);
+  else writeJson(KEY, remaining);
 }
