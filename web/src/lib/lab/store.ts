@@ -12,6 +12,7 @@ import { create } from "zustand";
 import type { MatrixSize } from "@/lib/pattern/matrix";
 import { saveGallery } from "@/lib/lab/legacyDraft";
 import { saveProject } from "./serialize";
+import { createAutosave } from "./autosave";
 import type { DirectorShow } from "./director/types";
 import { isCodeLayer, type BlendMode, type CodeLayer, type EditRef, type ForkRef, type LayerRole, type GalleryItem, type GenJob, type GenSettings, type LabProject, type Layer, type RampState, type RampStopState } from "./types";
 import { defaultProject } from "./store/shared";
@@ -28,6 +29,8 @@ export type LabStore = LabProject & {
   hydrated: boolean;
   /** Non-null when a previous session was restored — drives the header badge. */
   restoredAt: number | null;
+  /** Browser autosave state; never included in the serialized project. */
+  saveStatus: "idle" | "pending" | "saved" | "error";
   gallery: GalleryItem[];
   jobs: GenJob[];
   layerErrors: Record<string, string | null>;
@@ -94,6 +97,7 @@ export const useLabStore = create<LabStore>((set, get) => ({
   ...defaultProject(),
   hydrated: false,
   restoredAt: null,
+  saveStatus: "idle",
   gallery: [],
   jobs: [],
   layerErrors: {},
@@ -110,7 +114,22 @@ export const useLabStore = create<LabStore>((set, get) => ({
 // ── persistence ──
 // Debounced project autosave + gallery persist, gated until hydration so the
 // pre-restore default state can never overwrite a stored project.
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
+const autosave = createAutosave(
+  () => saveProject(useLabStore.getState()),
+  (saved) => useLabStore.setState({ saveStatus: saved ? "saved" : "error" }),
+);
+
+/** Also used by the visible retry action after browser storage recovers. */
+export function saveLabProjectNow(): boolean {
+  if (!useLabStore.getState().hydrated) return false;
+  autosave.schedule();
+  return autosave.flush() === true;
+}
+
+/** Save queued edits before this workspace unmounts or the page is hidden. */
+export function flushLabProject(): void {
+  autosave.flush();
+}
 
 if (typeof window !== "undefined") {
   useLabStore.subscribe((state, previous) => {
@@ -134,24 +153,9 @@ if (typeof window !== "undefined") {
       state.director !== previous.director;
     if (!projectChanged) return;
 
-    if (saveTimer !== null) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-      saveTimer = null;
-      const current = useLabStore.getState();
-      saveProject({
-        name: current.name,
-        matrix: current.matrix,
-        layers: current.layers,
-        activeLayerId: current.activeLayerId,
-        knobs: current.knobs,
-        ranges: current.ranges,
-        knobLabels: current.knobLabels,
-        forkOf: current.forkOf,
-        editOf: current.editOf,
-        gen: current.gen,
-        director: current.director,
-      });
-    }, 600);
+    // Keep a storage error visible during further edits until a save succeeds.
+    if (state.saveStatus !== "error") useLabStore.setState({ saveStatus: "pending" });
+    autosave.schedule();
   });
 }
 

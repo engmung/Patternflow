@@ -14,6 +14,50 @@
   accent-color: #171512;
 }
 
+.paletteActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-jetbrains), monospace;
+  font-size: 10px;
+}
+
+.paletteActions button {
+  min-height: 30px;
+  border: 1px solid rgba(23, 21, 18, 0.22);
+  background: #fffdf8;
+  color: #171512;
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.paletteActions .paletteRandom {
+  background: #171512;
+  color: #fffdf8;
+}
+
+.paletteHistory {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.paletteActions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.paletteActions button:hover:not(:disabled) {
+  border-color: #171512;
+}
+
+.paletteActions button:focus-visible {
+  outline: 2px solid #171512;
+  outline-offset: 2px;
+}
+
 .rampTrack {
   position: relative;
   height: 34px;
@@ -94,6 +138,7 @@
 
 .rampStopEdit {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }

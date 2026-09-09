@@ -26,9 +26,7 @@ import {
   CODE_MAX,
   PublishModal,
   buildsConfigured,
-  clearLabHandoff,
   communityConfigured,
-  readLabHandoff,
 } from "./community";
 import { withKnobsAnnotation } from "@/lib/lab/annotations";
 import { currentPerformanceJson } from "@/lib/lab/director/publish";
@@ -37,10 +35,11 @@ import { flattenLayers, needsFlatten } from "@/lib/lab/flatten";
 import { readStorage, removeStorage, writeStorage } from "@/lib/lab/persist";
 import { LAYOUT_STORAGE, layoutViewCount } from "@/lib/lab/serialize";
 import { listSessions, type SessionMeta } from "@/lib/lab/sessions";
-import { buildStackAnnotation, importCodeIntoLab, stripStackAnnotation } from "@/lib/lab/stackShare";
-import { useLabStore } from "@/lib/lab/store";
+import { buildStackAnnotation, stripStackAnnotation } from "@/lib/lab/stackShare";
+import { flushLabProject, saveLabProjectNow, useLabStore } from "@/lib/lab/store";
 import type { CodeLayer } from "@/lib/lab/types";
 import HardwareModal from "./HardwareModal";
+import { openIncomingPattern } from "./openIncomingPattern";
 import { PANELS, buildDefaultLayout, panelComponents, panelDef, type PanelId } from "./panels/registry";
 
 import styles from "./PatternLab.module.css";
@@ -141,12 +140,14 @@ export default function PatternLabClient() {
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [sharePerfJson, setSharePerfJson] = useState<string | null>(null);
   const [hardwareOpen, setHardwareOpen] = useState(false);
+  const [workError, setWorkError] = useState<string | null>(null);
   const apiRef = useRef<DockviewApi | null>(null);
   const layoutSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hydrate = useLabStore((state) => state.hydrate);
   const restoredAt = useLabStore((state) => state.restoredAt);
-  const discardProject = useLabStore((state) => state.discardProject);
+  const saveStatus = useLabStore((state) => state.saveStatus);
+  const hasLayers = useLabStore((state) => state.layers.length > 0);
   const pieceName = useLabStore((state) => state.name);
   const setPieceName = useLabStore((state) => state.setName);
   const restoreSession = useLabStore((state) => state.restoreSession);
@@ -169,58 +170,24 @@ export default function PatternLabClient() {
     if (bootRef.current) return;
     bootRef.current = true;
     hydrate();
-    const handoff = readLabHandoff();
-    if (handoff) {
-      clearLabHandoff();
-      useLabStore.getState().stashCurrent();
-      // A shared composition carries its layers as a @stack line — restore
-      // them; a plain pattern arrives as one layer. Either way it is now the
-      // only thing on the canvas.
-      //
-      // Two shapes arrive here. Somebody else's pattern is a FORK source: it
-      // becomes a new post when shared. The visitor's own pattern arrives as
-      // an EDIT instead — the same post, reopened — and the two are mutually
-      // exclusive by construction (lib/community/handoff.ts).
-      // Named `editing` rather than `editOf` so it cannot be confused with
-      // the store selector of that name above.
-      const editing = handoff.edit ?? null;
-      const forkOf =
-        !editing && handoff.parentId
-          ? {
-              id: handoff.parentId,
-              title: handoff.parentTitle ?? "a community pattern",
-              license: handoff.parentLicense,
-            }
-          : undefined;
-      const openedTitle = editing?.title ?? handoff.parentTitle ?? undefined;
-      importCodeIntoLab(handoff.code, openedTitle, forkOf)
-        .catch(() => {
-          // The stack failed to restore after the canvas was already
-          // cleared. A flat single layer beats an empty lab with no word on
-          // why; the parked work is still under Recent ▾ either way.
-          try {
-            useLabStore.getState().addCodeLayerFromCode(
-              stripStackAnnotation(handoff.code),
-              openedTitle,
-              forkOf,
-            );
-          } catch {
-            // Nothing left to try.
-          }
-        })
-        .finally(() => {
-          if (!editing) return;
-          const store = useLabStore.getState();
-          store.setEditOf(editing);
-          // Revising a post overwrites the only published copy, so the
-          // version being opened goes into the session ring NOW rather than
-          // at Update time — a crash, a closed tab or a change of mind all
-          // land on the same "get it back from Recent ▾".
-          store.parkSnapshot(`${editing.title} · published`);
-        });
-    }
-    setMounted(true);
+    void openIncomingPattern().then((error) => {
+      setWorkError(error);
+      setMounted(true);
+    });
   }, [hydrate]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flushLabProject();
+    };
+    window.addEventListener("pagehide", flushLabProject);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flushLabProject);
+      document.removeEventListener("visibilitychange", onVisibility);
+      flushLabProject();
+    };
+  }, []);
 
   // A queued layout save must not outlive the dock it describes: leaving the
   // lab tears the dock down, and a save that lands afterwards writes whatever
@@ -395,14 +362,17 @@ export default function PatternLabClient() {
             </span>
           )}
           {restoredAt !== null && (
-            <button
-              type="button"
-              className={styles.headerToggle}
-              title={`Restored your last session (${new Date(restoredAt).toLocaleString()}). Click to discard it and start fresh.`}
-              onClick={discardProject}
+            <span
+              className={styles.saveStatus}
+              title={`Restored your last session (${new Date(restoredAt).toLocaleString()}). Earlier work is under Recent.`}
             >
-              restored ×
-            </button>
+              restored
+            </span>
+          )}
+          {saveStatus !== "idle" && (
+            <span className={styles.saveStatus} title="Saved only in this browser">
+              {saveStatus === "error" ? "Unsaved" : saveStatus === "pending" ? "Saving…" : "Saved locally"}
+            </span>
           )}
         </div>
 
@@ -453,9 +423,15 @@ export default function PatternLabClient() {
               <div className={dock.menuPop} onMouseLeave={() => setRecentOpen(false)}>
                 <button
                   type="button"
+                  disabled={!hasLayers}
                   onClick={() => {
-                    if (stashCurrent()) setRecent(listSessions());
-                    setRecentOpen(false);
+                    if (stashCurrent()) {
+                      setWorkError(null);
+                      setRecent(listSessions());
+                      setRecentOpen(false);
+                    } else {
+                      setWorkError("Could not park this work. Your canvas and earlier Recent entries are intact. Copy your code, then free browser storage or reduce the project size and try again.");
+                    }
                   }}
                 >
                   Park this and start fresh
@@ -473,9 +449,13 @@ export default function PatternLabClient() {
                         session.layerCount === 1 ? "" : "s"
                       } · ${new Date(session.savedAt).toLocaleString()}`}
                       onClick={() => {
-                        restoreSession(session.id);
-                        setRecent(listSessions());
-                        setRecentOpen(false);
+                        if (restoreSession(session.id)) {
+                          setWorkError(null);
+                          setRecent(listSessions());
+                          setRecentOpen(false);
+                        } else {
+                          setWorkError("Could not restore this work: its saved data is unavailable, or the current work could not be backed up. Your canvas is intact.");
+                        }
                       }}
                     >
                       {session.title}
@@ -521,6 +501,18 @@ export default function PatternLabClient() {
           </nav>
         </div>
       </header>
+
+      {(workError || saveStatus === "error") && (
+        <div className={styles.storageNotice} role="alert">
+          <span>{workError ?? "Changes could not be saved in this browser. Keep this tab open and copy your code before leaving. Browser storage may be full or unavailable, or this project may exceed the save limits."}</span>
+          {saveStatus === "error" && (
+            <button type="button" className={styles.headerToggle} onClick={saveLabProjectNow}>Retry save</button>
+          )}
+          {workError && (
+            <button type="button" className={styles.headerToggle} onClick={() => setWorkError(null)}>Dismiss</button>
+          )}
+        </div>
+      )}
 
       <div className={dock.dockHost}>
         {mounted && (

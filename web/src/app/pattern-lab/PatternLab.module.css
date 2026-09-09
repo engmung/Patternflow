@@ -162,6 +162,30 @@
   background: #f7f3ea;
 }
 
+.saveStatus {
+  color: #6b655a;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.storageNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid #b42318;
+  background: #fff4f2;
+  color: #8f1c13;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.storageNotice > span {
+  flex: 1 1 280px;
+}
+
 .errorBox {
   margin-top: 12px;
   border: 1px solid #b42318;

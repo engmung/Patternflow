@@ -23,10 +23,13 @@ export {};
 
 class MemStorage {
   private map = new Map<string, string>();
+  failWrites = false;
+  maxWriteChars = Infinity;
   getItem(key: string): string | null {
     return this.map.has(key) ? (this.map.get(key) as string) : null;
   }
   setItem(key: string, value: string): void {
+    if (this.failWrites || value.length > this.maxWriteChars) throw new Error("QuotaExceededError");
     this.map.set(key, String(value));
   }
   removeItem(key: string): void {
@@ -73,10 +76,11 @@ async function main() {
   const { readLabHandoff, writeLabHandoff, clearLabHandoff } = await import(
     "../src/lib/community/handoff"
   );
-  const { deserializeProject, serializeProject } = await import("../src/lib/lab/serialize");
+  const { deserializeProject, serializeProject, saveProject } = await import("../src/lib/lab/serialize");
+  const { LAB_STORAGE } = await import("../src/lib/lab/persist");
   const { emptyShow } = await import("../src/lib/lab/director/types");
-  const { codeLayerFromSource, useLabStore } = await import("../src/lib/lab/store");
-  const { listSessions } = await import("../src/lib/lab/sessions");
+  const { codeLayerFromSource, useLabStore, saveLabProjectNow } = await import("../src/lib/lab/store");
+  const { listSessions, stashSession } = await import("../src/lib/lab/sessions");
 
   console.log("\n── the community → lab handoff ──");
   writeLabHandoff({
@@ -181,6 +185,50 @@ async function main() {
     })(),
     "p-mine",
   );
+
+  console.log("\n── failed backups cannot replace current work ──");
+  const parkedId = listSessions()[0]!.id;
+  useLabStore.getState().setName("Unsaved new work");
+  saveProject(useLabStore.getState());
+  const before = useLabStore.getState();
+  const ringBefore = localStore.getItem(LAB_STORAGE.sessions);
+  const projectBefore = localStore.getItem(LAB_STORAGE.project);
+  localStore.failWrites = true;
+  check("failed park is reported", before.stashCurrent(), false);
+  check("current layers remain identical", useLabStore.getState().layers === before.layers, true);
+  check("old Recent bytes survive all failed attempts", localStore.getItem(LAB_STORAGE.sessions), ringBefore);
+  check("the autosaved project survives", localStore.getItem(LAB_STORAGE.project), projectBefore);
+  check("snapshot failure is reported too", before.parkSnapshot(), false);
+  check("restore aborts when the current work cannot be parked", before.restoreSession(parkedId), false);
+  check("restore does not replace the name", useLabStore.getState().name, "Unsaved new work");
+  check("restore does not replace the layers", useLabStore.getState().layers === before.layers, true);
+  useLabStore.setState({ hydrated: true });
+  check("autosave retry reports the failure", saveLabProjectNow(), false);
+  check("the UI can display the failure", useLabStore.getState().saveStatus, "error");
+  localStore.failWrites = false;
+  check("autosave can recover", saveLabProjectNow(), true);
+  check("successful retry clears the failure", useLabStore.getState().saveStatus, "saved");
+
+  useLabStore.setState({ layers: [], activeLayerId: "" });
+  localStore.failWrites = true;
+  check("an empty canvas can restore without a backup", before.restoreSession(parkedId), true);
+  localStore.failWrites = false;
+  saveLabProjectNow();
+
+  console.log("\n── quota retries only evict after a successful write ──");
+  localStore.clear();
+  check("seed a large earlier session", stashSession("x".repeat(2000), "Earlier", 1), true);
+  localStore.maxWriteChars = 500;
+  check("a smaller new session can still be saved", stashSession("new", "Latest", 1), true);
+  check("only the saved latest work remains", listSessions().map((entry) => entry.title), ["Latest"]);
+  localStore.maxWriteChars = Infinity;
+  localStore.clear();
+  stashSession("x".repeat(2000), "Work just parked", 1);
+  const protectedRing = localStore.getItem(LAB_STORAGE.sessions);
+  localStore.maxWriteChars = 3500;
+  check("a published snapshot cannot displace the just-parked work", stashSession("y".repeat(3000), "Published", 1, { keepPrevious: true }), false);
+  check("the protected ring is unchanged", localStore.getItem(LAB_STORAGE.sessions), protectedRing);
+  localStore.maxWriteChars = Infinity;
 }
 
 main()
