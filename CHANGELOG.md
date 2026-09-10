@@ -38,6 +38,17 @@ will render differently on the same firmware. Rebuild a module to pick these up.
   The two-argument overload is untouched, so `valueNoise2D`, `perlin2D` and
   `fractal2D` render exactly as before.
 
+### Improved — pattern authoring
+
+- **`floorf`, `fminf` and `fmaxf` stop being calls inside the SDK's own helpers.**
+  On this chip each one is a call into libm, not an instruction. `PFMath` gains
+  `ifloor`, `floorF`, `clamp` and `clamp01`; `fract`, `hsvToRgb` and the noise
+  lattice now use them, with results identical bit for bit. Measured on a rebuilt
+  module on the panel: 1.2% faster. The C++ conversion prompt now tells new
+  patterns to use them — and stops telling them that `sqrtf` is cheap or that
+  `perlin2D` spans −1..1 (it runs to about ±1.51). Installed `.pfm` modules are
+  unchanged; the helpers reach a module when it is next built.
+
 ### Fixed — the panel
 
 - **Raising a code no longer lowers the light.** A bit plane's contribution is
