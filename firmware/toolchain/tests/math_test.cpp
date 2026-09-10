@@ -259,12 +259,27 @@ void sweepColor() {
     const double got[3] = {(double)r, (double)g, (double)b};
     for (int k = 0; k < 3; k++) rampErr = maxd(rampErr, std::fabs(got[k] - want[k]));
   }
-  // Re-pinned 2026-09-10, deliberately: 254.995 -> 0.5. It used to assign the last
-  // stop whose position <= t and return, so a ramp drew hard bands and the error
-  // was the entire 8-bit range. 0.5 is now the whole remaining difference, and it
-  // is not an approximation: it is one half-level of rounding an interpolated
-  // channel to an integer, which is exact behaviour rather than error.
-  pin("sampleRamp vs linear interp", rampErr, 0.49, 0.51, "LSB");
+  // sampleRamp is POSTERISED and that is the design: Origin's stepped colour is
+  // deliberate, confirmed by its author. So this row is not a defect and never
+  // was - it is the distance between a posterised palette and a gradient, which
+  // for a ramp spanning black to white is the whole 8-bit range. It is pinned so
+  // that nobody "fixes" it into an interpolation again. Somebody already tried,
+  // on 2026-09-10, reasoning from the shape of Origin's stops rather than asking.
+  pin("sampleRamp vs linear interp", rampErr, 254.9, 255.0, "LSB");
+  // The gradient variant, for patterns that want one. Same reference, and 0.5 is
+  // the whole difference: one half-level of rounding an interpolated channel to
+  // an integer, which is exact behaviour rather than error.
+  double lerpErr = 0.0;
+  for (int i = 0; i <= 100000; i++) {
+    const double t = (double)i / 100000.0;
+    uint8_t r = 0, g = 0, b = 0;
+    PFColor::sampleRampLerp(ramp, 3, (float)t, r, g, b);
+    double want[3];
+    rampRef(ramp, 3, t, want);
+    const double got[3] = {(double)r, (double)g, (double)b};
+    for (int k = 0; k < 3; k++) lerpErr = maxd(lerpErr, std::fabs(got[k] - want[k]));
+  }
+  pin("sampleRampLerp vs linear interp", lerpErr, 0.49, 0.51, "LSB");
 }
 
 void sweepNoise() {

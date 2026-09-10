@@ -62,24 +62,42 @@ struct ColorStop {
   uint8_t r, g, b;
 };
 
-// Sample a colour ramp at t in 0..1, interpolating between the two stops that
-// bracket it. Stops must be sorted by position.
+// POSTERISED sampling: the colour of the last stop at or below t, held until the
+// next one. Flat bands with hard edges, not a gradient.
 //
-// This used to assign the last stop whose position <= t and return - a step
-// function, in an API named ramp, taking stops with float positions. Nothing
-// said so; it was measured at 255 LSB from a linear interpolation, which is the
-// entire 8-bit range. The evidence that it was never intended is in the one
-// pattern that calls it: preset_origin.h places stops at 0.154, 0.556 and 0.816
-// and ends with TWO identical white stops at 0.816 and 1.000. Irregular
-// positions are gradient control points, and a duplicated final stop is how you
-// say "reach white here and hold it" - under a step function it does nothing at
-// all. Origin has been drawing bands where its author wrote a gradient.
+// The name says ramp and the stops carry float positions, so this reads like a
+// gradient function and is not one. It stays this way deliberately: Origin is
+// built on it and its stepped colour is the design, not an accident of the
+// helper. Read 2026-09-10, where this was briefly "fixed" into an interpolation
+// on the strength of Origin ending in two identical white stops - which looked
+// like a gradient plateau and was not. Ask the author, not the data.
 //
-// Cost: one divide per sample, which is a __divsf3 call on the S3. If that shows
-// up in /api/status renderFrameUs, the answer is a prepared ramp that bakes the
-// reciprocal spans once, not a return to drawing the wrong thing.
+// For a smooth gradient use sampleRampLerp below. For a hard-banded palette,
+// this is the right function and it costs no division.
 inline void sampleRamp(const ColorStop* ramp, int count, float t,
                        uint8_t& r, uint8_t& g, uint8_t& b) {
+  if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
+  r = ramp[0].r; g = ramp[0].g; b = ramp[0].b;
+  for (int i = 0; i < count; i++) {
+    if (t >= ramp[i].position) {
+      r = ramp[i].r; g = ramp[i].g; b = ramp[i].b;
+    } else {
+      break;
+    }
+  }
+}
+
+// Gradient sampling: linear interpolation between the two stops bracketing t.
+// Stops must be sorted by position; two at the same position give a hard edge,
+// which is how a gradient expresses a boundary.
+//
+// Costs one division per sample, and on this target that is a __divsf3 call -
+// measured at 103 -> 331 bytes of code at a five-stop call site. Per pixel that
+// is real: on Origin's own ramp it would have cost about a third of the pattern's
+// draw time. Worth it for a gradient, not worth paying by accident, which is the
+// other reason the two are separate functions rather than one with a flag.
+inline void sampleRampLerp(const ColorStop* ramp, int count, float t,
+                           uint8_t& r, uint8_t& g, uint8_t& b) {
   if (count <= 0) { r = 0; g = 0; b = 0; return; }
   if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
   if (count == 1 || t <= ramp[0].position) {
@@ -89,8 +107,6 @@ inline void sampleRamp(const ColorStop* ramp, int count, float t,
   for (int i = 1; i < count; i++) {
     if (t <= ramp[i].position) {
       const float span = ramp[i].position - ramp[i - 1].position;
-      // Two stops at the same position are a hard edge on purpose - that is how
-      // a ramp says "boundary" - and must not divide by zero.
       const float u = span > 0.0f ? (t - ramp[i - 1].position) / span : 1.0f;
       const ColorStop& a = ramp[i - 1];
       const ColorStop& c = ramp[i];

@@ -294,7 +294,8 @@ The sin LUT is 4 KB (1024 entries, ~0.35° resolution) and shared. Do not build 
 ```cpp
 PFColor::hsvToRgb(h, s, v, r, g, b);                // h is 0..1 (not degrees)
 PFColor::ColorStop ramp[] = { {0.0f, 0,0,0}, ... };
-PFColor::sampleRamp(ramp, count, t, r, g, b);  // interpolates; equal positions = hard edge
+PFColor::sampleRamp(ramp, count, t, r, g, b);       // POSTERISED - flat bands, no divide
+PFColor::sampleRampLerp(ramp, count, t, r, g, b);   // gradient - one divide per sample
 ```
 
 ### `core_noise.h` — PFNoise

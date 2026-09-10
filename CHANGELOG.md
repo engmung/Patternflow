@@ -6,22 +6,19 @@ All notable changes to Patternflow will be documented in this file.
 
 ### Fixed — the pattern SDK
 
-Three helpers that every pattern compiles into itself did not do what their
-names said. All three change what a pattern draws, and because `abi/pf_module.h`
+Two helpers that every pattern compiles into itself did not do what their
+names said, and a third gained a variant it was missing. The two fixes change what a pattern draws, and because `abi/pf_module.h`
 *includes* these files rather than calling into the host, the change reaches only
 **newly built** `.pfm` modules: an installed module and a rebuild of its own source
 will render differently on the same firmware. Rebuild a module to pick these up.
 
-- **`PFColor::sampleRamp` interpolates.** It walked the stops and assigned the last
-  one whose `position <= t`, so an API named *ramp*, taking stops with float
-  positions, drew hard bands — measured 255 LSB from a linear interpolation, which
-  is the entire 8-bit range. That this was never the intent is visible in the one
-  pattern that calls it: Origin places stops at 0.154, 0.556 and 0.816 and ends with
-  two identical white stops at 0.816 and 1.000. Irregular positions are gradient
-  control points, and a duplicated final stop is how you say "reach white here and
-  hold it" — under a step function it does nothing at all. Origin has been drawing
-  bands where its author wrote a gradient. Coincident stops still give a hard edge,
-  which is how a ramp expresses a boundary.
+- **`PFColor::sampleRampLerp` is new; `sampleRamp` is unchanged.** `sampleRamp`
+  holds the last stop at or below `t`, giving flat bands with hard edges. That
+  reads like a gradient function that forgot to interpolate, and it is not one —
+  Origin is built on it and its stepped colour is deliberate. Patterns that want
+  a gradient now call `sampleRampLerp`, which interpolates between the bracketing
+  stops and costs one soft-float division per sample; the C++ conversion prompt
+  names both and says which is which.
 - **`PFColor::hsvToRgb` rounds.** Each channel was `(uint8_t)(f * 255.0f)` —
   truncation, no `+ 0.5f` — so the function sat half a level dark on every channel,
   always in the same direction: a mean of **−0.470 LSB** swept over the HSV cube.
