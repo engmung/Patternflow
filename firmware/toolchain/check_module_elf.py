@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -78,8 +79,14 @@ def main() -> None:
         with zipfile.ZipFile(ROOT / "web/public/packs/basics.zip") as pack:
             for index, member in enumerate(pack.namelist()):
                 if member.endswith(".pfm"):
-                    # Flat generated names: archive paths never reach the filesystem.
-                    fixture = work / f"module_{index}.pfm"
+                    # Archive paths never reach the filesystem: Path().name drops any
+                    # directory component an archive might carry, and the substitution
+                    # leaves nothing that could be one. The index keeps it unique even
+                    # if two entries sanitise to the same string. The name is kept
+                    # rather than generated because the test now reports which module
+                    # is the largest, and "module_52.pfm" does not answer that.
+                    safe = re.sub(r"[^A-Za-z0-9._-]", "_", Path(member).name)
+                    fixture = work / f"{index:02d}-{safe}"
                     fixture.write_bytes(pack.read(member))
                     fixtures.append(str(fixture))
         if not fixtures:

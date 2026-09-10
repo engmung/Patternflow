@@ -80,8 +80,38 @@ static T read(const std::vector<char>& image, size_t offset) {
   return value;
 }
 
+// The largest executable-section total a module shipped from this repository may
+// have. It is NOT a guarantee that a board will admit it: the device compares
+// codeBytes against budget() = serviceFree() - PF_MODULE_INTERNAL_RESERVE, and
+// serviceFree() is ambient - an HTTP response in flight, an rtpMIDI session and a
+// DHCP renew all move it. This is a floor of observations, and its job is to stop
+// a module being added here that the tightest edition cannot load.
+//
+// Set 2026-09-10 from docs/investigations/2026-09-firmware-runtime.md:
+//   the module's internal share with none resident measures 7,816 B (section 4.4)
+//   boot-to-boot ambient variance is about 700 B (section 4.1)
+//   so the worst reasonable budget is about 7,116 B
+//   the largest module currently shipped, breakout_arcade.pfm, is 5,364 B
+// 6,144 sits 780 B above what ships and 972 B below the worst budget. Section 4.2
+// is what the absence of this number cost: a firmware that could not load its own
+// pack, 24,576 + 5,364 = 29,940 against ~28,320 free, found by hardware bisect.
+//
+// Raising it is allowed and is a decision, not a formality: re-measure
+// moduleMemory.budget from /api/status on the Audio edition (the tightest - 41,036 B
+// internal free after smoke, against Default's 73,172 B), with the console open and
+// a module resident, sample repeatedly against the ambient variance, and say in the
+// commit which observation the new number came from.
+static constexpr size_t SHIPPED_CODE_CEILING = 6144;
+
+static size_t largestShippedCode = 0;
+static const char* largestShippedName = "";
+
 // Exercise the production bounds functions on the modules actually shipped
 // in Basics. This checks compatibility of the file checks, not Xtensa execution.
+//
+// It also PRICES each module exactly as core_module_loader.h does in its pass 1,
+// because structure being valid is not the same as the module being loadable, and
+// only the second question is the one that stops a pattern appearing on a panel.
 static void shippedModule(const char* path) {
   std::ifstream file(path, std::ios::binary);
   require(file.good(), "cannot open fixture");
@@ -92,6 +122,7 @@ static void shippedModule(const char* path) {
     require(index < header.shnum, "fixture section index");
     return read<Elf32Shdr>(image, header.shoff + index * sizeof(Elf32Shdr));
   };
+  size_t codeBytes = 0;
   for (size_t i = 1; i < header.shnum; ++i) {
     auto s = section(i);
     if (s.flags & SHF_ALLOC) {
@@ -99,6 +130,10 @@ static void shippedModule(const char* path) {
       require(sectionAllocationSize(s.size, rounded), "shipped section size rejected");
       if (s.type != SHT_NOBITS)
         require(rangeValid(s.offset, s.size, image.size()), "shipped section range rejected");
+      // core_module_loader.h pass 1, to the letter: allocatable, non-empty,
+      // rounded up to four, executable summed. If that rule ever moves, this
+      // has to move with it or the number below stops meaning anything.
+      if (s.size != 0 && (s.flags & SHF_EXECINSTR)) codeBytes += rounded;
     }
     if (s.type == SHT_SYMTAB) {
       auto strings = section(s.link);
@@ -120,6 +155,19 @@ static void shippedModule(const char* path) {
       }
     }
   }
+  if (codeBytes > largestShippedCode) {
+    largestShippedCode = codeBytes;
+    largestShippedName = path;
+  }
+  if (codeBytes > SHIPPED_CODE_CEILING) {
+    std::cerr << path << ": " << codeBytes << " B of executable sections, over the "
+              << SHIPPED_CODE_CEILING << " B ceiling for a module shipped from this\n"
+              << "repository. A board admits code only against "
+              << "serviceFree() - PF_MODULE_INTERNAL_RESERVE, so this one may simply\n"
+              << "not come on. Read the ceiling's provenance in this file before "
+              << "raising it.\n";
+    throw std::runtime_error("shipped module over the code ceiling");
+  }
 }
 
 int main(int argc, char** argv) {
@@ -127,6 +175,16 @@ int main(int argc, char** argv) {
     regressions();
     for (int i = 1; i < argc; ++i) shippedModule(argv[i]);
     std::cout << "ELF regressions passed; " << argc - 1 << " shipped modules accepted\n";
+    if (argc > 1) {
+      const char* slash = strrchr(largestShippedName, '/');
+      const char* back = strrchr(largestShippedName, '\\');
+      if (back > slash) slash = back;
+      std::cout << "largest module code: " << largestShippedCode << " B ("
+                << (slash ? slash + 1 : largestShippedName)
+                << "), ceiling " << SHIPPED_CODE_CEILING
+                << " B, headroom " << (SHIPPED_CODE_CEILING - largestShippedCode)
+                << " B\n";
+    }
     return 0;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
