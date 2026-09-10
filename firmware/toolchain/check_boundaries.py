@@ -18,7 +18,9 @@ console header that drifted from its HTML, platformio.ini names libraries
 because the dependency finder cannot. This is the same idea aimed at the
 boundary itself.
 
-Four rules:
+Six rules. R1-R5 police the FORBIDDEN direction - what the core must not say.
+R6 polices the required one, which is the direction the worst regression this
+project has actually shipped went in:
 
   R1  Core references no feature namespace. The namespace list is read from
       the feature directories themselves, so a brand-new feature is guarded
@@ -40,6 +42,18 @@ Four rules:
       lived exactly there (the nav table, the home page's feature rows).
       Rules 1-3 blank raw strings before scanning, so they could never see
       it; this one reads the page text with its comments stripped.
+  R6  A hook that is declared is dispatched, and a hook that is dispatched is
+      called. The interface (pf_feature.h), the dispatcher (pf_features.h) and
+      the core's call sites were joined by attention alone, and attention is
+      what failed: PFFeatures::loop(frame) went missing in v3.7.0 and every
+      feature's loop stopped, silently, on a build that compiled, linked, ran
+      and served every route. docs/EDITIONS.md calls it the worst bug this
+      project has shipped, and says the editions would not have caught it -
+      they cannot, because a hook nobody calls type-checks perfectly.
+      Comments are stripped for this one too, and here that is load-bearing
+      rather than tidy: patternflow.ino's header names PFFeatures::loop inside
+      the very comment describing its disappearance, so a rule that read raw
+      text would be satisfied by the account of the bug.
 
 License: MIT
 """
@@ -197,6 +211,115 @@ def check_core_pages() -> list[str]:
     return found
 
 
+def check_hook_chain() -> list[str]:
+    """R6 - the chain from interface to dispatcher to core is unbroken.
+
+    R1-R5 all police the FORBIDDEN direction: what the core must not say. None of
+    them polices the required one, and that is the direction the worst regression
+    this project has shipped went in. patternflow.ino's own header records it:
+    PFFeatures::loop(frame) went missing in v3.7.0, every feature's loop silently
+    stopped, and nothing failed to compile - the build linked, ran, served every
+    route, and had every feature initialised and frozen. Compiling four editions
+    cannot catch it, because a hook nobody calls type-checks perfectly.
+
+    So: R6a every hook in the interface is fanned out by the dispatcher, and R6b
+    something in the core reaches it. Comments are stripped for both, which is not
+    a detail - patternflow.ino:66 names PFFeatures::loop inside the very comment
+    that describes the bug, so a naive grep is satisfied by the description of the
+    thing going missing.
+    """
+    problems: list[str] = []
+    interface = SKETCH / FEATURE_DIR / "pf_feature.h"
+    dispatcher = SKETCH / FEATURE_DIR / "pf_features.h"
+    if not interface.exists() or not dispatcher.exists():
+        return [f"{FEATURE_DIR}/pf_feature.h or pf_features.h is missing - "
+                f"R6 cannot check the hook chain"]
+
+    itext = stripped(interface)
+    struct = re.search(r"struct\s+PFFeature\s*\{(.*?)\n\};", itext, re.S)
+    if not struct:
+        return ["features/pf_feature.h: no `struct PFFeature { ... };` found - R6 "
+                "cannot see the hook list, so fix this rule rather than dropping it"]
+    hooks = re.findall(r"\(\s*\*\s*(\w+)\s*\)\s*\(", struct.group(1))
+    if not hooks:
+        return ["features/pf_feature.h: struct PFFeature declares no function "
+                "pointers - R6 would pass vacuously, which is worse than failing"]
+
+    dtext = stripped(dispatcher)
+    for hook in hooks:
+        # R6a - the dispatcher fans this hook out over the feature list.
+        if not re.search(r"->\s*" + re.escape(hook) + r"\b", dtext):
+            problems.append(
+                f"{FEATURE_DIR}/pf_features.h: hook `{hook}` is declared in "
+                f"pf_feature.h but no dispatcher reaches it - half a tail-append, "
+                f"and the compiler cannot see the missing half")
+
+    # R6b - and something in the core calls into the dispatcher for it. A hook is
+    # reached through the PFFeatures:: function whose body dispatches it, which is
+    # usually but not always the same name (isToggleable reaches isRuntimeEnabled).
+    bodies = dispatcher_bodies(dtext)
+    entry_points: dict[str, set[str]] = {}
+    for name, body in bodies.items():
+        for hook in hooks:
+            if re.search(r"->\s*" + re.escape(hook) + r"\b", body):
+                entry_points.setdefault(hook, set()).add(name)
+
+    core_text = "\n".join(stripped(p) for p in core_files())
+    # Transitive closure over ACTUAL function bodies, not over a window of text:
+    # a core call to A reaches whatever A's own body calls, and so on. Doing this
+    # by proximity instead makes every name reachable and the rule passes on an
+    # empty tree, which is the failure mode this comment exists to prevent.
+    called = set(re.findall(r"PFFeatures::(\w+)", core_text))
+    frontier = set(called)
+    while frontier:
+        nxt: set[str] = set()
+        for name in frontier:
+            for callee in re.findall(r"\b(\w+)\s*\(", bodies.get(name, "")):
+                if callee in bodies and callee not in called:
+                    nxt.add(callee)
+        called |= nxt
+        frontier = nxt
+
+    for hook in hooks:
+        if hook not in entry_points:
+            continue  # already reported by R6a
+        if not (entry_points[hook] & called):
+            reachable = ", ".join(sorted(entry_points[hook]))
+            problems.append(
+                f"patternflow.ino / src/: nothing in the core calls "
+                f"PFFeatures::{{{reachable}}}, so hook `{hook}` is dispatched by "
+                f"pf_features.h and never fires. This is the v3.7.0 shape - it "
+                f"compiles, links, runs, and does nothing")
+
+    # Counts, not a claim - an earlier draft printed "all dispatched" next to the
+    # violations saying otherwise. They are here so a vacuous pass is visible: a
+    # rule that finds zero hooks would also report zero problems.
+    print(f"hook chain: {len(hooks)} hooks declared, {len(entry_points)} dispatched, "
+          f"reached from the core through {len(called & set(bodies))} of "
+          f"pf_features.h's {len(bodies)} functions")
+    return problems
+
+
+def dispatcher_bodies(dtext: str) -> dict[str, str]:
+    """name -> body text, for every function defined in pf_features.h."""
+    bodies: dict[str, str] = {}
+    for m in re.finditer(r"\b(\w+)\s*\([^;{)]*\)\s*(?:const\s*)?\{", dtext):
+        start = dtext.index("{", m.end() - 1)
+        depth, i = 0, start
+        while i < len(dtext):
+            if dtext[i] == "{":
+                depth += 1
+            elif dtext[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        # A name can be defined once; overloads would merge, which is fine here
+        # because reachability is what is being asked, not which overload.
+        bodies[m.group(1)] = bodies.get(m.group(1), "") + dtext[start:i]
+    return bodies
+
+
 def main() -> int:
     violations: list[str] = []
     cores = core_files()
@@ -268,6 +391,9 @@ def main() -> int:
 
     # R5 - the core's pages name no feature
     violations.extend(check_core_pages())
+
+    # R6 - a declared hook is actually dispatched, and actually called
+    violations.extend(check_hook_chain())
 
     if violations:
         print("the core/feature boundary is breached:\n")
