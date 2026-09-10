@@ -215,7 +215,7 @@ Always-required includes:
 
 Conditional includes — only when actually used in your code:
 
-    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fastPow, fract, jsMod, lerp, approxLength, sin LUT
+    #include "src/core_math.h"   // PFMath:: fastSin, fastCos, fastAtan2, fastPow, fract, ifloor, floorF, clamp, clamp01, jsMod, lerp, approxLength, sin LUT
     #include "src/core_color.h"  // PFColor:: hsvToRgb, buildPowLUT/buildPowLUTf, ColorStop, sampleRamp
     #include "src/core_noise.h"  // PFNoise:: cellHash, valueNoise2D, perlin2D, fractal2D
     #include "src/core_tables.h" // PFTables:: init(), rT[], thetaT[] — per-pixel radius/angle from the panel center, precomputed
@@ -269,6 +269,8 @@ The firmware ships tested, optimized versions of these. Using your own breaks sh
 
 - DO NOT write your own HSV → RGB converter. Not as a separate function, not inline with a switch statement, not as a chain of fmodf + conditionals. Call PFColor::hsvToRgb(h, s, v, r, g, b). h is normalized 0..1, not degrees.
 - DO NOT translate JavaScript's % operator on floats as fmodf(a, b). Call PFMath::jsMod(a, b): the same sign rule as JS %, and no library call — fmodf inside a module is a call into the host's libm on every pixel, and a hue wrap like (h + 0.33) % 1 runs once per pixel.
+- DO NOT call floorf(). It is not an instruction on this target - GCC emits a call into a ~50-instruction libm routine at every use, under every optimization level. Use PFMath::ifloor(x) for the integer, PFMath::floorF(x) for the float, or PFMath::fract(x) for the fractional part; all three truncate and correct, which is five instructions and no call. Measured: removing one floorf from a per-pixel path also made the object code SMALLER, because the call sequence costs more than the inline does.
+- DO NOT call fminf() / fmaxf() to clamp. Each is a register-window call for a comparison the FPU does in one instruction. Write PFMath::clamp(x, lo, hi) or PFMath::clamp01(x), or a plain ternary - all compile to a compare and a branch.
 - DO NOT write your own sin LUT or fast-sin approximation. Call PFMath::buildSinLUT() once in setup(); use PFMath::fastSin / fastCos in draw().
 - DO NOT write your own Perlin or fractal noise. Use PFNoise::perlin2D / fractal2D.
 - DO NOT write your own atan/atan2 approximation or angle LUT. Use PFMath::fastAtan2 or the precomputed PFTables::thetaT (see the decision table).

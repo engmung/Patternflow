@@ -12,11 +12,13 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "core_math.h"  // ifloor/clamp: floorf and fminf are libm calls here
+
 namespace PFColor {
 
 inline void hsvToRgb(float h, float s, float v,
                      uint8_t& r, uint8_t& g, uint8_t& b) {
-  h = h - floorf(h);
+  h = h - PFMath::floorF(h);
   if (h < 0.0f) h += 1.0f;
   if (s < 0.0f) s = 0.0f; else if (s > 1.0f) s = 1.0f;
   if (v < 0.0f) v = 0.0f; else if (v > 1.0f) v = 1.0f;

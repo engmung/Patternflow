@@ -12,6 +12,8 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "core_math.h"  // ifloor: floorf is a libm call on this target
+
 namespace PFNoise {
 
 inline const uint8_t perm[512] = {
@@ -61,8 +63,8 @@ inline float lerpF(float a, float b, float t) {
 inline float perlin2D(float x, float y) {
   // One floor per axis; the fractional part is the same subtraction it
   // always was, from the integer already in hand.
-  const int xi = (int)floorf(x);
-  const int yi = (int)floorf(y);
+  const int xi = PFMath::ifloor(x);
+  const int yi = PFMath::ifloor(y);
   int X = xi & 255;
   int Y = yi & 255;
   x -= (float)xi;
@@ -131,8 +133,8 @@ inline float cellHash(int gx, int gy, int seed) {
 // Cheaper than perlin2D (no gradient dot products) — a good default for soft
 // organic fields; reach for perlin2D/fractal2D when you need richer structure.
 inline float valueNoise2D(float x, float y) {
-  int X = (int)floorf(x);
-  int Y = (int)floorf(y);
+  int X = PFMath::ifloor(x);
+  int Y = PFMath::ifloor(y);
   float fx = x - (float)X;
   float fy = y - (float)Y;
   float ux = fx * fx * (3.0f - 2.0f * fx);

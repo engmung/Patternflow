@@ -37,8 +37,43 @@ inline void buildSinLUT() {
   sinLUTReady = true;
 }
 
+// Round toward negative infinity, as an int. On this target floorf() is not an
+// instruction: GCC emits `call8 floorf` into a ~50-instruction newlib routine at
+// every use, under -O2, -Os and even -ffast-math, and __builtin_floorf makes no
+// difference. The FPU does have a FLOOR.S, but reaching it needs inline asm,
+// and asm cannot be checked by a host test - which for a file that IS the pattern
+// SDK is the more expensive problem.
+//
+// So: truncate, which IS one instruction (TRUNC.S), and correct the one case
+// where truncation and flooring differ - a negative non-integer, where trunc
+// lands one above floor. Five instructions and no call, identical arithmetic on
+// the host and the panel, so check_math.py actually verifies what ships.
+//
+// Domain |x| < 2^31, the same limit jsMod documents below and for the same
+// reason: the cast is what does the work.
+inline int ifloor(float x) {
+  const int i = (int)x;
+  return (float)i > x ? i - 1 : i;
+}
+
+inline float floorF(float x) {
+  return (float)ifloor(x);
+}
+
 inline float fract(float x) {
-  return x - floorf(x);
+  float t = (float)(int)x;
+  if (t > x) t -= 1.0f;
+  return x - t;
+}
+
+// fminf/fmaxf are libm calls too - two register-window frames for a comparison
+// the FPU does in one OLT.S. Written as a comparison, GCC emits exactly that.
+inline float clamp(float x, float lo, float hi) {
+  return x < lo ? lo : (x > hi ? hi : x);
+}
+
+inline float clamp01(float x) {
+  return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
 }
 
 // JavaScript's `%` on floats: the sign of the dividend, the magnitude below
