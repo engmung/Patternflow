@@ -237,7 +237,7 @@ Helper signatures — these are the FULL argument lists. Call them exactly like 
     float th = PFTables::thetaT[y * PANEL_RES_W + x];    // fixed-center angle, -π..π
     float h  = PFNoise::cellHash(gx, gy);                // int cell coords → 0..1; optional 3rd int seed
     float n  = PFNoise::valueNoise2D(x, y);              // floats → 0..1
-    float p  = PFNoise::perlin2D(x, y);                  // floats → ≈ -1..1
+    float p  = PFNoise::perlin2D(x, y);                  // floats → about -1.51..1.51, NOT -1..1
     float f  = PFNoise::fractal2D(x, y, octaves, roughness);
     PFColor::hsvToRgb(h01, s01, v01, r8, g8, b8);        // h/s/v floats 0..1; r8/g8/b8 are uint8_t& outputs
     static uint8_t plut[256];  PFColor::buildPowLUT(exponent, plut);   // fills (i/255)^exp scaled to 0..255
@@ -284,7 +284,7 @@ The board trades memory for per-pixel math, and memory is the plentiful side of 
 |---|---|
 | Radius and/or angle from the FIXED panel center (rings, spirals, vortex, kaleidoscope) | PFTables::init() once in setup(); then PFTables::rT[i] / PFTables::thetaT[i] in draw() with i = y * PANEL_RES_W + x. Zero per-pixel cost — never call sqrtf or atan2f for a fixed center. rT is in screen-height units (0 center, 0.5 top/bottom edge); thetaT is -π..π. |
 | Angle from a MOVING center | PFMath::fastAtan2(dy, dx) (~0.01° max error). Never call atan2f inside the pixel loop. |
-| Distance from a MOVING center | sqrtf(dx*dx + dy*dy) — the S3 FPU makes sqrtf cheap; two per pixel cost under 1 ms per frame. |
+| Distance from a MOVING center | sqrtf(dx*dx + dy*dy). Note that sqrtf is a CALL into libm on this target, not an FPU instruction — verified by disassembling the shipping compiler — so it is not free, and a per-pixel one is worth avoiding where the geometry allows. Compare squared distances instead of taking a root wherever the comparison is all you need. |
 | Random value per grid cell (voronoi seeds, cell colors/phases) | PFNoise::cellHash(gx, gy) or cellHash(gx, gy, seed). |
 | Smooth organic field | PFNoise::valueNoise2D (cheapest) or perlin2D / fractal2D (richer). |
 | powf(v, CONSTANT) | v*v for squares; otherwise bake a LUT in setup() with PFColor::buildPowLUT (byte out) / buildPowLUTf (float out) and index it in draw(). |
@@ -292,7 +292,7 @@ The board trades memory for per-pixel math, and memory is the plentiful side of 
 | powf(v, e) where e VARIES per pixel or per frame | PFMath::fastPow(v, e) — never call libm powf inside the pixel loop. fastPow returns 0 for v <= 0; if the JS relied on Math.pow(0, negative) → Infinity → clamp-to-max, branch on v <= 0 explicitly and output that clamped value. |
 | sin/cos inside the pixel loop | PFMath::fastSin / fastCos (call buildSinLUT() in setup()). Full-precision sinf/cosf only for one-shot computations outside the loop — and for hash inputs, use cellHash instead entirely. |
 
-approxLength caveat: PFMath::approxLength is an octagonal approximation (~5% error — the isodistance contour is a visible octagon). With PFTables::rT and cheap sqrtf available it is almost never the right choice; only use it for non-visual weighting terms where the contour can never be seen. When in doubt, use PFTables::rT (fixed center) or sqrtf (moving center).
+approxLength caveat: PFMath::approxLength is an octagonal approximation — 6.8% maximum relative error, measured and pinned by firmware/toolchain/check_math.py, and the isodistance contour is a visible octagon. With PFTables::rT available it is almost never the right choice; only use it for non-visual weighting terms where the contour can never be seen. When in doubt, use PFTables::rT (fixed center) or sqrtf (moving center).
 
 Last resort — half-resolution rendering: if the pattern is genuinely smooth/low-frequency and still too slow after the table above, compute the value on a 64×32 grid inside draw() and write each result to a 2×2 pixel block. Only for soft gradients; never for patterns with single-pixel details.
 

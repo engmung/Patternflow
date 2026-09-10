@@ -38,6 +38,78 @@ will render differently on the same firmware. Rebuild a module to pick these up.
   The two-argument overload is untouched, so `valueNoise2D`, `perlin2D` and
   `fractal2D` render exactly as before.
 
+### Fixed — audio in
+
+- **A panel with no microphone no longer takes the knobs.** The Hann window used
+  the symmetric denominator (`N - 1`) where a stream analysed hop after hop needs
+  the periodic one (`N`). Only the periodic window has a DFT of exactly three
+  bins, so only it keeps a constant input out of every other band — and the
+  dead-rail check downstream is precisely a test for "constant input, nothing in
+  the bands". Computed over the shipped band edges with a flat rail, the
+  symmetric window gave 0.0666 / 1.8e-3 / 1.3e-4 / 1.3e-5, three of the four
+  above the 1e-4 threshold; the periodic one gives ~1e-13 in all four. So the
+  check returned false for every dead rail there has ever been, an audio-edition
+  panel with the mic switched on but nothing wired claimed all four lanes and
+  pinned them, and a hand on a knob sprang back. The measurement recorded in that
+  function's own comment was taken before there was a window at all, which is how
+  adding one broke it without touching it.
+- **A backlogged microphone no longer colours the lanes for seconds.** The drain
+  loop keeps only the newest hop, so after it ran the window was built from two
+  pieces of audio that were not adjacent, spliced at index 256 — the exact centre,
+  where the Hann term peaks at 2.0 and attenuates the discontinuity by nothing.
+  Reading alternately into two hop buffers keeps the hop that actually precedes
+  the newest one. The drain itself was right and is unchanged; only the seam was
+  wrong.
+
+### Fixed — MIDI
+
+- **A stuck note can be cleared, and stops disabling the panel's own button.**
+  Held-note state had exactly one clearing edge — a note-off for that note — on
+  the one input path that can lose packets. Three ways out were missing: the
+  channel-mode messages (All Sound Off, Reset All Controllers, All Notes Off) fell
+  through the CC handler and did nothing, so the control a person reaches for when
+  a note sticks was inert; turning MIDI off at runtime discarded the note-off
+  while `fillInput` kept asserting the button, because it was the one handler with
+  no runtime gate; and an RTP peer that vanished took the release with it. All
+  three now clear. This matters more than it sounds: `observeFrame` reads
+  `btnHeld && !noteHeld` to decide a press was physical, so a stuck MIDI note also
+  silenced the encoder button under it.
+
+### Fixed — the parameter bus
+
+- **How far a legacy pattern travels no longer depends on how finely the sender
+  chopped the move.** An absolute write reaches a delta-only pattern as clicks at
+  ten bus units each, and the rule "never fewer than one for a change" turned a
+  smooth ten-second ease into one click per update: 830 of them at 83 fps where
+  the travel means 100, and half that at 41 fps. The remainder is carried now, so
+  the total is the travel and the frame rate is out of it — which is what the show
+  player already claimed of itself.
+- **`dN` on an unheld channel works.** `applyRemoteDelta` accepted a click on any
+  channel but only the held branch drained the queue, so a delta sent to a channel
+  nobody was holding did nothing visible and then arrived in full the moment
+  something held it, or was wiped by the next release. It is also bounded now:
+  `d1=999999999` was accepted and handed to a pattern as that many clicks.
+- **`POST /api/params?rN=1` releases a channel.** The bus could be written over
+  HTTP but not let go of over HTTP — the only ways back were a hand on that
+  encoder, or MQTT and the show player, which the default, audio and clock
+  editions do not carry. And since holding a channel also clears the audio lane
+  under it, one console slider could silence a mic lane with no way to undo it
+  from the same console.
+
+### Fixed — patterns and storage
+
+- **Re-uploading a pattern updates its picture.** Both upload paths and the
+  library pull invalidated the sidecar cache under a slug and not the thumbnail,
+  so editing a pattern in the Lab and sending it back under the same name left the
+  previous version's frame on the volume, and SELECT drew it under the new name.
+  It survived reboots.
+- **A stalled frame no longer makes the picture jump.** `dt` was an unbounded
+  `millis()` delta, and installing a pattern, an NVS commit or a thumbnail write
+  all produce frames far longer than a nominal one — measured at 273,949 µs
+  against 12,000 µs on an ordinary upload session. Every pattern integrates
+  against that number, so it moved everything a quarter of a second in one step.
+  Bounded at 100 ms, at the single place it is produced.
+
 ### Fixed — firmware core
 
 - **An upload that stalled could panic the board.** The wait loop in the request

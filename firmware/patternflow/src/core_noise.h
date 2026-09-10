@@ -60,6 +60,14 @@ inline float lerpF(float a, float b, float t) {
   return a + (b - a) * t;
 }
 
+// Classic 2D Perlin. NOT normalised to -1..1: grad2 returns +/-u +/- 2v, so
+// its gradient vectors are (1,2)-shaped with length sqrt(5), and the field
+// runs to about +/-1.51. Perlin's own grad() has no factor of two; this is
+// the artefact of a 3D routine adapted to 2D, and it is left alone because
+// changing it changes every pattern that has ever used it. The common idiom
+// (n + 1) * 0.5 therefore does NOT give 0..1 - it clips at both ends. Scale
+// by 1/1.51, or clamp, if you need a bounded value.
+// Pinned by toolchain/check_math.py.
 inline float perlin2D(float x, float y) {
   // One floor per axis; the fractional part is the same subtraction it
   // always was, from the integer already in hand.
