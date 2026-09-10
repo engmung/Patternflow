@@ -401,6 +401,7 @@ inline void handleIndex() {
 // property, not a rough edge: the console sets its switch optimistically and
 // lets the next poll confirm.
 // POST /api/params?p1=..&p2=..&p3=..&p4=..  (0..1000, any subset)
+//   dN=<-100..100>  relative clicks; rN=1  release channel N
 //
 // Writing the absolute bus over plain HTTP. Until now the only way in was
 // MQTT, which made "turn a knob remotely" require a broker — so the bus,
@@ -435,8 +436,31 @@ inline void handleParams() {
 
     char dKey[3] = {'d', (char)('1' + i), 0};
     if (server().hasArg(dKey)) {
-      long dVal = server().arg(dKey).toInt();
+      // Bounded, which it was not: toInt() took anything, so d1=999999999
+      // was accepted and handed to a pattern as that many encoder clicks.
+      // A hundred is four full turns of a detented encoder in one request.
+      const long dVal = server().arg(dKey).toInt();
+      if (dVal < -100 || dVal > 100) {
+        error = String(dKey) + " must be -100..100";
+        break;
+      }
       PatternflowBus::applyRemoteDelta(i, (int)dVal);
+      written++;
+    }
+
+    // rN=1 releases channel N, the counterpart to pN. The bus could be
+    // written over HTTP but not let go of over HTTP: the only ways back were
+    // a hand on that encoder, or MQTT and the show player, which the default,
+    // audio and clock editions do not carry. So a console slider could pin a
+    // lane - and fillAbsolute() clears knobAudioActive on a held channel, so
+    // pinning one also silenced the audio lane under it - with no way to undo
+    // it from the same console that did it.
+    //
+    // releaseAbsolute() applies its own grace window, so this cannot be used
+    // to fight the encoder-noise guard either.
+    char rKey[3] = {'r', (char)('1' + i), 0};
+    if (server().hasArg(rKey) && server().arg(rKey) != "0") {
+      PatternflowBus::releaseAbsolute(i);
       written++;
     }
   }

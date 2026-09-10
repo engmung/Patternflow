@@ -43,6 +43,17 @@ inline uint32_t paramHeldAtMs[4] = {0, 0, 0, 0};
 // vanish between the two.
 inline int32_t pendingDelta[4] = {0, 0, 0, 0};
 
+// The sub-click remainder of an absolute move. Without it, how far a legacy
+// pattern travels depends on how finely the writer chopped the move: the rule
+// below is "ten bus units per click, never fewer than one for a change", so a
+// ten-second ease sent once per frame at 83 fps emitted 830 clicks for a
+// thousand units of travel that means 100. The same ease at 41 fps emitted
+// half that. Keeping the remainder makes the total trunc(travel / 10) however
+// it arrives, and takes the frame rate out of it - which is what core_show.h
+// already claims of itself.
+inline int32_t clickResidual[4] = {0, 0, 0, 0};
+
+
 // Last finished frame's knob positions, kept so the core can answer
 // "where are the knobs" over HTTP. Absolute accumulated clicks, the
 // same numbers a pattern sees and the same ones MQTT publishes.
@@ -63,17 +74,24 @@ inline void applyRemoteParam(int index, long value) {
   if (value > PF_BUS_MAX) value = PF_BUS_MAX;
 
   // A legacy pattern reads knobDeltas and nothing else, so a held value has
-  // to reach it as clicks: ten bus units per click, never fewer than one for
-  // a change. Derived here, from the change in the held value, so every
-  // absolute writer — the console's sliders, OSC, a show — moves such a
-  // pattern the same way. A client must not also send the clicks as dX for
-  // the same move; that counted every step twice, once.
+  // to reach it as clicks: ten bus units per click. Derived here, from the
+  // change in the held value, so every absolute writer — the console's
+  // sliders, OSC, a show — moves such a pattern the same way. A client must
+  // not also send the clicks as dX for the same move; that counted every step
+  // twice, once.
+  //
+  // The remainder is carried rather than rounded up to one click. Rounding up
+  // is what made travel a function of the writer's update rate.
   if (paramHeld[index]) {
-    int diff = (int)value - (int)paramValue[index];
+    const int diff = (int)value - (int)paramValue[index];
     if (diff != 0) {
-      int d = diff / 10;
-      if (d == 0) d = (diff > 0) ? 1 : -1;
-      __atomic_fetch_add(&pendingDelta[index], (int32_t)d, __ATOMIC_RELAXED);
+      const int32_t acc =
+          __atomic_add_fetch(&clickResidual[index], (int32_t)diff, __ATOMIC_RELAXED);
+      const int32_t d = acc / 10;  // truncates toward zero, both signs
+      if (d != 0) {
+        __atomic_fetch_sub(&clickResidual[index], d * 10, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&pendingDelta[index], d, __ATOMIC_RELAXED);
+      }
     }
   }
 
@@ -91,6 +109,7 @@ inline void releaseAbsolute(int index) {
   }
   paramHeld[index] = false;
   __atomic_store_n(&pendingDelta[index], 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&clickResidual[index], 0, __ATOMIC_RELAXED);
 }
 
 inline void clearAbsoluteAll() {
@@ -98,6 +117,7 @@ inline void clearAbsoluteAll() {
     paramHeld[i] = false;
     paramHeldAtMs[i] = 0;
     __atomic_store_n(&pendingDelta[i], 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&clickResidual[i], 0, __ATOMIC_RELAXED);
   }
 }
 
@@ -155,6 +175,16 @@ inline void fillAbsolute(InputFrame& input) {
       input.knobDeltas[i] =
           (int)__atomic_exchange_n(&pendingDelta[i], 0, __ATOMIC_RELAXED);
       input.knobAudioActive[i] = false;
+    } else {
+      // Unheld, and this branch did not exist. applyRemoteDelta() accepts a
+      // click on any channel, but only the held branch drained the queue, so
+      // a dN sent to a channel nobody is holding did nothing visible and then
+      // arrived in full the moment something held it - or was wiped by the
+      // next release. Added to the encoder's own clicks, because that is what
+      // both of them are.
+      const int pending =
+          (int)__atomic_exchange_n(&pendingDelta[i], 0, __ATOMIC_RELAXED);
+      if (pending != 0) input.knobDeltas[i] += pending;
     }
   }
 }
