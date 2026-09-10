@@ -141,6 +141,12 @@ float contentNoticeTimer = 0.0f;
 // 1.2s while the mode silently lived on for 5s, so you could never tell
 // which state you were in.) Value persists in NVS.
 Preferences prefs;
+// NVS writes are the one kind of failure here whose symptom arrives a boot
+// later, so they are counted rather than assumed. Published by /api/status:
+// a board that is quietly failing to persist anything says so in a number
+// instead of behaving strangely once, on somebody else's desk.
+bool nvsUsable = false;
+uint32_t nvsFailures = 0;
 uint8_t currentBrightness = DEFAULT_BRIGHTNESS;
 // What the panel is actually running at. Equal to currentBrightness unless the
 // power clamp is holding it down (core_power.h) — kept separately so the
@@ -307,9 +313,20 @@ void savePatternIfSettled() {
 
   char slug[MODULE_NAME_BYTES];
   patternSlugAt(currentPatternIdx, slug, sizeof(slug));
+  if (!slug[0]) { patternDirty = false; return; }
+  // The flag clears only once the write is known to have happened. It used to
+  // clear first, so a putString that returned 0 - heap starvation is a
+  // demonstrated live state on this board - silently threw the save away and
+  // was never retried. Bumping the timestamp reuses the existing 3 s debounce
+  // as the backoff, so a permanently broken NVS costs one attempt every 3 s
+  // rather than one per loop.
+  if (prefs.putString("pattern", slug) == 0) {
+    ++nvsFailures;
+    patternChangedAtMs = millis();
+    Serial.printf("[NVS] pattern save FAILED (%s) - will retry\n", slug);
+    return;
+  }
   patternDirty = false;
-  if (!slug[0]) return;
-  prefs.putString("pattern", slug);
   Serial.printf("[NVS] pattern saved: %s\n", slug);
 }
 
@@ -340,13 +357,23 @@ int restoreSavedPatternIdx() {
       // owner can pick it again, and if it was a one-off nothing is lost but
       // the memory of it.
       prefs.remove("pattern");
-      prefs.putBool("pat_trying", false);
+      // Benign if it fails - the slug is already gone, so the next boot leaves
+      // before it reads the latch - but counted, because a board that cannot
+      // write here cannot write anywhere and should say so once.
+      if (prefs.putBool("pat_trying", false) == 0) ++nvsFailures;
       Serial.printf("[NVS] \"%s\" did not survive the last boot - forgetting it, "
                     "starting at %s\n",
                     slug, patterns[0].name);
       return 0;
     }
-    prefs.putBool("pat_trying", true);
+    // A failed arm is the mild direction of the same failure: the latch exists
+    // only in RAM, so a boot that then dies leaves nothing for the next one to
+    // read, and the pattern is retried instead of forgotten. Worth counting,
+    // not worth refusing to start over.
+    if (prefs.putBool("pat_trying", true) == 0) {
+      ++nvsFailures;
+      Serial.println("[NVS] latch arm FAILED - a crash this boot will not be remembered");
+    }
     patternLatchArmed = true;
   }
 
@@ -360,8 +387,19 @@ int restoreSavedPatternIdx() {
 void clearPatternLatchIfStable() {
   if (!patternLatchArmed) return;
   if (millis() < PATTERN_LATCH_CLEAR_MS) return;
+  // Disarm in RAM only after NVS agrees, and this is the one of the two that
+  // does damage. Clearing the flag first meant a failed write left "pat_trying"
+  // set on disk with nothing left to retry it, and the NEXT boot reads that as
+  // "the last boot died with this pattern resident" and calls prefs.remove()
+  // on a pattern that was never at fault. A silently lost write here does not
+  // fail to save something; it actively deletes something good.
+  if (prefs.putBool("pat_trying", false) == 0) {
+    ++nvsFailures;
+    Serial.println("[NVS] latch disarm FAILED - retrying, or the next boot "
+                   "forgets a pattern that was fine");
+    return;
+  }
   patternLatchArmed = false;
-  prefs.putBool("pat_trying", false);
 }
 
 // ── Thumbnails ───────────────────────────────────────────────
@@ -433,7 +471,10 @@ void setup() {
   initDisplay();
   reportHeap("after display");
 
-  prefs.begin("patternflow", false);
+  nvsUsable = prefs.begin("patternflow", false);
+  if (!nvsUsable) {
+    Serial.println("[NVS] namespace would not open - nothing will persist this boot");
+  }
   currentBrightness = prefs.getUChar("brightness", DEFAULT_BRIGHTNESS);
   dma_display->setBrightness8(currentBrightness);
   // The clamp needs a frame's demand before it can say anything, so it starts

@@ -48,6 +48,12 @@
 
 // Smoothed frame time, owned by the sketch's loop().
 extern uint32_t renderFrameUs;
+// Settings persistence. A failed NVS write shows up a boot later, as a
+// setting that did not stick or a pattern the board decided to forget, so
+// the count is published rather than only logged to a serial nobody is
+// watching. nvsUsable false means the namespace never opened at all.
+extern bool nvsUsable;
+extern uint32_t nvsFailures;
 // Panel brightness as set; the sketch owns it (K1 and /api/display move it).
 extern uint8_t currentBrightness;
 
@@ -353,6 +359,9 @@ inline void handleStatus() {
   json += ",\"execLargest\":";
   json += heap_caps_get_largest_free_block(PFModuleMemory::internalCode);
   json += ",\"refusals\":"; json += PFModuleMemory::refusals;
+  json += "}";
+  json += ",\"nvs\":{\"usable\":"; json += nvsUsable ? "true" : "false";
+  json += ",\"failures\":"; json += nvsFailures;
   json += "}";
   json += ",\"thumbs\":{\"captures\":";
   json += PFThumbs::captures;
