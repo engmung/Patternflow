@@ -240,11 +240,11 @@ void sweepColor() {
   }
   std::printf("\ncore_color.h\n");
   pin("hsvToRgb max abs err", maxAbs, 1.0, 1.0, "LSB");
-  // Every channel is (uint8_t)(f * 255.0f) - truncation, no + 0.5f - so the whole
-  // function sits half an LSB dark. buildPowLUT four lines away DOES round, so the
-  // two helpers in this one header disagree with each other about the same step.
-  pin("hsvToRgb mean signed err", sum / (double)n, -0.472, -0.467, "LSB",
-      "DEFECT: truncates where buildPowLUT rounds");
+  // Re-pinned 2026-09-10, deliberately: -0.470 -> +0.003. The channels used to be
+  // (uint8_t)(f * 255.0f), truncation with no + 0.5f, so the whole function sat
+  // half a level dark while buildPowLUT four functions below rounded. Adding the
+  // + 0.5f leaves only the residue of rounding a float, which is what this band is.
+  pin("hsvToRgb mean signed err", sum / (double)n, 0.0025, 0.0035, "LSB");
 
   const PFColor::ColorStop ramp[3] = {
     {0.0f, 0, 0, 0}, {0.5f, 255, 0, 0}, {1.0f, 255, 255, 255},
@@ -259,25 +259,49 @@ void sweepColor() {
     const double got[3] = {(double)r, (double)g, (double)b};
     for (int k = 0; k < 3; k++) rampErr = maxd(rampErr, std::fabs(got[k] - want[k]));
   }
-  // 255 is the whole 8-bit range: sampleRamp does not interpolate at all. It walks
-  // the stops and assigns the last one whose position <= t, so a "ramp" built from
-  // ColorStops with float positions renders as hard bands. The near-miss from a
-  // round 255 is only the endpoint, where step and lerp happen to agree.
-  pin("sampleRamp vs linear interp", rampErr, 254.9, 255.0, "LSB",
-      "DEFECT: a ramp API that is a step function");
+  // Re-pinned 2026-09-10, deliberately: 254.995 -> 0.5. It used to assign the last
+  // stop whose position <= t and return, so a ramp drew hard bands and the error
+  // was the entire 8-bit range. 0.5 is now the whole remaining difference, and it
+  // is not an approximation: it is one half-level of rounding an interpolated
+  // channel to an integer, which is exact behaviour rather than error.
+  pin("sampleRamp vs linear interp", rampErr, 0.49, 0.51, "LSB");
 }
 
 void sweepNoise() {
-  // cellHash takes a seed argument documented as decorrelating layers. This
-  // measures how much of the seeded field is literally the unseeded field slid
-  // along x, which is the thing the argument is supposed not to be.
+  // cellHash's seed is documented as decorrelating layers, so measure whether it
+  // does - against EVERY shift, not just the one the old bug happened to be.
+  //
+  // The first version of this test only asked whether the seeded field equalled
+  // the unseeded field slid by exactly `seed` cells. That is too weak to arbitrate
+  // a repair: adding the seed to gx and gy both scores a perfect zero on it while
+  // still correlating 1.0000, because it is a diagonal translation. Anything that
+  // measures a fix has to be able to fail the plausible wrong fixes.
   const int seeds[4] = {1, 7, 33, 128};
+  const int W = 4;
   long same = 0, total = 0;
+  double worstCorr = 0.0;
   for (int s = 0; s < 4; s++) {
     for (int gx = 0; gx < 256; gx++) {
       for (int gy = 0; gy < 256; gy++) {
         if (PFNoise::cellHash(gx, gy, seeds[s]) == PFNoise::cellHash(gx + seeds[s], gy)) same++;
         total++;
+      }
+    }
+    for (int dx = -W; dx <= W; dx++) {
+      for (int dy = -W; dy <= W; dy++) {
+        double sa = 0, sb = 0, saa = 0, sbb = 0, sab = 0;
+        const double n = 256.0 * 256.0;
+        for (int gx = 0; gx < 256; gx++) {
+          for (int gy = 0; gy < 256; gy++) {
+            const double a = PFNoise::cellHash(gx, gy, seeds[s]);
+            const double b = PFNoise::cellHash(gx + dx, gy + dy);
+            sa += a; sb += b; saa += a * a; sbb += b * b; sab += a * b;
+          }
+        }
+        const double da = std::sqrt(n * saa - sa * sa);
+        const double db = std::sqrt(n * sbb - sb * sb);
+        if (da > 0.0 && db > 0.0)
+          worstCorr = maxd(worstCorr, std::fabs((n * sab - sa * sb) / (da * db)));
       }
     }
   }
@@ -293,11 +317,13 @@ void sweepNoise() {
     }
   }
   std::printf("\ncore_noise.h\n");
-  // 1.0 means EVERY lattice point matches: cellHash(x, y, seed) is identically
-  // cellHash(x + seed, y), because the seed is added to gx before the same hash.
-  // Two layers seeded 0 and 1 are one field and a copy of it slid one cell over.
-  pin("cellHash seed == x-translation", (double)same / (double)total, 1.0, 1.0, "frac",
-      "DEFECT: seed decorrelates nothing");
+  // Re-pinned 2026-09-10, deliberately. Both rows used to read 1.0000: every one
+  // of the 262,144 lattice points matched, and the field correlated perfectly with
+  // a shift of the unseeded one. The seed now passes through perm[] instead of
+  // being added to a coordinate. 0.004 of the cells still coincide, which is the
+  // 1/256 you would expect from two unrelated byte fields.
+  pin("cellHash seed == x-translation", (double)same / (double)total, 0.0, 0.01, "frac");
+  pin("cellHash max |corr| any shift", worstCorr, 0.0, 0.05, "");
   // grad2 returns +/-u +/- 2v, so its gradient vectors are (1,2)-shaped with length
   // sqrt(5) rather than normalised - Perlin's own grad() has no factor of two. The
   // field therefore runs to +/-1.51, while cellHash and valueNoise2D document 0..1

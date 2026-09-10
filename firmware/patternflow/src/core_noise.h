@@ -100,8 +100,31 @@ inline float cellHash(int gx, int gy) {
 }
 
 // Seeded variant so multiple layers/uses in one pattern decorrelate.
+//
+// It did not decorrelate anything. The seed was added to gx before the same
+// hash, so cellHash(x, y, s) was cellHash(x + s, y) at every one of 262,144
+// lattice points - two layers seeded 0 and 1 were one field and a copy of it
+// slid a cell sideways. preset_0713 shows the cost: it draws seeds 7 through 13
+// for the speed, phase and brightness of each firefly, and got one sequence
+// offset by one index each time, so every "independent" parameter of a firefly
+// was the same random stream in disguise.
+//
+// The seed cannot enter by addition ANYWHERE in this expression, and that is the
+// non-obvious part. Adding it to the final index is the same as adding it to gy;
+// adding it to both coordinates just translates diagonally. Measured over the
+// lattice against every shift within +/-4 cells, the obvious repair - seed on gx
+// and gy both - still correlates 1.0000 with the unseeded field. The seed has to
+// pass through the table, because perm[] is the only non-linear step available:
+// perm[v + k] bears no relation to perm[v]. Same measurement for what is written
+// below: 0.0128, which is the noise floor of the measurement.
+//
+// Two extra lookups into a 512-byte table that is already hot. The two-argument
+// overload above is untouched, so valueNoise2D, perlin2D and fractal2D render
+// exactly as before; only calls that pass a seed change.
 inline float cellHash(int gx, int gy, int seed) {
-  return (float)perm[(perm[(gx + seed) & 255] + (gy & 255)) & 255] * (1.0f / 255.0f);
+  const int k = perm[seed & 255];
+  return (float)perm[(perm[(perm[(gx + k) & 255] + (gy & 255)) & 255] + k) & 255] *
+         (1.0f / 255.0f);
 }
 
 // Smooth value noise: smoothstep-blended cellHash lattice, output 0..1.

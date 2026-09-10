@@ -4,6 +4,92 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — the pattern SDK
+
+Three helpers that every pattern compiles into itself did not do what their
+names said. All three change what a pattern draws, and because `abi/pf_module.h`
+*includes* these files rather than calling into the host, the change reaches only
+**newly built** `.pfm` modules: an installed module and a rebuild of its own source
+will render differently on the same firmware. Rebuild a module to pick these up.
+
+- **`PFColor::sampleRamp` interpolates.** It walked the stops and assigned the last
+  one whose `position <= t`, so an API named *ramp*, taking stops with float
+  positions, drew hard bands — measured 255 LSB from a linear interpolation, which
+  is the entire 8-bit range. That this was never the intent is visible in the one
+  pattern that calls it: Origin places stops at 0.154, 0.556 and 0.816 and ends with
+  two identical white stops at 0.816 and 1.000. Irregular positions are gradient
+  control points, and a duplicated final stop is how you say "reach white here and
+  hold it" — under a step function it does nothing at all. Origin has been drawing
+  bands where its author wrote a gradient. Coincident stops still give a hard edge,
+  which is how a ramp expresses a boundary.
+- **`PFColor::hsvToRgb` rounds.** Each channel was `(uint8_t)(f * 255.0f)` —
+  truncation, no `+ 0.5f` — so the function sat half a level dark on every channel,
+  always in the same direction: a mean of **−0.470 LSB** swept over the HSV cube.
+  `buildPowLUT`, four functions below in the same header, has always rounded.
+- **`PFNoise::cellHash`'s seed decorrelates.** It was added to `gx` before the same
+  hash, making `cellHash(x, y, s)` identical to `cellHash(x + s, y)` at **every one
+  of 262,144 lattice points** — two layers seeded 0 and 1 were one field and a copy
+  of it slid a cell sideways. The cost is visible in `preset_0713`, which draws seeds
+  7 through 13 for each firefly's speed, phase and brightness and got one sequence
+  offset by one index each time, so every "independent" parameter was the same
+  stream in disguise. The seed now passes through the permutation table, because it
+  cannot enter by addition anywhere in that expression: adding it to the final index
+  is the same as adding it to `gy`, and adding it to both coordinates merely
+  translates diagonally — measured against every shift within ±4 cells, that obvious
+  repair still correlates **1.0000** with the unseeded field. What shipped correlates
+  **0.0128**. Two extra reads of a 512-byte table that is already hot.
+  The two-argument overload is untouched, so `valueNoise2D`, `perlin2D` and
+  `fractal2D` render exactly as before.
+
+### Fixed — firmware core
+
+- **An upload that stalled could panic the board.** The wait loop in the request
+  parser's `_uploadReadByte()` was the one of three that never yielded: upstream
+  writes it brace-less, so inserting the maintenance poll above the `delay(2)`
+  without adding braces made the poll the entire body and left the delay outside the
+  loop. It runs on the network task — Core 0, priority 1 — where a loop that never
+  blocks starves the idle task, and this SDK configuration watches that idle task
+  with a panic at five seconds. Installing a pattern is precisely when the link is
+  under load.
+- **A failed settings write no longer deletes a good pattern.** Two paths cleared
+  their own retry flag *before* the write it guarded. The damaging one is the boot
+  latch: it cleared its flag and then wrote `pat_trying = false`, so a write that
+  failed left the latch set on disk with nothing left to clear it — and the next
+  boot reads a set latch as "the last boot died with this pattern resident" and
+  forgets a pattern that was never at fault. Both now clear only once the write is
+  confirmed, the pattern save reuses its existing 3 s debounce as a retry backoff,
+  and the namespace open is checked. `/api/status` gains `nvs.usable` and
+  `nvs.failures`, because the whole difficulty with this failure is that its symptom
+  arrives a boot later. The brightness, power and Wi-Fi writes are unchanged.
+
+### Added — checks
+
+- **`check_math.py`** pins what `core_math.h`, `core_color.h` and `core_noise.h`
+  compute. `abi/pf_module.h` includes those three into every `.pfm`, so they are the
+  published pattern SDK — and nothing here had ever run a number through them. Their
+  accuracy lived in doc-comments, two of which were wrong about their own function
+  (`fastAtan2` is 7.4× tighter than it claims; `approxLength` is 6.8% where the
+  comment says ~5%). 19 rows, each a **band** rather than a ceiling, so an accuracy
+  change fails in either direction and has to be re-pinned deliberately. Note what
+  `abi.sums` cannot do here: it hashes the three files in `abi/`, so it passes
+  unmoved while the behaviour those files include changes underneath it.
+- **`check_footprint.py`** reads each edition's elf and pins its static internal RAM.
+  CI built four images and then printed their flash sizes — the one resource that is
+  not scarce. Internal DRAM is, and the module code budget is its residual. Measured
+  by the *address* of the linker's own `.dram0.heap_start` marker rather than a sum
+  of section names, which would quietly measure less if a toolchain renamed them.
+- **The shipped modules are priced, not just validated.** The ELF suite already
+  opened all 33 `.pfm` in the Basics pack; it now sums their executable sections by
+  the loader's own admission rule and fails over a ceiling. Nothing checked that the
+  modules this repository ships can be admitted by the firmware it ships, which is a
+  failure it has already had, and which took a hardware bisect to find.
+- **A declared hook must be dispatched, and a dispatched hook must be called.** The
+  boundary checker had five rules and all five policed what the core must *not* say.
+  The worst regression this project has shipped went the other way: the per-frame
+  feature dispatch went missing and every feature's loop silently stopped, on a build
+  that compiled, linked, ran and served every route. Compiling four editions cannot
+  catch that — a hook nobody calls type-checks perfectly.
+
 ## [3.10.0] - 2026-09-08
 
 ### Improved — Audio MIDI

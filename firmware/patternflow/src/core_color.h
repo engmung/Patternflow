@@ -44,9 +44,15 @@ inline void hsvToRgb(float h, float s, float v,
     case 4: rf = x; gf = 0; bf = c; break;
     default: rf = c; gf = 0; bf = x; break;
   }
-  r = (uint8_t)((rf + m) * 255.0f);
-  g = (uint8_t)((gf + m) * 255.0f);
-  b = (uint8_t)((bf + m) * 255.0f);
+  // The + 0.5f is the difference between rounding and truncating, and it was
+  // missing. Truncation is not a wash: it is biased in one direction, and swept
+  // over the whole HSV cube it cost a mean of 0.470 of an 8-bit level, every
+  // channel, always downward. buildPowLUT four functions below has always
+  // rounded, so the two helpers in this one header disagreed about the same
+  // step. Measured by firmware/toolchain/check_math.py, which pins it.
+  r = (uint8_t)((rf + m) * 255.0f + 0.5f);
+  g = (uint8_t)((gf + m) * 255.0f + 0.5f);
+  b = (uint8_t)((bf + m) * 255.0f + 0.5f);
 }
 
 struct ColorStop {
@@ -54,17 +60,45 @@ struct ColorStop {
   uint8_t r, g, b;
 };
 
+// Sample a colour ramp at t in 0..1, interpolating between the two stops that
+// bracket it. Stops must be sorted by position.
+//
+// This used to assign the last stop whose position <= t and return - a step
+// function, in an API named ramp, taking stops with float positions. Nothing
+// said so; it was measured at 255 LSB from a linear interpolation, which is the
+// entire 8-bit range. The evidence that it was never intended is in the one
+// pattern that calls it: preset_origin.h places stops at 0.154, 0.556 and 0.816
+// and ends with TWO identical white stops at 0.816 and 1.000. Irregular
+// positions are gradient control points, and a duplicated final stop is how you
+// say "reach white here and hold it" - under a step function it does nothing at
+// all. Origin has been drawing bands where its author wrote a gradient.
+//
+// Cost: one divide per sample, which is a __divsf3 call on the S3. If that shows
+// up in /api/status renderFrameUs, the answer is a prepared ramp that bakes the
+// reciprocal spans once, not a return to drawing the wrong thing.
 inline void sampleRamp(const ColorStop* ramp, int count, float t,
                        uint8_t& r, uint8_t& g, uint8_t& b) {
+  if (count <= 0) { r = 0; g = 0; b = 0; return; }
   if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
-  r = ramp[0].r; g = ramp[0].g; b = ramp[0].b;
-  for (int i = 0; i < count; i++) {
-    if (t >= ramp[i].position) {
-      r = ramp[i].r; g = ramp[i].g; b = ramp[i].b;
-    } else {
-      break;
+  if (count == 1 || t <= ramp[0].position) {
+    r = ramp[0].r; g = ramp[0].g; b = ramp[0].b;
+    return;
+  }
+  for (int i = 1; i < count; i++) {
+    if (t <= ramp[i].position) {
+      const float span = ramp[i].position - ramp[i - 1].position;
+      // Two stops at the same position are a hard edge on purpose - that is how
+      // a ramp says "boundary" - and must not divide by zero.
+      const float u = span > 0.0f ? (t - ramp[i - 1].position) / span : 1.0f;
+      const ColorStop& a = ramp[i - 1];
+      const ColorStop& c = ramp[i];
+      r = (uint8_t)((float)a.r + ((float)c.r - (float)a.r) * u + 0.5f);
+      g = (uint8_t)((float)a.g + ((float)c.g - (float)a.g) * u + 0.5f);
+      b = (uint8_t)((float)a.b + ((float)c.b - (float)a.b) * u + 0.5f);
+      return;
     }
   }
+  r = ramp[count - 1].r; g = ramp[count - 1].g; b = ramp[count - 1].b;
 }
 
 // Bake powf(v, exponent) into a 256-entry LUT — replaces per-pixel powf for
