@@ -4,6 +4,8 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.10.1] - 2026-09-10
+
 ### Fixed — the pattern SDK
 
 Two helpers that every pattern compiles into itself did not do what their
