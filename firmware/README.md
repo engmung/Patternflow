@@ -274,26 +274,36 @@ All five calibration values are tunable from `config.h` — see "LED panel calib
 PFMath::buildSinLUT();                       // call from setup() — idempotent
 PFMath::fastSin(angle);                      // ~5x faster than sinf in pixel loops
 PFMath::fastCos(angle);
-PFMath::fract(x);                            // x - floor(x)
+PFMath::fract(x);                            // x - floor(x), without calling floorf
+PFMath::ifloor(x);                           // floor as an int; floorf() is a libm CALL here
+PFMath::floorF(x);                           // floor as a float, same reason
+PFMath::clamp(x, lo, hi);                    // fminf/fmaxf are libm calls too
+PFMath::clamp01(x);
 PFMath::jsMod(x, m);                         // JavaScript's x % m (sign of x), no fmodf
 PFMath::lerp(a, b, t);
-PFMath::approxLength(x, y);                  // ~5% accurate sqrt(x*x + y*y)
+PFMath::approxLength(x, y);                  // 6.8% accurate sqrt(x*x + y*y)
 ```
 
 The sin LUT is 4 KB (1024 entries, ~0.35° resolution) and shared. Do not build your own.
 
-`approxLength` is an octagonal sqrt approximation — ~5% error, no `sqrtf` in the pixel loop. Use it only when distance is a **secondary** signal. If distance IS the visual structure of the pattern (radial ripples, concentric rings, vortex centers, anything that uses `1/dist` for amplification), use real `sqrtf` instead — the octagonal contour shows up as visible polygonal artifacts in those cases.
+**`floorf`, `fminf` and `fmaxf` are function calls on this target**, not instructions - GCC emits a call into libm at every use, at every optimization level. That is what `ifloor`, `floorF`, `fract`, `clamp` and `clamp01` exist for: they truncate and correct, or compare, which the FPU does in one instruction each. Removing a single `floorf` from a per-pixel path measured *smaller* object code as well as faster, because the call sequence costs more than the inline does.
+
+`approxLength` is an octagonal sqrt approximation — 6.8% error (measured by `toolchain/check_math.py`, which pins it; the 0.375 coefficient is the shift-friendly one, not the minimax one), no `sqrtf` in the pixel loop. Use it only when distance is a **secondary** signal. If distance IS the visual structure of the pattern (radial ripples, concentric rings, vortex centers, anything that uses `1/dist` for amplification), use real `sqrtf` instead — the octagonal contour shows up as visible polygonal artifacts in those cases.
 
 ### `core_color.h` — PFColor
 ```cpp
 PFColor::hsvToRgb(h, s, v, r, g, b);                // h is 0..1 (not degrees)
 PFColor::ColorStop ramp[] = { {0.0f, 0,0,0}, ... };
-PFColor::sampleRamp(ramp, count, t, r, g, b);
+PFColor::sampleRamp(ramp, count, t, r, g, b);       // POSTERISED - flat bands, no divide
+PFColor::sampleRampLerp(ramp, count, t, r, g, b);   // gradient - one divide per sample
 ```
 
 ### `core_noise.h` — PFNoise
 ```cpp
-PFNoise::perlin2D(x, y);
+PFNoise::perlin2D(x, y);                     // NOT normalised: runs to about +/-1.51
+PFNoise::valueNoise2D(x, y);                 // 0..1
+PFNoise::cellHash(gx, gy);                   // 0..1
+PFNoise::cellHash(gx, gy, seed);             // seed decorrelates, measured
 PFNoise::fractal2D(x, y, octaves, roughness);
 ```
 

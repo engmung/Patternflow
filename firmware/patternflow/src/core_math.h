@@ -37,14 +37,53 @@ inline void buildSinLUT() {
   sinLUTReady = true;
 }
 
+// Round toward negative infinity, as an int. On this target floorf() is not an
+// instruction: GCC emits `call8 floorf` into a ~50-instruction newlib routine at
+// every use, under -O2, -Os and even -ffast-math, and __builtin_floorf makes no
+// difference. The FPU does have a FLOOR.S, but reaching it needs inline asm,
+// and asm cannot be checked by a host test - which for a file that IS the pattern
+// SDK is the more expensive problem.
+//
+// So: truncate, which IS one instruction (TRUNC.S), and correct the one case
+// where truncation and flooring differ - a negative non-integer, where trunc
+// lands one above floor. Five instructions and no call, identical arithmetic on
+// the host and the panel, so check_math.py actually verifies what ships.
+//
+// Domain |x| < 2^31, the same limit jsMod documents below and for the same
+// reason: the cast is what does the work.
+inline int ifloor(float x) {
+  const int i = (int)x;
+  return (float)i > x ? i - 1 : i;
+}
+
+inline float floorF(float x) {
+  return (float)ifloor(x);
+}
+
 inline float fract(float x) {
-  return x - floorf(x);
+  float t = (float)(int)x;
+  if (t > x) t -= 1.0f;
+  return x - t;
+}
+
+// fminf/fmaxf are libm calls too - two register-window frames for a comparison
+// the FPU does in one OLT.S. Written as a comparison, GCC emits exactly that.
+inline float clamp(float x, float lo, float hi) {
+  return x < lo ? lo : (x > hi ? hi : x);
+}
+
+inline float clamp01(float x) {
+  return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x);
 }
 
 // JavaScript's `%` on floats: the sign of the dividend, the magnitude below
 // |m|. A pattern ported from the lab reaches for fmodf here, and in a module
 // that is a call into the host's libm on every pixel; this is one division
-// and one truncation, a single instruction each on this FPU. The same value
+// and one truncation. The truncation is one instruction (TRUNC.S). The
+// division is NOT - GCC emits a call into __divsf3 for any non-power-of-two
+// divisor, verified on the shipping compiler. Still far cheaper than fmodf,
+// but the comment used to claim both halves were single instructions and
+// only one of them is. The same value
 // as fmodf to a last-bit rounding for anything a pattern feeds it; |x / m|
 // has to stay under 2^31, and m must not be 0.
 inline float jsMod(float x, float m) {
@@ -68,7 +107,10 @@ inline float lerp(float a, float b, float t) {
   return a + (b - a) * t;
 }
 
-// Cheap sqrt(x*x + y*y) replacement. ~5% error, no sqrtf call.
+// Cheap sqrt(x*x + y*y) replacement. 6.8% maximum relative error - measured
+// and pinned by toolchain/check_math.py, not the ~5% this comment used to
+// claim - and no sqrtf call, which on this target is a call into libm.
+// 0.375 is the shift-friendly coefficient, not the minimax one.
 // Use when the exact radius does not matter visually (radial fades,
 // ring patterns, distance-based hue). Saves real time on the ESP32
 // when this runs inside the pixel loop.
@@ -83,8 +125,9 @@ inline float approxLength(float x, float y) {
 // Fast powf replacement for exponents that VARY per pixel — a FIXED exponent
 // should be a 256-entry LUT instead (PFColor::buildPowLUT/buildPowLUTf).
 // exp2(p·log2(x)) with float bit-trick approximations (fastapprox-style):
-// ~0.1% typical error, invisible on an 8-bit panel, roughly an order of
-// magnitude cheaper than libm powf on the S3.
+// 0.054% maximum relative error over x in (0,1], p in [0.2,5] - measured and
+// pinned by toolchain/check_math.py - which is invisible on an 8-bit panel,
+// and roughly an order of magnitude cheaper than libm powf on the S3.
 //
 // Domain: x > 0. x <= 0 returns 0 — note powf(0, negative) would be +inf,
 // so a caller relying on that (value clamps to full white) must branch on
@@ -115,8 +158,10 @@ inline float fastPow(float x, float p) {
   return fastExp2(p * fastLog2(x));
 }
 
-// Fast atan2 replacement — polynomial approximation, max error ~0.0015 rad
-// (≈0.09°), no LUT, one divide for range reduction. Same quadrant behavior
+// Fast atan2 replacement — polynomial approximation, max error 2.03e-4 rad
+// (0.0116°), measured and pinned by toolchain/check_math.py. The comment used
+// to say ~0.0015 rad, which is 7.4x looser than the polynomial actually is.
+// No LUT, one divide for range reduction (a __divsf3 call, as above). Same quadrant behavior
 // and (-π, π] range as atan2f, at a fraction of the cost. atan2f is the most
 // expensive common per-pixel call; use this for angle-driven patterns whose
 // center MOVES. For a fixed panel-center angle, prefer the precomputed

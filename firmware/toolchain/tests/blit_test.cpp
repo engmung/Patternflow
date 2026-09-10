@@ -21,6 +21,10 @@
 #define __builtin_assume_aligned(p, n) (p)
 #endif
 
+// The driver refuses a colour depth its plane encoding cannot hold and says so.
+// There is no IDF here; swallow it, the refusal is asserted by behaviour below.
+#define ESP_LOGE(tag, ...) ((void)0)
+
 class MatrixPanel_I2S_DMA {
 public:
   bool initialized = true;
@@ -45,13 +49,35 @@ public:
 #include "blit_under_test.h"
 
 int main() {
+  // A depth the encoding cannot represent must leave the buffer alone. Before the
+  // guard, depth 11 silently lost the top four bits of every plane field above 9,
+  // and depth 12 shifted a uint32 by 36 - undefined in the table builder and in
+  // the reader. Both are reachable: HUB75_I2S_CFG clamps to
+  // PIXEL_COLOR_DEPTH_BITS_MAX, which is 12.
+  for (int depth : {11, 12}) {
+    MatrixPanel_I2S_DMA panel(64, 32, static_cast<uint8_t>(depth));
+    for (size_t i = 0; i < panel.data.size(); ++i) panel.data[i] = uint16_t(i * 2654435761u);
+    const auto untouched = panel.data;
+    std::vector<uint8_t> rgb(64 * 64 * 3, 200);
+    uint8_t lut[256];
+    for (int i = 0; i < 256; ++i) lut[i] = uint8_t(i);
+    panel.blitRGB888(rgb.data(), lut, lut, lut, 256);
+    if (panel.data != untouched)
+      throw std::runtime_error("blit wrote planes at a depth its encoding cannot hold");
+  }
+  std::cout << "depths 11 and 12 refused, buffer untouched" << std::endl;
   std::mt19937 rng(20260906);
   uint64_t checked = 0;
   for (int width : {32, 64, 128, 256, 127}) {
     if constexpr (PF_TEST_SWAP) {
       if (width & 1) continue;  // FIFO swaps require even rows
     }
-    for (int depth = 2; depth <= 8; ++depth) {
+    // 2..10, not 2..8. Ten is what the two-uint32 plane encoding actually holds
+    // (planes 0-4 at 6*d in lo, 5-9 at 6*(d-5) in hi, plane 9 ending at bit 29),
+    // and the shipped depth of 8 left the top two untested. Depths above it are
+    // checked separately below, where the answer is that nothing is written.
+    for (int depth = 2; depth <= 10; ++depth) {
+
       for (int sat : {0, 128, 256, 320, 512}) {
         for (int trial = 0; trial < 5; ++trial) {
           MatrixPanel_I2S_DMA panel(static_cast<uint16_t>(width), 32, static_cast<uint8_t>(depth));
@@ -72,11 +98,18 @@ int main() {
                 int value = std::clamp(luma + (((int(p[c]) - luma) * sat) >> 8), 0, 255);
                 uint16_t cie = lumConvTab[lut[c][value]];
                 onTime += cie;
+                // Rounded, matching pfBuildSpread. Written out here rather than
+                // shared with it on purpose: this is the independent definition the
+                // production blit is checked against, so it has to be derived from
+                // the same intent and not from the same code.
+                unsigned rounded = unsigned(cie) + (1u << (16 - depth - 1));
+                if (rounded > 0xFFFFu) rounded = 0xFFFFu;
+
                 for (int d = 0; d < depth; ++d) {
                   size_t index = ((y % 32) * depth + d) * width + ESP32_TX_FIFO_POSITION_ADJUST(x);
                   unsigned mask = 1u << (c + (y >= 32 ? 3 : 0));
                   expected[index] = static_cast<uint16_t>((expected[index] & ~mask) |
-                      ((cie & (1u << (d + 16 - depth))) ? mask : 0));
+                      ((rounded & (1u << (d + 16 - depth))) ? mask : 0));
                 }
               }
             }

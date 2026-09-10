@@ -837,8 +837,14 @@ inline void handleUploadDone() {
   }
 
   // A new .pfm or a new .json under this slug: whatever the cache remembered
-  // about it is stale.
+  // about it is stale. Both caches - the sidecar AND the picture. The thumb
+  // was the one this line forgot, so editing a pattern in the Lab and
+  // re-uploading it under the same slug left the previous version frame on
+  // disk, and SELECT painted the old picture under the new name. It survived
+  // reboots too: savedThisBoot is false after a restart, but the file is
+  // already there and capture() only writes when there is nothing to read.
   sidecarForgetSlug(uploadSlug);
+  PFThumbs::forget(uploadSlug);
   if (lastInBatch) requestReload();
   Serial.printf("[PATTERNS-HTTP] uploaded %s (%u bytes, %d patterns)\n", uploadPath,
                 (unsigned)uploadBytes, NUM_PATTERNS);

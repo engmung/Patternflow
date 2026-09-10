@@ -12,6 +12,8 @@
 #include <math.h>
 #include <stdint.h>
 
+#include "core_math.h"  // ifloor: floorf is a libm call on this target
+
 namespace PFNoise {
 
 inline const uint8_t perm[512] = {
@@ -58,11 +60,19 @@ inline float lerpF(float a, float b, float t) {
   return a + (b - a) * t;
 }
 
+// Classic 2D Perlin. NOT normalised to -1..1: grad2 returns +/-u +/- 2v, so
+// its gradient vectors are (1,2)-shaped with length sqrt(5), and the field
+// runs to about +/-1.51. Perlin's own grad() has no factor of two; this is
+// the artefact of a 3D routine adapted to 2D, and it is left alone because
+// changing it changes every pattern that has ever used it. The common idiom
+// (n + 1) * 0.5 therefore does NOT give 0..1 - it clips at both ends. Scale
+// by 1/1.51, or clamp, if you need a bounded value.
+// Pinned by toolchain/check_math.py.
 inline float perlin2D(float x, float y) {
   // One floor per axis; the fractional part is the same subtraction it
   // always was, from the integer already in hand.
-  const int xi = (int)floorf(x);
-  const int yi = (int)floorf(y);
+  const int xi = PFMath::ifloor(x);
+  const int yi = PFMath::ifloor(y);
   int X = xi & 255;
   int Y = yi & 255;
   x -= (float)xi;
@@ -100,16 +110,39 @@ inline float cellHash(int gx, int gy) {
 }
 
 // Seeded variant so multiple layers/uses in one pattern decorrelate.
+//
+// It did not decorrelate anything. The seed was added to gx before the same
+// hash, so cellHash(x, y, s) was cellHash(x + s, y) at every one of 262,144
+// lattice points - two layers seeded 0 and 1 were one field and a copy of it
+// slid a cell sideways. preset_0713 shows the cost: it draws seeds 7 through 13
+// for the speed, phase and brightness of each firefly, and got one sequence
+// offset by one index each time, so every "independent" parameter of a firefly
+// was the same random stream in disguise.
+//
+// The seed cannot enter by addition ANYWHERE in this expression, and that is the
+// non-obvious part. Adding it to the final index is the same as adding it to gy;
+// adding it to both coordinates just translates diagonally. Measured over the
+// lattice against every shift within +/-4 cells, the obvious repair - seed on gx
+// and gy both - still correlates 1.0000 with the unseeded field. The seed has to
+// pass through the table, because perm[] is the only non-linear step available:
+// perm[v + k] bears no relation to perm[v]. Same measurement for what is written
+// below: 0.0128, which is the noise floor of the measurement.
+//
+// Two extra lookups into a 512-byte table that is already hot. The two-argument
+// overload above is untouched, so valueNoise2D, perlin2D and fractal2D render
+// exactly as before; only calls that pass a seed change.
 inline float cellHash(int gx, int gy, int seed) {
-  return (float)perm[(perm[(gx + seed) & 255] + (gy & 255)) & 255] * (1.0f / 255.0f);
+  const int k = perm[seed & 255];
+  return (float)perm[(perm[(perm[(gx + k) & 255] + (gy & 255)) & 255] + k) & 255] *
+         (1.0f / 255.0f);
 }
 
 // Smooth value noise: smoothstep-blended cellHash lattice, output 0..1.
 // Cheaper than perlin2D (no gradient dot products) — a good default for soft
 // organic fields; reach for perlin2D/fractal2D when you need richer structure.
 inline float valueNoise2D(float x, float y) {
-  int X = (int)floorf(x);
-  int Y = (int)floorf(y);
+  int X = PFMath::ifloor(x);
+  int Y = PFMath::ifloor(y);
   float fx = x - (float)X;
   float fy = y - (float)Y;
   float ux = fx * fx * (3.0f - 2.0f * fx);

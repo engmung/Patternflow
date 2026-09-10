@@ -295,8 +295,10 @@ inline bool pullPattern(const String& host, const String& name, String& detail) 
     return false;
   }
   // A module file changed under this slug: the registry's sidecar cache
-  // must read it again on the next rebuild.
+  // must read it again on the next rebuild - and so must its picture, or the
+  // panel shows the frame the previous version drew under the new one's name.
   sidecarForgetSlug(slug);
+  PFThumbs::forget(slug);
   detail = dest;
   return true;
 }

@@ -4,6 +4,234 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.10.1] - 2026-09-10
+
+### Fixed — the pattern SDK
+
+Two helpers that every pattern compiles into itself did not do what their
+names said, and a third gained a variant it was missing. The two fixes change what a pattern draws, and because `abi/pf_module.h`
+*includes* these files rather than calling into the host, the change reaches only
+**newly built** `.pfm` modules: an installed module and a rebuild of its own source
+will render differently on the same firmware. Rebuild a module to pick these up.
+
+- **`PFColor::sampleRampLerp` is new; `sampleRamp` is unchanged.** `sampleRamp`
+  holds the last stop at or below `t`, giving flat bands with hard edges. That
+  reads like a gradient function that forgot to interpolate, and it is not one —
+  Origin is built on it and its stepped colour is deliberate. Patterns that want
+  a gradient now call `sampleRampLerp`, which interpolates between the bracketing
+  stops and costs one soft-float division per sample; the C++ conversion prompt
+  names both and says which is which.
+- **`PFColor::hsvToRgb` rounds.** Each channel was `(uint8_t)(f * 255.0f)` —
+  truncation, no `+ 0.5f` — so the function sat half a level dark on every channel,
+  always in the same direction: a mean of **−0.470 LSB** swept over the HSV cube.
+  `buildPowLUT`, four functions below in the same header, has always rounded.
+- **`PFNoise::cellHash`'s seed decorrelates.** It was added to `gx` before the same
+  hash, making `cellHash(x, y, s)` identical to `cellHash(x + s, y)` at **every one
+  of 262,144 lattice points** — two layers seeded 0 and 1 were one field and a copy
+  of it slid a cell sideways. The cost is visible in `preset_0713`, which draws seeds
+  7 through 13 for each firefly's speed, phase and brightness and got one sequence
+  offset by one index each time, so every "independent" parameter was the same
+  stream in disguise. The seed now passes through the permutation table, because it
+  cannot enter by addition anywhere in that expression: adding it to the final index
+  is the same as adding it to `gy`, and adding it to both coordinates merely
+  translates diagonally — measured against every shift within ±4 cells, that obvious
+  repair still correlates **1.0000** with the unseeded field. What shipped correlates
+  **0.0128**. Two extra reads of a 512-byte table that is already hot.
+  The two-argument overload is untouched, so `valueNoise2D`, `perlin2D` and
+  `fractal2D` render exactly as before.
+
+### Improved — pattern authoring
+
+- **`floorf`, `fminf` and `fmaxf` stop being calls inside the SDK's own helpers.**
+  On this chip each one is a call into libm, not an instruction. `PFMath` gains
+  `ifloor`, `floorF`, `clamp` and `clamp01`; `fract`, `hsvToRgb` and the noise
+  lattice now use them, with results identical bit for bit. Measured on a rebuilt
+  module on the panel: 1.2% faster. The C++ conversion prompt now tells new
+  patterns to use them — and stops telling them that `sqrtf` is cheap or that
+  `perlin2D` spans −1..1 (it runs to about ±1.51). Installed `.pfm` modules are
+  unchanged; the helpers reach a module when it is next built.
+
+### Fixed — the panel
+
+- **Raising a code no longer lowers the light.** A bit plane's contribution is
+  its OE window times the number of times the DMA descriptor chain repeats it,
+  and the repeats already carry one factor of two per plane. The window had to
+  supply the rest, and it was derived by shifting — which can only halve, and
+  could not express the ratios the repeat counts need. Worse, the plane index
+  was mapped through `(2 * depth - colouridx) % depth`, which sends plane 0 —
+  the least significant — to the branch that hands it the same full-length
+  window the most significant plane gets.
+
+  Measured at depth 8: the planes delivered `125, 31, 126, 500, 1000, 2000,
+  4000, 8000` where binary wants `62, 125, 250, 500, …`. Plane 0 twice what it
+  should be, plane 1 a quarter, plane 2 a half. Swept over all 256 codes and
+  three channels that is **26 places where raising the code lowers the light**,
+  two of them by half, back to back — and 44 of 256 levels whose channel ratio
+  departs from the configured white balance. Seen on a panel: level 14 reads red
+  where level 13 is neutral grey.
+
+  The window is computed now rather than approached: `u · 2^d / repeats(d)`.
+  Inversions go to **zero** and the ratio departures to 11, at every brightness.
+  Full-scale luminance moves about 1%, so the eye-converged brightness and
+  white-balance constants keep their meaning. No per-pixel cost — this runs once
+  when brightness changes.
+
+  The arithmetic is now a pure function, `pfOEWindowPixels()`, lifted verbatim
+  into a new host suite (`check_oe.py`). Nothing had ever tested it, because
+  reaching `setBrightnessOE` needs a live DMA allocation — but the defect was
+  never in writing the buffer.
+
+- **The blit refuses a colour depth it cannot represent.** Its plane fields pack
+  five planes into each of two words, so ten is the ceiling; above that the
+  shifts lost bits and then became undefined, while the configuration allowed up
+  to twelve. Nothing ships above eight, so this was latent — and the host suite
+  swept 2–8, so nothing would have found it. It now sweeps 2–10.
+
+- **Dark greys stop coming out coloured.** Only the top bits of the 16-bit CIE
+  value reach a bit plane, and the rest was dropped rather than rounded. Truncation
+  is biased downward by up to half a plane step everywhere, which is invisible in
+  the bright half and is the entire signal in the dark end: eight input levels
+  emitted nothing at all, and neighbouring neutral greys came out as *opposite*
+  colour casts, because each channel crossed its threshold at a different code.
+  Seen on the panel: a neutral level 9 read blue, 17 read cyan and 18 read red.
+  Rounding to nearest is one line in a table built once per depth change — no
+  per-pixel cost at all. Computed over all 256 levels and three channels: dead
+  levels 8 → 4, level 9 becomes neutral, 17 and 18 both become the same neutral
+  grey, and mid-tone ratios land closer to the intended white balance (level 64
+  goes from 10/11/10 to 10/11/11). Full-scale white moves by one unit on blue
+  only, so the hand-converged `LED_WB_*` constants keep their meaning and do not
+  need re-converging.
+
+  Because the blit is firmware rather than part of each module's compiled copy,
+  this is the one fix in this release that reaches **already-installed `.pfm`
+  modules** — every pattern gets it without being rebuilt.
+
+  What this is *not*: the panel's response was already monotone. Claims that
+  raising a code could lower the light were tested directly — alternating levels
+  63/64, 107/108 and 127/128 against a control pair that pulses obviously — and
+  nothing was visible at any of them. There are no inversions to fix.
+
+### Fixed — audio in
+
+- **A panel with no microphone no longer takes the knobs.** The Hann window used
+  the symmetric denominator (`N - 1`) where a stream analysed hop after hop needs
+  the periodic one (`N`). Only the periodic window has a DFT of exactly three
+  bins, so only it keeps a constant input out of every other band — and the
+  dead-rail check downstream is precisely a test for "constant input, nothing in
+  the bands". Computed over the shipped band edges with a flat rail, the
+  symmetric window gave 0.0666 / 1.8e-3 / 1.3e-4 / 1.3e-5, three of the four
+  above the 1e-4 threshold; the periodic one gives ~1e-13 in all four. So the
+  check returned false for every dead rail there has ever been, an audio-edition
+  panel with the mic switched on but nothing wired claimed all four lanes and
+  pinned them, and a hand on a knob sprang back. The measurement recorded in that
+  function's own comment was taken before there was a window at all, which is how
+  adding one broke it without touching it.
+- **A backlogged microphone no longer colours the lanes for seconds.** The drain
+  loop keeps only the newest hop, so after it ran the window was built from two
+  pieces of audio that were not adjacent, spliced at index 256 — the exact centre,
+  where the Hann term peaks at 2.0 and attenuates the discontinuity by nothing.
+  Reading alternately into two hop buffers keeps the hop that actually precedes
+  the newest one. The drain itself was right and is unchanged; only the seam was
+  wrong.
+
+### Fixed — MIDI
+
+- **A stuck note can be cleared, and stops disabling the panel's own button.**
+  Held-note state had exactly one clearing edge — a note-off for that note — on
+  the one input path that can lose packets. Three ways out were missing: the
+  channel-mode messages (All Sound Off, Reset All Controllers, All Notes Off) fell
+  through the CC handler and did nothing, so the control a person reaches for when
+  a note sticks was inert; turning MIDI off at runtime discarded the note-off
+  while `fillInput` kept asserting the button, because it was the one handler with
+  no runtime gate; and an RTP peer that vanished took the release with it. All
+  three now clear. This matters more than it sounds: `observeFrame` reads
+  `btnHeld && !noteHeld` to decide a press was physical, so a stuck MIDI note also
+  silenced the encoder button under it.
+
+### Fixed — the parameter bus
+
+- **How far a legacy pattern travels no longer depends on how finely the sender
+  chopped the move.** An absolute write reaches a delta-only pattern as clicks at
+  ten bus units each, and the rule "never fewer than one for a change" turned a
+  smooth ten-second ease into one click per update: 830 of them at 83 fps where
+  the travel means 100, and half that at 41 fps. The remainder is carried now, so
+  the total is the travel and the frame rate is out of it — which is what the show
+  player already claimed of itself.
+- **`dN` on an unheld channel works.** `applyRemoteDelta` accepted a click on any
+  channel but only the held branch drained the queue, so a delta sent to a channel
+  nobody was holding did nothing visible and then arrived in full the moment
+  something held it, or was wiped by the next release. It is also bounded now:
+  `d1=999999999` was accepted and handed to a pattern as that many clicks.
+- **`POST /api/params?rN=1` releases a channel.** The bus could be written over
+  HTTP but not let go of over HTTP — the only ways back were a hand on that
+  encoder, or MQTT and the show player, which the default, audio and clock
+  editions do not carry. And since holding a channel also clears the audio lane
+  under it, one console slider could silence a mic lane with no way to undo it
+  from the same console.
+
+### Fixed — patterns and storage
+
+- **Re-uploading a pattern updates its picture.** Both upload paths and the
+  library pull invalidated the sidecar cache under a slug and not the thumbnail,
+  so editing a pattern in the Lab and sending it back under the same name left the
+  previous version's frame on the volume, and SELECT drew it under the new name.
+  It survived reboots.
+- **A stalled frame no longer makes the picture jump.** `dt` was an unbounded
+  `millis()` delta, and installing a pattern, an NVS commit or a thumbnail write
+  all produce frames far longer than a nominal one — measured at 273,949 µs
+  against 12,000 µs on an ordinary upload session. Every pattern integrates
+  against that number, so it moved everything a quarter of a second in one step.
+  Bounded at 100 ms, at the single place it is produced.
+
+### Fixed — firmware core
+
+- **An upload that stalled could panic the board.** The wait loop in the request
+  parser's `_uploadReadByte()` was the one of three that never yielded: upstream
+  writes it brace-less, so inserting the maintenance poll above the `delay(2)`
+  without adding braces made the poll the entire body and left the delay outside the
+  loop. It runs on the network task — Core 0, priority 1 — where a loop that never
+  blocks starves the idle task, and this SDK configuration watches that idle task
+  with a panic at five seconds. Installing a pattern is precisely when the link is
+  under load.
+- **A failed settings write no longer deletes a good pattern.** Two paths cleared
+  their own retry flag *before* the write it guarded. The damaging one is the boot
+  latch: it cleared its flag and then wrote `pat_trying = false`, so a write that
+  failed left the latch set on disk with nothing left to clear it — and the next
+  boot reads a set latch as "the last boot died with this pattern resident" and
+  forgets a pattern that was never at fault. Both now clear only once the write is
+  confirmed, the pattern save reuses its existing 3 s debounce as a retry backoff,
+  and the namespace open is checked. `/api/status` gains `nvs.usable` and
+  `nvs.failures`, because the whole difficulty with this failure is that its symptom
+  arrives a boot later. The brightness, power and Wi-Fi writes are unchanged.
+
+### Added — checks
+
+- **`check_math.py`** pins what `core_math.h`, `core_color.h` and `core_noise.h`
+  compute. `abi/pf_module.h` includes those three into every `.pfm`, so they are the
+  published pattern SDK — and nothing here had ever run a number through them. Their
+  accuracy lived in doc-comments, two of which were wrong about their own function
+  (`fastAtan2` is 7.4× tighter than it claims; `approxLength` is 6.8% where the
+  comment says ~5%). 19 rows, each a **band** rather than a ceiling, so an accuracy
+  change fails in either direction and has to be re-pinned deliberately. Note what
+  `abi.sums` cannot do here: it hashes the three files in `abi/`, so it passes
+  unmoved while the behaviour those files include changes underneath it.
+- **`check_footprint.py`** reads each edition's elf and pins its static internal RAM.
+  CI built four images and then printed their flash sizes — the one resource that is
+  not scarce. Internal DRAM is, and the module code budget is its residual. Measured
+  by the *address* of the linker's own `.dram0.heap_start` marker rather than a sum
+  of section names, which would quietly measure less if a toolchain renamed them.
+- **The shipped modules are priced, not just validated.** The ELF suite already
+  opened all 33 `.pfm` in the Basics pack; it now sums their executable sections by
+  the loader's own admission rule and fails over a ceiling. Nothing checked that the
+  modules this repository ships can be admitted by the firmware it ships, which is a
+  failure it has already had, and which took a hardware bisect to find.
+- **A declared hook must be dispatched, and a dispatched hook must be called.** The
+  boundary checker had five rules and all five policed what the core must *not* say.
+  The worst regression this project has shipped went the other way: the per-frame
+  feature dispatch went missing and every feature's loop silently stopped, on a build
+  that compiled, linked, ran and served every route. Compiling four editions cannot
+  catch that — a hook nobody calls type-checks perfectly.
+
 ## [3.10.0] - 2026-09-08
 
 ### Improved — Audio MIDI

@@ -81,11 +81,67 @@ Caller's side of the contract: the restart resumes at descriptor chain A while
 `back_buffer_id` is wherever it was left, so blank BOTH buffers before resuming
 or one stale frame can show. `../core_sleep.h` does that.
 
+## The plane encoding holds ten planes, and the config permits twelve
+
+`blitRGB888` packs one 6-bit field per plane — three colours by two panel
+halves — into two `uint32`: planes 0-4 in `lo` at `6*d`, planes 5-9 in `hi` at
+`6*(d-5)`. Plane 9 ends at bit 29, and there is no room for a tenth field.
+
+Past that it fails quietly and then illegally. Depth 11 needs bits 30-35 of `hi`
+and loses the top four. Depth 12 shifts a `uint32` by 36, which is undefined
+behaviour — in `pfBuildSpread` writing the field and in the reader consuming it.
+Both are reachable, because `HUB75_I2S_CFG` clamps a requested depth to
+`PIXEL_COLOR_DEPTH_BITS_MAX`, which is 12.
+
+**2026-09-10:** named the real ceiling `PF_SPREAD_MAX_DEPTH = 10` and made
+`blitRGB888` refuse above it — it logs once and leaves the previous frame up,
+because a stale frame with a message is diagnosable and a corrupted DMA buffer
+is not. `PIXEL_COLOR_DEPTH_BITS_MAX` is deliberately NOT lowered: the upstream
+`updateMatrixDMABuffer` path does not use these tables and is unaffected, and
+`fillScreen()` still goes through it. Nothing in this firmware asks for more
+than 8; the guard exists so that a future configuration change cannot corrupt
+frames silently.
+
+`toolchain/tests/blit_test.cpp` now sweeps depths **2 to 10** rather than 2 to 8,
+so the two planes above the shipped depth are actually exercised, and asserts
+that depths 11 and 12 leave the buffer byte-identical.
+
+## The OE window is computed, not approached
+
+A plane delivers its OE window times its descriptor repeat count. The repeats
+already carry one factor of two per plane above `lsbMsbTransitionBit`, so the
+window must supply the rest: `u * 2^d / repeats(d)`. Upstream derives a
+right-shift instead, which can only halve, and maps the plane index through
+`(2 * depth - colouridx) % depth` — sending plane 0 to the branch that gives it
+the MSB's full window.
+
+**2026-09-10:** the arithmetic is extracted as `pfOEWindowPixels()` and computed
+directly. It is pure, so `toolchain/check_oe.py` lifts it verbatim out of this
+file and asserts that no plane is outweighed by the ones below it and that the
+response over all 256 codes is monotone — 30,936 assertions across every depth,
+transition bit, width and brightness. Before the fix: 26 inversions, two of them
+50%. Full-scale luminance moves about 1%.
+
+## The plane threshold rounds
+
+Only the top `depth` bits of the 16-bit CIE value reach a plane. Upstream drops
+the rest; this copy adds half a step first, so the threshold rounds to nearest
+instead of toward zero. Truncation is biased downward by up to half a plane step
+everywhere, which is invisible in the bright half and is the whole signal in the
+dark end — measured on a panel, a neutral level 9 read blue, 17 read cyan and 18
+read red, because each channel crossed its threshold at a different code.
+
+It costs nothing at runtime: `pfBuildSpread` runs once per depth change.
+`blit_test.cpp` carries the same rounding in its own independent reference — the
+two are derived from the same intent and deliberately not from the same code,
+which is what makes comparing tens of millions of DMA words worth doing.
+
 ## What this costs
 
 - Upstream updates are manual. Diff a new release against this tree and re-apply
   the additions.
-- Both additions are marked `PATTERNFLOW ADDITION (not upstream)` —
+- The additions are marked `PATTERNFLOW ADDITION (not upstream)`, and the two
+  in-place changes above are marked `PATTERNFLOW FIX` —
   `blitRGB888()` in `ESP32-HUB75-MatrixPanel-I2S-DMA.h` and `.cpp`,
   `resumeDMAoutput()` in the `.h` only. Nothing else is modified.
 - The build server compiles the sketch folder, so it picks this up with no

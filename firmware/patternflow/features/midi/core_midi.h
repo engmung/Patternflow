@@ -225,11 +225,19 @@ inline bool setOutDivisor(int knob, int div) {
   return true;
 }
 
+// Defined below, with the inbound state it clears.
+inline void clearNotes();
+
 inline void setRuntimeEnabled(bool on) {
   runtimeEnabled = on;
   // Switching MIDI off must not leave up to one interval of steps waiting
   // to go out the moment it comes back on.
   if (!on) for (auto& r : outRelPending) r = 0;
+  // Nor a note held down for the rest of the boot. onNoteOff() returns early
+  // when MIDI is off, so a note that was down when the switch moved had no
+  // edge left that could clear it - and fillInput() asserted btnHeld from it
+  // regardless, on a feature the person had just turned off.
+  if (!on) clearNotes();
   Preferences p;
   if (p.begin("pf_midi", false)) {
     p.putBool("on", on);
@@ -241,6 +249,17 @@ inline void setRuntimeEnabled(bool on) {
 inline int  pendingDelta[4] = {0, 0, 0, 0};
 inline bool notePress[4] = {false, false, false, false};   // edge, one frame
 inline bool noteHeld[4] = {false, false, false, false};    // level
+
+// Held-note state has exactly one clearing edge - a note-off for that note -
+// on the one input path that can lose packets. Everything that means "nothing
+// is held any more" comes through here instead of duplicating the loop.
+inline void clearNotes() {
+  for (int i = 0; i < 4; i++) {
+    noteHeld[i] = false;
+    notePress[i] = false;
+  }
+}
+
 inline int  pendingPattern = -1;
 inline uint32_t rxCount = 0;
 inline uint32_t txCount = 0;
@@ -266,6 +285,16 @@ inline void onControlChange(uint8_t ch, uint8_t cc, uint8_t value) {
   if (cc >= PF_MIDI_CC_REL_BASE && cc < PF_MIDI_CC_REL_BASE + 4) {
     PatternflowMidiTransport::relReceived[cc - PF_MIDI_CC_REL_BASE].fetch_add(1, std::memory_order_relaxed);
     pendingDelta[cc - PF_MIDI_CC_REL_BASE] += (int)value - 64;
+    return;
+  }
+  // Channel mode: All Sound Off, Reset All Controllers, All Notes Off. These
+  // fell straight through the two range tests above and did nothing, which is
+  // the wrong answer for the exact control a person reaches for when a note has
+  // stuck - the panic button on every DAW and controller sends one of them.
+  // Notes only: the absolute bus is deliberately not released here, because a
+  // held lane is not a stuck note and releasing it would surprise a show.
+  if (cc == 120 || cc == 121 || cc == 123) {
+    clearNotes();
     return;
   }
 }
@@ -305,6 +334,12 @@ inline int  injectedDelta[4] = {0, 0, 0, 0};
 inline bool injectedPress[4] = {false, false, false, false};
 
 inline void fillInput(InputFrame& input) {
+  // Every other handler is gated on this and this one was not, so a disabled
+  // MIDI feature went on driving the frame from whatever state it had been
+  // left in. Note that a stuck noteHeld does not merely add a press: the
+  // observeFrame mask reads `btnHeld[i] && !noteHeld[i]` to decide a press was
+  // physical, so it silences the panel's own button too.
+  if (!runtimeEnabled) return;
   for (int i = 0; i < 4; i++) {
     injectedDelta[i] = pendingDelta[i];
     input.knobDeltas[i] += pendingDelta[i];

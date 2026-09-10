@@ -434,6 +434,23 @@ static uint32_t pfSpreadHi[256];
 static uint16_t pfCie[256];
 static uint8_t pfSpreadDepth = 0;
 
+// PATTERNFLOW FIX: the ceiling this encoding actually has.
+//
+// One 6-bit field per plane - three colours x two panel halves - packed into two
+// uint32: planes 0-4 in lo at 6*d, planes 5-9 in hi at 6*(d-5). Plane 9 ends at
+// bit 29 and there is no room for a tenth field. Past that it degrades quietly
+// and then illegally: depth 11 needs bits 30-35 of hi and loses the top four,
+// and depth 12 shifts a uint32 by 36, which is undefined behaviour in both the
+// builder above and the reader in blitRGB888.
+//
+// HUB75_I2S_CFG clamps a requested depth to PIXEL_COLOR_DEPTH_BITS_MAX, which is
+// 12, so the configuration permits what this path cannot represent. The upstream
+// updateMatrixDMABuffer path does not use these tables and is unaffected, which
+// is why the fix is a guard here rather than a lower MAX - fillScreen() still
+// goes through it. Nothing in this firmware asks for more than 8.
+static constexpr uint8_t PF_SPREAD_MAX_DEPTH = 10;
+
+
 // Both halves of the panel for one column: the post-processed bytes, their
 // on-time, and every plane's bits spread into (lo, hi).
 #define PF_PLANES_FOR(srcT, srcB, lo, hi, onTime)                              \
@@ -463,6 +480,30 @@ static void pfBuildSpread(uint8_t depth)
     const uint16_t cie = lumConvTab[v];
 #endif
     pfCie[v] = cie;
+    // PATTERNFLOW FIX: round to nearest, not toward zero.
+    //
+    // Only the top `depth` bits of the 16-bit CIE value reach a plane; the low
+    // byte was simply dropped. Truncation is biased downward by up to half a
+    // plane step everywhere, and at the bottom of the range that is the whole
+    // signal: measured over the shipped white balance, eight input levels emitted
+    // nothing at all, and neighbouring neutral greys came out as opposite colour
+    // casts because each channel crossed its threshold at a different code. On the
+    // panel, level 9 read blue, level 17 cyan and level 18 red - all three from a
+    // neutral input. Adding half a step before the test costs nothing at runtime:
+    // this loop runs once per depth change, not per pixel.
+    //
+    // Computed over all 256 levels x 3 channels: dead levels 8 -> 4, level 9
+    // becomes (1,1,1), levels 17 and 18 both become (2,2,2), and full-scale white
+    // moves from (212,255,240) to (212,255,241) - so the hand-converged LED_WB_*
+    // constants keep their meaning. tests/blit_test.cpp carries the same rounding
+    // in its independent reference; the two must move together or 30M compared
+    // DMA words disagree.
+#ifdef NO_CIE1931
+    const uint32_t thresholdSrc = cie;
+#else
+    uint32_t thresholdSrc = (uint32_t)cie + (maskOffset ? (1u << (maskOffset - 1)) : 0u);
+    if (thresholdSrc > 0xFFFFu) thresholdSrc = 0xFFFFu;
+#endif
     uint32_t lo = 0, hi = 0;
     for (uint8_t d = 0; d < depth; d++)
     {
@@ -471,7 +512,8 @@ static void pfBuildSpread(uint8_t depth)
 #else
       const uint16_t mask = PIXEL_COLOR_MASK_BIT(d, maskOffset);
 #endif
-      const uint32_t bit = (cie & mask) ? 1u : 0u;
+      const uint32_t bit = (thresholdSrc & mask) ? 1u : 0u;
+
       if (d < 5) lo |= bit << (6 * d);
       else       hi |= bit << (6 * (d - 5));
     }
@@ -494,6 +536,21 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
   const uint16_t w = PIXELS_PER_ROW;
   const uint8_t depth = m_cfg.getPixelColorDepthBits();
   const uint8_t rows = ROWS_PER_FRAME;
+  // Refuse rather than corrupt. Above PF_SPREAD_MAX_DEPTH the plane fields do not
+  // fit and the shifts are undefined; leaving the previous frame up and saying so
+  // once is diagnosable, where writing garbage into the DMA buffer is not. Cannot
+  // fire on any configuration this firmware ships.
+  if (depth > PF_SPREAD_MAX_DEPTH)
+  {
+    static bool warned = false;
+    if (!warned)
+    {
+      warned = true;
+      ESP_LOGE("I2S-DMA", "blitRGB888: colour depth %d exceeds %d, the most the "
+               "plane encoding can hold - frame not written", depth, PF_SPREAD_MAX_DEPTH);
+    }
+    return;
+  }
   if (pfSpreadDepth != depth) pfBuildSpread(depth);
 
   // Total LED on-time this frame asks for, summed as we go. The per-pixel
@@ -825,6 +882,57 @@ void MatrixPanel_I2S_DMA::clearFrameBuffer(bool _buff_id)
   } while (row_idx);
 }
 
+// PATTERNFLOW FIX: how wide one plane's OE window is, computed rather than
+// approached by shifting. Extracted from setBrightnessOE below so it can be
+// tested on a host - the bug was never in writing the buffer, it was here.
+//
+// A BCM plane's delivered light is its OE window times the number of times the
+// descriptor chain repeats it. The repeats already carry one factor of two per
+// plane above lsbMsbTransitionBit, so the window has to supply the rest:
+//
+//     window[d] = u * 2^d / repeats(d)
+//
+// which is u for plane 0, 2u for plane 1 once past the transition, and a
+// constant above it. Normalising by the widest, 2^(L+1), keeps every window
+// inside the row at full brightness.
+//
+// What was here could not express that. It derived a shift:
+//
+//     bitplane   = (2 * depth - colouridx) % depth
+//     rightshift = max(bitplane - bitshift - 2, 0)
+//
+// and a shift can only halve. Worse, the modulo maps plane 0 - the LSB - to
+// bitplane 0, which takes the max() floor and hands it the same full-length
+// window the MSB gets. Measured at depth 8 with lsbMsbTransitionBit 0, the
+// delivered weights came out [125, 31, 126, 500, 1000, 2000, 4000, 8000]
+// against a binary [62, 125, 250, 500, ...]: plane 0 twice what it should be,
+// plane 1 a quarter, plane 2 a half, and planes 3-7 correct.
+//
+// The consequence is not subtle. Swept over all 256 codes and three channels,
+// that produced 26 places where raising the code LOWERS the light - two of
+// them by 50%, back to back at 13->14 and 14->15 - and 44 of 256 levels whose
+// channel ratio departs from the configured white balance. Confirmed on a
+// panel: level 14 reads red where 13 is neutral. With the weights binary,
+// the inversions go to zero and the ratio departures to 11.
+//
+// Full-scale luminance moves 15,782 -> 15,938, about 1%, so the eye-converged
+// brightness and white-balance constants keep their meaning.
+int pfOEWindowPixels(int plane, int depth, int lsbMsbTransitionBit,
+                     int width, int blank, int brt)
+{
+  if (plane < 0 || plane >= depth) return 0;
+  const int repeats = (plane <= lsbMsbTransitionBit)
+                          ? 1
+                          : (1 << (plane - lsbMsbTransitionBit - 1));
+  const int scale = (1 << plane) / repeats;   // 1, then 2, 4 ... up to 2^(L+1)
+  int px = (int)(((uint32_t)(width - blank) * (uint32_t)brt * (uint32_t)scale)
+                 >> (8 + lsbMsbTransitionBit));
+  px = (px >> 1) | (px & 1);                  // the window is centred on the row
+  if (px > width) px = width;
+  if (px < 0) px = 0;
+  return px;
+}
+
 void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
 {
 
@@ -849,13 +957,10 @@ void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
     {
       --colouridx;
 
-      char bitplane = (2 * _depth - colouridx) % _depth;
-      char bitshift = (_depth - lsbMsbTransitionBit - 1) >> 1;
-
-      char rightshift = std::max(bitplane - bitshift - 2, 0);
-      // calculate the OE disable period by brightness, and also blanking
-      int brightness_in_x_pixels = ((_width - _blank) * brt) >> (7 + rightshift);
-      brightness_in_x_pixels = (brightness_in_x_pixels >> 1) | (brightness_in_x_pixels & 1);
+      // See pfOEWindowPixels above for why this is a division and not a shift.
+      int brightness_in_x_pixels = pfOEWindowPixels(colouridx, _depth,
+                                                    lsbMsbTransitionBit,
+                                                    _width, _blank, brt);
 
       // switch pointer to a row for a specific color index
       ESP32_I2S_DMA_STORAGE_TYPE *row = fb->rowBits[row_idx]->getDataPtr(colouridx);

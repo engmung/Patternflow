@@ -414,9 +414,25 @@ int WebServer::_uploadReadByte(WiFiClient& client) {
   int res = client.read();
 
   if (res < 0) {
-    while(!client.available() && client.connected())
+    // PATTERNFLOW FIX: the braces. Stock is a brace-less
+    // while (...) delay(2); and Fix 3 inserted poll() above the delay
+    // without adding them - which made poll() the entire body and left
+    // delay(2) running once, after the loop. So this was the one wait loop
+    // of the three that never yielded.
+    //
+    // It runs on pf-net (Core 0, priority 1), where a loop that never blocks
+    // starves IDLE0 (priority 0). This sdkconfig has
+    // CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y with
+    // CONFIG_ESP_TASK_WDT_PANIC=y at 5 s, so an upload that stalled that
+    // long with the peer still connected panicked the board.
+    //
+    // The absence of a timeout here is stock and is left alone: a peer that
+    // connects and sends nothing still holds this single-connection server,
+    // exactly as it does upstream. That is a separate decision from yielding.
+    while (!client.available() && client.connected()) {
       PFNetMaintenance::poll();
       delay(2);
+    }
 
     res = client.read();
   }

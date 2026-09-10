@@ -145,7 +145,15 @@ constexpr int STALL_LIMIT = 3;
 constexpr i2s_port_t PORT = I2S_NUM_0;
 
 inline int emptyReads = 0;
-inline int16_t raw[HOP];
+// Two, not one. The drain below keeps only the newest hop, and the window is
+// built from the newest plus whatever was in the ring - which after a drain is
+// a hop from further back, spliced against it at index WINDOW - HOP. That is
+// the exact centre of the window, where the Hann term peaks at 2.0 and
+// attenuates the discontinuity by nothing at all. Alternating buffers keeps the
+// hop that actually precedes the newest one, so the two halves stay adjacent.
+inline int16_t rawA[HOP];
+inline int16_t rawB[HOP];
+
 // The ring the window is cut from: the previous hop, then the new one.
 inline float ring[WINDOW];
 
@@ -251,17 +259,27 @@ inline void begin() {
 inline bool readWindow(float* dst) {
   if (!live) return false;
 
-  size_t got = 0;
-  const esp_err_t err = i2s_read(PORT, raw, sizeof(raw), &got,
+  int16_t* cur = rawA;
+  int16_t* prev = rawB;
+  size_t got = 0, prevGot = 0;
+  int skipped = 0;
+  const esp_err_t err = i2s_read(PORT, cur, sizeof(rawA), &got,
                                  pdMS_TO_TICKS(READ_TIMEOUT_MS));
 
   // Drain to the newest. Bounded, because a ring that refills as fast as it
-  // empties must not turn this into the spin it exists to prevent.
+  // empties must not turn this into the spin it exists to prevent. Reading
+  // alternately into the two buffers costs nothing and leaves `prev` holding
+  // the hop immediately before `cur`, which is what the window needs.
   for (int guard = 0; guard < 8; guard++) {
     size_t more = 0;
-    if (i2s_read(PORT, raw, sizeof(raw), &more, 0) != ESP_OK || more == 0) break;
+    int16_t* into = (cur == rawA) ? rawB : rawA;
+    if (i2s_read(PORT, into, sizeof(rawA), &more, 0) != ESP_OK || more == 0) break;
+    prev = cur;
+    prevGot = got;
+    cur = into;
     got = more;
     dropped++;
+    skipped++;
   }
 
   const int samples = (int)(got / sizeof(int16_t));
@@ -280,16 +298,32 @@ inline bool readWindow(float* dst) {
   emptyReads = 0;
   windowsRead++;
 
-  // Slide: the previous hop becomes the window's first half.
+  const float k = 1.0f / 32768.0f;
+
+  // Slide: the previous hop becomes the window's first half. Correct as long
+  // as nothing was skipped - two consecutive reads ARE adjacent audio.
   for (int i = 0; i < WINDOW - HOP; i++) ring[i] = ring[i + HOP];
+
+  // If hops were dropped, what just slid in is not adjacent to what follows it.
+  // Overwrite it with the hop that is. Simulated at N=512 with the shipped
+  // window, one splice at the centre lifts the upper bands by a factor of a few
+  // against the contiguous window from the same instant - and it lands in an
+  // envelope with an eight-second release, so one backlogged read colours the
+  // lanes for seconds. The drain itself is correct and stays; only the seam
+  // was wrong.
+  if (skipped > 0) {
+    const int m = (int)(prevGot / sizeof(int16_t));
+    const int pn = m < HOP ? m : HOP;
+    for (int i = 0; i < pn; i++) ring[i] = (float)prev[i] * k;
+    for (int i = pn; i < HOP; i++) ring[i] = 0.0f;
+  }
   // int16 full scale to roughly +/-1, and nothing else: no gain here. The
   // real number the silicon returned has to survive to the diagnostics
   // (rawPeak/rawDc are documented as raw) and to the dead-rail check. The
   // user-tunable microphone gain is applied downstream in analyze(), after
   // those are measured from the same window.
-  const float k = 1.0f / 32768.0f;
   const int n = samples < HOP ? samples : HOP;
-  for (int i = 0; i < n; i++) ring[WINDOW - HOP + i] = (float)raw[i] * k;
+  for (int i = 0; i < n; i++) ring[WINDOW - HOP + i] = (float)cur[i] * k;
   // A short read leaves the tail of the hop holding the previous window's
   // audio. Zero it instead: repeating 16 ms of sound is a spectral artefact,
   // silence is only quieter.

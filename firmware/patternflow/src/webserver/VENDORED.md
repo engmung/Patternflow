@@ -17,6 +17,18 @@ The parser's byte counts, timeout rules and wire contract are unchanged.
 Other synchronous library operations can still cause maintenance gaps; this
 is not a general asynchronous-server conversion.
 
+**2026-09-10 — one of those three loops was not doing it.** Stock writes this
+loop brace-less (`while (...) delay(2);`), so inserting `poll()` above the delay
+without adding braces made `poll()` the entire body and left `delay(2)` running
+once, after the loop. `_uploadReadByte()` therefore spun without yielding at all,
+on `pf-net` (Core 0, priority 1) where nothing blocking starves IDLE0 — and this
+sdkconfig watches IDLE0 with `CONFIG_ESP_TASK_WDT_PANIC=y` at 5 s. An upload
+whose peer went quiet that long while staying connected panicked the board.
+
+The other two loops were correct; only this one was wrong, and its two inserted
+lines ended in a bare LF in a file that is otherwise CRLF, which is what the
+edit that introduced it left behind. Braces added, line endings normalised.
+
 ## Fix 1 (Parsing.cpp, raw body loop): ask for what remains
 
 Stock 2.x reads the raw request body with
