@@ -882,6 +882,57 @@ void MatrixPanel_I2S_DMA::clearFrameBuffer(bool _buff_id)
   } while (row_idx);
 }
 
+// PATTERNFLOW FIX: how wide one plane's OE window is, computed rather than
+// approached by shifting. Extracted from setBrightnessOE below so it can be
+// tested on a host - the bug was never in writing the buffer, it was here.
+//
+// A BCM plane's delivered light is its OE window times the number of times the
+// descriptor chain repeats it. The repeats already carry one factor of two per
+// plane above lsbMsbTransitionBit, so the window has to supply the rest:
+//
+//     window[d] = u * 2^d / repeats(d)
+//
+// which is u for plane 0, 2u for plane 1 once past the transition, and a
+// constant above it. Normalising by the widest, 2^(L+1), keeps every window
+// inside the row at full brightness.
+//
+// What was here could not express that. It derived a shift:
+//
+//     bitplane   = (2 * depth - colouridx) % depth
+//     rightshift = max(bitplane - bitshift - 2, 0)
+//
+// and a shift can only halve. Worse, the modulo maps plane 0 - the LSB - to
+// bitplane 0, which takes the max() floor and hands it the same full-length
+// window the MSB gets. Measured at depth 8 with lsbMsbTransitionBit 0, the
+// delivered weights came out [125, 31, 126, 500, 1000, 2000, 4000, 8000]
+// against a binary [62, 125, 250, 500, ...]: plane 0 twice what it should be,
+// plane 1 a quarter, plane 2 a half, and planes 3-7 correct.
+//
+// The consequence is not subtle. Swept over all 256 codes and three channels,
+// that produced 26 places where raising the code LOWERS the light - two of
+// them by 50%, back to back at 13->14 and 14->15 - and 44 of 256 levels whose
+// channel ratio departs from the configured white balance. Confirmed on a
+// panel: level 14 reads red where 13 is neutral. With the weights binary,
+// the inversions go to zero and the ratio departures to 11.
+//
+// Full-scale luminance moves 15,782 -> 15,938, about 1%, so the eye-converged
+// brightness and white-balance constants keep their meaning.
+int pfOEWindowPixels(int plane, int depth, int lsbMsbTransitionBit,
+                     int width, int blank, int brt)
+{
+  if (plane < 0 || plane >= depth) return 0;
+  const int repeats = (plane <= lsbMsbTransitionBit)
+                          ? 1
+                          : (1 << (plane - lsbMsbTransitionBit - 1));
+  const int scale = (1 << plane) / repeats;   // 1, then 2, 4 ... up to 2^(L+1)
+  int px = (int)(((uint32_t)(width - blank) * (uint32_t)brt * (uint32_t)scale)
+                 >> (8 + lsbMsbTransitionBit));
+  px = (px >> 1) | (px & 1);                  // the window is centred on the row
+  if (px > width) px = width;
+  if (px < 0) px = 0;
+  return px;
+}
+
 void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
 {
 
@@ -906,13 +957,10 @@ void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
     {
       --colouridx;
 
-      char bitplane = (2 * _depth - colouridx) % _depth;
-      char bitshift = (_depth - lsbMsbTransitionBit - 1) >> 1;
-
-      char rightshift = std::max(bitplane - bitshift - 2, 0);
-      // calculate the OE disable period by brightness, and also blanking
-      int brightness_in_x_pixels = ((_width - _blank) * brt) >> (7 + rightshift);
-      brightness_in_x_pixels = (brightness_in_x_pixels >> 1) | (brightness_in_x_pixels & 1);
+      // See pfOEWindowPixels above for why this is a division and not a shift.
+      int brightness_in_x_pixels = pfOEWindowPixels(colouridx, _depth,
+                                                    lsbMsbTransitionBit,
+                                                    _width, _blank, brt);
 
       // switch pointer to a row for a specific color index
       ESP32_I2S_DMA_STORAGE_TYPE *row = fb->rowBits[row_idx]->getDataPtr(colouridx);

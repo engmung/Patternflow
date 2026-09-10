@@ -72,6 +72,8 @@ jobs:
         run: python firmware/toolchain/check_module_elf.py --sanitize
       - name: HUB75 colour planes and control bits
         run: python firmware/toolchain/check_blit.py --sanitize
+      - name: Panel plane weights and monotone response
+        run: python firmware/toolchain/check_oe.py --sanitize
       - name: Pattern SDK maths, colour and noise still measure the same
         run: python firmware/toolchain/check_math.py --sanitize
       - name: Thumbnail mailbox ownership and invalidation

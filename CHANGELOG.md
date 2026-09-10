@@ -40,6 +40,40 @@ will render differently on the same firmware. Rebuild a module to pick these up.
 
 ### Fixed — the panel
 
+- **Raising a code no longer lowers the light.** A bit plane's contribution is
+  its OE window times the number of times the DMA descriptor chain repeats it,
+  and the repeats already carry one factor of two per plane. The window had to
+  supply the rest, and it was derived by shifting — which can only halve, and
+  could not express the ratios the repeat counts need. Worse, the plane index
+  was mapped through `(2 * depth - colouridx) % depth`, which sends plane 0 —
+  the least significant — to the branch that hands it the same full-length
+  window the most significant plane gets.
+
+  Measured at depth 8: the planes delivered `125, 31, 126, 500, 1000, 2000,
+  4000, 8000` where binary wants `62, 125, 250, 500, …`. Plane 0 twice what it
+  should be, plane 1 a quarter, plane 2 a half. Swept over all 256 codes and
+  three channels that is **26 places where raising the code lowers the light**,
+  two of them by half, back to back — and 44 of 256 levels whose channel ratio
+  departs from the configured white balance. Seen on a panel: level 14 reads red
+  where level 13 is neutral grey.
+
+  The window is computed now rather than approached: `u · 2^d / repeats(d)`.
+  Inversions go to **zero** and the ratio departures to 11, at every brightness.
+  Full-scale luminance moves about 1%, so the eye-converged brightness and
+  white-balance constants keep their meaning. No per-pixel cost — this runs once
+  when brightness changes.
+
+  The arithmetic is now a pure function, `pfOEWindowPixels()`, lifted verbatim
+  into a new host suite (`check_oe.py`). Nothing had ever tested it, because
+  reaching `setBrightnessOE` needs a live DMA allocation — but the defect was
+  never in writing the buffer.
+
+- **The blit refuses a colour depth it cannot represent.** Its plane fields pack
+  five planes into each of two words, so ten is the ceiling; above that the
+  shifts lost bits and then became undefined, while the configuration allowed up
+  to twelve. Nothing ships above eight, so this was latent — and the host suite
+  swept 2–8, so nothing would have found it. It now sweeps 2–10.
+
 - **Dark greys stop coming out coloured.** Only the top bits of the 16-bit CIE
   value reach a bit plane, and the rest was dropped rather than rounded. Truncation
   is biased downward by up to half a plane step everywhere, which is invisible in

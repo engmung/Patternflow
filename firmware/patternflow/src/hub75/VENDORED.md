@@ -106,6 +106,22 @@ frames silently.
 so the two planes above the shipped depth are actually exercised, and asserts
 that depths 11 and 12 leave the buffer byte-identical.
 
+## The OE window is computed, not approached
+
+A plane delivers its OE window times its descriptor repeat count. The repeats
+already carry one factor of two per plane above `lsbMsbTransitionBit`, so the
+window must supply the rest: `u * 2^d / repeats(d)`. Upstream derives a
+right-shift instead, which can only halve, and maps the plane index through
+`(2 * depth - colouridx) % depth` — sending plane 0 to the branch that gives it
+the MSB's full window.
+
+**2026-09-10:** the arithmetic is extracted as `pfOEWindowPixels()` and computed
+directly. It is pure, so `toolchain/check_oe.py` lifts it verbatim out of this
+file and asserts that no plane is outweighed by the ones below it and that the
+response over all 256 codes is monotone — 30,936 assertions across every depth,
+transition bit, width and brightness. Before the fix: 26 inversions, two of them
+50%. Full-scale luminance moves about 1%.
+
 ## The plane threshold rounds
 
 Only the top `depth` bits of the 16-bit CIE value reach a plane. Upstream drops
