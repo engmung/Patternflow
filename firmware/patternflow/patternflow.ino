@@ -1359,7 +1359,25 @@ void loop() {
   PatternflowPatternsHttp::tick();
 
   unsigned long now = millis();
-  float dt = (now - lastMs) / 1000.0f;
+  // The one place dt is produced, so the one place it can be bounded. Every
+  // pattern integrates against it - position += velocity * dt - and a frame
+  // that took a quarter of a second moves everything a quarter of a second,
+  // in one step, which reads as the picture jumping rather than running.
+  //
+  // Those frames are not hypothetical and they are not rare: installing a
+  // pattern, an NVS commit and a thumbnail write all produce them. Measured
+  // on a panel during an ordinary upload session, runtime.maxUs reached
+  // 273,949 us against a 12,000 us nominal - 23x - and over50ms counted 1,661.
+  //
+  // 100 ms is twice the over50ms threshold this file already treats as long,
+  // so an honestly slow pattern passes through untouched and only a stall is
+  // caught. Clamping loses that time rather than spending it: animation runs
+  // slow for one frame instead of teleporting, which is the right way round.
+  // Do not remove this without watching a heavy pattern across an upload.
+  constexpr unsigned long DT_MAX_MS = 100;
+  unsigned long elapsed = now - lastMs;
+  if (elapsed > DT_MAX_MS) elapsed = DT_MAX_MS;
+  float dt = elapsed / 1000.0f;
   lastMs = now;
   runtime.housekeepingDone();
   const uint32_t frameStartedUs = micros();
