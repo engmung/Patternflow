@@ -170,6 +170,15 @@ inline void begin() {
     if (peers > 0) __atomic_fetch_sub(&peers, 1, __ATOMIC_RELAXED);
     if (peers == 0) peerName[0] = 0;
     portEXIT_CRITICAL(&peerMux);
+    // The peer that pressed a key is gone, so the note-off that would have
+    // released it is never coming. Held-note state has exactly one clearing
+    // edge, and it just left the network; without this the button stays down
+    // for the rest of the boot, and while it is down the observeFrame mask
+    // reads it as "not physical" and silences the panel's own button too.
+    // Called directly rather than queued: it only writes flags to false, which
+    // no reader can tear and no other writer contends for.
+    PatternflowMidi::clearNotes();
+
     Serial.printf("[MIDI] rtp session left (%d)\n", peers);
   });
 
