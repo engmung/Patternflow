@@ -76,6 +76,11 @@ if [ "${1:-}" = "all" ]; then
       exit 1
     fi
     cp "$BUILD_DIR/firmware/firmware.bin" "$OUTDIR/$ed.bin"
+    # The elf as well, because the bin cannot answer the question that actually
+    # governs this product. A .bin's size is flash, and flash is not scarce here:
+    # internal DRAM is, and the module code budget is whatever is left of it once
+    # .data, .bss and IRAM have taken their share. check_footprint.py reads these.
+    cp "$BUILD_DIR/firmware/firmware.elf" "$OUTDIR/$ed.elf"
     verdict=ok
     detail=""
     for f in osc audio audio_in mqtt show weather midi ble clock; do

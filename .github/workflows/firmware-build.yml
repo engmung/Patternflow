@@ -64,3 +64,11 @@ jobs:
 
       - name: Image sizes
         run: ls -l "$HOME/pf-build-editions"/*.bin
+
+      # Flash is not the scarce resource here; internal DRAM is, and a loadable
+      # pattern's code budget is whatever is left of it. The step above has always
+      # measured the one that does not matter. This reads each edition's elf and
+      # fails on a static-RAM move, per edition, because the whole point of the
+      # edition split is that the blast radius differs.
+      - name: Internal RAM each edition has already spent
+        run: python firmware/toolchain/check_footprint.py
