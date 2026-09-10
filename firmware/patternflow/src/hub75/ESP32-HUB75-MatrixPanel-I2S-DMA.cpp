@@ -434,6 +434,23 @@ static uint32_t pfSpreadHi[256];
 static uint16_t pfCie[256];
 static uint8_t pfSpreadDepth = 0;
 
+// PATTERNFLOW FIX: the ceiling this encoding actually has.
+//
+// One 6-bit field per plane - three colours x two panel halves - packed into two
+// uint32: planes 0-4 in lo at 6*d, planes 5-9 in hi at 6*(d-5). Plane 9 ends at
+// bit 29 and there is no room for a tenth field. Past that it degrades quietly
+// and then illegally: depth 11 needs bits 30-35 of hi and loses the top four,
+// and depth 12 shifts a uint32 by 36, which is undefined behaviour in both the
+// builder above and the reader in blitRGB888.
+//
+// HUB75_I2S_CFG clamps a requested depth to PIXEL_COLOR_DEPTH_BITS_MAX, which is
+// 12, so the configuration permits what this path cannot represent. The upstream
+// updateMatrixDMABuffer path does not use these tables and is unaffected, which
+// is why the fix is a guard here rather than a lower MAX - fillScreen() still
+// goes through it. Nothing in this firmware asks for more than 8.
+static constexpr uint8_t PF_SPREAD_MAX_DEPTH = 10;
+
+
 // Both halves of the panel for one column: the post-processed bytes, their
 // on-time, and every plane's bits spread into (lo, hi).
 #define PF_PLANES_FOR(srcT, srcB, lo, hi, onTime)                              \
@@ -519,6 +536,21 @@ void IRAM_ATTR MatrixPanel_I2S_DMA::blitRGB888(const uint8_t *rgb,
   const uint16_t w = PIXELS_PER_ROW;
   const uint8_t depth = m_cfg.getPixelColorDepthBits();
   const uint8_t rows = ROWS_PER_FRAME;
+  // Refuse rather than corrupt. Above PF_SPREAD_MAX_DEPTH the plane fields do not
+  // fit and the shifts are undefined; leaving the previous frame up and saying so
+  // once is diagnosable, where writing garbage into the DMA buffer is not. Cannot
+  // fire on any configuration this firmware ships.
+  if (depth > PF_SPREAD_MAX_DEPTH)
+  {
+    static bool warned = false;
+    if (!warned)
+    {
+      warned = true;
+      ESP_LOGE("I2S-DMA", "blitRGB888: colour depth %d exceeds %d, the most the "
+               "plane encoding can hold - frame not written", depth, PF_SPREAD_MAX_DEPTH);
+    }
+    return;
+  }
   if (pfSpreadDepth != depth) pfBuildSpread(depth);
 
   // Total LED on-time this frame asks for, summed as we go. The per-pixel
