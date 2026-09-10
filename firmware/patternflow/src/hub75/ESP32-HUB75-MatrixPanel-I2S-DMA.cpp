@@ -463,6 +463,30 @@ static void pfBuildSpread(uint8_t depth)
     const uint16_t cie = lumConvTab[v];
 #endif
     pfCie[v] = cie;
+    // PATTERNFLOW FIX: round to nearest, not toward zero.
+    //
+    // Only the top `depth` bits of the 16-bit CIE value reach a plane; the low
+    // byte was simply dropped. Truncation is biased downward by up to half a
+    // plane step everywhere, and at the bottom of the range that is the whole
+    // signal: measured over the shipped white balance, eight input levels emitted
+    // nothing at all, and neighbouring neutral greys came out as opposite colour
+    // casts because each channel crossed its threshold at a different code. On the
+    // panel, level 9 read blue, level 17 cyan and level 18 red - all three from a
+    // neutral input. Adding half a step before the test costs nothing at runtime:
+    // this loop runs once per depth change, not per pixel.
+    //
+    // Computed over all 256 levels x 3 channels: dead levels 8 -> 4, level 9
+    // becomes (1,1,1), levels 17 and 18 both become (2,2,2), and full-scale white
+    // moves from (212,255,240) to (212,255,241) - so the hand-converged LED_WB_*
+    // constants keep their meaning. tests/blit_test.cpp carries the same rounding
+    // in its independent reference; the two must move together or 30M compared
+    // DMA words disagree.
+#ifdef NO_CIE1931
+    const uint32_t thresholdSrc = cie;
+#else
+    uint32_t thresholdSrc = (uint32_t)cie + (maskOffset ? (1u << (maskOffset - 1)) : 0u);
+    if (thresholdSrc > 0xFFFFu) thresholdSrc = 0xFFFFu;
+#endif
     uint32_t lo = 0, hi = 0;
     for (uint8_t d = 0; d < depth; d++)
     {
@@ -471,7 +495,8 @@ static void pfBuildSpread(uint8_t depth)
 #else
       const uint16_t mask = PIXEL_COLOR_MASK_BIT(d, maskOffset);
 #endif
-      const uint32_t bit = (cie & mask) ? 1u : 0u;
+      const uint32_t bit = (thresholdSrc & mask) ? 1u : 0u;
+
       if (d < 5) lo |= bit << (6 * d);
       else       hi |= bit << (6 * (d - 5));
     }

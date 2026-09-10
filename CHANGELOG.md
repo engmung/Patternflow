@@ -38,6 +38,32 @@ will render differently on the same firmware. Rebuild a module to pick these up.
   The two-argument overload is untouched, so `valueNoise2D`, `perlin2D` and
   `fractal2D` render exactly as before.
 
+### Fixed — the panel
+
+- **Dark greys stop coming out coloured.** Only the top bits of the 16-bit CIE
+  value reach a bit plane, and the rest was dropped rather than rounded. Truncation
+  is biased downward by up to half a plane step everywhere, which is invisible in
+  the bright half and is the entire signal in the dark end: eight input levels
+  emitted nothing at all, and neighbouring neutral greys came out as *opposite*
+  colour casts, because each channel crossed its threshold at a different code.
+  Seen on the panel: a neutral level 9 read blue, 17 read cyan and 18 read red.
+  Rounding to nearest is one line in a table built once per depth change — no
+  per-pixel cost at all. Computed over all 256 levels and three channels: dead
+  levels 8 → 4, level 9 becomes neutral, 17 and 18 both become the same neutral
+  grey, and mid-tone ratios land closer to the intended white balance (level 64
+  goes from 10/11/10 to 10/11/11). Full-scale white moves by one unit on blue
+  only, so the hand-converged `LED_WB_*` constants keep their meaning and do not
+  need re-converging.
+
+  Because the blit is firmware rather than part of each module's compiled copy,
+  this is the one fix in this release that reaches **already-installed `.pfm`
+  modules** — every pattern gets it without being rebuilt.
+
+  What this is *not*: the panel's response was already monotone. Claims that
+  raising a code could lower the light were tested directly — alternating levels
+  63/64, 107/108 and 127/128 against a control pair that pulses obviously — and
+  nothing was visible at any of them. There are no inversions to fix.
+
 ### Fixed — audio in
 
 - **A panel with no microphone no longer takes the knobs.** The Hann window used

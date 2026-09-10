@@ -72,11 +72,18 @@ int main() {
                 int value = std::clamp(luma + (((int(p[c]) - luma) * sat) >> 8), 0, 255);
                 uint16_t cie = lumConvTab[lut[c][value]];
                 onTime += cie;
+                // Rounded, matching pfBuildSpread. Written out here rather than
+                // shared with it on purpose: this is the independent definition the
+                // production blit is checked against, so it has to be derived from
+                // the same intent and not from the same code.
+                unsigned rounded = unsigned(cie) + (1u << (16 - depth - 1));
+                if (rounded > 0xFFFFu) rounded = 0xFFFFu;
+
                 for (int d = 0; d < depth; ++d) {
                   size_t index = ((y % 32) * depth + d) * width + ESP32_TX_FIFO_POSITION_ADJUST(x);
                   unsigned mask = 1u << (c + (y >= 32 ? 3 : 0));
                   expected[index] = static_cast<uint16_t>((expected[index] & ~mask) |
-                      ((cie & (1u << (d + 16 - depth))) ? mask : 0));
+                      ((rounded & (1u << (d + 16 - depth))) ? mask : 0));
                 }
               }
             }
