@@ -12,6 +12,15 @@ name: Core knows no features
 #   patch-script damage that compiles into garbage or reports its error
 #   thirty lines from the cause.
 #
+#   check_math.py — the accuracy of core_math.h, core_color.h and core_noise.h,
+#   pinned as bands. abi/pf_module.h includes those three files into every .pfm,
+#   so they are the published pattern SDK, and until this check nothing here ran
+#   a number through any of them: their behaviour was asserted only in
+#   doc-comments, two of which were wrong about their own function. A row that
+#   moves in EITHER direction fails, because a change to these headers changes
+#   what every pattern built afterwards renders — and reaches only newly built
+#   modules, since an installed .pfm carries its own compiled copy.
+#
 # The blit, thumbnail mailbox, network recovery and ELF bounds also run on a
 # host C++ compiler with ASan/UBSan. The four-composition Xtensa compile stays
 # local (`firmware/bundles/build.sh all`) and remains required for core edits.
@@ -63,6 +72,8 @@ jobs:
         run: python firmware/toolchain/check_module_elf.py --sanitize
       - name: HUB75 colour planes and control bits
         run: python firmware/toolchain/check_blit.py --sanitize
+      - name: Pattern SDK maths, colour and noise still measure the same
+        run: python firmware/toolchain/check_math.py --sanitize
       - name: Thumbnail mailbox ownership and invalidation
         run: python firmware/toolchain/check_thumbs.py --sanitize
       - name: Wi-Fi and name-service recovery
