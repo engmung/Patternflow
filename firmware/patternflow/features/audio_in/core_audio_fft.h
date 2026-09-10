@@ -90,8 +90,19 @@ inline void begin() {
   // smearing strong bass into the high bands (there was no window at all
   // before), and the factor 2 undoes its coherent gain of 0.5 so band
   // levels keep the scale everything downstream was tuned against.
+  //
+  // The denominator is N, not N - 1. That is the PERIODIC Hann, and for a
+  // stream analysed one hop after another it is the correct one: its DFT is
+  // exactly three non-zero bins, so a constant input lands entirely in bin 0
+  // and its neighbours and leaks nowhere else. The symmetric window (N - 1)
+  // that was here does leak, and it broke inputIsDeadRail() below - see the
+  // measurement in that comment. Computed over the shipped band edges with a
+  // constant rail: symmetric gives bands 0.0666 / 1.8e-3 / 1.3e-4 / 1.3e-5,
+  // three of the four above the 1e-4 threshold; periodic gives ~1e-13 in all
+  // four. Mean window gain goes 0.998047 -> 1.000000, so band levels move by
+  // 0.2% and the tuning downstream does not notice.
   for (int i = 0; i < N; i++)
-    hann[i] = (1.0f - cosf(2.0f * (float)M_PI * i / (N - 1)));
+    hann[i] = (1.0f - cosf(2.0f * (float)M_PI * i / N));
   buildSource();
   // The microphone is NOT started here. It is installed and released by the
   // analysis task as the switch on /audio-in moves, so that a panel with the
@@ -190,6 +201,13 @@ inline void fold() {
 // floats to a rail, every sample comes back identical, and a constant signal
 // puts all of its energy in bin 0 - which fold() skips, so the bands are
 // genuinely zero rather than noisy.
+//
+// That measurement was taken before there was a window, and adding one broke
+// this check without touching it. A symmetric Hann is not periodic, so a
+// constant no longer stayed in bin 0: it leaked 0.0666 into band 0 and this
+// function returned false for every dead rail there has ever been. The window
+// is periodic now and the bands are back to ~1e-13. If either is changed
+// again, check this function still fires - nothing else does.
 //
 // I2S reports none of this as an error. The driver starts, the reads succeed
 // and return a full hop, and sourceName() says "pdm" because by every test
