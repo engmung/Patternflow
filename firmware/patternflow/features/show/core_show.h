@@ -87,7 +87,7 @@ inline uint8_t missingCount = 0;
 inline char missingNames[MAX_MISSING][48] = {};
 
 // Multi-sequence playlist (loop applies to the list, not each .pfs).
-constexpr uint8_t PLAYLIST_MAX = 24;
+constexpr uint8_t PLAYLIST_MAX = 64;
 inline char playlist[PLAYLIST_MAX][SLUG_BYTES] = {};
 inline uint8_t playlistCount = 0;
 inline uint8_t playlistIndex = 0;
