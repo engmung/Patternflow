@@ -203,6 +203,34 @@ inline const char* capAt(size_t i) {
 }
 inline size_t count() { return PF_FEATURE_COUNT; }
 
+// SELECT mode. First feature that returns true from drawSelect owns the
+// whole SELECT frame. handleSelectInput runs for every feature; any true
+// suppresses default K4 browse. decorateSelect runs after the default
+// draw when nobody claimed the frame.
+inline bool handleSelectInput(InputFrame& input) {
+  bool suppress = false;
+  for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
+    if (PF_FEATURES[i]->handleSelectInput &&
+        PF_FEATURES[i]->handleSelectInput(input)) {
+      suppress = true;
+    }
+  }
+  return suppress;
+}
+
+inline bool drawSelect() {
+  for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
+    if (PF_FEATURES[i]->drawSelect && PF_FEATURES[i]->drawSelect()) return true;
+  }
+  return false;
+}
+
+inline void decorateSelect() {
+  for (size_t i = 0; i < PF_FEATURE_COUNT; i++) {
+    if (PF_FEATURES[i]->decorateSelect) PF_FEATURES[i]->decorateSelect();
+  }
+}
+
 }  // namespace PFFeatures
 
 // ── Legacy name shim (2026-08-30) ───────────────────────────────────────

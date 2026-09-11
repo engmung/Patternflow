@@ -1881,12 +1881,16 @@ void loop() {
       drawBrightnessNotice();
     }
   } else {
+    // Features may own an alternate SELECT mode (e.g. Sequences playlist).
+    // If any returns true, skip the default K4 pattern browse this frame.
+    bool selectFeatureOwnsBrowse = PFFeatures::handleSelectInput(input);
     int selectSteps = 0;
-    if (input.knobDeltas[3] != 0) {
+    if (!selectFeatureOwnsBrowse && input.knobDeltas[3] != 0) {
       selectAccum += input.knobDeltas[3];
       selectSteps = selectAccum / SELECT_DETENTS_PER_STEP;   // truncates toward zero
       selectAccum -= selectSteps * SELECT_DETENTS_PER_STEP;
     }
+    if (selectFeatureOwnsBrowse) selectAccum = 0;
     if (selectSteps != 0) {
       currentPatternIdx += selectSteps;
       // Floored modulo: OSC /knob/4/delta can deliver a delta more negative
@@ -1949,7 +1953,10 @@ void loop() {
     }
 
     dma_display->setRotation(1);
-    drawSelectingMode();
+    if (!PFFeatures::drawSelect()) {
+      drawSelectingMode();
+      PFFeatures::decorateSelect();
+    }
     if (brightnessAdjusting) {
       drawBrightnessNotice();  // mode indicator, same as in RUNNING
     }

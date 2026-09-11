@@ -18,6 +18,7 @@
 #include "core_show.h"
 #include "core_show_http.h"
 #include "core_show_schedule.h"
+#include "core_show_select.h"
 #include "core_library_http.h"
 
 namespace PFFeatureShow {
@@ -90,6 +91,10 @@ inline const PFFeature descriptor = {
     "Sequences",   // navLabel
     "Timed shows from .pfs tables — play one, chain a playlist, "
     "schedule night and wake.",
+    nullptr,       // composeFrame
+    PatternflowShowSelect::handleSelectInput,
+    PatternflowShowSelect::drawSelect,
+    PatternflowShowSelect::decorateSelect,
 };
 
 }  // namespace PFFeatureShow
