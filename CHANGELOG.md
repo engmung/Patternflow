@@ -4,6 +4,28 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — pattern storage
+
+- **A Format that did not take no longer reports success.** `FFat.format()` never
+  reads back what it wrote, and the flash driver never checks that a program
+  landed. On a board whose flash silently drops writes, every step returned OK:
+  the console said "storage ready", and the next mount failed with the same
+  `Error: -1` as an unformatted board, which sent the owner round the Format
+  button indefinitely (#424). The mount that follows a Format is the first read,
+  so it now decides the result: if it fails, Format fails, and says why.
+- **A failed mount says why.** The core's line is `Mounting FFat partition
+  failed! Error: -1` whatever the cause, because FATFS's own reason is logged at
+  a level this SDK compiles out. The first failure in a boot now reads the boot
+  sector through the wear-levelling layer and records what it found: `not
+  formatted`, `format did not stick: storage reads back blank`, or the first and
+  last bytes of a sector that is not a filesystem. The reason goes to serial and
+  to the new `fsError` field in `/api/status`. It runs at most once per boot and
+  once after a Format, and never on a mounted volume.
+- `/api/status` gains `flashId`, the flash chip's JEDEC id, so a fault that
+  follows one flash part is visible without USB.
+- A comment in `pattern_registry.h` still described the automatic
+  format-on-failure removed in 3.2.0, and was being read as current behaviour.
+
 ## [3.10.1] - 2026-09-10
 
 ### Fixed — the pattern SDK

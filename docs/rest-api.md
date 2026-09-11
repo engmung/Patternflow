@@ -45,7 +45,8 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "wifi": true, "ssid": "studio", "ip": "192.168.1.42", "rssi": -54,
   "host": "patternflow",
   "heapInternal": 11052, "heapLargest": 8192, "heapPsram": 4194304,
-  "fsMounted": true, "fsTotal": 6291456, "fsUsed": 204800,
+  "fsMounted": true, "fsTotal": 6291456, "fsUsed": 204800, "fsError": "",
+  "flashId": "c84018",
   "patterns": 34, "presets": 1, "modules": 33,
   "active": "Wave Saw", "activeIsModule": true,
   "sleep": false,
@@ -70,6 +71,8 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `host` | mDNS hostname, i.e. `PF_OTA_HOSTNAME`. **Not unique** — every device ships as `"patternflow"`. See [Identifying a device](#identifying-a-device). |
 | `network` | Since 1.5, when Wi-Fi is compiled in: `disconnects` counts sampled connected→disconnected edges; `retries` counts explicit retry attempts (including initial join failures); `reconnectMs` is the last sampled downtime, zero before a reconnect. `namesReady` means the core's local mDNS/service/alias and NetBIOS registrations succeeded; probing may still be in progress and it does not prove client reachability. `announcements` counts successful registration passes. Counters reset on boot. |
 | `heapInternal` | Free internal DRAM. The scarce one: HUB75's DMA buffers live there, and below roughly 10 KB the console starts answering with headers and no body while Wi-Fi and OSC carry on looking healthy. Worth watching. |
+| `fsError` | Why the pattern storage is not mounted, in words; `""` while it is mounted, and before any mount has been tried. Since 1.5. The core's serial line says `Mounting FFat partition failed! Error: -1` whatever the cause, so the first failure in a boot reads the volume's boot sector and records what it found. `"not formatted"` is a freshly erased board — press Format on `/patterns`. `"format did not stick: …"` means a Format ran and reported success, but the flash did not keep what was written. `"no filesystem (boot sector …)"` shows the sector's first and last bytes. `"boot sector looks valid but does not mount"` means the data is on the chip and the read side refused it. A failed `POST /api/patterns/format` returns the same text as its `error`. |
+| `flashId` | The flash chip's JEDEC id as the driver detected it at boot, six hex digits: manufacturer, then device. `"c22018"` is a 16 MB Macronix part. Since 1.5. |
 | `active` | **Display name** of the running pattern, or `"-"`. Not a slug and not an index. |
 | `activeIsModule` | `true` for an uploaded `.pfm`, `false` for a preset compiled into `firmware.bin`. |
 | `sleep` | Panel off / board idling. A sleeping device answers every other field here looking perfectly healthy. |
@@ -453,7 +456,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — status gains `network` and `thumbs` diagnostics; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services.
+- **1.5** (unreleased) — status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services.
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.
