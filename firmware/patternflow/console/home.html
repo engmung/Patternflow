@@ -166,6 +166,7 @@
     </div>
     <div class="now" id="now">&mdash;</div>
     <div class="now-sub" id="nowsub"></div>
+    <div class="now-sub" id="nowperf" hidden></div>
 
     <div class="pwr">
       <span class="pwr-k">Panel</span>
@@ -334,6 +335,18 @@ function dur(s){
   if(d)return d+'d '+h+'h';if(h)return h+'h '+m+'m';
   if(m)return m+'m';return s+'s';
 }
+// Performance-edition tags: MQTT Pub/Sub and Sequence/Normal when those
+// features are in the build (fields arrive from feature appendStatus).
+function paintPerf(s){
+  var el=$('nowperf');if(!el)return;
+  var t=[];
+  if(s.mqttRole==='publisher')t.push('MQTT (Pub)');
+  else if(s.mqttRole==='subscriber')t.push('MQTT (Sub)');
+  if(typeof s.sequenceMode==='boolean')
+    t.push(s.sequenceMode?'Sequence':'Normal');
+  if(t.length){el.hidden=false;el.textContent=t.join(' · ')}
+  else{el.hidden=true;el.textContent=''}
+}
 function tick(){
   if(document.hidden)return;
   fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
@@ -356,6 +369,7 @@ function tick(){
       $('nowsub').textContent=(s.frameUs?Math.round(1e6/s.frameUs)+' fps · ':'')+
         (s.activeIsModule?'module':'built in');
     }
+    paintPerf(s);
     paintPower(s.sleep);
     paintBrightness(s.brightness);
     $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
@@ -388,7 +402,7 @@ function tick(){
     }
     if(s.params)updateSliders(s.params);
     checkUpdate(s.version,s.variant);
-  }).catch(function(){$('nowsub').textContent='cannot reach device'});
+  }).catch(function(){$('nowsub').textContent='cannot reach device';var p=$('nowperf');if(p){p.hidden=true;p.textContent=''}});
 }
 
 // ── Panel switch ──────────────────────────────────────────────

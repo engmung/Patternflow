@@ -69,6 +69,14 @@ inline void drawOverlay(const PFFeatureFrame& frame) {
   }
 }
 
+// Lean fields for /api/status (home card). Full show state stays on /api/show.
+inline void appendStatus(String& json) {
+  json += ",\"sequenceMode\":";
+  json += PatternflowShow::isSequenceMode() ? "true" : "false";
+  json += ",\"showPlaying\":";
+  json += PatternflowShow::isPlaying() ? "true" : "false";
+}
+
 inline const PFFeature descriptor = {
     "show",        // name
     "shows",       // cap reported by /api/status
@@ -85,7 +93,7 @@ inline const PFFeature descriptor = {
     nullptr,       // shortName - not listed in the device menu
     nullptr,       // isRuntimeEnabled
     nullptr,       // setRuntimeEnabled
-    nullptr,       // appendStatus
+    appendStatus,
     drawOverlay,
     "/show",       // navPath - the console header link
     "Sequences",   // navLabel
