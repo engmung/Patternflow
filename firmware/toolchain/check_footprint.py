@@ -57,7 +57,7 @@ IRAM_END = 0x403E0000
 PINS = {
     "default": (141080, 72311),
     "audio": (160096, 72791),
-    "performance": (149968, 72311),
+    "performance": (153448, 72467),
     "clock": (141352, 72311),
 }
 
