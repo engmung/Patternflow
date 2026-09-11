@@ -335,15 +335,15 @@ function dur(s){
   if(d)return d+'d '+h+'h';if(h)return h+'h '+m+'m';
   if(m)return m+'m';return s+'s';
 }
-// Performance-edition tags: MQTT Pub/Sub and Sequence/Normal when those
-// features are in the build (fields arrive from feature appendStatus).
+// Optional status chips from feature appendStatus fields. Labels stay
+// feature-agnostic so this core page never names a feature (R5).
 function paintPerf(s){
   var el=$('nowperf');if(!el)return;
   var t=[];
-  if(s.mqttRole==='publisher')t.push('MQTT (Pub)');
-  else if(s.mqttRole==='subscriber')t.push('MQTT (Sub)');
+  if(s.mqttRole==='publisher')t.push('Pub');
+  else if(s.mqttRole==='subscriber')t.push('Sub');
   if(typeof s.sequenceMode==='boolean')
-    t.push(s.sequenceMode?'Sequence':'Normal');
+    t.push(s.sequenceMode?'Playlist':'Browse');
   if(t.length){el.hidden=false;el.textContent=t.join(' · ')}
   else{el.hidden=true;el.textContent=''}
 }
