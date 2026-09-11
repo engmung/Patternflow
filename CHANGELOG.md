@@ -4,6 +4,8 @@ All notable changes to Patternflow will be documented in this file.
 
 ## [Unreleased]
 
+## [3.10.2] - 2026-09-11
+
 ### Fixed — pattern storage
 
 - **A Format that did not take no longer reports success.** `FFat.format()` never
