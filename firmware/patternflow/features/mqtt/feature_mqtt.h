@@ -63,12 +63,13 @@ inline void fillInput(InputFrame& input) {
   }
 }
 
-// The finished frame, mirrored outward. notePattern dedupes, so this does
-// not republish every frame.
+// The finished frame, mirrored outward. notePattern / noteParams dedupe, so
+// this does not republish every frame (params are also rate-capped ~1 Hz).
 inline void observeFrame(const InputFrame& input, const PFFeatureFrame& frame) {
   const char* patternName = frame.patternName;
   PatternflowMqtt::update(input, patternName);
   PatternflowMqtt::notePattern(patternName);
+  PatternflowMqtt::noteParams(input);
 }
 
 inline void onSleep(bool sleeping) {
