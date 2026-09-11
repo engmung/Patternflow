@@ -172,6 +172,21 @@ struct PFFeature {
   // a full pass over the frame is ~8 k pixels and must stay well under a
   // millisecond.
   const uint8_t* (*composeFrame)(const uint8_t* frame, int w, int h);
+
+  // SELECT screen (pattern browser). Optional — null on every feature leaves
+  // the core's default SELECT untouched. A feature that owns an alternate
+  // SELECT mode (Sequences playlist) implements these so the sketch never
+  // has to name that feature.
+  //
+  // handleSelectInput: consume SELECT knobs; return true to suppress the
+  //   core's default K4 pattern browse for this frame.
+  // drawSelect: return true if the feature drew the entire SELECT UI
+  //   (sketch skips drawSelectingMode).
+  // decorateSelect: called after the default SELECT draw when drawSelect
+  //   returned false — add a chrome hint without replacing the browser.
+  bool (*handleSelectInput)(InputFrame&);
+  bool (*drawSelect)();
+  void (*decorateSelect)();
 };
 
 // ── Legacy name shim (2026-08-30) ───────────────────────────────────────
