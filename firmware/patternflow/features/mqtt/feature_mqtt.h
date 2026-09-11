@@ -22,6 +22,7 @@
 #include "../pf_feature.h"
 #include "core_mqtt.h"
 #include "core_mqtt_http.h"
+#include "../../src/core_web_update.h"
 
 namespace PFFeatureMqtt {
 
@@ -53,6 +54,11 @@ inline void onNetwork() {
 }
 
 inline void loop(const PFFeatureFrame&) {
+  // Flash owns the radio + Core 0; MQTT client.loop would fight the upload.
+  if (PatternflowWebUpdate::isUploading() ||
+      PatternflowWebUpdate::isRebootPending()) {
+    return;
+  }
   PatternflowMqtt::handle();
 }
 
@@ -63,12 +69,17 @@ inline void fillInput(InputFrame& input) {
   }
 }
 
-// The finished frame, mirrored outward. notePattern dedupes, so this does
-// not republish every frame.
+// The finished frame, mirrored outward. notePattern / noteParams dedupe, so
+// this does not republish every frame (params are also rate-capped ~1 Hz).
 inline void observeFrame(const InputFrame& input, const PFFeatureFrame& frame) {
+  if (PatternflowWebUpdate::isUploading() ||
+      PatternflowWebUpdate::isRebootPending()) {
+    return;
+  }
   const char* patternName = frame.patternName;
   PatternflowMqtt::update(input, patternName);
   PatternflowMqtt::notePattern(patternName);
+  PatternflowMqtt::noteParams(input);
 }
 
 inline void onSleep(bool sleeping) {

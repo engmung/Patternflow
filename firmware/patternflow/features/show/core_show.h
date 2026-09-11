@@ -117,9 +117,19 @@ inline uint16_t easeFromV[4] = {};
 inline uint16_t easeToV[4] = {};
 inline uint16_t easeFromT[4] = {};
 inline uint16_t easeToT[4] = {};
+// Pace bus writes during a curve. Applying every render frame (~40–60 Hz)
+// made Publisher panels flood MQTT (/param + synthetic /knob clicks on
+// older builds) and buffered subscribers into visible lag.
+constexpr uint32_t EASE_APPLY_MIN_MS = 100;    // ≤10 Hz into the absolute bus
+constexpr uint16_t EASE_APPLY_MIN_DELTA = 8;   // or when the lerp moves enough
+inline uint16_t easeLastApplied[4] = {};
+inline uint32_t easeLastApplyMs[4] = {};
 
 inline void clearEase() {
-  for (int i = 0; i < 4; i++) easeActive[i] = false;
+  for (int i = 0; i < 4; i++) {
+    easeActive[i] = false;
+    easeLastApplyMs[i] = 0;
+  }
 }
 inline constexpr uint8_t VARIANCE_CUE_MAX = 4;  // five demo changes
 
@@ -384,6 +394,8 @@ inline void applyCue(uint16_t cueIdx) {
     // Any cue that sets a channel ends its running ease; an EASE cue re-arms
     // it toward the channel's next value (one <=256-entry scan per fired cue).
     easeActive[i] = false;
+    easeLastApplied[i] = v;
+    easeLastApplyMs[i] = millis();
     if (header.version != VERSION2 || !(cue.flags & FLAG_EASE)) continue;
     for (uint16_t j = cueIdx + 1; j < cueCount; j++) {
       if (!(cueTable[j].flags & (FLAG_PARAM1 << i))) continue;
@@ -393,6 +405,8 @@ inline void applyCue(uint16_t cueIdx) {
         easeToV[i] = cueTable[j].param[i];
         easeFromT[i] = cue.t;
         easeToT[i] = cueTable[j].t;
+        easeLastApplied[i] = v;
+        easeLastApplyMs[i] = 0;  // allow first mid-curve sample immediately
       }
       break;
     }
@@ -699,9 +713,9 @@ inline void tick() {
     nextCue++;
   }
 
-  // v2 eased channels: one lerp per active channel per frame — a handful of
-  // FPU ops against a multi-million-cycle frame budget. The terminating cue
-  // fires the exact end value; past it the ease disarms itself.
+  // v2 eased channels: lerp is continuous in time, but bus writes are paced
+  // (see EASE_APPLY_MIN_*), so Publisher MQTT stays calm. The terminating
+  // cue still lands the exact end value; past it the ease disarms itself.
   if (header.version == VERSION2) {
     for (int i = 0; i < 4; i++) {
       if (!easeActive[i]) continue;
@@ -715,7 +729,16 @@ inline void tick() {
       float u = (float)(nowMs - t0) / (float)(t1 - t0);
       long v = (long)((float)easeFromV[i] +
                       ((float)easeToV[i] - (float)easeFromV[i]) * u + 0.5f);
+      uint16_t dv = (v > (long)easeLastApplied[i])
+                        ? (uint16_t)(v - (long)easeLastApplied[i])
+                        : (uint16_t)((long)easeLastApplied[i] - v);
+      uint32_t wall = millis();
+      bool due = (easeLastApplyMs[i] == 0) ||
+                 ((wall - easeLastApplyMs[i]) >= EASE_APPLY_MIN_MS);
+      if (!due && dv < EASE_APPLY_MIN_DELTA) continue;
       PatternflowBus::applyRemoteParam(i, v);
+      easeLastApplied[i] = (uint16_t)v;
+      easeLastApplyMs[i] = wall;
     }
   }
 }

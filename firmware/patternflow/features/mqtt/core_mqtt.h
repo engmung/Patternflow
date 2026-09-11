@@ -102,6 +102,12 @@ constexpr uint32_t FL_RECONNECT_MID_MS = 45000;
 constexpr uint32_t FL_RECONNECT_MAX_MS = 90000;
 constexpr uint8_t RERESOLVE_AFTER = 4;
 constexpr uint32_t SNAPSHOT_HEARTBEAT_MS = 8000;
+// Cap outbound /param traffic. PFS v2 curves must stay well below Director
+// authoring rates — subscribers buffer and the console dies otherwise.
+// Show easing is also paced (~10 Hz); this is a second, slower gate.
+constexpr uint32_t PARAM_PUB_MIN_MS = 1000;
+// Ignore easing chatter smaller than this (0..1000 bus units).
+constexpr uint16_t PARAM_PUB_MIN_DELTA = 20;
 
 inline WiFiClient net;
 inline PubSubClient client(net);
@@ -113,6 +119,10 @@ inline char clientId[20] = {};
 inline char lastError[80] = {};
 inline char lastPattern[NAME_BYTES] = {};
 inline char publishedPattern[NAME_BYTES] = {};
+// Last absolute params published on /param/N (Publisher mirror of the bus).
+inline uint16_t publishedParam[4] = {};
+inline bool publishedParamValid[4] = {false, false, false, false};
+inline uint32_t lastParamPubMs = 0;
 inline long lastKnobs[4] = {0, 0, 0, 0};
 inline bool haveKnob[4] = {false, false, false, false};
 inline long lastRemoteKnob[4] = {0, 0, 0, 0};
@@ -830,8 +840,15 @@ inline void publishLiveBurst() {
     snprintf(publishedPattern, sizeof(publishedPattern), "%s", lastPattern);
   }
   for (int i = 0; i < 4; ++i) {
-    if (paramHeld[i]) publishParam(i, paramValue[i]);
+    if (paramHeld[i]) {
+      publishParam(i, paramValue[i]);
+      publishedParam[i] = paramValue[i];
+      publishedParamValid[i] = true;
+    } else {
+      publishedParamValid[i] = false;
+    }
   }
+  lastParamPubMs = millis();
   publishChannelSnapshot(true);
 }
 
@@ -999,6 +1016,8 @@ inline void resetSessionState() {
   // the sleep state itself.
   publishedSleep = -1;
   publishedPattern[0] = '\0';
+  for (int i = 0; i < 4; ++i) publishedParamValid[i] = false;
+  lastParamPubMs = 0;
   PatternflowBanner::clear();
   lastSnapshotPubMs = 0;
 }
@@ -1351,7 +1370,14 @@ inline void update(const InputFrame& input, const char* contentName) {
   if (contentName) snprintf(lastPattern, sizeof(lastPattern), "%s", contentName);
   if (role != ROLE_PUBLISHER || !client.connected()) return;
 
+  // Publish /knob only for real relative motion. While a lane is held on the
+  // absolute bus (show easing, Director, HTTP sliders), fillAbsolute copies
+  // synthetic pendingDelta clicks into knobDeltas for legacy patterns —
+  // mirroring those as /knob every frame floods the broker, stalls Core 1,
+  // and kills sequence timing + the web console. Absolutes go out via
+  // noteParams() on /param/N (rate-capped).
   for (int i = 0; i < 4; ++i) {
+    if (input.paramAbsoluteActive[i]) continue;
     if (input.knobDeltas[i] != 0) publishKnob(i, input.knobs[i]);
   }
 }
@@ -1362,7 +1388,60 @@ inline void notePattern(const char* contentName) {
   if (strcmp(publishedPattern, lastPattern) == 0) return;
   snprintf(publishedPattern, sizeof(publishedPattern), "%s", lastPattern);
   publishPatternName(lastPattern);
+  // Force a param republish with the new pattern so subscribers do not
+  // keep stale /param values across a cue that only changed the name.
+  for (int i = 0; i < 4; ++i) publishedParamValid[i] = false;
+  lastParamPubMs = 0;
   publishChannelSnapshot(true);
+}
+
+// Mirror absolute bus values on /param/1..4 (non-retained). Covers local
+// show cues and HTTP absolute sets. Rate-limited so a Publisher running a
+// sequence cannot drown Subscribers (and their console) in easing traffic.
+inline void noteParams(const InputFrame& input, bool force = false) {
+  if (role != ROLE_PUBLISHER || !client.connected()) return;
+
+  bool changed = false;
+  for (int i = 0; i < 4; ++i) {
+    if (!input.paramAbsoluteActive[i]) {
+      publishedParamValid[i] = false;
+      continue;
+    }
+    uint16_t v = input.paramAbsolute[i];
+    if (!publishedParamValid[i]) {
+      changed = true;
+      continue;
+    }
+    uint16_t d = (v > publishedParam[i]) ? (uint16_t)(v - publishedParam[i])
+                                         : (uint16_t)(publishedParam[i] - v);
+    if (d >= PARAM_PUB_MIN_DELTA) changed = true;
+  }
+  if (!changed && !force) return;
+
+  uint32_t now = millis();
+  if (!force && lastParamPubMs != 0 &&
+      (now - lastParamPubMs) < PARAM_PUB_MIN_MS) {
+    return;
+  }
+
+  bool published = false;
+  for (int i = 0; i < 4; ++i) {
+    if (!input.paramAbsoluteActive[i]) continue;
+    uint16_t v = input.paramAbsolute[i];
+    if (!force && publishedParamValid[i]) {
+      uint16_t d = (v > publishedParam[i]) ? (uint16_t)(v - publishedParam[i])
+                                           : (uint16_t)(publishedParam[i] - v);
+      if (d < PARAM_PUB_MIN_DELTA) continue;
+    }
+    publishParam(i, v);
+    publishedParam[i] = v;
+    publishedParamValid[i] = true;
+    published = true;
+  }
+  if (!published) return;
+  lastParamPubMs = now;
+  // Channel mid-join snapshot; debounced. Broadcast has no retained snapshot.
+  publishChannelSnapshot(false);
 }
 
 // Mirror of notePattern() for the sleep state, with two differences: it runs in
@@ -1386,6 +1465,7 @@ inline void begin() {}
 inline void handle() {}
 inline void update(const InputFrame&, const char*) {}
 inline void notePattern(const char*) {}
+inline void noteParams(const InputFrame&, bool = false) {}
 inline void noteSleep(bool) {}
 inline void setRole(Role) {}
 inline void applyChannel(Channel, Role) {}
