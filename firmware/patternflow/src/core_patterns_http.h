@@ -306,8 +306,16 @@ inline void handleFormat() {
   bool ok = formatModuleStorage();
   PFThumbs::forgetAll();   // the files went with the volume
   requestReload();
-  sendJson(ok ? 200 : 500, ok ? "{\"ok\":true}"
-                              : "{\"ok\":false,\"error\":\"format failed\"}");
+  if (ok) {
+    sendJson(200, "{\"ok\":true}");
+    return;
+  }
+  // The page shows `error` as is. The reason is plain words and hex from
+  // diagnoseModuleStorage — nothing in it needs escaping.
+  String body = "{\"ok\":false,\"error\":\"";
+  body += moduleStorageError[0] ? moduleStorageError : "format failed";
+  body += "\"}";
+  sendJson(500, body);
 }
 
 inline void handleIndex() {

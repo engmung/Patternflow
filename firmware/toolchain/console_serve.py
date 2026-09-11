@@ -134,6 +134,8 @@ class Device:
             "fsMounted": True,
             "fsTotal": 10240000,
             "fsUsed": 24576,
+            "fsError": "",
+            "flashId": "c84018",
             "patterns": len(self.patterns),
             "presets": self.presets,
             "modules": len(self.patterns) - self.presets,

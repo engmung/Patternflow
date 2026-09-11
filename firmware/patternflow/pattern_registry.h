@@ -3,6 +3,10 @@
 #include <FFat.h>
 #include <dirent.h>
 #include <FS.h>
+#include <esp_heap_caps.h>
+#include <esp_partition.h>
+#include <string.h>
+#include <wear_levelling.h>
 
 #include "src/core_encoders.h"
 #include "src/core_module_loader.h"
@@ -153,6 +157,10 @@ char (*modulePaths)[MODULE_PATH_BYTES] = nullptr;
 int moduleCapacity = 0;
 int numModules = 0;
 bool moduleStorageMounted = false;
+// Why it is not, in words; empty while it is. Set by diagnoseModuleStorage(),
+// published as fsError on /api/status and returned by a Format that failed.
+char moduleStorageError[96] = "";
+bool moduleStorageDiagnosed = false;
 
 // ── The sidecar cache ────────────────────────────────────────────────
 //
@@ -340,16 +348,6 @@ inline bool sidecarAbsFor(const char* modulePath) {
   return absReady;
 }
 
-// Mount the partition the presets never needed. Label "ffat" is what the
-// shipped partition table calls it; passing the wrong label mounts nothing and
-// looks exactly like an empty filesystem.
-//
-// Formats only after a plain mount has already failed. Every device shipped so
-// far has this partition sitting unformatted — without the fallback, modules
-// would never work until the owner found some other way to format it. A volume
-// that will not mount cannot be read from either, so nothing reachable is lost;
-// it is still logged loudly because it does discard any .pfv clips that were
-// there before the volume broke.
 // One open file at a time is all this ever needs (read a module, or write an
 // upload). The default of 10 buys nothing and each slot costs internal heap,
 // which on this board is the scarce kind — HUB75's DMA buffers live there too.
@@ -362,14 +360,94 @@ inline void reportHeap(const char* stage) {
                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 }
 
-inline bool mountModuleStorage() {
+// Why a mount failed, read off the volume itself. The core's line is
+// "Mounting FFat partition failed! Error: -1" whatever the cause — blank,
+// corrupt, or a chip that dropped the writes — because FATFS's own reason is
+// logged at a level this SDK compiles out (CONFIG_LOG_MAXIMUM_LEVEL 1). So
+// read the boot sector through the wear-levelling layer, the path FATFS
+// reads, and say what is there.
+//
+// Only after a failure, when nothing holds the partition (FFat.begin's own
+// cleanup unmounts it), and at most once per boot plus once after each
+// Format: a wl_mount/wl_unmount pair costs one wear-levelling move, a sector
+// erase, and the mount is retried on every rescan.
+inline void diagnoseModuleStorage(bool afterFormat) {
+  const char* stuck = afterFormat ? "format did not stick: " : "";
+  const esp_partition_t* part = esp_partition_find_first(
+      ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT, "ffat");
+  if (!part) {
+    moduleStorageDiagnosed = true;
+    snprintf(moduleStorageError, sizeof(moduleStorageError), "no ffat partition");
+    return;
+  }
+  // Internal RAM, so the flash driver reads straight into it — a PSRAM
+  // buffer would go through a bounce copy, one more thing that could lie.
+  // Taken before wl_mount, so a shortage costs no wear-levelling move; it is
+  // reported as ours rather than blamed on the chip, and the next failure
+  // tries again.
+  uint8_t* s = (uint8_t*)heap_caps_malloc(512, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (!s) {
+    snprintf(moduleStorageError, sizeof(moduleStorageError),
+             "not mounted (no internal RAM left to check why)");
+    return;
+  }
+  moduleStorageDiagnosed = true;
+  wl_handle_t wl = WL_INVALID_HANDLE;
+  esp_err_t err = wl_mount(part, &wl);
+  if (err != ESP_OK) {
+    snprintf(moduleStorageError, sizeof(moduleStorageError),
+             "%swear levelling will not mount (0x%x)", stuck, (unsigned)err);
+    free(s);
+    return;
+  }
+  err = wl_read(wl, 0, s, 512);
+  wl_unmount(wl);
+  if (err != ESP_OK) {
+    snprintf(moduleStorageError, sizeof(moduleStorageError),
+             "%sboot sector unreadable (0x%x)", stuck, (unsigned)err);
+  } else {
+    bool blank = true;
+    for (int i = 0; i < 512 && blank; ++i) blank = s[i] == 0xFF;
+    // The test FATFS's check_fs() makes (R0.13c, this SDK's): the signature,
+    // then a jump opcode, then "FAT" or "FAT32" in the type field.
+    const bool fat = s[510] == 0x55 && s[511] == 0xAA &&
+                     (s[0] == 0xEB || s[0] == 0xE9 || s[0] == 0xE8) &&
+                     (memcmp(s + 54, "FAT", 3) == 0 || memcmp(s + 82, "FAT32", 5) == 0);
+    if (blank) {
+      snprintf(moduleStorageError, sizeof(moduleStorageError), "%s",
+               afterFormat ? "format did not stick: storage reads back blank"
+                           : "not formatted");
+    } else if (fat) {
+      snprintf(moduleStorageError, sizeof(moduleStorageError),
+               "boot sector looks valid but does not mount");
+    } else {
+      snprintf(moduleStorageError, sizeof(moduleStorageError),
+               "%sno filesystem (boot sector %02x %02x %02x .. %02x %02x)", stuck,
+               s[0], s[1], s[2], s[510], s[511]);
+    }
+  }
+  free(s);
+}
+
+// Mount the partition the presets never needed. Label "ffat" is what the
+// shipped partition table calls it; passing the wrong label mounts nothing and
+// looks exactly like an empty filesystem.
+//
+// Never formats. A volume that will not mount stays unmounted until someone
+// presses Format on /patterns — see formatModuleStorage for why the automatic
+// fallback went (3.2.0). So a freshly erased board boots with the failure on
+// serial, and "not formatted" as the reason.
+inline bool mountModuleStorage(bool afterFormat = false) {
   if (moduleStorageMounted) return true;
   moduleStorageMounted = FFat.begin(false, "/ffat", MODULE_FS_MAX_FILES, "ffat");
-  if (!moduleStorageMounted) {
-    Serial.println("[PATTERNS] FATFS mount failed - presets only "
-                   "(format from /patterns if this persists)");
+  if (moduleStorageMounted) {
+    moduleStorageError[0] = '\0';
+    return true;
   }
-  return moduleStorageMounted;
+  if (afterFormat || !moduleStorageDiagnosed) diagnoseModuleStorage(afterFormat);
+  Serial.printf("[PATTERNS] FATFS not mounted (%s) - presets only; "
+                "format from /patterns if this persists\n", moduleStorageError);
+  return false;
 }
 
 // The deliberate, user-initiated format. Destroys everything on the volume —
@@ -383,8 +461,15 @@ inline bool formatModuleStorage() {
   moduleStorageMounted = false;
   bool ok = FFat.format(true, (char*)"ffat");
   Serial.printf("[PATTERNS] format %s\n", ok ? "OK" : "FAILED");
-  if (ok) mountModuleStorage();
-  return ok && moduleStorageMounted;
+  if (!ok) {
+    snprintf(moduleStorageError, sizeof(moduleStorageError), "format failed");
+    return false;
+  }
+  // "OK" only means nothing returned an error. FFat.format() never reads back
+  // what it wrote, and the flash driver never checks that a program landed —
+  // on a chip that drops writes, every step reports success. This mount is
+  // the first read, so it decides whether the Format worked.
+  return mountModuleStorage(true);
 }
 
 // ── Running order (/patterns/catalog.txt) ────────────────────────────

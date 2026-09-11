@@ -34,6 +34,7 @@
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include <esp_heap_caps.h>
+#include <esp_flash.h>     // esp_flash_default_chip->chip_id
 #include "core_names.h"
 
 #include "core_http.h"
@@ -216,6 +217,24 @@ inline void handleStatus() {
   json += ',';
   appendKb(json, "fsTotal", moduleStorageMounted ? (uint32_t)FFat.totalBytes() : 0);
   appendKb(json, "fsUsed", moduleStorageMounted ? (uint32_t)FFat.usedBytes() : 0);
+  // Why storage is not mounted, in words (pattern_registry.h); empty while it
+  // is. The core logs "Error: -1" whatever the cause.
+  json += "\"fsError\":\"";
+  if (!moduleStorageMounted) json += moduleStorageError;
+  json += "\",";
+  // The flash chip's JEDEC id as detected at boot — "c22018" is a 16 MB
+  // Macronix part. A storage fault that follows one flash vendor is otherwise
+  // invisible without USB and esptool. Read from the driver's struct, not
+  // from the chip: no flash operation.
+  {
+    char flashId[12];
+    snprintf(flashId, sizeof(flashId), "%06x",
+             esp_flash_default_chip
+                 ? (unsigned)(esp_flash_default_chip->chip_id & 0xFFFFFFu) : 0u);
+    json += "\"flashId\":\"";
+    json += flashId;
+    json += "\",";
+  }
 
   // Patterns
   json += "\"patterns\":";
