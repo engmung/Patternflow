@@ -442,6 +442,10 @@ inline bool mountModuleStorage(bool afterFormat = false) {
   moduleStorageMounted = FFat.begin(false, "/ffat", MODULE_FS_MAX_FILES, "ffat");
   if (moduleStorageMounted) {
     moduleStorageError[0] = '\0';
+    // Diagnosed once is not diagnosed for good: that reason described a
+    // volume that has since mounted. A later failure gets a fresh look, or
+    // fsError would be the empty string this success leaves behind.
+    moduleStorageDiagnosed = false;
     return true;
   }
   if (afterFormat || !moduleStorageDiagnosed) diagnoseModuleStorage(afterFormat);

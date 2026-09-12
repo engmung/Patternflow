@@ -27,6 +27,7 @@
 
 #if PF_PATTERNS_HTTP_ENABLED
 #include <FFat.h>
+#include <errno.h>
 #include "webserver/WebServer.h"  // vendored: fixes the 5 s final-chunk stall (see src/webserver/VENDORED.md)
 #include <WiFi.h>
 #include <esp_heap_caps.h>
@@ -658,10 +659,14 @@ inline void handleUpload() {
       return;
     }
 
+    // errno is what the VFS made of FatFs's verdict: ENOENT is a missing
+    // /patterns, EIO a volume that will not write. Without it the two read
+    // the same, which is what made #424 hard to tell apart from afar.
     uploadFile = FFat.open(uploadPath, FILE_WRITE);
     if (!uploadFile) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "cannot open destination (heap %u)",
+      snprintf(uploadError, sizeof(uploadError),
+               "cannot open destination errno=%d (heap %u)", errno,
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       return;
     }
@@ -763,7 +768,8 @@ inline void handlePutBody() {
     uploadFile = FFat.open(uploadPath, FILE_WRITE);
     if (!uploadFile) {
       uploadFailed = true;
-      snprintf(uploadError, sizeof(uploadError), "cannot open destination (heap %u)",
+      snprintf(uploadError, sizeof(uploadError),
+               "cannot open destination errno=%d (heap %u)", errno,
                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
       return;
     }
