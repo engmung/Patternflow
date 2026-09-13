@@ -18,7 +18,7 @@ You do not have to start with the polished version. Start with what you have, as
 
 ## How to get involved
 
-**Build one.** The build map starts with the 3D printed enclosure + official PCB path. Laser-cut and breadboard paths are planned.
+**Build one.** The build map starts with the 3D printed enclosure + official PCB path. The breadboard path is available too, and enclosure remixes are welcome.
 
 **Fix something.** If a step is unclear, document it. If a part is hard to source, suggest a better one.
 

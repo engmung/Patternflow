@@ -54,7 +54,7 @@ The clearest case started on the other side of the world. A media art collective
 
 The **[Full Build Guide](BUILD_GUIDE.md)** covers the official route: the custom PCB and a 3D-printed enclosure. Don't want to order a board? The **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** wires the same electronics with jumper wires instead, and that's a real Patternflow, not a temporary prototype. Every other combination is on the **[Assembly Map](docs/assembly/README.md)**. Parts run about US$100–200 ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)), it's all big through-hole joints, and every first-timer who has built one finished it. Most came back saying the soldering was the fun part.
 
-**When yours lights up, tell us.** Post it in [Discord](https://discord.gg/Vr9QtsxeTk) or [Discussions](../../discussions) and it goes on the build map, a globe of Patternflows where each pin carries its build's story. The map is for the ones people made themselves: every pin is someone who built one from these files, in their own material, wherever they are. The goal is simple: cover it with pins.
+**When yours lights up, tell us.** Post it in [Discord](https://discord.gg/Vr9QtsxeTk) or fill in the [Share your build](../../issues/new?template=share_build.yml) form and it goes on the build map, a globe of Patternflows where each pin carries its build's story. The map is for the ones people made themselves: every pin is someone who built one from these files, in their own material, wherever they are. The goal is simple: cover it with pins.
 
 <p align="center">
   <img src="./docs/media/web-build-map.png" width="100%" alt="Build map: a globe of Patternflows built around the world, with the story of every build" />
@@ -85,14 +85,14 @@ Patterns don't stay on the wall, either. New pattern studies go up on **[Instagr
 Patterns are the surface. Underneath is an instrument still being designed, in the open, by whoever shows up. This is the whole system on one napkin:
 
 <p align="center">
-  <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub Discussions; and the Workshop, where project talk is gathering" />
+  <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub; and the Workshop, where project talk is gathering" />
 </p>
 
 The **[Workshop](https://community.patternflow.work/community/workshop)** is where the project's future is worked out. It's a map of directions Patternflow could take: a wired OSC version, laser-cut enclosures, bigger panels. Anyone can pin themselves to a direction, say what they're working on, and start a thread.
 
 It's already moving in directions I didn't choose. One contributor is building out MQTT further than I've had time to follow: units reaching each other across a network, one person's playing coming out of somebody else's device. Another is working on sound on the board itself. Another is taking the TouchDesigner link further than I did. None of it was assigned.
 
-**[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow. Questions and ideas go to **[Discussions](../../discussions)** or the **[Discord](https://discord.gg/Vr9QtsxeTk)**, whichever you can reach.
+**[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow. Questions and ideas go to the **[Discord](https://discord.gg/Vr9QtsxeTk)**, or to the **[Workshop](https://community.patternflow.work/community/workshop)** if Discord isn't reachable where you are.
 
 ## Quick facts
 
@@ -223,7 +223,7 @@ Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWa
 
 ## License
 
-The SPDX header inside a file is the authority; folders are not license boundaries. Full breakdown in the **[License Summary](docs/LICENSE-SUMMARY.md)**.
+A file's SPDX header is the authority where one exists; folders are not license boundaries, and files that cannot carry a header (STL, Gerber, images) take the license the nearest README states. Full breakdown in the **[License Summary](docs/LICENSE-SUMMARY.md)**.
 
 - Firmware & web code: **MIT** ([LICENSE-MIT](./LICENSE-MIT))
 - Hardware, designs & docs: **CC-BY-SA 4.0** ([LICENSE-CC-BY-SA](./LICENSE-CC-BY-SA))

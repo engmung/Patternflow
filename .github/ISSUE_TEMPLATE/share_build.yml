@@ -1,0 +1,63 @@
+name: Share your build
+description: Put your finished Patternflow on the build map.
+title: "Build: "
+labels: ["area:community"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every pin on the [build map](https://patternflow.work/inside) is someone who built one from these files. Fill this in and yours goes up.
+        Comfortable with git? The map is a data file plus a photo folder — see [CONTRIBUTING.md](https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md#your-build) and send it as a pull request instead.
+  - type: input
+    id: maker
+    attributes:
+      label: Maker name
+      description: How you want to be credited on the map.
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: City or country — the pin goes where you say, at that precision.
+    validations:
+      required: true
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - v3.9 PCB
+        - v3.0 PCB
+        - v2.x PCB
+        - breadboard
+        - something else (say what below)
+    validations:
+      required: true
+  - type: dropdown
+    id: enclosure
+    attributes:
+      label: Enclosure
+      options:
+        - official 3D-printed case
+        - my own remix of the case
+        - something else entirely
+  - type: textarea
+    id: intro
+    attributes:
+      label: Short intro
+      description: About three sentences — what you changed, what it is for, where it lives.
+    validations:
+      required: true
+  - type: textarea
+    id: images
+    attributes:
+      label: Photos
+      description: Drag and drop two or three photos here. By posting them you license them CC BY-SA 4.0 so they can go on the map; say so here if you need a different license.
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Links
+      description: A video, a project page, your Instagram — anything you want the pin to carry.

@@ -15,9 +15,9 @@ This file is intentionally a starting point. The contribution process will becom
 
 ## Pattern Contributions
 
-Custom patterns are welcome as community work, but official bundled firmware patterns will be curated for now. If you make something interesting, share it in the Discord **patterns** channel (follow the post guidelines there) or open an issue with the source.
+Patterns are not repository contributions. Make one in the [Pattern Lab](https://patternflow.work/pattern-lab), click **Publish**, and it is on the [Community](https://community.patternflow.work/community) for every Patternflow to play, under the license you choose. That is the whole path; there is no pattern pull request. The presets bundled in the firmware and the Basics pack are curated by the maintainer from the repository's own sources.
 
-**Licensing — inbound = outbound.** By sending a pattern *to this repository* (Discord, issue, or PR) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
+**Licensing — inbound = outbound.** In the rare case a pattern is handed *to this repository* (a Discord post or issue the maintainer asks to bundle) you agree to license it under **CC-BY-SA 4.0** — the same commons as the rest of Patternflow — with attribution kept in the code header (`// Author:` and `// SPDX-License-Identifier: CC-BY-SA-4.0`). There is no copyright assignment (no CLA): you keep authorship, and the project just gets the right to bundle and redistribute it. You may set a different license in the header as long as it still lets the project bundle and redistribute the pattern.
 
 **Publishing to the Community is a different thing.** Patterns posted to the
 [Community site](https://community.patternflow.work/community) are not repository
@@ -63,8 +63,8 @@ work on dev  →  commit early and often  →  open a PR into main  →  merge
   git checkout dev && git merge origin/main && git push origin dev
   ```
 
-Releases are published from `main` (GitHub → Releases → *Generate release
-notes*), which posts an announcement to Discord.
+Releases are cut from `dev` and published from `main` by `firmware/toolchain/release.py`;
+the procedure is [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Project Rules
 

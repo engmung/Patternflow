@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use or write about Patternflow, please cite it as below."
+type: software
+title: "Patternflow: an open-source LED synthesizer"
+authors:
+  - family-names: Lee
+    given-names: Seunghun
+    alias: engmung
+repository-code: "https://github.com/engmung/Patternflow"
+url: "https://patternflow.work"
+abstract: >-
+  An open-source hardware instrument: four rotary encoders play generative
+  light patterns on a 128x64 LED matrix driven by an ESP32-S3. Firmware,
+  PCB, enclosure, web editor and pattern community are all published.
+  Conceived as an open-source reinterpretation of Nam June Paik's
+  Participation TV (1963).
+keywords:
+  - led-matrix
+  - esp32
+  - open-source-hardware
+  - creative-coding
+  - generative-art
+  - media-art
+license:
+  - MIT
+  - CC-BY-SA-4.0

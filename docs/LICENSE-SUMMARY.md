@@ -1,7 +1,8 @@
 # License Summary
 
-**The SPDX header inside a file is the authority.** Folders are not license
-boundaries — the pattern presets live under `web/` and `firmware/`, which are
+**Where a file carries an SPDX header, that header is the authority.** Files that
+cannot carry one (STL, DXF, Gerber, images) take the license the nearest README
+states. Folders are not license boundaries — the pattern presets live under `web/` and `firmware/`, which are
 otherwise MIT, and each preset file carries its own `SPDX-License-Identifier:
 CC-BY-SA-4.0`. That header wins. This page describes the layout; it does not
 override it.

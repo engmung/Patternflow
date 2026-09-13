@@ -1,0 +1,13 @@
+Patternflow is dual-licensed by content type. This file is a pointer so the
+repository page shows both; the two license texts are next to it.
+
+  Code  - firmware/, web/, tools/, integrations/            MIT           -> LICENSE-MIT
+  Works - hardware/, docs/, the build guides, and the bundled patterns
+          (web/src/lib/presets/, firmware/patternflow/presets/)
+                                                             CC BY-SA 4.0  -> LICENSE-CC-BY-SA
+
+An SPDX-License-Identifier header inside a file is the authority for that file;
+folders are not license boundaries. Files that cannot carry a header (STL, DXF,
+Gerber, images) take the license the nearest README states. Patterns published
+to the Community site are licensed by their authors. The full table, and what
+each license lets you do, is docs/LICENSE-SUMMARY.md.

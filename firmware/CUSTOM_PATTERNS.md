@@ -217,13 +217,13 @@ The conversion path is the same: tune until you like it, click **Copy C++ prompt
 
 ## Share what you make
 
-If your pattern is good, send it.
+If your pattern is good, publish it.
 
-- **Discord** — drop it in the patterns channel: [discord.gg/Vr9QtsxeTk](https://discord.gg/Vr9QtsxeTk)
-- **GitHub** — open a PR adding your `pattern_yourname.h` to `firmware/patternflow/`
-- **Instagram** — DM Patternflow with a clip and the code
+- **Community** — from the Pattern Lab, click **Publish** and it goes on the [community wall](https://community.patternflow.work/community) under the license you pick, playable by every Patternflow. This is where patterns live; the repository does not take pattern pull requests.
+- **Discord** — show it off in the patterns channel: [discord.gg/Vr9QtsxeTk](https://discord.gg/Vr9QtsxeTk)
+- **Instagram** — DM Patternflow with a clip and it can get featured
 
-Good patterns get bundled into future releases, with credit. The Patternflow pattern library should belong to the people who actually make patterns, not just the people who designed the hardware.
+The Patternflow pattern library belongs to the people who actually make patterns, not just the people who designed the hardware.
 
 ---
 
