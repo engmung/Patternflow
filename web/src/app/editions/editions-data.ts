@@ -27,8 +27,8 @@
 // tag in the visitor's browser and stands down when the two have drifted —
 // better to admit the gap than to quietly serve last month's firmware.
 //
-// To be listed, a firmware agrees to the rules in
-// docs/rfc-core-and-variants.md §2.6 — the short version being: it can be
+// To be listed, a firmware agrees to the rules in docs/EDITIONS.md
+// ("Getting an edition listed") — the short version being: it can be
 // left again over /update, it does not change the partition layout, it plays
 // the same community .pfm modules, it reports its own `variant` string and
 // version in /api/status, and it keeps Wi-Fi credentials where the default

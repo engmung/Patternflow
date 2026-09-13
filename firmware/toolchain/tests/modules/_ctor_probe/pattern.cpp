@@ -3,7 +3,7 @@
 // nothing in the normal catalog exercises runInitArray(); this module exists
 // so that path has at least one case that fails loudly when it regresses.
 //
-//   python firmware/toolchain/build_module.py firmware/modules/_ctor_probe
+//   python firmware/toolchain/build_module.py firmware/toolchain/tests/modules/_ctor_probe
 //   xtensa-esp32s3-elf-readelf -S .../_ctor_probe.pfm   # expect .init_array
 //
 // On device it draws a red vertical ramp when the constructor ran and stays

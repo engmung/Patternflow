@@ -1,0 +1,45 @@
+name: Community folders carry their README
+
+# Two folders take outside contributions as whole new subfolders:
+# hardware/case/remixes/<maker>-<variant>/ and integrations/<host>/. Their
+# files (STL, DXF, .maxpat, .tox) cannot carry an SPDX header, so each
+# folder's README is the header — it names the author and the license, and
+# an integration names the contract it is built against. That is all this
+# checks. There is no geometry check and no build; stdlib shell, seconds.
+on:
+  pull_request:
+    paths:
+      - "hardware/case/remixes/**"
+      - "integrations/**"
+      - ".github/workflows/community-surfaces.yml"
+
+concurrency:
+  group: community-surfaces-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every remix folder has a README with Author and License
+        run: |
+          fail=0
+          for d in hardware/case/remixes/*/; do
+            [ -d "$d" ] || continue
+            if [ ! -f "$d/README.md" ]; then echo "::error::$d has no README.md"; fail=1; continue; fi
+            grep -Eq '^Author: *[^ ]' "$d/README.md" || { echo "::error::$d/README.md has no 'Author:' line"; fail=1; }
+            grep -Eq '^License: *CC-BY(-SA)?-4\.0' "$d/README.md" || { echo "::error::$d/README.md has no 'License: CC-BY-SA-4.0' (or CC-BY-4.0) line"; fail=1; }
+          done
+          exit $fail
+      - name: Every integration has a README that names a contract
+        run: |
+          fail=0
+          for d in integrations/*/; do
+            if [ ! -f "$d/README.md" ]; then echo "::error::$d has no README.md"; fail=1; continue; fi
+            grep -Eq 'rest-api\.md|osc-spec\.md|midi-spec\.md|mqtt-spec\.md|audio-ws-spec\.md|pfst-v2-spec\.md' "$d/README.md" \
+              || { echo "::error::$d/README.md does not name a contract in docs/ (rest-api, osc-spec, midi-spec, mqtt-spec, audio-ws-spec, pfst-v2-spec)"; fail=1; }
+          done
+          exit $fail

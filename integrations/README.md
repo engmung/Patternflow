@@ -9,7 +9,7 @@ An integration is built against the **contracts** in `docs/`, never against the 
 | HTTP | [`rest-api.md`](../docs/rest-api.md) | one-shot commands and status; also the table for choosing between all four |
 | OSC over UDP | [`osc-spec.md`](../docs/osc-spec.md) | Max, TouchDesigner, Resolume, Processing; both directions, rich payloads |
 | Network MIDI | [`midi-spec.md`](../docs/midi-spec.md) | any DAW: the panel is a MIDI port |
-| MQTT | `mqtt-spec.md` (until it lands: the header of `firmware/patternflow/features/mqtt/core_mqtt.h`) | home and venue buses, Home Assistant, Node-RED, boards following each other |
+| MQTT | [`mqtt-spec.md`](../docs/mqtt-spec.md) | home and venue buses, Home Assistant, Node-RED, boards following each other |
 
 OSC, MIDI and audio-react ship in the **Audio** edition and MQTT in the **Performance** edition, installed from [the shelf](https://patternflow.work/editions) in one click; no firmware rebuild is needed on the user's side.
 

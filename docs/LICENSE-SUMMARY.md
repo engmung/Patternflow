@@ -11,9 +11,12 @@ override it.
 |---|---|---|
 | Firmware code (`firmware/`) | MIT | Use, modify, distribute freely. Keep the copyright notice. |
 | Web code (`web/`) | MIT | Same as above. |
+| Tools and integrations (`tools/`, `integrations/`) | MIT | Same as above. A `.maxpat`, `.tox` or flow file that cannot carry a header takes the license its folder's README states. |
 | Hardware designs (`hardware/`) | CC BY-SA 4.0 | Modify and share — derivatives use the same license, and credit the author. |
 | Docs & build guides (`docs/`, `BUILD_GUIDE*.md`) | CC BY-SA 4.0 | Same as above. |
 | Journal (`web/content/journal/`) | CC BY-SA 4.0 | Same as above. |
+| Enclosure remixes (`hardware/case/remixes/`) | Stated in each remix's README (CC BY-SA 4.0 by default) | The README is the license header for files that cannot carry one. |
+| Build-map photos (`web/public/builds/`) | CC BY-SA 4.0 unless the build's entry says otherwise | Credit the maker. |
 | **Bundled patterns** (`web/src/lib/presets/`, `firmware/patternflow/presets/`) | CC BY-SA 4.0 | Per-file SPDX headers. They sit in code folders but they are artwork, not code. |
 | **Community patterns** | **Chosen by their author** — see below | Read the header in the pattern itself. |
 
@@ -46,8 +49,9 @@ These are different things and are governed by different documents.
 
 | | Repository contribution | Community publishing |
 |---|---|---|
-| Where | GitHub PR / issue / Discord | The community site |
-| License | Inbound = outbound (CC BY-SA 4.0) | The author's choice, above |
+| Where | GitHub PR / issue | The community site, from the Pattern Lab |
+| What | Code, hardware files, docs, build-map entries | Patterns |
+| License | Inbound = outbound: MIT for code, CC BY-SA 4.0 for the rest | The author's choice, above |
 | Governed by | [CONTRIBUTING.md](../CONTRIBUTING.md) | Terms of use *(not yet written)* |
 
 ## Trademark

@@ -35,7 +35,7 @@ Design perks: **two wall-mount holes**, a **snap-fit back panel**, and recesses 
 
 ### `for_other_panels/` — using a different LED panel?
 
-`divided_v3_part1..5.stl` is a community variant whose **LED-panel mounting part adapts to varying bolt-hole positions** — panel suppliers drill them in different places. Print this instead of `encloser.stl` **only if** your panel is not the BOM-linked one. Print & assembly verified with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), including USB-C port alignment.
+`divided_v3_part1..5.stl` is an adjustable-mount variant whose **LED-panel mounting part adapts to varying bolt-hole positions** — panel suppliers drill them in different places. Print this instead of `encloser.stl` **only if** your panel is not the BOM-linked one. Print & assembly verified with a v3.0 board in [#169](https://github.com/engmung/Patternflow/issues/169), including USB-C port alignment.
 
 > ⚠️ Adjustable ≠ universal: if your panel's hole layout differs a lot, even this version may not fit. Check the mounting part against your panel before committing to the full print.
 
@@ -79,4 +79,8 @@ To re-export STLs after editing:
 
 ## `legacy_lasercut/`
 
-`patternflow_v1.svg` / `patternflow_v2.svg` — the v1-era laser-cut acrylic case drawings, from before the printed enclosure. Kept for the record; nothing current is built from them.
+`patternflow_v1.svg` / `patternflow_v2.svg` — the v1-era laser-cut acrylic case drawings, from before the printed enclosure. Kept for the record; nothing current is built from them. See [`legacy_lasercut/README.md`](legacy_lasercut/README.md).
+
+## `remixes/` — sharing a variant
+
+Built a different enclosure — acrylic, wood, a wall plate, a case for another panel? It goes in [`remixes/`](remixes/README.md), one folder per remix with a README that carries the author, the license and what it is based on (STL and DXF files cannot carry a header, so the README is the header). The official folders above are not edited by a remix; a remix sits beside them. Work in progress is for Discord; a folder here is something that has been built at least once.

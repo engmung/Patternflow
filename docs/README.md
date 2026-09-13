@@ -7,7 +7,7 @@ What is here, and what is not. The rule for the split: **a guide somebody follow
 - [`rest-api.md`](rest-api.md) — the device's HTTP API (`/api/*`), the console pages, and the table for choosing between HTTP, OSC, MIDI and MQTT
 - [`osc-spec.md`](osc-spec.md) — OSC over UDP (DAWs, Max, TouchDesigner)
 - [`midi-spec.md`](midi-spec.md) — the panel as a network MIDI port
-- `mqtt-spec.md` — MQTT topics, both directions (until it lands, the contract is the header comment of `firmware/patternflow/features/mqtt/core_mqtt.h` and the "which topic to write" section of `rest-api.md`)
+- [`mqtt-spec.md`](mqtt-spec.md) — MQTT topics, both directions, the roles, and why the channel decides whether a write sticks
 - [`audio-ws-spec.md`](audio-ws-spec.md) — the audio-react WebSocket the browser extension and the phone app speak
 - [`pfst-v2-spec.md`](pfst-v2-spec.md) — the `.pfs` show table, with test vectors in [`pfst-v2-vectors/`](pfst-v2-vectors/)
 - [`panel-compatibility.md`](panel-compatibility.md) — a buying guide first (which HUB75 panels light up and which stay dark), then the reference for other sizes
