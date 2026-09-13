@@ -70,6 +70,8 @@ that doesn't include it exactly nothing.
 
 ## For the AI agent
 
+The hard rules — the same ones humans follow — are in [`AGENTS.md`](AGENTS.md#hard-rules-do-not-violate); the contributor flow is [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 You were pointed here to build a Patternflow firmware feature. Read this
 section fully before writing code.
 

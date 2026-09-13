@@ -5,7 +5,7 @@ Patternflow includes a workflow for creating patterns without writing low-level 
 - **AI-assisted** — describe the pattern in plain language, paste the AI's output into the editor, tune knobs, copy to C++, flash. No shader knowledge required.
 - **Direct** — write the JavaScript pattern by hand in the editor, then convert to C++. For anyone comfortable with fragment-shader-style code.
 
-> **New: you no longer need the Arduino IDE.** The last step — turning a pattern into firmware and getting it onto the board — now runs in the browser: the server compiles, your browser flashes over USB. See [step 5](#5-convert-to-c-and-flash). The Arduino IDE route still works and is still the right one for firmware development.
+> **New: you no longer need the Arduino IDE.** The last step — turning a pattern into firmware and getting it onto the board — now runs in the browser: the server compiles, your browser flashes over USB. See [step 5](#5-convert-to-c-and-flash). A local build is still the route for firmware development itself; that is PlatformIO through `firmware/bundles/build.sh`, not the Arduino IDE (the IDE cannot build the editions' library set).
 
 > **Newer still: patterns can install without any flashing at all.** On firmware
 > with loadable-module support, the same `.h` builds into a tiny `.pfm` module
@@ -62,11 +62,11 @@ Requirements: the device powered on and on the same Wi-Fi as your computer. (Bak
 
 If the build fails you get the compiler's own error. The usual causes are a helper the firmware already provides being redefined, or a type that differs from the JavaScript original.
 
-#### Route B — from the Arduino IDE (local build)
+#### Route B — a local build (PlatformIO)
 
-1. Save the C++ output as `pattern_yourname.h` inside `firmware/patternflow/`.
+1. Save the C++ output as `preset_yourname.h` inside `firmware/patternflow/presets/`.
 2. Open `pattern_registry.h` and add two lines (see [Installing your pattern](#installing-your-pattern) below).
-3. Open `patternflow.ino` in Arduino IDE, select your ESP32-S3 port, and upload.
+3. Build and flash with the bundled toolchain: `./firmware/bundles/build.sh flash patternflow.local` (over Wi-Fi) or `cd firmware/patternflow && pio run -t upload` (USB).
 
 Still the route for changing anything beyond a pattern — firmware development, config edits, working offline, or building for a board you cannot plug into this machine.
 
@@ -74,7 +74,7 @@ Still the route for changing anything beyond a pattern — firmware development,
 
 Long-press encoder 4 on the device to cycle to your new pattern.
 
-> Either route flashes a **whole firmware image**, replacing the firmware and the presets compiled into it. Any `.pfm` modules you've installed live on a separate FATFS partition and **survive a normal reflash** — they only go away if you enable *Erase All Flash Before Sketch Upload*, or format the partition from `/patterns`.
+> Route B flashes a **whole firmware image**, replacing the firmware and the presets compiled into it; Route A installs a module and touches nothing else. Any `.pfm` modules you've installed live on a separate FATFS partition and **survive a normal reflash** — they only go away if you enable *Erase All Flash Before Sketch Upload*, or format the partition from `/patterns`.
 
 ---
 
@@ -211,7 +211,7 @@ function render(x, y, t) {
 
 `x` and `y` are pixel coordinates (0 to 127, 0 to 63). `t` is time in seconds. Knob values and helper functions are available — refer to the prompt copied by **Copy creation prompt** for the full API. That prompt is the canonical reference; this README only summarizes the workflow around it.
 
-The conversion path is the same: tune until you like it, click **Copy C++ prompt**, paste into an AI, save the result as a `pattern_*.h` file, register it.
+The conversion path is the same: tune until you like it, click **Copy C++ prompt**, paste into an AI, save the result as a `presets/preset_*.h` file, register it.
 
 ---
 

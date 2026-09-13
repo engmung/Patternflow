@@ -153,7 +153,7 @@ The order matters — these are positional. Copy the block from an existing
 feature and fill in what you need; the compiler catches a slot in the wrong
 place as a type error, which is how the ports found their own mistakes.
 
-Then one line in `features.h`, and nothing else in the tree changes.
+Then one line in the bundle that carries it — `firmware/bundles/<edition>/features_local.h` — and nothing else in the tree changes. `features.h` itself belongs to the core and is never edited (its header says why).
 
 ### House rules
 

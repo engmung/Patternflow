@@ -244,6 +244,8 @@ editor everywhere, two homes for the settings.
 
 ## For the AI agent
 
+The hard rules — the same ones humans follow — are in [`AGENTS.md`](AGENTS.md#hard-rules-do-not-violate); the contributor flow is [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
 You were pointed here to work on Patternflow's audio path. The map:
 
 **Firmware — the mapping engine and mic**

@@ -151,7 +151,7 @@ A new board boots into **Origin**, concentric sine waves sampled by an emergent 
 
 A new board is therefore nearly empty, so a set ships with it: the **Basics pack**, 33 patterns, at the top of the [decks shelf](https://community.patternflow.work/community/decks). One click installs the lot, no account and no build queue, or drop the `.zip` on your board's Patterns page yourself. The [Live Editor](https://patternflow.work/pattern) opens with its own preset library of 42 patterns, each loadable and remixable in the browser.
 
-The Arduino IDE is only needed for firmware feature development or targeting an LED matrix with a different resolution; see [`firmware/patternflow/README.md`](firmware/patternflow/README.md) and [Custom Patterns](firmware/CUSTOM_PATTERNS.md). To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
+A local firmware build (PlatformIO, driven by `firmware/bundles/build.sh`) is only needed for feature development or targeting an LED matrix with a different resolution; the setup is [`firmware/README.md`](firmware/README.md) and a new feature starts at [FEATURE_GUIDE.md](FEATURE_GUIDE.md). Patterns never need it: [Custom Patterns](firmware/CUSTOM_PATTERNS.md). To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
 
 ## MIDI, OSC, MQTT & audio-react
 
@@ -181,18 +181,22 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 | :--- | :--- |
 | `firmware/` | Arduino code for ESP32-S3, the custom pattern template, and the toolchain that builds patterns into `.pfm` modules and packs |
 | `hardware/` | Enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF) |
-| `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal) |
-| `docs/` | Assembly map, build-guide media, manifesto, license summary |
+| `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal); the breadboard build guide is a React page here |
+| `docs/` | The contracts (HTTP, OSC, MIDI, MQTT, audio WebSocket, show files), how the firmware is put together (`EDITIONS.md`), the assembly map, walk-throughs, records and media — indexed in [`docs/README.md`](docs/README.md), with the folder-by-folder map in [`docs/REPOSITORY.md`](docs/REPOSITORY.md) |
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
 | `integrations/` | Host-software bridges: Ableton Live / Max for Live (OSC knob mapping) |
+| `.github/` | Issue and PR templates, and the CI that runs on every pull request (web, every firmware edition, doc links, console pages) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Audio Guide](AUDIO_GUIDE.md) · [Feature Guide](FEATURE_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [HTTP API](docs/rest-api.md) · [MIDI in Ableton](docs/midi-ableton.md) · [MIDI Spec](docs/midi-spec.md) · [OSC Spec](docs/osc-spec.md) · [Director → MIDI](docs/director-midi.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Build:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Panel Compatibility](docs/panel-compatibility.md) · [Hardware files](hardware/README.md)
+**Play:** [Pattern Guide](PATTERN_GUIDE.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Audio Guide](AUDIO_GUIDE.md) · [MIDI in Ableton](docs/midi-ableton.md)
+**Extend:** [Feature Guide](FEATURE_GUIDE.md) · [Editions](docs/EDITIONS.md) · [Firmware build](firmware/README.md) · [Web architecture](web/ARCHITECTURE.md) · [HTTP API](docs/rest-api.md) · [OSC Spec](docs/osc-spec.md) · [MIDI Spec](docs/midi-spec.md) · [Director → MIDI](docs/director-midi.md)
+**Project:** [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Repository map](docs/REPOSITORY.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md) · [Manifesto](docs/manifesto.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
 ## Contributing
 
-Builds, documentation fixes, part sourcing tips, and custom patterns are all welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow, including the inbound = outbound pattern licensing.
+Builds, documentation fixes, part sourcing tips, enclosure remixes, firmware features and host-software bridges are all welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** has one table of where each kind goes and what CI runs on it; **[SUPPORT.md](SUPPORT.md)** says where to ask. Patterns don't come here: publish them from the Pattern Lab to the Community.
 
 ## Story so far
 

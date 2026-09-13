@@ -63,6 +63,20 @@ What the two commands do, step by step - and the way to do it by hand.
 9. Create the GitHub Release from the tag. Publishing it triggers **Firmware release assets**, which attaches the four flash images from the tag plus a generated `FLASHING.md` with offsets and hashes.
 10. Confirm it went green before announcing; re-run it with `workflow_dispatch` if it did not fire.
 
+## Branches
+
+Work happens on `dev`, then lands on `main` through a pull request. `main` is protected: nobody pushes to it directly, the maintainer included.
+
+- **Commit freely on `dev`.** Commits are cheap save points; small and frequent is good. Throwaway `wip:` commits belong here rather than on `main`.
+- **Bigger or riskier work** gets its own branch (`feat/...`, `fix/...`) off `dev`.
+- **Outside pull requests target `main`.** After one merges, pull `main` back into `dev` so the branches don't drift:
+
+  ```
+  git checkout dev && git merge origin/main && git push origin dev
+  ```
+
+- **A release** is `dev` → `main` as one pull request, opened by `release.py publish` from the changelog section; merging it posts the dev-log to Discord.
+
 ## Current release line
 
 `CHANGELOG.md` is the record — one section per release, newest first — and the [releases page](https://github.com/engmung/Patternflow/releases) carries the notes and the flashable images. The shape of the line, for orientation:
