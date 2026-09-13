@@ -11,6 +11,12 @@ on:
       - "**/*.md"
       - ".github/scripts/check_links.py"
       - ".github/workflows/docs-links.yml"
+      # A renamed STL, CSV, Gerber zip or image breaks a link just as a
+      # renamed page does; these trees are where those files live.
+      - "hardware/**"
+      - "docs/**"
+      - "integrations/**"
+      - "tools/**"
   push:
     branches: [main]
     paths:
