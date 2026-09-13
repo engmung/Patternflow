@@ -1,8 +1,8 @@
-# Patternflow v3.0.0 -- Build Guide
+# Patternflow v3 -- Build Guide
 
 > **Building a v2.x board?** Use the [v2 build guide](BUILD_GUIDE_v2.md) instead — v2 and v3 parts are **not** interchangeable.
 
-This guide walks you through building a Patternflow v3.0.0 from scratch. No prior soldering experience needed — every joint is big, forgiving through-hole, and the board was deliberately kept that simple so a first-time solderer can finish it.
+This guide walks you through building a Patternflow on the v3 board from scratch. v3.9 is the current revision; a v3.0 board follows the same steps (its USB-C footprint stays unpopulated, see §2). No prior soldering experience needed — every joint is big, forgiving through-hole, and the board was deliberately kept that simple so a first-time solderer can finish it.
 
 **Estimated build time:** about 1 hour of hands-on work (~30 min soldering + ~30 min assembly), plus ~10 hours of 3D printing. Parts shipping typically takes ~2 weeks — order first, build later.
 
@@ -57,7 +57,7 @@ Budget **US$100–200**. The lower end is the well-sourced build where nothing g
 
 Key sourcing rules (details in the BOM README):
 
-- **LED matrix panel: the linked listing is the verified, zero-surprises path** — the case is dimensioned around that exact panel. You're free to buy a different one, but **check two things first**: ① the **driver IC** must be a classic shift-register type (74HC595, FM6124, FM6126A, ICN2037, ICN2038S, DP5125D, DP3246, MBI5124, SM162xx). S-PWM "video wall" panels — ICN2053, FM6353, FM6363C/FM6373C, MBI505x, listings leading with "3840 Hz" or a Novastar/Colorlight receiving card — stay **completely dark** no matter what you configure, and *"HUB75E" on the listing is not a compatibility promise*. The catch: **the driver IC is almost never printed in the listing**, so the practical check is to read the buyer reviews for anyone running it off an ESP32/Arduino/Raspberry Pi, then ask the seller. Read **[LED Panel Compatibility](docs/panel-compatibility.md)** before ordering — it has the review keywords, a copy-paste question for the seller, and a prompt for handing the listing to an AI assistant. ② Compare its mounting-screw positions against the case — if they differ, print the adjustable-mount version (Section 4) or **adapt the enclosure yourself** from the Blender source (`hardware/case/source/`). Verify before you buy, not after.
+- **LED matrix panel: the linked listing is the verified, zero-surprises path** — the case is dimensioned around that exact panel. You're free to buy a different one, but **check two things first**: ① the **driver IC** must be one the firmware can drive. The list of chips that work and the ones that stay completely dark, the review keywords to look for, a copy-paste question for the seller and a prompt for handing the listing to an AI assistant are all in **[LED Panel Compatibility](docs/panel-compatibility.md)** — read it before ordering, because the IC is almost never printed in the listing and *"HUB75E" is not a compatibility promise*. ② Compare its mounting-screw positions against the case — if they differ, print the adjustable-mount version (Section 4) or **adapt the enclosure yourself** from the Blender source (`hardware/case/source/`). Verify before you buy, not after.
 - **ESP32-S3**: Espressif is the reference part, but AliExpress modules are usually fine — if yours hits the cold-boot issue, one 10k resistor fixes it ([#16](https://github.com/engmung/Patternflow/issues/16)).
 - **Encoders**: any 5-pin EC11 with a push switch works — the cheapest packs just fail more often. Reference part: Bourns PEC11R-4220F-S0024 (20mm shaft — print the matching knob file).
 
@@ -279,14 +279,9 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 - To wipe stored Wi-Fi credentials, enable **Tools → Erase All Flash Before Sketch Upload** before uploading (see the Wi-Fi note in §8.1).
 - **ArduinoOTA** works over Wi-Fi after the first join — functional, but the flasher and wired upload are the primary paths.
 
-### Want OSC / Ableton control? Build it yourself once
+### Want OSC / MIDI / Ableton control? Install the Audio edition
 
-The stock flasher image ships with **OSC disabled at compile time** — live control (the [Ableton bridge](integrations/ableton/), or any OSC host) needs one custom build with your Wi-Fi credentials baked in:
-
-1. Download this repo and open `firmware/patternflow/patternflow.ino` in Arduino IDE.
-2. In the same folder, copy `patternflow_secrets.example.h` → `patternflow_secrets.h`, fill in your Wi-Fi SSID/password, and enable what you want (e.g. `PF_OSC_ENABLED 1`). The file is gitignored, so your credentials stay local.
-3. Set up the IDE following [`firmware/README.md`](firmware/README.md) — ESP32 board package, libraries, and the board settings above.
-4. **First upload is wired**: plug the USB cable into the DevKit's port labeled **COM** (not the one labeled USB) and hit Upload. Once that first flash joins your Wi-Fi, later uploads can go wireless via ArduinoOTA.
+OSC, network MIDI and audio-react ship in the **Audio** edition: open [patternflow.work/editions](https://patternflow.work/editions), pick Audio, and it installs from the browser over Wi-Fi with your patterns and settings intact — no rebuild, no secrets file, no cable. The [Ableton bridge](integrations/ableton/) and the [MIDI walk-through](docs/midi-ableton.md) start from there. (Building your own image with a different feature set is [docs/EDITIONS.md](docs/EDITIONS.md).)
 
 ## 9. Final Checks
 

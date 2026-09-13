@@ -104,7 +104,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | **Power** | 5 V over USB from any power bank; about **4 h per 10,000 mAh** at max brightness with a typical pattern (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
-| **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
+| **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. A local build (PlatformIO) only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi and USB. Network MIDI (a MIDI port in any DAW — Ableton, Logic, Bitwig), bidirectional OSC (Max/TouchDesigner/Resolume), MQTT and audio-react each ship in an [edition](docs/EDITIONS.md) you install in one click — the way patterns do — and switching keeps your patterns, networks and settings |
 | **Editions** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/editions). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly, first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |

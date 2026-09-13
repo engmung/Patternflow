@@ -1,10 +1,26 @@
 # Patternflow Firmware
 
-Arduino-based firmware for the ESP32-S3 powering Patternflow. One image serves every board generation — the pin map is identical on v2.x and v3.0.
+Arduino-based firmware for the ESP32-S3 powering Patternflow. One image serves every board generation — the pin map is identical on v2.x, v3.0 and v3.9.
 
 The firmware handles the ESP32-S3 DMA driver for the HUB75 LED matrix, reads four rotary encoders to control generative patterns, and supports Arduino OTA for wireless updates.
 
-> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** must be one the `ESP32-HUB75-MatrixPanel-DMA` library can drive: classic shift-register parts — **74HC595**, **FM6124**, **FM6126A**, **ICN2037**, **ICN2038S**, **DP5125D**, **DP3246**, **MBI5124**, **SM162xx**. S-PWM / GCLK "video wall" panels (**ICN2053**, **FM6353**, **FM6363C / FM6373C**, **DP3264/DP3265**, **ICND2055**, **MBI505x** — sold as high-refresh "1920/3840Hz" modules needing a sending/receiving card) will **not** work and stay completely dark. "HUB75E" on a listing guarantees a connector, not compatibility. Check this **before buying** — see **[docs/panel-compatibility.md](../docs/panel-compatibility.md)**. Select your panel's driver below via `PANEL_PROFILE`.
+> ⚠️ **Panel compatibility.** This firmware drives the panel directly from the ESP32-S3, so the panel's **driver IC** decides whether it lights up: classic shift-register parts work, S-PWM "video wall" parts stay completely dark, and "HUB75E" on a listing proves nothing. The list of chips, and how to check before buying, is **[docs/panel-compatibility.md](../docs/panel-compatibility.md)**; the driver is selected below via `PANEL_PROFILE`.
+
+## Reading order
+
+This file is long because it is the firmware's reference. Most people need one part of it:
+
+| you want to | read |
+| --- | --- |
+| build and flash the firmware locally | [Setup](#setup) — the board package, PlatformIO, the libraries |
+| write a feature or cut an edition | [`docs/EDITIONS.md`](../docs/EDITIONS.md) first, then [Adding features — the constraints that matter](#adding-features--the-constraints-that-matter) here |
+| write a pattern | [`PATTERN_GUIDE.md`](../PATTERN_GUIDE.md) (nothing here is needed); the hands-on route is [`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md) |
+| know what a pattern can call | [Foundation modules](#foundation-modules) |
+| know how `.pfm` modules load and what they cost | [Loadable pattern modules](#loadable-pattern-modules-pfm) |
+| tune brightness, calibration, refresh | [Configuration](#configuration-configh) |
+| know what the knobs and buttons do | [Controls](#controls), [Sleep mode](#sleep-mode) |
+| drive the panel from other software | the contracts in [`docs/`](../docs/README.md): HTTP, OSC, MIDI, MQTT, audio |
+| edit a console page | [`patternflow/console/README.md`](patternflow/console/README.md) |
 
 ## Building your own firmware
 
@@ -155,20 +171,9 @@ firmware/
 │   ├── audio/  performance/  clock/   # features_local.h + overrides.h
 │   ├── build.sh                 # build the default, a named edition, or `all`
 │   └── shelf.sh                 # stage a publishable image for the site
-├── modules/                     # Loadable-pattern sources (one dir per pattern)
-│   └── <slug>/pattern.cpp       # + optional module.json sidecar
+├── modules/                     # The module toolchain's working folder, not an inbox — see modules/README.md
 ├── encoder_test/                # Standalone encoder diagnostic sketch
-└── toolchain/                   # Repo-level tooling
-    ├── build_module.py          # pattern.cpp → <slug>.pfm (Xtensa relocatable ELF)
-    ├── make_pack.py             # presets → a .zip pattern pack the site serves
-    ├── port_preset.py           # firmware .h → freestanding module source
-    ├── console_pages.py         # console/*.html ⇄ *_index.h (extract / build / check)
-    ├── console_serve.py         # the console on localhost with a fake device behind it
-    ├── build_audio_in_page.py   # assembles console/audio-in.html from the extension's editor
-    ├── check_boundaries.py      # CI: the core names no feature
-    ├── check_abi_freeze.py      # CI: the module ABI has not moved
-    ├── check_sources.py         # CI: sources the build expects are present
-    └── module.ld                # Collapses a module to .text/.rodata/.data/.bss
+└── toolchain/                   # Repo-level tooling: build a module or a pack, the console pages, the CI checks — see toolchain/README.md
 ```
 
 `src/` holds the foundation that patterns build on; `features/` holds everything the device can do beyond being a panel with four knobs, and the core never names any of it — that rule, and why, is [`docs/EDITIONS.md`](../docs/EDITIONS.md). Patterns and the main sketch reference the helpers via `#include "src/core_*.h"`.
@@ -198,6 +203,10 @@ The current word-aligned blit measured **6.86 → 5.90 ms** on the bench's
 128×64, 8-bit, 260 Hz configuration, with identical output. It needs no extra
 framebuffer. See the [performance and recovery bench report](../docs/investigations/2026-09-firmware-runtime.md)
 for the controlled comparison and its limits.
+
+All five calibration values are tunable from `config.h` — see "LED panel calibration" below.
+
+### Runtime notes (3.10): activation worker, memory admission, network maintenance, MIDI transport
 
 The follow-up [runtime research](../docs/investigations/2026-09-firmware-runtime.md)
 measures whole-loop delays, upload/load overlap, simulation warm-up and memory
@@ -267,7 +276,6 @@ false. This implementation lives entirely in `features/midi/`.
 See the [implementation and MIDI follow-up report](../docs/investigations/2026-09-firmware-runtime.md)
 for measured before/after results and remaining limitations.
 
-All five calibration values are tunable from `config.h` — see "LED panel calibration" below.
 
 ### `core_math.h` — PFMath
 ```cpp
@@ -349,10 +357,10 @@ Both tiers share the same pattern shape — a namespace with:
 - `draw()` — draws via `PFCanvas::setPixel(...)` and ends with `PFCanvas::present();`
 
 and the same foundation (`PFCanvas`/`PFMath`/`PFColor`/`PFNoise`), so a pattern
-written for one tier ports to the other mechanically. `CUSTOM_PATTERNS.md`
-documents the submission format; the Pattern Lab at
-[patternflow.work](https://patternflow.work) generates conforming C++ from a
-JavaScript pattern via its "Copy C++ prompt" flow.
+written for one tier ports to the other mechanically. The everyday way to make
+one is the Pattern Lab — [`PATTERN_GUIDE.md`](../PATTERN_GUIDE.md) — which
+generates conforming C++ from a JavaScript pattern and installs it over Wi-Fi;
+[`CUSTOM_PATTERNS.md`](CUSTOM_PATTERNS.md) is the hands-on route.
 
 To add a **preset** (rare — curated set): copy `_TEMPLATE.h` into
 `presets/preset_<name>.h` and add one `PATTERN_ENTRY(...)` line in
@@ -411,7 +419,7 @@ surface — the math headers are literally the same files, included with
   uploads them one by one with progress, retries, and per-file results.
 - `curl -F "module=@slug.pfm" http://patternflow.local/api/patterns` for scripts.
 
-**Costs and limits, measured on hardware** (128×64, esp32 core 3.3.8):
+**Costs and limits, measured on hardware** (v3.2, 2026-07, 128×64, esp32 core 3.3.8 build — a core 2.x build has more heap and renders faster; see [How to measure this](#how-to-measure-this-before-reading-it)):
 
 | Property | Measured |
 |---|---|
@@ -497,8 +505,8 @@ Two names that mean different things, and have already been mixed up here:
 And the rule the rest of this section exists to serve: **a heap number
 travels with its build, its procedure and its date, or it is not evidence.**
 The figures below are v3.5.2 on a core 2.x build and are quoted as history —
-[RFC §2.13](../docs/rfc-core-and-variants.md) has current ones, taken under
-the protocol above. In 2026-08 the `86,004` below was copied into five
+the [September 2026 runtime report](../docs/investigations/2026-09-firmware-runtime.md)
+has the 3.10 numbers, taken under the protocol above. In 2026-08 the `86,004` below was copied into five
 documents as a measurement of something else entirely.
 
 ### Current state (v3.5.2, measured on hardware, core 2.x build)
@@ -625,11 +633,13 @@ far, each confirmed by A/B on hardware:
    mid-statement and never runs, and the console looks blank while every API
    underneath answers fine.
 
-   The console therefore **pauses the pattern**: opening any console page
-   evicts the module, and `tick()` restores it after 25 s of console
-   silence (`core_patterns_http.h`). The request that triggers the eviction
-   cannot be rescued — its send path is already constrained — so it gets a
-   552-byte interstitial that reloads itself.
+   Until 3.6.3 the console therefore **paused the pattern**: opening a page
+   evicted the module and restored it after 25 s of silence. Since 3.6.3 the
+   page sender streams PROGMEM in small slices under a 5-second budget, the
+   pages are gzip-compressed, and the core-2 builds have the heap for it, so
+   a page no longer evicts anything; `status.consolePaused` now means only
+   that a pattern-install batch is in progress ([`docs/rest-api.md`](../docs/rest-api.md)).
+   The memory wall below is still real, and is why pages stay small.
 
    **This is a memory wall, not a pacing problem.** It is tempting to read
    the 10 s stall as impatience — `NetworkClient::write()` really does send
@@ -659,24 +669,10 @@ far, each confirmed by A/B on hardware:
 
 ### Adding a console page
 
-Follow the existing shape (`core_status_http.h` + `status_index.h` is the
-smallest example): one `core_<name>_http.h` that attaches routes in a
-`begin()` called from the Wi-Fi connect edge in `patternflow.ino`, one
-`<name>_index.h` PROGMEM HTML bundle, a row on `home_index.h`. Rules:
+The pages are plain HTML in [`patternflow/console/`](patternflow/console/); edit them there, preview with `console_serve.py`, and `console_pages.py build` splices them into the `*_index.h` headers — the whole workflow is [`patternflow/console/README.md`](patternflow/console/README.md). A page that belongs to a feature travels with the feature (`navPath`/`navLabel`/`navDesc` in its descriptor); the core never names it. Two rules that the README does not repeat:
 
-- Self-contained HTML only — the device serves with no internet in the loop.
-  Match the cream/ink/LED design tokens of the existing pages.
-- **Syntax-check the page's JavaScript before flashing**:
-  extract the `<script>` body and run `node --check` on it. A single stray
-  newline in a string once shipped a page whose script never ran — the page
-  rendered but showed nothing, which reads as "the device is broken".
-- Keep pages lean, and call `PatternflowPatternsHttp::noteConsolePageOpened()`
-  first (see any existing page): a page over ~5.6 KB cannot be delivered while
-  a pattern module is resident. `/status` at 5.5 KB was the only page that
-  survived that state by accident.
-- **Never leave the render loop with nothing to draw.** If a screen decides not
-  to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn
-  leftover frame, which every tester reads as "the pattern is broken".
+- **Syntax-check the page's JavaScript before flashing**: extract the `<script>` body and run `node --check` on it. A single stray newline in a string once shipped a page whose script never ran — the page rendered but showed nothing, which reads as "the device is broken".
+- **Never leave the render loop with nothing to draw.** If a screen decides not to paint, set `frameDrawn = false`; flipping an unpainted buffer shows a torn leftover frame, which every tester reads as "the pattern is broken".
 
 ### What is cheap and what is expensive here
 
@@ -823,9 +819,7 @@ The state is **not** persisted: a device unplugged while asleep boots awake, bec
 
 ### Waking gives the pattern back
 
-Opening any console page evicts the resident module to free DRAM (`noteConsolePageOpened()`), and with Origin the only compiled-in preset, the pattern you are running is almost always a module — so this is the ordinary case, not an exotic one. Left alone, waking with a console tab open would land the panel on the `CONSOLE PAUSED` card until the 25-second idle timer fired.
-
-So a wake — from *any* of the three sources, not just the web switch — asks for the pattern back via `PatternflowPatternsHttp::requestReload()`, the same path the console's Play Now button uses. The reload happens in `tick()` from `loop()`, never inside an HTTP transaction.
+The one thing that still evicts the resident module is a pattern-install batch (a console page has not since 3.6.3). So a wake — from *any* of the three sources, not just the web switch — asks for the pattern back via `PatternflowPatternsHttp::requestReload()`, the same path the console's Play Now button uses, and gets it whether or not something was holding it. The reload happens at the frame boundary from `loop()`, never inside an HTTP transaction.
 
 ### The switch, and why `/api/sleep` is its own endpoint
 
@@ -867,118 +861,16 @@ The write is debounced — it waits until SELECT mode is left and the choice has
 
 A remembered pattern that is gone, or that no longer loads, falls back to Origin with a log line. The PATTERN FAILED screen is the right answer for a pattern somebody just picked and the wrong one for a boot: nobody asked for it in this session.
 
-## Audio-react WebSocket Control
+## Audio-react, OSC, MIDI, MQTT
 
-Patternflow can receive four normalized audio-control streams over WebSocket on port `81`. Current browser clients send normalized deltas so audio, WS Test, OSC, and physical encoders all arrive at patterns as `knobDeltas`:
+None of these is in the core. They are features, and each ships in an edition you install from [the shelf](https://patternflow.work/editions): audio-react, OSC and network MIDI in **Audio**, MQTT in **Performance**. What a client sends is a written contract in `docs/` — [`audio-ws-spec.md`](../docs/audio-ws-spec.md), [`osc-spec.md`](../docs/osc-spec.md), [`midi-spec.md`](../docs/midi-spec.md), [`mqtt-spec.md`](../docs/mqtt-spec.md) — and the guides are [`AUDIO_GUIDE.md`](../AUDIO_GUIDE.md) (sound in, MIDI, OSC) and [`docs/midi-ableton.md`](../docs/midi-ableton.md). The ready-made clients are the audio extension and phone app in [`tools/`](../tools/README.md) and the Max for Live bridge in [`integrations/ableton/`](../integrations/ableton/).
 
-```text
-d=0,v=0.125
-off=0
-off
-```
+From a pattern's point of view every one of them is the user turning the four encoders: audio bands, OSC deltas and MIDI CCs arrive as `knobDeltas` (or pin a lane on the absolute parameter bus), so an encoder-driven pattern reacts with no transport-specific code.
 
-The older absolute message shape, `k=0,v=0.735`, is still accepted for compatibility. The firmware does not require each pattern to opt in. From a pattern's point of view, audio looks like the user is turning the four encoders. This keeps pattern code independent from the audio transport and lets any encoder-driven pattern react.
+Two switches, for a local build:
 
-The conversion is tuned in `config.h`:
-
-```cpp
-#define PF_AUDIO_ENABLED 1
-#define PF_AUDIO_HTTP_PORT 80
-#define PF_AUDIO_WS_PORT 81
-#define PF_AUDIO_VIRTUAL_KNOB_SCALE 48.0f
-```
-
-`PF_AUDIO_VIRTUAL_KNOB_SCALE` controls how strongly a normalized 0..1 audio change becomes knob motion.
-
-### Recommended: Chrome/Edge extension
-
-Use [`tools/patternflow-audio-extension`](../tools/patternflow-audio-extension) for tab audio. It captures the active browser tab, runs FFT analysis in the browser, and sends only four lightweight knob values to Patternflow. It also includes **WS Test** sliders for debugging the device connection without audio capture.
-
-Install for local testing:
-
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Click **Load unpacked**.
-4. Select `tools/patternflow-audio-extension`.
-5. Open a tab that is playing audio.
-6. Click the Patternflow Audio extension button and press **Start**.
-
-Set the device host to `patternflow.local` or the board IP address.
-
-### Built-in device page
-
-When Wi-Fi is configured and audio is enabled, the device also serves a small page at:
-
-```text
-http://patternflow.local/
-```
-
-Keep this page for file playback, microphone input, and local experiments. Browser tab/system capture from this page is limited by browser secure-context rules because the ESP32 serves normal HTTP. For YouTube/Spotify tab audio, the extension is the better path.
-
-## Experimental OSC Output
-
-Patternflow can send lightweight OSC control messages over Wi-Fi for performance setups such as Ableton Live Suite with Max for Live. This is meant for knobs, buttons, pattern status, and heartbeat messages, not for streaming rendered pixels.
-
-The full wire protocol is specified in [`docs/osc-spec.md`](../docs/osc-spec.md). A ready-made Max for Live bridge device (knobs → any Live parameters) lives in [`integrations/ableton/`](../integrations/ableton/).
-
-OSC has two switches: **compile-time** (whether OSC code is linked into the firmware at all) and **runtime** (whether the linked-in code is currently sending/receiving). The K2 longpress info screen only controls the runtime switch — if the compile-time switch is off, the runtime toggle is inert.
-
-### Compile-time: enable the build flag and provide Wi-Fi credentials
-Copy `patternflow/patternflow_secrets.example.h` to `patternflow/patternflow_secrets.h` and edit the local copy:
-
-```cpp
-#define PF_OSC_ENABLED 1
-#define PF_WIFI_SSID "your-wifi-name"
-#define PF_WIFI_PASS "your-wifi-password"
-```
-
-You normally do **not** need to configure the laptop's IP: the device learns the remote host from the first valid OSC packet it receives (send `/patternflow/ping` — the M4L bridge's Connect button does this). Until then the K2 info screen shows `WAIT HOST`. For send-only setups where the host never sends anything, a static target can still be set:
-
-```cpp
-// optional, send-only setups
-#define PF_OSC_REMOTE_HOST "192.168.0.10"  // laptop IP
-#define PF_OSC_REMOTE_PORT 9000
-```
-
-`patternflow_secrets.h` is ignored by git so local Wi-Fi credentials do not get committed. The defaults for everything you leave unset live in `net_config.h` (Wi-Fi, OTA, the device's own settings) and in each feature's `features/<name>/<name>_config.h` (OSC ports, the audio WebSocket port, MQTT broker settings, weather polling) — every one `#ifndef`-guarded, so a line in your secrets file wins.
-
-`PF_OSC_ENABLED` defaults to `1` in `net_config.h`, but it only matters on a build that carries the `osc` feature (the Audio edition); the default firmware has no OSC to enable. Set `#define PF_OSC_ENABLED 0` in `patternflow_secrets.h` to compile it out of an edition that would otherwise have it — the K2 info screen then shows `OFF (compile-time)`, meaning no runtime toggle can turn it on without a rebuild.
-
-### Runtime: toggle from the device (no rebuild)
-Once compiled in, OSC can be flipped on/off from the device itself via the K2 longpress info screen — no Arduino IDE round-trip needed. See the "Controls → Longpress actions" section above. The runtime state is saved in NVS, so the device boots into whatever it was last set to.
-
-Then put the laptop and Patternflow on the same Wi-Fi network. OSC is a sidechannel: when enabled, knob, button, and status messages are sent continuously, whichever pattern is running. It does not change what is drawn on the LED matrix. In Max for Live, receive UDP on the same port and route these OSC addresses:
-
-```text
-/patternflow/knob/1/delta
-/patternflow/knob/1/clicks
-/patternflow/button/1/press
-/patternflow/button/1/held
-/patternflow/pattern/index
-/patternflow/pattern/name
-/patternflow/content/mode
-/patternflow/app/mode
-/patternflow/heartbeat
-/patternflow/hello          (on connect / announce)
-/patternflow/version        (on connect / announce)
-/patternflow/ip             (on connect / announce)
-```
-
-In a Max patch, the receiving side is typically `udpreceive 9000` followed by `oscparse`, then route the address parts and map values to Live parameters with Max for Live devices such as `live.remote~`, `live.object`, or your own mapping patch.
-
-### Receiving OSC (host → device)
-
-The device also listens on `PF_OSC_LOCAL_PORT` (default 9001) so an external host can drive it back. Send any of these addresses from Ableton/Max:
-
-```text
-/patternflow/ping              (—)             — learn sender as remote host + reply with full announce
-/patternflow/knob/N/delta      (int or float)  — virtual rotation on logical knob N (1..4)
-/patternflow/pattern/index     (int or float)  — switch to pattern at this registry index
-```
-
-`/patternflow/content/toggle` is still accepted but does nothing — the Pattern/Video content-mode split was removed, so `/patternflow/content/mode` now always announces `0`. Both stay on the wire only so older hosts don't error; don't build against them.
-
-Numeric arguments may be int or float (floats are rounded) — Max patches commonly send floats, and silently dropping them was a debugging trap. Knob deltas are applied on top of any physical encoder motion in the same frame, at the raw 1×-per-detent rate — the same rate physical knobs now use. Useful for Ableton automation lanes that drive a pattern parameter from a Live track. Unknown addresses (and `#bundle` packets) are ignored silently. Receive buffer is 256 bytes per packet; up to 8 datagrams are drained per frame so fast automation streams don't build up queue latency.
+- **Compile-time** — whether a feature is linked in at all is the bundle: `firmware/bundles/<edition>/features_local.h` lists the features an edition carries ([`bundles/README.md`](bundles/README.md)). A feature's own tunables live in `features/<name>/<name>_config.h` (the audio WebSocket port and knob scale in `features/audio/audio_config.h`, the OSC ports in `features/osc/osc_config.h`, the broker defaults in `features/mqtt/mqtt_config.h`), every one `#ifndef`-guarded so a line in `patternflow_secrets.h` wins. `PF_OSC_ENABLED 0` in the secrets file compiles OSC out of an edition that would otherwise carry it; the K2 info screen then shows `OFF (compile-time)`.
+- **Runtime** — once compiled in, OSC and MIDI are switched on and off from the panel's NETWORK screen (hold K2), the state saved in NVS; the K2 screen shows `WAIT HOST` until the first OSC packet teaches the panel your computer's address.
 
 ## Wireless update from the browser
 
@@ -1053,16 +945,6 @@ This hardcodes the OTA port to 3232 (which is what ArduinoOTA always listens on 
 - Set `#define PF_OTA_ENABLED 0` in `patternflow_secrets.h` to compile OTA out entirely (no Wi-Fi stack pulled in unless OSC or audio-react is also enabled).
 - Set `#define PF_OTA_HOSTNAME "yourname"` to advertise as `yourname.local` instead of `patternflow.local` — useful if multiple devices are on the same network.
 - OTA ships with no password by default (`PF_OTA_PASSWORD ""`). Set `#define PF_OTA_PASSWORD "your-secret"` in `patternflow_secrets.h` to require one on a shared network. See "The upload-password prompt" above for the Arduino IDE 2.x quirk.
-
-## Possible next steps
-
-Things that fit cleanly on top of the current foundation. Not promises — just a record of what becomes easy once `PFCanvas`, `PFMath`, `PFColor`, `PFNoise`, and the OSC sidechannel are in place. Roughly ordered by value-per-effort.
-
-### D. NVS preset save / restore (per pattern)
-*Which* pattern was running now survives a reboot, but its knob values do not — patterns integrate `knobDeltas` into their own namespace statics and nothing can read those back out generically. Doing this properly means each pattern saving its own values on change (debounced) and loading them in `setup()`. The brightness and pattern slots already prove the NVS plumbing; the absolute param bus (`PFParams`) is the one existing path that could carry values in the other direction, for `absoluteReady` patterns.
-
-### E. Live pixel streaming as a feature
-A sketch that received pixels over WebSocket (`patternflow_stream/`) lived beside the main firmware until 2026-09; it predated the module loader and the feature seam and no longer compiled against the core, so it was removed. The idea is still sound — as a `features/stream/` directory driving the canvas from a socket, in an edition, it would cost the core nothing.
 
 ## License
 

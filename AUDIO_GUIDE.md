@@ -163,54 +163,21 @@ about boxes and curves applies unchanged.
 
 The edition is also a **MIDI device over the network** (RTP-MIDI, the same
 protocol macOS calls *Network MIDI*). Once a session is up the panel is an
-ordinary MIDI port in any DAW: four knobs in, four knobs out, four buttons,
-and a pattern selector. The contract is [`docs/midi-spec.md`](docs/midi-spec.md).
-
-**Connect** — the Windows walk-through with screenshots is
-[`docs/midi-ableton.md`](docs/midi-ableton.md); the short version:
-
-- **macOS / iOS** — *Audio MIDI Setup → Window → Show MIDI Studio → Network*.
-  `Patternflow` appears in the directory by itself (Bonjour); select it and
-  press *Connect*. It is now a MIDI port.
-- **Windows** — install the free [rtpMIDI](https://www.tobias-erichsen.de/software/rtpmidi.html)
-  driver, add a session, pick `Patternflow` from the directory (or add it
-  by IP, port 5004) and connect. Live sees it as a MIDI in/out port.
-- **Linux** — `rtpmidid`.
-
-**What the messages mean** — the short version:
-
-| | |
-|---|---|
-| **CC 20–23** → knob 1–4, **absolute** | 0–127 pins the knob, the way the Director does. A hand turning that knob takes it back. |
-| **CC 24–27** → knob 1–4, **relative** | 64 = still, 65 = one detent up, 63 = one down. Endless encoders. |
-| **Notes 60–63** → button 1–4 | A pad press is a button press. |
-| **Program Change** → pattern | Index on `/patterns`. Remembered like a knob pick. |
-| **Out:** CC 24–27, notes 60–63, Program Change | The encoders (as an ordinary 0–127 knob value the panel keeps for you), the buttons and pattern changes, as they happen. |
+ordinary MIDI port in any DAW: four knobs in (CC 20–23 absolute, CC 24–27
+relative), four buttons (notes 60–63), a pattern selector (Program Change),
+and the same four knobs, buttons and pattern changes out as they happen.
+The contract is [`docs/midi-spec.md`](docs/midi-spec.md); the walk-through
+with screenshots — connecting on macOS, Windows (rtpMIDI) and Linux, mapping
+in Ableton, the per-knob sensitivity slider, and telling the panel your
+computer's address so it reconnects itself after a reboot — is
+[`docs/midi-ableton.md`](docs/midi-ableton.md).
 
 This is the missing half of [`docs/director-midi.md`](docs/director-midi.md):
 the Director's `.mid` export writes CC 20–23, so drop the clip on a MIDI
 track, set the track's output to the panel's port, and the show plays on the
-panel from Live — the same automation the `.pfs` plays natively, now under
-the DAW's transport. Ableton's *Remote* switch on the port's input lets the
-panel's knobs MIDI-map to anything in the set, the way the OSC bridge does
-without a Max device. Map with a couple of detents in either direction; the
-panel sends a plain knob value, so there is nothing for Live to guess.
-
-**If a knob moves the mapped parameter too much (or too little) per turn**,
-the console's **MIDI** page has a sensitivity slider per knob from ×8 (a
-quarter turn sweeps a parameter) through 1:1 to 1/16 (ten turns), moved
-together or one by one. It is remembered across reboots; the same page shows the four values the DAW is seeing, the
-session, and the computer the panel should call on boot.
-
-**So you do not reconnect after every panel reboot**, tell the panel your
-computer's address once — `POST http://patternflow.local/api/midi?host=192.168.0.23`
-(your PC's LAN IP) — and it invites the computer itself on every boot and
-whenever the session drops. rtpMIDI must allow incoming connections
-(*Who may connect to me: Anyone*, the default).
-
-The `MIDI` row on the panel's NETWORK screen switches it off without
-reflashing; `/api/status` reports the session, sensitivity and message
-counts under `midi`.
+panel from Live's transport. The `MIDI` row on the panel's NETWORK screen
+switches it off without reflashing; `/api/status` reports the session,
+sensitivity and message counts under `midi`.
 
 ## OSC — Ableton today, anything tomorrow
 

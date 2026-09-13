@@ -97,6 +97,7 @@ each row says which port proved it.
 | `appendStatus(String&)` | append `,"key":value` fields to `/api/status` | MQTT role/state |
 | `drawOverlay(frame)` | after the pattern draws, before present | scheduler clock, weather clock |
 | `composeFrame(frame, w, h)` | the finished canvas on its way to the panel, before the blit — return a buffer to show instead, or null | the clock feature: alpha-blended digits, and the pattern masked to the inside of them |
+| `handleSelectInput(input)` + `drawSelect()` + `decorateSelect()` | the SELECT screen (K4's pattern browser): consume its knobs, draw it entirely, or add a hint after the default draw — so a feature can own an alternate browser without the sketch naming it | the show feature's Sequences playlist |
 
 `PFFeatureFrame` carries what those hooks need so a feature never reaches into
 the sketch's globals: `dt`, `patternName`, `running`, `chromeVisible` (the
@@ -177,18 +178,19 @@ Then one line in the bundle that carries it — `firmware/bundles/<edition>/feat
 | `weather/` | readings, HTTP page, corner clock | Grew the interface: `fillInput`, `chromeVisible`. |
 | `mqtt/` | client, all roles + FlowLocal, HTTP page | Grew it again: `observeFrame`, sleep in both directions, `appendStatus`. |
 | `audio/` | FFT bands over a websocket, HTTP page | The one with a server of its own, and a row in the device's own menu. |
+| `audio_in/` | the on-board PDM microphone: FFT on a Core-0 task, four bands onto the knob lanes, `/audio-in` | The first feature that did not already exist in the core; four hooks, no core edits. Its console page is assembled from the audio extension's editor (`toolchain/build_audio_in_page.py`). |
 | `osc/` | Max / TouchDesigner / Ableton, both directions | The fifth, and the first that did not fit — see below. |
 | `midi/` | RTP-MIDI in and out: CC 20–23 absolute, 24–27 relative, notes, Program Change | Transport-agnostic mapping in `core_midi.h`; the network transport beside it. `docs/midi-spec.md`. |
 | `clock/` | the time cut out of the running pattern, `/clock`, `/api/clock` | Settings in its own NVS namespace, a page with a live preview, and the first user of `composeFrame`: huge anti-aliased digits the pattern shows through (typefaces rasterised offline by `toolchain/build_clock_glyphs.py`, several faces), with what fills the digits and what surrounds them chosen separately. Owns the time zone as a POSIX string with its DST rule; the core keeps the time (`src/core_clock.h`), this shows it. |
 | `ble/` | Wi-Fi provisioning from a phone over Improv-BLE | **In no edition.** The lifecycle works on hardware (advertise only while the panel cannot join, release the controller's memory after) but linking it costs ~12 KB of internal RAM and the one phone it was tried with never listed the panel. Opt-in for whoever finishes it; the header records what was measured. |
 
 `PF_FEATURES_NONE` leaves the bare core: **1,094,813 B** flash and 82,068 B of
-static RAM, against 1,412,457 and 92,920 with all five loaded. The sketch is
+static RAM, against 1,412,457 and 92,920 with the five features of 2026-08 loaded. The sketch is
 byte-identical either way.
 
 That gap buys the person holding the panel almost nothing, which is why
 nothing was ever removed from the core. Flash sits at 45 % of the partition
-even with all five loaded. The ceiling on a loadable `.pfm` — the largest
+even with the five features of 2026-08 loaded. The ceiling on a loadable `.pfm` — the largest
 contiguous block — is 73,716 B with everything and **the same 73,716 B in the
 `audio` bundle**, three features out. Only the bare `PF_FEATURES_NONE` build moves
 it, to 92,148 B, and that is a compile flag rather than a firmware anybody
