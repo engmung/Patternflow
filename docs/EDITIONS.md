@@ -449,4 +449,4 @@ is in [`investigations/2026-08-the-wifi-portal-a-samsung-never-drew.md`](investi
 | cut an edition | [`bundles/README.md`](../firmware/bundles/README.md) — the two files, in full |
 | know why any of this | [RFC](rfc-core-and-variants.md) §2.13, §2.14, §2.15 |
 | talk to a panel | [`rest-api.md`](rest-api.md) |
-| write a pattern | [`firmware/README.md`](../firmware/README.md) |
+| write a pattern | [`PATTERN_GUIDE.md`](../PATTERN_GUIDE.md) — the Pattern Lab route; [`firmware/CUSTOM_PATTERNS.md`](../firmware/CUSTOM_PATTERNS.md) for the hands-on one |

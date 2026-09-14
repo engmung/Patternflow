@@ -1,6 +1,6 @@
 # Patternflow — AI Agent Context
 
-This file provides persistent project context for AI coding agents (Antigravity, Cursor, Claude Code). It is loaded automatically at the start of every session. It is the only agent-context file; `.agents/` holds nothing an agent needs to read first.
+This file provides persistent project context for AI coding agents (Antigravity, Cursor, Claude Code). It is loaded automatically at the start of every session. Cursor and Antigravity read it directly; Claude Code reads it through the one-line `CLAUDE.md` shim. The human-facing map of the repository is `docs/REPOSITORY.md`; the contributor rules are `CONTRIBUTING.md`, and the hard rules below are the same rules.
 
 ## What this project is
 Patternflow is an open-source hardware instrument: four rotary encoders controlling generative light patterns on a 128×64 LED matrix, powered by an ESP32-S3. It is an open-source reinterpretation of Nam June Paik's *Participation TV* (1963). The project is multi-domain, encompassing Arduino-based firmware, KiCad/Blender hardware designs, a Next.js web ecosystem, and comprehensive documentation.
@@ -14,12 +14,11 @@ It is standalone (not Eurorack), powered from a 5 V power bank through a screw t
 - `web/` — Next.js site at patternflow.work: landing page (`/`, `/pattern`, `/build`, `/inside` are tabs of one view), Pattern Lab (`/pattern-lab`), community (`/community/**`, SQLite + Drizzle + Better Auth, only on the Pi deployment), browser flasher (`/flash`), the edition shelf (`/editions`; `/variants` redirects there), device update handoff (`/update`), journal, roadmap. `lib/pattern/` is the pattern runtime and annotations, `lib/lab/` the Pattern Lab, `lib/community/` the community, `lib/ai/` the Gemini client. Architecture doc: `web/ARCHITECTURE.md`. The JS presets in `web/src/lib/presets/` are the source of truth for firmware preset headers.
 - `tools/` — desktop-side helpers: `patternflow-audio-extension` (the browser audio-react extension — also the authoring source the device's `/audio-in` console page is assembled from), `patternflow-audio-android` (phone capture app), `rtpmidi-probe`.
 - `integrations/` — host-software integrations, each with its own README. `integrations/ableton/` is the Max for Live bridge (knobs → Live parameters over OSC). The Home Assistant integration left this repository on 2026-09-03; its author maintains it separately. Integrations are built against the contracts in `docs/` (`rest-api.md`, `osc-spec.md`, `midi-spec.md`), not against the firmware source. `docs/rest-api.md` also has the table for choosing between HTTP, OSC and MQTT, and the rules that make the device's single-connection web server easy to knock over.
-- `.agents/` — AI harness folder for Antigravity. Its skills were retired on 2026-09-03 (they described the pre-`features/` firmware and the v2 board); this file is the context.
 
 ## Hard rules (do not violate)
 1. Founders boards (#001–#005) are private. The KiCad project in `hardware/pcb/kicad/` is the public v3.9 board (silkscreen "PATTERNFLOW … v3.9"). Never commit founders artifacts to this repo.
 2. `hardware/bom/bom_v3.9.csv` is the BOM source of truth. The parts table in `BUILD_GUIDE.md` and the schematic in `hardware/pcb/schematic.pdf` must match it. If you change one, check the other two. (`bom_v3.0.csv` stays for people holding a v3.0 board; it is not the source of truth.)
-3. License split is strict: firmware and web code = MIT; hardware designs (PCB, case STLs, Blender source) = CC-BY-SA 4.0. Two separate license files at root: `LICENSE-MIT` and `LICENSE-CC-BY-SA`. Do not merge them.
+3. License split is strict: firmware and web code = MIT; hardware designs (PCB, case STLs, Blender source) = CC-BY-SA 4.0. Two separate license files at root: `LICENSE-MIT` and `LICENSE-CC-BY-SA`. Do not merge them; the root `LICENSE` is a pointer to both so GitHub's detector sees both, not a third license.
 4. Brand naming: body text = "Patternflow", physical engravings (PCB silkscreen, future case engravings) = "PATTERNFLOW", filenames and URLs = lowercase "patternflow". Never mix these in a single context.
 5. Known issues of the current board are documented in `BUILD_GUIDE.md` section 10; the v2.0 fixes and leftovers are in `BUILD_GUIDE_v2.md` section 10. Reference those sections instead of restating the issues.
 6. **The board has exactly one power input: `J4`, the screw terminal. Never describe USB-C as a power option.** v3.9 removed the `USB1` footprint and its `R1`/`R2` CC pull-downs outright, after a USB-C-powered v3.0 board ran for 20–30 minutes and then smoked at a connector pin ([#221](https://github.com/engmung/Patternflow/issues/221)) — the failure is delayed, so "it seems to work" is not evidence. On v3.9 the footprint does not exist; on a v3.0 board already in someone's hands, `USB1`/`R1`/`R2` stay unpopulated. Release notes and changelog entries that record the hold as it stood are history — update current-state docs, leave the record alone.
@@ -34,12 +33,12 @@ It is standalone (not Eurorack), powered from a 5 V power bank through a screw t
 - KiCad exports: Export Gerbers from `hardware/pcb/kicad/patternflow.kicad_pcb`. Export STLs from `hardware/case/source/patternflow_case.blend`.
 
 ## Versioning
-- Project: v3.10.2 (current, released 2026-09-11), using unified semantic versioning across firmware, hardware, web, and docs — the firmware reports it as `PF_IMPROV_FW_VERSION` in `net_config.h`, and `CHANGELOG.md` gets a section per release. Current hardware is the v3.0 board; every v3.x release since has been firmware/web on unchanged hardware.
+- Project: v3.10.2 (current, released 2026-09-11), using unified semantic versioning across firmware, hardware, web, and docs — the firmware reports it as `PF_IMPROV_FW_VERSION` in `net_config.h`, and `CHANGELOG.md` gets a section per release. Current hardware is the v3.9 board — the v3.0 board with the USB-C footprint removed, same enclosure, pin map and guide; every v3.x release has been firmware/web on it.
 - Editions carry their own version line, independent of the project version (`PF_VARIANT_VERSION` in `firmware/bundles/<name>/overrides.h`): Audio v0.6.2, Performance v0.2.7, Clock v0.1.5 at the time of writing. The shelf (`web/src/app/editions/editions-data.ts`) and the flasher manifest (`web/public/flash/manifest.json`) name the images that are live; only those images are kept in `web/public/flash/bin/` — older ones live on their release tags.
 - Firmware source lives in `firmware/patternflow/`; use release tags for versioning instead of encoding the release in the folder name. Tags are `vX.Y.Z`.
 - Conventions: filenames lowercase with underscores; commit messages start with the area (`firmware:`, `web:`, `docs:`, `hardware:`) then a short present-tense summary.
 
 ## Documentation entry points
 - New users: `README.md` → `BUILD_GUIDE.md`
-- Contributors: this file → `docs/EDITIONS.md` (firmware) · `web/ARCHITECTURE.md` (web) · `CONTRIBUTING.md`
+- Contributors: `CONTRIBUTING.md` → `docs/REPOSITORY.md` → `docs/EDITIONS.md` (firmware) · `web/ARCHITECTURE.md` (web)
 - Version history: `CHANGELOG.md`

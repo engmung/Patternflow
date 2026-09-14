@@ -87,7 +87,7 @@ The **firmware build service** (`/api/community/builds` + `scripts/build-worker.
 
 - **Section copy** — `content/build.md`, `content/pattern.md`, `content/inside.md`, parsed with gray-matter via `src/lib/content.ts`.
 - **Journal** — `content/journal/<slug>.mdx` (Korean) + `<slug>.en.mdx` (English), loaded by `src/lib/journal.ts`, rendered through `components/journal/`. Images in `public/journal/<slug>/`.
-- **Static data in code** — `src/app/roadmap/roadmap-data.ts`, `src/app/variants/variants-data.ts` (the shelf), `src/lib/atlas/data.ts` (the pattern-exploration map). Hand-curated; edit the file.
+- **Static data in code** — `src/app/roadmap/roadmap-data.ts`, `src/app/editions/editions-data.ts` (the shelf), `src/lib/atlas/data.ts` (the pattern-exploration map). Hand-curated; edit the file.
 
 ## Analytics
 

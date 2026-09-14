@@ -1,8 +1,16 @@
 # Changelog
 
-All notable changes to Patternflow will be documented in this file.
+All notable changes to Patternflow will be documented in this file, newest first. The story of each release, with its flashable images, is on [GitHub Releases](https://github.com/engmung/Patternflow/releases); this file is the complete record.
 
 ## [Unreleased]
+
+### Hardware
+
+- **v3.9 board** (2026-09-04). The USB-C power receptacle `USB1` and its CC pull-downs `R1`/`R2` — which v3.0 shipped and every document told you to leave unpopulated after the delayed burnout in [#221](https://github.com/engmung/Patternflow/issues/221) — come off the board. `J4`, the screw terminal, is the only power input there is. Edge cuts and mounting holes are byte-identical to v3.0, so the v3 cases fit both. The 330 mm case gains a pass-through to the DevKit's USB port (data, for wired MIDI/OSC and flashing — not power) and a cable exit slot. Gerbers, BOM, renders and schematic regenerated; `bom_v3.9.csv` is the BOM source of truth.
+
+### Docs
+
+- **The repository explains itself to a contributor.** One table in `CONTRIBUTING.md` of what you have → where it goes → what CI runs on it; `docs/REPOSITORY.md` as the folder-by-folder map for people; `SUPPORT.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `CITATION.cff` and a root `LICENSE` pointer; a README in every contributor-facing subtree (`tools/`, `integrations/`, `firmware/modules/`, `firmware/toolchain/`, both `presets/`); `docs/mqtt-spec.md` beside the other contracts; `hardware/case/remixes/` as the named home for community enclosure variants, with a one-step CI check of its READMEs. Dead pointers removed: GitHub Discussions (never enabled), pattern pull requests (patterns are published from the Pattern Lab to the Community), the `.agents/` folder, `release.yml`. Stale facts fixed in place: the assembly map and `hardware/README.md` now name the v3.9 board, `firmware/README.md` no longer teaches the console pause that ended in 3.6.3, and the Ableton bridge says "install the Audio edition" instead of "rebuild with OSC".
 
 ## [3.10.2] - 2026-09-11
 

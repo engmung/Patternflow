@@ -5,7 +5,7 @@ research that followed them, the runtime rework that research prompted, the
 network-MIDI follow-up, and the regression the rework caused and how it was
 fixed. It supersedes four separate reports written along the way.
 
-**Baseline** `68e23cb`, project 3.9.5, Audio 0.5.4. All of it is unreleased.
+**Baseline** `68e23cb`, project 3.9.5, Audio 0.5.4. All of it shipped in 3.10.0 (see `CHANGELOG.md`).
 **Bench** one ESP32-S3 panel, 128×64, 8 colour bits / 260 Hz, brightness 97,
 Arduino 2.0.17 / ESP-IDF 4.4. No SDK, pin, partition or ABI change anywhere in
 this work. Individual patterns and their setup iterations are unchanged.

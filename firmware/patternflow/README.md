@@ -1,5 +1,7 @@
 # Patterns
 
+> This page is about patterns. Setting up a build is [`../README.md`](../README.md); the everyday way to make a pattern is [`PATTERN_GUIDE.md`](../../PATTERN_GUIDE.md), and nothing on this page is needed for it.
+
 A pattern reaches the panel one of two ways: as a curated **preset** compiled
 into the firmware, or as a **`.pfm` module** uploaded over Wi-Fi and loaded
 from the FATFS partition at runtime — no reflash, no reboot. Modules are the

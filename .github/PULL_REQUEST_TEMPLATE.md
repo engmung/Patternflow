@@ -11,4 +11,3 @@
 
 ---
 - [ ] Touches `web/` → it builds (`npm run build`)
-- [ ] Sharing a pattern? It's CC-BY-SA 4.0 with an `// Author:` header (see CONTRIBUTING)

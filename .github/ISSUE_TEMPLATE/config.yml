@@ -8,10 +8,13 @@ contact_links:
     about: Stuck building or flashing? Ask in the hardware-help channel — photos and quick back-and-forth.
   - name: Share a pattern
     url: https://discord.com/channels/1497757947827327067/1499908302962819236
-    about: Show a custom pattern you made. Develop and test it first in the Pattern Lab.
+    about: Publish it from the Pattern Lab to the Community, then show it off in the patterns channel.
   - name: Discord community
     url: https://discord.gg/Vr9QtsxeTk
     about: New here? Join the server, then jump into the channels above.
+  - name: Getting help — every venue in one table
+    url: https://github.com/engmung/Patternflow/blob/main/SUPPORT.md
+    about: Where to ask what, including the venue that works where Discord is blocked.
   - name: Contributing guide
     url: https://github.com/engmung/Patternflow/blob/main/CONTRIBUTING.md
     about: How to contribute docs, firmware, hardware, or web changes.

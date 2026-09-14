@@ -3,7 +3,7 @@ import type { LivePreset } from "./types";
 // Pattern template — copy this file to start a new pattern.
 //
 // The JS pattern is the SOURCE OF TRUTH. The firmware C++ header is generated
-// from `code` below (see firmware/patternflow/patterns/_TEMPLATE.h). Keep the
+// from `code` below (see firmware/patternflow/_TEMPLATE.h). Keep the
 // SPDX/author/lineage comment block at the top of `code` so attribution and
 // license survive the conversion into the .h file.
 //

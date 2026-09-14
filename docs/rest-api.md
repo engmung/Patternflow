@@ -6,7 +6,7 @@ Clients should tolerate unknown status fields and probe capabilities before call
 
 Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. It carries two different things: the **device console** — HTML pages a person opens in a browser — and a **JSON API** under `/api/`, which is the contract between the firmware and any host software that drives a device over the network. Anything that drives a panel — a bridge, a card, a script — is built against this file, not against the firmware source.
 
-`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. The MQTT topic layout is documented in the header comment of `firmware/patternflow/features/mqtt/core_mqtt.h`. The three are not interchangeable — see [Choosing a transport](#choosing-a-transport).
+`docs/osc-spec.md` is the sibling contract for OSC over UDP, aimed at DAWs and show software, and `docs/midi-spec.md` the one for MIDI. [`docs/mqtt-spec.md`](mqtt-spec.md) is the one for MQTT. The four are not interchangeable — see [Choosing a transport](#choosing-a-transport).
 
 ## Transport
 
@@ -294,29 +294,9 @@ Both directions work over HTTP. This section used to say the opposite, and it wa
 
 Also reported: `normalHost`, `normalPort`, `normalUser`, `normalPrefix`, `normalHasPassword` (the saved Normal-mode broker, kept while Director mode overlays it) and `directorHost`. Passwords are never returned — only whether one is set.
 
-### Which topic to write
+### Which topic to write, and which channel
 
-Decided per pattern by `absoluteReady` from the sidecar.
-
-**`absoluteReady: true`** → publish `0`–`1000` to `<prefix>/param/<1..4>`. The pattern pins that parameter to a fraction of its declared range; the value is idempotent and survives a restart of whatever is driving it. Physical encoder motion releases the hold, so a hand on the device always wins. An empty payload releases it explicitly.
-
-**`absoluteReady: false`** — every module built before the bus existed, and presets, which cannot be interrogated — → publish a new absolute click count to `<prefix>/knob/<1..4>`. The device diffs it against the last value it received and injects the difference as a detent delta. This is a **relative** control: the pattern integrates the delta through its own step size, so the value you send is not a value the parameter will arrive at.
-
-`<prefix>/sleep` is the exception to everything above: it is obeyed in **either** role, because a panel that publishes its knobs is still a panel somebody wants to be able to switch off. `<prefix>/sleep/state` mirrors it on every change and once per connection.
-
-Everything else — `knob`, `param`, `pattern` — is obeyed **only in Subscriber role**. A device set to Publisher will ignore knob writes silently. `POST /api/mqtt?role=subscriber` flips it, at the cost of the device no longer publishing its own knob turns; the two roles are exclusive.
-
-### The channel decides whether your writes survive
-
-The prefix **is** the channel: `patternflow` is Broadcast, `patternflow1`–`patternflow4` are channels 1–4, `patternflow5` is Live, anything else is Custom. Setting a prefix therefore selects a channel, which is not obvious from either end.
-
-It matters because **channels 1–4 and Live also subscribe to a retained `<prefix>/snapshot`**, whose payload carries `param:[a,b,c,d]` — and the firmware applies those values straight onto the knobs, exactly as if they had arrived on `param/N`. A Publisher on the channel re-sends one every 8 seconds, and the retained copy is redelivered on every reconnect.
-
-So on those five channels an external controller is not the only writer. Its value is overwritten a moment later by whatever the snapshot last said, the write having succeeded, MQTT being healthy, and nothing anywhere reporting an error. The symptom is a control that will not stay where it is put.
-
-**Broadcast has no snapshot subscription.** For a single panel driven by one external controller — home automation, a script, a dashboard — Broadcast plus Subscriber is the combination that behaves. The show channels are for a Director driving several panels, which is a different job and the reason the snapshot bus exists at all.
-
-`GET /api/mqtt` reports the channel as `broadcast`, `ch1`–`ch4`, `live`, `custom` or `off`, so a client can check this rather than guess.
+Moved to [`mqtt-spec.md`](mqtt-spec.md): the `absoluteReady` rule that decides between `param/<n>` and `knob/<n>`, which topics each role obeys, and why an external controller on channels 1–4 or Live sees its writes overwritten by the retained snapshot (Broadcast + Subscriber is the combination that behaves for one panel and one controller).
 
 ### Knob ordering
 

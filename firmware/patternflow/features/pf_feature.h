@@ -10,8 +10,9 @@
 // "somebody touched a knob") and whoever cares listens.
 //
 // A variant therefore never edits a core file. It adds its own directory
-// under features/ and one line to features/features.h, so its whole diff against
-// the core is additions and `git merge upstream` stays clean.
+// under features/ and one line to its bundle's features_local.h
+// (firmware/bundles/<edition>/), so its whole diff against the core is
+// additions and `git merge upstream` stays clean.
 //
 // Every hook is optional: leave a field null and that moment passes the
 // feature by.

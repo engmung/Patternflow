@@ -43,7 +43,7 @@ What the two commands do, step by step - and the way to do it by hand.
 2. Bump the version the firmware reports: `PF_IMPROV_FW_VERSION` in `firmware/patternflow/net_config.h` (written `X.Y.Z`, no `v`). `shelf.sh` refuses a core image whose define disagrees with the version it is being shelved as.
 3. Turn `CHANGELOG.md`'s `[Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` and open a fresh `[Unreleased]` above it.
 4. Update the version the docs claim: the "current" line in `AGENTS.md`, the *Moving fast* note in `README.md`, and any guide that names a release.
-5. If hardware changed: confirm `BUILD_GUIDE.md`'s parts table, `hardware/bom/bom_v*.csv` and the schematic agree.
+5. If hardware changed: confirm `BUILD_GUIDE.md`'s parts table, `hardware/bom/bom_v*.csv` and the schematic agree; regenerate the Gerber zip, renders and schematic exports with the recipe in `hardware/pcb/README.md`; add a `### Hardware` entry to the changelog section; update the board table in `hardware/README.md` and the version line in `docs/assembly/README.md`; attach the Gerber zip, the BOM CSV and the STLs to the release.
 6. Stage the images the site serves:
 
    ```bash
@@ -63,11 +63,25 @@ What the two commands do, step by step - and the way to do it by hand.
 9. Create the GitHub Release from the tag. Publishing it triggers **Firmware release assets**, which attaches the four flash images from the tag plus a generated `FLASHING.md` with offsets and hashes.
 10. Confirm it went green before announcing; re-run it with `workflow_dispatch` if it did not fire.
 
+## Branches
+
+Work happens on `dev`, then lands on `main` through a pull request. `main` is protected: nobody pushes to it directly, the maintainer included.
+
+- **Commit freely on `dev`.** Commits are cheap save points; small and frequent is good. Throwaway `wip:` commits belong here rather than on `main`.
+- **Bigger or riskier work** gets its own branch (`feat/...`, `fix/...`) off `dev`.
+- **Outside pull requests target `main`.** After one merges, pull `main` back into `dev` so the branches don't drift:
+
+  ```
+  git checkout dev && git merge origin/main && git push origin dev
+  ```
+
+- **A release** is `dev` → `main` as one pull request, opened by `release.py publish` from the changelog section; merging it posts the dev-log to Discord.
+
 ## Current release line
 
 `CHANGELOG.md` is the record — one section per release, newest first — and the [releases page](https://github.com/engmung/Patternflow/releases) carries the notes and the flashable images. The shape of the line, for orientation:
 
 - `v1.x` -- first public buildable release, then the multi-pattern firmware and browser flasher.
 - `v2.x` -- the v2.0 board (GPIO0 cold-boot fix, cleaned silkscreen), custom pattern workflow, the web platform. `v2.1.0` is the last release for v2.x hardware.
-- `v3.0.0` -- the v3.0 board. Every later `v3.x` is firmware/web on unchanged hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
+- `v3.0.0` -- the v3.0 board; `v3.9` (2026-09, unreleased as a tag) removed its USB-C footprint and changed nothing else. Every later `v3.x` is firmware/web on that hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
 - Editions (`audio`, `performance`, `clock`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.

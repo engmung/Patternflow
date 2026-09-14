@@ -393,7 +393,7 @@ No installation required. Works on any desktop with Chrome or Edge.
 
 ### 8.2 Arduino IDE (Manual / Custom Builds)
 
-Use this method if you want to modify the firmware source, add custom patterns, or if the browser flasher doesn't work for your setup. Custom patterns are not added to the release flasher automatically; you compile and upload your own firmware build. See [docs/assembly/firmware/custom-patterns.md](docs/assembly/firmware/custom-patterns.md) and [firmware/CUSTOM_PATTERNS.md](firmware/CUSTOM_PATTERNS.md).
+Use this method if you want to modify the firmware source, add custom patterns, or if the browser flasher doesn't work for your setup. Custom patterns are not added to the release flasher automatically; you compile and upload your own firmware build. See [firmware/CUSTOM_PATTERNS.md](firmware/CUSTOM_PATTERNS.md).
 
 #### Prerequisites
 

@@ -107,7 +107,7 @@ export default function EditionsPage() {
                     How a firmware is put together
                   </a>
                   <a
-                    href="https://github.com/engmung/Patternflow/blob/main/docs/rfc-core-and-variants.md"
+                    href="https://github.com/engmung/Patternflow/blob/main/docs/EDITIONS.md#getting-an-edition-listed"
                     target="_blank"
                     rel="noopener"
                   >

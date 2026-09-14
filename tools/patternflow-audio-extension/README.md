@@ -55,14 +55,17 @@ the K1-K4 sliders. This bypasses tab capture and audio analysis completely.
 
 The extension sends delta messages like `d=0,v=0.125` to `ws://<device>:81`.
 
-## Next: Audio Console
+## This folder is also firmware source
 
-Future direction: expand the popup into a larger controller page for live
-performance and mapping.
+The editor (`editor.html`, `editor.css`, `editor.js`, `editor-adapter.js`) is
+the authoring source of the panel's own `/audio-in` console page:
+`firmware/toolchain/build_audio_in_page.py` assembles
+`firmware/patternflow/console/audio-in.html` from these files, and the
+`console-sync` workflow fails a pull request in which the two have drifted.
+Edit the editor here and rebuild the page; never edit the generated page, and
+do not move this folder.
 
-- Real-time spectrum and waveform visualizers.
-- Drag-to-select frequency bands on the spectrum.
-- Per-band mapping curves, invert, gate, attack, release, and smoothing.
-- Pattern-specific presets saved in Chrome storage.
-- Larger K1-K4 output meters and connection diagnostics.
-- Beat/transient helpers for kick-style triggers or preset stepping.
+The larger controller ideas that used to be listed here as "next" — spectrum
+and waveform views, drag-to-select bands, per-band curves, gates and
+smoothing — shipped as the mapping editor above; what remains open is tracked
+in the repository's issues.

@@ -54,7 +54,7 @@ The clearest case started on the other side of the world. A media art collective
 
 The **[Full Build Guide](BUILD_GUIDE.md)** covers the official route: the custom PCB and a 3D-printed enclosure. Don't want to order a board? The **[Breadboard Build Guide](https://patternflow.work/build/breadboard)** wires the same electronics with jumper wires instead, and that's a real Patternflow, not a temporary prototype. Every other combination is on the **[Assembly Map](docs/assembly/README.md)**. Parts run about US$100–200 ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)), it's all big through-hole joints, and every first-timer who has built one finished it. Most came back saying the soldering was the fun part.
 
-**When yours lights up, tell us.** Post it in [Discord](https://discord.gg/Vr9QtsxeTk) or [Discussions](../../discussions) and it goes on the build map, a globe of Patternflows where each pin carries its build's story. The map is for the ones people made themselves: every pin is someone who built one from these files, in their own material, wherever they are. The goal is simple: cover it with pins.
+**When yours lights up, tell us.** Post it in [Discord](https://discord.gg/Vr9QtsxeTk) or fill in the [Share your build](../../issues/new?template=share_build.yml) form and it goes on the build map, a globe of Patternflows where each pin carries its build's story. The map is for the ones people made themselves: every pin is someone who built one from these files, in their own material, wherever they are. The goal is simple: cover it with pins.
 
 <p align="center">
   <img src="./docs/media/web-build-map.png" width="100%" alt="Build map: a globe of Patternflows built around the world, with the story of every build" />
@@ -85,14 +85,12 @@ Patterns don't stay on the wall, either. New pattern studies go up on **[Instagr
 Patterns are the surface. Underneath is an instrument still being designed, in the open, by whoever shows up. This is the whole system on one napkin:
 
 <p align="center">
-  <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub Discussions; and the Workshop, where project talk is gathering" />
+  <img src="./docs/media/at-a-glance.png" width="100%" alt="Hand-drawn map of the Patternflow ecosystem: the device, the GitHub files and Crowd Supply routes to it; patternflow.work with the Live Editor, Pattern Lab and Community wall; Discord, Instagram and GitHub" />
 </p>
-
-The **[Workshop](https://community.patternflow.work/community/workshop)** is where the project's future is worked out. It's a map of directions Patternflow could take: a wired OSC version, laser-cut enclosures, bigger panels. Anyone can pin themselves to a direction, say what they're working on, and start a thread.
 
 It's already moving in directions I didn't choose. One contributor is building out MQTT further than I've had time to follow: units reaching each other across a network, one person's playing coming out of somebody else's device. Another is working on sound on the board itself. Another is taking the TouchDesigner link further than I did. None of it was assigned.
 
-**[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow. Questions and ideas go to **[Discussions](../../discussions)** or the **[Discord](https://discord.gg/Vr9QtsxeTk)**, whichever you can reach.
+**[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow. Questions and ideas go to the **[Discord](https://discord.gg/Vr9QtsxeTk)**; where to ask what is **[SUPPORT.md](SUPPORT.md)**.
 
 ## Quick facts
 
@@ -104,7 +102,7 @@ It's already moving in directions I didn't choose. One contributor is building o
 | **Power** | 5 V over USB from any power bank; about **4 h per 10,000 mAh** at max brightness with a typical pattern (see [runtime](#power--runtime)) |
 | **Size / weight** | 245 × 325 × 36 mm (9.6 × 12.8 × 1.4 in) · 933 g (2.06 lb) |
 | **Firmware** | Arduino-compatible C++, modular pattern architecture, runtime switching (no reflash) |
-| **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. Arduino IDE only for firmware development or other matrix resolutions |
+| **Flashing** | Everything from the browser: one USB flash the first time, then it's all Wi-Fi. Patterns install as modules in seconds, full firmware builds land wirelessly too. A local build (PlatformIO) only for firmware development or other matrix resolutions |
 | **Connectivity** | Wi-Fi and USB. Network MIDI (a MIDI port in any DAW — Ableton, Logic, Bitwig), bidirectional OSC (Max/TouchDesigner/Resolume), MQTT and audio-react each ship in an [edition](docs/EDITIONS.md) you install in one click — the way patterns do — and switching keeps your patterns, networks and settings |
 | **Editions** | One image ships on the board; others are a click away on [the shelf](https://patternflow.work/editions). Writing a feature or cutting your own firmware starts at **[docs/EDITIONS.md](docs/EDITIONS.md)** |
 | **Build** | ~1 h hands-on (≈30 min soldering + ≈30 min assembly, first-build friendly) + ~10 h 3D printing · US$100–200 in parts ([BOM](BUILD_GUIDE.md#1-bill-of-materials-bom)) |
@@ -151,7 +149,7 @@ A new board boots into **Origin**, concentric sine waves sampled by an emergent 
 
 A new board is therefore nearly empty, so a set ships with it: the **Basics pack**, 33 patterns, at the top of the [decks shelf](https://community.patternflow.work/community/decks). One click installs the lot, no account and no build queue, or drop the `.zip` on your board's Patterns page yourself. The [Live Editor](https://patternflow.work/pattern) opens with its own preset library of 42 patterns, each loadable and remixable in the browser.
 
-The Arduino IDE is only needed for firmware feature development or targeting an LED matrix with a different resolution; see [`firmware/patternflow/README.md`](firmware/patternflow/README.md) and [Custom Patterns](firmware/CUSTOM_PATTERNS.md). To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
+A local firmware build (PlatformIO, driven by `firmware/bundles/build.sh`) is only needed for feature development or targeting an LED matrix with a different resolution; the setup is [`firmware/README.md`](firmware/README.md) and a new feature starts at [FEATURE_GUIDE.md](FEATURE_GUIDE.md). Patterns never need it: [Custom Patterns](firmware/CUSTOM_PATTERNS.md). To rebuild the shipped pack from the repo's own preset sources, see [`firmware/toolchain/make_pack.py`](firmware/toolchain/make_pack.py).
 
 ## MIDI, OSC, MQTT & audio-react
 
@@ -165,7 +163,7 @@ Each of these lives in an **edition** — a firmware you install from [the shelf
 
 **Bidirectional OSC.** Over Wi-Fi, Patternflow speaks OSC in both directions: knob turns, button presses, and pattern switches stream out to a remote host (Ableton Live, Max/MSP, TouchDesigner, anything that speaks OSC), and incoming OSC messages drive the device exactly like physical encoder motion. Play Patternflow as a controller for your set, let your set drive the light, or both at once. OSC is the language of Max, TouchDesigner, Resolume and Processing, and it carries more than MIDI can — pattern names, floats, a heartbeat. For Ableton Live Suite there's a ready-made Max for Live bridge in [`integrations/ableton`](integrations/ableton). Click Connect, map the four knobs to any Live parameters, done. The wire protocol is documented in [`docs/osc-spec.md`](docs/osc-spec.md).
 
-**MQTT.** Patternflow also speaks MQTT, both ways, on the broker you already run. Knob turns and pattern changes publish as they happen; messages coming the other way move the knobs and switch patterns exactly as a hand on the encoder would. Two boards pointed at the same broker follow each other, which is the short version of why it exists. It also puts the device on the same bus as the rest of a home or venue setup, so Home Assistant, Node-RED or a lighting desk can drive it without anything Patternflow-specific in the middle. Point it at a broker on the device's own **MQTT** page; a pattern can be addressed by name or by slug. Publishing `1` to `<prefix>/sleep` puts the panel to sleep and `0` wakes it, with the current state mirrored on `<prefix>/sleep/state`. That is enough for a Home Assistant switch, and it is the one command a panel obeys whether it is set to Publisher or Subscriber. Contributed by **[@SimonePDA](https://github.com/SimonePDA)** (Simone Majocchi), along with the browser-side zip unpacking that makes pattern packs install in one click.
+**MQTT.** Patternflow also speaks MQTT, both ways, on the broker you already run ([the contract](docs/mqtt-spec.md)). Knob turns and pattern changes publish as they happen; messages coming the other way move the knobs and switch patterns exactly as a hand on the encoder would. Two boards pointed at the same broker follow each other, which is the short version of why it exists. It also puts the device on the same bus as the rest of a home or venue setup, so Home Assistant, Node-RED or a lighting desk can drive it without anything Patternflow-specific in the middle. Point it at a broker on the device's own **MQTT** page; a pattern can be addressed by name or by slug. Publishing `1` to `<prefix>/sleep` puts the panel to sleep and `0` wakes it, with the current state mirrored on `<prefix>/sleep/state`. That is enough for a Home Assistant switch, and it is the one command a panel obeys whether it is set to Publisher or Subscriber. Contributed by **[@SimonePDA](https://github.com/SimonePDA)** (Simone Majocchi), along with the browser-side zip unpacking that makes pattern packs install in one click.
 
 **Audio-react.** The Chrome/Edge extension in [`tools/patternflow-audio-extension`](tools/patternflow-audio-extension) captures the current tab's audio, splits it into four bands you shape on a response graph, and sends the levels to the panel over a WebSocket. A pattern reads them as ordinary parameters, so every encoder-driven pattern reacts with no audio code of its own. The panel can also listen for itself: an on-board microphone runs the same analysis on the device, with no browser involved.
 
@@ -181,18 +179,22 @@ Patternflow is built around a standalone ESP32-S3 driving a HUB75 RGB LED matrix
 | :--- | :--- |
 | `firmware/` | Arduino code for ESP32-S3, the custom pattern template, and the toolchain that builds patterns into `.pfm` modules and packs |
 | `hardware/` | Enclosure files and electronics source files (case, PCB, Gerbers, schematic PDF) |
-| `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal) |
-| `docs/` | Assembly map, build-guide media, manifesto, license summary |
+| `web/` | Next.js site (landing, Live Editor, Pattern Lab, community, browser flasher & build server, journal); the breadboard build guide is a React page here |
+| `docs/` | The contracts (HTTP, OSC, MIDI, MQTT, audio WebSocket, show files), how the firmware is put together (`EDITIONS.md`), the assembly map, walk-throughs, records and media — indexed in [`docs/README.md`](docs/README.md), with the folder-by-folder map in [`docs/REPOSITORY.md`](docs/REPOSITORY.md) |
 | `tools/` | Desktop-side helpers, including the audio-react browser extension |
 | `integrations/` | Host-software bridges: Ableton Live / Max for Live (OSC knob mapping) |
+| `.github/` | Issue and PR templates, and the CI that runs on every pull request (web, every firmware edition, doc links, console pages) |
 
-**Docs:** [Full Build Guide](BUILD_GUIDE.md) · [Pattern Guide](PATTERN_GUIDE.md) · [Audio Guide](AUDIO_GUIDE.md) · [Feature Guide](FEATURE_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [HTTP API](docs/rest-api.md) · [MIDI in Ableton](docs/midi-ableton.md) · [MIDI Spec](docs/midi-spec.md) · [OSC Spec](docs/osc-spec.md) · [Director → MIDI](docs/director-midi.md) · [Manifesto](docs/manifesto.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md)
+**Build:** [Full Build Guide](BUILD_GUIDE.md) · [Assembly Map](docs/assembly/README.md) · [Panel Compatibility](docs/panel-compatibility.md) · [Hardware files](hardware/README.md)
+**Play:** [Pattern Guide](PATTERN_GUIDE.md) · [Custom Patterns](firmware/CUSTOM_PATTERNS.md) · [Audio Guide](AUDIO_GUIDE.md) · [MIDI in Ableton](docs/midi-ableton.md)
+**Extend:** [Feature Guide](FEATURE_GUIDE.md) · [Editions](docs/EDITIONS.md) · [Firmware build](firmware/README.md) · [Web architecture](web/ARCHITECTURE.md) · [HTTP API](docs/rest-api.md) · [OSC Spec](docs/osc-spec.md) · [MIDI Spec](docs/midi-spec.md) · [Director → MIDI](docs/director-midi.md)
+**Project:** [Contributing](CONTRIBUTING.md) · [Support](SUPPORT.md) · [Repository map](docs/REPOSITORY.md) · [Changelog](CHANGELOG.md) · [License Summary](docs/LICENSE-SUMMARY.md) · [Manifesto](docs/manifesto.md)
 
 **Links:** [patternflow.work](https://patternflow.work) · [Community](https://community.patternflow.work/community) · [Crowd Supply](https://www.crowdsupply.com/engmung/patternflow) · [Releases](../../releases) · [Discord](https://discord.gg/Vr9QtsxeTk) · [Instagram](https://www.instagram.com/patternflow.work)
 
 ## Contributing
 
-Builds, documentation fixes, part sourcing tips, and custom patterns are all welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** covers how contributions flow, including the inbound = outbound pattern licensing.
+Builds, documentation fixes, part sourcing tips, enclosure remixes, firmware features and host-software bridges are all welcome. **[CONTRIBUTING.md](CONTRIBUTING.md)** has one table of where each kind goes and what CI runs on it; **[SUPPORT.md](SUPPORT.md)** says where to ask. Patterns don't come here: publish them from the Pattern Lab to the Community.
 
 ## Story so far
 
@@ -223,7 +225,7 @@ Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWa
 
 ## License
 
-The SPDX header inside a file is the authority; folders are not license boundaries. Full breakdown in the **[License Summary](docs/LICENSE-SUMMARY.md)**.
+A file's SPDX header is the authority where one exists; folders are not license boundaries, and files that cannot carry a header (STL, Gerber, images) take the license the nearest README states. Full breakdown in the **[License Summary](docs/LICENSE-SUMMARY.md)**.
 
 - Firmware & web code: **MIT** ([LICENSE-MIT](./LICENSE-MIT))
 - Hardware, designs & docs: **CC-BY-SA 4.0** ([LICENSE-CC-BY-SA](./LICENSE-CC-BY-SA))

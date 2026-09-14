@@ -16,5 +16,5 @@ Requirements:
     gone afterwards unless they are in data/patterns/ too.
 
 File naming:
-  - Lowercase slugs, no spaces: origin.pfm, layer_stack.pfm
+  - Lowercase slugs, no spaces: origin.pfm, wave_saw.pfm
   - The slug must match the module's NAME (build_module.py derives it).

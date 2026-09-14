@@ -19,20 +19,14 @@ integrations/ableton/
 ## Requirements
 
 - Ableton Live Suite (or Live + Max for Live), Live 11/12
-- Patternflow flashed with OSC enabled (below) on the **same Wi-Fi network** as the computer
+- Patternflow running the **Audio** edition (below) on the **same Wi-Fi network** as the computer
 - First run on Windows: allow Max through the firewall when prompted (UDP 9000 must be able to reach Max)
 
-## 1. Enable OSC in the firmware (one-time)
+## 1. Put the Audio edition on the panel (one-time)
 
-Copy `firmware/patternflow/patternflow_secrets.example.h` to `patternflow_secrets.h` and set:
+OSC ships in the **Audio** edition. Open [patternflow.work/editions](https://patternflow.work/editions), pick Audio, and install it from the browser; your patterns, Wi-Fi networks and settings stay. No rebuild, no secrets file. (Building your own image with the OSC feature is also possible; that is [docs/EDITIONS.md](../../docs/EDITIONS.md).)
 
-```cpp
-#define PF_WIFI_SSID "your-wifi-name"
-#define PF_WIFI_PASS "your-wifi-password"
-#define PF_OSC_ENABLED 1
-```
-
-You do **not** need to set your computer's IP — the device learns it from the bridge's ping. Flash, then check the K2-longpress info screen: OSC should read `READY` or `WAIT HOST`.
+You do **not** need to set your computer's IP: the device learns it from the bridge's ping. Check the K2 long-press info screen: OSC should read `READY` or `WAIT HOST`.
 
 ## 2. Install the bridge device
 

@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - MQTT sidechannel (knobs + pattern + absolute params)
 //
+// The contract clients are written against is docs/mqtt-spec.md; keep the
+// two in step (bump its version line when a topic changes).
+//
 // Topics per prefix (no wildcards — ACL-friendly exact list):
 //
 //   <prefix>/knob/1..4   absolute click counts (live; non-retain)
