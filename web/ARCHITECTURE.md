@@ -15,6 +15,7 @@ The `web/` app is the Patternflow site at [patternflow.work](https://patternflow
 | `/pattern-lab` | The pattern workspace — see below |
 | `/community/**` | The community: feed, pattern pages (`/p/[id]`), profiles (`/u/[username]`), decks (`/d/[id]`, `/decks`), the Workshop (`/workshop/[code]`), territories and the atlas, notifications, featured, reports. Renders a pointer to the community host unless `COMMUNITY_ENABLED=1` |
 | `/editions` | The edition shelf: every firmware you can put on a panel, official and community, with one-click install. `/variants` (the URL until 2026-09, baked into shipped console pages) redirects here permanently |
+| `/features` | The catalogue: every feature on its own — what it needs, which firmware carries it, and a reel of it running (Instagram embeds by permalink, lazy). The other axis of the shelf; hand-curated in `features-data.ts` |
 | `/update` | The device's firmware-update handoff: the browser downloads an image and POSTs it to the panel over the LAN, because the panel cannot fetch over TLS |
 | `/flash` (static) | esp-web-tools flasher driven by `public/flash/manifest.json` + the images in `public/flash/bin/` — only the currently served ones are committed |
 | `/journal` · `/journal/[slug]` (+ `/en`) | Bilingual (ko/en) MDX journal with per-article OG image generation |

@@ -1,0 +1,128 @@
+/* Features — the catalogue, feature by feature, with a reel of each.
+   Shares the document shape and the card with /editions (their module is
+   imported alongside this one), and adds the one thing this page has that
+   the shelf does not: a reel beside each group, running while you read. */
+
+/* A group: heading, blurb and its cards on the left; its reel on the right,
+   staying put while the cards scroll past it. One column on a phone, with
+   the reel first — the thing you came to watch. */
+.group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 8px 32px;
+  align-items: start;
+  margin-top: 44px;
+  padding-top: 28px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+.groupText { min-width: 0; }
+.reelCol {
+  position: sticky;
+  top: 24px;
+}
+@media (max-width: 820px) {
+  .group { grid-template-columns: 1fr; }
+  .reelCol {
+    position: static;
+    order: -1;
+    margin-bottom: 8px;
+  }
+}
+
+.groupHead {
+  margin: 0 0 10px;
+  font-size: var(--pf-fs-h2);
+  font-weight: 500;
+  letter-spacing: var(--pf-track-tight);
+  line-height: 1.15;
+}
+.groupBlurb {
+  margin: 0 0 22px;
+  max-width: 56ch;
+  font-size: var(--pf-fs-body);
+  line-height: 1.6;
+  color: var(--pf-ink-muted);
+}
+
+/* The reel. Instagram's embed is a tall document; 620px shows a reel's
+   frame with its header and the post's own footer, and the frame scrolls
+   inside itself for anything longer. */
+.reel { margin: 0; max-width: 340px; }
+.reelFrame {
+  display: block;
+  width: 100%;
+  height: 620px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+  background: var(--pf-cream-2);
+}
+.reelCap {
+  margin: 10px 0 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+  color: var(--pf-ink-faint);
+}
+.reelCap a { color: var(--pf-ink-muted); white-space: nowrap; }
+.reelCap a:hover { color: var(--pf-led); }
+.noReel {
+  margin: 0;
+  max-width: 340px;
+  padding: 18px;
+  border: var(--pf-rule-w) dashed var(--pf-rule);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+  color: var(--pf-ink-faint);
+}
+
+/* Two facts a person decides on, in the card's mono voice: what it needs,
+   and where it is. */
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0 0 16px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+}
+.facts dt {
+  padding-top: 2px;
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+.facts dd { margin: 0; color: var(--pf-ink); }
+.facts dd a { color: var(--pf-ink); }
+.facts dd a:hover { color: var(--pf-led); }
+
+/* The list of things in the tree but in no firmware: a row each, no card. */
+.treeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.treeList li {
+  padding: 16px 0;
+  border-top: var(--pf-rule-w) solid var(--pf-rule-soft);
+  font-size: var(--pf-fs-body);
+  line-height: 1.6;
+}
+.treeList li:last-child { border-bottom: var(--pf-rule-w) solid var(--pf-rule-soft); }
+.treeName {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.treeSummary {
+  margin: 0 0 8px;
+  max-width: 62ch;
+  color: var(--pf-ink-muted);
+}
+.embedNote {
+  margin: 18px 0 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  color: var(--pf-ink-faint);
+}
