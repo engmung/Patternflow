@@ -284,19 +284,19 @@ export const GROUPS: Group[] = [
   },
 ];
 
-// In the tree, in no firmware. Listed so that nobody rediscovers it.
+// In the tree, in no firmware: attempts that did not work out, left where
+// they stopped so nobody has to rediscover why.
 export const IN_THE_TREE: Feature[] = [
   {
     id: "ble",
-    name: "Wi-Fi setup over Bluetooth",
+    name: "Wi-Fi setup over Bluetooth (did not work)",
     summary:
-      "Improv-BLE: a phone provisions the panel's Wi-Fi without a cable. The " +
-      "lifecycle works on hardware, but linking it costs internal RAM every " +
-      "pattern would rather have, and the one phone it was tried with never " +
-      "listed the panel. Opt-in for whoever finishes it; the source records " +
-      "what was measured.",
+      "Improv-BLE, so a phone could hand the panel its Wi-Fi without a cable. " +
+      "It never worked: the phone never listed the panel, and linking the " +
+      "Bluetooth stack costs internal RAM every pattern would rather have. " +
+      "Left in the tree as it was; the source says what was measured.",
     needs: [],
-    where: "Not in any firmware.",
+    where: "Not in any firmware, and not planned.",
     links: [{ label: "Source", href: tree("firmware/patternflow/features/ble") }],
   },
 ];

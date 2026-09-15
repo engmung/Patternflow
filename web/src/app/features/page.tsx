@@ -177,8 +177,8 @@ export default function FeaturesPage() {
 
         <h2 className={shelf.sectionHead}>In the tree, in no firmware</h2>
         <p className={shelf.sectionNote}>
-          Written, measured, and left for whoever wants to finish it. Listed
-          so that nobody starts it twice.
+          Tried, and left where it stopped. Listed so that nobody starts it
+          twice without knowing why it stopped.
         </p>
         <ul className={styles.treeList}>
           {IN_THE_TREE.map((f) => (
