@@ -15,6 +15,8 @@ and which settings differ.
 bundles/audio/
   features_local.h    which features this firmware has, and in what order
   overrides.h       what it calls itself, and any setting it changes
+  env               (optional) the PlatformIO env to build in — only when
+                    the difference is a build flag, not a setting
 ```
 
 That is the whole of it. The default build needs no bundle at all — and it
@@ -24,6 +26,7 @@ lives in an edition built from these two files.
 ```bash
 ./firmware/bundles/build.sh          # the default: no features
 ./firmware/bundles/build.sh audio    # the audio bundle
+./firmware/bundles/build.sh midi     # the MIDI edition, in its own env (bundles/midi/env)
 ./firmware/bundles/build.sh audio flash patternflow.local
 ./firmware/bundles/build.sh all      # every composition + the marker scan
                                      # proving each binary carries exactly
@@ -48,6 +51,7 @@ A bundle earns its place when it carries something the default **cannot**:
 | **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, and MIDI over the network |
 | **performance** | the show player, MQTT in every role, weather — Simone Majocchi's performance-director firmware, pinned so a show behaves the same at the next gig |
 | **clock** | the time cut out of the running pattern, in a choice of faces — a panel on a shelf that tells the time, with nothing else attached |
+| **midi** | the DevKit's USB port as a MIDI device, beside RTP-MIDI — a wire into a DAW with no driver and no session. It needs the port on the S3's USB-OTG stack, a build flag the other images cannot carry (that flag is what makes the port their serial console), so this one builds in its own PlatformIO env. Data only; the panel is still powered from `J4` |
 
 Three shapes of reason, and they are not the same:
 

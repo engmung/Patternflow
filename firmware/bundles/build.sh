@@ -13,6 +13,11 @@
 # A bundle is two files. This copies them next to the feature list, builds, and
 # takes them away again — the tree is left exactly as it was found, so the
 # next build is the default unless you ask for a bundle.
+#
+# A bundle may add a third file, `env`, naming the PlatformIO env it builds
+# in (default: firmware). The MIDI edition needs one: its USB port has to be
+# the OTG controller, which is a build flag, not a setting - see
+# platformio.ini. The build tree is per env, so the outputs move with it.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -22,6 +27,13 @@ FEATURES="$SKETCH/features"
 # and this repository lives under one. The build tree goes somewhere plain.
 BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
 
+# The PlatformIO env a bundle builds in: `env` beside its two files, else the
+# default. PlatformIO writes each env's outputs under its own name.
+env_of() {
+  local f="firmware/bundles/$1/env"
+  if [ -f "$f" ]; then tr -d '[:space:]' < "$f"; else echo firmware; fi
+}
+
 # ── all: every composition, and proof each binary carries exactly its
 # features ────────────────────────────────────────────────────────────────
 #
@@ -30,7 +42,7 @@ BUILD_DIR="${PF_BUILD_DIR:-$HOME/pf-build}"
 #
 #   ./firmware/bundles/build.sh all
 #
-# It builds default, audio, performance and clock, then scans each image for one
+# It builds default, audio, performance, clock and midi, then scans each image for one
 # marker string per feature — a literal that lives only in that feature's
 # sources, verified by grep before it was trusted here. An edition must
 # contain its own features' markers and NONE of the others'. That checks the
@@ -50,19 +62,21 @@ if [ "${1:-}" = "all" ]; then
     [midi]='[MIDI] rtp listening'
     [ble]='[BLE] setup advertising'
     [clock]='[CLOCK] /clock ready'
+    [midi_usb]='[MIDI] usb device'
   )
   declare -A WANT=(
     [default]=''
     [audio]='osc audio audio_in midi'
     [performance]='mqtt show weather'
     [clock]='clock'
+    [midi]='midi midi_usb'
   )
   # Outside PF_BUILD_DIR: PlatformIO prunes directories it does not know
   # from its own build root, and it does not know this one.
   OUTDIR="${BUILD_DIR}-editions"
   mkdir -p "$OUTDIR"
   overall=0
-  for ed in default audio performance clock; do
+  for ed in default audio performance clock midi; do
     printf '%-12s building… ' "$ed"
     t0=$(date +%s)
     log="$OUTDIR/$ed.log"
@@ -75,15 +89,15 @@ if [ "${1:-}" = "all" ]; then
       tail -15 "$log"
       exit 1
     fi
-    cp "$BUILD_DIR/firmware/firmware.bin" "$OUTDIR/$ed.bin"
+    cp "$BUILD_DIR/$(env_of "$ed")/firmware.bin" "$OUTDIR/$ed.bin"
     # The elf as well, because the bin cannot answer the question that actually
     # governs this product. A .bin's size is flash, and flash is not scarce here:
     # internal DRAM is, and the module code budget is whatever is left of it once
     # .data, .bss and IRAM have taken their share. check_footprint.py reads these.
-    cp "$BUILD_DIR/firmware/firmware.elf" "$OUTDIR/$ed.elf"
+    cp "$BUILD_DIR/$(env_of "$ed")/firmware.elf" "$OUTDIR/$ed.elf"
     verdict=ok
     detail=""
-    for f in osc audio audio_in mqtt show weather midi ble clock; do
+    for f in osc audio audio_in mqtt show weather midi ble clock midi_usb; do
       case " ${WANT[$ed]} " in *" $f "*) want=1 ;; *) want=0 ;; esac
       if grep -qaF -- "${MARK[$f]}" "$OUTDIR/$ed.bin"; then have=1; else have=0; fi
       if [ "$want" != "$have" ]; then
@@ -103,10 +117,13 @@ if [ "${1:-}" = "all" ]; then
 fi
 
 BUNDLE="${1:-}"
+ENV=firmware
 if [ -n "$BUNDLE" ] && [ "$BUNDLE" != "flash" ]; then
   DIR="firmware/bundles/$BUNDLE"
   [ -d "$DIR" ] || { echo "no such bundle: $BUNDLE" >&2; exit 1; }
   echo "bundle:  $BUNDLE"
+  ENV="$(env_of "$BUNDLE")"
+  [ "$ENV" = firmware ] || echo "env:     $ENV"
   cp "$DIR"/*.h "$FEATURES/"
   # Whatever happens next, the tree goes back to the default. Leaving a
   # bundle's files behind would make the following build silently wrong.
@@ -137,9 +154,9 @@ for pair in \
   [ -d "$SKETCH/lib/$name" ] || git clone -q --depth 1 "$url" "$SKETCH/lib/$name"
 done
 
-( cd "$SKETCH" && PLATFORMIO_BUILD_DIR="$BUILD_DIR" python -m platformio run -e firmware )
+( cd "$SKETCH" && PLATFORMIO_BUILD_DIR="$BUILD_DIR" python -m platformio run -e "$ENV" )
 
-BIN="$BUILD_DIR/firmware/firmware.bin"
+BIN="$BUILD_DIR/$ENV/firmware.bin"
 echo ""
 echo "built: $BIN  ($(stat -c%s "$BIN") bytes)"
 

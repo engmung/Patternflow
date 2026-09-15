@@ -84,4 +84,4 @@ Work happens on `dev`, then lands on `main` through a pull request. `main` is pr
 - `v1.x` -- first public buildable release, then the multi-pattern firmware and browser flasher.
 - `v2.x` -- the v2.0 board (GPIO0 cold-boot fix, cleaned silkscreen), custom pattern workflow, the web platform. `v2.1.0` is the last release for v2.x hardware.
 - `v3.0.0` -- the v3.0 board; `v3.9` (2026-09, unreleased as a tag) removed its USB-C footprint and changed nothing else. Every later `v3.x` is firmware/web on that hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
-- Editions (`audio`, `performance`, `clock`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.
+- Editions (`audio`, `performance`, `clock`; `midi` is in the tree but not yet on the shelf, so `release.py` does not cut it) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.
