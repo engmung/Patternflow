@@ -81,6 +81,7 @@ PAGES = [
     ("patterns", "src/patterns_index.h"),
     ("status", "src/status_index.h"),
     ("wifi", "src/wifi_index.h"),
+    ("knobs", "src/knobs_index.h"),
     ("update", "src/web_update_index.h"),
     ("show", "features/show/show_index.h"),
     ("weather", "features/weather/weather_index.h"),

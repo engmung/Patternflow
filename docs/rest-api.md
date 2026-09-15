@@ -268,6 +268,20 @@ Both directions work over HTTP. This section used to say the opposite, and it wa
 
 `/api/knob` and `/remote` existed and were removed as unused alongside the `/api/frame` incident; do not look for them.
 
+### `GET /api/knobs` and `POST /api/knobs`
+
+Since 1.5. Which way each encoder counts and how many edges make one click —
+properties of the part soldered in, which is why they are settings rather than a
+rebuild. `GET` returns `inv` (four booleans: reversed or not), `sub` (edges per
+click per knob: 4, 2 or 1 — most encoders are 4), `clicks` (each knob's click
+count as the frame sees it) and `raw` (the edge counters underneath, for telling a
+2-edge part from a 4-edge one). `POST` takes any subset of `inv0`..`inv3` (`0`/`1`)
+and `sub0`..`sub3` (`4`/`2`/`1`), or `inv=` / `sub=` for all four, form-encoded;
+a change is applied at a frame boundary without moving the knob, stored on the
+device (NVS `pf_knobs`) and answered as `GET`. The `/knobs` page is this endpoint
+with a live readout. `INVERT_ENCODER` in `config.h` is only the compile-time
+default a fresh device starts from.
+
 ### `GET /api/mqtt`
 
 ```json
@@ -436,7 +450,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)).
+- **1.5** (unreleased) — status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted).
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.

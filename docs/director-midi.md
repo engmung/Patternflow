@@ -103,6 +103,10 @@ where the `midi` feature lives.
 2. Live → *Preferences → Link, Tempo & MIDI*. On that port's **Output** row,
    switch **Track** on. The **Remote** switch on its *Input* row is the other
    direction, the Bridge's; both can be on at once.
+   **Leave Remote on the Output row off.** With it on, Live sends every mapped
+   parameter's value back to the panel on the same CC, and the panel reads that
+   position as a relative turn: the knob pins itself to one value and ticks
+   whenever you move it. The same applies to the USB port on the MIDI edition.
 
 **Then, to send a lane:**
 

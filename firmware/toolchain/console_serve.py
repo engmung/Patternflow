@@ -48,6 +48,7 @@ ROUTES = {
     "/patterns": "patterns",
     "/status": "status",
     "/wifi": "wifi",
+    "/knobs": "knobs",
     "/update": "update",
     "/show": "show",
     "/weather": "weather",
@@ -440,6 +441,26 @@ class Handler(BaseHTTPRequestHandler):
                 "knobs": [0, 0, 0, 0], "params": [500, 500, 500, 500],
                 "paramActive": [False, False, False, False],
             })
+
+        # -- knobs: encoder direction and edges per click, with a readout that moves --
+        if path == "/api/knobs":
+            inv = getattr(d, "knob_inv", [False, False, False, False])
+            sub = getattr(d, "knob_sub", [4, 4, 4, 4])
+            if self.command == "POST":
+                for k in range(4):
+                    if ("inv%d" % k) in p:
+                        inv[k] = p["inv%d" % k] in ("1", "true", "on")
+                    elif "inv" in p:
+                        inv[k] = p["inv"] in ("1", "true", "on")
+                    if ("sub%d" % k) in p:
+                        sub[k] = int(p["sub%d" % k])
+                    elif "sub" in p:
+                        sub[k] = int(p["sub"])
+                d.knob_inv, d.knob_sub = inv, sub
+            d.knob_tick = getattr(d, "knob_tick", 0) + 1
+            raw = [(d.knob_tick * (k + 1)) % 400 for k in range(4)]
+            clicks = [(-r if inv[k] else r) // sub[k] for k, r in enumerate(raw)]
+            return self.send_json({"ok": True, "inv": inv, "sub": sub, "clicks": clicks, "raw": raw})
 
         if path == "/api/params" or path == "/api/display":
             return self.send_json({"ok": True})

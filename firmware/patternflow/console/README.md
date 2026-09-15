@@ -30,6 +30,7 @@ CI checks the two stay in sync.
 | `patterns.html`  | `/patterns` | `src/core_patterns_http.h`               | `src/patterns_index.h`                 |
 | `status.html`    | `/status`   | `src/core_status_http.h`                 | `src/status_index.h`                   |
 | `wifi.html`      | `/wifi`     | `src/core_wifi_http.h`                   | `src/wifi_index.h`                     |
+| `knobs.html`     | `/knobs`    | `src/core_knobs_http.h`                  | `src/knobs_index.h`                    |
 | `update.html`    | `/update`   | `src/core_web_update.h`                  | `src/web_update_index.h`               |
 | `show.html`      | `/show`     | `features/show/core_show_http.h`         | `features/show/show_index.h`           |
 | `weather.html`   | `/weather`  | `features/weather/core_weather_http.h`   | `features/weather/weather_index.h`     |

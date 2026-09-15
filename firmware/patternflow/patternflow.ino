@@ -105,6 +105,7 @@
 #include "src/core_status_http.h"
 #include "src/core_display_http.h"
 #include "src/core_wifi_http.h"
+#include "src/core_knobs_http.h"
 #include "src/core_loop_sync.h"
 #include "src/core_net_task.h"
 
@@ -1337,6 +1338,7 @@ void loop() {
     PatternflowStatusHttp::begin();
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
+    PatternflowKnobsHttp::begin();
     PatternflowNames::announce();
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");
