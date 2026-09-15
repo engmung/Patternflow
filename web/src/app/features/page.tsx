@@ -3,26 +3,26 @@ import Link from "next/link";
 import shelf from "../editions/Editions.module.css";
 import styles from "./Features.module.css";
 import Reel from "./Reel";
-import { GROUPS, IN_THE_TREE, type Feature } from "./features-data";
+import { FEATURES, HOME_LABEL, type Feature } from "./features-data";
 
-// /features — the catalogue.
+// /features — the catalogue, as one list.
 //
 // The shelf (/editions) answers "which firmware do I install". This page
 // answers the question underneath it: what can a panel do, one feature at
-// a time, and what does each one need. A feature is a piece of firmware that
-// attaches to the core without the core knowing it exists; a firmware on the
-// shelf is a composition of them. Features are the unit somebody develops,
-// proposes and maintains, which is why they get a page of their own rather
-// than a bullet list on a card.
+// a time. Every feature is one row — name, one line, and a tag saying where
+// it is — so the whole list fits on a screen; a row opens to the paragraph,
+// what it needs, which firmware carries it, the links and the reel. The reel
+// is an Instagram embed that loads only when its row is opened.
 //
-// Each group has a reel — the demo that goes round on Instagram — beside the
-// cards, with a caption that says what the reel shows and, where it matters,
-// what it does not. A feature nobody has filmed says so.
+// No headings between rows on purpose. Grouping rows under the firmwares
+// that carry them would rebuild the shelf one level up and lose the reason
+// features and firmwares are separate things. Where a feature lives is a
+// fact on its row, not a category over it.
 
 export const metadata: Metadata = {
   title: "Features / Patternflow",
   description:
-    "What a Patternflow panel can do, one feature at a time: sound from a microphone, a browser or OSC; MIDI over Wi-Fi and USB; a clock; MQTT, sequences and the weather. What each needs, which firmware carries it, and a reel of it running.",
+    "What a Patternflow panel can do, one feature at a time: a microphone, audio from a browser or phone, OSC, MIDI, a clock, MQTT, sequences, the weather. What each needs, which firmware carries it, and a reel of it running.",
   alternates: { canonical: "/features" },
 };
 
@@ -30,8 +30,7 @@ export const dynamic = "force-static";
 
 function Where({ f }: { f: Feature }) {
   if (!f.whereHref) return <>{f.where}</>;
-  const external = f.whereHref.startsWith("http");
-  return external ? (
+  return f.whereHref.startsWith("http") ? (
     <a href={f.whereHref} target="_blank" rel="noopener">
       {f.where}
     </a>
@@ -40,48 +39,57 @@ function Where({ f }: { f: Feature }) {
   );
 }
 
-function FeatureCard({ f }: { f: Feature }) {
+function Row({ f }: { f: Feature }) {
   return (
-    <li id={f.id} className={shelf.card}>
-      <div className={shelf.cardHead}>
-        <h3 className={shelf.name}>{f.name}</h3>
-        {/* A byline only where the feature is somebody else's to ask about;
-            the rest is the maintainer's own and says nothing, as on the shelf. */}
-        {f.maintainer ? (
-          <span className={shelf.by}>
-            by{" "}
-            {f.maintainerHref ? (
-              <a href={f.maintainerHref} target="_blank" rel="noopener">
-                {f.maintainer}
-              </a>
-            ) : (
-              f.maintainer
-            )}
+    <li>
+      <details id={f.id} className={styles.row}>
+        <summary className={styles.head}>
+          <span className={styles.name}>{f.name}</span>
+          <span className={styles.tag} data-home={f.home}>
+            {HOME_LABEL[f.home]}
           </span>
-        ) : null}
-      </div>
-      <p className={shelf.summary}>{f.summary}</p>
-      <dl className={styles.facts}>
-        <dt>Needs</dt>
-        <dd>{f.needs.length ? f.needs.join("; ") : "A panel, nothing more."}</dd>
-        <dt>Where</dt>
-        <dd>
-          <Where f={f} />
-        </dd>
-      </dl>
-      <div className={shelf.detailLinks}>
-        {f.links.map((l) =>
-          l.href.startsWith("http") ? (
-            <a key={l.href} href={l.href} target="_blank" rel="noopener">
-              {l.label}
-            </a>
+          <span className={styles.line}>{f.line}</span>
+        </summary>
+        <div className={styles.body}>
+          <div className={styles.text}>
+            {f.maintainer ? (
+              <p className={shelf.by}>
+                by{" "}
+                <a href={f.maintainerHref} target="_blank" rel="noopener">
+                  {f.maintainer}
+                </a>
+              </p>
+            ) : null}
+            <p className={shelf.summary}>{f.summary}</p>
+            <dl className={styles.facts}>
+              <dt>Needs</dt>
+              <dd>{f.needs.length ? f.needs.join("; ") : "A panel, nothing more."}</dd>
+              <dt>Where</dt>
+              <dd>
+                <Where f={f} />
+              </dd>
+            </dl>
+            <div className={shelf.detailLinks}>
+              {f.links.map((l) =>
+                l.href.startsWith("http") ? (
+                  <a key={l.href} href={l.href} target="_blank" rel="noopener">
+                    {l.label}
+                  </a>
+                ) : (
+                  <Link key={l.href} href={l.href}>
+                    {l.label}
+                  </Link>
+                ),
+              )}
+            </div>
+          </div>
+          {f.reel ? (
+            <Reel reel={f.reel} />
           ) : (
-            <Link key={l.href} href={l.href}>
-              {l.label}
-            </Link>
-          ),
-        )}
-      </div>
+            <p className={styles.noReel}>No reel of this one yet.</p>
+          )}
+        </div>
+      </details>
     </li>
   );
 }
@@ -100,46 +108,29 @@ export default function FeaturesPage() {
             piece of firmware that attaches to the core without the core
             knowing it is there. A firmware on{" "}
             <Link href="/editions">the shelf</Link> is a composition of them.
-            Here is each one on its own &mdash; what it needs, which firmware
-            carries it, and a reel of it running.
-          </p>
-          <p className={styles.embedNote}>
-            The reels are embedded from Instagram and load when scrolled to; the
-            link under each opens the post there.
+            One row each; open a row for what it needs, which firmware carries
+            it, and a reel of it running.
           </p>
         </header>
 
-        {GROUPS.map((g) => (
-          <section key={g.id} id={g.id} className={styles.group}>
-            <div className={styles.groupText}>
-              <h2 className={styles.groupHead}>{g.title}</h2>
-              <p className={styles.groupBlurb}>{g.blurb}</p>
-              <ul className={shelf.list}>
-                {g.features.map((f) => (
-                  <FeatureCard key={f.id} f={f} />
-                ))}
-              </ul>
-            </div>
-            <aside className={styles.reelCol}>
-              {g.reel ? (
-                <Reel reel={g.reel} />
-              ) : (
-                <p className={styles.noReel}>No reel of this one yet.</p>
-              )}
-            </aside>
-          </section>
-        ))}
+        <ul className={styles.list}>
+          {FEATURES.map((f) => (
+            <Row key={f.id} f={f} />
+          ))}
+        </ul>
+        <p className={styles.embedNote}>
+          Reels are embedded from Instagram and load when a row is opened; the
+          link under each opens the post there.
+        </p>
 
         <section className={shelf.how}>
           <h2>How a feature reaches your panel</h2>
           <p>
-            <strong>Three ways, and the card says which.</strong> Some of it is
-            the core, in every firmware. Most of it is in a firmware on{" "}
-            <Link href="/editions">the shelf</Link> &mdash; Audio carries the
-            sound and MIDI features, Performance carries Simone&rsquo;s &mdash;
-            and installing one is a click that keeps your patterns and
-            settings. The rest is in the tree with a recipe: two files naming
-            the features, and{" "}
+            <strong>The tag on the row says which of three ways.</strong> Some
+            of it is the core, in every firmware. Most of it is in a firmware
+            on <Link href="/editions">the shelf</Link>, and installing one is a
+            click that keeps your patterns and settings. The rest is in the
+            tree with a recipe: two files naming the features, and{" "}
             <a
               href="https://github.com/engmung/Patternflow/blob/main/docs/EDITIONS.md#building-an-edition"
               target="_blank"
@@ -161,7 +152,7 @@ export default function FeaturesPage() {
             >
               features/
             </a>{" "}
-            gets it compiled by CI against every firmware and a card here; a
+            gets it compiled by CI against every firmware and a row here; a
             feature kept in your own repository can be listed the same way,
             pointing there. The guide is{" "}
             <a
@@ -174,27 +165,6 @@ export default function FeaturesPage() {
             , and <Link href="/contact">telling me about it</Link> works too.
           </p>
         </section>
-
-        <h2 className={shelf.sectionHead}>In the tree, in no firmware</h2>
-        <p className={shelf.sectionNote}>
-          Tried, and left where it stopped. Listed so that nobody starts it
-          twice without knowing why it stopped.
-        </p>
-        <ul className={styles.treeList}>
-          {IN_THE_TREE.map((f) => (
-            <li key={f.id} id={f.id}>
-              <span className={styles.treeName}>{f.name}</span>
-              <p className={styles.treeSummary}>{f.summary}</p>
-              <div className={shelf.detailLinks}>
-                {f.links.map((l) => (
-                  <a key={l.href} href={l.href} target="_blank" rel="noopener">
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
       </div>
     </main>
   );
