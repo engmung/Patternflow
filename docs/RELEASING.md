@@ -72,7 +72,7 @@ What the two commands do, step by step - and the way to do it by hand.
    ./firmware/bundles/shelf.sh core vX.Y.Z
    ```
 
-   then point `web/public/flash/manifest.json` at the new folder. An edition that also moved gets its own `shelf.sh <edition> vA.B.C` and a card update in `web/src/app/editions/editions-data.ts`. The shelf retires the previous folder of the same name — older images stay on their tags.
+   then point `web/public/flash/manifest.json` at the new folder. An edition that also moved gets its own `shelf.sh <edition> vA.B.C` and a card update in `web/src/app/editions/editions-data.ts`. The shelf retires the previous folder of the same name — older images stay on their tags. Try-out images (`clock-v0.1.5`, `midi-v0.1.0`, the ones the features page installs) are not part of a release and stay as they are; a fresh one is its own `shelf.sh <name> vA.B.C` and a row update in `web/src/app/features/features-data.ts`, done when somebody wants a newer one, not because the core moved.
 7. Run the web checks from `web/`: `npm run lint && npm run typecheck && npm run check:ci && npm run build`.
 8. Commit and tag:
 

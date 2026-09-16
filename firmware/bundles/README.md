@@ -68,8 +68,12 @@ know whether they are picking up something unfinished or something frozen.
 
 A bundle can also be in the tree and not on the shelf at all — `clock` and
 `midi` are. Then it is a composition CI keeps compiling so a core change
-cannot break it silently, and there is no card, no image and nothing to cut.
-The shelf is what its maintainer stands behind, and it is short on purpose.
+cannot break it silently, and there is no card and nothing to cut. It can
+still be tried: the features page carries a frozen image of it, staged with
+`shelf.sh <name> vA.B.C` like a shelf image but named from
+`web/src/app/features/features-data.ts`, and nobody bumps it when the core
+moves. The shelf is what its maintainer stands behind, and it is short on
+purpose.
 
 ## Graduating
 
