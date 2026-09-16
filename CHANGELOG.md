@@ -18,7 +18,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
-- **The features page.** `/features` is the catalogue the shelf never was: every feature as one row — name, one line, and a tag saying where it lives (every firmware, Audio, Performance, a recipe in the tree, or an attempt that did not work) — so the whole list fits on a screen, and a row opens to what it needs, which firmware carries it, the links and a reel of it running. No headings between rows: which firmware carries a feature is a fact on its row, never a category over it, or the shelf would be back one level up. Reels are Instagram embeds by permalink, loaded only when a row is opened. The shelf's lede links here.
+- **The features page.** `/features` is the catalogue the shelf never was: every feature as one row — name, one line, and a tag saying where it lives (every firmware, Audio, Performance, a recipe in the tree, or an attempt that did not work) — so the whole list fits on a screen, and a row opens to what it needs, which firmware carries it, the links and a reel of it running. No headings between rows: which firmware carries a feature is a fact on its row, never a category over it, or the shelf would be back one level up. Reels are Instagram embeds by permalink, loaded only when a row is opened. The shelf and the catalogue share one header: Firmware and Features as a pair of tabs where the title was, the current one the title, the other a click away.
 
 ### Docs
 

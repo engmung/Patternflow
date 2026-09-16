@@ -318,3 +318,24 @@
   line-height: 1.65;
   color: var(--pf-ink-muted);
 }
+
+/* ── the two views, as tabs where the title was ──────────────────────────
+   "Firmware" is the shelf, "Features" the catalogue. The current one is
+   the h1; the other is a link in the same size, dimmed - so the other view
+   is one click away and impossible to miss, which a sentence in the lede
+   was not. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 26px;
+  margin: 0 0 14px;
+}
+.tabs .title { margin: 0; }
+/* The link carries .title too, so it is set exactly like the h1 at every
+   width (the phone size above included); this only dims it. */
+.tabLink {
+  color: var(--pf-ink-faint);
+  text-decoration: none;
+}
+.tabLink:hover { color: var(--pf-led); }

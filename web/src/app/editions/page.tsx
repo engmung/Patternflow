@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import styles from "./Editions.module.css";
 import EditionCard from "./EditionCard";
+import ShelfTabs from "./ShelfTabs";
 import { EDITIONS } from "./editions-data";
 
 const OFFICIAL = EDITIONS.filter((v) => v.tier === "official");
@@ -43,14 +44,12 @@ export default function EditionsPage() {
           <Link href="/" className={styles.brand}>
             Patternflow
           </Link>
-          <h1 className={styles.title}>Firmware</h1>
+          <ShelfTabs active="firmware" />
           <p className={styles.lede}>
             One panel, more than one firmware. The first is what ships on the
             board and does everything; the rest exist for what it cannot carry.
             Switching is one click, and your patterns, Wi-Fi networks and
-            settings come with you. What each firmware carries, feature by
-            feature and with a reel of each, is on the{" "}
-            <Link href="/features">features page</Link>.
+            settings come with you.
           </p>
         </header>
 
