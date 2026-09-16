@@ -116,6 +116,22 @@
 .facts dd a { color: var(--pf-ink); }
 .facts dd a:hover { color: var(--pf-led); }
 
+/* Trying one. A frozen image, installed the way the shelf installs a live
+   one; the button, the address row and the note are the shelf's own. */
+.tryOut {
+  margin: 0 0 18px;
+  padding: 14px 16px 4px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+}
+.tryHead {
+  margin: 0 0 12px;
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+
 /* The reel. Instagram's embed page is tall; 560px shows the reel's frame
    with its header and the post's own footer, and scrolls inside itself for
    anything longer. It is only in the document once the row is open, so it

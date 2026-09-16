@@ -6,9 +6,10 @@
 #   ./shelf.sh audio v0.3.0
 #   ./shelf.sh performance v0.2.1
 #   ./shelf.sh core v3.8.0            (the featureless default)
+#   ./shelf.sh midi v0.1.0            (a try-out image for the features page)
 #
 # Stages four files into web/public/flash/bin/<name>-<version>/ and stops.
-# Editing variants-data.ts and deploying the site are separate, deliberate
+# Editing editions-data.ts (features-data.ts for a try-out) and deploying the site are separate, deliberate
 # steps: a staged image nobody has looked at should not become the thing a
 # stranger flashes.
 #
@@ -191,7 +192,9 @@ cp "$BOOT_APP0"                        "$OUT/boot_app0.bin"
 # reads them from there). Keeping them in the tree meant 22 folders and 26 MB
 # by 2026-09 for three that were served. So an older folder of the same name
 # leaves when its successor arrives — including core's pre-shelf spelling,
-# the bare "v3.x.y" folders.
+# the bare "v3.x.y" folders. A try-out image - a composition the features
+# page installs for trying, not a shelf entry - goes the same way, and only
+# that way: nothing but a newer try-out of its name retires it.
 shopt -s nullglob
 for old in web/public/flash/bin/"$NAME"-v*; do
   [ "$old" = "$OUT" ] && continue
@@ -212,4 +215,5 @@ ls -l "$OUT" | tail -4 | awk '{printf "  %8s  %s\n", $5, $9}'
 echo ""
 echo "next, by hand and on purpose:"
 echo "  - point the card at it in web/src/app/editions/editions-data.ts"
+echo "    (a try-out image: the row's tryOut in web/src/app/features/features-data.ts)"
 echo "  - deploy the site"

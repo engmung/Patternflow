@@ -251,6 +251,23 @@ export const builds: Build[] = [
       { src: '/builds/alfredo/glow.jpg', alt: "Colored light from Alfredo Borboa's Patternflow spilling across a wooden table" },
     ],
   },
+  {
+    id: 'uk-slowrush',
+    title: 'Orange, in the garden',
+    category: 'builds',
+    slug: 'slowrush-uk',
+    kind: 'build',
+    location: { lat: 54.0, lng: -2.0, label: 'United Kingdom' },
+    maker: 'slowrush',
+    date: '2026-09',
+    description:
+      'A first build, on a v3 board that xponentone had spare and sent over — one member’s stock becoming another’s panel. Plain by the maker’s own account except for the colour, and the colour is the point: a fresh orange that sits well among the flowers. It came out beautifully, and it runs the clock.',
+    images: [
+      { src: '/builds/slowrush/garden.jpg', alt: "slowrush's orange Patternflow standing in a flower bed, a blue pattern on the panel" },
+      { src: '/builds/slowrush/doorstep.jpg', alt: "slowrush's orange Patternflow on a doorstep with the garden behind it, a speckle of cyan and yellow on the panel" },
+      { src: '/builds/slowrush/clock.jpg', alt: "slowrush's Patternflow on its side on a shelf at night, the clock showing 10:15 cut out of a pattern" },
+    ],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.

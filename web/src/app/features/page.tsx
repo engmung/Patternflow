@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import shelf from "../editions/Editions.module.css";
+import ShelfTabs from "../editions/ShelfTabs";
 import styles from "./Features.module.css";
 import Reel from "./Reel";
+import TryInstall from "./TryInstall";
 import { FEATURES, HOME_LABEL, type Feature } from "./features-data";
 
 // /features — the catalogue, as one list.
@@ -69,6 +71,7 @@ function Row({ f }: { f: Feature }) {
                 <Where f={f} />
               </dd>
             </dl>
+            {f.tryOut ? <TryInstall t={f.tryOut} /> : null}
             <div className={shelf.detailLinks}>
               {f.links.map((l) =>
                 l.href.startsWith("http") ? (
@@ -102,7 +105,7 @@ export default function FeaturesPage() {
           <Link href="/" className={shelf.brand}>
             Patternflow
           </Link>
-          <h1 className={shelf.title}>Features</h1>
+          <ShelfTabs active="features" />
           <p className={shelf.lede}>
             Everything a panel does beyond showing patterns is a feature: a
             piece of firmware that attaches to the core without the core

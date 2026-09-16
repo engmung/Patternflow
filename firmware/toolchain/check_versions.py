@@ -105,11 +105,22 @@ def main() -> int:
         if not (ROOT / "web/public/flash/bin" / folder / "patternflow.ino.bin").is_file():
             problems.append(f"the {ident} card names an image that is not on the shelf: web/public/flash/bin/{folder}/")
 
-    # The shelf holds only what the cards name.
-    named = {f"core-{core_v}"} | {f"{n}-{v}" for n, v in editions.items() if v}
+    # Try-out images: frozen copies of compositions that are not on the shelf
+    # (the clock, the USB-MIDI build), which the features page installs for
+    # trying. release.py never touches them; they are named in features-data.ts
+    # and must exist, and they count as named below.
+    features = text("web/src/app/features/features-data.ts")
+    tryouts = set()
+    for path, folder in re.findall(r'url: "(/flash/bin/([^/"]+)/patternflow\.ino\.bin)"', features):
+        tryouts.add(folder)
+        if not (ROOT / "web/public" / path.lstrip("/")).is_file():
+            problems.append(f"features-data.ts names a try-out image that is not there: web/public{path}")
+
+    # The shelf holds only what the cards and the try-out rows name.
+    named = {f"core-{core_v}"} | {f"{n}-{v}" for n, v in editions.items() if v} | tryouts
     on_shelf = {p.name for p in (ROOT / "web/public/flash/bin").iterdir() if p.is_dir()}
     for extra in sorted(on_shelf - named):
-        problems.append(f"web/public/flash/bin/{extra} is on the shelf but no card or manifest names it")
+        problems.append(f"web/public/flash/bin/{extra} is on the shelf but no card, manifest or try-out row names it")
 
     if problems:
         print(f"{len(problems)} version problem(s):")
@@ -117,7 +128,8 @@ def main() -> int:
             print(f"  - {p}")
         return 1
     print(f"versions agree: core {core_v}, " + ", ".join(f"{n} {v}" for n, v in editions.items())
-          + " - in net_config.h, the overrides, AGENTS.md, the manifest and the /editions cards, images on the shelf")
+          + " - in net_config.h, the overrides, AGENTS.md, the manifest and the /editions cards, images on the shelf"
+          + (f"; try-out images: {', '.join(sorted(tryouts))}" if tryouts else ""))
     return 0
 
 

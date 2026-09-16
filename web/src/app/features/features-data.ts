@@ -23,6 +23,27 @@ export type Reel = {
 /** The small tag on the row: where the feature is, in two words. */
 export type Home = "every" | "audio" | "performance" | "recipe" | "none";
 
+/**
+ * A frozen image served from here so a feature that is not on the shelf
+ * can still be tried in one click. Installed exactly the way the shelf
+ * installs - through the panel's own /update page, the browser doing the
+ * fetch - but never bumped with the core: it is the whole firmware as it
+ * was the day it was built, and the row says so. check_versions.py reads
+ * these urls, so the folder has to exist under web/public/flash/bin/.
+ */
+export type TryOut = {
+  /** What the image reports as its variant version. */
+  version: string;
+  /** The core it was built on, as the image reports it. */
+  core: string;
+  /** The day it was built - what "frozen" is frozen at. */
+  built: string;
+  /** Site-relative path of the app image. Made absolute in the browser. */
+  url: string;
+  /** What is particular about trying THIS one. The generic caveat is printed once, by the component. */
+  note: string;
+};
+
 export type Feature = {
   /** Directory under firmware/patternflow/features/, or "core". */
   id: string;
@@ -42,6 +63,7 @@ export type Feature = {
   maintainerHref?: string;
   links: { label: string; href: string }[];
   reel?: Reel;
+  tryOut?: TryOut;
 };
 
 export const HOME_LABEL: Record<Home, string> = {
@@ -175,7 +197,7 @@ export const FEATURES: Feature[] = [
     home: "audio",
     where:
       "Over Wi-Fi: in the Audio firmware. Over USB: the midi composition in the " +
-      "tree, built with build.sh midi — not on the shelf.",
+      "tree, not on the shelf — there is an image to try, below.",
     whereHref: "/editions#audio",
     links: [
       { label: "MIDI spec", href: blob("docs/midi-spec.md") },
@@ -186,6 +208,16 @@ export const FEATURES: Feature[] = [
     reel: {
       url: REEL_MIDI,
       caption: "Ableton Live driving the panel, and the panel's knobs mapped back into Live, over the network.",
+    },
+    tryOut: {
+      version: "v0.1.0",
+      core: "3.10.2",
+      built: "2026-09-17",
+      url: "/flash/bin/midi-v0.1.0/patternflow.ino.bin",
+      note:
+        "The USB build: while it is on, the DevKit's native USB port is a " +
+        "class-compliant MIDI port plus a serial port, and the Wi-Fi route works " +
+        "as well. Data only; the panel is powered from its screw terminal as ever.",
     },
   },
   {
@@ -208,6 +240,15 @@ export const FEATURES: Feature[] = [
       { label: "Source", href: tree("firmware/patternflow/features/clock") },
     ],
     reel: { url: REEL_CLOCK, caption: "The clock, in a few of its faces, over a running pattern." },
+    tryOut: {
+      version: "v0.1.5",
+      core: "3.10.2",
+      built: "2026-09-11",
+      url: "/flash/bin/clock-v0.1.5/patternflow.ino.bin",
+      note:
+        "The clock as it shipped on the shelf with 3.10.2, before it left it: " +
+        "the seven faces, the time zone, the console page.",
+    },
   },
   {
     id: "mqtt",

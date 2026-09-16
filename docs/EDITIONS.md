@@ -369,10 +369,13 @@ The shelf has two tiers, and the difference is who to ask when it breaks, not
 quality.
 
 A bundle in the tree is not on the shelf by itself. `firmware/bundles/clock`
-and `firmware/bundles/midi` are compositions CI keeps compiling, with no card
-and no image: the clock is a feature, and the MIDI bundle proves the USB-OTG
-build. An edition is listed when its maintainer cuts it (`release.py edition`,
-see [`RELEASING.md`](RELEASING.md)) and a card names the image.
+and `firmware/bundles/midi` are compositions CI keeps compiling, with no card:
+the clock is a feature, and the MIDI bundle proves the USB-OTG build. What
+each has instead is a try-out image on the features page - a frozen copy,
+installed the way the shelf installs but never bumped with the core, and
+named in `web/src/app/features/features-data.ts` rather than by a card. An
+edition is listed when its maintainer cuts it (`release.py edition`, see
+[`RELEASING.md`](RELEASING.md)) and a card names the image.
 
 **Official** — built from this repository. A core change has to compile against
 it before that change lands, so it cannot silently rot. Its image is served
