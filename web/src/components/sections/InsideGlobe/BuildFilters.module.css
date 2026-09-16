@@ -1,0 +1,49 @@
+.filters {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--pf-cream);
+}
+
+.filters button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--pf-ink-muted);
+  padding: 6px 12px;
+  font-family: var(--pf-mono);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filters button:hover {
+  color: var(--pf-ink);
+}
+
+.filters button[aria-pressed='true'] {
+  background: var(--pf-ink);
+  color: var(--pf-cream);
+}
+
+.filters button:focus-visible {
+  outline: 2px solid var(--pf-led);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .filters {
+    top: auto;
+    bottom: 8px;
+  }
+  .filters button {
+    min-height: 44px;
+    padding: 8px 12px;
+  }
+}
