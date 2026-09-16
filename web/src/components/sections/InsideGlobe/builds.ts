@@ -13,6 +13,16 @@ export type BuildImage = {
 // and would need its own kind rather than being filed under this one.
 export type BuildKind = 'build' | 'collaboration';
 
+// Subject of the entry, independent of the collaboration relationship above.
+export type BuildCategory = 'builds' | 'projects' | 'in-use';
+export type BuildFilter = 'all' | BuildCategory;
+export const BUILD_FILTERS: { value: BuildFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'builds', label: 'Builds' },
+  { value: 'projects', label: 'Projects' },
+  { value: 'in-use', label: 'In use' },
+];
+
 export type Build = {
   id: string;
   // The build's address on the map: /inside/<slug>. Maker then region, so a
@@ -20,6 +30,8 @@ export type Build = {
   // Kept separate from `id` so renaming one never breaks links already shared.
   slug: string;
   kind: BuildKind;
+  title: string;
+  category: BuildCategory;
   // For a collaboration, the pin it grew out of — the globe arcs a line back to
   // it. Defaults to the origin build when left out.
   originId?: string;
@@ -49,6 +61,8 @@ export const CARD_TILES = 2;
 export const builds: Build[] = [
   {
     id: 'seoul-v1',
+    title: 'The first build',
+    category: 'builds',
     slug: 'seunghun-korea',
     kind: 'build',
     location: { lat: 37.5665, lng: 126.978, label: 'Seoul, Korea' },
@@ -63,6 +77,8 @@ export const builds: Build[] = [
   },
   {
     id: 'paris-v1',
+    title: 'The second build',
+    category: 'builds',
     slug: 'seunghun-france',
     kind: 'build',
     location: { lat: 48.8566, lng: 2.3522, label: 'Paris, France' },
@@ -72,6 +88,8 @@ export const builds: Build[] = [
   },
   {
     id: 'uk-nath',
+    title: "Nath’s build",
+    category: 'builds',
     slug: 'nath-uk',
     kind: 'build',
     location: { lat: 54.0, lng: -2.0, label: 'United Kingdom' },
@@ -88,6 +106,8 @@ export const builds: Build[] = [
   },
   {
     id: 'poland-shooter',
+    title: 'Paper & acrylic diffuser',
+    category: 'builds',
     slug: 'shooter-poland',
     kind: 'build',
     location: { lat: 52.0, lng: 19.3, label: 'Poland' },
@@ -101,6 +121,8 @@ export const builds: Build[] = [
   },
   {
     id: 'france-day',
+    title: 'Raspberry Pi port',
+    category: 'projects',
     slug: 'day-france',
     kind: 'build',
     location: { lat: 46.6034, lng: 1.8883, label: 'France' },
@@ -121,6 +143,8 @@ export const builds: Build[] = [
   },
   {
     id: 'iran-azmano',
+    title: 'MOTIFLOW',
+    category: 'projects',
     slug: 'azmano-iran',
     kind: 'collaboration',
     location: { lat: 32.4, lng: 53.7, label: 'Iran' },
@@ -139,6 +163,8 @@ export const builds: Build[] = [
   },
   {
     id: 'norway-enerjoy',
+    title: 'Black enclosure',
+    category: 'builds',
     slug: 'enerjoy-norway',
     kind: 'build',
     location: { lat: 68.4385, lng: 17.4273, label: 'Narvik, Norway' },
@@ -154,6 +180,8 @@ export const builds: Build[] = [
   },
   {
     id: 'uae-simonepda',
+    title: "SimonePDA’s build",
+    category: 'builds',
     slug: 'simonepda-uae',
     kind: 'build',
     location: { lat: 25.4052, lng: 55.5136, label: 'Ajman, UAE' },
@@ -174,6 +202,8 @@ export const builds: Build[] = [
   },
   {
     id: 'usa-nick',
+    title: 'In the DJ booth',
+    category: 'builds',
     slug: 'nick-usa',
     kind: 'build',
     location: { lat: 32.7157, lng: -117.1611, label: 'San Diego, USA' },
@@ -189,6 +219,8 @@ export const builds: Build[] = [
   },
   {
     id: 'usa-jon',
+    title: 'Shoulder-strap case',
+    category: 'builds',
     slug: 'jon-usa',
     kind: 'build',
     location: { lat: 39.5296, lng: -119.8138, label: 'Reno, USA' },
@@ -204,6 +236,8 @@ export const builds: Build[] = [
   },
   {
     id: 'mexico-alfredo',
+    title: 'Wooden case',
+    category: 'builds',
     slug: 'alfredo-mexico',
     kind: 'build',
     location: { lat: 19.4326, lng: -99.1332, label: 'Mexico City, Mexico' },
@@ -218,6 +252,16 @@ export const builds: Build[] = [
     ],
   },
 ];
+
+// One order for the text list and the globe's previous/next controls.
+export const orderedBuilds = builds
+  .map((build, index) => ({ build, index }))
+  .sort((a, b) => b.build.date.localeCompare(a.build.date) || b.index - a.index)
+  .map(({ build }) => build);
+
+export function matchesBuildFilter(build: Build, filter: BuildFilter): boolean {
+  return filter === 'all' || build.category === filter;
+}
 
 export function buildBySlug(slug: string): Build | undefined {
   return builds.find((build) => build.slug === slug);

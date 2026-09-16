@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Globe from './Globe';
+import BuildFilters from './BuildFilters';
 import PhotoLightbox from './PhotoLightbox';
 import { builds, formatBuildDate, CARD_TILES, STRIP_TILES } from './builds';
 import { useBuildSelection } from './useBuildSelection';
@@ -16,15 +17,15 @@ import styles from './GlobeViewer.module.css';
 // viewer is only 44vh — far too little room for photos and a description — so
 // the Inside panel renders those as a card instead. See BuildCard.
 export default function GlobeViewer() {
-  const { selectedId, select: selectBuild } = useBuildSelection();
+  const { selectedId, select: selectBuild, visibleBuilds } = useBuildSelection();
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
 
   const selectedIndex = useMemo(
-    () => builds.findIndex((build) => build.id === selectedId),
-    [selectedId],
+    () => visibleBuilds.findIndex((build) => build.id === selectedId),
+    [selectedId, visibleBuilds],
   );
-  const selected = selectedIndex === -1 ? null : builds[selectedIndex];
+  const selected = selectedIndex === -1 ? null : visibleBuilds[selectedIndex];
 
   // Only the tiles a pin shows the moment it opens are warmed up front (see the
   // preloader below). The rest of a build's photos live in the lightbox and can
@@ -49,8 +50,8 @@ export default function GlobeViewer() {
   // Step to the previous/next build, cycling through the list.
   const step = (delta: number) => {
     if (selectedIndex === -1) return;
-    const next = (selectedIndex + delta + builds.length) % builds.length;
-    select(builds[next].id);
+    const next = (selectedIndex + delta + visibleBuilds.length) % visibleBuilds.length;
+    select(visibleBuilds[next].id);
   };
 
   return (
@@ -68,11 +69,12 @@ export default function GlobeViewer() {
         ))}
       </div>
 
-      <Globe selectedBuildId={selectedId ?? undefined} onSelectBuild={select} />
+      <Globe entries={visibleBuilds} selectedBuildId={selectedId ?? undefined} onSelectBuild={select} />
+      <BuildFilters />
 
       {/* Swapped in CSS rather than by measuring the viewport, so the server
           and the client render the same thing. */}
-      <div className={`${styles.hint} ${hasSelected ? styles.hintHidden : ''}`}>
+      <div className={`${styles.hint} ${hasSelected || selectedId ? styles.hintHidden : ''}`}>
         <span className={styles.hintPointer}>Click a marker to explore</span>
         <span className={styles.hintTouch}>Tap a marker to explore</span>
       </div>
@@ -103,7 +105,7 @@ export default function GlobeViewer() {
               </div>
             )}
 
-            {builds.length > 1 && (
+            {visibleBuilds.length > 1 && (
               <>
                 <button
                   className={`${styles.arrow} ${styles.arrowPrev}`}
@@ -111,7 +113,7 @@ export default function GlobeViewer() {
                     event.stopPropagation();
                     step(-1);
                   }}
-                  aria-label="Previous build"
+                  aria-label="Previous entry"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M15 4 7 12l8 8" />
@@ -123,7 +125,7 @@ export default function GlobeViewer() {
                     event.stopPropagation();
                     step(1);
                   }}
-                  aria-label="Next build"
+                  aria-label="Next entry"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M9 4l8 8-8 8" />
@@ -151,7 +153,7 @@ export default function GlobeViewer() {
 
               <span className={styles.kicker}>
                 {String(selectedIndex + 1).padStart(2, '0')} /{' '}
-                {String(builds.length).padStart(2, '0')}
+                {String(visibleBuilds.length).padStart(2, '0')}
               </span>
 
               {selected.links && selected.links.length > 0 && (
@@ -187,6 +189,7 @@ export default function GlobeViewer() {
 
       {galleryOpen && images && (
         <PhotoLightbox
+          key={selectedId}
           images={images}
           index={galleryIndex}
           onIndexChange={setGalleryIndex}

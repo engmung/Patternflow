@@ -71,6 +71,14 @@ Use `wip(area): …` for work that isn't finished yet. Nothing enforces this; it
 
 A pin on the map is one entry in [`web/src/components/sections/InsideGlobe/builds.ts`](web/src/components/sections/InsideGlobe/builds.ts) and a folder of photos in `web/public/builds/<slug>/`. The type at the top of that file documents every field; the comments next to the fields say how precise a location to give and what a `collaboration` is. The `slug` becomes the pin's URL (`/inside/<slug>`), so pick it once. Photos you add are CC BY-SA 4.0 unless the entry says otherwise. If you would rather not touch the file, the [Share your build](../../issues/new?template=share_build.yml) form asks for the same things and the maintainer files it.
 
+### Adding an Inside entry
+
+Inside includes builds, projects derived from Patternflow, and places where it is used. Add one entry to `web/src/components/sections/InsideGlobe/builds.ts`: a short `title`, `maker`, public `location`, `date`, `description`, and any external `links`. Photos are optional. Keep existing `id` and `slug` values stable so shared links keep working.
+
+Choose one primary `category`: `builds` for assembled devices and enclosure changes, `projects` for ports and new tools, or `in-use` for installations, performances and other uses. This is separate from `kind`, which preserves the existing build/collaboration relationship and marker style. A maker can have several entries: a new tool and a later exhibition are different records. Link to the maker's own documentation for ongoing updates; a short introduction here is enough. Do not add unannounced work or assume an event happened from a sale or a planned appearance.
+
+Classify the subject of the entry, not its surroundings. A completed device photographed in a studio or DJ booth is still a `builds` entry. Use `in-use` when the entry documents actual use in an exhibition, performance or installation; a sale or delivery alone is not enough. Leave a category empty until a qualifying case is available.
+
 ## How the maintainer works
 
 The `dev` → `main` routine, release cutting and what the workflows attach live in [docs/RELEASING.md](docs/RELEASING.md). Governance is one person: the maintainer decides what merges, in the open, in the pull request. Two collaborators have write access to the areas they built.

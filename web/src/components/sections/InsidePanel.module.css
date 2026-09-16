@@ -1,458 +1,64 @@
-/* Container queries, not media queries: the 3D globe takes the left half, so
-   this panel's width does not track the viewport — at a 1512px window it is
-   631px, and a viewport breakpoint folds the bands at the wrong moment. */
 .body {
   max-width: 820px;
   container-type: inline-size;
 }
 
-.mapLayout {
-  display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
-  gap: 28px;
-  align-items: start;
-  max-width: 760px;
-  margin: 0 0 22px;
-}
-
-.globeShell {
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: 1;
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--pf-rule);
-  background: #ffffff;
-}
-
-.globeShell canvas {
-  display: block;
-  background: transparent;
-}
-
-.body .tagline {
-  max-width: none;
-  margin: 0;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.65;
-}
-
-.buildCard {
-  display: grid;
-  gap: 14px;
-  align-content: center;
-  padding: 18px 0;
-  border-top: 1px solid var(--pf-rule);
-  border-bottom: 1px solid var(--pf-rule);
-  animation: cardFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.buildCardPlaceholder {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 18px 24px;
-  border-top: 1px solid var(--pf-rule);
-  border-bottom: 1px solid var(--pf-rule);
-  text-align: center;
-  gap: 16px;
-}
-
-.buildCardPlaceholder p {
-  max-width: 36ch;
-  margin: 0;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.65;
-}
-
-.buildCardPlaceholder span {
-  color: var(--pf-ink-faint);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-}
-
-@keyframes cardFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.buildCard > span {
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  letter-spacing: var(--pf-track-mono);
-  line-height: 1.3;
-  text-transform: uppercase;
-}
-
-.buildCard h3 {
-  margin: 0;
-  color: var(--pf-ink);
-  font-size: var(--pf-fs-row);
-  font-weight: 500;
-  line-height: 1.25;
-}
-
-.buildCard dl {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-}
-
-.buildCard dl div {
-  display: grid;
-  grid-template-columns: 74px 1fr;
-  gap: 12px;
-}
-
-.buildCard dt {
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.45;
-}
-
-.buildCard dd {
-  margin: 0;
-  color: var(--pf-ink);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.45;
-}
-
-.buildCard p {
-  max-width: 42ch;
-  margin: 0;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
-  line-height: 1.6;
-}
-
-.cardTop {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  align-items: start;
-}
-
-.cardThumb {
-  position: relative;
-  width: 82px;
-  aspect-ratio: 3 / 4;
-  overflow: hidden;
-  padding: 0;
-  border: 1px solid var(--pf-rule);
-  background: #fff;
-  cursor: pointer;
-  transition: opacity 0.2s ease;
-}
-
-.cardThumb:hover {
-  opacity: 0.85;
-}
-
-.cardThumb img {
-  object-fit: cover;
-}
-
-.cardThumbBadge {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 20, 20, 0.82);
-  color: var(--cream);
-  font-family: var(--pf-mono);
-  font-size: 10px;
-  line-height: 1;
-}
-
-
-/* Beat 1 of the panel: one 24px statement, not a two-paragraph preamble.
-   Scoped through .body because the global `.panel-body p` rule is (0,1,1) and
-   would otherwise win the font-size. */
-.body .declaration {
-  max-width: 34ch;
-  margin: 0 0 8px;
-  color: var(--pf-ink);
-  font-size: 24px;
-  line-height: 1.35;
-  letter-spacing: var(--pf-track-tight);
-  text-wrap: pretty;
-}
-
-/* Legend for the globe's markers. */
-.legend {
+.contactLinks,
+.footerLinks {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
-  margin-top: 12px;
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: 10.5px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
+  gap: 12px 24px;
+  font-size: 13px;
 }
 
-.legendBuild,
-.legendCollab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.contactLinks {
+  margin-top: 20px;
 }
 
-.legendBuild::before,
-.legendCollab::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  /* Round on purpose: these depict the map's dot and ring markers. */
-  border-radius: 999px;
-}
-
-.legendBuild::before {
-  background: var(--pf-ink);
-}
-
-.legendCollab::before {
-  border: 1px solid var(--pf-led);
-}
-
-/* Same specificity problem as .declaration — `.panel-body p` is (0,1,1). */
-.body .mapNote {
-  margin: 14px 0 0;
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.55;
-}
-
-/* Beat 3: three cells across, mono labels, no icons. */
-.joinBand {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 30px 0 0;
-  border: 1px solid var(--pf-rule);
-}
-
-.joinCell {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  padding: 16px;
-  border-right: 1px solid var(--pf-rule);
-  color: var(--pf-ink);
-  text-decoration: none;
-  transition: background 120ms ease;
-}
-
-.joinCell:last-child {
-  border-right: 0;
-}
-
-.joinCell:hover,
-.joinCell:focus-visible {
-  outline: 0;
-  background: var(--pf-cream-2);
-}
-
-.joinKicker {
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: 10.5px;
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
-}
-
-.joinCell strong {
-  font-size: var(--pf-fs-row);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.joinDesc {
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.45;
-}
-
-/* Compact mono rows. The dot-and-rail timeline was the panel's third list
-   grammar and the only thing on the site positioned absolutely off a 68px
-   rail; the date column carries the same information. */
-.storyList {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--pf-rule);
-}
-
-.storyList li {
-  display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 18px;
-  align-items: baseline;
-  padding: 11px 2px;
-  border-bottom: 1px solid var(--pf-rule);
-  color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-row-d);
-  line-height: 1.5;
-}
-
-.storyList time {
-  color: var(--pf-ink-muted);
-  font-family: var(--pf-mono);
-  font-size: 10.5px;
-  letter-spacing: var(--pf-track-mono);
-}
-
-.storyList .storyCurrent time {
-  color: var(--pf-ink);
-}
-
-.storyList a {
-  color: var(--pf-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-}
-
-.storyList strong {
-  color: var(--pf-ink);
-  font-weight: 500;
-}
-
-.storyLinks {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 24px;
-  border-top: 1px solid var(--pf-rule);
-}
-
-.storyLinkCell {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  padding: 18px 0;
+.contactLinks a,
+.footerLinks a,
+.mapNote a {
   color: var(--pf-ink);
   text-decoration: none;
 }
 
-.storyLinkCell:first-child {
-  padding-right: 28px;
-  border-right: 1px solid var(--pf-rule);
-}
-
-.storyLinkCell:last-child {
-  padding-left: 28px;
-}
-
-.storyLinkCell:hover .storyLinkText {
+.contactLinks a:hover,
+.footerLinks a:hover,
+.mapNote a:hover {
   text-decoration: underline;
-  text-decoration-thickness: 1px;
   text-underline-offset: 4px;
 }
 
-.storyLinkLabel {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--pf-ink);
-  font-family: var(--pf-mono);
-  font-size: var(--pf-fs-mono);
-  letter-spacing: var(--pf-track-mono);
-  text-transform: uppercase;
+.contactLinks a:focus-visible,
+.footerLinks a:focus-visible,
+.mapNote a:focus-visible {
+  outline: 2px solid var(--pf-led);
+  outline-offset: 4px;
 }
 
-.storyLinkText {
-  max-width: 42ch;
+.listHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.count {
   color: var(--pf-ink-muted);
-  font-size: var(--pf-fs-body);
+  font-family: var(--pf-mono);
+  font-size: 11px;
+}
+
+.body .mapNote {
+  margin: 20px 0 0;
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-row-d);
   line-height: 1.55;
 }
 
-.wipTag {
-  padding: 1px 7px;
-  border: 1px solid var(--pf-rule);
-  color: var(--pf-ink-muted);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-@media (max-width: 900px) {
-  .body {
-    max-width: none;
-  }
-
-  .globeShell {
-    width: min(100%, 360px);
-  }
-
-  .mapLayout {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-
-  .buildCard {
-    min-height: auto;
-    padding: 16px 0;
-  }
-
-  .storyList li {
-    grid-template-columns: 48px 1fr;
-    gap: 14px;
-  }
-
-  .body .declaration {
-    font-size: 20px;
-  }
-}
-
-/* Three across holds down to ~480px of panel; below that the descriptions
-   shred, and three cells fold straight to one rather than leaving an orphan. */
-@container (max-width: 480px) {
-  .joinBand {
-    grid-template-columns: 1fr;
-  }
-
-  .joinCell {
-    border-right: 0;
-    border-bottom: 1px solid var(--pf-rule);
-  }
-
-  .joinCell:last-child {
-    border-bottom: 0;
-  }
-}
-
-@media (max-width: 720px) {
-  .storyLinks {
-    grid-template-columns: 1fr;
-  }
-
-  .storyLinkCell:first-child {
-    padding-right: 0;
-    padding-bottom: 18px;
-    border-right: 0;
-    border-bottom: 1px solid var(--pf-rule);
-  }
-
-  .storyLinkCell:last-child {
-    padding-left: 0;
-  }
+.footerLinks {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
 }

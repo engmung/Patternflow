@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback } from 'react';
-import { builds, buildBySlug } from './builds';
+import { useCallback, useMemo } from 'react';
+import { builds, buildBySlug, orderedBuilds, matchesBuildFilter, type BuildFilter } from './builds';
 import { useAppStore } from '@/store/useAppStore';
 
 export const INSIDE_PATH = '/inside';
@@ -25,10 +25,26 @@ export function buildIdFromPath(pathname: string): string | null {
 export function useBuildSelection() {
   const selectedId = useAppStore((state) => state.selectedBuildId);
   const setSelectedId = useAppStore((state) => state.setSelectedBuildId);
+  const filter = useAppStore((state) => state.insideFilter);
+  const setInsideFilter = useAppStore((state) => state.setInsideFilter);
+  const visibleBuilds = useMemo(
+    () => orderedBuilds.filter((build) => matchesBuildFilter(build, filter)),
+    [filter],
+  );
+
+  // A shared URL or browser Back may select a pin outside the current filter.
+  // Reveal it without changing that URL or creating another history entry.
+  const syncSelection = useCallback((id: string | null) => {
+    const build = builds.find((entry) => entry.id === id);
+    if (build && !matchesBuildFilter(build, useAppStore.getState().insideFilter)) {
+      setInsideFilter('all');
+    }
+    setSelectedId(id);
+  }, [setInsideFilter, setSelectedId]);
 
   const select = useCallback(
     (id: string | null) => {
-      setSelectedId(id);
+      syncSelection(id);
 
       // pushState rather than a router navigation: the 3D scene must not
       // remount, but the link still has to be copyable from the address bar.
@@ -38,8 +54,14 @@ export function useBuildSelection() {
         window.history.pushState(null, '', next);
       }
     },
-    [setSelectedId],
+    [syncSelection],
   );
 
-  return { selectedId, select };
+  const setFilter = useCallback((next: BuildFilter) => {
+    const selected = builds.find((build) => build.id === useAppStore.getState().selectedBuildId);
+    if (selected && !matchesBuildFilter(selected, next)) select(null);
+    setInsideFilter(next);
+  }, [select, setInsideFilter]);
+
+  return { selectedId, select, syncSelection, filter, setFilter, visibleBuilds };
 }
