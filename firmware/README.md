@@ -168,7 +168,7 @@ firmware/
 │   ├── console/                 # The device's web pages as plain HTML — edit these
 │   └── toolchain/               # PlatformIO extra_scripts (must stay sketch-relative)
 ├── bundles/                     # Editions: two files each naming a feature set
-│   ├── audio/  performance/  clock/   # features_local.h + overrides.h
+│   ├── audio/  performance/  clock/  midi/   # features_local.h + overrides.h (+ env)
 │   ├── build.sh                 # build the default, a named edition, or `all`
 │   └── shelf.sh                 # stage a publishable image for the site
 ├── modules/                     # The module toolchain's working folder, not an inbox — see modules/README.md

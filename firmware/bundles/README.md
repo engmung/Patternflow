@@ -15,6 +15,8 @@ and which settings differ.
 bundles/audio/
   features_local.h    which features this firmware has, and in what order
   overrides.h       what it calls itself, and any setting it changes
+  env               (optional) the PlatformIO env to build in — only when
+                    the difference is a build flag, not a setting
 ```
 
 That is the whole of it. The default build needs no bundle at all — and it
@@ -24,6 +26,7 @@ lives in an edition built from these two files.
 ```bash
 ./firmware/bundles/build.sh          # the default: no features
 ./firmware/bundles/build.sh audio    # the audio bundle
+./firmware/bundles/build.sh midi     # the MIDI edition, in its own env (bundles/midi/env)
 ./firmware/bundles/build.sh audio flash patternflow.local
 ./firmware/bundles/build.sh all      # every composition + the marker scan
                                      # proving each binary carries exactly
@@ -47,7 +50,8 @@ A bundle earns its place when it carries something the default **cannot**:
 |---|---|
 | **audio** | an on-board microphone that needs four wires soldered to the DevKit, a Wi-Fi transmit power that is not the conformance-tested one, and MIDI over the network |
 | **performance** | the show player, MQTT in every role, weather — Simone Majocchi's performance-director firmware, pinned so a show behaves the same at the next gig |
-| **clock** | the time cut out of the running pattern, in a choice of faces — a panel on a shelf that tells the time, with nothing else attached |
+| **clock** | the time cut out of the running pattern, in a choice of faces — a panel on a shelf that tells the time, with nothing else attached. **Not on the shelf since 2026-09-15:** the clock is a feature; this bundle is the composition CI keeps compiling |
+| **midi** | the DevKit's USB port as a MIDI device, beside RTP-MIDI — a wire into a DAW with no driver and no session. It needs the port on the S3's USB-OTG stack, a build flag the other images cannot carry (that flag is what makes the port their serial console), so this one builds in its own PlatformIO env. Data only; the panel is still powered from `J4`. **Not on the shelf:** the composition that proves the OTG build |
 
 Three shapes of reason, and they are not the same:
 
@@ -61,6 +65,11 @@ Three shapes of reason, and they are not the same:
 The card on [patternflow.work/editions](https://patternflow.work/editions)
 says which of the three each bundle is, because a person choosing needs to
 know whether they are picking up something unfinished or something frozen.
+
+A bundle can also be in the tree and not on the shelf at all — `clock` and
+`midi` are. Then it is a composition CI keeps compiling so a core change
+cannot break it silently, and there is no card, no image and nothing to cut.
+The shelf is what its maintainer stands behind, and it is short on purpose.
 
 ## Graduating
 

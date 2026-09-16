@@ -48,7 +48,9 @@ export default function EditionsPage() {
             One panel, more than one firmware. The first is what ships on the
             board and does everything; the rest exist for what it cannot carry.
             Switching is one click, and your patterns, Wi-Fi networks and
-            settings come with you.
+            settings come with you. What each firmware carries, feature by
+            feature and with a reel of each, is on the{" "}
+            <Link href="/features">features page</Link>.
           </p>
         </header>
 

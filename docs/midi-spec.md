@@ -26,6 +26,7 @@ The mapping below is transport-independent. What ships today:
 | | |
 |---|---|
 | **RTP-MIDI** (AppleMIDI, RFC 6295) over Wi-Fi | The panel is a session **listener** on UDP **5004** (control) / **5005** (data) — and an initiator toward one remembered host, see Settings —, session name `Patternflow`, advertised over Bonjour as `_apple-midi._udp` so it appears by name. macOS/iOS: *Audio MIDI Setup → Network* (or any CoreMIDI app). Windows: the free [rtpMIDI](https://www.tobias-erichsen.de/software/rtpmidi.html) driver — add the panel by name or IP, connect, and it is a MIDI port in Live. Linux: `rtpmidid`. Two participants at most. |
+| **USB** (a USB-MIDI class device — the MIDI edition) | The DevKit's USB port, the one the panel is flashed over, plugged into the computer. No driver and no session: the panel enumerates as a MIDI device named `Patternflow` (a virtual serial port comes with it — that is the console's log and Improv, leave it be). MIDI edition only: the port has to be the S3's USB-OTG controller for a MIDI device to exist, and that is a build-time choice ([`EDITIONS.md`](EDITIONS.md)). **Data only** — the panel is powered from `J4` as always, never from that cable. Both transports share the map below and can be up at once. |
 
 Channel: **1** by default (`PF_MIDI_CHANNEL`; `0` listens on every channel
 and sends on 1). MIDI Thru is off — the panel never echoes a host's messages
@@ -98,6 +99,15 @@ received events, so re-enabling does not replay an accumulating disabled queue.
 
 ## Settings
 
+
+The MIDI edition adds `midiUsb` beside `midi` in `/api/status`: `mounted` (a host has
+configured the device and is awake), `rx` (packets read that carried a channel
+message), `rxUnhandled` (sysex, realtime and pitch bend — read and ignored), `tx`,
+and `txDropped` (the 16-packet transmit FIFO was full: nobody reading, or more than
+16 messages in one frame). This transport has no worker and no queue: USB flow
+control makes the host wait while the panel's FIFO is full, so the frame task reads
+it directly, one batch per frame, and nothing is lost — only delayed, by a frame at
+most.
 | | |
 |---|---|
 | `GET /api/midi` | channel, `outDiv`, `outMul`, `outMode`, `host`, session state, counters |
@@ -117,6 +127,7 @@ received events, so re-enabling does not replay an accumulating disabled queue.
 - **Program Change** is what a pattern list *is* in MIDI's vocabulary. The
   limit of 128 covers every panel anyone has filled.
 
+- **1.3** (unreleased) — a second transport: the DevKit's USB port as a USB-MIDI class device, in the MIDI edition; `midiUsb` in `/api/status`. The map, the channel rule and precedence are unchanged, and both transports can be up at once.
 ## Version history
 
 - **1.2** (unreleased) — additive receive diagnostics, transport service

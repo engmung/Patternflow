@@ -295,6 +295,14 @@ Two files under `firmware/bundles/<name>/`:
 #define PF_WIFI_TX_POWER    WIFI_POWER_17dBm
 ```
 
+A third file, `env`, is optional: one line naming the PlatformIO env to build
+in, for the rare edition whose difference is a build flag rather than a
+setting. The MIDI edition is the one so far — its USB port has to be the OTG
+controller for a MIDI device to exist, and the Arduino core decides that at
+compile time (`ARDUINO_USB_MODE`). Everything else about it is the two files
+above; `build.sh` and `shelf.sh` read the env name and look for the outputs
+under it.
+
 Then:
 
 ```bash
@@ -303,7 +311,7 @@ Then:
 ./firmware/bundles/build.sh all              # every composition, proven
 ```
 
-`all` builds default, audio and performance, then scans each binary for one
+`all` builds default, audio, performance, clock and midi, then scans each binary for one
 marker string per feature — a literal that lives only in that feature's
 sources. An edition must contain its own features' markers and none of the
 others'. That is the composition checked in the shipped bytes: `features.h`
@@ -359,6 +367,12 @@ notes, because that is what makes a build reproducible later.
 
 The shelf has two tiers, and the difference is who to ask when it breaks, not
 quality.
+
+A bundle in the tree is not on the shelf by itself. `firmware/bundles/clock`
+and `firmware/bundles/midi` are compositions CI keeps compiling, with no card
+and no image: the clock is a feature, and the MIDI bundle proves the USB-OTG
+build. An edition is listed when its maintainer cuts it (`release.py edition`,
+see [`RELEASING.md`](RELEASING.md)) and a card names the image.
 
 **Official** — built from this repository. A core change has to compile against
 it before that change lands, so it cannot silently rot. Its image is served

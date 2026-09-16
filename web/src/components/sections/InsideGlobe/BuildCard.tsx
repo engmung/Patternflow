@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import PhotoLightbox from './PhotoLightbox';
-import { builds, formatBuildDate, CARD_TILES } from './builds';
+import { formatBuildDate, CARD_TILES } from './builds';
 import { useBuildSelection } from './useBuildSelection';
 import styles from './BuildCard.module.css';
 
@@ -12,15 +12,15 @@ import styles from './BuildCard.module.css';
 // so the picked build's details are rendered down here in the Inside panel
 // instead. Hidden entirely on desktop, where the globe overlay does the job.
 export default function BuildCard() {
-  const { selectedId, select } = useBuildSelection();
+  const { selectedId, select, visibleBuilds } = useBuildSelection();
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const selectedIndex = useMemo(
-    () => builds.findIndex((build) => build.id === selectedId),
-    [selectedId],
+    () => visibleBuilds.findIndex((build) => build.id === selectedId),
+    [selectedId, visibleBuilds],
   );
-  const selected = selectedIndex === -1 ? null : builds[selectedIndex];
+  const selected = selectedIndex === -1 ? null : visibleBuilds[selectedIndex];
   const images = selected?.images;
   // Two tiles fit side by side; the last one carries a count of what is left.
   const tiles = images?.slice(0, CARD_TILES);
@@ -47,15 +47,15 @@ export default function BuildCard() {
 
   const step = (delta: number) => {
     if (selectedIndex === -1) return;
-    const next = (selectedIndex + delta + builds.length) % builds.length;
-    select(builds[next].id);
+    const next = (selectedIndex + delta + visibleBuilds.length) % visibleBuilds.length;
+    select(visibleBuilds[next].id);
     setGalleryIndex(null);
   };
 
   return (
     <div className={styles.card} ref={cardRef}>
       {!selected ? (
-        <p className={styles.empty}>Tap a marker on the map to see that build.</p>
+        <p className={styles.empty}>Pick a marker or a title to explore.</p>
       ) : (
         <>
           <div className={styles.head}>
@@ -115,18 +115,18 @@ export default function BuildCard() {
 
           <p className={styles.desc}>{selected.description}</p>
 
-          {builds.length > 1 && (
+          {visibleBuilds.length > 1 && (
             <div className={styles.pager}>
-              <button type="button" onClick={() => step(-1)} aria-label="Previous build">
+              <button type="button" onClick={() => step(-1)} aria-label="Previous entry">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M15 4 7 12l8 8" />
                 </svg>
               </button>
               <span className={styles.counter}>
                 {String(selectedIndex + 1).padStart(2, '0')} /{' '}
-                {String(builds.length).padStart(2, '0')}
+                {String(visibleBuilds.length).padStart(2, '0')}
               </span>
-              <button type="button" onClick={() => step(1)} aria-label="Next build">
+              <button type="button" onClick={() => step(1)} aria-label="Next entry">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M9 4l8 8-8 8" />
                 </svg>

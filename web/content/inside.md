@@ -1,6 +1,6 @@
 ---
 title: Inside the work.
-subtitle: Here is every one of them.
+subtitle: Builds, projects, and places where Patternflow comes to life.
 cta:
   primary:
     label: "Contributing"

@@ -194,15 +194,15 @@ function angularDistance(a: { lat: number; lng: number }, b: { lat: number; lng:
 // Every link, sampled once as a polyline of ARC_SAMPLES + 1 points. Both the
 // drawn line and the dots travelling along it read from the same samples, so a
 // dot can never drift off the line it is supposed to be running on. Pure maths
-// over a static list, so it is computed at module load rather than per mount.
+// over the visible entries, recomputed only when the filter changes.
 const ARC_SAMPLES = 96;
 
 // Links between each build and its few nearest builds (deduped), not a full
 // mesh. Only actual builds take part: this web means "how far Patternflow has
 // spread", so a collaboration joining it would overstate the count. Those get
 // their own line back to where they came from.
-function webArcs(): number[][] {
-  const built = builds.filter((build) => build.kind === 'build');
+function webArcs(entries: Build[]): number[][] {
+  const built = entries.filter((build) => build.kind === 'build');
   const arcs: number[][] = [];
 
   // Collect a unique set of edges: each build reaches to its N nearest.
@@ -228,12 +228,12 @@ function webArcs(): number[][] {
 }
 
 // One line from each collaboration back to the build it grew out of.
-function collaborationArcs(): number[][] {
+function collaborationArcs(entries: Build[]): number[][] {
   const arcs: number[][] = [];
-  for (const build of builds) {
+  for (const build of entries) {
     if (build.kind !== 'collaboration') continue;
     const origin = originOf(build);
-    if (!origin) continue;
+    if (!origin || !entries.some((entry) => entry.id === origin.id)) continue;
     arcs.push(
       linkArc(
         origin.location.lat, origin.location.lng,
@@ -245,8 +245,6 @@ function collaborationArcs(): number[][] {
   return arcs;
 }
 
-const WEB_ARCS = webArcs();
-const COLLAB_ARCS = collaborationArcs();
 
 // The links themselves. Collaboration branches are drawn fainter than the web, so
 // they read as something hanging off it rather than another strand of it.
@@ -360,6 +358,7 @@ function LinkDots({ arcs, opacity }: { arcs: number[][]; opacity: number }) {
 }
 
 export interface GlobeProps {
+  entries?: Build[];
   selectedBuildId?: string | null;
   onSelectBuild?: (buildId: string | null) => void;
 }
@@ -476,7 +475,9 @@ function headingTo(lat: number, lng: number): { yaw: number; pitch: number } {
   return { yaw: Math.atan2(-x, z), pitch: Math.atan2(y, Math.hypot(x, z)) };
 }
 
-function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
+function GlobeScene({ entries = builds, selectedBuildId, onSelectBuild }: GlobeProps) {
+  const web = useMemo(() => webArcs(entries), [entries]);
+  const collaborations = useMemo(() => collaborationArcs(entries), [entries]);
   const worldRef = useRef<Group>(null);
   const yaw = useRef(0);
   const pitch = useRef(INITIAL_PITCH);
@@ -485,7 +486,7 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
   const distRef = useRef(5);
 
   const selected = selectedBuildId
-    ? builds.find((build) => build.id === selectedBuildId) ?? null
+    ? entries.find((build) => build.id === selectedBuildId) ?? null
     : null;
 
   useFrame((state, delta) => {
@@ -550,11 +551,11 @@ function GlobeScene({ selectedBuildId, onSelectBuild }: GlobeProps) {
       <ContinentShell />
       <ContinentOutlines />
       <GlobeWireframe />
-      <LinkLines arcs={WEB_ARCS} opacity={0.45} />
-      <LinkLines arcs={COLLAB_ARCS} opacity={0.22} />
-      <LinkDots arcs={WEB_ARCS} opacity={0.9} />
-      <LinkDots arcs={COLLAB_ARCS} opacity={0.5} />
-      {builds.map((build) => (
+      <LinkLines arcs={web} opacity={0.45} />
+      <LinkLines arcs={collaborations} opacity={0.22} />
+      <LinkDots arcs={web} opacity={0.9} />
+      <LinkDots arcs={collaborations} opacity={0.5} />
+      {entries.map((build) => (
         <BuildPin
           key={build.id}
           build={build}

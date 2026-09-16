@@ -58,6 +58,12 @@ if [ "$NAME" != "core" ]; then
   [ -d "firmware/bundles/$NAME" ] || { echo "no such edition: $NAME" >&2; exit 1; }
   BUNDLE_ARG=("$NAME")
 fi
+# An edition may build in its own PlatformIO env (bundles/<name>/env); the
+# build tree is per env, so every output below is read from there.
+ENV=firmware
+if [ "$NAME" != "core" ] && [ -f "firmware/bundles/$NAME/env" ]; then
+  ENV="$(tr -d '[:space:]' < "firmware/bundles/$NAME/env")"
+fi
 
 # ── The control build ───────────────────────────────────────────────────
 #
@@ -106,7 +112,7 @@ scan() {   # scan <bin> -> 0 clean, 1 leaking
 if [ "$HAVE_SECRETS" = 1 ]; then
   echo "control build (with secrets) — the scanner must FAIL this"
   ./firmware/bundles/build.sh "${BUNDLE_ARG[@]+"${BUNDLE_ARG[@]}"}" >/dev/null
-  if scan "$BUILD_DIR/firmware/firmware.bin"; then
+  if scan "$BUILD_DIR/$ENV/firmware.bin"; then
     echo "  the scanner passed an image that HAS the credentials. It is broken." >&2
     echo "  Refusing to build a shelf image with a scanner that proves nothing." >&2
     exit 1
@@ -128,7 +134,7 @@ fi
 echo "shelf build: $NAME $VERSION"
 ./firmware/bundles/build.sh "${BUNDLE_ARG[@]+"${BUNDLE_ARG[@]}"}" >/dev/null
 
-BIN="$BUILD_DIR/firmware/firmware.bin"
+BIN="$BUILD_DIR/$ENV/firmware.bin"
 echo "  built $(stat -c%s "$BIN") bytes"
 if ! scan "$BIN"; then
   echo "  refusing to stage it" >&2
@@ -174,8 +180,8 @@ fi
 [ -f "$BOOT_APP0" ] || { echo "boot_app0.bin not found at $BOOT_APP0" >&2; exit 1; }
 mkdir -p "$OUT"
 cp "$BIN"                              "$OUT/patternflow.ino.bin"
-cp "$BUILD_DIR/firmware/bootloader.bin" "$OUT/patternflow.ino.bootloader.bin"
-cp "$BUILD_DIR/firmware/partitions.bin" "$OUT/patternflow.ino.partitions.bin"
+cp "$BUILD_DIR/$ENV/bootloader.bin"    "$OUT/patternflow.ino.bootloader.bin"
+cp "$BUILD_DIR/$ENV/partitions.bin"    "$OUT/patternflow.ino.partitions.bin"
 cp "$BOOT_APP0"                        "$OUT/boot_app0.bin"
 
 # ── One live image per name ─────────────────────────────────────────────

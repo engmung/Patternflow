@@ -16,7 +16,7 @@ Since 3.9.3 the checklist below is a script. On `dev`, with a clean tree and
 the `[Unreleased]` section of `CHANGELOG.md` written:
 
 ```bash
-python firmware/toolchain/release.py cut v3.9.4 --audio v0.5.4 --performance v0.2.4 --clock v0.1.1
+python firmware/toolchain/release.py cut v3.9.4 --audio v0.5.4 --performance v0.2.4
 ```
 
 bumps the versions, dates the changelog section, updates `AGENTS.md`, runs
@@ -34,6 +34,28 @@ for its checks, merges, creates the GitHub release from the notes, attaches
 the edition images under their release names, and waits for the workflow
 that attaches the core images. `README.md`'s *Moving fast* note is prose and
 stays yours. `cut --no-build --no-commit` is the dry run.
+
+## An edition on its own
+
+An edition's maintainer ships between core releases, from a pull request,
+with one command on a clean tree:
+
+```bash
+python firmware/toolchain/release.py edition performance v0.2.8
+```
+
+It bumps that edition's `PF_VARIANT_VERSION`, runs `shelf.sh` for it (a clean
+build — the image is refused if it carries credentials or the wrong version),
+points its `/editions` card at the new folder, updates its clause in
+`AGENTS.md` and commits `release: performance v0.2.8`. No tag, no changelog
+section, no manifest — those are the core's. Push and open the pull request;
+CI checks that the six places agree and compiles every composition, and the
+shelf serves the image once `main` deploys. The core's maintainer merges and
+does nothing else. `--no-build --no-commit` is the dry run.
+
+Only editions in `release.py`'s `EDITIONS` tuple are on the shelf. A bundle in
+the tree that is not there (`clock`, `midi`) is a composition CI keeps
+compiling, and nothing more; there is no card to point and nothing to cut.
 
 ## Release checklist
 
@@ -84,4 +106,4 @@ Work happens on `dev`, then lands on `main` through a pull request. `main` is pr
 - `v1.x` -- first public buildable release, then the multi-pattern firmware and browser flasher.
 - `v2.x` -- the v2.0 board (GPIO0 cold-boot fix, cleaned silkscreen), custom pattern workflow, the web platform. `v2.1.0` is the last release for v2.x hardware.
 - `v3.0.0` -- the v3.0 board; `v3.9` (2026-09, unreleased as a tag) removed its USB-C footprint and changed nothing else. Every later `v3.x` is firmware/web on that hardware: `.pfm` modules over Wi-Fi (3.2), shows and the Director (3.6), the feature seam (3.7), editions (3.8).
-- Editions (`audio`, `performance`, `clock`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`.
+- Editions on the shelf (`audio`, `performance`) carry their own version lines, independent of the project version — see `docs/EDITIONS.md`. `clock` and `midi` are bundles CI builds but the shelf does not carry.

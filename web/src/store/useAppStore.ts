@@ -16,6 +16,8 @@ interface AppState {
   // only 44vh, far too little room for photos and a description.
   selectedBuildId: string | null;
   setSelectedBuildId: (id: string | null) => void;
+  insideFilter: 'all' | 'builds' | 'projects' | 'in-use';
+  setInsideFilter: (filter: AppState['insideFilter']) => void;
   knobValues: {
     c1: number;
     c2: number;
@@ -49,6 +51,8 @@ export const useAppStore = create<AppState>((set) => ({
   setHomeTab: (tab) => set({ homeTab: tab }),
   selectedBuildId: null,
   setSelectedBuildId: (id) => set({ selectedBuildId: id }),
+  insideFilter: 'all',
+  setInsideFilter: (filter) => set({ insideFilter: filter }),
   knobValues: {
     c1: 0.00, // Hue
     c2: 2.00, // Speed

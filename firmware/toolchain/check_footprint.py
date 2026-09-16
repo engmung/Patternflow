@@ -1,11 +1,11 @@
 """Pin how much internal SRAM each edition's image has already spent.
 
-python firmware/toolchain/check_footprint.py [--update] [--dir DIR]
+python firmware/toolchain/check_footprint.py [--update] [--dir DIR] [--only EDITION ...]
 
 Run `firmware/bundles/build.sh all` first; it leaves one .elf per edition next to
 the .bin in ~/pf-build-editions.
 
-WHY. CI builds four editions and then prints `ls -l *.bin`, which is flash — and
+WHY. CI builds five compositions and then prints `ls -l *.bin`, which is flash — and
 flash is not the scarce resource on this board. Internal DRAM is. A loadable
 pattern's code has to fit in one contiguous internal executable block, and that
 block is the residual of the internal pool after .data, .bss and IRAM have taken
@@ -55,10 +55,11 @@ IRAM_END = 0x403E0000
 # Arduino core 2.0.17 -> xtensa-esp32s3-elf-gcc 8.4.0 at -Os. A toolchain bump
 # moves every row; re-pin it in the same commit as the bump.
 PINS = {
-    "default": (141080, 72311),
-    "audio": (160096, 72791),
-    "performance": (153448, 72467),
-    "clock": (141352, 72311),
+    "default": (141424, 72467),
+    "audio": (160960, 72947),
+    "performance": (153536, 72467),
+    "clock": (141704, 72467),
+    "midi": (154000, 71667),
 }
 
 # Enough that an intentional, well-understood adjustment does not fire the check
@@ -132,6 +133,8 @@ def main() -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--update", action="store_true",
                         help="rewrite PINS in this file from what was just built")
+    parser.add_argument("--only", action="append", metavar="EDITION",
+                        help="measure this composition only (repeatable); CI builds one per job")
     parser.add_argument("--dir", default=os.environ.get("PF_BUILD_DIR", str(Path.home() / "pf-build")) + "-editions",
                         help="where build.sh all left its .elf files")
     args = parser.parse_args()
@@ -149,7 +152,9 @@ def main() -> int:
     # account for 19,016 B. Read a movement here as a reason to go and look at
     # /api/status, never as a runtime number.
     print(f"{'edition':<13} {'static DRAM':>12} {'IRAM':>9} {'window left':>12}   pinned")
-    for edition in PINS:
+    for edition in (args.only or list(PINS)):
+        if edition not in PINS:
+            raise SystemExit(f"{edition}: not pinned - add a row to PINS and run --update")
         elf = outdir / f"{edition}.elf"
         if not elf.is_file():
             missing.append(edition)
@@ -176,7 +181,7 @@ def main() -> int:
     if args.update:
         text = Path(__file__).read_text(encoding="utf-8")
         block = "PINS = {\n" + "".join(
-            f'    "{e}": ({measured[e]["static_dram"]}, {measured[e]["iram"]}),\n' for e in PINS
+            (f'    "{e}": ({measured[e]["static_dram"]}, {measured[e]["iram"]}),\n' if e in measured else f'    "{e}": ({PINS[e][0]}, {PINS[e][1]}),\n') for e in PINS
         ) + "}"
         text = re.sub(r"PINS = \{.*?\n\}", block, text, count=1, flags=re.S)
         Path(__file__).write_text(text, encoding="utf-8")

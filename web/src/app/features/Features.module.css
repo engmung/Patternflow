@@ -1,0 +1,156 @@
+/* Features — one list, one row per feature, a row opens to its details.
+   Shares the document shape, the summary paragraph and the link row with
+   /editions (that module is imported alongside this one). The list itself
+   is set as a table of contents rather than a shelf: the whole of it has to
+   fit on a screen, and the row is the unit — name, one line, a tag saying
+   where the feature lives. */
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: var(--pf-rule-w) solid var(--pf-rule);
+}
+
+.row { border-bottom: var(--pf-rule-w) solid var(--pf-rule-soft); }
+
+/* The closed row. A native <details>, so a click and a keyboard both open
+   it and nothing here needs JavaScript. The browser's own marker goes; the
+   name carries its own. */
+/* One line per row on a desktop: name, then the one-liner, then the tag at
+   the right edge. Ten rows fit on a screen, which is the point. On a phone
+   the one-liner drops under the name. */
+.head {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 13.5em minmax(0, 1fr) auto;
+  gap: 4px 18px;
+  align-items: baseline;
+  padding: 11px 4px 11px 0;
+}
+.head::-webkit-details-marker { display: none; }
+.head:hover .name { color: var(--pf-led); }
+
+.name {
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: var(--pf-track-tight);
+  line-height: 1.35;
+}
+.name::before {
+  content: '+';
+  display: inline-block;
+  width: 20px;
+  color: var(--pf-led);
+  font-weight: 700;
+}
+.row[open] .name::before { content: '\2212'; }
+
+/* Explicit columns: in the markup the tag comes before the line (so a
+   phone can put the tag beside the name), which auto-placement would put
+   in the wrong column here. */
+.line {
+  grid-column: 2;
+  grid-row: 1;   /* sparse auto-placement would drop it to a second row, after the tag */
+  font-size: var(--pf-fs-body);
+  line-height: 1.45;
+  color: var(--pf-ink-muted);
+}
+
+.tag {
+  grid-column: 3;
+  font-family: var(--pf-mono);
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border: var(--pf-rule-w) solid var(--pf-ink-faint);
+  color: var(--pf-ink-muted);
+}
+.tag[data-home='every'] { border-color: var(--pf-led); color: var(--pf-led); }
+.tag[data-home='audio'],
+.tag[data-home='performance'] { border-color: var(--pf-ink-muted); color: var(--pf-ink); }
+.tag[data-home='none'] { border-style: dashed; color: var(--pf-ink-faint); }
+
+@media (max-width: 760px) {
+  .head { grid-template-columns: minmax(0, 1fr) auto; }
+  .name { grid-column: 1; }
+  .tag { grid-column: 2; grid-row: 1; }
+  .line { grid-column: 1 / -1; grid-row: auto; padding-left: 20px; }
+}
+
+/* The open row: the paragraph and facts on the left, the reel on the right;
+   one column on a phone. */
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px 28px;
+  align-items: start;
+  padding: 4px 4px 24px 20px;
+}
+.text { min-width: 0; }
+@media (max-width: 760px) {
+  .body { grid-template-columns: 1fr; padding-left: 0; }
+}
+
+/* Two facts a person decides on, in the mono voice: what it needs, where it is. */
+.facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 14px;
+  margin: 0 0 16px;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+}
+.facts dt {
+  padding-top: 2px;
+  font-size: 10px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+  color: var(--pf-ink-faint);
+}
+.facts dd { margin: 0; color: var(--pf-ink); }
+.facts dd a { color: var(--pf-ink); }
+.facts dd a:hover { color: var(--pf-led); }
+
+/* The reel. Instagram's embed page is tall; 560px shows the reel's frame
+   with its header and the post's own footer, and scrolls inside itself for
+   anything longer. It is only in the document once the row is open, so it
+   only loads then. */
+.reel { margin: 0; max-width: 300px; }
+.reelFrame {
+  display: block;
+  width: 100%;
+  height: 560px;
+  border: var(--pf-rule-w) solid var(--pf-rule);
+  background: var(--pf-cream-2);
+}
+.reelCap {
+  margin: 8px 0 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+  color: var(--pf-ink-faint);
+}
+.reelCap a { color: var(--pf-ink-muted); white-space: nowrap; }
+.reelCap a:hover { color: var(--pf-led); }
+.noReel {
+  margin: 0;
+  max-width: 300px;
+  padding: 16px;
+  border: var(--pf-rule-w) dashed var(--pf-rule);
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  line-height: 1.5;
+  color: var(--pf-ink-faint);
+}
+
+.embedNote {
+  margin: 14px 0 0;
+  font-family: var(--pf-mono);
+  font-size: var(--pf-fs-mono);
+  color: var(--pf-ink-faint);
+}

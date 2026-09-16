@@ -3,6 +3,7 @@ two commands, so a release is a habit rather than an afternoon.
 
     python firmware/toolchain/release.py cut v3.9.4 --audio v0.5.4 --performance v0.2.4
     python firmware/toolchain/release.py publish v3.9.4 --notes notes.md
+    python firmware/toolchain/release.py edition performance v0.2.8
 
 `cut` (on dev, clean tree, written [Unreleased] section):
   1. bumps PF_IMPROV_FW_VERSION and each named edition's PF_VARIANT_VERSION,
@@ -16,6 +17,15 @@ two commands, so a release is a habit rather than an afternoon.
   6. commits "release: vX.Y.Z" and tags it.
   README.md's "Moving fast" note is prose; it says what changed, so it is
   left to the author and named in the summary.
+
+`edition` (any branch, clean tree) cuts ONE edition without a core release -
+  the way an edition's maintainer ships from a pull request:
+  1. bumps that edition's PF_VARIANT_VERSION and its clause in AGENTS.md,
+  2. runs shelf.sh for it and points its /editions card at the image,
+  3. commits "release: <name> vA.B.C" - no tag, no changelog section, no
+     manifest; those belong to the core. Only editions in EDITIONS are on
+     the shelf; a bundle the tree keeps building but does not publish
+     (clock, midi) is not cut by anything here.
 
 `publish` (after `cut`):
   pushes dev and the tag, opens the dev -> main pull request from the
@@ -44,7 +54,7 @@ AGENTS = ROOT / "AGENTS.md"
 MANIFEST = ROOT / "web/public/flash/manifest.json"
 EDITIONS_TS = ROOT / "web/src/app/editions/editions-data.ts"
 BIN_DIR = ROOT / "web/public/flash/bin"
-EDITIONS = ("audio", "performance", "clock")
+EDITIONS = ("audio", "performance")
 CO_AUTHOR = "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 TRAILER = "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
 
@@ -133,12 +143,7 @@ def vcheck(v: str, what: str) -> str:
 
 # ── cut ────────────────────────────────────────────────────────────────────
 
-def bump_firmware(core: str, editions: dict[str, str]) -> None:
-    text, crlf = read(NET_CONFIG)
-    text = sub_once(text, r'#define PF_IMPROV_FW_VERSION "[^"]+"',
-                    f'#define PF_IMPROV_FW_VERSION "{core[1:]}"', "PF_IMPROV_FW_VERSION in net_config.h")
-    write(NET_CONFIG, text, crlf)
-    print(f"  net_config.h: PF_IMPROV_FW_VERSION -> {core[1:]}")
+def bump_editions(editions: dict[str, str]) -> None:
     for name, version in editions.items():
         path = ROOT / f"firmware/bundles/{name}/overrides.h"
         text, crlf = read(path)
@@ -146,6 +151,17 @@ def bump_firmware(core: str, editions: dict[str, str]) -> None:
                         f"PF_VARIANT_VERSION in {path.name}")
         write(path, text, crlf)
         print(f"  bundles/{name}/overrides.h: PF_VARIANT_VERSION -> {version}")
+
+
+def bump_firmware(core: str, editions: dict[str, str]) -> None:
+    text, crlf = read(NET_CONFIG)
+    text = sub_once(text, r'#define PF_IMPROV_FW_VERSION "[^"]+"',
+                    f'#define PF_IMPROV_FW_VERSION "{core[1:]}"', "PF_IMPROV_FW_VERSION in net_config.h")
+    write(NET_CONFIG, text, crlf)
+    print(f"  net_config.h: PF_IMPROV_FW_VERSION -> {core[1:]}")
+    bump_editions(editions)
+
+
 
 
 def current_edition_versions() -> dict[str, str]:
@@ -177,19 +193,29 @@ def bump_changelog(core: str, today: str, allow_empty: bool) -> str:
     return body
 
 
+def bump_agents_editions(editions_now: dict[str, str]) -> None:
+    if not all(editions_now.get(n) for n in EDITIONS):
+        return
+    text, crlf = read(AGENTS)
+    # "Audio vA, Performance vB at the time of writing" - one clause per
+    # edition, in EDITIONS order, so adding an edition to the shelf is one
+    # tuple entry here and one clause in AGENTS.md.
+    pattern = ", ".join(rf"{n.capitalize()} v\d+\.\d+\.\d+" for n in EDITIONS) + " at the time of writing"
+    repl = ", ".join(f"{n.capitalize()} {editions_now[n]}" for n in EDITIONS) + " at the time of writing"
+    text = sub_once(text, pattern, repl, "the editions' 'at the time of writing' line in AGENTS.md")
+    write(AGENTS, text, crlf)
+    print("  AGENTS.md: " + ", ".join(f"{n.capitalize()} {editions_now[n]}" for n in EDITIONS))
+
+
 def bump_agents(core: str, today: str, editions_now: dict[str, str]) -> None:
     text, crlf = read(AGENTS)
     text = sub_once(text, r"- Project: v\d+\.\d+\.\d+ \(current, released \d{4}-\d{2}-\d{2}\)",
                     f"- Project: {core} (current, released {today})", "the 'Project: vX (current, released …)' line in AGENTS.md")
-    if all(editions_now.get(n) for n in EDITIONS):
-        # "Audio vA, Performance vB, Utility vC at the time of writing" - one
-        # clause per edition, in EDITIONS order, so adding an edition is one
-        # tuple entry here and one clause in AGENTS.md.
-        pattern = ", ".join(rf"{n.capitalize()} v\d+\.\d+\.\d+" for n in EDITIONS) + " at the time of writing"
-        repl = ", ".join(f"{n.capitalize()} {editions_now[n]}" for n in EDITIONS) + " at the time of writing"
-        text = sub_once(text, pattern, repl, "the editions' 'at the time of writing' line in AGENTS.md")
     write(AGENTS, text, crlf)
-    print(f"  AGENTS.md: current {core}, " + ", ".join(f"{n.capitalize()} {editions_now.get(n)}" for n in EDITIONS))
+    print(f"  AGENTS.md: current {core}")
+    bump_agents_editions(editions_now)
+
+
 
 
 def shelf(name: str, version: str) -> None:
@@ -198,18 +224,9 @@ def shelf(name: str, version: str) -> None:
     bash(f'bash firmware/bundles/shelf.sh {name} {version}')
 
 
-def point_site(core: str, editions: dict[str, str]) -> None:
-    text, crlf = read(MANIFEST)
-    data = json.loads(text)
-    data["version"] = core
-    for build in data["builds"]:
-        for part in build["parts"]:
-            part["path"] = re.sub(r"bin/core-v[\d.]+/", f"bin/core-{core}/", part["path"])
-    write(MANIFEST, json.dumps(data, indent=2) + "\n", crlf)
-    print(f"  manifest.json: {core}, bin/core-{core}/")
-
+def point_cards(versions: dict[str, str]) -> None:
     text, crlf = read(EDITIONS_TS)
-    for ident, version in {"core": core, **editions}.items():
+    for ident, version in versions.items():
         # The card's block runs from its id: to the next id:. Inside it, the
         # first version:/url: pair is the image the shelf serves.
         m = re.search(rf"id: '{ident}',(.*?)(?=id: '|\Z)", text, re.S)
@@ -222,6 +239,20 @@ def point_site(core: str, editions: dict[str, str]) -> None:
         text = text[:m.start(1)] + new_block + text[m.end(1):]
         print(f"  editions-data.ts: {ident} -> {version}")
     write(EDITIONS_TS, text, crlf)
+
+
+def point_site(core: str, editions: dict[str, str]) -> None:
+    text, crlf = read(MANIFEST)
+    data = json.loads(text)
+    data["version"] = core
+    for build in data["builds"]:
+        for part in build["parts"]:
+            part["path"] = re.sub(r"bin/core-v[\d.]+/", f"bin/core-{core}/", part["path"])
+    write(MANIFEST, json.dumps(data, indent=2) + "\n", crlf)
+    print(f"  manifest.json: {core}, bin/core-{core}/")
+    point_cards({"core": core, **editions})
+
+
 
 
 def web_checks(quick: bool) -> None:
@@ -290,6 +321,46 @@ def cmd_cut(args: argparse.Namespace) -> None:
   README.md's "Moving fast" note still says the previous release - it is prose, so it is yours.
   Write the release notes (the CHANGELOG section is the raw material), then:
     python firmware/toolchain/release.py publish {core} --notes <file.md>""")
+
+
+# ── edition ────────────────────────────────────────────────────────────────
+def cmd_edition(args: argparse.Namespace) -> None:
+    """One edition, on its own - the way an edition's maintainer ships between
+    core releases, from a pull request. No tag, no changelog section, no
+    manifest: those belong to the core."""
+    name = args.name
+    if name not in EDITIONS:
+        die(f"{name!r} is not on the shelf; the shelf carries {', '.join(EDITIONS)}")
+    version = vcheck(args.version, "the version")
+    dirty = [l for l in out(["git", "status", "--porcelain"]).splitlines() if not l.startswith("??")]
+    if dirty and not args.no_commit:
+        die("the working tree has uncommitted changes:\n  " + "\n  ".join(dirty))
+    current = current_edition_versions()
+    if current.get(name) == version:
+        die(f"{name} is already {version} - bump instead")
+    print(f"== cut {name} {version}")
+    bump_editions({name: version})
+    bump_agents_editions({**current, name: version})
+    if args.no_build:
+        print("  (shelf skipped: --no-build)")
+    else:
+        shelf(name, version)
+        image = BIN_DIR / f"{name}-{version}" / "patternflow.ino.bin"
+        if b"YOUR_WIFI_SSID" not in image.read_bytes():
+            die(f"{image} has no placeholder SSID - it was not built clean")
+    point_cards({name: version})
+    if args.no_commit:
+        print("  (commit skipped: --no-commit)")
+    else:
+        paths = ["AGENTS.md", "web/src/app/editions/editions-data.ts", f"firmware/bundles/{name}/overrides.h"]
+        run(["git", "add", "-A", "--", *paths, "web/public/flash/bin"])
+        run(["git", "commit", "-q", "-m", f"release: {name} {version}",
+             "-m", f"{name.capitalize()} {version} staged by shelf.sh from a sketch copy without "
+                   "patternflow_secrets.h; the previous folder retired to its tag.", "-m", CO_AUTHOR])
+    print(f"""
+== {name} {version} is cut.
+  Push and open the pull request; CI checks the six places agree, and the shelf
+  serves the image once main deploys. Nothing else to do.""")
 
 
 # ── publish ────────────────────────────────────────────────────────────────
@@ -391,6 +462,13 @@ def main() -> None:
     pub.add_argument("--title", help="release title (default: Patternflow vX.Y.Z)")
     pub.add_argument("--no-merge", action="store_true", help="stop after the PR's checks")
     pub.set_defaults(fn=cmd_publish)
+
+    ed = sub.add_parser("edition", help="cut one edition on its own: bump, shelf, card, commit - no tag")
+    ed.add_argument("name", choices=EDITIONS, help="which edition")
+    ed.add_argument("version", help="vA.B.C")
+    ed.add_argument("--no-build", action="store_true", help="skip shelf.sh (a dry run of the edits)")
+    ed.add_argument("--no-commit", action="store_true", help="leave the edits in the tree")
+    ed.set_defaults(fn=cmd_edition)
 
     args = ap.parse_args()
     args.fn(args)

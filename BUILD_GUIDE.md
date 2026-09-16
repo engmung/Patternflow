@@ -299,7 +299,7 @@ OSC, network MIDI and audio-react ship in the **Audio** edition: open [patternfl
 - **USB-C input removed in v3.9.** A USB-C-powered v3.0 board ran normally for 20–30+ minutes, then smoked at a connector pin and destroyed the receptacle and surrounding power path ([#221](https://github.com/engmung/Patternflow/issues/221)). Whether that was a soldering defect on the tight-pitch THT pins or a structural limit of the part under the matrix's peak current was never settled — so the footprint came off the board instead of shipping an input that must not be populated. **Every build powers through the `J4` screw terminal** (Section 2); on a v3.0 board, leave `USB1`/`R1`/`R2` bare.
 - **C11 (1000µF bulk cap) retained** — Patternflow is power-bank-powered; the cap stabilizes the boot transient. Designing a desktop-USB derivative? Drop it to ≤50µF.
 - **GPIO0 left floating by design** — most modules don't need the pullup; if yours does, it's a one-resistor fix (Section 5 note, [#16](https://github.com/engmung/Patternflow/issues/16)).
-- **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, set `INVERT_ENCODER` to `1` in `config.h` instead of touching hardware.
+- **Encoder direction is handled in firmware** — the default suits the Bourns PEC11R; if your encoders read backwards, or one click moves two steps, fix it per knob on the device's `/knobs` page — no rebuild; `INVERT_ENCODER` in `config.h` is only the compile-time default.
 - **No LED-matrix bump trimming.** The enclosure recesses the panel's two alignment bumps, so the old nipper step ([#19](https://github.com/engmung/Patternflow/issues/19)) is gone. The design also gives you a snap-fit back panel and two wall-mount holes.
 
 ---

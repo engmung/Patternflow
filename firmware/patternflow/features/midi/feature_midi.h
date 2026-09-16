@@ -3,8 +3,11 @@
 //
 // Sound integration's third dialect after OSC and audio: a DAW, a controller
 // or a phone drives the four knobs with control changes, and the knobs drive
-// them back. The mapping is core_midi.h; the transport shipped here is
-// RTP-MIDI over Wi-Fi (core_midi_rtp.h).
+// them back. The mapping is core_midi.h; the transports are RTP-MIDI over
+// Wi-Fi (core_midi_rtp.h) and, when the build's USB port is the OTG stack,
+// the DevKit's USB port as a MIDI device (core_midi_usb.h) - that build is
+// the MIDI edition, bundles/midi, and the switch is the Arduino core's
+// ARDUINO_USB_MODE, decided per env in platformio.ini rather than here.
 //
 // Hooks: setup, onNetwork, loop, fillInput, observeFrame, takePattern, the
 // NETWORK-screen toggle trio, appendStatus. No core edits.
@@ -12,17 +15,18 @@
 // License: MIT
 // ═══════════════════════════════════════════════════════════
 #pragma once
-
 #include "../pf_feature.h"
 #include "core_midi.h"
 #include "core_midi_http.h"
 #include "core_midi_rtp.h"
+#include "core_midi_usb.h"
 
 namespace PFFeatureMidi {
 
 inline void setup() {
   PatternflowMidi::loadSettings();
   PatternflowMidiRtp::prepare();
+  PatternflowMidiUsb::begin();   // a cable needs no network; empty unless the port is OTG
 }
 
 inline void onNetwork() {
@@ -32,6 +36,7 @@ inline void onNetwork() {
 
 inline void loop(const PFFeatureFrame&) {
   PatternflowMidiRtp::handle();
+  PatternflowMidiUsb::poll();
 }
 
 inline void fillInput(InputFrame& input) { PatternflowMidi::fillInput(input); }
@@ -73,6 +78,8 @@ inline void appendStatus(String& json) {
   json += PatternflowMidi::txCount;
   PatternflowMidiRtp::appendDiagnostics(json);
   json += "}";
+  // `midiUsb`, a sibling block, only in a build whose USB port is a MIDI device.
+  PatternflowMidiUsb::appendStatus(json);
 }
 
 inline const PFFeature descriptor = {

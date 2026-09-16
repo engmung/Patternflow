@@ -46,7 +46,7 @@
 /* Top-center prompt, matching the product preview's hint style. */
 .hint {
   position: absolute;
-  top: 34px;
+  top: 48px;
   left: 0;
   width: 100%;
   z-index: 3;

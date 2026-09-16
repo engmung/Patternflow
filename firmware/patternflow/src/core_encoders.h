@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <Preferences.h>
 #include "config.h"
 
 volatile long     encPos[4]    = {0, 0, 0, 0};   // sub-steps; 4 per detent
@@ -64,7 +65,64 @@ void IRAM_ATTR isr2() { handleEncoder(1, ENC2_A, ENC2_B); }
 void IRAM_ATTR isr3() { handleEncoder(2, ENC3_A, ENC3_B); }
 void IRAM_ATTR isr4() { handleEncoder(3, ENC4_A, ENC4_B); }
 
-inline long getClicks(int idx) { return encPos[idx] / 4; }
+// ── Knob settings a person can change at runtime (/knobs) ────────────────
+// Direction and click size are properties of the encoder soldered in, not
+// of the firmware: some parts count the other way round, some give two
+// edges per detent instead of four. INVERT_ENCODER in config.h is the
+// compile-time default; these override it per knob and persist in NVS
+// (namespace "pf_knobs"), set from the /knobs page (core_knobs_http.h).
+inline bool knobInvert[4] = {INVERT_ENCODER != 0, INVERT_ENCODER != 0,
+                             INVERT_ENCODER != 0, INVERT_ENCODER != 0};
+inline int  knobSubSteps[4] = {4, 4, 4, 4};   // edges per click: 4, 2 or 1
+// A settings change must not move a knob. The click count carries on from
+// where it was, counting the edges since the change in the new direction
+// and at the new size, so the frame's delta stays zero across a save.
+inline long knobClickBase[4] = {0, 0, 0, 0};
+inline long knobPosBase[4]   = {0, 0, 0, 0};
+
+inline long getClicks(int idx) {
+  long rel = encPos[idx] - knobPosBase[idx];
+  if (knobInvert[idx]) rel = -rel;
+  return knobClickBase[idx] + rel / knobSubSteps[idx];
+}
+
+inline int clampSubSteps(int v) { return (v == 1 || v == 2 || v == 4) ? v : 4; }
+
+// Call on the frame task (the frame reads the same counters).
+inline void setKnobSettings(int idx, bool invert, int subSteps) {
+  if (idx < 0 || idx > 3) return;
+  knobClickBase[idx] = getClicks(idx);   // rebase on the settings being replaced
+  knobPosBase[idx] = encPos[idx];
+  knobInvert[idx] = invert;
+  knobSubSteps[idx] = clampSubSteps(subSteps);
+}
+
+inline void loadKnobSettings() {
+  Preferences p;
+  if (!p.begin("pf_knobs", true)) return;   // nothing saved yet: the compile-time defaults
+  char key[6];
+  for (int i = 0; i < 4; i++) {
+    snprintf(key, sizeof(key), "inv%d", i);
+    knobInvert[i] = p.getBool(key, knobInvert[i]);
+    snprintf(key, sizeof(key), "sub%d", i);
+    knobSubSteps[i] = clampSubSteps(p.getInt(key, knobSubSteps[i]));
+  }
+  p.end();
+}
+
+inline bool saveKnobSettings() {
+  Preferences p;
+  if (!p.begin("pf_knobs", false)) return false;
+  char key[6];
+  for (int i = 0; i < 4; i++) {
+    snprintf(key, sizeof(key), "inv%d", i);
+    p.putBool(key, knobInvert[i]);
+    snprintf(key, sizeof(key), "sub%d", i);
+    p.putInt(key, knobSubSteps[i]);
+  }
+  p.end();
+  return true;
+}
 
 struct Button {
   int pin;
@@ -163,4 +221,5 @@ inline void initEncoders() {
   btn2.begin(ENC2_SW);
   btn3.begin(ENC3_SW);
   btn4.begin(ENC4_SW);
+  loadKnobSettings();   // before the first frame reads a click
 }
