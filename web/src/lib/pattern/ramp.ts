@@ -23,7 +23,10 @@ export type RampAnnotation = {
   recolor: boolean;
 };
 
-export const MAX_ANNOTATION_STOPS = 8;
+// Matches the lab editor's own per-ramp cap (store/ramp.ts). The annotation
+// stays one comment line either way; 8 was an early guess that quietly ate
+// every stop past the eighth on publish/reopen.
+export const MAX_ANNOTATION_STOPS = 64;
 
 const RAMP_LINE_RE = /^[ \t]*\/\/[ \t]*@ramp[ \t]+(.+)$/m;
 const STOP_RE = /^(\d*\.?\d+):(#[0-9a-fA-F]{6})$/;
