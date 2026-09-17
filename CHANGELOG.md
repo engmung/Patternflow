@@ -4,6 +4,8 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+## [3.10.3] - 2026-09-17
+
 ### Hardware
 
 - **v3.9 board** (2026-09-04). The USB-C power receptacle `USB1` and its CC pull-downs `R1`/`R2` — which v3.0 shipped and every document told you to leave unpopulated after the delayed burnout in [#221](https://github.com/engmung/Patternflow/issues/221) — come off the board. `J4`, the screw terminal, is the only power input there is. Edge cuts and mounting holes are byte-identical to v3.0, so the v3 cases fit both. The 330 mm case gains a pass-through to the DevKit's USB port (data, for wired MIDI/OSC and flashing — not power) and a cable exit slot. Gerbers, BOM, renders and schematic regenerated; `bom_v3.9.csv` is the BOM source of truth.
