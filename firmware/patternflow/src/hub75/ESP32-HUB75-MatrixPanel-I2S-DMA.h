@@ -958,6 +958,7 @@ private:
   volatile int back_buffer_id = 0;      // If using double buffer, which one is NOT active (ie. being displayed) to write too?
   int brightness = 128;        // If you get ghosting... reduce brightness level. ((60/64)*255) seems to be the limit before ghosting on a 64 pixel wide physical panel for some panels.
   int lsbMsbTransitionBit = 0; // For colour depth calculations
+  int pfChainScheme = 0;       // PATTERNFLOW: which chain begin() linked - see pfChainExtraPasses in the .cpp
 
   /* ESP32-HUB75-MatrixPanel-I2S-DMA functioning constants
    * we should not those once object instance initialized it's DMA structs

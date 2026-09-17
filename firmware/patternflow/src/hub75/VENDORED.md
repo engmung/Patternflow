@@ -122,6 +122,80 @@ response over all 256 codes is monotone — 30,936 assertions across every depth
 transition bit, width and brightness. Before the fix: 26 inversions, two of them
 50%. Full-scale luminance moves about 1%.
 
+**2026-09-17, correcting the above — and the premise under it.** The first
+paragraph of this section is wrong: a plane does not "deliver its OE window". A
+plane's bits are latched at the END of its buffer, so they are on the LEDs while
+the NEXT buffer in the chain clocks in, gated by that buffer's OE bits.
+`clearFrameBuffer()` says as much — it marks buffer 0 with the previous row's
+address "because it is used to display previous row while we pump in MSBs for the
+next row". So the window in buffer `b` lights whatever was latched before it, and
+upstream's full window on buffer 0 was never an LSB bug: it is the top plane's
+display time. 09-10 shrank it and took a fifth of the top plane's light away.
+
+The chain, per row, is buffers `0..D-1` once and then buffer `i` above the
+transition bit another `2^(i-L-1)` times; the shipped panel resolves to depth 8,
+`L = 4`, not the `L = 0` the 09-10 numbers were reasoned at:
+`0 1 2 3 4 5 6 7 5 6 6 7 7 7 7 | next row's 0`. Crediting each window to the plane
+before it, at full brightness:
+
+| | light per plane 0–7 | codes where raising the code lowers the light |
+|---|---|---|
+| upstream | 7 15 31 63 125 250 375 625 | 3 (63, 127, 191) — 127→128 loses 28% |
+| 09-10 | 7 15 31 63 125 250 375 503 | 3 — 127→128 loses 42% |
+| 09-17 morning (repeat counts corrected, same misreading) | 9 19 39 78 78 210 355 458 | 15 |
+| upstream's chain, solved exactly | 3 6 13 25 50 100 200 401 | none |
+
+What it looked like on the panel: a pattern with a near-white background
+(214,211,204) whose edges fade to dark. Each channel crosses code 128 at a
+different point along the fade, and the one that has crossed is suddenly far
+brighter than the two that have not — blue first, a purple fringe; then green, a
+sky-blue one; then red, and neutral again. A grey test card at identity white
+balance cannot show it, because all three channels cross together. Confirmed on
+hardware by switching between all four at runtime: only the last has no fringes.
+
+**And then the chain itself had to go.** The exact solution of upstream's chain
+is `W = [40, 1, 2, 4, 8, 16, 16, 24]·u`: a window belongs to a buffer, not to a
+pass, and the windows the top plane needs wide are the same ones the planes
+below it need narrow. It keeps 42% of the row lit (upstream, not binary: 80%) and
+on the panel it was simply too dark. Searching every grouped order of up to 16
+buffers a row for the exactly-binary solution that keeps the most of the row lit
+found one, with nothing close behind it:
+
+```
+sent      0  1  2  3  4  5  6  7  6  7  7  7 | next row's 0
+lights    7' 0  1  2  3  4  5  6  7  6  7  7
+W      =  1, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 1          light 3 7 15 31 62 125 250 500
+```
+
+Twelve buffers instead of fifteen, 66% of the row lit, every window the full one
+shifted right — so floors keep the planes strictly ordered at every brightness
+with no repair step — and the refresh rises from 260 to 325 Hz for free.
+`pfChainExtraPasses()` is that rule (`begin()` uses it in its refresh arithmetic,
+its descriptor count and its linking loop), `pfOEWindowPixels()` is the windows,
+and `lsbMsbTransitionBit` is no longer used: `begin()` picks a *scheme* instead —
+0 as above, 1 with one extra pass of the top plane (D + 1 buffers, 44%), 2 with
+none (D buffers, 25%) — taking the brightest that clears `min_refresh_rate`. All
+three are exactly binary; what a slower clock costs now is brightness, never
+colour depth. Checked on the panel against the previous build: no fringes, and
+brighter.
+
+`oe_test.cpp` no longer shares a formula with the driver: it walks the chain and
+credits each buffer's window to the plane latched before it. Both earlier drivers
+fail it immediately. **The lesson is the test's, not the driver's:** 30,000
+assertions agreed with two wrong versions because the reference modelled
+delivered light the same wrong way.
+
+**Power.** `core_power.h`'s full-white figure (4.8 A) was measured on upstream's
+windows, which kept 80% of the row lit; this keeps 66%, so the model now
+over-estimates by roughly a fifth. It errs toward clamping early and has been left
+alone until it is measured again.
+
+**White balance.** `LED_WB_*` (0.930 / 1.000 / 0.975) had been converged by eye at
+full white on top of upstream's weights, so it was correcting the driver at one
+level rather than the panel; it read pink across the greys once the weights moved
+and is identity again. `LED_SAT_BOOST` was converged the same way and has not been
+re-judged. A constant tuned by eye is tuned against the driver as it stood.
+
 ## The plane threshold rounds
 
 Only the top `depth` bits of the 16-bit CIE value reach a plane. Upstream drops
