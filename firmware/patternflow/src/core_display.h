@@ -24,10 +24,11 @@ inline void initDisplay() {
   // averages multiple cycles per exposure and the BCM bit-plane flicker
   // stops showing up as visible bands on video. I2S/DMA refresh runs on
   // hardware peripherals in parallel with the CPU, so this costs zero
-  // rendering FPS — the only trade is that the library may reduce
-  // effective color depth (8-bit → 6–7 bit) to hit the target rate,
-  // which can introduce mild banding in long smooth gradients. Dial
-  // min_refresh_rate down to ~180 if banding is noticeable.
+  // rendering FPS. The trade is brightness, not colour depth: the vendored
+  // driver picks the brightest bit-plane chain that clears this floor
+  // (pfChainExtraPasses in src/hub75), and every chain it can pick is
+  // exactly binary. At 16 MHz and 128 wide the brightest one already runs
+  // at 325 Hz, so this floor is not what limits the shipped panel.
   //
   // ⚠️ If an EMC radiated-emissions test fails: this clock and its harmonics,
   // streamed continuously down the HUB75 ribbon, are the loudest thing in the
@@ -37,9 +38,10 @@ inline void initDisplay() {
   // (identical to HZ_8M — there is no step between 8 and 16 MHz). So the
   // fundamental to hunt for is 16 MHz, not 15, and "drop to HZ_10M" means
   // halving the clock. It drops the fundamental and every harmonic with it.
-  // It is NOT free: at a lower clock the library either sheds bit-planes to
-  // hold 240 Hz (banding in the gradients these patterns are made of) or
-  // keeps the depth and lets refresh fall (camera banding returns on video).
+  // It is NOT free: at a lower clock the driver either falls back to a
+  // shorter, dimmer chain to hold 240 Hz (a quarter of each row lit instead of
+  // two thirds) or keeps the light and lets refresh fall (camera banding
+  // returns on video).
   // Try the cheap fixes first — ferrite on the ribbon, shorter ribbon,
   // routing, grounding — and come here only if a pre-scan says to.
   //
@@ -47,7 +49,7 @@ inline void initDisplay() {
   // desensitises on some boards: see
   // docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md.
   // Short version: 8 MHz is a real improvement and still is not shipped,
-  // because every min_refresh_rate that preserves colour depth bands on
+  // because every min_refresh_rate that keeps the panel bright bands on
   // video. If you lower i2sspeed, lower min_refresh_rate with it.
   mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;
   mxconfig.min_refresh_rate = 240;

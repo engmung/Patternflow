@@ -334,6 +334,16 @@ $("connect").addEventListener("click", async () => {
 });
 
 renderRef();
+
+// ?device=192.168.0.119 fills the address in and connects, so a link can point
+// at a particular panel.
+{
+  const device = new URLSearchParams(location.search).get("device");
+  if (device) {
+    $("base").value = /^https?:\/\//.test(device) ? device : `http://${device}`;
+    $("connect").click();
+  }
+}
 </script>
 </body>
 </html>

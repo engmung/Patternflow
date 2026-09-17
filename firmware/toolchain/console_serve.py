@@ -148,7 +148,7 @@ class Device:
             "presentUs": 9947,
             "loopCore": 1,
             "colorBits": 8,
-            "refreshHz": 260,
+            "refreshHz": 325,
             "loadError": "",
             "load": {"total": 0, "read": 0, "relocate": 0, "setup": 0},
             "mqttRole": "off",

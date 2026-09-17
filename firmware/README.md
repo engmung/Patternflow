@@ -700,15 +700,15 @@ All hardware-specific pins and limits are centralized in `config.h`.
 - **Hardware Settings:** `INVERT_ENCODER` can be toggled depending on whether you mounted your encoders on the front or back of the PCB. `DEFAULT_BRIGHTNESS` controls the initial matrix brightness.
 
 ### LED panel calibration
-LED panels render the same RGB triplets differently than a calibrated monitor — the LED primaries are at different wavelengths than sRGB phosphors, red LEDs are brighter per PWM duty than blue, and the panel reads washed-out next to a monitor showing the same frame. The defaults are the ones that ship in `config.h` (tuned by eye on 2026-08-09 against the Calibration preset, on the maintainer's panel); every value is `#ifndef`-guarded, so a panel can override any of them from `patternflow_secrets.h`:
+LED panels render the same RGB triplets differently than a calibrated monitor — the LED primaries are at different wavelengths than sRGB phosphors, red LEDs are brighter per PWM duty than blue, and the panel reads washed-out next to a monitor showing the same frame. The defaults are the ones that ship in `config.h` (saturation tuned by eye on 2026-08-09 against the Calibration preset, on the maintainer's panel; white balance is identity since 2026-09-17, when the bit-plane weights were made binary and the earlier trim turned out to have been correcting the driver rather than the panel); every value is `#ifndef`-guarded, so a panel can override any of them from `patternflow_secrets.h`:
 
 ```cpp
 #define LED_GAMMA_R   1.0f    // the pow-LUT already handles perceptual response;
 #define LED_GAMMA_G   1.0f    // extra gamma here only made the panel darker
 #define LED_GAMMA_B   1.0f
-#define LED_WB_R      0.930f  // this panel leans warm — red trimmed hardest
-#define LED_WB_G      1.000f
-#define LED_WB_B      0.975f
+#define LED_WB_R      1.000f  // identity: the reference panel reads neutral uncorrected.
+#define LED_WB_G      1.000f  // Judge a trim on the GRAYS screen, not on white alone
+#define LED_WB_B      1.000f
 #define LED_SAT_BOOST 1.62f   // strong: matches design intent on real patterns
 ```
 
@@ -719,7 +719,7 @@ Tune live from `/api/display` (the `/status` page has the sliders), then land th
 
 ```cpp
 mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;  // pixel clock — see below, this is 16 MHz
-mxconfig.min_refresh_rate = 240;                      // target refresh (measured: 260 Hz)
+mxconfig.min_refresh_rate = 240;                      // refresh floor (shipped chain: 325 Hz)
 mxconfig.latch_blanking   = 2;                        // brightness uniformity
 ```
 
@@ -727,17 +727,16 @@ mxconfig.latch_blanking   = 2;                        // brightness uniformity
 
 HUB75's BCM (binary code modulation) cycles bit planes at the library default ~120Hz, which aliases against phone-camera rolling shutter and shows up as visible flicker bands on video. Pushing refresh past 240Hz means a 60fps camera averages 4+ cycles per exposure and the bands disappear. I2S/DMA refresh runs on the ESP32-S3's hardware peripherals in parallel with the CPU, so this costs zero rendering FPS.
 
-The trade-off is colour depth: the library picks a `lsbMsbTransitionBit` that merges low bit planes until the requested refresh fits the clock budget. **Both settings move together — you cannot lower one without deciding about the other.** Measured on the reference panel (128×64, 8-bit):
+The trade-off is brightness. A row is sent as a chain of bit-plane buffers, and the vendored driver picks the brightest chain that still clears `min_refresh_rate` (`pfChainExtraPasses` in `src/hub75/`, and `VENDORED.md` beside it for why the chain is not upstream's). Every scheme is exactly binary — colour depth is never what gets sacrificed — but a shorter chain keeps less of each row lit. **Both settings move together — you cannot lower one without deciding about the other.** On the reference panel (128×64, 8-bit):
 
-| `i2sspeed` | `min_refresh_rate` | Colour depth sacrificed | Actual refresh |
-|---|---|---|---|
-| 16 MHz | 240 *(shipped)* | bit 4 | ~260 Hz |
-| 8 MHz | 240 | bit 7 — **maximum** | ~244 Hz |
-| 8 MHz | 200 | bit 6 | ~217 Hz |
-| 8 MHz | 150 | bit 5 | ~177 Hz |
-| 8 MHz | 96 | bit 4 — same as shipped | ~130 Hz |
+| `i2sspeed` | `min_refresh_rate` | Chain | Row lit | Actual refresh |
+|---|---|---|---|---|
+| 16 MHz | 240 *(shipped)* | scheme 0, 12 buffers | 66% | ~325 Hz |
+| 8 MHz | 240 | scheme 2, 8 buffers | 25% — **dimmest** | ~244 Hz |
+| 8 MHz | 200 | scheme 1, 9 buffers | 44% | ~217 Hz |
+| 8 MHz | 150 | scheme 0, 12 buffers — same as shipped | 66% | ~163 Hz |
 
-So if you drop the clock, **drop `min_refresh_rate` with it** — halving the clock while leaving 240 in place is the worst of both worlds, forcing the maximum colour-depth sacrifice to claw back a refresh rate you were not going to keep anyway. If you see banding on long colour *gradients*, that is the colour-depth axis: raise the clock or lower `min_refresh_rate`. If you see banding on *video* of the panel, that is the refresh axis: raise `min_refresh_rate`.
+So if you drop the clock, **drop `min_refresh_rate` with it** — halving the clock while leaving 240 in place is the worst of both worlds, giving up most of the panel's light to claw back a refresh rate you were not going to keep anyway. If you see banding on *video* of the panel, that is the refresh axis: raise `min_refresh_rate`. (The 8 MHz rows are computed from the chain lengths, not re-measured since the chain changed; the 16 MHz row is what the panel reports.)
 
 > **Lowering the panel clock is also an EMI knob**, and it has been measured. 8 MHz improves Wi-Fi latency on the reference unit (median 15 → 4 ms) and one contributor found it was the difference between a usable and an unusable radio on their board — but at any `min_refresh_rate` that preserves colour depth it bands on video, so it is not shipped. Full measurements, the parts that cannot be adopted (do **not** raise the Wi-Fi TX power — it is a conformance setting), and what to try first if your unit's Wi-Fi is bad: [docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md](../docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md).
 

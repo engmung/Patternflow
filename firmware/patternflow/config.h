@@ -300,17 +300,23 @@ constexpr float EULER      = 2.71828182845904523536f;
 #define LED_GAMMA_B 1.0f
 #endif
 
-// Tuned by eye against the Calibration preset's WHITE screen (2026-08-09,
-// maintainer's v2.x panel): this panel leans warm, so red is trimmed hardest.
-// Tune live via /api/display, then land the converged numbers here.
+// Identity, on purpose (2026-09-17). The 0.930 / 1.000 / 0.975 that stood here
+// from 2026-08-09 was converged by eye at full white against the upstream OE
+// windows, whose top planes are far from binary - so it corrected that driver's
+// error at one level, not the panel. Once the plane weights moved (see
+// pfOEWindowPixels in the vendored driver) the same numbers read pink across the
+// greys, and the panel with no correction at all read neutral. A white balance
+// is only meaningful on top of a response whose channel ratio holds at every
+// level; tune live via /api/display or /panel-tuner.html, judge on the GRAYS
+// screen and not on white alone, then land the converged numbers here.
 #ifndef LED_WB_R
-#define LED_WB_R 0.930f
+#define LED_WB_R 1.000f
 #endif
 #ifndef LED_WB_G
 #define LED_WB_G 1.000f
 #endif
 #ifndef LED_WB_B
-#define LED_WB_B 0.975f
+#define LED_WB_B 1.000f
 #endif
 
 // Saturation boost is applied before gamma in present(). Gray stays gray

@@ -33,6 +33,34 @@
  */
 #define PIXEL_COLOR_MASK_BIT(color_depth_index, mask_offset) (1 << (color_depth_index + mask_offset))
 
+// PATTERNFLOW: how many EXTRA times one row sends plane `plane`, after the pass
+// that sends every plane once. This replaces upstream's 2^(i - L - 1) rule, and
+// pfOEWindowPixels() further down is its other half - read that comment first.
+//
+// Upstream's rule cannot be made binary without throwing light away. A plane is
+// on the LEDs while the NEXT buffer clocks in, a window belongs to a buffer and
+// not to a pass, and under the 2^k rule the windows that the top plane needs
+// wide are the same ones the planes below it need narrow. Solved exactly, that
+// chain (15 buffers a row on the shipped panel) keeps 42% of the row lit.
+//
+// Searching every grouped order of up to 16 buffers a row for the exactly-binary
+// solution that keeps the most of the row lit found this one, and nothing close:
+//
+//   scheme 0   all planes, then D-2 once, then D-1 three times     D + 4 buffers
+//              depth 8:  0 1 2 3 4 5 6 7 6 7 7 7   -> 66% of the row lit
+//   scheme 1   all planes, then D-1 once                            D + 1 buffers
+//   scheme 2   all planes                                           D buffers
+//
+// Fewer buffers is also a faster refresh: 12 against 15 is 325 Hz against 260 on
+// the shipped panel. Schemes 1 and 2 are the fallbacks for a row too long to
+// reach min_refresh_rate with scheme 0; they are dimmer, and still binary.
+static inline int pfChainExtraPasses(int plane, int depth, int scheme)
+{
+  if (scheme == 0 && depth >= 3) return (plane == depth - 1) ? 3 : (plane == depth - 2) ? 1 : 0;
+  if (scheme <= 1 && depth >= 2) return (plane == depth - 1) ? 1 : 0;
+  return 0;
+}
+
 bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
 {
   
@@ -85,38 +113,25 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
 
   ESP_LOGI("I2S-DMA", "Minimum visual refresh rate (scan rate from panel top to bottom) requested: %d Hz", m_cfg.min_refresh_rate);
 
-  while (1)
+  // PATTERNFLOW: pick the brightest chain scheme that still clears the refresh
+  // floor (see pfChainExtraPasses). lsbMsbTransitionBit is no longer used.
+  for (pfChainScheme = 0; ; pfChainScheme++)
   {
     int psPerClock = 1000000000000UL / m_cfg.i2sspeed;
     int nsPerLatch = ((PIXELS_PER_ROW + CLKS_DURING_LATCH) * psPerClock) / 1000; // time per row
 
-    // add time to shift out LSBs + LSB-MSB transition bit - this ignores fractions...
-    int nsPerRow = m_cfg.getPixelColorDepthBits() * nsPerLatch;
+    int buffersPerRow = m_cfg.getPixelColorDepthBits();
+    for (int i = 0; i < m_cfg.getPixelColorDepthBits(); i++)
+      buffersPerRow += pfChainExtraPasses(i, m_cfg.getPixelColorDepthBits(), pfChainScheme);
 
-    // Now add the time for the remaining bit depths
-    for (int i = lsbMsbTransitionBit + 1; i < m_cfg.getPixelColorDepthBits(); i++) {
-      //nsPerRow += (1 << (i - lsbMsbTransitionBit - 1)) * (m_cfg.getPixelColorDepthBits() - i) * nsPerLatch;
-	  nsPerRow += (1 << (i - lsbMsbTransitionBit - 1)) *  nsPerLatch;
-	}
-
-    int nsPerFrame = nsPerRow * ROWS_PER_FRAME;
+    int nsPerFrame = buffersPerRow * nsPerLatch * ROWS_PER_FRAME;
     int actualRefreshRate = 1000000000UL / (nsPerFrame);
     calculated_refresh_rate = actualRefreshRate;
 
-    ESP_LOGW("I2S-DMA", "lsbMsbTransitionBit of %d gives %d Hz refresh rate.", lsbMsbTransitionBit, actualRefreshRate);
+    ESP_LOGW("I2S-DMA", "chain scheme %d: %d buffers per row, %d Hz refresh rate.", pfChainScheme, buffersPerRow, actualRefreshRate);
 
-    if (actualRefreshRate > m_cfg.min_refresh_rate)
+    if (actualRefreshRate > m_cfg.min_refresh_rate || pfChainScheme >= 2)
       break;
-
-    if (lsbMsbTransitionBit < m_cfg.getPixelColorDepthBits() - 1)
-      lsbMsbTransitionBit++;
-    else
-      break;
-  }
-
-  if (lsbMsbTransitionBit > 0)
-  {
-    ESP_LOGW("I2S-DMA", "lsbMsbTransitionBit of %d used to achieve refresh rate of %d Hz. Percieved colour depth to the eye may be reduced.", lsbMsbTransitionBit, m_cfg.min_refresh_rate);
   }
 
   ESP_LOGI("I2S-DMA", "DMA frame buffer color depths: %d", m_cfg.getPixelColorDepthBits());
@@ -147,8 +162,8 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
   int dma_descriptors_per_row = dma_descs_per_row_all_cdepths;
 
   // Add descriptors for MSB bits after transition
-  for (int i = lsbMsbTransitionBit + 1; i < m_cfg.getPixelColorDepthBits(); i++) {
-    dma_descriptors_per_row += (1 << (i - lsbMsbTransitionBit - 1)) * dma_descs_per_row_1cdepth;
+  for (int i = 0; i < m_cfg.getPixelColorDepthBits(); i++) {
+    dma_descriptors_per_row += pfChainExtraPasses(i, m_cfg.getPixelColorDepthBits(), pfChainScheme) * dma_descs_per_row_1cdepth;
   }
   
   //dma_descriptors_per_row = 1;
@@ -203,13 +218,13 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
 	  }
 	
       // Step 2: Handle additional descriptors for bits beyond the lsbMsbTransitionBit 
-      for (int i = lsbMsbTransitionBit + 1; i < m_cfg.getPixelColorDepthBits(); i++) 
+      for (int i = 0; i < m_cfg.getPixelColorDepthBits(); i++) 
 	  {
 		  // binary time division setup: we need 2 of bit (LSBMSB_TRANSITION_BIT + 1) four of (LSBMSB_TRANSITION_BIT + 2), etc
 		  // because we sweep through to MSB each time, it divides the number of times we have to sweep in half (saving linked list RAM)
 		  // we need 2^(i - LSBMSB_TRANSITION_BIT - 1) == 1 << (i - LSBMSB_TRANSITION_BIT - 1) passes from i to MSB
 
-		  for (int k = 0; k < (1 << (i - lsbMsbTransitionBit - 1)); k++)
+		  for (int k = 0; k < pfChainExtraPasses(i, m_cfg.getPixelColorDepthBits(), pfChainScheme); k++)
 		  {		  
 			  // Link and send all colour data, all passes of everything in one hit.
 			  for (int dma_desc_1cdepth = 0; dma_desc_1cdepth < dma_descs_per_row_1cdepth; dma_desc_1cdepth++) 
@@ -882,55 +897,76 @@ void MatrixPanel_I2S_DMA::clearFrameBuffer(bool _buff_id)
   } while (row_idx);
 }
 
-// PATTERNFLOW FIX: how wide one plane's OE window is, computed rather than
-// approached by shifting. Extracted from setBrightnessOE below so it can be
-// tested on a host - the bug was never in writing the buffer, it was here.
+// PATTERNFLOW FIX: how wide the OE window written into one plane's buffer is.
+// Pure, so toolchain/check_oe.py can lift it out verbatim and test it on a host.
 //
-// A BCM plane's delivered light is its OE window times the number of times the
-// descriptor chain repeats it. The repeats already carry one factor of two per
-// plane above lsbMsbTransitionBit, so the window has to supply the rest:
+// THE FACT EVERYTHING HERE RESTS ON. A plane's bits are latched at the END of
+// its buffer, so they are on the LEDs while the NEXT buffer in the descriptor
+// chain clocks in - and it is that next buffer's OE bits that gate them.
+// clearFrameBuffer() already knows this: it marks buffer 0 with the PREVIOUS
+// row's address "because it is used to display previous row while we pump in
+// MSBs for the next row". So the window written into buffer b does not light
+// plane b. It lights whatever was latched before it, and buffer 0's window is
+// the top plane's - which is what upstream's (2 * depth - colouridx) % depth was
+// reaching for when it gave "the LSB" a full window.
 //
-//     window[d] = u * 2^d / repeats(d)
+// With the chain from pfChainExtraPasses(), at depth 8, scheme 0:
 //
-// which is u for plane 0, 2u for plane 1 once past the transition, and a
-// constant above it. Normalising by the widest, 2^(L+1), keeps every window
-// inside the row at full brightness.
+//     sent      0  1  2  3  4  5  6  7  6  7  7  7 | next row's 0
+//     lights    7' 0  1  2  3  4  5  6  7  6  7  7   (7' = previous row's)
 //
-// What was here could not express that. It derived a shift:
+//     light[p] = W[p+1]                   p <= 4         1/32 .. 1/2 of a row
+//     light[5] = W[6]                                    1
+//     light[6] = W[7] + W[7]                             2
+//     light[7] = W[6] + W[7] + W[7] + W[0]               4
 //
-//     bitplane   = (2 * depth - colouridx) % depth
-//     rightshift = max(bitplane - bitshift - 2, 0)
+// so W = [1, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 1] is exactly binary, every window is
+// the full one shifted right, and floors keep it strictly ordered at every
+// brightness (sum of floor(n / 2^j) over j >= 1 is n - popcount(n) < n). Schemes
+// 1 and 2 are the same shape with one and no extra pass.
 //
-// and a shift can only halve. Worse, the modulo maps plane 0 - the LSB - to
-// bitplane 0, which takes the max() floor and hands it the same full-length
-// window the MSB gets. Measured at depth 8 with lsbMsbTransitionBit 0, the
-// delivered weights came out [125, 31, 126, 500, 1000, 2000, 4000, 8000]
-// against a binary [62, 125, 250, 500, ...]: plane 0 twice what it should be,
-// plane 1 a quarter, plane 2 a half, and planes 3-7 correct.
+// TWO EARLIER VERSIONS OF THIS FUNCTION WERE WRONG, and the record matters more
+// than the embarrassment. Both kept upstream's chain (at depth 8, L = 4:
+// 0 1 2 3 4 5 6 7 5 6 6 7 7 7 7). 2026-09-10 read the full window on buffer 0
+// as an LSB bug and shrank it, which took a fifth of the top plane's light away.
+// The morning of 2026-09-17 corrected the repeat counts and kept the same
+// misreading - window b lights plane b - and was worse. Both were "verified" by
+// a test that modelled delivered light the same wrong way, so tens of thousands
+// of assertions agreed with them. Light per plane 0-7 at full brightness:
 //
-// The consequence is not subtle. Swept over all 256 codes and three channels,
-// that produced 26 places where raising the code LOWERS the light - two of
-// them by 50%, back to back at 13->14 and 14->15 - and 44 of 256 levels whose
-// channel ratio departs from the configured white balance. Confirmed on a
-// panel: level 14 reads red where 13 is neutral. With the weights binary,
-// the inversions go to zero and the ratio departures to 11.
+//     upstream    7 15 31 63 125 250 375 625    3 codes where light goes DOWN
+//     09-10       7 15 31 63 125 250 375 503    3, and 127 -> 128 loses 42%
+//     09-17 a.m.  9 19 39 78  78 210 355 458    15 such codes
+//     this        3  7 15 31  62 125 250 500    none
 //
-// Full-scale luminance moves 15,782 -> 15,938, about 1%, so the eye-converged
-// brightness and white-balance constants keep their meaning.
-int pfOEWindowPixels(int plane, int depth, int lsbMsbTransitionBit,
+// What it looked like: a pattern whose background is a near-white (214,211,204)
+// and whose edges fade to dark. Each channel crosses code 128 at a different
+// point along the fade, and the one that has crossed is suddenly far brighter
+// than the ones that have not - blue first, a purple fringe; then green, a
+// sky-blue one; then red, and it is neutral again. Fringes round every star and
+// petal. A grey test card at identity white balance cannot show this: all three
+// channels cross together.
+//
+// Solving upstream's chain exactly was the first thing tried and was confirmed
+// fringe-free on the panel, but it keeps only 42% of the row lit and was too
+// dark to ship. This chain keeps 66% (upstream's, not binary: 80%).
+int pfOEWindowPixels(int buffer, int depth, int scheme,
                      int width, int blank, int brt)
 {
-  if (plane < 0 || plane >= depth) return 0;
-  const int repeats = (plane <= lsbMsbTransitionBit)
-                          ? 1
-                          : (1 << (plane - lsbMsbTransitionBit - 1));
-  const int scale = (1 << plane) / repeats;   // 1, then 2, 4 ... up to 2^(L+1)
-  int px = (int)(((uint32_t)(width - blank) * (uint32_t)brt * (uint32_t)scale)
-                 >> (8 + lsbMsbTransitionBit));
-  px = (px >> 1) | (px & 1);                  // the window is centred on the row
-  if (px > width) px = width;
-  if (px < 0) px = 0;
-  return px;
+  if (buffer < 0 || buffer >= depth) return 0;
+  int full = (int)(((uint32_t)(width - blank) * (uint32_t)brt) >> 8);
+  if (full > width) full = width;
+  if (full < 0) full = 0;
+
+  // The buffers whose window is the full one: buffer 0 always (the top plane's
+  // last pass), and every buffer that is sent again.
+  int firstFull = depth;                       // lowest buffer index >= 1 at full width
+  if (scheme == 0 && depth >= 3) firstFull = depth - 2;
+  else if (scheme <= 1 && depth >= 2) firstFull = depth - 1;
+
+  if (buffer == 0 || buffer >= firstFull) return full;
+  const int shift = firstFull - buffer;        // 1 for the buffer just below, and so on down
+  return (shift < 31) ? (full >> shift) : 0;
 }
 
 void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
@@ -945,6 +981,12 @@ void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
   uint8_t _depth = fb->rowBits[0]->colour_depth;
   uint16_t _width = fb->rowBits[0]->width;
 
+  // One window per buffer, the same for every row - see pfOEWindowPixels above
+  // for which plane each one actually lights.
+  int windows[16] = {0};
+  for (int b = 0; b < _depth && b < 16; b++)
+    windows[b] = pfOEWindowPixels(b, _depth, pfChainScheme, _width, _blank, brt);
+
   // start with iterating all rows in dma_buff structure
   int row_idx = fb->rowBits.size();
   do
@@ -957,10 +999,7 @@ void MatrixPanel_I2S_DMA::setBrightnessOE(uint8_t brt, const int _buff_id)
     {
       --colouridx;
 
-      // See pfOEWindowPixels above for why this is a division and not a shift.
-      int brightness_in_x_pixels = pfOEWindowPixels(colouridx, _depth,
-                                                    lsbMsbTransitionBit,
-                                                    _width, _blank, brt);
+      int brightness_in_x_pixels = windows[colouridx];
 
       // switch pointer to a row for a specific color index
       ESP32_I2S_DMA_STORAGE_TYPE *row = fb->rowBits[row_idx]->getDataPtr(colouridx);
