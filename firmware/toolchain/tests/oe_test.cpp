@@ -29,6 +29,7 @@
 //      binary within 10% at every brightness.
 //   3. The response over all 256 input codes is monotone there, per channel.
 //   4. Full scale on that configuration, so a change that moves it has to say so.
+//   5. The frame is padded to exactly 300 Hz - the rate phone shutters divide.
 //
 // License: MIT
 #include <algorithm>
@@ -179,6 +180,36 @@ int main() {
     for (long l : deliveredLight(8, 0, 128, 2, 255)) full += l;
     require(full > 950 && full < 1040,
             "full-scale luminance moved out of band: " + std::to_string(full));
+
+    // 5. the frame is padded to exactly 300 Hz, and only when that is padding's job
+    //
+    // A row is lit once per refresh, for 1/32 of it - a pulse. A rolling shutter
+    // collects a whole number of pulses per sensor line unless its exposure is an
+    // exact multiple of the refresh period, and phones pin exposure to 1/50, 1/100,
+    // 1/25 or 1/60, 1/30: 300 Hz is the lowest rate all of those divide. Twelve
+    // buffers of 128 over 32 row pairs is 49,152 clocks; 16 MHz / 300 is 53,333.
+    {
+      const long frame = 12L * 128 * 32;
+      const long pad = pfFramePadWords(16000000L, frame, 300, 240);
+      require(pad == 4181, "shipped panel pads " + std::to_string(pad) + " clocks, not 4181");
+      const double hz = 16000000.0 / (double)(frame + pad);
+      require(hz > 299.99 && hz < 300.01, "padded refresh is " + std::to_string(hz) + " Hz");
+      // every shutter a phone is likely to pick is a whole number of periods, to
+      // well inside the width of one row's pulse (1/32 of a period)
+      for (double shutter : {1.0 / 25, 1.0 / 30, 1.0 / 50, 1.0 / 60, 1.0 / 100}) {
+        const double periods = shutter * hz;
+        const double off = periods - (double)(long)(periods + 0.5);
+        require(off > -1.0 / 64 && off < 1.0 / 64,
+                "a shutter of 1/" + std::to_string((int)(1.0 / shutter + 0.5)) + " is " +
+                    std::to_string(periods) + " periods");
+        ++cases;
+      }
+      require(pfFramePadWords(16000000L, frame, 0, 240) == 0, "target 0 must switch padding off");
+      require(pfFramePadWords(16000000L, frame, 200, 240) == 0, "never pad below the refresh floor");
+      require(pfFramePadWords(8000000L, frame, 300, 150) == 0, "a frame already longer than the target is left alone");
+      require(pfFramePadWords(16000000L, 8L * 128 * 32, 300, 240) == 0, "a gap that big is a different chain, not padding");
+      cases += 4;
+    }
 
     std::cout << "OE windows binary and response monotone; " << cases
               << " assertions, full scale " << full << std::endl;

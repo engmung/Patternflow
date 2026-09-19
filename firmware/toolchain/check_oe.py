@@ -29,9 +29,10 @@ def main():
     header = (driver / 'ESP32-HUB75-MatrixPanel-I2S-DMA.h').read_text(encoding='utf-8')
 
     # The function under test, taken from the tracked driver rather than restated.
-    start = cpp.index('int pfOEWindowPixels(')
-    end = cpp.index('\n}', start) + len('\n}')
-    fn = cpp[start:end]
+    def lift(signature):
+        start = cpp.index(signature)
+        return cpp[start:cpp.index('\n}', start) + len('\n}')]
+    fn = lift('long pfFramePadWords(') + '\n' + lift('int pfOEWindowPixels(')
 
     table = re.search(r'static const uint16_t lumConvTab\[\]\s*=\s*\{.*?\};', header, re.S)
     if not table:

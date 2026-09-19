@@ -4,6 +4,12 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+## [3.10.4] - 2026-09-19
+
+### Firmware
+
+- **The panel refreshes at exactly 300 Hz, because that is what a phone can film.** A row is lit once per refresh for 1/32 of it - a pulse, not a glow - so a rolling shutter collects a whole number of pulses per sensor line, and unless the exposure is an exact multiple of the refresh period some lines get N and some N + 1: bands. Phones pin exposure to 1/50, 1/100, 1/25 or 1/60, 1/30 to dodge mains flicker, and 300 Hz is the lowest rate all of those divide. 3.10.3's 325.5 Hz sat close to the worst case for both 1/50 (6.51 periods - the whole picture banded) and 1/60 (5.43), and it showed: more lines on video than the 260 Hz it replaced, which had happened to sit nearer whole numbers. Every frame now ends in 4,181 blank clocks, output off, bringing it to 16 MHz / 300 = 53,333. Simulated band contrast at 1/25, 1/30, 1/50, 1/60 and 1/100 goes to zero, and it looked that way through a phone. It costs about 8% of the light and no CPU at all - the DMA engine walks the chain by itself; frame and push times on the panel are unchanged. **1/120 and faster still band**, at any rate this clock can reach (that would take 600 Hz), and so does slow motion: lock the shutter at 1/60 or 1/50, or turn the panel down so the phone lengthens its exposure. `PF_TARGET_REFRESH_HZ` (0 to switch off); never pads below `min_refresh_rate`. The old claim in `firmware/README.md` - past 240 Hz a camera "averages 4+ cycles and the bands disappear" - was wrong, and is replaced with how it actually works.
+
 ## [3.10.3] - 2026-09-17
 
 ### Hardware
