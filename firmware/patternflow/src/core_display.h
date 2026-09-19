@@ -20,15 +20,19 @@ inline void initDisplay() {
   // Panel driver IC — see PANEL_PROFILE / HUB75_DRIVER in config.h.
   mxconfig.driver = HUB75_DRIVER;
 
-  // Push panel refresh to ~240 Hz so phone-camera rolling shutter
-  // averages multiple cycles per exposure and the BCM bit-plane flicker
-  // stops showing up as visible bands on video. I2S/DMA refresh runs on
+  // The refresh floor. What a phone actually needs is not "fast" but "exact":
+  // each row is a short pulse once per refresh, a rolling shutter collects a
+  // whole number of them per sensor line, and only an exposure that is an
+  // exact multiple of the period gives every line the same number. The
+  // vendored driver therefore pads each frame to exactly 300 Hz - the lowest
+  // rate 1/50, 1/100, 1/25, 1/60 and 1/30 all divide (PF_TARGET_REFRESH_HZ
+  // in src/hub75). This floor only says how low it may go. I2S/DMA refresh runs on
   // hardware peripherals in parallel with the CPU, so this costs zero
   // rendering FPS. The trade is brightness, not colour depth: the vendored
   // driver picks the brightest bit-plane chain that clears this floor
   // (pfChainExtraPasses in src/hub75), and every chain it can pick is
-  // exactly binary. At 16 MHz and 128 wide the brightest one already runs
-  // at 325 Hz, so this floor is not what limits the shipped panel.
+  // exactly binary. At 16 MHz and 128 wide the brightest one runs at 325 Hz
+  // before padding, so this floor is not what limits the shipped panel.
   //
   // ⚠️ If an EMC radiated-emissions test fails: this clock and its harmonics,
   // streamed continuously down the HUB75 ribbon, are the loudest thing in the

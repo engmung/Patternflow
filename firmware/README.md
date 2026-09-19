@@ -715,28 +715,32 @@ LED panels render the same RGB triplets differently than a calibrated monitor �
 Tune live from `/api/display` (the `/status` page has the sliders), then land the converged numbers in your secrets file. The comments in `config.h` above each value record how they were arrived at.
 
 ### Refresh rate (anti-flicker for video)
-`core_display.h` configures the panel for ~240Hz refresh:
+`core_display.h` sets the refresh floor, and the vendored driver lands the panel on **exactly 300 Hz**:
 
 ```cpp
 mxconfig.i2sspeed         = HUB75_I2S_CFG::HZ_15M;  // pixel clock — see below, this is 16 MHz
-mxconfig.min_refresh_rate = 240;                      // refresh floor (shipped chain: 325 Hz)
+mxconfig.min_refresh_rate = 240;                      // refresh floor (shipped: exactly 300 Hz)
 mxconfig.latch_blanking   = 2;                        // brightness uniformity
 ```
 
 > **The library's clock enum names are wrong.** `HZ_15M` is `16000000` and `HZ_10M` is `8000000` — `HZ_8M` and `HZ_10M` are the same value, and there is nothing between 8 and 16 MHz. Read the enum, not the name, and if you are hunting harmonics on a spectrum analyser the fundamental is at **16 MHz** (so 96, 112, 128, 144, 160 MHz…), not 15.
 
-HUB75's BCM (binary code modulation) cycles bit planes at the library default ~120Hz, which aliases against phone-camera rolling shutter and shows up as visible flicker bands on video. Pushing refresh past 240Hz means a 60fps camera averages 4+ cycles per exposure and the bands disappear. I2S/DMA refresh runs on the ESP32-S3's hardware peripherals in parallel with the CPU, so this costs zero rendering FPS.
+A HUB75 panel lights one row pair at a time: each row is on for 1/32 of a refresh and dark for the rest — a short pulse, not a glow. A phone's rolling shutter exposes each sensor line for the same length of time but starting a little later than the one above, so each line collects a whole number of those pulses. If the exposure is an exact multiple of the refresh period, every line collects the same number and the picture is clean. If it is not, some lines get N pulses and some N + 1, and that is the banding you see on video — its contrast is about 1/N, and how much of the picture it covers depends on how far the exposure is from a whole number of periods. A faster refresh makes the bands fainter and *more numerous*; it does not make them go away.
+
+Exposure times are not arbitrary, though. To dodge mains flicker a phone pins them to 1/50, 1/100, 1/25 (50 Hz countries) or 1/60, 1/30 (60 Hz countries), and **300 Hz is the lowest rate all of those are whole multiples of**. The shipped chain would naturally run at 325.5 Hz — nearly the worst case for 1/50 (6.51 periods) and 1/60 (5.43) — so the driver ends every frame with 4,181 blank clocks, output off, to make it 16 MHz / 300 = 53,333 clocks exactly (`PF_TARGET_REFRESH_HZ` in `src/hub75/`, 0 to switch off; it never pads below `min_refresh_rate`). About 8% of the light, and no CPU: refresh runs on the ESP32-S3's DMA hardware in parallel with everything else.
+
+What 300 Hz cannot fix: **1/120 and faster, and slow motion.** At 1/120 an exposure is 2.5 periods — the worst case — and the rate that would cover it, 600 Hz, is out of reach of a 16 MHz clock at 8 bits. When filming: lock the shutter at 1/60 or 1/50 (a manual camera app, or pro mode), or turn the panel *down* so the phone lengthens its exposure; lock white balance and focus; switch HDR and night modes off.
 
 The trade-off is brightness. A row is sent as a chain of bit-plane buffers, and the vendored driver picks the brightest chain that still clears `min_refresh_rate` (`pfChainExtraPasses` in `src/hub75/`, and `VENDORED.md` beside it for why the chain is not upstream's). Every scheme is exactly binary — colour depth is never what gets sacrificed — but a shorter chain keeps less of each row lit. **Both settings move together — you cannot lower one without deciding about the other.** On the reference panel (128×64, 8-bit):
 
 | `i2sspeed` | `min_refresh_rate` | Chain | Row lit | Actual refresh |
 |---|---|---|---|---|
-| 16 MHz | 240 *(shipped)* | scheme 0, 12 buffers | 66% | ~325 Hz |
+| 16 MHz | 240 *(shipped)* | scheme 0, 12 buffers, padded | 61% | 300 Hz exactly |
 | 8 MHz | 240 | scheme 2, 8 buffers | 25% — **dimmest** | ~244 Hz |
 | 8 MHz | 200 | scheme 1, 9 buffers | 44% | ~217 Hz |
 | 8 MHz | 150 | scheme 0, 12 buffers — same as shipped | 66% | ~163 Hz |
 
-So if you drop the clock, **drop `min_refresh_rate` with it** — halving the clock while leaving 240 in place is the worst of both worlds, giving up most of the panel's light to claw back a refresh rate you were not going to keep anyway. If you see banding on *video* of the panel, that is the refresh axis: raise `min_refresh_rate`. (The 8 MHz rows are computed from the chain lengths, not re-measured since the chain changed; the 16 MHz row is what the panel reports.)
+So if you drop the clock, **drop `min_refresh_rate` with it** — halving the clock while leaving 240 in place is the worst of both worlds, giving up most of the panel's light to claw back a refresh rate you were not going to keep anyway. Banding on *video* of the panel is a matter of shutter against refresh, as above — at 8 MHz the frame is already longer than 1/300 s, nothing is padded, and the rates in the table are what you get. (The 8 MHz rows are computed from the chain lengths, not re-measured since the chain changed; the 16 MHz row is what the panel reports.)
 
 > **Lowering the panel clock is also an EMI knob**, and it has been measured. 8 MHz improves Wi-Fi latency on the reference unit (median 15 → 4 ms) and one contributor found it was the difference between a usable and an unusable radio on their board — but at any `min_refresh_rate` that preserves colour depth it bands on video, so it is not shipped. Full measurements, the parts that cannot be adopted (do **not** raise the Wi-Fi TX power — it is a conformance setting), and what to try first if your unit's Wi-Fi is bad: [docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md](../docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md).
 

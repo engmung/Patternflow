@@ -169,7 +169,8 @@ W      =  1, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 1          light 3 7 15 31 62 125 250
 
 Twelve buffers instead of fifteen, 66% of the row lit, every window the full one
 shifted right — so floors keep the planes strictly ordered at every brightness
-with no repair step — and the refresh rises from 260 to 325 Hz for free.
+with no repair step — and the refresh rises from 260 to 325 Hz (before the
+padding described below brings it to exactly 300).
 `pfChainExtraPasses()` is that rule (`begin()` uses it in its refresh arithmetic,
 its descriptor count and its linking loop), `pfOEWindowPixels()` is the windows,
 and `lsbMsbTransitionBit` is no longer used: `begin()` picks a *scheme* instead —
@@ -184,6 +185,24 @@ credits each buffer's window to the plane latched before it. Both earlier driver
 fail it immediately. **The lesson is the test's, not the driver's:** 30,000
 assertions agreed with two wrong versions because the reference modelled
 delivered light the same wrong way.
+
+**2026-09-19: every frame is padded to exactly 300 Hz.** 325.5 Hz turned out to
+be worse on a phone than the 260 it replaced, and the reason is worth keeping. A
+row is lit once per refresh for 1/32 of it — a pulse — so a rolling shutter
+collects a whole number of pulses per sensor line; unless the exposure is an exact
+multiple of the refresh period some lines get N and some N + 1, which is the
+banding. A faster refresh makes the bands fainter and more numerous, not absent.
+Phones pin exposure to 1/50, 1/100, 1/25 or 1/60, 1/30, and 300 Hz is the lowest
+rate all of those divide; 325.5 is 6.51 periods at 1/50 and 5.43 at 1/60, close to
+the worst case for both. `begin()` now links a run of blank words (OE off, address
+left on the last row, no latch) after the last row of every frame:
+`pfFramePadWords()` says how many — 4,181, making 53,333 clocks — and one 256-word
+buffer is linked as often as that takes. About 8% of the light, 640 bytes, no CPU;
+frame and push times measured on the panel did not move. It does nothing for 1/120
+and faster (2.5 periods; covering it would take 600 Hz, which 16 MHz cannot reach
+at 8 bits). `check_oe.py` lifts `pfFramePadWords()` too and asserts the shipped
+frame lands on 300 Hz and every one of those shutters is a whole number of
+periods. Confirmed through a phone on the panel.
 
 **Power.** `core_power.h`'s full-white figure (4.8 A) was measured on upstream's
 windows, which kept 80% of the row lit; this keeps 66%, so the model now

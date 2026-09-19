@@ -54,6 +54,40 @@
 // Fewer buffers is also a faster refresh: 12 against 15 is 325 Hz against 260 on
 // the shipped panel. Schemes 1 and 2 are the fallbacks for a row too long to
 // reach min_refresh_rate with scheme 0; they are dimmer, and still binary.
+// PATTERNFLOW: pad every frame out to an exact refresh rate, for cameras.
+//
+// A row is lit once per refresh, for 1/32 of it - a short pulse, not a glow. A
+// phone's rolling shutter therefore collects a whole number of pulses per sensor
+// line, and unless the exposure is an exact multiple of the refresh period some
+// lines get N and some N + 1: bands. Exposure times are not arbitrary - mains
+// flicker avoidance pins them to 1/50, 1/100, 1/25 or 1/60, 1/30 - and the
+// lowest rate all of those are whole multiples of is 300 Hz. The 12-buffer chain
+// runs at 325.5, which is close to the worst case for 1/50 (6.51 periods) and
+// 1/60 (5.43). So: a run of blank words, OE off, at the end of every frame,
+// bringing it to 16 MHz / 300 = 53,333 clocks. About 8% of the light, no CPU at
+// all - the DMA engine walks the chain by itself - and 1/120 and faster still
+// band at any rate this clock can reach (it would take 600 Hz).
+// 0 turns it off. Never pads below min_refresh_rate.
+#ifndef PF_TARGET_REFRESH_HZ
+#define PF_TARGET_REFRESH_HZ 300
+#endif
+static constexpr int PF_PAD_CHUNK_WORDS = 256;      // one small blank buffer, linked as often as needed
+static ESP32_I2S_DMA_STORAGE_TYPE *pfPadBuffer = nullptr;
+
+// How many blank clocks one frame needs. Pure, so check_oe.py lifts it out and
+// tests it on a host. 0 means "leave the frame alone": padding is off, the target
+// is not above the refresh floor, the frame is already longer than the target
+// (a slower clock - there is nothing to pad toward), or the gap is more than a
+// quarter of the frame, which would be a different chain's job and not padding's.
+long pfFramePadWords(long clockHz, long frameWords, long targetHz, long minRefreshHz)
+{
+  if (targetHz <= 0 || targetHz <= minRefreshHz || clockHz <= 0 || frameWords <= 0) return 0;
+  const long targetWords = (clockHz + targetHz / 2) / targetHz;
+  if (targetWords <= frameWords) return 0;
+  if (targetWords - frameWords >= frameWords / 4) return 0;
+  return targetWords - frameWords;
+}
+
 static inline int pfChainExtraPasses(int plane, int depth, int scheme)
 {
   if (scheme == 0 && depth >= 3) return (plane == depth - 1) ? 3 : (plane == depth - 2) ? 1 : 0;
@@ -134,6 +168,36 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
       break;
   }
 
+  // PATTERNFLOW: frame padding to PF_TARGET_REFRESH_HZ (see above).
+  int pfPadWords = 0;
+  if (m_cfg.line_decoder != HUB75_I2S_CFG::SM5266P && m_cfg.line_decoder != HUB75_I2S_CFG::SM5368)
+  {
+    int buffersPerRow = m_cfg.getPixelColorDepthBits();
+    for (int i = 0; i < m_cfg.getPixelColorDepthBits(); i++)
+      buffersPerRow += pfChainExtraPasses(i, m_cfg.getPixelColorDepthBits(), pfChainScheme);
+    const long frameWords = (long)buffersPerRow * (PIXELS_PER_ROW + CLKS_DURING_LATCH) * ROWS_PER_FRAME;
+    const long wanted = pfFramePadWords((long)m_cfg.i2sspeed, frameWords, PF_TARGET_REFRESH_HZ, m_cfg.min_refresh_rate);
+    if (wanted > 0)
+    {
+      if (!pfPadBuffer)
+        pfPadBuffer = (ESP32_I2S_DMA_STORAGE_TYPE *)heap_caps_malloc(
+            PF_PAD_CHUNK_WORDS * sizeof(ESP32_I2S_DMA_STORAGE_TYPE), MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA);
+      if (pfPadBuffer)
+      {
+        // Output off, no latch, and the address left on the last row - whose top
+        // plane is still waiting for the next frame's buffer 0 to light it.
+        const ESP32_I2S_DMA_STORAGE_TYPE blank =
+            (ESP32_I2S_DMA_STORAGE_TYPE)(BIT_OE | ((ROWS_PER_FRAME - 1) << BITS_ADDR_OFFSET));
+        for (int i = 0; i < PF_PAD_CHUNK_WORDS; i++) pfPadBuffer[i] = blank;
+        pfPadWords = (int)wanted;
+        const long total = frameWords + wanted;
+        calculated_refresh_rate = (int)(((long)m_cfg.i2sspeed + total / 2) / total);
+        ESP_LOGW("I2S-DMA", "padding each frame with %d blank clocks: %d Hz refresh rate.", pfPadWords, calculated_refresh_rate);
+      }
+    }
+  }
+  const int pfPadDescriptors = (pfPadWords + PF_PAD_CHUNK_WORDS - 1) / PF_PAD_CHUNK_WORDS;
+
   ESP_LOGI("I2S-DMA", "DMA frame buffer color depths: %d", m_cfg.getPixelColorDepthBits());
 
 #endif
@@ -169,7 +233,7 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
   //dma_descriptors_per_row = 1;
 
   // Allocate DMA descriptors 
-  int dma_descriptions_required = dma_descriptors_per_row * ROWS_PER_FRAME;
+  int dma_descriptions_required = dma_descriptors_per_row * ROWS_PER_FRAME + pfPadDescriptors;
   
   ESP_LOGV("I2S-DMA", "DMA descriptors per row: %d", dma_descriptors_per_row);  
   ESP_LOGV("I2S-DMA", "DMA descriptors required per buffer: %d", dma_descriptions_required);    
@@ -246,6 +310,14 @@ bool MatrixPanel_I2S_DMA::setupDMA(const HUB75_I2S_CFG &_cfg)
 	  
 
     } // end all rows
+
+    // PATTERNFLOW: the blank run that brings the frame to its target length.
+    for (int left = pfPadWords; left > 0; left -= PF_PAD_CHUNK_WORDS)
+    {
+      const int words = (left < PF_PAD_CHUNK_WORDS) ? left : PF_PAD_CHUNK_WORDS;
+      dma_bus.create_dma_desc_link(pfPadBuffer, words * sizeof(ESP32_I2S_DMA_STORAGE_TYPE), (fb==1));
+      _dmadescriptor_count++;
+    }
 	
     ESP_LOGI("I2S-DMA", "Created %d DMA descriptors for buffer %d.", _dmadescriptor_count, fb);	
 	
