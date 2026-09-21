@@ -1,0 +1,67 @@
+---
+title: "The Messy Desk"
+date: "2026-09-21T21:40:00+09:00"
+excerpt: "On making things and showing them"
+cover: "/journal/the-messy-desk/messy-desk.jpg"
+coverCaption: "The messy desk"
+hideCover: true
+highlight: true
+draft: false
+---
+
+I'm not sure there's anything worth writing. Because everything's a jumble, like the messy desk in the photo below. The desk with the computer on it is in worse shape, so I won't be photographing that one.
+
+<figure className="journal-md-figure">
+  <img src="/journal/the-messy-desk/messy-desk.jpg" alt="A desk cluttered with cables, a notebook and books" />
+  <figcaption>The messy desk. The one with the computer is worse.</figcaption>
+</figure>
+
+While checking over and over whether the Patternflow I sent abroad is shipping okay, I've also been slowly preparing for an exhibition in Korea in October. I can't remember if I wrote about this before… Patternflow itself isn't what's being exhibited, but I'm turning several artists' paintings, illustrations, and sculptures into Patternflow versions and setting them up to one side so people can try them hands-on.
+
+Since these are people encountering it for the first time, it might be hard to use, so I'm making the hands-on version much simpler. One of the four knobs is used purely for switching patterns, and each pattern has only three parameters wired up. And since it has to line up with sound too, I'm trying to keep some consistency, one knob for size, one for speed, that kind of thing. I'm working on the sound alongside it. Whether it's going well, I don't know. For some of them I have no idea at all what sound to put in, so it isn't easy. I won't be able to do much else over Chuseok anyway, so if I keep at it then I think I'll get it finished one way or another.
+
+I've modified Simone's flowlocal a little and hooked it up to a laptop, taking the values coming out of Patternflow as MIDI and sending them into Ableton. flowlocal isn't public work yet, so to introduce it briefly: my understanding is that it's a device for making Patternflow fully standalone, an access point. The more accurate explanation will be in the repo Simone publishes later, of course, and the build guide is well made, so it's as easy to build as Patternflow.
+
+<figure className="journal-md-figure">
+  <img src="/journal/the-messy-desk/flowlocal.jpg" alt="Inside the flowlocal unit, with a battery and a small screen" />
+  <figcaption>The flowlocal I modified a little (and built a little wrong).</figcaption>
+</figure>
+
+That's a lot of unfamiliar terms, so what does it even mean… put simply, the idea is that when you turn Patternflow's knobs, the sound changes to match. Let's step through the path the signal travels. A visitor turns a knob! The ESP32 (a computer) on the Patternflow generates a signal for which knob turned and by how much. It's sent over WiFi to the ESP32 (another computer) in a device called flowlocal. Next it goes down the attached USB cable into a laptop (yet another computer). Finally it arrives at a music program called Ableton Live running there. And the sound changes to match! That's a lot of travel, but in practice it takes less than a tenth of a second.
+
+You might be wondering something. If the signal travels over WiFi anyway, why not just send it straight to the laptop? You can. It's easier. But what if the exhibition space's WiFi is too weak? What if it suddenly cuts out? Then there's a problem. To remove that risk, flowlocal turns on a hotspot so Patternflow gets stable WiFi of its own. That way I can verify the piece in my chaotic studio-slash-home and move it to the venue and reproduce it exactly. If I decided to use the venue's WiFi… I'd have to trust that their WiFi would work, and that uncertainty would wear me out. I don't want that.
+
+As you'll find out later, this might not be a proper use case for flowlocal. Because it was built assuming more than one Patternflow connected together. At least that's how I understand it. I could be wrong~!
+
+Anyway, that too, like Patternflow, is an attempt to create a new use case. I think that's my role in Patternflow going forward. Making all kinds of use cases to show what's possible. Writing entries like this regularly and posting patterns to Instagram is part of that role too, I think. People need to believe the project isn't going to die or flash and vanish, that it's steadily maintained and can grow, before they'll want to put in time and effort to contribute.
+
+There's a slightly disappointing part, too. Even people who contributed with real passion drift off somewhere after a little while. Of course that's inevitable. They don't get paid for contributing to Patternflow; they do it purely out of passion. And that passion keeps moving on to new things. But when someone works really hard and makes something and hands it to me first, I want to give something back, so I've sent people Patternflows. I believed that would make them work even harder. It leads to exactly the opposite result. The moment I give something, even if it isn't money, the moment I give something material, their activity drops off sharply.
+
+Whether it really happens because I gave them something isn't clear. It's natural that everyone's life gets busy and they find things to focus on more than Patternflow. So what should I do to get them to contribute harder and for longer? I don't know. The one who's contributed most deeply and for the longest, Simone, is someone I didn't give anything to, and maybe that's exactly why. I did give him clear credit, though! The reason I didn't give him anything else… he's a maker with far more experience and equipment than me, so there wasn't really anything I could give.
+
+Plenty of people in the community itself stop being active quickly, too. It's a shame, but it's natural, because I'm the same. I don't even open the dozens of other Discord servers besides Patternflow's. So someday I'll move the community to a separate forum on Discourse. Exactly when, I don't know. I'm worried that doing it too hastily would turn it into a completely dead community, so I haven't moved it. Maybe once the funding units ship and the number of people actually using it grows? But that number isn't meaningfully large… hm. I should just ask someone who's done it before.
+
+Even if it's only for a short while, the things that come out of a burst of passion are the best. Maybe I was like that too when I first built Patternflow, and looking at the people who improve the 3D model or make new ones, they do it really fast and really well. They probably have more modeling experience than me. Honestly, all I've ever done is Geometry Nodes, over and over… so that's probably right. Anyway, I have to make it so the whole community can share the products of that passion. How far I should go, I don't know. If someone just gives me the result, should I organize and document it myself, or should I add it only when they propose it with documentation included? I could end up neither here nor there just thinking about it, and I think I already am. Anyway.
+
+Of the grant I keep mentioning, I've decided to spend 3.5 million won not on advertising but on making a project video. It wasn't a healthy decision, since last Thursday I got the mentor's approval on how to use the grant and sent an email. But there was no reply until Saturday or Sunday morning, so, wondering if they weren't going to do it, I looked into other studios. Put simply, the point is that I did it out of anxiety, and there was actually no reason to. Even if I ran ads, I'd need Patternflows to send out, and there was no reason at all to decide before the parts for that had even arrived. That uncertain state is just hard for me to bear.
+
+Anyway, for that reason I've decided to commission a new video production studio, and there's a detailed meeting tomorrow. Since it's come to this, let me make it a great project video and use it later when I submit to competitions somewhere. It isn't easy to commission a video with this much money. If the grant weren't restricted to marketing, I'd have bought a printer immediately. I thought about asking a close friend with a registered business to take the 3.5 million and buy a printer with it, but I didn't want to burden them with that risk, so I decided against it. Peace of mind is best, anyway.
+
+The mentor the startup support program assigned me wasn't at all what I'd wanted. I'd asked for someone good at advertising or marketing, and someone out of left field was assigned, and he knew it himself. He even said it was his first mentoring like this. There's a lot I can't understand, like why the business agency assigned him and why he accepted rather than declining, but it's done, so nothing to be done. Still, I'm really grateful he rushed the schedule to accommodate my urgent situation. His office is very close, too, so the remaining three sessions have the advantage of being convenient. But I'm genuinely curious why they matched us like this. I'll ask later.
+
+Even after the mentoring, how to monetize Patternflow is still a mystery. Since he isn't someone running a business as an artist, his standpoint is completely different. He started by saying he'd respect and support my choices, but I strongly felt he was imposing the businessman's perspective he'd built through his own experience. That's inevitable, since he's run his own business fairly successfully for a long time that way, so he can't help believing it's right. But I don't want to agree with it.
+
+There are definitely people who approach founding a company as artists. Their absolute number might be small, but in terms of success rate, isn't it about even really? Whether things work out depends absolutely on timing and luck anyway. So I'll just do it my way. Doing it and proving it seems cooler. Do I want to show that that isn't the only right answer, that this way works too? Maybe it's just a contrarian streak.
+
+Ever since I was a kid, I always wanted to be unusual when playing games. I loved winning with characters, skills, items, and strategies nobody else used. What everyone says is good, what people call OP, isn't fun. I liked winning in an unusual way and being recognized for it. I wanted to make sure that when anyone thought of whoever used a certain strategy, I'd come up first. Maybe that's why I always want to make something new. That's how Patternflow started, too. The process of thinking these things through is a real headache and irritating, but when one brilliant idea pops up, the rush is great. Even better when I make it, show it to people, and they respond well.
+
+What matters is making it and showing it. I don't deal in ideas that are only talk. One thing you've actually made, even if it's mediocre, beats hundreds of amazing ideas. Honestly ideas are all much of a muchness, and they seem to develop bit by bit as you make things. I honestly don't know what I'm going on about, but anyway, that's how it is. I like people who act rather than talk, and I want to be one. Though with Patternflow right now I'm falling well short.
+
+For that reason, I'd love to have a proper studio. One with every kind of equipment, where if a fun idea comes up you can build it in-house. If I ever have spare money, I think that's the first thing I'd do. I hope I can. Not just my own work, other people's product development seems like it'd be fun too. What's more fun than backseat advice?
+
+I've wandered off a lot. It was so hot today. It's Chuseok this week, how does it make sense that the weather is summer? I biked to the park for the first time in a while. Ice cream bought after climbing a little hill really is the best. The grass has grown a lot. I saw two pheasants too. I wanted a photo, but they were so wary they flew off the moment I got close, so I couldn't. When I'm about to go, I'm anxious that I have a lot to do and should just go home and work, but once I'm actually there, those worries vanish completely. Is it because I know I've already come too far? Giving up entirely does make me feel a bit more at ease. But back to reality now! Write the blog, and then the overdue funding post. What a pain!
+
+<figure className="journal-md-figure">
+  <img src="/journal/the-messy-desk/park-ice-cream.jpg" alt="An ice cream held up against a park full of silver grass" />
+  <figcaption>A muggy park and an ice cream.</figcaption>
+</figure>
