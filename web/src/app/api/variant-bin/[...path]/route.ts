@@ -63,13 +63,23 @@ export async function GET(
 ) {
   const { path: parts } = await ctx.params;
   const file = resolveSafe(parts ?? []);
-  if (!file || !existsSync(file) || !statSync(file).isFile()) {
+  // `file` lives under VARIANT_BIN_DIR, outside the checkout, so there is
+  // nothing here for the build's file tracer to find — and left to guess, it
+  // decides a fully dynamic path could be any file in the project and packs
+  // the whole tree, public/ included, into this route's function ("Dynamic
+  // filesystem access causes tracing of the whole project"). The
+  // turbopackIgnore comments opt these four calls out of that.
+  if (
+    !file ||
+    !existsSync(/*turbopackIgnore: true*/ file) ||
+    !statSync(/*turbopackIgnore: true*/ file).isFile()
+  ) {
     return new Response("not found", { status: 404, headers: CORS });
   }
 
-  const size = statSync(file).size;
+  const size = statSync(/*turbopackIgnore: true*/ file).size;
   const stream = Readable.toWeb(
-    createReadStream(file),
+    createReadStream(/*turbopackIgnore: true*/ file),
   ) as unknown as ReadableStream;
 
   return new Response(stream, {
