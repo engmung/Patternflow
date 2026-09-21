@@ -30,6 +30,26 @@ const nextConfig: NextConfig = {
   pageExtensions: ["js", "jsx", "md", "mdx", "ts", "tsx"],
   // Native module — must stay a runtime require, not a bundled dependency.
   serverExternalPackages: ["better-sqlite3"],
+  // Nothing under public/ belongs inside a server function. Vercel serves it
+  // from the CDN and `next start` reads it from the checkout, so a function
+  // carrying a copy carries dead weight — and the file tracer hands out copies
+  // freely, because any fs path it cannot resolve becomes a glob. One
+  // `path.join(process.cwd(), "public", src)` in lib/journalImageMeta.ts put
+  // all of public/ — every journal photo, 100 MB — into each journal function;
+  // `path.join(…, "builds")` in the build queue matched public/builds; the
+  // variant-bin route's env-rooted path matched the whole project. That was
+  // ~220 MB of function bundle per deployment, and Vercel meters storage per
+  // retained deployment: in 2026-09 the Hobby team stood at 77 GB against a
+  // 10 GB Functions Storage allowance.
+  //
+  // Safe because the one reader of public/ is the journal image probe, and it
+  // only runs where public/ is on disk anyway: at build time on Vercel (those
+  // pages are prerendered and never revalidate) and from the checkout on the
+  // Pi. If it ever did run inside a function it falls back to default
+  // dimensions rather than throwing.
+  outputFileTracingExcludes: {
+    "/*": ["public/**/*"],
+  },
   // Testing anything touch-shaped means opening `next dev` from a phone, at
   // this machine's address on the network rather than at localhost. Next
   // blocks cross-origin requests to /_next/* by default, and the symptom is
