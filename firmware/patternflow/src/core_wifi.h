@@ -55,8 +55,9 @@ inline int hotspotClients = 0;
 // (2026-09-22: 13 KB pages cut at 5 KB after 20 s). The station comes
 // back for one attempt at a time: a rare retry with nobody on the
 // hotspot, or credentials from the console; if it fails, AP-only again.
-// Set by the hotspot: true while a phone has just scanned for the AP.
-inline bool (*hotspotJoinLikely)() = nullptr;
+#ifndef PF_HOTSPOT_STA_RETRY_MS
+#define PF_HOTSPOT_STA_RETRY_MS 300000
+#endif
 inline bool staProbing = false;
 inline uint32_t staProbeEndsMs = 0;
 constexpr uint32_t STA_PROBE_MS = 8000;
@@ -382,6 +383,12 @@ inline void tick() {
   const uint32_t now = millis();
   if (reconnectRequested && (uint32_t)(now - reconnectRequestedAtMs) >= 500) {
     reconnectRequested = false;
+    if (hotspotUp) {
+      // AP-only while alone: the station has to exist before it can reconnect.
+      stationOn();
+      staProbing = true;
+      staProbeEndsMs = now + 3 * STA_PROBE_MS;
+    }
     WiFi.reconnect();
   }
   bool connected = (WiFi.status() == WL_CONNECTED);
@@ -439,7 +446,6 @@ inline void tick() {
       return;
     }
     if (hotspotClients > 0) return;
-    if (hotspotJoinLikely && hotspotJoinLikely()) return;
     interval = PF_HOTSPOT_STA_RETRY_MS;
   }
   if (now - lastBeginMs >= interval) {

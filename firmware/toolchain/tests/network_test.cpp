@@ -38,6 +38,9 @@ struct Preferences {
 };
 enum wl_status_t { WL_IDLE_STATUS, WL_CONNECTED, WL_NO_SSID_AVAIL, WL_CONNECT_FAILED, WL_DISCONNECTED };
 constexpr int WIFI_STA = 1;
+constexpr int WIFI_MODE_STA = 1;
+constexpr int WIFI_AP = 2;
+constexpr int WIFI_AP_STA = 3;
 struct IPAddress {
   uint32_t value = 1;
   operator uint32_t() const { return value; }
@@ -51,10 +54,12 @@ struct Radio {
   wl_status_t status() const { return state; }
   IPAddress localIP() const { return ip; }
   void persistent(bool) {}
-  void mode(int) {}
   void setHostname(const char*) {}
   void setSleep(bool) {}
   void setAutoReconnect(bool) {}
+  int modeValue = WIFI_STA;
+  int getMode() const { return modeValue; }
+  void mode(int m) { modeValue = m; }
   void begin(const char* ssid, const char*) { attempts.emplace_back(ssid); state = WL_DISCONNECTED; }
   bool setTxPower(int) { return true; }
   int getTxPower() { return PF_WIFI_TX_POWER; }

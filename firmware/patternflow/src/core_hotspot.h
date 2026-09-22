@@ -99,11 +99,6 @@ inline void onWifiEvent(WiFiEvent_t e, WiFiEventInfo_t info) {
   }
 }
 
-// Someone scanned for us within the last two minutes: a join may be
-// under way, and a station probe would take the AP off the air under it.
-inline bool joinLikely() {
-  return lastProbeReqMs != 0 && (uint32_t)(millis() - lastProbeReqMs) < 120000;
-}
 
 inline const char* modeName(Mode m) {
   return m == OFF ? "off" : m == ALWAYS ? "always" : "auto";
@@ -211,8 +206,6 @@ inline void start() {
   WiFi.setAutoReconnect(false);
   PatternflowWifi::hotspotUp = true;
   PatternflowWifi::hotspotClients = 0;
-  // Alone, the radio is the hotspot's: see PatternflowWifi::stationOff().
-  if (WiFi.status() != WL_CONNECTED) PatternflowWifi::stationOff();
   PatternflowWifi::raiseLinkEdge();  // the console starts on this link too
   Serial.printf("[HOTSPOT] \"%s\" pass \"%s\" ch%d at %s (%s)\n", name(), pass, channel,
                 WiFi.softAPIP().toString().c_str(), modeName(mode));
@@ -234,7 +227,6 @@ inline void stop() {
 inline void begin() {
   load();
   if (!eventsHooked) { WiFi.onEvent(onWifiEvent); eventsHooked = true; }
-  PatternflowWifi::hotspotJoinLikely = joinLikely;
   staLastUpMs = millis();  // auto mode counts from boot
   Serial.printf("[HOTSPOT] mode %s, name \"%s\"\n", modeName(mode), name());
 }
@@ -324,6 +316,18 @@ inline void tick() {
   }
   if (want && !up) start();
   else if (!want && up) stop();
+  // Alone, the radio is the hotspot's (PatternflowWifi::stationOff()): a
+  // station interface that is merely present drags the AP to a crawl. But
+  // only once the station has had its chance - `always` at boot used to
+  // switch it off before its first attempt could finish, and the panel
+  // never joined the network it had credentials for. A probe in flight
+  // ends on its own schedule (core_wifi.h).
+  if (up && !sta && !PatternflowWifi::staProbing &&
+      (WiFi.getMode() & WIFI_MODE_STA) &&
+      (uint32_t)(now - staLastUpMs) >= PF_HOTSPOT_AUTO_AFTER_MS) {
+    PatternflowWifi::stationOff();
+    Serial.println("[HOTSPOT] no station link - radio is the hotspot's");
+  }
   if (up) {
     dnsPump();
     // One line when the client count changes, and one every five minutes
