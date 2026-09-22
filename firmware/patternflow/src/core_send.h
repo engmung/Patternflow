@@ -128,6 +128,10 @@ inline void drain(WebServer& server, const uint8_t* src, size_t total) {
     }
     offset += wrote;
     lastProgressMs = millis();
+    if (offset >= total) {
+      const uint32_t took = millis() - startedMs;
+      if (took > 500) Serial.printf("[SEND] %u bytes in %lu ms\n", (unsigned)total, (unsigned long)took);
+    }
     // A tick between slices rather than yield(): yield() gives way only to
     // tasks of equal or higher priority, and the one that has to get a turn
     // is IDLE0, which the watchdog watches. Costs a 17 KB page ~13 ms.

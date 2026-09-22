@@ -45,6 +45,33 @@ constexpr uint32_t RETRY_INTERVAL_MS = PF_WIFI_RETRY_INTERVAL_MS;
 inline bool started = false;
 inline bool connectedNow = false;
 inline bool justConnectedEdge = false;
+// The hotspot (core_hotspot.h) keeps these current from the network task:
+// whether the panel's own AP is up, and how many clients are on it.
+inline bool hotspotUp = false;
+inline int hotspotClients = 0;
+// While the hotspot is up and the station has no link, the radio runs
+// AP-only: a station interface that is merely present - scanning,
+// retrying, idle - drags the AP's throughput to a crawl on this driver
+// (2026-09-22: 13 KB pages cut at 5 KB after 20 s). The station comes
+// back for one attempt at a time: a rare retry with nobody on the
+// hotspot, or credentials from the console; if it fails, AP-only again.
+#ifndef PF_HOTSPOT_STA_RETRY_MS
+#define PF_HOTSPOT_STA_RETRY_MS 300000
+#endif
+inline bool staProbing = false;
+inline uint32_t staProbeEndsMs = 0;
+constexpr uint32_t STA_PROBE_MS = 8000;
+
+inline void stationOn() {
+  if ((WiFi.getMode() & WIFI_MODE_STA) == 0) WiFi.mode(WIFI_AP_STA);
+}
+inline void stationOff() {
+  if (hotspotUp && (WiFi.getMode() & WIFI_MODE_STA)) {
+    WiFi.disconnect();
+    WiFi.mode(WIFI_AP);
+  }
+  staProbing = false;
+}
 inline uint32_t lastBeginMs = 0;
 inline bool retryCurrentNetwork = false;
 inline uint32_t connectedAddress = 0;
@@ -329,6 +356,11 @@ inline void applyCredentials(const String& ssid, const String& pass) {
   connectedAddress = 0;
   retryCurrentNetwork = false;
   latchedFailure = WL_IDLE_STATUS;  // stale failure was for the old creds
+  if (hotspotUp) {
+    stationOn();
+    staProbing = true;
+    staProbeEndsMs = millis() + 3 * STA_PROBE_MS;  // a real network deserves a longer look
+  }
   WiFi.disconnect();
   WiFi.begin(activeSsid.c_str(), activePass.c_str());
   lastBeginMs = millis();
@@ -351,11 +383,18 @@ inline void tick() {
   const uint32_t now = millis();
   if (reconnectRequested && (uint32_t)(now - reconnectRequestedAtMs) >= 500) {
     reconnectRequested = false;
+    if (hotspotUp) {
+      // AP-only while alone: the station has to exist before it can reconnect.
+      stationOn();
+      staProbing = true;
+      staProbeEndsMs = now + 3 * STA_PROBE_MS;
+    }
     WiFi.reconnect();
   }
   bool connected = (WiFi.status() == WL_CONNECTED);
 
   if (connected) {
+    staProbing = false;
     const uint32_t address = (uint32_t)WiFi.localIP();
     if (!connectedNow) {
       connectedNow = true;
@@ -392,9 +431,31 @@ inline void tick() {
     lastBeginMs = now;
   }
 
-  if (now - lastBeginMs >= RETRY_INTERVAL_MS) {
+  // A retry is a scan of every channel, one or two seconds with the hotspot
+  // off the air. Someone on the hotspot: no retries at all (credentials
+  // arriving through the console still connect at once, applyCredentials()
+  // does not pass here). Nobody on it: rarely. No hotspot: as before.
+  uint32_t interval = RETRY_INTERVAL_MS;
+  if (hotspotUp) {
+    if (staProbing) {
+      // One attempt is in flight; give it its window, then stand down.
+      if ((int32_t)(now - staProbeEndsMs) >= 0) {
+        stationOff();
+        Serial.println("[WiFi] station probe found nothing - hotspot alone");
+      }
+      return;
+    }
+    if (hotspotClients > 0) return;
+    interval = PF_HOTSPOT_STA_RETRY_MS;
+  }
+  if (now - lastBeginMs >= interval) {
     lastBeginMs = now;
     retryAttempts++;
+    if (hotspotUp) {
+      stationOn();
+      staProbing = true;
+      staProbeEndsMs = now + STA_PROBE_MS;
+    }
 
     // With more than one network remembered, each retry tries the next one.
     // A present network normally authenticates well inside one 5 s window, and
@@ -424,6 +485,21 @@ inline void tick() {
 
 inline bool isConnected() {
   return WiFi.status() == WL_CONNECTED;
+}
+
+// The link the console can be reached over: the station, or the panel's
+// own hotspot. Every service that starts "once the network is up" asks
+// this, not WL_CONNECTED - a phone on the hotspot with a lease and no
+// port 80 was the 2026-09-22 bench in one line.
+inline bool linkUp() {
+  return hotspotUp || WiFi.status() == WL_CONNECTED;
+}
+
+// The hotspot coming up is a link too: the same edge loop() starts the
+// services on. Every begin() behind it is idempotent, so the station's
+// own edge later costs nothing.
+inline void raiseLinkEdge() {
+  __atomic_store_n(&justConnectedEdge, true, __ATOMIC_RELEASE);
 }
 
 // True exactly once after each successful (re)connection. The caller uses
@@ -472,6 +548,12 @@ inline bool removeNetwork(const String&) { return false; }
 inline bool setBootIndex(int) { return false; }
 inline int getBootIndex() { return 0; }
 inline bool isConnected() { return false; }
+inline bool linkUp() { return false; }
+inline void raiseLinkEdge() {}
+inline bool hotspotUp = false;
+inline int hotspotClients = 0;
+inline void stationOn() {}
+inline void stationOff() {}
 inline bool consumeJustConnected() { return false; }
 inline const char* statusText() { return "OFF"; }
 inline String ipString() { return String("-"); }

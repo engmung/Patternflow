@@ -111,7 +111,7 @@ inline void handleIndex() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
   server().on("/knobs", HTTP_GET, handleIndex);
   server().on("/api/knobs", HTTP_GET, handleGet);
   server().on("/api/knobs", HTTP_POST, handlePost);

@@ -442,6 +442,23 @@ class Handler(BaseHTTPRequestHandler):
                 "paramActive": [False, False, False, False],
             })
 
+        # -- hotspot: the panel's own network --
+        if path == "/api/hotspot":
+            hs = getattr(d, "hotspot", {"mode": "auto", "pass": "patternflow", "up": False})
+            if self.command == "POST":
+                if p.get("mode") in ("off", "auto", "always"):
+                    hs["mode"] = p["mode"]
+                if "pass" in p:
+                    if not 8 <= len(p["pass"]) <= 63:
+                        return self.send_json({"ok": False, "error": "password is 8 to 63 characters"}, 400)
+                    hs["pass"] = p["pass"]
+                hs["up"] = hs["mode"] == "always"
+            d.hotspot = hs
+            return self.send_json({"ok": True, "pass": hs["pass"], "hotspot": {
+                "mode": hs["mode"], "up": hs["up"], "ssid": "patternflow-a1b2",
+                "ip": "192.168.4.1" if hs["up"] else "", "channel": 6 if hs["up"] else 0,
+                "clients": 0, "dns": 0, "probes": 0}})
+
         # -- knobs: encoder direction and edges per click, with a readout that moves --
         if path == "/api/knobs":
             inv = getattr(d, "knob_inv", [False, False, False, False])

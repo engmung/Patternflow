@@ -41,7 +41,7 @@ inline void handleRoot() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
   PatternflowHttp::server().on("/", handleRoot);
   PatternflowHttp::begin();  // idempotent; whoever is first starts it
   initialized = true;

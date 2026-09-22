@@ -242,7 +242,7 @@ inline bool isCompiledIn() {
 // PatternflowWifi; this runs on the connect edge. Idempotent.
 inline void begin() {
 #if PF_WEBUPDATE_ENABLED
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
   if (initialized) {
     // Every reconnect, not just the first: the per-panel mDNS alias carries
     // an address and a new lease may have changed it (core_names.h).

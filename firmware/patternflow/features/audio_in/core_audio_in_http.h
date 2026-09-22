@@ -421,7 +421,7 @@ inline void handleReset() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   server().on("/audio-in", HTTP_GET, handleIndex);
   server().on("/api/audio-in", HTTP_GET, handleGet);
