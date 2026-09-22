@@ -49,23 +49,20 @@
 #define PF_WIFI_PASS "YOUR_WIFI_PASSWORD"
 #endif
 // Maximum Wi-Fi transmit power, applied in core_wifi.h right after the join.
-// The ESP32 default is WIFI_POWER_19_5dBm — the maximum — which with the
-// WROOM-1 antenna's gain can sit at or over the EU 20 dBm EIRP limit, so a
-// conformance failure on output power / EIRP is fixed here.
+// The ESP32 default, 19.5 dBm, is the maximum the radio does.
 //
-// ⚠️ Take the number from the test report, not from a guess. 13 dBm is a
-// 6.5 dB cut from the default: uplink power drops ~4.5x and indoor range to
-// very roughly 60%. Only the device→router direction is affected, so the
-// RSSI reported by /status will NOT move — that is the downlink. If range
-// regresses, WIFI_POWER_17dBm is the smaller first step.
-//
-// Valid values (WiFiGeneric.h): WIFI_POWER_19_5dBm, _19dBm, _18_5dBm,
-// _17dBm, _15dBm, _13dBm, _11dBm, _8_5dBm, _7dBm, _5dBm, _2dBm.
-//
-// (This is the RADIO test — for EMC, see the note in core_display.h; Wi-Fi
-// power is almost irrelevant there.)
+// History: from 2026-08 to 2026-09-22 this was WIFI_POWER_13dBm, a cut taken
+// from a radio test report against the EU 20 dBm EIRP limit. On 2026-09-22
+// the hotspot bench showed what that cost: a phone right next to the panel
+// received the panel's data frames so badly that a 10 KB console page took
+// 4-9 s over the panel's own AP, and 0.5-1 s at full power (the uplink, the
+// phone's own 20 dBm, was fine either way; a router's antenna and receiver
+// had hidden the asymmetry on the home network). The owner retired the cap:
+// full performance, conformance to be handled elsewhere. Valid values
+// (WiFiGeneric.h): WIFI_POWER_19_5dBm, _19dBm, _18_5dBm, _17dBm, _15dBm,
+// _13dBm, _11dBm, _8_5dBm, _7dBm, _5dBm, _2dBm.
 #ifndef PF_WIFI_TX_POWER
-#define PF_WIFI_TX_POWER WIFI_POWER_13dBm
+#define PF_WIFI_TX_POWER WIFI_POWER_19_5dBm
 #endif
 
 // Wi-Fi is non-blocking (see core_wifi.h): boot never waits for the join.
@@ -82,6 +79,30 @@
 // in preference to the placeholders above on the next boot. See
 // src/core_improv.h. On by default; only compiled in when Wi-Fi is actually
 // used (i.e. at least one of OTA/OSC/audio is enabled).
+// ── Hotspot ───────────────────────────────────────────────────────────
+// The panel as a network of its own (src/core_hotspot.h). `auto` raises
+// it once the station has had no link for PF_HOTSPOT_AUTO_AFTER_MS and
+// drops it when the station joins and nobody is on it; the mode and the
+// password are settings on /wifi, these are their defaults. The SSID is
+// the board alias (patternflow-a1b2). The password is the same on every
+// panel by default, like FlowLocal's, so a person can join from memory;
+// anyone who wants it private changes it on the console.
+#ifndef PF_HOTSPOT_PASS
+#define PF_HOTSPOT_PASS "patternflow"
+#endif
+#ifndef PF_HOTSPOT_AUTO_AFTER_MS
+#define PF_HOTSPOT_AUTO_AFTER_MS 15000
+#endif
+// Station retries while the hotspot is up and empty: each one is a scan
+// with the AP off the air for a second or two, so they are rare. With
+// someone on the hotspot there are none (core_wifi.h).
+#ifndef PF_HOTSPOT_STA_RETRY_MS
+#define PF_HOTSPOT_STA_RETRY_MS 300000
+#endif
+#ifndef PF_HOTSPOT_MAX_CLIENTS
+#define PF_HOTSPOT_MAX_CLIENTS 4
+#endif
+
 #ifndef PF_IMPROV_ENABLED
 #define PF_IMPROV_ENABLED 1
 #endif

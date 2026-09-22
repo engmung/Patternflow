@@ -103,6 +103,12 @@ section fully before writing code.
   with its reason, including `PF_VARIANT` / `PF_VARIANT_VERSION` (the name
   and version the panel reports; `shelf.sh` refuses an image whose version
   string doesn't match).
+- **A server starts when `PatternflowWifi::linkUp()` says so, not on
+  `WiFi.status() == WL_CONNECTED`.** The link a phone reaches the panel over
+  may be the panel's own hotspot (`src/core_hotspot.h`), on which the station
+  is never connected. Every core page waits on `linkUp()`; a feature that
+  waits on the station instead is simply absent on the hotspot - which is how
+  the audio, clock and MQTT pages went missing there before 2026-09-22.
 - **Your HTTP handlers run on the network core, not the frame's.** Since
   3.9.1 the console's server is serviced by a task on Core 0 while `loop()`
   renders on Core 1. A handler that reads a word of state, or writes a value

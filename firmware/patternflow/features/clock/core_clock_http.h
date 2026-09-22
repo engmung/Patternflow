@@ -216,7 +216,7 @@ inline void handleConfig() { PFLoopSync::run([] { configOnLoop(); }); }
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
   server().on("/clock", HTTP_GET, handleIndex);
   server().on("/clock/glyphs.bin", HTTP_GET, handleGlyphs);
   server().on("/api/clock", HTTP_GET, handleGet);

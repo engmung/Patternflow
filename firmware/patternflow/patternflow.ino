@@ -86,6 +86,7 @@
 #include "src/core_ui_text.h"
 #include "src/core_encoders.h"
 #include "src/core_wifi.h"
+#include "src/core_hotspot.h"
 #include "src/core_improv.h"
 #include "src/core_ota.h"
 #include "src/core_home_http.h"
@@ -502,6 +503,7 @@ void setup() {
   // (and re-announced on reconnect), so patterns render immediately whether
   // or not Wi-Fi is up yet.
   PatternflowWifi::begin();
+  PatternflowHotspot::begin();
   PatternflowImprov::begin();
   // The network task (Core 0): Wi-Fi, the console, Improv, OTA. Started now
   // so joining Wi-Fi never waits on the first frame; the HTTP server itself
@@ -783,14 +785,26 @@ void drawNetworkInfo() {
   // Wi-Fi status + IP. A full IPv4 (up to 15 chars) doesn't fit one
   // portrait line — split after the second octet's dot.
   bool wifiUp = PatternflowWifi::isConnected();
-  drawCenteredText(PatternflowWifi::statusText(), 50, wifiUp ? pfGreenC() : pfBlueC(), 1);
-  String ip = PatternflowWifi::ipString();
-  if (ip.length() <= 10) {
-    drawCenteredText(ip.c_str(), 62, pfGrayC(), 1);
+  if (!wifiUp && PatternflowHotspot::up) {
+    // No station link, but the panel is a network of its own: the name to
+    // join, split at the dash so it fits the portrait width. The password
+    // is the documented default unless the owner changed it on /wifi.
+    drawCenteredText("HOTSPOT", 50, pfGreenC(), 1);
+    String name = PatternflowHotspot::name();
+    int dash = name.indexOf('-');
+    if (dash < 0) dash = name.length();
+    drawCenteredText(name.substring(0, dash).c_str(), 62, pfWhiteC(), 1);
+    drawCenteredText(name.substring(dash).c_str(), 72, pfWhiteC(), 1);
   } else {
-    int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
-    drawCenteredText(ip.substring(0, cut).c_str(), 62, pfGrayC(), 1);
-    drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
+    drawCenteredText(PatternflowWifi::statusText(), 50, wifiUp ? pfGreenC() : pfBlueC(), 1);
+    String ip = PatternflowWifi::ipString();
+    if (ip.length() <= 10) {
+      drawCenteredText(ip.c_str(), 62, pfGrayC(), 1);
+    } else {
+      int cut = ip.indexOf('.', ip.indexOf('.') + 1) + 1;
+      drawCenteredText(ip.substring(0, cut).c_str(), 62, pfGrayC(), 1);
+      drawCenteredText(ip.substring(cut).c_str(), 72, pfGrayC(), 1);
+    }
   }
 
   // Hints under a hairline rule. The rows above come from whatever features
@@ -1320,6 +1334,7 @@ void loop() {
   // created does loop() poll them itself, as it did before 3.9.1.
   if (!PatternflowNetTask::isDualCoreActive()) {
     PatternflowWifi::tick();
+    PatternflowHotspot::tick();
     PatternflowImprov::handle();
     PatternflowOta::handle();
     PatternflowHttp::handle();
@@ -1339,6 +1354,7 @@ void loop() {
     PatternflowDisplayHttp::begin();
     PatternflowWifiHttp::begin();
     PatternflowKnobsHttp::begin();
+    PatternflowHotspot::registerRoutes();
     PatternflowNames::announce();
     PFFeatures::onNetwork();
     Serial.println("[NET] services started");

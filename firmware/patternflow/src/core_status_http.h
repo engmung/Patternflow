@@ -184,6 +184,7 @@ inline void handleStatus() {
   json += "\"hostAlias\":\"";
   json += PatternflowNames::alias();
   json += "\",";
+  PatternflowHotspot::appendStatus(json);
 #ifdef PF_WIFI_NEEDED
   json += "\"network\":{\"disconnects\":";
   json += PatternflowWifi::disconnects;
@@ -543,7 +544,7 @@ inline void handleSleep() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   server().on("/status", HTTP_GET, handleIndex);
   server().on("/api/status", HTTP_GET, handleStatus);

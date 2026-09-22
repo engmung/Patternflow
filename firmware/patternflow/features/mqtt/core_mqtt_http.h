@@ -318,7 +318,7 @@ inline void handleForget() { PFLoopSync::run([] { forgetOnLoop(); }); }
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   server().on("/mqtt", HTTP_GET, handleIndex);
   server().on("/api/mqtt", HTTP_GET, handleGet);

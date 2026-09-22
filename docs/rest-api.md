@@ -70,6 +70,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `panel` | Physical matrix, `"<w>x<h>"`. The closest thing to a model number. |
 | `host` | mDNS hostname, i.e. `PF_OTA_HOSTNAME`. **Not unique** — every device ships as `"patternflow"`. See [Identifying a device](#identifying-a-device). |
 | `network` | Since 1.5, when Wi-Fi is compiled in: `disconnects` counts sampled connected→disconnected edges; `retries` counts explicit retry attempts (including initial join failures); `reconnectMs` is the last sampled downtime, zero before a reconnect. `namesReady` means the core's local mDNS/service/alias and NetBIOS registrations succeeded; probing may still be in progress and it does not prove client reachability. `announcements` counts successful registration passes. Counters reset on boot. |
+| `hotspot` | Since 1.5. The panel's own access point: `mode` (`off`, `auto`, `always`), `up`, `ssid` (the board alias, `patternflow-a1b2`), `ip` (`192.168.4.1` while up, else `""`), `channel`, `clients`, and `dns` (name queries answered on the hotspot since boot). |
 | `heapInternal` | Free internal DRAM. The scarce one: HUB75's DMA buffers live there, and below roughly 10 KB the console starts answering with headers and no body while Wi-Fi and OSC carry on looking healthy. Worth watching. |
 | `fsError` | Why the pattern storage is not mounted, in words; `""` while it is mounted, and before any mount has been tried. Since 1.5. The core's serial line says `Mounting FFat partition failed! Error: -1` whatever the cause, so the first failure in a boot reads the volume's boot sector and records what it found. `"not formatted"` is a freshly erased board — press Format on `/patterns`. `"format did not stick: …"` means a Format ran and reported success, but the flash did not keep what was written. `"no filesystem (boot sector …)"` shows the sector's first and last bytes. `"boot sector looks valid but does not mount"` means the data is on the chip and the read side refused it. A failed `POST /api/patterns/format` returns the same text as its `error`. |
 | `flashId` | The flash chip's JEDEC id as the driver detected it at boot, six hex digits: manufacturer, then device. `"c22018"` is a 16 MB Macronix part. Since 1.5. |
@@ -383,6 +384,27 @@ Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWOR
 
 Passwords travel in the clear over LAN HTTP and are never sent back. Same trust model as `/update` and `/patterns`.
 
+### Hotspot
+
+Since 1.5. The panel is a network of its own when it has none: an access point named after the
+board (`patternflow-a1b2`, the alias the NETWORK screen shows), WPA2, password `patternflow` until
+the owner changes it. The console is at `http://192.168.4.1/` on it, every route in this document
+included, so a phone can add the next place's Wi-Fi from the hotspot. Modes: `off`; `auto` (the
+default - up about fifteen seconds after the panel last had a network, down again once one is
+joined and nobody is on the hotspot); `always` (up beside the station link too, on its channel).
+The channel is the least loaded of 1/6/11 from a scan when the panel is alone.
+
+| Route | |
+|---|---|
+| `GET /api/hotspot` | `{ok:true, hotspot:{mode, up, ssid, ip, channel, clients, dns}, pass}` - the same object status carries, plus the password. |
+| `POST /api/hotspot` (`mode=off|auto|always`, `pass=…`) | Either or both. `400` with an `error` for an unknown mode or a password outside 8-63 characters. A change is saved to NVS and applied at once: a hotspot that was up restarts, which drops whoever was on it. Replies like `GET`. |
+
+On the hotspot every DNS name resolves to the panel, so `patternflow.local` and any typed name land
+on the console; the phone's own "is there internet" probe fails, on purpose, within a second - the
+network says it has no internet, which is true, and the phone stays on it. A panel on its hotspot
+runs the radio AP-only: the station interface comes back for a rare retry when nobody is connected,
+and at once when `POST /api/wifi` brings credentials.
+
 ## Shows (Sequences)
 
 `.pfs` cue tables live on the pattern volume under `/shows` and play on a wall clock — cues fire by `millis()`, not by frame. Format: PFST v1 (whole-second cues) and v2 (deciseconds + eased cues); see `docs/pfst-v2-spec.md`.
@@ -450,7 +472,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted).
+- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted).
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.

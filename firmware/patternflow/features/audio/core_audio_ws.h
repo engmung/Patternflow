@@ -273,7 +273,7 @@ inline void setRuntimeEnabled(bool on) {
 inline void begin() {
 #if PF_AUDIO_ENABLED
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   PatternflowHttp::begin();  // idempotent; whoever is first starts it
 

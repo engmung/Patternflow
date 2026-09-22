@@ -954,7 +954,7 @@ inline void handleSelect() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   // Custom headers are only readable when collected up front. Nothing else on
   // the shared server collects any, so this list is the whole set.

@@ -166,7 +166,7 @@ inline void handleDisplay() {
 
 inline void begin() {
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   server().on("/api/display", HTTP_GET, handleDisplay);
 

@@ -46,7 +46,12 @@ enum HTTPAuthMethod { BASIC_AUTH, DIGEST_AUTH };
 #define HTTP_RAW_BUFLEN 1436
 #endif
 
-#define HTTP_MAX_DATA_WAIT 5000 //ms to wait for the client to send the request
+// PATTERNFLOW: 5000 upstream. This server takes one connection at a time,
+// and a browser opens connections it never uses (preconnect); every idle
+// one held for 5 s put the page's real requests behind it - a phone on
+// the hotspot saw the console appear only after the browser gave up on
+// its spares. A request line follows the handshake within a round trip.
+#define HTTP_MAX_DATA_WAIT 1000 //ms to wait for the client to send the request
 #define HTTP_MAX_POST_WAIT 5000 //ms to wait for POST data to arrive
 #define HTTP_MAX_SEND_WAIT 5000 //ms to wait for data chunk to be ACKed
 #define HTTP_MAX_CLOSE_WAIT 2000 //ms to wait for the client to close the connection

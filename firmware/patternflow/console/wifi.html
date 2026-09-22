@@ -111,6 +111,33 @@ button.secondary:hover{border-color:var(--led);color:var(--led)}
   current connection immediately.</p>
 </section>
 
+<section>
+  <h2>Hotspot</h2>
+  <p class="note" id="hsstate">-</p>
+  <div>
+    <label for="hsmode">Mode</label>
+    <select id="hsmode">
+      <option value="auto">auto &mdash; up whenever the panel has no Wi-Fi</option>
+      <option value="always">always</option>
+      <option value="off">off</option>
+    </select>
+  </div>
+  <div>
+    <label for="hspass">Password</label>
+    <input id="hspass" type="text" maxlength="63" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="actions">
+    <button class="primary" type="button" id="hssave">Save</button>
+  </div>
+  <div id="hsmsg"></div>
+  <p class="note">The panel as a network of its own: <b id="hsssid">patternflow-????</b>.
+  Join it from a phone or a laptop and open <code>http://192.168.4.1/</code> &mdash; the
+  same console, anywhere. <em>auto</em> raises it about fifteen seconds after the panel
+  finds no network and drops it once one is joined; a network added above from the
+  hotspot is tried at once. The phone is told the network works, so it stays on it;
+  it has no internet through the panel.</p>
+</section>
+
 <footer><a href="/">Home</a> &middot; <a href="/status">Status</a></footer>
 </div>
 <script>
@@ -227,5 +254,23 @@ $('f').onsubmit=function(e){
     }).catch(function(){say('failed',1)});
 };
 
-load();setInterval(load,5000);
+function loadHotspot(){
+  fetch('/api/hotspot').then(function(r){return r.json()}).then(function(d){
+    var h=d.hotspot;
+    $('hsssid').textContent=h.ssid;
+    if(document.activeElement!==$('hsmode'))$('hsmode').value=h.mode;
+    if(document.activeElement!==$('hspass'))$('hspass').value=d.pass;
+    $('hsstate').textContent=h.up?('up: '+h.ssid+' on channel '+h.channel+', '+h.clients+' client'+(h.clients===1?'':'s')+', '+h.ip):'down ('+h.mode+')';
+  }).catch(function(){$('hsstate').textContent='-'});
+}
+function sayHs(t,err){$('hsmsg').textContent=t;$('hsmsg').className=err?'err':''}
+$('hssave').onclick=function(){
+  var body='mode='+encodeURIComponent($('hsmode').value)+'&pass='+encodeURIComponent($('hspass').value);
+  fetch('/api/hotspot',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body})
+    .then(function(r){return r.json()}).then(function(d){
+      if(!d.ok){sayHs(d.error||'failed',1);return}
+      sayHs('saved'+(d.hotspot.mode==='off'?' — hotspot off':''));loadHotspot();
+    }).catch(function(){sayHs('failed',1)});
+};
+load();loadHotspot();setInterval(load,5000);setInterval(loadHotspot,5000);
 </script></body></html>

@@ -4,6 +4,13 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+### Firmware
+
+- **The panel is a network of its own.** With no known Wi-Fi in reach it raises a hotspot, `patternflow-a1b2` (its alias), WPA2, password `patternflow` until changed, and the whole console is at `http://192.168.4.1/` on it - patterns, knobs, the Wi-Fi page to add the next place's network, updates. Modes on `/wifi`: `auto` (default: up fifteen seconds after the last link, down once a network is joined and nobody is on it), `always`, `off`; `GET`/`POST /api/hotspot`, and a `hotspot` object in status. The NETWORK screen shows the name while the hotspot is what there is. What the bench decided (`src/core_hotspot.h` says why, line by line): the channel comes from a scan - the least loaded of 1/6/11 - never a fixed one; alone, the radio runs AP-only, and the station comes back only for a rare probe with nobody connected or when credentials arrive; a DNS responder on the hotspot resolves every name to the panel and the phone's internet probe fails within a second instead of timing out for twenty; the hotspot is 20 MHz. Pretending to be the internet was tried and put a Samsung into its limited-connectivity state, which drops the network.
+- **Console services start on any link.** Every core page, and the audio, microphone, clock and MQTT pages, used to wait for `WL_CONNECTED` before registering - on the hotspot a phone got an address and port 80 never opened. `PatternflowWifi::linkUp()` is the condition now, the station or the hotspot, and the hotspot raises the same link edge the station does.
+- **Full transmit power.** The 13 dBm cap from 2026-08 is retired (`PF_WIFI_TX_POWER` is the radio's 19.5 dBm again). Measured on the hotspot: a phone next to the panel took 4-9 s per 10 KB page at 13 dBm and under a second at full power - the phone's own transmitter had hidden the asymmetry, and a router's antenna had hidden it on the home network. Owner's decision.
+- **The console's server waits one second, not five, for a connection that sends nothing.** A browser opens connections it never uses; each idle one held for 5 s put the page's real requests behind it, which on the hotspot was the console appearing only after the browser gave up on its spares.
+
 ## [3.10.4] - 2026-09-19
 
 ### Firmware

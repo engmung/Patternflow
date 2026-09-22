@@ -72,7 +72,7 @@ inline const char* hostname() {
 inline void begin() {
 #if PF_OTA_ENABLED
   if (initialized) return;
-  if (WiFi.status() != WL_CONNECTED) return;
+  if (!PatternflowWifi::linkUp()) return;
 
   ArduinoOTA.setHostname(PF_OTA_HOSTNAME);
   // Name service startup/retry belongs to core_names.h on the network task.

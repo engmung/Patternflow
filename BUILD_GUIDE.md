@@ -266,6 +266,7 @@ No installation required — desktop **Chrome or Edge** only (Web Serial; Firefo
 
 > 📶 **Changing Wi-Fi later.** The network you set during flashing is **saved on the device and reused on every boot** — it stays until you overwrite it. To move Patternflow to a different Wi-Fi, either **re-flash from the browser** (you'll set the new network during Improv provisioning), or in Arduino IDE do a **full erase** (Tools → *Erase All Flash Before Sketch Upload* → *Enabled*) and re-upload. A plain re-upload does **not** clear the stored credentials.
 
+> 📡 **No Wi-Fi where you are? The panel is one.** About fifteen seconds after it finds no known network, the panel raises its own hotspot: `patternflow-xxxx` (the name on its NETWORK screen - hold K2), password `patternflow`. Join it from a phone or a laptop and open `http://192.168.4.1/` - the whole console, including the Wi-Fi page, so you can add the network for wherever you are next and the panel joins it at once. The phone will say the network has no internet; that is true, and it stays connected. Mode (`auto`, `always`, `off`) and the password are on the console's Wi-Fi page.
 <img src="docs/build-guide/images/web_flash.jpg" width="33%"> <img src="docs/build-guide/images/esp32_insert.jpg" width="33%">
 
 *Photos from the v2 guide — the flashing flow is identical on v3.*

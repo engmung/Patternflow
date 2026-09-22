@@ -54,6 +54,7 @@ inline volatile uint32_t iterations = 0;
 inline void netWorker(void*) {
   PFNetMaintenance::attach([] {
     PatternflowWifi::tick();
+    PatternflowHotspot::tick();
     if (servicesReady) PatternflowNames::tick();
   });
   while (running) {
