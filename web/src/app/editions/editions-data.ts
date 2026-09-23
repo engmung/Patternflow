@@ -198,8 +198,8 @@ export const EDITIONS: Edition[] = [
       'The clock — the time, cut out of the running pattern',
     ],
     hosted: {
-      version: 'v0.2.9',
-      url: 'https://patternflow.work/flash/bin/performance-v0.2.9/patternflow.ino.bin',
+      version: 'v0.4.0',
+      url: 'https://patternflow.work/flash/bin/performance-v0.4.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
     note:
