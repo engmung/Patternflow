@@ -4,8 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
-import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
-import { builds } from "@/components/sections/InsideGlobe/builds";
+
+// How many people have made a Patternflow, by the nearest thing to a count
+// there is: the community's membership, which tracks it closely. Rounded and
+// said as "around", because it is an estimate.
+const PEOPLE_WHO_MADE_ONE = 40;
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
@@ -84,6 +87,8 @@ export default function Hero() {
         {/* L3 — the strongest line we have, per the manifesto: a description of
             how the system works, with nothing in it to disbelieve. */}
         <p className="lede">Every Patternflow plays every pattern we make.</p>
+        {/* The second fact, in the same voice as the first: how many have. */}
+        <p className="lede">Around {PEOPLE_WHO_MADE_ONE} people have made one so far.</p>
         {/* L5 does not run in the hero (manifesto §2: depth, not headline, and
             this is the most headline-like surface on the site). This is a
             signpost to it, not a shortened version of it — the line itself is
@@ -102,54 +107,9 @@ export default function Hero() {
             After Nam June Paik&apos;s <em>Participation TV</em>, 1963 — read why ↗
           </Link>
         </p>
-        {/* Get One leads: it is the action that costs the reader something, so
-            it takes the solid weight. The note sits under it — not under both —
-            so it is unambiguous which button ships worldwide. */}
-        <div className="hero-cta-row" aria-label="Patternflow actions">
-          <a
-            className="hero-cta hero-cta-primary"
-            href={CROWD_SUPPLY_URL}
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('crowd_supply_clicked', {
-              surface: 'hero',
-              destination: 'crowd_supply',
-              via: 'direct',
-            })}
-          >
-            Get One
-          </a>
-          <a
-            className="hero-cta hero-cta-secondary"
-            href="https://github.com/engmung/Patternflow"
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('github_cta_clicked', {
-              surface: 'hero',
-              destination: 'github_repository',
-            })}
-          >
-            Build it — GitHub
-          </a>
-          <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
-        </div>
-        {/* The hero is all claim and no evidence otherwise. Per the manifesto,
-            the build map is the strongest proof there is — a star is interest,
-            a pin is someone who actually did it — and the count comes from the
-            data so it cannot go stale. Below the buttons on purpose: evidence
-            belongs after the ask, and the CTA row keeps its place above the
-            fold. */}
-        <p className="hero-proof">
-          <Link
-            href="/inside"
-            onClick={() => captureEvent('hero_proof_clicked', {
-              surface: 'hero',
-              destination: 'inside_build_map',
-            })}
-          >
-            {builds.length} pins on the globe — see who built one ↗
-          </Link>
-        </p>
+        {/* No buttons. Get One went when the campaign had funded and there
+            was nothing left to ask for; Build It lives on the Build tab; the
+            globe those buttons used to point at is the left pane itself. */}
       </div>
     </section>
   );

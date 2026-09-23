@@ -7,6 +7,7 @@ import BuildFilters from './BuildFilters';
 import PhotoLightbox from './PhotoLightbox';
 import { builds, formatBuildDate, CARD_TILES, STRIP_TILES } from './builds';
 import { useBuildSelection } from './useBuildSelection';
+import { useAppStore } from '@/store/useAppStore';
 import styles from './GlobeViewer.module.css';
 
 // The Inside section's viewer: an interactive globe with the picked build's
@@ -18,6 +19,9 @@ import styles from './GlobeViewer.module.css';
 // the Inside panel renders those as a card instead. See BuildCard.
 export default function GlobeViewer() {
   const { selectedId, select: selectBuild, visibleBuilds } = useBuildSelection();
+  // On the hero the globe stands in for the product shot: no filters, and a
+  // pin opens the Inside section rather than a detail card beside hero copy.
+  const onHero = useAppStore((state) => state.homeTab) === 'hero';
   const [galleryIndex, setGalleryIndex] = useState<number | null>(null);
   const [hasSelected, setHasSelected] = useState(false);
 
@@ -44,7 +48,15 @@ export default function GlobeViewer() {
   const select = (id: string | null) => {
     selectBuild(id);
     setGalleryIndex(null);
-    if (id) setHasSelected(true);
+    if (!id) return;
+    setHasSelected(true);
+    // selectBuild has just pushed /inside/<slug>. The tabs treat the URL as
+    // the truth and re-derive themselves on popstate (RightPanel), so raising
+    // one is how anything outside the panel changes the tab — the same path
+    // the Back button takes.
+    if (useAppStore.getState().homeTab === 'hero') {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   };
 
   // Step to the previous/next build, cycling through the list.
@@ -70,7 +82,7 @@ export default function GlobeViewer() {
       </div>
 
       <Globe entries={visibleBuilds} selectedBuildId={selectedId ?? undefined} onSelectBuild={select} />
-      <BuildFilters />
+      {!onHero && <BuildFilters />}
 
       {/* Swapped in CSS rather than by measuring the viewport, so the server
           and the client render the same thing. */}

@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import HeroScene from './HeroScene';
 import { useAppStore } from '@/store/useAppStore';
 
-// The Inside section swaps the product preview for the interactive build globe.
+// The hero and the Inside section show the build globe; Build and Pattern
+// show the product preview.
 const GlobeViewer = dynamic(
   () => import('@/components/sections/InsideGlobe/GlobeViewer'),
   { ssr: false },
@@ -21,10 +22,13 @@ export default function ViewerPanel() {
   const homeTab = useAppStore((state) => state.homeTab);
   const isOpen = homeTab !== 'hero';
 
-  // Only two distinct scenes exist: the product preview (hero/build/pattern) and
-  // the globe (inside). Switching between build/pattern/hero never swaps the
-  // canvas, so no transition there — we only fade when the scene itself changes.
-  const targetScene = homeTab === 'inside' ? 'globe' : 'product';
+  // Only two distinct scenes exist: the globe (hero, inside) and the product
+  // preview (build, pattern). The hero used to open on the product, with the
+  // map a link below the buttons; but the hero's own video already shows the
+  // device in motion, and a globe of people who built one is the proof the
+  // page never showed first. Switching between tabs that share a scene never
+  // swaps the canvas, so we only fade when the scene itself changes.
+  const targetScene = homeTab === 'inside' || homeTab === 'hero' ? 'globe' : 'product';
   const [shownScene, setShownScene] = useState(targetScene);
   // Fading whenever the shown scene lags behind the target; the timeout below
   // swaps the scene, which ends the fade without extra state.
