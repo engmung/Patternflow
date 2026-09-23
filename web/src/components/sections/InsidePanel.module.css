@@ -3,7 +3,6 @@
   container-type: inline-size;
 }
 
-.contactLinks,
 .footerLinks {
   display: flex;
   flex-wrap: wrap;
@@ -11,25 +10,73 @@
   font-size: 13px;
 }
 
-.contactLinks {
-  margin-top: 20px;
+/* Three cells across, mono labels, no icons. */
+.joinBand {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 20px 0 0;
+  border: 1px solid var(--pf-rule);
 }
 
-.contactLinks a,
+.joinCell {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 16px;
+  border-right: 1px solid var(--pf-rule);
+  color: var(--pf-ink);
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.joinCell:last-child {
+  border-right: 0;
+}
+
+.joinCell:hover,
+.joinCell:focus-visible {
+  outline: 0;
+  background: var(--pf-cream-2);
+}
+
+.joinKicker {
+  color: var(--pf-ink-muted);
+  font-family: var(--pf-mono);
+  font-size: 10.5px;
+  letter-spacing: var(--pf-track-mono);
+  text-transform: uppercase;
+}
+
+.joinCell strong {
+  font-size: var(--pf-fs-row);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.joinDesc {
+  color: var(--pf-ink-muted);
+  font-size: var(--pf-fs-row-d);
+  line-height: 1.45;
+}
+
+@media (max-width: 640px) {
+  .joinBand { grid-template-columns: 1fr; }
+  .joinCell { border-right: 0; border-bottom: 1px solid var(--pf-rule); }
+  .joinCell:last-child { border-bottom: 0; }
+}
+
 .footerLinks a,
 .mapNote a {
   color: var(--pf-ink);
   text-decoration: none;
 }
 
-.contactLinks a:hover,
 .footerLinks a:hover,
 .mapNote a:hover {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.contactLinks a:focus-visible,
 .footerLinks a:focus-visible,
 .mapNote a:focus-visible {
   outline: 2px solid var(--pf-led);

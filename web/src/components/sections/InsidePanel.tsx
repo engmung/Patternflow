@@ -12,6 +12,35 @@ interface InsidePanelProps {
   content: SectionContent;
 }
 
+// Three cells, one grammar - mono kicker, name, a line of what for. This band
+// was a row of bare links for a week in September (the panel slimmed down and
+// took the table with it); the table is what reads as "ways in", so it is
+// back. Contact sits here rather than in the top nav: this band is already
+// the "how to reach us" surface.
+const JOIN = [
+  {
+    kicker: 'Day-to-day help',
+    name: 'Discord ↗',
+    href: 'https://discord.gg/Vr9QtsxeTk',
+    external: true,
+    desc: 'Build questions, finished builds, custom patterns.',
+  },
+  {
+    kicker: 'In motion',
+    name: 'Instagram ↗',
+    href: 'https://www.instagram.com/patternflow.work/',
+    external: true,
+    desc: 'Send a clean video and it usually goes up as a collab post.',
+  },
+  {
+    kicker: 'Anything else',
+    name: 'Contact',
+    href: '/contact',
+    external: false,
+    desc: 'Exhibitions, commissions, and collaboration.',
+  },
+];
+
 export default function InsidePanel({ content }: InsidePanelProps) {
   const { filter, visibleBuilds } = useBuildSelection();
   const label = BUILD_FILTERS.find((entry) => entry.value === filter)?.label;
@@ -21,11 +50,26 @@ export default function InsidePanel({ content }: InsidePanelProps) {
       <div className="panel-header">
         <h2 className="pf-h2">{content.title || 'Inside the work.'}</h2>
         <p className="pf-sub">{content.subtitle}</p>
-        <nav className={styles.contactLinks} aria-label="Ways to join Patternflow">
-          <a href="https://discord.gg/Vr9QtsxeTk" target="_blank" rel="noreferrer">Discord ↗</a>
-          <a href="https://www.instagram.com/patternflow.work/" target="_blank" rel="noreferrer">Instagram ↗</a>
-          <Link href="/contact">Contact ↗</Link>
-        </nav>
+        <div className={styles.joinBand} aria-label="Ways to join Patternflow">
+          {JOIN.map((row) => {
+            const inner = (
+              <>
+                <span className={styles.joinKicker}>{row.kicker}</span>
+                <strong>{row.name}</strong>
+                <span className={styles.joinDesc}>{row.desc}</span>
+              </>
+            );
+            return row.external ? (
+              <a key={row.name} className={styles.joinCell} href={row.href} target="_blank" rel="noreferrer">
+                {inner}
+              </a>
+            ) : (
+              <Link key={row.name} className={styles.joinCell} href={row.href}>
+                {inner}
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       <div className={`panel-body ${styles.body}`}>
