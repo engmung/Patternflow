@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { milestones } from './milestones-data';
 
 // What has grown out of Patternflow — right under the hero, where the buttons
@@ -18,12 +17,10 @@ export default function Milestones() {
         {milestones.map((m) => (
           <li key={m.title} className="milestone">
             <span className="milestone-body">
+              {/* Always a new tab, the site's own pages included: this column is
+                  a tab of one view, and coming back to it is not one click. */}
               {m.href ? (
-                m.href.startsWith('/') ? (
-                  <Link href={m.href}>{m.title}</Link>
-                ) : (
-                  <a href={m.href} target="_blank" rel="noopener">{m.title} ↗</a>
-                )
+                <a href={m.href} target="_blank" rel="noopener">{m.title} ↗</a>
               ) : (
                 m.title
               )}

@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://patternflow.work"),
   title: "Patternflow — An LED synthesizer",
   description:
-    "Patternflow is an open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern the community makes.",
+    "Patternflow is an open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern we make.",
   keywords: [
     "LED synthesizer",
     "open-source hardware",
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
     url: "https://patternflow.work",
     title: "Patternflow — An LED synthesizer",
     description:
-      "An open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern the community makes.",
+      "An open-source LED synthesizer. Play light patterns with your fingertips — and every Patternflow plays every pattern we make.",
     images: [
       {
         url: "/og-image.png",

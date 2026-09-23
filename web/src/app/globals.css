@@ -267,27 +267,6 @@
   .hero-footnote em {
     font-style: italic;
   }
-  /* The count line that closes the column. Same mono register as the
-     footnote, but its link carries a rule by default — it is meant to be
-     followed. */
-  .hero-proof {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-    margin: 16px 0 0;
-  }
-  .hero-proof a {
-    color: var(--ink);
-    border-bottom: 1px solid var(--pf-rule);
-    padding-bottom: 2px;
-    transition: border-color 0.15s ease;
-  }
-  .hero-proof a:hover {
-    border-color: var(--ink);
-    text-decoration: none;
-  }
   @media (max-width: 900px) {
     .hero {
       display: flex;
