@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Hero from './Hero';
+import Milestones from './Milestones';
 import Sponsor from './Sponsor';
 import BuildPanel from './BuildPanel';
 import InsidePanel from './InsidePanel';
@@ -158,6 +159,7 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
         <div className="deck-content">
           <div className={`panel-wrapper ${activeTab === 'hero' ? 'active' : ''}`}>
             <Hero />
+            <Milestones />
             <Sponsor />
             <Footer />
           </div>

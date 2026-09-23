@@ -1403,6 +1403,46 @@
   /* ───── Sponsor ───── */
   /* 60px horizontal, matching .hero — these sit directly under it in the same
      column, and at 80px their content started 20px right of the wordmark. */
+  /* ───── Milestones: the story so far, under the hero ───── */
+  .milestones {
+    padding: 0 60px 40px;
+  }
+  .milestones-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 14px;
+  }
+  .milestones-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-width: 580px;
+    border-top: 1px solid var(--pf-rule);
+  }
+  .milestone {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--pf-rule);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .milestone-body { text-wrap: pretty; }
+  .milestone-body a {
+    color: var(--ink);
+    border-bottom: 1px solid var(--pf-rule);
+    padding-bottom: 1px;
+    transition: border-color 0.15s ease;
+  }
+  .milestone-body a:hover { border-color: var(--ink); text-decoration: none; }
+  .milestone-who { color: var(--ink-muted); }
+  @media (max-width: 900px) {
+    .milestones { padding: 0 0 32px; }
+    .milestone { font-size: 14.5px; }
+  }
+
   .sponsor {
     background: var(--cream);
     padding: 34px 60px 24px;

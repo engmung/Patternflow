@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
-import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
-import { builds } from "@/components/sections/InsideGlobe/builds";
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
@@ -102,54 +100,11 @@ export default function Hero() {
             After Nam June Paik&apos;s <em>Participation TV</em>, 1963 — read why ↗
           </Link>
         </p>
-        {/* Get One leads: it is the action that costs the reader something, so
-            it takes the solid weight. The note sits under it — not under both —
-            so it is unambiguous which button ships worldwide. */}
-        <div className="hero-cta-row" aria-label="Patternflow actions">
-          <a
-            className="hero-cta hero-cta-primary"
-            href={CROWD_SUPPLY_URL}
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('crowd_supply_clicked', {
-              surface: 'hero',
-              destination: 'crowd_supply',
-              via: 'direct',
-            })}
-          >
-            Get One
-          </a>
-          <a
-            className="hero-cta hero-cta-secondary"
-            href="https://github.com/engmung/Patternflow"
-            target="_blank"
-            rel="noopener"
-            onClick={() => captureEvent('github_cta_clicked', {
-              surface: 'hero',
-              destination: 'github_repository',
-            })}
-          >
-            Build it — GitHub
-          </a>
-          <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
-        </div>
-        {/* The hero is all claim and no evidence otherwise. Per the manifesto,
-            the build map is the strongest proof there is — a star is interest,
-            a pin is someone who actually did it — and the count comes from the
-            data so it cannot go stale. Below the buttons on purpose: evidence
-            belongs after the ask, and the CTA row keeps its place above the
-            fold. */}
-        <p className="hero-proof">
-          <Link
-            href="/inside"
-            onClick={() => captureEvent('hero_proof_clicked', {
-              surface: 'hero',
-              destination: 'inside_build_map',
-            })}
-          >
-            {builds.length} pins on the globe — see who built one ↗
-          </Link>
-        </p>
+        {/* No buttons. Get One went when the campaign had funded and there
+            was nothing left to ask for; Build It lives on the Build tab. The
+            proof that used to be a link under them - the globe - is now the
+            left pane itself, and what follows this column is the story
+            (Milestones), not an ask. */}
       </div>
     </section>
   );
