@@ -219,9 +219,9 @@ Longer write-ups and the full story behind each step live on the **[journal](htt
 
 Patternflow's PCB fabrication and 3D-printed enclosure are sponsored by **[PCBWay](https://www.pcbway.com/)**. The first PCB came back clean and on-spec, ordering was straightforward, and the team has been genuinely responsive throughout. That support made these milestones possible.
 
-<img src="./web/public/journal/v1-30-days/first-pcb.jpg" width="160" alt="First Patternflow PCB fabricated by PCBWay" />
+<img src="./web/public/journal/v1-30-days/first-pcb.jpg" width="160" alt="First Patternflow PCB fabricated by PCBWay" />&nbsp;&nbsp;<img src="./docs/media/pcbway-3d-print.jpg" width="213" alt="Patternflow enclosure parts 3D-printed by PCBWay" />
 
-<sub><i>The first Patternflow PCB, fabricated by PCBWay.</i></sub>
+<sub><i>The first Patternflow PCB, fabricated by PCBWay, and the enclosure they printed.</i></sub>
 
 ## License
 
