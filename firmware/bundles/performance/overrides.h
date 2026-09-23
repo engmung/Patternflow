@@ -15,17 +15,16 @@
 // edition's own and moves at whatever pace suits it — it has nothing to say
 // about the core version, which is reported separately.
 #define PF_VARIANT          "performance"
-#define PF_VARIANT_VERSION  "v0.2.9"
+#define PF_VARIANT_VERSION  "v0.4.0"
 
-// ── The show player's night face ────────────────────────────────────────
-//
-// The night/wake scheduler switches to Black by name, so this edition ships
-// it (features_local.h includes the header; this names the entry). Hidden,
-// because the panel going dark is not something to land on while turning K4
-// through the list. The bare core defines PF_FEATURE_PRESETS empty - a preset
-// rides with the composition that needs it, never with the default.
-#define PF_FEATURE_PRESET_INCLUDE "show/preset_black.h"
-#define PF_FEATURE_PRESETS PATTERN_ENTRY_HIDDEN(Black),
+// ── Feature presets ─────────────────────────────────────────────────────
+// Black: show scheduler night/alarm face (hidden from K4 browse).
+// Weather: compiled-in face — needs NTP + PatternflowWeather host APIs that
+// .pfm modules cannot call (not in PFHostAPI).
+#define PF_FEATURE_PRESET_INCLUDE "performance_presets.h"
+#define PF_FEATURE_PRESETS \
+  PATTERN_ENTRY_HIDDEN(Black), \
+  PATTERN_ENTRY(Weather),
 
 // Nothing else is changed. The radio stays at the conformance-tested setting,
 // and a panel switching to this edition keeps its Wi-Fi, its brightness and
