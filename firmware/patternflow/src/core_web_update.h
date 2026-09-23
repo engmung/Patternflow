@@ -113,7 +113,14 @@ inline void failUpload(const char* stage) {
   Serial.printf("[UPDATE] failed — %s\n", lastError.c_str());
 }
 
-// Upload body handler — called per multipart chunk by WebServer.
+inline void noteProgress(unsigned pct) {
+  if (pct > 100) pct = 100;
+  if (pct == progressPct) return;
+  progressPct = pct;
+  if (progressCallback) progressCallback((int)pct);
+}
+
+// Upload body handler — multipart FormData POST (what the /update page uses).
 inline void handleUpload() {
   HTTPUpload& up = server().upload();
   switch (up.status) {
@@ -135,6 +142,8 @@ inline void handleUpload() {
                       ? (size_t)strtoul(server().arg("size").c_str(), nullptr, 10)
                       : 0;
       uploading = true;
+      // Long flash: do not drop the TCP session on a brief Wi-Fi hitch.
+      server().client().setTimeout(120);
       if (!Update.begin(expectedBytes ? expectedBytes : UPDATE_SIZE_UNKNOWN,
                         U_FLASH)) {
         failUpload("begin");
@@ -153,12 +162,7 @@ inline void handleUpload() {
       }
       receivedBytes += up.currentSize;
       if (expectedBytes) {
-        unsigned pct = (unsigned)((uint64_t)receivedBytes * 100 / expectedBytes);
-        if (pct > 100) pct = 100;
-        if (pct != progressPct) {
-          progressPct = pct;
-          if (progressCallback) progressCallback((int)pct);
-        }
+        noteProgress((unsigned)((uint64_t)receivedBytes * 100 / expectedBytes));
       }
       break;
     }
@@ -181,6 +185,73 @@ inline void handleUpload() {
         uploading = false;
         lastError = "upload aborted";
         Serial.println("[UPDATE] upload aborted by client");
+      }
+      break;
+    }
+  }
+}
+
+// Optional raw PUT (curl --upload-file). Not used by the browser page —
+// FormData POST is the path that drives xhr.upload.onprogress reliably.
+inline void handleRawBody() {
+  HTTPRaw& raw = server().raw();
+  switch (raw.status) {
+    case RAW_START: {
+      uploadAttempts++;
+      rejected = !isArmed() || uploading || rebootAtMs != 0;
+      if (rejected) {
+        Serial.println("[UPDATE] raw upload refused (not armed)");
+        break;
+      }
+      lastError = "";
+      completedOk = false;
+      receivedBytes = 0;
+      progressPct = 0;
+      expectedBytes = server().hasArg("size")
+                      ? (size_t)strtoul(server().arg("size").c_str(), nullptr, 10)
+                      : 0;
+      uploading = true;
+      server().client().setTimeout(120);
+      if (!Update.begin(expectedBytes ? expectedBytes : UPDATE_SIZE_UNKNOWN,
+                        U_FLASH)) {
+        failUpload("begin");
+        break;
+      }
+      Serial.printf("[UPDATE] receiving raw (%u bytes)\n", (unsigned)expectedBytes);
+      if (progressCallback) progressCallback(expectedBytes ? 0 : -1);
+      break;
+    }
+    case RAW_WRITE: {
+      if (!uploading) break;
+      if (Update.write(raw.buf, raw.currentSize) != raw.currentSize) {
+        failUpload("write");
+        break;
+      }
+      receivedBytes += raw.currentSize;
+      if (expectedBytes) {
+        noteProgress((unsigned)((uint64_t)receivedBytes * 100 / expectedBytes));
+      }
+      break;
+    }
+    case RAW_END: {
+      if (!uploading) break;
+      if (Update.end(true)) {
+        completedOk = true;
+        progressPct = 100;
+        uploading = false;
+        Serial.printf("[UPDATE] flashed %u bytes OK (raw)\n", (unsigned)receivedBytes);
+        if (progressCallback) progressCallback(100);
+      } else {
+        failUpload("end");
+      }
+      break;
+    }
+    case RAW_ABORTED: {
+      if (uploading) {
+        Update.abort();
+        uploading = false;
+        lastError = "upload aborted";
+        Serial.println("[UPDATE] raw upload aborted");
       }
       break;
     }
@@ -255,7 +326,10 @@ inline void begin() {
   server().on("/update", HTTP_GET, []() {
     PFSend::gz(server(), WEB_UPDATE_HTML_GZ, WEB_UPDATE_HTML_GZ_LEN);
   });
+  // Multipart POST — what the /update page uses (FormData + xhr progress).
   server().on("/update", HTTP_POST, handleUploadDone, handleUpload);
+  // Optional raw PUT for curl --upload-file / scripted flashes.
+  server().on("/update", HTTP_PUT, handleUploadDone, handleRawBody);
   server().on("/update/status", HTTP_GET, handleStatus);
 
   PatternflowHttp::begin();  // idempotent; whoever is first starts it

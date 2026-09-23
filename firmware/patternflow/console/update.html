@@ -144,6 +144,7 @@ function upload(f){
   setMsg('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');
   var xhr=new XMLHttpRequest();
   xhr.open('POST','/update?size='+f.size);
+  xhr.timeout=300000;
   xhr.upload.onprogress=function(e){if(e.lengthComputable)fill.style.width=Math.round(e.loaded*100/e.total)+'%'};
   xhr.onload=function(){
     uploading=false;
@@ -161,6 +162,11 @@ function upload(f){
   xhr.onerror=function(){
     uploading=false;
     setMsg('Connection lost during upload. The device still runs its old firmware unless it just rebooted - if in doubt, try again.','bad');
+    bar.style.display='none';
+  };
+  xhr.ontimeout=function(){
+    uploading=false;
+    setMsg('Upload timed out. Try again closer to the access point, or flash over USB.','bad');
     bar.style.display='none';
   };
   var fd=new FormData();fd.append('firmware',f,f.name);
