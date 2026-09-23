@@ -56,21 +56,30 @@ Each file starts with a metadata header kept in sync with the JS source:
 
 Two different things, and it's worth keeping them apart.
 
-**Your panel** is set in [`config.h`](./config.h):
+**Your panel** is set in [`config.h`](./config.h) by `PANEL_GEOMETRY`:
 
 ```cpp
-#define PANEL_RES_W 128
-#define PANEL_RES_H 64
-#define PANEL_CHAIN 1
+#define PANEL_GEOM_128x64_SINGLE 1  // one 128×64 module (stock)
+#define PANEL_GEOM_64x64_SINGLE  2  // one 64×64 module
+#define PANEL_GEOM_64x64_CHAIN2  3  // two 64×64 modules daisy-chained → 128×64
 ```
 
-Running something other than the stock 128×64 — a 64×64 module, or two
-128×64 panels chained into 256×64 — means **editing those lines to match your
-hardware and reflashing. That's the whole change.** Nothing else in the
-firmware hardcodes a panel size: the HUB75 driver config, the radius/angle
-tables, the canvas buffer and the on-screen menus all derive from these three
-values. The patterns do too, as long as they loop over `PANEL_RES_W` /
-`PANEL_RES_H` instead of typing `128` and `64`.
+The stock panel needs nothing. For one of the others, uncomment the
+`#define PANEL_GEOMETRY` line in `config.h` — or build the `firmware64x2`
+PlatformIO env for two chained 64×64 modules — and reflash. Anything else
+means editing the numbers in the last branch of that block: `PANEL_PHYS_W/H`
+is one module, `PANEL_CHAIN` how many are daisy-chained, and
+`PANEL_RES_W/H` the canvas they add up to. The build stops with an `#error`
+if the canvas is not the module times the chain. A bigger canvas costs
+internal RAM, three bytes a pixel.
+
+The driver is told the module and the chain; everything else — the canvas
+buffer, the radius/angle tables, the on-screen menus and the patterns — sees
+only the canvas, `PANEL_RES_W` × `PANEL_RES_H`. Patterns follow any size as
+long as they loop over those two instead of typing `128` and `64`. The
+chained 64×64 build compiles in CI but had not been lit on real modules when
+it landed; if you run one, say how it went on
+[#224](https://github.com/engmung/Patternflow/issues/224).
 
 **A pattern's frame** is the pixel grid it was *composed* for, which is not
 always the panel's. A 64×128 pattern on a 128×64 panel is just the device

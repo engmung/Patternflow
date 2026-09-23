@@ -194,7 +194,8 @@ export const EDITIONS: Edition[] = [
       'Sequences — cue lists, timelines, the night/wake scheduler',
       'MQTT in every role — publisher, subscriber, bridge',
       'FlowLocal and the Director',
-      'Weather — temperature and wind mapped onto the knobs',
+      'Weather — temperature and wind mapped onto the knobs, and a face of its own',
+      'The clock — the time, cut out of the running pattern',
     ],
     hosted: {
       version: 'v0.2.9',

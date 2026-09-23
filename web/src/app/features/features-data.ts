@@ -230,11 +230,9 @@ export const FEATURES: Feature[] = [
       "console page whose preview draws the same pixels the panel does and " +
       "sends every change as you make it.",
     needs: [],
-    home: "recipe",
-    where:
-      "Joining the Performance firmware. Until then a recipe in the tree, " +
-      "firmware/bundles/clock — build it with build.sh clock.",
-    whereHref: tree("firmware/bundles/clock"),
+    home: "performance",
+    where: "In the Performance firmware.",
+    whereHref: "/editions#performance",
     links: [
       { label: "Console API", href: blob("docs/rest-api.md") },
       { label: "Source", href: tree("firmware/patternflow/features/clock") },
