@@ -428,12 +428,15 @@ Requires `PF_WEBUPDATE_ENABLED` (default on).
 | Route | |
 |---|---|
 | `GET /update` | Drop-zone page |
-| `POST /update` | Multipart firmware image, streamed into `Update.h` |
+| `POST /update` | Multipart firmware image, streamed into `Update.h`. What the `/update` page sends. |
+| `PUT /update` | The same image as a raw body, for scripts: `curl -T patternflow.ino.bin "http://<panel>/update?size=<bytes>"`. Same gate, same reply, same reboot. |
 | `GET /update/status` | `{armed, busy, version, lastError, lastRejected, lastOk, received, expected, attempts}` |
 
 `armed` is the gate. With `PF_WEBUPDATE_ALWAYS_ARMED 1` (the default) it is always true and anyone on the Wi-Fi can flash the device from a phone browser — the same exposure ArduinoOTA's no-password default already has, and the right call on a home or studio network. Set the flag to `0` for shared, office or exhibition Wi-Fi and uploads are refused unless the UPDATE screen is physically open on the device (hold K2 → NETWORK, turn K4).
 
 An incoming image also wakes a sleeping device.
+
+An upload may stall for up to two minutes — a Wi-Fi hitch halfway through a flash — before the device gives up on the connection; before 1.5 it was five seconds. The image goes to the other app slot, so an upload that is dropped leaves the running firmware exactly as it was.
 
 ## Identifying a device
 
@@ -472,7 +475,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted).
+- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted); `PUT /update` takes a raw image, and an upload survives a stall of up to two minutes.
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.

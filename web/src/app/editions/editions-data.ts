@@ -194,11 +194,12 @@ export const EDITIONS: Edition[] = [
       'Sequences — cue lists, timelines, the night/wake scheduler',
       'MQTT in every role — publisher, subscriber, bridge',
       'FlowLocal and the Director',
-      'Weather — temperature and wind mapped onto the knobs',
+      'Weather — temperature and wind mapped onto the knobs, and a face of its own',
+      'The clock — the time, cut out of the running pattern',
     ],
     hosted: {
-      version: 'v0.2.9',
-      url: 'https://patternflow.work/flash/bin/performance-v0.2.9/patternflow.ino.bin',
+      version: 'v0.4.0',
+      url: 'https://patternflow.work/flash/bin/performance-v0.4.0/patternflow.ino.bin',
     },
     source: 'https://github.com/engmung/Patternflow/tree/main/firmware/bundles/performance',
     note:

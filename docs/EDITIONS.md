@@ -63,7 +63,7 @@ in one click. Four exist:
 |---|---|---|
 | **Patternflow** | nothing — the device itself | the product |
 | **Audio** | OSC, MIDI, browser audio, the on-board microphone | SeungHun Lee |
-| **Performance** | sequences, MQTT, FlowLocal, the Director, weather | Simone Majocchi |
+| **Performance** | sequences, MQTT, FlowLocal, the Director, weather, the clock | Simone Majocchi |
 | **Clock** | the time, cut out of the running pattern | SeungHun Lee |
 
 The word "addon" is retired. It suggested something optional or third-party,
