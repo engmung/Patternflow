@@ -66,18 +66,53 @@ constexpr float RAD_TO_DEG = 57.29577951308232087680f;
 constexpr float EULER      = 2.71828182845904523536f;
 
 // --- Display Specifications ---
-// Running a panel other than the stock 128x64? Change these to match your
-// hardware and reflash — that is the whole change. Nothing else in the
-// firmware hardcodes a size: the HUB75 driver config, the canvas buffer, the
-// radius/angle tables and the on-screen menus all derive from these three.
-// (A pattern composed for a grid that ISN'T the panel — a 64x128 portrait
+// Logical canvas (PANEL_RES_W/H) is what patterns, menus and modules see.
+// Physical size + chain is what the HUB75 driver is told. A native 128×64
+// module and two 64×64 modules daisy-chained are the same 128×64 canvas,
+// but the driver must be configured differently — hence PANEL_GEOMETRY.
+// PlatformIO: -DPANEL_GEOMETRY=PANEL_GEOM_64x64_CHAIN2 for firmware64x2.
+// Arduino IDE: uncomment a PANEL_GEOMETRY line below, then build.
+//
+// A pattern composed for a grid that ISN'T the panel — a 64x128 portrait
 // pattern on this 128x64 panel, say — is a separate matter, handled per
-// pattern with PFCanvas::setFrame(). See README.md.)
+// pattern with PFCanvas::setFrame(). See README.md.
 // Running a non-stock panel? Please report how it went, working or not:
 // https://github.com/engmung/Patternflow/issues/224
-#define PANEL_RES_W 128
-#define PANEL_RES_H 64
-#define PANEL_CHAIN 1
+#define PANEL_GEOM_128x64_SINGLE 1  // one 128×64 module (stock)
+#define PANEL_GEOM_64x64_SINGLE  2  // one 64×64 module
+#define PANEL_GEOM_64x64_CHAIN2  3  // two 64×64 modules daisy-chained → 128×64
+
+// #define PANEL_GEOMETRY PANEL_GEOM_64x64_CHAIN2
+#ifndef PANEL_GEOMETRY
+#define PANEL_GEOMETRY PANEL_GEOM_128x64_SINGLE
+#endif
+
+#if PANEL_GEOMETRY == PANEL_GEOM_64x64_SINGLE
+  #define PANEL_PHYS_W 64
+  #define PANEL_PHYS_H 64
+  #define PANEL_CHAIN  1
+  #define PANEL_RES_W  64
+  #define PANEL_RES_H  64
+#elif PANEL_GEOMETRY == PANEL_GEOM_64x64_CHAIN2
+  #define PANEL_PHYS_W 64
+  #define PANEL_PHYS_H 64
+  #define PANEL_CHAIN  2
+  #define PANEL_RES_W  128
+  #define PANEL_RES_H  64
+#else
+  #define PANEL_PHYS_W 128
+  #define PANEL_PHYS_H 64
+  #define PANEL_CHAIN  1
+  #define PANEL_RES_W  128
+  #define PANEL_RES_H  64
+#endif
+
+#if PANEL_RES_W != (PANEL_PHYS_W * PANEL_CHAIN)
+#error "PANEL_RES_W must equal PANEL_PHYS_W * PANEL_CHAIN"
+#endif
+#if PANEL_RES_H != PANEL_PHYS_H
+#error "PANEL_RES_H must equal PANEL_PHYS_H"
+#endif
 
 // --- Panel Selection ---
 // This firmware runs on classic HUB75 / HUB75E panels driven directly by the
