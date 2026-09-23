@@ -177,6 +177,31 @@ function ContinentOutlines() {
 // How many nearest neighbours each build links out to. Edges are shared, so a
 // build can end up with more than this many lines, but never a full mesh.
 const NEIGHBOURS_PER_BUILD = 3;
+// On top of the nearest-neighbour web, each build reaches once more to a
+// build picked at random - so the web crosses oceans instead of clustering
+// where the pins happen to be dense. Seeded from the ids, so it is the same
+// web on every render and every visit rather than a shuffle on each paint.
+const FAR_LINK_CHANCE = 0.6;
+
+function seedFrom(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// mulberry32: small, deterministic, good enough for picking a handful of lines.
+function seededRandom(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 // Angular distance between two lat/lng points (radians), for nearest-neighbour ranking.
 function angularDistance(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -216,6 +241,15 @@ function webArcs(entries: Build[]): number[][] {
     for (const { j } of nearest) {
       edges.add(i < j ? `${i}-${j}` : `${j}-${i}`);
     }
+  }
+
+  // The far links: one throw of the dice per build, to any other build.
+  const random = seededRandom(seedFrom(built.map((build) => build.id).join('|')));
+  for (let i = 0; i < built.length && built.length > 1; i += 1) {
+    if (random() > FAR_LINK_CHANCE) continue;
+    let j = Math.floor(random() * (built.length - 1));
+    if (j >= i) j += 1;
+    edges.add(i < j ? `${i}-${j}` : `${j}-${i}`);
   }
 
   for (const key of edges) {
