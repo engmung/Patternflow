@@ -111,6 +111,13 @@ constexpr uint32_t SNAPSHOT_HEARTBEAT_MS = 8000;
 constexpr uint32_t PARAM_PUB_MIN_MS = 1000;
 // Ignore easing chatter smaller than this (0..1000 bus units).
 constexpr uint16_t PARAM_PUB_MIN_DELTA = 20;
+// Drain this many broker packets per handle() so a show stream cannot
+// backlog one message per frame. Keep small: handle() runs on the render
+// core, and each client.loop() can touch TCP.
+constexpr int MQTT_DRAIN_MAX = 8;
+// When pending remote knob clicks exceed this, drop intermediates and keep
+// a single bounded step — subscriber was lagging a PFS/Director stream.
+constexpr int32_t KNOB_PENDING_FLUSH = 16;
 
 inline WiFiClient net;
 inline PubSubClient client(net);
@@ -130,6 +137,13 @@ inline long lastKnobs[4] = {0, 0, 0, 0};
 inline bool haveKnob[4] = {false, false, false, false};
 inline long lastRemoteKnob[4] = {0, 0, 0, 0};
 inline int32_t pendingKnobDelta[4] = {0, 0, 0, 0};
+// Coalesce mailbox: many /knob and /param packets per frame collapse to the
+// latest value before applying, so a PFS ease cannot queue the subscriber.
+inline long coalesceKnob[4] = {};
+inline bool coalesceKnobDirty[4] = {};
+inline uint16_t coalesceParam[4] = {};
+inline bool coalesceParamDirty[4] = {};
+inline bool coalesceParamClear[4] = {};
 inline int pendingPatternIdx = -1;
 // -1 nothing pending, 0 wake, 1 sleep — consumed by the sketch, which owns the
 // actual transition (see core_sleep.h on why a callback must not do it).
@@ -575,20 +589,40 @@ inline void applyRemoteKnob(int index, long remote) {
     delta = (int32_t)(remote - lastRemoteKnob[index]);
   }
   lastRemoteKnob[index] = remote;
+  // Retained snapshot / Director param holds outrank knobDeltas in
+  // fillAbsolute() — they replace the frame's deltas entirely. A /knob
+  // leaf is intentional control: always yield that hold (no noise grace),
+  // even when the click count is unchanged, so later turns are not muted.
+  PatternflowBus::releaseAbsoluteNow(index);
   if (delta) pendingKnobDelta[index] += delta;
+  // Flush intermediates when the subscriber is behind a fast stream.
+  if (pendingKnobDelta[index] > KNOB_PENDING_FLUSH) {
+    pendingKnobDelta[index] = KNOB_PENDING_FLUSH;
+  } else if (pendingKnobDelta[index] < -KNOB_PENDING_FLUSH) {
+    pendingKnobDelta[index] = -KNOB_PENDING_FLUSH;
+  }
 }
 
-inline void applyRemotePattern(const char* name) {
-  int index = findPatternByName(name);
-  if (index >= 0) {
-    pendingPatternIdx = index;
-    return;
+inline void queueRemoteKnob(int index, long remote) {
+  if (index < 0 || index > 3) return;
+  coalesceKnob[index] = remote;
+  coalesceKnobDirty[index] = true;
+}
+
+inline void queueRemoteParam(int index, long value, bool clear) {
+  if (index < 0 || index > 3) return;
+  coalesceParamClear[index] = clear;
+  if (!clear) {
+    if (value < 0) value = 0;
+    if (value > PF_BUS_MAX) value = PF_BUS_MAX;
+    coalesceParam[index] = (uint16_t)value;
   }
-  Serial.printf("[MQTT] unknown pattern '%s'\n", name ? name : "");
+  coalesceParamDirty[index] = true;
 }
 
 // Thin forwarders to core_bus.h, kept so existing callers need no edit.
-// New code should call PatternflowBus:: directly.
+// New code should call PatternflowBus:: directly. Declared before
+// flushCoalescedRemote() — C++ needs these names in scope at the call site.
 inline void applyRemoteParam(int index, long value) {
   PatternflowBus::applyRemoteParam(index, value);
 }
@@ -601,6 +635,29 @@ inline void clearAbsoluteAll() { PatternflowBus::clearAbsoluteAll(); }
 
 inline void fillAbsolute(InputFrame& input) {
   PatternflowBus::fillAbsolute(input);
+}
+
+inline void flushCoalescedRemote() {
+  for (int i = 0; i < 4; ++i) {
+    if (coalesceKnobDirty[i]) {
+      coalesceKnobDirty[i] = false;
+      applyRemoteKnob(i, coalesceKnob[i]);
+    }
+    if (coalesceParamDirty[i]) {
+      coalesceParamDirty[i] = false;
+      if (coalesceParamClear[i]) releaseAbsolute(i);
+      else applyRemoteParam(i, coalesceParam[i]);
+    }
+  }
+}
+
+inline void applyRemotePattern(const char* name) {
+  int index = findPatternByName(name);
+  if (index >= 0) {
+    pendingPatternIdx = index;
+    return;
+  }
+  Serial.printf("[MQTT] unknown pattern '%s'\n", name ? name : "");
 }
 
 inline void applyRemoteMessage(uint8_t* payload, unsigned int length) {
@@ -656,12 +713,19 @@ inline void applyRemoteSleep(uint8_t* payload, unsigned int length) {
 
 // Minimal snapshot parser — looks for "pattern", "param":[a,b,c,d], "message".
 // Empty payload clears absolute holds and the banner (end-of-show sweep).
+//
+// Publisher on Live/custom also subscribes (ops clear). It must NOT apply a
+// non-empty retained snapshot: that is usually the panel's own last publish,
+// and replaying it on connect pins Origin's absolute knobs (and used to
+// reload FatFS modules from "pattern") so the source panel looks frozen.
 inline void applyRemoteSnapshot(uint8_t* payload, unsigned int length) {
   if (!payload || length == 0) {
     clearAbsoluteAll();
     PatternflowBanner::clear();
     return;
   }
+  // Non-empty retained state is for Subscribers joining mid-show only.
+  if (role == ROLE_PUBLISHER) return;
 
   char body[SNAPSHOT_BYTES];
   unsigned int n = length < sizeof(body) - 1 ? length : sizeof(body) - 1;
@@ -772,15 +836,12 @@ inline void onMessage(char* topic, uint8_t* payload, unsigned int length) {
   }
   int param = topicParamIndex(topic);
   if (param >= 0) {
-    if (!body[0]) {
-      releaseAbsolute(param);
-    } else {
-      applyRemoteParam(param, atol(body));
-    }
+    // Coalesce: only the latest value per lane is applied after drain.
+    queueRemoteParam(param, body[0] ? atol(body) : 0, !body[0]);
     return;
   }
   int knob = topicKnobIndex(topic);
-  if (knob >= 0) applyRemoteKnob(knob, atol(body));
+  if (knob >= 0) queueRemoteKnob(knob, atol(body));
 }
 
 inline void publishKnob(int index, long clicks) {
@@ -832,6 +893,8 @@ inline void publishChannelSnapshot(bool force) {
            (unsigned)paramValue[2], (unsigned)paramValue[3]);
   client.publish(topic, payload, true);
 }
+
+inline bool liveBurstPending = false;
 
 // Live leaf burst for currently connected peers (non-retain). Channel
 // mid-join uses retained snapshot instead.
@@ -1002,7 +1065,10 @@ inline bool tryConnect() {
     subscribeAll();
   } else if (role == ROLE_PUBLISHER) {
     subscribePublisherExtras();
-    publishLiveBurst();
+    // Defer the burst to handle() so connect does not block the first frames
+    // with a dozen publishes (and so we do not race our own retained snapshot
+    // in the same call stack).
+    liveBurstPending = true;
   }
   return true;
 }
@@ -1011,6 +1077,9 @@ inline void resetSessionState() {
   for (int i = 0; i < 4; ++i) {
     haveKnob[i] = false;
     pendingKnobDelta[i] = 0;
+    coalesceKnobDirty[i] = false;
+    coalesceParamDirty[i] = false;
+    coalesceParamClear[i] = false;
   }
   pendingPatternIdx = -1;
   pendingSleep = -1;
@@ -1021,6 +1090,7 @@ inline void resetSessionState() {
   publishedPattern[0] = '\0';
   for (int i = 0; i < 4; ++i) publishedParamValid[i] = false;
   lastParamPubMs = 0;
+  liveBurstPending = false;
   PatternflowBanner::clear();
   lastSnapshotPubMs = 0;
 }
@@ -1302,7 +1372,11 @@ inline void clearConfig() {
 }
 
 inline void lastKnobsCopy(long out[4]) {
-  for (int i = 0; i < 4; ++i) out[i] = lastKnobs[i];
+  // Subscriber: show the last wire values from /knob/N once any have arrived.
+  // Publisher / idle: show the local encoder clicks that we publish.
+  for (int i = 0; i < 4; ++i) {
+    out[i] = haveKnob[i] ? lastRemoteKnob[i] : lastKnobs[i];
+  }
 }
 
 inline void lastParamsCopy(uint16_t out[4], bool activeOut[4]) {
@@ -1342,7 +1416,17 @@ inline void handle() {
     tryConnect();
     return;
   }
-  client.loop();
+  // Drain a burst of packets then apply one coalesced knob/param set so a
+  // PFS ease cannot leave the subscriber one message per frame behind.
+  for (int n = 0; n < MQTT_DRAIN_MAX; ++n) {
+    client.loop();
+    if (!client.connected()) break;
+  }
+  flushCoalescedRemote();
+  if (liveBurstPending && role == ROLE_PUBLISHER && client.connected()) {
+    liveBurstPending = false;
+    publishLiveBurst();
+  }
   pumpInventory();
   if (role == ROLE_PUBLISHER) publishChannelSnapshot(false);
 }
