@@ -620,6 +620,23 @@ inline void queueRemoteParam(int index, long value, bool clear) {
   coalesceParamDirty[index] = true;
 }
 
+// Thin forwarders to core_bus.h, kept so existing callers need no edit.
+// New code should call PatternflowBus:: directly. Declared before
+// flushCoalescedRemote() — C++ needs these names in scope at the call site.
+inline void applyRemoteParam(int index, long value) {
+  PatternflowBus::applyRemoteParam(index, value);
+}
+
+inline void releaseAbsolute(int index) {
+  PatternflowBus::releaseAbsolute(index);
+}
+
+inline void clearAbsoluteAll() { PatternflowBus::clearAbsoluteAll(); }
+
+inline void fillAbsolute(InputFrame& input) {
+  PatternflowBus::fillAbsolute(input);
+}
+
 inline void flushCoalescedRemote() {
   for (int i = 0; i < 4; ++i) {
     if (coalesceKnobDirty[i]) {
@@ -641,22 +658,6 @@ inline void applyRemotePattern(const char* name) {
     return;
   }
   Serial.printf("[MQTT] unknown pattern '%s'\n", name ? name : "");
-}
-
-// Thin forwarders to core_bus.h, kept so existing callers need no edit.
-// New code should call PatternflowBus:: directly.
-inline void applyRemoteParam(int index, long value) {
-  PatternflowBus::applyRemoteParam(index, value);
-}
-
-inline void releaseAbsolute(int index) {
-  PatternflowBus::releaseAbsolute(index);
-}
-
-inline void clearAbsoluteAll() { PatternflowBus::clearAbsoluteAll(); }
-
-inline void fillAbsolute(InputFrame& input) {
-  PatternflowBus::fillAbsolute(input);
 }
 
 inline void applyRemoteMessage(uint8_t* payload, unsigned int length) {
