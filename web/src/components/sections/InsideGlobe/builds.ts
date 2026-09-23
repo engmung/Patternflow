@@ -177,7 +177,7 @@ export const builds: Build[] = [
     maker: 'Seunghun LEE',
     date: '2026-09',
     description:
-      'Sent to Martin Lopez, who put more patterns on the community wall — and more consistently, and more fun ones — than anyone. It went quiet after it arrived, so the map is keeping this spot for a photo, whenever it comes.',
+      'Sent to Martin Lopez, who put more patterns on the community wall — and more consistently, and more fun ones — than anyone.',
   },
   {
     id: 'sf-swartz',

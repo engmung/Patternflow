@@ -4,6 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
+import { builds } from "@/components/sections/InsideGlobe/builds";
+
+// How many people have made a Patternflow, by the nearest thing to a count
+// there is: the community's membership, which tracks it closely. Rounded and
+// said as "around", because it is an estimate; the map figure beside it is
+// exact and comes from the data.
+const PEOPLE_WHO_MADE_ONE = 40;
 
 export default function Hero() {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
@@ -81,7 +88,7 @@ export default function Hero() {
         </div>
         {/* L3 — the strongest line we have, per the manifesto: a description of
             how the system works, with nothing in it to disbelieve. */}
-        <p className="lede">Every Patternflow plays every pattern we make.</p>
+        <p className="lede">Every Patternflow plays every pattern the community makes.</p>
         {/* L5 does not run in the hero (manifesto §2: depth, not headline, and
             this is the most headline-like surface on the site). This is a
             signpost to it, not a shortened version of it — the line itself is
@@ -101,10 +108,21 @@ export default function Hero() {
           </Link>
         </p>
         {/* No buttons. Get One went when the campaign had funded and there
-            was nothing left to ask for; Build It lives on the Build tab. The
-            proof that used to be a link under them - the globe - is now the
-            left pane itself, and what follows this column is the story
-            (Milestones), not an ask. */}
+            was nothing left to ask for; Build It lives on the Build tab. What
+            closes the column instead is the count: how many people have made
+            one, and how many of them are on the globe beside this. */}
+        <p className="hero-proof">
+          Around {PEOPLE_WHO_MADE_ONE} people have made one so far &mdash;{' '}
+          <Link
+            href="/inside"
+            onClick={() => captureEvent('hero_proof_clicked', {
+              surface: 'hero',
+              destination: 'inside_build_map',
+            })}
+          >
+            {builds.length} of them are on the map ↗
+          </Link>
+        </p>
       </div>
     </section>
   );

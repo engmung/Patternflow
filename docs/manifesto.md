@@ -100,9 +100,13 @@ The verb is always *play*. Not operate, not control, not configure.
 
 ### L3 — What it becomes
 
-> **Every Patternflow plays every pattern we make.**
+> **Every Patternflow plays every pattern the community makes.**
 >
-> 모든 Patternflow는 우리가 만든 모든 패턴을 연주합니다.
+> 모든 Patternflow는 커뮤니티가 만든 모든 패턴을 연주합니다.
+>
+> It said *we make* until September 2026. By then most of the patterns were
+> the community's, and a "we" that meant the author had become the smaller
+> claim.
 
 A description of how the system works, not a promise about how good it is. That
 is why it is the strongest line we have — there is nothing in it to disbelieve.
@@ -145,7 +149,8 @@ Copy these as-is. For press, directories, applications, and anyone who asks for
 **~25 words**
 
 > Patternflow is an open-source LED synthesizer. Turn four knobs and play living
-> patterns of light — and every Patternflow plays every pattern we make.
+> patterns of light — and every Patternflow plays every pattern the
+> community makes.
 
 **~50 words**
 
@@ -153,7 +158,7 @@ Copy these as-is. For press, directories, applications, and anyone who asks for
 > patterns of light with your fingertips. Interactive media art usually demands
 > capital, custom engineering, and years of specialized skill; Patternflow removes
 > that entry fee. Everything is public, and every Patternflow plays every pattern
-> we make.
+> the community makes.
 
 **~100 words**
 
@@ -367,7 +372,7 @@ Which layers go where.
 **Repo description, link previews, short intros** — L1 + L2 + L3
 
 > An open-source LED synthesizer. Play light patterns with your fingertips — and
-> every Patternflow plays every pattern we make.
+> every Patternflow plays every pattern the community makes.
 
 **Website hero** — L1 + L2, using L2's short form: the kicker sits directly under
 the wordmark and the full L2 pushes it onto an extra line at every breakpoint.
