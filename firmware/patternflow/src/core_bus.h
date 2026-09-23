@@ -112,6 +112,15 @@ inline void releaseAbsolute(int index) {
   __atomic_store_n(&clickResidual[index], 0, __ATOMIC_RELAXED);
 }
 
+// Immediate yield (no grace). MQTT /knob and other intentional remote control
+// must not wait out ABSOLUTE_RELEASE_GRACE_MS or later turns stay muted.
+inline void releaseAbsoluteNow(int index) {
+  if (index < 0 || index > 3) return;
+  paramHeld[index] = false;
+  __atomic_store_n(&pendingDelta[index], 0, __ATOMIC_RELAXED);
+  __atomic_store_n(&clickResidual[index], 0, __ATOMIC_RELAXED);
+}
+
 inline void clearAbsoluteAll() {
   for (int i = 0; i < 4; ++i) {
     paramHeld[i] = false;
