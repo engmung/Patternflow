@@ -215,8 +215,9 @@ inline bool isPfsPath(const char* path) {
 }
 
 // Catalog cache: /show used to re-open every .pfs header on each 1 Hz poll,
-// which stuttered playback with ~24 demos. Invalidate only on put/delete.
-constexpr uint8_t SHOW_CACHE_MAX = 48;
+// which stuttered playback with large libraries. Invalidate only on put/delete.
+// 100 is generous without the boot/HTTP stalls seen at 128.
+constexpr uint8_t SHOW_CACHE_MAX = 100;
 struct ShowCacheEntry {
   char slug[PatternflowShow::SLUG_BYTES];
   char title[32];
