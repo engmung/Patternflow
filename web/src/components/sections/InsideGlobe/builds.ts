@@ -11,7 +11,13 @@ export type BuildImage = {
 // Note this names the relationship, not the derivation: it fits a work made
 // *with* us. A derivative someone builds on their own is not a collaboration
 // and would need its own kind rather than being filed under this one.
-export type BuildKind = 'build' | 'collaboration';
+//
+// `sold` is a unit the maker sold, properly, for money. Units that left Seoul
+// as gifts stay `build` (the Paris one set that precedent); sales are kept
+// apart on purpose, because the maintainer wants them to be their own list —
+// a /works page one day is a filter on this kind, not a second source of
+// truth. The globe gives it its own pin and a line back to where it came from.
+export type BuildKind = 'build' | 'collaboration' | 'sold';
 
 // Subject of the entry, independent of the collaboration relationship above.
 export type BuildCategory = 'builds' | 'projects' | 'in-use';
@@ -162,6 +168,36 @@ export const builds: Build[] = [
     ],
   },
   {
+    id: 'california-lopez',
+    title: 'A gift, for the patterns',
+    category: 'builds',
+    slug: 'seunghun-california',
+    kind: 'build',
+    location: { lat: 36.7783, lng: -119.4179, label: 'California, USA' },
+    maker: 'Seunghun LEE',
+    date: '2026-09',
+    description:
+      'Sent to Martin Lopez, who put more patterns on the community wall — and more consistently, and more fun ones — than anyone. It went quiet after it arrived, so the map is keeping this spot for a photo, whenever it comes.',
+  },
+  {
+    id: 'sf-swartz',
+    title: 'The first sale',
+    category: 'in-use',
+    slug: 'seunghun-san-francisco',
+    kind: 'sold',
+    location: { lat: 37.7749, lng: -122.4194, label: 'San Francisco, USA' },
+    maker: 'Seunghun LEE',
+    date: '2026-09',
+    description:
+      'The first Patternflow sold as a work: $500, to Mike Swartz, for USER EXPERIENCE — an exhibition in San Francisco that opens in October 2026. This is the unit that spent the month before in front of the camera for Instagram. What it earned goes straight back into growing the community, as the certificate says.',
+    links: [
+      { href: 'https://www.instagram.com/userexperience.place', label: 'USER EXPERIENCE on Instagram' },
+    ],
+    images: [
+      { src: '/builds/swartz/certificate.jpg', alt: 'The certificate that went with the first sold Patternflow, beside its pattern card' },
+    ],
+  },
+  {
     id: 'norway-enerjoy',
     title: 'Black enclosure',
     category: 'builds',
@@ -284,7 +320,7 @@ export function buildBySlug(slug: string): Build | undefined {
   return builds.find((build) => build.slug === slug);
 }
 
-// The pin a collaboration hangs off — its own origin, or the first build.
+// The pin a collaboration or a sale hangs off — its own origin, or the first build.
 export function originOf(build: Build): Build | undefined {
   const origin = builds.find((entry) => entry.id === (build.originId ?? builds[0]?.id));
   return origin && origin.id !== build.id ? origin : undefined;

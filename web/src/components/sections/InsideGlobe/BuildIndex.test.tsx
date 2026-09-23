@@ -37,8 +37,9 @@ describe('Inside browsing', () => {
     fireEvent.click(screen.getByRole('button', { name: 'In use' }));
     expect(useAppStore.getState().selectedBuildId).toBeNull();
     expect(window.location.pathname).toBe('/inside');
-    expect(list.queryAllByRole('link')).toHaveLength(0);
-    expect(screen.getByText('No entries in this category yet.')).toBeInTheDocument();
+    // "In use" now holds the first sale, so MOTIFLOW (a project) is what the filter hides.
+    expect(list.getAllByRole('link')).toHaveLength(1);
+    expect(list.getByRole('link', { name: /The first sale/ })).toHaveAttribute('href', '/inside/seunghun-san-francisco');
     fireEvent.click(screen.getByRole('button', { name: 'Builds' }));
     expect(list.getByRole('link', { name: /In the DJ booth/ })).toBeInTheDocument();
   });

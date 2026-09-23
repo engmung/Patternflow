@@ -227,11 +227,11 @@ function webArcs(entries: Build[]): number[][] {
   return arcs;
 }
 
-// One line from each collaboration back to the build it grew out of.
+// One line from each collaboration, and each sale, back to where it came from.
 function collaborationArcs(entries: Build[]): number[][] {
   const arcs: number[][] = [];
   for (const build of entries) {
-    if (build.kind !== 'collaboration') continue;
+    if (build.kind === 'build') continue;
     const origin = originOf(build);
     if (!origin || !entries.some((entry) => entry.id === origin.id)) continue;
     arcs.push(
@@ -424,6 +424,9 @@ function BuildPin({
       <mesh ref={meshRef}>
         {build.kind === 'collaboration' ? (
           <torusGeometry args={[PIN_RADIUS * 1.35, PIN_RADIUS * 0.42, 10, 28]} />
+        ) : build.kind === 'sold' ? (
+          // A sale is a diamond: a unit that went out, not one that was built there.
+          <octahedronGeometry args={[PIN_RADIUS * 1.45, 0]} />
         ) : (
           <sphereGeometry args={[PIN_RADIUS, 16, 16]} />
         )}
