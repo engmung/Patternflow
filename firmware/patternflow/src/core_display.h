@@ -13,7 +13,11 @@ inline void initDisplay() {
     R1_PIN, G1_PIN, B1_PIN, R2_PIN, G2_PIN, B2_PIN,
     PIN_A, PIN_B, PIN_C, PIN_D, PIN_E, LAT_PIN, OE_PIN, CLK_PIN
   };
-  HUB75_I2S_CFG mxconfig(PANEL_RES_W, PANEL_RES_H, PANEL_CHAIN, _pins);
+  // The only build-to-build difference for firmware vs firmware64x2:
+  // PANEL_PHYS_* / PANEL_CHAIN from PANEL_GEOMETRY in config.h.
+  // Never pass (PANEL_RES_W, PANEL_RES_H, PANEL_CHAIN) — that is
+  // width×chain twice and bricks chained 64×64 panels.
+  HUB75_I2S_CFG mxconfig(PANEL_PHYS_W, PANEL_PHYS_H, PANEL_CHAIN, _pins);
   mxconfig.clkphase    = false;
   mxconfig.double_buff = true;
 
