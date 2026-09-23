@@ -79,7 +79,7 @@ declare -A MARK=(
 declare -A WANT=(
   [default]=''
   [audio]='osc audio audio_in midi'
-  [performance]='mqtt show weather'
+  [performance]='mqtt show weather clock'
   [clock]='clock'
   [midi]='midi midi_usb'
 )

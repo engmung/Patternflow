@@ -3,7 +3,8 @@
 //
 // Simone Majocchi's side of the project: the show player and its night/wake
 // scheduler, the MQTT client in every role, FlowLocal and the Director inside
-// it, and weather. He offered in #349 to co-own a bundle on this tree rather
+// it, weather, and the optional full-panel clock (/clock + NETWORK CLK).
+// He offered in #349 to co-own a bundle on this tree rather
 // than keep a fork, and named this shape himself — a "Live / Performance"
 // release with shows, MQTT and the Director together.
 //
@@ -14,6 +15,7 @@
 // ═══════════════════════════════════════════════════════════
 #pragma once
 
+#include "clock/feature_clock.h"
 #include "weather/feature_weather.h"
 #include "mqtt/feature_mqtt.h"
 #include "show/feature_show.h"
@@ -21,7 +23,9 @@
 // Dispatch order matters where features compete. The show player CLAIMS the
 // pattern while a sequence runs, so it goes last - anything that only ASKS
 // must get its turn first, or a remote picker never gets one at all.
+// Clock composes the frame (no pattern claim); keep it early in the list.
 #define PF_FEATURE_LIST              \
-  &PFFeatureWeather::descriptor,     \
+  &PFFeatureClock::descriptor,       \
+      &PFFeatureWeather::descriptor, \
       &PFFeatureMqtt::descriptor,    \
       &PFFeatureShow::descriptor
