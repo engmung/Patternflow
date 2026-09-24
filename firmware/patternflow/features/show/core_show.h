@@ -447,12 +447,20 @@ inline void clearPlaylist() { clearRuntimePlaylist(); }
 inline void savePrefs() {
   Preferences prefs;
   if (!prefs.begin("pfshow", false)) return;
-  char blob[PLAYLIST_MAX * SLUG_BYTES + 8] = {};
+  // A full 64-slug list is ~2.5 KB — keep it off the loop-task stack.
+  // Short-lived heap (not static): tree rule is no permanent buffers over 1 KB.
+  constexpr size_t kBlobBytes = PLAYLIST_MAX * SLUG_BYTES + 8;
+  char* blob = static_cast<char*>(malloc(kBlobBytes));
+  if (!blob) {
+    prefs.end();
+    return;
+  }
+  blob[0] = '\0';
   size_t n = 0;
   for (uint8_t i = 0; i < storedCount; i++) {
-    if (i && n + 1 < sizeof(blob)) blob[n++] = ',';
+    if (i && n + 1 < kBlobBytes) blob[n++] = ',';
     size_t len = strlen(stored[i]);
-    if (n + len >= sizeof(blob)) break;
+    if (n + len >= kBlobBytes) break;
     memcpy(blob + n, stored[i], len);
     n += len;
   }
@@ -464,6 +472,7 @@ inline void savePrefs() {
   prefs.putUChar("var_cue", varianceCue);
   prefs.putUChar("var_p", varianceParam);
   prefs.end();
+  free(blob);
 }
 
 inline void loadPrefs() {
