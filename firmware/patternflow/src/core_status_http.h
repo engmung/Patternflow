@@ -38,6 +38,7 @@
 #include "core_names.h"
 
 #include "core_http.h"
+#include "core_build.h"    // PFBuild::id()
 #include "core_bus.h"
 #include "core_canvas.h"   // presentUs
 #include "core_send.h"
@@ -117,10 +118,38 @@ inline void appendKb(String& json, const char* key, uint32_t bytes) {
   json += ',';
 }
 
+// Text nobody here chose - a network's name, a pattern's, an error message -
+// goes in escaped. One SSID with a quote in it made the whole reply invalid
+// JSON, and the console reads an unparseable status as "not a panel".
+inline void appendText(String& json, const char* s) {
+  for (; s && *s; s++) {
+    if (*s == '"' || *s == '\\') { json += '\\'; json += *s; }
+    else if ((uint8_t)*s >= 0x20) json += *s;
+  }
+}
+
+// What is keeping the device from answering promptly, as a word an open
+// console slows its polling for: "update" while a firmware image is arriving
+// or the reboot after it is due, "storage" while the pattern volume is being
+// written, "" otherwise.
+inline const char* busyWord() {
+  if (PatternflowWebUpdate::isUploading() || PatternflowWebUpdate::isRebootPending()) {
+    return "update";
+  }
+  if (PatternflowPatternsHttp::storageBusy()) return "storage";
+  return "";
+}
+
 inline void handleStatus() {
   String json = "{";
 
   json += "\"version\":\"" PF_IMPROV_FW_VERSION "\",";
+  // Which image exactly, where `version` names only the release: eight hex
+  // digits of the firmware's ELF hash. Console page URLs carry it as ?v=, so
+  // a page that reads a different build here knows it is stale.
+  json += "\"build\":\"";
+  json += PFBuild::id();
+  json += "\",";
   // Which firmware this is, and what it can do. `variant` is for humans and
   // for the site's variant list; `caps` is what the lab and the console
   // probe instead of assuming a feature exists (RFC §2.2).
@@ -175,7 +204,7 @@ inline void handleStatus() {
   json += "\"wifi\":";
   json += up ? "true" : "false";
   json += ",\"ssid\":\"";
-  json += up ? WiFi.SSID() : String("");
+  if (up) appendText(json, WiFi.SSID().c_str());
   json += "\",\"ip\":\"";
   json += up ? WiFi.localIP().toString() : String("");
   json += "\",\"rssi\":";
@@ -185,6 +214,15 @@ inline void handleStatus() {
   json += PatternflowNames::alias();
   json += "\",";
   PatternflowHotspot::appendStatus(json);
+  // Whether THIS request came in over the panel's own access point: one
+  // phone on a link the panel carries itself, where the console prefetches
+  // nothing. Checked against `up` too, because the subnet test alone would
+  // also match a home network that happens to be 192.168.4.x.
+  const bool viaHotspot = PatternflowHotspot::up &&
+      PatternflowHotspot::fromHotspot(server().client().remoteIP());
+  json += "\"viaHotspot\":";
+  json += viaHotspot ? "true" : "false";
+  json += ',';
 #ifdef PF_WIFI_NEEDED
   json += "\"network\":{\"disconnects\":";
   json += PatternflowWifi::disconnects;
@@ -221,7 +259,7 @@ inline void handleStatus() {
   // Why storage is not mounted, in words (pattern_registry.h); empty while it
   // is. The core logs "Error: -1" whatever the cause.
   json += "\"fsError\":\"";
-  if (!moduleStorageMounted) json += moduleStorageError;
+  if (!moduleStorageMounted) appendText(json, moduleStorageError);
   json += "\",";
   // The flash chip's JEDEC id as detected at boot — "c22018" is a 16 MB
   // Macronix part. A storage fault that follows one flash vendor is otherwise
@@ -245,7 +283,7 @@ inline void handleStatus() {
   json += ",\"modules\":";
   json += numModules;
   json += ",\"active\":\"";
-  json += (activePatternIdx >= 0 && patterns) ? patterns[activePatternIdx].name : "-";
+  appendText(json, (activePatternIdx >= 0 && patterns) ? patterns[activePatternIdx].name : "-");
   json += "\",\"activeIsModule\":";
   json += (activePatternIdx >= 0 && patterns && patterns[activePatternIdx].modulePath)
               ? "true" : "false";
@@ -305,7 +343,9 @@ inline void handleStatus() {
   json += "],";
   json += "\"consolePaused\":";
   json += PatternflowPatternsHttp::isConsolePaused() ? "true" : "false";
-  json += ',';
+  json += ",\"busy\":\"";
+  json += busyWord();
+  json += "\",";
 
   // Render + last module load
   json += "\"frameUs\":";
@@ -346,7 +386,7 @@ inline void handleStatus() {
   json += ",\"loadError\":\"";
   // A worker may still recover from a temporary admission refusal. Its
   // error text is mutable until the frame adopts the published result.
-  if (!__atomic_load_n(&loadInFlight, __ATOMIC_ACQUIRE)) json += PFModuleLoader::error();
+  if (!__atomic_load_n(&loadInFlight, __ATOMIC_ACQUIRE)) appendText(json, PFModuleLoader::error());
   json += "\"";
   json += ",\"load\":{\"total\":";
   json += PFModuleLoader::lastTotalUs;

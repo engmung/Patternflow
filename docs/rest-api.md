@@ -18,7 +18,11 @@ Patternflow serves a plain HTTP server on port 80 over the local Wi-Fi network. 
 | Concurrency | **One connection.** See [Rules that will bite you](#rules-that-will-bite-you). |
 | Authentication | **None.** No token, no password, no session. Anyone on the LAN can call anything here, including `POST /update`. This is a deliberate trust model, the same one ArduinoOTA's empty-password default has; `PF_WEBUPDATE_ALWAYS_ARMED 0` is the one lever that narrows it. |
 | CORS | Only `/api/patterns/select` and `/api/display` send `Access-Control-Allow-Origin: *`. Everything else is same-origin only, so a browser page on another origin cannot read it. Server-side clients are unaffected. |
-| Cache | Every JSON endpoint sends `Cache-Control: no-store`. |
+| Cache | Every JSON endpoint sends `Cache-Control: no-store`, and so does the plain-text `404`. |
+| Page caching | Since 1.5. A console page is versioned by its URL: the console links every page as `/path?v=<build>`, `build` being the running image's id from [`/api/status`](#get-apistatus). `?v=` naming the running build is served `Cache-Control: public, max-age=31536000, immutable`, so a browser keeps the page until the firmware changes and does not ask again. No `v` (a typed URL, a bookmark, a `?src=` handoff) is served `no-cache`: the browser keeps it but asks each time, and gets a bodiless `304` while the page is unchanged. A `v` naming another build is answered `302` (on a panel `Host`; see Host gating) to the same path with `v` set to the running build and every other query argument kept (`Cache-Control: no-store`). Pages carry a weak `ETag` (`W/"<crc32>-<length>"` of the uncompressed page), and a `304` carries the same `ETag`, `Cache-Control`, `Content-Type` and the `Content-Length` a `200` would have. Byte ranges are not served. |
+| Console chrome | `/pf-console.js`, the header script every page loads, is keyed by its own content instead: pages ask for `/pf-console.js?h=<crc32>`, which is immutable when `h` is the script's CRC-32, `no-cache` with an `ETag` when `h` is absent, and the current script with `no-store` when `h` names another one. |
+| Host gating | Pages, the chrome and the favicon are cacheable only when the request's `Host` can only be the panel: an IPv4 address, a name with no dot (`patternflow`) or a `.local` name, with or without a port. Any other `Host` (a router-assigned name such as `patternflow.fritz.box` included), or none, gets `no-store`, no `ETag`, never a `304` and never a `302`: a page asked for with a stale `v` is served as it is now, and the console's own version check moves it to the running build's `v` once its status arrives (or offers to, while the page is in use). On the hotspot every name resolves to the panel, and a phone must not keep the console under the origin of a site it was trying to reach. |
+| Favicon | `GET /favicon.ico` answers `204`, with `Cache-Control: public, max-age=31536000, immutable` on a panel `Host` and `no-store` on any other (see Host gating); pages carry their icon inline. |
 | Encoding | Responses are `application/json`, hand-assembled in the firmware. Request parameters are **query-string or form-encoded, never a JSON body** — `POST /api/sleep?on=1` and a form body with `on=1` are the same call. The console **pages** (`/`, `/status`, `/patterns`, `/wifi`, `/update`, the feature pages, `/pf-console.js` and the unzip library the patterns page fetches) are sent with `Content-Encoding: gzip` since 1.4, regardless of `Accept-Encoding` — a browser decodes that without being asked; a script fetching a page wants `curl --compressed` or its equivalent. Nothing under `/api/` is compressed. |
 
 ## Rules that will bite you
@@ -41,9 +45,9 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 
 ```json
 {
-  "version": "3.5.1", "uptime": 4213, "resetReason": "poweron", "panel": "128x64",
+  "version": "3.5.1", "build": "3f9a0c1e", "uptime": 4213, "resetReason": "poweron", "panel": "128x64",
   "wifi": true, "ssid": "studio", "ip": "192.168.1.42", "rssi": -54,
-  "host": "patternflow",
+  "host": "patternflow", "viaHotspot": false,
   "heapInternal": 11052, "heapLargest": 8192, "heapPsram": 4194304,
   "fsMounted": true, "fsTotal": 6291456, "fsUsed": 204800, "fsError": "",
   "flashId": "c84018",
@@ -53,7 +57,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
   "knobs": [12, 0, -3, 40], "params": [500, 500, 750, 500],
   "paramActive": [false, false, true, false],
   "lanes": [0.0, 0.0, 0.0, 0.0], "laneActive": [false, false, false, false],
-  "consolePaused": false,
+  "consolePaused": false, "busy": "",
   "frameUs": 16400, "presentUs": 3100, "loopCore": 1,
   "httpCore": 0, "netStackMin": 6200, "loopSyncServed": 3, "loopSyncMaxUs": 9800,
   "colorBits": 6, "refreshHz": 121,
@@ -65,12 +69,14 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | Field | Meaning |
 |---|---|
 | `version` | Firmware version string (`PF_IMPROV_FW_VERSION`). |
+| `build` | Which image exactly, as eight lowercase hex digits: the start of the firmware ELF's SHA-256 (a hash of the compile time and version on an image built without it). Two images with the same `version` still differ here. Console page URLs carry it as `?v=` (see [Page caching](#transport)); a page open under another build is stale. Since 1.5. |
 | `uptime` | Seconds since boot. |
 | `resetReason` | Why the board is running, `esp_reset_reason()` by name: `"poweron"` (the plug), `"sw"` (the reboot button, a finished update), `"panic"`, `"task_wdt"`, `"int_wdt"`, `"wdt"`, `"brownout"`, `"deepsleep"`, `"ext"`, `"sdio"` or `"unknown"`. Read it together with `uptime`: a small uptime and anything but `"poweron"` or `"sw"` means the board restarted on its own — which from the network otherwise looks exactly like a power cut. The same word is printed once on serial at boot (`[BOOT] reset reason: …`). Since 1.4. |
 | `panel` | Physical matrix, `"<w>x<h>"`. The closest thing to a model number. |
 | `host` | mDNS hostname, i.e. `PF_OTA_HOSTNAME`. **Not unique** — every device ships as `"patternflow"`. See [Identifying a device](#identifying-a-device). |
 | `network` | Since 1.5, when Wi-Fi is compiled in: `disconnects` counts sampled connected→disconnected edges; `retries` counts explicit retry attempts (including initial join failures); `reconnectMs` is the last sampled downtime, zero before a reconnect. `namesReady` means the core's local mDNS/service/alias and NetBIOS registrations succeeded; probing may still be in progress and it does not prove client reachability. `announcements` counts successful registration passes. Counters reset on boot. |
 | `hotspot` | Since 1.5. The panel's own access point: `mode` (`off`, `auto`, `always`), `up`, `ssid` (the board alias, `patternflow-a1b2`), `ip` (`192.168.4.1` while up, else `""`), `channel`, `clients`, and `dns` (name queries answered on the hotspot since boot). |
+| `viaHotspot` | Since 1.5. Whether *this* request arrived over the panel's own access point: the client is one phone on a link the panel carries itself, and the console fetches nothing ahead of time there. |
 | `heapInternal` | Free internal DRAM. The scarce one: HUB75's DMA buffers live there, and below roughly 10 KB the console starts answering with headers and no body while Wi-Fi and OSC carry on looking healthy. Worth watching. |
 | `fsError` | Why the pattern storage is not mounted, in words; `""` while it is mounted, and before any mount has been tried. Since 1.5. The core's serial line says `Mounting FFat partition failed! Error: -1` whatever the cause, so the first failure in a boot reads the volume's boot sector and records what it found. `"not formatted"` is a freshly erased board — press Format on `/patterns`. `"format did not stick: …"` means a Format ran and reported success, but the flash did not keep what was written. `"no filesystem (boot sector …)"` shows the sector's first and last bytes. `"boot sector looks valid but does not mount"` means the data is on the chip and the read side refused it. A failed `POST /api/patterns/format` returns the same text as its `error`. |
 | `flashId` | The flash chip's JEDEC id as the driver detected it at boot, six hex digits: manufacturer, then device. `"c22018"` is a 16 MB Macronix part. Since 1.5. |
@@ -83,6 +89,7 @@ The numbers that explain a device when something is off. Requires `PF_STATUS_HTT
 | `paramActive` | Per lane: is a remote writer currently holding it? Goes `false` a beat after somebody turns that encoder, because a hand in the room outranks the network. |
 | `lanes` / `laneActive` | The continuous 0..1 lane per knob and whether something is driving it — the audio WebSocket, the on-board microphone, weather. Sits between the absolute bus and the encoders in priority; see [`audio-ws-spec.md`](audio-ws-spec.md) for the semantics. |
 | `consolePaused` | A pattern-install batch is in progress and the module is evicted. Not an error. (Console pages stopped pausing the pattern in 3.6.3 — the name is older than that.) |
+| `busy` | Since 1.5. What is keeping the one connection occupied, as a word to slow polling for: `"update"` while a firmware image is arriving or the reboot after it is due, `"storage"` while the pattern volume is being written (a format, a delete, or an install batch between files), `""` otherwise. The console polls no faster than every 5 s while it is non-empty. |
 | `frameUs` / `presentUs` | Smoothed rendered-frame time and the part spent pushing pixels. `1e6 / frameUs` estimates rendering fps; it excludes housekeeping and is not an input-latency or worst-loop-gap measurement. |
 | `runtime` | Since 1.5. Whole-loop `loops`, `lastUs`, `maxUs`, `over50ms`; `housekeepingMaxUs` includes work before the rendered-frame timer, and `syncMaxUs` measures execution of a frame-boundary request, excluding time its caller waits. Timing includes loading-state pacing, but excludes time between exiting one loop and entering the next. `GET /api/status?resetTiming=1` returns the current runtime snapshot and starts a new timing window; a loop spanning the reset is discarded. This resets only `runtime`, not lifetime network/load counters. |
 | `moduleMemory` | Since 1.5. `reserve` is the module allocator's internal byte-addressable RAM floor, not a guarantee about allocations by other subsystems. `serviceFree` is current internal byte-addressable free RAM; `execLargest` is the largest contiguous executable block. `runtimeBytes` and lifetime `runtimePeakBytes` track retained module dynamic allocations; `runtimeLimit` defaults to 4 MiB. Sections and temporary ELF storage are admitted separately. `refusals` counts allocation refusals, including recovered attempts; `loaderRetries` counts the asynchronous loader's bounded retries after such failures. `loaderStackBytes` reports the reusable worker's reserved stack, and `loaderStackMin` is its minimum free space after jobs (0 until measured). |
@@ -373,8 +380,8 @@ Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWOR
 
 | Route | |
 |---|---|
-| `GET /api/wifi` | `{max, connected, current, ip, status, bootIdx, networks:[{ssid}]}` — SSIDs only, never passwords |
-| `POST /api/wifi?ssid=…&pass=…` | Store a network. Add `connect=1` to switch immediately. |
+| `GET /api/wifi` | `{max, connected, current, ip, status, bootIdx, join, networks:[{ssid}]}` — SSIDs only, never passwords. `join` is the last network someone asked for (below). |
+| `POST /api/wifi?ssid=…&pass=…` | Store a network. Add `connect=1` to switch immediately. On the hotspot with no station link it is tried at once either way. |
 | `DELETE /api/wifi?ssid=…` | Forget one. `404` if it was not saved. |
 | `POST /api/wifi/boot` (`bootIdx=…`) | Which saved slot the next boot tries first. Stored in NVS, deliberately **not** applied live — the request rides the connection it would drop. |
 | `POST /api/wifi/reboot` | Replies `{ok:true}` first, restarts 400 ms later. |
@@ -383,6 +390,8 @@ Requires `PF_WIFI_HTTP_ENABLED` (default on). Up to `PatternflowWifi::MAX_NETWOR
 `POST` stores without switching by default: the usual reason to add a network here is to pre-register somewhere the device is *going*, and switching now would drop the connection serving the request and lose the reply. With `connect=1` the reply is sent first and the link torn down after.
 
 Passwords travel in the clear over LAN HTTP and are never sent back. Same trust model as `/update` and `/patterns`.
+
+`join` reports what became of the last network sent with `connect=1` (or by Improv), since 1.5: `{state, ssid, ip, why, reason, ago}`. `state` is `none` (nothing asked for since boot - a join at power-up is not reported), `trying`, `joined` (with the address it got in `ip`) or `failed` (with `why`: `wrong password`, `network not found`, `the network refused the panel` or `no answer from the network`, and the driver's `reason` code behind it). A join is given up on after 30 s, or when the hotspot's attempt window closes. `ago` is seconds since it was opened or settled. The panel also shows the outcome on its screen - `JOINED` and the address for a minute, or why not for twenty seconds - because a phone that sent the network from the hotspot often loses the page at that moment.
 
 ### Hotspot
 
@@ -396,7 +405,7 @@ The channel is the least loaded of 1/6/11 from a scan when the panel is alone.
 
 | Route | |
 |---|---|
-| `GET /api/hotspot` | `{ok:true, hotspot:{mode, up, ssid, ip, channel, clients, dns}, pass}` - the same object status carries, plus the password. |
+| `GET /api/hotspot` | `{ok:true, hotspot:{mode, up, ssid, ip, channel, clients, dns}, seen:[{ssid, rssi}], pass}` - the same object status carries, plus the password, and `seen`: the network names the channel scan found when the hotspot came up, strongest first, at most twelve - what the `/wifi` page suggests. Empty when the hotspot came up beside a station link (no scan). |
 | `POST /api/hotspot` (`mode=off|auto|always`, `pass=…`) | Either or both. `400` with an `error` for an unknown mode or a password outside 8-63 characters. A change is saved to NVS and applied at once: a hotspot that was up restarts, which drops whoever was on it. Replies like `GET`. |
 
 On the hotspot every DNS name resolves to the panel, so `patternflow.local` and any typed name land
@@ -475,7 +484,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted); `PUT /update` takes a raw image, and an upload survives a stall of up to two minutes.
+- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted); `PUT /update` takes a raw image, and an upload survives a stall of up to two minutes; `GET /api/wifi` gains `join` (what became of the last network asked for) and `GET /api/hotspot` gains `seen` (the names in range); a network added on the hotspot with no station link is tried at once; console pages are cached by build (`?v=` immutable, bare URLs `no-cache` with an `ETag` and `304`, another build's `v` redirected with `302`), the chrome by its CRC (`?h=`), only for a `Host` that can only be the panel; `GET /favicon.ico` answers `204`; status gains `build`, `viaHotspot` and `busy`.
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.

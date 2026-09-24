@@ -36,6 +36,68 @@
 
 namespace PatternflowWifi {
 
+// ── The last network someone asked for, and what became of it ──────────
+//
+// A person who has just typed a password on a phone - on the panel's own
+// hotspot, most likely - needs to hear back: joined, and where, or why not.
+// A join is opened by applyCredentials() (the console and Improv both land
+// there) and settled by tick(). The driver's reason for a failed attempt
+// comes in through the hotspot's event hook (core_hotspot.h), which already
+// listens, so this file stays free of event plumbing. A join at boot opens
+// nothing: only a network someone asked for is reported.
+enum JoinState : uint8_t { JOIN_NONE = 0, JOIN_TRYING, JOIN_OK, JOIN_FAILED };
+enum JoinWhy : uint8_t { WHY_NONE = 0, WHY_NOT_FOUND, WHY_PASSWORD, WHY_REFUSED, WHY_NO_ANSWER };
+inline JoinState joinState = JOIN_NONE;
+inline JoinWhy joinWhy = WHY_NONE;
+inline String joinSsid;
+inline String joinIp;
+inline uint32_t joinAtMs = 0;   // when it was opened, then when it settled
+inline uint32_t joinSeq = 0;    // bumped on every outcome, so a watcher reports each once
+inline uint8_t joinReason = 0;  // the driver's reason behind a failure; 0 if none was heard
+// The reason of every station drop, from the event hook. Our own
+// disconnect() before each attempt (ASSOC_LEAVE) is filtered out there.
+inline volatile uint8_t lastStaReason = 0;
+constexpr uint32_t JOIN_GIVE_UP_MS = 30000;
+
+// The driver's reasons (wifi_err_reason_t) folded into what a person can
+// act on. A wrong WPA2 password shows up as a handshake timeout far more
+// often than as AUTH_FAIL. The status flags are the fallback when no reason
+// was heard at all.
+inline JoinWhy whyFromReason(uint8_t reason, bool noSsid, bool authFailed) {
+  switch (reason) {
+    case 201: return WHY_NOT_FOUND;                  // NO_AP_FOUND
+    case 15:                                         // 4WAY_HANDSHAKE_TIMEOUT
+    case 23:                                         // 802_1X_AUTH_FAILED
+    case 202:                                        // AUTH_FAIL
+    case 204: return WHY_PASSWORD;                   // HANDSHAKE_TIMEOUT
+    case 5:                                          // ASSOC_TOOMANY
+    case 203: return WHY_REFUSED;                    // ASSOC_FAIL
+    default: break;
+  }
+  if (noSsid) return WHY_NOT_FOUND;
+  if (authFailed) return WHY_PASSWORD;
+  return WHY_NO_ANSWER;
+}
+
+inline const char* joinStateName() {
+  switch (joinState) {
+    case JOIN_TRYING: return "trying";
+    case JOIN_OK: return "joined";
+    case JOIN_FAILED: return "failed";
+    default: return "none";
+  }
+}
+
+inline const char* joinWhyText() {
+  switch (joinWhy) {
+    case WHY_NOT_FOUND: return "network not found";
+    case WHY_PASSWORD: return "wrong password";
+    case WHY_REFUSED: return "the network refused the panel";
+    case WHY_NO_ANSWER: return "no answer from the network";
+    default: return "";
+  }
+}
+
 #ifdef PF_WIFI_NEEDED
 
 // How often to re-issue WiFi.begin() while disconnected (from net_config.h).
@@ -87,6 +149,17 @@ inline uint32_t reconnectRequestedAtMs = 0;
 // "idle/disconnected" every cycle, which reads as flickering text on the
 // panel — latching keeps the label steady until the state truly changes.
 inline wl_status_t latchedFailure = WL_IDLE_STATUS;
+
+inline void failJoin(uint32_t now) {
+  const wl_status_t st = WiFi.status();
+  joinReason = lastStaReason;
+  joinWhy = whyFromReason(joinReason, st == WL_NO_SSID_AVAIL, st == WL_CONNECT_FAILED);
+  joinState = JOIN_FAILED;
+  joinAtMs = now;
+  joinSeq++;
+  Serial.printf("[WiFi] could not join \"%s\": %s (reason %u)\n", joinSsid.c_str(),
+                joinWhyText(), (unsigned)joinReason);
+}
 
 // Active credentials in use. Loaded from NVS (where Improv-Serial provisioning
 // writes them, see core_improv.h) when present, otherwise the compile-time
@@ -356,6 +429,13 @@ inline void applyCredentials(const String& ssid, const String& pass) {
   connectedAddress = 0;
   retryCurrentNetwork = false;
   latchedFailure = WL_IDLE_STATUS;  // stale failure was for the old creds
+  joinState = JOIN_TRYING;
+  joinWhy = WHY_NONE;
+  joinSsid = ssid;
+  joinIp = "";
+  joinReason = 0;
+  lastStaReason = 0;
+  joinAtMs = millis();
   if (hotspotUp) {
     stationOn();
     staProbing = true;
@@ -368,6 +448,11 @@ inline void applyCredentials(const String& ssid, const String& pass) {
 }
 
 inline bool hasStoredCredentials() { return credsFromNvs; }
+// Anything worth an attempt: saved networks, or built-in credentials that
+// are not the placeholder a secret-less checkout compiles with.
+inline bool hasCredentials() {
+  return credsFromNvs || strcmp(PF_WIFI_SSID, "YOUR_WIFI_SSID") != 0;
+}
 inline const String& currentSsid() { return activeSsid; }
 
 // The HTTP reply gets time to leave before the network owner drops its link.
@@ -398,6 +483,16 @@ inline void tick() {
     const uint32_t address = (uint32_t)WiFi.localIP();
     if (!connectedNow) {
       connectedNow = true;
+      if (joinState == JOIN_TRYING) {
+        if (activeSsid == joinSsid) {
+          joinState = JOIN_OK;
+          joinIp = WiFi.localIP().toString();
+          joinAtMs = now;
+          joinSeq++;
+        } else {
+          failJoin(now);  // another remembered network answered first
+        }
+      }
       if (disconnects) lastReconnectMs = now - disconnectedAtMs;
       retryCurrentNetwork = false;
       __atomic_store_n(&justConnectedEdge, true, __ATOMIC_RELEASE);
@@ -431,6 +526,8 @@ inline void tick() {
     lastBeginMs = now;
   }
 
+  if (joinState == JOIN_TRYING && (uint32_t)(now - joinAtMs) >= JOIN_GIVE_UP_MS) failJoin(now);
+
   // A retry is a scan of every channel, one or two seconds with the hotspot
   // off the air. Someone on the hotspot: no retries at all (credentials
   // arriving through the console still connect at once, applyCredentials()
@@ -440,6 +537,7 @@ inline void tick() {
     if (staProbing) {
       // One attempt is in flight; give it its window, then stand down.
       if ((int32_t)(now - staProbeEndsMs) >= 0) {
+        if (joinState == JOIN_TRYING) failJoin(now);  // before stationOff() resets the status
         stationOff();
         Serial.println("[WiFi] station probe found nothing - hotspot alone");
       }
@@ -540,6 +638,7 @@ inline void tick() {}
 inline void applyCredentials(const String&, const String&) {}
 inline void requestReconnect() {}
 inline bool hasStoredCredentials() { return false; }
+inline bool hasCredentials() { return false; }
 inline const String& currentSsid() { static String s; return s; }
 inline int savedCount() { return 0; }
 inline const String& savedSsid(int) { static String s; return s; }

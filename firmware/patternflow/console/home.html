@@ -6,22 +6,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230C0B09'/%3E%3Crect x='5' y='5' width='6' height='6' fill='%23FF5C2E'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  @font-face{font-family:'Pretendard';font-weight:700;font-style:normal;font-display:swap;
-    src:url('https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2') format('woff2')}
+  /* No web fonts: the stacks fall back to what the device is showing on, and
+     the panel's own hotspot has no internet to fetch them from anyway. */
   :root{--bg:#0C0B09;--panel:#131110;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
         --ghost:#221F18;--rule:#242118;--led:#FF5C2E;--ok:#57B87F;--warn:#D9A03F;
         --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
-        --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-        --pretendard:'Pretendard',ui-sans-serif,system-ui,sans-serif}
+        --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;background:var(--bg);color:var(--ink);
-       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;
-       padding:24px 24px 64px}
-  .panel{width:100%;max-width:560px;margin:16px auto 0}
+       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+  /* The padding is the wrapper's, not body's, so the chrome's header (body's
+     first child) runs edge to edge like on every other page. max-width grows
+     by the side padding to keep the 560px column. */
+  .panel{width:100%;max-width:608px;margin:16px auto 0;padding:24px 24px 64px}
   header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:28px}
   .dot{width:7px;height:7px;background:var(--led);border-radius:1px}
   h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
@@ -29,17 +27,22 @@
 
   /* ── Device card (one small status poll — the device never streams pixels) ── */
   .screen{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 6px}
-  .now-hdr{display:flex;justify-content:space-between;align-items:center}
-  .now-k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .now-hdr{display:flex;align-items:center;gap:10px}
+  .now-k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);flex:1;white-space:nowrap}
   .now-nav{display:flex;gap:5px}
   .now-btn{
-    background:transparent;border:1px solid var(--rule);color:var(--muted);
+    position:relative;background:transparent;border:1px solid var(--rule);color:var(--muted);
     font-family:var(--mono);font-size:12px;line-height:1;width:28px;height:24px;
     border-radius:2px;cursor:pointer;display:inline-flex;align-items:center;
     justify-content:center;transition:all .15s ease
   }
   .now-btn:hover{color:var(--ink);border-color:var(--led)}
   .now-btn:active{background:var(--ghost);transform:scale(0.92)}
+  /* Result lines, filled by PF.say next to the control that caused them. */
+  .msg{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+  .msg.pf-err{color:var(--led)}.msg.pf-ok{color:var(--ok)}
+  .now-hdr .msg{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pf-offline .now,.pf-offline .stat .v{opacity:.5}
   .now{font-size:25px;font-weight:600;letter-spacing:-.02em;line-height:1.15;margin:7px 0 3px;min-height:29px;overflow-wrap:anywhere}
   .now-sub{font-family:var(--mono);font-size:11px;color:var(--muted);min-height:15px}
   /* ── Panel switch ─────────────────────────────────────────────
@@ -52,15 +55,13 @@
   .pwr-k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
        text-transform:uppercase;color:var(--faint);flex:1}
   .pwr-btns{display:flex;gap:6px}
-  .pwr-b{font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  .pwr-b{position:relative;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
        text-transform:uppercase;padding:6px 14px;cursor:pointer;
        background:transparent;color:var(--muted);border:1px solid var(--rule);
        transition:color .15s ease,border-color .15s ease}
   .pwr-b:hover{color:var(--ink);border-color:var(--muted)}
   .pwr-b.on{color:var(--ink);border-color:var(--led);box-shadow:inset 0 0 0 1px var(--led)}
-  .pwr-note{font-family:var(--mono);font-size:10.5px;color:var(--faint);
-       min-height:14px;margin-top:7px}
-  .pwr-note.err{color:var(--led)}
+  .pwr-note{min-height:14px;margin-top:7px}
   /* ── Brightness ── under the switch: the other thing a hand at the panel
      does (K1's long-press session), so the console has it too. */
   .bri{display:flex;align-items:center;gap:12px;margin-top:10px}
@@ -76,7 +77,7 @@
   .s-label{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);width:20px;flex:none}
   .slider-row input[type=range],.bri input[type=range]{
     flex:1;height:6px;appearance:none;-webkit-appearance:none;background:var(--ghost);
-    border-radius:3px;outline:none;cursor:pointer;accent-color:var(--led);touch-action:none
+    border-radius:3px;outline:none;cursor:pointer;accent-color:var(--led);touch-action:pan-y
   }
   .slider-row input[type=range]::-webkit-slider-thumb,.bri input[type=range]::-webkit-slider-thumb{
     appearance:none;-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
@@ -87,6 +88,25 @@
   }
   .slider-row input[type=range]::-moz-range-thumb,.bri input[type=range]::-moz-range-thumb{
     width:18px;height:18px;border-radius:50%;background:var(--ink);border:2px solid var(--led);cursor:pointer
+  }
+  /* Fingers: a vertical swipe across a slider scrolls the page (pan-y), and
+     every control gets a bigger hit area drawn exactly as before. A slider's
+     band is 28px with the 6px track as a centred background, its thumb 28px
+     of which the outer 5px is transparent border (the LED ring moves to an
+     inset shadow); negative margins keep the rows where they were. The step
+     buttons reach 44px outward, away from each other, so they never overlap. */
+  @media(pointer:coarse){
+    .slider-row input[type=range],.bri input[type=range]{height:28px;margin:-5px 0;border-radius:0;
+      background:linear-gradient(var(--ghost),var(--ghost)) center/100% 6px no-repeat}
+    .slider-row input[type=range]::-webkit-slider-thumb,.bri input[type=range]::-webkit-slider-thumb{
+      box-sizing:border-box;width:28px;height:28px;border:5px solid transparent;
+      background-clip:padding-box;box-shadow:inset 0 0 0 2px var(--led)}
+    .slider-row input[type=range]::-moz-range-thumb,.bri input[type=range]::-moz-range-thumb{
+      box-sizing:border-box;width:28px;height:28px;border:5px solid transparent;
+      background-clip:padding-box;box-shadow:inset 0 0 0 2px var(--led)}
+    .now-btn::after,.pwr-b::after{content:"";position:absolute;top:-12px;bottom:-12px;left:-3px;right:-3px}
+    #pat-prev::after{left:-15px}#pat-next::after{right:-15px}
+    .pwr-b::after{top:-8px;bottom:-8px}
   }
 
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;margin-top:16px}
@@ -113,6 +133,13 @@
        text-transform:uppercase;white-space:nowrap}
   #upd:hover{background:rgba(255,92,46,.06)}
   #upd .go{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
+  /* On the panel's hotspot with no home network: the next step, up top. */
+  .callout{display:block;margin:-10px 0 24px;border:1px solid var(--led);padding:11px 14px;
+       font-size:13px;color:var(--ink);text-decoration:none}
+  .callout:hover{background:rgba(255,92,46,.06)}
+  .stat.wide{grid-column:1/-1}.stat.wide .v{white-space:normal}
+  /* Author display rules (.pf-kicker, .callout) would otherwise beat the UA's. */
+  [hidden]{display:none!important}
 
   /* ── Feature rows ─────────────────────────────────────────── */
   .rows{margin-top:36px}
@@ -137,13 +164,13 @@
        font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   footer a{color:var(--muted);text-decoration:none}
   footer a:hover{color:var(--ink)}
-  @media(max-width:560px){body{padding:12px 14px 52px}
+  @media(max-width:560px){.panel{padding:12px 14px 52px}
        .pf-ghost{font-size:42px}.pf-row{padding-right:70px}
        }
   /* Desktop: the whole console on one screen — panel pinned left, rows
      right — instead of a phone column floating in empty space. */
   @media(min-width:960px){
-       .panel{max-width:1120px}
+       .panel{max-width:1168px}
        .grid{display:grid;grid-template-columns:500px minmax(0,1fr);gap:60px;align-items:start}
        .left{position:sticky;top:44px}
        .rows{margin-top:0}}
@@ -154,11 +181,14 @@
 <main class="panel">
   <header><span class="dot"></span><h1>Console</h1><span class="sub">device</span></header>
 
+  <a class="callout" id="hsCall" href="/wifi" hidden>You&rsquo;re on the panel&rsquo;s own network &mdash; add your Wi-Fi &rarr;</a>
+
   <div class="grid">
   <div class="left">
   <div class="screen">
     <div class="now-hdr">
       <span class="now-k">Now playing</span>
+      <span class="msg" id="stepmsg"></span>
       <div class="now-nav">
         <button class="now-btn" id="pat-prev" title="Previous pattern" type="button">&larr;</button>
         <button class="now-btn" id="pat-next" title="Next pattern" type="button">&rarr;</button>
@@ -175,7 +205,7 @@
         <button class="pwr-b" id="p-sleep" type="button">Sleep</button>
       </div>
     </div>
-    <div class="pwr-note" id="pwrnote"></div>
+    <div class="pwr-note msg" id="pwrnote"></div>
     <div class="bri">
       <span class="pwr-k">Brightness</span>
       <input type="range" class="pf-slider" id="bri" min="2" max="100" step="1" value="80" aria-label="Panel brightness">
@@ -185,6 +215,7 @@
     <div class="ctrls" id="ctrls">
       <div class="ctrls-hdr">
         <span class="ctrls-k">Live Knobs</span>
+        <span class="msg" id="ctrlmsg"></span>
       </div>
       <div class="slider-row">
         <span class="s-label">K1</span>
@@ -210,6 +241,9 @@
         <div class="bar"><i id="s-fsbar"></i></div></div>
       <div class="stat"><span class="k">Wi-Fi</span><div class="v" id="s-wifi">&mdash;</div></div>
       <div class="stat"><span class="k">Address</span><div class="v" id="s-ip">&mdash;</div></div>
+      <!-- The panel's own access point, while it is up: a separate network
+           from the one above, so it gets its own line rather than a merge. -->
+      <div class="stat wide" id="s-hs-b" hidden><span class="k">Hotspot</span><div class="v" id="s-hs">&mdash;</div></div>
       <div class="stat"><span class="k">Memory</span><div class="v" id="s-heap">&mdash;</div></div>
       <div class="stat"><span class="k">Uptime</span><div class="v" id="s-up">&mdash;</div></div>
       <div class="stat"><span class="k">Firmware</span><div class="v" id="s-fw">&mdash;</div></div>
@@ -305,10 +339,14 @@ $('host').textContent=location.hostname;
 // deleted when the capability was absent, which meant a core page naming
 // features and a new feature's page getting no row at all.
 //
-// Rebuilt from scratch on every status (gate can fire twice at load), then
+// Rebuilt from scratch whenever featureNav changes (not on every status: the
+// card polls, and a rebuild under the pointer drops hover and focus), then
 // everything renumbers so the list still reads 01, 02, 03.
+var navKey;
 function gate(s){
-  var i,nav=(s&&s.featureNav)||[];
+  var i,nav=(s&&s.featureNav)||[],k=JSON.stringify(nav);
+  if(k===navKey)return;
+  navKey=k;
   var f=$('featRows'),fk=$('featKick');
   if(f){
     f.innerHTML='';
@@ -328,13 +366,13 @@ function gate(s){
   for(i=0;i<ghosts.length;i++)
     ghosts[i].textContent=(i+1<10?'0':'')+(i+1);
 }
-document.addEventListener('pf-status',function(e){gate(e.detail)});
-if(window.pfStatus){gate(window.pfStatus)}
 
 // ── Device card ───────────────────────────────────────────────
-// One status JSON, ~1.7 KB every 3 s — everything on the card comes out of
-// it. The device streams no pixels: a frame-preview endpoint existed for one
-// day and captured the render loop — see the note in core_patterns_http.h.
+// Everything on the card comes out of /api/status: the chrome's copy
+// (PF.status), kept fresh every 3 s (PF.watchStatus) on its one lane, paused
+// while the tab is hidden. The device streams no pixels: a frame-preview
+// endpoint existed for one day and captured the render loop — see the note
+// in core_patterns_http.h.
 function dur(s){
   var d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);
   if(d)return d+'d '+h+'h';if(h)return h+'h '+m+'m';
@@ -352,81 +390,92 @@ function paintPerf(s){
   if(t.length){el.hidden=false;el.textContent=t.join(' · ')}
   else{el.hidden=true;el.textContent=''}
 }
-function tick(){
-  if(document.hidden)return;
-  fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()}).then(function(s){
-    if(s.version){var pv=document.getElementById('pfVer');if(pv)pv.textContent='v'+s.version}
-    // Three states, in the order the device resolves them. Asleep outranks
-    // paused: a sleeping device is asleep whatever this page is doing to its
-    // memory, and the frame rate below would be a number from before it went
-    // dark either way.
-    if(s.sleep){
-      $('now').textContent='Asleep';
-      $('nowsub').textContent=s.active?(s.active+' resumes on wake'):'panel off';
-    }else if(s.consolePaused){
-      // While this page is open the pattern is deliberately paused (the
-      // console borrows its RAM) — say so instead of showing a make-believe
-      // frame rate from the paused loop.
-      $('now').textContent='Paused';
-      $('nowsub').textContent='resumes when you close the console';
-    }else{
-      $('now').textContent=s.active||'—';
-      $('nowsub').textContent=(s.frameUs?Math.round(1e6/s.frameUs)+' fps · ':'')+
-        (s.activeIsModule?'module':'built in');
-    }
-    paintPerf(s);
-    paintPower(s.sleep);
-    paintBrightness(s.brightness);
-    $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
-    if(s.fsMounted){
-      $('s-fs').textContent=Math.round((s.fsTotal-s.fsUsed)/1048576*10)/10+' MB free';
-      $('s-fsbar').style.width=(s.fsTotal?s.fsUsed/s.fsTotal*100:0)+'%';
-    }else{$('s-fs').textContent='not mounted'}
-    $('s-wifi').textContent=s.wifi?(s.ssid+' · '+s.rssi+' dBm'):'offline';
-    $('s-ip').textContent=s.wifi?s.ip:'—';
-    $('s-heap').textContent=Math.round(s.heapInternal/1024)+'K + '+
-      Math.round(s.heapPsram/1048576)+'M psram';
-    $('s-up').textContent=dur(s.uptime);
-    $('s-fw').textContent='v'+s.version;
+var last=null;
+function paint(s){
+  last=s;
+  gate(s);
+  // Three states, in the order the device resolves them. Asleep outranks
+  // paused: a sleeping device is asleep whatever else is going on, and the
+  // frame rate below would be a number from before it went dark either way.
+  if(s.sleep){
+    $('now').textContent='Asleep';
+    $('nowsub').textContent=s.active?(s.active+' resumes on wake'):'panel off';
+  }else if(s.consolePaused){
+    // Opening the console no longer pauses anything; this is an upload
+    // batch or a format holding the pattern's memory while it writes the
+    // volume — say so instead of showing a frame rate from the paused loop.
+    $('now').textContent='Paused';
+    $('nowsub').textContent='patterns are being written — resumes when that is done';
+  }else if(s.loading&&s.active==='-'){
+    // A module loads on the other core for a second or so and `active`
+    // reads "-" meanwhile: keep the name a step just painted.
+    $('nowsub').textContent='loading…';
+  }else{
+    $('now').textContent=s.active||'—';
+    $('nowsub').textContent=(s.frameUs?Math.round(1e6/s.frameUs)+' fps · ':'')+
+      (s.activeIsModule?'module':'built in');
+  }
+  paintPerf(s);
+  paintPower(s.sleep);
+  paintBrightness(s.brightness);
+  $('s-pat').textContent=s.patterns+'  ('+s.presets+' built in + '+s.modules+' modules)';
+  if(s.fsMounted){
+    $('s-fs').textContent=Math.round((s.fsTotal-s.fsUsed)/1048576*10)/10+' MB free';
+    $('s-fsbar').style.width=(s.fsTotal?s.fsUsed/s.fsTotal*100:0)+'%';
+  }else{$('s-fs').textContent='not mounted'}
+  // The station (the network the panel joined) and the panel's own hotspot
+  // are two links that can be up together; each gets its own line.
+  var hs=s.hotspot||{},n=hs.clients|0;
+  $('s-wifi').textContent=s.wifi?(s.ssid+' · '+s.rssi+' dBm'):hs.up?'not connected':'offline';
+  $('s-ip').textContent=s.wifi?s.ip:'—';
+  $('s-hs-b').hidden=!hs.up;
+  if(hs.up)$('s-hs').textContent=hs.ssid+' · '+(hs.ip||'192.168.4.1')+' · '+n+(n===1?' client':' clients');
+  // Reached over that hotspot with no home network joined: the one useful
+  // next step is giving the panel one.
+  $('hsCall').hidden=!(s.viaHotspot&&!s.wifi);
+  $('s-heap').textContent=Math.round(s.heapInternal/1024)+'K + '+
+    Math.round(s.heapPsram/1048576)+'M psram';
+  $('s-up').textContent=dur(s.uptime);
+  $('s-fw').textContent='v'+s.version;
 
-    // Edition. The default build says what it is and where the others are,
-    // because "the feature I wanted is missing" is the question it provokes;
-    // an edition says which one and links to its own card.
-    var ed=s.variant&&s.variant!=='core'?s.variant:'';
-    if(ed){
-      $('s-ed').textContent=ed+(s.variantVersion?' '+s.variantVersion:'');
-      $('s-ed-sub').textContent='This panel runs the '+ed+' edition. '+
-        'Tap for what it carries, or to go back to the standard firmware.';
-      $('s-ed-block').href='https://patternflow.work/editions#'+encodeURIComponent(ed);
-    }else{
-      $('s-ed').textContent='Patternflow';
-      $('s-ed-sub').textContent='The standard firmware. Other editions carry '+
-        'what this one does not — tap to see them. Installing one is a click '+
-        'and keeps your patterns and settings.';
-      $('s-ed-block').href='https://patternflow.work/editions';
-    }
-    if(s.params)updateSliders(s.params);
-    checkUpdate(s.version,s.variant);
-  }).catch(function(){$('nowsub').textContent='cannot reach device';var p=$('nowperf');if(p){p.hidden=true;p.textContent=''}});
+  // Edition. The default build says what it is and where the others are,
+  // because "the feature I wanted is missing" is the question it provokes;
+  // an edition says which one and links to its own card.
+  var ed=s.variant&&s.variant!=='core'?s.variant:'';
+  if(ed){
+    $('s-ed').textContent=ed+(s.variantVersion?' '+s.variantVersion:'');
+    $('s-ed-sub').textContent='This panel runs the '+ed+' edition. '+
+      'Tap for what it carries, or to go back to the standard firmware.';
+    $('s-ed-block').href='https://patternflow.work/editions#'+encodeURIComponent(ed);
+  }else{
+    $('s-ed').textContent='Patternflow';
+    $('s-ed-sub').textContent='The standard firmware. Other editions carry '+
+      'what this one does not — tap to see them. Installing one is a click '+
+      'and keeps your patterns and settings.';
+    $('s-ed-block').href='https://patternflow.work/editions';
+  }
+  if(s.params)updateSliders(s.params);
+  checkUpdate(s.version,s.variant);
 }
 
 // ── Panel switch ──────────────────────────────────────────────
 // The switch is a VIEW of the device's state, not its own truth: K1 on the
-// device and an MQTT message change the same thing, and the 3 s poll is what
-// keeps this honest when they do.
+// device and an MQTT message change the same thing, and the 3 s status is
+// what keeps this honest when they do.
 //
 // The one exception is the moment after a click. POST /api/sleep only queues
-// the transition — loop() performs it on its next pass — so a poll landing in
-// between still reports the old value and would snap the switch back under the
-// cursor. settleUntil suppresses that for a beat, which is long enough for the
-// device to have actually moved.
+// the transition — loop() performs it on its next pass — so a status landing
+// in between still reports the old value and would snap the switch back under
+// the cursor. settleUntil suppresses that for a beat past the reply, which is
+// long enough for the device to have actually moved; the next status after
+// it confirms.
 var settleUntil=0;
 function paintPower(asleep,force){
   if(!force&&Date.now()<settleUntil)return;
   $('p-on').className='pwr-b'+(asleep?'':' on');
   $('p-sleep').className='pwr-b'+(asleep?' on':'');
 }
-function note(t,cls){$('pwrnote').textContent=t||'';$('pwrnote').className='pwr-note'+(cls?' '+cls:'')}
+function note(t,k){PF.say(t,k||'info',$('pwrnote'))}
 function setPower(asleep){
   settleUntil=Date.now()+1500;
   paintPower(asleep,true);
@@ -436,14 +485,14 @@ function setPower(asleep){
       body:'on='+(asleep?'1':'0')})
     .then(function(r){if(!r.ok)throw 0;return r.json()})
     .then(function(){
+      settleUntil=Math.max(settleUntil,Date.now()+800);
       note(asleep?'panel off — any knob or button wakes it':'');
-      // Confirm from the device rather than trusting the optimistic paint.
-      setTimeout(function(){settleUntil=0;tick()},600);
     })
     .catch(function(){
+      // Back to what the panel last said, not what was clicked.
       settleUntil=0;
-      note('cannot reach device','err');
-      tick();
+      if(last)paintPower(last.sleep);
+      note('not switched — the panel did not answer','err');
     });
 }
 $('p-on').addEventListener('click',function(){setPower(false)});
@@ -451,7 +500,7 @@ $('p-sleep').addEventListener('click',function(){setPower(true)});
 
 // ── Brightness ────────────────────────────────────────────────
 // A view of the device's value like the switch above: K1's long-press
-// session moves the same number, and the 3 s poll keeps the slider honest
+// session moves the same number, and the 3 s status keeps the slider honest
 // unless a hand is on it. GET /api/display?brightness= is the write - one
 // request in flight, the newest value waiting behind it, so a drag cannot
 // queue up on the one-connection server.
@@ -465,20 +514,27 @@ function pumpBri(){
   if(briInFlight||briQueued<0)return;
   var p=briQueued;briQueued=-1;briInFlight=true;
   var v=Math.max(5,Math.min(255,Math.round(p*255/100)));
-  fetch('/api/display?brightness='+v,{cache:'no-store'})
-    .catch(function(){note('cannot reach device','err')})
-    .finally(function(){briInFlight=false;if(briQueued>=0)pumpBri()});
+  function done(){briInFlight=false;if(briQueued>=0)pumpBri()}
+  PF.get('/api/display?brightness='+v).then(done,function(x){
+    if(!x||!x.nav)note('brightness not set — '+(x&&x.status?'refused':'the panel did not answer'),'err');
+    done();
+  });
 }
 $('bri').addEventListener('input',function(){
   var p=parseInt(this.value,10);if(isNaN(p))return;
   $('bri-v').textContent=p+'%';briQueued=p;briSettleUntil=Date.now()+1500;pumpBri();
 });
-(function(){
-  var sl=$('bri');
-  var on=function(){briActive=true},off=function(){briActive=false;briSettleUntil=Date.now()+1500};
-  sl.addEventListener('touchstart',on,{passive:true});sl.addEventListener('touchend',off,{passive:true});
-  sl.addEventListener('mousedown',on);window.addEventListener('mouseup',off);
-})();
+// Pointer events, and pointercancel with them: with pan-y a vertical swipe
+// that starts on a slider becomes a scroll, which ends in pointercancel (or
+// touchcancel), never an up/end, and "a hand is on it" would stick.
+function held(sl,on,off){
+  var down=false;
+  function up(){if(down){down=false;off()}}
+  sl.addEventListener('pointerdown',function(){down=true;on()});
+  window.addEventListener('pointerup',up);
+  window.addEventListener('pointercancel',up);
+}
+held($('bri'),function(){briActive=true},function(){briActive=false;briSettleUntil=Date.now()+1500});
 
 // ── Update check (runs in the browser, never on the device) ───
 var updChecked=false;
@@ -541,8 +597,14 @@ function pumpParams() {
     cache: 'no-store',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: bodyParts.join('&')
-  }).catch(function() {
-  }).finally(function() {
+  }).then(function(r) {
+    if (!r.ok) throw Error('refused');
+    $('ctrlmsg').textContent = '';
+  }).catch(function(x) {
+    // Next to the sliders, not swallowed: a drag that never arrived looks
+    // exactly like a pattern ignoring its knobs.
+    PF.say('not sent — ' + (x && x.message === 'refused' ? 'refused' : 'no answer'), 'err', $('ctrlmsg'));
+  }).then(function() {
     inFlight = false;
     if (Object.keys(queuedParams).length) {
       pumpParams(); // Flush pending latest updates
@@ -568,15 +630,10 @@ function initSliders() {
     (function(idx) {
       var sl = $('sl-' + idx);
       if (!sl) return;
-      var onStart = function() { activeSlider = idx; };
-      var onEnd = function() {
-        activeSlider = -1;
+      held(sl, function() { activeSlider = idx; }, function() {
+        if (activeSlider === idx) activeSlider = -1;
         pumpParams();
-      };
-      sl.addEventListener('touchstart', onStart, {passive: true});
-      sl.addEventListener('touchend', onEnd, {passive: true});
-      sl.addEventListener('mousedown', onStart);
-      window.addEventListener('mouseup', onEnd);
+      });
       sl.addEventListener('input', function() {
         var v = sl.value;
         onSliderInput(idx, v);
@@ -587,27 +644,24 @@ function initSliders() {
 initSliders();
 
 // ── Quick pattern stepping (← / →) ───────────────────────────
+// The reply names the new pattern; the next status confirms it.
 function stepPattern(dir) {
   var prev = $('now').textContent;
   $('now').textContent = dir > 0 ? 'Next…' : 'Prev…';
-  fetch('/api/patterns/select?step=' + dir, {cache: 'no-store'})
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.ok && d.name) {
-        $('now').textContent = d.name;
-        $('nowsub').textContent = 'switched';
-      }
-      setTimeout(tick, 300);
-    })
-    .catch(function() {
-      $('now').textContent = prev;
-    });
+  PF.get('/api/patterns/select?step=' + dir).then(function(d) {
+    $('now').textContent = d.name || prev;
+    $('nowsub').textContent = 'switched';
+    $('stepmsg').textContent = '';
+  }, function(x) {
+    $('now').textContent = prev;
+    if (!x || !x.nav)
+      PF.say(x && x.status === 404 ? 'nothing to switch to' : 'not switched', 'err', $('stepmsg'));
+  });
 }
 $('pat-prev').addEventListener('click', function() { stepPattern(-1); });
 $('pat-next').addEventListener('click', function() { stepPattern(1); });
 
-tick();
-setInterval(tick,3000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden)tick()});
+PF.watchStatus(3000);
+PF.status(paint);
 </script>
 </body></html>

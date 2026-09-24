@@ -47,7 +47,7 @@ li .nm:hover{color:var(--led)}
 li.drag{opacity:.35}
 li.over-row{border-top:2px solid var(--led)}
 button.del{font:inherit;font-size:11px;color:var(--muted);background:none;
-border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer}
+border:1px solid var(--rule);border-radius:2px;padding:2px 8px;cursor:pointer;white-space:nowrap}
 button.del:hover{border-color:var(--led);color:var(--led)}
 button.del:disabled{opacity:.4;cursor:default;border-color:var(--rule);color:var(--muted)}
 
@@ -68,9 +68,11 @@ font-family:var(--mono);font-size:11.5px}
 .qbar i{display:block;height:100%;width:0;background:var(--led)}
 .qerr{margin-top:3px;color:var(--led);font-size:10.5px;white-space:normal}
 
-#msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
-#msg.err{color:var(--led)}
-#msg.good{color:var(--ok)}
+.msg{font-family:var(--mono);font-size:11px;min-height:16px}
+.msg.pf-err{color:var(--led)}
+.msg.pf-ok{color:var(--ok)}
+#msg{margin-top:12px}
+#lmsg{margin-bottom:8px}
 /* Clearing a big library is ONE request the device answers only once it has
    finished, so there is no progress to report from inside it — a percentage
    here would be invented. This is deliberately indeterminate: it says "still
@@ -85,8 +87,10 @@ animation:sweep 1.1s ease-in-out infinite}
    reply lands — the click needs an answer now, not in five seconds. */
 li.going{opacity:.3}
 li.going button.del{visibility:hidden}
-.actions{display:flex;gap:8px;margin-top:8px;align-items:center}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center}
 input.sel{width:14px;height:14px;accent-color:var(--led);margin:0}
+.sw{display:flex}
+.mv{display:none}
 #bulk{display:none}
 .bulkTop{margin:0 0 10px}
 .bulkNote{font-family:var(--mono);font-size:11px;color:var(--faint)}
@@ -109,6 +113,20 @@ border-color:var(--warn);color:var(--warn)}
 footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
+html.pf-offline #list,html.pf-offline #fs{opacity:.5}
+/* Touch: 44px tap areas, not bigger controls. No drag and drop on a phone,
+   so ▲▼ instead, in the room the module tag leaves (a checkbox says it). */
+@media(pointer:coarse){
+li{padding:12px 2px}
+li .nm{padding:12px 0;margin:-12px 0;line-height:20px}
+.sw{padding:15px;margin:-15px}
+button.del{position:relative}
+button.del::after{content:"";position:absolute;top:-11px;bottom:-11px;left:0;right:0}
+.mv{display:block;width:28px;padding:2px 0}
+button.mv::after{left:-8px;right:-8px}
+.mv+.mv{margin-left:6px}
+.tag.mod{display:none}
+#bulk{row-gap:14px}}
 /* Desktop: upload pinned left, the library right — the whole page without
    scrolling, instead of a phone column with acres beside it. */
 @media(min-width:960px){
@@ -137,12 +155,12 @@ a{color:var(--muted)}
 <section>
   <h2>Upload</h2>
   <label class="drop" id="drop">
-    <input type="file" id="file" accept=".pfm,.json,.pfs,.zip,application/zip" multiple>
+    <input type="file" id="file" accept="*/*" multiple>
     <p>Drop <b>.pfm</b> files or a <b>.zip</b> pack here, or click to choose</p>
     <p class="hint">modules + their .json sidecars, all at once &middot; zip unpacks in the browser</p>
   </label>
   <ul class="queue" id="q"></ul>
-  <div id="msg"></div>
+  <div class="msg" id="msg"></div>
   <div class="sweep" id="sweep"><i></i></div>
   <div class="actions">
     <button class="del" id="retry" style="display:none">Retry failed</button>
@@ -160,6 +178,7 @@ a{color:var(--muted)}
     <button class="del" id="saveOrd" style="display:none">Save order</button>
     <span class="bulkNote" id="bulkN"></span>
   </div>
+  <div class="msg" id="lmsg"></div>
   <ul id="list"></ul>
 </section>
 </div>
@@ -170,9 +189,10 @@ a{color:var(--muted)}
 </div>
 <script>
 function $(i){return document.getElementById(i)}
-var msg=$('msg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
+var msg=$('msg'),lmsg=$('lmsg'),listEl=$('list'),drop=$('drop'),file=$('file'),fs=$('fs'),
     qEl=$('q'),retryBtn=$('retry'),bulk=$('bulk'),bulkDel=$('bulkDel'),bulkN=$('bulkN'),
-    selAll=$('selAll'),bulkZip=$('bulkZip'),firstRun=$('firstRun'),fmtNote=$('fmtNote');
+    selAll=$('selAll'),bulkZip=$('bulkZip'),firstRun=$('firstRun'),fmtNote=$('fmtNote'),
+    saveOrd=$('saveOrd');
 
 // null until the first /api/patterns reply lands. Nothing may decide whether
 // an install can proceed before then — least of all the community deep-link
@@ -229,31 +249,28 @@ function applyPendingSlugs(slugs,rev,announce,force){
   updateBulk();
   if(announce!==false && revChanged && (slugs||[]).length){
     var missed=(slugs||[]).length-n;
-    var msg='The link marked '+n+' module'+(n===1?'':'s')+' for download';
-    if(missed>0)msg+=', '+missed+' not on this list';
-    say(msg,n?'good':'err');
+    var t='The link marked '+n+' module'+(n===1?'':'s')+' for download';
+    if(missed>0)t+=', '+missed+' not on this list';
+    say(t,n?'ok':'err',lmsg);
   }
 }
-function pollPending(){
-  fetch('/api/patterns/pending',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
-    applyPendingSlugs(d.slugs||[], d.rev||0, true);
-  }).catch(function(){});
-}
-setInterval(pollPending,2500);
 
-function say(t,cls){msg.textContent=t;msg.className=cls||''}
+// Results sit by their cause: #msg for installs, #lmsg for the list.
+function say(t,k,el){PF.say(t,k||'info',el||msg)}
 
 // A wait with a moving bar and a seconds count. Used for the requests the
 // device answers only when it is done — the page cannot show real progress
 // for those, but it can show that time is being counted rather than lost.
 // The count starts at 2s so a fast reply never flashes a number.
 var sweepEl=$('sweep'),busyTimer=null;
-function busy(text){
+function busy(text,el){
   var t0=Date.now();
+  el=el||msg;
+  el.parentNode.insertBefore(sweepEl,el.nextSibling);
   sweepEl.classList.add('on');
   var tick=function(){
     var s=Math.round((Date.now()-t0)/1000);
-    say(s>=2?text+' — '+s+'s':text+'…');
+    say(s>=2?text+' — '+s+'s':text+'…','info',el);
   };
   tick();
   if(busyTimer)clearInterval(busyTimer);
@@ -276,7 +293,7 @@ function setMounted(m){
   file.disabled=!mounted;
   fmtNote.textContent=(!mounted&&pendingSrc)?
     'a pack is waiting — it installs as soon as this is done':'';
-  if(mounted&&pendingSrc){var s=pendingSrc;pendingSrc=null;runSrc(s)}
+  if(mounted&&pendingSrc){var s=pendingSrc;pendingSrc=null;dirty();runSrc(s)}
 }
 
 // A drop or a link while the volume is unusable would enqueue a batch that
@@ -290,11 +307,16 @@ function storageReady(){
   return false;
 }
 
+// Read after each change, never polled; a failed read retries on the next status.
+var listFailed=false,listReq=null;
 function load(){
-  return fetch('/api/patterns').then(function(r){return r.json()}).then(function(d){
+  listReq=PF.get('/api/patterns',{timeout:15000}).then(function(d){
+    if(listFailed)say('','info',lmsg);
+    listFailed=false;
     fs.textContent=d.mounted?(Math.round(d.free/1024)+' KB free'):'storage not mounted';
     setMounted(d.mounted);
     listEl.innerHTML='';
+    setOrderDirty(false);  // new rows: any unsaved arrangement is gone
     d.patterns.slice().reverse().forEach(function(p){
       var li=document.createElement('li');
       if(p.index===d.active)li.className='on';
@@ -306,9 +328,10 @@ function load(){
       tg.className='tag'+(p.module?' mod':'');
       tg.textContent=p.module?'module':'preset';
       if(p.module){
+        var sw=document.createElement('label');sw.className='sw';
         var c=document.createElement('input');c.type='checkbox';c.className='sel';
         c.dataset.slug=p.module;c.onchange=updateBulk;
-        li.appendChild(c);
+        sw.appendChild(c);li.appendChild(sw);
         li.draggable=true;
         li.dataset.slug=p.module;
         wireDrag(li);
@@ -317,15 +340,53 @@ function load(){
       }
       li.appendChild(n);li.appendChild(nm);li.appendChild(tg);
       if(p.module){
+        li.appendChild(mover(li,true));li.appendChild(mover(li,false));
         var b=document.createElement('button');b.className='del';b.textContent='delete';
-        b.onclick=function(){del(p.module,p.name)};
+        b.onclick=function(){del(p.module,p.name,b)};
         li.appendChild(b);
       }
       listEl.appendChild(li);
     });
+    ends();
     applyPendingSlugs(d.pending||[], d.pendingRev||0, false, true);
     updateBulk();
-  }).catch(function(){say('cannot reach device','err')});
+  }).catch(function(){
+    listFailed=true;
+    say('could not read the list — retrying','err',lmsg);
+  }).then(function(){listReq=null;start()});
+  return listReq;
+}
+
+// Polls start after the first list read: the list is this page's first ask.
+var started=false;
+function start(){
+  if(started)return;
+  started=true;
+  PF.status(onStatus);
+  PF.watchStatus(3000);
+  PF.poll('/api/patterns/pending',2500,function(d){
+    if(d)applyPendingSlugs(d.slugs||[], d.rev||0, true);
+  },{first:false});
+}
+
+// The now-playing marker follows the panel (a knob turn, another tab) from
+// the shared status, without re-reading the list.
+var picked=null,pickedAt=0;
+function onStatus(s){
+  hasShows=(s.caps||[]).indexOf('shows')>=0;
+  if(listFailed&&!listReq)load();
+  var a=s.active;
+  if(s.loading||!a||a==='-')return;
+  // A click the loop has not acted on yet: don't move the marker back.
+  if(picked&&a!==picked&&Date.now()-pickedAt<5000)return;
+  picked=null;
+  var hit=false;
+  listEl.querySelectorAll('li').forEach(function(li){
+    var nm=li.querySelector('.nm');
+    var on=!hit&&!!nm&&nm.textContent===a&&!li.dataset.slug===!s.activeIsModule;
+    if(on)hit=true;
+    li.classList.toggle('on',on);
+  });
 }
 
 // ── Play (click a name) ──────────────────────────────────────────
@@ -334,18 +395,19 @@ function load(){
 // has even been read — the highlight moves optimistically and load()
 // verifies shortly after.
 function play(index,name){
-  say('switching to '+name+'…');
+  say('switching to '+name+'…','info',lmsg);
   fetch('/api/patterns/select?index='+index,{cache:'no-store'})
     .then(function(r){return r.json()})
     .then(function(d){
-      if(!d.ok){say(d.error||'switch failed','err');return}
-      say('now playing: '+d.name,'good');
+      if(!d.ok){say(d.error||'switch failed','err',lmsg);return}
+      picked=d.name||name;pickedAt=Date.now();
+      say('now playing: '+picked,'ok',lmsg);
       listEl.querySelectorAll('li').forEach(function(el){el.classList.remove('on')});
       var rows=listEl.querySelectorAll('li .n');
       rows.forEach(function(el){
         if(parseInt(el.textContent,10)===index+1)el.parentElement.classList.add('on');
       });
-    }).catch(function(){say('no reply from device','err')});
+    }).catch(function(){say('no reply from device','err',lmsg)});
 }
 
 // ── Arrange (drag rows, then Save order) ─────────────────────────
@@ -356,6 +418,40 @@ function play(index,name){
 // pattern_registry.h expects. The file travels through the ordinary upload
 // path with X-PF-Name: catalog.txt — no dedicated endpoint.
 var dragging=null,orderDirty=false;
+
+// Unsaved order or a waiting link: the chrome must not reload the page.
+function dirty(){PF.dirty=orderDirty||!!pendingSrc}
+function setOrderDirty(on){
+  orderDirty=on;dirty();
+  saveOrd.style.display=on?'':'none';
+}
+function orderChanged(){
+  setOrderDirty(true);ends();
+  say('order changed — not saved yet','info',lmsg);
+}
+
+// ▲▼ (touch only, by CSS): a drag, one row at a time. Modules are contiguous.
+function mover(li,up){
+  var b=document.createElement('button');
+  b.className='del mv';b.textContent=up?'▲':'▼';
+  b.setAttribute('aria-label',up?'move up':'move down');
+  b.onclick=function(){
+    var sib=up?li.previousElementSibling:li.nextElementSibling;
+    if(!sib||!sib.dataset.slug)return;
+    listEl.insertBefore(li,up?sib:sib.nextSibling);
+    b.focus();
+    orderChanged();
+  };
+  return b;
+}
+function ends(){
+  var r=listEl.querySelectorAll('li[data-slug]');
+  for(var i=0;i<r.length;i++){
+    r[i].querySelector('.mv').disabled=i===0;
+    r[i].querySelectorAll('.mv')[1].disabled=i===r.length-1;
+  }
+}
+
 function wireDrag(li){
   li.addEventListener('dragstart',function(){dragging=li;li.classList.add('drag')});
   li.addEventListener('dragend',function(){
@@ -373,30 +469,33 @@ function wireDrag(li){
     li.classList.remove('over-row');
     if(!dragging||dragging===li)return;
     listEl.insertBefore(dragging,li);
-    orderDirty=true;
-    $('saveOrd').style.display='';
-    say('order changed — not saved yet','good');
+    orderChanged();
   });
 }
 
-$('saveOrd').onclick=function(){
+// Storage writes (this, deletes, format, uploads) are PF.hold()s: polls wait
+// behind them, and leaving mid-write asks first.
+saveOrd.onclick=function(){
   var slugs=[];
   listEl.querySelectorAll('li[data-slug]').forEach(function(el){slugs.push(el.dataset.slug)});
   slugs.reverse();  // display order → device order (see note above)
   var text='# Patternflow running order — first line is pattern 2\n'+slugs.join('\n')+'\n';
-  say('saving order…');
-  var xhr=new XMLHttpRequest();
-  xhr.open('PUT','/api/patterns');
-  xhr.setRequestHeader('X-PF-Name','catalog.txt');
-  xhr.setRequestHeader('X-PF-Last','1');
-  xhr.onload=function(){
-    var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
-    if(d&&d.ok){orderDirty=false;$('saveOrd').style.display='none';
-      say('order saved','good');setTimeout(load,900)}
-    else say((d&&d.error)||'save failed','err');
-  };
-  xhr.onerror=function(){say('no reply from device','err')};
-  xhr.send(new Blob([text]));
+  say('saving order…','info',lmsg);
+  PF.busy(saveOrd,PF.hold(new Promise(function(done){
+    var xhr=new XMLHttpRequest();
+    xhr.open('PUT','/api/patterns');
+    xhr.setRequestHeader('X-PF-Name','catalog.txt');
+    xhr.setRequestHeader('X-PF-Last','1');
+    xhr.onload=function(){
+      var d=null;try{d=JSON.parse(xhr.responseText)}catch(e){}
+      if(d&&d.ok){setOrderDirty(false);
+        say('order saved','ok',lmsg);setTimeout(load,900)}
+      else say((d&&d.error)||'save failed','err',lmsg);
+      done();
+    };
+    xhr.onerror=function(){say('no reply from device','err',lmsg);done()};
+    xhr.send(new Blob([text]));
+  }),{guard:true}));
 };
 
 // ── Bulk delete ──────────────────────────────────────────────────
@@ -422,9 +521,9 @@ function deleteSlugs(slugs, label){
     }
   });
 
-  busy('deleting ' + label);
+  busy('deleting ' + label, lmsg);
   bulkDel.disabled = true;
-  fetch('/api/patterns/delete',{method:'POST',body:slugs.join('\n')})
+  PF.hold(fetch('/api/patterns/delete',{method:'POST',body:slugs.join('\n')})
     .then(function(r){return r.json()})
     .then(function(d){
       busyDone();
@@ -432,11 +531,11 @@ function deleteSlugs(slugs, label){
       if(!d.ok){
         // It stayed: undim, or the list looks emptier than the device is.
         listEl.querySelectorAll('li.going').forEach(function(r){r.classList.remove('going')});
-        say(d.error||'delete failed','err');return;
+        say(d.error||'delete failed','err',lmsg);return;
       }
-      var msg=d.removed+' module'+(d.removed===1?'':'s')+' removed';
-      if(d.missing)msg+=', '+d.missing+' not found';
-      say(msg,d.missing?'err':'good');
+      var t=d.removed+' module'+(d.removed===1?'':'s')+' removed';
+      if(d.missing)t+=', '+d.missing+' not found';
+      say(t,d.missing?'err':'ok',lmsg);
       // The rescan is deferred on the device (see requestReload), so the
       // list is only right a moment after the reply.
       setTimeout(load,900);
@@ -444,8 +543,8 @@ function deleteSlugs(slugs, label){
     .catch(function(){
       busyDone();
       listEl.querySelectorAll('li.going').forEach(function(r){r.classList.remove('going')});
-      bulkDel.disabled=false;say('no reply from device','err');
-    });
+      bulkDel.disabled=false;say('no reply from device','err',lmsg);
+    }),{guard:true});
 }
 
 bulkDel.onclick=function(){
@@ -474,18 +573,19 @@ function fetchPatternFile(slug,ext){
 }
 
 // Sequential on purpose: this HTTP server is one-connection. Parallel
-// fetches pile up the same way a live preview once locked the panel.
+// fetches pile up the same way a live preview once locked the panel. Held
+// (unguarded: leaving loses only the download) so polls wait too.
 bulkZip.onclick=function(){
   var slugs=selectedSlugs();
   if(!slugs.length)return;
-  busy('packing zip');
+  busy('packing zip',lmsg);
   bulkZip.disabled=true;
-  loadFflate().then(function(){
+  PF.hold(loadFflate().then(function(){
     var files={};
     var chain=Promise.resolve();
     slugs.forEach(function(slug,i){
       chain=chain.then(function(){
-        say('packing zip — '+(i+1)+'/'+slugs.length);
+        say('packing zip — '+(i+1)+'/'+slugs.length,'info',lmsg);
         return fetchPatternFile(slug,'pfm').then(function(pfm){
           if(!pfm)throw new Error(slug+'.pfm not on device');
           files[slug+'.pfm']=pfm;
@@ -510,24 +610,24 @@ bulkZip.onclick=function(){
       busyDone();
       bulkZip.disabled=false;
       updateBulk();
-      say('downloaded '+slugs.length+' module'+(slugs.length===1?'':'s'),'good');
+      say('downloaded '+slugs.length+' module'+(slugs.length===1?'':'s'),'ok',lmsg);
     });
   }).catch(function(e){
     busyDone();
     bulkZip.disabled=false;
     updateBulk();
-    say((e&&e.message)||'zip failed','err');
-  });
+    say((e&&e.message)||'zip failed','err',lmsg);
+  }));
 };
 
-function del(slug,name){
+function del(slug,name,btn){
   if(!confirm('Delete "'+name+'"?'))return;
-  fetch('/api/patterns?slug='+encodeURIComponent(slug),{method:'DELETE'})
+  PF.busy(btn,PF.hold(fetch('/api/patterns?slug='+encodeURIComponent(slug),{method:'DELETE'})
     .then(function(r){return r.json()}).then(function(d){
-      say(d.ok?('deleted '+slug):(d.error||'delete failed'),d.ok?'':'err');
+      say(d.ok?('deleted '+slug):(d.error||'delete failed'),d.ok?'ok':'err',lmsg);
       // The device rebuilds its list off the HTTP path ~150ms later.
       setTimeout(load,700);
-    }).catch(function(){say('delete failed','err')});
+    }).catch(function(){say('delete failed','err',lmsg)}),{guard:true}));
 }
 
 // ── Install queue ────────────────────────────────────────────────
@@ -538,10 +638,16 @@ var items=[];
 // refused with a reason instead of a lie. Without the show feature there is
 // no /api/shows: the PUT gets the 404 page, JSON.parse fails, and the queue
 // reports "no reply from device" after two pointless retries. Assume yes
-// until told otherwise, so a probe that never lands changes nothing.
+// until a status (onStatus) says otherwise.
 var hasShows=true;
-fetch('/api/status',{cache:'no-store'}).then(function(r){return r.json()})
-  .then(function(d){hasShows=(d.caps||[]).indexOf('shows')>=0}).catch(function(){});
+
+// One hold spans a batch, first file to last. One batch at a time: a second
+// would interleave with the first.
+var endBatch=null;
+function holdBatch(on){
+  if(on&&!endBatch)PF.hold(new Promise(function(done){endBatch=done}),{guard:true});
+  else if(!on&&endBatch){endBatch();endBatch=null}
+}
 
 // Upload states only — deleting is one request now and reports as a single
 // line, so it no longer borrows this queue.
@@ -573,9 +679,10 @@ function renderQ(){
 }
 
 function finishBatch(){
+  holdBatch(false);
   var ok=0,fail=0;
   items.forEach(function(it){if(it.st==='ok')ok++;else if(it.st==='fail')fail++});
-  if(fail===0){say(ok+' file'+(ok===1?'':'s')+' installed','good')}
+  if(fail===0){say(ok+' file'+(ok===1?'':'s')+' installed','ok')}
   else{say(ok+' installed, '+fail+' failed','err')}
   retryBtn.style.display=items.some(function(it){return it.st==='fail'&&it.f})?'':'none';
   setTimeout(load,700);
@@ -710,6 +817,7 @@ function expandFiles(fileList){
 // exactly once, wherever it came from.
 function pickFiles(fileList){
   if(!storageReady())return;
+  if(endBatch){say('an install is running — add these when it has finished','err');return}
   expandFiles(fileList).then(function(files){
     if(!files.length){say('nothing to install — no .pfm, .json or .pfs in that drop','err');return}
     startBatch(files);
@@ -717,6 +825,7 @@ function pickFiles(fileList){
 }
 
 function startBatch(fileList){
+  holdBatch(true);
   items=[];
   for(var i=0;i<fileList.length;i++)
     items.push({f:fileList[i],name:fileList[i].name,st:'wait',pct:0,tries:0});
@@ -735,13 +844,13 @@ $('fmt').onclick=function(){
   // Same shape as the bulk delete: one call, no progress from inside it, and
   // long enough that a still page looks broken.
   busy('formatting');
-  fetch('/api/patterns/format',{method:'POST'})
+  PF.busy(this,PF.hold(fetch('/api/patterns/format',{method:'POST'})
     .then(function(r){return r.json()}).then(function(d){
       busyDone();
       say(d.ok?'storage ready - upload patterns now':(d.error||'format failed'),
-          d.ok?'good':'err');
+          d.ok?'ok':'err');
       setTimeout(load,900);
-    }).catch(function(){busyDone();say('format failed','err')});
+    }).catch(function(){busyDone();say('format failed','err')}),{guard:true}));
 };
 
 retryBtn.onclick=function(){
@@ -750,6 +859,7 @@ retryBtn.onclick=function(){
   if(redo.length)startBatch(redo);
 };
 
+// accept="*/*": an extension list makes Android's picker media-only.
 file.onchange=function(){if(file.files.length)pickFiles(file.files)};
 // The file input is disabled while unmounted, so clicking the label opens
 // nothing — which on its own is indistinguishable from a broken page. Say why.
@@ -776,6 +886,7 @@ function installFromUrl(src){
   }).then(function(d){
     var names=(d.files||[]).filter(function(n){return /\.(pfm|json)$/.test(n)});
     if(!names.length)throw 0;
+    holdBatch(true);
     items=names.map(function(n){return {f:null,name:n,st:'get',pct:0,tries:0}});
     retryBtn.style.display='none';
     say('');renderQ();
@@ -790,6 +901,7 @@ function installFromUrl(src){
     });
     return chain.then(function(){runQ(0)});
   }).catch(function(){
+    holdBatch(false);
     say('could not fetch modules from the link — is the build still available?','err');
   });
 }
@@ -834,11 +946,14 @@ function runSrc(src){
 
 var srcParam=new URLSearchParams(location.search).get('src');
 if(srcParam&&/^https?:\/\//.test(srcParam)){
-  // Strip the query so a reload doesn't reinstall.
-  history.replaceState(null,'',location.pathname);
+  // Drop src so a reload doesn't reinstall; keep v (the chrome reads it).
+  var here=new URL(location.href);
+  here.searchParams.delete('src');
+  history.replaceState(history.state,'',here.pathname+here.search+here.hash);
   // Held, not run: setMounted() spends it once the first reply says the volume
   // can take files — or right after the format finishes, if it cannot yet.
   pendingSrc=srcParam;
+  dirty();
 }
 
 load();

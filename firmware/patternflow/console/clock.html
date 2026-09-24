@@ -45,7 +45,10 @@ section{margin-top:26px}
 .row{display:flex;align-items:center;gap:12px;min-height:34px;padding:3px 0}
 .row>label{flex:0 0 96px;font-size:13px;color:var(--muted)}
 .row .val{flex:0 0 48px;font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
-input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;background:var(--rule);border-radius:1px;outline:none;margin:0}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:2px;background:var(--rule);border-radius:1px;outline:none;margin:0;touch-action:pan-y}
+/* A 2px track is no target for a finger: on touch the box grows to 28px
+   and the track stays a 2px line drawn across its middle. */
+@media(pointer:coarse){input[type=range]{height:28px;background:linear-gradient(var(--rule),var(--rule)) 0 50%/100% 2px no-repeat}}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:var(--led);cursor:pointer}
 input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:var(--led);cursor:pointer}
 select,input[type=text]{font:inherit;font-family:var(--mono);font-size:12px;padding:7px 9px;
@@ -71,7 +74,9 @@ font:inherit;font-size:13px;color:var(--muted)}
 .switch.big i{width:38px;height:22px}.switch.big i::after{top:3px}.switch.big.on i::after{left:19px}
 .note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
 #msg{font-family:var(--mono);font-size:11px;color:var(--faint);min-height:16px}
-#msg.good{color:var(--ok)}#msg.err{color:var(--led)}
+#msg.pf-ok{color:var(--ok)}#msg.pf-err{color:var(--led)}
+/* The chrome's chip says when the panel stops answering; the last values dim. */
+html.pf-offline #st,html.pf-offline .stage dl{opacity:.45}
 dl{margin:0;border-top:1px solid var(--rule-soft)}
 .drow{display:flex;align-items:baseline;gap:12px;padding:7px 2px;border-bottom:1px solid var(--rule-soft)}
 dt{flex:1;font-size:13px;color:var(--muted);margin:0}
@@ -119,7 +124,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
         <div class="drow"><dt>Zone</dt><dd id="zone">-</dd></div>
         <div class="drow"><dt>NTP</dt><dd id="sync">-</dd></div>
       </dl>
-      <div id="msg">-</div>
+      <div id="msg" aria-live="polite"></div>
     </div>
   </div>
 
@@ -233,7 +238,7 @@ function all(sel,root){return Array.prototype.slice.call((root||document).queryS
 var V={on:false,face:0,rot:1,h12:false,gap:10,sep:0,sepw:2,'in':0,out:0,dim:0,ink:'F5F5F5',bg:'000000',fade:true,tz:'KST-9'};
 var S=null;          // last /api/clock answer
 var G=null;          // the glyph blob: {faces:[{name,sets:[{h,w,cw,gap,off}]}], b}
-var devTime=null,devTimeAt=0,sentAt=0,filled=false;
+var devTime=null,devTimeAt=0,sentAt=0,filled=false,gLoading=false;
 
 function fill(d){
   S=d;
@@ -251,12 +256,8 @@ function fill(d){
   $('zone').textContent=(d.zone?d.zone+' · ':'')+(d.tz||'-');
   $('sync').textContent=d.synced?'synced':'not yet';
   $('sync').className=d.synced?'ok':'';
-  if(!G&&d.glyphsRev!==undefined)loadGlyphs(d.glyphsRev);
+  if(!G&&!gLoading&&d.glyphsRev!==undefined)loadGlyphs(d.glyphsRev);
   sizeCanvas();
-}
-function poll(){
-  fetch('/api/clock',{cache:'no-store'}).then(function(r){return r.json()}).then(fill)
-    .catch(function(){$('st').textContent='offline'});
 }
 
 // every control reads V; reflect() is the one place the page is redrawn from it
@@ -298,13 +299,16 @@ function presetOf(){
 
 // ── sending: every change goes to the panel, debounced ────────────────
 var pending=null,timer=null;
+// Unsent or unanswered changes are unsaved edits: the chrome will not reload
+// the page onto new firmware while PF.dirty says so.
 function set(patch){
   for(var k in patch)V[k]=patch[k];
   reflect();
   pending=Object.assign(pending||{},patch);
+  PF.dirty=true;
   clearTimeout(timer);
   timer=setTimeout(flush,250);
-  say('sending…','');
+  say('sending…','info');
 }
 function flush(){
   if(!pending)return;
@@ -312,10 +316,12 @@ function flush(){
   for(var k in pending){var v=pending[k];body.set(k,typeof v==='boolean'?(v?'1':'0'):String(v))}
   pending=null;
   fetch('/api/clock',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
-    sentAt=Date.now();fill(d);say(d.ok?'on the panel':'failed',d.ok?'good':'err');
+    sentAt=Date.now();fill(d);
+    if(d.ok&&!pending)PF.dirty=false;
+    say(d.ok?'on the panel':(d.error||'failed'),d.ok?'ok':'err');
   }).catch(function(){say('send failed','err')});
 }
-function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
+function say(t,kind){PF.say(t,kind,$('msg'))}
 
 // ── wiring ────────────────────────────────────────────────────────────
 $('f-on').onclick=function(){set({on:!V.on})};
@@ -349,11 +355,15 @@ $('f-zone').onchange=function(){
   if(z==='custom'){$('customrow').hidden=false;$('f-tz').focus();return}
   set({tz:z});
 };
+$('f-tz').addEventListener('input',function(){PF.dirty=true});
 $('f-tz').addEventListener('change',function(){var z=$('f-tz').value.trim();if(z)set({tz:z})});
 $('f-tz').onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();$('f-tz').blur()}};
 
 // ── the glyphs: the same bytes the firmware compiles in ────────────────
+// One load at a time: on a slow link the blob (57 KB) outlasts a poll, and
+// every poll that finds no glyphs would start another.
 function loadGlyphs(rev){
+  gLoading=true;
   fetch('/clock/glyphs.bin?v='+rev).then(function(r){return r.arrayBuffer()}).then(function(buf){
     var b=new Uint8Array(buf);
     if(b.length<5||String.fromCharCode(b[0],b[1],b[2],b[3])!=='PFG2')return;
@@ -366,7 +376,7 @@ function loadGlyphs(rev){
     }
     G={b:b,faces:faces};
     facesInto(faces.map(function(f){return f.name}));
-  }).catch(function(){});
+  }).catch(function(){}).then(function(){gLoading=false});
 }
 function cellW(g,glyph){return glyph===10?g.cw:g.w}
 function alpha4(g,glyph,x,y){
@@ -481,7 +491,8 @@ function frame(tm){
 }
 sizeCanvas();
 requestAnimationFrame(frame);
-poll();setInterval(poll,5000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+// On the chrome's lane: chained, paused while the tab is hidden, and the
+// connection chip, not this page, says when the panel stops answering.
+PF.poll('/api/clock',5000,function(d){if(d)fill(d)});
 </script>
 </body></html>

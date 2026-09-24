@@ -5,24 +5,19 @@
 <script src="/pf-console.js"></script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow — Firmware update</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{--cream:#0C0B09;--cream2:#1B1914;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--panel:#131110;
         --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
         --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
   *{box-sizing:border-box;margin:0;padding:0}
   body{min-height:100vh;background:var(--cream);color:var(--ink);
-       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;
-       padding:24px 24px 64px}
+       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+  /* spacing here, not on body: the chrome's header sits flush */
+  .wrap{padding:24px 24px 64px}
   .panel{width:100%;max-width:560px;background:var(--panel);margin:16px auto 0;padding:48px 48px 44px}
   header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:24px}
   .dot{width:7px;height:7px;background:var(--led);border-radius:1px}
   h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
-  .back{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
-       color:var(--muted);text-decoration:none}
-  .back:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
   #pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
        padding:5px 10px 4px;border:1px solid var(--faint);color:var(--muted)}
   #pill.ok{border-color:var(--ink);color:var(--ink)}
@@ -36,31 +31,40 @@
   .step .n{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted)}
   .step p{font-size:14px;line-height:1.5;color:var(--muted)}
   .step b{font-weight:500;color:var(--ink)}
+  .step a{color:var(--ink);text-underline-offset:3px}
+  .step a:hover{color:var(--led)}
   #armHint{display:none;margin:20px 0 0;border:1px dashed var(--rule);background:var(--cream);
        padding:14px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--muted)}
   #armHint b{font-weight:500;color:var(--ink)}
   #handoff{display:none;margin:0 0 24px;padding:16px 18px;border:1px solid var(--rule);background:var(--cream)}
   #handoffFrom{font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-all;margin:6px 0 14px;line-height:1.6}
-  #handoffGo{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-       background:var(--ink);color:var(--cream);border:1px solid var(--ink);padding:12px 16px;cursor:pointer;
+  .go{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+       background:var(--ink);color:var(--cream);border:1px solid var(--ink);border-radius:2px;padding:12px 16px;cursor:pointer;
        transition:background .15s ease,color .15s ease}
-  #handoffGo:hover{background:transparent;color:var(--ink)}
-  #handoffGo:disabled{opacity:.5;cursor:default}
+  .go:hover{background:transparent;color:var(--ink)}
+  .go:disabled{opacity:.5;cursor:default}
   #drop{margin-top:28px;min-height:176px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
        border:1px dashed var(--rule);background:var(--cream);cursor:pointer;text-align:center;padding:24px;
        transition:border-color .16s ease,background .16s ease}
   #drop .big{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
   #drop .small{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
   #drop.hover{border-color:var(--ink);background:var(--cream2)}
-  #drop.disabled{opacity:.45}
+  #drop:focus-visible{outline:1px solid var(--led);outline-offset:2px}
+  #drop.disabled{opacity:.45;cursor:default}
+  #drop.disabled .small{color:var(--muted)}
   #bar{height:6px;background:var(--rule-soft);margin:20px 0 10px;display:none}
   #fill{height:100%;width:0%;background:var(--led);transition:width .1s linear}
   #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
-  #msg.ok{color:var(--ink)} #msg.bad{color:var(--led)}
-  @media(max-width:560px){body{padding:12px 12px 56px}.panel{padding:36px 24px 32px}}
+  #msg.pf-ok{color:var(--ink)} #msg.pf-err{color:var(--led)}
+  #done{margin-top:20px;padding:16px 18px;border:1px solid var(--ink);background:var(--cream)}
+  #doneMsg{font-size:14px;margin-bottom:14px}
+  /* offline: the chrome's chip says so */
+  html.pf-offline #pill{opacity:.45}
+  @media(pointer:coarse){.go{position:relative}.go::after{content:"";position:absolute;inset:-4px 0}}
+  @media(max-width:560px){.wrap{padding:12px 12px 56px}.panel{padding:36px 24px 32px}}
 </style></head><body>
 
-
+<div class="wrap">
 <main class="panel">
   <header><span class="dot"></span><h1>Update</h1><span id="pill">&hellip;</span></header>
 
@@ -71,117 +75,166 @@
   <div id="handoff">
     <span class="pf-kicker">Linked build</span>
     <div id="handoffFrom"></div>
-    <button id="handoffGo" type="button">Fetch &amp; flash</button>
+    <button id="handoffGo" class="go" type="button" disabled>Fetch &amp; flash</button>
   </div>
 
   <span class="pf-kicker">Two steps</span>
-  <div class="step"><span class="n">01</span><p>Build &amp; download a <b>.bin</b> &mdash; patternflow.work &rarr; Build, or an <b>arduino-cli</b> export.</p></div>
+  <div class="step"><span class="n">01</span><p>Get a <b>.bin</b>: <a href="https://patternflow.work/update">patternflow.work/update</a> sends the latest release straight back to this page. Or bring your own &mdash; an <b>arduino-cli</b> export.</p></div>
   <div class="step"><span class="n">02</span><p>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</p></div>
 
   <div id="armHint">This build requires arming first. On the device: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>.</div>
 
-  <div id="drop">
+  <div id="drop" class="disabled" role="button" tabindex="0" aria-disabled="true">
     <span class="big">Drop .bin here</span>
-    <span class="small">or click to choose a file</span>
+    <span class="small" id="why">Checking the panel&hellip;</span>
   </div>
   <!-- accept="*/*", not ".bin": Android maps unknown extensions to a
        media-only picker (camera/gallery), and on some devices NO accept
        does the same — an explicit any-type accept is what reliably brings
        up the full chooser with the file manager. The JS validates
        extension and size instead. -->
-  <input id="file" type="file" accept="*/*" style="display:none">
+  <input id="file" type="file" accept="*/*" style="display:none" disabled>
   <div id="bar"><div id="fill"></div></div>
-  <div id="msg"></div>
+  <div id="msg" aria-live="polite"></div>
+  <div id="done" hidden><p id="doneMsg"></p><button id="open" class="go" type="button">Open console</button></div>
 </main>
+</div>
 
 <script>
-var drop=document.getElementById('drop'),fileIn=document.getElementById('file'),
-    pill=document.getElementById('pill'),bar=document.getElementById('bar'),
-    fill=document.getElementById('fill'),msg=document.getElementById('msg'),
-    armHint=document.getElementById('armHint');
-var armed=false,busy=false,uploading=false;
+function $(i){return document.getElementById(i)}
+var drop=$('drop'),fileIn=$('file'),pill=$('pill'),bar=$('bar'),fill=$('fill'),msg=$('msg'),go=$('handoffGo');
+var st=null,     // the last /update/status
+    build=null,  // the image running now, from /api/status
+    phase='',    // '' | fetch | upload | wait | lost
+    job=null,    // this flash: {from: old build, to: the file's build, v: old version}
+    poll=null,last=null;
 
 function setPill(t,c){pill.textContent=t;pill.className=c||''}
-function setMsg(t,c){msg.textContent=t;msg.className=c||''}
+function say(t,k){PF.say(t,k||'info',msg)}
 
-// The device serves one client at a time. Skipping polls while uploading is
-// not enough on its own: a poll issued a moment BEFORE the upload starts is
-// still in flight, and that one request is enough to wedge a 1.2 MB POST into
-// "Connection lost during upload". So the poll is abortable and the upload
-// cancels it before opening its own connection.
-var pollAbort=null;
-function poll(){
-  if(uploading)return;
-  pollAbort=new AbortController();
-  fetch('/update/status',{cache:'no-store',signal:pollAbort.signal})
-  .then(function(r){return r.json()}).then(function(s){
-    armed=s.armed;busy=s.busy;
-    if(busy)setPill('BUSY','warn');
-    else if(armed)setPill('READY','ok');
-    else setPill('LOCKED','bad');
-    armHint.style.display=(!armed&&!busy)?'block':'none';
-    drop.classList.toggle('disabled',!armed||busy);
-  }).catch(function(e){if(!e||e.name!=='AbortError')setPill('OFFLINE','bad')});
+// Why no file can go in now ('' = it can): the picker is shut, reason on it.
+function why(){
+  return phase==='fetch'?'Downloading the build…':phase==='upload'?'Flashing…'
+    :phase==='wait'?'Restarting…':phase==='lost'?'Waiting for the panel…'
+    :!st?'Checking the panel…':st.busy?'Busy — an update is already running'
+    :!st.armed?'Locked — arm it on the panel first (above)':'';
 }
-setInterval(poll,2000);poll();
+function render(){
+  var w=why(),s=st;
+  if(!phase)setPill(!s?'…':s.busy?'BUSY':s.armed?'READY':'LOCKED',!s?'':s.busy?'warn':s.armed?'ok':'bad');
+  $('armHint').style.display=s&&!s.armed&&!s.busy&&!phase?'block':'none';
+  drop.classList.toggle('disabled',!!w);
+  drop.setAttribute('aria-disabled',w?'true':'false');
+  fileIn.disabled=go.disabled=!!w;
+  $('why').textContent=w||'or click to choose a file';
+}
 
-drop.addEventListener('click',function(){if(!uploading)fileIn.click()});
-fileIn.addEventListener('change',function(){if(fileIn.files.length)upload(fileIn.files[0])});
-['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add('hover')})});
-['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('hover')})});
-drop.addEventListener('drop',function(e){if(!uploading&&e.dataTransfer.files.length)upload(e.dataTransfer.files[0])});
+// One connection at a time: a poll still in flight when the 1.2 MB POST
+// opened was enough to fail it. The poll keeps its request (last) so an
+// upload can wait for it; PF.hold then keeps the lane quiet.
+function status(){
+  return last=fetch('/update/status',{cache:'no-store'}).then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json()});
+}
+function startPoll(){
+  if(poll)poll.stop();
+  poll=PF.poll(status,2000,function(s){if(s){st=s;render()}});
+}
+
+function check(f){
+  return !/\.bin$/i.test(f.name)?'That is not a .bin file.'
+    :f.size>3*1024*1024?'Too big for the 3 MB app partition. This looks like a merged full-flash image; upload the app .bin instead.'
+    :f.size<200*1024?'Suspiciously small for Patternflow firmware. Wrong file?':'';
+}
+
+// The file's build: the ELF SHA-256 esptool puts at 0xb0, first four bytes
+// (src/core_build.h). All zeros = unstamped, then unknowable here.
+function fileBuild(f){
+  return new Promise(function(y){
+    var r=new FileReader();
+    r.onload=function(){var b=new Uint8Array(r.result),h='',i;for(i=0;i<b.length;i++)h+=(b[i]<16?'0':'')+b[i].toString(16);y(h.length===8&&/[^0]/.test(h)?h:null)};
+    r.onerror=function(){y(null)};
+    r.readAsArrayBuffer(f.slice(176,180));
+  });
+}
+
+function send(f){
+  return new Promise(function(y,n){
+    var x=new XMLHttpRequest(),fd=new FormData();
+    function no(t){n(Error(t))}
+    x.open('POST','/update?size='+f.size);
+    x.timeout=300000;
+    x.upload.onprogress=function(e){if(e.lengthComputable)fill.style.width=Math.round(e.loaded*100/e.total)+'%'};
+    x.onload=function(){
+      if(x.status===200)return y();
+      var t='upload failed ('+x.status+')';
+      try{t=JSON.parse(x.responseText).error||t}catch(e){}
+      no('Failed: '+t);
+    };
+    x.onerror=function(){no('Connection lost during upload. The device still runs its old firmware unless it just rebooted - if in doubt, try again.')};
+    x.ontimeout=function(){no('Upload timed out. Try again closer to the access point, or flash over USB.')};
+    fd.append('firmware',f,f.name);
+    x.send(fd);
+  });
+}
 
 function upload(f){
-  if(uploading)return;
-  if(!/\.bin$/i.test(f.name)){setMsg('That is not a .bin file.','bad');return}
-  if(f.size>3*1024*1024){setMsg('Too big for the 3 MB app partition. This looks like a merged full-flash image; upload the app .bin instead.','bad');return}
-  if(f.size<200*1024){setMsg('Suspiciously small for Patternflow firmware. Wrong file?','bad');return}
-  if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
-  uploading=true;
-  if(pollAbort)pollAbort.abort();
-  setPill('FLASHING','warn');
+  // why() too: the state can change while the picker is open
+  var bad=check(f)||why();
+  if(bad){say(bad,'err');return}
+  job={from:build||PF.v,to:null,v:st&&st.version};
+  phase='upload';render();setPill('FLASHING','warn');
+  // the result stays on this page: no version reload
+  PF.dirty=true;
+  poll.stop();
+  $('done').hidden=true;
   bar.style.display='block';fill.style.width='0%';
-  setMsg('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');
-  var xhr=new XMLHttpRequest();
-  xhr.open('POST','/update?size='+f.size);
-  xhr.timeout=300000;
-  xhr.upload.onprogress=function(e){if(e.lengthComputable)fill.style.width=Math.round(e.loaded*100/e.total)+'%'};
-  xhr.onload=function(){
-    uploading=false;
-    if(xhr.status===200){
-      fill.style.width='100%';
-      setMsg('Flashed. Rebooting - the device should be back in about 10 seconds.','ok');
-      waitForReboot();
-    }else{
-      var t='upload failed ('+xhr.status+')';
-      try{t=JSON.parse(xhr.responseText).error||t}catch(e){}
-      setMsg('Failed: '+t,'bad');
-      bar.style.display='none';
-    }
-  };
-  xhr.onerror=function(){
-    uploading=false;
-    setMsg('Connection lost during upload. The device still runs its old firmware unless it just rebooted - if in doubt, try again.','bad');
-    bar.style.display='none';
-  };
-  xhr.ontimeout=function(){
-    uploading=false;
-    setMsg('Upload timed out. Try again closer to the access point, or flash over USB.','bad');
-    bar.style.display='none';
-  };
-  var fd=new FormData();fd.append('firmware',f,f.name);
-  xhr.send(fd);
+  say('Uploading '+f.name+' ('+(f.size/1048576).toFixed(2)+' MB). Keep this tab open and the device powered.');
+  var p=Promise.all([fileBuild(f),last&&last.catch(function(){})]).then(function(r){job.to=r[0];return send(f)});
+  PF.hold(p,{guard:true}).then(restart,function(e){
+    phase='';PF.dirty=false;bar.style.display='none';
+    say(e.message,'err');startPoll();render();
+  });
 }
 
-function waitForReboot(){
-  var tries=0;
-  var t=setInterval(function(){
-    if(++tries>30){clearInterval(t);return}
-    fetch('/update/status',{cache:'no-store'}).then(function(r){
-      if(r.ok){clearInterval(t);setPill('BACK','ok');setMsg('Device is back online on the new firmware.','ok')}
-    }).catch(function(){});
-  },2000);
+// The panel reboots 1.2 s after answering. The same image again (or an
+// unknown old build) has no new build to wait for: wait out the reboot.
+function restart(){
+  var any=!job.from||job.to===job.from;
+  phase='wait';render();setPill('RESTARTING','warn');
+  fill.style.width='100%';
+  say('Flashed. The panel is restarting on the new build…');
+  new Promise(function(y){setTimeout(y,any?4000:0)}).then(function(){
+    return PF.waitForDevice({build:any?null:job.from,timeout:120000});
+  }).then(done,function(){
+    phase='lost';render();setPill('NO ANSWER','bad');
+    say('No answer for two minutes. Patterns back on its screen? Then it has a new address: see the panel (hold K2 → NETWORK) or try http://patternflow.local/. Dark or restarting: flash it over USB at patternflow.work/flash.','err');
+  });
 }
+function done(s){
+  $('doneMsg').textContent=(job.to&&job.to===job.from?'Reflashed v':'Updated to v')+s.version
+    +(job.v&&job.v!==s.version?' (was v'+job.v+')':'')
+    +(s.variant&&s.variant!=='core'?' — '+s.variant+' '+(s.variantVersion||''):'')+'.';
+  $('open').onclick=function(){location.replace('/?v='+s.build)};
+  $('done').hidden=false;
+  bar.style.display='none';say('');
+  phase='';startPoll();render();
+}
+
+// The running build; and a late answer (the chrome keeps probing).
+PF.status(function(s){
+  build=s.build;
+  if(phase!=='lost')return;
+  if(!job.from||s.build!==job.from||job.to===job.from)done(s);
+  else{phase='';PF.dirty=false;bar.style.display='none';say('The panel is back, but still on its old build — the update did not take. Try again.','err');startPoll();render()}
+});
+
+drop.addEventListener('click',function(){if(!why())fileIn.click()});
+drop.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!why())fileIn.click()}});
+// cleared, so the same file again still fires
+fileIn.addEventListener('change',function(){var f=fileIn.files[0];fileIn.value='';if(f)upload(f)});
+['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();if(!why())drop.classList.add('hover')})});
+['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove('hover')})});
+drop.addEventListener('drop',function(e){var f=e.dataTransfer.files[0];if(f&&!why())upload(f)});
 
 // ?src= handoff from the build page ("Send over Wi-Fi"): this page fetches
 // the .bin itself and feeds it into the same upload path — no file picker,
@@ -192,28 +245,26 @@ try{
   var s=new URLSearchParams(location.search).get('src');
   if(s&&/^https?:\/\//i.test(s)){
     srcUrl=s;
-    document.getElementById('handoffFrom').textContent=s.replace(/^https?:\/\//i,'');
-    document.getElementById('handoff').style.display='block';
+    $('handoffFrom').textContent=s.replace(/^https?:\/\//i,'');
+    $('handoff').style.display='block';
   }
 }catch(e){}
-document.getElementById('handoffGo').addEventListener('click',function(){
-  if(!srcUrl||uploading)return;
-  if(!armed){setMsg('Device is locked - see the arming note above.','bad');return}
-  var btn=this;
-  btn.disabled=true;
-  setPill('FETCHING','warn');
-  setMsg('Downloading the build from '+srcUrl.split('/')[2]+' ...');
+go.addEventListener('click',function(){
+  if(!srcUrl||why())return;
+  phase='fetch';render();setPill('FETCHING','warn');
+  say('Downloading the build from '+srcUrl.split('/')[2]+' ...');
   fetch(srcUrl).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.blob();
   }).then(function(b){
-    btn.disabled=false;
+    phase='';
     upload(new File([b],'firmware.bin',{type:'application/octet-stream'}));
-  }).catch(function(e){
-    btn.disabled=false;
-    poll();
-    setMsg('Could not download the build ('+e.message+'). Download the .bin on this device and drop it above instead.','bad');
+  },function(e){
+    phase='';render();
+    say('Could not download the build ('+e.message+'). Download the .bin on this device and drop it below instead.','err');
   });
 });
+
+startPoll();render();
 </script>
 </body></html>

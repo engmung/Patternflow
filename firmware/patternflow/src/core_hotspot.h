@@ -42,6 +42,7 @@
 #include "../net_config.h"
 #include "core_wifi.h"
 #include "core_http.h"
+#include "core_banner.h"
 
 namespace PatternflowHotspot {
 
@@ -70,6 +71,41 @@ inline uint32_t lastProbeReqMs = 0;
 inline uint32_t probeReqs = 0;
 inline bool eventsHooked = false;
 
+// ── What the channel scan saw ───────────────────────────────────────────
+// pickChannel() already lists every network in range, and that is the list
+// a person setting the panel up wants to pick from: typing a case-sensitive
+// name on a phone is how a "Wifiiii" for "wifiiii" happened (2026-09-22).
+// The strongest SEEN_MAX names from the moment the hotspot came up, about
+// 400 bytes - and no scan of its own, since a scan costs the internal RAM
+// the console is short of (core_wifi.h).
+constexpr int SEEN_MAX = 12;
+inline char seenSsid[SEEN_MAX][33] = {};
+inline int8_t seenRssi[SEEN_MAX] = {};
+inline int seenCount = 0;
+
+inline void noteSeen(const String& ssid, int rssi) {
+  if (ssid.length() == 0 || ssid.length() > 32) return;  // hidden, or not a name
+  for (int i = 0; i < seenCount; i++) {
+    if (strcmp(seenSsid[i], ssid.c_str()) == 0) {  // one name, several access points
+      if (rssi > seenRssi[i]) seenRssi[i] = (int8_t)rssi;
+      return;
+    }
+  }
+  int slot = seenCount;
+  if (seenCount == SEEN_MAX) {  // full: replace the weakest if this is louder
+    slot = 0;
+    for (int i = 1; i < SEEN_MAX; i++) if (seenRssi[i] < seenRssi[slot]) slot = i;
+    if (rssi <= seenRssi[slot]) return;
+  } else {
+    seenCount++;
+  }
+  snprintf(seenSsid[slot], sizeof(seenSsid[slot]), "%s", ssid.c_str());
+  seenRssi[slot] = (int8_t)rssi;
+}
+
+// The join outcome last put on the LEDs (PatternflowWifi::joinSeq).
+inline uint32_t announcedJoinSeq = 0;
+
 // Every association and probe request the AP sees, on the log with a
 // stamp - the bench cannot see the radio any other way, and a field
 // report with this line in it answers most questions.
@@ -95,6 +131,14 @@ inline void onWifiEvent(WiFiEvent_t e, WiFiEventInfo_t info) {
     case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:
       Serial.println("[HOTSPOT] client has an address");
       break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
+      // Why a join failed, for the console and the LEDs. Our own
+      // disconnect() before every attempt reports ASSOC_LEAVE, which says
+      // nothing about the network being tried.
+      const uint8_t r = info.wifi_sta_disconnected.reason;
+      if (r != WIFI_REASON_ASSOC_LEAVE) PatternflowWifi::lastStaReason = r;
+      break;
+    }
     default: break;
   }
 }
@@ -165,7 +209,9 @@ inline int pickChannel() {
   }
   const int cand[3] = {1, 6, 11};
   int load[3] = {0, 0, 0};
+  seenCount = 0;
   for (int i = 0; i < n && i < 40; i++) {
+    noteSeen(WiFi.SSID(i), WiFi.RSSI(i));
     const int ch = WiFi.channel(i);
     int w = WiFi.RSSI(i) + 100;
     if (w < 1) w = 1;
@@ -185,6 +231,15 @@ inline int pickChannel() {
 inline void start() {
   if (up) return;
   channel = pickChannel();
+  // The scan just cut short the station's attempt (pickChannel() disconnects
+  // it first). `always` starts at boot, under that first attempt, and with
+  // the hotspot up the station is otherwise retried only every five minutes:
+  // a panel with good credentials sat off its network until then (bench,
+  // 2026-09-24: scan 5.7 s, station off at 15.6 s, back at 301 s). One
+  // attempt now, with the probe's window; if it fails, AP-only as before.
+  // `auto` starts only after the station has had its 15 s already.
+  if (mode == ALWAYS && !PatternflowWifi::isConnected() && PatternflowWifi::hasCredentials())
+    PatternflowWifi::requestReconnect();
   WiFi.mode(WIFI_AP_STA);
   if (!WiFi.softAP(name(), pass, channel, /*hidden=*/0, PF_HOTSPOT_MAX_CLIENTS)) {
     Serial.println("[HOTSPOT] softAP() failed");
@@ -299,9 +354,39 @@ inline void dnsPump() {
   dnsAnswered++;
 }
 
+// ── Telling the room ────────────────────────────────────────────────────
+// A person who has just sent a network from a phone often loses the phone's
+// view of the panel at that very moment: the hotspot moves to the new
+// network's channel, or goes down with nobody left on it. So the outcome
+// goes on the LEDs too - the address to type in, or why it did not work.
+// Only a network someone asked for (applyCredentials()); a join at boot
+// says nothing. Three lines at most on the portrait panel, about ten
+// characters each, so the address is broken after its second dot.
+inline void announceJoin() {
+  if (PatternflowWifi::joinSeq == announcedJoinSeq) return;
+  announcedJoinSeq = PatternflowWifi::joinSeq;
+  char text[PatternflowBanner::MESSAGE_BYTES];
+  if (PatternflowWifi::joinState == PatternflowWifi::JOIN_OK) {
+    const char* ip = PatternflowWifi::joinIp.c_str();
+    const char* dot = strchr(ip, '.');
+    if (dot) dot = strchr(dot + 1, '.');
+    if (dot) snprintf(text, sizeof(text), "JOINED %.*s %s", (int)(dot - ip + 1), ip, dot + 1);
+    else snprintf(text, sizeof(text), "JOINED %s", ip);
+    PatternflowBanner::show(text, 60000);
+  } else if (PatternflowWifi::joinState == PatternflowWifi::JOIN_FAILED) {
+    switch (PatternflowWifi::joinWhy) {
+      case PatternflowWifi::WHY_PASSWORD: snprintf(text, sizeof(text), "WRONG PASSWORD"); break;
+      case PatternflowWifi::WHY_NOT_FOUND: snprintf(text, sizeof(text), "NETWORK NOT FOUND"); break;
+      default: snprintf(text, sizeof(text), "COULD NOT JOIN"); break;
+    }
+    PatternflowBanner::show(text, 20000);
+  }
+}
+
 // ── Policy, on the network task ─────────────────────────────────────────
 inline void tick() {
   const uint32_t now = millis();
+  announceJoin();
   const bool sta = PatternflowWifi::isConnected();
   if (sta) staLastUpMs = now;
   if (up) PatternflowWifi::hotspotClients = WiFi.softAPgetStationNum();
@@ -321,10 +406,12 @@ inline void tick() {
   // only once the station has had its chance - `always` at boot used to
   // switch it off before its first attempt could finish, and the panel
   // never joined the network it had credentials for. A probe in flight
-  // ends on its own schedule (core_wifi.h).
+  // ends on its own schedule (core_wifi.h). millis(), not `now`: start()
+  // above can take the scan's six seconds, and the grace is about the
+  // station's time, not this tick's.
   if (up && !sta && !PatternflowWifi::staProbing &&
       (WiFi.getMode() & WIFI_MODE_STA) &&
-      (uint32_t)(now - staLastUpMs) >= PF_HOTSPOT_AUTO_AFTER_MS) {
+      (uint32_t)(millis() - staLastUpMs) >= PF_HOTSPOT_AUTO_AFTER_MS) {
     PatternflowWifi::stationOff();
     Serial.println("[HOTSPOT] no station link - radio is the hotspot's");
   }
@@ -345,6 +432,32 @@ inline void tick() {
 
 inline void appendStatus(String& json);
 
+// `"seen":[{"ssid":"..","rssi":-41},..],` strongest first, for the /wifi
+// page's network-name suggestions.
+inline void appendSeen(String& json) {
+  int order[SEEN_MAX];
+  for (int i = 0; i < seenCount; i++) order[i] = i;
+  for (int i = 1; i < seenCount; i++) {  // a dozen entries: insertion sort
+    const int k = order[i];
+    int j = i - 1;
+    while (j >= 0 && seenRssi[order[j]] < seenRssi[k]) { order[j + 1] = order[j]; j--; }
+    order[j + 1] = k;
+  }
+  json += "\"seen\":[";
+  for (int i = 0; i < seenCount; i++) {
+    if (i) json += ',';
+    json += "{\"ssid\":\"";
+    for (const char* c = seenSsid[order[i]]; *c; c++) {
+      if (*c == '"' || *c == '\\') { json += '\\'; json += *c; }
+      else if ((uint8_t)*c >= 0x20) json += *c;
+    }
+    json += "\",\"rssi\":";
+    json += (int)seenRssi[order[i]];
+    json += '}';
+  }
+  json += "],";
+}
+
 // ── Settings routes ─────────────────────────────────────────────────────
 // Registered on the console server like any core page, from the same edge.
 // The phone's connectivity probe lands here too and gets the console's
@@ -357,9 +470,10 @@ inline void registerRoutes() {
   // Settings: GET the state, POST mode=off|auto|always and/or pass=... .
   s.on("/api/hotspot", HTTP_GET, []() {
     String json;
-    json.reserve(256);
+    json.reserve(768);
     json += "{\"ok\":true,";
     appendStatus(json);
+    appendSeen(json);
     json += "\"pass\":\"";
     json += pass;
     json += "\"}";
@@ -392,9 +506,10 @@ inline void registerRoutes() {
       if (up) stop();
     }
     String json;
-    json.reserve(256);
+    json.reserve(768);
     json += "{\"ok\":true,";
     appendStatus(json);
+    appendSeen(json);
     json += "\"pass\":\"";
     json += pass;
     json += "\"}";
