@@ -37,9 +37,15 @@ function check(label: string, actual: unknown, expected: unknown) {
 async function main() {
   const { getDb } = await import("../src/lib/community/server/db");
   const { artifactDir } = await import("../src/lib/community/server/builds");
-  const { sweepRetention, SESSION_MAX_AGE_DAYS, BUILD_MAX_AGE_DAYS } = await import(
-    "../src/lib/community/server/retention"
-  );
+  const {
+    sweepRetention,
+    sweepModuleCache,
+    SESSION_MAX_AGE_DAYS,
+    BUILD_MAX_AGE_DAYS,
+    MODULE_CACHE_MAX_IDLE_DAYS,
+    MODULE_CACHE_OLD_TOOLCHAIN_DAYS,
+  } = await import("../src/lib/community/server/retention");
+  const { sourceSha } = await import("../src/lib/community/server/moduleCache");
   const schema = await import("../src/lib/community/server/schema");
 
   const db = getDb();
@@ -78,6 +84,59 @@ async function main() {
     // Never finished — no finishedAt. Must still age out, or a crash makes a
     // row immortal.
     { id: "b-stuck", userId: "u1", status: "running", format: "bin", patterns: "[]", createdAt: ago(BUILD_MAX_AGE_DAYS + 2) },
+    // A bake is an ordinary builds row for this rule: its product lives in
+    // module_cache, which has rules of its own below.
+    { id: "b-bake-old", userId: "u1", status: "done", format: "pfm", kind: "bake", sourceSha: "x", patterns: "[]", createdAt: ago(BUILD_MAX_AGE_DAYS + 1) },
+  ]);
+
+  // ── Module cache ───────────────────────────────────────────────────────────
+  // A header is "live" while it is on the site: a pattern's own .h, or a port
+  // that has not gone stale. Rows are keyed by the header's hash.
+  const LIVE_OWN = "#pragma once // the author's own";
+  const LIVE_PORT = "#pragma once // a live port";
+  const STALE_PORT = "#pragma once // a port of an older version";
+  await db.insert(schema.patterns).values({
+    id: "p1", userId: "u1", title: "Live", code: "// js", codeCpp: LIVE_OWN,
+    license: "CC-BY-SA-4.0", visibility: "public", createdAt: ago(100), updatedAt: ago(100),
+  });
+  await db.insert(schema.patternHeaders).values([
+    { id: "h-live", patternId: "p1", userId: "u1", codeCpp: LIVE_PORT, createdAt: ago(90) },
+    { id: "h-stale", patternId: "p1", userId: "u1", codeCpp: STALE_PORT, stale: true, createdAt: ago(95) },
+  ]);
+
+  // With no revision published, nothing counts as an old toolchain.
+  const noRev = await sweepModuleCache(NOW, true);
+  check("no worker has run: no toolchain is 'old'", noRev.oldToolchain, 0);
+
+  await db.insert(schema.buildMeta).values({ key: "builder_rev", value: "rev-now", updatedAt: ago(20) });
+  const moduleRow = (key: string, sha: string, rev: string, usedDaysAgo: number) => ({
+    sourceSha: sha,
+    builderRev: rev,
+    status: "done",
+    slug: key,
+    namespace: key,
+    name: key,
+    pfm: Buffer.from(key),
+    sidecar: "{}",
+    bytes: key.length,
+    createdAt: ago(usedDaysAgo + 1),
+    usedAt: ago(usedDaysAgo),
+  });
+  await db.insert(schema.moduleCache).values([
+    // Live headers stay however long ago they were last served.
+    moduleRow("own-live", sourceSha(LIVE_OWN), "rev-now", MODULE_CACHE_MAX_IDLE_DAYS + 10),
+    moduleRow("port-live", sourceSha(LIVE_PORT), "rev-now", MODULE_CACHE_MAX_IDLE_DAYS + 10),
+    // A stale port is not what the pattern ships any more.
+    moduleRow("port-stale", sourceSha(STALE_PORT), "rev-now", MODULE_CACHE_MAX_IDLE_DAYS + 1),
+    // A header that left the site (edited, withdrawn, deleted) — goes 30
+    // days after it was last served…
+    moduleRow("gone-old", sourceSha("#pragma once // removed long ago"), "rev-now", MODULE_CACHE_MAX_IDLE_DAYS + 1),
+    // …and not a day sooner.
+    moduleRow("gone-recent", sourceSha("#pragma once // removed last week"), "rev-now", MODULE_CACHE_MAX_IDLE_DAYS - 1),
+    // An older toolchain: a week without use and it goes, live or not…
+    moduleRow("old-rev", sourceSha(LIVE_OWN), "rev-before", MODULE_CACHE_OLD_TOOLCHAIN_DAYS + 1),
+    // …but not while a rollback could still want it.
+    moduleRow("old-rev-recent", sourceSha(LIVE_OWN), "rev-before-2", MODULE_CACHE_OLD_TOOLCHAIN_DAYS - 2),
   ]);
 
   fs.writeFileSync(path.join(dir, "b-old.zip"), "old");
@@ -104,7 +163,7 @@ async function main() {
   check("the live token survives", tokens, ["v-live"]);
 
   console.log("\n── builds ──");
-  check("two old builds removed", result.oldBuilds, 2);
+  check("three old builds removed, the bake among them", result.oldBuilds, 3);
   const remaining = (await db.select({ id: schema.builds.id }).from(schema.builds)).map((r) => r.id);
   check("the recent build survives", remaining, ["b-new"]);
 
@@ -116,24 +175,48 @@ async function main() {
   check("artifact deletions counted", result.artifactFilesDeleted, 1);
   check("orphan deletions counted", result.orphanFilesDeleted, 1);
 
+  console.log("\n── compiled module cache ──");
+  const modules = (await db.select({ slug: schema.moduleCache.slug }).from(schema.moduleCache))
+    .map((row) => row.slug)
+    .sort();
+  check("live headers keep their modules; the rest go on schedule", modules, [
+    "gone-recent",
+    "old-rev-recent",
+    "own-live",
+    "port-live",
+  ]);
+  check("old-toolchain rows counted", result.oldToolchainModules, 1);
+  check("no-longer-published rows counted (stale port included)", result.unpublishedModules, 2);
+
   console.log("\n── re-running is safe ──");
   const second = await sweepRetention(NOW);
-  check("second pass finds nothing", [second.expiredSessions, second.oldSessions, second.oldBuilds], [0, 0, 0]);
+  check(
+    "second pass finds nothing",
+    [second.expiredSessions, second.oldSessions, second.oldBuilds, second.oldToolchainModules, second.unpublishedModules],
+    [0, 0, 0, 0, 0],
+  );
   check("no errors on either pass", [...result.errors, ...second.errors], []);
   check("the live session is still there", (await db.select({ id: schema.session.id }).from(schema.session)).length, 1);
 }
 
+// Clean up BEFORE exiting — process.exit() ends the process there and then, so
+// a .finally() after it never ran and every run left its database behind.
+// The database is closed first: Windows will not delete an open SQLite file.
 main()
-  .then(() => {
+  .catch((error: unknown) => {
+    console.error(error);
+    failures += 1;
+  })
+  .finally(async () => {
+    try {
+      const { getDb } = await import("../src/lib/community/server/db");
+      getDb().$client.close();
+    } catch {
+      // never opened
+    }
+    fs.rmSync(tmp, { recursive: true, force: true });
     console.log(
       failures === 0 ? "\nAll retention checks passed.\n" : `\n${failures} check(s) FAILED.\n`,
     );
     process.exit(failures === 0 ? 0 : 1);
-  })
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(() => {
-    fs.rmSync(tmp, { recursive: true, force: true });
   });

@@ -3,6 +3,7 @@ import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { MAX_FEED_PAGE_SIZE } from "@/lib/community/feedView";
 import { notifyForkPublished } from "@/lib/community/server/notify";
+import { bakePatternHeader } from "@/lib/community/server/moduleCache";
 import {
   countFeed,
   getPatternStub,
@@ -52,6 +53,10 @@ export async function GET(request: Request) {
 export const OPTIONS = preflight;
 
 function clampInt(raw: string | null, fallback: number, min: number, max: number) {
+  // Absent is not zero. Number(null) and Number("") are both 0, a finite
+  // number, so a request without ?size= used to clamp up to the minimum and
+  // get one pattern back instead of the default page.
+  if (raw === null || raw.trim() === "") return fallback;
   const value = Number(raw);
   if (!Number.isFinite(value)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(value)));
@@ -67,6 +72,10 @@ async function handleGet(request: Request) {
   const hardwareOnly = params.get("hw") === "1";
   const offset = clampInt(params.get("offset"), 0, 0, 1_000_000);
   const size = clampInt(params.get("size"), 12, 1, MAX_FEED_PAGE_SIZE);
+  // The wall's search box and the marquee picker both send ?q=. Optional and
+  // absent by default; listFeed trims and caps the text, and it only ever
+  // narrows the public set. Oldest-first is a sort (?sort=old), not a flag.
+  const q = params.get("q");
 
   // The infinite scroll refills through here, so every page needs the same
   // viewer the first paint had: `liked` for the subset itself, and the card
@@ -75,8 +84,10 @@ async function handleGet(request: Request) {
   const viewerId = session?.user.id ?? null;
 
   const [items, total] = await Promise.all([
-    listFeed({ sort, hardwareOnly, limit: size, offset, viewerId }),
-    countFeed(hardwareOnly),
+    listFeed({ sort, hardwareOnly, limit: size, offset, viewerId, q }),
+    // The same view listFeed pages through — for "liked" that is the
+    // viewer's likes, not the whole wall.
+    countFeed(hardwareOnly, { q, sort, viewerId }),
   ]);
   const likedIds = await likedPatternIds(viewerId, items.map((item) => item.id));
 
@@ -227,6 +238,10 @@ async function handlePost(request: Request) {
       actorId: session.user.id,
     });
   }
+
+  // Published with a header: compile it now, so the first install is a hit.
+  // Never throws; a no-op without a build worker (moduleCache.ts).
+  if (codeCpp) await bakePatternHeader(id);
 
   return Response.json({ id }, { status: 201 });
 }

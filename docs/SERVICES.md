@@ -119,12 +119,34 @@ strace로 확인한 전부다: 데이터 디렉터리(DB·WAL·산출물), 워�
    워커 생존, seccomp 추가 허용 0개, `systemd-analyze security` 2.7(OK).
    `~@privileged`는 뺐다 — bwrap이 사용자 네임스페이스 안에서 `capset`을 쓴다.
 
-**남은 노출은 작다.** 컴파일러에게 보이는 쓰기 디렉터리 `.build-worker/modules/<job id>/`는
-빌드가 끝나도 지워지지 않으므로(`moduleRunner`는 워커가 준 workDir를 남긴다),
-다른 제출자의 헤더가 그 아래 남아 있다. 읽으려면 16자리 16진수 job id를 알아야
-하고 `#include`로는 디렉터리를 나열할 수 없다. 닫고 싶으면 워커가 잡을 마친 뒤
-그 디렉터리를 지우게 하면 된다(레포 쪽, 몇 줄). drop-in에 남은
-`-/home/pi/canary.txt`는 파일이 없어 무해하다.
+**남은 노출은 작다.** 컴파일 하나가 남기는 파일은 두 군데다. 제출된 헤더
+소스는 `.build-worker/modules/<job id>-<n>/`에 들어가는데, 워커가 컴파일마다
+새로 만들고 끝나는 즉시(성공이든 실패든) `finally`에서 지운다
+(`web/scripts/build-worker.ts`). 컴파일러가 내놓는 오브젝트는 체크아웃 안
+`firmware/modules/.build/<slug>/pattern.o`에 떨어지는데(`build_module.py`,
+샌드박스에 읽기·쓰기로 바인드됨), 이건 `runModuleBuild`가 매 빌드 `finally`에서
+`firmware/modules/.build/` 디렉터리째 지운다(`web/src/lib/firmware/moduleRunner.ts`)
+— `<slug>`는 실패한 포팅에선 알 수 없고 체크아웃당 워커는 하나뿐이라, 특정
+서브디렉터리를 짚는 대신 디렉터리 전체를 비운다. 워커는 잡을 하나씩만
+처리하므로, 다른 제출자의 헤더든 그 오브젝트든 디스크에 있는 건 그 사람 자신의
+컴파일이 도는 동안뿐이다 — `rm` 도중 워커가 죽은 경우의 잔여물을 빼면 컴파일러가
+남의 것을 볼 틈은 없다. drop-in에 남은 `-/home/pi/canary.txt`는 파일이 없어
+무해하다.
+
+**헤더 텍스트 검사는 경계가 아니다.** `validateCustomPattern`
+(`web/src/lib/firmware/assemble.ts`)이 `# include`·`#embed`·`asm(`·`.incbin` 같은
+평범한 표기는 거절하지만, 글자를 보는 검사라 표기를 바꾸면 지나간다 — `#`와
+`include` 사이의 백슬래시 줄바꿈, 지시문 안의 주석, `#`의 이중문자 `%:`,
+`asm`으로 펼쳐지는 매크로, 두 문자열로 쪼갠 `.incbin`(2026-09-24 실제 툴체인으로
+확인). 헤더가 읽을 수 있는 파일을 정하는 건 위 2단계의 bwrap 래퍼다: 툴체인,
+시스템 디렉터리, `firmware/patternflow`·`firmware/toolchain`(읽기 전용)뿐. 그리고
+그 안의 파일은 **공개된 것으로 본다** — 공개 패턴의 컴파일 오류는
+`/api/community/patterns/<id>/zip`의 422 `detail`로 누구에게나 보이고, `.incbin`은
+파일 바이트를 공개 다운로드되는 `.pfm`에 그대로 넣는다. 그러니 Pi 체크아웃의 그
+경로에 비밀을 두지 않는다(예: `firmware/patternflow/patternflow_secrets.h`를 Pi에
+만들지 않는다). 래퍼 없이 도는 워커(개발 PC 등)에서는 헤더가 워커 사용자가 읽을
+수 있는 모든 파일에 닿으므로, 남의 헤더를 굽는 워커는 반드시 래퍼 뒤에서
+돌린다.
 
 ### 호스트 업데이트 절차
 
@@ -188,8 +210,10 @@ sudo systemctl restart patternflow-worker.service
 |---|---|
 | 세션 (IP·User-Agent 포함) | 만료 시 삭제, 최대 **90일** |
 | Better Auth 인증 토큰 | 만료 시 삭제 |
-| 빌드 산출물 + 빌드 기록 | **30일** |
+| 빌드 산출물 + 빌드 기록 (bake 잡 포함) | **30일** |
 | 참조되지 않는 산출물 파일 | 24시간 유예 후 삭제 |
+| 컴파일된 패턴 모듈 (`module_cache`) | 헤더가 사이트에 있는 동안 보관. 헤더가 지워지거나 바뀌면 마지막 사용 후 **30일** |
+| 이전 툴체인 리비전의 모듈 | 마지막 사용 후 **7일** (롤백하면 그대로 다시 쓰인다) |
 
 **빌드 워커가 하루에 한 번 자동으로 돌립니다** (`patternflow-worker.service`).
 별도 systemd 타이머를 설치할 필요가 없습니다 — 대신 **워커가 꺼져 있으면
@@ -211,8 +235,66 @@ npm run sweep
 sudo journalctl -u patternflow-worker.service | grep "retention"
 ```
 
-> 보관 기간을 바꾸려면 `web/src/lib/community/retention.ts`의 상수와
+> 보관 기간을 바꾸려면 `web/src/lib/community/server/retention.ts`의 상수와
 > `/terms` §9를 **함께** 고쳐야 합니다. 한쪽만 고치면 약관이 거짓말이 됩니다.
+
+### 컴파일된 모듈 캐시 (`module_cache`, 2026-09-24)
+
+공개된 헤더는 **한 번만** 컴파일된다. 워커가 결과(.pfm 바이트 + 사이드카)를
+DB의 `module_cache`에 (헤더 sha256, 툴체인 리비전) 키로 넣고, 웹은 설치·다운로드
+요청마다 그 행으로 zip을 조립한다 — 큐도 컴파일도 없다. 패턴 페이지의 `.zip`
+(`/api/community/patterns/<id>/zip`)과 덱 팩(`/api/community/decks/<id>/zip`)이
+둘 다 여기서 나온다. 컴파일하고 모듈 내용(.pfm·사이드카·상태·오류)을 쓰는 건
+워커뿐이다. 웹은 bake 잡을 넣고, 보관 기간 계산용 `used_at`만 행당 하루 한 번
+갱신한다.
+
+- **툴체인 리비전**은 워커가 잡마다 계산해 `build_meta.builder_rev`에 적는다
+  (ABI 헤더·공유 수학 헤더·`core_module_loader.h`·`module.ld`·두 파이썬
+  스크립트·컴파일러 `--version`·`PF_TARGET_ABI`의 해시, `web/src/lib/firmware/builderRev.ts`).
+  펌웨어를 `git pull`해서 이 중 하나라도 바뀌면 리비전이 바뀌고, 워커가 한가할 때
+  공개 헤더를 **1분에 5개씩** 다시 굽는다. 손으로 할 일은 없다.
+- **컴파일 오류**(코드 탓)는 캐시에 남아 같은 헤더를 다시 컴파일하지 않는다.
+  코드 탓으로 치는 건 **증거가 있을 때만**이다: 패턴 자신의 소스 줄을 가리키는
+  컴파일 오류(`pattern.cpp:12:3: error:` 또는 그 줄에서 이어진
+  `required from`), 기기 로더가 못 푸는 심볼. 그리고 캐시에 적기 전에 워커가
+  **카나리**(`firmware/patternflow/presets/preset_origin.h`)를 컴파일해 본다 —
+  그것도 실패하면 툴체인 쪽 문제로 보고 캐시하지 않는다(통과는 10분 기억).
+  bwrap이 안 뜨거나 cc1plus·ld가 없어진 경우처럼 **인프라 오류**는 캐시하지
+  않고, 같은 헤더 재시도는 1분부터 두 배씩(최대 6시간) 미룬다. 헤더 안의
+  `#error Permission denied` 같은 글자는 판정에 쓰지 않는다.
+- 컴파일러가 없거나 `--version`에 답하지 않으면 워커는 리비전을 **만들지 않는다**
+  (잡은 인프라 오류로 실패, 워밍은 그 회차를 건너뜀). `build_meta`에는 마지막
+  정상 리비전이 남으므로 이미 구운 모듈은 계속 내려받힌다.
+- bake 잡은 헤더 주인(작성자, 포트면 포터)에게 달리지만 개인 빌드 한도·대기열
+  취소에는 안 잡힌다. 대신 **주인당 동시 4개**(대기+컴파일 중)까지만 쌓인다 —
+  헤더를 계속 고쳐 저장해도 컴파일이 줄줄이 쌓이지 않는다. 헤더를 저장하면
+  사이트에서 사라진 이전 텍스트의 대기 중 bake는 취소되고, 차례가 왔을 때 이미
+  사라진 텍스트는 컴파일하지 않고 넘긴다. 워커는 사람이 누른 `send` 잡을 항상
+  먼저 처리한다.
+- **워커는 체크아웃당 하나만.** `build_module.py`는 오브젝트를 체크아웃의
+  `firmware/modules/.build/<slug>/pattern.o`에 만들고 `<slug>`는 패턴 NAME에서
+  나오므로, 워커 둘이 같은 NAME의 헤더를 동시에 컴파일하면 서로의 오브젝트를
+  링크할 수 있다. `BUILD_WORK_DIR`를 달리해도 막히지 않는다.
+- 툴체인 사고 뒤 잘못 남은 오류 행을 지우려면(다음 bake가 다시 판정한다):
+
+```bash
+sqlite3 /home/pi/patternflow-data/community.db \
+  "DELETE FROM module_cache WHERE status='error'
+     AND builder_rev=(SELECT value FROM build_meta WHERE key='builder_rev');"
+```
+
+- 상태 보기:
+
+```bash
+sqlite3 /home/pi/patternflow-data/community.db \
+  "SELECT builder_rev = (SELECT value FROM build_meta WHERE key='builder_rev') AS current,
+          status, COUNT(*), SUM(bytes) FROM module_cache GROUP BY 1, 2;"
+sqlite3 /home/pi/patternflow-data/community.db \
+  "SELECT kind, status, COUNT(*) FROM builds GROUP BY 1, 2;"
+```
+
+로컬 확인: `npm run check:modcache`(가짜 컴파일러, CI에서도 돈다),
+`npm run check:modcache-e2e`(진짜 툴체인 — 한 번 굽고, 두 번째는 프로세스 0개인지).
 
 ### 펌웨어 빌드 큐 상태 점검 스크립트
 ```bash

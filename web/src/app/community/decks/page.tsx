@@ -15,10 +15,18 @@ import styles from "@/components/community/Community.module.css";
 // account — so this page is deliberately small next to the wall, and that
 // scarcity is what makes "in decks" a ranking signal worth having.
 //
-// Your own decks come first, private ones included. They were only on your
-// profile before, which is the page you visit least: the place you go to think
-// about decks is the decks page, and a private deck you cannot find from there
-// is a deck you will not finish.
+// Order: the shipped pack, then everyone else's public decks, then your own.
+//
+// Your own decks are here at all, private ones included, because they were
+// only on your profile before, which is the page you visit least: a private
+// deck you cannot find from the decks page is a deck you will not finish.
+//
+// They used to come right after the shipped pack, and that was the wrong way
+// round. Moderators have no public-deck cap, so a signed-in author with a
+// dozen decks pushed everybody else's off the screen — on their own screen,
+// which is exactly the one that decides what the shelf looks like. The shelf
+// is what this page is for; your decks are one scroll further, and you know
+// they are there.
 //
 // Only decks. A strip of the wall's newest patterns used to sit underneath as
 // an argument for why the shelf is worth curating, but the wall is one click
@@ -48,8 +56,8 @@ export default async function CommunityDecksPage() {
   ]);
 
   const mine = ownDecks.map(toDeckCardItem);
-  // The shelf is everyone else's: your own are right above it, and showing
-  // them twice makes the page look busier than it is.
+  // The shelf is everyone else's: your own have their section below it, and
+  // showing them twice makes the page look busier than it is.
   const items = publicDecks.map(toDeckCardItem).filter((deck) => !mine.some((own) => own.id === deck.id));
   const publicSlotsUsed = mine.filter((deck) => deck.visibility === "public").length;
 
@@ -83,6 +91,40 @@ export default async function CommunityDecksPage() {
         </div>
       </section>
 
+      {/* Before your own decks, never after: see the note at the top. The count
+          is every public deck there is — listPublicDecks has no cap to hide
+          any behind. */}
+      <section className={styles.deckSection}>
+        <div className={styles.sectionHead}>
+          <span className={styles.sectionKicker}>
+            {mine.length > 0 ? "Everyone else" : "Community decks"}
+          </span>
+          <span className={styles.sectionLede}>
+            {items.length} public deck{items.length === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        {items.length === 0 ? (
+          <div className={styles.emptyPanel}>
+            <span className={styles.emptyKicker}>Decks · empty</span>
+            <span className={styles.emptyTitle}>
+              {mine.length > 0 ? "Nobody else has shared a deck yet." : "Nobody has staked a slot yet."}
+            </span>
+            <span className={styles.emptyBody}>
+              Arrange patterns in your deck — the bar along the bottom — then press “Share
+              deck”. The order you choose is the order they cycle on the device.
+            </span>
+          </div>
+        ) : (
+          <div className={styles.deckGrid}>
+            {items.map((deck) => (
+              <DeckCard key={deck.id} deck={deck} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Last, private ones included — yours, and you know they are here. */}
       {viewerId && mine.length > 0 && (
         <section className={styles.deckSection}>
           <div className={styles.sectionHead}>
@@ -108,34 +150,6 @@ export default async function CommunityDecksPage() {
           </div>
         </section>
       )}
-
-      <section className={styles.deckSection}>
-        <div className={styles.sectionHead}>
-          <span className={styles.sectionKicker}>
-            {mine.length > 0 ? "Everyone else" : "Community decks"}
-          </span>
-          <span className={styles.sectionLede}>
-            {items.length} public deck{items.length === 1 ? "" : "s"}
-          </span>
-        </div>
-
-        {items.length === 0 ? (
-          <div className={styles.emptyPanel}>
-            <span className={styles.emptyKicker}>Decks · empty</span>
-            <span className={styles.emptyTitle}>Nobody has staked a slot yet.</span>
-            <span className={styles.emptyBody}>
-              Arrange patterns in your deck — the bar along the bottom — then press “Share
-              deck”. The order you choose is the order they cycle on the device.
-            </span>
-          </div>
-        ) : (
-          <div className={styles.deckGrid}>
-            {items.map((deck) => (
-              <DeckCard key={deck.id} deck={deck} />
-            ))}
-          </div>
-        )}
-      </section>
 
     </div>
   );

@@ -34,6 +34,8 @@ async function main() {
     console.log(`  sessions over ${SESSION_MAX_AGE_DAYS}d      ${preview.oldSessions}`);
     console.log(`  expired verifications  ${preview.expiredVerifications}`);
     console.log(`  builds over ${BUILD_MAX_AGE_DAYS}d         ${preview.oldBuilds}`);
+    console.log(`  modules, old toolchain ${preview.oldToolchainModules}`);
+    console.log(`  modules, unpublished   ${preview.unpublishedModules}`);
     console.log("\nOrphaned artifact files are only counted during a real run.");
     return;
   }

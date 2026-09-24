@@ -1,21 +1,32 @@
 /**
  * Firmware build worker.
  *
- * Runs as its own process, beside the web server but not inside it: a build
- * pegs a core for ~15 seconds, and doing that in a request handler would let
- * concurrent uploads starve the site of the CPU it is running on.
+ * Runs as its own process, beside the web server but not inside it: a compile
+ * pegs a core, and doing that in a request handler would let concurrent
+ * uploads starve the site of the CPU it is running on.
  *
  *   npx tsx scripts/build-worker.ts
  *
- * One worker owns one sketch directory and one build path, and takes one job at
- * a time. For two concurrent builds, run two workers with different
- * BUILD_WORK_DIR and WORKER_ID — never point two at the same directories, as
- * they would overwrite each other's intermediates and lose the warm cache that
- * makes a build 15 s instead of 2 min.
+ * This file is the loop — poll, sleep, signals, the daily retention sweep,
+ * the idle warm-up. What a job actually does (bakes into the module cache,
+ * sends into a zip) is src/lib/community/server/buildJobs.ts, with the real
+ * compiler handed in from here so the same code runs under a fake one in the
+ * smoke test.
  *
- * ⚠️  This compiles submitted C++ with no sandbox of its own. See the warning
- * in src/lib/firmware/buildRunner.ts before letting anyone but the maintainer
- * reach it.
+ * One worker per firmware checkout, taking one job at a time. Do NOT run a
+ * second one against the same checkout, whatever its BUILD_WORK_DIR:
+ * build_module.py compiles every module's object into the checkout's own
+ * firmware/modules/.build/<slug>/pattern.o (only a non-ASCII path gets a
+ * private staging directory), and <slug> comes from the pattern's NAME — so
+ * two workers compiling two headers that share a NAME can link each other's
+ * object, and the module cache would then keep that module under the wrong
+ * header for everyone who installs it. The queue itself is safe with several
+ * workers (builds.ts claimNextBuild); the compile directory is not, until
+ * build_module.py takes a per-job build directory.
+ *
+ * ⚠️  This compiles submitted C++ with no sandbox of its own. The community
+ * host runs it inside one — docs/SERVICES.md — and nobody else should expose
+ * it before reading that.
  */
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -23,15 +34,15 @@ import { loadEnv } from "./loadEnv";
 
 loadEnv();
 
+import { artifactDir } from "../src/lib/community/server/builds";
 import {
-  artifactDir,
-  claimNextBuild,
-  completeBuild,
-  failBuild,
-  parseBuildPatterns,
-} from "../src/lib/community/server/builds";
+  processNextBuild,
+  warmIdle,
+  type BuildJobDeps,
+} from "../src/lib/community/server/buildJobs";
 import { describeSweep, sweepRetention } from "../src/lib/community/server/retention";
-import { runModuleBuildZipped } from "../src/lib/firmware/moduleRunner";
+import { computeBuilderRev } from "../src/lib/firmware/builderRev";
+import { compileModule } from "../src/lib/firmware/moduleRunner";
 
 const WORKER_ID = process.env.WORKER_ID ?? `worker-${process.pid}`;
 const POLL_MS = Number(process.env.BUILD_POLL_MS ?? 2000);
@@ -41,16 +52,6 @@ const FIRMWARE_SRC_DIR =
   process.env.FIRMWARE_SRC_DIR ?? path.resolve(process.cwd(), "../firmware/patternflow");
 const WORK_DIR = process.env.BUILD_WORK_DIR ?? path.resolve(process.cwd(), "../.build-worker");
 
-const options = {
-  firmwareSrcDir: FIRMWARE_SRC_DIR,
-  // Keeps the source directory's name: arduino-cli requires a sketch folder to
-  // contain a .ino of the same name, so renaming this to "sketch" would make
-  // every build fail to find patternflow.ino.
-  sketchDir: path.join(WORK_DIR, path.basename(FIRMWARE_SRC_DIR)),
-  buildPath: path.join(WORK_DIR, "cache"),
-  artifactDir: artifactDir(),
-};
-
 let stopping = false;
 
 function log(message: string, extra: Record<string, unknown> = {}) {
@@ -59,6 +60,58 @@ function log(message: string, extra: Record<string, unknown> = {}) {
     .join(" ");
   console.log(`[${new Date().toISOString()}] [${WORKER_ID}] ${message}${detail ? ` ${detail}` : ""}`);
 }
+
+// Each header compiles in a scratch directory of its own under the work dir,
+// removed as soon as it is done: submitted headers must not pile up where the
+// next job's compiler could read them (docs/SERVICES.md).
+async function compileIn(workDir: string, code: string) {
+  try {
+    return await compileModule(code, { workDir });
+  } finally {
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// ── The canary ───────────────────────────────────────────────────────────────
+// Before a failure is cached as a header's verdict ("does not compile"), the
+// worker makes sure the toolchain still builds a pattern that certainly does:
+// the curated Origin preset, which every firmware compiles in. A sandbox that
+// cannot see a shared header fails every header with the header's own line
+// numbers on it, and caching that would label the whole catalogue broken
+// until somebody deleted the rows. A pass is remembered for a few minutes, so
+// a run of genuinely broken headers costs one extra compile, not one each.
+const CANARY_HEADER = path.join(FIRMWARE_SRC_DIR, "presets", "preset_origin.h");
+const CANARY_TRUST_MS = 10 * 60 * 1000;
+let canaryPassedAt = 0;
+
+async function canary(): Promise<boolean> {
+  if (Date.now() - canaryPassedAt < CANARY_TRUST_MS) return true;
+  let code: string;
+  try {
+    code = await fs.readFile(CANARY_HEADER, "utf8");
+  } catch {
+    log("canary: cannot read the reference header", { path: CANARY_HEADER });
+    return false;
+  }
+  const result = await compileIn(path.join(WORK_DIR, "modules", `canary-${process.pid}`), code);
+  if (result.ok) {
+    canaryPassedAt = Date.now();
+    return true;
+  }
+  log("canary FAILED — the toolchain cannot build a known-good pattern", {
+    error: JSON.stringify(result.error.slice(-400)),
+  });
+  return false;
+}
+
+const deps: BuildJobDeps = {
+  compile: (code, { jobId, index }) =>
+    compileIn(path.join(WORK_DIR, "modules", `${jobId}-${index}`), code),
+  builderRev: computeBuilderRev,
+  log,
+  infraBackoff: new Map(),
+  canary,
+};
 
 // ── Retention ────────────────────────────────────────────────────────────────
 // The sweep lives here rather than in its own systemd timer because this
@@ -82,55 +135,30 @@ async function maybeSweep(): Promise<void> {
   }
 }
 
-async function processOne(): Promise<boolean> {
-  const job = await claimNextBuild(WORKER_ID);
-  if (!job) return false;
+// ── Idle warm-up ─────────────────────────────────────────────────────────────
+// With the queue empty, queue a few bakes for published headers the module
+// cache is missing (buildJobs.ts warmIdle). Once a minute is plenty: it only
+// ever has to catch up once per header per toolchain.
+const WARM_INTERVAL_MS = 60 * 1000;
+let lastWarm = 0;
 
-  const patterns = parseBuildPatterns(job.patterns);
-  log("build started", { id: job.id, patterns: patterns.length });
-  const startedAt = Date.now();
-
+async function maybeWarm(): Promise<void> {
+  if (process.env.BUILD_ENABLED !== "1") return;
+  if (Date.now() - lastWarm < WARM_INTERVAL_MS) return;
+  lastWarm = Date.now();
   try {
-    // Every job is a module build now: each pattern compiles alone (~½ s) and
-    // the artifact is a zip of .pfm/.json pairs plus catalog.txt, which the
-    // device's /patterns page installs without a reflash. Whole-image builds
-    // are gone — see the note in api/community/builds/route.ts.
-    const zipPath = path.join(artifactDir(), `${job.id}.zip`);
-    const result = await runModuleBuildZipped(patterns, zipPath, {
-      workDir: path.join(WORK_DIR, "modules", job.id),
-    });
-    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
-
-    if (result.ok) {
-      await completeBuild(job.id, {
-        artifact: `${job.id}.zip`,
-        artifactBytes: result.zipBytes,
-        namespaces: result.namespaces,
-      });
-      log("modules ok", { id: job.id, seconds, kb: Math.round(result.zipBytes / 1024) });
-    } else {
-      await failBuild(job.id, result.error);
-      log("modules failed", { id: job.id, seconds });
-    }
+    const queued = await warmIdle(deps);
+    if (queued > 0) log("warming the module cache", { queued });
   } catch (error) {
-    // An unexpected throw must still release the job, or it sits in "running"
-    // until the stale reaper picks it up ten minutes later.
-    const message = error instanceof Error ? error.stack ?? error.message : String(error);
-    await failBuild(job.id, message);
-    log("build crashed", { id: job.id });
-  } finally {
-    await fs.rm(path.join(WORK_DIR, "modules", job.id), { recursive: true, force: true })
-      .catch(() => {});
+    log(`warm-up failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-
-  return true;
 }
 
 async function main() {
   log("starting", {
-    firmware: options.firmwareSrcDir,
+    firmware: FIRMWARE_SRC_DIR,
     work: WORK_DIR,
-    artifacts: options.artifactDir,
+    artifacts: artifactDir(),
   });
 
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -146,7 +174,25 @@ async function main() {
   while (!stopping) {
     let worked = false;
     try {
-      worked = await processOne();
+      const startedAt = Date.now();
+      const outcome = await processNextBuild(WORKER_ID, deps);
+      if (outcome) {
+        worked = true;
+        const verb =
+          outcome.status !== "done"
+            ? "failed"
+            : outcome.cachedError
+              ? "does not compile (cached)"
+              : outcome.skipped
+                ? "skipped (that header text is no longer on the site)"
+                : "ok";
+        log(`${outcome.kind} ${verb}`, {
+          id: outcome.id,
+          seconds: ((Date.now() - startedAt) / 1000).toFixed(1),
+          compiled: outcome.compiled,
+          cached: outcome.hits,
+        });
+      }
     } catch (error) {
       // Database hiccup, not a build failure — back off and keep going rather
       // than exiting, so a transient error doesn't take the queue down.
@@ -154,6 +200,7 @@ async function main() {
     }
     if (!worked && !stopping) {
       await maybeSweep();
+      await maybeWarm();
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
   }

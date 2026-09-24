@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { bakePatternHeader } from "@/lib/community/server/moduleCache";
 import { clearNotificationsFor, notifyHeaderModerated } from "@/lib/community/server/notify";
 import { getPatternStub, getPortStub } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
@@ -65,6 +66,9 @@ async function handleDelete(request: Request, context: { params: Promise<{ id: s
     .where(eq(patterns.pinnedHeaderId, id));
   await clearNotificationsFor({ sourceId: id });
 
+  // Withdrawing the winning port promotes the next one; compile that now.
+  await bakePatternHeader(port.patternId);
+
   return Response.json({ ok: true });
 }
 
@@ -119,6 +123,9 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     .update(patternHeaders)
     .set({ codeCpp, moderatedAt: new Date() })
     .where(eq(patternHeaders.id, id));
+
+  // The repaired port may be the header this pattern ships: bake the fix.
+  await bakePatternHeader(port.patternId);
 
   const pattern = await getPatternStub(port.patternId);
   await notifyHeaderModerated({

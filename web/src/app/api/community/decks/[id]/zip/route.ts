@@ -1,37 +1,43 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-import { artifactDir } from "@/lib/community/server/builds";
 import { communityEnabled } from "@/lib/community/server/db";
+import { assembleDeckPack, deckZipFilename } from "@/lib/community/server/deckZip";
 import {
-  decoratePackWithPerformance,
-  deckZipFilename,
-  ensureDeckZip,
-  invalidateDeckZip,
-} from "@/lib/community/server/deckZip";
+  PUBLIC_CORS,
+  buildingResponse,
+  filesResponse,
+  publicOptions,
+} from "@/lib/community/server/modulePack";
 import { getDeck } from "@/lib/community/server/queries";
 
 // GET /api/community/decks/[id]/zip — the deck as an installable pack.
 //
-// A `.zip` of `.pfm` + `.json` + `catalog.txt`: drop it on a device's
-// /patterns page and the set installs in its running order. This is the
-// address you paste in Discord, so it deliberately needs NO sign-in and no
-// cookies — a public deck id is the capability, exactly like a build id.
+// A `.zip` of `.pfm` + `.json` per included pattern, `catalog.txt` in the
+// deck's running order, and the attached performance's `.pfs` when there is
+// one: drop it on a device's /patterns page and the set installs in order.
+// This is the address you paste in Discord, so it deliberately needs NO
+// sign-in and no cookies — a public deck id is the capability.
 //
-// The pack is built once per running order and cached on the deck (see
-// deckZip.ts). A first request for a deck nobody has downloaded yet finds
-// nothing built, queues it, and answers 202 with a JSON status; the page
-// polls, and every request after that is a file. That is the honest shape:
-// pretending to stream while a compiler runs would just be a timeout with
-// extra steps.
+// Assembled per request from the module cache (lib/community/server/
+// deckZip.ts), so a hit never waits on the build queue. A deck with a header
+// nobody has compiled yet asks for it and answers 202 — JSON for the device
+// page and the site's own polling, a page that refreshes itself for a person
+// who opened the link — and every request after that is a file. That is the
+// honest shape: pretending to stream while a compiler runs would just be a
+// timeout with extra steps.
+//
+//   (no params)   the pack; 202 while building; 409 when nothing can go in
+//   ?status=1     always JSON — {state, total, included, pending?, skipped}
+//                 — and a miss still queues its bake, so polling this is
+//                 enough to warm the pack
+//   ?list=1       {files: [...]}, and ?file=<name> one member — for v3.2–3.3
+//                 consoles, whose /patterns?src= fetched files one by one
+//
+// A slot that cannot be included (removed or private, no header, a header
+// that does not compile, a build service that failed on it just now) is left
+// out and listed in `skipped` — one bad pattern no longer costs the set.
 //
 // CORS is public for the same reason the modules route is: the page fetching
 // this may be served from a device on someone's LAN, and a raw IP is exactly
 // what an allowlist cannot enumerate.
-
-const PUBLIC_CORS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Expose-Headers": "Content-Length",
-};
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const response = await handleGet(request, context);
@@ -40,17 +46,13 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 }
 
 export function OPTIONS() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      ...PUBLIC_CORS,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Max-Age": "86400",
-    },
-  });
+  return publicOptions();
 }
 
-async function handleGet(_request: Request, context: { params: Promise<{ id: string }> }) {
+const NO_WORKER =
+  "Pattern builds are not enabled on this deployment, and some of this deck has never been compiled.";
+
+async function handleGet(request: Request, context: { params: Promise<{ id: string }> }) {
   if (!communityEnabled()) {
     return Response.json({ error: "Community is not enabled on this deployment." }, { status: 503 });
   }
@@ -63,57 +65,46 @@ async function handleGet(_request: Request, context: { params: Promise<{ id: str
     return Response.json({ error: "Deck not found." }, { status: 404 });
   }
 
-  const state = await ensureDeckZip(id);
+  const pack = await assembleDeckPack(id, deck.performanceJson);
+  const query = new URL(request.url).searchParams;
 
-  if (state.state === "empty") {
+  if (query.get("status") === "1") {
+    // The one exception to "status always answers 200": a deployment that
+    // cannot compile has no state to report that would ever change, and a
+    // 200 "building" would have the page poll it forever.
+    if (pack.state === "unavailable") {
+      return Response.json(
+        { error: NO_WORKER, state: "unavailable" },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return Response.json(
-      { error: "Nothing in this deck can be installed yet — its patterns have no verified header." },
-      { status: 409 },
-    );
-  }
-  if (state.state === "failed") {
-    return Response.json({ error: "The pack failed to build.", buildId: state.buildId }, { status: 500 });
-  }
-  if (state.state === "building") {
-    return Response.json(
-      { status: "building", buildId: state.buildId, retryAfterMs: 2000 },
-      { status: 202, headers: { "Retry-After": "2", "Cache-Control": "no-store" } },
-    );
-  }
-
-  // Artifact name comes from the database, so it is joined and then checked:
-  // a stored value carrying traversal must not read outside the store.
-  const directory = artifactDir();
-  const file = path.resolve(directory, state.artifact);
-  if (!file.startsWith(path.resolve(directory) + path.sep)) {
-    return new Response("Invalid artifact path.", { status: 400 });
-  }
-
-  let zip: Buffer;
-  try {
-    zip = await fs.readFile(file);
-  } catch {
-    // The retention sweep reaps old artifacts, and the fingerprint still
-    // matches, so without dropping the cache here this deck would answer 410
-    // forever. Forget the build and let the next request queue a fresh one.
-    await invalidateDeckZip(id);
-    return Response.json(
-      { status: "rebuilding", retryAfterMs: 2000 },
-      { status: 202, headers: { "Retry-After": "2", "Cache-Control": "no-store" } },
+      {
+        state: pack.state,
+        total: pack.total,
+        included: pack.included,
+        ...(pack.state === "building" ? { pending: pack.pending } : {}),
+        skipped: pack.skipped,
+      },
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 
-  // An attached performance rides the pack — see decoratePackWithPerformance.
-  const bytes = decoratePackWithPerformance(new Uint8Array(zip), deck.performanceJson);
-
-  return new Response(Buffer.from(bytes), {
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Length": String(bytes.byteLength),
-      "Content-Disposition": `attachment; filename="${deckZipFilename(deck.title)}"`,
-      // The URL is stable and the contents are not: a deck can be rearranged
-      // under the same address, so this is revalidated rather than kept.
-      "Cache-Control": "public, max-age=0, must-revalidate",
-    },
-  });
+  switch (pack.state) {
+    case "unavailable":
+      return Response.json({ error: NO_WORKER, state: "unavailable" }, { status: 503 });
+    case "empty":
+      return Response.json(
+        {
+          error: "Nothing in this deck can be installed yet — none of its patterns has a header that builds.",
+          state: "empty",
+          skipped: pack.skipped,
+        },
+        { status: 409 },
+      );
+    case "building":
+      return buildingResponse(request, "pack");
+    case "ready":
+      return filesResponse(request, pack.files, deckZipFilename(deck.title, deck.id));
+  }
 }

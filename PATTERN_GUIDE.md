@@ -89,7 +89,9 @@ What the wall does:
 - While it plays, **scroll to turn its knobs** — your cursor's horizontal
   position picks which of K1–K4 you're holding
 - **Ctrl + scroll** resizes the cards
-- Sorting: Newest · Most liked · Most forked · In decks, plus the **`.h`
+- **Search** above the wall finds a pattern by its title, or by its author
+  with `@name`
+- Sorting: Newest · Oldest · Most liked · Most forked · In decks, plus the **`.h`
   Flashable now** filter — an `.h` badge means the author uploaded a firmware
   header they verified on a real device, so the pattern can go straight onto
   yours
@@ -165,18 +167,32 @@ publishes your selection to the community — and under **Decks** in the top
 nav you can browse the sets other people have curated and send one straight
 to your own device.
 
-A published deck also gets a **`Download pack (.zip)`** button, and that is
-the link you can hand to anyone: no account, no build queue. The `.zip` holds
-the modules *and* the running order, so dropping it on a device's Patterns
-page installs the whole set arranged exactly as its author left it. Keep a few
-on a USB stick and you have your sets with you whether or not there is
-internet in the room.
+A public deck's page has **`Install to my board`** and **`Download .zip`**
+side by side, for anyone who opens it — no account, no build queue. `Share`
+gives you the pack's link to hand to someone else. The `.zip` holds the
+modules *and* the running order, so dropping it on a device's Patterns page
+installs the whole set arranged as its author left it, first in the board's
+list. The first download of a pattern compiles it, which takes a few seconds;
+after that it is immediate. A slot that cannot be built (no header, or a
+header that does not compile) is left out, and the page says which. Keep a
+few packs on a USB stick and you have your sets with you whether or not
+there is internet in the room.
+
+**On a VPN, or on a different network from the board?** `Install to my board`
+needs your browser to reach the board, so use the file instead:
+
+1. `Download .zip` on the deck (or pattern) page.
+2. Open your board's Patterns page — `http://patternflow.local/patterns`, or
+   the board's IP. Turn the VPN off first: the board is on your home network.
+3. Drop the `.zip` on **Upload**, or tap Upload and choose it. Don't unzip it.
 
 ### 3-2. One pattern, from its detail page
 
 **`Send to my Patternflow`** on a pattern's detail page does the same thing a
-deck does, for one pattern: builds the module, then offers `Send over Wi-Fi`.
-Seconds, no reflash.
+deck does, for one pattern: `Send over Wi-Fi` hands the board the pattern's
+module, and it appears in the list in seconds. No sign-in, no reflash.
+`Download .zip` beside it gets the same module as a file, for the steps
+above. A single pattern's `.zip` leaves the board's order as it is.
 
 ---
 

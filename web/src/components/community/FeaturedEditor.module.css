@@ -1,0 +1,63 @@
+/* The marquee picker's own few rules. Everything else it wears comes from
+   Community.module.css; these are the bits only this page needs — the sort
+   tabs are buttons here (the wall's are links), and the search box sits in
+   the control row instead of filling a form. */
+
+.controls {
+  margin-top: 4px;
+}
+
+.search {
+  width: min(320px, 100%);
+}
+
+/* Mirrors `.sortTabs a` — same tabs, different element. */
+.tabs button {
+  padding: 0 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--pfc-ink-muted);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tabs button:hover {
+  color: var(--pfc-ink);
+}
+
+.tabs button[data-active="true"] {
+  color: var(--pfc-ink);
+  border-bottom-color: var(--pfc-led);
+}
+
+.tabs button:focus-visible {
+  outline: 1px solid var(--pfc-led);
+  outline-offset: 3px;
+}
+
+/* Slot 1 is the intro panel's dimmed backdrop, not a panel: the note is
+   quiet, and the pattern plays at the strength the front page gives it
+   (`.marqueeIntroArt`, 35%) so it is judged as it will be seen. */
+.slotRole {
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.backdropWell > * {
+  opacity: 0.35;
+}
+
+/* The old results stay on screen while a new search is out — dimmed, so it
+   is clear they are about to change. */
+.stale {
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}

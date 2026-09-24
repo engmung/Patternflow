@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
 import ShareDeckPackModal from "@/components/community/ShareDeckPackModal";
+import { ZipInstallNote, ZipProgress } from "@/components/community/ZipDownload";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { summarizePerformanceJson } from "@/lib/pattern/pfst";
 import { readPerformanceFile } from "@/lib/community/performanceFile";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/community/visibility";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { useDeviceHost } from "@/lib/community/deviceHost";
+import { useZipDownload, zipStatusUrl } from "@/lib/community/zipDownload";
 import type { DeckPageItem } from "@/lib/community/server/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
@@ -62,7 +64,6 @@ export default function DeckDetailClient({
   const [confirmCopy, setConfirmCopy] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [packNote, setPackNote] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const { patternsUrl } = useDeviceHost();
 
@@ -80,46 +81,19 @@ export default function DeckDetailClient({
 
   const playable = items.filter((item) => item.pattern !== null);
 
-  // The pack endpoint answers 202 while the compile runs — the first person
-  // to want a given running order pays a few seconds for it and everyone
-  // after that gets a file immediately. Poll rather than spin: a deck that
-  // has never been downloaded is exactly the case this handles.
+  // The pack's one address: what "Download .zip" fetches, what Share copies,
+  // and what the board is told to fetch by "Install to my board". Its route
+  // puts the pack together from modules compiled once per header, so a first
+  // download may wait a few seconds for a compile and every one after it is
+  // immediate — useZipDownload polls that wait instead of spinning on it.
   const packUrl = communityApiUrl(`/api/community/decks/${deck.id}/zip`);
   // The share panel shows this, so it has to be the whole address rather than
   // a path — it is going into somebody else's Discord, not back into this app.
   const absolutePackUrl = hydrated ? new URL(packUrl, window.location.origin).toString() : packUrl;
+  const pack = useZipDownload(packUrl, "deck");
   const downloadPack = async () => {
-    setError(null);
-    setPackNote("Preparing…");
-    const deadline = Date.now() + 90_000;
-    try {
-      for (;;) {
-        const response = await fetch(packUrl, COMMUNITY_FETCH_INIT);
-        if (response.ok) {
-          setPackNote(null);
-          captureEvent("deck_pack_downloaded", { deckId: deck.id, patterns: playable.length });
-          // Hand it to the browser as a navigation so it lands in Downloads
-          // with the filename the route sets, instead of a blob we name here.
-          window.location.href = packUrl;
-          return;
-        }
-        if (response.status !== 202) {
-          const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          setPackNote(null);
-          setError(body?.error ?? "The pack could not be built.");
-          return;
-        }
-        if (Date.now() > deadline) {
-          setPackNote(null);
-          setError("The pack is taking unusually long to build. Try again in a moment.");
-          return;
-        }
-        setPackNote("Building the pack…");
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-    } catch {
-      setPackNote(null);
-      setError("Network error — could not reach the community.");
+    if (await pack.download()) {
+      captureEvent("deck_pack_downloaded", { deckId: deck.id, patterns: playable.length });
     }
   };
 
@@ -131,9 +105,10 @@ export default function DeckDetailClient({
   // could only download the .zip and re-upload it wherever you were sharing,
   // which is the thing hosting it was supposed to remove.
   //
-  // Copying also kicks the build off. A deck nobody has downloaded compiles
-  // on first request, and that first request should be the person who chose
-  // to share it rather than the stranger who clicked their link.
+  // Copying also kicks the compile off. Modules nobody has asked for yet are
+  // compiled on first request, and that first request should be the person
+  // who chose to share it rather than the stranger who clicked their link.
+  // The status form of the address does that without downloading the pack.
   const copyPackLink = async (): Promise<boolean> => {
     let copied = false;
     try {
@@ -147,7 +122,9 @@ export default function DeckDetailClient({
     }
     // Fire-and-forget either way: the address is on screen and works
     // regardless. This only decides whether the recipient waits for a compile.
-    void fetch(packUrl, COMMUNITY_FETCH_INIT).catch(() => {});
+    // Cookie-less, because the route is public and answers with a wildcard
+    // origin, which a browser will not pair with credentials.
+    void fetch(zipStatusUrl(packUrl), { credentials: "omit", cache: "no-store" }).catch(() => {});
     return copied;
   };
 
@@ -352,25 +329,41 @@ export default function DeckDetailClient({
           {/* Onto a board, in this order — the thing a deck exists for.
               Two routes to it, and only ever one of them shown.
 
-              A public deck has a pack already built and served from a stable
-              URL, so the board fetches it directly: no sign-in, no working
-              deck, no build queue. Anything else has no pack to fetch, so it
-              goes the long way — into your working deck, where the panel can
-              build it once you are signed in. Offering both at once was three
-              buttons for one intention. */}
-          {/* Sharing is one button, not a row of them: the author does it
-              once and a visitor never does it at all, so the two ways out
-              (a link, a file) belong behind it rather than beside the
-              action people came for. */}
+              A public deck has a pack served from a stable URL, so the board
+              fetches it directly: no sign-in, no working deck, no build
+              queue. Anything else has no pack to fetch, so it goes the long
+              way — into your working deck, where the panel can build it once
+              you are signed in. Offering both at once was three buttons for
+              one intention. */}
+          {/* Share is the link; the file sits beside it for everybody.
+
+              On 2026-08-12 the download went behind Share, on the reasoning
+              that a visitor never needs the file — the board fetches the pack
+              itself. That holds only while the browser can reach the board.
+              Somebody on a VPN cannot, and for them the .zip is the only way
+              in; hiding it behind a panel labelled "Share" made the one route
+              that worked for them the hardest to find. So the download is in
+              the row, for owner and visitor alike, and Share keeps the link. */}
           {deck.visibility === "public" && (
             <button
               type="button"
               className={styles.btn}
               disabled={playable.length === 0}
-              title="Get a link to this deck's pack, or download it as a .zip"
+              title="Get a link to this deck's pack that anyone can install from"
               onClick={() => setShareOpen(true)}
             >
               Share
+            </button>
+          )}
+          {deck.visibility === "public" && (
+            <button
+              type="button"
+              className={styles.btn}
+              disabled={playable.length === 0 || pack.busy}
+              title="Download the pack — modules and running order — to drop on your board's Patterns page"
+              onClick={() => void downloadPack()}
+            >
+              {pack.busy ? "Preparing…" : "Download .zip"}
             </button>
           )}
           {deck.visibility === "public" ? (
@@ -399,6 +392,20 @@ export default function DeckDetailClient({
           )}
         </div>
 
+        {deck.visibility === "public" && playable.length > 0 && (
+          <>
+            <p className={styles.zipHint}>
+              Board not reachable from this network (e.g. VPN)? Use Download .zip.
+            </p>
+            <ZipProgress
+              kind="deck"
+              phase={pack.phase}
+              status={pack.status}
+              error={pack.error}
+              detail={pack.detail}
+            />
+          </>
+        )}
 
         {deck.description && <p className={styles.metaDescription}>{deck.description}</p>}
 
@@ -415,6 +422,8 @@ export default function DeckDetailClient({
             </p>
           );
         })()}
+
+        {deck.visibility === "public" && playable.length > 0 && <ZipInstallNote kind="deck" />}
 
         {isOwner && (
           <div className={styles.ownerBar}>
@@ -511,8 +520,13 @@ export default function DeckDetailClient({
               : null
           }
           onCopyLink={copyPackLink}
-          onDownload={() => void downloadPack()}
-          downloadNote={packNote}
+          // The same download as the button in the row, not a second one: the
+          // panel closes so its progress and any skipped slots show on the
+          // page, where the row that owns them is.
+          onDownload={() => {
+            setShareOpen(false);
+            void downloadPack();
+          }}
           onClose={() => setShareOpen(false)}
         />
       )}

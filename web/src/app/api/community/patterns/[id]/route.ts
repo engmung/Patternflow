@@ -3,6 +3,7 @@ import { isAdminSession, moderatorHeaderPatchOnly } from "@/lib/community/server
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { bakePatternHeader } from "@/lib/community/server/moduleCache";
 import {
   clearNotificationsFor,
   notifyHeaderModerated,
@@ -353,6 +354,14 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
       .update(patternHeaders)
       .set({ stale: true })
       .where(eq(patternHeaders.patternId, id));
+  }
+
+  // Whatever this edit did to the header that ships — a new or repaired .h,
+  // a different pinned port, the pattern going public — compile the result
+  // now so the next install finds it built. Never throws; a no-op without a
+  // build worker, for a private pattern, or with no header left.
+  if (raw.codeCpp !== undefined || raw.pinnedHeaderId !== undefined || raw.visibility !== undefined) {
+    await bakePatternHeader(id);
   }
 
   // Nobody's header changes under them in silence — least of all by the hand

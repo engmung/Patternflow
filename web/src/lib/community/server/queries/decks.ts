@@ -70,16 +70,24 @@ async function withPreviews(rows: DeckListRow[], perDeck = 4): Promise<DeckListI
   return result;
 }
 
-/** The deck feed: published decks, newest first. No pager yet — the public
- *  decks per account keeps this list countable for a long while. */
-export async function listPublicDecks(limit = 60): Promise<DeckListItem[]> {
+/**
+ * The deck feed: every published deck, newest first.
+ *
+ * All of them, with no pager. This used to stop at the 60 newest without
+ * saying so, and the decks page could not tell a short shelf from a cut one —
+ * nor could a visitor. Two public decks a person keeps the list countable for
+ * a long while; the exception is moderators, who have no cap, and a cap here
+ * would be the wrong fix for that anyway, since it is the author who would
+ * crowd everyone else out, not the length. When the shelf does outgrow one
+ * page, it wants a pager that says what is left, not a silent limit.
+ */
+export async function listPublicDecks(): Promise<DeckListItem[]> {
   const rows = await getDb()
     .select(deckListColumns)
     .from(decks)
     .innerJoin(user, eq(decks.userId, user.id))
     .where(eq(decks.visibility, "public"))
-    .orderBy(desc(decks.createdAt))
-    .limit(limit);
+    .orderBy(desc(decks.createdAt));
   return withPreviews(rows);
 }
 

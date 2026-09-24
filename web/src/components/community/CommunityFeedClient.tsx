@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
 import FeedControls from "./FeedControls";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
@@ -52,6 +53,162 @@ const MAX_RESTORED_ITEMS = 300;
 
 type FeedPlace = { count: number; y: number };
 
+// ── Search ──
+// A wall of two hundred patterns, newest first, is a wall whose bottom
+// nobody reaches. The box searches titles and handles ("@name" for handles
+// only) through the same listFeed as everything else, so it can only narrow
+// the public set.
+//
+// The query lives in the URL (?q=) like sort and the filter, so a search is
+// a link and survives opening a pattern and coming back. Typing replaces the
+// URL rather than pushing it — one history entry per keystroke would make
+// Back walk through "w", "wa", "wav" — and waits for a pause first, because
+// every change is a server render of the first batch.
+//
+// The box sits OUTSIDE the keyed list below it. A new search has to restart
+// the list (it is keyed on q, like on sort), but remounting the input with it
+// would drop focus mid-word and throw away whatever was typed while the
+// server answered.
+
+/** How long typing has to pause before the search runs. */
+const SEARCH_DEBOUNCE_MS = 300;
+
+/** Mirrors FEED_QUERY_MAX in queries/patterns.ts — longer is cut there anyway. */
+const SEARCH_MAX = 80;
+
+export default function CommunityFeedClient({
+  q = "",
+  ...wall
+}: {
+  items: PatternCardItem[];
+  sort?: string;
+  hardwareOnly?: boolean;
+  total?: number;
+  /** Whether to offer the "Liked" tab — it lists the viewer's own likes. */
+  signedIn?: boolean;
+  /** The search the first batch answers (?q=), already trimmed. */
+  q?: string;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const [pending, startTransition] = useTransition();
+
+  const [text, setText] = useState(q);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+
+  // The URL can move without this box: the Patterns tab in the nav, a
+  // "clear" elsewhere. When it does, the box follows. But the answers to its
+  // own searches arrive the same way, possibly late and out of order, and
+  // adopting one of those would overwrite what was typed after it — so every
+  // query this box sent is remembered until the newest one comes back.
+  const [asked, setAsked] = useState<string[]>([q]);
+  const [seenQ, setSeenQ] = useState(q);
+  // Bumped each time the box adopts a search it did not send (below).
+  const [adopted, setAdopted] = useState(0);
+  if (q !== seenQ) {
+    setSeenQ(q);
+    if (!asked.includes(q)) {
+      setText(q);
+      setAsked([q]);
+      setAdopted((count) => count + 1);
+    } else if (q === asked[asked.length - 1]) {
+      setAsked([q]);
+    }
+  }
+
+  // A keystroke still waiting out its pause was typed into the search the URL
+  // just left behind. Firing it now would replace the address the person
+  // navigated to — the Patterns tab, say — with the one they walked away from.
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, [adopted]);
+
+  const commit = (value: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    const next = value.trim();
+    // While a search is out, asking for it again is a repeat (a second Enter,
+    // the pause running out after one). Once nothing is out, the URL is the
+    // only truth: a replace that another navigation discarded left `asked`
+    // naming a search that never landed, and comparing against that made
+    // Enter do nothing until the text was edited.
+    if (next === (pending ? asked[asked.length - 1] ?? q : q)) return;
+    const query = new URLSearchParams(params.toString());
+    // The same scrub as FeedControls: parameters from the paginated era.
+    query.delete("page");
+    query.delete("size");
+    query.delete("view");
+    if (next) query.set("q", next);
+    else query.delete("q");
+    const qs = query.toString();
+    setAsked((current) => [...current, next]);
+    startTransition(() => {
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    });
+  };
+
+  const onType = (value: string) => {
+    setText(value);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => commit(value), SEARCH_DEBOUNCE_MS);
+  };
+
+  const clearSearch = () => {
+    setText("");
+    commit("");
+  };
+
+  return (
+    <div className={styles.feedWrapper} id="wall">
+      <form
+        role="search"
+        className={styles.feedSearch}
+        onSubmit={(event) => {
+          // Enter runs it now instead of after the pause.
+          event.preventDefault();
+          commit(text);
+        }}
+      >
+        <input
+          type="search"
+          className={`${styles.textInput} ${styles.feedSearchInput}`}
+          placeholder="Search titles or @author"
+          aria-label="Search patterns by title, or by author with @name"
+          value={text}
+          maxLength={SEARCH_MAX}
+          spellCheck={false}
+          autoComplete="off"
+          enterKeyHint="search"
+          onChange={(event) => onType(event.target.value)}
+        />
+        {pending && (
+          <span className={styles.feedSearchBusy} aria-live="polite">
+            Searching…
+          </span>
+        )}
+      </form>
+
+      <FeedWall
+        // Remount on a new search, sort or filter so the accumulated list
+        // restarts from the batch the server just rendered for it.
+        key={`${wall.sort ?? "new"}-${wall.hardwareOnly ? "hw" : "all"}-${q}`}
+        {...wall}
+        q={q}
+        stale={pending}
+        onClearSearch={clearSearch}
+      />
+    </div>
+  );
+}
+
 function useResponsiveCardsPerRow(
   containerRef: React.RefObject<HTMLDivElement | null>,
   slot: number,
@@ -78,19 +235,25 @@ function useResponsiveCardsPerRow(
   return cardsPerRow;
 }
 
-export default function CommunityFeedClient({
+function FeedWall({
   items: initialItems,
   sort = "new",
   hardwareOnly = false,
   total: initialTotal = 0,
   signedIn = false,
+  q,
+  stale,
+  onClearSearch,
 }: {
   items: PatternCardItem[];
   sort?: string;
   hardwareOnly?: boolean;
   total?: number;
-  /** Whether to offer the "Liked" tab — it lists the viewer's own likes. */
   signedIn?: boolean;
+  q: string;
+  /** A new search is out; these cards are about to be replaced. */
+  stale: boolean;
+  onClearSearch: () => void;
 }) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -145,6 +308,10 @@ export default function CommunityFeedClient({
   const compact = isMobile || slot <= SLOT_COMPACT;
   const cardsPerRow = useResponsiveCardsPerRow(containerRef, effectiveSlot, gap);
 
+  // A lone "@" is a search being typed, not one the server runs (feedSearch
+  // drops it), so the wall must not call the whole feed its matches.
+  const searched = q.replace(/^@/, "").trim() ? q : "";
+
   const [items, setItems] = useState<PatternCardItem[]>(initialItems);
   const [total, setTotal] = useState(initialTotal);
   const [failed, setFailed] = useState(false);
@@ -170,6 +337,7 @@ export default function CommunityFeedClient({
       const params = new URLSearchParams({ offset: String(have), size: String(size) });
       if (sort !== "new") params.set("sort", sort);
       if (hardwareOnly) params.set("hw", "1");
+      if (q) params.set("q", q);
       const response = await fetch(
         communityApiUrl(`/api/community/patterns?${params.toString()}`),
         COMMUNITY_FETCH_INIT,
@@ -194,11 +362,11 @@ export default function CommunityFeedClient({
     } finally {
       busyRef.current = false;
     }
-  }, [cardsPerRow, batchRows, sort, hardwareOnly]);
+  }, [cardsPerRow, batchRows, sort, hardwareOnly, q]);
 
-  // Where you were, per view: sort and filter each make a different feed, and
-  // a position in one means nothing in another.
-  const placeKey = `${PLACE_KEY_PREFIX}:${sort}:${hardwareOnly ? "hw" : "all"}`;
+  // Where you were, per view: sort, filter and search each make a different
+  // feed, and a position in one means nothing in another.
+  const placeKey = `${PLACE_KEY_PREFIX}:${sort}:${hardwareOnly ? "hw" : "all"}:${q}`;
 
   // Opening a pattern is the only thing that writes a place. Captured on the
   // way down so it runs before the router leaves, and read off the event
@@ -333,15 +501,28 @@ export default function CommunityFeedClient({
   }, [loadMore]);
 
   return (
-    <div
-      ref={wrapperRef}
-      className={styles.feedWrapper}
-      id="wall"
-      onClickCapture={rememberPlace}
-    >
-      <FeedControls sort={sort} hardwareOnly={hardwareOnly} total={total} signedIn={signedIn} />
+    <div ref={wrapperRef} onClickCapture={rememberPlace}>
+      <FeedControls
+        sort={sort}
+        hardwareOnly={hardwareOnly}
+        total={total}
+        signedIn={signedIn}
+        q={searched}
+      />
 
-      {total === 0 ? (
+      {total === 0 && searched ? (
+        <div className={styles.emptyPanel} data-stale={stale || undefined}>
+          <span className={styles.emptyKicker}>Patterns · no match</span>
+          <span className={styles.emptyTitle}>Nothing matches “{searched}”.</span>
+          <span className={styles.emptyBody}>
+            Titles and handles are searched as typed. Start with @ to search handles only.
+            {hardwareOnly && " Only flashable patterns were searched — drop the filter to search all of them."}
+          </span>
+          <button type="button" className={styles.feedSearchClear} onClick={onClearSearch}>
+            Clear search
+          </button>
+        </div>
+      ) : total === 0 ? (
         <div className={styles.emptyPanel}>
           <span className={styles.emptyKicker}>Patterns · empty</span>
           <span className={styles.emptyTitle}>
@@ -357,7 +538,7 @@ export default function CommunityFeedClient({
           </a>
         </div>
       ) : (
-        <div ref={containerRef} className={styles.centeredFeedBody}>
+        <div ref={containerRef} className={styles.centeredFeedBody} data-stale={stale || undefined}>
           <div
             className={styles.feedGrid}
             // Compact cards borrow the small view's furniture.
@@ -388,7 +569,9 @@ export default function CommunityFeedClient({
               far down you are — and, at the bottom, that there is no further. */}
           <p className={styles.feedEndNote}>
             {done
-              ? `That is all of it — ${total} pattern${total === 1 ? "" : "s"}`
+              ? searched
+                ? `That is every match — ${total}`
+                : `That is all of it — ${total} pattern${total === 1 ? "" : "s"}`
               : `Loading more · ${items.length} of ${total}`}
           </p>
         </div>

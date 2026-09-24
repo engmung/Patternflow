@@ -2,7 +2,7 @@
 // One of the files server/queries.ts is assembled from (2026-09). Bodies are
 // unchanged from the single 1,364-line file they came out of.
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { comments, featuredPatterns, likes, patternHeaders, patternPerformances, patterns, user } from "../schema";
 import { authorFields, deckCount, forkCount, hasCpp, likeCount } from "./shared";
@@ -25,7 +25,13 @@ export function newId(): string {
  * a separate "Saved" list that lived in localStorage, so it was per-browser and
  * gone the moment you cleared site data. A like was already server-side and
  * per-account; the list was the only part missing. */
-export const FEED_SORTS = ["new", "top", "forks", "decks", "liked"] as const;
+/* "old" is newest turned around. At almost two hundred patterns the early work
+ * sat a long scroll down a newest-first wall, which is a way of saying nobody
+ * saw it; the marquee picker needed the same view to reach it, and had been
+ * asking for it with a separate order=asc flag that only this sort honoured.
+ * One sort value instead of a flag means one URL for it (?sort=old) on the
+ * wall, the picker and the API alike. */
+export const FEED_SORTS = ["new", "old", "top", "forks", "decks", "liked"] as const;
 
 export type FeedSort = (typeof FEED_SORTS)[number];
 
@@ -78,12 +84,77 @@ const feedVisible = eq(patterns.visibility, "public");
 // The hardware filter and the card chip must agree, so both read `hasCpp`.
 const hardwareReady = sql`${hasCpp} = 1`;
 
-/** How many patterns match the current filter — drives the page count. */
-export async function countFeed(hardwareOnly = false): Promise<number> {
-  const rows = await getDb()
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(patterns)
-    .where(and(feedVisible, hardwareOnly ? hardwareReady : undefined));
+/** Longest search the feed will run. Titles cap at 80 too (cleanTitle). */
+const FEED_QUERY_MAX = 80;
+
+// LIKE's wildcards are the search's own characters to a person typing — a
+// title with "100%" or a handle like "made_by" in it has to match itself, not
+// everything. '!' is the escape, not backslash, so the pattern reads the same
+// in JS, in SQL and in a log line — and '!' itself is escaped like the others.
+function likeContains(text: string) {
+  return `%${text.replace(/[!%_]/g, (ch) => `!${ch}`)}%`;
+}
+
+/**
+ * The text search behind the wall's search box and the marquee picker: a
+ * substring of the title or the author's handle, or — written as "@name" — of
+ * the handle alone. Case-insensitive the way SQLite's LIKE is (ASCII only),
+ * which is what handles are.
+ *
+ * Only ever ANDed onto feedVisible by the callers below, so a search can
+ * narrow the public set but never widen it: a private title that matches is
+ * still not there.
+ *
+ * Returns undefined for "no search", which drizzle's and() drops — so an empty
+ * box is the same query the feed ran before search existed.
+ */
+function feedSearch(raw: string | null | undefined) {
+  const term = (raw ?? "").trim().slice(0, FEED_QUERY_MAX);
+  const byAuthor = term.startsWith("@");
+  const needle = (byAuthor ? term.slice(1) : term).trim();
+  if (!needle) return undefined;
+  const pattern = likeContains(needle);
+  const handle = or(
+    sql`${user.username} LIKE ${pattern} ESCAPE '!'`,
+    sql`${user.displayUsername} LIKE ${pattern} ESCAPE '!'`,
+  );
+  return byAuthor ? handle : or(sql`${patterns.title} LIKE ${pattern} ESCAPE '!'`, handle);
+}
+
+/**
+ * "Liked" is a subset, not an order: the viewer's own likes, still under
+ * feedVisible like everything else. Undefined for every other sort, which
+ * drizzle's and() drops.
+ */
+function likedBy(sort: FeedSort, viewerId: string | null) {
+  return sort === "liked"
+    ? sql`EXISTS (SELECT 1 FROM ${likes} WHERE ${likes.patternId} = ${patterns.id} AND ${likes.userId} = ${viewerId})`
+    : undefined;
+}
+
+/**
+ * How many patterns match the current view — the wall's "N of M", and what
+ * tells its infinite scroll to keep going. Takes the same sort and viewer as
+ * listFeed, because "Liked" narrows the set: counting the whole wall there
+ * stopped the scroll after the first batch (or never, the other way round).
+ */
+export async function countFeed(
+  hardwareOnly = false,
+  {
+    q,
+    sort = "new",
+    viewerId = null,
+  }: { q?: string | null; sort?: FeedSort; viewerId?: string | null } = {},
+): Promise<number> {
+  // Mirrors listFeed: signed out, the liked list is empty.
+  if (sort === "liked" && !viewerId) return 0;
+  const search = feedSearch(q);
+  const base = getDb().select({ count: sql<number>`COUNT(*)` }).from(patterns);
+  // The author join is only needed to search handles; without a search the
+  // count stays the single-table query it always was.
+  const rows = await (search ? base.innerJoin(user, eq(patterns.userId, user.id)) : base).where(
+    and(feedVisible, likedBy(sort, viewerId), hardwareOnly ? hardwareReady : undefined, search),
+  );
   return rows[0]?.count ?? 0;
 }
 
@@ -93,6 +164,7 @@ export async function listFeed({
   limit = 60,
   offset = 0,
   viewerId = null,
+  q = null,
 }: {
   sort?: FeedSort;
   hardwareOnly?: boolean;
@@ -100,6 +172,8 @@ export async function listFeed({
   offset?: number;
   /** Required by `sort: "liked"` — whose likes to list. */
   viewerId?: string | null;
+  /** Title or handle substring; "@name" searches handles only. */
+  q?: string | null;
 } = {}): Promise<FeedItem[]> {
   const db = getDb();
 
@@ -107,8 +181,8 @@ export async function listFeed({
   // would be worse than answering with nothing: the tab says "the ones you
   // liked". Empty is the honest reply.
   if (sort === "liked" && !viewerId) return [];
-  // Every ordering falls back to newest-first so results are stable when the
-  // primary key ties (which it does constantly while counts are near zero).
+  // Every ordering but "old" falls back to newest-first so results are stable
+  // when the primary key ties (which it does constantly while counts are near zero).
   const order =
     sort === "top"
       ? [desc(likeCount), desc(patterns.createdAt)]
@@ -116,22 +190,24 @@ export async function listFeed({
         ? [desc(forkCount), desc(patterns.createdAt)]
         : sort === "decks"
           ? [desc(deckCount), desc(patterns.createdAt)]
-          : [desc(patterns.createdAt)];
+          : // Oldest first is how the early work the newest-first wall has
+            // long since buried gets seen again. The id breaks ties so
+            // offsets page through equal timestamps without repeats.
+            sort === "old"
+            ? [asc(patterns.createdAt), asc(patterns.id)]
+            : [desc(patterns.createdAt)];
 
   // Still subject to feedVisible, like every other listing. Having liked
   // something is not a standing right to keep reading it: if the author takes
   // it private afterwards, it leaves your list too. The alternative would turn
   // a like into a way to hold a copy of work somebody withdrew.
-  const likedByViewer =
-    sort === "liked"
-      ? sql`EXISTS (SELECT 1 FROM ${likes} WHERE ${likes.patternId} = ${patterns.id} AND ${likes.userId} = ${viewerId})`
-      : undefined;
+  const likedByViewer = likedBy(sort, viewerId);
 
   const rows = await db
     .select(feedColumns)
     .from(patterns)
     .innerJoin(user, eq(patterns.userId, user.id))
-    .where(and(feedVisible, likedByViewer, hardwareOnly ? hardwareReady : undefined))
+    .where(and(feedVisible, likedByViewer, hardwareOnly ? hardwareReady : undefined, feedSearch(q)))
     .orderBy(...order)
     .limit(limit)
     .offset(offset);

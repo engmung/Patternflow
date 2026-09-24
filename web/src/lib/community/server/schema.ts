@@ -2,6 +2,7 @@ import {
   sqliteTable,
   text,
   integer,
+  blob,
   index,
   primaryKey,
   uniqueIndex,
@@ -290,15 +291,14 @@ export const decks = sqliteTable(
     /** "public" | "private" — same two states as patterns. */
     visibility: text("visibility").notNull().default("private"),
     /**
-     * The deck's downloadable pack, cached.
+     * UNUSED since migration 0024 — kept because columns are only ever added.
      *
-     * A deck's whole point is being handed to someone else, and the honest
-     * form of that is a `.zip` of `.pfm` + `.json` + `catalog.txt` you drop
-     * on a device's /patterns page. Building one costs a compile, so it is
-     * built once and reused: `zipBuildId` points at the builds row holding
-     * the artifact, and `zipFingerprint` records WHICH running order it was
-     * built from. Reorder or swap a pattern and the fingerprint stops
-     * matching, which is the invalidation — no cache-busting, no TTL.
+     * This was the deck's pack cached as one whole-deck build: a builds row
+     * holding the zip, and the running order it was built from. It made one
+     * bad header fail the entire pack, stickily, and compiled every pattern
+     * again for every deck it sat in. The pack is now assembled per request
+     * from `module_cache` (one row per header, shared by every deck and
+     * every pattern page), so there is nothing deck-shaped left to cache.
      */
     zipBuildId: text("zip_build_id"),
     zipFingerprint: text("zip_fingerprint"),
@@ -633,6 +633,19 @@ export const builds = sqliteTable(
     error: text("error"),
     /** Which worker claimed it; helps when more than one is running. */
     worker: text("worker"),
+    /**
+     * Why the job exists. "send" is a person asking for arbitrary code to be
+     * built (POST /builds — Pattern Lab, the working deck): it answers with a
+     * zip artifact, and it is rate-limited and superseded per user. "bake" is
+     * the site compiling one STORED header into `module_cache` so downloads
+     * of a published pattern never wait on — or repeat — a compile. A bake
+     * has no artifact of its own, is charged to the header's owner, and never
+     * counts against anybody's limits: nobody clicked anything to cause it.
+     * The worker takes every waiting "send" before any "bake".
+     */
+    kind: text("kind").notNull().default("send"),
+    /** For a bake: sha256 of the normalised header — the cache key it fills. */
+    sourceSha: text("source_sha"),
     createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
     startedAt: integer("started_at", { mode: "timestamp" }),
     finishedAt: integer("finished_at", { mode: "timestamp" }),
@@ -641,8 +654,80 @@ export const builds = sqliteTable(
     // The worker's claim query orders queued jobs by age.
     index("builds_status_created_idx").on(table.status, table.createdAt),
     index("builds_user_id_idx").on(table.userId),
+    // "Is this header already being baked?" is asked on every download miss.
+    index("builds_source_sha_idx").on(table.sourceSha),
   ],
 );
+
+// ── Compiled module cache ────────────────────────────────────────────────────
+// A pattern's `.h` is published once and installed many times, and every
+// install used to compile it again — the same verified code, the same bytes,
+// half a second of a Pi's CPU each time and a queue to wait in. This is the
+// compiled module kept beside the code: one row per (header text, toolchain),
+// written ONLY by the build worker (it is the one process that compiles), read
+// by the web process, which assembles zips out of these rows without queueing
+// anything.
+//
+// The key is exact. `source_sha` is the full sha256 of the header as the
+// worker compiled it (normalizeHeader in moduleCache.ts — CRLF folded, ends
+// trimmed, nothing else), and `builder_rev` is a digest of every input that
+// can change the bytes: the ABI headers, the shared math headers, the linker
+// script, both toolchain scripts, the loader's host symbol table and the
+// compiler's own version (lib/firmware/builderRev.ts). A firmware update that
+// touches none of those keeps every row valid; one that does makes the web ask
+// for fresh bakes, and the old rows age out (retention.ts).
+//
+// "error" rows are cached too, but only for DETERMINISTIC failures — the
+// compiler rejected the code, or the loader could not resolve a symbol it
+// uses. Those will fail identically next time; a timeout or a missing
+// toolchain will not, so those are never written here.
+export const moduleCache = sqliteTable(
+  "module_cache",
+  {
+    sourceSha: text("source_sha").notNull(),
+    builderRev: text("builder_rev").notNull(),
+    /** "done" | "error" */
+    status: text("status").notNull(),
+    /** The .pfm stem port_preset.py chose from the pattern's NAME. */
+    slug: text("slug"),
+    namespace: text("namespace"),
+    /** The pattern's NAME — what the device lists before it loads the module. */
+    name: text("name"),
+    /** The module itself. Null for an error row. */
+    pfm: blob("pfm", { mode: "buffer" }),
+    /**
+     * build_module.py's sidecar with the build-local fields ("source" is a
+     * worker temp path, "opt" a flag) removed. Attribution is NOT trusted from
+     * here — author, licence and URL are written from the database at serve
+     * time (modulePack.ts), because the header comment it came from is
+     * whatever the porter typed.
+     */
+    sidecar: text("sidecar"),
+    bytes: integer("bytes"),
+    /** The compiler's tail for an "error" row — what a 422 shows. */
+    error: text("error"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    /** Last served by the web (throttled to once a day) — retention's clock. */
+    usedAt: integer("used_at", { mode: "timestamp" }).notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sourceSha, table.builderRev] }),
+    index("module_cache_used_at_idx").on(table.usedAt),
+  ],
+);
+
+/**
+ * Small facts the worker publishes for the web process. Today one key:
+ * "builder_rev", the toolchain digest the worker last compiled with. The web
+ * never computes it (that would mean reading firmware/ from a request) — it
+ * reads it here, and an absent row means "no worker has ever run", so nothing
+ * counts as cached yet.
+ */
+export const buildMeta = sqliteTable("build_meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
 
 // ── Notifications ────────────────────────────────────────────────────────────
 // In-app only, by policy: no email is ever sent (most accounts have none), and

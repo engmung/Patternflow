@@ -12,6 +12,8 @@
     "build:enqueue": "tsx scripts/enqueue-test-build.ts",
     "build:status": "tsx scripts/build-status.ts",
     "check:module": "tsx scripts/module-build-smoke.ts",
+    "check:modcache": "tsx scripts/module-cache-smoke.ts",
+    "check:modcache-e2e": "tsx scripts/module-cache-e2e.ts",
     "check:license": "tsx scripts/license-smoke.ts",
     "check:moderation": "tsx scripts/moderation-smoke.ts",
     "check:headermod": "tsx scripts/header-moderation-smoke.ts",
@@ -35,7 +37,7 @@
     "check:pfstvectors": "tsx scripts/pfst-v2-vectors-smoke.ts",
     "check:ramp": "tsx scripts/ramp-oklab-smoke.ts",
     "check:panels": "vitest run",
-    "check:ci": "npm run check:license && npm run check:moderation && npm run check:headermod && npm run check:retention && npm run check:deck && npm run check:pack && npm run check:sharing && npm run check:notify && npm run check:ports && npm run check:workshop && npm run check:sandbox && npm run check:capture && npm run check:thumbs && npm run check:flatten && npm run check:labedit && npm run check:performance && npm run check:pixelcode && npm run check:director && npm run check:pfstvectors && npm run check:ramp && npm run check:panels && npm run check:sandbox-sync",
+    "check:ci": "npm run check:license && npm run check:moderation && npm run check:headermod && npm run check:retention && npm run check:deck && npm run check:pack && npm run check:sharing && npm run check:notify && npm run check:ports && npm run check:workshop && npm run check:sandbox && npm run check:capture && npm run check:thumbs && npm run check:flatten && npm run check:labedit && npm run check:performance && npm run check:pixelcode && npm run check:director && npm run check:pfstvectors && npm run check:ramp && npm run check:panels && npm run check:sandbox-sync && npm run check:modcache",
     "build:sandbox": "tsx scripts/build-sandbox.ts",
     "check:sandbox-sync": "tsx scripts/build-sandbox.ts --check"
   },

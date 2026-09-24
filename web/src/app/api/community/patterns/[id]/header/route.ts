@@ -4,6 +4,7 @@ import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
+import { bakePatternHeader } from "@/lib/community/server/moduleCache";
 import { notifyPortAdded } from "@/lib/community/server/notify";
 import { resolveHeader } from "@/lib/community/ports";
 import { listPatternPorts, newId } from "@/lib/community/server/queries";
@@ -143,6 +144,11 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
     portId,
     actorId: session.user.id,
   });
+
+  // If this port is now the one the pattern ships, compile it before anyone
+  // asks. Never throws; a no-op when another header out-ranks it (that one is
+  // what gets baked) or without a build worker.
+  await bakePatternHeader(pattern.id);
 
   return Response.json({ id: portId }, { status: 201 });
 }

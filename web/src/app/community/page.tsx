@@ -30,17 +30,22 @@ export default async function CommunityHomePage(props: {
   searchParams: Promise<{
     sort?: string;
     hw?: string;
+    q?: string | string[];
   }>;
 }) {
   if (!communityEnabled()) return null; // layout already rendered notice
 
-  const { sort: rawSort, hw } = await props.searchParams;
+  const { sort: rawSort, hw, q: rawQ } = await props.searchParams;
   const sort = parseFeedSort(rawSort);
   const hardwareOnly = hw === "1";
+  // A repeated ?q= arrives as an array; the first one is the search.
+  const q = (Array.isArray(rawQ) ? rawQ[0] : rawQ ?? "").trim();
 
   const [items, total, picked, topLiked] = await Promise.all([
-    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT }),
-    countFeed(hardwareOnly),
+    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT, q }),
+    // Same view as the list above it; no viewer here, so "liked" counts 0
+    // exactly as listFeed lists nothing.
+    countFeed(hardwareOnly, { q, sort }),
     // What a moderator chose, in their order — see /community/featured.
     listFeatured(MARQUEE_SIZE),
     // The fallback, so the front page works with nobody curating it, and is
@@ -70,11 +75,13 @@ export default async function CommunityHomePage(props: {
       <Marquee items={marquee.map((item) => toCardItem(item, likedIds))} />
       <CommunityFeedClient
         // Remount on a sort/filter change so the accumulated list restarts.
+        // Not on a search — see /community/patterns.
         key={`${sort}-${hardwareOnly}`}
         items={items.map((item) => toCardItem(item, likedIds))}
         sort={sort}
         hardwareOnly={hardwareOnly}
         total={total}
+        q={q}
       />
     </>
   );

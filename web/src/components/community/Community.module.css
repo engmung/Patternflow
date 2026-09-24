@@ -589,6 +589,63 @@
   white-space: nowrap;
 }
 
+/* ── Wall search ──
+   Its own row above the controls, because it lives outside the list that
+   remounts on each search (CommunityFeedClient). */
+
+.feedSearch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.feedSearchInput {
+  width: min(360px, 100%);
+}
+
+.feedSearchBusy {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+  white-space: nowrap;
+}
+
+/* A search can be as long as a title; the count quoting it must not push the
+   row past the screen. */
+.feedCount {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feedSearchClear {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--pfc-led);
+  cursor: pointer;
+}
+
+.feedSearchClear:focus-visible {
+  outline: 1px solid var(--pfc-led);
+  outline-offset: 3px;
+}
+
+/* The old results stay up while a new search is out — dimmed, so it is clear
+   they are about to change. */
+.centeredFeedBody[data-stale],
+.emptyPanel[data-stale] {
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+
 /* ── Pattern card ── */
 
 .card {
@@ -3144,6 +3201,99 @@
   color: var(--pfc-ink-faint);
 }
 
+/* ── Zip downloads (deck page, pattern page, send modal) ──────────────────
+   Progress and the reasons a slot was left out sit directly under the row
+   that started the download, never behind a modal: the person watching it is
+   looking at the button they just pressed. */
+.zipStatus {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--pfc-ink-muted);
+}
+
+.zipStatus .buildStatusLine {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--pfc-ink-muted);
+}
+
+.zipSkipList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--pfc-ink-faint);
+}
+
+.zipHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pfc-ink-muted);
+}
+
+/* The file route, spelled out. Quiet like the share note — it is the way in
+   for the people who need it, and the rest read past it. */
+.zipNote {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--pfc-hair);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pfc-ink-muted);
+}
+
+.zipNoteTitle {
+  font-family: var(--pf-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pfc-ink-faint);
+}
+
+.zipSteps {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.zipSteps a,
+.zipNoteLine a {
+  color: var(--pfc-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.zipSteps strong {
+  color: var(--pfc-ink);
+  font-weight: 600;
+}
+
+.zipNoteLine {
+  color: var(--pfc-ink-faint);
+}
+
+.zipHostField {
+  font: inherit;
+  width: 16ch;
+  padding: 1px 6px;
+  border: 1px solid var(--pfc-edge-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--pfc-ink);
+}
+
+.zipHostField:focus {
+  outline: none;
+  border-color: var(--pfc-ink);
+}
+
 /* Fresh from the wall: a single dense row under the decks, so the newest work
    is one glance away from the curated shelf. */
 .freshStrip {
@@ -5562,6 +5712,18 @@ button.legendWalk:hover {
 
   .feedControls {
     gap: 12px;
+  }
+
+  /* Six tabs with Oldest and Liked do not fit a phone's width on one line;
+     wrapping beats a row that scrolls the whole page sideways. */
+  .sortTabs {
+    flex-wrap: wrap;
+    column-gap: 16px;
+    row-gap: 8px;
+  }
+
+  .feedSearchInput {
+    width: 100%;
   }
 
   /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
