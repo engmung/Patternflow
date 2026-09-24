@@ -43,7 +43,11 @@ button.secondary{font-size:13px;color:var(--ink);background:none;
 border:1px solid var(--rule);border-radius:2px;padding:7px 16px}
 button.secondary:hover{border-color:var(--led);color:var(--led)}
 #msg{margin-top:12px;font-family:var(--mono);font-size:11px;min-height:16px}
-#msg.err{color:var(--led)}
+#msg.pf-err{color:var(--led)}#msg.pf-ok{color:var(--ok)}
+/* offline: the chrome's chip says so; the readout dims */
+html.pf-offline td.pos,html.pf-offline #st{opacity:.4}
+@media(pointer:coarse){.actions button{position:relative}
+.actions button::after{content:"";position:absolute;inset:-6px 0}}
 .note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
 .note b{color:var(--muted);font-weight:600}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
@@ -73,61 +77,69 @@ a{color:var(--muted)}
 </div>
 <script>
 function $(i){return document.getElementById(i)}
-function say(t,err){$('msg').textContent=t;$('msg').className=err?'err':''}
+function say(t,k){PF.say(t,k||'info',$('msg'))}
 var cur=null;      // what the device has
 var dirty=false;   // an unsaved choice on the page
+var saving=false;  // a POST in flight: Save stays off
 function selDir(i){return $('inv'+i)}
 function selSub(i){return $('sub'+i)}
 function build(){
   var tb=$('rows');tb.innerHTML='';
   for(var i=0;i<4;i++){
     var tr=document.createElement('tr');
+    // off until the first reading gives a choice something to differ from
     tr.innerHTML='<td class="k">K'+(i+1)+'</td>'+
       '<td class="pos"><span id="pos'+i+'">-</span><small id="raw'+i+'"></small></td>'+
-      '<td><select id="inv'+i+'"><option value="0">Normal</option><option value="1">Reversed</option></select></td>'+
-      '<td><select id="sub'+i+'"><option value="4">4 (most encoders)</option><option value="2">2</option><option value="1">1</option></select></td>';
+      '<td><select id="inv'+i+'" disabled><option value="0">Normal</option><option value="1">Reversed</option></select></td>'+
+      '<td><select id="sub'+i+'" disabled><option value="4">4 (most encoders)</option><option value="2">2</option><option value="1">1</option></select></td>';
     tb.appendChild(tr);
-    selDir(i).onchange=selSub(i).onchange=markDirty;
+    selDir(i).onchange=selSub(i).onchange=marks;
   }
 }
-function markDirty(){
-  dirty=true;$('save').disabled=false;$('revert').disabled=false;
+// PF.dirty (no version reload) while a choice differs from the device
+function marks(){
+  var any=false;
   for(var i=0;i<4;i++){
-    selDir(i).className=(selDir(i).value==='1')!==cur.inv[i]?'dirty':'';
-    selSub(i).className=parseInt(selSub(i).value,10)!==cur.sub[i]?'dirty':'';
+    var a=(selDir(i).value==='1')!==cur.inv[i],b=parseInt(selSub(i).value,10)!==cur.sub[i];
+    selDir(i).className=a?'dirty':'';selSub(i).className=b?'dirty':'';
+    any=any||a||b;
   }
+  setDirty(any);
 }
+function setDirty(on){dirty=PF.dirty=on;$('save').disabled=!on||saving;$('revert').disabled=!on}
 function show(d){
   cur=d;
   for(var i=0;i<4;i++){
     $('pos'+i).textContent=d.clicks[i];
     $('raw'+i).textContent=d.raw[i]+' edges';
+    selDir(i).disabled=selSub(i).disabled=false;
     if(!dirty){
       selDir(i).value=d.inv[i]?'1':'0';
       selSub(i).value=String(d.sub[i]);
-      selDir(i).className=selSub(i).className='';
     }
   }
+  // re-judged each reading: another tab may have saved
+  if(dirty)marks();else for(i=0;i<4;i++)selDir(i).className=selSub(i).className='';
   $('st').textContent='live';
 }
-function load(){
-  fetch('/api/knobs',{cache:'no-store'}).then(function(r){return r.json()}).then(show)
-    .catch(function(){$('st').textContent='disconnected'});
-}
-$('revert').onclick=function(){dirty=false;$('save').disabled=true;$('revert').disabled=true;if(cur)show(cur);say('')};
+$('revert').onclick=function(){setDirty(false);if(cur)show(cur);say('')};
 $('save').onclick=function(){
   var body=[];
   for(var i=0;i<4;i++){
     body.push('inv'+i+'='+selDir(i).value);
     body.push('sub'+i+'='+selSub(i).value);
   }
-  $('save').disabled=true;
+  saving=$('save').disabled=true;
   fetch('/api/knobs',{method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.join('&')})
     .then(function(r){return r.json()}).then(function(d){
-      if(!d.ok){say(d.error||'failed',1);$('save').disabled=false;return}
-      dirty=false;$('revert').disabled=true;show(d);say('saved');
-    }).catch(function(){say('failed',1);$('save').disabled=false});
+      saving=false;
+      if(!d.ok){say(d.error||'failed','err');$('save').disabled=false;return}
+      setDirty(false);show(d);say('saved','ok');
+    }).catch(function(){saving=false;say('failed - the panel did not answer','err');$('save').disabled=false});
 };
-build();load();setInterval(load,500);
+build();
+// Chained on the chrome's lane: a slow link stretches it, a hidden tab
+// pauses it, and the chip reports errors.
+PF.poll('/api/knobs',400,function(d){if(d)show(d)});
 </script></body></html>

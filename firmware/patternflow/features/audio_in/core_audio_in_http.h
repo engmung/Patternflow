@@ -95,8 +95,9 @@ inline void parseFrame(const String& s) {
 inline WebServer& server() { return PatternflowPatternsHttp::server(); }
 
 inline void handleIndex() {
-  // gz() sends Cache-Control: no-store itself (its default); the header
-  // this used to add on top was the same one twice.
+  // gz() picks the page's cache policy itself (PFSend::PAGE, its default:
+  // ?v= versioning, ETag, host gating). Add no Cache-Control header here;
+  // a second one would contradict the policy's.
   PFSend::gz(server(), AUDIO_IN_INDEX_HTML_GZ, AUDIO_IN_INDEX_HTML_GZ_LEN);
 }
 

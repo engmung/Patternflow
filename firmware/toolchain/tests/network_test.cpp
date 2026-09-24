@@ -125,6 +125,41 @@ int main() {
   ++testMillis; tick(); assert(WiFi.disconnectCalls == calls + 1);
   testMillis += 100; WiFi.state = WL_CONNECTED; tick(); assert(lastReconnectMs == 100);
 
+  // A network sent from a console is reported back: joined and where, or
+  // why not. Nothing above opened one - a join at boot reports nothing.
+  assert(joinState == JOIN_NONE);
+  testMillis = 1000000;
+  applyCredentials("studio", "right");
+  assert(joinState == JOIN_TRYING && joinSsid == "studio");
+  const uint32_t seq = joinSeq;
+  testMillis += 3000; WiFi.state = WL_CONNECTED; tick();
+  assert(joinState == JOIN_OK && joinIp == "192.0.2.1" && joinSeq == seq + 1);
+  // A wrong password on the hotspot: the probe window closes with the
+  // driver's handshake timeout on record.
+  hotspotUp = true;
+  applyCredentials("studio", "wrong");
+  lastStaReason = 15; WiFi.state = WL_DISCONNECTED;
+  testMillis += 1000; tick(); assert(joinState == JOIN_TRYING);
+  testMillis += 3 * STA_PROBE_MS; tick();
+  assert(joinState == JOIN_FAILED && joinWhy == WHY_PASSWORD && joinReason == 15);
+  assert(joinSeq == seq + 2);
+  // A name that is not there, no reason heard: the status says which.
+  applyCredentials("nowhere", "x"); WiFi.state = WL_NO_SSID_AVAIL;
+  testMillis += 3 * STA_PROBE_MS + 1; tick();
+  assert(joinState == JOIN_FAILED && joinWhy == WHY_NOT_FOUND);
+  // Without the hotspot a join that gets nowhere is given up on.
+  hotspotUp = false;
+  applyCredentials("far", "x"); WiFi.state = WL_DISCONNECTED;
+  testMillis += JOIN_GIVE_UP_MS - 1; tick(); assert(joinState == JOIN_TRYING);
+  testMillis += 1; tick(); assert(joinState == JOIN_FAILED && joinWhy == WHY_NO_ANSWER);
+  assert(whyFromReason(201, false, false) == WHY_NOT_FOUND);
+  assert(whyFromReason(204, false, false) == WHY_PASSWORD);
+  assert(whyFromReason(203, false, false) == WHY_REFUSED);
+  assert(whyFromReason(0, false, true) == WHY_PASSWORD);
+  assert(whyFromReason(200, false, false) == WHY_NO_ANSWER);
+  WiFi.state = WL_CONNECTED; tick();  // the name tests below start from a live link
+  assert(joinState == JOIN_FAILED);   // a later link does not rewrite a settled join
+
   namespace N = PatternflowNames;
   N::begin(); assert(!N::mdnsUp); N::tick(); assert(!N::ready);
   unsigned tries = beginCalls;
@@ -150,5 +185,5 @@ int main() {
   unsigned announces = N::announcements;
   N::announce(); N::tick(); assert(N::announcements == announces);
   assert(services.count("_feature_udp"));
-  puts("network: retry grace, SSID rotation, DHCP edge, timer wrap, mDNS partial failure and recovery passed");
+  puts("network: retry grace, SSID rotation, DHCP edge, timer wrap, join outcome, mDNS partial failure and recovery passed");
 }

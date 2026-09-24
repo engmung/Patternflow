@@ -78,7 +78,23 @@ inline void handleList() {
   json += PatternflowWifi::statusText();
   json += "\",\"bootIdx\":";
   json += PatternflowWifi::getBootIndex();
-  json += ",\"networks\":[";
+  // The last network someone asked for and what became of it - what the
+  // page reports after a phone sends one (core_wifi.h, "The last network").
+  json += ",\"join\":{\"state\":\"";
+  json += PatternflowWifi::joinStateName();
+  json += "\",\"ssid\":\"";
+  json += jsonEscape(PatternflowWifi::joinSsid);
+  json += "\",\"ip\":\"";
+  json += PatternflowWifi::joinIp;
+  json += "\",\"why\":\"";
+  json += PatternflowWifi::joinWhyText();
+  json += "\",\"reason\":";
+  json += (int)PatternflowWifi::joinReason;
+  json += ",\"ago\":";
+  json += PatternflowWifi::joinState == PatternflowWifi::JOIN_NONE
+              ? 0
+              : (int)((uint32_t)(millis() - PatternflowWifi::joinAtMs) / 1000);
+  json += "},\"networks\":[";
   for (int i = 0; i < PatternflowWifi::savedCount(); i++) {
     if (i) json += ',';
     json += "{\"ssid\":\"";
@@ -112,6 +128,10 @@ inline void handleAdd() {
   //
   // connect=1 asks to move immediately, for someone who really means it.
   bool now = server().hasArg("connect") && server().arg("connect") == "1";
+  // On the hotspot with no station link there is nothing to lose by trying
+  // it at once - and a network only stored would sit untried until the
+  // phone left, since retries wait while someone is on the hotspot.
+  if (!now && PatternflowWifi::hotspotUp && !PatternflowWifi::isConnected()) now = true;
   if (!PatternflowWifi::addNetwork(ssid, pass)) {
     sendJson(400, "{\"ok\":false,\"error\":\"could not store network\"}");
     return;

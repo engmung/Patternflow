@@ -182,6 +182,17 @@ inline void requestReload() { reloadRequestedAtMs = millis(); }
 // evicted. The sketch draws a PAUSED screen instead of a torn frame.
 inline bool isConsolePaused() { return restorePending; }
 
+// The volume is being written: a format or delete is running, or an upload
+// batch is between files (its next file is due within the 5 s tick() waits
+// before calling the batch dead). /api/status reports it as busy "storage"
+// so an open console backs its polling off instead of queueing requests
+// behind the batch on the one connection.
+inline bool storageBusy() {
+  if (__atomic_load_n(&storageOperationActive, __ATOMIC_ACQUIRE)) return true;
+  return restorePending && lastUploadActivityMs &&
+         millis() - lastUploadActivityMs <= 5000;
+}
+
 // Play Now / wake alarm owns the panel. Do not snap back to whatever was
 // running before the console opened.
 inline void releaseConsolePause() {
@@ -209,7 +220,10 @@ inline bool noteConsolePageOpened() {
   // The core-2 build ships ~95 KB free after services, so pages and a
   // resident module coexist: the console no longer pauses the pattern, and
   // the panel never shows the CONSOLE card. If a heap regression ever brings
-  // the lockup back, this is the function that used to evict.
+  // the lockup back, this is the function that used to evict — but do not
+  // hang it on page GETs again: since pages are cached by build
+  // (core_send.h), a visit mostly never reaches the device. Every open
+  // console page fetches /api/status, so trigger it from there.
   lastConsoleActivityMs = millis();
   return false;
 }
@@ -956,10 +970,8 @@ inline void begin() {
   if (initialized) return;
   if (!PatternflowWifi::linkUp()) return;
 
-  // Custom headers are only readable when collected up front. Nothing else on
-  // the shared server collects any, so this list is the whole set.
-  static const char* headerKeys[] = {"X-PF-Name", "X-PF-Last"};
-  server().collectHeaders(headerKeys, 2);
+  // X-PF-Name and X-PF-Last are readable because PatternflowHttp::begin()
+  // collects them: the server keeps one list, and core_http.h owns it.
 
   server().on("/patterns", HTTP_GET, handleIndex);
   server().on("/patterns/fflate.js", HTTP_GET, handleFflateJs);
@@ -998,6 +1010,7 @@ inline bool isCompiledIn() { return false; }
 inline void begin() {}
 inline void tick() {}
 inline bool consumeSelectIdx(int&) { return false; }
+inline bool storageBusy() { return false; }
 
 #endif  // PF_PATTERNS_HTTP_ENABLED
 

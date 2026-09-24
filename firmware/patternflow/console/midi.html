@@ -27,6 +27,9 @@ color:var(--muted);margin:0 0 10px}
 .lead p{margin:4px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
 .lead.on{border-color:var(--ok)}
 .lead.off{border-color:var(--rule);opacity:.6}
+.usb{display:flex;gap:10px;margin-top:10px;padding-top:8px;border-top:1px solid var(--rule-soft);
+font-family:var(--mono);font-size:11px;color:var(--muted)}
+.usb span:first-child{color:var(--faint)}
 .choice{display:grid;gap:10px;grid-template-columns:1fr 1fr}
 .ch{display:block;border:1px solid var(--rule);background:var(--panel);padding:12px 12px;
 cursor:pointer;text-align:left;font-family:inherit;color:inherit}
@@ -39,12 +42,17 @@ cursor:pointer;text-align:left;font-family:inherit;color:inherit}
 .sens .top b{font-size:13px;font-weight:600}
 .sens .top label{margin-left:auto;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;cursor:pointer}
 .sens .top label input{accent-color:var(--led)}
-.g{display:grid;grid-template-columns:28px 1fr 150px;align-items:center;gap:12px;padding:5px 0}
-.g .k{font-family:var(--mono);font-size:11px;color:var(--faint)}
-.g input[type=range]{width:100%;margin:0;accent-color:var(--led)}
-.g .r{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
-.scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--faint);margin:2px 0 0 40px}
-@media(max-width:480px){.g{grid-template-columns:28px 1fr 96px}}
+/* The readout column is in its own font's ch: the longest reading is 29
+   (1/16 at 101.6 turns), plus room for a fallback font's wider × and ·.
+   Narrower, it spilled past the page edge; on a phone it goes under the
+   slider instead. */
+.g{display:grid;grid-template-columns:28px minmax(0,1fr) 32ch;align-items:center;gap:12px;padding:5px 0;
+font-family:var(--mono);font-size:11px}
+.g .k{color:var(--faint)}
+.g input[type=range]{width:100%;margin:0;accent-color:var(--led);touch-action:pan-y}
+.g .r{color:var(--muted);text-align:right;white-space:nowrap}
+.scale{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:10px;color:var(--faint);margin:2px 0 0 40px}
+@media(max-width:480px){.g{grid-template-columns:28px minmax(0,1fr);row-gap:0}.g .r{grid-column:2;text-align:left}}
 .knobs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
 .knob{border:1px solid var(--rule-soft);background:var(--panel);padding:8px 8px 10px}
 .knob .n{font-family:var(--mono);font-size:10px;color:var(--faint);display:flex;justify-content:space-between}
@@ -68,14 +76,17 @@ border:1px solid var(--rule);border-radius:2px}
 .check input{accent-color:var(--led)}
 .note{font-size:12px;color:var(--faint);margin:8px 0 14px;line-height:1.45}
 .note code,dd code{font-family:var(--mono);font-size:11px;color:var(--ink)}
-#msg{margin-top:10px;font-family:var(--mono);font-size:11px;min-height:16px}
-#msg.err{color:var(--led)}#msg.good{color:var(--ok)}
+.msg{margin-top:10px;font-family:var(--mono);font-size:11px;min-height:16px;color:var(--muted)}
+.msg.pf-err{color:var(--led)}.msg.pf-ok{color:var(--ok)}
+[hidden]{display:none!important}
+/* The chrome's chip says when the panel stops answering; the last values dim. */
+html.pf-offline #st,html.pf-offline .lead,html.pf-offline dl,html.pf-offline .knobs{opacity:.45}
 dl{margin:0;border-top:1px solid var(--rule-soft)}
 .row{display:flex;align-items:baseline;gap:12px;padding:7px 2px;
 border-bottom:1px solid var(--rule-soft)}
 dt{flex:1;font-size:13px;color:var(--muted);margin:0}
 dd{margin:0;font-family:var(--mono);font-size:12px;text-align:right}
-.ok{color:var(--ok)}.bad{color:var(--led)}
+.ok{color:var(--ok)}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{text-align:left;font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
 color:var(--faint);padding:4px 2px;border-bottom:1px solid var(--rule-soft)}
@@ -92,7 +103,8 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
 
 <section>
   <h2>Session</h2>
-  <div class="lead" id="lead"><b id="lead-t">-</b><p id="lead-p"></p></div>
+  <div class="lead" id="lead"><b id="lead-t">-</b><p id="lead-p"></p>
+    <div class="usb" id="usb" hidden><span>USB</span><span id="usb-t">-</span></div></div>
   <form id="hostf" autocomplete="off">
     <div class="field"><label for="f-host">Computer to invite</label>
       <input id="f-host" placeholder="e.g. 192.168.0.23 — empty: wait to be connected" inputmode="decimal" maxlength="15"></div>
@@ -102,7 +114,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
       <button type="button" class="forget" id="clearhost">Clear</button>
     </div>
   </form>
-  <div id="msg"></div>
+  <div class="msg" id="msg" aria-live="polite"></div>
   <p class="note">With a computer saved, the panel opens the session itself on every boot and whenever
     it drops — no reconnecting in rtpMIDI or Audio MIDI Setup. The computer has to accept invitations
     (rtpMIDI: <em>Who may connect to me: Anyone</em>). Without one, connect from the computer: the panel
@@ -130,6 +142,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
     <div class="g"><span class="k">K4</span><input type="range" min="0" max="11" step="1" value="4" data-k="3"><span class="r">-</span></div>
     <div class="scale"><span>fast · 8 steps / detent</span><span>1 : 1</span><span>fine · 16 detents / step</span></div>
   </div>
+  <div class="msg" id="kmsg" aria-live="polite"></div>
   <div class="knobs" id="knobs">
     <div class="knob"><div class="n"><span>K1</span><span>CC 24</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
     <div class="knob"><div class="n"><span>K2</span><span>CC 25</span></div><div class="bar"><i></i></div><div class="v">-</div></div>
@@ -142,6 +155,7 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
 <section>
   <h2>Switch</h2>
   <label class="check"><input type="checkbox" id="on"> MIDI on this panel</label>
+  <div class="msg" id="omsg" aria-live="polite"></div>
   <p class="note">Same switch as the <b>MIDI</b> row on the panel's NETWORK screen. Off keeps the port open and drops everything.</p>
 </section>
 
@@ -161,15 +175,23 @@ html[data-theme=light]{--cream:#F4EFE6;--cream2:#FFFCFA;--bg:#F4EFE6;--panel:#FF
 </div>
 <script>
 function $(i){return document.getElementById(i)}
-function say(t,cls){$('msg').textContent=t||'';$('msg').className=cls||''}
-var last=null,hostDirty=false,dragging=false,linkTouched=false;
-function post(params,okText){
-  var body=new URLSearchParams();
+var last=null,hostDirty=false,dragging=false,linkTouched=false,usbWatched=false;
+// The host field is the page's one unsaved edit; the chrome will not reload
+// the page onto new firmware while it holds one.
+function setDirty(v){hostDirty=PF.dirty=v}
+// A result is said beside the control that caused it: slot msg (session),
+// kmsg (knobs) or omsg (switch). Resolves with the answer, or undefined.
+function post(params,okText,slot){
+  var body=new URLSearchParams(),el=$(slot||'msg');
   for(var k in params)body.set(k,params[k]);
   return fetch('/api/midi',{method:'POST',body:body}).then(function(r){return r.json()}).then(function(d){
-    if(d.ok===false){say(d.error||'failed','err');return d}
-    paint(d);if(okText)say(okText,'good');return d;
-  }).catch(function(){say('no answer from the panel','err')});
+    if(d.ok===false){PF.say(d.error||'failed','err',el);return d}
+    paint(d);if(okText)PF.say(okText,'ok',el);return d;
+  }).catch(function(){PF.say('no answer from the panel','err',el)});
+}
+function saveHost(btn,host,okText){
+  $('f-host').value=host;
+  PF.busy(btn,post({host:host},okText)).then(function(d){if(d&&d.ok!==false)setDirty(false)});
 }
 // One scale: steps per detent on the left, detents per step on the right,
 // 1:1 in the middle. Each entry is [multiplier, divisor]; only one is ever > 1.
@@ -228,13 +250,9 @@ function paint(d){
   $('knobnote').style.display=abs?'':'none';
   $('on').checked=!!d.runtime;
 }
-function poll(){
-  fetch('/api/midi',{cache:'no-store'}).then(function(r){return r.json()}).then(paint)
-    .catch(function(){$('st').textContent='offline';$('st').className='sub bad'});
-}
-$('m-abs').onclick=function(){post({outMode:'abs'},'knobs send their value')};
-$('m-rel').onclick=function(){post({outMode:'rel'},'knobs send relative steps')};
-$('link').onchange=function(){linkTouched=true;if(this.checked){var v=sliders()[0].value;var g=GAINS[Number(v)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'all four set to '+gainText(g))}};
+$('m-abs').onclick=function(){PF.busy(this,post({outMode:'abs'},'knobs send their value','kmsg'))};
+$('m-rel').onclick=function(){PF.busy(this,post({outMode:'rel'},'knobs send relative steps','kmsg'))};
+$('link').onchange=function(){linkTouched=true;if(this.checked){var v=sliders()[0].value;var g=GAINS[Number(v)];post(g[0]>1?{outMul:g[0]}:{outDiv:g[1]},'all four set to '+gainText(g),'kmsg')}};
 Array.prototype.forEach.call(sliders(),function(el){
   el.oninput=function(){dragging=true;
     if($('link').checked){var v=this.value;Array.prototype.forEach.call(sliders(),function(o){o.value=v})}
@@ -242,15 +260,28 @@ Array.prototype.forEach.call(sliders(),function(el){
   el.onchange=function(){dragging=false;var g=GAINS[Number(this.value)];
     var p=g[0]>1?{outMul:g[0]}:{outDiv:g[1]};
     if(!$('link').checked)p.knob=Number(this.getAttribute('data-k'))+1;
-    post(p,($('link').checked?'all four':'K'+p.knob)+' \u2192 '+gainText(g))};
+    post(p,($('link').checked?'all four':'K'+p.knob)+' \u2192 '+gainText(g),'kmsg')};
 });
-$('on').onchange=function(){post({on:this.checked?'1':'0'},this.checked?'MIDI on':'MIDI off')};
-$('f-host').oninput=function(){hostDirty=true};
-$('hostf').onsubmit=function(e){e.preventDefault();hostDirty=false;
-  post({host:$('f-host').value.trim()},$('f-host').value.trim()?'saved — inviting':'cleared')};
-$('usethis').onclick=function(){if(last&&last.you){$('f-host').value=last.you;hostDirty=false;post({host:last.you},'saved — inviting')}};
-$('clearhost').onclick=function(){$('f-host').value='';hostDirty=false;post({host:''},'cleared — waiting to be connected')};
-poll();setInterval(poll,1500);
-document.addEventListener('visibilitychange',function(){if(!document.hidden)poll()});
+$('on').onchange=function(){post({on:this.checked?'1':'0'},this.checked?'MIDI on':'MIDI off','omsg')};
+$('f-host').oninput=function(){setDirty(true)};
+$('hostf').onsubmit=function(e){e.preventDefault();var h=$('f-host').value.trim();
+  saveHost(this.querySelector('.save'),h,h?'saved — inviting':'cleared')};
+$('usethis').onclick=function(){if(last&&last.you)saveHost(this,last.you,'saved — inviting')};
+$('clearhost').onclick=function(){saveHost(this,'','cleared — waiting to be connected')};
+// On the chrome's lane: chained, paused while the tab is hidden, and the
+// connection chip, not this page, says when the panel stops answering.
+PF.poll('/api/midi',1500,function(d){if(d)paint(d)});
+// USB-MIDI exists only in a build whose USB port is the OTG stack, and status
+// says so with a midiUsb block. Keep status fresh only then: cables come and go.
+PF.status(function(s){
+  var u=s.midiUsb;
+  $('usb').hidden=!u;
+  if(!u)return;
+  if(!usbWatched){usbWatched=true;PF.watchStatus(5000)}
+  var t=u.mounted?'connected · '+(u.rx||0)+' in · '+(u.tx||0)+' out':'no computer on the cable';
+  if(u.txDropped)t+=' · '+u.txDropped+' dropped';
+  $('usb-t').textContent=t;
+  $('usb-t').className=u.mounted?'ok':'';
+});
 </script>
 </body></html>

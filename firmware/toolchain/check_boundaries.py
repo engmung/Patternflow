@@ -172,7 +172,8 @@ def core_page_texts() -> list[tuple[str, str]]:
 
     Which pages are the core's is console_pages.py's PAGES list: a header
     under src/ is core, under features/ is a feature's. theme_index.h is the
-    chrome every page loads, and it is core by construction.
+    chrome every page loads, and console/_pf_fallback.js is stamped into every
+    page's header by console_pages.py build: both are core by construction.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from console_pages import PAGES  # noqa: E402
@@ -190,6 +191,10 @@ def core_page_texts() -> list[tuple[str, str]]:
         raw = theme.read_text(encoding="utf-8", errors="replace")
         bodies = "\n".join(m.group(0) for m in RAW_STRING.finditer(raw))
         out.append(("src/theme_index.h (page text)", bodies))
+    fallback = SKETCH / "console" / "_pf_fallback.js"
+    if fallback.exists():
+        out.append(("console/_pf_fallback.js (stamped into every page)",
+                    fallback.read_text(encoding="utf-8", errors="replace")))
     cleaned: list[tuple[str, str]] = []
     for label, text in out:
         for pattern in (HTML_COMMENT, BLOCK_COMMENT, LINE_COMMENT):

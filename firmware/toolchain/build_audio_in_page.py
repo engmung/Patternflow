@@ -11,7 +11,8 @@ is retired). This assembler:
 
   - reads editor.html, editor.css and editor.js from the extension,
   - swaps the cream instrument tokens for the console's dark ones (editor.js
-    reads its canvas colors from CSS variables, so the theme travels free),
+    reads its canvas colors from CSS variables, so the theme travels free)
+    and adds the phone layout the extension's wide tab never needed,
   - injects a device bar (microphone switch, input gain, reset) above the
     editor - the two controls that exist only on this side,
   - replaces the chrome adapter with a fetch('/api/audio-in') adapter that
@@ -62,6 +63,7 @@ DEVICE_BAR = '''
       <span id="micGainVal" class="mono dimText">8.0</span>
     </div>
     <span id="deviceNote" class="hint"></span>
+    <span id="barMsg" class="barMsg" role="status"></span>
     <span class="spacer"></span>
     <a id="extGuideLink" class="ghostBtn" href="https://github.com/engmung/Patternflow/tree/main/tools/patternflow-audio-extension#readme" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px" title="Install Chrome Audio Extension">Extension ↗</a>
     <button id="resetAll" class="ghostBtn" type="button">Reset mapping</button>
@@ -128,12 +130,24 @@ ADAPTER = r'''
   }
 
   var frameFn = null;
-  var polling = false;
   var micOn = false;
   var phoneLive = false;
   var audOn = false;
 
-  function poll() {
+  // The levels loop keeps its own chained 100 ms timer instead of PF.poll:
+  // ten frames a second is this page's whole job, and the chrome's lane
+  // would queue it behind every status poll. It starts once the config read
+  // has settled (a frame before that paints on an unsized plot and races the
+  // read for the panel's one connection), sleeps while the tab is hidden and
+  // stops on pagehide.
+  var ready = false, gone = false, busy = false, timer = 0;
+
+  function tick() {
+    clearTimeout(timer);
+    timer = 0;
+    if (!ready || !frameFn || gone || busy || document.hidden) return;
+    busy = true;
+    var wait = 100;
     fetch('/api/audio-in?levels=1').then(function (r) { return r.json(); }).then(function (j) {
       // ext frames come from the phone app, already on the editor's own
       // normalized scale - converting them again would wreck them. The
@@ -153,21 +167,46 @@ ADAPTER = r'''
         spectrum: (j.spectrum || []).map(conv),
         autoRange: true
       });
-    }).catch(function () {
+    }).catch(function (e) {
+      // AbortError is the chrome freeing the connection for a link just
+      // clicked (or pagehide); asking again in 100 ms would take it back
+      // from the next page. Still here in 3 s: the navigation was cancelled.
+      if (e && e.name === 'AbortError') { wait = 3000; return; }
+      // Unreachable: ask once a second, not ten times (the chrome shows it).
+      wait = 1000;
       if (frameFn) frameFn({ running: false, connected: false, levels: [], env: [], spectrum: [] });
-    }).finally(function () {
+    }).then(function () {
       // Chained, never setInterval: the device serves one connection at a
       // time, and a timer would stack requests behind a slow one.
-      if (polling) setTimeout(poll, 100);
+      busy = false;
+      if (!gone && !timer) timer = setTimeout(tick, wait);
     });
   }
+  function start() { if (!ready) { ready = true; tick(); } }
+  document.addEventListener('visibilitychange', function () { if (!timer) tick(); });
+  window.addEventListener('pagehide', function () { gone = true; clearTimeout(timer); timer = 0; });
+  window.addEventListener('pageshow', function () { if (gone) { gone = false; tick(); } });
 
+  // Every edit autosaves; PF.dirty covers the gap until the panel has it,
+  // so the chrome's version reload never drops one. A failure is said next
+  // to the device bar (the editor itself has no slot for it).
+  var saving = 0, gainTimer = null;
+  function say(text, kind) { PF.say(text, kind, document.getElementById('barMsg')); }
   function post(body) {
+    saving++;
+    PF.dirty = true;
     return fetch('/api/audio-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: body
-    }).catch(function () {});
+    }).then(function (r) {
+      if (!r.ok) throw Error('HTTP ' + r.status);
+      if (document.getElementById('barMsg').textContent) say('saved', 'ok');
+    }).catch(function () {
+      say('not saved: the panel did not take it. Change it again to retry.', 'err');
+    }).then(function () {
+      if (!--saving && !gainTimer) PF.dirty = false;
+    });
   }
 
   window.PFAdapter = {
@@ -176,8 +215,9 @@ ADAPTER = r'''
     captureHint: 'Turn the microphone on to hear the room.',
     loadConfig: function () {
       // Never reject: a failed read hands the editor its defaults and the
-      // page still stands - the poll loop keeps trying, and the next save
-      // writes the truth back.
+      // page still stands - the levels loop keeps trying, and the next save
+      // writes the truth back. One request at a time: the config, then the
+      // AUD switch, then the loop.
       return fetch('/api/audio-in').then(function (r) { return r.json(); }).then(function (j) {
         micOn = !!j.micOn;
         var gainEl = document.getElementById('micGain');
@@ -186,7 +226,7 @@ ADAPTER = r'''
         fetch('/api/audio').then(function (r) { return r.json(); }).then(function (a) {
           audOn = !!a.audioRuntime;
           syncBar();
-        }).catch(function () {});
+        }).catch(function () {}).then(start);
         syncBar();
         return {
           host: 'this device',
@@ -203,7 +243,7 @@ ADAPTER = r'''
             };
           })
         };
-      }).catch(function () { return null; });
+      }).catch(function () { start(); return null; });
     },
     saveConfig: function (cfg) {
       var parts = ['auto=' + (cfg.autoRange ? 1 : 0),
@@ -230,7 +270,7 @@ ADAPTER = r'''
     },
     onFrame: function (fn) {
       frameFn = fn;
-      if (!polling) { polling = true; poll(); }
+      tick();
     },
     requestStatus: function () {},
     stop: function () { post('mic=0'); }
@@ -254,13 +294,17 @@ ADAPTER = r'''
     var audBtn = document.getElementById('audToggle');
     if (audBtn) {
       audBtn.addEventListener('click', function () {
-        audOn = !audOn;
+        var want = audOn = !audOn;
         syncBar();
         fetch('/api/audio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'on=' + (audOn ? 1 : 0)
-        }).catch(function () {});
+          body: 'on=' + (want ? 1 : 0)
+        }).then(function (r) { if (!r.ok) throw Error('HTTP ' + r.status); }).catch(function () {
+          // Nothing re-reads this switch, so a lost request would leave it lying.
+          if (audOn === want) { audOn = !want; syncBar(); }
+          say('AUD did not switch: the panel did not take it.', 'err');
+        });
       });
     }
     document.getElementById('micToggle').addEventListener('click', function () {
@@ -268,16 +312,19 @@ ADAPTER = r'''
       syncBar();
       post('mic=' + (micOn ? 1 : 0));
     });
-    var gainTimer = null;
     document.getElementById('micGain').addEventListener('input', function () {
       var v = Number(document.getElementById('micGain').value);
       document.getElementById('micGainVal').textContent = v.toFixed(1);
+      PF.dirty = true;
       clearTimeout(gainTimer);
-      gainTimer = setTimeout(function () { post('micGain=' + v); }, 150);
+      gainTimer = setTimeout(function () { gainTimer = null; post('micGain=' + v); }, 150);
     });
     document.getElementById('resetAll').addEventListener('click', function () {
       if (!confirm('Reset every band, curve and the input gain to defaults?')) return;
-      fetch('/api/audio-in/reset', { method: 'POST' }).then(function () { location.reload(); });
+      PF.busy(this, fetch('/api/audio-in/reset', { method: 'POST' }).then(function (r) {
+        if (!r.ok) throw Error('HTTP ' + r.status);
+        location.reload();
+      })).catch(function () { say('Reset failed: the panel did not take it.', 'err'); });
     });
     syncBar();
   });
@@ -307,14 +354,62 @@ html[data-theme=light] {
   --cream-2: #E8E2D6;
   --field: #FFFCFA;
 }
-/* device host chip is meaningless when the page IS the device */
-#hostChip { display: none; }
+/* device host chip is meaningless when the page IS the device; the source
+   chip and Stop repeat what the device bar's Microphone switch and note say */
+#hostChip, #sourceChip, #stopBtn { display: none; }
 .deviceBar {
   display: flex; align-items: center; gap: 14px;
   background: var(--field); border: 1px solid var(--rule);
   border-radius: 2px; padding: 10px 14px;
 }
 .toggleWrap.on .toggle { background: var(--ok); }
+.barMsg { font: 11px var(--mono); }
+#deviceNote:empty, .barMsg:empty { display: none; }
+.pf-ok { color: var(--ok); }
+.pf-err { color: var(--bad); }
+/* The chrome says when the panel is unreachable; the page only dims what it
+   can no longer vouch for, and drops the "turn the microphone on" hint an
+   unanswered poll would otherwise show. */
+html.pf-offline .plotWrap, html.pf-offline .deviceBar { opacity: 0.5; }
+html.pf-offline #captureHint { visibility: hidden; }
+/* Rows wrap before they overflow (the editor was laid out for a wide tab). */
+.deviceBar, .toolbar, .pvChips, .outPresets, header { flex-wrap: wrap; }
+#pvScope { max-width: 100%; height: auto !important; }
+/* The highest band's tag hangs past a narrow plot's right edge: clip it
+   there rather than widen the page. */
+.plotWrap { overflow: hidden; }
+@media (max-width: 1000px) {
+  .panel { flex-wrap: wrap; }
+  .vr { display: none; }
+  .col.grow { flex-basis: 100%; }
+}
+/* Phones: one column. The bordered boxes run edge to edge, which is what
+   lets the response curve fit a 360 px screen: it is a fixed 356 px canvas
+   whose pointer maths assume that size, so it may not be scaled down. */
+@media (max-width: 700px) {
+  .page { padding: 12px 12px 24px; gap: 12px; }
+  .deviceBar, .plotWrap, .panel {
+    margin: 0 -12px; border-left: 0; border-right: 0; border-radius: 0;
+  }
+  .deviceBar { padding: 12px; gap: 10px 12px; }
+  .toolbar { gap: 10px 12px; }
+  .deviceBar .damping, .toolbar .damping, #deviceNote, .barMsg, #autoHint { flex-basis: 100%; }
+  .damping input { flex: 1; width: auto; min-width: 0; }
+  .toolbar .spacer, #autoHint:empty { display: none; }
+  .panel { flex-direction: column; gap: 18px; padding: 14px 12px; }
+  .presetsCol { width: auto; }
+  #curve { margin: 0 -12px; align-self: center; }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; }
+}
+/* Touch: hit areas grow invisibly; the controls keep their size. */
+@media (pointer: coarse) {
+  .toggleWrap, .ghostBtn, .pvSig, .chipCard, .outPreset, .stepsRow button { position: relative; }
+  .toggleWrap::after, .ghostBtn::after, .pvSig::after, .chipCard::after, .outPreset::after,
+  .stepsRow button::after, .outTrack::after, .toggle.small::after {
+    content: ""; position: absolute; inset: -8px -2px;
+  }
+  .toggle.small::after { inset: -16px -11px; }
+}
 '''
 
 page = (

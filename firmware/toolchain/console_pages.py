@@ -60,10 +60,36 @@ and attribution that a whole-file generator would quietly delete, and the
 storage class is not this tool's business (the twin copies whatever the
 literal has).
 
+One edit to the page itself: its chrome tag. A page's source says
+
+    <script src="/pf-console.js"></script>
+
+exactly once, and the header literal says instead
+
+    <script src="/pf-console.js?h=1a2b3c4d"></script><script>SHIM</script>
+
+  - `h` is the CRC32 of the chrome's payload (the PF_CONSOLE_JS literal,
+    CRLF folded — what its gzip trailer covers). The device serves the
+    chrome immutable only under the `h` of the bytes it holds, so a page
+    and the chrome it was built against are one cache entry, and a new
+    chrome is a new URL rather than a stale copy for a year. It is why a
+    change to theme_index.h makes every page header stale: rebuild.
+  - SHIM is console/_pf_fallback.js, its leading `//` comment lines dropped:
+    a minimal `window.PF` for when the chrome failed to load, so a page's
+    own PF calls still work.
+
+`extract` strips both back to the bare tag, so the HTML never carries a
+stamp and a page previews the same in console_serve.py (which stamps as it
+serves) as on the device. A page without exactly one bare tag fails build.
+
 `extract` is lossless by construction (build right after it is a no-op),
 and `build` is idempotent.
+
+    --sketch DIR   work on another copy of firmware/patternflow (a scratch
+                   copy to try a change of this script against)
 """
 
+import argparse
 import gzip
 import os
 import re
@@ -113,6 +139,21 @@ NOTE_MARK = "generated from console/"
 # The literal's declaration, ending in R"DELIM(. The gzip twin copies the
 # storage class from here and takes its name from the identifier.
 DECL = r'(static const|const)\s+char\s+(\w+)\s*\[\]\s*PROGMEM\s*=\s*R"%s\($'
+
+# The chrome tag as a page's source writes it, and as its header carries it.
+CHROME = ASSETS[0]
+CHROME_TAG = '<script src="/pf-console.js"></script>'
+STAMPED = '<script src="/pf-console.js?h=%s"></script><script>%s</script>'
+STAMPED_RE = re.compile(
+    r'<script src="/pf-console\.js\?h=[0-9a-f]{8}"></script>'
+    r'<script>(?:(?!</script>).)*</script>', re.S)
+SHIM_FILE = "_pf_fallback.js"
+
+
+def set_sketch(path):
+    global SKETCH, HTML_DIR
+    SKETCH = os.path.abspath(path)
+    HTML_DIR = os.path.join(SKETCH, "console")
 
 
 def header_path(rel):
@@ -288,20 +329,95 @@ def gz_problem(block, ident, storage, body):
     return None
 
 
+# ── the chrome stamp ───────────────────────────────────────────────────────
+# Pure functions of their arguments (ValueError, not SystemExit, on a bad
+# page) so console_serve.py stamps with exactly this code as it serves.
+
+def crc_of(body):
+    """%08x CRC32 of a literal's payload: the CRC its gzip trailer carries,
+    which is what the device compares `h` against."""
+    return "%08x" % (zlib.crc32(payload(body)) & 0xFFFFFFFF)
+
+
+def chrome_crc():
+    name, rel, delim = CHROME
+    _, body, _ = split(read(header_path(rel)), name, delim)
+    return crc_of(body)
+
+
+def load_shim(path=None):
+    """console/_pf_fallback.js as it is stamped: leading `//` lines dropped,
+    whitespace trimmed. Kept to one line so no newline style (a CRLF working
+    tree, an LF index) can make the same file stamp two ways."""
+    path = path or os.path.join(HTML_DIR, SHIM_FILE)
+    lines = read(path).splitlines()
+    while lines and (not lines[0].strip() or lines[0].lstrip().startswith("//")):
+        lines.pop(0)
+    shim = "\n".join(lines).strip()
+    if not shim:
+        raise ValueError("%s: empty" % SHIM_FILE)
+    if "\n" in shim:
+        raise ValueError("%s: the code must be one line" % SHIM_FILE)
+    # Inline in a <script>: </script ends it early, and <!-- or <script put
+    # the HTML parser in its escaped states, where a later </script> can be
+    # swallowed. )HTML" would end the header's raw string.
+    for bad in ("</script", "<!--", "<script"):
+        if bad in shim.lower():
+            raise ValueError("%s: may not contain %s" % (SHIM_FILE, bad))
+    if (")%s\"" % PAGE_DELIM) in shim:
+        raise ValueError("%s: may not contain )%s\"" % (SHIM_FILE, PAGE_DELIM))
+    return shim
+
+
+def stamp(html, crc, shim, name="page"):
+    """The page's source -> the literal its header carries."""
+    n = html.count(CHROME_TAG)
+    if n != 1:
+        raise ValueError("%s: needs exactly one %s, has %d" % (name, CHROME_TAG, n))
+    if STAMPED_RE.search(html):
+        raise ValueError("%s: already carries a stamped chrome tag" % name)
+    return html.replace(CHROME_TAG, STAMPED % (crc, shim))
+
+
+def unstamp(body, name="page"):
+    """The header's literal -> the page's source. A literal from before the
+    stamp existed has the bare tag and comes back unchanged."""
+    found = STAMPED_RE.findall(body)
+    if len(found) > 1:
+        raise ValueError("%s: %d stamped chrome tags — splice by hand" % (name, len(found)))
+    return STAMPED_RE.sub(lambda m: CHROME_TAG, body)
+
+
 # ── commands ───────────────────────────────────────────────────────────────
+
+def stamping():
+    """(chrome crc, shim) for this run. The crc is read off whatever the
+    chrome literal holds right now, so a chrome edit restamps every page on
+    the next build and fails check until then."""
+    try:
+        return chrome_crc(), load_shim()
+    except (ValueError, OSError) as e:
+        raise SystemExit(str(e))
+
 
 def cmd_extract():
     for name, rel in PAGES:
         _, body, _ = split(read(header_path(rel)), name)
-        write(html_path(name), body)
+        try:
+            write(html_path(name), unstamp(body, name))
+        except ValueError as e:
+            raise SystemExit(str(e))
         print("  %-9s <- %s" % (name + ".html", rel))
     print("\n%d pages extracted. `build` now is a no-op apart from the" % len(PAGES))
-    print("edit-me note and the gzip twins; anything else in the diff is a bug")
-    print("in this script.")
+    print("edit-me note, the chrome stamp and the gzip twins; anything else in")
+    print("the diff is a bug in this script.")
 
 
 def cmd_build():
-    changed = 0
+    crc, shim = stamping()
+    changed = []
+    pages_gz = chrome_gz = 0
+    print("  stamping chrome h=%s, fallback %d bytes" % (crc, len(shim)))
     for name, rel, delim, src in targets():
         dest = header_path(rel)
         old = read(dest)
@@ -310,18 +426,30 @@ def cmd_build():
         if src is not None:
             if not os.path.exists(src):
                 raise SystemExit(name + ": " + src + " missing (run extract first)")
-            prefix, body = with_note(prefix, name), read(src)
+            try:
+                prefix, body = with_note(prefix, name), stamp(read(src), crc, shim, name)
+            except ValueError as e:
+                raise SystemExit(str(e))
         new, gz_len = assemble(prefix, body, suffix, ident, storage, newline_of(old), name)
+        if src is not None:
+            pages_gz += gz_len
+        elif (name, rel, delim) == CHROME:
+            chrome_gz = gz_len
         status = "up to date"
         if new != old:
-            write(dest, new)
-            changed += 1
-            status = "wrote " + rel
+            changed.append((dest, new))
+            status = "writes " + rel
         print("  %-13s %6d -> %6d bytes gz  %s" % (name, len(payload(body)), gz_len, status))
-    print(("%d header(s) updated" % changed) if changed else "already up to date")
+    # Written only once every page has stamped: a page without its chrome tag
+    # must not leave the tree half on the new chrome and half on the old.
+    for dest, new in changed:
+        write(dest, new)
+    print("  pages %d bytes gz in all; the chrome %d, fetched once per chrome" % (pages_gz, chrome_gz))
+    print(("%d header(s) updated" % len(changed)) if changed else "already up to date")
 
 
 def cmd_check():
+    crc, shim = stamping()
     stale = []
     for name, rel, delim, src in targets():
         prefix, body, suffix = split(read(header_path(rel)), name, delim)
@@ -330,8 +458,23 @@ def cmd_check():
             if not os.path.exists(src):
                 stale.append(name + " (no .html)")
                 continue
-            if body != read(src) or with_note(prefix, name) != prefix:
-                stale.append(name)
+            html = read(src)
+            try:
+                want = stamp(html, crc, shim, name)
+            except ValueError as e:
+                stale.append("%s (%s)" % (name, e))
+                continue
+            if body != want or with_note(prefix, name) != prefix:
+                # Say which: a page whose HTML is in the header and only the
+                # stamp moved is the chrome (or the fallback) having changed.
+                try:
+                    only_stamp = with_note(prefix, name) == prefix and unstamp(body, name) == html
+                except ValueError:
+                    only_stamp = False
+                why = ""
+                if only_stamp:
+                    why = " (not stamped)" if CHROME_TAG in body else " (stale chrome stamp)"
+                stale.append(name + why)
                 continue
         _, block, _ = split_suffix(suffix, ident, name)
         problem = gz_problem(block, ident, storage, body)
@@ -341,18 +484,24 @@ def cmd_check():
         print("out of sync: " + ", ".join(stale))
         print("run: python firmware/toolchain/console_pages.py build")
         return 1
-    print("all %d console headers match their HTML; all %d gzip twins "
-          "decompress to their literals" % (len(PAGES), len(PAGES) + len(ASSETS)))
+    print("all %d console headers match their HTML, stamped with chrome h=%s; "
+          "all %d gzip twins decompress to their literals"
+          % (len(PAGES), crc, len(PAGES) + len(ASSETS)))
     return 0
 
 
 if __name__ == "__main__":
-    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
-    if cmd == "extract":
+    ap = argparse.ArgumentParser(add_help=False)
+    ap.add_argument("cmd", nargs="?", default="")
+    ap.add_argument("--sketch")
+    args, extra = ap.parse_known_args()
+    if args.sketch:
+        set_sketch(args.sketch)
+    if args.cmd == "extract" and not extra:
         cmd_extract()
-    elif cmd == "build":
+    elif args.cmd == "build" and not extra:
         cmd_build()
-    elif cmd == "check":
+    elif args.cmd == "check" and not extra:
         sys.exit(cmd_check())
     else:
         print(__doc__)

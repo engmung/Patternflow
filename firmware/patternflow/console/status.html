@@ -25,19 +25,42 @@ color:var(--muted);margin:0 0 8px}
 dl{margin:0;border-top:1px solid var(--rule-soft)}
 .row{display:flex;align-items:baseline;gap:12px;padding:7px 2px;
 border-bottom:1px solid var(--rule-soft)}
-dt{flex:1;font-size:13px;color:var(--muted);margin:0}
-dd{margin:0;font-family:var(--mono);font-size:12px;text-align:right}
+dt{flex:1 0 auto;font-size:13px;color:var(--muted);margin:0}
+dd{margin:0;min-width:0;font-family:var(--mono);font-size:12px;text-align:right;overflow-wrap:anywhere}
 dd.big{font-size:13px;font-weight:600}
 .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--led)}
 .bar{height:3px;background:var(--rule-soft);margin-top:5px;width:100%}
 .bar i{display:block;height:100%;background:var(--led)}
 .note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
+.tools{display:flex;align-items:center;gap:12px;margin-top:14px}
+button{position:relative;font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+padding:6px 12px;background:transparent;color:var(--muted);border:1px solid var(--rule);border-radius:2px;cursor:pointer}
+button:hover{color:var(--ink);border-color:var(--led)}
+@media(pointer:coarse){button::after{content:"";position:absolute;top:-8px;bottom:-8px;left:-4px;right:-4px}}
+.msg{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.msg.pf-ok{color:var(--ok)}.msg.pf-err{color:var(--led)}
+#cptext{display:block;width:100%;height:180px;margin-top:10px;padding:8px;resize:vertical;
+background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:2px;font:11px/1.45 var(--mono)}
+[hidden]{display:none!important}
+.pf-offline dd{opacity:.5}
 footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
 font-family:var(--mono);font-size:11px;color:var(--faint)}
 a{color:var(--muted)}
 </style></head><body><div class="wrap">
 <header><span class="dot"></span><h1>Status</h1><span class="sub" id="up">-</span></header>
 
+<!-- This page is what gets screenshotted, or pasted, when somebody asks for
+     help: the button copies every field /api/status has, not just the rows. -->
+<div class="tools"><button type="button" id="copy">Copy diagnostics</button><span class="msg" id="cpmsg"></span></div>
+<textarea id="cptext" readonly hidden aria-label="Diagnostics"></textarea>
+
+<section><h2>Device</h2><dl>
+  <div class="row"><dt>Firmware</dt><dd id="fw">-</dd></div>
+  <div class="row"><dt>Build</dt><dd id="bld">-</dd></div>
+  <div class="row"><dt>Last restart</dt><dd id="rr">-</dd></div>
+  <div class="row"><dt>Busy</dt><dd id="busy">-</dd></div>
+  <div class="row"><dt>Panel size</dt><dd id="pn">-</dd></div>
+</dl></section>
 
 <section><h2>Render</h2><dl>
   <div class="row"><dt>Panel</dt><dd id="pwr">-</dd></div>
@@ -51,6 +74,7 @@ a{color:var(--muted)}
   <div class="row"><dt>Total</dt><dd id="pt">-</dd></div>
   <div class="row"><dt>Built into firmware</dt><dd id="pp">-</dd></div>
   <div class="row"><dt>Loaded from storage</dt><dd id="pm">-</dd></div>
+  <div class="row"><dt>Last load error</dt><dd id="le">-</dd></div>
 </dl>
 <p class="note" id="loadnote"></p></section>
 
@@ -60,20 +84,29 @@ a{color:var(--muted)}
   <div class="row"><dt>PSRAM free</dt><dd id="hp">-</dd></div>
 </dl>
 <p class="note">Internal heap is the scarce one - the LED panel's DMA buffers
-live there. Below ~10 KB this page itself stops loading.</p></section>
+live there. A pattern module loads only if it leaves <span id="rsv">24 KB</span>
+of it free; run lower and the network is the first thing to go, while the
+panel keeps drawing.</p></section>
 
 <section><h2>Storage</h2><dl>
   <div class="row"><dt>Pattern storage</dt><dd id="fs">-</dd></div>
+  <div class="row"><dt>Storage error</dt><dd id="fse">-</dd></div>
 </dl><div class="bar"><i id="fsbar" style="width:0"></i></div></section>
 
+<!-- Two links that can be up at once: the network the panel joined (the
+     station) and the panel's own hotspot. Each gets its own rows. -->
 <section><h2>Network</h2><dl>
   <div class="row"><dt>Network</dt><dd id="ss">-</dd></div>
   <div class="row"><dt>Signal</dt><dd id="rs">-</dd></div>
   <div class="row"><dt>Address</dt><dd id="ip">-</dd></div>
+  <div class="row"><dt>Names</dt><dd id="nm">-</dd></div>
+  <div class="row"><dt>Hotspot</dt><dd id="hs">-</dd></div>
+  <div class="row"><dt>Hotspot mode</dt><dd id="hsm">-</dd></div>
+  <div class="row"><dt>Hotspot clients</dt><dd id="hsc">-</dd></div>
+  <div class="row"><dt>Reached via</dt><dd id="via">-</dd></div>
 </dl></section>
 
-<footer>Firmware <span id="fw">-</span><span id="var"></span> &middot; panel <span id="pn">-</span>
-&nbsp;<a href="/">Home</a> &middot; <a href="/patterns">Patterns</a></footer>
+<footer><a href="/">Home</a> &middot; <a href="/patterns">Patterns</a></footer>
 </div>
 <script>
 function $(i){return document.getElementById(i)}
@@ -85,65 +118,140 @@ function dur(s){
   if(m)return m+'m '+x+'s';return x+'s';
 }
 function cls(el,c){el.className='big '+c}
+function put(id,t,c){var e=$(id);e.textContent=t;e.className=c||''}
+// esp_reset_reason() as the firmware names it, in words. The ones a bug
+// causes are red: two reboots once went unnoticed because from the network
+// a crash looks exactly like a hand on the plug.
+var RR={poweron:'power on',ext:'reset pin',sw:'software restart',panic:'crash (panic)',
+  int_wdt:'watchdog (interrupt)',task_wdt:'watchdog (task)',wdt:'watchdog',
+  deepsleep:'wake from deep sleep',brownout:'brownout (power dip)'};
+var BUSY={storage:'writing patterns',update:'receiving firmware'};
 
-function tick(){
-  fetch('/api/status').then(function(r){return r.json()}).then(function(d){
-    $('up').textContent='up '+dur(d.uptime);
-    $('fw').textContent=d.version;$('pn').textContent=d.panel;
-    // This page is what gets screenshotted when somebody asks for help, so
-    // it has to say which firmware that screenshot is of. Core says nothing
-    // extra — it is the default and the noise is not worth it.
-    $('var').textContent=(d.variant&&d.variant!=='core')?(' · '+d.variant):'';
+var last=null;
+function paint(d){
+  last=d;
+  $('up').textContent='up '+dur(d.uptime);
+  // This page is what gets screenshotted when somebody asks for help, so
+  // it has to say which firmware that screenshot is of. Core says nothing
+  // extra — it is the default and the noise is not worth it.
+  put('fw',d.version+((d.variant&&d.variant!=='core')?' · '+d.variant+(d.variantVersion?' '+d.variantVersion:''):''));
+  put('bld',d.build||'-');
+  put('rr',RR[d.resetReason]||d.resetReason||'-',/panic|wdt|brownout/.test(d.resetReason)?'bad':'');
+  put('busy',d.busy?(BUSY[d.busy]||d.busy):'no',d.busy?'warn':'');
+  put('pn',d.panel||'-');
 
-    // Read-only here; the switch lives on the console home page. Both dark
-    // states are worth naming, because the numbers below them look identical
-    // either way — and asleep or paused, the frame rate is from before the
-    // panel went dark.
-    var dark=d.sleep||d.consolePaused;
-    $('pwr').textContent=d.sleep?'asleep':d.consolePaused?'paused by console':'awake';
-    $('pwr').className=d.sleep?'warn':'';
-    $('pwrnote').textContent=d.sleep
-      ?'Panel off, still on the network. Any knob or button wakes it, as does the switch on the console home page.'
-      :d.consolePaused?'This console is holding the pattern paused to free memory. It resumes when you are done.':'';
+  // Read-only here; the switch lives on the console home page. Both dark
+  // states are worth naming, because the numbers below them look identical
+  // either way — and asleep or paused, the frame rate is from before the
+  // panel went dark.
+  var dark=d.sleep||d.consolePaused;
+  put('pwr',d.sleep?'asleep':d.consolePaused?'paused for storage':'awake',dark?'warn':'');
+  // The console no longer pauses the pattern for being open: the pause is
+  // an upload batch or a format holding the pattern's memory while it writes.
+  $('pwrnote').textContent=d.sleep
+    ?'Panel off, still on the network. Any knob or button wakes it, as does the switch on the console home page.'
+    :d.consolePaused?'Patterns are being written to storage; the pattern resumes when that is done.':'';
 
-    var fps=d.frameUs?1e6/d.frameUs:0;
-    $('fps').textContent=d.frameUs?(dark?'—':fps.toFixed(1)+' fps'):'-';
-    cls($('fps'),dark?'':fps>=45?'ok':fps>=25?'warn':'bad');
-    $('ft').textContent=d.frameUs&&!dark?(d.frameUs/1000).toFixed(2)+' ms':'-';
-    $('act').textContent=d.active+(d.activeIsModule?'  (module)':'  (built in)');
+  var fps=d.frameUs?1e6/d.frameUs:0;
+  $('fps').textContent=d.frameUs?(dark?'—':fps.toFixed(1)+' fps'):'-';
+  cls($('fps'),dark?'':fps>=45?'ok':fps>=25?'warn':'bad');
+  $('ft').textContent=d.frameUs&&!dark?(d.frameUs/1000).toFixed(2)+' ms':'-';
+  $('act').textContent=d.loading&&d.active==='-'?'loading…':
+    d.active+(d.activeIsModule?'  (module)':'  (built in)');
 
-    $('pt').textContent=d.patterns;$('pp').textContent=d.presets;
-    $('pm').textContent=d.modules;
+  $('pt').textContent=d.patterns;$('pp').textContent=d.presets;
+  $('pm').textContent=d.modules;
+  put('le',d.loadError||'none',d.loadError?'bad':'');
 
-    if(d.load.total){
-      $('loadnote').textContent='Last module load: '+(d.load.total/1000).toFixed(1)+
-        ' ms  =  read '+(d.load.read/1000).toFixed(1)+
-        ' + relocate '+(d.load.relocate/1000).toFixed(1)+
-        ' + setup '+(d.load.setup/1000).toFixed(1)+' ms';
-    } else {
-      $('loadnote').textContent='No module loaded since boot.';
-    }
+  var ld=d.load||{};
+  if(ld.total){
+    $('loadnote').textContent='Last module load: '+(ld.total/1000).toFixed(1)+
+      ' ms  =  read '+(ld.read/1000).toFixed(1)+
+      ' + relocate '+(ld.relocate/1000).toFixed(1)+
+      ' + setup '+(ld.setup/1000).toFixed(1)+' ms';
+  } else {
+    $('loadnote').textContent='No module loaded since boot.';
+  }
 
-    $('hi').textContent=kb(d.heapInternal);
-    $('hi').className=d.heapInternal>12288?'ok':d.heapInternal>8192?'warn':'bad';
-    $('hl').textContent=kb(d.heapLargest);
-    $('hp').textContent=kb(d.heapPsram);
+  // The loader's own floor (moduleMemory.reserve) is the line that matters,
+  // so the colours follow it rather than a fixed number: red at or under
+  // it, amber within 8 KB of it.
+  var rsv=(d.moduleMemory&&d.moduleMemory.reserve)||24576;
+  $('rsv').textContent=kb(rsv);
+  put('hi',kb(d.heapInternal),d.heapInternal>rsv+8192?'ok':d.heapInternal>rsv?'warn':'bad');
+  $('hl').textContent=kb(d.heapLargest);
+  $('hp').textContent=kb(d.heapPsram);
 
-    if(d.fsMounted){
-      var used=d.fsUsed,tot=d.fsTotal;
-      $('fs').textContent=kb(tot-used)+' free of '+kb(tot);
-      $('fsbar').style.width=(tot?used/tot*100:0)+'%';
-    } else { $('fs').textContent='not mounted'; $('fs').className='bad'; }
+  if(d.fsMounted){
+    var used=d.fsUsed,tot=d.fsTotal;
+    put('fs',kb(tot-used)+' free of '+kb(tot));
+    $('fsbar').style.width=(tot?used/tot*100:0)+'%';
+  } else { put('fs','not mounted','bad'); $('fsbar').style.width='0'; }
+  put('fse',d.fsError||'none',d.fsError?'bad':'');
 
-    $('ss').textContent=d.wifi?d.ssid:'offline';
-    $('ss').className=d.wifi?'ok':'bad';
-    $('rs').textContent=d.wifi?d.rssi+' dBm':'-';
-    $('ip').textContent=d.wifi?d.ip:'-';
+  // Station first. With no network joined but the hotspot up (which is how
+  // this page is reached then), that is a setup state, not a fault.
+  var hs=d.hotspot||{};
+  put('ss',d.wifi?d.ssid:d.viaHotspot||hs.up?'hotspot only':'offline',
+    d.wifi?'ok':d.viaHotspot||hs.up?'warn':'bad');
+  $('rs').textContent=d.wifi?d.rssi+' dBm':'-';
+  $('ip').textContent=d.wifi?d.ip:'-';
+  // The board's own alias first: it is the one no other panel answers to.
+  var nm=[];
+  if(d.hostAlias)nm.push(d.hostAlias+'.local');
+  if(d.host&&d.host!==d.hostAlias)nm.push(d.host+'.local');
+  $('nm').textContent=nm.join(' · ')||'-';
+  put('hs',hs.up?'on · '+hs.ssid+(hs.ip?' · '+hs.ip:''):'off',hs.up?'ok':'');
+  $('hsm').textContent=hs.mode||'-';
+  $('hsc').textContent=hs.up?hs.clients:'-';
+  $('via').textContent=d.viaHotspot?'the panel’s hotspot':'the network';
 
-    // No feature rows here. This page had an MQTT line, capability-gated -
-    // a core page reporting one feature's state by name. A feature's state
-    // lives on that feature's own page, one click from the header.
-  }).catch(function(){$('up').textContent='disconnected'});
+  // No feature rows here. This page had an MQTT line, capability-gated -
+  // a core page reporting one feature's state by name. A feature's state
+  // lives on that feature's own page, one click from the header. (Copy
+  // diagnostics still carries whatever fields the features append.)
 }
-tick();setInterval(tick,2000);
+
+// ── Copy diagnostics ──────────────────────────────────────────
+// Every field of the latest status as "key: value" lines, nested objects
+// dotted, so a paste into an issue or a chat says everything a screenshot
+// cannot.
+function flat(o,p,out){
+  for(var k in o){
+    var v=o[k],n=p?p+'.'+k:k;
+    if(v&&typeof v==='object'&&!Array.isArray(v))flat(v,n,out);
+    else out.push(n+': '+(Array.isArray(v)?v.map(function(x){return x&&typeof x==='object'?JSON.stringify(x):x}).join(', '):v));
+  }
+  return out;
+}
+// http:// is not a secure context, so navigator.clipboard is usually missing
+// on a panel's address; execCommand('copy') from the click still works in
+// every browser that matters. If both fail the text is shown to copy by hand.
+function legacyCopy(t){
+  var a=document.createElement('textarea'),ok=false;
+  a.value=t;a.setAttribute('readonly','');
+  a.style.cssText='position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(a);
+  a.select();a.setSelectionRange(0,t.length);
+  try{ok=document.execCommand('copy')}catch(e){}
+  document.body.removeChild(a);
+  if(!ok)throw Error('copy refused');
+}
+function copyText(t){
+  if(window.isSecureContext&&navigator.clipboard&&navigator.clipboard.writeText)
+    return navigator.clipboard.writeText(t).then(null,function(){legacyCopy(t)});
+  return new Promise(function(y){legacyCopy(t);y()});
+}
+$('copy').addEventListener('click',function(){
+  var m=$('cpmsg'),a=$('cptext');
+  if(!last){PF.say('no status yet','err',m);return}
+  var t='Patternflow status · '+new Date().toISOString()+' · '+location.host+'\n'+flat(last,'',[]).join('\n');
+  copyText(t).then(function(){a.hidden=true;PF.say('copied','ok',m)},function(){
+    a.value=t;a.hidden=false;a.focus();a.select();
+    PF.say('select the text below and copy it','info',m);
+  });
+});
+
+PF.watchStatus(2000);
+PF.status(paint);
 </script></body></html>
