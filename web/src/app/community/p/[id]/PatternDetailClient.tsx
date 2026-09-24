@@ -15,6 +15,7 @@ import EditDetailsModal from "@/components/community/EditDetailsModal";
 import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
 import SendModuleModal from "@/components/community/SendModuleModal";
+import { ZipProgress } from "@/components/community/ZipDownload";
 import { buildsConfigured } from "@/lib/community/apiBase";
 import { COLLECTION_EVENT, deckAdd, deckHas, deckRemove } from "@/lib/community/deck";
 import { knobSetupFromCode } from "@/lib/community/knobs";
@@ -24,6 +25,7 @@ import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/downlo
 import { communityPatternUrl } from "@/lib/community/license";
 import type { Provenance } from "@/lib/community/provenance";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { useZipDownload } from "@/lib/community/zipDownload";
 import { captureEvent } from "@/lib/posthogEvents";
 import styles from "@/components/community/Community.module.css";
 
@@ -169,6 +171,17 @@ export default function PatternDetailClient({
   };
 
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // The compiled module as a file. Only a public pattern has one: its zip
+  // address takes no session, so anything else answers it like a missing
+  // pattern — and there Send falls back to building the header signed in.
+  const zipInstallable = buildsConfigured() && pattern.codeCpp !== null && pattern.visibility === "public";
+  const zip = useZipDownload(communityApiUrl(`/api/community/patterns/${pattern.id}/zip`), "pattern");
+  const downloadZip = async () => {
+    if (await zip.download()) {
+      captureEvent("community_download", { pattern_id: pattern.id, kind: "zip" });
+    }
+  };
 
   const knobSetup = useMemo(() => knobSetupFromCode(pattern.code), [pattern.code]);
 
@@ -334,14 +347,9 @@ export default function PatternDetailClient({
             <button type="button" className={styles.btn} onClick={() => setRunning((v) => !v)}>
               {running ? "Pause" : "Run"}
             </button>
-            <button
-              type="button"
-              className={styles.btn}
-              disabled={!edited}
-              onClick={() => setCode(pattern.code)}
-            >
-              Reset code
-            </button>
+            {/* No "Reset code" button: reloading the page does the same, and
+                the row has enough buttons without one that is disabled until
+                you type. */}
             <button
               type="button"
               className={styles.btnAccent}
@@ -356,17 +364,36 @@ export default function PatternDetailClient({
             </button>
             {/* Only for patterns that ship a verified header — this is the
                 zero-friction path: nothing to convert, nothing to install. */}
-            {/* One pattern, onto the board, no USB. Builds a single .pfm and
-                hands it to the device over Wi-Fi — the only path there is now
-                that whole-image builds are gone. */}
+            {/* One pattern, onto the board, no USB. The module is compiled
+                once per header and kept, and the board is handed its address
+                over Wi-Fi — the only path there is now that whole-image
+                builds are gone. */}
             {buildsConfigured() && pattern.codeCpp && (
               <button
                 type="button"
                 className={styles.btnAccent}
-                title="Build this pattern as a loadable module and install it over Wi-Fi"
+                title={
+                  zipInstallable
+                    ? "Install this pattern over Wi-Fi, or download it as a .zip — no sign-in needed"
+                    : "Build this pattern as a loadable module and install it over Wi-Fi"
+                }
                 onClick={() => setSendOpen(true)}
               >
                 ↗ Send to my Patternflow
+              </button>
+            )}
+            {/* The same module as a file, for a board this browser cannot
+                reach (a VPN) or a USB stick. Beside Send, not inside it only,
+                because for those people it is the whole feature. */}
+            {zipInstallable && (
+              <button
+                type="button"
+                className={styles.btn}
+                disabled={zip.busy}
+                title="Download the compiled module to drop on your board's Patterns page"
+                onClick={() => void downloadZip()}
+              >
+                {zip.busy ? "Preparing…" : "↓ Download .zip"}
               </button>
             )}
             {/* "Save" used to sit here as a second keeping gesture beside the
@@ -395,6 +422,22 @@ export default function PatternDetailClient({
               </button>
             )}
           </div>
+
+          {zipInstallable && (
+            <ZipProgress
+              kind="pattern"
+              phase={zip.phase}
+              status={zip.status}
+              error={zip.error}
+              detail={zip.detail}
+            />
+          )}
+          {zipInstallable && zip.phase === "ready" && (
+            <p className={styles.zipHint}>
+              Drop the .zip on your board&rsquo;s Patterns page (Upload) — don&rsquo;t unzip it.
+              Send to my Patternflow has the steps.
+            </p>
+          )}
 
           {isOwner && edited && pattern.codeCpp && (
             <p className={styles.warnNote}>
@@ -738,13 +781,21 @@ export default function PatternDetailClient({
         />
       )}
 
-      {sendOpen && pattern.codeCpp && (
-        <SendModuleModal
-          patternTitle={pattern.title}
-          code={pattern.codeCpp}
-          onClose={() => setSendOpen(false)}
-        />
-      )}
+      {sendOpen &&
+        pattern.codeCpp &&
+        (zipInstallable ? (
+          <SendModuleModal
+            patternTitle={pattern.title}
+            patternId={pattern.id}
+            onClose={() => setSendOpen(false)}
+          />
+        ) : (
+          <SendModuleModal
+            patternTitle={pattern.title}
+            code={pattern.codeCpp}
+            onClose={() => setSendOpen(false)}
+          />
+        ))}
 
       {detailsModalOpen && (
         <EditDetailsModal

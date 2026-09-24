@@ -11,17 +11,20 @@ import styles from "./Community.module.css";
 // saw is a small act of faith no interface has earned.
 //
 // The panel also answers the question the deck page kept provoking: where do
-// I bake the pack? Nowhere. It is built the first time anybody asks for it
-// and rebuilt whenever the running order changes, so there is no publish step
-// to hunt for — a fact worth stating outright, because an absent button reads
-// as a missing feature.
+// I bake the pack? Nowhere. Each pattern's module is compiled once, the first
+// time anybody asks for it, and the pack is put together from those whenever
+// it is downloaded — so rearranging the deck needs nothing rebuilt and there
+// is no publish step to hunt for. A fact worth stating outright, because an
+// absent button reads as a missing feature.
+//
+// "Download .zip" here is the deck page's own download, not a second copy of
+// it: pressing it closes the panel and the page shows the progress.
 
 export default function ShareDeckPackModal({
   packUrl,
   installUrl,
   onCopyLink,
   onDownload,
-  downloadNote,
   onClose,
 }: {
   /** Absolute address of the deck's pack. */
@@ -30,9 +33,8 @@ export default function ShareDeckPackModal({
   installUrl: string | null;
   /** Copies the link and warms the build. Returns once the clipboard is set. */
   onCopyLink: () => Promise<boolean>;
+  /** Starts the page's download (and closes this panel). */
   onDownload: () => void;
-  /** Progress text while a pack compiles, from the page. */
-  downloadNote: string | null;
   onClose: () => void;
 }) {
   const [copied, setCopied] = useState(false);
@@ -91,13 +93,14 @@ export default function ShareDeckPackModal({
           </div>
 
           <p className={styles.shareNote}>
-            The pack is built the first time someone asks for it, and rebuilt whenever you change
-            the running order. There is nothing to publish.
+            Each pattern is compiled the first time someone asks for it; after that the pack is
+            ready at once, and changing the running order needs nothing rebuilt. There is nothing to
+            publish.
           </p>
 
           <div className={styles.shareAlt}>
             <button type="button" className={styles.btnSmall} onClick={onDownload}>
-              {downloadNote ?? "Download .zip"}
+              Download .zip
             </button>
             {installUrl && (
               <a className={styles.shareAltLink} href={installUrl}>

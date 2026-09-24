@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     "Terms of use and privacy notice for the Patternflow community: who owns what, what we do with your patterns, how to report something, and what data we keep.",
 };
 
-const UPDATED = "29 July 2026";
+const UPDATED = "24 September 2026";
 const CONTACT = "contact@patternflow.work";
 
 export default function TermsPage() {
@@ -91,14 +91,22 @@ export default function TermsPage() {
           </p>
           <ul>
             <li>render it in the browser preview and generate thumbnail images from it,</li>
-            <li>compile it into firmware images and loadable pattern modules on request,</li>
-            <li>distribute those build artifacts to the person who asked for them,</li>
+            <li>
+              compile it into firmware images and loadable pattern modules — on request, and
+              for a published firmware header ahead of time, so that it installs without a wait,
+            </li>
+            <li>
+              distribute those build artifacts to the person who asked for them, and the compiled
+              modules of a published pattern or deck to anyone who can open it, together with
+              the credit and licence it was published under,
+            </li>
             <li>show excerpts of it in listings, search results, and link previews.</li>
           </ul>
           <p>
             This licence exists only to run the service and ends when you remove the content,
-            except for copies already distributed and for backups that age out normally. It does
-            not let us sell your work or licence it to anyone else.
+            except for copies already distributed, for compiled modules awaiting deletion
+            (section 9), and for backups that age out normally. It does not let us sell your
+            work or licence it to anyone else.
           </p>
         </section>
 
@@ -198,8 +206,13 @@ export default function TermsPage() {
               <strong>90 days</strong>.
             </li>
             <li>
-              <strong>Firmware build artifacts</strong> — <strong>30 days</strong>. They can always
-              be rebuilt.
+              <strong>Compiled pattern modules</strong> — held while the firmware header they were
+              compiled from is on the site, and deleted within <strong>30 days</strong> after it
+              is removed or replaced.
+            </li>
+            <li>
+              <strong>Other firmware build artifacts</strong> — <strong>30 days</strong>. They can
+              always be rebuilt.
             </li>
             <li>
               <strong>Alerts</strong> — <strong>90 days</strong>, read or unread, and sooner when

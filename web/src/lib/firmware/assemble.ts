@@ -28,18 +28,58 @@ export type CustomPatternInput = {
 // rejected because there would be nothing to name.
 const NAMESPACE_RE = /^[ \t]*namespace[ \t]+([A-Za-z_]\w*)[ \t]*\{/m;
 
+/** Strip comments (block and line) but keep string literals. */
+function stripComments(code: string): string {
+  return code.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+}
+
 /** Strip comments and string literals so scans can't trip over them. */
 function stripCommentsAndStrings(code: string): string {
-  return code
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/\/\/[^\n]*/g, " ")
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""');
+  return stripComments(code).replace(/"(?:[^"\\\n]|\\.)*"/g, '""');
 }
 
 /** The namespace a header declares, or null when it declares none usable. */
 export function extractNamespace(code: string): string | null {
   return stripCommentsAndStrings(code).match(NAMESPACE_RE)?.[1] ?? null;
 }
+
+// port_preset.py drops a line from the ported source when, after trimming, it
+// starts with "#include" (or "#pragma once"). Everything else it keeps
+// verbatim — so an include-like directive it does NOT catch reaches the
+// compiler and can pull in an arbitrary file. Mirror its rule exactly: a
+// normal `#include "…"` is fine here because the porter deletes it, but the
+// spellings it misses are not.
+function portPresetStrips(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith("#include") || trimmed.startsWith("#pragma once");
+}
+
+// An include-like preprocessor directive: `#include`, `#include_next`,
+// `#embed`, `#import`, with any spacing between `#` and the keyword. The ones
+// port_preset.py leaves in (`# include "x"`, `#embed`, `#import`, …) would
+// otherwise read a file the compiler can reach; a submitted pattern never
+// needs any of them (it gets pf_module.h and the shared math headers).
+const INCLUDE_DIRECTIVE_RE = /^\s*#\s*(?:include|include_next|embed|import)\b/;
+
+// Inline assembly. `.incbin` embeds a file's raw bytes into the object (the
+// Xtensa toolchain honours it), and asm() can reach the same places a
+// directive can; a pattern has no legitimate use for either. Tested against
+// comment-stripped source — but NOT string-stripped, because the `.incbin`
+// exploit hides inside a `section("… .incbin \"file\" …")` attribute STRING,
+// so removing string contents would remove the payload with them. A comment
+// that merely names "asm" stays inert.
+const INLINE_ASM_RE = /\basm\s*(?:volatile\s*)?\(|__asm__|__asm\b|\.incbin\b/;
+
+// These two patterns are a first filter, NOT a boundary. They read spellings,
+// and the compiler reads meaning: a backslash-newline between `#` and
+// `include`, a comment inside the directive, the `%:` digraph for `#`, a macro
+// that expands to `asm`, or `.incbin` split across two string literals all get
+// past them (each was verified against the real toolchain on 2026-09-24).
+// What bounds a header is the compiler sandbox on the build host — on the Pi
+// the compiler sees only the toolchain, system directories and the public
+// firmware sources (docs/SERVICES.md). Do not describe this check as stopping
+// file access, and do not run a worker for other people's headers without
+// that sandbox.
 
 /**
  * Shape check on a submitted header. This cannot tell whether the pattern
@@ -61,6 +101,23 @@ export function validateCustomPattern(code: string): { ok: true; namespace: stri
       ok: false,
       error: "No named namespace found — a pattern needs `namespace YourPattern { … }`.",
     };
+  }
+
+  // A header may not reach other files or drop into assembly. This refuses the
+  // plain spellings that would survive the porter — not every spelling (see
+  // the note above INCLUDE_DIRECTIVE_RE: the sandbox is the boundary). No
+  // community pattern needs any of them; a plain `#include` is fine because
+  // the porter deletes it. Checked before the compiler ever runs (this
+  // function guards both POST /builds and the worker), and the verdict is
+  // deterministic — a header that trips it fails identically every time, so it
+  // is cached, not recompiled on each retry.
+  for (const line of code.split(/\r?\n/)) {
+    if (INCLUDE_DIRECTIVE_RE.test(line) && !portPresetStrips(line)) {
+      return { ok: false, error: "Pattern headers may not include other files or use inline assembly." };
+    }
+  }
+  if (INLINE_ASM_RE.test(stripComments(code))) {
+    return { ok: false, error: "Pattern headers may not include other files or use inline assembly." };
   }
 
   // The five symbols a pattern entry expands to. Missing any of them is a link

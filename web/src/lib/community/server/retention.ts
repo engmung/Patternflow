@@ -1,10 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { lt, isNotNull, sql } from "drizzle-orm";
+import { and, eq, lt, isNotNull, ne, sql } from "drizzle-orm";
 import { attachmentDir } from "./attachments";
 import { artifactDir } from "./builds";
 import { getDb } from "./db";
-import { builds, notifications, postAttachments, session, verification } from "./schema";
+import { currentBuilderRev, liveHeaderShas } from "./moduleCache";
+import { builds, moduleCache, notifications, postAttachments, session, verification } from "./schema";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Retention sweep.
@@ -25,6 +26,30 @@ export const SESSION_MAX_AGE_DAYS = 90;
 
 /** /terms §9 — build artifacts last 30 days. They can always be rebuilt. */
 export const BUILD_MAX_AGE_DAYS = 30;
+
+/**
+ * A compiled module (module_cache) whose header is no longer on the site goes
+ * after it was last served. One whose header IS still on the site stays for as
+ * long as the header does: it is that header's compiled form, and deleting it
+ * would only mean compiling it again. "On the site" is patterns.code_cpp or a
+ * non-stale port — the same texts resolveHeader() can pick from — hashed here
+ * exactly as the cache keys them.
+ *
+ * /terms §9 promises deletion within **30 days** of the header being removed.
+ * The threshold is 29, not 30, on purpose: `used_at` moves at most once a day
+ * (touchModules) and the sweep runs once a day, so the two granularities can
+ * each add up to a day. At 30 the outer edge lands at ~31 days — a day past
+ * the promise; at 29 it stays inside 30.
+ */
+export const MODULE_CACHE_MAX_IDLE_DAYS = 29;
+
+/**
+ * Modules built by a toolchain that has since moved on are never served again
+ * (the web reads only the current revision), so a week without use is enough.
+ * A week rather than at once because a firmware rollback returns to the old
+ * revision, and its rows are then instantly valid again.
+ */
+export const MODULE_CACHE_OLD_TOOLCHAIN_DAYS = 7;
 
 /** /terms §9 — notifications last 90 days, read or not. After that an unread
  *  one is not waiting, it is clutter. */
@@ -47,6 +72,10 @@ export type SweepResult = {
   orphanFilesDeleted: number;
   orphanAttachmentsDeleted: number;
   artifactBytesFreed: number;
+  /** module_cache rows of an older toolchain, unused for a week. */
+  oldToolchainModules: number;
+  /** module_cache rows whose header left the site, unserved for 30 days. */
+  unpublishedModules: number;
   errors: string[];
 };
 
@@ -59,7 +88,58 @@ export function describeSweep(result: SweepResult): string {
     `notifications: ${result.oldNotifications} over ${NOTIFICATION_MAX_AGE_DAYS}d`,
     `files: ${result.artifactFilesDeleted} artifacts + ${result.orphanFilesDeleted} orphans (${mb} MB)`,
     `attachments: ${result.orphanAttachmentsDeleted} orphans`,
+    `modules: ${result.oldToolchainModules} old toolchain, ${result.unpublishedModules} no longer published`,
   ].join(" · ");
+}
+
+/**
+ * The module cache's two rules (see the constants above). Rows are keyed by
+ * (sha, revision), so deletions go by that pair; the live-header check runs
+ * in JS because the key is a hash of the header text, not a column SQLite
+ * could join on.
+ */
+export async function sweepModuleCache(now = new Date(), dryRun = false): Promise<{
+  oldToolchain: number;
+  unpublished: number;
+}> {
+  const db = getDb();
+  const result = { oldToolchain: 0, unpublished: 0 };
+
+  // No revision published means no worker has ever run — nothing is "old".
+  const rev = await currentBuilderRev();
+  if (rev) {
+    const cutoff = new Date(now.getTime() - MODULE_CACHE_OLD_TOOLCHAIN_DAYS * DAY_MS);
+    const where = and(ne(moduleCache.builderRev, rev), lt(moduleCache.usedAt, cutoff));
+    if (dryRun) {
+      const rows = await db.select({ n: sql<number>`COUNT(*)` }).from(moduleCache).where(where);
+      result.oldToolchain = rows[0]?.n ?? 0;
+    } else {
+      const rows = await db
+        .delete(moduleCache)
+        .where(where)
+        .returning({ sha: moduleCache.sourceSha });
+      result.oldToolchain = rows.length;
+    }
+  }
+
+  const idleCutoff = new Date(now.getTime() - MODULE_CACHE_MAX_IDLE_DAYS * DAY_MS);
+  const idle = await db
+    .select({ sha: moduleCache.sourceSha, rev: moduleCache.builderRev })
+    .from(moduleCache)
+    .where(lt(moduleCache.usedAt, idleCutoff));
+  if (idle.length === 0) return result;
+
+  const live = await liveHeaderShas();
+  const gone = idle.filter((row) => !live.has(row.sha));
+  result.unpublished = gone.length;
+  if (!dryRun) {
+    for (const row of gone) {
+      await db
+        .delete(moduleCache)
+        .where(and(eq(moduleCache.sourceSha, row.sha), eq(moduleCache.builderRev, row.rev)));
+    }
+  }
+  return result;
 }
 
 /**
@@ -134,6 +214,8 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
     orphanFilesDeleted: 0,
     orphanAttachmentsDeleted: 0,
     artifactBytesFreed: 0,
+    oldToolchainModules: 0,
+    unpublishedModules: 0,
     errors: [],
   };
 
@@ -264,6 +346,17 @@ export async function sweepRetention(now = new Date()): Promise<SweepResult> {
   result.orphanAttachmentsDeleted = attachments.deleted;
   result.errors.push(...attachments.errors);
 
+  // ── Compiled module cache ──────────────────────────────────────────────────
+  // Bake jobs are ordinary builds rows and already went with the builds rule
+  // above; this is the cache they filled.
+  try {
+    const modules = await sweepModuleCache(now);
+    result.oldToolchainModules = modules.oldToolchain;
+    result.unpublishedModules = modules.unpublished;
+  } catch (error) {
+    result.errors.push(`module cache: ${String(error)}`);
+  }
+
   return result;
 }
 
@@ -274,8 +367,11 @@ export async function previewRetention(now = new Date()): Promise<{
   expiredVerifications: number;
   oldBuilds: number;
   oldNotifications: number;
+  oldToolchainModules: number;
+  unpublishedModules: number;
 }> {
   const db = getDb();
+  const modules = await sweepModuleCache(now, true);
   const sessionCutoff = new Date(now.getTime() - SESSION_MAX_AGE_DAYS * DAY_MS);
   const buildCutoff = new Date(now.getTime() - BUILD_MAX_AGE_DAYS * DAY_MS);
   const notificationCutoff = new Date(now.getTime() - NOTIFICATION_MAX_AGE_DAYS * DAY_MS);
@@ -294,5 +390,7 @@ export async function previewRetention(now = new Date()): Promise<{
     expiredVerifications: await count(verification, lt(verification.expiresAt, now)),
     oldBuilds: await count(builds, lt(builds.createdAt, buildCutoff)),
     oldNotifications: await count(notifications, lt(notifications.createdAt, notificationCutoff)),
+    oldToolchainModules: modules.oldToolchain,
+    unpublishedModules: modules.unpublished,
   };
 }

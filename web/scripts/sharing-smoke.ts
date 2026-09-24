@@ -17,10 +17,16 @@ import path from "node:path";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pf-sharing-"));
 process.env.COMMUNITY_DB_PATH = path.join(tmp, "test.db");
 process.env.COMMUNITY_ENABLED = "1";
+// The feed route asks Better Auth for a session (there is none here), and
+// Better Auth is built with a secret — the same stand-in check:headermod uses.
+process.env.BETTER_AUTH_SECRET ??= "smoke-test-secret-not-a-real-one";
 
 const at = (day: number) => new Date(Date.UTC(2026, 6, day, 12, 0, 0));
 
 let failures = 0;
+
+/** Closes the SQLite handle, set once main has opened it. */
+let closeDb: (() => void) | null = null;
 
 function check(label: string, actual: unknown, expected: unknown) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
@@ -39,6 +45,7 @@ async function main() {
   const { DECK_MAX, PUBLIC_DECKS_MAX } = await import("../src/lib/community/deck");
 
   const db = getDb();
+  closeDb = () => db.$client.close();
 
   // ── Seed: two authors, one bystander ──────────────────────────────────────
   const person = (id: string, n: number) => ({
@@ -276,17 +283,190 @@ async function main() {
     feedNow.filter((i) => i.id !== "p-pub").map((i) => i.deckCount),
     [0],
   );
+
+  console.log("\n── the wall's and the marquee picker's search and oldest-first ──");
+  // What stands now: p-pub (alice, day 2) and p-bob (bob, day 5) are public;
+  // p-g1 is deleted and p-g2 went private above. Seed the rows the search
+  // has to get right: wildcard characters in titles, a handle that differs
+  // from its display form, and private/unlisted titles that match everything.
+  await db.insert(schema.user).values({ ...person("dora_x", 1), displayUsername: "Dora_X" });
+  const titled = (id: string, userId: string, visibility: string, day: number, title: string) => ({
+    ...pattern(id, userId, visibility, day),
+    title,
+  });
+  await db.insert(schema.patterns).values([
+    titled("s-pct", "bob", "public", 20, "100% Static"),
+    titled("s-100", "bob", "public", 21, "1000 Static"),
+    titled("s-under", "dora_x", "public", 22, "Tide_Pool"),
+    titled("s-under2", "dora_x", "public", 23, "Tide Pool"),
+    titled("s-priv", "alice", "private", 24, "Static Tide 100% Pattern!"),
+    titled("s-unl", "alice", "unlisted", 25, "Static Tide 100% Pattern!"),
+  ]);
+  const ids = async (options: Parameters<typeof queries.listFeed>[0]) =>
+    (await queries.listFeed(options)).map((item) => item.id);
+
+  check(
+    "no search is the plain newest-first wall",
+    await ids({}),
+    ["s-under2", "s-under", "s-100", "s-pct", "p-bob", "p-pub"],
+  );
+  check("…and its count", await queries.countFeed(), 6);
+  check("a blank search is no search", await ids({ q: "   " }), await ids({}));
+  check("a lone @ is no search", await ids({ q: "@" }), await ids({}));
+  check(
+    "a title match — the private and unlisted rows that match are never in it",
+    await ids({ q: "static" }),
+    ["s-100", "s-pct"],
+  );
+  check("the plain search matches handles too", (await ids({ q: "dora" })).sort(), [
+    "s-under",
+    "s-under2",
+  ]);
+  check("@name searches handles only", await ids({ q: "@bob" }), ["s-100", "s-pct", "p-bob"]);
+  check("…including the display form", (await ids({ q: "@Dora_X" })).length, 2);
+  check("@ does not fall back to titles", await ids({ q: "@static" }), []);
+  check("% is a literal percent, not a wildcard", await ids({ q: "100%" }), ["s-pct"]);
+  check("_ is a literal underscore, not any character", await ids({ q: "Tide_" }), ["s-under"]);
+  check("! (the escape character) is literal too", await ids({ q: "Pattern!" }), []);
+  check("the count agrees with a search", await queries.countFeed(false, { q: "static" }), 2);
+  check(
+    "…and with an @ search",
+    await queries.countFeed(false, { q: "@bob" }),
+    (await ids({ q: "@bob", limit: 100 })).length,
+  );
+  check("…and with a search that matches nothing", await queries.countFeed(false, { q: "zzz" }), 0);
+  check(
+    "a search stays inside the hardware filter",
+    await ids({ q: "pattern", hardwareOnly: true }),
+    ["p-pub"],
+  );
+  check("…and so does its count", await queries.countFeed(true, { q: "pattern" }), 1);
+  const oldestFirst = ["p-pub", "p-bob", "s-pct", "s-100", "s-under", "s-under2"];
+  check("sort old is oldest first", await ids({ sort: "old" }), oldestFirst);
+  check(
+    "oldest first pages without repeats",
+    [
+      ...(await ids({ sort: "old", limit: 4 })),
+      ...(await ids({ sort: "old", limit: 4, offset: 4 })),
+    ],
+    oldestFirst,
+  );
+  check("sort old combines with a search", await ids({ q: "static", sort: "old" }), [
+    "s-pct",
+    "s-100",
+  ]);
+  check("…and with the hardware filter", await ids({ sort: "old", hardwareOnly: true }), ["p-pub"]);
+  check("the parser knows it", queries.parseFeedSort("old"), "old");
+  check("…and anything else is still newest", queries.parseFeedSort("oldest"), "new");
+
+  // Two rows on the same instant, older than everything: the id decides, so
+  // paging one row at a time can neither show one twice nor skip one.
+  await db.insert(schema.patterns).values([
+    titled("s-tie-b", "cara", "public", 1, "Tie B"),
+    titled("s-tie-a", "cara", "public", 1, "Tie A"),
+  ]);
+  check(
+    "equal timestamps page in id order, one at a time",
+    [
+      ...(await ids({ sort: "old", limit: 1 })),
+      ...(await ids({ sort: "old", limit: 1, offset: 1 })),
+    ],
+    ["s-tie-a", "s-tie-b"],
+  );
+
+  console.log("\n── the same through GET /api/community/patterns ──");
+  // The wall's infinite scroll and the marquee picker both page through the
+  // route, not listFeed, so the parameters have to survive the trip.
+  const feedRoute = await import("../src/app/api/community/patterns/route");
+  const get = async (query: string, cookie?: string) => {
+    const response = await feedRoute.GET(
+      new Request(`http://localhost:3000/api/community/patterns${query}`, {
+        headers: cookie ? { cookie } : {},
+      }),
+    );
+    const body = (await response.json()) as { items: { id: string }[]; total: number };
+    return { status: response.status, ids: body.items.map((item) => item.id), total: body.total };
+  };
+  const everyone = ["s-tie-a", "s-tie-b", ...oldestFirst];
+  check("no size means the default page, not one pattern", (await get("")).ids.length, everyone.length);
+  check("…and an empty size too", (await get("?size=")).ids.length, everyone.length);
+  check("an explicit size is still honoured", (await get("?size=3")).ids.length, 3);
+  check("?sort=old is oldest first", (await get("?sort=old")).ids, everyone);
+  check(
+    "…and pages without repeats",
+    [...(await get("?sort=old&size=5")).ids, ...(await get("?sort=old&size=5&offset=5")).ids],
+    everyone,
+  );
+  check("?q= narrows the page", await get("?q=static"), {
+    status: 200,
+    ids: ["s-100", "s-pct"],
+    total: 2,
+  });
+  check("…and its total is the search's, not the wall's", (await get("?q=%40bob")).total, 3);
+  check("?q= combines with ?sort=old", (await get("?q=static&sort=old")).ids, ["s-pct", "s-100"]);
+  check("…and with ?hw=1", await get("?q=pattern&hw=1"), { status: 200, ids: ["p-pub"], total: 1 });
+  check("without a search the total is the whole wall", (await get("?size=1")).total, everyone.length);
+  check(
+    "the retired order=asc flag does nothing",
+    (await get("?order=asc")).ids,
+    (await get("")).ids,
+  );
+
+  console.log("\n── the Liked tab counts the viewer's likes, not the wall ──");
+  // The wall scrolls until it holds `total`. With the whole wall's count as
+  // the liked list's total, the scroll never ended; with the first batch's
+  // length (the page's old stand-in), it ended after one batch.
+  const { getAuth } = await import("../src/lib/community/server/auth");
+  const { eq } = await import("drizzle-orm");
+  const signUp = await getAuth().api.signUpEmail({
+    body: { email: "liker@patternflow.local", password: "smoke-test-password", name: "liker", username: "liker" },
+    asResponse: true,
+  });
+  const likerCookie = signUp.headers.get("set-cookie")!.split(";")[0];
+  const likerId = (await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.username, "liker")))[0].id;
+  await db.insert(schema.likes).values(
+    // Two that are not public: a like is not a standing right to read.
+    ["p-pub", "s-pct", "s-100", "s-priv", "p-unl"].map((patternId) => ({
+      userId: likerId,
+      patternId,
+      createdAt: at(30),
+    })),
+  );
+  const liked = { sort: "liked" as const, viewerId: likerId };
+  check("the liked list is the viewer's public likes", (await ids({ ...liked, limit: 100 })).sort(), ["p-pub", "s-100", "s-pct"]);
+  check("…and its count is theirs, not the wall's", await queries.countFeed(false, liked), 3);
+  check("…under a search", await queries.countFeed(false, { ...liked, q: "static" }), 2);
+  check("…and under the hardware filter", await queries.countFeed(true, liked), 1);
+  check("signed out, the liked count is 0 like the list", await queries.countFeed(false, { sort: "liked" }), 0);
+  check("the route's liked total is the viewer's, page after page", await get("?sort=liked&size=1", likerCookie), {
+    status: 200,
+    ids: ["s-100"],
+    total: 3,
+  });
+  check("…with its search", (await get("?sort=liked&q=static", likerCookie)).total, 2);
+  check("…and signed out it is 0, not the wall", await get("?sort=liked"), { status: 200, ids: [], total: 0 });
+}
+
+// The temp directory goes BEFORE process.exit — a .finally() chained after an
+// exit never runs, so every run used to leave a pf-sharing-* folder behind.
+function cleanup() {
+  try {
+    // Windows will not delete a database file that is still open.
+    closeDb?.();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  } catch {
+    // Best effort — a leftover temp folder is not a test failure.
+  }
 }
 
 main()
   .then(() => {
     console.log(failures === 0 ? "\nAll sharing checks passed.\n" : `\n${failures} check(s) FAILED.\n`);
+    cleanup();
     process.exit(failures === 0 ? 0 : 1);
   })
   .catch((error: unknown) => {
     console.error(error);
+    cleanup();
     process.exit(1);
-  })
-  .finally(() => {
-    fs.rmSync(tmp, { recursive: true, force: true });
   });

@@ -10,13 +10,19 @@ import styles from "./Community.module.css";
 // Everything except card size is a plain link carrying a query param, so a
 // view is a server-rendered, shareable, back-button-friendly URL. Card size is
 // not here: that is the Ctrl+scroll zoom, a per-browser preference, and the
-// hint on the right is its only UI.
+// hint on the right is its only UI. The search box is not here either — it
+// sits above this row, outside the list that remounts on every search (see
+// CommunityFeedClient) — but its ?q= rides along on every link below, so a
+// re-sort keeps the search.
 
 // "Liked" is a filter rather than an ordering, and it only means anything to
 // someone signed in — so it is the one tab that appears conditionally. It is
 // last because it is about you, not about the wall.
 const SORTS = [
   { id: "new", label: "Newest" },
+  // Newest turned around: the early work, which a newest-first wall of a
+  // couple of hundred patterns had put out of reach.
+  { id: "old", label: "Oldest" },
   { id: "top", label: "Most liked" },
   { id: "forks", label: "Most forked" },
   { id: "decks", label: "In decks" },
@@ -27,12 +33,15 @@ export default function FeedControls({
   hardwareOnly,
   total,
   signedIn = false,
+  q = "",
 }: {
   sort: string;
   hardwareOnly: boolean;
   total?: number;
   /** Adds the "Liked" tab. Without a viewer there is nothing for it to list. */
   signedIn?: boolean;
+  /** The search the list answers — the count says so when there is one. */
+  q?: string;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -55,8 +64,10 @@ export default function FeedControls({
   return (
     <div className={styles.feedControls}>
       {typeof total === "number" && (
-        <span className={styles.feedCount}>
-          {total} pattern{total === 1 ? "" : "s"}
+        <span className={styles.feedCount} aria-live="polite">
+          {q
+            ? `${total} match${total === 1 ? "" : "es"} for “${q}”`
+            : `${total} pattern${total === 1 ? "" : "s"}`}
         </span>
       )}
 

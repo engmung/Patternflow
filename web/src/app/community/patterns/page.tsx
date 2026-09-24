@@ -11,9 +11,9 @@ import CommunityFeedClient from "@/components/community/CommunityFeedClient";
 // nothing above it. /community is the same wall with the marquee over it —
 // this is the page you land on when you already know what you came for.
 //
-// Sort and the hardware filter live in the URL (?sort=, ?hw=) so a view is
-// shareable and the back button works. Card size does not — that is the
-// Ctrl+scroll zoom, remembered per browser.
+// Sort, the hardware filter and the search live in the URL (?sort=, ?hw=,
+// ?q=) so a view is shareable and the back button works. Card size does not
+// — that is the Ctrl+scroll zoom, remembered per browser.
 //
 // Only the first batch is rendered here; scrolling loads the rest through
 // GET /api/community/patterns. Every card ships its full source (they render
@@ -32,33 +32,40 @@ export default async function CommunityWallPage(props: {
   searchParams: Promise<{
     sort?: string;
     hw?: string;
+    q?: string | string[];
   }>;
 }) {
   if (!communityEnabled()) return null; // layout already rendered notice
 
-  const { sort: rawSort, hw } = await props.searchParams;
+  const { sort: rawSort, hw, q: rawQ } = await props.searchParams;
   const sort = parseFeedSort(rawSort);
   const hardwareOnly = hw === "1";
+  // A repeated ?q= arrives as an array; the first one is the search.
+  const q = (Array.isArray(rawQ) ? rawQ[0] : rawQ ?? "").trim();
 
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
 
   const [items, total] = await Promise.all([
-    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT, viewerId }),
-    countFeed(hardwareOnly),
+    listFeed({ sort, hardwareOnly, limit: FEED_FIRST_PAINT, viewerId, q }),
+    countFeed(hardwareOnly, { q, sort, viewerId }),
   ]);
   const likedIds = await likedPatternIds(viewerId, items.map((item) => item.id));
 
   return (
     <CommunityFeedClient
-      // Remount on a sort/filter change so the accumulated list restarts.
+      // Remount on a sort/filter change so the accumulated list restarts. Not
+      // on a search: the list inside restarts on its own, and keying the
+      // whole wall on q would remount the search box under the typing.
       key={`${sort}-${hardwareOnly}`}
       items={items.map((item) => toCardItem(item, likedIds))}
       sort={sort}
       hardwareOnly={hardwareOnly}
-      // The liked list is a subset, so the wall's total would overstate it.
-      total={sort === "liked" ? items.length : total}
+      // For "liked" this is the viewer's own count (countFeed), so the scroll
+      // keeps going past the first batch instead of calling it the end.
+      total={total}
       signedIn={viewerId !== null}
+      q={q}
     />
   );
 }
