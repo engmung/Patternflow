@@ -39,10 +39,14 @@ export type NotificationRow = {
  * the link would 404. Deleted targets are cleared by the delete routes; the
  * join guard here is the belt to those braces, so the count and the list can
  * disagree briefly. Opening the page marks everything read, which settles it.
+ *
+ * A moderator keeps theirs: every private page opens for them, and the row
+ * they need most is the author answering the reason they left under a
+ * pattern they took down.
  */
 export async function listNotifications(
   userId: string,
-  limit = 50,
+  { limit = 50, moderator = false }: { limit?: number; moderator?: boolean } = {},
 ): Promise<NotificationRow[]> {
   const rows = await getDb()
     .select({
@@ -87,11 +91,11 @@ export async function listNotifications(
     .filter((row) => {
       if (row.targetType === "pattern") {
         if (!row.patternUserId) return false;
-        return row.patternVisibility !== "private" || row.patternUserId === userId;
+        return row.patternVisibility !== "private" || row.patternUserId === userId || moderator;
       }
       if (row.targetType === "deck") {
         if (!row.deckUserId) return false;
-        return row.deckVisibility !== "private" || row.deckUserId === userId;
+        return row.deckVisibility !== "private" || row.deckUserId === userId || moderator;
       }
       if (row.targetType === "post") return Boolean(row.postId);
       return true;

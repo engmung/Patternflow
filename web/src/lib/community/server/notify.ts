@@ -30,7 +30,9 @@ export type NotificationType =
   | "perf-pin"
   | "territory"
   | "header-fix"
-  | "header-drop";
+  | "header-drop"
+  | "hidden"
+  | "restored";
 
 type Seed = {
   userId: string;
@@ -363,6 +365,40 @@ export async function notifyHeaderModerated(opts: {
       targetId: opts.patternId,
       targetTitle: opts.patternTitle,
       sourceId: opts.portId ?? null,
+      snippet: opts.reason ? snippetOf(opts.reason) : null,
+    },
+  ]);
+}
+
+/**
+ * A moderator took the recipient's pattern or deck off the wall, or put back
+ * one a moderator took. Same reason to exist as the header rows above: a
+ * take-down nobody is told about happens behind their back
+ * (lib/community/server/admin.ts).
+ *
+ * `reason` is the moderator's line, and optional. On a pattern the route has
+ * also posted it as the moderator's comment — this row is how that comment
+ * gets noticed, so the comment itself notifies nobody.
+ */
+export async function notifyVisibilityModerated(opts: {
+  recipientId: string;
+  targetType: "pattern" | "deck";
+  targetId: string;
+  targetTitle: string;
+  /** Taken down, as opposed to restored. */
+  hidden: boolean;
+  reason?: string | null;
+  actorId: string;
+}): Promise<void> {
+  if (opts.recipientId === opts.actorId) return;
+  await insertAll([
+    {
+      userId: opts.recipientId,
+      type: opts.hidden ? "hidden" : "restored",
+      actorId: opts.actorId,
+      targetType: opts.targetType,
+      targetId: opts.targetId,
+      targetTitle: opts.targetTitle,
       snippet: opts.reason ? snippetOf(opts.reason) : null,
     },
   ]);

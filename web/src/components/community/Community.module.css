@@ -2725,6 +2725,12 @@
   font-family: var(--pf-mono, monospace);
 }
 
+/* A moderator's reason takes the whole first line of the owner bar; what will
+   happen and the buttons wrap underneath it. */
+.moderateReason {
+  flex: 1 1 100%;
+}
+
 .confirmRow {
   display: inline-flex;
   align-items: center;
@@ -3429,6 +3435,14 @@
   font-family: inherit;
   font-size: 12.5px;
   padding: 5px 8px;
+}
+
+/* A visibility picker a moderator's take-down has locked (or one mid-save)
+   has to look shut, not merely refuse the click. */
+.field select:disabled,
+.deckVisControl select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 /* ── Deck panel (modal) ──

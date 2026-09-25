@@ -40,8 +40,10 @@ export default async function CommunityDeckPage(props: RouteParams) {
 
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
+  // A moderator may open any deck, and take somebody else's off the wall.
+  const isAdmin = isAdminSession(session);
 
-  if (!canView(deck.visibility, deck.userId, viewerId, isAdminSession(session))) {
+  if (!canView(deck.visibility, deck.userId, viewerId, isAdmin)) {
     notFound();
   }
 
@@ -55,6 +57,7 @@ export default async function CommunityDeckPage(props: RouteParams) {
         title: deck.title,
         description: deck.description,
         visibility: deck.visibility,
+        hiddenAt: deck.hiddenAt?.toISOString() ?? null,
         performanceJson: deck.performanceJson,
         createdAt: deck.createdAt.toISOString(),
         username: deck.username,
@@ -62,6 +65,7 @@ export default async function CommunityDeckPage(props: RouteParams) {
       }}
       items={items}
       isOwner={viewerId === deck.userId}
+      isAdmin={isAdmin}
     />
   );
 }

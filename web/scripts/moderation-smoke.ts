@@ -9,9 +9,13 @@ import {
   adminUsernames,
   isAdminUsername,
   moderatorHeaderPatchOnly,
+  moderatorVisibilityChange,
+  moderatorVisibilityPatchOnly,
 } from "../src/lib/community/server/admin";
 import {
+  COMMENT_MAX,
   REPORT_REASONS,
+  cleanModerationReason,
   cleanReportDetail,
   isReportTargetType,
 } from "../src/lib/community/validate";
@@ -93,8 +97,10 @@ check(
   moderatorHeaderPatchOnly({ codeCpp: "#pragma once", title: "Renamed" }),
   false,
 );
+// Taking a pattern down is its own request (below), never a passenger on
+// a header fix — each act gets its own mark and its own alert.
 check(
-  "hiding somebody's pattern is refused",
+  "a take-down riding in on a header fix is refused",
   moderatorHeaderPatchOnly({ codeCpp: "#pragma once", visibility: "private" }),
   false,
 );
@@ -102,6 +108,87 @@ check("relicensing is refused", moderatorHeaderPatchOnly({ license: "MIT" }), fa
 // No header in the body means the edit is about something else entirely.
 check("an empty body is refused", moderatorHeaderPatchOnly({}), false);
 check("a reason on its own is refused", moderatorHeaderPatchOnly({ reason: "because" }), false);
+
+console.log("\n── what a take-down may carry ──");
+// The other thing a moderator may change on somebody else's pattern or deck:
+// its visibility. Same shape of boundary as the header's — the negative cases
+// are the ones that matter, because anything this lets through rides along
+// with a take-down under the author's name.
+check("visibility alone passes", moderatorVisibilityPatchOnly({ visibility: "private" }), true);
+check(
+  "a reason line rides along",
+  moderatorVisibilityPatchOnly({ visibility: "private", reason: "posted twice" }),
+  true,
+);
+check("restoring passes the same way", moderatorVisibilityPatchOnly({ visibility: "public" }), true);
+check(
+  "retitling alongside is refused",
+  moderatorVisibilityPatchOnly({ visibility: "private", title: "Renamed" }),
+  false,
+);
+check(
+  "the source alongside is refused",
+  moderatorVisibilityPatchOnly({ visibility: "private", code: "// js" }),
+  false,
+);
+check(
+  "a header alongside is refused",
+  moderatorVisibilityPatchOnly({ visibility: "private", codeCpp: "#pragma once" }),
+  false,
+);
+check(
+  "a deck's running order alongside is refused",
+  moderatorVisibilityPatchOnly({ visibility: "private", patternIds: ["a"] }),
+  false,
+);
+check("a reason on its own is refused", moderatorVisibilityPatchOnly({ reason: "because" }), false);
+check("an empty body is refused", moderatorVisibilityPatchOnly({}), false);
+
+console.log("\n── what a take-down does ──");
+const then = new Date(Date.UTC(2026, 8, 25, 12, 0, 0));
+const takeDown = moderatorVisibilityChange({ visibility: "public", hiddenAt: null }, "private", "pattern", then);
+check("public comes down, marked", takeDown, { ok: true, visibility: "private", hiddenAt: then });
+check(
+  "restoring a take-down puts it back as it was",
+  moderatorVisibilityChange({ visibility: "private", hiddenAt: then }, "public", "pattern"),
+  { ok: true, visibility: "public", hiddenAt: null },
+);
+// The privacy half of the rule. A moderator can open a private pattern; if
+// they could also publish one, "private" would mean "private unless staff".
+const authorsOwn = moderatorVisibilityChange({ visibility: "private", hiddenAt: null }, "public", "pattern");
+check("what its author made private is not a moderator's to publish", authorsOwn.ok, false);
+check("and that is a 403", authorsOwn.ok ? null : authorsOwn.status, 403);
+const alreadyPrivate = moderatorVisibilityChange({ visibility: "private", hiddenAt: null }, "private", "deck");
+// Marking it would lock the author out of publishing their own private
+// work, which nobody asked for — and "restore" would then publish it.
+check("nor marked, by taking it down again", alreadyPrivate.ok, false);
+check("which is a 409", alreadyPrivate.ok ? null : alreadyPrivate.status, 409);
+check(
+  "a second take-down is a 409 too",
+  (() => {
+    const verdict = moderatorVisibilityChange({ visibility: "private", hiddenAt: then }, "private", "deck");
+    return verdict.ok ? null : verdict.status;
+  })(),
+  409,
+);
+check(
+  "restoring something already public is a 409",
+  (() => {
+    const verdict = moderatorVisibilityChange({ visibility: "public", hiddenAt: null }, "public", "deck");
+    return verdict.ok ? null : verdict.status;
+  })(),
+  409,
+);
+
+console.log("\n── the reason line ──");
+check("no reason is fine", cleanModerationReason(undefined), null);
+check("null is no reason", cleanModerationReason(null), null);
+check("blank is no reason", cleanModerationReason("   "), null);
+check("it is trimmed", cleanModerationReason("  posted twice  "), "posted twice");
+// On a pattern it becomes a comment, so it is held to a comment's length.
+check("a comment's length passes", cleanModerationReason("x".repeat(COMMENT_MAX)), "x".repeat(COMMENT_MAX));
+check("over a comment's length is rejected", cleanModerationReason("x".repeat(COMMENT_MAX + 1)), undefined);
+check("a non-string is rejected", cleanModerationReason(42), undefined);
 
 console.log("\n── report input ──");
 check("pattern is a valid target", isReportTargetType("pattern"), true);

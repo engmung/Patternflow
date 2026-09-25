@@ -41,7 +41,7 @@ export type DeckPageItem = {
   patternId: string;
   titleSnapshot: string;
   pattern: PatternCardItem | null;
-  gap: "deleted" | "private" | null;
+  gap: "deleted" | "private" | "hidden" | null;
 };
 
 export function toDeckPageItem(item: DeckItem): DeckPageItem {

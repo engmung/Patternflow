@@ -95,6 +95,19 @@ export function cleanComment(raw: unknown): string | null {
   return body;
 }
 
+/**
+ * A moderator's reason for taking something off the wall. Optional — and on a
+ * pattern it is posted as a comment in the moderator's name, so it is held to
+ * a comment's length. `null` for none, `undefined` when it cannot be used.
+ */
+export function cleanModerationReason(raw: unknown): string | null | undefined {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return undefined;
+  const reason = raw.trim();
+  if (reason.length > COMMENT_MAX) return undefined;
+  return reason.length === 0 ? null : reason;
+}
+
 // ── Provenance ───────────────────────────────────────────────────────────────
 
 /**

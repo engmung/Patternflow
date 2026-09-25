@@ -1,3 +1,4 @@
+import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
@@ -36,7 +37,12 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
   const { id: patternId } = await context.params;
   const pattern = await getPatternStub(patternId);
   // Private patterns take no drive-by interaction — same 404 as a missing row.
-  if (!pattern || !canView(pattern.visibility, pattern.userId, session.user.id)) {
+  // Moderators can open them, and may answer there too: after a take-down the
+  // thread under the pattern is where its author and the moderator talk.
+  if (
+    !pattern ||
+    !canView(pattern.visibility, pattern.userId, session.user.id, isAdminSession(session))
+  ) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }
 

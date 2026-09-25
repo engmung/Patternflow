@@ -143,6 +143,15 @@ export const patterns = sqliteTable(
      */
     visibility: text("visibility").notNull().default("public"),
     /**
+     * When a moderator took this pattern off the wall — made it private over
+     * its author's head (lib/community/server/admin.ts). While it is set the
+     * author cannot make it public again: a take-down the person taken down
+     * can undo in one click is a request, not moderation. A moderator
+     * restoring it clears it and puts the pattern back as it was, public.
+     * Null on everything private (or public) by its author's own choice.
+     */
+    hiddenAt: integer("hidden_at", { mode: "timestamp" }),
+    /**
      * The community port the author chose, when they chose one. No foreign
      * key (the delete path clears it): resolution falls back gracefully when
      * the row it names is gone or stale. See lib/community/ports.ts for the
@@ -290,6 +299,8 @@ export const decks = sqliteTable(
     description: text("description"),
     /** "public" | "private" — same two states as patterns. */
     visibility: text("visibility").notNull().default("private"),
+    /** A moderator's take-down — same mark and rules as `patterns.hidden_at`. */
+    hiddenAt: integer("hidden_at", { mode: "timestamp" }),
     /**
      * UNUSED since migration 0024 — kept because columns are only ever added.
      *
@@ -756,6 +767,8 @@ export const notifications = sqliteTable(
      *   "port"      — a firmware port landed on their pattern
      *   "pin"       — the author pinned the recipient's port
      *   "territory" — a thread started where the recipient is pinned
+     *   "hidden"    — a moderator made the recipient's pattern or deck private
+     *   "restored"  — a moderator put it back on the wall
      */
     type: text("type").notNull(),
     /** Who did it. Cascades: a deleted account takes its acts with it. */
