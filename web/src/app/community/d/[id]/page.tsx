@@ -40,11 +40,10 @@ export default async function CommunityDeckPage(props: RouteParams) {
 
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
-  // A moderator may take somebody else's deck off the wall — and open it
-  // afterwards, but never a deck its author made private.
+  // A moderator may open any deck, and take somebody else's off the wall.
   const isAdmin = isAdminSession(session);
 
-  if (!canView(deck.visibility, deck.userId, viewerId, isAdmin, deck.hiddenAt)) {
+  if (!canView(deck.visibility, deck.userId, viewerId, isAdmin)) {
     notFound();
   }
 

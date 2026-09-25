@@ -89,11 +89,6 @@ export function moderatorHeaderPatchOnly(body: Record<string, unknown>): boolean
 //   - a moderator never makes public what its author did not. Restoring works
 //     only on something a moderator hid — which was public when they hid it —
 //     and puts it back as it was. Private by the author's own choice is theirs.
-//
-// The mark is also the only private thing a moderator can open (canView in
-// lib/community/visibility.ts): what they took down stays in reach so they
-// can answer under it and restore it. Private work its author chose to keep
-// that way is closed to moderators like everybody else.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MODERATOR_VISIBILITY_FIELDS = ["visibility", "reason"];

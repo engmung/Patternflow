@@ -11,7 +11,6 @@
  *   - the moderator's reach leaks past visibility into the work itself
  *   - the author undoes the take-down in one click, so it was only a request
  *   - a moderator publishes something its author chose to keep private
- *   - a moderator can open private work at all, beyond what they took down
  *   - the take-down lands with no mark and no alert, or the reason is lost
  *   - the moderator cannot reach the thread under what they took down, so
  *     "the reason is a comment" works only if they write it first
@@ -50,7 +49,6 @@ async function main() {
   const queries = await import("../src/lib/community/server/queries");
   const patternRoute = await import("../src/app/api/community/patterns/[id]/route");
   const commentRoute = await import("../src/app/api/community/patterns/[id]/comments/route");
-  const headerRoute = await import("../src/app/api/community/patterns/[id]/header/route");
   const deckRoute = await import("../src/app/api/community/decks/[id]/route");
 
   const db = getDb();
@@ -94,9 +92,6 @@ async function main() {
     userId: authorId,
     title,
     code: "// js",
-    // A header gives the download route something to answer with, so a 404
-    // below can only mean "you may not open this".
-    codeCpp: "#pragma once // the author's",
     license: "CC-BY-SA-4.0",
     visibility,
     createdAt: now,
@@ -166,14 +161,6 @@ async function main() {
       { params: Promise.resolve({ id: "p-dup" }) },
     );
 
-  const fetchHeader = (cookie: string, id: string) =>
-    headerRoute.GET(
-      new Request(`http://localhost:3000/api/community/patterns/${id}/header`, {
-        headers: { cookie },
-      }),
-      { params: Promise.resolve({ id }) },
-    );
-
   const patternRow = async (id: string) =>
     (await db.select().from(schema.patterns).where(eq(schema.patterns.id, id)))[0]!;
   const deckRow = async (id: string) =>
@@ -224,11 +211,6 @@ async function main() {
     "// js",
     authorId,
   ]);
-  // The one private thing a moderator can open is what a moderator took
-  // down — this goes through the real download route, so a route that forgot
-  // to load the mark would lock the moderator out and fail here.
-  check("the moderator can still open what they took down", (await fetchHeader(mod, "p-dup")).status, 200);
-  check("a passer-by cannot", (await fetchHeader(passerby, "p-dup")).status, 404);
   check("it is off the wall", (await onTheWall()).includes("p-dup"), false);
   check("the reason is under it, in the moderator's name", await commentsBy(modId), [REASON]);
   check("the author is told, with the reason", await alerts(authorId), [
@@ -308,13 +290,6 @@ async function main() {
     200,
   );
   check("which is no take-down", (await patternRow("p-dup")).hiddenAt, null);
-  check("so it is closed to the moderator now", (await fetchHeader(mod, "p-dup")).status, 404);
-  check("the thread under it too", (await comment(mod, "Still there?")).status, 404);
-  check(
-    "and so are their alerts about it",
-    (await queries.listNotifications(modId, { moderator: true })).map((row) => row.targetId),
-    [],
-  );
   check(
     "so a moderator cannot publish it",
     (await patchDup(mod, { visibility: "public" })).status,
@@ -322,8 +297,6 @@ async function main() {
   );
 
   console.log("\n── what its author made private ──");
-  check("a moderator cannot open it", (await fetchHeader(mod, "p-own")).status, 404);
-  check("while its author can", (await fetchHeader(author, "p-own")).status, 200);
   check(
     "a moderator cannot publish it",
     (await patchOwn(mod, { visibility: "public" })).status,

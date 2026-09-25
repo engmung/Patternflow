@@ -37,17 +37,11 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
   const { id: patternId } = await context.params;
   const pattern = await getPatternStub(patternId);
   // Private patterns take no drive-by interaction — same 404 as a missing row.
-  // The one exception is a moderator under a pattern a moderator took down:
-  // that thread is where the reason sits and its author answers it.
+  // Moderators can open them, and may answer there too: after a take-down the
+  // thread under the pattern is where its author and the moderator talk.
   if (
     !pattern ||
-    !canView(
-      pattern.visibility,
-      pattern.userId,
-      session.user.id,
-      isAdminSession(session),
-      pattern.hiddenAt,
-    )
+    !canView(pattern.visibility, pattern.userId, session.user.id, isAdminSession(session))
   ) {
     return Response.json({ error: "Pattern not found." }, { status: 404 });
   }

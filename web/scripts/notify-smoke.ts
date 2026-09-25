@@ -242,26 +242,13 @@ async function main() {
     (await queries.listNotifications("alice")).some((row) => row.targetId === "p1"),
     true,
   );
-  // What its author made private is theirs alone — a moderator's rows about
-  // it go the way everybody else's do. What a moderator took down stays in
-  // reach, because the author's answer under it is the row they most need.
+  // Every private page opens for a moderator, and after a take-down the
+  // author's answer in the thread is the row they most need.
   check(
-    "a moderator loses them too",
-    (await queries.listNotifications("cara", { moderator: true })).length,
-    0,
-  );
-  await db.update(schema.patterns).set({ hiddenAt: new Date() }).where(eq(schema.patterns.id, "p1"));
-  check(
-    "unless a moderator took it down",
+    "and so does a moderator",
     (await queries.listNotifications("cara", { moderator: true })).length,
     1,
   );
-  check(
-    "which gives nobody else theirs back",
-    (await queries.listNotifications("cara")).length,
-    0,
-  );
-  await db.update(schema.patterns).set({ hiddenAt: null }).where(eq(schema.patterns.id, "p1"));
   await db.update(schema.patterns).set({ visibility: "public" }).where(eq(schema.patterns.id, "p1"));
   check("and they return when it does", (await queries.listNotifications("cara")).length, 1);
 

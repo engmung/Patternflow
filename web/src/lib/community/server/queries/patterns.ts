@@ -290,7 +290,6 @@ export async function getPatternStub(id: string) {
       userId: patterns.userId,
       license: patterns.license,
       visibility: patterns.visibility,
-      hiddenAt: patterns.hiddenAt,
       ...authorFields,
     })
     .from(patterns)
