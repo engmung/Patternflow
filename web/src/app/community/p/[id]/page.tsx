@@ -69,9 +69,10 @@ export default async function CommunityPatternPage(props: RouteParams) {
   // pattern is theirs to change.
   const isAdmin = isAdminSession(session);
 
-  // Private is a 404 to everyone but the author (and moderators, who must be
-  // able to open what gets reported) — not a 403, which would confirm the id.
-  if (!canView(pattern.visibility, pattern.userId, viewerId, isAdmin)) {
+  // Private is a 404 to everyone but the author — moderators included, unless
+  // a moderator is why it is private (lib/community/visibility.ts). A 404,
+  // not a 403, which would confirm the id.
+  if (!canView(pattern.visibility, pattern.userId, viewerId, isAdmin, pattern.hiddenAt)) {
     notFound();
   }
 

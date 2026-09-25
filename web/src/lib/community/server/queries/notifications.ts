@@ -3,6 +3,7 @@
 // unchanged from the single 1,364-line file they came out of.
 
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { canView } from "../../visibility";
 import { getDb } from "../db";
 import { decks, notifications, patterns, posts, user } from "../schema";
 
@@ -40,9 +41,10 @@ export type NotificationRow = {
  * join guard here is the belt to those braces, so the count and the list can
  * disagree briefly. Opening the page marks everything read, which settles it.
  *
- * A moderator keeps theirs: every private page opens for them, and the row
- * they need most is the author answering the reason they left under a
- * pattern they took down.
+ * "Would 404" is canView's rule, so a moderator keeps the rows about what a
+ * moderator took down — the author answering the reason left under it is the
+ * row they most need — and loses everything its author made private, like
+ * anybody else.
  */
 export async function listNotifications(
   userId: string,
@@ -62,11 +64,13 @@ export async function listNotifications(
       actorDisplayUsername: user.displayUsername,
       patternVisibility: patterns.visibility,
       patternUserId: patterns.userId,
+      patternHiddenAt: patterns.hiddenAt,
       // The row draws the pattern it is about, so it needs the source. Null
       // for deck and post alerts, which have no canvas to show.
       patternCode: patterns.code,
       deckVisibility: decks.visibility,
       deckUserId: decks.userId,
+      deckHiddenAt: decks.hiddenAt,
       postId: posts.id,
     })
     .from(notifications)
@@ -90,12 +94,12 @@ export async function listNotifications(
   return rows
     .filter((row) => {
       if (row.targetType === "pattern") {
-        if (!row.patternUserId) return false;
-        return row.patternVisibility !== "private" || row.patternUserId === userId || moderator;
+        if (!row.patternUserId || !row.patternVisibility) return false;
+        return canView(row.patternVisibility, row.patternUserId, userId, moderator, row.patternHiddenAt);
       }
       if (row.targetType === "deck") {
-        if (!row.deckUserId) return false;
-        return row.deckVisibility !== "private" || row.deckUserId === userId || moderator;
+        if (!row.deckUserId || !row.deckVisibility) return false;
+        return canView(row.deckVisibility, row.deckUserId, userId, moderator, row.deckHiddenAt);
       }
       if (row.targetType === "post") return Boolean(row.postId);
       return true;

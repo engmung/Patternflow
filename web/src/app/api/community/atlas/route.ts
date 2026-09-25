@@ -122,7 +122,7 @@ async function handleWrite(request: Request, mode: "place" | "remove") {
 
   // A map pin is a tile everyone sees, so it must be public. A research row is
   // a field note — private failures are allowed, because the read path already
-  // shows those only to their author and moderators.
+  // shows those only to whoever may open the pattern (canView).
   if (kind === "pin" && pattern.visibility !== "public") {
     return Response.json(
       { error: "Only public patterns can sit on the shared map." },

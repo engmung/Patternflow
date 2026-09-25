@@ -122,7 +122,21 @@ async function main() {
   check("unlisted opens by link for anyone", canView("unlisted", "alice", null), true);
   check("private is a 404 to a stranger", canView("private", "alice", "bob"), false);
   check("private opens for its author", canView("private", "alice", "alice"), true);
-  check("a moderator keeps sight of everything", canView("private", "alice", "mod", true), true);
+  // Private is the author's alone, moderators included. The only private
+  // thing a moderator opens is what a moderator took down, which was public
+  // until then — and the mark opens nothing to anybody else.
+  check("a moderator does not open somebody's private work", canView("private", "alice", "mod", true), false);
+  const takenDown = new Date("2026-09-25T12:00:00Z");
+  check(
+    "but does open what a moderator took down",
+    canView("private", "alice", "mod", true, takenDown),
+    true,
+  );
+  check(
+    "which is still a 404 to a stranger",
+    canView("private", "alice", "bob", false, takenDown),
+    false,
+  );
 
   console.log("\n── forking respects visibility ──");
   const priv = { visibility: "private", userId: "alice" };

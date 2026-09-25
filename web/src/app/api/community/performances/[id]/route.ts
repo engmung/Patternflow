@@ -59,7 +59,15 @@ async function handleGet(request: Request, context: { params: Promise<{ id: stri
   if (!pattern) return Response.json({ error: "Performance not found." }, { status: 404 });
   if (pattern.visibility === "private") {
     const session = await getAuth().api.getSession({ headers: request.headers });
-    if (!canView(pattern.visibility, pattern.userId, session?.user.id ?? null, isAdminSession(session))) {
+    if (
+      !canView(
+        pattern.visibility,
+        pattern.userId,
+        session?.user.id ?? null,
+        isAdminSession(session),
+        pattern.hiddenAt,
+      )
+    ) {
       return Response.json({ error: "Performance not found." }, { status: 404 });
     }
   }

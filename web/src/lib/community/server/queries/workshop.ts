@@ -3,6 +3,7 @@
 // unchanged from the single 1,364-line file they came out of.
 
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { canView } from "../../visibility";
 import { getDb } from "../db";
 import { atlasPins, patterns, postAttachments, postComments, posts, presence, territories, territoryPins, user } from "../schema";
 import { authorFields } from "./shared";
@@ -208,8 +209,8 @@ export async function listPresence(): Promise<PresencePerson[]> {
  * row to render a live tile. Map pins ("pin") are public patterns only — an
  * unlisted work is link-only everywhere else, and a spot on the shared map
  * would un-unlist it. Research rows ("research") may be private: everyone sees
- * the public ones, but a private failure is shown only to its author (or a
- * moderator) — pass the viewer so the filter can tell.
+ * the public ones, but a private failure is shown only to its author — or to
+ * a moderator when a moderator took it down (canView) — so pass the viewer.
  */
 export async function listAtlasPins(viewer?: { id: string; isAdmin: boolean } | null) {
   const rows = await getDb()
@@ -220,6 +221,7 @@ export async function listAtlasPins(viewer?: { id: string; isAdmin: boolean } | 
       entryId: atlasPins.entryId,
       kind: atlasPins.kind,
       visibility: patterns.visibility,
+      hiddenAt: patterns.hiddenAt,
       title: patterns.title,
       code: patterns.code,
       userId: patterns.userId,
@@ -232,7 +234,7 @@ export async function listAtlasPins(viewer?: { id: string; isAdmin: boolean } | 
   return rows.filter((row) => {
     if (row.visibility === "public") return true;
     if (row.kind !== "research") return false; // a map pin never carries a non-public pattern
-    return Boolean(viewer && (viewer.isAdmin || viewer.id === row.userId));
+    return canView(row.visibility, row.userId, viewer?.id ?? null, viewer?.isAdmin, row.hiddenAt);
   });
 }
 

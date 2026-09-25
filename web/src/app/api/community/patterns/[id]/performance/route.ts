@@ -54,6 +54,7 @@ async function loadPattern(id: string) {
       title: patterns.title,
       userId: patterns.userId,
       visibility: patterns.visibility,
+      hiddenAt: patterns.hiddenAt,
       pinnedPerformanceId: patterns.pinnedPerformanceId,
     })
     .from(patterns)
@@ -73,7 +74,15 @@ async function handleGet(request: Request, context: { params: Promise<{ id: stri
 
   if (pattern.visibility === "private") {
     const session = await getAuth().api.getSession({ headers: request.headers });
-    if (!canView(pattern.visibility, pattern.userId, session?.user.id ?? null, isAdminSession(session))) {
+    if (
+      !canView(
+        pattern.visibility,
+        pattern.userId,
+        session?.user.id ?? null,
+        isAdminSession(session),
+        pattern.hiddenAt,
+      )
+    ) {
       // Same body as a missing row — a 403 would confirm the id exists.
       return Response.json({ error: "No such pattern." }, { status: 404 });
     }

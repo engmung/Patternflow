@@ -40,18 +40,28 @@ export function cleanVisibility(raw: unknown): Visibility | undefined {
 }
 
 /**
- * Whether a viewer may open something with this visibility. Moderators pass:
- * visibility is not a shield from a report, and a moderation queue that cannot
- * open what it moderates would be theatre.
+ * Whether a viewer may open something with this visibility.
+ *
+ * Private is its author's alone — moderators included. Somebody's unpublished
+ * work is not the moderation queue's business: it is on no wall, in no public
+ * deck, cannot be forked, and harms nobody while it stays there.
+ *
+ * The one private thing a moderator does open is what a moderator took down
+ * (`hiddenAt`, lib/community/server/admin.ts). It was public until they acted,
+ * and they have to reach it — to answer its author under it, to see whether
+ * it was fixed, to restore it. Leave `hiddenAt` out and a moderator is
+ * refused like anybody else, which is the safe way round to forget it.
  */
 export function canView(
   visibility: string,
   ownerId: string,
   viewerId: string | null,
   isAdmin = false,
+  hiddenAt: Date | string | null = null,
 ): boolean {
   if (visibility !== "private") return true;
-  return viewerId === ownerId || isAdmin;
+  if (viewerId === ownerId) return true;
+  return isAdmin && hiddenAt !== null;
 }
 
 /**

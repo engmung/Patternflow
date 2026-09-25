@@ -137,9 +137,10 @@ export const patterns = sqliteTable(
      * "public" | "private" — shared, or the author alone.
      *
      * Public is on the wall and openable by anyone. Private is the author
-     * alone, and cannot go into a shared deck — somebody else's running order
-     * is not a place a private thing belongs. Moderators keep sight of
-     * everything either way: visibility is not a shield from a report.
+     * alone — moderators included — and cannot go into a shared deck:
+     * somebody else's running order is not a place a private thing belongs.
+     * The one private row a moderator can open is one a moderator took down
+     * (`hidden_at`, below; the rule is canView in lib/community/visibility.ts).
      */
     visibility: text("visibility").notNull().default("public"),
     /**
@@ -509,7 +510,8 @@ export const atlasPins = sqliteTable("atlas_pins", {
    * attempt filed against an entry, kept as data but not drawn as a tile —
    * failures are worth remembering exactly where they happened. Research rows
    * may reference private patterns (a failure often is); the read path only
-   * shows those to their author and moderators, so nothing private leaks.
+   * shows those to whoever may open the pattern (canView), so nothing private
+   * leaks.
    */
   kind: text("kind").notNull().default("pin"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
