@@ -1,5 +1,11 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession, moderatorHeaderPatchOnly } from "@/lib/community/server/admin";
+import {
+  hiddenLockError,
+  isAdminSession,
+  moderatorHeaderPatchOnly,
+  moderatorVisibilityChange,
+  moderatorVisibilityPatchOnly,
+} from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
@@ -9,23 +15,27 @@ import {
   notifyHeaderModerated,
   notifyPerformancePinned,
   notifyPortPinned,
+  notifyVisibilityModerated,
 } from "@/lib/community/server/notify";
 import {
   getPattern,
   getPatternStub,
   getPerformanceStub,
   getPortStub,
+  newId,
 } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
-import { patternHeaders, patterns } from "@/lib/community/server/schema";
+import { comments, patternHeaders, patterns } from "@/lib/community/server/schema";
 import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
   CODE_MAX,
+  COMMENT_MAX,
   cleanCode,
   cleanCpp,
   cleanDescription,
   cleanMadeHow,
   cleanMadeOn,
+  cleanModerationReason,
   cleanTitle,
 } from "@/lib/community/validate";
 import { cleanVisibility } from "@/lib/community/visibility";
@@ -38,11 +48,13 @@ import { KNOWN_LICENSES, forkLicenseAllowed, stripShareWrapping } from "@/lib/pa
 // lib/community/license.ts) so the header in the source always matches the
 // pattern's real title, licence and author.
 //
-// A moderator may PATCH somebody else's pattern too, but only its firmware
-// header — a broken .h is a broken download for everyone who flashes it, and
-// deleting the whole pattern over it throws away working JavaScript. The rule
-// and its reasoning live in lib/community/admin.ts; the edit is marked on the
-// row and the author is told about it.
+// A moderator may PATCH somebody else's pattern too, for two things only, one
+// request each: its firmware header — a broken .h is a broken download for
+// everyone who flashes it, and deleting the whole pattern over it throws away
+// working JavaScript — and its visibility, to take it off the wall without
+// deleting it (or put back one a moderator took). The rules and their
+// reasoning live in lib/community/server/admin.ts; either act is marked on
+// the row and the author is told about it.
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const blocked = originBlocked(request);
@@ -124,11 +136,15 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   }
   const raw = body as Record<string, unknown>;
 
-  // A moderator's reach into someone else's pattern stops at the .h. Every
-  // other field below simply never runs for them.
+  // A moderator's reach into someone else's pattern is its visibility or its
+  // .h, never both at once. Every other field below simply never runs for
+  // them.
+  if (moderating && moderatorVisibilityPatchOnly(raw)) {
+    return moderateVisibility(pattern, raw, session.user.id);
+  }
   if (moderating && !moderatorHeaderPatchOnly(raw)) {
     return Response.json(
-      { error: "A moderator can only edit this pattern's firmware header." },
+      { error: "A moderator can only make this pattern private or fix its firmware header." },
       { status: 403 },
     );
   }
@@ -210,6 +226,12 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   if (raw.visibility !== undefined) {
     const next = cleanVisibility(raw.visibility);
     if (!next) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+    // A moderator took it off the wall, so only a moderator puts it back.
+    // Private stays accepted: it is what the pattern already is, and the
+    // lab's Share sends a visibility with every update.
+    if (next === "public" && pattern.hiddenAt) {
+      return Response.json({ error: hiddenLockError("pattern") }, { status: 403 });
+    }
     visibility = next;
   }
 
@@ -402,4 +424,62 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     hasCpp: codeCpp !== null,
     headerDetached: codeChanged && raw.codeCpp === undefined && pattern.codeCpp !== null,
   });
+}
+
+// A moderator taking somebody's pattern off the wall, or putting back one a
+// moderator took. Only the visibility moves: the row is otherwise exactly the
+// author's, so none of the rebuild in handlePatch runs. What is allowed, and
+// why, is lib/community/server/admin.ts.
+async function moderateVisibility(
+  pattern: NonNullable<Awaited<ReturnType<typeof getPattern>>>,
+  raw: Record<string, unknown>,
+  actorId: string,
+): Promise<Response> {
+  const requested = cleanVisibility(raw.visibility);
+  if (!requested) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+  const reason = cleanModerationReason(raw.reason);
+  if (reason === undefined) {
+    return Response.json(
+      { error: `The reason is posted as a comment, so it has to fit in one: ${COMMENT_MAX} characters at most.` },
+      { status: 400 },
+    );
+  }
+
+  const change = moderatorVisibilityChange(pattern, requested, "pattern");
+  if (!change.ok) return Response.json({ error: change.error }, { status: change.status });
+
+  const db = getDb();
+  const now = new Date();
+  await db
+    .update(patterns)
+    .set({ visibility: change.visibility, hiddenAt: change.hiddenAt, updatedAt: now })
+    .where(eq(patterns.id, pattern.id));
+
+  // The reason goes where the author will look and can answer it: under the
+  // pattern, signed by the moderator. The alert below carries it too, which
+  // is why this comment does not notify on its own — one act, one row.
+  if (reason) {
+    await db.insert(comments).values({
+      id: newId(),
+      patternId: pattern.id,
+      userId: actorId,
+      body: reason,
+      createdAt: now,
+    });
+  }
+
+  // Back on the wall means installable again, so compile what it ships now.
+  if (change.visibility === "public") await bakePatternHeader(pattern.id);
+
+  await notifyVisibilityModerated({
+    recipientId: pattern.userId,
+    targetType: "pattern",
+    targetId: pattern.id,
+    targetTitle: pattern.title,
+    hidden: change.visibility === "private",
+    reason,
+    actorId,
+  });
+
+  return Response.json({ ok: true, visibility: change.visibility });
 }

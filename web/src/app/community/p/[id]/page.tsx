@@ -63,9 +63,10 @@ export default async function CommunityPatternPage(props: RouteParams) {
   // edit. Signed-out visitors get `null` and simply see the read-only version.
   const session = await getAuth().api.getSession({ headers: await headers() });
   const viewerId = session?.user.id ?? null;
-  // Moderators get one extra verb on this page: repairing or dropping a .h
-  // that does not build (lib/community/admin.ts). Nothing else about someone
-  // else's pattern is theirs to change.
+  // Moderators get two extra verbs on this page: taking the pattern off the
+  // wall (or restoring it), and repairing or dropping a .h that does not
+  // build (lib/community/server/admin.ts). Nothing else about someone else's
+  // pattern is theirs to change.
   const isAdmin = isAdminSession(session);
 
   // Private is a 404 to everyone but the author (and moderators, who must be
@@ -150,6 +151,7 @@ export default async function CommunityPatternPage(props: RouteParams) {
         madeOn: pattern.madeOn,
         madeHow: pattern.madeHow,
         visibility: pattern.visibility,
+        hiddenAt: pattern.hiddenAt?.toISOString() ?? null,
         createdAt: pattern.createdAt.toISOString(),
         username: pattern.username,
         displayUsername: pattern.displayUsername,

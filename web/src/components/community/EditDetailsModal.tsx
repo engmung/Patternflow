@@ -33,6 +33,7 @@ export default function EditDetailsModal({
   initialMadeOn,
   initialMadeHow,
   initialVisibility,
+  visibilityLocked = false,
   parentLicense,
   onClose,
 }: {
@@ -43,6 +44,8 @@ export default function EditDetailsModal({
   initialMadeOn: string | null; // YYYY-MM-DD
   initialMadeHow: string | null;
   initialVisibility: string;
+  /** A moderator made it private: the picker stays shut until one restores it. */
+  visibilityLocked?: boolean;
   /** Parent's SPDX id when this pattern is a fork — narrows what it may become. */
   parentLicense?: string | null;
   onClose: () => void;
@@ -171,6 +174,7 @@ export default function EditDetailsModal({
             <span className={styles.fieldLabel}>Who can see it?</span>
             <select
               value={visibility}
+              disabled={visibilityLocked}
               onChange={(event) => setVisibility(event.target.value as Visibility)}
             >
               {VISIBILITY_VALUES.map((value) => (
@@ -180,7 +184,9 @@ export default function EditDetailsModal({
               ))}
             </select>
             <span className={styles.fieldHint}>
-              {VISIBILITY_HINTS[visibility]}
+              {visibilityLocked
+                ? "A moderator made this pattern private — it stays private until a moderator restores it."
+                : VISIBILITY_HINTS[visibility]}
               {visibility === "private" &&
                 initialVisibility !== "private" &&
                 " If this pattern sits in somebody's published deck, its slot shows as a gap while it is private."}

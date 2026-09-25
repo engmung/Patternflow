@@ -1,3 +1,4 @@
+import type { Visibility } from "../visibility";
 import type { CommunitySession } from "./auth";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,4 +68,77 @@ const MODERATOR_PATCH_FIELDS = ["codeCpp", "reason"];
 export function moderatorHeaderPatchOnly(body: Record<string, unknown>): boolean {
   const keys = Object.keys(body);
   return keys.includes("codeCpp") && keys.every((key) => MODERATOR_PATCH_FIELDS.includes(key));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Taking something off the wall.
+//
+// A moderator may make somebody else's public pattern or deck private. That
+// is a removal, not an edit — the softer one. Nothing about the work changes
+// and its author keeps it (they can still open it, edit it, take it into the
+// lab, download it); it just stops being shown to everybody else. Deleting is
+// the same verb at full strength, and a lot of what needs taking down — the
+// same pattern posted for the fifth time — does not deserve that.
+//
+// Three rules keep it moderation rather than a setting somebody else flipped:
+//   - it is marked on the row (`hidden_at`) and the author is told, with the
+//     moderator's reason when there is one — on a pattern that reason is also
+//     posted under it as the moderator's comment, where it can be answered;
+//   - while the mark stands the author cannot make it public again. A
+//     take-down its subject can undo in one click is a request;
+//   - a moderator never makes public what its author did not. Restoring works
+//     only on something a moderator hid — which was public when they hid it —
+//     and puts it back as it was. Private by the author's own choice is theirs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MODERATOR_VISIBILITY_FIELDS = ["visibility", "reason"];
+
+/**
+ * Whether this PATCH body is a moderator's take-down (or restore): the
+ * visibility, and nothing beyond the reason line. Anything else in the body
+ * would be an edit riding in on it.
+ */
+export function moderatorVisibilityPatchOnly(body: Record<string, unknown>): boolean {
+  const keys = Object.keys(body);
+  return keys.includes("visibility") && keys.every((key) => MODERATOR_VISIBILITY_FIELDS.includes(key));
+}
+
+export type ModeratorVisibilityChange =
+  | { ok: true; visibility: Visibility; hiddenAt: Date | null }
+  | { ok: false; status: 403 | 409; error: string };
+
+/**
+ * What a moderator asking for `requested` does to a pattern or deck that is
+ * not theirs — or why it is refused. The row's new `visibility` and
+ * `hiddenAt` on success.
+ */
+export function moderatorVisibilityChange(
+  current: { visibility: string; hiddenAt: Date | null },
+  requested: Visibility,
+  noun: "pattern" | "deck",
+  now = new Date(),
+): ModeratorVisibilityChange {
+  if (requested === "private") {
+    if (current.visibility === "private") {
+      return {
+        ok: false,
+        status: 409,
+        error: current.hiddenAt
+          ? `This ${noun} is already off the wall.`
+          : `This ${noun} is already private — its author made it so.`,
+      };
+    }
+    return { ok: true, visibility: "private", hiddenAt: now };
+  }
+  if (!current.hiddenAt) {
+    return current.visibility === "public"
+      ? { ok: false, status: 409, error: `This ${noun} is already public.` }
+      : { ok: false, status: 403, error: `Its author made this ${noun} private — only they can publish it.` };
+  }
+  return { ok: true, visibility: "public", hiddenAt: null };
+}
+
+/** What the author hears when they try to put a take-down back themselves. */
+export function hiddenLockError(noun: "pattern" | "deck"): string {
+  return `A moderator made this ${noun} private, so it stays off the wall until a moderator restores it.`;
 }

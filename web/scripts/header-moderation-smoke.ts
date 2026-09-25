@@ -153,8 +153,10 @@ async function main() {
     (await patchPattern(mod, { codeCpp: FIXED, code: "// theirs now" })).status,
     403,
   );
+  // A moderator may take a pattern private (check:hidemod), but as its own
+  // act with its own alert — never folded into a header fix.
   check(
-    "nor take it private",
+    "nor fold a take-down into the header fix",
     (await patchPattern(mod, { codeCpp: FIXED, visibility: "private" })).status,
     403,
   );

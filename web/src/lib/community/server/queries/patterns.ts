@@ -258,6 +258,7 @@ export async function getPattern(id: string) {
       madeHow: patterns.madeHow,
       parentId: patterns.parentId,
       visibility: patterns.visibility,
+      hiddenAt: patterns.hiddenAt,
       pinnedHeaderId: patterns.pinnedHeaderId,
       pinnedPerformanceId: patterns.pinnedPerformanceId,
       createdAt: patterns.createdAt,

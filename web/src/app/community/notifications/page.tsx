@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import type { Metadata } from "next";
+import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { communityEnabled } from "@/lib/community/server/db";
 import { listNotifications } from "@/lib/community/server/queries";
@@ -30,7 +31,8 @@ export default async function CommunityNotificationsPage() {
     );
   }
 
-  const items = (await listNotifications(session.user.id)).map((row) => ({
+  const rows = await listNotifications(session.user.id, { moderator: isAdminSession(session) });
+  const items = rows.map((row) => ({
     id: row.id,
     type: row.type,
     targetType: row.targetType,

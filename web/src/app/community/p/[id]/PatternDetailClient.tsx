@@ -14,6 +14,7 @@ import AddPerformanceModal from "@/components/community/AddPerformanceModal";
 import EditDetailsModal from "@/components/community/EditDetailsModal";
 import ReportModal from "@/components/community/ReportModal";
 import DeletePatternButton from "@/components/community/DeletePatternButton";
+import ModerateVisibility from "@/components/community/ModerateVisibility";
 import SendModuleModal from "@/components/community/SendModuleModal";
 import { ZipProgress } from "@/components/community/ZipDownload";
 import { buildsConfigured } from "@/lib/community/apiBase";
@@ -91,6 +92,9 @@ export type PatternView = {
   madeHow: string | null;
   /** "public" | "private" — the page is already gated server-side. */
   visibility: string;
+  /** Set while a moderator's take-down stands: private, and not the author's
+   *  to make public again (lib/community/server/admin.ts). */
+  hiddenAt: string | null; // ISO
   provenance: Provenance;
   createdAt: string; // ISO
   username: string | null;
@@ -122,7 +126,8 @@ export default function PatternDetailClient({
   initialKnobs?: number[];
   liked?: boolean;
   isOwner?: boolean;
-  /** Moderator: may repair or drop this pattern's .h, and nothing else. */
+  /** Moderator: may take this off the wall (or restore it), and repair or
+   *  drop its .h — nothing else. */
   isAdmin?: boolean;
 }) {
   const router = useRouter();
@@ -614,9 +619,11 @@ export default function PatternDetailClient({
             <span
               className={styles.visChip}
               title={
-                pattern.visibility === "private"
-                  ? "Private — only you can open this page"
-                  : "Unlisted — off the feed, anyone with this link can open it"
+                pattern.hiddenAt
+                  ? "Made private by a moderator"
+                  : pattern.visibility === "private"
+                    ? "Private — only you can open this page"
+                    : "Unlisted — off the feed, anyone with this link can open it"
               }
             >
               {pattern.visibility}
@@ -680,6 +687,17 @@ export default function PatternDetailClient({
           </p>
         )}
 
+        {/* The author hears it in their alerts too, but this is where they
+            will look, and where the reason — a comment — sits below. */}
+        {isOwner && pattern.hiddenAt && (
+          <p className={styles.warnNote}>
+            A moderator made this pattern private on {pattern.hiddenAt.slice(0, 10)}, so it is off
+            the wall: only you and moderators can open it, and it stays that way until a moderator
+            restores it. If they gave a reason it is in the comments below, and you can answer
+            there.
+          </p>
+        )}
+
         {isOwner && (
           <div className={styles.ownerBar}>
             <span className={styles.formNote}>
@@ -704,9 +722,20 @@ export default function PatternDetailClient({
           </div>
         )}
 
-        {/* The moderator's one verb on somebody else's pattern. Only when the
-            author attached their own .h — a bad community port is repaired in
-            the list below, where it lives. */}
+        {/* Taking it off the wall: the softer removal, beside Delete's
+            harder one. The reason becomes a comment in the thread below. */}
+        {!isOwner && isAdmin && (
+          <ModerateVisibility
+            kind="pattern"
+            id={pattern.id}
+            visibility={pattern.visibility}
+            hiddenAt={pattern.hiddenAt}
+          />
+        )}
+
+        {/* The moderator's verb on somebody else's .h. Only when the author
+            attached their own — a bad community port is repaired in the list
+            below, where it lives. */}
         {!isOwner && isAdmin && pattern.ownCpp && (
           <div className={styles.ownerBar}>
             <span className={styles.formNote}>
@@ -806,6 +835,7 @@ export default function PatternDetailClient({
           initialMadeOn={pattern.madeOn}
           initialMadeHow={pattern.madeHow}
           initialVisibility={pattern.visibility}
+          visibilityLocked={pattern.hiddenAt !== null}
           parentLicense={pattern.parent?.license ?? null}
           onClose={() => setDetailsModalOpen(false)}
         />

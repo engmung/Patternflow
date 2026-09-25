@@ -58,6 +58,13 @@ function describe(item: NotificationView): string {
       return `edited the firmware header on “${item.targetTitle}”`;
     case "header-drop":
       return `removed the firmware header from “${item.targetTitle}”`;
+    // A take-down and its undo. The snippet line under it is the moderator's
+    // reason; on a pattern the same words are a comment on the page, which
+    // is where to answer them.
+    case "hidden":
+      return `made “${item.targetTitle}” private — it is off the wall until a moderator restores it`;
+    case "restored":
+      return `restored “${item.targetTitle}” — it is public again`;
     case "territory":
       // The snippet carries where ("A1 · Wired control — OSC"), because that
       // is the reason this row exists: you are pinned there.

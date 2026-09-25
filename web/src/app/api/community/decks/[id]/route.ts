@@ -1,16 +1,30 @@
 import { eq } from "drizzle-orm";
-import { isAdminSession } from "@/lib/community/server/admin";
+import {
+  hiddenLockError,
+  isAdminSession,
+  moderatorVisibilityChange,
+  moderatorVisibilityPatchOnly,
+} from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { originBlocked, preflight, withCors } from "@/lib/community/cors";
 import { communityEnabled, getDb } from "@/lib/community/server/db";
 import { DECK_MAX, PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { checkDeckPattern, cleanPatternIds } from "@/lib/community/deckShare";
-import { clearNotificationsFor, notifyDeckInclusion } from "@/lib/community/server/notify";
+import {
+  clearNotificationsFor,
+  notifyDeckInclusion,
+  notifyVisibilityModerated,
+} from "@/lib/community/server/notify";
 import { countPublicDecksByUser, getDeckStub, getPatternsForDeck } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { serializePerformance, validatePerformance } from "@/lib/pattern/pfst";
 import { deckPatterns, decks } from "@/lib/community/server/schema";
-import { cleanDescription, cleanTitle } from "@/lib/community/validate";
+import {
+  COMMENT_MAX,
+  cleanDescription,
+  cleanModerationReason,
+  cleanTitle,
+} from "@/lib/community/validate";
 import { cleanVisibility, type Visibility } from "@/lib/community/visibility";
 
 // PATCH /api/community/decks/[id] — the owner edits their deck: details,
@@ -18,7 +32,9 @@ import { cleanVisibility, type Visibility } from "@/lib/community/visibility";
 // the working deck thinks about it).
 //
 // DELETE — the owner, or a moderator. Editing stays owner-only: same rule as
-// patterns, removing content is moderation, rewriting it is not.
+// patterns, removing content is moderation, rewriting it is not. The one
+// PATCH a moderator may send is the softer removal — taking the deck off the
+// wall, or putting back one a moderator took (lib/community/server/admin.ts).
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const blocked = originBlocked(request);
@@ -75,7 +91,9 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const deck = await getDeckStub(id);
   if (!deck) return Response.json({ error: "Deck not found." }, { status: 404 });
-  if (deck.userId !== session.user.id) {
+  const isOwner = deck.userId === session.user.id;
+  const moderating = !isOwner && isAdminSession(session);
+  if (!isOwner && !moderating) {
     return Response.json({ error: "You can only edit your own decks." }, { status: 403 });
   }
 
@@ -86,6 +104,13 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
   const raw = body as Record<string, unknown>;
+
+  if (moderating) {
+    if (!moderatorVisibilityPatchOnly(raw)) {
+      return Response.json({ error: "A moderator can only make this deck private." }, { status: 403 });
+    }
+    return moderateVisibility(deck, raw, session.user.id);
+  }
 
   let title = deck.title;
   if (raw.title !== undefined) {
@@ -106,6 +131,11 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   if (raw.visibility !== undefined) {
     const next = cleanVisibility(raw.visibility);
     if (!next) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+    // Same lock as a pattern's: a moderator took it down, a moderator puts
+    // it back.
+    if (next === "public" && deck.hiddenAt) {
+      return Response.json({ error: hiddenLockError("deck") }, { status: 403 });
+    }
     visibility = next;
   }
 
@@ -243,4 +273,50 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   }
 
   return Response.json({ ok: true });
+}
+
+// A moderator taking somebody's deck off the wall, or putting back one a
+// moderator took. Only the visibility moves.
+async function moderateVisibility(
+  deck: NonNullable<Awaited<ReturnType<typeof getDeckStub>>>,
+  raw: Record<string, unknown>,
+  actorId: string,
+): Promise<Response> {
+  const requested = cleanVisibility(raw.visibility);
+  if (!requested) return Response.json({ error: "Unknown visibility value." }, { status: 400 });
+  // A deck has no comments, so the reason rides in the alert alone — the
+  // same limit as a pattern's, where it becomes one.
+  const reason = cleanModerationReason(raw.reason);
+  if (reason === undefined) {
+    return Response.json(
+      { error: `Keep the reason to ${COMMENT_MAX} characters at most.` },
+      { status: 400 },
+    );
+  }
+
+  const change = moderatorVisibilityChange(deck, requested, "deck");
+  if (!change.ok) return Response.json({ error: change.error }, { status: change.status });
+
+  // Restoring skips both checks the author's own publish goes through, and
+  // announces nothing: it puts the deck back as if it had never come down.
+  // It held one of its author's public slots when it was taken down — if they
+  // have filled that since, the shelf is theirs to rebalance — and a pattern
+  // that went private in the meantime leaves the gap it would have left
+  // anyway. Its running order was announced when it first went public.
+  await getDb()
+    .update(decks)
+    .set({ visibility: change.visibility, hiddenAt: change.hiddenAt, updatedAt: new Date() })
+    .where(eq(decks.id, deck.id));
+
+  await notifyVisibilityModerated({
+    recipientId: deck.userId,
+    targetType: "deck",
+    targetId: deck.id,
+    targetTitle: deck.title,
+    hidden: change.visibility === "private",
+    reason,
+    actorId,
+  });
+
+  return Response.json({ ok: true, visibility: change.visibility });
 }

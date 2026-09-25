@@ -176,6 +176,13 @@
       "when": 1786920000000,
       "tag": "0024_module-cache",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1786940000000,
+      "tag": "0025_moderator-hidden",
+      "breakpoints": true
     }
   ]
 }

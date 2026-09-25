@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import ModerateVisibility from "@/components/community/ModerateVisibility";
 import PatternCard from "@/components/community/PatternCard";
 import ReportModal from "@/components/community/ReportModal";
 import ShareDeckPackModal from "@/components/community/ShareDeckPackModal";
@@ -38,6 +39,8 @@ export type DeckView = {
   title: string;
   description: string | null;
   visibility: string;
+  /** Set while a moderator's take-down stands — private, and locked there. */
+  hiddenAt: string | null; // ISO
   /** Attached Director performance (canonical JSON), or null. */
   performanceJson: string | null;
   createdAt: string; // ISO
@@ -49,10 +52,13 @@ export default function DeckDetailClient({
   deck,
   items,
   isOwner = false,
+  isAdmin = false,
 }: {
   deck: DeckView;
   items: DeckPageItem[];
   isOwner?: boolean;
+  /** Moderator: may take this deck off the wall, or restore it. */
+  isAdmin?: boolean;
 }) {
   const router = useRouter();
   const [note, setNote] = useState<string | null>(null);
@@ -295,9 +301,11 @@ export default function DeckDetailClient({
                 <span
                   className={styles.visChip}
                   title={
-                    deck.visibility === "private"
-                      ? "Private — only you can open this page"
-                      : "Unlisted — off the deck feed, anyone with this link can open it"
+                    deck.hiddenAt
+                      ? "Made private by a moderator"
+                      : deck.visibility === "private"
+                        ? "Private — only you can open this page"
+                        : "Unlisted — off the deck feed, anyone with this link can open it"
                   }
                 >
                   {deck.visibility}
@@ -425,13 +433,33 @@ export default function DeckDetailClient({
 
         {deck.visibility === "public" && playable.length > 0 && <ZipInstallNote kind="deck" />}
 
+        {/* A deck has no comments, so the reason — if there was one — is in
+            the author's alerts only. */}
+        {isOwner && deck.hiddenAt && (
+          <p className={styles.warnNote}>
+            A moderator made this deck private on {deck.hiddenAt.slice(0, 10)}, so it is off the
+            wall: only you and moderators can open it, and it stays that way until a moderator
+            restores it. If they gave a reason, it is in your alerts.
+          </p>
+        )}
+
+        {!isOwner && isAdmin && (
+          <ModerateVisibility
+            kind="deck"
+            id={deck.id}
+            visibility={deck.visibility}
+            hiddenAt={deck.hiddenAt}
+          />
+        )}
+
         {isOwner && (
           <div className={styles.ownerBar}>
             <label className={styles.deckVisControl}>
               <span>Who can see it?</span>
               <select
                 value={deck.visibility}
-                disabled={busy}
+                disabled={busy || deck.hiddenAt !== null}
+                title={deck.hiddenAt ? "A moderator made this deck private" : undefined}
                 onChange={(event) => void patch({ visibility: event.target.value as Visibility })}
               >
                 {VISIBILITY_VALUES.map((value) => (
@@ -489,7 +517,9 @@ export default function DeckDetailClient({
                 <span className={styles.deckGapReason}>
                   {item.gap === "private"
                     ? "made private by its author"
-                    : "removed by its author"}
+                    : item.gap === "hidden"
+                      ? "made private by a moderator"
+                      : "removed by its author"}
                 </span>
               </div>
             )}

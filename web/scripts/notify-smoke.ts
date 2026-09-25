@@ -242,6 +242,13 @@ async function main() {
     (await queries.listNotifications("alice")).some((row) => row.targetId === "p1"),
     true,
   );
+  // Every private page opens for a moderator, and after a take-down the
+  // author's answer in the thread is the row they most need.
+  check(
+    "and so does a moderator",
+    (await queries.listNotifications("cara", { moderator: true })).length,
+    1,
+  );
   await db.update(schema.patterns).set({ visibility: "public" }).where(eq(schema.patterns.id, "p1"));
   check("and they return when it does", (await queries.listNotifications("cara")).length, 1);
 

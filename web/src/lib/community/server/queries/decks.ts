@@ -138,6 +138,7 @@ export async function getDeck(id: string) {
       title: decks.title,
       description: decks.description,
       visibility: decks.visibility,
+      hiddenAt: decks.hiddenAt,
       performanceJson: decks.performanceJson,
       createdAt: decks.createdAt,
       updatedAt: decks.updatedAt,
@@ -153,7 +154,13 @@ export async function getDeck(id: string) {
 /** Ownership check for PATCH/DELETE, without loading the whole deck. */
 export async function getDeckStub(id: string) {
   const rows = await getDb()
-    .select({ id: decks.id, userId: decks.userId, title: decks.title, visibility: decks.visibility })
+    .select({
+      id: decks.id,
+      userId: decks.userId,
+      title: decks.title,
+      visibility: decks.visibility,
+      hiddenAt: decks.hiddenAt,
+    })
     .from(decks)
     .where(eq(decks.id, id))
     .limit(1);
@@ -167,8 +174,10 @@ export type DeckItem = {
   /** Null when the slot is a gap — see `gap`. */
   pattern: FeedItem | null;
   /** Why the slot is empty. A deck shows the gap rather than silently
-   *  shortening the set (#256): the running order is the author's work. */
-  gap: "deleted" | "private" | null;
+   *  shortening the set (#256): the running order is the author's work.
+   *  "hidden" is private too, but by a moderator's hand — saying "by its
+   *  author" there would put the take-down in their name. */
+  gap: "deleted" | "private" | "hidden" | null;
 };
 
 /**
@@ -191,6 +200,7 @@ export async function listDeckItems(
         parentId: patterns.parentId,
         createdAt: patterns.createdAt,
         visibility: patterns.visibility,
+        hiddenAt: patterns.hiddenAt,
         userId: patterns.userId,
       },
       username: user.username,
@@ -225,7 +235,7 @@ export async function listDeckItems(
         patternId: row.patternId,
         titleSnapshot: row.titleSnapshot,
         pattern: null,
-        gap: "private" as const,
+        gap: p.hiddenAt ? ("hidden" as const) : ("private" as const),
       };
     }
     return {
