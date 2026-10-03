@@ -49,8 +49,11 @@ jobs:
           python-version: "3.x"
       - name: Headers match console/*.html
         run: python firmware/toolchain/console_pages.py check
-      # audio-in.html is itself generated, from the browser extension's mapping
-      # editor. The step above proves the header matches the page; this proves
-      # the page matches the editor it was assembled from.
-      - name: audio-in.html matches the extension's editor
+      # audio-in.html is itself generated: from the browser extension's mapping
+      # editor and the console/_audio_in* files. The step above proves the
+      # header matches the page; this proves the page is what those sources
+      # assemble to, and that it is inside its size budget (BUDGET in the
+      # script: the stamped page, gzip -9, as the panel sends it). The step
+      # above reports both too; this one keeps them a line of their own.
+      - name: audio-in.html matches its sources and is inside its size budget
         run: python firmware/toolchain/build_audio_in_page.py --check

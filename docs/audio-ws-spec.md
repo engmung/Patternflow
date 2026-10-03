@@ -60,11 +60,46 @@ was learned: after the first send the buffer is never empty, lanes 1..3
 dropped in index order, and knob 4 never moved. One `a=` per frame carries
 everything, in order, at a quarter of the traffic.
 
-Send at your analysis rate (the extension sends per animation frame). There
-is no keep-alive requirement.
+Send at your analysis rate. The extension sends on a 33 ms timer, about
+thirty messages a second.
+
+## Holding a value — the 500 ms release
+
+**A lane is handed back to its encoder 500 ms after the last message that
+set it.** That is what frees the knobs when a tab is closed or a phone walks
+out of range without saying `off`, and it has been in the firmware since the
+first version of this protocol. Version 1 of this document said there was no
+keep-alive requirement, and that was wrong: a client that skips a frame
+because its values did not change loses its lanes half a second into any
+steady passage — silence, a paused track, a gate curve resting at one level —
+and the next thing it sends starts the pattern's motion from wherever the
+encoder had left the knob.
+
+So a client that means to keep driving **resends its last message at least
+every 250 ms**, changed or not. The same goes for `k=`. To let go, stop
+sending, or say `off`.
+
+The extension in this tree does this: while its tab is silent or paused it
+keeps resending, so the knobs rest at each band's resting value until Stop.
+The Android capture app (`tools/patternflow-audio-android`) still sends only
+when a value changes, so it does not yet hold a steady one.
+
+## The switch on the panel
+
+The device accepts the connection, and every message, whether or not
+Audio-React is switched on (the `AUD` row of the panel's NETWORK screen;
+`audioRuntime` in `GET /api/audio` and `/api/status`). Switched off, the
+messages are parsed and nothing is driven — an open socket is not evidence
+that the panel is listening. A client that wants to know reads
+`audioRuntime` over HTTP.
 
 ## Version history
 
+- **1.1** (unreleased) — no change on the wire. Written down: a lane is
+  released 500 ms after its last message, so a steady value has to be resent
+  (version 1 said no keep-alive was needed); the extension's send rate is a
+  33 ms timer, not the animation frame; the socket accepts messages while
+  Audio-React is switched off and ignores them.
 - **1** — first written contract: `a=` / `k=` / `d=` / `off=N` / `off`,
   lane semantics, the unknown-prefix rule, the one-in-flight pacing rule.
   Matches firmware 3.8.0 (Audio edition v0.3.1 onward) and the extension as shipped in

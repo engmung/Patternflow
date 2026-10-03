@@ -1,6 +1,8 @@
 // Patternflow - Audio-react WebSocket server (single-threaded)
 //
-// A WebSocket endpoint on port 81, and nothing else.
+// Owns: the WebSocket on port 81 and the four lanes it writes. Nothing else -
+// no page, no HTTP route (the on/off switch's two routes are in
+// feature_audio.h, on the console's server).
 //
 // This used to serve a page at /audio too — file, tab and microphone capture
 // in the browser. It could never work: the device is plain HTTP on a LAN
@@ -9,12 +11,13 @@
 // could only ever apologise, and a file player is beside the point when the
 // whole value is being in sync with what is actually playing.
 //
-// Sound reaches a panel two ways now, and neither is this page: the Chrome
-// extension, which has an extension context and can capture a tab, and the
-// on-board microphone in audio_in, which does not involve a browser at all. (core_web_update.h registers its
-// /update routes on this same server.) Browsers connect, send normalized
-// 0..1 knob values per frame, and patterns read those through
-// InputFrame::knobAudioActive / knobAudioValue.
+// Sound reaches a panel two ways now, and neither is that page: a client that
+// can capture audio where it is playing (the Chrome extension, which has an
+// extension context and can capture a tab; the phone capture app), and the
+// on-board microphone in audio_in, which involves no client at all. This
+// file is the first kind's way in. A client connects, does its own analysis
+// and mapping, and sends each knob a normalized 0..1 value; patterns read
+// those through InputFrame::knobAudioActive / knobAudioValue.
 //
 // Threading: everything runs in the main Arduino loop via handle(). An
 // earlier version pushed this into a pinned core-0 FreeRTOS task guarded by
@@ -23,12 +26,18 @@
 // inline is simpler and robust — the messages are tiny, so the per-frame
 // cost is negligible.
 //
-// Message protocol:
+// Message protocol (the contract is docs/audio-ws-spec.md; this is a copy):
 //   a=F,F,F,F all four lanes at once; '-' leaves a lane alone
 //   k=N,v=F   set knob N (0..3) to value F (clamped to 0..1)
-//   d=N,v=F   add normalized delta F to knob N (-1..1)
+//   d=N,v=F   add normalized delta F to knob N (-1..1). Nothing in this tree
+//             sends it any more; it is in version 1 of the written contract
+//             and earlier extensions spoke nothing else, so it stays.
 //   off=N     release knob N back to encoder control
 //   off       release all four knobs
+//
+// A lane holds for AUDIO_TIMEOUT_MS after its last message and is then handed
+// back to the encoder. That is what covers a tab closing mid-track - and it
+// means a client holding a steady value has to keep saying it.
 //
 // `a=` exists because sending four `k=` messages per frame did not work. A
 // browser client checks `bufferedAmount` before each send so it cannot
@@ -53,17 +62,6 @@
 #include <WebSocketsServer.h>
 #include "../../src/core_http.h"
 #endif
-
-#include "../../src/core_send.h"
-
-// Forward declaration: the home page pauses a loaded pattern module the same
-// way the other console pages do (see core_patterns_http.h for why), but this
-// header is included first, so only the declaration is available here. The
-// definition lands later in the same translation unit.
-namespace PatternflowPatternsHttp {
-bool noteConsolePageOpened();
-void sendConsoleWakePage();
-}
 
 namespace PatternflowAudio {
 
@@ -282,6 +280,8 @@ inline void begin() {
 
   initialized = true;
 
+  // "[AUDIO] Ready" is the literal firmware/bundles/build.sh looks for in an
+  // image to prove this feature is in it. Reword the rest, not those two words.
   String ip = WiFi.localIP().toString();
   Serial.printf("[AUDIO] Ready — UI http://%s:%d  WS ws://%s:%d\n",
                 ip.c_str(), PF_AUDIO_HTTP_PORT, ip.c_str(), PF_AUDIO_WS_PORT);

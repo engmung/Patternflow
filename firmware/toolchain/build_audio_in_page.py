@@ -1,447 +1,395 @@
 # -*- coding: utf-8 -*-
-"""Assemble console/audio-in.html from the extension's mapping editor.
+"""Assemble console/audio-in.html, the panel's /audio-in page, from its sources.
 
-    python firmware/toolchain/build_audio_in_page.py
-    python firmware/toolchain/console_pages.py build   # then bake the header
+    python firmware/toolchain/console_pages.py build          # the build: this page, then every header
+    python firmware/toolchain/console_pages.py check          # everything in sync, this page included
 
-The editor module (tools/patternflow-audio-extension/editor.js) is the single
-source of truth for the mapping UI - the port philosophy is COPY, not
-re-extract (port_audio_ui.py's function-lifting era ended with it; that script
-is retired). This assembler:
+    python firmware/toolchain/build_audio_in_page.py          # only assemble this page
+    python firmware/toolchain/build_audio_in_page.py --check  # CI: page == sources, and inside its budget
+    --sketch DIR    work on another copy of firmware/patternflow (as console_pages.py)
 
-  - reads editor.html, editor.css and editor.js from the extension,
-  - swaps the cream instrument tokens for the console's dark ones (editor.js
-    reads its canvas colors from CSS variables, so the theme travels free)
-    and adds the phone layout the extension's wide tab never needed,
-  - injects a device bar (microphone switch, input gain, reset) above the
-    editor - the two controls that exist only on this side,
-  - replaces the chrome adapter with a fetch('/api/audio-in') adapter that
-    also converts levels between the device's linear scale and the editor's
-    dB-normalized display axis (calibration constants live HERE, in JS,
-    tweakable without a reflash).
+/audio-in is the one console page that is not written as a page. Its editor is
+the browser extension's mapping editor, copied, never re-extracted, so the two
+cannot drift apart; what is the panel's own sits beside the other console
+sources. This script holds none of their text:
 
-Run it after editing the editor, then console_pages.py build. CI's page sync
-check keeps the generated header honest; nothing checks that YOU reran this -
-the marker comment carries the source hash so drift is at least visible.
+    tools/patternflow-audio-extension/
+      editor.html    the markup: its <div class="page"> block is taken, and the
+                     <script src> tags after it say which scripts, in which order
+      editor.css     the editor's styles
+      editor.js      the editor; it reaches its host only through window.PFAdapter
+      (any other script editor.html loads is taken the same way)
+    firmware/patternflow/console/     (underscore: sources, not pages)
+      _audio_in_bar.html     the device bar, put right after the editor's </header>
+      _audio_in.css          the panel's styles, after the editor's
+      _audio_in_adapter.js   window.PFAdapter over fetch('/api/audio-in'): taken where
+                             editor.html loads editor-adapter.js, its twin for
+                             the extension
+
+Edit those, run `console_pages.py build`. Never edit console/audio-in.html or
+features/audio_in/audio_in_index.h: both are generated, and CI fails on a page
+that is not what its sources assemble to.
+
+ASSEMBLING IS ALL IT DOES, except for one thing: what the sources say to the
+person reading them does not travel. From every source it drops
+
+    whole-line // comments (JS), /* */ comments (CSS), <!-- --> comments (HTML),
+    leading and trailing whitespace, and blank lines.
+
+That is a quarter of the page on the wire, on a link measured at 2-5 KB/s, and
+it lets the sources stay as commented as they need to be. It is done line by
+line, with no JavaScript tokenizer, so it is only safe while a line break in
+the source is never inside a token. Rather than trust that, the build FAILS on
+the constructs that would break it: a JS line with an odd number of backticks
+(a template literal left open across lines), a JS line ending in a backslash,
+a CSS comment opened inside a quoted string, and <pre>/<textarea>/<script>/
+<style> in the markup. A comment after code on the same line is left alone:
+telling `// note` from the // in 'http://x' is what would need the tokenizer.
+Line numbers in the browser's console are therefore the generated page's, not
+the source's.
+
+A script the extension shares with the panel may have a tail the panel has no
+use for. A comment line that says only EXTENSION ONLY (a rule drawn around the
+words is fine) ends what is taken from it.
+
+THE BUDGET. `--check` also fails when the page, stamped and gzipped as the panel
+sends it, is over BUDGET bytes: see the comment there.
+
+Other tools import this: assemble(sketch) returns the page, sources(sketch) the
+files it is made from, check(sketch) what is wrong. A bad source raises
+BuildError (a ValueError), which is what console_pages.stamp raises too.
 
 License: MIT
 """
 from __future__ import annotations
 
-import hashlib
+import argparse
+import gzip
 import io
 import re
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
 EXT = ROOT / 'tools' / 'patternflow-audio-extension'
-OUT = ROOT / 'firmware' / 'patternflow' / 'console' / 'audio-in.html'
+SKETCH = ROOT / 'firmware' / 'patternflow'
 
-editor_html = (EXT / 'editor.html').read_text(encoding='utf-8')
-editor_css = (EXT / 'editor.css').read_text(encoding='utf-8')
-editor_js = (EXT / 'editor.js').read_text(encoding='utf-8')
+PAGE = 'audio-in'
+EDITOR_HTML, EDITOR_CSS, EDITOR_JS = 'editor.html', 'editor.css', 'editor.js'
+EXT_ADAPTER = 'editor-adapter.js'  # the extension's PFAdapter; the panel's goes in its place
+BAR_FILE, CSS_FILE, ADAPTER_FILE = '_audio_in_bar.html', '_audio_in.css', '_audio_in_adapter.js'
+# The line a shared script is taken down to: a comment that says only this
+# (a rule drawn around the words is fine; a sentence that mentions them is not).
+EXTENSION_ONLY = re.compile(r'//\W*EXTENSION ONLY\W*')
 
-src_hash = hashlib.sha1((editor_html + editor_css + editor_js).encode()).hexdigest()[:10]
+# Bytes of the page as the panel sends it: stamped by console_pages.py (the
+# chrome's ?h= and the fallback PF), gzip -9. This is the heaviest page the
+# console has, and on the panel's own hotspot (2-5 KB/s measured) a kilobyte is
+# 0.2 to 0.5 s before anything paints - so, like check_footprint.py's PINS, it
+# is pinned, and growing it is a decision somebody makes rather than something
+# that happens. It was 19,920 before the page stopped shipping its sources'
+# comments and about 15,300 right after. To raise it, change the number and say
+# in the commit what the bytes bought. (zlib builds differ by a few bytes for
+# the same input; a page that close to the line is over it.)
+BUDGET = 17500
 
-body = re.search(r'<div class="page">.*</div>\s*(?=<script)', editor_html, re.S)
-assert body, 'editor.html: .page block not found'
-body = body.group(0)
+# The one comment that does travel: whoever opens the generated page is told
+# not to edit it. Short, because the panel serves it too.
+GENERATED = '<!-- GENERATED by firmware/toolchain/build_audio_in_page.py from its sources: edit those -->'
 
-DEVICE_BAR = '''
-  <div class="deviceBar">
-    <button id="audToggle" class="toggleWrap" type="button" title="Enable browser tab and extension audio reaction (AUD)">
-      <span class="toggle"><span class="dotK"></span></span>
-      <span class="toggleLabel">Audio-React (AUD)</span>
-    </button>
-    <button id="micToggle" class="toggleWrap" type="button" title="Enable on-board microphone">
-      <span class="toggle"><span class="dotK"></span></span>
-      <span class="toggleLabel">Microphone</span>
-    </button>
-    <div class="damping">
-      <span class="fieldLabel">Input gain</span>
-      <input id="micGain" type="range" min="1" max="16" step="0.5">
-      <span id="micGainVal" class="mono dimText">8.0</span>
-    </div>
-    <span id="deviceNote" class="hint"></span>
-    <span id="barMsg" class="barMsg" role="status"></span>
-    <span class="spacer"></span>
-    <a id="extGuideLink" class="ghostBtn" href="https://github.com/engmung/Patternflow/tree/main/tools/patternflow-audio-extension#readme" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px" title="Install Chrome Audio Extension">Extension ↗</a>
-    <button id="resetAll" class="ghostBtn" type="button">Reset mapping</button>
-  </div>
-'''
 
-assert '</header>' in body
-body = body.replace('</header>', '</header>\n' + DEVICE_BAR, 1)
+class BuildError(ValueError):
+    """A source this page cannot be assembled from; the message says which."""
 
-ADAPTER = r'''
-// Console adapter: the same surface editor-adapter.js gives the extension,
-// spoken over fetch('/api/audio-in'). Two extra jobs live here:
-//
-//   - scale conversion. The firmware measures, gates and maps in LINEAR
-//     amplitude (every constant in core_audio_in_map.h was measured on that
-//     scale and stays); the editor's vertical axis is dB-normalized so boxes
-//     drag like hearing works. This file converts both ways at the boundary.
-//     DB_FLOOR/DB_SPAN are the calibration: quiet room should sit ~0.15 up
-//     the axis, listening-volume peaks ~0.9. Tweak here, no reflash.
-//
-//   - the device bar. Microphone power and input gain exist only on this
-//     side; they talk to the same API directly.
-(function () {
-  var DB_FLOOR = -45, DB_SPAN = 47;
-  function clamp01(v) { v = Number(v) || 0; return v < 0 ? 0 : v > 1 ? 1 : v; }
-  function dbn(x) { return clamp01((20 * Math.log10(Math.max(Number(x) || 0, 1e-4)) - DB_FLOOR) / DB_SPAN); }
-  function lin(v) { return Math.pow(10, (clamp01(v) * DB_SPAN + DB_FLOOR) / 20); }
 
-  var PRESET_CURVES = {
-    smooth: { type: 'bezier', id: 'smooth', y0: 0, y1: 1, p1x: 0.45, p1y: 0.05, p2x: 0.55, p2y: 0.95 },
-    sharp:  { type: 'bezier', id: 'sharp',  y0: 0, y1: 1, p1x: 0.10, p1y: 0.65, p2x: 0.35, p2y: 1.00 },
-    fall:   { type: 'bezier', id: 'fall',   y0: 1, y1: 0, p1x: 0.45, p1y: 0.95, p2x: 0.55, p2y: 0.05 }
-  };
+# ── the sources ────────────────────────────────────────────────────────────
 
-  function encodeMeta(curve) {
-    if (!curve) return '';
-    if (curve.type === 'steps') return 's:' + curve.n;
-    if (curve.type === 'arch') return 'a';
-    if (curve.type === 'bezier') {
-      if (curve.id && PRESET_CURVES[curve.id]) return 'p:' + curve.id;
-      return 'b:' + [curve.y0, curve.y1, curve.p1x, curve.p1y, curve.p2x, curve.p2y]
-        .map(function (v) { return Math.round(clamp01(v) * 100); }).join(',');
-    }
-    return '';
-  }
+def console_dir(sketch=None) -> Path:
+    return Path(sketch or SKETCH) / 'console'
 
-  function decodeMeta(m) {
-    if (!m) return null;
-    if (m === 'a') return { type: 'arch', id: 'arch' };
-    if (m.slice(0, 2) === 's:') {
-      var n = Math.max(2, Math.min(8, parseInt(m.slice(2), 10) || 2));
-      return { type: 'steps', id: n === 2 ? 'gate' : 'steps', n: n };
-    }
-    if (m.slice(0, 2) === 'p:') {
-      var p = PRESET_CURVES[m.slice(2)];
-      return p ? JSON.parse(JSON.stringify(p)) : null;
-    }
-    if (m.slice(0, 2) === 'b:') {
-      var q = m.slice(2).split(',').map(function (v) { return (parseInt(v, 10) || 0) / 100; });
-      if (q.length !== 6) return null;
-      return { type: 'bezier', id: 'custom', y0: q[0], y1: q[1], p1x: q[2], p1y: q[3], p2x: q[4], p2y: q[5] };
-    }
-    return null;
-  }
 
-  var frameFn = null;
-  var micOn = false;
-  var phoneLive = false;
-  var audOn = false;
+def out_path(sketch=None) -> Path:
+    return console_dir(sketch) / (PAGE + '.html')
 
-  // The levels loop keeps its own chained 100 ms timer instead of PF.poll:
-  // ten frames a second is this page's whole job, and the chrome's lane
-  // would queue it behind every status poll. It starts once the config read
-  // has settled (a frame before that paints on an unsized plot and races the
-  // read for the panel's one connection), sleeps while the tab is hidden and
-  // stops on pagehide.
-  var ready = false, gone = false, busy = false, timer = 0;
 
-  function tick() {
-    clearTimeout(timer);
-    timer = 0;
-    if (!ready || !frameFn || gone || busy || document.hidden) return;
-    busy = true;
-    var wait = 100;
-    fetch('/api/audio-in?levels=1').then(function (r) { return r.json(); }).then(function (j) {
-      // ext frames come from the phone app, already on the editor's own
-      // normalized scale - converting them again would wreck them. The
-      // device's mic values are linear and get the dB treatment.
-      var ext = j.ext === true;
-      micOn = !ext && j.source !== 'off';
-      phoneLive = ext;
-      syncBar();
-      window.PFAdapter.labels.live = ext ? 'live · phone' : 'live · microphone';
-      var conv = ext ? function (v) { return v; } : dbn;
-      if (frameFn) frameFn({
-        running: ext || micOn,
-        connected: ext || micOn,
-        levels: (j.levels || []).map(conv),
-        outputs: j.outputs || [],
-        env: (j.env || []).map(function (e) { return { lo: conv(e.lo), hi: conv(e.hi) }; }),
-        spectrum: (j.spectrum || []).map(conv),
-        autoRange: true
-      });
-    }).catch(function (e) {
-      // AbortError is the chrome freeing the connection for a link just
-      // clicked (or pagehide); asking again in 100 ms would take it back
-      // from the next page. Still here in 3 s: the navigation was cancelled.
-      if (e && e.name === 'AbortError') { wait = 3000; return; }
-      // Unreachable: ask once a second, not ten times (the chrome shows it).
-      wait = 1000;
-      if (frameFn) frameFn({ running: false, connected: false, levels: [], env: [], spectrum: [] });
-    }).then(function () {
-      // Chained, never setInterval: the device serves one connection at a
-      // time, and a timer would stack requests behind a slow one.
-      busy = false;
-      if (!gone && !timer) timer = setTimeout(tick, wait);
-    });
-  }
-  function start() { if (!ready) { ready = true; tick(); } }
-  document.addEventListener('visibilitychange', function () { if (!timer) tick(); });
-  window.addEventListener('pagehide', function () { gone = true; clearTimeout(timer); timer = 0; });
-  window.addEventListener('pageshow', function () { if (gone) { gone = false; tick(); } });
+def shown(path) -> str:
+    try:
+        return Path(path).resolve().relative_to(ROOT).as_posix()
+    except ValueError:
+        return str(path)
 
-  // Every edit autosaves; PF.dirty covers the gap until the panel has it,
-  // so the chrome's version reload never drops one. A failure is said next
-  // to the device bar (the editor itself has no slot for it).
-  var saving = 0, gainTimer = null;
-  function say(text, kind) { PF.say(text, kind, document.getElementById('barMsg')); }
-  function post(body) {
-    saving++;
-    PF.dirty = true;
-    return fetch('/api/audio-in', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body
-    }).then(function (r) {
-      if (!r.ok) throw Error('HTTP ' + r.status);
-      if (document.getElementById('barMsg').textContent) say('saved', 'ok');
-    }).catch(function () {
-      say('not saved: the panel did not take it. Change it again to retry.', 'err');
-    }).then(function () {
-      if (!--saving && !gainTimer) PF.dirty = false;
-    });
-  }
 
-  window.PFAdapter = {
-    caps: function () { return { hzMin: 31.25, hzMax: 8000 }; },
-    labels: { live: 'live · microphone' },
-    captureHint: 'Turn the microphone on to hear the room.',
-    loadConfig: function () {
-      // Never reject: a failed read hands the editor its defaults and the
-      // page still stands - the levels loop keeps trying, and the next save
-      // writes the truth back. One request at a time: the config, then the
-      // AUD switch, then the loop.
-      return fetch('/api/audio-in').then(function (r) { return r.json(); }).then(function (j) {
-        micOn = !!j.micOn;
-        var gainEl = document.getElementById('micGain');
-        gainEl.value = String(j.micGain || 8);
-        document.getElementById('micGainVal').textContent = Number(j.micGain || 8).toFixed(1);
-        fetch('/api/audio').then(function (r) { return r.json(); }).then(function (a) {
-          audOn = !!a.audioRuntime;
-          syncBar();
-        }).catch(function () {}).then(start);
-        syncBar();
-        return {
-          host: 'this device',
-          smoothing: j.smoothing || 0.35,
-          attack: j.attack || 0.65,
-          autoRange: !!j.autoRange,
-          bands: (j.bands || []).map(function (b) {
-            return {
-              hzMin: b.hzMin, hzMax: b.hzMax,
-              inMin: dbn(b.inMin), inMax: dbn(b.inMax),
-              gain: b.gain, outMin: b.outMin, outMax: b.outMax,
-              knob: b.knob, muted: b.muted,
-              curve: decodeMeta(b.meta), lut: null
-            };
-          })
-        };
-      }).catch(function () { start(); return null; });
-    },
-    saveConfig: function (cfg) {
-      var parts = ['auto=' + (cfg.autoRange ? 1 : 0),
-        'smoothing=' + cfg.smoothing.toFixed(3),
-        'attack=' + cfg.attack.toFixed(3)];
-      cfg.bands.forEach(function (b, i) {
-        parts.push('hzMin' + i + '=' + b.hzMin.toFixed(1));
-        parts.push('hzMax' + i + '=' + b.hzMax.toFixed(1));
-        parts.push('inMin' + i + '=' + lin(b.inMin).toFixed(5));
-        parts.push('inMax' + i + '=' + lin(b.inMax).toFixed(5));
-        parts.push('gain' + i + '=' + b.gain.toFixed(3));
-        parts.push('outMin' + i + '=' + b.outMin.toFixed(3));
-        parts.push('outMax' + i + '=' + b.outMax.toFixed(3));
-        parts.push('knob' + i + '=' + b.knob);
-        parts.push('muted' + i + '=' + (b.muted ? 1 : 0));
-        parts.push('meta' + i + '=' + encodeURIComponent(encodeMeta(b.curve)));
-        if (Array.isArray(b.lut) && b.lut.length) {
-          parts.push('lut' + i + '=' + b.lut.map(function (v) {
-            return Math.round(clamp01(v) * 255);
-          }).join(','));
-        }
-      });
-      return post(parts.join('&'));
-    },
-    onFrame: function (fn) {
-      frameFn = fn;
-      tick();
-    },
-    requestStatus: function () {},
-    stop: function () { post('mic=0'); }
-  };
+def text_of(path: Path) -> str:
+    try:
+        return path.read_text(encoding='utf-8')  # universal newlines: LF from here on
+    except OSError as e:
+        raise BuildError('%s: %s' % (shown(path), e.strerror or e))
 
-  // ── the device bar ────────────────────────────────────────────────────
-  function syncBar() {
-    var audT = document.getElementById('audToggle');
-    if (audT) audT.classList.toggle('on', audOn);
-    var t = document.getElementById('micToggle');
-    if (t) t.classList.toggle('on', micOn);
-    var note = document.getElementById('deviceNote');
-    if (note) {
-      note.textContent = micOn ? ''
-        : phoneLive ? 'showing the phone app’s audio'
-        : 'microphone is off — the panel is not listening';
-    }
-  }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    var audBtn = document.getElementById('audToggle');
-    if (audBtn) {
-      audBtn.addEventListener('click', function () {
-        var want = audOn = !audOn;
-        syncBar();
-        fetch('/api/audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'on=' + (want ? 1 : 0)
-        }).then(function (r) { if (!r.ok) throw Error('HTTP ' + r.status); }).catch(function () {
-          // Nothing re-reads this switch, so a lost request would leave it lying.
-          if (audOn === want) { audOn = !want; syncBar(); }
-          say('AUD did not switch: the panel did not take it.', 'err');
-        });
-      });
-    }
-    document.getElementById('micToggle').addEventListener('click', function () {
-      micOn = !micOn;
-      syncBar();
-      post('mic=' + (micOn ? 1 : 0));
-    });
-    document.getElementById('micGain').addEventListener('input', function () {
-      var v = Number(document.getElementById('micGain').value);
-      document.getElementById('micGainVal').textContent = v.toFixed(1);
-      PF.dirty = true;
-      clearTimeout(gainTimer);
-      gainTimer = setTimeout(function () { gainTimer = null; post('micGain=' + v); }, 150);
-    });
-    document.getElementById('resetAll').addEventListener('click', function () {
-      if (!confirm('Reset every band, curve and the input gain to defaults?')) return;
-      PF.busy(this, fetch('/api/audio-in/reset', { method: 'POST' }).then(function (r) {
-        if (!r.ok) throw Error('HTTP ' + r.status);
-        location.reload();
-      })).catch(function () { say('Reset failed: the panel did not take it.', 'err'); });
-    });
-    syncBar();
-  });
-})();
-'''
+SCRIPT_TAG = re.compile(r'<script src="([^"]+)"></script>')
 
-OVERRIDES = '''
-/* ── console skin over the editor's cream tokens ── */
-:root {
-  --cream: #0C0B09;
-  --cream-2: #1B1914;
-  --ink: #EDE7DB;
-  --muted: #8A8272;
-  --faint: #5A5546;
-  --rule: #242118;
-  --led: #FF5C2E;
-  --ok: #57B87F;
-  --bad: #FF6B5A;
-  --field: #131110;
-}
-/* The console's Light toggle stamps html[data-theme=light] and overrides the
-   CONSOLE-named variables (theme_index.h). The editor's two names of its own
-   need light values here or the plot field and tags stay dark in a light
-   page - which read as "the toggle does nothing". Canvas colors follow free:
-   editor.js reads these variables fresh on every paint. */
-html[data-theme=light] {
-  --cream-2: #E8E2D6;
-  --field: #FFFCFA;
-}
-/* device host chip is meaningless when the page IS the device; the source
-   chip and Stop repeat what the device bar's Microphone switch and note say */
-#hostChip, #sourceChip, #stopBtn { display: none; }
-.deviceBar {
-  display: flex; align-items: center; gap: 14px;
-  background: var(--field); border: 1px solid var(--rule);
-  border-radius: 2px; padding: 10px 14px;
-}
-.toggleWrap.on .toggle { background: var(--ok); }
-.barMsg { font: 11px var(--mono); }
-#deviceNote:empty, .barMsg:empty { display: none; }
-.pf-ok { color: var(--ok); }
-.pf-err { color: var(--bad); }
-/* The chrome says when the panel is unreachable; the page only dims what it
-   can no longer vouch for, and drops the "turn the microphone on" hint an
-   unanswered poll would otherwise show. */
-html.pf-offline .plotWrap, html.pf-offline .deviceBar { opacity: 0.5; }
-html.pf-offline #captureHint { visibility: hidden; }
-/* Rows wrap before they overflow (the editor was laid out for a wide tab). */
-.deviceBar, .toolbar, .pvChips, .outPresets, header { flex-wrap: wrap; }
-#pvScope { max-width: 100%; height: auto !important; }
-/* The highest band's tag hangs past a narrow plot's right edge: clip it
-   there rather than widen the page. */
-.plotWrap { overflow: hidden; }
-@media (max-width: 1000px) {
-  .panel { flex-wrap: wrap; }
-  .vr { display: none; }
-  .col.grow { flex-basis: 100%; }
-}
-/* Phones: one column. The bordered boxes run edge to edge, which is what
-   lets the response curve fit a 360 px screen: it is a fixed 356 px canvas
-   whose pointer maths assume that size, so it may not be scaled down. */
-@media (max-width: 700px) {
-  .page { padding: 12px 12px 24px; gap: 12px; }
-  .deviceBar, .plotWrap, .panel {
-    margin: 0 -12px; border-left: 0; border-right: 0; border-radius: 0;
-  }
-  .deviceBar { padding: 12px; gap: 10px 12px; }
-  .toolbar { gap: 10px 12px; }
-  .deviceBar .damping, .toolbar .damping, #deviceNote, .barMsg, #autoHint { flex-basis: 100%; }
-  .damping input { flex: 1; width: auto; min-width: 0; }
-  .toolbar .spacer, #autoHint:empty { display: none; }
-  .panel { flex-direction: column; gap: 18px; padding: 14px 12px; }
-  .presetsCol { width: auto; }
-  #curve { margin: 0 -12px; align-self: center; }
-  .chips { display: grid; grid-template-columns: 1fr 1fr; }
-}
-/* Touch: hit areas grow invisibly; the controls keep their size. */
-@media (pointer: coarse) {
-  .toggleWrap, .ghostBtn, .pvSig, .chipCard, .outPreset, .stepsRow button { position: relative; }
-  .toggleWrap::after, .ghostBtn::after, .pvSig::after, .chipCard::after, .outPreset::after,
-  .stepsRow button::after, .outTrack::after, .toggle.small::after {
-    content: ""; position: absolute; inset: -8px -2px;
-  }
-  .toggle.small::after { inset: -16px -11px; }
-}
-'''
 
-page = (
-    '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-    '<script src="/pf-console.js"></script>\n'
-    '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
-    '<title>Patternflow - Mic mapping</title>\n'
-    '<!-- GENERATED by firmware/toolchain/build_audio_in_page.py from\n'
-    '     tools/patternflow-audio-extension (editor ' + src_hash + ').\n'
-    '     Edit the editor there, rerun the builder, then console_pages.py build. -->\n'
-    '<style>\n' + editor_css + '\n' + OVERRIDES + '\n</style>\n'
-    '</head>\n<body>\n'
-    + body +
-    '\n<script>\n' + ADAPTER + '\n</script>\n'
-    '<script>\n' + editor_js + '\n</script>\n'
-    '</body>\n</html>\n'
-)
+def script_files(editor_html: str, sketch=None) -> list:
+    """(name, path) of each script the page carries: the ones editor.html
+    loads, in its order, with the extension's adapter swapped for the panel's."""
+    names = SCRIPT_TAG.findall(editor_html)
+    if len(names) != editor_html.lower().count('<script'):
+        raise BuildError(EDITOR_HTML + ': every script must be a plain '
+                         '<script src="file.js"></script>; one here is not')
+    for need in (EXT_ADAPTER, EDITOR_JS):
+        if names.count(need) != 1:
+            raise BuildError('%s: must load %s exactly once' % (EDITOR_HTML, need))
+    return [(ADAPTER_FILE, console_dir(sketch) / ADAPTER_FILE) if name == EXT_ADAPTER
+            else (name, EXT / name) for name in names]
 
-import sys
 
-if '--check' in sys.argv:
-    # CI: the page on disk must be what this script would write now — so an
-    # edit to the extension's editor, or to the adapter/overrides above, that
-    # was not baked into console/audio-in.html fails the build instead of
-    # shipping a stale page under a fresh-looking header.
-    current = OUT.read_text(encoding='utf-8') if OUT.exists() else ''
-    if current == page:
-        print('console/audio-in.html is up to date (editor %s)' % src_hash)
-        sys.exit(0)
-    print('console/audio-in.html is stale: rerun firmware/toolchain/build_audio_in_page.py, '
-          'then firmware/toolchain/console_pages.py build', file=sys.stderr)
-    sys.exit(1)
+def sources(sketch=None) -> list:
+    """The files the page is assembled from. A preview server watches these
+    to know the page changed; it never raises, so that it can."""
+    console = console_dir(sketch)
+    try:
+        scripts = [path for _, path in script_files(text_of(EXT / EDITOR_HTML), sketch)]
+    except BuildError:
+        scripts = [console / ADAPTER_FILE, EXT / EDITOR_JS]
+    return [EXT / EDITOR_HTML, EXT / EDITOR_CSS, console / BAR_FILE, console / CSS_FILE] + scripts
 
-io.open(OUT, 'w', encoding='utf-8', newline='\n').write(page)
-print('wrote', OUT.relative_to(ROOT).as_posix(), len(page), 'bytes (editor %s)' % src_hash)
+
+# ── what does not travel ───────────────────────────────────────────────────
+# Each takes a source's text and the name to blame, and returns it lean. See
+# the docstring for why these are line rules and what they refuse.
+
+def lean_lines(lines) -> str:
+    return '\n'.join(s for s in (line.strip() for line in lines) if s)
+
+
+def lean_js(text: str, name: str) -> str:
+    out = []
+    for n, line in enumerate(text.split('\n'), 1):
+        s = line.strip()
+        if EXTENSION_ONLY.fullmatch(s):
+            break
+        if s.startswith('//') and '*/' in s:
+            raise BuildError(
+                '%s:%d: a // line holding */. If it closes a block comment, dropping '
+                'the line would leave that comment open; reword it.' % (name, n))
+        if not s or s.startswith('//'):
+            continue
+        if s.count('`') % 2:
+            raise BuildError(
+                '%s:%d: an odd number of backticks. A template literal that runs past '
+                'the end of its line would have its inside stripped; keep each on one '
+                'line (or build the string with +).' % (name, n))
+        if s.endswith('\\'):
+            raise BuildError(
+                '%s:%d: the line ends in a backslash. A string continued onto the next '
+                'line would lose that line\'s indentation; join it with + instead.' % (name, n))
+        out.append(s)
+    text = '\n'.join(out)
+    if '</script' in text.lower():
+        raise BuildError('%s: "</script" would end the page\'s <script> early' % name)
+    return text
+
+
+def lean_css(text: str, name: str) -> str:
+    out, at = [], 0
+    while True:
+        a = text.find('/*', at)
+        if a < 0:
+            out.append(text[at:])
+            break
+        out.append(text[at:a])
+        before = ''.join(out).rsplit('\n', 1)[-1]  # this line, earlier comments already gone
+        if before.count('"') % 2 or before.count("'") % 2:
+            raise BuildError(
+                '%s:%d: /* inside a quoted string; this build would cut it out as a comment'
+                % (name, text.count('\n', 0, a) + 1))
+        b = text.find('*/', a + 2)
+        if b < 0:
+            raise BuildError('%s:%d: a /* comment that never closes'
+                             % (name, text.count('\n', 0, a) + 1))
+        out.append(' ')  # a comment separates tokens: `a/**/b` is not `ab`
+        at = b + 2
+    text = lean_lines(''.join(out).split('\n'))
+    if '</style' in text.lower():
+        raise BuildError('%s: "</style" would end the page\'s <style> early' % name)
+    return text
+
+
+def lean_html(text: str, name: str) -> str:
+    for tag in ('pre', 'textarea', 'script', 'style'):
+        if re.search(r'<%s\b' % tag, text, re.I):
+            raise BuildError(
+                '%s: <%s> in the markup. This build strips indentation and comments '
+                'line by line, which is not safe inside one.' % (name, tag))
+    text = re.sub(r'<!--.*?-->', '', text, flags=re.S)
+    if '<!--' in text:
+        raise BuildError('%s: a <!-- comment that never closes' % name)
+    return lean_lines(text.split('\n'))
+
+
+# ── the page ───────────────────────────────────────────────────────────────
+
+def assemble(sketch=None) -> str:
+    """The page, LF line endings, exactly as console/audio-in.html holds it.
+    Raises BuildError when a source is missing or cannot be stripped safely."""
+    console = console_dir(sketch)
+    editor_html = text_of(EXT / EDITOR_HTML)
+
+    # The editor's body: its .page block, up to the scripts that follow it.
+    block = re.search(r'<div class="page">.*</div>\s*(?=<script)', editor_html, re.S)
+    if not block:
+        raise BuildError(EDITOR_HTML + ': no <div class="page"> block ahead of its scripts')
+    body = lean_html(block.group(0), EDITOR_HTML)
+    if body.count('</header>') != 1:
+        raise BuildError(EDITOR_HTML + ': the device bar goes after </header>, and there '
+                         'must be exactly one')
+    bar = lean_html(text_of(console / BAR_FILE), BAR_FILE)
+    body = body.replace('</header>', '</header>\n' + bar)
+
+    css = '\n'.join((lean_css(text_of(EXT / EDITOR_CSS), EDITOR_CSS),
+                     lean_css(text_of(console / CSS_FILE), CSS_FILE)))
+
+    # One <script> per file, as editor.html has them: they are separate
+    # programs ('use strict' is editor.js's own), sharing only the globals.
+    scripts = []
+    for name, path in script_files(editor_html, sketch):
+        scripts += ['<script>', lean_js(text_of(path), name), '</script>']
+
+    return '\n'.join([
+        '<!doctype html>',
+        '<html lang="en">',
+        '<head>',
+        '<meta charset="utf-8">',
+        '<script src="/pf-console.js"></script>',
+        '<meta name="viewport" content="width=device-width,initial-scale=1">',
+        '<title>Patternflow - Mic mapping</title>',
+        GENERATED,
+        '<style>', css, '</style>',
+        '</head>',
+        '<body>',
+        body,
+    ] + scripts + [
+        '</body>',
+        '</html>',
+        '',
+    ])
+
+
+def stamped_gzip(page: str, sketch=None) -> int:
+    """Bytes of `page` as the panel sends it: console_pages.py's own stamp and
+    its own gzip, so this cannot measure something other than what ships."""
+    if str(HERE) not in sys.path:
+        sys.path.insert(0, str(HERE))
+    import console_pages as cp
+
+    sk = Path(sketch or SKETCH)
+    name, rel, delim = cp.CHROME
+    try:
+        _, chrome, _ = cp.split(cp.read(str(sk / rel)), name, delim)
+        shim = cp.load_shim(str(sk / 'console' / cp.SHIM_FILE))
+        stamped = cp.stamp(page, cp.crc_of(chrome), shim, PAGE)
+    except (OSError, ValueError) as e:
+        raise BuildError(str(e))
+    return len(gzip.compress(cp.payload(stamped), compresslevel=9, mtime=0))
+
+
+def weight(page: str, sketch=None):
+    """(gzip bytes as the panel sends it, one line saying so against the budget)."""
+    gz = stamped_gzip(page, sketch)
+    return gz, '%d bytes, %d gzip -9 as the panel sends it (budget %d, %s)' % (
+        len(page.encode('utf-8')), gz, BUDGET,
+        '%d spare' % (BUDGET - gz) if gz <= BUDGET else '%d OVER' % (gz - BUDGET))
+
+
+def on_disk(sketch=None):
+    """The page as written, LF, or None when there is none."""
+    out = out_path(sketch)
+    return out.read_text(encoding='utf-8') if out.exists() else None
+
+
+def write(sketch=None):
+    """Assemble and write the page. Returns (page, changed). Line endings stay
+    the file's own (a Windows checkout is CRLF, as every file around it), and a
+    page that already says this is not rewritten, so a build with nothing to
+    do touches nothing."""
+    page = assemble(sketch)
+    out = out_path(sketch)
+    if on_disk(sketch) == page:
+        return page, False
+    nl = '\r\n' if out.exists() and b'\r\n' in out.read_bytes() else '\n'
+    with io.open(out, 'w', encoding='utf-8', newline='') as f:
+        f.write(page.replace('\n', nl))
+    return page, True
+
+
+def check(sketch=None) -> list:
+    """What is wrong, as lines to print; [] when the page on disk is what the
+    sources assemble to and is inside its budget."""
+    try:
+        page = assemble(sketch)
+        gz, _ = weight(page, sketch)
+    except BuildError as e:
+        return ['console/%s.html cannot be assembled: %s' % (PAGE, e)]
+    problems = []
+    if on_disk(sketch) != page:
+        problems.append(
+            'console/%s.html is not what its sources assemble to (one of them was '
+            'edited, or the page was edited by hand).\n'
+            '  run: python firmware/toolchain/console_pages.py build' % PAGE)
+    if gz > BUDGET:
+        problems.append(
+            'console/%s.html is %d bytes gzip -9 as the panel sends it: %d over its '
+            'budget of %d.\n'
+            '  On the panel\'s own hotspot every kilobyte is 0.2 to 0.5 s before anything '
+            'paints.\n'
+            '  Take the bytes back out, or raise BUDGET in '
+            'firmware/toolchain/build_audio_in_page.py and say in the commit what they bought.'
+            % (PAGE, gz, gz - BUDGET, BUDGET))
+    return problems
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(
+        description='Assemble console/audio-in.html from its sources. '
+                    'The usual way in is console_pages.py build.')
+    ap.add_argument('--check', action='store_true',
+                    help='write nothing: fail if the page on disk is not what the sources '
+                         'assemble to, or is over its size budget')
+    ap.add_argument('--sketch', metavar='DIR',
+                    help='another copy of firmware/patternflow to read console/_audio_in* '
+                         'from and write the page into')
+    args = ap.parse_args(argv)
+    # Sources are UTF-8 and so are their names in a report; a cp949 console
+    # must not turn one into a traceback.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(errors='replace')
+
+    if args.check:
+        problems = check(args.sketch)
+        for problem in problems:
+            print(problem, file=sys.stderr)
+        if problems:
+            return 1
+        print('console/%s.html is what its sources assemble to: %s'
+              % (PAGE, weight(assemble(args.sketch), args.sketch)[1]))
+        return 0
+
+    try:
+        page, changed = write(args.sketch)
+        gz, line = weight(page, args.sketch)
+    except BuildError as e:
+        print('build_audio_in_page: %s' % e, file=sys.stderr)
+        return 1
+    print('%s %s: %s' % ('wrote' if changed else 'unchanged', shown(out_path(args.sketch)), line))
+    if gz > BUDGET:
+        print('  over its size budget: --check (and CI) fails until it is not', file=sys.stderr)
+    if changed:
+        print('the header still has to be baked: python firmware/toolchain/console_pages.py build '
+              '(which also does this step)')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

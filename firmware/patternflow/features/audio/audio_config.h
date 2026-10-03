@@ -14,15 +14,19 @@
 #pragma once
 #include "../../config.h"
 
-// Hosts a tiny UI on the device. A browser (or the phone app) captures audio,
-// runs an FFT, and pushes each band's energy as a normalized 0..1 value over
-// WebSocket. The core's input layer turns that into virtual knob deltas, so
-// EVERY encoder-driven pattern reacts to audio with no per-pattern code.
+// A WebSocket for clients that capture sound where it is playing - the Chrome
+// extension, the phone app. The client runs the FFT and the mapping and sends
+// each knob a normalized 0..1 value; the core's input layer lerps that into
+// the parameter's own range, so EVERY encoder-driven pattern reacts to audio
+// with no per-pattern code. No page is served from here.
 #ifndef PF_AUDIO_ENABLED
 #define PF_AUDIO_ENABLED 1
 #endif
 // The same port 80 the console lives on (PatternflowHttp::HTTP_PORT); this is
-// the audio module's own alias for it and nothing else should need it.
+// the audio module's own alias for it and nothing else should need it. Its one
+// reader is the "[AUDIO] Ready" line in core_audio_ws.h - which is also the
+// string firmware/bundles/build.sh scans an image for to prove this feature
+// is in it, so neither goes without the other.
 #ifndef PF_AUDIO_HTTP_PORT
 #define PF_AUDIO_HTTP_PORT 80
 #endif

@@ -224,6 +224,8 @@ inline void begin() {
 
   for (int i = 0; i < WINDOW; i++) ring[i] = 0.0f;
   live = true;
+  // "PDM up: CLK" is the literal firmware/bundles/build.sh looks for in an
+  // image to prove this feature is in it. Reword around it, not through it.
   Serial.printf("[AUDIO-IN] PDM up: CLK=%d DAT=%d %luHz mono left dsr=%d\n",
                 PF_AUDIO_IN_PDM_CLK, PF_AUDIO_IN_PDM_DAT, (unsigned long)RATE,
                 PF_AUDIO_IN_PDM_DSR16 ? 16 : 8);

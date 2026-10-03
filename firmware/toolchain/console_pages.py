@@ -85,6 +85,13 @@ serves) as on the device. A page without exactly one bare tag fails build.
 `extract` is lossless by construction (build right after it is a no-op),
 and `build` is idempotent.
 
+One page is not written as a page. console/audio-in.html is assembled by
+build_audio_in_page.py from the audio extension's mapping editor and the
+console/_audio_in* files (an underscore marks a source that is not a page;
+PAGES below is the list of pages). `build` assembles it first and `check`
+holds it to its sources and to its size budget, so there is still one command
+to build and one to check. Edit those sources, never audio-in.html.
+
     --sketch DIR   work on another copy of firmware/patternflow (a scratch
                    copy to try a change of this script against)
 """
@@ -388,6 +395,18 @@ def unstamp(body, name="page"):
     return STAMPED_RE.sub(lambda m: CHROME_TAG, body)
 
 
+# ── the page that is assembled ─────────────────────────────────────────────
+
+def assembled():
+    """build_audio_in_page: console/audio-in.html is made by it, from sources
+    that are not pages (see the docstring). It takes the sketch as an argument
+    and reads this file's functions, never its state, so --sketch holds."""
+    if HERE not in sys.path:
+        sys.path.insert(0, HERE)
+    import build_audio_in_page
+    return build_audio_in_page
+
+
 # ── commands ───────────────────────────────────────────────────────────────
 
 def stamping():
@@ -417,6 +436,16 @@ def cmd_build():
     crc, shim = stamping()
     changed = []
     pages_gz = chrome_gz = 0
+    gen = assembled()
+    try:
+        page, wrote = gen.write(SKETCH)
+        gz, weight = gen.weight(page, SKETCH)
+    except ValueError as e:
+        raise SystemExit("%s: %s" % (gen.PAGE, e))
+    print("  %s.html %s its sources: %s"
+          % (gen.PAGE, "assembled from" if wrote else "already matches", weight))
+    if gz > gen.BUDGET:
+        print("  %s: over its size budget; `check` (and CI) fails until it is not" % gen.PAGE)
     print("  stamping chrome h=%s, fallback %d bytes" % (crc, len(shim)))
     for name, rel, delim, src in targets():
         dest = header_path(rel)
@@ -480,13 +509,22 @@ def cmd_check():
         problem = gz_problem(block, ident, storage, body)
         if problem:
             stale.append("%s (%s)" % (name, problem))
+    # The assembled page against its own sources and its size budget. A header
+    # can match a page that no longer matches what it is made from.
+    gen = assembled()
+    problems = gen.check(SKETCH)
     if stale:
         print("out of sync: " + ", ".join(stale))
         print("run: python firmware/toolchain/console_pages.py build")
+    for problem in problems:
+        print(problem)
+    if stale or problems:
         return 1
     print("all %d console headers match their HTML, stamped with chrome h=%s; "
           "all %d gzip twins decompress to their literals"
           % (len(PAGES), crc, len(PAGES) + len(ASSETS)))
+    print("%s.html is what its sources assemble to: %s"
+          % (gen.PAGE, gen.weight(gen.assemble(SKETCH), SKETCH)[1]))
     return 0
 
 

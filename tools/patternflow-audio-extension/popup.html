@@ -17,10 +17,11 @@
 
 <section class="device-section">
   <label class="label" for="host">Device</label>
-  <div class="device">
+  <!-- A form, so Enter in the address does what Start does. -->
+  <form id="device" class="device">
     <input id="host" type="text" spellcheck="false" value="patternflow.local">
-    <button id="connect">Start</button>
-  </div>
+    <button id="connect" type="submit">Start</button>
+  </form>
   <div id="detail" class="detail">Open the tab you want to hear, then press Start.</div>
   <div class="actions">
     <button id="stop">Stop</button>
@@ -67,6 +68,7 @@
   </details>
 </section>
 
+<script src="mapping.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

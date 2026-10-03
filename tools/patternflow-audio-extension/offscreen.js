@@ -1,4 +1,35 @@
-let config = null;
+// Patternflow Audio — offscreen document: the analysis, the socket, and the
+// truth about both.
+//
+// Tab capture hands over a MediaStream, and a MediaStream needs a document to
+// live in; a service worker has none and is put to sleep besides. So this
+// page holds the capture, runs the mapping (mapping.js) 30 times a second and
+// writes the four knob lanes to the panel.
+//
+// It is also the one place that KNOWS whether a capture is running, which
+// address the socket points at, whether that socket opened and why a capture
+// ended. Every state message it sends carries all of that (see status()), so
+// the service worker, which Chrome restarts with empty memory whenever it
+// likes, can rebuild from any single one of them, or ask.
+//
+// An offscreen document has chrome.runtime and nothing else. No
+// chrome.storage: the mapping arrives in messages (the popup reads it at
+// Start, the editor sends every save) and is normalised HERE, on receipt,
+// whoever sent it. A `host` inside a mapping is ignored; the address comes
+// only with start, manual-connect and host, which only the popup sends.
+
+const WS_PORT = 81;       // where the panel's audio socket listens
+const TICK_MS = 33;       // analyse and send at about 30 Hz
+const REPORT_MS = 120;    // levels and spectrum to the popup and the editor
+
+let config = null;        // the mapping: PFMap.normalizeConfig() of what arrived
+let host = '';            // 'name:port' the socket is pointed at, '' when idle
+let tabTitle = '';
+let error = '';           // what is wrong right now
+let note = '';            // why the last capture ended, when nobody pressed Stop
+let running = false;      // a tab is being analysed
+let manual = false;       // the test connection: a socket, no audio
+
 let audioCtx = null;
 let analyser = null;
 let sourceNode = null;
@@ -8,60 +39,38 @@ let ws = null;
 let tickTimer = null;
 let reconnectTimer = null;
 let lastLevelReport = 0;
-let smoothing = [0, 0, 0, 0];
-let running = false;
-let manual = false;
 let wsWanted = false;
 let wsSerial = 0;
 let lastSentValues = [-1, -1, -1, -1];
 let lastSentBody = '';
 
-// Auto-range envelopes, one pair per band: the floor and peak the band has
-// recently seen, in the same dbNorm units as the levels. Attack is instant on
-// both edges, release is a slow exponential (~8 s at the 30 Hz tick — the
-// device runs 0.002 at 60 Hz, this is the same time constant). MIN_SPAN stops
-// silence from collapsing the window into a noise amplifier. Same idea as the
-// device's auto range, minus its microphone gate — tab audio is digital and
-// silent means zero, so there is no whine floor to fence off.
-let envLo = [1, 1, 1, 1];
-let envHi = [0, 0, 0, 0];
-const ENV_RELEASE = 0.004;
-const ENV_MIN_SPAN = 0.06;
-const AUTO_LO = 0.10;   // relative squelch inside the tracked window
-const AUTO_HI = 0.95;   // relative full-scale
+// Per band: the smoothed level, and the envelope auto range maps it through.
+let levels = [0, 0, 0, 0];
+let envelopes = [0, 1, 2, 3].map(PFMap.newEnvelope);
 
-function resetEnvelopes() {
-  envLo = [1, 1, 1, 1];
-  envHi = [0, 0, 0, 0];
+function status() {
+  return {
+    running,
+    manual,
+    connected: !!ws && ws.readyState === WebSocket.OPEN,
+    host,
+    tabTitle,
+    error,
+    note
+  };
 }
 
-function trackEnvelopes(levels) {
-  for (let i = 0; i < 4; i++) {
-    const v = clamp01(levels[i] || 0);
-    if (v > envHi[i]) envHi[i] = v;
-    else envHi[i] += (v - envHi[i]) * ENV_RELEASE;
-    if (v < envLo[i]) envLo[i] = v;
-    else envLo[i] += (v - envLo[i]) * ENV_RELEASE;
-    if (envHi[i] < envLo[i] + ENV_MIN_SPAN) envHi[i] = envLo[i] + ENV_MIN_SPAN;
-  }
+// Always the whole status, plus whatever is live. A patch that carried only
+// `connected` left the service worker to remember the rest, and after a
+// restart it remembered nothing: the popup said Idle over a running capture.
+function patchState(live) {
+  chrome.runtime.sendMessage({ type: 'offscreen-state', patch: { ...status(), ...live } }).catch(() => {});
 }
 
-const MIN_HZ = 20;
-const MAX_HZ = 20000;
-
-function patchState(patch) {
-  chrome.runtime.sendMessage({ type: 'offscreen-state', patch }).catch(() => {});
-}
-
-function normalizeHost(host) {
-  let value = (host || 'patternflow.local').trim();
-  value = value.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '').replace(/\/.*$/, '');
-  if (!value.includes(':')) value += ':81';
-  return value;
-}
-
-function wsUrl() {
-  return `ws://${normalizeHost(config.host)}`;
+// The popup sends a checked address, with a port only if one was typed.
+function wsHost(address) {
+  const value = String(address || '').trim();
+  return /:\d+$/.test(value) ? value : `${value}:${WS_PORT}`;
 }
 
 function connectWs() {
@@ -75,26 +84,28 @@ function connectWs() {
       previous.onclose = null;
       previous.close();
     }
-  } catch (error) {}
+  } catch (failure) {}
 
   const serial = ++wsSerial;
-  const socket = new WebSocket(wsUrl());
+  const socket = new WebSocket(`ws://${host}`);
   ws = socket;
 
   socket.onopen = () => {
     if (socket !== ws || serial !== wsSerial) return;
-    patchState({ connected: true, error: '' });
+    error = '';
+    patchState();
   };
 
   socket.onerror = () => {
     if (socket !== ws || serial !== wsSerial) return;
-    patchState({ connected: false, error: 'WebSocket error' });
+    error = 'WebSocket error';
+    patchState();
   };
 
   socket.onclose = () => {
     if (socket !== ws || serial !== wsSerial) return;
-    patchState({ connected: false });
-    if (wsWanted && config) reconnectTimer = setTimeout(connectWs, 1200);
+    patchState();
+    if (wsWanted) reconnectTimer = setTimeout(connectWs, 1200);
   };
 }
 
@@ -141,14 +152,15 @@ function sendLanes(values) {
 
 function sendOutputValue(knob, value) {
   const idx = Math.max(0, Math.min(3, Number(knob) || 0));
-  const normalized = Math.max(0, Math.min(1, Number(value) || 0));
+  const normalized = PFMap.clamp01(value);
   if (Math.abs(normalized - lastSentValues[idx]) < 0.002) return;
   if (send(`k=${idx},v=${normalized.toFixed(3)}`)) {
     lastSentValues[idx] = normalized;
   }
 }
 
-async function stop() {
+// Everything off and forgotten. `why` is for a capture that ended by itself.
+async function stop(why = '') {
   running = false;
   manual = false;
   wsWanted = false;
@@ -168,16 +180,19 @@ async function stop() {
       ws.onclose = null;
       ws.close();
     }
-  } catch (error) {}
+  } catch (failure) {}
   ws = null;
 
   try {
     if (sourceNode) sourceNode.disconnect();
-  } catch (error) {}
+  } catch (failure) {}
   sourceNode = null;
 
   if (mediaStream) {
-    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream.getTracks().forEach((track) => {
+      track.onended = null;
+      track.stop();
+    });
     mediaStream = null;
   }
 
@@ -188,65 +203,81 @@ async function stop() {
 
   analyser = null;
   freqBuf = null;
-  smoothing = [0, 0, 0, 0];
-  resetEnvelopes();
-  patchState({ running: false, manual: false, connected: false, levels: [], outputs: [], spectrum: [], env: [] });
+  config = null;
+  host = '';
+  tabTitle = '';
+  error = '';
+  note = why;
+  levels = [0, 0, 0, 0];
+  envelopes = [0, 1, 2, 3].map(PFMap.newEnvelope);
+  patchState({ levels: [], pos: [], outputs: [], spectrum: [], env: [] });
 }
 
-async function start(streamId, nextConfig) {
+async function start(message) {
   await stop();
-  config = nextConfig;
-  running = true;
-  manual = false;
-  wsWanted = true;
-  resetOutputBaselines();
+  try {
+    config = PFMap.normalizeConfig(message.config, PFMap.SOURCE);
+    host = wsHost(message.host);
+    tabTitle = message.tabTitle || '';
+    running = true;
+    wsWanted = true;
 
-  audioCtx = new AudioContext();
-  mediaStream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      mandatory: {
-        chromeMediaSource: 'tab',
-        chromeMediaSourceId: streamId
-      }
-    },
-    video: false
-  });
+    audioCtx = new AudioContext();
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        mandatory: {
+          chromeMediaSource: 'tab',
+          chromeMediaSourceId: message.streamId
+        }
+      },
+      video: false
+    });
 
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 2048;
-  analyser.smoothingTimeConstant = 0.3;
-  freqBuf = new Float32Array(analyser.frequencyBinCount);
+    // The stream ends when its tab is closed. Nothing else says so: the
+    // analyser keeps returning silence and the socket stays open, so the popup
+    // went on reading Live over a tab that no longer existed.
+    mediaStream.getAudioTracks().forEach((track) => {
+      track.onended = () => stop('The captured tab was closed.');
+    });
 
-  sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-  sourceNode.connect(analyser);
-  analyser.connect(audioCtx.destination);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.3;
+    freqBuf = new Float32Array(analyser.frequencyBinCount);
 
-  connectWs();
-  tickTimer = setInterval(tick, config.sendIntervalMs || 33);
-  patchState({ running: true, manual: false, error: '' });
+    sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+    sourceNode.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    connectWs();
+    tickTimer = setInterval(tick, TICK_MS);
+    patchState();
+  } catch (failure) {
+    // Half a capture is not one: undo what was set up, then let the caller
+    // say why.
+    await stop();
+    throw failure;
+  }
 }
 
-async function manualConnect(nextConfig) {
+async function manualConnect(address) {
   await stop();
-  config = nextConfig;
+  host = wsHost(address);
   manual = true;
   wsWanted = true;
-  resetOutputBaselines();
   connectWs();
-  patchState({ running: false, manual: true, error: '' });
+  patchState();
 }
 
-function sendManualValue(knob, value) {
-  const idx = Math.max(0, Math.min(3, Number(knob) || 0));
-  const normalized = Math.max(0, Math.min(1, Number(value) || 0));
-  const outputs = [0, 0, 0, 0];
-  outputs[idx] = normalized;
-  sendOutputValue(idx, normalized);
-  patchState({ outputs });
-}
-
-function clamp01(value) {
-  return Math.max(0, Math.min(1, Number(value) || 0));
+// The popup committed another address while something is connected: follow it.
+function retarget(address) {
+  const next = wsHost(address);
+  if (!wsWanted || next === host) return;
+  host = next;
+  error = '';
+  resetOutputBaselines();   // a different panel has been told nothing yet
+  connectWs();
+  patchState();
 }
 
 function hzToBin(hz) {
@@ -256,84 +287,27 @@ function hzToBin(hz) {
 // Raw level only. Gain used to be folded in here, which meant it scaled the
 // signal BEFORE the input window clipped it — so raising boost also slid the
 // band out of its own window, and the two controls fought. It shapes the
-// curve now, in mapBandOutput, which is the curve the popup draws.
-function normalizeDb(db) {
-  return clamp01((db + 80) / 70);
-}
-
-function bandEnergy(band) {
-  const minBin = Math.max(0, hzToBin(band.hzMin));
-  const maxBin = Math.min(freqBuf.length - 1, hzToBin(band.hzMax));
+// curve now (PFMap.curveValue), which is the curve the editor draws.
+function binsLevel(minBin, maxBin) {
+  minBin = Math.max(0, minBin);
+  maxBin = Math.min(freqBuf.length - 1, maxBin);
   if (maxBin < minBin) return 0;
 
   let sum = 0;
   for (let i = minBin; i <= maxBin; i++) sum += freqBuf[i];
-  const avgDb = sum / (maxBin - minBin + 1);
-  return normalizeDb(avgDb);
-}
-
-// The whole chain:
-//
-//   level -> window (manual in/full, or the auto-tracked envelope)
-//         -> response curve -> [rests at .. peaks at]
-//
-// The response curve has two generations. Bands the editor has touched carry
-// a baked 33-point lookup table (band.lut) — any shape at all, including
-// falling and non-monotonic ones — and this side only interpolates, exactly
-// like the firmware will. Bands never touched keep the legacy boost exponent
-// (band.gain): above 1x a quiet band reaches its top early, below 1x a loud
-// one holds back. Ends stay put either way.
-function curveValue(band, u) {
-  const lut = band.lut;
-  if (Array.isArray(lut) && lut.length >= 2) {
-    const pos = clamp01(u) * (lut.length - 1);
-    const i = Math.floor(pos);
-    const j = Math.min(lut.length - 1, i + 1);
-    const f = pos - i;
-    return clamp01(Number(lut[i]) || 0) * (1 - f) + clamp01(Number(lut[j]) || 0) * f;
-  }
-  const gain = Math.max(0.2, Math.min(4, Number(band.gain) || 1));
-  return Math.pow(clamp01(u), 1 / gain);
-}
-
-function mapBandOutput(energy, band, index) {
-  let u;
-  if (config.autoRange && index !== undefined) {
-    // The band's own recent floor..peak is the window; a fixed relative
-    // squelch keeps the resting noise of the window's bottom from dancing.
-    const lo = envLo[index];
-    const span = Math.max(0.001, envHi[index] - envLo[index]);
-    u = clamp01((clamp01((energy - lo) / span) - AUTO_LO) / (AUTO_HI - AUTO_LO));
-  } else {
-    const inMin = clamp01(band.inMin ?? 0);
-    const inMax = Math.max(inMin + 0.01, clamp01(band.inMax ?? 1));
-    u = clamp01((energy - inMin) / (inMax - inMin));
-  }
-  const outMin = clamp01(band.outMin ?? 0);
-  const outMax = clamp01(band.outMax ?? 1);
-  return outMin + curveValue(band, u) * (outMax - outMin);
+  return PFMap.normalizeDb(sum / (maxBin - minBin + 1));
 }
 
 function computeSpectrum() {
   const count = 64;
   const values = [];
-  const logMin = Math.log10(MIN_HZ);
-  const logMax = Math.log10(MAX_HZ);
+  const logMin = Math.log10(PFMap.SOURCE.hzMin);
+  const logMax = Math.log10(PFMap.SOURCE.hzMax);
 
   for (let i = 0; i < count; i++) {
-    const t0 = i / count;
-    const t1 = (i + 1) / count;
-    const hz0 = 10 ** (logMin + (logMax - logMin) * t0);
-    const hz1 = 10 ** (logMin + (logMax - logMin) * t1);
-    const minBin = Math.max(0, hzToBin(hz0));
-    const maxBin = Math.min(freqBuf.length - 1, hzToBin(hz1));
-    if (maxBin < minBin) {
-      values.push(0);
-      continue;
-    }
-    let sum = 0;
-    for (let bin = minBin; bin <= maxBin; bin++) sum += freqBuf[bin];
-    values.push(normalizeDb(sum / (maxBin - minBin + 1)));
+    const hz0 = 10 ** (logMin + (logMax - logMin) * (i / count));
+    const hz1 = 10 ** (logMin + (logMax - logMin) * ((i + 1) / count));
+    values.push(binsLevel(hzToBin(hz0), hzToBin(hz1)));
   }
 
   return values;
@@ -343,44 +317,34 @@ function tick() {
   if (!running || !analyser || !freqBuf || !config) return;
 
   analyser.getFloatFrequencyData(freqBuf);
-  const bands = config.bands || [];
-  const outputs = [];
-  const levels = [];
-  const alpha = config.smoothing ?? 0.35;
-
-  while (smoothing.length < bands.length) smoothing.push(0);
-  if (smoothing.length > bands.length) smoothing.length = bands.length;
-
-  // A lane nothing drives stays null, and goes out as '-'. Two bands on the
-  // same knob: the last one wins, deterministically, rather than whichever
-  // happened to get the socket first.
-  const lanes = [null, null, null, null];
+  const bands = config.bands;
+  const auto = config.autoRange;
 
   // Levels first, for every band including muted ones — the editor shows a
   // muted band's level so you can see what it WOULD do, and the auto-range
   // envelopes keep tracking so unmuting does not open on a stale window.
-  for (let i = 0; i < bands.length; i++) {
-    const raw = bandEnergy(bands[i]);
+  for (let i = 0; i < 4; i++) {
+    const raw = binsLevel(hzToBin(bands[i].hzMin), hzToBin(bands[i].hzMax));
     // Glide ballistics: a hit ATTACKS at its own speed, the fall RELEASES at
     // the damping - two user-set alphas. Symmetric smoothing made percussive
     // music feel late; this is the VU-meter split every reactive light wants.
-    const atk = Math.max(0.05, Math.min(0.9, config.attack ?? 0.65));
-    const a = raw > smoothing[i] ? atk : alpha;
-    smoothing[i] = a * raw + (1 - a) * smoothing[i];
-    levels[i] = smoothing[i];
+    const a = raw > levels[i] ? config.attack : config.smoothing;
+    levels[i] = a * raw + (1 - a) * levels[i];
+    if (auto) PFMap.trackEnvelope(envelopes[i], levels[i]);
   }
-  if (config.autoRange) trackEnvelopes(levels);
 
-  for (let i = 0; i < bands.length; i++) {
-    const band = bands[i];
-    const idx = Math.max(0, Math.min(3, Number(band.knob) || 0));
-    if (band.muted) {
-      outputs[i] = 0;
-      continue;
-    }
-    const mapped = mapBandOutput(levels[i], band, i);
-    outputs[i] = mapped;
-    lanes[idx] = mapped;
+  // The mapping itself is PFMap's: where each level sits in its window, and
+  // what the knob gets for that. Both go out with the levels, so the editor
+  // can draw what was mapped instead of working it out a second time.
+  //
+  // A lane nothing drives stays null, and goes out as '-'.
+  const pos = [];
+  const outputs = [];
+  const lanes = [null, null, null, null];
+  for (let i = 0; i < 4; i++) {
+    pos[i] = PFMap.position(levels[i], bands[i], auto ? envelopes[i] : null);
+    outputs[i] = PFMap.output(bands[i], pos[i]);
+    if (!bands[i].muted) lanes[bands[i].knob] = outputs[i];
   }
 
   // Muting a band hands its lane back once, and only if this client had it.
@@ -396,17 +360,16 @@ function tick() {
   sendLanes(lanes);
 
   const now = performance.now();
-  if (now - lastLevelReport > 120) {
+  if (now - lastLevelReport > REPORT_MS) {
     lastLevelReport = now;
     patchState({
-      levels,
+      levels: levels.slice(),
+      pos,
       outputs,
       spectrum: computeSpectrum(),
       // The editor draws these as each box's breathing top and bottom edge.
-      env: config.autoRange
-        ? envLo.map((lo, i) => ({ lo, hi: envHi[i] }))
-        : [],
-      autoRange: config.autoRange === true
+      env: auto ? envelopes.map((e) => ({ lo: e.lo, hi: e.hi })) : [],
+      autoRange: auto
     });
   }
 }
@@ -415,49 +378,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.target !== 'offscreen') return;
 
   (async () => {
-    if (message.type === 'start') {
-      await start(message.streamId, message.config);
-      sendResponse({ ok: true });
-      return;
+    switch (message.type) {
+      case 'start':
+        await start(message);
+        break;
+      case 'manual-connect':
+        await manualConnect(message.host);
+        break;
+      case 'stop':
+        await stop();
+        break;
+      case 'host':
+        retarget(message.host);
+        break;
+      case 'config':
+        // Only a running capture has a use for a mapping; the next Start
+        // brings its own.
+        if (running) {
+          config = PFMap.normalizeConfig(message.config, PFMap.SOURCE);
+          resetOutputBaselines();
+        }
+        break;
+      case 'manual-value':
+        sendOutputValue(message.knob, message.value);
+        break;
+      case 'release':
+        send('off', { control: true });
+        resetOutputBaselines();
+        break;
+      case 'status':
+        break;
+      default:
+        sendResponse({ ok: false, error: 'Unknown message', state: status() });
+        return;
     }
-
-    if (message.type === 'stop') {
-      await stop();
-      config = null;
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (message.type === 'config') {
-      const oldUrl = config ? wsUrl() : '';
-      config = message.config;
-      if (running) resetOutputBaselines();
-      if (ws && oldUrl !== wsUrl()) connectWs();
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (message.type === 'manual-connect') {
-      await manualConnect(message.config);
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (message.type === 'manual-value') {
-      sendManualValue(message.knob, message.value);
-      sendResponse({ ok: true });
-      return;
-    }
-
-    if (message.type === 'release') {
-      send('off', { control: true });
-      resetOutputBaselines();
-      sendResponse({ ok: true });
-      return;
-    }
-  })().catch((error) => {
-    patchState({ running: false, connected: false, error: String(error.message || error) });
-    sendResponse({ ok: false, error: String(error.message || error) });
+    sendResponse({ ok: true, state: status() });
+  })().catch((failure) => {
+    error = String(failure.message || failure);
+    patchState();
+    sendResponse({ ok: false, error, state: status() });
   });
 
   return true;

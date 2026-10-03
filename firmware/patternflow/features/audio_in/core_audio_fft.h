@@ -7,16 +7,22 @@
 // and 5 of 7 either did not know it existed or had not tried it. What people
 // asked for is a different thing: the panel hearing the room on its own.
 //
-// This is the analysis half, and it is written to run BEFORE any microphone
-// exists, because the question that decides whether the feature is possible
-// is not "can we read a mic" — it is "is there CPU left". The panel spends
-// ~10 ms of every 16.6 ms frame pushing pixels. If a spectrum does not fit
-// in what remains, no microphone helps.
+// Owns: the transform and its buffers, the four raw band levels, the
+// spectrum the page draws, and the verdict on what the input is (sourceLabel).
+// Where the bands' edges are, and what a level becomes, is core_audio_in_map.h.
 //
-// So `feed()` takes samples from wherever. A PDM mic on I2S would be the
-// real source (GPIO43/44 are the only free header pins on this board — see
-// the note in analyze()); until one is wired, synth() stands in and the cost
-// measures the same, because an FFT does not know where its input came from.
+// This is the analysis half, and it was written BEFORE any microphone
+// existed, because the question that decided whether the feature was possible
+// was not "can we read a mic" — it was "is there CPU left". The panel spends
+// ~10 ms of every 16.6 ms frame pushing pixels. If a spectrum had not fitted
+// in what remains, no microphone would have helped.
+//
+// So fill() takes a window from wherever. The real source is the PDM mic in
+// core_audio_pdm.h; when that has nothing to give - the driver did not
+// install, or the mic stopped answering - a synthetic three-tone source
+// stands in, and the cost measures the same, because an FFT does not know
+// where its input came from. What the synthetic source must not do is move a
+// panel's knobs; the feature's fillInput sees to that.
 //
 // Deliberately naive: a plain radix-2 complex transform with the signal in
 // the real lane. A real-input FFT halves this and esp-dsp's assembly version
@@ -228,6 +234,11 @@ inline bool inputIsDeadRail() {
 // What the input actually is, for /api/status and the console page. Lives
 // here rather than beside the driver because the driver cannot see the
 // spectrum, and the spectrum is the only thing that tells these apart.
+//
+// The five strings this can return ("off", "pdm", the dead-rail one below,
+// and PFAudioPdm::sourceName()'s "synth" and "synth (mic stalled)") are
+// matched exactly by the page and listed in docs/rest-api.md. Add a sixth
+// rather than rewording one.
 inline const char* sourceLabel() {
   if (!PFAudioInMap::micOn) return "off";
   if (!PFAudioPdm::available()) return PFAudioPdm::sourceName();

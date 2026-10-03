@@ -1,0 +1,83 @@
+/* /audio-in, the panel's half: its styles. A source, not a page:
+   firmware/toolchain/build_audio_in_page.py puts this after the extension's
+   editor.css in console/audio-in.html. Edit it here, then run
+   console_pages.py build. Comments and indentation do not travel. */
+
+/* ── console skin over the editor's cream tokens ── */
+:root {
+  --cream: #0C0B09;
+  --cream-2: #1B1914;
+  --ink: #EDE7DB;
+  --muted: #8A8272;
+  --faint: #5A5546;
+  --rule: #242118;
+  --led: #FF5C2E;
+  --ok: #57B87F;
+  --bad: #FF6B5A;
+  --field: #131110;
+}
+/* The console's Light toggle stamps html[data-theme=light] and overrides the
+   CONSOLE-named variables (theme_index.h). The editor's two names of its own
+   need light values here or the plot field and tags stay dark in a light
+   page - which read as "the toggle does nothing". Canvas colors follow free:
+   editor.js reads these variables fresh on every paint. */
+html[data-theme=light] {
+  --cream-2: #E8E2D6;
+  --field: #FFFCFA;
+}
+/* device host chip is meaningless when the page IS the device; the source
+   chip and Stop repeat what the device bar's Microphone switch and note say */
+#hostChip, #sourceChip, #stopBtn { display: none; }
+.deviceBar {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--field); border: 1px solid var(--rule);
+  border-radius: 2px; padding: 10px 14px;
+}
+.toggleWrap.on .toggle { background: var(--ok); }
+.barMsg { font: 11px var(--mono); }
+#deviceNote:empty, .barMsg:empty { display: none; }
+.pf-ok { color: var(--ok); }
+.pf-err { color: var(--bad); }
+/* The chrome says when the panel is unreachable; the page only dims what it
+   can no longer vouch for, and drops the "turn the microphone on" hint an
+   unanswered poll would otherwise show. */
+html.pf-offline .plotWrap, html.pf-offline .deviceBar { opacity: 0.5; }
+html.pf-offline #captureHint { visibility: hidden; }
+/* Rows wrap before they overflow (the editor was laid out for a wide tab). */
+.deviceBar, .toolbar, .pvChips, .outPresets, header { flex-wrap: wrap; }
+#pvScope { max-width: 100%; height: auto !important; }
+/* The highest band's tag hangs past a narrow plot's right edge: clip it
+   there rather than widen the page. */
+.plotWrap { overflow: hidden; }
+@media (max-width: 1000px) {
+  .panel { flex-wrap: wrap; }
+  .vr { display: none; }
+  .col.grow { flex-basis: 100%; }
+}
+/* Phones: one column. The bordered boxes run edge to edge, which is what
+   lets the response curve fit a 360 px screen: it is a fixed 356 px canvas
+   whose pointer maths assume that size, so it may not be scaled down. */
+@media (max-width: 700px) {
+  .page { padding: 12px 12px 24px; gap: 12px; }
+  .deviceBar, .plotWrap, .panel {
+    margin: 0 -12px; border-left: 0; border-right: 0; border-radius: 0;
+  }
+  .deviceBar { padding: 12px; gap: 10px 12px; }
+  .toolbar { gap: 10px 12px; }
+  .deviceBar .damping, .toolbar .damping, #deviceNote, .barMsg, #autoHint { flex-basis: 100%; }
+  .damping input { flex: 1; width: auto; min-width: 0; }
+  .toolbar .spacer, #autoHint:empty { display: none; }
+  .panel { flex-direction: column; gap: 18px; padding: 14px 12px; }
+  .presetsCol { width: auto; }
+  #curve { margin: 0 -12px; align-self: center; }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; }
+}
+/* Touch: hit areas grow invisibly; the controls keep their size. */
+@media (pointer: coarse) {
+  .toggleWrap, .ghostBtn, .pvSig, .chipCard, .outPreset, .stepsRow button { position: relative; }
+  .toggleWrap::after, .ghostBtn::after, .pvSig::after, .chipCard::after, .outPreset::after,
+  .stepsRow button::after, .outTrack::after, .toggle.small::after {
+    content: ""; position: absolute; inset: -8px -2px;
+  }
+  .toggle.small::after { inset: -16px -11px; }
+}

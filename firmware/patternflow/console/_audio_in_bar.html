@@ -1,0 +1,24 @@
+<!-- /audio-in, the panel's half: the device bar (what only the panel has).
+     A source, not a page: firmware/toolchain/build_audio_in_page.py puts it
+     after the editor's </header> in console/audio-in.html. Edit it here, then
+     run console_pages.py build. Comments and indentation do not travel. -->
+  <div class="deviceBar">
+    <button id="audToggle" class="toggleWrap" type="button" title="Enable browser tab and extension audio reaction (AUD)">
+      <span class="toggle"><span class="dotK"></span></span>
+      <span class="toggleLabel">Audio-React (AUD)</span>
+    </button>
+    <button id="micToggle" class="toggleWrap" type="button" title="Enable on-board microphone">
+      <span class="toggle"><span class="dotK"></span></span>
+      <span class="toggleLabel">Microphone</span>
+    </button>
+    <div class="damping">
+      <span class="fieldLabel">Input gain</span>
+      <input id="micGain" type="range" min="1" max="16" step="0.5">
+      <span id="micGainVal" class="mono dimText">8.0</span>
+    </div>
+    <span id="deviceNote" class="hint"></span>
+    <span id="barMsg" class="barMsg" role="status"></span>
+    <span class="spacer"></span>
+    <a id="extGuideLink" class="ghostBtn" href="https://github.com/engmung/Patternflow/tree/main/tools/patternflow-audio-extension#readme" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px" title="Install Chrome Audio Extension">Extension ↗</a>
+    <button id="resetAll" class="ghostBtn" type="button">Reset mapping</button>
+  </div>

@@ -95,11 +95,12 @@ inline void fillInput(InputFrame& input) {
 // thing that drives them, and what a source is sending is not what the
 // pattern ends up seeing.
 //
-// Neither
-// was visible from outside the device: a browser could complete a websocket
-// handshake, send knob messages, and have every one of them silently dropped
-// because the AUD row on the NETWORK screen was off — with nothing anywhere
-// saying so. The page reported CONNECTED and the panel did not move.
+// Neither used to be visible from outside the device: a browser could
+// complete a websocket handshake, send knob messages, and have every one of
+// them silently dropped because the AUD row on the NETWORK screen was off —
+// with nothing anywhere saying so. The client reported CONNECTED and the
+// panel did not move. `audioClients` counts open sockets, which is why it
+// cannot answer "is it being driven" on its own: read it with `audioRuntime`.
 inline void appendStatus(String& json) {
   json += ",\"audioRuntime\":";
   json += PatternflowAudio::isRuntimeEnabled() ? "true" : "false";

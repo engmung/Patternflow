@@ -385,14 +385,68 @@ Scale constants live in the same file and are the contract for anything converti
 
 Gated on `"audio-in"` in `caps`; the page is `/audio-in`. Settings persist in
 NVS. The live shaping UI polls the same endpoints documented here — there is
-nothing it can do that a script cannot.
+nothing it can do that a script cannot. The phone capture app is a second
+client of them: it reads the configuration, and posts what it hears so the
+page has something to draw on a panel with no microphone.
+
+Every level here — `inMin`, `inMax`, `levels`, `env`, `spectrum` — is **linear
+amplitude**, not decibels, and not clamped: a loud pure tone reads well above
+1. The page draws a dB axis and converts at its own edge.
 
 | Endpoint | Meaning |
 |---|---|
-| `GET /api/audio-in` | Full state: `micOn`, `micGain` (input gain, 1..16, applied to mic samples before analysis - raw fields stay unscaled), `autoRange` (each band self-normalizes against its tracked floor/peak envelope; on by default), `source` (`"off"`, `"pdm"`, `"pdm (no mic - data pin idle)"`, `"synth"`), raw `rawPeak`/`rawDc`, per-band config (`hzMin`/`hzMax`/`inMin`/`inMax`/`gain`/`outMin`/`outMax`/`knob`/`muted`), `hzRange`, and a 40-bucket log `spec`. |
-| `GET /api/audio-in?levels=1` | The polling shape: `levels`, `levelsN` (the level normalized inside the band's tracked range - what the mapping consumes in auto mode), `outputs`, `spectrum`, `dropped` and nothing configurable — the page owns the config after reading it once. |
-| `POST /api/audio-in` | `mic=0/1` switches the whole feature (installs/releases the I2S driver). `micGain=1..16` sets the input gain; `auto=0/1` switches per-band auto-ranging. `band=N` plus any subset of the band fields updates one band; partial updates are the point, so a dragged handle cannot clobber the other three. |
-| `POST /api/audio-in/reset` | Back to the measured defaults. |
+| `GET /api/audio-in` | The configuration, read once: `source` (below), `micOn`, `micGain` (input gain, 1..16, applied to mic samples before analysis - raw fields stay unscaled), `autoRange` (each band self-normalizes against its tracked floor/peak envelope; on by default), `smoothing` and `attack` (the two glide speeds, 0.05..0.9: falls and rises), `bands` (four, below), `hzRange` (`[31.25,8000.00]`, the bounds a band is held to; two decimals since 1.5). Also carried, for scripts and for diagnosing a microphone: `rawPeak`/`rawDc` (the last window before gain), `windows` (read since boot), `level` and `out` (four raw band levels and what they map to) and `spec`, a 64-bucket log spectrum. |
+| `GET /api/audio-in?levels=1` | The polling shape, no configuration in it: `source`, `ext`, `rawPeak`, `rawDc`, `dropped`, `levels` (four damped band levels), `levelsN` (the level normalized inside the band's tracked range - what the mapping consumes in auto mode; 0 while that band's gate is closed), `outputs` (what each band maps to, 0..1), `env` (four `{lo,hi}`, the tracked range — present only in auto mode or with `ext`), and `spectrum` (64 log-spaced buckets across `hzRange`). A poll counts as someone watching for 2.5 s, which the phone app reads to decide how often to post; add `idle=1` to a poll that should not count. |
+| `POST /api/audio-in` | Any subset of the settings; a request changes only the fields it carries, and answers `{"ok":true}`. `mic=0/1` switches the whole feature (installs/releases the I2S driver). `micGain=1..16`, `auto=0/1`, `smoothing` and `attack` (0.05..0.9). Band fields in either spelling below. `frame=…` is the phone's monitor frame (76 numbers: 4 levels; 4 × lo,hi; 64 buckets): nothing else in that request is read, nothing is saved, and the answer adds `watch` — `{"ok":true,"watch":true}` while a page is watching, `false` when none is. |
+| `POST /api/audio-in/reset` | The firmware's measured defaults. With no argument: all four bands and their curves, `smoothing`, `attack` (since 1.5) and `micGain` — not the microphone switch, not `autoRange`. With `band=N` (0..3, since 1.5): that band and its curve only, and the answer names it, `{"ok":true,"band":N}`. Any other `band` is `400` and resets nothing. Firmware before 1.5 ignores `band` and resets everything; the missing `band` in its answer is how to tell. |
+
+**Band fields.** Each of `bands[0..3]` has `hzMin`/`hzMax` (what it listens
+to), `inMin`/`inMax` (the level window mapped onto the knob in manual mode),
+`gain` (the response exponent, 0.2..4, used while the band has no curve
+table), `outMin`/`outMax` (where the knob rests and peaks, 0..1 each;
+`outMax` below `outMin` is a knob that falls as it gets louder), `knob`
+(0..3; two bands may name one knob and the lower band wins it), `muted`,
+`meta` (up to 31 bytes the editor stores to describe its curve; echoed
+verbatim, never parsed) and `lutSet` (read-only: the band runs a stored curve
+table instead of `gain`).
+
+To write them there are two spellings, and both take any subset:
+
+- `band=N` plus the bare names (`band=2&inMax=0.5`) — one band per request.
+  A `band` outside 0..3 is `400 {"ok":false,"error":"band must be 0-3"}` and
+  nothing in the request is applied.
+- the names with the band appended (`inMax2=0.5&hzMin0=62&hzMax0=375`) — any
+  number of bands per request. Since 1.5 a band is applied when **any** of
+  its fields is present; before, only a request carrying that band's `hzMin`,
+  `lut`, `knob`, `muted` or `outMin` was, and anything else was answered
+  `{"ok":true}` and ignored.
+
+`lut` (write-only) is the curve table: exactly 33 integers 0..255, commas
+only. An empty `lut` clears the table and the band goes back to `gain`; a
+value that is not exactly 33 integers is ignored and the answer is still
+`{"ok":true}`. The firmware does not tie `meta` to `lut` — a client that
+names a curve sends its table in the same request.
+
+Two pairs are settled together after a request's fields are in, whichever
+half arrived: `hzMin`/`hzMax` are held to `hzRange`, put in order and kept at
+least one analysis bin (31.25 Hz) apart; `inMin`/`inMax` are held to 0..1 with
+`inMax` at least 0.01 above `inMin`. One half sent alone can therefore move
+the other — send both halves of a pair when either changes.
+
+**`source`** says what the input is, and the strings are the contract:
+
+| `source` | |
+|---|---|
+| `off` | The switch is off. The analysis is parked and the poll's numbers are whatever the last window left — not zeroed. |
+| `pdm` | The microphone is delivering samples. The only state in which it drives the knobs. |
+| `pdm (no mic - data pin idle)` | The driver is running but the data pin sits at a rail: no microphone, or no data wire. Nothing is driven. |
+| `synth` | The switch is on and the driver is not running — it failed to install, or has not yet (the first quarter second after `mic=1`). |
+| `synth (mic stalled)` | The driver is running and has stopped returning samples. |
+| `phone` | `?levels=1` only, with `ext:true`: the switch is off and the phone app posted a frame in the last three seconds. `levels`, `env` and `spectrum` are then the phone's, already normalized 0..1 on its own scale; `levelsN` and `outputs` are still the microphone's and describe nothing on screen. |
+
+In the two `synth` states the analysis runs on a built-in three-tone test
+signal, which is what the poll then reports. Since 1.5 that signal no longer
+reaches the knobs.
 
 `micDropped` in `/api/status`'s `audioIn` block counts capture hops discarded
 because analysis fell behind; flat is healthy, climbing means overload.
@@ -535,7 +589,7 @@ In short: HTTP is the management and state transport, OSC and MIDI are the low-l
 
 ## Version history
 
-- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted); `PUT /update` takes a raw image, and an upload survives a stall of up to two minutes; `GET /api/wifi` gains `join` (what became of the last network asked for) and `GET /api/hotspot` gains `seen` (the names in range); a network added on the hotspot with no station link is tried at once; console pages are cached by build (`?v=` immutable, bare URLs `no-cache` with an `ETag` and `304`, another build's `v` redirected with `302`), the chrome by its CRC (`?h=`), only for a `Host` that can only be the panel; `GET /favicon.ico` answers `204`; status gains `build`, `viaHotspot` and `busy`; `load` gains `code` (where the module's code runs from); pattern names in `GET /api/patterns` and `/api/patterns/select` are JSON-escaped, so a quote or backslash in a title no longer makes the reply unparseable; a multipart request that stops mid-form is dropped - the connection is closed with no reply - instead of spinning the server into its watchdog, and leaves none of its fields behind for later requests; `moduleMemory` gains `codePolicy`; status gains `loopStackMin`; the hotspot password is JSON-escaped in `/api/hotspot`; a `POST` that is not multipart to `/api/patterns` or `/update` is answered instead of crashing the panel, a multipart boundary longer than 70 characters is refused, and a raw `PUT` sees its own query string; status gains `crash` (the core dump's summary, and the pattern and phase the reset interrupted) and `DELETE /api/crash` clears it; status gains `loopAgeMs`, `loopStalled` and `loopSyncGaveUp`, and a route that needs the render loop answers `503` (`render loop is not answering`) when a pattern never returns from `draw()`, where it used to take the whole server down with it; a module that has run stays loaded when another pattern takes over and resumes when picked again - `load` gains `resumed` and `resumeUs`, `moduleMemory` gains `resident`, and a module's data sections go to PSRAM first.
+- **1.5** (unreleased) — the hotspot (`hotspot` in status, `GET`/`POST /api/hotspot`); status gains `network` and `thumbs` diagnostics, `fsError` (why storage is not mounted) and `flashId`; a failed `POST /api/patterns/format` returns the reason as its `error`; `POST /api/wifi/reconnect` reconnects without a reboot; core name registration retries partial failures and preserves feature-owned services; the MIDI edition adds a `midiUsb` block to status ([`midi-spec.md`](midi-spec.md)); `GET`/`POST /api/knobs` and the `/knobs` page (encoder direction and edges per click, per knob, persisted); `PUT /update` takes a raw image, and an upload survives a stall of up to two minutes; `GET /api/wifi` gains `join` (what became of the last network asked for) and `GET /api/hotspot` gains `seen` (the names in range); a network added on the hotspot with no station link is tried at once; console pages are cached by build (`?v=` immutable, bare URLs `no-cache` with an `ETag` and `304`, another build's `v` redirected with `302`), the chrome by its CRC (`?h=`), only for a `Host` that can only be the panel; `GET /favicon.ico` answers `204`; status gains `build`, `viaHotspot` and `busy`; `load` gains `code` (where the module's code runs from); pattern names in `GET /api/patterns` and `/api/patterns/select` are JSON-escaped, so a quote or backslash in a title no longer makes the reply unparseable; a multipart request that stops mid-form is dropped - the connection is closed with no reply - instead of spinning the server into its watchdog, and leaves none of its fields behind for later requests; `moduleMemory` gains `codePolicy`; status gains `loopStackMin`; the hotspot password is JSON-escaped in `/api/hotspot`; a `POST` that is not multipart to `/api/patterns` or `/update` is answered instead of crashing the panel, a multipart boundary longer than 70 characters is refused, and a raw `PUT` sees its own query string; status gains `crash` (the core dump's summary, and the pattern and phase the reset interrupted) and `DELETE /api/crash` clears it; status gains `loopAgeMs`, `loopStalled` and `loopSyncGaveUp`, and a route that needs the render loop answers `503` (`render loop is not answering`) when a pattern never returns from `draw()`, where it used to take the whole server down with it; a module that has run stays loaded when another pattern takes over and resumes when picked again - `load` gains `resumed` and `resumeUs`, `moduleMemory` gains `resident`, and a module's data sections go to PSRAM first; `POST /api/audio-in` applies a band when any of its suffixed fields is present (it took one of five before, and answered `ok` to the rest without changing anything), and refuses a bad `band` before applying anything, with `ok:false` in the body; `POST /api/audio-in/reset` takes `band=N` and names the band in its answer, and a full reset now includes `attack`; `hzRange` is printed to two decimals; a microphone that failed to start or stopped answering (`source` beginning `synth`) no longer drives the knobs from the test signal; the microphone section documents what was already there - `smoothing`, `attack`, `meta`, `lutSet`, `lut`, the suffixed field names, `env`, `ext`, the `frame` post, `synth (mic stalled)`, and that `spec` has 64 buckets, not 40.
 - **1.4** (2026-09-06) — `GET /api/patterns/file` gains `ext=thumb`; `GET /api/display` takes `brightness` and status reports it; status gains `resetReason` and `load.internal`/`load.psram`; console pages are served gzip-compressed (`Content-Encoding: gzip`); the page sender no longer truncates on a slow link; the server no longer trips the Core-0 watchdog on a request that stalls mid-header.
 - **1.3** (2026-09-04) — `GET`/`POST /api/clock` (Utility edition) and the `clock` block in status; `caps` gains `"clock"`.
 - **1.2** (2026-09-03) — the server is serviced on Core 0 (the one-connection rule stands; the render-pays rule is history); status gains `httpCore`, `netStackMin`, `loopSyncServed`/`loopSyncMaxUs`; `POST /api/params` documents `d1`..`d4` and how a held value reaches a legacy pattern; `GET /api/patterns/select` gains `step`; `GET`/`POST /api/audio` (Audio-React) are documented; `featureNav`'s microphone label is *Audio*.

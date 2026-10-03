@@ -1,31 +1,37 @@
 // ═══════════════════════════════════════════════════════════
 // PatternFlow - on-board audio input, as a feature
 //
-// The fifth port onto the feature seam, and the first one that was not already
-// living in the core — which makes it the more interesting test. The other
-// four proved the hooks could carry features that already existed. This one
-// asks whether they can carry a feature nobody has written yet.
+// Owns: the descriptor, the analysis task, and the one place sound becomes
+// knob lanes (fillInput). The parts it wires together each own one thing:
 //
-// Answer so far: four hooks, no core edits, no sketch edits.
+//   core_audio_pdm.h      the microphone - a PDM MEMS part on GPIO43/44
+//   core_audio_fft.h      a window of samples -> spectrum -> four band levels
+//   core_audio_in_map.h   a band's level -> its knob; the settings and NVS
+//   core_audio_in_http.h  /audio-in and /api/audio-in
 //
-//   setup        - build the twiddle tables, and start the analysis task
-//   loop         - run a window inline, when measuring the inline cost
+// It was the first feature written on the seam rather than moved onto it, and
+// it needed no core edit. The hooks it uses:
+//
+//   setup        - load the settings, build the FFT tables, start the task
+//   onNetwork    - register the page and its API
 //   fillInput    - four bands drive the four knob lanes, exactly the way
 //                  the weather feature drives them from a temperature. A
 //                  pattern animates from sound without knowing what sound is.
-//   appendStatus - report what it costs, because that is the open question
+//   appendStatus - the `audioIn` block: what the analysis costs, and what the
+//                  microphone is returning
 //
-// PF_AUDIO_IN_CORE picks who pays:
-//   1  the render loop (Core 1), inline. The naive placement.
+// PF_AUDIO_IN_CORE picks who pays for the analysis:
 //   0  a task pinned to Core 0, where Wi-Fi lives and the panel does not.
-//      This is the arrangement that would ship, if it ships.
+//      What ships.
+//   1  the render loop (Core 1), inline through the loop hook. Kept for
+//      measuring that placement against the other; no edition builds it.
 //
-// There is no microphone yet, and that is deliberate. The panel spends
-// ~10 ms of every 16.6 ms frame pushing pixels; if a spectrum does not fit
-// in what is left, no microphone helps. So the cost gets measured first and
-// the hardware question — a PDM mic on GPIO43/44, the only free header pins
-// on this board, since N16R8's octal PSRAM claims 35-37 and everything else
-// is HUB75 or an encoder — gets decided after, with a number in hand.
+// The analysis was written and costed before there was a microphone - the
+// panel spends ~10 ms of every 16.6 ms frame pushing pixels, and if a
+// spectrum had not fitted in what is left no microphone would have helped.
+// It fitted. The synthetic source that stood in for the microphone then is
+// still in core_audio_fft.h, and is what the analysis runs on when the
+// microphone is not delivering; see fillInput for why it stops there.
 //
 // License: MIT
 // ═══════════════════════════════════════════════════════════
@@ -41,8 +47,9 @@
 #define PF_AUDIO_IN_CORE 0
 #endif
 
-// Off by default: while this is a measurement rather than a feature, it
-// should cost a normal build exactly nothing.
+// Off unless the composition says so: carrying this feature to measure it, or
+// to watch the page, must not move anybody's knobs. The Audio edition turns
+// it on in its overrides.h.
 #ifndef PF_AUDIO_IN_DRIVES_KNOBS
 #define PF_AUDIO_IN_DRIVES_KNOBS 0
 #endif
@@ -131,6 +138,16 @@ inline void fillInput(InputFrame& input) {
   // for. A hand on the encoder outranks both - the core drops any lane whose
   // knob moved this frame.
   if (!PFAudioInMap::micOn) return;
+  // Only a microphone that is delivering samples. When I2S would not install,
+  // or the mic stopped answering, the analysis carries on over the synthetic
+  // three-tone source (core_audio_fft.h fill()) - and without this line those
+  // tones reached the lanes as if the room were playing them: four knobs
+  // moving to nothing, while `source` said "synth (mic stalled)". It also
+  // covers the quarter second between the switch going on and the task
+  // installing the driver, when the levels are whatever the last session
+  // left. The synthetic source is for measuring the analysis, never for
+  // moving a panel.
+  if (!PFAudioPdm::available()) return;
   // Belt and braces over the default-off switch: somebody who ticks the box
   // on a panel with no microphone would otherwise pin all four knobs at
   // their resting position and find that turning one does not stick.
