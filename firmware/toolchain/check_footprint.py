@@ -63,12 +63,18 @@ IRAM_END = 0x403E0000
 # Again the same day: static DRAM +304 in every edition - the crash record's 296 B
 # (224 of them the SDK's own strings behind esp_core_dump_get_summary, 64 the
 # breadcrumb in .noinit) and 8 B of loop-sync state.
+# Re-pinned 2026-10-03: static DRAM +112..+120 in every edition, IRAM unchanged -
+# resident modules' bookkeeping in core_module_loader.h: the current module's
+# path (72 B, the key it is parked under), the table header (24 B: slot pointer,
+# use counter, four status counters), the storage generation and the current
+# module's (8 B) and four small flags and counters. The slots themselves are
+# allocated in PSRAM on the first park.
 PINS = {
-    "default": (141576, 71471),
-    "audio": (161104, 71951),
-    "performance": (158080, 71471),
-    "clock": (141856, 71471),
-    "midi": (154168, 70671),
+    "default": (141688, 71471),
+    "audio": (161216, 71951),
+    "performance": (158200, 71471),
+    "clock": (141976, 71471),
+    "midi": (154288, 70671),
 }
 
 # Enough that an intentional, well-understood adjustment does not fire the check

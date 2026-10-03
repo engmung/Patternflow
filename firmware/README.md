@@ -248,8 +248,13 @@ service reserve to module allocations, including PSRAM-to-internal fallbacks.
 Admission checks the relevant largest block and rechecks service RAM after an
 allocation. Executable IRAM is not presumed interchangeable with byte RAM.
 This protects against module allocations consuming the reserve; unrelated
-system/feature allocations can still reduce free memory. Large data prefers
-PSRAM; small data can remain internal. Module dynamic allocations keep their
+system/feature allocations can still reduce free memory. Data goes to PSRAM
+first since 2026-10, small sections included (they used to stay internal while
+the budget allowed): that is what lets a module be parked holding no internal
+RAM. Measured A-B-B-A on two boards, most modules' frame time did not move
+(-1.1..+0.8 %); small per-pixel state arrays now read through the PSRAM cache
+cost Burgers +2.6 % and Wave Cascade +2.2 %. `PF_MODULE_DATA_PSRAM_FIRST 0`
+puts the old placement back. Module dynamic allocations keep their
 16-slot, unload-as-a-group lifetime and add a configurable 4 MiB limit
 (`PF_MODULE_RUNTIME_MAX_BYTES`); `moduleMemory` reports usage and refusals.
 
@@ -395,11 +400,25 @@ libm hooks). A module is compiled freestanding against `abi/pf_module.h`
 only — never against Arduino or the HUB75 driver — and partially linked with
 `toolchain/module.ld` so all code lands in one contiguous `.text` with
 literals inside it. At load time `core_module_loader.h` reads the ELF from
-FATFS, allocates executable internal RAM, applies `R_XTENSA_32` relocations,
+FATFS, places it (PSRAM first since 2026-10, its code run through the
+instruction-bus alias), applies `R_XTENSA_32` relocations,
 resolves libm/libgcc against the host's own symbols, runs `.init_array` (so
 C++ global constructors work), syncs the instruction cache, and calls the
-module's entry point. Switching away unloads it; one module is resident at a
-time.
+module's entry point. One module runs at a time. Switching away parks it: a
+module that has run stays loaded in PSRAM, and picking it again resumes it in
+the frame it is picked — no read, no relocation, no second `setup()` — the
+way a compiled-in preset resumes (115–197 µs, measured on two boards). That
+is when no other load is in flight and no upload, delete or format is holding
+pattern switches; picked during either, it comes in once that is over —
+resumed if it is still parked, loaded if an install has emptied the table.
+Up to 16 are kept (`PF_MODULE_RESIDENT_MAX` in `src/core_module_memory.h`;
+`src/core_module_resident.h` has the rules), only modules that hold no
+internal RAM, and they are evicted least recently used first when a new load
+or a running pattern needs the PSRAM — until a pattern's allocation leaves
+at least 512 KB free, `PF_MODULE_RESIDENT_HEADROOM`; a feature's allocation
+evicts nothing — and all at once when patterns are installed or deleted. A
+module loaded before its file was replaced — by the console or by a feature —
+is never resumed from the old file.
 
 **Converting an existing pattern header:**
 
@@ -429,7 +448,7 @@ surface — the math headers are literally the same files, included with
 | Switch latency (7.5 KB module) | 6.0 ms = read 4.4 + relocate 0.6 + setup 1.0 |
 | Switch latency (22 KB module) | 10.9 ms — still under one 60 fps frame |
 | Runtime speed vs the same source compiled in | **~20 % slower** (Origin: 53.4 → 43.5 fps) — the cost of relocatable code (`-mlongcalls`); not fixable by `-O2` (~2 %) or memory placement |
-| Comfortable module size | ~32 KB of statics on a core 2.x build — measured: 0–64 KB of static tables all render at the same 62 fps, they just spend heap. (The old "≲ 8 KB, then `.rodata` spills to PSRAM and ~14 fps" figure was the core 3.x build's 7.7 KB largest block talking; see [Required board package](#required-board-package).) |
+| Comfortable module size | ~32 KB of statics on a core 2.x build — measured: 0–64 KB of static tables all render at the same 62 fps. They spend PSRAM since 2026-10, not internal heap: statics go to PSRAM first, which costs most modules nothing measurable and a few with small per-pixel state arrays 2–3 % (Burgers +2.6 %, Wave Cascade +2.2 %; `PF_MODULE_DATA_PSRAM_FIRST 0` puts small statics back in internal RAM). (The old "≲ 8 KB, then `.rodata` spills to PSRAM and ~14 fps" figure was the core 3.x build's 7.7 KB largest block talking; see [Required board package](#required-board-package).) |
 | Panel size | Baked in at build (`-DPF_PANEL_W/H`); the loader rejects a mismatch |
 | ABI | `PF_ABI_VERSION` must match; bump it on ANY layout change in `pf_abi.h` and rebuild every module |
 
@@ -467,19 +486,22 @@ Installing costs nothing at runtime. The registry allocates its arrays at full
 capacity on boot, in PSRAM, whether or not the modules exist — so five
 installed modules and 128 installed modules use exactly the same RAM. Only the
 **resident** module costs internal RAM, and unloading returns all of it
-(measured: 4,548 B free with a module resident → 11,692 B on a preset).
+(measured: 4,548 B free with a module resident → 11,692 B on a preset). Since
+2026-10 a module's code and data both go to PSRAM first, so a module that
+loaded normally costs no internal RAM at all, and a module kept loaded after
+being left (parked, see above) only ever holds PSRAM.
 
 | Limit | Value | Binding? |
 |---|---|---|
 | Installed modules | **128** (`MAX_MODULE_PATTERNS`) | The only real cap, and it is a UX choice — 136 B of PSRAM per slot, 17 KB total |
 | Storage | ~1,500 modules (10.2 MB partition, 5.9 KB median) | No — 12× the count cap |
-| Per-module RAM | ~32 KB of statics comfortable on a core 2.x build (0–64 KB measured at identical fps; the old ≲ 8 KB figure was the core 3.x heap talking) | Heap only — frame rate does not move |
-| Concurrent modules | 1 | By design — one pattern is selected at a time |
+| Per-module RAM | ~32 KB of statics comfortable on a core 2.x build (0–64 KB measured at identical fps; the old ≲ 8 KB figure was the core 3.x heap talking) | PSRAM since 2026-10. Frame rate mostly does not move; a few modules whose small per-pixel arrays used to sit in internal RAM run 2–3 % slower (Burgers +2.6 %, Wave Cascade +2.2 %) — `PF_MODULE_DATA_PSRAM_FIRST 0` trades that back for internal heap |
+| Concurrent modules | 1 running, up to 16 parked (`PF_MODULE_RESIDENT_MAX`) | By design — one pattern is selected at a time; parked ones hold PSRAM only and give it back to a new load or a running pattern that needs it |
 
-A large module only costs while it is the selected pattern; it has no effect
-on the presets or on any other module. On the core 3.x build a resident
-module dropped `heapLargest` to ~3 KB — which is what made opening a console
-page pause the pattern; on the core 2.x release build the same module leaves
+A large module only costs internal RAM while it is the selected pattern, if
+at all; it has no effect on the presets or on any other module. On the core
+3.x build a resident module dropped `heapLargest` to ~3 KB — which is what
+made opening a console page pause the pattern; on the core 2.x release build the same module leaves
 ~65 KB and the console stays comfortable (the pause-on-open mechanism remains,
 see the constraints section below).
 
@@ -767,7 +789,7 @@ For the original defaults:
 
   Exits on a second K2 longpress, a **K2 click**, or after 8 seconds of idle.
 - **Encoder 3 longpress (≥1s)** — enter/exit the KNOB MAP screen: it shows which physical knob is which number (front view: K1 top-right, K2 top-left, K3 bottom-right, K4 bottom-left), and turning any knob lights its digit green so each one can be verified without leaving the screen. Knob input is swallowed while it's up, so the pattern underneath never sees it. Exits on a K3 click, a second K3 longpress, or after 8 seconds of idle.
-- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation moves the highlight through the list — three detents per pattern, so a hand does not overshoot — and the panel shows each pattern's **thumbnail** (the frame it last drew, kept from the last time it ran); the highlighted pattern loads once the knob has rested for a third of a second — on the other core, so the knob keeps answering while a heavy pattern's setup runs — then runs live behind the overlay. A pattern that has never run shows nothing but its name until it has. Longpress again to confirm — a choice the knob was still resting on loads right then.
+- **Encoder 4 longpress (≥1s)** — enter/exit pattern SELECT mode. In SELECT mode, K4 rotation moves the highlight through the list — three detents per pattern, so a hand does not overshoot — and the panel shows each pattern's **thumbnail** (the frame it last drew, kept from the last time it ran); the highlighted pattern loads once the knob has rested for a third of a second — on the other core, so the knob keeps answering while a heavy pattern's setup runs — then runs live behind the overlay. A pattern already in memory — a preset, or a module still parked from its last run — comes on as the knob reaches it and runs live straight away (unless the pattern being left cannot be kept, when it waits for the knob to rest like any other). A pattern that has never run shows nothing but its name until it has. Longpress again to confirm — a choice the knob was still resting on loads right then.
 
 Thumbnail ownership follows the frame boundary too: the loop owns the PSRAM
 cache, and the existing network task reads/writes one immutable job at a time.

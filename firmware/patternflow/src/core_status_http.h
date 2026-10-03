@@ -512,7 +512,14 @@ inline void handleStatus() {
   // `psram` above and costs the services nothing.
   json += ",\"code\":\"";
   json += PFModuleLoader::lastCodeExternal ? "psram" : "internal";
-  json += "\"}";
+  // Whether the module on the panel came back from residency rather than
+  // from a load - the timings above are then its own, from when it first
+  // loaded - and what coming back took, in µs.
+  json += "\",\"resumed\":";
+  json += PFModuleLoader::resumed ? "true" : "false";
+  json += ",\"resumeUs\":";
+  json += PFModuleLoader::lastResumeUs;
+  json += "}";
   json += ",\"moduleMemory\":{\"reserve\":"; json += PF_MODULE_INTERNAL_RESERVE;
   json += ",\"runtimeBytes\":"; json += PFModuleLoader::runtimeBytes;
   json += ",\"runtimePeakBytes\":"; json += PFModuleLoader::runtimePeakBytes;
@@ -532,6 +539,15 @@ inline void handleStatus() {
   json += ",\"execLargest\":";
   json += heap_caps_get_largest_free_block(PFModuleMemory::internalCode);
   json += ",\"refusals\":"; json += PFModuleMemory::refusals;
+  // Modules kept loaded after another pattern took over (core_module_resident.h).
+  // Counters only: the table belongs to the loop and the loader worker, and
+  // this runs on the network task, so the slots are never walked from here.
+  json += ",\"resident\":{\"count\":"; json += PFModuleLoader::resident.count;
+  json += ",\"bytes\":"; json += PFModuleLoader::resident.bytes;
+  json += ",\"slots\":"; json += PFModuleLoader::resident.capacity();
+  json += ",\"resumes\":"; json += PFModuleLoader::resident.resumes;
+  json += ",\"evictions\":"; json += PFModuleLoader::resident.evictions;
+  json += "}";
   json += "}";
   json += ",\"nvs\":{\"usable\":"; json += nvsUsable ? "true" : "false";
   json += ",\"failures\":"; json += nvsFailures;

@@ -97,7 +97,7 @@ jobs:
         run: python firmware/toolchain/check_thumbs.py --sanitize
       - name: Wi-Fi and name-service recovery
         run: python firmware/toolchain/check_network.py --sanitize
-      - name: Runtime admission and frame-boundary lifecycle
+      - name: Runtime admission, resident modules and frame-boundary lifecycle
         run: python firmware/toolchain/check_runtime.py --sanitize
       - name: Crash record tells this reset's dump from an older one
         run: python firmware/toolchain/check_crash.py --sanitize

@@ -1182,20 +1182,19 @@ MOCK_JS = r'''/* Patternflow console demo: a core board, simulated in the page.
   watch(D);
   // The chrome marks the tab whose device path is this page's location; here
   // the location is the demo file's, so the tab is marked the way drawNav()
-  // would have, centred in a nav that scrolls (the phone's), before the
-  // first paint of every redraw.
+  // would have, before the first paint of every redraw. The nav wraps (no
+  // sideways scroll) and its setup group sits in a nested <span class="g">,
+  // so the links are found at any depth, not as the nav's children.
   function markNav(root) {
-    var nav = root.querySelector('nav'), on = null, i, a;
+    var nav = root.querySelector('nav'), on = null, i, a, l;
     if (!nav) return;
-    for (i = 0; i < nav.children.length; i++) {
-      a = nav.children[i];
+    for (l = nav.querySelectorAll('a'), i = 0; i < l.length; i++) {
+      a = l[i];
       if (a.pathname !== L.pathname) continue;
       on = a;
       if (a.className !== 'on') {
         a.className = 'on';
         a.setAttribute('aria-current', 'page');
-        var e = nav.getBoundingClientRect(), r = a.getBoundingClientRect();
-        nav.scrollLeft += r.left + r.width / 2 - e.left - e.width / 2;
       }
     }
     return on;

@@ -91,6 +91,9 @@ inline char restorePath[MODULE_PATH_BYTES] = {};
 inline int restorePresetIdx = -1;
 inline bool restorePending = false;
 
+// The running module only. Parked ones (src/core_module_resident.h) are
+// dropped by captureSelectionOnceNow() below, on every branch - including the
+// one where a preset keeps running and this is never called.
 inline void evictResidentModule() {
   if (!PFModuleLoader::active) return;
   PFModuleLoader::unload();
@@ -109,6 +112,14 @@ inline bool captureSelectionOnceNow() {
   patternLoadsHeld = true;
   if (loadQueuedIdx >= 0) rememberHeldSelection(loadQueuedIdx);
   loadQueuedIdx = -1;
+  // Every parked module goes before the first byte is written, whichever
+  // branch below runs: from here a file may be replaced or deleted, and a
+  // parked copy of it would come back as the old version - or as a pattern
+  // that is no longer installed. A preset on the panel keeps running; nothing
+  // parked survives. Simplest rule that is always right, and the storage
+  // generation (PFModuleLoader::storageGeneration) backs it for writers that
+  // never come through here.
+  PFModuleLoader::dropParked();
   if (restorePending) {
     // Show / night schedule / MQTT may reload a module while the console
     // still holds the pause. Evict again or the wake page loops forever.
@@ -142,6 +153,15 @@ inline bool restoreSelectionNow() {
   if (!tryFinishAsyncLoad()) return false;
   loadQueuedIdx = -1;
   restorePending = false;
+  // The list is about to be read off the volume again because something
+  // wrote to it, and not every writer emptied memory first - a feature that
+  // installs a pattern can ask for this rebuild with a module still running.
+  // Whatever was loaded before the storage last changed
+  // (PFModuleLoader::storageGeneration) goes now: parked copies, and the
+  // running module too, or it would go on as the old file for as long as
+  // nobody switched away - the activation below loads the file as it is.
+  // After a rebuild with no write in between, nothing is touched.
+  if (PFModuleLoader::dropStale()) activePatternIdx = -1;
   buildPatternList();
   const char* wantedPath = heldSelectionValid ? heldPatternPath : restorePath;
   int wanted = heldSelectionValid ? heldPresetIdx : restorePresetIdx;

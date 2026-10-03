@@ -224,13 +224,17 @@ const uint32_t PATTERN_SAVE_DELAY_MS = 3000;
 bool patternLatchArmed = false;
 
 // ── SELECT-mode browsing ────────────────────────────────────────
-// The knob moves the highlight; the pattern loads only once the knob has
-// rested for SELECT_SETTLE_MS. Until it does, the panel shows the
-// highlighted pattern's thumbnail (src/core_thumbs.h says why: a module's
-// setup() can take seconds, and loading on every detent froze the loop for
-// that long while the encoder kept counting). A thumbnail is taken when a
+// The knob moves the highlight; a pattern that has to be loaded loads only
+// once the knob has rested for SELECT_SETTLE_MS. Until it does, the panel
+// shows the highlighted pattern's thumbnail (src/core_thumbs.h says why: a
+// module's setup() can take seconds, and loading on every detent froze the
+// loop for that long while the encoder kept counting). A preset, or a module
+// still parked from its last run, costs nothing to switch to, so it becomes
+// the running pattern on the detent and runs live behind the overlay
+// (switchesInstantly() in pattern_registry.h). A thumbnail is taken when a
 // pattern is LEFT, provided it has run for THUMB_MIN_RUN_MS and the canvas
-// still holds its frame rather than another pattern's thumbnail.
+// still holds its frame rather than another pattern's thumbnail - so a knob
+// spun past live patterns writes no pictures.
 const uint32_t SELECT_SETTLE_MS = 350;
 // Detents per pattern while browsing. One per detent overshot: a hand that
 // meant one pattern landed two or three along, and once the load stopped
@@ -1998,6 +2002,17 @@ void loop() {
       // left and the choice has stopped moving.
       notePatternChanged();
       Serial.printf("SELECTING: %s\n", patterns[currentPatternIdx].name);
+      // ...unless switching costs nothing. A preset, or a module still parked
+      // from its last run (src/core_module_resident.h), is already in memory:
+      // no read, no setup(), nothing for the loop to wait on. So it becomes
+      // the running pattern on this detent, and the preview below is live
+      // instead of a thumbnail. Only when the pattern being left will be kept
+      // as well - leaving one that cannot be parked costs its whole load the
+      // moment the knob comes back to it, which is what resting avoids.
+      if (switchesInstantly(currentPatternIdx)) {
+        selectPending = false;
+        if (currentPatternIdx != activePatternIdx) activateWithSnapshot(currentPatternIdx);
+      }
     }
     if (selectPending && (uint32_t)(now - selectMovedAtMs) >= SELECT_SETTLE_MS) {
       // One attempt per rest: a module that fails to load is not retried

@@ -10,9 +10,9 @@
   --cw-hair: rgba(239, 233, 221, 0.1);
   --cw-hair-2: rgba(239, 233, 221, 0.18);
   --cw-led: #ff6a3d;
-  /* The console's own ground (home.html --bg), so a frame that has not
-     painted yet is already the right colour. */
-  --cw-page: #0c0b09;
+  /* The console's own ground (the pages' --cream, light by default), so a
+     frame that has not painted yet is already the right colour. */
+  --cw-page: #f4efe6;
   --cw-chrome: #1b1a18;
   --cw-chrome-2: #131210;
   --cw-field: #0f0e0d;
@@ -109,7 +109,7 @@
   display: block;
   border: 0;
   background: var(--cw-page);
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .mini {

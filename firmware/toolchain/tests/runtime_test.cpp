@@ -50,6 +50,7 @@ static void heap_caps_free(void* p) {
   free(p);
 }
 #include "core_module_memory.h"
+#include "core_module_resident.h"
 #include "sidecar_name.h"
 
 using TaskHandle_t = void*;
@@ -127,7 +128,8 @@ static bool posted() { return __atomic_load_n(&PFLoopSync::pendingFn,__ATOMIC_AC
 
 constexpr int MODULE_PATH_BYTES=96, MODULE_NAME_BYTES=64, NUM_PRESETS=1, PF_CUSTOM_SLOT_COUNT=0;
 struct PatternEntry { const char* name; const char* modulePath; };
-static PatternEntry entries[]={{"Origin",nullptr},{"A","/a.pfm"},{"B","/b.pfm"}};
+// C is past NUM_PATTERNS until the resident cases, which need a third module.
+static PatternEntry entries[]={{"Origin",nullptr},{"A","/a.pfm"},{"B","/b.pfm"},{"C","/c.pfm"}};
 static PatternEntry* patterns=entries;
 static int NUM_PATTERNS=3, activePatternIdx=1, currentPatternIdx=1, numModules=2;
 static char moduleNames[2][MODULE_NAME_BYTES]{};
@@ -136,22 +138,100 @@ static bool createFails=false, notified=false, reorder=false, removeB=false;
 static unsigned created=0;
 static unsigned retryPauseMs=0;
 static void vTaskDelay(unsigned ms) { retryPauseMs+=ms; }
+// The loader at the registry's boundary: real residency bookkeeping
+// (core_module_resident.h), a malloc'd block standing in for a module's
+// memory so the sanitizers see every free. What a module IS and when the real
+// loader parks one is resident_test.cpp's business; here it is whether the
+// registry parks, resumes and drops at the right moments.
 namespace PFModuleLoader {
 struct Descriptor { const char* name; } descriptor{"loaded"};
 inline Descriptor* active=&descriptor;
-inline unsigned unloads=0, loads=0;
+inline unsigned unloads=0, loads=0, resumes=0, makeRooms=0, drops=0;
 inline unsigned allocationFailures=0;
 inline bool invalidFile=false;
-inline void unload() { ++unloads; active=nullptr; }
-inline bool load(int,const char*) {
+// The module loaded next may be kept; the current one may be kept. The boot
+// module of the cases below holds no block and is never kept, so the cases
+// written before residency see what they always did.
+inline bool parkableLoads=true, currentParkable=false;
+inline char* memory=nullptr;
+inline char currentPath[96]{};
+// The storage generation, as the real loader keeps it: moved by every write,
+// stamped on every load, carried through a park and a resume.
+inline unsigned storage=0, currentGeneration=0;
+inline void noteStorageWrite() { ++storage; }
+struct Parked { Descriptor* active; char* memory; unsigned generation; };
+inline void releaseParked(Parked& parked) { free(parked.memory); parked.memory=nullptr; }
+inline void* allocateTable(size_t bytes) { return calloc(1,bytes); }
+// Two slots, so a third module fills the table.
+inline PFModuleResident::Table<Parked,2,allocateTable,releaseParked> table;
+inline void unload() {
+  ++unloads; active=nullptr; free(memory); memory=nullptr;
+  currentPath[0]=0; currentParkable=false;
+}
+inline bool load(int,const char* path) {
   ++loads;
+  unload();
+  currentGeneration=storage;
   if(invalidFile) return false;
   if(allocationFailures) { --allocationFailures; ++PFModuleMemory::refusals; return false; }
-  active=&descriptor; return true;
+  active=&descriptor; memory=static_cast<char*>(malloc(16));
+  snprintf(currentPath,sizeof(currentPath),"%s",path);
+  currentParkable=parkableLoads; return true;
 }
 inline bool fail(const char*) { return false; }
 inline const char* error() { return "test"; }
+inline bool parkable() { return active && memory && currentParkable && currentGeneration==storage; }
+inline bool fresh(const Parked& parked) { return parked.generation==storage; }
+inline void evictStale() { table.evictIf([](const Parked& parked){ return !fresh(parked); }); }
+inline bool park(const char* keep=nullptr) {
+  if(!parkable()) return false;
+  evictStale();
+  Descriptor* leaving=active; char* held=memory; const unsigned generation=currentGeneration;
+  if(!table.park(currentPath,16,[&](Parked& slot){
+        slot.active=leaving; slot.memory=held; slot.generation=generation; },keep))
+    return false;
+  active=nullptr; memory=nullptr; currentPath[0]=0; currentParkable=false;
+  return true;
 }
+inline void leave(const char* keep=nullptr) { if(!park(keep)) unload(); }
+inline bool isParked(const char* path) {
+  const Parked* parked=table.peek(path);
+  return parked && fresh(*parked);
+}
+inline bool resume(const char* path) {
+  if(active || !isParked(path)) return false;
+  Parked back{};
+  if(!table.take(path,[&](Parked& slot){ back=slot; })) return false;
+  active=back.active; memory=back.memory; currentParkable=true; currentGeneration=back.generation;
+  snprintf(currentPath,sizeof(currentPath),"%s",path);
+  ++resumes; return true;
+}
+inline void makeRoom() { ++makeRooms; evictStale(); }
+inline void dropParked() { ++drops; table.evictAll(); }
+inline bool dropStale() {
+  evictStale();
+  if(!active || currentGeneration==storage) return false;
+  unload(); return true;
+}
+}
+// The sidecar cache's forget calls, lifted from the registry: what every
+// module-file writer already calls, core and feature alike.
+static const char* const MODULE_DIR="/patterns";
+static char (*sidecarPaths)[MODULE_PATH_BYTES]=nullptr;
+static char (*sidecarNames)[MODULE_NAME_BYTES]=nullptr;
+static bool* sidecarAbs=nullptr;
+static int sidecarCount=0;
+// sidecarForgetPath() compacts by copying the last slot over slot i, under
+// `if (i != last)`; g++'s -Wrestrict does not follow the guard and calls the
+// two slots possibly the same object. They are not, on the device or here.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wrestrict"
+#endif
+#include "sidecar_forget.h"
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 static int xTaskCreatePinnedToCore(void(*)(void*),const char*,uint32_t,void*,unsigned,void** out,int) {
   if(createFails) return 0;
   ++created; *out=reinterpret_cast<void*>(3); return pdPASS;
@@ -487,6 +567,148 @@ int main() {
   retryPauseMs=0; beforeLoads=PFModuleLoader::loads;
   loadPatternJob();
   assert(!loadResult && PFModuleLoader::loads-beforeLoads==1 && retryPauseMs==0);
+
+  // ── Resident modules (src/core_module_resident.h) ──
+  // Every write reported to the sidecar cache moves the storage generation:
+  // a path the cache never held is still a file written, and a format is
+  // every file at once.
+  {
+    sidecarPaths=static_cast<char(*)[MODULE_PATH_BYTES]>(calloc(2,MODULE_PATH_BYTES));
+    sidecarNames=static_cast<char(*)[MODULE_NAME_BYTES]>(calloc(2,MODULE_NAME_BYTES));
+    sidecarAbs=static_cast<bool*>(calloc(2,sizeof(bool)));
+    const unsigned before=PFModuleLoader::storage;
+    sidecarForgetSlug("never_cached");
+    assert(PFModuleLoader::storage==before+1);
+    snprintf(sidecarPaths[0],MODULE_PATH_BYTES,"%s","/patterns/x.pfm"); sidecarCount=1;
+    sidecarForgetSlug("x");
+    assert(PFModuleLoader::storage==before+2 && sidecarCount==0);
+    sidecarCount=1; sidecarForgetAll();
+    assert(PFModuleLoader::storage==before+3 && sidecarCount==0);
+    free(sidecarPaths); free(sidecarNames); free(sidecarAbs);
+    sidecarPaths=nullptr; sidecarNames=nullptr; sidecarAbs=nullptr;
+  }
+  // Back to the list the cases above started from, Origin running.
+  PFModuleLoader::invalidFile=false; PFModuleLoader::allocationFailures=0;
+  entries[1]={"A","/a.pfm"}; entries[2]={"B","/b.pfm"}; NUM_PATTERNS=3; removeB=false;
+  PFModuleLoader::unload(); PFModuleLoader::dropParked();
+  activePatternIdx=0; loadQueuedIdx=-1; loadTargetIdx=-1; loadFinished=false;
+  assert(!loadInFlight && !patternLoadsHeld);
+  // A loads on the worker, as it always did.
+  notified=false;
+  assert(activatePatternAsync(1) && loadInFlight && notified);
+  loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1 && PFModuleLoader::active && !loadInFlight);
+  const unsigned loadsWithA=PFModuleLoader::loads;
+  // Leaving it for a preset parks it: nothing freed, nothing loaded.
+  assert(switchesInstantly(0));
+  assert(activatePatternAsync(0) && activePatternIdx==0 && !PFModuleLoader::active);
+  assert(PFModuleLoader::isParked("/a.pfm") && PFModuleLoader::table.count==1);
+  // Coming back resumes it inside the call, on this task: no worker, no load,
+  // no thumbnail frame in between - and the name slot is refreshed as a load
+  // refreshes it.
+  notified=false; moduleNames[0][0]=0;
+  assert(isResidentOrPreset(1) && switchesInstantly(1));
+  assert(activatePatternAsync(1));
+  assert(activePatternIdx==1 && PFModuleLoader::active && !loadInFlight && !notified);
+  assert(PFModuleLoader::loads==loadsWithA && PFModuleLoader::resumes==1);
+  assert(PFModuleLoader::table.count==0 && !strcmp(moduleNames[0],"loaded"));
+  // A module that is not parked still loads on the worker; the outgoing one
+  // is parked before the worker starts, and room is made for the incoming.
+  const unsigned rooms=PFModuleLoader::makeRooms;
+  notified=false;
+  assert(!isResidentOrPreset(2) && !switchesInstantly(2));
+  assert(activatePatternAsync(2) && loadInFlight && notified && activePatternIdx==-1);
+  assert(PFModuleLoader::isParked("/a.pfm") && PFModuleLoader::makeRooms==rooms+1);
+  // The worker owns the table now: the loop answers nothing from it, and no
+  // switch is instant, presets included - it would only be queued.
+  assert(!isResidentOrPreset(1) && isResidentOrPreset(0));
+  assert(!switchesInstantly(0) && !switchesInstantly(1));
+  // A request for A while B loads waits its turn, then resumes A rather
+  // than loading it, and parks B on the way.
+  assert(activatePatternAsync(1) && loadQueuedIdx==1);
+  loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1 && !loadInFlight && PFModuleLoader::resumes==2);
+  assert(PFModuleLoader::loads==loadsWithA+1);
+  assert(PFModuleLoader::isParked("/b.pfm") && !PFModuleLoader::isParked("/a.pfm"));
+  // Leaving a module that cannot be kept would cost its whole load when the
+  // knob came back, so SELECT does not switch away from it on a detent.
+  PFModuleLoader::currentParkable=false;
+  assert(!switchesInstantly(0) && !switchesInstantly(2));
+  PFModuleLoader::currentParkable=true;
+  // The boot path (synchronous) resumes too, and parks what it leaves.
+  assert(activatePattern(2) && activePatternIdx==2 && PFModuleLoader::resumes==3);
+  assert(PFModuleLoader::isParked("/a.pfm") && PFModuleLoader::loads==loadsWithA+1);
+  assert(activatePattern(1) && PFModuleLoader::resumes==4 && PFModuleLoader::isParked("/b.pfm"));
+  // A storage mutation starts with nothing in memory: the running module AND
+  // every parked one, since a file may be replaced or deleted from here on -
+  // the parked ones even when a preset is what keeps running through it.
+  assert(activatePatternAsync(0) && PFModuleLoader::isParked("/a.pfm"));
+  assert(Manager::captureSelectionOnce());
+  assert(PFModuleLoader::table.count==0 && activePatternIdx==0);
+  assert(Manager::restoreSelection() && activePatternIdx==0 && !loadInFlight);
+  assert(activatePatternAsync(1)); loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1);
+  assert(Manager::captureSelectionOnce());
+  assert(PFModuleLoader::table.count==0 && !PFModuleLoader::active && activePatternIdx==-1);
+  assert(Manager::restoreSelection());
+  assert(loadInFlight && loadTargetIdx==1);   // a fresh load, not a resume
+  loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1 && PFModuleLoader::loads==loadsWithA+3);
+  // A rebuild with nothing written since touches nothing: restorePath is
+  // A's (from the capture), A is parked and loaded from the storage as it is,
+  // so it is resumed, and B is parked on the way.
+  assert(activatePatternAsync(2)); loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==2 && PFModuleLoader::isParked("/a.pfm"));
+  unsigned resumesBefore=PFModuleLoader::resumes;
+  assert(Manager::restoreSelection());
+  assert(!loadInFlight && activePatternIdx==1 && PFModuleLoader::resumes==resumesBefore+1);
+  assert(PFModuleLoader::isParked("/b.pfm"));
+  // A writer that does not empty memory first - a feature installing a
+  // pattern - reports the write through sidecarForgetSlug(), which moves the
+  // storage generation. From that moment nothing loaded before it comes back
+  // from memory: not the parked B, and not by an instant SELECT detent - not
+  // even onto a preset, because leaving A would now cost its reload.
+  PFModuleLoader::noteStorageWrite();
+  assert(!PFModuleLoader::isParked("/b.pfm") && !isResidentOrPreset(2));
+  assert(!switchesInstantly(2) && !switchesInstantly(0));
+  notified=false;
+  assert(activatePatternAsync(2) && loadInFlight && notified && loadTargetIdx==2);
+  assert(PFModuleLoader::table.count==0);       // A unloaded, stale B evicted
+  loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==2);
+  // And the rebuild the write asks for does not leave the old code running
+  // under the new file's name, even when the restore lands on the pattern
+  // that is already on the panel: it is unloaded, and loaded from the file.
+  assert(activatePatternAsync(1)); loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1 && PFModuleLoader::isParked("/b.pfm"));
+  PFModuleLoader::noteStorageWrite();
+  const unsigned unloadsBefore=PFModuleLoader::unloads, loadsBefore=PFModuleLoader::loads;
+  assert(Manager::restoreSelection());           // restorePath is still A's
+  assert(PFModuleLoader::table.count==0 && PFModuleLoader::unloads==unloadsBefore+1);
+  assert(loadInFlight && loadTargetIdx==1 && activePatternIdx==-1);
+  loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==1 && PFModuleLoader::loads==loadsBefore+1);
+  // A refused load gets every parked module back before it retries.
+  assert(activatePatternAsync(0) && PFModuleLoader::isParked("/a.pfm"));
+  const unsigned dropsBefore=PFModuleLoader::drops;
+  loadTargetIdx=2; PFModuleLoader::allocationFailures=1; retryPauseMs=0;
+  loadPatternJob();
+  assert(loadResult && PFModuleLoader::table.count==0 && PFModuleLoader::drops==dropsBefore+1);
+  PFModuleLoader::dropParked(); PFModuleLoader::unload();
+  // A full table makes room by its least recently used module - never the
+  // one the switch is about to resume, even when that one is the oldest.
+  NUM_PATTERNS=4; activePatternIdx=0;
+  assert(activatePatternAsync(1)); loadPatternJob(); serviceAsyncLoad();
+  assert(activatePatternAsync(2)); loadPatternJob(); serviceAsyncLoad();
+  assert(activatePatternAsync(3)); loadPatternJob(); serviceAsyncLoad();
+  assert(activePatternIdx==3 && PFModuleLoader::table.count==2);
+  assert(PFModuleLoader::isParked("/a.pfm") && PFModuleLoader::isParked("/b.pfm"));
+  resumesBefore=PFModuleLoader::resumes;
+  notified=false;
+  assert(activatePatternAsync(1) && !loadInFlight && !notified);
+  assert(activePatternIdx==1 && PFModuleLoader::resumes==resumesBefore+1);
+  assert(PFModuleLoader::isParked("/c.pfm") && !PFModuleLoader::isParked("/b.pfm"));
+  PFModuleLoader::dropParked(); PFModuleLoader::unload();
   delete PFLoopSync::doneSignal; delete PFLoopSync::callerLock;
-  puts("PASS: reserve/fallback/fragmentation/race, deferred loop requests, stalled-loop hand-off, task failure, mutation hold, rescan and deleted selection");
+  puts("PASS: reserve/fallback/fragmentation/race, deferred loop requests, stalled-loop hand-off, task failure, mutation hold, rescan and deleted selection, park/resume/drop around loads, storage mutations and writes nobody captured for");
 }

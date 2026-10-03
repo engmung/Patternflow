@@ -41,6 +41,37 @@
 #define PF_MODULE_RUNTIME_MAX_BYTES (4u * 1024u * 1024u)
 #endif
 
+// How many modules may stay loaded ("parked") after another pattern takes
+// over, so that picking one again resumes it instead of loading it
+// (core_module_resident.h). 0 turns residency off: every module is unloaded
+// when it is left, as before 2026-10, and data placement below goes back to
+// what it was. The slots live in PSRAM, allocated on the first park.
+#ifndef PF_MODULE_RESIDENT_MAX
+#define PF_MODULE_RESIDENT_MAX 16
+#endif
+// What parked modules must leave free in PSRAM - room for the features and
+// the console, and for an incoming module's image and sections (tens of
+// kilobytes). The loader holds it at two moments, evicting parked modules
+// least recently used first until it holds or none is left:
+//
+//   before a fresh load starts, PF_MODULE_RUNTIME_MAX_BYTES plus this is free,
+//   so the module about to load can still get everything it could get
+//   before residency existed;
+//
+//   whenever a module is parked, and after every api->alloc() a module makes
+//   while anything is parked, at least this is free, however late the module
+//   allocates (a module that alone would hold the last of it is unloaded
+//   instead of parked).
+//
+// Parked modules give way to patterns only. An allocation by a feature or by
+// the core (a thumbnail buffer, PFMem, a large malloc) evicts nothing: with
+// modules parked it finds this much free at the least, less whatever other
+// such allocations have taken from it since. Derived, not tuned to any
+// pattern's size.
+#ifndef PF_MODULE_RESIDENT_HEADROOM
+#define PF_MODULE_RESIDENT_HEADROOM (512u * 1024u)
+#endif
+
 // Where a module's code may live.
 //
 // "The S3 cannot execute from PSRAM" was the axiom everything above was built
@@ -102,6 +133,39 @@ inline bool codeDemoted = false;
 inline uint8_t codeRule() {
   return codeDemoted ? (uint8_t)PF_MODULE_CODE_INTERNAL : codePolicy;
 }
+
+// Where a module's data sections (.rodata/.data/.bss) go first.
+//
+//   false  internal RAM while the load's budget allows, for sections up to
+//          PF_MODULE_DATA_INTERNAL_MAX; PSRAM past that - the rule until 2026-10
+//   true   PSRAM, every section; internal RAM only if PSRAM refuses
+//
+// true is what residency needs, and it follows it: a parked module must hold
+// no internal RAM at all (core_module_resident.h), and every module measured
+// before this had 1-10 KB of small sections in internal RAM, so under the old
+// rule none of them could have been parked. A section PSRAM refuses still
+// lands internally - the load never fails for this - and that module is then
+// simply not parked.
+//
+// What it costs, measured 2026-10-03, A-B-B-A on one boot per module, two
+// boards, Audio edition, frame-time medians (A the old rule, B this one): 13
+// of 16 module runs within -1.1..+0.8%, which is noise (HUSH Grid -1.1%, 0601
+// +0.08%, Branched Flow +0.16%, Layer Stack +0.11%, Two Stream -0.3%, Firefly
+// Hollow -0.1%, Ripple Grid +0.1%, 0510 -0.1%, 0531 +0.2/+0.8%, Bus Window
+// Rain +0.4%, 0515-4 -0.5%). Three real costs, small per-pixel state arrays
+// now read through the PSRAM cache: Burgers Original +2.6% (38.9 -> 39.9 ms),
+// Wave Cascade +2.2% (20.7 -> 21.2 ms), Breakout Arcade +0.85% (21.40 ->
+// 21.58 ms). In exchange the running module takes no internal RAM: internal
+// heap with it running rose 0.2-9.9 KB, typically 4-6 KB (Layer Stack 23.2 ->
+// 33.1 KB, Burgers 26.6 -> 33.2 KB). The same order of cost as putting code in
+// PSRAM, above.
+//
+// A variable, like codePolicy, so the host test and a bench build can flip it
+// on one boot; PF_MODULE_DATA_PSRAM_FIRST 0 reverts it in a build.
+#ifndef PF_MODULE_DATA_PSRAM_FIRST
+#define PF_MODULE_DATA_PSRAM_FIRST (PF_MODULE_RESIDENT_MAX > 0)
+#endif
+inline bool dataPsramFirst = PF_MODULE_DATA_PSRAM_FIRST;
 
 // Code in PSRAM is given whole cache lines, start and length. The bytes are
 // written through the data cache and have to be written back to the chip
@@ -187,6 +251,14 @@ inline bool admitCode(size_t codeBytes) {
 }
 inline void endLoad() { dataBudget = 0; }
 
+// PSRAM and nothing else: no internal fallback, no refusal counted. For a
+// caller that has something to try before data() falls back (the loader
+// evicts a parked module and asks again).
+inline void* external(size_t bytes, bool zero) {
+  return zero ? heap_caps_calloc(1, bytes, externalData)
+              : heap_caps_malloc(bytes, externalData);
+}
+
 inline void* data(size_t bytes, bool zero, bool preferExternal) {
   if (!bytes) return nullptr;
   void* p = nullptr;
@@ -197,10 +269,7 @@ inline void* data(size_t bytes, bool zero, bool preferExternal) {
     p = internal(bytes, internalData, zero);
     if (p) spend(bytes);
   }
-  if (!p) {
-    p = zero ? heap_caps_calloc(1, bytes, externalData)
-             : heap_caps_malloc(bytes, externalData);
-  }
+  if (!p) p = external(bytes, zero);
   if (!p) {
     p = internal(bytes, internalData, zero);
     if (p) spend(bytes);

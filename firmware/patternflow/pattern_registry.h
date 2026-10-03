@@ -139,6 +139,10 @@ constexpr int MAX_MODULE_PATTERNS = 128;
 constexpr size_t MODULE_NAME_BYTES = 40;
 constexpr size_t MODULE_PATH_BYTES = 72;
 constexpr const char* MODULE_DIR = "/patterns";
+// A parked module is filed under its path (src/core_module_resident.h). A key
+// shorter than the path would park two files under one name.
+static_assert(PFModuleResident::PATH_BYTES == MODULE_PATH_BYTES,
+              "the resident table keys on whole module paths");
 
 // These three live in PSRAM, deliberately.
 //
@@ -173,6 +177,12 @@ bool moduleStorageDiagnosed = false;
 // it touched, so a rebuild reads only what changed. Boot still reads them
 // all, once. On a board with no PSRAM there is no cache and every rebuild
 // reads, as before.
+//
+// Which also makes the two forget calls below the place every writer already
+// reports a write, core and feature alike, so they move the pattern storage's
+// generation too: a module loaded or parked before it is not resumed from the
+// old file afterwards (src/core_module_loader.h, storageGeneration). One
+// atomic add, from whatever task wrote; nothing here frees a module.
 char (*sidecarPaths)[MODULE_PATH_BYTES] = nullptr;
 char (*sidecarNames)[MODULE_NAME_BYTES] = nullptr;
 bool* sidecarAbs = nullptr;
@@ -186,6 +196,7 @@ inline int sidecarFind(const char* path) {
 }
 
 inline void sidecarForgetPath(const char* path) {
+  PFModuleLoader::noteStorageWrite();   // before the early return: uncached is still written
   int i = sidecarFind(path);
   if (i < 0) return;
   int last = sidecarCount - 1;
@@ -204,7 +215,10 @@ inline void sidecarForgetSlug(const char* slug) {
   sidecarForgetPath(path);
 }
 
-inline void sidecarForgetAll() { sidecarCount = 0; }
+inline void sidecarForgetAll() {
+  PFModuleLoader::noteStorageWrite();
+  sidecarCount = 0;
+}
 
 inline void sidecarRemember(const char* path, const char* name, bool absReady) {
   if (!sidecarPaths) return;
@@ -712,9 +726,6 @@ inline void buildPatternList() {
   }
 }
 
-// Make `index` the running pattern. Presets were already set up at boot, so
-// this only costs anything for a module: read the .pfm, relocate it, run its
-// setup(). Returns false if a module failed to load, leaving nothing active.
 // When the running pattern started running. The sketch's thumbnail capture
 // wants a pattern to have been on the panel for a few seconds before its
 // frame is worth keeping - a module's first frames are often its setup.
@@ -734,34 +745,71 @@ inline void rememberHeldSelection(int index) {
   else heldPresetIdx = index;
 }
 
+// The loaded descriptor is authoritative; the sidecar name was only a guess
+// for the selection list.
+// Module slot, not pattern index: the list is presets, then any build-service
+// custom slots, THEN modules. Subtracting only NUM_PRESETS wrote the loaded
+// name into the wrong slot on an image that has custom slots filled — which
+// is exactly how a pattern ends up displaying somebody else's name.
+inline void adoptModuleName(int index) {
+  const int moduleSlot = index - (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT);
+  if (moduleSlot >= 0 && moduleSlot < numModules && PFModuleLoader::active) {
+    snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
+  }
+}
+
+// A module that is parked (src/core_module_resident.h) comes back here, on
+// the loop task, in this frame: the outgoing module is parked or unloaded,
+// the parked one becomes the current module, and it carries on from where it
+// was - no read, no relocation, no setup(). False when `index` is not parked;
+// then the caller loads it. Loop task, no load in flight: the table's owner.
+inline bool resumeParked(int index) {
+  const char* path = patterns[index].modulePath;
+  if (!path || !PFModuleLoader::isParked(path)) return false;
+  // Parking the outgoing module into a full table evicts the least recently
+  // used one, which must not be the one about to come back.
+  if (PFModuleLoader::active) PFModuleLoader::leave(path);
+  if (!PFModuleLoader::resume(path)) {
+    // Only when a write on another task moved the storage generation between
+    // the two calls (leave() never evicts `path`). The caller then loads the
+    // file, with nothing current - which is what that write calls for.
+    activePatternIdx = -1;
+    return false;
+  }
+  adoptModuleName(index);
+  activePatternIdx = index;
+  activatedAtMs = millis();
+  return true;
+}
+
+// Make `index` the running pattern, synchronously. Presets were set up at
+// boot and a parked module resumes, so this only costs anything for a module
+// that is not loaded: read the .pfm, relocate it, run its setup(). Returns
+// false if a module failed to load, leaving nothing active. The boot restore
+// uses this directly; every later switch comes through activatePatternAsync().
 inline bool activatePattern(int index) {
   if (index < 0 || index >= NUM_PATTERNS) return false;
   if (index == activePatternIdx) return true;
 
   const PatternEntry& entry = patterns[index];
   if (!entry.modulePath) {
-    // Hand the module's executable RAM back before running a preset.
-    if (PFModuleLoader::active) PFModuleLoader::unload();
+    // The module this replaces stays loaded if it can (it costs only PSRAM),
+    // and hands its RAM back if it cannot.
+    if (PFModuleLoader::active) PFModuleLoader::leave();
     activePatternIdx = index;
     activatedAtMs = millis();
     return true;
   }
+  if (resumeParked(index)) return true;
 
+  if (PFModuleLoader::active) PFModuleLoader::leave();
+  PFModuleLoader::makeRoom();
   if (!PFModuleLoader::load(FFat, entry.modulePath)) {
     Serial.printf("[PATTERNS] %s failed: %s\n", entry.modulePath, PFModuleLoader::error());
     activePatternIdx = -1;
     return false;
   }
-  // The loaded descriptor is authoritative; the sidecar name was only a guess
-  // for the selection list.
-  // Module slot, not pattern index: the list is presets, then any build-service
-  // custom slots, THEN modules. Subtracting only NUM_PRESETS wrote the loaded
-  // name into the wrong slot on an image that has custom slots filled — which
-  // is exactly how a pattern ends up displaying somebody else's name.
-  const int moduleSlot = index - (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT);
-  if (moduleSlot >= 0 && moduleSlot < numModules) {
-    snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
-  }
+  adoptModuleName(index);
   activePatternIdx = index;
   activatedAtMs = millis();
   return true;
@@ -778,12 +826,19 @@ inline bool activatePattern(int index) {
 // The read, relocate and setup() run on a task of their own on Core 0
 // (the network core, which has the room: the render never leaves Core 1).
 // The loop task does the two things that touch what a frame is using -
-// unloading the outgoing module before the task starts, and adopting the
-// incoming one after it finishes - so nothing draws a module that is
-// halfway in or out. Between the two the loop draws the incoming pattern's
-// thumbnail. One load at a time; a request that arrives while one is in
-// flight is remembered, and the LATEST such request is what loads next -
-// a knob that moved on through five patterns loads the one it rests on.
+// parking or unloading the outgoing module before the task starts, and
+// adopting the incoming one after it finishes - so nothing draws a module
+// that is halfway in or out. Between the two the loop draws the incoming
+// pattern's thumbnail. One load at a time; a request that arrives while one
+// is in flight is remembered, and the LATEST such request is what loads next
+// - a knob that moved on through five patterns loads the one it rests on.
+//
+// A module that is parked (src/core_module_resident.h) never comes this way:
+// it resumes on the loop task in the frame it is asked for. The table of
+// parked modules changes hands with the load - the worker's from the
+// release-store of loadInFlight to its release-store of loadFinished, the
+// loop's otherwise - which is why nothing below reads it while a load is in
+// flight.
 //
 // What the task may do concurrently with the frame: allocate (the heap is
 // locked), read the volume (so is the VFS), write the canvas (a torn
@@ -833,6 +888,12 @@ inline void loadPatternJob() {
   for (uint32_t pause : pauses) {
     if (ok || PFModuleMemory::refusals == refusals) break;
     ++patternLoaderRetries;
+    // A refused load gets everything there is: every parked module goes
+    // before the retry. A refusal is rare, the floor makeRoom() kept was
+    // meant to prevent it, and which heap said no is not recorded - evicting
+    // only helps when it was PSRAM, and costs only re-loads when it was not.
+    // This worker owns the table until it publishes loadFinished.
+    PFModuleLoader::dropParked();
     vTaskDelay(pdMS_TO_TICKS(pause));
     refusals = PFModuleMemory::refusals;
     ok = PFModuleLoader::load(FFat, patterns[loadTargetIdx].modulePath);
@@ -859,10 +920,7 @@ inline bool beginPatternLoader() {
 inline void finishAsyncLoad() {
   const int index = loadTargetIdx;
   if (loadResult) {
-    const int moduleSlot = index - (NUM_PRESETS + PF_CUSTOM_SLOT_COUNT);
-    if (moduleSlot >= 0 && moduleSlot < numModules && PFModuleLoader::active) {
-      snprintf(moduleNames[moduleSlot], MODULE_NAME_BYTES, "%s", PFModuleLoader::active->name);
-    }
+    adoptModuleName(index);
     activePatternIdx = index;
     activatedAtMs = millis();
   } else {
@@ -874,9 +932,9 @@ inline void finishAsyncLoad() {
   __atomic_store_n(&loadInFlight, false, __ATOMIC_RELEASE);
 }
 
-// Make `index` the running pattern without holding the frame. Presets are
-// resident and switch at once; a module switches when its task is done.
-// Task creation failure preserves the old module and returns false.
+// Make `index` the running pattern without holding the frame. Presets and
+// parked modules switch at once; any other module switches when its task is
+// done. Task creation failure preserves the old module and returns false.
 inline bool activatePatternAsync(int index) {
   if (index < 0 || index >= NUM_PATTERNS) return false;
   if (patternLoadsHeld) {
@@ -890,13 +948,17 @@ inline bool activatePatternAsync(int index) {
   if (index == activePatternIdx) return true;
   const PatternEntry& entry = patterns[index];
   if (!entry.modulePath) return activatePattern(index);
+  if (resumeParked(index)) return true;
 
   if (!beginPatternLoader()) {
     return PFModuleLoader::fail("not enough RAM for loader task");
   }
   // The outgoing module leaves here, on the loop task, while nothing is
-  // drawing it. From this frame on the loop draws the thumbnail.
-  if (PFModuleLoader::active) PFModuleLoader::unload();
+  // drawing it - parked if it can be kept. From this frame on the loop draws
+  // the thumbnail. Then the parked modules make room for the incoming one,
+  // the outgoing one last: it is the most recently used.
+  if (PFModuleLoader::active) PFModuleLoader::leave();
+  PFModuleLoader::makeRoom();
   activePatternIdx = -1;
   loadTargetIdx = index;
   loadResult = false;
@@ -924,6 +986,28 @@ inline bool tryFinishAsyncLoad() {
   if (!__atomic_load_n(&loadFinished, __ATOMIC_ACQUIRE)) return false;
   finishAsyncLoad();
   return true;
+}
+
+// Whether `index` is already in memory: a preset, or a parked module. Loop
+// task only, and a module is never answered for while a load is in flight -
+// the worker owns the table then.
+inline bool isResidentOrPreset(int index) {
+  if (index < 0 || index >= NUM_PATTERNS) return false;
+  if (!patterns[index].modulePath) return true;
+  return !loadInFlight && PFModuleLoader::isParked(patterns[index].modulePath);
+}
+
+// What SELECT asks on every detent: does making `index` the running pattern
+// cost nothing at all? The target must be in memory, and the pattern it
+// replaces must be a preset or a module that will be parked - leaving one
+// that cannot be kept would cost its whole load the moment the knob comes
+// back to it, which is what waiting for the knob to rest avoids. Never while
+// a load is in flight (the switch would only be queued), and never with
+// residency compiled out, where SELECT browses exactly as it did before.
+inline bool switchesInstantly(int index) {
+  if (PF_MODULE_RESIDENT_MAX <= 0 || loadInFlight) return false;
+  if (!isResidentOrPreset(index)) return false;
+  return !PFModuleLoader::active || PFModuleLoader::parkable();
 }
 
 // ── Naming a pattern from outside the list ───────────────────────────

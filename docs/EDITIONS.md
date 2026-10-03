@@ -261,7 +261,14 @@ Four rules that are not negotiable:
   panel is not being drawn while it runs.
 - **Buffers of 1 KB or more go through `PFMem`** (PSRAM). Internal heap is the
   scarcest thing on the board and it is what caps how big a loadable pattern
-  can be.
+  can be. PSRAM is plentiful but shared: patterns that have run stay parked in
+  it (`src/core_module_resident.h`), and they give way to patterns, not to
+  you. While any is parked, the core keeps `PF_MODULE_RESIDENT_HEADROOM`
+  (512 KB) free whenever one is parked and after every allocation a pattern
+  makes, and evicts parked ones to do it, but your own allocation evicts nothing: it gets what is free,
+  which can then be as little as those 512 KB less whatever other features
+  and the console took from them. Your `setup()` runs at boot, before anything
+  is parked, so take big buffers there, not on first use hours later.
 - **Never edit a core file.** Your entire diff is additions. That is what makes
   taking a core update a file copy rather than a merge, and it is the whole
   reason the seam exists.

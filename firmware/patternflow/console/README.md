@@ -68,6 +68,28 @@ is editable the same way. The chrome draws itself inside a shadow root
 page, so do not style or query its insides. What a page may use is
 `window.PF`, below.
 
+## The look
+
+The console is light unless someone picks dark. The choice is the toggle in
+the header, kept in `localStorage` as `pf-theme`, and the chrome sets
+`data-theme` on `<html>` before the first paint. Every core page opens its
+`<style>` with the same base block (the `Console base` comment): the tokens,
+light in `:root` and dark under `html[data-theme=dark]`, then the parts every
+page shares: `.btn` (`.pri`, `.dan`, `.sm`), `.chip`, `.notice`, `.list`,
+the fields and the footer. Copy it rather than restyle it, and leave out the
+rules for parts a page never uses. Identical text costs almost nothing
+gzipped, and a page that is a little different is how the console stopped
+looking like one thing before.
+
+The chrome injects the same light palette for every token name a page might
+use, which is what turns the feature pages light without editing them. If
+you change a light token value, change it in the chrome (the `html:root[data-theme=light]`
+rule in `theme_index.h`) and in every core page's `:root` together, or the
+chrome's copy wins. The accent is the LED orange, and only for what is live:
+the current tab, the playing pattern, the panel's on state. Labels are
+sentence case in the sans; mono is for numbers, addresses, versions and
+file names.
+
 ## Writing a page: `window.PF`
 
 The panel's web server answers one connection at a time, and on its own

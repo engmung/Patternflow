@@ -22,6 +22,7 @@
 #include "core_canvas.h"
 #include "core_crash.h"
 #include "core_module_memory.h"
+#include "core_module_resident.h"
 #include "core_encoders.h"
 #include "core_mem.h"
 #include "core_module_elf.h"
@@ -118,8 +119,10 @@ inline LoadedSection sections[MAX_SECTIONS];
 inline int sectionCount = 0;
 
 // Module data, executable sections and temporary ELF images use the shared
-// admission policy in core_module_memory.h. Large data prefers PSRAM; every
-// permitted internal fallback preserves the configured service reserve.
+// admission policy in core_module_memory.h. Code and data both go to PSRAM
+// first (data since 2026-10: PFModuleMemory::dataPsramFirst has what it costs
+// a frame, and PF_MODULE_DATA_PSRAM_FIRST 0 puts small data back in internal
+// RAM); every permitted internal fallback preserves the service reserve.
 // Bytes of the resident module's sections in internal RAM and in PSRAM -
 // /api/status reports them next to the load timing, so "this pattern ate the
 // console" is a number rather than a hunch.
@@ -141,6 +144,96 @@ inline float* tableR = nullptr;
 inline float* tableTheta = nullptr;
 inline bool tablesReady = false;
 inline char lastError[128] = {};
+
+// Bytes of runtimeBytes that came from internal RAM: api->alloc() falls back
+// there only when PSRAM refuses, and a module holding any is never parked.
+inline uint32_t runtimeInternalBytes = 0;
+// The file the current module was loaded from - the key it is parked under.
+// A copy, not the registry's pointer: rebuilding the list rewrites the
+// registry's path slots, and a parked module filed under whatever its old
+// slot names now would be resumed as somebody else.
+inline char currentPath[PFModuleResident::PATH_BYTES] = {};
+// Which version of the pattern storage a module was loaded from.
+//
+// Every writer of a module file moves storageGeneration: looksLikeModule()
+// before a .pfm is put in place (an install runs it on the bytes it is about
+// to install), and pattern_registry.h's sidecarForgetPath()/sidecarForgetAll()
+// once a file has been written, replaced or deleted. The core's own writers
+// also empty memory first (captureSelectionOnceNow(), core_patterns_http.h);
+// a feature's need not, and does not have to remember to - it already calls
+// one of those to keep the sidecar cache honest. A module loaded under an older generation may be the
+// file as it was: parked, it is never resumed (isParked() says no, and the
+// loop evicts it the next time it owns the table); current, it is unloaded
+// when left instead of being parked, and at the list rebuild that follows a
+// write (dropStale()).
+//
+// Moved from any task with one atomic add, and only moved: nothing that
+// bumps it frees anything. The loop and the worker read it, and only they
+// ever free a module (core_module_resident.h).
+inline uint32_t storageGeneration = 0;
+inline uint32_t currentGeneration = 0;   // the current module's
+inline uint32_t storageNow() { return __atomic_load_n(&storageGeneration, __ATOMIC_ACQUIRE); }
+inline void noteStorageWrite() { __atomic_add_fetch(&storageGeneration, 1, __ATOMIC_ACQ_REL); }
+// Whether the current module came back from residency rather than from a
+// load, and what that took. /api/status's load.resumed and load.resumeUs.
+inline bool resumed = false;
+inline uint32_t lastResumeUs = 0;
+
+// Everything that makes a loaded module the current one, as plain data: what
+// park() moves out of the globals above and resume() moves back. Field for
+// field the "current module" state; runtimePeakBytes is not in it because it
+// is a lifetime figure, which unload() never reset either.
+struct ResidentModule {
+  LoadedSection sections[MAX_SECTIONS];
+  int sectionCount;
+  void* moduleAllocs[MAX_MODULE_ALLOCS];
+  int moduleAllocCount;
+  uint32_t runtimeBytes;
+  uint32_t runtimeInternalBytes;
+  const PFPatternModule* active;
+  uint32_t lastInternalBytes;
+  uint32_t lastPsramBytes;
+  uint32_t lastCodeBytes;
+  bool lastCodeExternal;
+  uint32_t lastReadUs;
+  uint32_t lastRelocateUs;
+  uint32_t lastSetupUs;
+  uint32_t lastTotalUs;
+  uint32_t generation;
+};
+
+// What a module owns, given back: its api->alloc() blocks and its sections.
+// unload() and evicting a parked module both come through here, so the two
+// cannot drift apart - a code block in PSRAM is freed through `block`, the
+// heap's own pointer, because `memory` is the line-aligned address inside it.
+inline void freeModuleMemory(LoadedSection* loaded, int count, void* const* allocs,
+                             int allocCount) {
+  for (int i = 0; i < allocCount; ++i) free(allocs[i]);
+  for (int i = 0; i < count; ++i) free(loaded[i].block ? loaded[i].block : loaded[i].memory);
+}
+
+inline void releaseResident(ResidentModule& module) {
+  freeModuleMemory(module.sections, module.sectionCount, module.moduleAllocs,
+                   module.moduleAllocCount);
+}
+
+// The slots, in PSRAM and only once something is parked. Not a static array:
+// static DRAM is what check_footprint.py pins per edition, and internal RAM is
+// what parking exists to leave alone. No PSRAM, no table, no parking.
+inline void* allocateResidentTable(size_t bytes) {
+  return heap_caps_calloc(1, bytes, MALLOC_CAP_SPIRAM);
+}
+
+inline PFModuleResident::Table<ResidentModule, PF_MODULE_RESIDENT_MAX, allocateResidentTable,
+                               releaseResident>
+    resident;
+
+// Loaded from the storage as it is now. A parked module that is not is never
+// resumed, and goes whenever its owner next looks.
+inline bool fresh(const ResidentModule& module) { return module.generation == storageNow(); }
+inline int evictStale() {
+  return resident.evictIf([](const ResidentModule& module) { return !fresh(module); });
+}
 
 inline bool fail(const char* message) {
   snprintf(lastError, sizeof(lastError), "%s", message);
@@ -433,10 +526,43 @@ inline void* moduleAlloc(size_t bytes) {
   // honoured it through PFMem::alloc (core_mem.h memsets). The rework dropped
   // the zeroing, so a pattern that allocates a trail map or accumulator and
   // reads it before writing has been reading whatever the last module left.
-  void* memory = PFModuleMemory::data(bytes, true, true);
+  void* memory = nullptr;
+  // Parked modules hold PSRAM this module could have had before residency
+  // existed, and so could everything else that takes PSRAM late - the
+  // thumbnail buffers, a feature's PFMem, any malloc over 4 KB. So while any
+  // are parked, two rules, least recently used first:
+  //
+  //   This allocation may not leave less than PF_MODULE_RESIDENT_HEADROOM of
+  //   PSRAM free. A module that grows lazily, long after it loaded, would
+  //   otherwise take PSRAM down to nothing with megabytes parked - megabytes
+  //   that before residency would simply have been unloaded.
+  //
+  //   A PSRAM refusal costs another parked module and PSRAM is asked again -
+  //   before data() may fall back to the internal heap, which is the
+  //   services' RAM and would also cost this module its own chance of being
+  //   parked. Asked per allocation, so it also covers PSRAM with enough free
+  //   in total but no block that large.
+  //
+  // Modules loaded before the storage last changed go first: nobody can
+  // resume them. This runs inside a call into the module - on the loader
+  // worker during its load, on the loop while it is the running pattern -
+  // which is the task that owns the table either way (core_module_resident.h).
+  if (resident.count) {
+    evictStale();
+    resident.evictUntil([bytes] {
+      const size_t room = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+      return room >= bytes && room - bytes >= (size_t)PF_MODULE_RESIDENT_HEADROOM;
+    });
+    memory = PFModuleMemory::external(bytes, true);
+    while (!memory && resident.evictOldest()) memory = PFModuleMemory::external(bytes, true);
+  }
+  if (!memory) memory = PFModuleMemory::data(bytes, true, true);
   if (memory) {
     moduleAllocs[moduleAllocCount++] = memory;
-    runtimeBytes += bytes;
+    // fits() above bounds `bytes` by the 4 MB limit, so the narrowing is
+    // exact; spelled out for the 64-bit host the tests compile this on.
+    runtimeBytes += (uint32_t)bytes;
+    if (!esp_ptr_external_ram(memory)) runtimeInternalBytes += (uint32_t)bytes;
     if (runtimeBytes > runtimePeakBytes) runtimePeakBytes = runtimeBytes;
   }
   return memory;
@@ -486,26 +612,39 @@ inline PFHostAPI hostAPI = {
   hostTableTheta,
 };
 
-inline void unload() {
-  active = nullptr;
-  // Every way a module leaves comes through here, so this is where the crash
-  // breadcrumb stops naming it.
-  PFCrash::forget();
-  for (int i = 0; i < moduleAllocCount; ++i) free(moduleAllocs[i]);
+// The current module's globals back to "nothing is here", freeing nothing.
+// unload() calls it once the memory is given back; park() once the module has
+// been moved into a slot, which is why it must not free: those blocks belong
+// to the slot now.
+inline void clearCurrent() {
   memset(moduleAllocs, 0, sizeof(moduleAllocs));
   moduleAllocCount = 0;
   runtimeBytes = 0;
-  for (int i = 0; i < sectionCount; ++i) {
-    free(sections[i].block ? sections[i].block : sections[i].memory);
-    sections[i] = {};
-  }
+  runtimeInternalBytes = 0;
+  for (int i = 0; i < sectionCount; ++i) sections[i] = {};
   sectionCount = 0;
-  // Nothing is resident: /api/status must stop reporting the footprint of a
+  // Nothing is current: /api/status must stop reporting the footprint of a
   // module that left, or the partial footprint of one that never arrived.
   lastInternalBytes = 0;
   lastPsramBytes = 0;
   lastCodeExternal = false;
+  currentPath[0] = '\0';
+  // load.resumed describes the module on the panel; with none there it is
+  // false, not whatever the last one was.
+  resumed = false;
+  lastResumeUs = 0;
   PFModuleMemory::endLoad();
+}
+
+// Free the current module. Never a parked one: those are not in the globals
+// this reads, and only eviction (core_module_resident.h) frees them.
+inline void unload() {
+  active = nullptr;
+  // Every way a module leaves comes through here or through park(), so these
+  // are where the crash breadcrumb stops naming it.
+  PFCrash::forget();
+  freeModuleMemory(sections, sectionCount, moduleAllocs, moduleAllocCount);
+  clearCurrent();
 }
 
 inline bool copyExecutable(uint8_t* destination, const uint8_t* source, size_t bytes) {
@@ -602,7 +741,16 @@ inline uint32_t lastTotalUs = 0;
 // the knob reached it. Validating the header at upload time makes the reply
 // mean something: a file that passes this is at least the right kind of object
 // for this device.
+//
+// Every path that installs a .pfm runs this: an upload on the file it has
+// just written (memory was emptied and loads held before its first byte, by
+// captureSelectionOnceNow()), a library pull on its .tmp before the old file
+// is removed (nothing emptied). For a writer of the second kind this is the one
+// core call it makes BEFORE the file it replaces changes, so the storage
+// generation moves here, whatever the verdict: a module parked from the old
+// file is not resumed from here on. A refused file costs only that.
 inline bool looksLikeModule(fs::FS& filesystem, const char* path, char* why, size_t whySize) {
+  noteStorageWrite();
   File file = filesystem.open(path, FILE_READ);
   if (!file) {
     snprintf(why, whySize, "cannot reopen after write");
@@ -649,6 +797,12 @@ struct LoadMark {
 inline bool load(fs::FS& filesystem, const char* path) {
   unload();
   lastError[0] = '\0';
+  // The key this module would be parked under. One the key cannot hold whole
+  // stays empty, and the module is then unloaded when left, as before.
+  if (path && strlen(path) < sizeof(currentPath)) memcpy(currentPath, path, strlen(path) + 1);
+  // Taken before the file is opened: a write that lands while it is being
+  // read moves the generation after this, and the module is never kept.
+  currentGeneration = storageNow();
   Serial.printf("[MODULE] loading %s\n", path);
   const LoadMark mark(path);
   const uint32_t startedUs = micros();
@@ -762,10 +916,15 @@ inline bool load(fs::FS& filesystem, const char* path) {
       if (executable != (pass == 0)) continue;
       const size_t allocationSize = plannedSize[q];
       void* block = nullptr;
+      // Data: PSRAM first whenever residency is on (PFModuleMemory::
+      // dataPsramFirst says why and what it costs), otherwise only for a
+      // section over PF_MODULE_DATA_INTERNAL_MAX.
       uint8_t* memory = executable
           ? static_cast<uint8_t*>(PFModuleMemory::code(allocationSize, &block))
           : static_cast<uint8_t*>(PFModuleMemory::data(
-                allocationSize, true, allocationSize > PF_MODULE_DATA_INTERNAL_MAX));
+                allocationSize, true,
+                PFModuleMemory::dataPsramFirst ||
+                    allocationSize > PF_MODULE_DATA_INTERNAL_MAX));
       if (!memory) {
         // Sample before free()/unload(), or the line reports the heap as it is
         // after the cleanup and contradicts the failure it is explaining.
@@ -1023,6 +1182,182 @@ inline bool load(fs::FS& filesystem, const char* path) {
   Serial.printf("[MODULE] %lu us total = read %lu + relocate %lu + setup %lu\n",
                 (unsigned long)lastTotalUs, (unsigned long)lastReadUs,
                 (unsigned long)lastRelocateUs, (unsigned long)lastSetupUs);
+  return true;
+}
+
+// ── Staying loaded ──────────────────────────────────────────────────
+// A module that has run is parked when another pattern takes over, and comes
+// back from its slot when picked again (core_module_resident.h has the why,
+// and the rule for which task may do any of this). The globals above stay
+// "the current module"; parking moves them into a slot and clears them
+// without freeing, resuming moves a slot back. load() and unload() are the
+// same functions they were.
+
+// Only a module that holds no internal RAM at all is kept. Internal RAM is
+// what the console, Wi-Fi and lwIP live on, and a parked module is one nobody
+// is looking at: every section in PSRAM, its code run through the
+// instruction-bus alias, and every api->alloc() block in PSRAM too. A module
+// that missed any of that - PSRAM full when it loaded, a unit whose code was
+// demoted to internal RAM, a board without PSRAM - is unloaded exactly as
+// before. So is one whose file may have changed since it loaded (an older
+// storageGeneration).
+inline bool parkable() {
+  return PF_MODULE_RESIDENT_MAX > 0 && active && sectionCount > 0 && currentPath[0] &&
+         currentGeneration == storageNow() && lastCodeExternal && lastInternalBytes == 0 &&
+         runtimeInternalBytes == 0;
+}
+
+inline void captureCurrent(ResidentModule& module) {
+  for (int i = 0; i < MAX_SECTIONS; ++i) module.sections[i] = sections[i];
+  module.sectionCount = sectionCount;
+  for (int i = 0; i < MAX_MODULE_ALLOCS; ++i) module.moduleAllocs[i] = moduleAllocs[i];
+  module.moduleAllocCount = moduleAllocCount;
+  module.runtimeBytes = runtimeBytes;
+  module.runtimeInternalBytes = runtimeInternalBytes;
+  module.active = active;
+  module.lastInternalBytes = lastInternalBytes;
+  module.lastPsramBytes = lastPsramBytes;
+  module.lastCodeBytes = lastCodeBytes;
+  module.lastCodeExternal = lastCodeExternal;
+  module.lastReadUs = lastReadUs;
+  module.lastRelocateUs = lastRelocateUs;
+  module.lastSetupUs = lastSetupUs;
+  module.lastTotalUs = lastTotalUs;
+  module.generation = currentGeneration;
+}
+
+// Its own load timings come back with it: /api/status's load.* keeps
+// describing the module on the panel, and load.resumed says it did not just
+// pay them again.
+inline void restoreCurrent(const ResidentModule& module) {
+  for (int i = 0; i < MAX_SECTIONS; ++i) sections[i] = module.sections[i];
+  sectionCount = module.sectionCount;
+  for (int i = 0; i < MAX_MODULE_ALLOCS; ++i) moduleAllocs[i] = module.moduleAllocs[i];
+  moduleAllocCount = module.moduleAllocCount;
+  runtimeBytes = module.runtimeBytes;
+  runtimeInternalBytes = module.runtimeInternalBytes;
+  active = module.active;
+  lastInternalBytes = module.lastInternalBytes;
+  lastPsramBytes = module.lastPsramBytes;
+  lastCodeBytes = module.lastCodeBytes;
+  lastCodeExternal = module.lastCodeExternal;
+  lastReadUs = module.lastReadUs;
+  lastRelocateUs = module.lastRelocateUs;
+  lastSetupUs = module.lastSetupUs;
+  lastTotalUs = module.lastTotalUs;
+  currentGeneration = module.generation;
+}
+
+// Move the current module into a slot. False - and the module still current,
+// nothing moved - when it may not be kept or the table cannot take it; the
+// caller then unloads it. `keep` is a parked module the caller is about to
+// resume, which a full table must not evict to make room.
+inline bool park(const char* keep = nullptr) {
+  if (!parkable()) return false;
+  // This task owns the table: clear out what can never be resumed before the
+  // least recently used of what can is evicted to make room.
+  evictStale();
+  // Parking keeps this module's PSRAM, and while anything is parked the core
+  // keeps PF_MODULE_RESIDENT_HEADROOM free (core_module_memory.h) - from the
+  // moment this one is parked, not only from its next allocation. Older
+  // parked modules go first; if this one alone holds the last of it, it is
+  // unloaded as it always was.
+  while (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < (size_t)PF_MODULE_RESIDENT_HEADROOM &&
+         resident.evictOldest(keep)) {
+  }
+  if (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) < (size_t)PF_MODULE_RESIDENT_HEADROOM) return false;
+  const uint32_t held = lastPsramBytes + runtimeBytes;
+  if (!resident.park(currentPath, held,
+                     [](ResidentModule& slot) { captureCurrent(slot); }, keep)) {
+    return false;
+  }
+  // Leaving, as far as anything but its memory is concerned: the same
+  // breadcrumb and the same globals unload() clears.
+  active = nullptr;
+  PFCrash::forget();
+  clearCurrent();
+  return true;
+}
+
+// How every module leaves the panel now: parked when it can be kept,
+// unloaded when it cannot.
+inline void leave(const char* keep = nullptr) {
+  if (!park(keep)) unload();
+}
+
+// Parked, and loaded from the storage as it is now. One parked from an older
+// file answers no, so the caller loads the file instead.
+inline bool isParked(const char* path) {
+  const ResidentModule* parked = resident.peek(path);
+  return parked && fresh(*parked);
+}
+
+// Make the module parked under `path` the current one: its own sections,
+// allocations and descriptor, exactly as it left them. Nothing is read,
+// relocated or constructed, and setup() does not run - the module carries on
+// from its own state, as a compiled-in preset does. The caller has left the
+// current module first. `path` is the registry's pointer, the same one load()
+// would have been handed, so the crash breadcrumb's owner is the same either
+// way.
+//
+// The code needs nothing done to it. It was written back and read through
+// the instruction bus when it loaded, and nothing has written those bytes
+// since: the block stayed allocated, so no other module could be placed on
+// it. A later demotion of code placement (codeDemoted) concerns code yet to
+// be placed; this was verified on this unit already.
+inline bool resume(const char* path) {
+  if (active || sectionCount || !isParked(path)) return false;
+  const uint32_t startedUs = micros();
+  if (!resident.take(path, [](ResidentModule& slot) { restoreCurrent(slot); })) return false;
+  memcpy(currentPath, path, strlen(path) + 1);   // fits: it was found under it
+  lastError[0] = '\0';
+  // From here a crash PC can be inside this module again: name it, and the
+  // range its code is fetched from, as load() does.
+  PFCrash::running(path, path);
+  for (int i = 0; i < sectionCount; ++i) {
+    if (!sections[i].executable) continue;
+    PFCrash::code(sections[i].exec, sections[i].size);
+    break;
+  }
+  PFCrash::enter(PFCrash::IDLE);
+  resumed = true;
+  lastResumeUs = micros() - startedUs;
+  Serial.printf("[MODULE] resumed %s in %lu us\n", path, (unsigned long)lastResumeUs);
+  return true;
+}
+
+// Before a fresh load: least recently used parked modules go until PSRAM has
+// at least the runtime limit plus PF_MODULE_RESIDENT_HEADROOM free, or until
+// none is left. The bound is derived, not tuned: the module about to load can
+// still get everything it could get before residency existed. The loader
+// worker's retries and api->alloc() go further when they are refused.
+inline void makeRoom() {
+  // Two statements: the stale go first, and the operands of a `+` would be
+  // unsequenced.
+  int evicted = evictStale();
+  evicted += resident.evictUntil([] {
+    return heap_caps_get_free_size(MALLOC_CAP_SPIRAM) >=
+           (size_t)PF_MODULE_RUNTIME_MAX_BYTES + (size_t)PF_MODULE_RESIDENT_HEADROOM;
+  });
+  if (evicted) Serial.printf("[MODULE] %d parked module(s) evicted for room\n", evicted);
+}
+
+inline void dropParked() {
+  const int evicted = resident.evictAll();
+  if (evicted) Serial.printf("[MODULE] %d parked module(s) dropped\n", evicted);
+}
+
+// At the list rebuild that follows a write (the registry's restore): every
+// parked module loaded before the storage last changed goes, and so does the
+// current one, unloaded, if it is one of them - left running, it would go on
+// as the old file under the new one's name for as long as nobody switched
+// away. True when the current module was unloaded; the caller stops naming it.
+// Nothing at all happens when nothing was written since.
+inline bool dropStale() {
+  const int evicted = evictStale();
+  if (evicted) Serial.printf("[MODULE] %d parked module(s) older than the storage dropped\n", evicted);
+  if (!active || currentGeneration == storageNow()) return false;
+  unload();
   return true;
 }
 

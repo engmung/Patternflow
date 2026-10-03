@@ -1,197 +1,153 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8">
-<script src="pf-demo.js?h=763ee28b"></script><script src="pf-console.js?h=d02b3322"></script><script>if(!window.PF)(function(){var W=window,U='/api/status',L=[],M=2e9,S,Z,P=W.PF={state:'live',dirty:!1,v:null,get:G,inflight:Number,hold:Object,say:function(t,k,e){e&&(e.textContent=t)},busy:function(b,p){function f(){b.disabled=!1}b.disabled=!0;p.then(f,f);return p},poll:function(s,m,c,o){var t,f,g=1;function R(){g&&!f&&(f=1,clearTimeout(t),(s.call?s():G(s)).then(function(d){c(d,null)},function(e){c(null,e)}).then(K,K))}function K(){f=0;clearTimeout(t);g&&(t=setTimeout(R,m))}o&&o.first===!1?K():R();return{stop:function(){g=0;clearTimeout(t)},set:function(n){m=n;f||K()},now:R}},status:function(c){c&&L.push(c);S?c&&c(S):Z?Z.now():Z=P.poll(U,M,D)},watchStatus:function(m){P.status();Z.set(M=Math.min(m,M))},waitForDevice:function(o){o=o||{};return new Promise(function(y,n){var h=P.poll(U,2e3,function(s){s&&!(o.build&&s.build==o.build)&&(h.stop(),y(s))});setTimeout(function(){h.stop();n(Error('timeout'))},o.timeout||9e4)})}};function G(u,o){return fetch(u,o).then(function(r){if(!r.ok)throw Error(r.status);return o&&o.text?r.text():r.json()})}function D(s){if(s){S=W.pfStatus=s;L.forEach(function(f){f(s)})}}})()</script>
+<script src="pf-demo.js?h=9814bd5d"></script><script src="pf-console.js?h=efffd505"></script><script>if(!window.PF)(function(){var W=window,U='/api/status',L=[],M=2e9,S,Z,P=W.PF={state:'live',dirty:!1,v:null,get:G,inflight:Number,hold:Object,say:function(t,k,e){e&&(e.textContent=t)},busy:function(b,p){function f(){b.disabled=!1}b.disabled=!0;p.then(f,f);return p},poll:function(s,m,c,o){var t,f,g=1;function R(){g&&!f&&(f=1,clearTimeout(t),(s.call?s():G(s)).then(function(d){c(d,null)},function(e){c(null,e)}).then(K,K))}function K(){f=0;clearTimeout(t);g&&(t=setTimeout(R,m))}o&&o.first===!1?K():R();return{stop:function(){g=0;clearTimeout(t)},set:function(n){m=n;f||K()},now:R}},status:function(c){c&&L.push(c);S?c&&c(S):Z?Z.now():Z=P.poll(U,M,D)},watchStatus:function(m){P.status();Z.set(M=Math.min(m,M))},waitForDevice:function(o){o=o||{};return new Promise(function(y,n){var h=P.poll(U,2e3,function(s){s&&!(o.build&&s.build==o.build)&&(h.stop(),y(s))});setTimeout(function(){h.stop();n(Error('timeout'))},o.timeout||9e4)})}};function G(u,o){return fetch(u,o).then(function(r){if(!r.ok)throw Error(r.status);return o&&o.text?r.text():r.json()})}function D(s){if(s){S=W.pfStatus=s;L.forEach(function(f){f(s)})}}})()</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow - Wi-Fi</title>
 <style>
-/* Dark instrument tokens — see patterns_index.h for the note. */
-:root{--cream:#0C0B09;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;
---rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--ok:#57B87F;--panel:#131110;
---sans:'Inter',ui-sans-serif,system-ui,sans-serif;
---mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
-*{box-sizing:border-box}
-[hidden]{display:none!important}
-body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--sans);
-line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:680px;margin:0 auto;padding:32px 20px 64px}
-header{display:flex;align-items:center;gap:8px;padding-bottom:12px;
-border-bottom:1px solid var(--rule)}
-.dot{width:7px;height:7px;background:var(--led);border-radius:1px}
-h1{font-size:15px;font-weight:600;margin:0;flex:1}
-.sub{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:right}
-section{margin-top:26px}
-h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
-color:var(--muted);margin:0 0 8px}
-ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule-soft)}
-li{display:flex;align-items:center;gap:10px;padding:9px 2px;
-border-bottom:1px solid var(--rule-soft);font-size:13px}
-li .n{font-family:var(--mono);font-size:11px;color:var(--faint);min-width:20px}
-.nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-font-family:var(--mono);font-size:12px}
-.tag{font-family:var(--mono);font-size:10px;letter-spacing:.06em;
-text-transform:uppercase;padding:1px 6px;border:1px solid var(--ok);
-border-radius:2px;color:var(--ok)}
-button{font:inherit;cursor:pointer;position:relative}
-button.del{font-size:11px;color:var(--muted);background:none;
-border:1px solid var(--rule);border-radius:2px;padding:2px 8px}
-button.del:hover{border-color:var(--led);color:var(--led)}
-form{margin:0;display:grid;gap:10px;max-width:380px}
-label,.lbl{display:block;font-size:12px;color:var(--muted);margin:0 0 3px}
-input{width:100%;font:inherit;font-family:var(--mono);font-size:13px;padding:7px 9px;
-background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:2px}
-input:focus{outline:none;border-color:var(--led)}
-.actions{display:flex;gap:8px;align-items:center;margin-top:2px}
-button.primary{background:var(--ink);color:var(--cream);border:1px solid var(--ink);
-border-radius:2px;padding:7px 16px;font-size:13px}
-button.primary:hover{background:var(--led);border-color:var(--led)}
-.check{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted)}
-.check input{width:auto}
-/* Result lines, filled by PF.say next to the control that caused them. */
-.msg{margin-top:10px;font-family:var(--mono);font-size:11px;min-height:16px;color:var(--muted)}
-.msg.pf-ok{color:var(--ok)}.msg.pf-err{color:var(--led)}
-#join{margin-top:12px;padding:10px 12px;border:1px solid var(--rule);border-radius:2px;
-font-size:13px;line-height:1.5;max-width:520px}
-#join.ok{border-color:var(--ok)}
-#join.err{border-color:var(--led)}
-#join b{font-family:var(--mono);font-weight:600}
-#join a{color:var(--ink)}
-#join .big{display:inline-block;margin:6px 10px 6px 0;font-family:var(--mono);
-font-size:20px;word-break:break-all}
-.note{font-size:12px;color:var(--faint);margin:8px 0 0;line-height:1.45}
-footer{margin-top:32px;padding-top:12px;border-top:1px solid var(--rule);
-font-family:var(--mono);font-size:11px;color:var(--faint)}
-a{color:var(--muted)}
-.tag.boot{border-color:var(--muted);color:var(--muted)}
-select{width:100%;max-width:380px;font:inherit;font-family:var(--mono);font-size:13px;
-padding:7px 9px;background:var(--panel);color:var(--ink);border:1px solid var(--rule);
-border-radius:2px}
-button.secondary{font-size:13px;color:var(--ink);background:none;
-border:1px solid var(--rule);border-radius:2px;padding:7px 16px}
-button.secondary:hover{border-color:var(--led);color:var(--led)}
-.ghost{font-family:var(--mono);font-size:11px;color:var(--muted);background:none;
-border:1px solid var(--rule);border-radius:2px;padding:3px 10px}
-.ghost:hover{border-color:var(--led);color:var(--led)}
-.row{display:flex;gap:6px}
-.row input{flex:1;min-width:0}
-/* What the hotspot's channel scan found, strongest first: a row to tap. */
-.scan li{padding:0}
-.scan button{flex:1;display:flex;align-items:center;gap:10px;min-width:0;padding:8px 2px;
-background:none;border:0;color:var(--ink);text-align:left}
-.scan button:hover .nm{color:var(--led)}
+/* Console base: the same block opens every core page. Light in :root (the chrome's
+   injected light palette holds these same values: keep the two in step),
+   dark under html[data-theme=dark]. No web fonts: the hotspot has no internet. */
+:root{color-scheme:light;--cream:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#625C51;--faint:#7D7668;--rule:#DDD5C6;--rule-soft:#E8E1D4;--ghost:#E3DCCE;--led:#FF5C2E;--bad:#B83C1C;--ok:#2B7A4B;--warn:#85600E;
+--sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:ui-monospace,'Cascadia Mono','SF Mono',Menlo,Consolas,'Roboto Mono',monospace}
+html[data-theme=dark]{color-scheme:dark;--cream:#0C0B09;--panel:#131110;--ink:#EDE7DB;--muted:#A39B8A;--faint:#7A7364;--rule:#2B2721;--rule-soft:#1F1C18;--ghost:#2A2620;--bad:#FF7A55;--ok:#57B87F;--warn:#D9A03F}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--cream);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit}:focus-visible{outline:2px solid var(--led);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h2{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 16px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);color:var(--ink);font:500 14px var(--sans);text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--cream)}
+@media(hover:hover){.btn:hover{border-color:var(--ink)}.btn.pri:hover{background:var(--led);border-color:var(--led);color:#fff}footer a:hover{color:var(--ink)}}
+.btn:disabled{opacity:.45;cursor:default;border-color:var(--rule)}
+.btn.ic{width:40px;padding:0}
+.msg{font:12px var(--mono);color:var(--faint)}.pf-ok{color:var(--ok)}.pf-err{color:var(--bad)}
+.chip{display:inline-block;padding:0 8px;border:1px solid var(--rule);border-radius:99px;font:11px/20px var(--mono);color:var(--muted);white-space:nowrap}
+.notice{display:block;padding:12px 14px;border:1px solid var(--rule);border-left:3px solid var(--led);border-radius:8px;background:var(--panel);font-size:14px;text-decoration:none}.notice b{font-weight:500;white-space:nowrap}
+footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:40px;border-top:1px solid var(--rule);font:12px var(--mono);color:var(--faint)}
+footer a{display:inline-flex;align-items:center;min-height:40px;color:var(--muted);text-decoration:none}
+header{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-bottom:20px}
+h1{flex:1;margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.sub{font:12px var(--mono);color:var(--faint)}
+section{margin-top:28px}
+.note{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.btn.sm{min-height:32px;padding:0 12px;font-size:13px}
+.btn.dan{color:var(--bad)}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
+@media(pointer:coarse){.btn.sm{position:relative}.btn.sm::after{content:"";position:absolute;inset:-4px 0}}
+.f{display:block;margin:12px 0 4px;font-size:13px;font-weight:500;color:var(--muted)}
+input:not([type]),input[type=text],input[type=password],select{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);color:var(--ink);font:14px var(--sans)}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus{outline:none;border-color:var(--ink)}
+.chk{display:inline-flex;align-items:center;gap:8px;min-height:40px;font-size:14px;color:var(--ink);cursor:pointer}
+.chk input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
+.list{margin:0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.list>li{display:flex;align-items:center;gap:10px;min-height:48px;padding:6px 0;border-bottom:1px solid var(--rule-soft)}
+.list .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.list .n{min-width:20px;font:12px var(--mono);color:var(--faint)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+details{margin-top:8px;font-size:13px;color:var(--muted)}
+summary{cursor:pointer;padding:10px 0;line-height:20px;color:var(--muted)}
+/* ── Wi-Fi ── */
+.nm,#ssid,#pass,#hspass,#boot,code,.note b,.notice b{font-family:var(--mono)}
+.note b{font-weight:500;color:var(--ink)}
+#boot,#pass{flex:1 1 160px;min-width:0}
+#f input,#hspass,#boot{max-width:360px}
+.scan>li{padding:0;min-height:0}
+.scan button{flex:1;display:flex;align-items:center;gap:10px;min-width:0;min-height:44px;padding:0;background:none;border:0;color:inherit;text-align:left;cursor:pointer}
 .scan:not(.all) li:nth-child(n+7){display:none}
-.bars{display:flex;align-items:flex-end;gap:2px;height:10px}
-.bars i{width:3px;height:40%;background:var(--rule)}
+.bars{display:flex;align-items:flex-end;gap:2px;height:12px}
+.bars i{width:3px;height:40%;background:var(--ink)}
 .bars i+i{height:60%}.bars i+i+i{height:80%}.bars i+i+i+i{height:100%}
-.s1 i:first-child,.s2 i:nth-child(-n+2),.s3 i:nth-child(-n+3),.s4 i{background:var(--muted)}
-.more,.chip button{background:none;border:0;padding:0;font-family:var(--mono);
-font-size:11px;text-decoration:underline}
-.more{margin-top:6px;color:var(--muted)}
-.chip{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-top:6px;
-padding:5px 8px;border:1px solid var(--led);border-radius:2px;font-family:var(--mono);font-size:11px}
-.chip button{color:var(--led)}
-/* Small controls keep their look; on a touch screen the hit area grows. */
-@media(pointer:coarse){.scan button{padding:12px 2px}
-.del::after,.more::after,.chip button::after,#join .ghost::after{content:"";
-position:absolute;inset:-11px -6px}}
-html.pf-offline #st,html.pf-offline #list,html.pf-offline #hsstate{opacity:.45}
-</style></head><body><div class="wrap">
-<header><span class="dot"></span><h1>Wi-Fi</h1><span class="sub" id="st">-</span></header>
+.s1 i+i,.s2 i+i+i,.s3 i+i+i+i{background:var(--ghost)}
+.dym,.dym span+span{display:flex;flex-wrap:wrap;align-items:center;gap:8px}.dym{margin-top:8px;padding:6px 6px 6px 12px}
+#join{margin-top:12px}#join.ok{border-left-color:var(--ok)}#join.err{border-left-color:var(--bad)}
+#join .big{display:inline-block;margin:6px 10px 6px 0;font:18px var(--mono);overflow-wrap:anywhere}
+.seg{display:flex;gap:2px;max-width:360px;padding:2px;border:1px solid var(--rule);border-radius:9px;background:var(--cream)}
+.seg label{flex:1;position:relative}
+.seg input{position:absolute;opacity:0;margin:0}
+.seg span{display:flex;align-items:center;justify-content:center;min-height:40px;border-radius:7px;color:var(--muted);font-weight:500;font-size:14px;cursor:pointer;transition:background .15s,color .15s}
+.seg :checked+span{background:var(--panel);color:var(--ink);box-shadow:0 0 0 1px var(--rule),inset 0 -2px var(--led)}
+.seg :focus-visible+span{outline:2px solid var(--led)}
+.pf-offline #st,.pf-offline #list,.pf-offline #hsstate{opacity:.5}
+@media(hover:hover){.btn.dan:hover{border-color:var(--bad)}summary:hover,.seg span:hover{color:var(--ink)}.scan button:hover .nm{text-decoration:underline}}
+</style></head><body>
+
+<main class="wrap">
+<header><h1>Wi-Fi</h1><span class="sub" id="st">-</span></header>
 
 <section id="saved" hidden>
   <h2>Saved networks</h2>
-  <ul id="list"></ul>
-  <p class="note" id="cap"></p>
-  <div class="msg" id="listmsg"></div>
-</section>
-
-<section id="bootsec" hidden>
-  <h2>Boot network</h2>
-  <label for="boot">Try first on power-up</label>
-  <select id="boot"></select>
-  <div class="actions" style="margin-top:10px">
-    <button class="secondary" type="button" id="bootsave">Save boot preference</button>
-    <button class="secondary" type="button" id="reboot">Reboot</button>
+  <ul class="list" id="list"></ul>
+  <p class="note"><span id="cap"></span> <span class="msg" id="listmsg"></span></p>
+  <div id="bootsec" hidden>
+    <label class="f" for="boot">Boot network, tried first from the next reboot</label>
+    <div class="acts" style="margin:0">
+      <select id="boot"></select>
+      <button class="btn" type="button" id="bootsave" aria-label="Save boot network">Save</button>
+      <button class="btn" type="button" id="reboot">Reboot</button>
+      <span class="msg" id="bootmsg"></span>
+    </div>
   </div>
-  <div class="msg" id="bootmsg"></div>
-  <p class="note">Stored on the device. Reboot to join the chosen network first &mdash;
-  the current session is not switched live.</p>
 </section>
 
 <section id="add">
   <h2>Add a network</h2>
   <form id="f">
     <div id="scanbox" hidden>
-      <p class="lbl">Networks the panel found &mdash; tap one</p>
-      <ul class="scan" id="scan"></ul>
-      <button class="more" type="button" id="more" hidden></button>
+      <p class="f">Networks the panel found &mdash; tap one</p>
+      <ul class="list scan" id="scan"></ul>
+      <button class="btn sm" type="button" id="more" hidden style="margin-top:8px"></button>
     </div>
-    <div>
-      <label for="ssid">Network name</label>
-      <input id="ssid" name="ssid" maxlength="32" required list="seen"
+    <label class="f" for="ssid">Network name</label>
+    <input id="ssid" name="ssid" maxlength="32" required list="seen"
+      autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <datalist id="seen"></datalist>
+    <div class="notice dym" id="dym" hidden><span>Did you mean &laquo;<b id="dymn"></b>&raquo;?</span>
+      <span><button class="btn sm" type="button" id="dymuse">Use it</button><button class="btn sm" type="button" id="dymkeep">Keep mine</button></span></div>
+    <label class="f" for="pass">Password</label>
+    <div class="acts" style="margin:0">
+      <input id="pass" name="pass" type="password" maxlength="63"
         autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-      <datalist id="seen"></datalist>
-      <div class="chip" id="dym" hidden>Did you mean &laquo;<b id="dymn"></b>&raquo;?
-        <button type="button" id="dymuse">use it</button><button type="button" id="dymkeep">keep mine</button></div>
+      <button class="btn" type="button" id="pwt" aria-controls="pass" aria-pressed="false">Show</button>
     </div>
-    <div>
-      <label for="pass">Password</label>
-      <div class="row">
-        <input id="pass" name="pass" type="password" maxlength="63"
-          autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-        <button class="ghost" type="button" id="pwt" aria-controls="pass" aria-pressed="false">show</button>
-      </div>
-    </div>
-    <div class="actions">
-      <button class="primary" type="submit" id="addbtn">Save</button>
-      <span class="check" id="nowbox">
-        <input type="checkbox" id="now"><label for="now" style="margin:0">switch now</label>
-      </span>
+    <div class="acts">
+      <button class="btn pri" type="submit" id="addbtn" aria-label="Save network">Save</button>
+      <label class="chk" id="nowbox"><input type="checkbox" id="now">Switch now</label>
+      <span class="msg" id="msg"></span>
     </div>
   </form>
-  <div class="msg" id="msg"></div>
-  <div id="join" hidden></div>
-  <p class="note">Saved networks are tried in order starting from the boot slot,
-  wrapping around &mdash; so the device joins whichever one it can find, useful if it
-  moves between home, a studio and a venue. A new network is only stored; leave
-  <em>switch now</em> unticked and this page keeps working. Ticking it drops the
-  current connection immediately. On the panel's hotspot a network is tried at once,
-  and the panel shows the outcome on its screen as well as here: the address to open,
-  or why it could not join.</p>
+  <div class="notice" id="join" hidden></div>
+  <p class="note"><span id="nownote">Save stores it and this page keeps working; Switch now drops this connection to join it.</span><span id="hsnote" hidden>Save tries it at once. If this page stops answering, the panel&rsquo;s screen shows the address to open, or why it could not join.</span></p>
+  <details><summary>How saved networks are tried</summary>
+  <p>In order from the boot slot, wrapping around, so the panel joins whichever it finds: home, studio, venue.</p></details>
 </section>
 
 <section>
   <h2>Hotspot</h2>
-  <p class="note" id="hsstate">-</p>
+  <p class="note" style="margin:0;color:var(--ink)" id="hsstate">-</p>
+  <p class="note">The panel&rsquo;s own network, <b id="hsssid">patternflow-????</b>: join it and open
+  <code>http://192.168.4.1/</code>, the same console anywhere. Phones stay on it though it has no internet.
+  Auto raises it about 15 s after the panel finds no Wi-Fi and drops it once it joins one.</p>
   <form id="hsf">
-    <div>
-      <label for="hsmode">Mode</label>
-      <select id="hsmode">
-        <option value="auto">auto &mdash; up whenever the panel has no Wi-Fi</option>
-        <option value="always">always</option>
-        <option value="off">off</option>
-      </select>
+    <p class="f">Mode</p>
+    <div class="seg" id="hsmode" role="radiogroup" aria-label="Hotspot mode">
+      <label><input type="radio" name="m" value="auto" checked><span>Auto</span></label>
+      <label><input type="radio" name="m" value="always"><span>Always</span></label>
+      <label><input type="radio" name="m" value="off"><span>Off</span></label>
     </div>
-    <div>
-      <label for="hspass">Password</label>
-      <input id="hspass" type="text" maxlength="63"
-        autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-    </div>
-    <div class="actions">
-      <button class="primary" type="submit" id="hssave">Save</button>
+    <label class="f" for="hspass">Password</label>
+    <input id="hspass" type="text" maxlength="63"
+      autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+    <div class="acts">
+      <button class="btn pri" type="submit" id="hssave" aria-label="Save hotspot">Save</button>
+      <span class="msg" id="hsmsg"></span>
     </div>
   </form>
-  <div class="msg" id="hsmsg"></div>
-  <p class="note">The panel as a network of its own: <b id="hsssid">patternflow-????</b>.
-  Join it from a phone or a laptop and open <code>http://192.168.4.1/</code> &mdash; the
-  same console, anywhere. <em>auto</em> raises it about fifteen seconds after the panel
-  finds no network and drops it once one is joined; a network added above from the
-  hotspot is tried at once. The phone is told the network works, so it stays on it;
-  it has no internet through the panel.</p>
 </section>
 
-<footer><a href="/">Home</a> &middot; <a href="/status">Status</a></footer>
-</div>
+<footer><a href="/">Console</a><a href="/status">Status</a></footer>
+</main>
 <script>
 function $(i){return document.getElementById(i)}
 function esc(t){return String(t).replace(/[&<>"]/g,function(c){
@@ -206,8 +162,7 @@ function bsay(t,k){PF.say(t,k||'ok',$('bootmsg'))}
 // Only our own Errors carry the device's words.
 function why(e){return e&&e.name==='Error'&&e.message||'failed'}
 
-// On the panel's hotspot every name resolves to the panel, so the address
-// cannot say where this phone is; /api/status can.
+// On the hotspot every name is the panel; only /api/status says where we are.
 var viaHs=false,connected=true,max=5;
 var seenNames=[],seenKey='',hsName='',hsLoaded=null;
 // Unsaved picks the refresh must not overwrite.
@@ -215,11 +170,9 @@ var bootDirty=false,hsDirty=false;
 var kept='',dymWait=0,joinKey='',listKey='',fast=false,arranged=0;
 function dirty(){PF.dirty=bootDirty||hsDirty||!!($('ssid').value||$('pass').value)}
 
-// Asked first: the lane answers it before the lists, so the first reply
-// already knows viaHs.
+// Asked first, so the lists' first reply already knows viaHs.
 PF.status(function(s){viaHs=!!s.viaHotspot;if(!hsName&&s.hotspot)hsName=s.hotspot.ssid;nowBox()});
-// One chained refresh, list then hotspot (the panel answers one connection
-// at a time); every 2 s while a join is being tried.
+// List then hotspot, chained (one connection at a time); 2 s while joining.
 var poll=PF.poll(function(){
   var w;
   return fetch('/api/wifi').then(j).then(function(d){w=d;return fetch('/api/hotspot').then(j)})
@@ -234,15 +187,13 @@ function stText(d){
     d.status==='AUTH FAIL'?'a saved network refused the password':'trying the saved networks');
 }
 // There the panel tries a new network at once anyway (core_wifi_http.h).
-function nowBox(){var h=viaHs&&!connected;$('nowbox').hidden=h;if(h)$('now').checked=false}
+function nowBox(){var h=viaHs&&!connected;$('nowbox').hidden=$('nownote').hidden=h;$('hsnote').hidden=!h;if(h)$('now').checked=false}
 
 function showWifi(d){
-  var n=d.networks,sel=$('boot'),keep=d.bootIdx,cur,k;
+  var n=d.networks,sel=$('boot'),keep=d.bootIdx,full=n.length>=d.max,cur,k;
   max=d.max;connected=d.connected;
   $('st').textContent=stText(d);
-  // Decided once, on the first reply: the form first while setting up (on
-  // the hotspot, or nothing saved), else below the lists. The lists stay
-  // hidden till then, so the form never jumps on the hotspot's slow link.
+  // Once: the form first while setting up; the lists wait, so it never jumps.
   if(!arranged){
     arranged=1;
     if(viaHs||!n.length)$('add').parentNode.insertBefore($('add'),$('saved'));
@@ -250,7 +201,7 @@ function showWifi(d){
   }
   if(($('bootsec').hidden=n.length<2)&&bootDirty){bootDirty=false;dirty()}
   nowBox();
-  // Rebuilt only on change: a tap on forget and a boot pick survive a refresh.
+  // Rebuilt on change only: a tap and a boot pick survive a refresh.
   k=JSON.stringify([n,d.connected&&d.current,d.bootIdx]);
   if(k!==listKey){
     listKey=k;
@@ -258,14 +209,14 @@ function showWifi(d){
       cur=parseInt(sel.value,10);
       if(cur<n.length)keep=cur;else{bootDirty=false;dirty()}
     }
-    $('list').innerHTML=n.length?'':'<li><span class="nm" style="color:var(--faint)">none saved yet</span></li>';
+    $('list').innerHTML=n.length?'':'<li style="color:var(--faint)">Nothing saved yet</li>';
     sel.innerHTML='';
     n.forEach(function(x,i){
       var li=document.createElement('li');
       li.innerHTML='<span class="n">'+(i+1)+'</span><span class="nm"></span>'+
-        (d.connected&&x.ssid===d.current?'<span class="tag">connected</span>':'')+
-        (d.bootIdx===i?'<span class="tag boot">boot</span>':'')+
-        '<button class="del" type="button">forget</button>';
+        (d.connected&&x.ssid===d.current?'<span class="chip ok">connected</span>':'')+
+        (d.bootIdx===i?'<span class="chip">boot</span>':'')+
+        '<button class="btn sm dan" type="button">Forget</button>';
       li.children[1].textContent=x.ssid;
       li.lastChild.onclick=function(){del(x.ssid,this)};
       $('list').appendChild(li);
@@ -273,12 +224,12 @@ function showWifi(d){
     });
   }
   $('cap').textContent=n.length+' of '+max+' slots used'+
-    (n.length>=max?' — adding another replaces the last one':'');
+    (full?' — adding another replaces the last one':'');
+  $('cap').style.color=full?'var(--warn)':'';
   renderJoin(d.join);
 }
 
-// What became of the last network sent from a console (core_wifi.h keeps it).
-// Shown until ten minutes after it settled; redrawn only on change.
+// The last network sent from a console (core_wifi.h), for 10 min after.
 function renderJoin(j){
   var box=$('join'),on=!!j&&j.state!=='none'&&(j.state==='trying'||j.ago<=600),
     t=on&&j.state==='trying',k=on?[j.state,j.ssid,j.ip,j.why].join('|'):'',n,u,w;
@@ -287,23 +238,23 @@ function renderJoin(j){
   joinKey=k;box.hidden=!on;
   if(!on)return;
   n='<b>'+esc(j.ssid)+'</b>';
-  box.className='';
+  box.className='notice';
   if(t){
     box.innerHTML='Joining '+n+'&hellip; If this page stops answering, the panel has moved '+
       'to that network: switch this phone to '+n+' and open the address the panel shows '+
       'on its screen'+(hsName?' (or <b>http://'+esc(hsName)+'.local/</b> where names work)':'')+'.';
   }else if(j.state==='joined'){
-    box.className='ok';
+    box.className='notice ok';
     u='http://'+esc(j.ip)+'/';
     box.innerHTML='Joined '+n+'. Switch this phone to '+n+', then open<br>'+
-      '<a class="big" href="'+u+'">'+u+'</a><button class="ghost" type="button" id="copy">copy</button>'+
+      '<a class="big" href="'+u+'">'+u+'</a><button class="btn sm" type="button" id="copy">Copy</button>'+
       ' <span class="msg" id="copymsg"></span><br>The panel shows the address on its screen for a minute.';
     $('copy').onclick=function(){
       copy('http://'+j.ip+'/').then(function(){PF.say('copied','ok',$('copymsg'))},
         function(){PF.say('press and hold the address to copy it','err',$('copymsg'))});
     };
   }else{
-    box.className='err';
+    box.className='notice err';
     w=j.why||'no answer from the network';
     box.innerHTML='Could not join '+n+': '+esc(w)+'. '+
       (w==='wrong password'?'Check the password and send it again.':
@@ -328,11 +279,11 @@ function showHs(d){
   var h=d.hotspot,c=h.clients,seen=(d.seen||[]).filter(function(s){return s.ssid}),k=JSON.stringify(seen);
   hsName=h.ssid;$('hsssid').textContent=h.ssid;
   hsLoaded={mode:h.mode,pass:d.pass};
-  if(!hsDirty){put($('hsmode'),h.mode);put($('hspass'),d.pass)}
+  if(!hsDirty){put($('hsf').m,h.mode);put($('hspass'),d.pass)}
   $('hsstate').textContent=h.up?'On: '+h.ssid+' on channel '+h.channel+' · '+
       (c?c+(c===1?' device':' devices')+' on it':'nobody on it')+' · '+h.ip:
     h.mode==='off'?'Off.':h.mode==='auto'?'Off — up when the panel has no Wi-Fi.':'Off — starting.';
-  if(k===seenKey)return;  // rebuilt only on change, never under a thumb
+  if(k===seenKey)return;  // never rebuilt under a thumb
   seenKey=k;seenNames=seen.map(function(s){return s.ssid});
   $('seen').innerHTML=$('scan').innerHTML='';
   seen.forEach(function(s){
@@ -352,11 +303,10 @@ function showHs(d){
   if($('ssid').value)chk();
 }
 function put(el,v){if(el.value!==v)el.value=v}
-function more(){$('more').textContent=$('scan').classList.contains('all')?'show fewer':'show all '+seenNames.length}
+function more(){$('more').textContent=$('scan').classList.contains('all')?'Show fewer':'Show all '+seenNames.length}
 $('more').onclick=function(){$('scan').classList.toggle('all');more()};
 
-// Names are case-sensitive; a near miss of one the panel sees is a typo
-// ("Wifiiii" for "wifiiii", 2026-09-22). A submit waits for a pick.
+// A case-only miss of a name the panel sees is a typo: submit waits.
 function near(s){
   if(!s||s===kept||seenNames.indexOf(s)>-1)return '';
   for(var i=0,l=s.toLowerCase();i<seenNames.length;i++)
@@ -375,7 +325,7 @@ $('ssid').oninput=function(){chk();dirty()};
 $('pass').oninput=dirty;
 function pw(on){
   $('pass').type=on?'text':'password';
-  $('pwt').textContent=on?'hide':'show';$('pwt').setAttribute('aria-pressed',on);
+  $('pwt').textContent=on?'Hide':'Show';$('pwt').setAttribute('aria-pressed',on);
 }
 $('pwt').onclick=function(){pw($('pass').type==='password')};
 
@@ -416,8 +366,7 @@ $('bootsave').onclick=function(){
   PF.busy(this,saveBoot()).then(function(i){bsay('boot slot '+(i+1)+' saved — reboot to apply');poll.now()},
     function(e){bsay(why(e),'err')});
 };
-// The handler restarts the panel before serving anything else, so the next
-// status is the new boot. Held: nothing queues for a panel that is not there.
+// The panel restarts before serving anything else; held, so nothing queues.
 $('reboot').onclick=function(){
   if(!confirm('Save boot network and reboot the panel now?'))return;
   var sent=0,p=saveBoot().then(function(i){
@@ -434,11 +383,10 @@ $('reboot').onclick=function(){
 $('hsmode').onchange=$('hspass').oninput=function(){hsDirty=true;dirty()};
 $('hsf').onsubmit=function(e){
   e.preventDefault();
-  var m=$('hsmode').value,pv=$('hspass').value,o=hsLoaded,
-    // A change restarts the hotspot before the reply (core_hotspot.h): a
-    // phone on it drops. auto with a Wi-Fi link leaves it down.
+  var m=this.m.value,pv=$('hspass').value,o=hsLoaded,
+    // A change restarts the hotspot before the reply (core_hotspot.h): a phone on it drops.
     drop=viaHs&&(!o||m!==o.mode||pv!==o.pass),
-    back=m==='always'||m==='auto'&&!connected,p;
+    back=m==='always'||m==='auto'&&!connected,p;  // auto with a Wi-Fi link leaves it down
   if(pv.length<8||pv.length>63)return sayHs('the password is 8 to 63 characters','err');
   if(drop&&!confirm(m==='off'?'Turn the hotspot off?\n\nThis phone is on it: this page stops answering.'+
       (connected?'':' The panel has no Wi-Fi, so nothing will reach it.'):
@@ -454,8 +402,7 @@ $('hsf').onsubmit=function(e){
   if(!drop)return;
   hsDirty=false;dirty();
   sayHs(back?'restarting the hotspot — rejoin '+hsName+' with the password '+pv:'the hotspot is going down','info');
-  // Not before the request went (or 4 s): the old hotspot's last answer is
-  // not the new one's first.
+  // After the request went (or 4 s): the old hotspot's answer is not the new one's.
   if(back)settle(p,4000).then(function(d){
     if(!(d&&d.ok===false))return PF.hold(PF.waitForDevice({timeout:180000})).then(function(){
       sayHs('back on the hotspot');poll.now();

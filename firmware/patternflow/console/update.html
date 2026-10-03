@@ -6,99 +6,78 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Patternflow — Firmware update</title>
 <style>
-  :root{--cream:#0C0B09;--cream2:#1B1914;--ink:#EDE7DB;--muted:#8A8272;--faint:#5A5546;--rule:#242118;--rule-soft:#1B1914;--led:#FF5C2E;--panel:#131110;
-        --sans:'Inter',ui-sans-serif,system-ui,sans-serif;
-        --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{min-height:100vh;background:var(--cream);color:var(--ink);
-       font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
-  /* spacing here, not on body: the chrome's header sits flush */
-  .wrap{padding:24px 24px 64px}
-  .panel{width:100%;max-width:560px;background:var(--panel);margin:16px auto 0;padding:48px 48px 44px}
-  header{display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid var(--rule);margin-bottom:24px}
-  .dot{width:7px;height:7px;background:var(--led);border-radius:1px}
-  h1{font-size:15px;font-weight:600;letter-spacing:.01em;margin:0;flex:1}
-  #pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
-       padding:5px 10px 4px;border:1px solid var(--faint);color:var(--muted)}
-  #pill.ok{border-color:var(--ink);color:var(--ink)}
-  #pill.warn{border-color:var(--led);color:var(--led)}
-  #pill.bad{border-color:var(--faint);color:var(--faint)}
-  .sub{max-width:36ch;color:var(--muted);font-size:15px;line-height:1.5;margin-bottom:32px}
-  .pf-kicker{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
-       color:var(--muted);margin-bottom:2px}
-  .step{display:grid;grid-template-columns:40px 1fr;gap:20px;padding:14px 0;border-bottom:1px solid var(--rule);align-items:baseline}
-  .step:first-of-type{border-top:1px solid var(--rule)}
-  .step .n{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted)}
-  .step p{font-size:14px;line-height:1.5;color:var(--muted)}
-  .step b{font-weight:500;color:var(--ink)}
-  .step a{color:var(--ink);text-underline-offset:3px}
-  .step a:hover{color:var(--led)}
-  #armHint{display:none;margin:20px 0 0;border:1px dashed var(--rule);background:var(--cream);
-       padding:14px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.6;color:var(--muted)}
-  #armHint b{font-weight:500;color:var(--ink)}
-  #handoff{display:none;margin:0 0 24px;padding:16px 18px;border:1px solid var(--rule);background:var(--cream)}
-  #handoffFrom{font-family:var(--mono);font-size:11px;color:var(--muted);word-break:break-all;margin:6px 0 14px;line-height:1.6}
-  .go{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-       background:var(--ink);color:var(--cream);border:1px solid var(--ink);border-radius:2px;padding:12px 16px;cursor:pointer;
-       transition:background .15s ease,color .15s ease}
-  .go:hover{background:transparent;color:var(--ink)}
-  .go:disabled{opacity:.5;cursor:default}
-  #drop{margin-top:28px;min-height:176px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-       border:1px dashed var(--rule);background:var(--cream);cursor:pointer;text-align:center;padding:24px;
-       transition:border-color .16s ease,background .16s ease}
-  #drop .big{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink)}
-  #drop .small{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-  #drop.hover{border-color:var(--ink);background:var(--cream2)}
-  #drop:focus-visible{outline:1px solid var(--led);outline-offset:2px}
-  #drop.disabled{opacity:.45;cursor:default}
-  #drop.disabled .small{color:var(--muted)}
-  #bar{height:6px;background:var(--rule-soft);margin:20px 0 10px;display:none}
-  #fill{height:100%;width:0%;background:var(--led);transition:width .1s linear}
-  #msg{font-size:13px;min-height:20px;color:var(--muted);line-height:1.55;margin-top:12px}
-  #msg.pf-ok{color:var(--ink)} #msg.pf-err{color:var(--led)}
-  #done{margin-top:20px;padding:16px 18px;border:1px solid var(--ink);background:var(--cream)}
-  #doneMsg{font-size:14px;margin-bottom:14px}
-  /* offline: the chrome's chip says so */
-  html.pf-offline #pill{opacity:.45}
-  @media(pointer:coarse){.go{position:relative}.go::after{content:"";position:absolute;inset:-4px 0}}
-  @media(max-width:560px){.wrap{padding:12px 12px 56px}.panel{padding:36px 24px 32px}}
+/* Console base: the same block opens every core page. Light in :root (the chrome's
+   injected light palette holds these same values: keep the two in step),
+   dark under html[data-theme=dark]. No web fonts: the hotspot has no internet. */
+:root{color-scheme:light;--cream:#F4EFE6;--panel:#FFFCFA;--ink:#1A1814;--muted:#625C51;--faint:#7D7668;--rule:#DDD5C6;--rule-soft:#E8E1D4;--ghost:#E3DCCE;--led:#FF5C2E;--bad:#B83C1C;--ok:#2B7A4B;--warn:#85600E;
+--sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--mono:ui-monospace,'Cascadia Mono','SF Mono',Menlo,Consolas,'Roboto Mono',monospace}
+html[data-theme=dark]{color-scheme:dark;--cream:#0C0B09;--panel:#131110;--ink:#EDE7DB;--muted:#A39B8A;--faint:#7A7364;--rule:#2B2721;--rule-soft:#1F1C18;--ghost:#2A2620;--bad:#FF7A55;--ok:#57B87F;--warn:#D9A03F}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--cream);color:var(--ink);font:15px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+a{color:inherit}:focus-visible{outline:2px solid var(--led);outline-offset:2px}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h2{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:0 16px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);color:var(--ink);font:500 14px var(--sans);text-decoration:none;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+@media(hover:hover){.btn:hover{border-color:var(--ink)}.btn.pri:hover{background:var(--led);border-color:var(--led);color:#fff}footer a:hover{color:var(--ink)}}
+.btn:disabled{opacity:.45;cursor:default;border-color:var(--rule)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:var(--cream)}
+.msg{font:12px var(--mono);color:var(--faint)}.pf-ok{color:var(--ok)}.pf-err{color:var(--bad)}
+.chip{display:inline-block;padding:0 8px;border:1px solid var(--rule);border-radius:99px;font:11px/20px var(--mono);color:var(--muted);white-space:nowrap}
+.notice{display:block;padding:12px 14px;border:1px solid var(--rule);border-left:3px solid var(--led);border-radius:8px;background:var(--panel);font-size:14px;text-decoration:none}.notice b{font-weight:500;white-space:nowrap}
+footer{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:40px;border-top:1px solid var(--rule);font:12px var(--mono);color:var(--faint)}
+footer a{display:inline-flex;align-items:center;min-height:40px;color:var(--muted);text-decoration:none}
+header{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-bottom:20px}
+h1{flex:1;margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.note{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:140px;padding:20px;border:1px dashed var(--rule);border-radius:10px;background:var(--panel);text-align:center;cursor:pointer;color:var(--muted);font-size:14px}
+.drop.hover{border-color:var(--ink);background:var(--cream)}
+/* ── Update ── */
+.chip.ok{border-color:var(--ok);color:var(--ok)}.chip.warn{border-color:var(--led);color:var(--ink)}.chip.bad{color:var(--faint)}.chip.err{border-color:var(--bad);color:var(--bad)}
+.notice{margin-top:16px}.notice .btn{margin-top:12px}
+#handoffFrom{word-break:break-all}
+#drop{margin-top:16px;transition:border-color .15s}#drop b{font-weight:500;color:var(--ink)}
+/* dim the title, not the reason under it */
+#drop.disabled{cursor:default;border-style:solid}#drop.disabled b{opacity:.45}#drop.disabled .msg{color:var(--muted)}
+#bar{display:none;height:4px;margin-top:16px;background:var(--ghost)}
+#fill{height:100%;width:0;background:var(--led);transition:width .1s linear}
+#msg{min-height:20px;margin-top:12px;font-size:14px;color:var(--muted)}#msg.pf-err{color:var(--bad)}
+#done{margin-bottom:16px}#doneMsg{margin:0}
+.pf-offline #pill{opacity:.45}
 </style></head><body>
 
-<div class="wrap">
-<main class="panel">
-  <header><span class="dot"></span><h1>Update</h1><span id="pill">&hellip;</span></header>
+<main class="wrap">
+  <header><h1>Update</h1><span class="chip" id="pill">&hellip;</span></header>
+  <p class="note">Drop a firmware .bin: the panel flashes itself over the network and restarts on the new build.</p>
 
-  <p class="sub">Drop a firmware .bin &mdash; the device flashes itself over the LAN and reboots on the new build.</p>
-
-  <!-- Shown when the build page hands a firmware URL over via ?src= —
-       the phone never touches a file picker. -->
-  <div id="handoff">
-    <span class="pf-kicker">Linked build</span>
-    <div id="handoffFrom"></div>
-    <button id="handoffGo" class="go" type="button" disabled>Fetch &amp; flash</button>
+  <!-- The build page hands a firmware URL over via ?src=: the phone never
+       touches a file picker. -->
+  <div class="notice" id="handoff" hidden>
+    <h2>Linked build</h2>
+    <div class="msg" id="handoffFrom"></div>
+    <button id="handoffGo" class="btn pri" type="button" disabled>Fetch &amp; flash</button>
   </div>
 
-  <span class="pf-kicker">Two steps</span>
-  <div class="step"><span class="n">01</span><p>Get a <b>.bin</b>: <a href="https://patternflow.work/update">patternflow.work/update</a> sends the latest release straight back to this page. Or bring your own &mdash; an <b>arduino-cli</b> export.</p></div>
-  <div class="step"><span class="n">02</span><p>Drop it below. Keep the device powered; it verifies, flashes, and reboots itself.</p></div>
+  <div class="notice" id="armHint" hidden>This build needs arming first. On the panel: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>.</div>
 
-  <div id="armHint">This build requires arming first. On the device: hold <b>K2</b> &rarr; NETWORK, then turn <b>K4</b> &rarr; <b>UPDATE</b>.</div>
-
-  <div id="drop" class="disabled" role="button" tabindex="0" aria-disabled="true">
-    <span class="big">Drop .bin here</span>
-    <span class="small" id="why">Checking the panel&hellip;</span>
+  <div id="drop" class="drop disabled" role="button" tabindex="0" aria-disabled="true">
+    <b>Drop a .bin here</b>
+    <span class="msg" id="why">Checking the panel&hellip;</span>
   </div>
   <!-- accept="*/*", not ".bin": Android maps unknown extensions to a
        media-only picker (camera/gallery), and on some devices NO accept
-       does the same — an explicit any-type accept is what reliably brings
-       up the full chooser with the file manager. The JS validates
-       extension and size instead. -->
-  <input id="file" type="file" accept="*/*" style="display:none" disabled>
+       does the same; an explicit any-type accept is what reliably brings
+       up the file manager. The JS checks extension and size instead. -->
+  <input id="file" type="file" accept="*/*" hidden disabled>
   <div id="bar"><div id="fill"></div></div>
   <div id="msg" aria-live="polite"></div>
-  <div id="done" hidden><p id="doneMsg"></p><button id="open" class="go" type="button">Open console</button></div>
+  <div class="notice" id="done" hidden><p id="doneMsg"></p><button id="open" class="btn pri" type="button">Open console</button></div>
+
+  <p class="note">No file? <a href="https://patternflow.work/update">patternflow.work/update</a> sends the
+  latest release straight back to this page. Your own arduino-cli export works too. Keep the panel
+  powered: it checks, flashes and restarts by itself.</p>
+
+  <footer><a href="/">Console</a><a href="https://patternflow.work" target="_blank" rel="noopener">patternflow.work</a></footer>
 </main>
-</div>
 
 <script>
 function $(i){return document.getElementById(i)}
@@ -109,7 +88,7 @@ var st=null,     // the last /update/status
     job=null,    // this flash: {from: old build, to: the file's build, v: old version}
     poll=null,last=null;
 
-function setPill(t,c){pill.textContent=t;pill.className=c||''}
+function setPill(t,c){pill.textContent=t;pill.className='chip '+(c||'')}
 function say(t,k){PF.say(t,k||'info',msg)}
 
 // Why no file can go in now ('' = it can): the picker is shut, reason on it.
@@ -121,8 +100,8 @@ function why(){
 }
 function render(){
   var w=why(),s=st;
-  if(!phase)setPill(!s?'…':s.busy?'BUSY':s.armed?'READY':'LOCKED',!s?'':s.busy?'warn':s.armed?'ok':'bad');
-  $('armHint').style.display=s&&!s.armed&&!s.busy&&!phase?'block':'none';
+  if(!phase)setPill(!s?'…':s.busy?'busy':s.armed?'ready':'locked',!s?'':s.busy?'warn':s.armed?'ok':'bad');
+  $('armHint').hidden=!(s&&!s.armed&&!s.busy&&!phase);
   drop.classList.toggle('disabled',!!w);
   drop.setAttribute('aria-disabled',w?'true':'false');
   fileIn.disabled=go.disabled=!!w;
@@ -182,7 +161,7 @@ function upload(f){
   var bad=check(f)||why();
   if(bad){say(bad,'err');return}
   job={from:build||PF.v,to:null,v:st&&st.version};
-  phase='upload';render();setPill('FLASHING','warn');
+  phase='upload';render();setPill('flashing','warn');
   // the result stays on this page: no version reload
   PF.dirty=true;
   poll.stop();
@@ -200,13 +179,13 @@ function upload(f){
 // unknown old build) has no new build to wait for: wait out the reboot.
 function restart(){
   var any=!job.from||job.to===job.from;
-  phase='wait';render();setPill('RESTARTING','warn');
+  phase='wait';render();setPill('restarting','warn');
   fill.style.width='100%';
   say('Flashed. The panel is restarting on the new build…');
   new Promise(function(y){setTimeout(y,any?4000:0)}).then(function(){
     return PF.waitForDevice({build:any?null:job.from,timeout:120000});
   }).then(done,function(){
-    phase='lost';render();setPill('NO ANSWER','bad');
+    phase='lost';render();setPill('no answer','err');
     say('No answer for two minutes. Patterns back on its screen? Then it has a new address: see the panel (hold K2 → NETWORK) or try http://patternflow.local/. Dark or restarting: flash it over USB at patternflow.work/flash.','err');
   });
 }
@@ -246,12 +225,12 @@ try{
   if(s&&/^https?:\/\//i.test(s)){
     srcUrl=s;
     $('handoffFrom').textContent=s.replace(/^https?:\/\//i,'');
-    $('handoff').style.display='block';
+    $('handoff').hidden=false;
   }
 }catch(e){}
 go.addEventListener('click',function(){
   if(!srcUrl||why())return;
-  phase='fetch';render();setPill('FETCHING','warn');
+  phase='fetch';render();setPill('fetching','warn');
   say('Downloading the build from '+srcUrl.split('/')[2]+' ...');
   fetch(srcUrl).then(function(r){
     if(!r.ok)throw new Error('HTTP '+r.status);

@@ -103,6 +103,12 @@ One class of pattern deserves a note because it used to look impossible: anythin
 
 Note that the score measures the *JavaScript* as written — the C++ conversion prompt ships a decision table of firmware fast paths (precomputed per-pixel radius/angle tables for fixed-center patterns, `PFMath::fastAtan2`, cell-hash and pow LUTs), so a HIGH-scoring radial pattern often converts to cheap C++ anyway. Treat the score as pressure, not a wall.
 
+### When `setup()` runs
+
+Once per load, before the first frame — which is why it is the place for the tables above. It does not run when the pattern is picked again. An installed pattern that has run stays loaded when the panel switches to something else, and coming back to it resumes it where it was: its variables, its buffers and its animation carry on as they were left, the way the compiled-in presets have always behaved. The first `update()` after a return gets an ordinary frame's `dt`, not the time it was away.
+
+So write `setup()` to prepare, not to reset. A pattern that wants a fresh start every time it is picked cannot have one today: nothing tells it that it was just selected, and `setup()` runs again only when the pattern is loaded again — after a reboot, after patterns were installed or deleted, or when the board needed the memory back. If a reset matters, give it a knob press (`input.btnPressed[i]` in `update()`). And keep anything the pattern needs from one frame to the next in its own variables or buffers: the canvas holds whatever was drawn last, which after a return is another pattern's frame.
+
 ---
 
 ## Installing your pattern
