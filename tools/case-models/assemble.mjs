@@ -6,18 +6,21 @@
 // A case model is the case itself (its "shell": every printed, cut or glued
 // part) with the same Patternflow inside it, whichever case it is: the LED
 // panel, the v3.9 board, the ESP32 DevKit on its sockets, and four knobs. The
-// shell comes from the case's own script (besoiobiy.py, simonepda.py; for the
-// official case, the guide's case-v39.glb); everything else comes from the
-// files the guide uses, and the official knob from the STL people print
-// (lib/knob.mjs), moved to where this case holds them. placement.json says
-// where that is:
+// shell comes from the case's own script (besoiobiy.py, simonepda.py,
+// mbchars.py; for the official case, the guide's case-v39.glb); everything
+// else comes from the files the guide uses, and the official knob from the
+// STL people print (lib/knob.mjs), moved to where this case holds them.
+// placement.json says where that is:
 //
 //   {
 //     "board": [dx, dy, dz],   // added to the official case's board, DevKit and knobs
 //     "led": [x, y, z],        // the LED panel node's translation (z is its LED face);
 //                              // left out, it stays where the official case has it
+//     "ledTurn": -90,          // optional: degrees about z, anticlockwise seen from
+//                              // the front, for a case that holds the panel on its side
 //     "knobs": "official",     // or "shell": the shell has its own c1..c4
-//     "knobBaseZ": 1.6437      // optional: the knobs' base, when "official"
+//     "knobBaseZ": 1.6437,     // optional: the knobs' base, when "official"
+//     "knobLook": "pla_white"  // optional: the official knobs' material (pla_black)
 //   }
 //
 // The result is written to web/public/cases/<case-id>/model.glb, Draco
@@ -70,6 +73,16 @@ async function readSimplified(file, opts) {
   await MeshoptSimplifier.ready;
   await doc.transform(weld(), simplify({ simplifier: MeshoptSimplifier, ...opts }), dedup(), prune({ keepAttributes: true }));
   return doc;
+}
+
+/** The quaternion product a·b ([x, y, z, w]): b turned, then a. */
+function mulQuat([ax, ay, az, aw], [bx, by, bz, bw]) {
+  return [
+    aw * bx + ax * bw + ay * bz - az * by,
+    aw * by - ax * bz + ay * bw + az * bx,
+    aw * bz + ax * by - ay * bx + az * bw,
+    aw * bw - ax * bx - ay * by - az * bz,
+  ];
 }
 
 /** Moves a source document's scene roots into the target's scene; returns them by name. */
@@ -125,12 +138,18 @@ const board = placement.board ?? [0, 0, 0];
 // holds it (on the official case it stays where it was).
 const ledRoots = adopt(doc, await io.read(path.join(HERE, 'source/led_panel.glb')));
 if (placement.led) ledRoots.l.setTranslation(placement.led);
+// Turned about its own origin, the middle of its LED face, so the turn keeps
+// it where `led` puts it; the pattern on it turns with it, as on the device.
+if (placement.ledTurn) {
+  const half = (placement.ledTurn * Math.PI) / 360;
+  ledRoots.l.setRotation(mulQuat([0, 0, Math.sin(half), Math.cos(half)], ledRoots.l.getRotation()));
+}
 
 // The knobs: the official ones, on the encoder axes of the board as placed.
 // The printed knob's own profile (knobs_20mm.stl) turned round, one mesh for
 // all four: case-v39.glb has the same knob as a 32-sided prism.
 if (placement.knobs === 'official') {
-  const knob = knobMesh(doc, KNOB_STL, doc.createMaterial('pla_black'));
+  const knob = knobMesh(doc, KNOB_STL, doc.createMaterial(placement.knobLook ?? 'pla_black'));
   const scene = doc.getRoot().listScenes()[0];
   for (const [name, base] of Object.entries(KNOB_BASES)) {
     const t = add3(base, board);

@@ -7,14 +7,16 @@ The 3D models the [/build](https://patternflow.work/build) page's preview shows,
 | Official | `web/public/cases/official/model.glb` | `web/public/guide/case-v39.glb`, the guide's v3.9 case (itself exported from `hardware/case/source/patternflow_case.blend`) | `assemble.mjs official` |
 | Besoiobiy | `web/public/cases/besoiobiy-printed/model.glb` | `hardware/case/remixes/besoiobiy-printed/source/patternbox.stl` | `besoiobiy.py`, then `assemble.mjs` |
 | SimonePDA | `web/public/cases/simonepda-lasercut/model.glb` | `hardware/case/remixes/simonepda-lasercut/lasercut_layout.pdf` | `simonepda.py`, then `assemble.mjs` |
+| mbchars | `web/public/cases/mbchars-horizontal-desktop-printed/model.glb` | `hardware/case/remixes/mbchars-horizontal-desktop-printed/stl/` | `mbchars.py`, then `assemble.mjs` |
 
-Run `./build.sh` to make all three again (or `./build.sh <case>` for one). The models are committed; nothing here runs when the site builds. Every step is deterministic: the same files in give the same bytes out.
+Run `./build.sh` to make all four again (or `./build.sh <case>` for one). The models are committed; nothing here runs when the site builds. Every step is deterministic: the same files in give the same bytes out.
 
 | Model | Size | Loads |
 | :--- | ---: | :--- |
 | `official/model.glb` | 317 KB | with the page (the guide uses it too) |
 | `besoiobiy-printed/model.glb` | 345 KB | when its tab is hovered or picked |
 | `simonepda-lasercut/model.glb` | 332 KB | when its tab is hovered or picked |
+| `mbchars-horizontal-desktop-printed/model.glb` | 380 KB | when its tab is hovered or picked |
 
 The landing page's model before these, `web/public/3dforweb.glb` (a v3.0 device), was 1,155 KB and loaded with the page.
 
@@ -33,10 +35,10 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # Python 3.
 A case script makes the case's *shell*: one mesh per part, assembled, in the model frame below, with material names from `lib/looks.mjs`, and a `placement.json` saying where this case holds the board and the LED panel:
 
 ```text
-{ "board": [dx, dy, dz], "led": [x, y, z], "knobs": "official" | "shell", "knobBaseZ": z }
+{ "board": [dx, dy, dz], "led": [x, y, z], "ledTurn": degrees, "knobs": "official" | "shell", "knobBaseZ": z, "knobLook": material }
 ```
 
-`board` is added to where the official case has the board, the DevKit and the knobs; `led` is the panel node's translation, its z the LED face; `knobs` says whether the shell has its own `c1` … `c4` or takes the official ones (standing at `knobBaseZ`). `assemble.mjs` then adds what every case has, from the files the guide uses and the knob's STL:
+`board` is added to where the official case has the board, the DevKit and the knobs; `led` is the panel node's translation, its z the LED face, and `ledTurn` turns the panel about its own middle (anticlockwise seen from the front), for a case that holds it on its side; `knobs` says whether the shell has its own `c1` … `c4` or takes the official ones (standing at `knobBaseZ`, in `knobLook`, black PLA unless it says otherwise). Everything but `board` and `knobs` can be left out. `assemble.mjs` then adds what every case has, from the files the guide uses and the knob's STL:
 
 - the LED panel, `source/led_panel.glb`: the node `l` of the landing page's old model, its name, transform, geometry and UVs unchanged. `extract_led.mjs` took it out; the old file is at `git show v3.11.0:web/public/3dforweb.glb`;
 - the v3.9 board, `web/public/guide/pcb-v39.glb`, and the DevKit, `web/public/guide/devkit.glb`, simplified with meshoptimizer — the preview shows them small, through a case;
@@ -105,13 +107,27 @@ The drawing does not say which way the box walls face along their length. The ph
 
 The plate, strips and feet use `sheet_face`/`sheet_edge`; the page shows them as acrylic or MDF (the finishes in `web/src/components/3d/cases/simonepda-lasercut.ts`). The box uses `acrylic_face`/`acrylic_edge` in both finishes. Run it with no arguments; `--pdf` and `--out` override the defaults.
 
+## mbchars: `mbchars.py`
+
+Mykyta Bilous' horizontal desktop case has no assembled file, only one STL per part in `hardware/case/remixes/mbchars-horizontal-desktop-printed/stl/`, each as it prints. The three front sections print face down, so their STLs share one frame, the case's own: the front on the bed at z = 0, the depth up +z, seen from behind with the control section at the left (the README's rear view). The script puts the parts together in that frame and checks every step:
+
+1. **The front sections side by side** along x: control section, inner frame, outer frame. Each joint is a joint bar under a pair of lugs with an M3 screw through each lug into the bar's insert, so the lug holes either side of a joint are as far apart as the bar's two inserts (36 mm). That places each section (at 0, 74 and 242.14 mm); the faces that meet at each joint are then checked to touch.
+2. **The joint bars** under the lug pairs, inserts toward the back as the bar prints, their back on the lugs.
+3. **The two rear covers** face up, their 3 mm plates on the sections' back rim, each with its eight countersunk holes on eight of the sixteen inserts in the sections' bosses. Which half turn brings a cover face up, and where it goes, is found by trying both turns and every offset that puts a hole on an insert: exactly one fits all eight.
+4. **The USB retainer** on its boss in the control section, the one insert that is neither a cover's nor a bar's: its slot over the insert, its tongue on the boss. The slot lets it slide 0.8 mm for the module's length; the model has it in the middle.
+5. **The stands** at each end, the case's bottom in their slot (as wide as the case is deep), the short lip in front, the case's back against the tall side. The slot is tilted, so on a table the case leans back 10°. The README says only "at each lower end"; the author's front photo has each stand's middle about 30 mm in from the end.
+
+Then it checks the result: 410.28 × 176.16 × 42 mm against the README's "approximately 411 × 176 × 42 mm", the encoder holes on the board's 31 × 30.5 mm grid, a 320.8 × 160.8 mm opening for the 320 × 160 mm panel, every insert under a cover hole, and no two parts overlapping (manifold3d). The knob in `stl/` is checked to be the official knob, so the model takes the official one, white as the README prints it (`knobLook`); the four optional alignment pins sit inside the joints, where nothing shows them, and are left out.
+
+Into the model frame it is a half turn about y, 10 mm to the unit, the outline centred and the front face set where the official case's are. The panel lies the long way across here, a quarter turn from the other three, so `ledTurn` turns it a quarter turn clockwise, which puts the top of the pattern at the top as the author mounts the panel (its arrows point up in the rear photo). The board is centred on the encoder holes and bears on the inside of the control section's 3 mm front, as in the official case; the panel's face is flush with the front, on tabs 17.8 mm behind it. Each part is one node: `outer_frame`, `inner_frame`, `rear_display_cover`, `rear_control_cover` and the four `joint_bar_*` in `pla_white`; `control_section`, `usb_retainer`, `stand_left` and `stand_right` in `pla_orange`, the orange of the author's 3MF. Normals as on Besoiobiy's case (`crease_shaded`, imported from `besoiobiy.py`).
+
 ## How the preview uses a model
 
 `web/src/components/3d/HeroScene.tsx` with `heroCase.ts` draws whichever model the Build panel's case switch is on.
 
 - **Loading.** Only the official model is preloaded with the page. A remix's model loads when it is picked, or when its tab is hovered (`preloadCaseModel.ts`). The current case stays on screen until the new model has arrived. A model that fails to load is caught, and the official case stays up.
 - **Its own copy.** The preview works on a deep clone of drei's cached scene, with its own copy of each material, so it never changes the cached scene, which the guide may be given too. It finds the parts by the node names above; every other top-level node is treated as a piece of the case.
-- **Placement.** The model is measured once when it arrives and centred on the preview's orbit target. Every case is drawn at the same scale: the LED panel is the same part in each (and the knobs, except Besoiobiy's own caps), so it is the same size on screen, and what differs is the case round it (up to 4% across the front's diagonal; Besoiobiy's case is 8% wider than the official one). A script does not need to match the official case's origin, only the frame's axes and units.
+- **Placement.** The model is measured once when it arrives and centred on the preview's orbit target. Every case is drawn at the same scale: the LED panel is the same part in each (and the knobs, except Besoiobiy's own caps), so it is the same size on screen, and what differs is the case round it (up to 4% across the front's diagonal among the three that stand upright; Besoiobiy's case is 8% wider than the official one). mbchars' case lies the long way and is two thirds wider than the official one: on a view too narrow for it, a desktop's tall one, it is drawn smaller, by as little as keeps it within 72% of the view's width, clear of the arrows (`fitAcross` in `buildPose.ts`). On a phone all four fit at the one scale, and on a desktop the other three do. A script does not need to match the official case's origin, only the frame's axes and units.
 - **The Build steps** use what `web/src/components/3d/cases/<case>.ts` gives: step 1 shows the case pieces and knobs at 40% of their explode vectors; step 2 shows the board and DevKit, framed on their box; step 3 moves every top-level node by its explode vector times the panel's slider.
 - **Finishes.** A case's alternative finishes recolour materials by name over the file's own. A look below full opacity is drawn see-through: blended, not writing depth, and casting no shadow.
 - **Loose pieces.** Top-level nodes a case's entry lists as `loose` come with the case but are not on it as it stands: SimonePDA's three feet, for laying it flat. They are drawn with the parts (step 1) and on Assemble (step 3), not on the device standing and lit.

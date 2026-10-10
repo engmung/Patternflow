@@ -123,6 +123,8 @@ describe('prepareCase', () => {
     prepared.parts.forEach((p) => box.union(p.box));
     const centre = box.getCenter(new THREE.Vector3()).add(prepared.fitPosition);
     expect(centre.distanceTo(FRAME_CENTRE)).toBeLessThan(1e-9);
+    // Its width, what the preview fits across the view (buildPose.ts, fitAcross).
+    expect(prepared.width).toBeCloseTo(box.max.x - box.min.x, 9);
   });
 
   it('draws every case at one scale: a bigger case does not shrink the panel in it', () => {

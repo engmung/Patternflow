@@ -60,12 +60,27 @@ function readmeHeader(folder: string): Record<string, string> {
   return fields;
 }
 
+// How each remix's README takes over from the build guide, and how its card
+// says so. Besoiobiy's and SimonePDA's replace the printing and case-assembly
+// sections by number; mbchars' sends the reader to its own illustrated
+// assembly instructions and BOM changes, and back to the build guide for the
+// controller's setup and operation.
+const GUIDE_BACKING: Record<string, { readme: RegExp; card: RegExp }> = {
+  'besoiobiy-printed': { readme: /\(4 and 6\)/, card: /sections 4 and 6/ },
+  'simonepda-lasercut': { readme: /\(4 and 6\)/, card: /sections 4 and 6/ },
+  'mbchars-horizontal-desktop-printed': {
+    readme: /\[BOM changes\]\(bom\.md\)[^\n]*\[illustrated assembly instructions\]\(assembly\.md\)/,
+    card: /assembly instructions \(assembly\.md\) and BOM changes \(bom\.md\)/,
+  },
+};
+
 describe('the case cards', () => {
-  it('are the official case and the two remixes, official first and the default', () => {
+  it('are the official case and the three remixes, official first and the default', () => {
     expect(BUILD_CASES.map((item) => item.id)).toEqual([
       'official',
       'besoiobiy-printed',
       'simonepda-lasercut',
+      'mbchars-horizontal-desktop-printed',
     ]);
     expect(DEFAULT_CASE).toBe('official');
     expect(BUILD_CASES[0].kind).toBe('official');
@@ -133,10 +148,13 @@ describe('the case cards', () => {
       const date = header.Verified.match(/\d{4}-\d{2}-\d{2}/)?.[0];
       expect(date).toBeTruthy();
       expect(item.verified).toContain(date as string);
-      // Both READMEs replace the printing and case-assembly sections.
+      // What the card says the README does to the build guide is what the
+      // README says, in its own words.
       const readme = fs.readFileSync(path.join(REPO_ROOT, folder, 'README.md'), 'utf8');
-      expect(readme).toMatch(/\(4 and 6\)/);
-      expect(item.guide).toMatch(/sections 4 and 6/);
+      const backing = GUIDE_BACKING[item.id];
+      expect(backing, `${item.id}: no entry in GUIDE_BACKING`).toBeDefined();
+      expect(readme).toMatch(backing.readme);
+      expect(item.guide).toMatch(backing.card);
     },
   );
 

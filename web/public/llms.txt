@@ -12,7 +12,7 @@ It is not a single luminous object but an open system. The hardware files, firmw
 - **Mission:** Democratizing interactive media art — making something that felt expensive and exclusive into something anyone can make.
 - **Creator:** Seung Hun Lee (artist).
 - **Lineage:** A reinterpretation of Nam June Paik's *Participation TV* (1963), extending participation into creation.
-- **Hardware:** ESP32-S3 microcontroller, HUB75 RGB LED matrix, four rotary encoders, artist-designed PCB, 3D-printed enclosure; two community case remixes, a second printed case and a laser-cut acrylic or MDF one, sit beside it.
+- **Hardware:** ESP32-S3 microcontroller, HUB75 RGB LED matrix, four rotary encoders, artist-designed PCB, 3D-printed enclosure; three community case remixes, two more printed cases (one holds the panel the long way across, on desk stands) and a laser-cut acrylic or MDF one, sit beside it.
 - **Software:** Arduino-compatible C++ firmware with a modular pattern architecture; browser-based Live Editor and flasher built with Next.js and Three.js.
 - **Make your own patterns:** A prompt template lets AI coding assistants (Claude, ChatGPT, etc.) generate new patterns from a plain-language description — no GLSL or rendering-pipeline knowledge required.
 - **Licensing:** Firmware and web are MIT; hardware, designs, and patterns are CC-BY-SA 4.0. Community pattern submissions are inbound = outbound (no CLA).

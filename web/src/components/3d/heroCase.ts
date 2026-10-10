@@ -73,6 +73,8 @@ export interface PreparedCase {
   led: THREE.Mesh[];
   /** Centres the model on FRAME_CENTRE: where the model's frame sits in the preview's. */
   fitPosition: THREE.Vector3;
+  /** The device's width, assembled, in model units: what the view has to fit across. */
+  width: number;
   /** The board with the DevKit on it, assembled, in the model's frame. */
   board: THREE.Box3;
   looks: OwnLook[];
@@ -197,11 +199,15 @@ export function prepareCase(scene: THREE.Object3D, model: CaseModel): PreparedCa
   // Every case at the one scale, only centred: the LED panel is the same part
   // in each (and the knobs, but on Besoiobiy's case, which has its own caps),
   // so it is drawn the same size, and what differs is what really does, the
-  // case round it (up to 4% across the front's diagonal; Besoiobiy's case is
-  // 8% wider than the official one).
+  // case round it (up to 4% across the front's diagonal among the three that
+  // stand upright; Besoiobiy's case is 8% wider than the official one, and
+  // mbchars', lying the long way, two thirds wider). Only a view too narrow
+  // for a case draws it smaller, and that is the preview's to do, by the
+  // width recorded here (buildPose.ts, fitAcross).
   const device = new THREE.Box3();
   parts.forEach((p) => device.union(p.box));
   const fitPosition = FRAME_CENTRE.clone().sub(device.getCenter(new THREE.Vector3()));
+  const width = device.max.x - device.min.x;
 
   const board = new THREE.Box3();
   parts.filter((p) => p.role === 'pcb' || p.role === 'devkit').forEach((p) => board.union(p.box));
@@ -283,7 +289,7 @@ export function prepareCase(scene: THREE.Object3D, model: CaseModel): PreparedCa
     return [{ node, ring, tints, height: box.max.z }];
   });
 
-  return { model, root, parts, knobs, led, fitPosition, board, looks, owned };
+  return { model, root, parts, knobs, led, fitPosition, width, board, looks, owned };
 }
 
 /** The knob a pointer is on, if it is on one: the knob itself, its ring or its hit disc. */

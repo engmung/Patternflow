@@ -2,6 +2,7 @@ import type { CaseId } from '@/components/sections/build-cases-data';
 import { OFFICIAL_MODEL } from './cases/official';
 import { BESOIOBIY_MODEL } from './cases/besoiobiy-printed';
 import { SIMONEPDA_MODEL } from './cases/simonepda-lasercut';
+import { MBCHARS_MODEL } from './cases/mbchars-horizontal-desktop-printed';
 
 // The device the product preview shows, one model per case on the Build
 // panel's switch. Each model is a single GLB built by tools/case-models from
@@ -69,6 +70,7 @@ export const CASE_MODELS: Record<CaseId, CaseModel> = {
   official: OFFICIAL_MODEL,
   'besoiobiy-printed': BESOIOBIY_MODEL,
   'simonepda-lasercut': SIMONEPDA_MODEL,
+  'mbchars-horizontal-desktop-printed': MBCHARS_MODEL,
 };
 
 /** Where the Draco decoder comes from: the same copy the guide's models use. */

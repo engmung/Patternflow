@@ -1,5 +1,5 @@
-// The three cases the Build panel lets a reader switch between: the official
-// printed case and the two community remixes in hardware/case/remixes/.
+// The four cases the Build panel lets a reader switch between: the official
+// printed case and the three community remixes in hardware/case/remixes/.
 //
 // Every claim here is copied from a file in the repo, not written fresh — the
 // official case from hardware/case/README.md and BUILD_GUIDE.md §1, §4 and §6,
@@ -20,7 +20,7 @@ export const blob = (path: string) => `${REPO}/blob/main/${path}`;
 /** A folder on main. */
 export const tree = (path: string) => `${REPO}/tree/main/${path}`;
 
-export type CaseId = 'official' | 'besoiobiy-printed' | 'simonepda-lasercut';
+export type CaseId = 'official' | 'besoiobiy-printed' | 'simonepda-lasercut' | 'mbchars-horizontal-desktop-printed';
 
 export interface CasePhoto {
   src: string;
@@ -80,6 +80,7 @@ export interface BuildCase {
 const OFFICIAL = 'hardware/case';
 const BESOIOBIY = 'hardware/case/remixes/besoiobiy-printed';
 const SIMONE = 'hardware/case/remixes/simonepda-lasercut';
+const MBCHARS = 'hardware/case/remixes/mbchars-horizontal-desktop-printed';
 
 export const BUILD_CASES: BuildCase[] = [
   {
@@ -289,6 +290,71 @@ export const BUILD_CASES: BuildCase[] = [
     step: {
       title: 'Cut the case',
       desc: 'Laser-cut the plate, the border strips, the box and the feet, and print the knobs.',
+    },
+  },
+  {
+    id: 'mbchars-horizontal-desktop-printed',
+    tab: 'mbchars',
+    method: 'Printed remix',
+    kind: 'remix',
+    name: 'Mykyta Bilous’s horizontal desktop case',
+    summary:
+      'The panel the long way across, on two removable stands, with the four controls on the right. Three front sections print face down, two white frames and an orange control section, and four joint bars on brass inserts hold them together without glue. Two rear covers open onto the electronics and have screw openings for hanging it on a wall. The power-bank compartment is gone: the control section holds a separate trigger module that feeds J4, the screw terminal, at 5 V.',
+    author: {
+      name: 'Mykyta Bilous',
+      note: 'mbchars',
+      href: 'https://github.com/mbchars',
+    },
+    material:
+      'PLA, set up for a Bambu Lab P2S with a 0.4 mm nozzle, 0.20 mm layers and a textured plate. White frames, covers, joint bars and knobs; orange control section, stands and module retainer. The colours are optional.',
+    fits: 'v3.9 and v3.0 boards (built on v3.0; v3.9 has the same outline), and a 320 × 160 mm panel with the hole pattern it was tested on.',
+    make: 'Nine plates in one Bambu Studio project, one colour each: about 24 hours and 714 g of PLA. The front sections and the module retainer print with the supports set up in the 3MF; the rest need none.',
+    parts:
+      '25 M3 heat-set inserts (5 mm across, 5 mm long) and 25 M3 × 8 countersunk screws; a PDSink 303PDSink01 trigger module set to 5 V, two wires from it to J4, and a supply it takes, in place of the power bank. No glue.',
+    verified: 'Built by its author, and photographed (2026-10-07).',
+    license: 'CC BY-SA 4.0',
+    caution:
+      'Check that your panel’s hole pattern agrees with the frame before you print: a panel’s size alone does not say it fits. Set the trigger module to 5 V and measure its output before you connect it to J4: a higher voltage can damage the board and the panel.',
+    cautionHref: `${blob(`${MBCHARS}/README.md`)}#parts-and-assembly`,
+    guide:
+      'Its own illustrated assembly instructions (assembly.md) and BOM changes (bom.md) take the place of the build guide’s printing, case assembly and power bank. The build guide still covers the controller’s setup and operation.',
+    readme: blob(`${MBCHARS}/README.md`),
+    modelNote: 'The 3D view puts it together from its STL files.',
+    photos: [
+      {
+        src: '/cases/mbchars-horizontal-desktop-printed/front.jpg',
+        alt: 'The case on its two orange stands: the lit LED panel the long way across in a white frame, and the orange control section on the right with four white knobs near the top',
+        width: 1200,
+        height: 1200,
+      },
+      {
+        src: '/cases/mbchars-horizontal-desktop-printed/angle.jpg',
+        alt: 'The case at an angle: blue and orange waves on the panel, the white frame in two sections, and the orange control section with its power cable leaving low on its side',
+        width: 1200,
+        height: 1200,
+      },
+      {
+        src: '/cases/mbchars-horizontal-desktop-printed/rear_assembly.jpg',
+        alt: 'The case open from behind, covers off: the board in the orange control section, the trigger module below it wired to J4, the ribbon cable across to the panel, and brass inserts at the corners',
+        width: 900,
+        height: 1200,
+      },
+    ],
+    credit: 'Photos by Mykyta Bilous.',
+    links: [
+      { label: 'README and every file', target: 'mbchars-horizontal-desktop-printed/', href: tree(MBCHARS) },
+      {
+        label: 'Bambu Studio project, nine plates',
+        target: 'print_layout.3mf',
+        href: blob(`${MBCHARS}/print_layout.3mf`),
+      },
+      { label: 'Illustrated assembly', target: 'assembly.md', href: blob(`${MBCHARS}/assembly.md`) },
+      { label: 'What changes in the BOM', target: 'bom.md', href: blob(`${MBCHARS}/bom.md`) },
+      { label: 'One STL per part', target: 'stl/', href: tree(`${MBCHARS}/stl`) },
+    ],
+    step: {
+      title: 'Print the case',
+      desc: 'Print the nine plates of the 3MF, about 24 hours, set the brass inserts, and join the three front sections with the joint bars.',
     },
   },
 ];
