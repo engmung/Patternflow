@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/useAppStore';
 import type { SectionContent } from '@/lib/content';
 import BuildPanel from './BuildPanel';
 
-// The Build panel's case switch: three tabs over one card, the official case
+// The Build panel's case switch: four tabs over one card, the official case
 // first; switching changes the card, step 01 and the Start here row, writes
 // ?case= while /build is on screen, and a ?case= link opens on that case. The
 // case lives in the app store, where the 3D preview reads it, so the switch
@@ -77,7 +77,7 @@ const startRow = (name: RegExp) =>
 describe('the case switch', () => {
   it('opens on the official case, with the build.md lead above it', () => {
     render(<BuildPanel content={content} isActive />);
-    expect(screen.getAllByRole('tab')).toHaveLength(3);
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
     expect(tab(/Official/)).toHaveAttribute('aria-selected', 'true');
     expect(tab(/Besoiobiy/)).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByText('Every case here holds the same v3 board.')).toBeInTheDocument();
@@ -169,8 +169,7 @@ describe('the case switch', () => {
     fireEvent.keyDown(official, { key: 'ArrowRight' });
     expect(tab(/Besoiobiy/)).toHaveAttribute('aria-selected', 'true');
     expect(tab(/Besoiobiy/)).toHaveFocus();
-    // false: the key was consumed, so End does not also scroll the panel.
-    expect(fireEvent.keyDown(tab(/Besoiobiy/), { key: 'End' })).toBe(false);
+    fireEvent.keyDown(tab(/Besoiobiy/), { key: 'ArrowRight' });
     expect(tab(/SimonePDA/)).toHaveAttribute('aria-selected', 'true');
     expect(tab(/SimonePDA/)).toHaveFocus();
     expect(screen.getByRole('tabpanel')).toHaveAccessibleName(/SimonePDA/);
@@ -189,11 +188,34 @@ describe('the case switch', () => {
       'href',
       `${GH}/tree/main/hardware/case/remixes/simonepda-lasercut`,
     );
-    fireEvent.keyDown(tab(/SimonePDA/), { key: 'ArrowRight' });
+    // false: the key was consumed, so End does not also scroll the panel.
+    expect(fireEvent.keyDown(tab(/SimonePDA/), { key: 'End' })).toBe(false);
+    expect(tab(/mbchars/)).toHaveAttribute('aria-selected', 'true');
+    expect(tab(/mbchars/)).toHaveFocus();
+    expect(screen.getByRole('tabpanel')).toHaveAccessibleName(/mbchars/);
+    expect(card().getByRole('heading', { name: 'Mykyta Bilous’s horizontal desktop case' })).toBeInTheDocument();
+    expect(card().getByRole('link', { name: 'Mykyta Bilous' })).toHaveAttribute('href', 'https://github.com/mbchars');
+    expect(card().getByText(/Bambu Lab P2S/)).toBeInTheDocument();
+    expect(card().getByRole('link', { name: /assembly\.md/ })).toHaveAttribute(
+      'href',
+      `${GH}/blob/main/hardware/case/remixes/mbchars-horizontal-desktop-printed/assembly.md`,
+    );
+    expect(readme()).toHaveAttribute(
+      'href',
+      `${GH}/blob/main/hardware/case/remixes/mbchars-horizontal-desktop-printed/README.md`,
+    );
+    expect(card().getByText(/puts it together from its STL files/)).toBeInTheDocument();
+    expect(useAppStore.getState().buildCase).toBe('mbchars-horizontal-desktop-printed');
+    expect(stepOne()).toHaveTextContent('Print the nine plates of the 3MF');
+    expect(startRow(/^Print the case\s*mbchars-horizontal-desktop-printed\//)).toHaveAttribute(
+      'href',
+      `${GH}/tree/main/hardware/case/remixes/mbchars-horizontal-desktop-printed`,
+    );
+    fireEvent.keyDown(tab(/mbchars/), { key: 'ArrowRight' });
     expect(tab(/Official/)).toHaveAttribute('aria-selected', 'true');
     fireEvent.keyDown(tab(/Official/), { key: 'ArrowLeft' });
-    expect(tab(/SimonePDA/)).toHaveAttribute('aria-selected', 'true');
-    expect(fireEvent.keyDown(tab(/SimonePDA/), { key: 'Home' })).toBe(false);
+    expect(tab(/mbchars/)).toHaveAttribute('aria-selected', 'true');
+    expect(fireEvent.keyDown(tab(/mbchars/), { key: 'Home' })).toBe(false);
     expect(tab(/Official/)).toHaveAttribute('aria-selected', 'true');
     expect(tab(/Official/)).toHaveFocus();
     // Home on the first tab picks nothing new, so it sends nothing: like a

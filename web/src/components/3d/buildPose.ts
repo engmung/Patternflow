@@ -12,6 +12,15 @@ import type { CasePart, PartRole } from './heroCase';
  */
 const BOARD_TURN = Math.PI - 0.8;
 
+/** The scale the device rests at: idle, and lit on Flash. */
+export const REST_SCALE = 0.1;
+
+/**
+ * At most this much of the view's width, the device at rest: what keeps it
+ * clear of the arrows either side (HeroScene).
+ */
+const FIT_ACROSS = 0.72;
+
 /** What each Build step shows. */
 export interface Pose {
   /** The device's turn about the vertical, radians, and its scale. */
@@ -61,12 +70,12 @@ export function poseFor(step: number, explode: number, t: number): Pose {
       };
     // 4. Flash and power on: together, lit.
     case 4:
-      return { turn: -0.5, scale: 0.1, lift: 0, spread: 0, show: ALL, loose: false, board: false, lit: true };
+      return { turn: -0.5, scale: REST_SCALE, lift: 0, spread: 0, show: ALL, loose: false, board: false, lit: true };
     // Idle: together, lit, swaying slowly.
     default:
       return {
         turn: Math.sin(t * 0.15) * 0.45,
-        scale: 0.1,
+        scale: REST_SCALE,
         lift: Math.sin(t * 0.3) * 0.03,
         spread: 0,
         show: ALL,
@@ -75,6 +84,24 @@ export function poseFor(step: number, explode: number, t: number): Pose {
         lit: true,
       };
   }
+}
+
+/**
+ * How much smaller than its pose's scale a device is drawn, so it fits across
+ * the view: 1 for a device that already does. Every case is drawn at the one
+ * scale, so the LED panel is the same size in each, wherever that fits: on a
+ * phone all four do, and on a desktop's tall view the three that stand
+ * upright do, 25 to 27 cm across. mbchars' case lies the long way, 41 cm
+ * across, and on a tall view it would run off both sides, under the arrows;
+ * there it is drawn smaller, by as little as keeps it clear of them.
+ *
+ * `width` is the device's, assembled, in model units (PreparedCase.width);
+ * `viewWidth` the view's width at rest where the device stands, in world
+ * units: at rest, not as zoomed, since zooming in on a device must not
+ * shrink it.
+ */
+export function fitAcross(width: number, viewWidth: number): number {
+  return Math.min(1, (FIT_ACROSS * viewWidth) / (width * REST_SCALE));
 }
 
 /** Whether a pose has a part out: its kind of part, and if it is a loose piece, loose pieces too. */

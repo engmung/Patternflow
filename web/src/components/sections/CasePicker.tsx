@@ -25,8 +25,8 @@ interface CasePickerProps {
 // both: a build, and a render or a view from behind.
 const STRIP = 2;
 
-// The case, three ways. A tablist rather than a row of toggles: the switch
-// replaces the whole card below it, and arrow keys move along the three the
+// The case, four ways. A tablist rather than a row of toggles: the switch
+// replaces the whole card below it, and arrow keys move along the four the
 // way they do in any other tab set.
 export default function CasePicker({
   cases,
@@ -64,7 +64,7 @@ export default function CasePicker({
 
   return (
     <div className={`pf-block ${styles.picker}`}>
-      <span className="pf-kicker">The case — three ways to make it</span>
+      <span className="pf-kicker">The case — four ways to make it</span>
       {lead && lead.trim().length > 0 && (
         <div className={`pf-prose ${styles.lead}`}>
           <ReactMarkdown>{lead}</ReactMarkdown>

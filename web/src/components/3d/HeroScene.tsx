@@ -40,7 +40,7 @@ import {
   type KnobRig,
   type PreparedCase,
 } from './heroCase';
-import { poseFor, shows } from './buildPose';
+import { fitAcross, poseFor, shows } from './buildPose';
 import CaseFinishSwitch from './CaseFinishSwitch';
 import { PageAlpha, StraightAlpha } from './canvasAlpha';
 import { NeutralToeBack } from './neutralToe';
@@ -100,11 +100,22 @@ const MESH_TO_KNOB: Record<string, KnobId> = {
 const TARGET = new THREE.Vector3(0, 1.7, 0);
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
+/** The camera as the page opens: where it stands, and its vertical field of view. */
+const CAMERA_POSITION: [number, number, number] = [0.0, 6.0, 10.3];
+const CAMERA_FOV = 28;
+/**
+ * How tall the view is where the device stands, with the camera at rest, in
+ * world units; times the canvas's aspect, how wide (buildPose.ts, fitAcross).
+ */
+const REST_VIEW_HEIGHT =
+  2 * Math.tan(THREE.MathUtils.degToRad(CAMERA_FOV / 2)) * TARGET.distanceTo(new THREE.Vector3(...CAMERA_POSITION));
+
 /**
  * Solder (step 2) shows the board alone, filling the view: the diagonal of
  * the board-and-DevKit's box, seen from the front, is drawn this many world
  * units across. The official device as a whole is 4.09 at the resting scale
- * (the remixes, up to 4% more).
+ * (Besoiobiy's and SimonePDA's up to 4% more; mbchars', lying the long way
+ * on its stands, 11% more, and two thirds wider).
  */
 const BOARD_SPAN = 3.1;
 
@@ -438,6 +449,10 @@ function ProductPreview({
     if (pose.board) {
       const size = device.board.getSize(tmp.v);
       scale = BOARD_SPAN / Math.hypot(size.x, size.y);
+    } else {
+      // A device too wide for a tall view at the one scale is drawn smaller,
+      // so it stays clear of the arrows (fitAcross); any other, as it is.
+      scale *= fitAcross(device.width, REST_VIEW_HEIGHT * (state.size.width / state.size.height));
     }
 
     group.rotation.y = THREE.MathUtils.lerp(group.rotation.y, pose.turn, kView);
@@ -584,7 +599,7 @@ export default function HeroScene() {
         />
       )}
 
-      <Canvas camera={{ position: [0.0, 6.0, 10.3], fov: 28 }} dpr={[1, 2]} shadows={{ type: THREE.PCFShadowMap }}>
+      <Canvas camera={{ position: CAMERA_POSITION, fov: CAMERA_FOV }} dpr={[1, 2]} shadows={{ type: THREE.PCFShadowMap }}>
         <ambientLight intensity={0.3} color="#fef6e8" />
         <directionalLight position={[2.3, 3.9, 6]} intensity={2.60} color="#ffffff" castShadow
           shadow-mapSize-width={2048} shadow-mapSize-height={2048}

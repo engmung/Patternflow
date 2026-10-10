@@ -22,11 +22,12 @@
   margin: 0;
 }
 
-/* ── The switch ── three cells over the card, the selected one in ink, so the
-   tab and the card it opened read as one piece. */
+/* ── The switch ── four cells over the card (two rows of two on a phone),
+   the selected one in ink, so the tab and the card it opened read as one
+   piece. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   border: 1px solid var(--pf-rule);
 }
 
@@ -384,8 +385,21 @@
 
 /* A phone: the label goes over its value, and the padding comes in. */
 @container (max-width: 420px) {
+  /* Four across, a name like "SimonePDA" no longer fits its cell. */
+  .tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .tab {
     padding: 10px 10px;
+  }
+
+  .tab:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .tab:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--pf-rule);
   }
 
   .photoMeta {

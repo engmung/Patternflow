@@ -338,20 +338,20 @@ export const builds: Build[] = [
     ],
   },
   {
-    id: 'ukraine-extraplojo',
+    id: 'ukraine-mbchars',
     title: 'Horizontal build',
     category: 'builds',
-    slug: 'extraplojo-ukraine',
+    slug: 'mbchars-ukraine',
     kind: 'build',
     location: { lat: 50.4501, lng: 30.5234, label: 'Kyiv, Ukraine' },
-    maker: 'extraplojo',
+    maker: 'mbchars',
     date: '2026-10',
     description:
       "A horizontal Patternflow in orange and white, for a desk or a wall. The case is held together with brass inserts instead of glue. It is also the maker's first 3D design, first PCB order and first soldering job, and it came out beautifully.",
     images: [
-      { src: '/builds/extraplojo/front.jpg', alt: "extraplojo's horizontal Patternflow from the front: a rainbow gradient on the panel, an orange side panel with four white knobs, and orange feet" },
-      { src: '/builds/extraplojo/angle.jpg', alt: "extraplojo's Patternflow at an angle, blue and orange waves on the panel and a braided orange cable running off to the side" },
-      { src: '/builds/extraplojo/inside.jpg', alt: "Inside extraplojo's case: the board in the orange control box beside the panel, with brass inserts at the corners" },
+      { src: '/builds/mbchars/front.jpg', alt: "mbchars's horizontal Patternflow from the front: a rainbow gradient on the panel, an orange side panel with four white knobs, and orange feet" },
+      { src: '/builds/mbchars/angle.jpg', alt: "mbchars's Patternflow at an angle, blue and orange waves on the panel and a braided orange cable running off to the side" },
+      { src: '/builds/mbchars/inside.jpg', alt: "Inside mbchars's case: the board in the orange control box beside the panel, with brass inserts at the corners" },
     ],
   },
 ];

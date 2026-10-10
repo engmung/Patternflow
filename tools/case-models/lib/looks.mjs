@@ -4,7 +4,10 @@
 //
 // Colours are sRGB hex, as a designer writes them; glTF wants linear factors.
 //
-//   pla_white     printed case parts (the official case and Besoiobiy's)
+//   pla_white     printed case parts (the official case, Besoiobiy's, and the
+//                 frames, covers and knobs of mbchars')
+//   pla_orange    printed case parts in orange (mbchars' control section,
+//                 stands and USB retainer)
 //   pla_black     printed knobs
 //   sheet_face    laser-cut sheet, its two faces: the plate, the border strips
 //                 and the feet of SimonePDA's case. Clear acrylic here, as the
@@ -35,6 +38,9 @@ export const LOOKS = {
   // filament itself is drawn without a cast, and matte: a warmer white read
   // as beige once the page's light got bright.
   pla_white: { color: hex('#f4f4f2'), roughness: 0.85 },
+  // The orange of mbchars' build: the filament colour in the remix's own
+  // print_layout.3mf (#F46B16), matte like the white.
+  pla_orange: { color: hex('#f46b16'), roughness: 0.85 },
   pla_black: { color: hex('#151515'), roughness: 0.55 },
   sheet_face: ACRYLIC_FACE,
   sheet_edge: ACRYLIC_EDGE,
