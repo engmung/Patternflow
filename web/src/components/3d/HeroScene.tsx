@@ -27,7 +27,7 @@ import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
 import { LOGICAL_KNOB_TO_WEB_KNOB, knobUnitsPerTurn, webKnobRange } from '@/lib/pattern/controls';
-import { BUILD_CASES, stepCase, writeCaseToUrl, type CaseId } from '@/components/sections/build-cases-data';
+import { BUILD_CASES, findCase, stepCase, writeCaseToUrl, type CaseId } from '@/components/sections/build-cases-data';
 import { captureEvent } from '@/lib/posthogEvents';
 import { CASE_MODELS, DRACO_DECODER, type CaseFinish } from './caseModels';
 import { preloadCaseModel } from './preloadCaseModel';
@@ -543,12 +543,25 @@ export default function HeroScene() {
     captureEvent('build_case_selected', { case_id: id, interaction: 'click', surface: 'product_preview' });
   };
 
+  // Over the device on the Build tab, whose case it is, in the build map's
+  // label: the name on its tab of the panel's switch, and nothing else. It
+  // changes with the pick, as the tab does, ahead of a model still loading
+  // (the note under the device says so), and reads Official for a case whose
+  // model did not load, since that is the one drawn.
+  const titled = homeTab === 'build' ? findCase(wanted) : undefined;
+
   return (
     <div id="three-canvas" style={{ width: '100%', height: '100%', position: 'relative' }}>
 
+      {titled && (
+        <div className={styles.title}>
+          <span className={styles.titleName}>{titled.tab}</span>
+        </div>
+      )}
+
       {/* 조작 안내 문구 (최초 1회 조작 시 서서히 사라짐) */}
       <div
-        className="viewer-hint"
+        className={`viewer-hint${titled ? ` ${styles.hintUnderTitle}` : ''}`}
         style={{
           position: 'absolute',
           left: '0', width: '100%', textAlign: 'center',
