@@ -354,6 +354,23 @@ export const builds: Build[] = [
       { src: '/builds/mbchars/inside.jpg', alt: "Inside mbchars's case: the board in the orange control box beside the panel, with brass inserts at the corners" },
     ],
   },
+  {
+    id: 'russia-zuperzuche',
+    title: 'The first print',
+    category: 'builds',
+    slug: 'zuperzuche-russia',
+    kind: 'build',
+    location: { lat: 55.7558, lng: 37.6173, label: 'Moscow, Russia' },
+    maker: 'ZuperZuche',
+    date: '2026-10',
+    description:
+      'Found by accident, with the PCBs ordered ten minutes later. A month on, the only thing missing was the case, so the maker bought a 3D printer and made it the first thing printed.',
+    images: [
+      { src: '/builds/zuperzuche/fuji.jpg', alt: "ZuperZuche's white horizontal Patternflow in front of a modular synthesizer, with a pixel-art Mount Fuji at sunset on the panel" },
+      { src: '/builds/zuperzuche/frog-pond.jpg', alt: "A pixel-art frog pond on the panel of ZuperZuche's Patternflow: lily pads and small flowers on teal water, seen from above" },
+      { src: '/builds/zuperzuche/cat.jpg', alt: "A cat plush in the foreground, with ZuperZuche's Patternflow behind it glowing red, purple and blue" },
+    ],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.
