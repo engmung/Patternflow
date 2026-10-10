@@ -26,6 +26,37 @@
   transition-delay: 0.25s;
 }
 
+/* Whose case is on screen, over the device on the Build tab: the build map's
+   name label (GlobeViewer.module.css, .maker) at the top of the frame, the
+   name alone on a highlight that hugs it. */
+
+.title {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  text-align: center;
+  pointer-events: none;
+}
+
+.titleName {
+  padding: 3px 11px;
+  background: rgba(13, 13, 13, 0.72);
+  color: var(--cream);
+  font-size: 44px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.28;
+  white-space: nowrap;
+}
+
+/* The hint (globals.css, .viewer-hint: 40px from the top) gives the top of
+   the frame to the title and sits under it. */
+:global(.viewer-hint).hintUnderTitle {
+  top: 108px;
+}
+
 /* The arrows either side of the device on the Build tab, stepping through the
    cases: the Inside globe's arrows (GlobeViewer.module.css), at the middle of
    the frame, where the device is. */
@@ -71,6 +102,22 @@
   .note {
     bottom: 18px;
     font-size: 11px;
+  }
+
+  /* The viewer is a strip across the top of the screen here: the title and
+     the hint close up, clear of the device, at the build map's phone size. */
+  .title {
+    top: 14px;
+  }
+
+  .titleName {
+    padding: 2px 7px;
+    font-size: 21px;
+    line-height: 1.24;
+  }
+
+  :global(.viewer-hint).hintUnderTitle {
+    top: 50px;
   }
 
   .arrow svg {
