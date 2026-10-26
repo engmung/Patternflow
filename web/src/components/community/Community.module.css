@@ -4300,8 +4300,11 @@
     display: none;
   }
 
+  /* One column as wide as the screen and no wider. A bare 1fr is
+     minmax(auto, 1fr), and a deck card's auto width is its name on one
+     line: a 62-character name made the page 578px wide at 390px. */
   .deckGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .profileGrid {

@@ -84,6 +84,28 @@ describe("the wall's grid", () => {
   });
 });
 
+// On 26 October one public deck named in 62 characters made /community/decks
+// and its owner's profile 578px wide on a 390px phone. Every card in the
+// column grew to 562px with it, and the tab bar to 578px, which put YOU off
+// the screen. A bare 1fr is minmax(auto, 1fr), and the card's auto width is
+// its title on one line.
+describe("the deck grid on a phone", () => {
+  const community = css("Community.module.css");
+
+  it("lets the column be narrower than a deck's name", () => {
+    expect(anyMediaRule(community, MOBILE_MEDIA_QUERY, ".deckGrid")).toContain(
+      "grid-template-columns: minmax(0, 1fr);",
+    );
+  });
+
+  it("ends a name too long for the card in an ellipsis", () => {
+    const title = declarations(rule(community, ".deckCardTitle"));
+    expect(title).toContain("white-space: nowrap");
+    expect(title).toContain("overflow: hidden");
+    expect(title).toContain("text-overflow: ellipsis");
+  });
+});
+
 // The community's text colours, against each ground they are drawn on. On 26
 // October the faint ink was #6B6558, 3.18:1 on the well-2 and 3.40:1 on the
 // page, and axe found 426 color-contrast failures over eleven community pages,
