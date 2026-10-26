@@ -4167,11 +4167,31 @@
 }
 
 @media (max-width: 768px), (hover: none) {
+  /* 8px, not 14px: the wordmark below is 48px tall now and the links 44px,
+     and the header stays the 65px it was. */
   .pageHeader {
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 12px;
-    padding: 14px 16px;
+    padding: 8px 16px;
+  }
+
+  /* Two links stacked 18.4px and 11.5px tall, the one pair in the community
+     that failed WCAG 2.5.8 at 390px: a 24px circle on each overlapped the
+     other. A 24px line each, the words pulled together at the seam, so the
+     wordmark reads as it did. */
+  .brand,
+  .pageTitle {
+    display: flex;
+    min-height: 24px;
+  }
+
+  .brand {
+    align-items: flex-end;
+  }
+
+  .pageTitle {
+    align-items: flex-start;
   }
 
   /* The section nav moves to the tab bar at the bottom of the screen, and the
@@ -4200,6 +4220,24 @@
     margin-left: auto;
   }
 
+  /* 44px of thumb for each. At 390px Alerts was 35.8×18.8, the handle
+     28.8×17.4, Pattern Lab ↗ 86.1×18.8 and the deck chip, a phone's only way
+     to the deck, 64.9×29.2. */
+  .headerNav > a,
+  .headerNav > button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* The two narrowest take half the 12px gap on each side as well. The
+     negative margin gives it back, so the row is as long as it was. */
+  .notifyLink,
+  .headerNav > .userChip {
+    padding: 0 6px;
+    margin: 0 -6px;
+  }
+
   .makeCta {
     font-size: 12px;
     padding: 8px 12px;
@@ -4211,12 +4249,35 @@
     display: none;
   }
 
-  /* A handle can be any length; a header row cannot. */
+  /* A handle can be any length; a header row cannot. The ellipsis needs a
+     block box, which a flex item already is, so the 44px comes from the line. */
   .userChip {
     max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* 108px is the 96px above with the 6px either side that the row gets back. */
+  .headerNav > .userChip {
+    display: block;
+    max-width: 108px;
+    line-height: 44px;
+  }
+
+  /* The notice's ✕ was 18.9×21. Both reach into the strip's 9px padding, so
+     the strip grows 5px, not 23. */
+  .fwNoticeLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin: -9px 0;
+  }
+
+  .fwNoticeClose {
+    min-width: 44px;
+    min-height: 44px;
+    margin: -9px -12px -9px auto;
   }
 
   /* The fifth item is what tipped the row onto a second line, and it is the
@@ -4294,8 +4355,9 @@
     right: 6px;
   }
 
+  /* No gap between the rows: each one is 44px of thumb with air of its own. */
   .feedControls {
-    gap: 12px;
+    gap: 0 12px;
   }
 
   /* Six tabs with Oldest and Liked do not fit a phone's width on one line;
@@ -4303,7 +4365,21 @@
   .sortTabs {
     flex-wrap: wrap;
     column-gap: 16px;
-    row-gap: 8px;
+    row-gap: 0;
+  }
+
+  /* The tabs were 25.6px tall and Flashable now 18.1px. A tab keeps its
+     word on its underline and takes the extra height above it. The buttons
+     are the featured editor's copy of the same tabs. */
+  .sortTabs a,
+  .sortTabs button {
+    display: inline-flex;
+    align-items: flex-end;
+    min-height: 44px;
+  }
+
+  .filterChip {
+    min-height: 44px;
   }
 
   .feedSearchInput {

@@ -219,6 +219,81 @@ describe("text fields on a phone", () => {
   });
 });
 
+// On 26 October, at 390px, the header's links were 17.4 to 18.8px tall, the
+// deck chip 29.2px, the notice's ✕ 18.9×21, the wall's sort tabs 25.6px and
+// Flashable now 18.1px. "Patternflow" (18.4px) and "COMMUNITY" (11.5px) sat
+// one on the other, and a 24px circle on each overlapped the other: WCAG 2.5.8.
+describe("touch targets on a phone", () => {
+  const community = css("Community.module.css");
+  const phone = (selector: string) =>
+    mediaRules(community, MOBILE_MEDIA_QUERY)
+      .filter(({ selectors }) => selectors.includes(selector))
+      .flatMap(({ body }) => declarations(body));
+  const px = (lines: string[], property: string) => {
+    const line = lines.findLast((l) => l.startsWith(`${property}:`));
+    expect(line, `${property} is missing`).toBeDefined();
+    return line!.slice(property.length + 1).trim();
+  };
+
+  it.each([".headerNav > a", ".headerNav > button", ".sortTabs a", ".sortTabs button", ".filterChip"])(
+    "gives %s 44px of height",
+    (selector) => {
+      expect(phone(selector)).toContain("min-height: 44px");
+    },
+  );
+
+  // The handle's ellipsis needs a block box, so it cannot be the flex box the
+  // other links are.
+  it("gives the handle its 44px from the line and keeps the ellipsis", () => {
+    const chip = phone(".headerNav > .userChip");
+    expect(chip).toContain("display: block");
+    expect(chip).toContain("line-height: 44px");
+    expect(phone(".userChip")).toContain("text-overflow: ellipsis");
+  });
+
+  it("widens Alerts and the handle without lengthening the row", () => {
+    for (const selector of [".notifyLink", ".headerNav > .userChip"]) {
+      const lines = phone(selector);
+      expect(lines, selector).toContain("padding: 0 6px");
+      expect(lines, selector).toContain("margin: 0 -6px");
+    }
+    // Every box is border-box, so the padding comes out of the handle's
+    // 96px unless the cap grows with it.
+    const caps = phone(".headerNav > .userChip").concat(phone(".userChip")).filter((l) => l.startsWith("max-width:"));
+    expect(caps).toEqual(["max-width: 108px", "max-width: 96px"]);
+  });
+
+  it("gives the wordmark's two links a 24px line each", () => {
+    for (const selector of [".brand", ".pageTitle"]) {
+      expect(phone(selector), selector).toContain("min-height: 24px");
+    }
+  });
+
+  // 8px of padding on each side of a 48px wordmark is 64px and a border, the
+  // 65px the header was with 14px around a 36.8px Sign in.
+  it("keeps the header as tall as it was", () => {
+    const [vertical] = px(phone(".pageHeader"), "padding").split(" ");
+    expect(parseFloat(vertical) * 2 + 2 * 24).toBeLessThanOrEqual(66);
+  });
+
+  // The ✕ and the link reach into the strip's own padding, so a 44px row in
+  // a strip with 9px above it does not push the header down 23px.
+  it("gives the notice's ✕ a 44px square inside the strip's padding", () => {
+    const close = phone(".fwNoticeClose");
+    expect(close).toContain("min-width: 44px");
+    expect(close).toContain("min-height: 44px");
+    const [top, right] = px(declarations(rule(community, ".fwNotice")), "padding").split(" ");
+    expect(px(close, "margin")).toBe(`-${top} -${right} -${top} auto`);
+    expect(phone(".fwNoticeLink")).toContain("min-height: 44px");
+    expect(px(phone(".fwNoticeLink"), "margin")).toBe(`-${top} 0`);
+  });
+
+  it("drops the gaps between the wall's control rows", () => {
+    expect(phone(".sortTabs")).toContain("row-gap: 0");
+    expect(phone(".feedControls")).toContain("gap: 0 12px");
+  });
+});
+
 /** A JSX opening tag from its `<` to its `>`, past the arrows in its handlers. */
 function openingTag(source: string, from: number): string {
   let depth = 0;
