@@ -3467,12 +3467,15 @@
 }
 
 /* Your own profile's right-hand side: the CTA, and on a phone the sign-out
-   that the header cannot fit. */
+   that the header cannot fit. The auto margin rather than a spacer span: at
+   390px the name and the CTA do not fit on one line, and a spacer stays on
+   the first line while the CTA wraps to the left edge of the second. */
 .profileSelfActions {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
+  margin-left: auto;
 }
 
 /* Off by default — the header's copy is the one you see on a desktop. */
@@ -4141,6 +4144,12 @@
     grid-column: span 2;
   }
 
+  /* In the grid a spacer would take a cell of its own and push Empty deck
+     onto a third row. */
+  .actionRow > .headerSpacer {
+    display: none;
+  }
+
   .actionRow button,
   .actionRow a {
     min-height: 44px;
@@ -4160,9 +4169,12 @@
     padding: 14px 16px;
   }
 
-  /* The section nav moves to the tab bar at the bottom of the screen. */
+  /* The section nav moves to the tab bar at the bottom of the screen, and the
+     gap that held it apart from the links goes with it. Only the header's own
+     gap: seven other rows use the same span to push a button right, and the
+     deck panel is drawn inside this <header>, hence the child combinator. */
   .sectionNav,
-  .headerSpacer {
+  .pageHeader > .headerSpacer {
     display: none;
   }
 

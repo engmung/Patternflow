@@ -106,6 +106,54 @@ describe("the deck grid on a phone", () => {
   });
 });
 
+/** Every rule inside each `@media <query>` block, its selector list split. */
+function mediaRules(source: string, query: string) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split(`\n@media ${query} {`)
+    .slice(1)
+    .flatMap((part) => [...part.slice(0, part.indexOf("\n}")).matchAll(/\n {2}([^{}]+) \{([^}]*)\}/g)])
+    .map(([, selectors, body]) => ({ selectors: selectors.split(",").map((s) => s.trim()), body }));
+}
+
+// On 26 October a bare `.headerSpacer { display: none }` in the phone block,
+// meant for the page header's gap, took out the same span in eight other rows.
+// At 390px the comment Post button sat at x 16 instead of 316, the deck
+// panel's ↑ buttons wandered between x 115 and 213 with each title's length,
+// and Make & publish on your own profile moved to the left edge.
+describe("the header spacer on a phone", () => {
+  const community = css("Community.module.css");
+
+  it("hides only the page header's own spacer", () => {
+    const hidden = mediaRules(community, MOBILE_MEDIA_QUERY)
+      .flatMap(({ selectors }) => selectors)
+      .filter((selector) => selector.endsWith(".headerSpacer"));
+    expect(hidden).toEqual([".pageHeader > .headerSpacer"]);
+  });
+
+  // The deck panel opens from the header's deck chip and is drawn inside the
+  // <header>, so a descendant selector would still reach its rows.
+  it("reaches the header's spacer as a child, not the deck panel inside it", () => {
+    expect(community).not.toMatch(/\.pageHeader \.headerSpacer/);
+  });
+
+  // In the two-column action grid a spacer is a cell of its own, and Empty
+  // deck would drop to a third row.
+  it("still hides it in the action grid, wherever that grid is drawn", () => {
+    const grid = mediaRules(community, "(max-width: 900px)");
+    expect(grid.find(({ selectors }) => selectors.includes(".actionRow"))?.body).toContain("display: grid;");
+    const spacer = grid.find(({ selectors }) => selectors.includes(".actionRow > .headerSpacer"));
+    expect(spacer, ".actionRow > .headerSpacer is missing from @media (max-width: 900px)").toBeDefined();
+    expect(spacer!.body).toContain("display: none;");
+  });
+
+  // At 390px "@ada YOU" and its stats line take the first line, and the
+  // actions wrap to a second one where no spacer reaches.
+  it("keeps your profile's actions right when they wrap under the name", () => {
+    expect(declarations(rule(community, ".profileSelfActions"))).toContain("margin-left: auto");
+  });
+});
+
 // The community's text colours, against each ground they are drawn on. On 26
 // October the faint ink was #6B6558, 3.18:1 on the well-2 and 3.40:1 on the
 // page, and axe found 426 color-contrast failures over eleven community pages,

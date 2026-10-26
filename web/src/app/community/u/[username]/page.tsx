@@ -84,7 +84,6 @@ export default async function CommunityUserPage(props: RouteParams) {
           </h1>
           <p className={styles.profileMeta}>{stats.join(" · ")}</p>
         </div>
-        <span className={styles.headerSpacer} />
         {isSelf && (
           <div className={styles.profileSelfActions}>
             <Link href="/pattern-lab" className={styles.btnAccent}>
