@@ -10,7 +10,8 @@ import styles from "@/components/community/Community.module.css";
 // What happened to your things while you were away: comments on your work,
 // threads you joined, forks, and decks your patterns entered. Opening this
 // page marks everything read (the client fires that after render — never
-// during it, or a link prefetch would eat the unread state).
+// during it, or a link prefetch would eat the unread state), then refreshes
+// so the badge in the header drops to nothing.
 
 export const dynamic = "force-dynamic";
 

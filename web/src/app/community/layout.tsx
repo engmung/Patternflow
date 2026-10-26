@@ -66,8 +66,12 @@ export default async function CommunityLayout({ children }: { children: React.Re
   const isAdmin = isAdminSession(session);
   const openReports = isAdmin ? await countOpenReports() : 0;
   // Read fresh on every page load — that is the whole notification system's
-  // idea of "delivery" on a server-rendered site.
-  const unread = session ? await countUnreadNotifications(session.user.id) : 0;
+  // idea of "delivery" on a server-rendered site. A layout is not rendered
+  // again when you move between the pages under it, so the alerts page asks
+  // for a refresh once it has marked everything read.
+  const unread = session
+    ? await countUnreadNotifications(session.user.id, { moderator: isAdmin })
+    : 0;
   const username =
     (session?.user as { username?: string } | undefined)?.username ?? null;
 
