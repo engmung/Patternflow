@@ -3076,8 +3076,13 @@
   gap: 8px;
 }
 
+/* The width is the flex share alone. An input is 20 characters wide of its
+   own, and the dialog's column will not go narrower than that: at 16px on a
+   phone the row came to 329px in a 308px body and pushed every line of the
+   dialog into its right padding. */
 .shareLinkField {
   flex: 1;
+  width: 0;
   min-width: 0;
   appearance: none;
   border: 1px solid var(--pfc-edge-strong);
@@ -4303,6 +4308,20 @@
 
   .feedSearchInput {
     width: 100%;
+  }
+
+  /* iOS Safari zooms the page into a field whose text is under 16px when it
+     takes focus, and the page stays zoomed after the keyboard goes. At 390px
+     every field here was under: 14px for the wall's search, a comment, sign in,
+     a report and the edit dialogs, 12px for a C++ header and a share link,
+     12.5px for a deck's visibility picker. */
+  .textInput,
+  .commentForm textarea,
+  .field select,
+  .postBodyInput,
+  .shareLinkField,
+  .deckVisControl select {
+    font-size: 16px;
   }
 
   /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel

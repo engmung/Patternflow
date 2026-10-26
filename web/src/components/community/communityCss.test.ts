@@ -2,7 +2,7 @@
 // read from the files. In Chromium at 390px the dialog × measured 11×23px
 // before these rules and 44×44px after.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { MOBILE_FEED_VIEW, SLOT_DEFAULT } from "@/lib/community/feedView";
@@ -153,6 +153,83 @@ describe("the header spacer on a phone", () => {
     expect(declarations(rule(community, ".profileSelfActions"))).toContain("margin-left: auto");
   });
 });
+
+// iOS Safari zooms the page into a field whose text is under 16px when it takes
+// focus. On 26 October, at 390px, every community field was: 14px for the
+// wall's search, a comment, sign in, a report and the edit dialogs, 12px for a
+// C++ header, a performance's JSON and a deck's pack link, 12.5px for a deck's
+// visibility picker.
+describe("text fields on a phone", () => {
+  const community = css("Community.module.css");
+  const fields = [
+    ".textInput",
+    ".commentForm textarea",
+    ".field select",
+    ".postBodyInput",
+    ".shareLinkField",
+    ".deckVisControl select",
+  ];
+
+  it.each(fields)("sets %s at 16px", (field) => {
+    const sizes = mediaRules(community, MOBILE_MEDIA_QUERY)
+      .filter(({ selectors }) => selectors.includes(field))
+      .flatMap(({ body }) => body.match(/font-size: [^;]+;/g) ?? []);
+    expect(sizes).toEqual(["font-size: 16px;"]);
+  });
+
+  // The pack link is monospace, and at 16px its 20 characters of its own made
+  // the share dialog's row 329px in a 308px body.
+  it("lets the pack link take its width from the row", () => {
+    const field = declarations(rule(community, ".shareLinkField"));
+    expect(field).toContain("flex: 1");
+    expect(field).toContain("width: 0");
+  });
+
+  // A field with a class of its own fails here before it zooms a phone. The
+  // board's address is left out: it sits inline in a sentence at the
+  // sentence's size, and four places draw it four ways.
+  it("covers every text field the community draws", () => {
+    const src = path.resolve(__dirname, "../..");
+    const files = ["components/community", "app/community", "components/guide/desk/community"].flatMap((dir) =>
+      readdirSync(path.join(src, dir), { recursive: true, encoding: "utf8" })
+        .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
+        .map((name) => path.join(dir, name)),
+    );
+    const styled = /\b\w+\.(textInput|postBodyInput|shareLinkField)\b/;
+    const loose: string[] = [];
+    let seen = 0;
+    for (const file of files) {
+      const source = readFileSync(path.join(src, file), "utf8");
+      for (const { index, 1: tag } of source.matchAll(/<(input|textarea|select)\b/g)) {
+        const attributes = openingTag(source, index);
+        if (/\btype="(range|checkbox|radio|file|hidden)"/.test(attributes)) continue;
+        if (/aria-label="(Device|Board) address"/.test(attributes)) continue;
+        seen++;
+        if (styled.test(attributes)) continue;
+        const label = source.lastIndexOf("<label", index);
+        const inLabel = label > -1 && !source.slice(label, index).includes("</label>");
+        if (tag === "select" && inLabel && /^<label className=\{\w+\.(field|deckVisControl)\}/.test(source.slice(label))) {
+          continue;
+        }
+        loose.push(`${file}:${source.slice(0, index).split("\n").length} <${tag}>`);
+      }
+    }
+    expect(seen).toBeGreaterThanOrEqual(30);
+    expect(loose).toEqual([]);
+  });
+});
+
+/** A JSX opening tag from its `<` to its `>`, past the arrows in its handlers. */
+function openingTag(source: string, from: number): string {
+  let depth = 0;
+  for (let at = from; at < source.length; at++) {
+    const char = source[at];
+    if (char === "{") depth++;
+    else if (char === "}") depth--;
+    else if (char === ">" && depth === 0) return source.slice(from, at + 1);
+  }
+  throw new Error(`unclosed tag at ${from}`);
+}
 
 // The community's text colours, against each ground they are drawn on. On 26
 // October the faint ink was #6B6558, 3.18:1 on the well-2 and 3.40:1 on the
