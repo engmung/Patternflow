@@ -489,7 +489,8 @@ export const presence = sqliteTable("presence", {
 /**
  * A pattern placed on the atlas — the map of pattern-technique space
  * (/community/atlas). One pin per pattern, placed and moved by the pattern's
- * author (or a moderator). Coordinates are the atlas's own 0..100 data space:
+ * author (or a moderator) until 26 October 2026, when the atlas became a
+ * read-only archive and its route stopped taking writes. Coordinates are the atlas's own 0..100 data space:
  * x = order → chaos, y = wire → field.
  *
  * This is deliberately NOT presence and NOT a territory pin: it says "this

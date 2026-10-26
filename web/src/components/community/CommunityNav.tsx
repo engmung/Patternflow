@@ -26,13 +26,8 @@ const SECTIONS = [
     match: (path: string) =>
       path.startsWith("/community/decks") || path.startsWith("/community/d/"),
   },
-  {
-    href: "/community/atlas",
-    label: "Atlas",
-    // A map of pattern-technique space, with a generation prompt on every
-    // point.
-    match: (path: string) => path.startsWith("/community/atlas"),
-  },
+  // The atlas left this list on 26 October 2026. It is an archive now, and
+  // the footer's Archive link is the way in.
 ];
 
 export default function CommunityNav({

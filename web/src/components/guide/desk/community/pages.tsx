@@ -50,9 +50,6 @@ export function Header() {
         <PLink go={() => go({ kind: "decks" })} active={decks} current={decks} pc="nav-decks">
           Decks
         </PLink>
-        <PLink go={() => say("elsewhere")} active={false}>
-          Atlas
-        </PLink>
       </nav>
       <div className={cs.headerSpacer} />
       <nav className={cs.headerNav}>

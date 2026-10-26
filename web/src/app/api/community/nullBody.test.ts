@@ -28,8 +28,6 @@ type RouteModule = Record<string, unknown>;
 
 // [method, path, module loader, path params]
 const ROUTES: [string, string, () => Promise<RouteModule>, Record<string, string>][] = [
-  ["POST", "atlas", () => import("./atlas/route"), {}],
-  ["DELETE", "atlas", () => import("./atlas/route"), {}],
   ["POST", "builds", () => import("./builds/route"), {}],
   ["PATCH", "comments/c1?on=pattern", () => import("./comments/[id]/route"), { id: "c1" }],
   ["POST", "decks", () => import("./decks/route"), {}],

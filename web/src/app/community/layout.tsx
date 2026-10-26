@@ -129,6 +129,10 @@ export default async function CommunityLayout({ children }: { children: React.Re
           <Link href="/terms">Terms &amp; Privacy</Link>
           <span>·</span>
           <a href="mailto:contact@patternflow.work">Report something</a>
+          {/* The atlas, kept read-only since 26 October 2026. Nothing else
+              links to it. */}
+          <span>·</span>
+          <Link href="/community/atlas">Archive</Link>
         </footer>
 
         {/* The deck is assembled while browsing, so it stays on screen while
