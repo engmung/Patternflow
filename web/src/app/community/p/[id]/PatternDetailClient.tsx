@@ -442,6 +442,8 @@ export default function PatternDetailClient({
               status={zip.status}
               error={zip.error}
               detail={zip.detail}
+              waited={zip.waited}
+              expectedS={zip.expectedS}
             />
           )}
           {zipInstallable && zip.phase === "ready" && (

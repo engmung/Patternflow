@@ -19,6 +19,7 @@
 // one now and then), so a few in a row are tolerated before giving up.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { buildExpectedS } from "@/lib/community/useModuleBuild";
 
 // No server has sent "duplicate-name". It arrived with this file on 24
 // September 2026 (e261978), and the deck route in that same commit already
@@ -40,6 +41,8 @@ export type ZipStatus = {
   detail?: string;
   total?: number;
   included?: number;
+  /** Deck only, while building: how many of its headers are still compiling. */
+  pending?: number;
   skipped?: ZipSkip[];
 };
 
@@ -52,6 +55,7 @@ const POLL_MS = 2000;
 // on a cold toolchain is a minute or two. Past this the worker is more likely
 // stuck than slow, and saying so beats a spinner that never ends.
 const DEADLINE_MS = 180_000;
+export const ZIP_DEADLINE_MIN = DEADLINE_MS / 60_000;
 const MAX_DROPPED_POLLS = 3;
 
 const STATUS_INIT: RequestInit = { credentials: "omit", cache: "no-store" };
@@ -114,12 +118,24 @@ function settledDetail(kind: ZipKind, status: ZipStatus): string | null {
   return status.detail ?? status.error ?? null;
 }
 
-export function buildingNote(kind: ZipKind): string {
+/**
+ * What a compile is told to expect, in seconds: the same allowance a build
+ * from the deck bar gets (buildExpectedS), counted over the headers that are
+ * actually compiling. A deck that answers without `pending` counts as whole.
+ */
+export function zipExpectedS(kind: ZipKind, status: ZipStatus | null): number {
+  if (kind === "pattern") return buildExpectedS(1);
+  return buildExpectedS(status?.pending ?? status?.total ?? 1);
+}
+
+export function buildingNote(kind: ZipKind, status: ZipStatus | null): string {
   // A deck's order costs nothing (catalog.txt is written per request); what
   // waits is a pattern whose header nobody has downloaded since it changed.
-  return kind === "deck"
-    ? "Preparing the pack — patterns nobody has downloaded yet compile on first use, a few seconds each."
-    : "Preparing the module — the first download compiles it, usually a few seconds.";
+  if (kind === "pattern") return "Preparing the module — the first download compiles it";
+  const pending = status?.pending;
+  return typeof pending === "number" && pending > 0
+    ? `Preparing the pack — ${pending} of its patterns compile${pending === 1 ? "s" : ""} on first use`
+    : "Preparing the pack — patterns nobody has downloaded yet compile on first use";
 }
 
 /**
@@ -140,6 +156,12 @@ export function useZipDownload(
   const [status, setStatus] = useState<ZipStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
+  // Whole seconds since the button was pressed, and what this compile was
+  // told to expect. Both are shown while it builds, so a wait past the
+  // promise reads as a busy or stopped build server rather than a hang.
+  const [waited, setWaited] = useState(0);
+  const [expectedS, setExpectedS] = useState(0);
+  const startedAt = useRef(0);
 
   // One run at a time; bumping the token abandons whatever was polling (the
   // component unmounted, or the address changed underneath it).
@@ -153,6 +175,15 @@ export function useZipDownload(
     [zipUrl],
   );
 
+  const busy = phase === "checking" || phase === "building";
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setInterval(() => {
+      setWaited(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
   const run = useCallback(
     async (navigate: boolean): Promise<boolean> => {
       if (running.current) return false;
@@ -165,8 +196,15 @@ export function useZipDownload(
       // over from it would sit under whatever this run ends in.
       setStatus(null);
       setPhase("checking");
-      const deadline = Date.now() + DEADLINE_MS;
+      setWaited(0);
+      setExpectedS(0);
+      startedAt.current = Date.now();
+      const deadline = startedAt.current + DEADLINE_MS;
       let dropped = 0;
+      // Set from the first "building" answer and never lowered: a deck's
+      // `pending` falls as its headers land, and a promise that shrinks while
+      // the clock runs would read as already broken.
+      let expected = 0;
       try {
         for (;;) {
           let next: ZipStatus | null = null;
@@ -211,6 +249,8 @@ export function useZipDownload(
               setDetail(settledDetail(kind, next));
               return false;
             }
+            expected = Math.max(expected, zipExpectedS(kind, next));
+            setExpectedS(expected);
             setPhase("building");
           }
 
@@ -232,5 +272,5 @@ export function useZipDownload(
   const download = useCallback(() => run(true), [run]);
   const check = useCallback(() => run(false), [run]);
 
-  return { phase, status, error, detail, download, check, busy: phase === "checking" || phase === "building" };
+  return { phase, status, error, detail, waited, expectedS, download, check, busy };
 }

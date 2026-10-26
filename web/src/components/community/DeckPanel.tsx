@@ -134,7 +134,7 @@ export default function DeckPanel() {
                       : "Waiting for a build slot…"
                     : waited >= expectedS
                       ? "Building modules… (longer than usual)"
-                      : "Building modules… (usually a second or two)"}
+                      : `Building modules… (usually under ${expectedS} s)`}
                   {waited > 0 && ` · ${waited} s`}
                 </p>
               )}

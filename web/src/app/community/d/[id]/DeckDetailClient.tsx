@@ -413,6 +413,8 @@ export default function DeckDetailClient({
               status={pack.status}
               error={pack.error}
               detail={pack.detail}
+              waited={pack.waited}
+              expectedS={pack.expectedS}
             />
           </>
         )}

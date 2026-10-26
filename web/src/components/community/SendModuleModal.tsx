@@ -123,6 +123,8 @@ function PatternZipBody({ patternId, patternTitle }: { patternId: string; patter
         status={zip.status}
         error={zip.error}
         detail={zip.detail}
+        waited={zip.waited}
+        expectedS={zip.expectedS}
       />
 
       <p className={styles.formNote}>
@@ -212,7 +214,7 @@ function CodeBuildBody({ patternTitle, code }: { patternTitle: string; code: str
               ? `Waiting — ${build.queuePosition} in the queue…`
               : waited >= expectedS
                 ? "Building the module… (longer than usual)"
-                : "Building the module… (usually a second or two)"}
+                : `Building the module… (usually under ${expectedS} s)`}
             {waited > 0 && ` · ${waited} s`}
           </p>
         )}

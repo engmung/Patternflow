@@ -520,7 +520,7 @@ export default function DeckDock() {
                 // The clock is the honest part; the promise is the reassuring
                 // one. Both, so a build that is taking its time does not look
                 // like a build that has died.
-                title={`About half a second per pattern, and under ${expectedS} on a busy server.`}
+                title={`About half a second per pattern, and under ${expectedS} s on a busy server.`}
               >
                 <span className={styles.buildSpinner} aria-hidden="true" />
                 {build?.status === "queued" && build.queuePosition && build.queuePosition > 1
