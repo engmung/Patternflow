@@ -212,9 +212,9 @@ export default function HardwareModal({
   // here as well, and that one began in the card.
   const closeOnBackdrop = useBackdropClose(onClose);
 
-  // Esc closes the window on top and the header stays. Send opens over this
-  // one and hears no keys of its own, so this listener closes it. Publish
-  // hears Esc itself, and both listeners close Publish and nothing else.
+  // Esc closes the window on top and the header stays. Send and Publish open
+  // over this one and hear Esc themselves, and both listeners close the one
+  // on top and nothing else.
   const cardRef = useDialog<HTMLDivElement>(() => {
     if (sendOpen) setSendOpen(false);
     else if (publishCode !== null) setPublishCode(null);

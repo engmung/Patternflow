@@ -25,6 +25,7 @@ import {
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import { useZipDownload, zipStatusUrl } from "@/lib/community/zipDownload";
 import type { DeckPageItem } from "@/lib/community/server/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
@@ -608,6 +609,7 @@ function PerformanceModal({
   const [json, setJson] = useState(initialJson ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const cardRef = useDialog<HTMLDivElement>(onClose);
   const closeOnBackdrop = useBackdropClose(onClose);
 
   const send = async (value: string | null) => {
@@ -646,7 +648,12 @@ function PerformanceModal({
 
   return (
     <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
-      <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={cardRef}
+        tabIndex={-1}
+        className={styles.modalCard}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className={styles.modalHeader}>
           <span>Deck performance</span>
           <button type="button" onClick={onClose} aria-label="Close">
@@ -717,6 +724,9 @@ function EditDeckModal({
   const [description, setDescription] = useState(initialDescription ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The title field takes the focus, as its autoFocus did, and the hook sees
+  // the Edit details button first so the focus goes back to it on close.
+  const titleRef = useDialog<HTMLInputElement>(onClose);
   const closeOnBackdrop = useBackdropClose(onClose);
 
   const save = async () => {
@@ -760,10 +770,10 @@ function EditDeckModal({
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Title</span>
             <input
+              ref={titleRef}
               className={styles.textInput}
               value={title}
               maxLength={TITLE_MAX}
-              autoFocus
               onChange={(event) => setTitle(event.target.value)}
             />
           </label>

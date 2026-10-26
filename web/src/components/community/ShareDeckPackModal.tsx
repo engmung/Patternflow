@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import styles from "./Community.module.css";
 
 // Handing a deck to somebody.
@@ -40,17 +41,11 @@ export default function ShareDeckPackModal({
 }) {
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // Esc closes it and the focus goes back to Share. The listener this panel
+  // had of its own came before the hook, and it never moved the focus into
+  // the panel.
+  const cardRef = useDialog<HTMLDivElement>(onClose);
   const closeOnBackdrop = useBackdropClose(onClose);
-
-  // Escape closes it. This one is a thing you glance at and leave, so it had
-  // the key before the form windows took it from lib/hooks/useDialog.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const copy = async () => {
     const ok = await onCopyLink();
@@ -65,7 +60,12 @@ export default function ShareDeckPackModal({
 
   return (
     <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
-      <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={cardRef}
+        tabIndex={-1}
+        className={styles.modalCard}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className={styles.modalHeader}>
           <span className={styles.modalKicker}>Share</span>
           <span>this deck</span>

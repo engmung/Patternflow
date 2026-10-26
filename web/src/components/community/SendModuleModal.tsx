@@ -9,6 +9,7 @@ import { captureEvent } from "@/lib/posthogEvents";
 import { useModuleBuild } from "@/lib/community/useModuleBuild";
 import { useZipDownload } from "@/lib/community/zipDownload";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import AuthModal from "./AuthModal";
 import { ZipInstallNote, ZipProgress } from "./ZipDownload";
 import styles from "./Community.module.css";
@@ -49,10 +50,13 @@ export default function SendModuleModal(
       }
   ),
 ) {
+  const cardRef = useDialog<HTMLDivElement>(props.onClose);
   const closeOnBackdrop = useBackdropClose(props.onClose);
   return (
     <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
+        ref={cardRef}
+        tabIndex={-1}
         className={`${styles.modalCard} ${styles.modalCardWide}`}
         onClick={(event) => event.stopPropagation()}
       >

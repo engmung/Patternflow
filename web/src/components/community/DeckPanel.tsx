@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
 import { buildsConfigured, communityApiUrl } from "@/lib/community/apiBase";
@@ -18,6 +18,7 @@ import {
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import { useModuleBuild } from "@/lib/community/useModuleBuild";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import AuthModal from "./AuthModal";
 import ShareDeckModal from "./ShareDeckModal";
 import styles from "./Community.module.css";
@@ -93,7 +94,6 @@ export default function DeckPanel() {
     setNeedsAuth(false);
     setOpen(false);
   };
-  const closeOnBackdrop = useBackdropClose(close);
 
   // No builds configured (e.g. the Vercel mirror) → nothing here works.
   if (!buildsConfigured()) return null;
@@ -113,224 +113,239 @@ export default function DeckPanel() {
       </button>
 
       {open && (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
-          <div
-            className={`${styles.modalCard} ${styles.modalCardWide}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.modalHeader}>
-              <span>Deck</span>
-              <button type="button" onClick={close} aria-label="Close">
-                ×
-              </button>
-            </div>
+        <DeckWindow onClose={close}>
+          {needsAuth ? (
+            <AuthModal
+              embedded
+              onClose={() => undefined}
+              onAuthed={() => {
+                setNeedsAuth(false);
+                router.refresh();
+              }}
+            />
+          ) : build ? (
+            <div className={styles.modalBody}>
+              {build.status !== "done" && build.status !== "error" && (
+                <p className={styles.buildStatusLine}>
+                  <span className={styles.buildSpinner} aria-hidden="true" />
+                  {build.status === "queued"
+                    ? build.queuePosition && build.queuePosition > 1
+                      ? `Waiting — ${build.queuePosition} in the queue…`
+                      : "Waiting for a build slot…"
+                    : waited >= expectedS
+                      ? "Building modules… (longer than usual)"
+                      : "Building modules… (usually a second or two)"}
+                  {waited > 0 && ` · ${waited} s`}
+                </p>
+              )}
 
-            {needsAuth ? (
-              <AuthModal
-                embedded
-                onClose={() => undefined}
-                onAuthed={() => {
-                  setNeedsAuth(false);
-                  router.refresh();
-                }}
-              />
-            ) : build ? (
-              <div className={styles.modalBody}>
-                {build.status !== "done" && build.status !== "error" && (
+              {build.status === "error" && (
+                <>
+                  <div className={styles.formError}>The build failed.</div>
+                  <pre className={styles.buildLog}>{build.error}</pre>
+                  <div className={styles.actionRow}>
+                    <button type="button" className={styles.btn} onClick={reset}>
+                      Back to the deck
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {build.status === "done" && build.modulesUrl && (
+                <>
                   <p className={styles.buildStatusLine}>
-                    <span className={styles.buildSpinner} aria-hidden="true" />
-                    {build.status === "queued"
-                      ? build.queuePosition && build.queuePosition > 1
-                        ? `Waiting — ${build.queuePosition} in the queue…`
-                        : "Waiting for a build slot…"
-                      : waited >= expectedS
-                        ? "Building modules… (longer than usual)"
-                        : "Building modules… (usually a second or two)"}
-                    {waited > 0 && ` · ${waited} s`}
+                    ✓ {build.namespaces.length} module{build.namespaces.length === 1 ? "" : "s"}{" "}
+                    built · {((build.bytes ?? 0) / 1024).toFixed(0)} KB zip
                   </p>
-                )}
+                  <p className={styles.formNote}>
+                    Send over Wi-Fi opens the device&rsquo;s pattern manager with this build
+                    linked — it fetches and installs every module itself. Patterns appear in the
+                    list immediately: no reflash, no reboot, nothing to unzip. (Needs firmware
+                    with loadable-module support.)
+                  </p>
+                  <div className={styles.actionRow}>
+                    <a
+                      className={styles.btnAccent}
+                      href={patternsUrl(build.modulesUrl)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Send over Wi-Fi
+                    </a>
+                    <a className={styles.btn} href={communityApiUrl(build.modulesUrl)} download>
+                      Download .zip instead
+                    </a>
+                    <span className={styles.headerSpacer} />
+                    <button type="button" className={styles.btn} onClick={close}>
+                      Done
+                    </button>
+                  </div>
+                  <p className={styles.formNote}>
+                    Device address:{" "}
+                    <input
+                      type="text"
+                      value={deviceHost}
+                      onChange={(event) => changeDeviceHost(event.target.value)}
+                      spellCheck={false}
+                      aria-label="Device address"
+                      style={{
+                        font: "inherit",
+                        width: "16ch",
+                        padding: "1px 6px",
+                        border: "1px solid var(--pf-rule, #D9D1C0)",
+                        background: "transparent",
+                        color: "inherit",
+                      }}
+                    />{" "}
+                    (Android can&rsquo;t resolve <code>.local</code> — use the IP from the
+                    device&rsquo;s NETWORK screen, hold K2).
+                  </p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className={styles.modalBody}>
+              {/* One list now, so the tab strip is a label. Saved lived in
+                  the other tab; the like replaced it. */}
+              <nav className={styles.deckTabs}>
+                <button type="button" data-active disabled>
+                  Deck ({deck.length}/{DECK_MAX})
+                </button>
+              </nav>
 
-                {build.status === "error" && (
-                  <>
-                    <div className={styles.formError}>The build failed.</div>
-                    <pre className={styles.buildLog}>{build.error}</pre>
-                    <div className={styles.actionRow}>
-                      <button type="button" className={styles.btn} onClick={reset}>
-                        Back to the deck
-                      </button>
-                    </div>
-                  </>
-                )}
+              {note && <div className={styles.formError}>{note}</div>}
 
-                {build.status === "done" && build.modulesUrl && (
+              {deck.length === 0 ? (
+                  <p className={styles.formNote}>
+                    Your deck is empty. On any pattern that ships a firmware header, use
+                    &ldquo;Add to deck&rdquo; — then build them all as loadable modules in one
+                    go. The order here is the order they cycle on the device.
+                  </p>
+                ) : (
                   <>
-                    <p className={styles.buildStatusLine}>
-                      ✓ {build.namespaces.length} module{build.namespaces.length === 1 ? "" : "s"}{" "}
-                      built · {((build.bytes ?? 0) / 1024).toFixed(0)} KB zip
-                    </p>
+                    <ol className={styles.deckList}>
+                      {deck.map((item, index) => (
+                        <li key={item.patternId} className={styles.deckRow}>
+                          <span className={styles.deckIndex}>{index + 1}</span>
+                          <Link href={`/community/p/${item.patternId}`} onClick={close}>
+                            {item.title}
+                          </Link>
+                          <span className={styles.headerSpacer} />
+                          {/* Buttons rather than drag: this list is at most ten
+                              rows and has to work on a phone. */}
+                          <button
+                            type="button"
+                            className={styles.btnSmall}
+                            disabled={index === 0}
+                            title="Move up"
+                            onClick={() => deckMove(item.patternId, -1)}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnSmall}
+                            disabled={index === deck.length - 1}
+                            title="Move down"
+                            onClick={() => deckMove(item.patternId, 1)}
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.btnSmall}
+                            onClick={() => deckRemove(item.patternId)}
+                          >
+                            remove
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
                     <p className={styles.formNote}>
-                      Send over Wi-Fi opens the device&rsquo;s pattern manager with this build
-                      linked — it fetches and installs every module itself. Patterns appear in the
-                      list immediately: no reflash, no reboot, nothing to unzip. (Needs firmware
-                      with loadable-module support.)
+                      Builds as loadable modules (.pfm): each pattern compiles alone in about
+                      half a second, and the result installs over Wi-Fi from the device&rsquo;s
+                      pattern manager — no reflash. The classic full-image build stays available
+                      on each pattern&rsquo;s page.
                     </p>
+                    {error && <div className={styles.formError}>{error}</div>}
                     <div className={styles.actionRow}>
-                      <a
+                      <button
+                        type="button"
                         className={styles.btnAccent}
-                        href={patternsUrl(build.modulesUrl)}
-                        target="_blank"
-                        rel="noreferrer"
+                        disabled={busy}
+                        onClick={startBuild}
                       >
-                        Send over Wi-Fi
-                      </a>
-                      <a className={styles.btn} href={communityApiUrl(build.modulesUrl)} download>
-                        Download .zip instead
-                      </a>
+                        {busy
+                          ? "Queueing…"
+                          : `Build ${deck.length} module${deck.length === 1 ? "" : "s"}`}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        title="Publish this deck — its patterns and their order — as a page others can open and copy"
+                        onClick={() => {
+                          setOpen(false);
+                          setShareOpen(true);
+                        }}
+                      >
+                        Share deck
+                      </button>
                       <span className={styles.headerSpacer} />
-                      <button type="button" className={styles.btn} onClick={close}>
-                        Done
+                      {/* Two presses: a deck is cheap to rebuild but an
+                          arranged one is not, and this sits next to the button
+                          people actually mean to press. */}
+                      <button
+                        type="button"
+                        className={styles.btn}
+                        title="Remove every pattern from the deck"
+                        onClick={() => {
+                          if (confirmEmpty) {
+                            deckClear();
+                            setConfirmEmpty(false);
+                          } else {
+                            setConfirmEmpty(true);
+                            window.setTimeout(() => setConfirmEmpty(false), 4000);
+                          }
+                        }}
+                      >
+                        {confirmEmpty ? "Press again to empty" : `Empty deck (${deck.length})`}
                       </button>
                     </div>
-                    <p className={styles.formNote}>
-                      Device address:{" "}
-                      <input
-                        type="text"
-                        value={deviceHost}
-                        onChange={(event) => changeDeviceHost(event.target.value)}
-                        spellCheck={false}
-                        aria-label="Device address"
-                        style={{
-                          font: "inherit",
-                          width: "16ch",
-                          padding: "1px 6px",
-                          border: "1px solid var(--pf-rule, #D9D1C0)",
-                          background: "transparent",
-                          color: "inherit",
-                        }}
-                      />{" "}
-                      (Android can&rsquo;t resolve <code>.local</code> — use the IP from the
-                      device&rsquo;s NETWORK screen, hold K2).
-                    </p>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className={styles.modalBody}>
-                {/* One list now, so the tab strip is a label. Saved lived in
-                    the other tab; the like replaced it. */}
-                <nav className={styles.deckTabs}>
-                  <button type="button" data-active disabled>
-                    Deck ({deck.length}/{DECK_MAX})
-                  </button>
-                </nav>
-
-                {note && <div className={styles.formError}>{note}</div>}
-
-                {deck.length === 0 ? (
-                    <p className={styles.formNote}>
-                      Your deck is empty. On any pattern that ships a firmware header, use
-                      &ldquo;Add to deck&rdquo; — then build them all as loadable modules in one
-                      go. The order here is the order they cycle on the device.
-                    </p>
-                  ) : (
-                    <>
-                      <ol className={styles.deckList}>
-                        {deck.map((item, index) => (
-                          <li key={item.patternId} className={styles.deckRow}>
-                            <span className={styles.deckIndex}>{index + 1}</span>
-                            <Link href={`/community/p/${item.patternId}`} onClick={close}>
-                              {item.title}
-                            </Link>
-                            <span className={styles.headerSpacer} />
-                            {/* Buttons rather than drag: this list is at most ten
-                                rows and has to work on a phone. */}
-                            <button
-                              type="button"
-                              className={styles.btnSmall}
-                              disabled={index === 0}
-                              title="Move up"
-                              onClick={() => deckMove(item.patternId, -1)}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.btnSmall}
-                              disabled={index === deck.length - 1}
-                              title="Move down"
-                              onClick={() => deckMove(item.patternId, 1)}
-                            >
-                              ↓
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.btnSmall}
-                              onClick={() => deckRemove(item.patternId)}
-                            >
-                              remove
-                            </button>
-                          </li>
-                        ))}
-                      </ol>
-                      <p className={styles.formNote}>
-                        Builds as loadable modules (.pfm): each pattern compiles alone in about
-                        half a second, and the result installs over Wi-Fi from the device&rsquo;s
-                        pattern manager — no reflash. The classic full-image build stays available
-                        on each pattern&rsquo;s page.
-                      </p>
-                      {error && <div className={styles.formError}>{error}</div>}
-                      <div className={styles.actionRow}>
-                        <button
-                          type="button"
-                          className={styles.btnAccent}
-                          disabled={busy}
-                          onClick={startBuild}
-                        >
-                          {busy
-                            ? "Queueing…"
-                            : `Build ${deck.length} module${deck.length === 1 ? "" : "s"}`}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.btn}
-                          title="Publish this deck — its patterns and their order — as a page others can open and copy"
-                          onClick={() => {
-                            setOpen(false);
-                            setShareOpen(true);
-                          }}
-                        >
-                          Share deck
-                        </button>
-                        <span className={styles.headerSpacer} />
-                        {/* Two presses: a deck is cheap to rebuild but an
-                            arranged one is not, and this sits next to the button
-                            people actually mean to press. */}
-                        <button
-                          type="button"
-                          className={styles.btn}
-                          title="Remove every pattern from the deck"
-                          onClick={() => {
-                            if (confirmEmpty) {
-                              deckClear();
-                              setConfirmEmpty(false);
-                            } else {
-                              setConfirmEmpty(true);
-                              window.setTimeout(() => setConfirmEmpty(false), 4000);
-                            }
-                          }}
-                        >
-                          {confirmEmpty ? "Press again to empty" : `Empty deck (${deck.length})`}
-                        </button>
-                      </div>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+                </>
+              )}
+            </div>
+          )}
+        </DeckWindow>
       )}
 
       {shareOpen && <ShareDeckModal deck={deck} onClose={() => setShareOpen(false)} />}
     </>
+  );
+}
+
+// The window around the panel. It is a component of its own so the hook
+// mounts with the window and not with the chip, which is always there. Esc
+// closes it and the focus goes back to the chip or the dock button that
+// opened it. Signing in happens inside it, so one Esc is one window.
+function DeckWindow({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
+  return (
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
+      <div
+        ref={cardRef}
+        tabIndex={-1}
+        className={`${styles.modalCard} ${styles.modalCardWide}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className={styles.modalHeader}>
+          <span>Deck</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
