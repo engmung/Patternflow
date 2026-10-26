@@ -107,7 +107,7 @@ describe("community fields say what they are", () => {
   });
 
   it("names the device address on the Basics card", () => {
-    render(<ShippedPackCard pack={BASICS_PACK} />);
+    render(<ShippedPackCard pack={BASICS_PACK} previews={[]} />);
     expect(addressField("Device address")).toHaveValue("patternflow.local");
   });
 
