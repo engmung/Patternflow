@@ -112,27 +112,20 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
         </a>
       </div>
 
-      <span className={styles.packHint}>
+      <label className={styles.packHint}>
         Device address:{" "}
         <input
           type="text"
+          className={styles.zipHostField}
           value={deviceHost}
           onChange={(event) => changeDeviceHost(event.target.value)}
           spellCheck={false}
           aria-label="Device address"
-          style={{
-            font: "inherit",
-            width: "16ch",
-            padding: "1px 6px",
-            border: "1px solid var(--pf-rule, #D9D1C0)",
-            background: "transparent",
-            color: "inherit",
-          }}
         />{" "}
         (Android can’t resolve <code>.local</code> — use the IP from the device’s NETWORK
         screen, hold K2.) Or download the .zip and drop it on your device’s Patterns page —
         same result.
-      </span>
+      </label>
     </div>
   );
 }

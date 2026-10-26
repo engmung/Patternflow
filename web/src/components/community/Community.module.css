@@ -3237,9 +3237,15 @@
   color: var(--pfc-ink-faint);
 }
 
+/* The board's address, wherever a page asks for it: the Basics card, the deck
+   panel and Send window after a build, and the note above. Each sits in a
+   <label> with its sentence, so a click on "Device address:" lands in it.
+   Inline in that sentence it was 116×21.3px on the card and 121×23.2px here,
+   under the 24px a pointer needs. */
 .zipHostField {
   font: inherit;
   width: 16ch;
+  min-height: 24px;
   padding: 1px 6px;
   border: 1px solid var(--pfc-edge-strong);
   border-radius: 0;
@@ -4398,14 +4404,26 @@
      takes focus, and the page stays zoomed after the keyboard goes. At 390px
      every field here was under: 14px for the wall's search, a comment, sign in,
      a report and the edit dialogs, 12px for a C++ header and a share link,
-     12.5px for a deck's visibility picker. */
+     12.5px for a deck's visibility picker, 11.5px and 12px for the board's
+     address. */
   .textInput,
   .commentForm textarea,
   .field select,
   .postBodyInput,
   .shareLinkField,
-  .deckVisControl select {
+  .deckVisControl select,
+  .zipHostField {
     font-size: 16px;
+  }
+
+  /* An IP typed with a thumb wants the whole line. At 390px the address sat
+     16 characters wide in the middle of its sentence; on a line of its own it
+     is the content box wide and 44px tall. */
+  .zipHostField {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    margin: 4px 0;
   }
 
   /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel

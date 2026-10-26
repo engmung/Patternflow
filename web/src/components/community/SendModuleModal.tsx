@@ -253,23 +253,19 @@ function CodeBuildBody({ patternTitle, code }: { patternTitle: string; code: str
                 Download .zip instead
               </a>
             </div>
-            <p className={styles.formNote}>
+            <label className={styles.formNote}>
               Device address:{" "}
               <input
                 type="text"
+                className={styles.zipHostField}
                 value={deviceHost}
                 onChange={(event) => changeDeviceHost(event.target.value)}
                 spellCheck={false}
                 aria-label="Device address"
-                style={{
-                  font: "inherit",
-                  width: "16ch",
-                  padding: "1px 6px",
-                }}
               />{" "}
               — Android cannot resolve <code>.local</code>; use the IP from the
               device&rsquo;s NETWORK screen (hold K2).
-            </p>
+            </label>
           </>
         )}
       </div>

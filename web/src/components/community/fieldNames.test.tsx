@@ -2,12 +2,19 @@
 // finished build, in the deck panel and in the Send window, and the report's
 // detail box, which only had its placeholder sentence to go on. The pack
 // card's address field was already "Device address"; these follow it.
+//
+// The address had a name and still no <label> on three of its four surfaces,
+// so a click on "Device address:" sent focus to the page. Those three styled
+// it inline, each its own way, and the Send window's had no border at all.
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BASICS_PACK } from "@/lib/pattern/packs";
 import DeckPanel from "./DeckPanel";
 import ReportModal from "./ReportModal";
 import SendModuleModal from "./SendModuleModal";
+import ShippedPackCard from "./ShippedPackCard";
+import { ZipInstallNote } from "./ZipDownload";
 
 const SESSION = { user: { id: "u1", name: "Tester" } };
 
@@ -16,6 +23,8 @@ vi.mock("@/lib/community/auth-client", () => ({
   authClient: { useSession: () => ({ data: SESSION, isPending: false }) },
 }));
 vi.mock("@/lib/posthogEvents", () => ({ captureEvent: vi.fn() }));
+// The card's strip runs preset code; the field is all this file reads.
+vi.mock("./PatternCanvas", () => ({ default: () => null }));
 
 const DONE = {
   id: "b1",
@@ -61,6 +70,19 @@ async function wait(ms: number) {
   });
 }
 
+/** The board's address, once it is drawn the one way: in the <label> that
+ *  holds its sentence, sized by the stylesheet rather than inline. */
+function addressField(name: "Device address" | "Board address") {
+  const field = screen.getByRole("textbox", { name });
+  const label = field.closest("label");
+  expect(label, `${name} is not in a <label>`).not.toBeNull();
+  expect(label!.control).toBe(field);
+  expect(label!.textContent).toMatch(new RegExp(`^${name}:`));
+  expect(field).toHaveClass("zipHostField");
+  expect(field).not.toHaveAttribute("style");
+  return field;
+}
+
 describe("community fields say what they are", () => {
   it("names the device address under a deck build", async () => {
     window.localStorage.setItem(
@@ -73,7 +95,7 @@ describe("community fields say what they are", () => {
     fireEvent.click(screen.getByRole("button", { name: "Build 1 module" }));
     await wait(1000);
 
-    expect(screen.getByRole("textbox", { name: "Device address" })).toHaveValue("patternflow.local");
+    expect(addressField("Device address")).toHaveValue("patternflow.local");
   });
 
   it("names the device address in the Send window", async () => {
@@ -81,7 +103,17 @@ describe("community fields say what they are", () => {
     await wait(1000);
 
     expect(screen.getByText(/Wave built/)).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Device address" })).toHaveValue("patternflow.local");
+    expect(addressField("Device address")).toHaveValue("patternflow.local");
+  });
+
+  it("names the device address on the Basics card", () => {
+    render(<ShippedPackCard pack={BASICS_PACK} />);
+    expect(addressField("Device address")).toHaveValue("patternflow.local");
+  });
+
+  it("names the board address in the zip note", () => {
+    render(<ZipInstallNote kind="deck" />);
+    expect(addressField("Board address")).toHaveValue("patternflow.local");
   });
 
   it("names the report's detail box and keeps its hint", () => {

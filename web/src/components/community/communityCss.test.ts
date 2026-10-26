@@ -158,7 +158,8 @@ describe("the header spacer on a phone", () => {
 // focus. On 26 October, at 390px, every community field was: 14px for the
 // wall's search, a comment, sign in, a report and the edit dialogs, 12px for a
 // C++ header, a performance's JSON and a deck's pack link, 12.5px for a deck's
-// visibility picker.
+// visibility picker. The board's address was 11.5px on the Basics card and
+// 12px in the deck panel, the Send window and the zip note.
 describe("text fields on a phone", () => {
   const community = css("Community.module.css");
   const fields = [
@@ -168,6 +169,7 @@ describe("text fields on a phone", () => {
     ".postBodyInput",
     ".shareLinkField",
     ".deckVisControl select",
+    ".zipHostField",
   ];
 
   it.each(fields)("sets %s at 16px", (field) => {
@@ -185,9 +187,7 @@ describe("text fields on a phone", () => {
     expect(field).toContain("width: 0");
   });
 
-  // A field with a class of its own fails here before it zooms a phone. The
-  // board's address is left out: it sits inline in a sentence at the
-  // sentence's size, and four places draw it four ways.
+  // A field with a class of its own fails here before it zooms a phone.
   it("covers every text field the community draws", () => {
     const src = path.resolve(__dirname, "../..");
     const files = ["components/community", "app/community", "components/guide/desk/community"].flatMap((dir) =>
@@ -195,7 +195,7 @@ describe("text fields on a phone", () => {
         .filter((name) => name.endsWith(".tsx") && !name.endsWith(".test.tsx"))
         .map((name) => path.join(dir, name)),
     );
-    const styled = /\b\w+\.(textInput|postBodyInput|shareLinkField)\b/;
+    const styled = /\b\w+\.(textInput|postBodyInput|shareLinkField|zipHostField)\b/;
     const loose: string[] = [];
     let seen = 0;
     for (const file of files) {
@@ -203,7 +203,6 @@ describe("text fields on a phone", () => {
       for (const { index, 1: tag } of source.matchAll(/<(input|textarea|select)\b/g)) {
         const attributes = openingTag(source, index);
         if (/\btype="(range|checkbox|radio|file|hidden)"/.test(attributes)) continue;
-        if (/aria-label="(Device|Board) address"/.test(attributes)) continue;
         seen++;
         if (styled.test(attributes)) continue;
         const label = source.lastIndexOf("<label", index);
@@ -235,7 +234,7 @@ describe("touch targets on a phone", () => {
     return line!.slice(property.length + 1).trim();
   };
 
-  it.each([".headerNav > a", ".headerNav > button", ".sortTabs a", ".sortTabs button", ".filterChip"])(
+  it.each([".headerNav > a", ".headerNav > button", ".sortTabs a", ".sortTabs button", ".filterChip", ".zipHostField"])(
     "gives %s 44px of height",
     (selector) => {
       expect(phone(selector)).toContain("min-height: 44px");
@@ -291,6 +290,15 @@ describe("touch targets on a phone", () => {
   it("drops the gaps between the wall's control rows", () => {
     expect(phone(".sortTabs")).toContain("row-gap: 0");
     expect(phone(".feedControls")).toContain("gap: 0 12px");
+  });
+
+  // Inside its sentence the field is a pointer's target and needs 24px; a
+  // thumb gets a line of its own.
+  it("gives the board's address its own line on a phone and 24px elsewhere", () => {
+    const field = phone(".zipHostField");
+    expect(field).toContain("display: block");
+    expect(field).toContain("width: 100%");
+    expect(declarations(rule(community, ".zipHostField"))).toContain("min-height: 24px");
   });
 });
 
