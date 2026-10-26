@@ -32,6 +32,11 @@ export default function BodyComposer({
   autoFocus?: boolean;
 }) {
   const [previewing, setPreviewing] = useState(false);
+  // Posting from Preview clears the text under it. Left there, the field was
+  // a preview of nothing with its tab greyed out and no textarea to write the
+  // next comment in. Adjusted during render, guarded, like AuthStatus's latch.
+  const hasText = value.trim().length > 0;
+  if (previewing && !hasText) setPreviewing(false);
   const ref = useAutoGrow<HTMLTextAreaElement>(previewing ? "" : value);
 
   return (
@@ -53,7 +58,7 @@ export default function BodyComposer({
           data-active={previewing}
           // Nothing to preview is worth saying out loud rather than showing an
           // empty box that looks like a broken renderer.
-          disabled={value.trim().length === 0}
+          disabled={!hasText}
           onClick={() => setPreviewing(true)}
         >
           Preview
