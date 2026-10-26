@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { FIRMWARE_NOTICE_COOKIE, firmwareNoticeDismissed } from "@/lib/community/firmwareNotice";
 import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/server/db";
@@ -74,6 +75,11 @@ export default async function CommunityLayout({ children }: { children: React.Re
     : 0;
   const username =
     (session?.user as { username?: string } | undefined)?.username ?? null;
+  // Read here so the firmware notice is in the server's HTML exactly when it
+  // will stay on screen (FirmwareNotice.tsx).
+  const noticeDismissed = firmwareNoticeDismissed(
+    (await cookies()).get(FIRMWARE_NOTICE_COOKIE)?.value,
+  );
 
   return (
     <main className={styles.page}>
@@ -81,7 +87,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
         {/* Above the header on purpose. A board owner needs to see this once;
             putting it below the nav would let it sit under the fold on the
             page they actually came for. */}
-        <FirmwareNotice />
+        <FirmwareNotice serverDismissed={noticeDismissed} />
         <header className={styles.pageHeader}>
           <div className={styles.brandBlock}>
             <Link href="/" prefetch={false} className={styles.brand}>
