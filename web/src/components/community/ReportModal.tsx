@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import {
   REPORT_DETAIL_MAX,
@@ -55,9 +55,8 @@ export default function ReportModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetType, targetId, reason, detail }),
       });
-      const payload = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok) {
-        setError(payload.error ?? "Could not send the report.");
+        setError(await readApiError(response, "Could not send the report"));
         return;
       }
       captureEvent("community_report", { target_type: targetType, reason });

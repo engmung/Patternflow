@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { PUBLIC_DECKS_MAX, type CollectedPattern } from "@/lib/community/deck";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
@@ -64,9 +64,13 @@ export default function ShareDeckModal({
           patternIds: deck.map((item) => item.patternId),
         }),
       });
-      const payload = (await response.json()) as { id?: string; error?: string };
-      if (!response.ok || !payload.id) {
-        setError(payload.error ?? "Sharing failed.");
+      if (!response.ok) {
+        setError(await readApiError(response, "Sharing failed"));
+        return;
+      }
+      const payload = (await response.json()) as { id?: string };
+      if (!payload.id) {
+        setError("Sharing failed.");
         return;
       }
       captureEvent("community_deck_shared", {

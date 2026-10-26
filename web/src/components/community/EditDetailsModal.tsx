@@ -13,7 +13,7 @@ import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/patter
 import { useDialog } from "@/lib/hooks/useDialog";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import { captureEvent } from "@/lib/posthogEvents";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import {
   VISIBILITY_HINTS,
   VISIBILITY_LABELS,
@@ -99,9 +99,8 @@ export default function EditDetailsModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmed, description, license, madeOn, madeHow, visibility }),
       });
-      const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(payload.error ?? "Could not save.");
+        setError(await readApiError(response, "Could not save"));
         return;
       }
       captureEvent("community_edit_details", { pattern_id: patternId, license });

@@ -5,7 +5,7 @@ import { useState } from "react";
 import BodyComposer from "./BodyComposer";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { COMMENT_MAX } from "@/lib/community/validate";
 import AuthModal from "./AuthModal";
@@ -73,8 +73,7 @@ export default function CommentSection({
         },
       );
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        setRowError(payload.error ?? "Could not save the edit.");
+        setRowError(await readApiError(response, "Could not save the edit"));
         return;
       }
       setEditingId(null);
@@ -95,8 +94,7 @@ export default function CommentSection({
         { method: "DELETE", ...COMMUNITY_FETCH_INIT },
       );
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
-        setRowError(payload.error ?? "Could not delete the comment.");
+        setRowError(await readApiError(response, "Could not delete the comment"));
         return;
       }
       setConfirmDelete(null);
@@ -124,9 +122,8 @@ export default function CommentSection({
           body: JSON.stringify({ body: text }),
         },
       );
-      const payload = (await response.json()) as { error?: string };
       if (!response.ok) {
-        setError(payload.error ?? "Comment failed.");
+        setError(await readApiError(response, "Comment failed"));
         return;
       }
 

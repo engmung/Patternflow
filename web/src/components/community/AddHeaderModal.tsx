@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { captureEvent } from "@/lib/posthogEvents";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { useDialog } from "@/lib/hooks/useDialog";
 import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
@@ -93,9 +93,8 @@ export default function AddHeaderModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(call.body),
       });
-      const payload = (await response.json()) as { error?: string; hasCpp?: boolean };
       if (!response.ok) {
-        setError(payload.error ?? "Could not save the header.");
+        setError(await readApiError(response, "Could not save the header"));
         return;
       }
       captureEvent(
