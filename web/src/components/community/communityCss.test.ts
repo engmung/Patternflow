@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { contrast, type Rgb } from "../guide/ui/panelTint";
 
 const css = (name: string) => readFileSync(path.resolve(__dirname, name), "utf8");
 
@@ -24,6 +25,36 @@ function mediaRule(source: string, query: string, selector: string): string {
   expect(ruleAt, `${selector} is missing from @media ${query}`).toBeGreaterThan(-1);
   return block.slice(block.indexOf("{", ruleAt) + 1, block.indexOf("}", ruleAt));
 }
+
+// The community's text colours, against each ground they are drawn on. On 26
+// October the faint ink was #6B6558, 3.18:1 on the well-2 and 3.40:1 on the
+// page, and axe found 426 color-contrast failures over eleven community pages,
+// every one of them in that colour.
+describe("community type on the dark room", () => {
+  const globals = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
+  const token = (name: string): Rgb => {
+    const hex = globals.match(new RegExp(`--${name}: #([0-9A-Fa-f]{6});`))?.[1];
+    expect(hex, `--${name} is missing`).toBeDefined();
+    const n = parseInt(hex!, 16);
+    return [n >> 16, (n >> 8) & 255, n & 255];
+  };
+  const grounds = ["pfc-ground", "pfc-panel", "pfc-well", "pfc-well-2"];
+
+  it.each(["pfc-ink", "pfc-ink-2", "pfc-ink-muted", "pfc-ink-faint", "pfc-led", "pfc-danger"])(
+    "reads --%s at 4.5:1 on every ground",
+    (ink) => {
+      for (const ground of grounds) {
+        expect(contrast(token(ink), token(ground)), `--${ink} on --${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+
+  it("keeps the faint ink below the muted one", () => {
+    expect(contrast(token("pfc-ink-faint"), token("pfc-ground"))).toBeLessThan(
+      contrast(token("pfc-ink-muted"), token("pfc-ground")),
+    );
+  });
+});
 
 describe("community dialogs", () => {
   it("give the header's close button a 44px box", () => {
