@@ -10,10 +10,21 @@ export const CODE_MAX = 100_000; // ~100KB of pattern source
 export const CPP_MAX = 200_000; // headers carry baked LUT tables, so allow more
 export const COMMENT_MAX = 2000;
 
+export const TITLE_ERROR = `Title is required (one line, max ${TITLE_MAX} chars, no control characters).`;
+
+// The title is written into the licence header's `// Title:` line, and a
+// fork's `// Based on:` line repeats it (lib/pattern/share.ts). A line break
+// there closed the comment and the rest of the title ran as code. The other
+// C0 and C1 controls go too, and the bidi overrides and isolates, which make a
+// title read in an order it was not typed in. A zero-width joiner stays:
+// emoji are built with it.
+const TITLE_REFUSED = /[\u0000-\u001F\u007F-\u009F\u2028\u2029\u202A-\u202E\u2066-\u2069]/;
+
 export function cleanTitle(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const title = raw.trim();
   if (title.length === 0 || title.length > TITLE_MAX) return null;
+  if (TITLE_REFUSED.test(title)) return null;
   return title;
 }
 
