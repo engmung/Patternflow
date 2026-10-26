@@ -232,3 +232,55 @@ describe("the wall's first paint", () => {
     expect(grid(container).style.getPropertyValue("--feed-slot")).toBe(`${MOBILE_FEED_VIEW.slot}px`);
   });
 });
+
+// "Liked" is the viewer's own list. Empty, it used to borrow the wall's panel
+// and say nobody had hung anything, over a wall that had thirty patterns.
+describe("an empty Liked tab", () => {
+  it("says nothing is liked yet and links back to the wall", () => {
+    search = new URLSearchParams("sort=liked");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" signedIn />);
+    expect(screen.getByText("You haven't liked a pattern yet.")).toBeInTheDocument();
+    expect(screen.getByText(/Press the heart on a pattern and it is kept here/)).toBeInTheDocument();
+    expect(screen.queryByText("Nobody has hung anything here yet.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Pattern Lab/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Browse the wall →" })).toHaveAttribute(
+      "href",
+      "/community/patterns",
+    );
+  });
+
+  it("drops only the filter when none of the likes is flashable", () => {
+    search = new URLSearchParams("sort=liked&hw=1");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" hardwareOnly signedIn />);
+    expect(screen.getByText("None of the patterns you liked is flashable yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing flashable yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Every pattern you liked →" })).toHaveAttribute(
+      "href",
+      "/community/patterns?sort=liked",
+    );
+  });
+
+  it("asks a signed-out visitor to sign in, and keeps the filter on the way back", () => {
+    search = new URLSearchParams("sort=liked&hw=1&page=2");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" hardwareOnly />);
+    expect(screen.getByText("Sign in to see the patterns you liked.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Browse the wall →" })).toHaveAttribute(
+      "href",
+      "/community/patterns?hw=1",
+    );
+  });
+
+  it("says a search ran over the likes only", () => {
+    search = new URLSearchParams("sort=liked&q=zzz");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" signedIn q="zzz" />);
+    expect(screen.getByText("Nothing matches “zzz”.")).toBeInTheDocument();
+    expect(screen.getByText(/Only the patterns you liked were searched/)).toBeInTheDocument();
+  });
+
+  it("leaves the empty wall's own panel alone", () => {
+    search = new URLSearchParams();
+    render(<CommunityFeedClient items={[]} total={0} signedIn />);
+    expect(screen.getByText("Nobody has hung anything here yet.")).toBeInTheDocument();
+    expect(screen.queryByText(/Only the patterns you liked/)).not.toBeInTheDocument();
+  });
+});

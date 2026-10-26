@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
-import FeedControls from "./FeedControls";
+import FeedControls, { feedHref } from "./FeedControls";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
   FEED_SLOT_KEY,
@@ -263,6 +264,8 @@ function FeedWall({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const isMobile = useIsMobile();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
   // The zoom. Starts at the default for a hydration-stable first paint, then
   // adopts whatever this browser chose last time — a frame later, so the
@@ -519,11 +522,48 @@ function FeedWall({
           <span className={styles.emptyTitle}>Nothing matches “{searched}”.</span>
           <span className={styles.emptyBody}>
             Titles and handles are searched as typed. Start with @ to search handles only.
+            {sort === "liked" && " Only the patterns you liked were searched."}
             {hardwareOnly && " Only flashable patterns were searched — drop the filter to search all of them."}
           </span>
           <button type="button" className={styles.feedSearchClear} onClick={onClearSearch}>
             Clear search
           </button>
+        </div>
+      ) : total === 0 && sort === "liked" ? (
+        // "Liked" lists the viewer's own hearts, not the wall. The wall's
+        // empty panel said nobody had hung anything over a wall of thirty
+        // patterns, and sent people to Pattern Lab for a list a heart fills.
+        <div className={styles.emptyPanel}>
+          <span className={styles.emptyKicker}>Patterns · liked</span>
+          <span className={styles.emptyTitle}>
+            {!signedIn
+              ? "Sign in to see the patterns you liked."
+              : hardwareOnly
+                ? "None of the patterns you liked is flashable yet."
+                : "You haven't liked a pattern yet."}
+          </span>
+          <span className={styles.emptyBody}>
+            {signedIn && hardwareOnly
+              ? "Drop the filter to see every pattern you liked."
+              : "Press the heart on a pattern and it is kept here, on any device you sign in from."}
+          </span>
+          {signedIn && hardwareOnly ? (
+            <Link
+              className={styles.emptyCta}
+              href={feedHref(pathname, params, { hw: null })}
+              scroll={false}
+            >
+              Every pattern you liked →
+            </Link>
+          ) : (
+            <Link
+              className={styles.emptyCta}
+              href={feedHref(pathname, params, { sort: null })}
+              scroll={false}
+            >
+              Browse the wall →
+            </Link>
+          )}
         </div>
       ) : total === 0 ? (
         <div className={styles.emptyPanel}>
