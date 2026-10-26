@@ -51,9 +51,6 @@ export function Header() {
           Decks
         </PLink>
         <PLink go={() => say("elsewhere")} active={false}>
-          Workshop
-        </PLink>
-        <PLink go={() => say("elsewhere")} active={false}>
           Atlas
         </PLink>
       </nav>

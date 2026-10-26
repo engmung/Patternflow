@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { getDb } from "./db";
 import { newId } from "./queries";
-import { comments, notifications, postComments, territoryPins } from "./schema";
+import { comments, notifications } from "./schema";
 
 // Fan-out on write: the mutation that causes a notification also records it,
 // one row per recipient. Nothing here is real-time — the rows sit until the
@@ -28,7 +28,6 @@ export type NotificationType =
   | "pin"
   | "performance"
   | "perf-pin"
-  | "territory"
   | "header-fix"
   | "header-drop"
   | "hidden"
@@ -38,7 +37,7 @@ type Seed = {
   userId: string;
   type: NotificationType;
   actorId: string;
-  targetType: "pattern" | "post" | "deck";
+  targetType: "pattern" | "deck";
   targetId: string;
   targetTitle: string;
   sourceId?: string | null;
@@ -67,13 +66,12 @@ async function insertAll(seeds: Seed[]): Promise<void> {
 }
 
 /**
- * A new comment notifies the owner ("comment") and everyone who commented on
- * the same thing earlier ("thread") — which is what a reply means on a flat
+ * A new comment on a pattern notifies its owner ("comment") and everyone who
+ * commented on it earlier ("thread") — which is what a reply means on a flat
  * thread. The actor is excluded from both, and the owner never gets the
  * weaker "thread" row on top of their "comment" one.
  */
 export async function notifyCommentAdded(opts: {
-  on: "pattern" | "post";
   targetId: string;
   targetTitle: string;
   ownerId: string;
@@ -89,7 +87,7 @@ export async function notifyCommentAdded(opts: {
       userId: opts.ownerId,
       type: "comment",
       actorId: opts.actorId,
-      targetType: opts.on,
+      targetType: "pattern",
       targetId: opts.targetId,
       targetTitle: opts.targetTitle,
       sourceId: opts.commentId,
@@ -97,17 +95,10 @@ export async function notifyCommentAdded(opts: {
     });
   }
 
-  const db = getDb();
-  const earlier =
-    opts.on === "pattern"
-      ? await db
-          .selectDistinct({ userId: comments.userId })
-          .from(comments)
-          .where(eq(comments.patternId, opts.targetId))
-      : await db
-          .selectDistinct({ userId: postComments.userId })
-          .from(postComments)
-          .where(eq(postComments.postId, opts.targetId));
+  const earlier = await getDb()
+    .selectDistinct({ userId: comments.userId })
+    .from(comments)
+    .where(eq(comments.patternId, opts.targetId));
 
   for (const row of earlier) {
     if (row.userId === opts.actorId || row.userId === opts.ownerId) continue;
@@ -115,7 +106,7 @@ export async function notifyCommentAdded(opts: {
       userId: row.userId,
       type: "thread",
       actorId: opts.actorId,
-      targetType: opts.on,
+      targetType: "pattern",
       targetId: opts.targetId,
       targetTitle: opts.targetTitle,
       sourceId: opts.commentId,
@@ -124,46 +115,6 @@ export async function notifyCommentAdded(opts: {
   }
 
   await insertAll(seeds);
-}
-
-/**
- * A new thread in a territory notifies everyone pinned there.
- *
- * This is what makes a pin a SUBSCRIPTION rather than a badge: "I'm working
- * here" already names exactly the people who want to hear that something
- * happened here, so the fan-out list costs no schema and no opt-in flow.
- * The author is excluded as always — and being pinned themselves (the modal
- * checks "also pin me" by default) must not earn them a row about their own
- * thread.
- */
-export async function notifyNewThread(opts: {
-  territoryId: string;
-  /** "A1 · Wired control — OSC" — rides in the snippet so the sentence can
-   *  say where without a join at read time. */
-  territoryLabel: string;
-  postId: string;
-  postTitle: string;
-  actorId: string;
-}): Promise<void> {
-  const pinned = await getDb()
-    .selectDistinct({ userId: territoryPins.userId })
-    .from(territoryPins)
-    .where(eq(territoryPins.territoryId, opts.territoryId));
-
-  await insertAll(
-    pinned
-      .filter((row) => row.userId !== opts.actorId)
-      .map((row) => ({
-        userId: row.userId,
-        type: "territory" as const,
-        actorId: opts.actorId,
-        targetType: "post" as const,
-        targetId: opts.postId,
-        targetTitle: opts.postTitle,
-        sourceId: opts.postId,
-        snippet: opts.territoryLabel,
-      })),
-  );
 }
 
 /**
@@ -406,12 +357,12 @@ export async function notifyVisibilityModerated(opts: {
 
 /**
  * Cleanup for content deletion routes. A notification pointing at something
- * gone is noise, so the route that removes a pattern, post, deck or comment
+ * gone is noise, so the route that removes a pattern, deck or comment
  * calls this with the removed id — it clears rows that point AT the thing
  * and rows triggered BY it.
  */
 export async function clearNotificationsFor(opts: {
-  targetType?: "pattern" | "post" | "deck";
+  targetType?: "pattern" | "deck";
   targetId?: string;
   sourceId?: string;
 }): Promise<void> {

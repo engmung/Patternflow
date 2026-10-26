@@ -25,9 +25,6 @@ export type NotificationView = {
 };
 
 function targetHref(item: NotificationView): string {
-  // A thread's real URL carries its territory code, which this row does not
-  // know — /community/t/[id] resolves it.
-  if (item.targetType === "post") return `/community/t/${item.targetId}`;
   if (item.targetType === "deck") return `/community/d/${item.targetId}`;
   return `/community/p/${item.targetId}`;
 }
@@ -65,10 +62,6 @@ function describe(item: NotificationView): string {
       return `made “${item.targetTitle}” private — it is off the wall until a moderator restores it`;
     case "restored":
       return `restored “${item.targetTitle}” — it is public again`;
-    case "territory":
-      // The snippet carries where ("A1 · Wired control — OSC"), because that
-      // is the reason this row exists: you are pinned there.
-      return `started “${item.targetTitle}” in ${item.snippet ?? "a territory you're pinned in"}`;
     default:
       return `did something with “${item.targetTitle}”`;
   }
@@ -110,7 +103,7 @@ export default function NotificationsList({ items }: { items: NotificationView[]
           >
             <span className={styles.notifyMark} aria-hidden="true" />
             {/* Which pattern it happened to, before the sentence saying what.
-                Only pattern alerts have one — a deck or a board post does not. */}
+                Only pattern alerts have one — a deck does not. */}
             {item.patternCode && (
               <span className={styles.notifyThumb}>
                 <PatternCanvas
@@ -124,9 +117,9 @@ export default function NotificationsList({ items }: { items: NotificationView[]
               <span className={styles.notifySentence}>
                 <strong>@{item.actor}</strong> {describe(item)}
               </span>
-              {/* deck and territory embed their snippet in the sentence — a
-                  second line would say the same thing twice. */}
-              {item.snippet && item.type !== "deck" && item.type !== "territory" && (
+              {/* deck embeds its snippet in the sentence — a second line would
+                  say the same thing twice. */}
+              {item.snippet && item.type !== "deck" && (
                 <span className={styles.notifySnippet}>{item.snippet}</span>
               )}
             </span>

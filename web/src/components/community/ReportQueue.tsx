@@ -22,9 +22,10 @@ export type ReportView = {
 
 function targetHref(type: string, id: string): string | null {
   if (type === "pattern") return `/community/p/${id}`;
-  if (type === "post") return `/community/t/${id}`;
   if (type === "deck") return `/community/d/${id}`;
-  return null; // a comment has no page of its own
+  // A comment has no page of its own, and a workshop thread ("post") has had
+  // none since the workshop came down on 26 October 2026.
+  return null;
 }
 
 export default function ReportQueue({

@@ -67,7 +67,6 @@ async function handlePost(request: Request, context: { params: Promise<{ id: str
   });
 
   await notifyCommentAdded({
-    on: "pattern",
     targetId: patternId,
     targetTitle: pattern.title,
     ownerId: pattern.userId,

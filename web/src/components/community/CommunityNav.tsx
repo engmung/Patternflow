@@ -27,17 +27,10 @@ const SECTIONS = [
       path.startsWith("/community/decks") || path.startsWith("/community/d/"),
   },
   {
-    href: "/community/workshop",
-    label: "Workshop",
-    // Threads live inside a territory, so a thread page is still the map.
-    match: (path: string) =>
-      path.startsWith("/community/workshop") || path.startsWith("/community/t/"),
-  },
-  {
     href: "/community/atlas",
     label: "Atlas",
-    // The other map: workshop charts the hardware's directions, this charts
-    // pattern-technique space — with a generation prompt on every point.
+    // A map of pattern-technique space, with a generation prompt on every
+    // point.
     match: (path: string) => path.startsWith("/community/atlas"),
   },
 ];
@@ -84,14 +77,6 @@ export default function CommunityNav({
             title="Choose the patterns across the top of the community home page"
           >
             Marquee
-          </Link>
-          <Link
-            href="/community/territories"
-            data-active={pathname.startsWith("/community/territories")}
-            aria-current={pathname.startsWith("/community/territories") ? "page" : undefined}
-            title="Draw the directions the workshop is made of"
-          >
-            Territories
           </Link>
         </>
       )}

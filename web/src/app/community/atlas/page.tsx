@@ -6,11 +6,10 @@ import { communityEnabled } from "@/lib/community/server/db";
 import { listAtlasPins, listPatternsByUser } from "@/lib/community/server/queries";
 import AtlasClient from "@/components/community/AtlasClient";
 
-// The atlas: a map of pattern-technique space, sibling to the workshop map.
-// The workshop charts where the HARDWARE could go (territories = project
-// directions); this charts where PATTERNS could go — verified continents,
-// open frontier, invented hypotheses, and, pinned between them, the actual
-// published work: each pin is a live pattern placed where it belongs.
+// The atlas: a map of pattern-technique space. It charts where PATTERNS could
+// go — verified continents, open frontier, invented hypotheses, and, pinned
+// between them, the actual published work: each pin is a live pattern placed
+// where it belongs.
 //
 // Technique entries live in lib/atlas/data.ts and are edited like the seed
 // script. Pins live in the atlas_pins table.

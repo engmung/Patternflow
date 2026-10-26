@@ -4,7 +4,7 @@
 
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { decks, notifications, patterns, posts, user } from "../schema";
+import { decks, notifications, patterns, user } from "../schema";
 
 // ── Notifications ────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ export type NotificationRow = {
   actorUsername: string | null;
   actorDisplayUsername: string | null;
   /** Source of the pattern this alert is about, for the row's mini canvas.
-   *  Null when the target is a deck or a post. */
+   *  Null when the target is a deck. */
   patternCode: string | null;
 };
 
@@ -63,11 +63,10 @@ export async function listNotifications(
       patternVisibility: patterns.visibility,
       patternUserId: patterns.userId,
       // The row draws the pattern it is about, so it needs the source. Null
-      // for deck and post alerts, which have no canvas to show.
+      // for deck alerts, which have no canvas to show.
       patternCode: patterns.code,
       deckVisibility: decks.visibility,
       deckUserId: decks.userId,
-      postId: posts.id,
     })
     .from(notifications)
     .innerJoin(user, eq(notifications.actorId, user.id))
@@ -78,10 +77,6 @@ export async function listNotifications(
     .leftJoin(
       decks,
       and(eq(notifications.targetType, "deck"), eq(notifications.targetId, decks.id)),
-    )
-    .leftJoin(
-      posts,
-      and(eq(notifications.targetType, "post"), eq(notifications.targetId, posts.id)),
     )
     .where(eq(notifications.userId, userId))
     .orderBy(desc(notifications.createdAt))
@@ -97,7 +92,9 @@ export async function listNotifications(
         if (!row.deckUserId) return false;
         return row.deckVisibility !== "private" || row.deckUserId === userId || moderator;
       }
-      if (row.targetType === "post") return Boolean(row.postId);
+      // A workshop thread. The workshop came down on 26 October 2026 and its
+      // alerts stay in the table, with nowhere left to link to.
+      if (row.targetType === "post") return false;
       return true;
     })
     .map((row) => ({

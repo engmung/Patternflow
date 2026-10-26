@@ -5,9 +5,10 @@ import remarkGfm from "remark-gfm";
 import { safeHref } from "@/lib/community/markdown";
 import styles from "./Community.module.css";
 
-// What a thread post and a comment are written in.
+// What a comment is written in. The workshop's threads were too, until it came
+// down on 26 October 2026.
 //
-// Markdown, but a closed set of it. The board is build logs and test results,
+// Markdown, but a closed set of it. Comments are build notes and test results,
 // so lists, headings, inline `code` and the odd table of measurements all earn
 // their place — and everything past that is surface area nobody asked for.
 //
@@ -20,9 +21,9 @@ import styles from "./Community.module.css";
 //
 // 2. No images. `![](https://somewhere/x.png)` would make every reader's
 //    browser fetch a remote file, which is a tracking pixel with the reader's
-//    IP attached and a way to hotlink somebody else's bandwidth. Pictures have
-//    a path already — attachments, sniffed by magic bytes and served
-//    same-origin under a sandbox CSP — and that stays the only one.
+//    IP attached and a way to hotlink somebody else's bandwidth. The one path
+//    a picture had was a workshop attachment, sniffed by magic bytes and
+//    served same-origin, and it went with the workshop.
 //
 // 3. http(s) links only, and never same-tab. safeHref drops anything else, so
 //    a `javascript:` or `data:` href renders as inert text.

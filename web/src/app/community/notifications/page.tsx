@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Alerts / Patternflow Community",
-  description: "Comments, forks and deck inclusions on your patterns and posts.",
+  description: "Comments, forks and deck inclusions on your patterns.",
 };
 
 export default async function CommunityNotificationsPage() {
@@ -26,7 +26,7 @@ export default async function CommunityNotificationsPage() {
   if (!session) {
     return (
       <div className={styles.empty}>
-        Sign in to see alerts about your patterns, posts and comments.
+        Sign in to see alerts about your patterns and comments.
       </div>
     );
   }

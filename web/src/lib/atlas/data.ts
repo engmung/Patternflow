@@ -1,7 +1,6 @@
 // Pattern Atlas — the map of pattern-technique space.
 //
-// A sibling of the workshop map: the workshop charts where the HARDWARE could
-// go (territories = project directions), this charts where PATTERNS could go.
+// It charts where PATTERNS could go.
 // Axes are feelings, not math: x = order → chaos, y = wire/trajectory → field.
 //
 // This module is the single source of truth, edited like the community seed

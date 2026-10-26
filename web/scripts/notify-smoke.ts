@@ -75,7 +75,8 @@ async function main() {
       updatedAt: ago(10),
     },
   ]);
-  // Threads live on the map now, so the fixture needs somewhere to put one.
+  // The workshop came down on 26 October 2026 and its tables stayed, so the
+  // fixture keeps a thread for the alert below that still points at one.
   await db.insert(schema.territories).values({
     id: "z1",
     code: "A1",
@@ -102,7 +103,6 @@ async function main() {
       createdAt: NOW,
     });
     await notify.notifyCommentAdded({
-      on: "pattern",
       targetId: "p1",
       targetTitle: "Alice One",
       ownerId: "alice",
@@ -132,28 +132,26 @@ async function main() {
   check("thread rows say so", bobRows.map((row) => row.type), ["thread", "thread"]);
   check("and carry the snippet", bobRows[0]?.snippet, "thanks both");
 
-  console.log("\n── post comments use the same path ──");
-  await db.insert(schema.postComments).values({
-    id: "pc1",
-    postId: "t1",
-    userId: "bob",
-    body: "post reply",
-    createdAt: NOW,
-  });
-  await notify.notifyCommentAdded({
-    on: "post",
+  console.log("\n── a workshop alert stays off the list ──");
+  await db.insert(schema.notifications).values({
+    id: "n-post",
+    userId: "cara",
+    type: "thread",
+    actorId: "bob",
+    targetType: "post",
     targetId: "t1",
     targetTitle: "Alice Thread",
-    ownerId: "alice",
-    actorId: "bob",
-    commentId: "pc1",
-    body: "post reply",
+    createdAt: NOW,
   });
-  check("the post's author hears it", await queries.countUnreadNotifications("alice"), 3);
   check(
-    "the row points at the post",
-    (await queries.listNotifications("alice"))[0]?.targetType,
-    "post",
+    "a row about a workshop thread is not listed",
+    (await queries.listNotifications("cara")).map((row) => row.targetType),
+    ["pattern"],
+  );
+  check(
+    "not for a moderator either",
+    (await queries.listNotifications("cara", { moderator: true })).map((row) => row.targetType),
+    ["pattern"],
   );
 
   console.log("\n── forks ──");
@@ -178,7 +176,7 @@ async function main() {
     forkVisibility: "public",
     actorId: "bob",
   });
-  check("a public fork tells the parent's author", await queries.countUnreadNotifications("alice"), 4);
+  check("a public fork tells the parent's author", await queries.countUnreadNotifications("alice"), 3);
   await notify.notifyForkPublished({
     parentOwnerId: "alice",
     parentTitle: "Alice One",
@@ -186,7 +184,7 @@ async function main() {
     forkVisibility: "private",
     actorId: "bob",
   });
-  check("a private fork tells nobody — its page would 404", await queries.countUnreadNotifications("alice"), 4);
+  check("a private fork tells nobody — its page would 404", await queries.countUnreadNotifications("alice"), 3);
   await notify.notifyForkPublished({
     parentOwnerId: "alice",
     parentTitle: "Alice One",
@@ -194,7 +192,7 @@ async function main() {
     forkVisibility: "public",
     actorId: "alice",
   });
-  check("forking your own work tells nobody", await queries.countUnreadNotifications("alice"), 4);
+  check("forking your own work tells nobody", await queries.countUnreadNotifications("alice"), 3);
 
   console.log("\n── deck inclusion ──");
   await db.insert(schema.decks).values({
@@ -215,7 +213,7 @@ async function main() {
     actorId: "bob",
     patterns: deckPatterns,
   });
-  check("the pattern's author hears it", await queries.countUnreadNotifications("alice"), 5);
+  check("the pattern's author hears it", await queries.countUnreadNotifications("alice"), 4);
   check("the deck owner's own pattern tells nobody", await queries.countUnreadNotifications("bob"), 2);
   await notify.notifyDeckInclusion({
     deckId: "d1",
@@ -223,12 +221,12 @@ async function main() {
     actorId: "bob",
     patterns: deckPatterns,
   });
-  check("repeating the event while unread is absorbed", await queries.countUnreadNotifications("alice"), 5);
+  check("repeating the event while unread is absorbed", await queries.countUnreadNotifications("alice"), 4);
 
   console.log("\n── reading ──");
   await queries.markNotificationsRead("alice");
   check("opening the page reads everything", await queries.countUnreadNotifications("alice"), 0);
-  check("the rows themselves stay", (await queries.listNotifications("alice")).length, 5);
+  check("the rows themselves stay", (await queries.listNotifications("alice")).length, 4);
 
   console.log("\n── the read path respects visibility ──");
   await db.update(schema.patterns).set({ visibility: "private" }).where(eq(schema.patterns.id, "p1"));

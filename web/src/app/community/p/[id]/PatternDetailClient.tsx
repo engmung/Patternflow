@@ -765,7 +765,7 @@ export default function PatternDetailClient({
         />
       </div>
 
-      <CommentSection target={{ kind: "pattern", id: pattern.id }} comments={comments} />
+      <CommentSection patternId={pattern.id} comments={comments} />
 
       {headerModalOpen && (
         <AddHeaderModal

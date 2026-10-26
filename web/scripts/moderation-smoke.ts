@@ -192,7 +192,9 @@ check("a non-string is rejected", cleanModerationReason(42), undefined);
 
 console.log("\n── report input ──");
 check("pattern is a valid target", isReportTargetType("pattern"), true);
-check("post is a valid target", isReportTargetType("post"), true);
+// A workshop thread was a target until the workshop came down on 26 October 2026.
+check("post is no longer a target", isReportTargetType("post"), false);
+check("deck is a valid target", isReportTargetType("deck"), true);
 check("comment is a valid target", isReportTargetType("comment"), true);
 check("user is not a target", isReportTargetType("user"), false);
 check("non-string is not a target", isReportTargetType(42), false);

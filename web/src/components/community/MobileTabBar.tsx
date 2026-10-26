@@ -5,12 +5,12 @@ import { usePathname } from "next/navigation";
 import styles from "./Community.module.css";
 
 // Navigation for a phone. The desktop header puts the section nav under the
-// wordmark; a phone has neither the width nor the hover, so the four places
+// wordmark; a phone has neither the width nor the hover, so the three places
 // you can be move to the bottom edge where a thumb reaches them.
 //
 // The glyphs are drawn from the same squares the rest of the community is made
-// of — bars for a running order, an outlined panel for a pattern, a rotated
-// one for the board, a filled one for you.
+// of — bars for a running order, an outlined panel for a pattern, a filled one
+// for you.
 
 const TABS = [
   {
@@ -29,13 +29,6 @@ const TABS = [
       path.startsWith("/community/p/"),
     glyph: "square",
   },
-  {
-    href: "/community/workshop",
-    label: "Workshop",
-    match: (path: string) =>
-      path.startsWith("/community/workshop") || path.startsWith("/community/t/"),
-    glyph: "diamond",
-  },
 ] as const;
 
 function Glyph({ kind }: { kind: string }) {
@@ -48,7 +41,6 @@ function Glyph({ kind }: { kind: string }) {
       </span>
     );
   }
-  if (kind === "diamond") return <span className={styles.tabGlyphDiamond} aria-hidden="true" />;
   if (kind === "fill") return <span className={styles.tabGlyphFill} aria-hidden="true" />;
   return <span className={styles.tabGlyphSquare} aria-hidden="true" />;
 }

@@ -9,9 +9,6 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 // Pattern Lab on another origin could not read even the status. Every route
 // below is driven with a signed-in moderator and the Lab's Origin, on a
 // database of its own, with something for each id in the path to find.
-//
-// territories/[code]/pin is not here: its body is optional, and a `null` one
-// already pins with no note.
 
 const LAB_ORIGIN = "https://lab.patternflow.test";
 const ENV_KEYS = [
@@ -44,15 +41,8 @@ const ROUTES: [string, string, () => Promise<RouteModule>, Record<string, string
   ["POST", "patterns/p1/header", () => import("./patterns/[id]/header/route"), { id: "p1" }],
   ["POST", "patterns/p1/performance", () => import("./patterns/[id]/performance/route"), { id: "p1" }],
   ["PATCH", "ports/h1", () => import("./ports/[id]/route"), { id: "h1" }],
-  ["POST", "posts", () => import("./posts/route"), {}],
-  ["PATCH", "posts/s1", () => import("./posts/[id]/route"), { id: "s1" }],
-  ["POST", "posts/s1/comments", () => import("./posts/[id]/comments/route"), { id: "s1" }],
-  ["POST", "posts/s1/pin", () => import("./posts/[id]/pin/route"), { id: "s1" }],
-  ["POST", "presence", () => import("./presence/route"), {}],
   ["POST", "reports", () => import("./reports/route"), {}],
   ["PATCH", "reports/r1", () => import("./reports/[id]/route"), { id: "r1" }],
-  ["POST", "territories", () => import("./territories/route"), {}],
-  ["PATCH", "territories/A1", () => import("./territories/[code]/route"), { code: "A1" }],
 ];
 
 beforeAll(async () => {
@@ -94,10 +84,6 @@ beforeAll(async () => {
   await db.insert(schema.comments).values({ id: "c1", patternId: "p1", userId, body: "first", createdAt: now });
   await db.insert(schema.patternHeaders).values({
     id: "h1", patternId: "p1", userId, codeCpp: "#pragma once\n", createdAt: now,
-  });
-  await db.insert(schema.territories).values({ id: "t1", code: "A1", title: "Workshop", createdAt: now });
-  await db.insert(schema.posts).values({
-    id: "s1", territoryId: "t1", userId, title: "ada's post", body: "hello", createdAt: now, updatedAt: now,
   });
   await db.insert(schema.reports).values({
     id: "r1", targetType: "pattern", targetId: "p1", reporterId: userId, reason: "other", createdAt: now,

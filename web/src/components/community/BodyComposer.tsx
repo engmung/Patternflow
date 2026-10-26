@@ -5,7 +5,7 @@ import { useAutoGrow } from "@/lib/hooks/useAutoGrow";
 import PostBody from "./PostBody";
 import styles from "./Community.module.css";
 
-// The body field, wherever a post is written — new thread, or editing one.
+// The body field of a comment, a new one or one being edited.
 //
 // Markdown you cannot see is markdown you find out about after posting, so
 // Write/Preview is part of the field rather than a nicety bolted on later.

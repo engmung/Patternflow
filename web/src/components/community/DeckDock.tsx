@@ -47,24 +47,18 @@ import styles from "./Community.module.css";
  *
  * The dock exists because a deck is assembled WHILE browsing patterns — so
  * where there are none there is nothing to assemble, and a bar pinned across
- * the bottom of the window is just furniture. On the map it is worse than
- * furniture: it sits exactly where the drawer's "say where you are with it"
- * composer is.
+ * the bottom of the window is just furniture.
  *
  * A denylist rather than an allowlist on purpose: a new page that shows
  * patterns should get the dock without anyone remembering to add it here, and
  * a new page that does not is the rarer case.
  */
 const NO_PATTERNS_HERE = [
-  "/community/workshop",
-  // The thread redirect — same destination, so the same answer.
-  "/community/t/",
   "/community/notifications",
   // Moderation surfaces. The marquee picker does show patterns, but they are
   // candidates for the front page rather than things to collect.
   "/community/reports",
   "/community/featured",
-  "/community/territories",
   // The atlas maps techniques, not collectable patterns.
   "/community/atlas",
 ];

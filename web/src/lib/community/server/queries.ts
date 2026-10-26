@@ -7,8 +7,7 @@ export { newId, FEED_SORTS, parseFeedSort, countFeed, listFeed, listFeatured, li
 export type { FeedSort, FeedItem } from "./queries/patterns";
 export { listPublicDecks, listDecksWithPattern, listDecksByUser, getDeck, getDeckStub, listDeckItems, countPublicDecksByUser, getPatternsForDeck } from "./queries/decks";
 export type { DeckListItem, DeckItem } from "./queries/decks";
-export { countPosts, listPosts, listTerritories, listTerritoriesForAdmin, getTerritoryByCode, listTerritoryPins, listPinsByUser, listPresence, listAtlasPins, countUnmoved, listRecentThreads, listAttachments, getAttachment, countAttachments, attachmentBytesByUser, attachmentBytesTotal, getPost, getPostStub, getPostCommentStub, listPostComments } from "./queries/workshop";
-export type { PostListItem, TerritoryListItem, TerritoryPin, PresencePerson, RecentThread, AttachmentView } from "./queries/workshop";
+export { listAtlasPins } from "./queries/atlas";
 export { listReports, countOpenReports, getCommentStub, reportTarget } from "./queries/moderation";
 export type { ReportRow } from "./queries/moderation";
 export { getUserByUsername } from "./queries/users";

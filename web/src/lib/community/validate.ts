@@ -70,24 +70,6 @@ export function cleanMadeOn(raw: unknown): string | null | undefined {
   return value;
 }
 
-/**
- * Thread body. A thread in the workshop is a build log — what you tried, what
- * it measured, what broke — so it gets room a comment does not.
- *
- * Stored exactly as typed. It renders as a closed subset of markdown (see
- * PostBody), and NOTHING is stripped on the way in: the text somebody wrote is
- * the text that comes back out of the database, so changing what renders never
- * silently rewrites what was already posted.
- */
-export const POST_BODY_MAX = 20_000;
-
-export function cleanPostBody(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const body = raw.trim();
-  if (body.length === 0 || body.length > POST_BODY_MAX) return null;
-  return body;
-}
-
 export function cleanComment(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const body = raw.trim();
@@ -145,7 +127,7 @@ export function cleanMadeHow(raw: unknown): string | null | undefined {
 
 // ── Reports ──────────────────────────────────────────────────────────────────
 
-export const REPORT_TARGET_TYPES = ["pattern", "post", "comment", "deck"] as const;
+export const REPORT_TARGET_TYPES = ["pattern", "comment", "deck"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export function isReportTargetType(raw: unknown): raw is ReportTargetType {
