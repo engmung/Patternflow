@@ -4426,6 +4426,30 @@
     margin: 4px 0;
   }
 
+  /* Every button class here is one of these two or composes one. Only the
+     pattern page's action grid had 44px. At 390px a deck's owner had eight
+     buttons 36.8px tall, a pattern's owner three, Ports and Publish a
+     performance were 24.7px, and a deck of five put fifteen 24.7px buttons
+     in the deck panel, its ↑ and ↓ 29.6px wide. */
+  .btn,
+  .btnSmall {
+    min-height: 44px;
+  }
+
+  .btnSmall {
+    min-width: 44px;
+  }
+
+  /* A button centres its words in the height it is given. A link does not:
+     Install to my board on the Basics card would grow to 44px with its words
+     at the top. */
+  a.btn,
+  a.btnSmall {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   /* Card size is fixed by the mobile view config, and there is no Ctrl+wheel
      on a phone — the hint would advertise a gesture that does not exist. */
   .zoomHint,

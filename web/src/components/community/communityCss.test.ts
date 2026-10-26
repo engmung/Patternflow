@@ -300,6 +300,40 @@ describe("touch targets on a phone", () => {
     expect(field).toContain("width: 100%");
     expect(declarations(rule(community, ".zipHostField"))).toContain("min-height: 24px");
   });
+
+  // Only the pattern page's action grid had them. On 26 October, at 390px,
+  // a deck's owner had eight buttons 36.8px tall, a pattern's owner three,
+  // and the deck panel's ↑ and ↓ were 30×25 beside a 61×25 remove.
+  it.each([".btn", ".btnSmall"])("gives %s 44px of height", (selector) => {
+    expect(phone(selector)).toContain("min-height: 44px");
+  });
+
+  it("gives the deck panel's one-character buttons a 44px square", () => {
+    expect(phone(".btnSmall")).toContain("min-width: 44px");
+  });
+
+  // A button centres its words in the height it is given. A link wearing a
+  // button's class, Install to my board on the Basics card, keeps them at the
+  // top of its 44px.
+  it.each(["a.btn", "a.btnSmall"])("centres the words in %s once it is 44px", (selector) => {
+    const link = phone(selector);
+    expect(link).toContain("display: inline-flex");
+    expect(link).toContain("align-items: center");
+    expect(link).toContain("justify-content: center");
+  });
+
+  // The rules above name two classes. A third button class that composes
+  // neither would be 36.8px on a phone again.
+  it("reaches every button class through .btn or .btnSmall", () => {
+    const classes = [...community.matchAll(/\n\.(btn\w*) \{([^}]*)\}/g)];
+    expect(classes.map(([, name]) => name)).toEqual(expect.arrayContaining(["btn", "btnSmall", "btnAccentLink"]));
+    for (const [, name, body] of classes) {
+      if (name === "btn" || name === "btnSmall") continue;
+      expect(body.match(/composes: ([^;]+);/)?.[1].split(" "), name).toEqual(
+        expect.arrayContaining([expect.stringMatching(/^(btn|btnSmall)$/)]),
+      );
+    }
+  });
 });
 
 /** A JSX opening tag from its `<` to its `>`, past the arrows in its handlers. */
