@@ -107,7 +107,7 @@ export default function NotificationsList({ items }: { items: NotificationView[]
           Alerts arrive when someone comments on, forks, ports, or decks your work. Publish
           something and give them a reason.
         </span>
-        <Link href="/pattern-lab" className={styles.emptyCta}>
+        <Link href="/pattern-lab" prefetch={false} className={styles.emptyCta}>
           Make &amp; publish — Pattern Lab ↗
         </Link>
       </div>

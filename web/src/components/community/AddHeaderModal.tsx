@@ -154,7 +154,9 @@ export default function AddHeaderModal({
               <p className={styles.formNote}>
                 The author has no header for this pattern yet — if you ran it on your own board,
                 finish the job for them. Generate the port with <strong>To hardware</strong> in{" "}
-                <Link href="/pattern-lab">Pattern Lab</Link>, verify it on hardware, and paste it
+                <Link href="/pattern-lab" prefetch={false}>
+                  Pattern Lab
+                </Link>, verify it on hardware, and paste it
                 here. It goes live immediately, credited to you; the author can pin or replace it,
                 and the port carries the pattern&apos;s own licence — the work stays theirs.
               </p>
@@ -176,7 +178,9 @@ export default function AddHeaderModal({
               <p className={styles.formNote}>
                 The board runs C++, so a pattern needs a <code>.h</code> port before anyone can
                 flash it. Generate one with <strong>To hardware</strong> in{" "}
-                <Link href="/pattern-lab">Pattern Lab</Link>, build it on your own board, and paste
+                <Link href="/pattern-lab" prefetch={false}>
+                  Pattern Lab
+                </Link>, build it on your own board, and paste
                 the working header here. Your pattern then shows as <strong>hardware ready</strong>{" "}
                 and can be filtered for in the feed.
               </p>

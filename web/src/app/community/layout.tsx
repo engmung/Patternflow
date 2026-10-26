@@ -102,13 +102,14 @@ export default async function CommunityLayout({ children }: { children: React.Re
             {session ? (
               <Link
                 href="/pattern-lab"
+                prefetch={false}
                 className={styles.makeCta}
                 title="Open Pattern Lab — make a pattern and publish it here"
               >
                 Make<span className={styles.ctaRest}> &amp; publish — Pattern Lab</span> ↗
               </Link>
             ) : (
-              <Link href="/pattern-lab" title="Open Pattern Lab editor">
+              <Link href="/pattern-lab" prefetch={false} title="Open Pattern Lab editor">
                 Pattern Lab ↗
               </Link>
             )}
@@ -130,7 +131,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
         <div className={styles.pageBody}>{children}</div>
 
         <footer className={styles.pageFooter}>
-          <Link href="/terms">Terms &amp; Privacy</Link>
+          <Link href="/terms" prefetch={false}>Terms &amp; Privacy</Link>
           <span>·</span>
           <a href="mailto:contact@patternflow.work">Report something</a>
           {/* The atlas, kept read-only since 26 October 2026. Nothing else

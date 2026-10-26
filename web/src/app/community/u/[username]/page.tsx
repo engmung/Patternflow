@@ -87,7 +87,7 @@ export default async function CommunityUserPage(props: RouteParams) {
         </div>
         {isSelf && (
           <div className={styles.profileSelfActions}>
-            <Link href="/pattern-lab" className={styles.btnAccent}>
+            <Link href="/pattern-lab" prefetch={false} className={styles.btnAccent}>
               Make &amp; publish ↗
             </Link>
             {/* Phone only — the header carries it everywhere else. */}
@@ -104,7 +104,7 @@ export default async function CommunityUserPage(props: RouteParams) {
             <span className={styles.emptyBody}>
               Open Pattern Lab, make something, publish it here — it takes one button from there.
             </span>
-            <Link href="/pattern-lab" className={styles.emptyCta}>
+            <Link href="/pattern-lab" prefetch={false} className={styles.emptyCta}>
               Make &amp; publish — Pattern Lab ↗
             </Link>
           </div>
