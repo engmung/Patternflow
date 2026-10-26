@@ -30,7 +30,8 @@ export async function generateMetadata(props: RouteParams): Promise<Metadata> {
   if (!communityEnabled()) return {};
   const { username } = await props.params;
   const profile = await getUserByUsername(username.toLowerCase());
-  if (!profile) return {};
+  // A gone account takes community/not-found.tsx's title, as a gone pattern does.
+  if (!profile) notFound();
   const handle = profile.displayUsername ?? profile.username;
   return {
     title: `@${handle} / Patternflow Community`,
