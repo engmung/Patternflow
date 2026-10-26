@@ -94,8 +94,9 @@ async function handleGet(request: Request, context: { params: Promise<{ id: stri
     }
 
     // Exact-match lookup against the zip's own entry names — nothing here
-    // touches the filesystem, so there is no path to traverse.
-    const entry = wantedFile ? entries[wantedFile] : undefined;
+    // touches the filesystem, so there is no path to traverse. Own names
+    // only: `?file=__proto__` used to find Object.prototype and answer 200.
+    const entry = wantedFile && Object.hasOwn(entries, wantedFile) ? entries[wantedFile] : undefined;
     if (!entry) return new Response("No such file in this build.", { status: 404 });
 
     return new Response(new Uint8Array(entry), {

@@ -110,6 +110,13 @@ async function handlePost(request: Request) {
 
   const patterns: BuildPatternInput[] = [];
   for (const [index, entry] of raw.entries()) {
+    // `[null]` threw on `.code` below and came back a 500 without CORS.
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      return Response.json(
+        { error: `Pattern ${index + 1}: expected an object with the header in "code".` },
+        { status: 400 },
+      );
+    }
     const item = entry as Record<string, unknown>;
     const code = typeof item.code === "string" ? item.code : "";
     if (code.length === 0 || code.length > CPP_MAX) {
