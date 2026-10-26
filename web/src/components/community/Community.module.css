@@ -481,9 +481,15 @@
   gap: 20px;
 }
 
+/* As many columns of at least --feed-slot as the row holds, stretched to fill
+   it. The count is CSS's, not a measurement, so the server's markup already
+   has it: measured in JS it began at six on every screen, and a phone drew
+   six 46px cards before settling on three. The wall sets the two variables
+   from its zoom; the phone block below sets the grid outright. */
 .feedGrid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--feed-slot, 205px), 100%), 1fr));
+  gap: var(--feed-gap, 14px);
   width: 100%;
   max-width: 100%;
   justify-content: center;
@@ -4223,8 +4229,52 @@
     padding: 16px 0 40px;
   }
 
+  /* MOBILE_FEED_VIEW in lib/community/feedView.ts: 100px cards on an 8px
+     gap, ignoring the zoom. Here rather than in the wall's inline style, so
+     the first paint, before the page knows it is on a phone, is already the
+     wall it settles into. */
   .feedGrid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 8px;
+  }
+
+  /* The small view's furniture, which the wall switches to on a phone. The
+     same declarations as the [data-view="small"] rules, because the server
+     renders data-view="large": it cannot know the screen. Only the live wall
+     carries .feedWall; the guide's practice wall picks its own view. */
+  .feedWall .cardMeta {
+    gap: 2px;
+  }
+
+  .feedWall .cardTitle {
+    font-size: 11.5px;
+    gap: 4px;
+  }
+
+  .feedWall .cardByline {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .feedWall .cardDate,
+  .feedWall .cardStats,
+  .feedWall .frameChip {
+    display: none;
+  }
+
+  .feedWall .cardHwBadge,
+  .feedWall .ageChip {
+    font-size: 9px;
+    padding: 0 4px;
+    top: 6px;
+  }
+
+  .feedWall .cardHwBadge {
+    left: 6px;
+  }
+
+  .feedWall .ageChip {
+    right: 6px;
   }
 
   .feedControls {

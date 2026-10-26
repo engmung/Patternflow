@@ -5,7 +5,9 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MOBILE_FEED_VIEW, SLOT_DEFAULT } from "@/lib/community/feedView";
 import CommunityFeedClient from "./CommunityFeedClient";
 import type { PatternCardItem } from "./PatternCard";
 
@@ -195,5 +197,38 @@ describe("wall search", () => {
       "href",
       "/community/patterns?q=wave",
     );
+  });
+});
+
+// The server cannot know the screen, so whatever it renders is what a phone
+// paints until the page has run. When that markup carried a column count, a
+// phone drew six 46px columns and then three 114px ones.
+describe("the wall's first paint", () => {
+  const grid = (root: ParentNode) => root.querySelector<HTMLElement>(".feedGrid")!;
+
+  it("leaves the column count to the stylesheet in the server's markup", () => {
+    const html = renderToString(
+      <CommunityFeedClient items={[card("a", "Aurora"), card("b", "Wave")]} total={2} />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    expect(grid(host).className).toBe("feedGrid feedWall");
+    expect(grid(host).style.gridTemplateColumns).toBe("");
+    expect(grid(host).style.getPropertyValue("--feed-slot")).toBe(`${SLOT_DEFAULT}px`);
+  });
+
+  it("still leaves it there once a phone has said it is one", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const { container } = render(
+      <CommunityFeedClient items={[card("a", "Aurora"), card("b", "Wave")]} total={2} />,
+    );
+    expect(grid(container)).toHaveAttribute("data-view", "small");
+    expect(grid(container).style.gridTemplateColumns).toBe("");
+    expect(grid(container).style.getPropertyValue("--feed-slot")).toBe(`${MOBILE_FEED_VIEW.slot}px`);
   });
 });

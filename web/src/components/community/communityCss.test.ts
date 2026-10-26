@@ -5,9 +5,18 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { MOBILE_FEED_VIEW, SLOT_DEFAULT } from "@/lib/community/feedView";
+import { MOBILE_MEDIA_QUERY } from "@/lib/hooks/useMediaQuery";
 import { contrast, type Rgb } from "../guide/ui/panelTint";
 
 const css = (name: string) => readFileSync(path.resolve(__dirname, name), "utf8");
+
+/** A rule's declarations, one per entry, without the spacing. */
+const declarations = (body: string) =>
+  body
+    .split(";")
+    .map((line) => line.trim())
+    .filter(Boolean);
 
 /** The declarations of the first rule whose selector list is exactly `selector`. */
 function rule(source: string, selector: string): string {
@@ -25,6 +34,55 @@ function mediaRule(source: string, query: string, selector: string): string {
   expect(ruleAt, `${selector} is missing from @media ${query}`).toBeGreaterThan(-1);
   return block.slice(block.indexOf("{", ruleAt) + 1, block.indexOf("}", ruleAt));
 }
+
+/** The declarations of `selector` in whichever `@media <query>` block has it,
+ *  as a whole selector list: `.b` does not find the `.a,\n  .b` rule. */
+function anyMediaRule(source: string, query: string, selector: string): string {
+  for (const part of source.split(`\n@media ${query} {`).slice(1)) {
+    const block = part.slice(0, part.indexOf("\n}"));
+    for (let at = block.indexOf(`\n  ${selector} {`); at > -1; at = block.indexOf(`\n  ${selector} {`, at + 1)) {
+      if (block[at - 1] !== ",") return block.slice(block.indexOf("{", at) + 1, block.indexOf("}", at));
+    }
+  }
+  throw new Error(`${selector} is missing from every @media ${query}`);
+}
+
+// On 26 October a phone drew the wall in six 46px columns, the server's
+// guess, then three 114px ones once the page had measured itself. At 390px
+// that moved every card on screen: CLS 1.19 on /community and 1.49 on
+// /community/patterns, where 0.25 is already poor. The columns now come from
+// the stylesheet, so the first paint has them.
+describe("the wall's grid", () => {
+  const community = css("Community.module.css");
+  const phone = (selector: string) => anyMediaRule(community, MOBILE_MEDIA_QUERY, selector);
+
+  it("fits as many columns of the card size as the row holds", () => {
+    expect(rule(community, ".feedGrid")).toContain(
+      `grid-template-columns: repeat(auto-fill, minmax(min(var(--feed-slot, ${SLOT_DEFAULT}px), 100%), 1fr));`,
+    );
+  });
+
+  it("gives a phone the mobile view's card and gap, by the same query the wall uses", () => {
+    const grid = phone(".feedGrid");
+    expect(grid).toContain(
+      `grid-template-columns: repeat(auto-fill, minmax(${MOBILE_FEED_VIEW.slot}px, 1fr));`,
+    );
+    expect(grid).toContain(`gap: ${MOBILE_FEED_VIEW.gap}px;`);
+  });
+
+  // The knob overlay is left out: a phone's cards are stills and never draw it.
+  it("gives a phone the small view's furniture before the wall says small", () => {
+    const small = '.feedGrid[data-view="small"]';
+    const rules = [...community.matchAll(/\n(\.feedGrid\[data-view="small"\] [^{]+) \{([^}]*)\}/g)]
+      .map(([, selectors, body]) => ({ selectors: selectors.split(",\n"), body }))
+      .filter(({ selectors }) => !selectors.some((selector) => selector.endsWith(".knobOverlay")));
+    expect(rules.length).toBeGreaterThanOrEqual(7);
+    for (const { selectors, body } of rules) {
+      const twin = selectors.map((selector) => selector.replace(small, ".feedWall")).join(",\n  ");
+      expect(declarations(phone(twin)), twin).toEqual(declarations(body));
+    }
+  });
+});
 
 // The community's text colours, against each ground they are drawn on. On 26
 // October the faint ink was #6B6558, 3.18:1 on the well-2 and 3.40:1 on the

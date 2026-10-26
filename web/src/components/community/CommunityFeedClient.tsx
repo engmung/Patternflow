@@ -209,6 +209,9 @@ export default function CommunityFeedClient({
   );
 }
 
+// How many cards a row holds, for sizing the next batch. The grid itself is
+// laid out by .feedGrid's auto-fill, which comes to the same count; this
+// starts at six only because nothing has been measured yet.
 function useResponsiveCardsPerRow(
   containerRef: React.RefObject<HTMLDivElement | null>,
   slot: number,
@@ -540,13 +543,18 @@ function FeedWall({
       ) : (
         <div ref={containerRef} className={styles.centeredFeedBody} data-stale={stale || undefined}>
           <div
-            className={styles.feedGrid}
+            className={`${styles.feedGrid} ${styles.feedWall}`}
             // Compact cards borrow the small view's furniture.
             data-view={compact ? "small" : "large"}
-            style={{
-              gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))`,
-              gap: `${gap}px`,
-            }}
+            // Sizes, not a column count: the stylesheet fits the columns, so
+            // the server's markup is right before anything is measured. A
+            // phone's grid is set there too, and these are ignored.
+            style={
+              {
+                "--feed-slot": `${effectiveSlot}px`,
+                "--feed-gap": `${gap}px`,
+              } as React.CSSProperties
+            }
           >
             {items.map((item) => (
               // Static thumbnails on mobile: no hover means the live sandbox
