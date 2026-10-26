@@ -24,6 +24,7 @@ import {
 } from "@/lib/community/visibility";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
 import { useDeviceHost } from "@/lib/community/deviceHost";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import { useZipDownload, zipStatusUrl } from "@/lib/community/zipDownload";
 import type { DeckPageItem } from "@/lib/community/server/serialize";
 import { captureEvent } from "@/lib/posthogEvents";
@@ -607,6 +608,7 @@ function PerformanceModal({
   const [json, setJson] = useState(initialJson ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const send = async (value: string | null) => {
     setBusy(true);
@@ -643,7 +645,7 @@ function PerformanceModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <span>Deck performance</span>
@@ -715,6 +717,7 @@ function EditDeckModal({
   const [description, setDescription] = useState(initialDescription ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const save = async () => {
     const trimmed = title.trim();
@@ -745,7 +748,7 @@ function EditDeckModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <span>Edit deck details</span>

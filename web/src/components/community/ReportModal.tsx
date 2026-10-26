@@ -12,6 +12,7 @@ import {
   type ReportTargetType,
 } from "@/lib/community/validate";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import { captureEvent } from "@/lib/posthogEvents";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
@@ -41,6 +42,7 @@ export default function ReportModal({
   const latch = useSubmitLatch();
   const [sent, setSent] = useState(false);
   const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const submit = async () => {
     if (!latch.take()) return;
@@ -69,7 +71,7 @@ export default function ReportModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         ref={cardRef}
         tabIndex={-1}

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { authClient, dummyEmailFor } from "@/lib/community/auth-client";
 import { PASSWORD_MIN, USERNAME_RE } from "@/lib/community/validate";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import styles from "./Community.module.css";
 
 // Username + password auth. Email is an optional recovery field only — when
@@ -139,8 +140,9 @@ export default function AuthModal({ onClose, onAuthed, embedded = false }: Props
 // around the form owns both.
 function AuthWindow({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         ref={cardRef}
         tabIndex={-1}

@@ -7,6 +7,7 @@ import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { PUBLIC_DECKS_MAX, type CollectedPattern } from "@/lib/community/deck";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import {
   VISIBILITY_HINTS,
   VISIBILITY_LABELS,
@@ -40,6 +41,7 @@ export default function ShareDeckModal({
   const [busy, setBusy] = useState(false);
   // One request per press, decided in the click's own tick (#455).
   const latch = useSubmitLatch();
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const share = async () => {
     const trimmed = title.trim();
@@ -83,7 +85,7 @@ export default function ShareDeckModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <span>Share deck</span>

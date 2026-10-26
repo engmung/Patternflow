@@ -11,6 +11,7 @@ import {
 } from "@/lib/community/validate";
 import { LICENSE_OPTIONS, forkLicenseOptions, licenseBySpdx } from "@/lib/pattern/share";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import { captureEvent } from "@/lib/posthogEvents";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
@@ -68,6 +69,7 @@ export default function EditDetailsModal({
   // before the hook could see which button opened the window, so the focus
   // had nowhere to go back to.
   const titleRef = useDialog<HTMLInputElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   // What this pattern may be relicensed to. The pattern's CURRENT licence is
   // always included even when it is no longer offered (MIT, CC0): a retired
@@ -113,7 +115,7 @@ export default function EditDetailsModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <span>Edit pattern details</span>

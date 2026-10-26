@@ -8,6 +8,7 @@ import { useDeviceHost } from "@/lib/community/deviceHost";
 import { captureEvent } from "@/lib/posthogEvents";
 import { useModuleBuild } from "@/lib/community/useModuleBuild";
 import { useZipDownload } from "@/lib/community/zipDownload";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import AuthModal from "./AuthModal";
 import { ZipInstallNote, ZipProgress } from "./ZipDownload";
 import styles from "./Community.module.css";
@@ -48,8 +49,9 @@ export default function SendModuleModal(
       }
   ),
 ) {
+  const closeOnBackdrop = useBackdropClose(props.onClose);
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={props.onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         className={`${styles.modalCard} ${styles.modalCardWide}`}
         onClick={(event) => event.stopPropagation()}

@@ -8,6 +8,7 @@ import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
 
@@ -56,6 +57,7 @@ export default function AddHeaderModal({
   // One request per press, decided in the click's own tick (#455).
   const latch = useSubmitLatch();
   const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const moderating = mode === "moderate" || mode === "moderate-port";
 
@@ -126,7 +128,7 @@ export default function AddHeaderModal({
             : "Add firmware header (.h)";
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         ref={cardRef}
         tabIndex={-1}

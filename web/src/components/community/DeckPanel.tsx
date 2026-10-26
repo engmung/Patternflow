@@ -17,6 +17,7 @@ import {
 } from "@/lib/community/deck";
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import { useModuleBuild } from "@/lib/community/useModuleBuild";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import AuthModal from "./AuthModal";
 import ShareDeckModal from "./ShareDeckModal";
 import styles from "./Community.module.css";
@@ -92,6 +93,7 @@ export default function DeckPanel() {
     setNeedsAuth(false);
     setOpen(false);
   };
+  const closeOnBackdrop = useBackdropClose(close);
 
   // No builds configured (e.g. the Vercel mirror) → nothing here works.
   if (!buildsConfigured()) return null;
@@ -111,7 +113,7 @@ export default function DeckPanel() {
       </button>
 
       {open && (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={close}>
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
           <div
             className={`${styles.modalCard} ${styles.modalCardWide}`}
             onClick={(event) => event.stopPropagation()}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import styles from "./Community.module.css";
 
 // Handing a deck to somebody.
@@ -39,6 +40,7 @@ export default function ShareDeckPackModal({
 }) {
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   // Escape closes it. This one is a thing you glance at and leave, so it had
   // the key before the form windows took it from lib/hooks/useDialog.
@@ -62,7 +64,7 @@ export default function ShareDeckPackModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalHeader}>
           <span className={styles.modalKicker}>Share</span>
