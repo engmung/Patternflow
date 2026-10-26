@@ -124,7 +124,19 @@ export default async function CommunityLayout({ children }: { children: React.Re
                 Alerts{unread > 0 ? ` ${unread}` : ""}
               </Link>
             )}
-            <AuthStatus />
+            {/* Three fields, not the whole user: what crosses to the browser
+                here lands in the page for anyone who saves it. */}
+            <AuthStatus
+              serverUser={
+                session
+                  ? {
+                      name: session.user.name,
+                      username: session.user.username,
+                      displayUsername: session.user.displayUsername,
+                    }
+                  : null
+              }
+            />
           </nav>
         </header>
 
