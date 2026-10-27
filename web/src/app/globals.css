@@ -1141,7 +1141,6 @@
   .journal-lockup,
   .journal-featured-meta,
   .journal-archive-label,
-  .journal-list-number,
   .journal-list-meta,
   .journal-index-footer,
   .journal-back-link,
@@ -1239,14 +1238,6 @@
       rgba(20, 20, 20, 0.035) 15px
     );
   }
-  .journal-index-thumb span {
-    position: relative;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-  }
   .journal-index-thumb img {
     position: relative;
     z-index: 1;
@@ -1264,17 +1255,6 @@
     overflow: hidden;
     border: 1px solid var(--rule);
     background: var(--cream-2);
-  }
-  .journal-cover-slot::before {
-    content: none;
-  }
-  .journal-cover-slot span {
-    position: relative;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
   }
   .journal-cover-slot img {
     position: relative;
@@ -1317,9 +1297,6 @@
   }
   .journal-post-list a .pf-ghost {
     right: 0;
-  }
-  .journal-list-number {
-    color: var(--ink-faint);
   }
   .journal-list-body {
     display: grid;
@@ -1454,10 +1431,6 @@
     display: block;
     overflow: visible;
     text-align: center;
-  }
-  .journal-hero-cover .journal-cover-slot::before {
-    content: none;
-    display: none;
   }
   .journal-hero-cover .journal-cover-slot img {
     display: block;
@@ -1635,27 +1608,6 @@
     border: 0;
     background: var(--rule);
   }
-  .journal-figure {
-    margin: 36px 0;
-  }
-  .journal-figure-wide {
-    width: min(82vw, 1312px);
-    margin-left: 50%;
-    transform: translateX(-50%);
-  }
-  .journal-figure-full {
-    width: 100vw;
-    margin-left: 50%;
-    transform: translateX(-50%);
-  }
-  .journal-figure img,
-  .journal-figure video {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid var(--rule);
-    background: var(--cream-2);
-  }
   .journal-lightbox {
     position: fixed;
     inset: 0;
@@ -1703,13 +1655,6 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-  }
-  .journal-figure figcaption {
-    margin-top: 10px;
-    font-family: var(--mono);
-    font-size: var(--pf-fs-mono);
-    letter-spacing: 0.06em;
-    color: var(--ink-muted);
   }
   .journal-end-mark {
     margin-top: 80px;
@@ -1994,12 +1939,6 @@
       content: "·";
       margin-right: 12px;
       color: var(--pf-ink-muted);
-    }
-    .journal-figure-wide,
-    .journal-figure-full {
-      width: 100%;
-      margin-left: 0;
-      transform: none;
     }
     .journal-md-figure,
     .journal-md-figure:has(+ .journal-md-figure),

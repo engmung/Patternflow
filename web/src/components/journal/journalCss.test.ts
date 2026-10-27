@@ -4,9 +4,12 @@
 // ("2026년 9월 29일" is 122px) and 17 of the 37 English ones ("SEPTEMBER 29,
 // 2026" is 159px) broke onto a second line, leaving 일 or 2026 alone under it.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import JournalImage from "./JournalImage";
 
 const css = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
 
@@ -238,5 +241,67 @@ describe("journal footers", () => {
   it("keeps both at the panel's edge on a phone", () => {
     expect(sides(phone, ".journal-article-footer")).toEqual([0, 0]);
     expect(sides(phone, ".journal-index-footer")).toEqual([0, 0]);
+  });
+});
+
+// Rules that matched nothing on a journal page. No component and none of the
+// 74 posts wrote .journal-list-number, .journal-figure, -wide or -full (the
+// posts' figures are journal-md-figure and journal-figure-row). The two cover
+// slots hold a JournalImage, and the span rules inside them waited for a span
+// it never draws. The cover slot's ::before was switched off twice, and no
+// rule ever switched it on. On 27 October that was 61 lines of globals.css.
+
+/** Every .ts and .tsx under src/ that is not a test, and every post. */
+function written() {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const at = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(at);
+      else if (/\.(tsx?|mdx?)$/.test(entry.name) && !/\.test\./.test(entry.name)) out.push(readFileSync(at, "utf8"));
+    }
+  };
+  walk(path.resolve(__dirname, "../.."));
+  walk(path.resolve(__dirname, "../../../content/journal"));
+  return out.join("\n");
+}
+
+describe("journal rules", () => {
+  const all = rules(css);
+  const selectors = all.flatMap((r) => r.selectors);
+
+  it("name only classes a journal component or post writes", () => {
+    const source = written();
+    const named = new Set(selectors.flatMap((s) => [...s.matchAll(/\.(journal-[\w-]+)/g)].map((m) => m[1])));
+    const unwritten = [...named].filter((c) => !new RegExp(`(^|[^\\w-])${c}(?![\\w-])`).test(source));
+    expect(named.size).toBeGreaterThan(30);
+    expect(unwritten).toEqual([]);
+  });
+
+  it("style nothing in a cover slot but what JournalImage draws", () => {
+    const { container } = render(createElement(JournalImage, { src: "/journal/good-but/funding-success.png" }));
+    const drawn = new Set([...container.querySelectorAll("*")].map((el) => el.tagName.toLowerCase()));
+    const inSlot = selectors
+      .map((s) => s.match(/\.journal-(?:index-thumb|cover-slot) ([a-z]+)$/)?.[1])
+      .filter((tag): tag is string => Boolean(tag));
+    expect(inSlot.length).toBeGreaterThan(0);
+    for (const tag of inSlot) expect(drawn, `.journal-… ${tag}`).toContain(tag);
+  });
+
+  it("switch off no ::before that no rule switches on", () => {
+    const last = (selector: string) => selector.split(" ").at(-1);
+    const content = (body: string) => declaration(body, "content");
+    for (const rule of all) {
+      for (const selector of rule.selectors) {
+        if (!selector.startsWith(".journal-") || !selector.endsWith("::before") || content(rule.body) !== "none") continue;
+        const on = all.some(
+          (other) =>
+            other.selectors.some((s) => last(s) === last(selector)) &&
+            content(other.body) !== undefined &&
+            content(other.body) !== "none",
+        );
+        expect(on, selector).toBe(true);
+      }
+    }
   });
 });
