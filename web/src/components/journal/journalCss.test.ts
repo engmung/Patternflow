@@ -60,3 +60,57 @@ describe("journal archive dates", () => {
     expect(own.some((r) => declaration(r.body, "white-space") === "nowrap")).toBe(true);
   });
 });
+
+// The language a page is not in and the index's "Archive" label were
+// --ink-faint (#A69F90): 2.29:1 on the cream behind a post's switch and
+// 2.63:1 on the index's white panel. axe flagged them on all 76 journal pages.
+
+/** The sRGB contrast ratio WCAG 2 defines, for two "#rrggbb" colours. */
+function contrast(a: string, b: string) {
+  const luminance = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => {
+      const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe("journal faint text", () => {
+  const all = rules(css);
+  const root = all.find((r) => r.selectors.includes(":root") && declaration(r.body, "--cream"));
+  const resolve = (value: string | undefined) => {
+    const token = value?.match(/^var\((--[\w-]+)\)$/)?.[1];
+    const hex = token ? declaration(root?.body ?? "", token) : value;
+    expect(hex, `${value} is not a #rrggbb colour`).toMatch(/^#[0-9a-f]{6}$/i);
+    return hex!;
+  };
+  const own = (selector: string, property: string) =>
+    all
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, property))
+      .filter(Boolean)
+      .at(-1);
+
+  const cream = resolve(own(".journal-shell", "background"));
+  const panel = resolve(own(".journal-panel", "background"));
+
+  it("shows the other language at 4.5:1 on the cream and on the panel", () => {
+    const other = resolve(own(".journal-lang-switch", "color"));
+    expect(contrast(other, cream)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(other, panel)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("keeps the current language 3:1 apart from the other", () => {
+    const other = resolve(own(".journal-lang-switch", "color"));
+    const current = resolve(own(".journal-lang-switch a.active", "color"));
+    expect(contrast(current, other)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows the Archive label at 4.5:1 on the panel", () => {
+    const label = resolve(own(".journal-archive-label", "color"));
+    expect(contrast(label, panel)).toBeGreaterThanOrEqual(4.5);
+  });
+});

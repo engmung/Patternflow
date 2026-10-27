@@ -1081,6 +1081,9 @@
     align-items: flex-start;
     gap: 14px;
   }
+  /* The language a page is not in: 5.0:1 on the cream, 5.8:1 on the white
+     panel, and 3.2:1 from the current one in --ink. --ink-faint was 2.3:1
+     and 2.6:1. */
   .journal-lang-switch {
     position: fixed;
     top: 28px;
@@ -1092,7 +1095,7 @@
     font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-faint);
+    color: var(--ink-muted);
   }
   .journal-lang-switch a {
     color: inherit;
@@ -1285,7 +1288,7 @@
   }
   .journal-archive-label {
     margin-bottom: 16px;
-    color: var(--ink-faint);
+    color: var(--ink-muted);
   }
   .journal-post-list {
     list-style: none;
