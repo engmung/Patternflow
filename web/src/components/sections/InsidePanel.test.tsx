@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { SectionContent } from '@/lib/content';
 import { useAppStore } from '@/store/useAppStore';
 import InsidePanel from './InsidePanel';
@@ -23,5 +23,16 @@ describe('InsidePanel', () => {
   it('falls back to its own title when the content has none', () => {
     render(<InsidePanel content={{ ...content, title: '' }} />);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Inside the work.');
+  });
+
+  it('ends with the shop among the links to more of Patternflow', () => {
+    render(<InsidePanel content={content} />);
+    const more = screen.getByRole('navigation', { name: 'More from Patternflow' });
+    const links = within(more).getAllByRole('link');
+    expect(links.map((a) => a.textContent)).toEqual(['Journal ↗', 'Project map ↗', 'Shop ↗']);
+    const shop = links[2];
+    expect(shop.getAttribute('href')).toBe('https://shop.patternflow.work');
+    expect(shop.getAttribute('target')).toBe('_blank');
+    expect(shop.getAttribute('rel')).toBe('noopener');
   });
 });

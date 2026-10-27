@@ -1,5 +1,9 @@
+'use client';
+
 import Link from "next/link";
 import { communityHref } from "@/lib/community/apiBase";
+import { captureEvent } from "@/lib/posthogEvents";
+import { SHOP_URL } from "@/lib/shop";
 
 function InstagramIcon() {
   return (
@@ -12,13 +16,27 @@ function InstagramIcon() {
 // Global nav, so it carries what someone needs from anywhere. Community is a
 // whole platform on its own host and was only reachable from inside the Pattern
 // panel; Contact moved to the Inside panel's join band, next to the other ways
-// of reaching us.
+// of reaching us. The shop opened at shop.patternflow.work in October 2026 and
+// had no link from the site. It is the one entry drawn as a box, the hero's
+// outline button at the nav's size, and it opens in a new tab as Get One does.
 export default function HeroJournalLink() {
   return (
     <nav className="hero-top-links" aria-label="Patternflow pages">
       <Link href="/guide">Guide</Link>
       <Link href="/journal">Journal</Link>
       <Link href={communityHref()}>Community</Link>
+      <a
+        href={SHOP_URL}
+        target="_blank"
+        rel="noopener"
+        className="shop-link"
+        onClick={() => captureEvent('shop_clicked', {
+          surface: 'site_nav',
+          destination: 'shop',
+        })}
+      >
+        Shop
+      </a>
       <a
         href="https://www.instagram.com/patternflow.work/"
         target="_blank"
