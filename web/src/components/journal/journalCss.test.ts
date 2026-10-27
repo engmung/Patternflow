@@ -201,3 +201,42 @@ describe("journal post numbers", () => {
     expect(underPost).toBeGreaterThanOrEqual(index);
   });
 });
+
+// Both journal footers are <footer>s, and the front page's footer rule gave
+// them its side padding: 60px from 901px and 0 at 900 and below. On 27
+// October the list under each of the 74 posts started 4px left of the post's
+// text from 901px and 64px left of it from 721 to 900, and the index's footer
+// 60px left of the panel's text from 721 to 900.
+
+describe("journal footers", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The [left, right] padding in px the rules for `selector` leave it with. */
+  const sides = (list: ReturnType<typeof rules>, selector: string) => {
+    let left: string | undefined;
+    let right: string | undefined;
+    for (const r of list.filter((r) => r.selectors.includes(selector))) {
+      const all = declaration(r.body, "padding")?.split(/\s+/);
+      if (all) {
+        right = all[1] ?? all[0];
+        left = all[3] ?? right;
+      }
+      left = declaration(r.body, "padding-left") ?? left;
+      right = declaration(r.body, "padding-right") ?? right;
+    }
+    return [parseFloat(left ?? ""), parseFloat(right ?? "")];
+  };
+
+  it.each([
+    [".journal-article-footer", ".journal-article"],
+    [".journal-index-footer", ".journal-panel"],
+  ])("starts %s where the text in %s starts, above 720px", (footer, panel) => {
+    expect(sides(desktop, panel)[0], `${panel}'s side padding`).toBeGreaterThan(0);
+    expect(sides(desktop, footer)).toEqual(sides(desktop, panel));
+  });
+
+  it("keeps both at the panel's edge on a phone", () => {
+    expect(sides(phone, ".journal-article-footer")).toEqual([0, 0]);
+    expect(sides(phone, ".journal-index-footer")).toEqual([0, 0]);
+  });
+});

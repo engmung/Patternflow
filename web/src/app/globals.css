@@ -1364,9 +1364,16 @@
   .journal-post-list a.journal-anchor-post .journal-list-meta:last-child {
     color: var(--pf-led);
   }
+  /* Both journal footers are <footer>s, so the front page's footer rule
+     gave them 60px a side from 901px and 0 below it. Each now keeps its
+     own panel's side padding, and its text starts where the panel's does:
+     the list under a post started 4px left of the post's text from 901px
+     and 64px left of it from 721 to 900. */
   .journal-index-footer {
     margin-top: 32px;
     padding-top: 14px;
+    padding-left: 60px;
+    padding-right: 60px;
     border-top: 1px solid var(--pf-rule);
     display: flex;
     justify-content: flex-start;
@@ -1725,6 +1732,9 @@
   .journal-article-footer {
     width: min(100%, 948px);
     margin: 34px auto 0;
+    /* .journal-article's side padding; see .journal-index-footer. */
+    padding-left: 64px;
+    padding-right: 64px;
     display: grid;
     gap: 18px;
     color: var(--ink-muted);
@@ -1886,6 +1896,12 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
+    }
+    /* On a phone both footers stay at the panel's edge, as they were. */
+    .journal-index-footer,
+    .journal-article-footer {
+      padding-left: 0;
+      padding-right: 0;
     }
     .journal-lockup {
       font-size: 50px;
