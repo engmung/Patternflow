@@ -4,6 +4,10 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+### Web
+
+- **The site nav links the shop.** Shop sits between Community and Instagram at the top right of the home page, boxed in ink like the hero's outline button, and opens shop.patternflow.work in a new tab. The Inside panel's last row of links carries it too.
+
 ## [3.12.0] - 2026-10-27
 
 ### Firmware
