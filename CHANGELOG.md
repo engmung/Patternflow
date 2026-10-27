@@ -4,8 +4,11 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+## [3.12.0] - 2026-10-27
+
 ### Firmware
 
+- **A board with Macronix flash mounts its pattern storage.** Core 2.0.17's flash driver read Macronix parts (JEDEC `c2xxxx`) wrong in QIO and DIO, so a Format did not stick and the volume never mounted ([#424](https://github.com/engmung/Patternflow/issues/424)). On a `c2` chip the driver now reads in QOUT, the address on one line and the data still on four, and every other chip is left as it was ([#519](https://github.com/engmung/Patternflow/pull/519) by [@didusee](https://github.com/didusee)). A Macronix board that ran earlier firmware may still hold files written from misread data, and one Format clears them.
 - **The MIDI page counts 24 detents a turn, as the encoder has.** The Sensitivity readout worked out its per-turn figure from 20, so 1 : 1 read 20/turn and 6.4 turns end to end, where a turn of the PEC11R-4220F-S0024 sends 24 steps and the sweep takes 5.3. What the panel sends did not change.
 - **The vendored HUB75 driver names the upstream commit it came from.** `firmware/patternflow/src/hub75/UPSTREAM.md` gives ESP32-HUB75-MatrixPanel-DMA at tag 3.0.13 (`a622186`), copied on 31 July 2026, and `patternflow.patch` beside it is every change since: `diff -ruN` of upstream's `src/` against the folder, which applied to a clean checkout of the tag gives the folder back. `VENDORED.md` and the comments in `core_display.h` and `core_canvas.h` point at the patch instead of counting the additions. The firmware is unchanged.
 - **The vendored HUB75 driver takes upstream's fix for its config constructor.** `HUB75_I2S_CFG` now sets `line_decoder` from its argument (upstream `7bf3b6c`), so the field is `TYPE138` instead of whatever was on the stack where `initDisplay()` builds the config. `src/hub75/UPSTREAM.md` lists the commit and its rebuild cherry-picks it, so `patternflow.patch` still holds only Patternflow's changes and comes out byte for byte the same.
@@ -19,6 +22,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **The hero plays the new film, and a click on it opens the film on YouTube.** The home page embeds 1tkV8-AgdpA in place of OXt-yg_7qdk, and the whole frame is a link to the film in a new tab. The embed no longer hides itself on a fixed 89-second timer. The player says when the film ends.
 - **The community's workshop is gone.** The map of directions, its threads and the territory editor are removed with their API routes; the menu and the phone tabs keep Patterns, Decks and Atlas, and the old workshop addresses redirect to `/community`. Comments, alerts and reports keep their pattern and deck paths, and the workshop's tables and rows stay in the database.
 - **The community atlas is a read-only archive.** It is off the community menu and reached from the footer's Archive link, with a line at the top saying so. The pin picker and the pin editor are gone, and `/api/community/atlas` answers a write with a 405; the map, its pins and the prompts stay readable.
 - **A community member's display name is their own username.** Sign-up and `/api/auth/update-user` took any string as `displayUsername`, so a member could show as `@ada` on their cards and in the licence header of the next pattern they published. Only the capitals of the member's own username are accepted now, and a new username takes the display name with it.
@@ -190,6 +194,8 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Docs
 
+- **The README shows the new film.** Both links and the thumbnail point at 1tkV8-AgdpA.
+- **The README counts the reel at 500k+ views.** It said 400k+ since August.
 - **The Pattern Guide's two Lab screenshots show the current Lab.** `11-pattern-lab.png` and `13-color-ramp.png` still had the Gallery tab. They are retaken at 1920 × 1080 with the same scenes, the hsv short ramp included.
 - **The build service docs describe the worker that runs today.** `docs/SERVICES.md` and `web/.env.example` still said the worker compiles firmware with arduino-cli and offered `ARDUINO_CLI_PATH` and `BUILD_FQBN`, which nothing has read since whole-image builds ended on 12 August. `.env.example` now lists `PF_XTENSA_BIN`, `PF_TARGET_ABI` and `GITHUB_TOKEN`, and `src/lib/envExample.test.ts` fails when it, the code and the table in `web/ARCHITECTURE.md` disagree.
 - **The docs index, the repository map and the contributor guide describe the tree as it is.** `docs/README.md` lists the cleanup RFC and its log, the rename list in `docs/REPOSITORY.md` names all 30 files the site's absolute links reach (it had ten and the BOM), `CONTRIBUTING.md` names the four build kinds and `originId`, and `docs/EDITIONS.md` says `build.sh all` builds five compositions.
@@ -352,12 +358,6 @@ All notable changes to Patternflow will be documented in this file, newest first
 - **The community's Performances note says .pfs**, which is what the Director saves, instead of "Save-JSON".
 - **A moderator can take a pattern or deck off the wall without deleting it.** Somebody else's public pattern or deck now offers moderators *Make private*, with an optional reason: the softer removal, for things like the same pattern posted a fifth time. Nothing about the work changes and its author keeps it — they can still open it, edit it, take it into the lab — it just stops being shown to anyone else. On a pattern the reason is posted underneath as the moderator's comment, where the author can answer it; either way the author is told in their alerts. While the take-down stands the author cannot make it public again (a take-down its subject can undo in one click is a request); *Restore to public* puts it back exactly as it was. A moderator still cannot publish what an author made private themselves. A deck slot left empty by a take-down reads "made private by a moderator", not "by its author". Moderators can now comment on private patterns and keep their alerts about them, so the thread under a take-down works both ways. Migration `0025` adds `hidden_at` to patterns and decks; `check:hidemod` drives it all through the real routes.
 - **One press of Publish is one post.** A double-click on *Publish to the wall*, or a mouse switch that bounces, could put the same pattern on the wall twice in the same second ([#455](https://github.com/engmung/Patternflow/issues/455)). The button's disabled state was React state, a render too late for the second click, and after a successful publish it came back enabled while the page changed. The publish, thread, reply, deck, header, performance and report forms now refuse a second press in the same tick (`useSubmitLatch`), and a published pattern keeps its button down until the page changes; a thread whose files failed to attach offers *Open the thread* instead of posting it again. Behind them the server answers an identical submission from the same account within a minute with the post it already made, looked up and inserted in one synchronous transaction so two requests arriving together cannot both get through. `check:publish` fires two identical publishes into the route at the same instant; a version that awaits between the lookup and the insert fails it.
-
-## [3.10.4] - 2026-09-19
-
-### Firmware
-
-- **The panel refreshes at exactly 300 Hz, because that is what a phone can film.** A row is lit once per refresh for 1/32 of it - a pulse, not a glow - so a rolling shutter collects a whole number of pulses per sensor line, and unless the exposure is an exact multiple of the refresh period some lines get N and some N + 1: bands. Phones pin exposure to 1/50, 1/100, 1/25 or 1/60, 1/30 to dodge mains flicker, and 300 Hz is the lowest rate all of those divide. 3.10.3's 325.5 Hz sat close to the worst case for both 1/50 (6.51 periods - the whole picture banded) and 1/60 (5.43), and it showed: more lines on video than the 260 Hz it replaced, which had happened to sit nearer whole numbers. Every frame now ends in 4,181 blank clocks, output off, bringing it to 16 MHz / 300 = 53,333. Simulated band contrast at 1/25, 1/30, 1/50, 1/60 and 1/100 goes to zero, and it looked that way through a phone. It costs about 8% of the light and no CPU at all - the DMA engine walks the chain by itself; frame and push times on the panel are unchanged. **1/120 and faster still band**, at any rate this clock can reach (that would take 600 Hz), and so does slow motion: lock the shutter at 1/60 or 1/50, or turn the panel down so the phone lengthens its exposure. `PF_TARGET_REFRESH_HZ` (0 to switch off); never pads below `min_refresh_rate`. The old claim in `firmware/README.md` - past 240 Hz a camera "averages 4+ cycles and the bands disappear" - was wrong, and is replaced with how it actually works.
 
 ## [3.10.3] - 2026-09-17
 
@@ -1168,3 +1168,7 @@ See [BUILD_GUIDE.md](BUILD_GUIDE.md) -- Known Issues section for full details.
 - **PCBway** -- for sponsoring v1.0 PCB fabrication
 - **r/arduino community** -- 1.6k upvotes on the prototype thread that pushed this from "just a personal project" toward open source
 - **Doyoon** -- for the suggestion that started the LED matrix direction
+
+## Older releases
+
+- [3.10.4](docs/releases/v3.10.4.md) - 2026-09-19

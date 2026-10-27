@@ -196,6 +196,7 @@ firmware/
 │   │   ├── core_module_loader.h # ELF loader/relocator for .pfm modules
 │   │   ├── core_power.h         # Total power clamp (measures demand, caps brightness)
 │   │   ├── core_sleep.h         # Sleep mode: panel off, board idle, still on the network
+│   │   ├── core_flash_quirks.h  # Macronix flash: driver reads in QOUT, not QIO (issue #424)
 │   │   ├── core_wifi.h          # Multi-network Wi-Fi (up to 5 saved, tried in order)
 │   │   ├── core_improv.h        # Improv-Serial provisioning from the browser flasher
 │   │   ├── core_hotspot.h       # The panel's own Wi-Fi network when no saved one answers

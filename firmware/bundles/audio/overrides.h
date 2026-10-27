@@ -28,7 +28,7 @@
 // v0.4.0 shipped still believing it was v0.3.1 because nothing tied the two
 // together; shelf.sh now refuses an image that does not contain its version.
 #define PF_VARIANT "audio"
-#define PF_VARIANT_VERSION "v0.7.0"
+#define PF_VARIANT_VERSION "v0.7.1"
 
 // ── The on-board microphone drives the knobs ────────────────────────────
 //

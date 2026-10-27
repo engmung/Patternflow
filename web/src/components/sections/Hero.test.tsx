@@ -5,9 +5,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import Hero from './Hero';
 
 // The hero's video is a YouTube embed that starts by itself and takes no
-// clicks. A button over it stops it and plays it again. Someone whose system
-// asks for reduced motion gets the poster under it and no embed at all, and the
-// server, which cannot know, sends the poster alone.
+// clicks. A button over it stops it and plays it again, and the rest of the
+// frame is a link to the film on YouTube. Someone whose system asks for reduced
+// motion gets the poster under it and no embed at all, and the server, which
+// cannot know, sends the poster alone. The film ends when the player says so.
 
 vi.mock('next/link', () => ({
   default: ({
@@ -35,7 +36,7 @@ function setReduce(next: boolean) {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
   reduce = false;
   listeners.clear();
   vi.stubGlobal('matchMedia', (query: string) => ({
@@ -57,19 +58,106 @@ const poster = (root: ParentNode) => root.querySelector('img[alt="Patternflow ph
 const video = (root: ParentNode) => root.querySelector('iframe');
 const stopButton = () => screen.getByRole('button', { name: 'Stop the video' });
 const playButton = () => screen.getByRole('button', { name: 'Play the video' });
+const FILM = 'https://www.youtube.com/watch?v=1tkV8-AgdpA';
+
+// A message from the player, as YouTube's embed sends it: a JSON string from
+// the iframe's window. By default it says the film has ended.
+function playerSays(
+  frame: HTMLIFrameElement | null,
+  data: object = { event: 'onStateChange', info: 0, id: 1, channel: 'widget' },
+  source: Window | null = frame?.contentWindow ?? null,
+) {
+  act(() => {
+    window.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(data), source }));
+  });
+}
 
 describe('Hero', () => {
   it('plays the video over the poster, hidden while the player loads', () => {
     const { container } = render(<Hero />);
     expect(poster(container)).not.toBeNull();
-    expect(video(container)?.getAttribute('src')).toContain('youtube.com/embed/');
+    expect(video(container)?.getAttribute('src')).toContain('youtube.com/embed/1tkV8-AgdpA?');
+    expect(video(container)?.getAttribute('src')).toContain('enablejsapi=1');
     expect(video(container)?.style.opacity).toBe('0');
 
     act(() => vi.advanceTimersByTime(3000));
     expect(video(container)?.style.opacity).toBe('1');
 
-    act(() => vi.advanceTimersByTime(89000));
+    // No clock decides the end: past the old film's 89 seconds it still plays.
+    act(() => vi.advanceTimersByTime(600000));
+    expect(video(container)?.style.opacity).toBe('1');
+    expect(stopButton()).not.toBeNull();
+
+    playerSays(video(container));
     expect(video(container)?.style.opacity).toBe('0');
+    expect(playButton()).not.toBeNull();
+  });
+
+  it('ends on the player\'s regular report too', () => {
+    const { container } = render(<Hero />);
+    act(() => vi.advanceTimersByTime(3000));
+    playerSays(video(container), { event: 'infoDelivery', info: { playerState: 1 }, id: 1, channel: 'widget' });
+    expect(video(container)?.style.opacity).toBe('1');
+
+    playerSays(video(container), { event: 'infoDelivery', info: { playerState: 0 }, id: 1, channel: 'widget' });
+    expect(video(container)?.style.opacity).toBe('0');
+    expect(playButton()).not.toBeNull();
+  });
+
+  it('takes the end only from its own player', () => {
+    const { container } = render(<Hero />);
+    act(() => vi.advanceTimersByTime(3000));
+    playerSays(video(container), undefined, window);
+    playerSays(video(container), undefined, null);
+    expect(video(container)?.style.opacity).toBe('1');
+    expect(stopButton()).not.toBeNull();
+  });
+
+  it('tells the player it is listening until the player answers', () => {
+    const { container } = render(<Hero />);
+    const frame = video(container)!;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage').mockImplementation(() => {});
+    fireEvent.load(frame);
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(post).toHaveBeenCalledWith(
+      JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
+      'https://www.youtube.com',
+    );
+    act(() => vi.advanceTimersByTime(500));
+    expect(post).toHaveBeenCalledTimes(3);
+
+    playerSays(frame, { event: 'onReady', id: 1, channel: 'widget' });
+    act(() => vi.advanceTimersByTime(5000));
+    expect(post).toHaveBeenCalledTimes(3);
+  });
+
+  it('gives up telling a player that never answers after ten seconds', () => {
+    const { container } = render(<Hero />);
+    const frame = video(container)!;
+    const post = vi.spyOn(frame.contentWindow!, 'postMessage').mockImplementation(() => {});
+    fireEvent.load(frame);
+    act(() => vi.advanceTimersByTime(60000));
+    expect(post).toHaveBeenCalledTimes(40);
+  });
+
+  it('links the whole frame to the film on YouTube, in a new tab', () => {
+    const html = renderToString(<Hero />);
+    const fromServer = new DOMParser().parseFromString(html, 'text/html').querySelector('a.hero-video-link');
+    expect(fromServer?.getAttribute('href')).toBe(FILM);
+    expect(fromServer?.getAttribute('target')).toBe('_blank');
+    expect(fromServer?.getAttribute('rel')).toBe('noopener');
+
+    const { container } = render(<Hero />);
+    const link = screen.getByRole('link', { name: 'Watch the film on YouTube' });
+    expect(link.getAttribute('href')).toBe(FILM);
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.parentElement).toBe(video(container)?.parentElement);
+  });
+
+  it('keeps the link when reduced motion is on', () => {
+    reduce = true;
+    render(<Hero />);
+    expect(screen.getByRole('link', { name: 'Watch the film on YouTube' }).getAttribute('href')).toBe(FILM);
   });
 
   it('shows the poster alone when reduced motion is on', () => {
@@ -143,7 +231,8 @@ describe('Hero', () => {
   it('offers Play once the video has ended, and Play starts a fresh one', () => {
     const { container } = render(<Hero />);
     expect(stopButton()).not.toBeNull();
-    act(() => vi.advanceTimersByTime(92000));
+    act(() => vi.advanceTimersByTime(3000));
+    playerSays(video(container));
     const ended = video(container);
     expect(ended?.style.opacity).toBe('0');
 
