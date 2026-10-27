@@ -1858,6 +1858,12 @@
       top: 18px;
       right: 22px;
     }
+    /* A post's switch scrolls away with the page. Fixed, it sat over the
+       right end of each line of text that scrolled under it: 8,801 lines
+       across the 74 posts at 390px. It starts in the same place. */
+    .journal-article .journal-lang-switch {
+      position: absolute;
+    }
     .journal-shell {
       padding: 36px 24px 96px;
     }

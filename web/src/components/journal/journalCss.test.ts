@@ -114,3 +114,44 @@ describe("journal faint text", () => {
     expect(contrast(label, panel)).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+// A post's language switch is position: fixed, and below 721px it sits 22px
+// from the right edge, inside the column of text. On 27 October, at 390, all
+// 74 posts scrolled 8,801 lines of text under it.
+
+/** The inside of each `@media <query> { … }` block. */
+function mediaBlocks(source: string, query: string) {
+  const bare = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  const out: string[] = [];
+  const head = `@media ${query}`;
+  for (let at = bare.indexOf(head); at !== -1; at = bare.indexOf(head, at + 1)) {
+    const open = bare.indexOf("{", at);
+    let depth = 0;
+    for (let i = open; i < bare.length; i++) {
+      if (bare[i] === "{") depth++;
+      if (bare[i] === "}" && --depth === 0) {
+        out.push(bare.slice(open + 1, i));
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+describe("journal language switch on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const position = (selector: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, "position"))
+      .filter(Boolean)
+      .at(-1);
+
+  it("scrolls away with a post instead of staying over its text", () => {
+    expect(position(".journal-article .journal-lang-switch")).toBe("absolute");
+  });
+
+  it("keeps the index's switch in the panel's flow", () => {
+    expect(position(".journal-panel .journal-lang-switch")).toBe("static");
+  });
+});
