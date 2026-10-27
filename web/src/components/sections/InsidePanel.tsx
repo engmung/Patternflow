@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { SectionContent } from '@/lib/content';
+import { captureEvent } from '@/lib/posthogEvents';
+import { SHOP_URL } from '@/lib/shop';
 import BuildCard from './InsideGlobe/BuildCard';
 import BuildIndex from './InsideGlobe/BuildIndex';
 import { BUILD_FILTERS, builds, countCountries } from './InsideGlobe/builds';
@@ -94,6 +96,17 @@ export default function InsidePanel({ content }: InsidePanelProps) {
         <nav className={styles.footerLinks} aria-label="More from Patternflow">
           <Link href="/journal">Journal ↗</Link>
           <Link href="/roadmap">Project map ↗</Link>
+          <a
+            href={SHOP_URL}
+            target="_blank"
+            rel="noopener"
+            onClick={() => captureEvent('shop_clicked', {
+              surface: 'inside_panel',
+              destination: 'shop',
+            })}
+          >
+            Shop ↗
+          </a>
         </nav>
       </div>
     </div>

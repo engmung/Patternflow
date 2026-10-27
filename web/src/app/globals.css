@@ -451,9 +451,11 @@
   /* At laptop height the column — wordmark, video, the two facts, the buttons —
      can be taller than the window with the full 80px above it, and the buttons'
      note falls below the fold. Take the difference from the top. The nav is out
-     of flow, top-right, and keeps clear of the wordmark. */
+     of flow, top-right, and goes up 8px with it, so the Shop box keeps clear
+     of the wordmark's f and l. */
   @media (min-width: 901px) and (max-height: 860px) {
     .hero { padding-top: 48px; }
+    .hero .hero-top-links { top: 16px; }
   }
   /* Side by side, the two buttons need about 420px (the note under Get One
      sets the first column). In a column narrower than that they stack, the way
@@ -955,6 +957,22 @@
     height: 28px;
     fill: currentColor;
     display: block;
+  }
+  /* The shop: an outline box in ink, filled on hover like Build it — GitHub.
+     The accent stays for live signals. The negative margin puts its word on
+     the same line as Guide, Journal and Community, which sit 2px off the
+     bottom. */
+  .hero-top-links .shop-link {
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 4px 9px 3px;
+    margin-bottom: -2px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .hero-top-links .shop-link:hover {
+    background: var(--ink);
+    color: var(--cream);
+    text-decoration: none;
   }
 
   /* Business */
@@ -2056,5 +2074,20 @@
       width: 20px !important;
       height: 20px !important;
     }
+    /* Shorter on a phone, where the nav sits right over the wordmark. Its
+       word still lines up with the others, now with no margin to do it. */
+    .hero-top-links .shop-link {
+      padding: 2px 6px 1px;
+      margin-bottom: 0;
+    }
   }
 
+
+  /* Five entries need about 270px. Below 340px the gaps close up so the row
+     still starts inside the screen at 280px, a folded phone's width. */
+  @media (max-width: 340px) {
+    .hero-top-links {
+      gap: 8px !important;
+      letter-spacing: 0.04em;
+    }
+  }
