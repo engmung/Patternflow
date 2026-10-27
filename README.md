@@ -20,7 +20,7 @@ Play light patterns with your fingertips.
   <a href="https://youtu.be/1tkV8-AgdpA"><img src="https://img.youtube.com/vi/1tkV8-AgdpA/maxresdefault.jpg" width="72%" alt="Patternflow, the film: what it is, how it's built, and why" /></a>
 </p>
 <p align="center">
-  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the reel: <b>400k+ views</b> on Instagram</a> &nbsp;·&nbsp; <a href="https://youtu.be/1tkV8-AgdpA">▶ <b>the film</b>: the whole story, on YouTube</a></sub>
+  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the reel: <b>500k+ views</b> on Instagram</a> &nbsp;·&nbsp; <a href="https://youtu.be/1tkV8-AgdpA">▶ <b>the film</b>: the whole story, on YouTube</a></sub>
 </p>
 
 > **Photosensitivity warning.** Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.
@@ -245,11 +245,12 @@ Folder by folder, and what you want to do → where to start: **[docs/REPOSITORY
 
 ## What's new
 
-**Moving fast.** [v3.11.0 is out](https://github.com/engmung/Patternflow/releases/tag/v3.11.0): installed patterns run faster, a pattern you go back to resumes at once, and there is an [Audio guide](https://patternflow.work/guide/audio) beside Build, Play and Make. Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
+**Moving fast.** [v3.12.0 is out](https://github.com/engmung/Patternflow/releases/tag/v3.12.0): a board with Macronix flash keeps its patterns now, and Pattern Lab has text layers. Follow the [changelog](CHANGELOG.md) and the [journal](https://patternflow.work/journal) for what's current.
 
 <details>
 <summary>Recent releases in brief</summary>
 
+- **[v3.12.0](https://github.com/engmung/Patternflow/releases/tag/v3.12.0)**: a board whose flash is a Macronix part mounts its pattern storage, where a Format used to not stick (fixed by @didusee). Pattern Lab has text layers, /build lets you pick the case, the community's workshop is gone, and the firmware and the site read their shared numbers from one file. Audio is re-cut on this core as v0.7.1; Performance stays at v0.4.0 until its maintainer re-cuts it.
 - **[v3.11.0](https://github.com/engmung/Patternflow/releases/tag/v3.11.0)**: installed patterns run faster. The Basics pack is rebuilt and every one of its 33 patterns runs faster, 1.5 times the frames a second at the median, once the firmware is updated and the pack installed again; a pattern you go back to resumes at once instead of loading again. The console is light and reads as one thing, and the Audio edition's page and browser extension are rebuilt: the page says who has the knobs and saves only what you changed, and the extension holds the knobs through silence. Audio is re-cut on this core as v0.7.0; Performance stays at v0.4.0, on core 3.10.4, until its maintainer re-cuts it.
 - **[v3.10.5](https://github.com/engmung/Patternflow/releases/tag/v3.10.5)**: every pattern 2.45 ms a frame faster, and a pattern's code moved to PSRAM, so patterns that were refused for size load and the console has more room while one is running. The panel raises its own Wi-Fi hotspot when it knows no network in reach, a panel that crashed says which pattern it was in and where, a pattern that hangs no longer takes the console down with it, and four requests that could reboot the board cannot any more.
 - **[v3.10.4](https://github.com/engmung/Patternflow/releases/tag/v3.10.4)**: the panel films properly on a phone. It refreshes at exactly 300 Hz, the one rate the shutter speeds a phone actually uses (1/50, 1/60, 1/100, 1/30) all divide, so the rolling bands are gone at those; 1/120 and slow motion still band, and [the firmware README](firmware/README.md#refresh-rate-anti-flicker-for-video) says why and what to set.
