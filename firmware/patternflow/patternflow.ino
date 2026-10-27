@@ -82,6 +82,8 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include "config.h"
+// Runs at boot, before NVS opens: see the file for why.
+#include "src/core_flash_quirks.h"
 #include "src/core_display.h"
 #include "src/core_ui_text.h"
 #include "src/core_encoders.h"
