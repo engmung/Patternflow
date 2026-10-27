@@ -22,7 +22,9 @@ export async function generateMetadata(props: RouteParams): Promise<Metadata> {
   if (!communityEnabled()) return {};
   const { id } = await props.params;
   const deck = await getDeck(id);
-  if (!deck || deck.visibility === "private") return {};
+  // A gone deck takes community/not-found.tsx's title, as a gone pattern does.
+  if (!deck) notFound();
+  if (deck.visibility === "private") return {};
   return {
     title: `${deck.title} / Patternflow Community`,
     description:

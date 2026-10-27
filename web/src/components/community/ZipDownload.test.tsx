@@ -154,6 +154,57 @@ describe("zip surfaces", () => {
     expect(screen.getByText(/Slot 4 · Tide — same module name/)).toBeInTheDocument();
   });
 
+  it("says how long a compile has taken against what it was promised", () => {
+    const { rerender } = render(
+      <ZipProgress
+        kind="pattern"
+        phase="building"
+        status={{ state: "building" }}
+        error={null}
+        detail={null}
+        waited={3}
+        expectedS={8}
+      />,
+    );
+    expect(
+      screen.getByText("Preparing the module — the first download compiles it (usually under 8 s) · 3 s"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/may be busy/)).toBeNull();
+
+    rerender(
+      <ZipProgress
+        kind="pattern"
+        phase="building"
+        status={{ state: "building" }}
+        error={null}
+        detail={null}
+        waited={8}
+        expectedS={8}
+      />,
+    );
+    expect(
+      screen.getByText("Preparing the module — the first download compiles it (longer than usual) · 8 s"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/build server may be busy, or stopped/)).toHaveTextContent(/up to 3 minutes/);
+  });
+
+  it("gives a deck the promise its compiling patterns need", () => {
+    render(
+      <ZipProgress
+        kind="deck"
+        phase="building"
+        status={{ state: "building", total: 6, included: 3, pending: 3, skipped: [] }}
+        error={null}
+        detail={null}
+        waited={4}
+        expectedS={11}
+      />,
+    );
+    expect(
+      screen.getByText("Preparing the pack — 3 of its patterns compile on first use (usually under 11 s) · 4 s"),
+    ).toBeInTheDocument();
+  });
+
   it("renders nothing while idle", () => {
     const { container } = render(
       <ZipProgress kind="deck" phase="idle" status={null} error={null} detail={null} />,

@@ -124,6 +124,17 @@ export type ShareMeta = {
   basedOn?: ShareLineage | null;
 };
 
+// Every line of the header is a `//` comment, and JavaScript ends a line at
+// \n, \r, U+2028 and U+2029. A community title stored with one of them before
+// cleanTitle refused it closed its comment, and the rest of the title ran as
+// code in the pattern, and again in each fork's `// Based on:` line. Folded to
+// a space, the words stay and the line stays a comment.
+const LINE_BREAKING = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g;
+
+function oneLine(line: string): string {
+  return line.replace(LINE_BREAKING, " ");
+}
+
 // Top-of-file licence header. SPDX line is kept machine-readable.
 export function buildLicenseHeader(meta: ShareMeta): string {
   const lines = [
@@ -141,7 +152,7 @@ export function buildLicenseHeader(meta: ShareMeta): string {
     `// SPDX-License-Identifier: ${meta.license.spdx}`,
     "// ===============================",
   );
-  return lines.join("\n");
+  return lines.map(oneLine).join("\n");
 }
 
 // Bottom-of-file attribution. Worded so people know it is not optional.

@@ -50,12 +50,6 @@ export function Header() {
         <PLink go={() => go({ kind: "decks" })} active={decks} current={decks} pc="nav-decks">
           Decks
         </PLink>
-        <PLink go={() => say("elsewhere")} active={false}>
-          Workshop
-        </PLink>
-        <PLink go={() => say("elsewhere")} active={false}>
-          Atlas
-        </PLink>
       </nav>
       <div className={cs.headerSpacer} />
       <nav className={cs.headerNav}>
@@ -452,7 +446,7 @@ function ShippedPack() {
           Download .zip
         </button>
       </div>
-      <span className={cs.packHint}>
+      <label className={cs.packHint}>
         Device address:{" "}
         <input
           type="text"
@@ -464,7 +458,7 @@ function ShippedPack() {
         />{" "}
         (Android can’t resolve <code>.local</code> — use the IP from the device’s NETWORK screen, hold K2.) Or download the .zip and drop it
         on your device’s Patterns page — same result.
-      </span>
+      </label>
     </div>
   );
 }

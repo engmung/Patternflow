@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import { authClient } from "@/lib/community/auth-client";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
@@ -127,6 +128,7 @@ export default function PublishModal({
   // field's autoFocus used to move it before the hook could look, and the
   // field is not there yet while the session is being checked.
   const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
   const titleRef = useRef<HTMLInputElement>(null);
   const formShown = !isPending && Boolean(session);
   useEffect(() => {
@@ -263,7 +265,7 @@ export default function PublishModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         ref={cardRef}
         tabIndex={-1}

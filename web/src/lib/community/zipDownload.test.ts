@@ -6,7 +6,14 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { includedSummary, useZipDownload, zipStatusUrl, type ZipStatus } from "./zipDownload";
+import {
+  buildingNote,
+  includedSummary,
+  useZipDownload,
+  zipExpectedS,
+  zipStatusUrl,
+  type ZipStatus,
+} from "./zipDownload";
 
 const ZIP = "/api/community/decks/abc/zip";
 
@@ -22,7 +29,7 @@ function answer(body: unknown, status = 200) {
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
 });
@@ -165,6 +172,65 @@ describe("zip download helper", () => {
     expect(second.result.current.error).toMatch(/Network error/);
   });
 
+  it("counts the seconds a pattern compiles against what it was promised", async () => {
+    fetchMock.mockImplementation(() => answer({ state: "building" }));
+    const { result } = renderHook(() => useZipDownload(ZIP, "pattern", vi.fn()));
+    act(() => {
+      void result.current.download();
+    });
+    await tick();
+    expect(result.current.phase).toBe("building");
+    expect(result.current.waited).toBe(0);
+    // One header: the deck bar's allowance for a single pattern.
+    expect(result.current.expectedS).toBe(8);
+
+    await tick(3000);
+    expect(result.current.waited).toBe(3);
+    await tick(6000);
+    expect(result.current.waited).toBe(9);
+    expect(result.current.phase).toBe("building");
+  });
+
+  it("promises a deck what its compiling headers need, and keeps the promise as they land", async () => {
+    fetchMock
+      .mockImplementationOnce(() => answer({ state: "building", total: 12, included: 2, pending: 10, skipped: [] }))
+      .mockImplementation(() => answer({ state: "building", total: 12, included: 11, pending: 1, skipped: [] }));
+    const { result } = renderHook(() => useZipDownload(ZIP, "deck", vi.fn()));
+    act(() => {
+      void result.current.download();
+    });
+    await tick();
+    expect(result.current.expectedS).toBe(21);
+    await tick(2000);
+    expect(result.current.status?.pending).toBe(1);
+    expect(result.current.expectedS).toBe(21);
+  });
+
+  it("starts the clock again on the next press", async () => {
+    fetchMock.mockImplementationOnce(() => answer({ state: "building" }));
+    fetchMock.mockImplementationOnce(() => answer({ state: "error", error: "x" }));
+    fetchMock.mockImplementation(() => answer({ state: "building" }));
+    const { result } = renderHook(() => useZipDownload(ZIP, "pattern", vi.fn()));
+    act(() => {
+      void result.current.download();
+    });
+    await tick();
+    await tick(2000);
+    expect(result.current.phase).toBe("error");
+    expect(result.current.waited).toBe(2);
+    // Not running, so the clock stands still.
+    await tick(5000);
+    expect(result.current.waited).toBe(2);
+
+    act(() => {
+      void result.current.download();
+    });
+    await tick();
+    expect(result.current.waited).toBe(0);
+    await tick(1000);
+    expect(result.current.waited).toBe(1);
+  });
+
   it("stops polling when the component goes away", async () => {
     fetchMock.mockImplementation(() => answer({ state: "building" }));
     const navigate = vi.fn();
@@ -177,5 +243,27 @@ describe("zip download helper", () => {
     const calls = fetchMock.mock.calls.length;
     await tick(10_000);
     expect(fetchMock.mock.calls.length).toBe(calls);
+  });
+});
+
+describe("what a compile is told to expect", () => {
+  it("scales with the headers still compiling, not the deck's length", () => {
+    expect(zipExpectedS("pattern", { state: "building" })).toBe(8);
+    expect(zipExpectedS("deck", { state: "building", total: 20, included: 17, pending: 3 })).toBe(11);
+    expect(zipExpectedS("deck", { state: "building", total: 20, included: 0, pending: 20 })).toBe(36);
+    // An answer without `pending` counts the whole deck.
+    expect(zipExpectedS("deck", { state: "building", total: 4, included: 0 })).toBe(12);
+    expect(zipExpectedS("deck", { state: "building" })).toBe(8);
+  });
+
+  it("names how many of a deck's patterns are compiling", () => {
+    expect(buildingNote("deck", { state: "building", total: 5, included: 4, pending: 1 })).toBe(
+      "Preparing the pack — 1 of its patterns compiles on first use",
+    );
+    expect(buildingNote("deck", { state: "building", total: 5, included: 2, pending: 3 })).toBe(
+      "Preparing the pack — 3 of its patterns compile on first use",
+    );
+    expect(buildingNote("deck", { state: "building" })).toMatch(/patterns nobody has downloaded yet/);
+    expect(buildingNote("pattern", null)).toMatch(/the first download compiles it$/);
   });
 });

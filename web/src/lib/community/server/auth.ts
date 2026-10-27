@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { username } from "better-auth/plugins";
 import { getDb } from "./db";
 import * as schema from "./schema";
@@ -20,6 +21,56 @@ function trustedOrigins(): string[] {
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
+
+/**
+ * True when `shown` is `own` with only its capitals changed. `displayUsername`
+ * is what every card, comment and licence header prints after the @, so it
+ * may not spell anyone else's name, and USERNAME_RE keeps out the letters
+ * that lowercase into ASCII (the Kelvin sign is a K that way).
+ */
+function isOwnDisplayName(shown: unknown, own: unknown): boolean {
+  return (
+    typeof shown === "string" &&
+    typeof own === "string" &&
+    USERNAME_RE.test(shown) &&
+    shown.toLowerCase() === own.toLowerCase()
+  );
+}
+
+// Better Auth's username plugin takes any string as `displayUsername`, at
+// sign-up and on /update-user, and its `displayUsernameValidator` is shown the
+// name alone, never whose it is. So this runs before the plugin's own hooks
+// and holds the two together. eve could otherwise set hers to "ada", and the
+// code she published next carried "// Author:   @ada".
+const displayNameIsOwn = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== "/sign-up/email" && ctx.path !== "/update-user") return;
+  const body = ctx.body as Record<string, unknown> | undefined;
+  if (!body || typeof body !== "object") return;
+
+  let own = body.username;
+  if (ctx.path === "/sign-up/email") {
+    // The plugin signs up a bare display name as the username itself.
+    own ??= body.displayUsername;
+  } else {
+    const user = (await getSessionFromCtx<{ username?: string | null; displayUsername?: string | null }>(ctx))
+      ?.user;
+    if (own === undefined) {
+      own = user?.username;
+    } else if (body.displayUsername === undefined) {
+      // A new username takes the display name with it. Left behind, the old
+      // name would stay on the cards while it is free to sign up as.
+      body.displayUsername = isOwnDisplayName(user?.displayUsername, own) ? user?.displayUsername : own;
+    }
+  }
+
+  // Missing on sign-up is fine: the plugin copies the username in after this.
+  if (body.displayUsername === undefined) return;
+  if (!isOwnDisplayName(body.displayUsername, own)) {
+    throw new APIError("BAD_REQUEST", {
+      message: "Your display name is your username. Only its capitals can change.",
+    });
+  }
+});
 
 function createAuth() {
   return betterAuth({
@@ -54,6 +105,7 @@ function createAuth() {
       requireEmailVerification: false,
       minPasswordLength: 8,
     },
+    hooks: { before: displayNameIsOwn },
     plugins: [
       username({
         minUsernameLength: 3,

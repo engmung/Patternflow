@@ -96,3 +96,21 @@ export function communityApiUrl(path: string): string {
 export const COMMUNITY_FETCH_INIT: Pick<RequestInit, "credentials"> = {
   credentials: "include",
 };
+
+/**
+ * What to tell someone when a community call answered but not with ok.
+ *
+ * The route's own `{ error }` when it sent one. A proxy's 502 page or a bare
+ * 413 is not JSON, and reading it as JSON threw into the caller's catch, which
+ * said "Network error." about a server that had answered. Those come back as
+ * `fallback` with the status instead: "Comment failed (HTTP 502)." Pass
+ * `fallback` without its full stop.
+ */
+export async function readApiError(response: Response, fallback: string): Promise<string> {
+  const payload: unknown = await response.json().catch(() => null);
+  if (typeof payload === "object" && payload !== null && "error" in payload) {
+    const { error } = payload;
+    if (typeof error === "string" && error.trim().length > 0) return error;
+  }
+  return `${fallback} (HTTP ${response.status}).`;
+}

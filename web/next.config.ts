@@ -90,6 +90,16 @@ const nextConfig: NextConfig = {
       // to the guide's Flash chapter, where the button and the steps are. Only
       // the exact path: /flash/manifest.json and /flash/bin/* are untouched.
       { source: "/flash", destination: "/guide/play#flash", permanent: false },
+      // The community's workshop came down on 26 October 2026: the map of
+      // directions, its threads, and the moderators' territory editor. Its
+      // rows stay in the database. A link to any of it, from an old alert, a
+      // post elsewhere or a bookmark, lands on the community's front page. One
+      // line per page that was there.
+      { source: "/community/workshop", destination: "/community", permanent: false },
+      { source: "/community/workshop/:code", destination: "/community", permanent: false },
+      { source: "/community/workshop/:code/t/:id", destination: "/community", permanent: false },
+      { source: "/community/t/:id", destination: "/community", permanent: false },
+      { source: "/community/territories", destination: "/community", permanent: false },
       // From the journal's first post on 29 April 2026 until 11 May, its own
       // links asked for English with ?lang=en. English moved to /en paths that
       // day (c44b0d7a), and these two send the old links there. The query goes

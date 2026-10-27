@@ -1,5 +1,5 @@
 import { livePresets } from "@/lib/presets";
-import { BASICS_PACK } from "@/lib/pattern/packs";
+import { BASICS_PACK, packPreviews } from "@/lib/pattern/packs";
 
 // What hangs in the practice community (Make · 01): placeholders, as the maker
 // allowed — Origin, and three patterns named only "Pattern 1", "Pattern 2",
@@ -62,16 +62,13 @@ export function deckById(id: string): PracticeDeck | undefined {
   return DECKS.find((d) => d.id === id);
 }
 
-/** The Basics card's strip: its first patterns, drawn from their JS twins (as ShippedPackCard does). */
+/** The Basics card's strip: its first patterns, drawn from their JS twins (as the decks page does). */
 export const BASICS = BASICS_PACK;
-export const BASICS_STRIP = BASICS_PACK.order
-  .slice(0, 4)
-  .map((slug) => {
-    const num = BASICS_PACK.presets[slug];
-    const preset = num === undefined ? undefined : livePresets.find((p) => p.num === num);
-    return preset ? { key: `basics-${slug}`, code: preset.code, title: preset.name } : null;
-  })
-  .filter((e): e is { key: string; code: string; title: string } => e !== null);
+export const BASICS_STRIP = packPreviews(BASICS_PACK, livePresets).map((e) => ({
+  key: `basics-${e.slug}`,
+  code: e.code,
+  title: e.title,
+}));
 
 /** The deck bar's cap and the public-deck cap the Decks page states: the real community's. */
 export { DECK_MAX, PUBLIC_DECKS_MAX } from "@/lib/community/deck";

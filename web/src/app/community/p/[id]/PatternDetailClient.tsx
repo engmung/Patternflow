@@ -20,6 +20,7 @@ import { ZipProgress } from "@/components/community/ZipDownload";
 import { buildsConfigured } from "@/lib/community/apiBase";
 import { COLLECTION_EVENT, deckAdd, deckHas, deckRemove } from "@/lib/community/deck";
 import { knobSetupFromCode } from "@/lib/community/knobs";
+import { knobArrowValue } from "@/lib/pattern/controls";
 import { describeMatrixShape, matrixFromCode } from "@/lib/pattern/matrix";
 import { writeLabHandoff } from "@/lib/community/handoff";
 import { downloadPatternHeader, downloadPatternJs } from "@/lib/community/download";
@@ -206,6 +207,9 @@ export default function PatternDetailClient({
     return knobSetup.values;
   });
 
+  const setKnob = (index: number, next: number) =>
+    setKnobValues((current) => current.map((item, itemIndex) => (itemIndex === index ? next : item)));
+
   const edited = code !== pattern.code;
 
   // Whether the .h on show was last written by a moderator rather than by the
@@ -336,11 +340,14 @@ export default function PatternDetailClient({
                   step="0.001"
                   value={value}
                   aria-label={`${knobSetup.labels[index]} value`}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    setKnobValues((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? next : item)),
-                    );
+                  onChange={(event) => setKnob(index, Number(event.target.value))}
+                  // An arrow key turns one detent, as in the Lab's Knobs panel.
+                  // The input's own step, 0.001, took 1,000 presses across a 0..1 knob.
+                  onKeyDown={(event) => {
+                    const next = knobArrowValue(event, value, knobSetup.ranges[index]);
+                    if (next === null) return;
+                    event.preventDefault();
+                    setKnob(index, next);
                   }}
                 />
                 <span className={styles.knobValue}>{value.toFixed(3)}</span>
@@ -435,6 +442,8 @@ export default function PatternDetailClient({
               status={zip.status}
               error={zip.error}
               detail={zip.detail}
+              waited={zip.waited}
+              expectedS={zip.expectedS}
             />
           )}
           {zipInstallable && zip.phase === "ready" && (
@@ -765,7 +774,7 @@ export default function PatternDetailClient({
         />
       </div>
 
-      <CommentSection target={{ kind: "pattern", id: pattern.id }} comments={comments} />
+      <CommentSection patternId={pattern.id} comments={comments} />
 
       {headerModalOpen && (
         <AddHeaderModal

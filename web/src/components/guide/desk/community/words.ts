@@ -21,7 +21,6 @@ export type NoteKey =
   | "share"
   | "sharePack"
   | "signIn"
-  | "elsewhere"
   | "port";
 
 type Words = {
@@ -64,8 +63,6 @@ export const PRACTICE_WORDS: Record<GuideLang, Words> = {
           return "Nothing to copy here. For real, Share shows this deck's pack address to copy, and Download .zip: anyone with the link can install it. No account needed.";
         case "signIn":
           return "There are no accounts here. For real, looking needs none; building a deck and sharing do.";
-        case "elsewhere":
-          return "Only Patterns and Decks are in this practice.";
         case "port":
           return "For real, you sign in and paste the .h you made in Pattern Lab. It goes up credited to you.";
       }
@@ -101,8 +98,6 @@ export const PRACTICE_WORDS: Record<GuideLang, Words> = {
           return "여기선 복사할 게 없어요. 실제로는 Share가 이 덱 팩의 주소를 보여 주고 Download .zip도 있어요. 링크만 있으면 누구든 설치할 수 있고, 계정은 필요 없어요.";
         case "signIn":
           return "여기엔 계정이 없어요. 실제로도 구경할 땐 필요 없고, 덱을 빌드하거나 공유할 땐 필요해요.";
-        case "elsewhere":
-          return "이 연습엔 Patterns와 Decks만 있어요.";
         case "port":
           return "실제로는 로그인한 뒤 패턴 랩에서 만든 .h를 붙여 넣어요. 내 이름으로 올라가요.";
       }

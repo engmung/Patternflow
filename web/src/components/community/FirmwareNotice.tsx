@@ -1,8 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
-import manifest from "../../../public/flash/manifest.json";
+import { useEffect, useSyncExternalStore } from "react";
+import {
+  FIRMWARE_NOTICE_COOKIE as KEY,
+  FIRMWARE_NOTICE_VERSION as LATEST,
+  firmwareNoticeDismissed,
+} from "@/lib/community/firmwareNotice";
 import styles from "./Community.module.css";
 
 // "There is a new firmware" — said here, because there is nowhere else to say
@@ -22,39 +26,61 @@ import styles from "./Community.module.css";
 // Dismissal is per version, not forever. Dismiss this and it stays gone until
 // there is a different release to mention — it cannot know whether you updated
 // (see above), so the honest fallback is to ask once per version and drop it.
+//
+// The server draws the banner only for someone who will keep it. Until 26
+// October only the browser knew about a dismissal, so the server drew nothing
+// and the banner arrived at hydration, pushing the whole page down: 119px on
+// a phone, CLS 0.141 at 390px. A dismissal now goes into a cookie as well, and
+// the layout reads it and passes it in.
 
-const LATEST = manifest.version;
-const KEY = "pf-firmware-notice";
+function dismissedHere(): boolean {
+  if (document.cookie.split("; ").includes(`${KEY}=${LATEST}`)) return true;
+  try {
+    return firmwareNoticeDismissed(window.localStorage.getItem(KEY));
+  } catch {
+    return false; /* private mode */
+  }
+}
 
-/** Read once per render from localStorage, with a server snapshot of "not
- *  dismissed" so the markup matches and the banner never flashes in late. */
-function useDismissed(): boolean {
+/** A year, and only on the community's pages: the notice is drawn nowhere
+ *  else, so no other request needs to carry the cookie. */
+function remember() {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${KEY}=${LATEST}; Path=/community; Max-Age=31536000; SameSite=Lax${secure}`;
+  try {
+    window.localStorage.setItem(KEY, LATEST);
+  } catch {
+    /* private mode: the cookie still holds it */
+  }
+}
+
+/** Read once per render from the cookie and localStorage. The server snapshot
+ *  is the cookie as the layout read it, so the markup matches. */
+function useDismissed(serverDismissed: boolean): boolean {
   return useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
       return () => window.removeEventListener("storage", onChange);
     },
-    () => {
-      try {
-        return window.localStorage.getItem(KEY) === LATEST;
-      } catch {
-        return false; /* private mode */
-      }
-    },
-    () => true, // server: assume dismissed, so nothing appears before hydration
+    dismissedHere,
+    () => serverDismissed,
   );
 }
 
-export default function FirmwareNotice() {
-  const dismissed = useDismissed();
+export default function FirmwareNotice({ serverDismissed }: { serverDismissed: boolean }) {
+  const dismissed = useDismissed(serverDismissed);
+
+  // Dismissed before the cookie existed, in localStorage alone: the server
+  // drew the banner and it left at hydration. Writing the cookie now keeps
+  // that to this one page.
+  useEffect(() => {
+    if (dismissed && !serverDismissed) remember();
+  }, [dismissed, serverDismissed]);
+
   if (dismissed) return null;
 
   const dismiss = () => {
-    try {
-      window.localStorage.setItem(KEY, LATEST);
-    } catch {
-      /* private mode — it will ask again, which is the lesser failure */
-    }
+    remember();
     window.dispatchEvent(new Event("storage"));
   };
 
@@ -65,7 +91,7 @@ export default function FirmwareNotice() {
         <strong>{LATEST}</strong> is out — the firmware split into editions: the core instrument,
         Audio, and Performance. One-click install, switch any time, your settings stay.
       </span>
-      <Link href="/editions" className={styles.fwNoticeLink}>
+      <Link href="/editions" prefetch={false} className={styles.fwNoticeLink}>
         Pick an edition →
       </Link>
       <button

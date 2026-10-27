@@ -5,7 +5,9 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MOBILE_FEED_VIEW, SLOT_DEFAULT } from "@/lib/community/feedView";
 import CommunityFeedClient from "./CommunityFeedClient";
 import type { PatternCardItem } from "./PatternCard";
 
@@ -195,5 +197,90 @@ describe("wall search", () => {
       "href",
       "/community/patterns?q=wave",
     );
+  });
+});
+
+// The server cannot know the screen, so whatever it renders is what a phone
+// paints until the page has run. When that markup carried a column count, a
+// phone drew six 46px columns and then three 114px ones.
+describe("the wall's first paint", () => {
+  const grid = (root: ParentNode) => root.querySelector<HTMLElement>(".feedGrid")!;
+
+  it("leaves the column count to the stylesheet in the server's markup", () => {
+    const html = renderToString(
+      <CommunityFeedClient items={[card("a", "Aurora"), card("b", "Wave")]} total={2} />,
+    );
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    expect(grid(host).className).toBe("feedGrid feedWall");
+    expect(grid(host).style.gridTemplateColumns).toBe("");
+    expect(grid(host).style.getPropertyValue("--feed-slot")).toBe(`${SLOT_DEFAULT}px`);
+  });
+
+  it("still leaves it there once a phone has said it is one", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const { container } = render(
+      <CommunityFeedClient items={[card("a", "Aurora"), card("b", "Wave")]} total={2} />,
+    );
+    expect(grid(container)).toHaveAttribute("data-view", "small");
+    expect(grid(container).style.gridTemplateColumns).toBe("");
+    expect(grid(container).style.getPropertyValue("--feed-slot")).toBe(`${MOBILE_FEED_VIEW.slot}px`);
+  });
+});
+
+// "Liked" is the viewer's own list. Empty, it used to borrow the wall's panel
+// and say nobody had hung anything, over a wall that had thirty patterns.
+describe("an empty Liked tab", () => {
+  it("says nothing is liked yet and links back to the wall", () => {
+    search = new URLSearchParams("sort=liked");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" signedIn />);
+    expect(screen.getByText("You haven't liked a pattern yet.")).toBeInTheDocument();
+    expect(screen.getByText(/Press the heart on a pattern and it is kept here/)).toBeInTheDocument();
+    expect(screen.queryByText("Nobody has hung anything here yet.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Pattern Lab/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Browse the wall →" })).toHaveAttribute(
+      "href",
+      "/community/patterns",
+    );
+  });
+
+  it("drops only the filter when none of the likes is flashable", () => {
+    search = new URLSearchParams("sort=liked&hw=1");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" hardwareOnly signedIn />);
+    expect(screen.getByText("None of the patterns you liked is flashable yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing flashable yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Every pattern you liked →" })).toHaveAttribute(
+      "href",
+      "/community/patterns?sort=liked",
+    );
+  });
+
+  it("asks a signed-out visitor to sign in, and keeps the filter on the way back", () => {
+    search = new URLSearchParams("sort=liked&hw=1&page=2");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" hardwareOnly />);
+    expect(screen.getByText("Sign in to see the patterns you liked.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Browse the wall →" })).toHaveAttribute(
+      "href",
+      "/community/patterns?hw=1",
+    );
+  });
+
+  it("says a search ran over the likes only", () => {
+    search = new URLSearchParams("sort=liked&q=zzz");
+    render(<CommunityFeedClient items={[]} total={0} sort="liked" signedIn q="zzz" />);
+    expect(screen.getByText("Nothing matches “zzz”.")).toBeInTheDocument();
+    expect(screen.getByText(/Only the patterns you liked were searched/)).toBeInTheDocument();
+  });
+
+  it("leaves the empty wall's own panel alone", () => {
+    search = new URLSearchParams();
+    render(<CommunityFeedClient items={[]} total={0} signedIn />);
+    expect(screen.getByText("Nobody has hung anything here yet.")).toBeInTheDocument();
+    expect(screen.queryByText(/Only the patterns you liked/)).not.toBeInTheDocument();
   });
 });

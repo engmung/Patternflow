@@ -1,4 +1,5 @@
 import basicsManifest from "../../../public/packs/basics.json";
+import type { LivePreset } from "@/lib/presets/types";
 
 // Pattern packs that ship WITH Patternflow, as opposed to the ones people
 // build from their own decks.
@@ -80,6 +81,36 @@ export const SHIPPED_PACKS: PatternPack[] = [BASICS_PACK];
  * do not have to be edited if the default ever becomes a different set.
  */
 export const DEFAULT_PACK = BASICS_PACK;
+
+/** One cell of a pack's strip: a shipped module, drawn from its JS twin. */
+export type PackPreview = { slug: string; code: string; title: string };
+
+/**
+ * The first `count` modules of a pack, as previews from their JS twins.
+ *
+ * Four by default, the same as a deck card's strip (withPreviews). A number
+ * with no matching preset renders nothing rather than a wrong pattern, so a
+ * pack whose first four include one built outside the repo shows three.
+ *
+ * The presets are an argument and not an import. The Basics card reads this
+ * file in the browser, and the preset list is the source of 48 patterns
+ * (174,954 bytes of script on 26 October). The decks page calls this on the
+ * server and hands the card the four it draws.
+ */
+export function packPreviews(
+  pack: PatternPack,
+  presets: readonly Pick<LivePreset, "num" | "name" | "code">[],
+  count = 4,
+): PackPreview[] {
+  return pack.order
+    .slice(0, count)
+    .map((slug) => {
+      const num = pack.presets[slug];
+      const preset = num === undefined ? undefined : presets.find((p) => p.num === num);
+      return preset ? { slug, code: preset.code, title: preset.name } : null;
+    })
+    .filter((entry): entry is PackPreview => entry !== null);
+}
 
 /** Site-relative path of a pack's .zip — right for a plain download link. */
 export function packZipPath(pack: PatternPack): string {

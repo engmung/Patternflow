@@ -3,13 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
 
 // Like toggle with optimistic UI. Counts are visible to everyone; only the act
 // of liking needs a session, so signed-out visitors get the sign-in modal at
 // the moment they click — the same rule as publishing and commenting.
+//
+// A like the server turns down rolls back, and the button says why beside it.
+// Before, the flip came undone inside 150 ms with nothing on the page, so a
+// 429 ("Too many likes — slow down a moment.") read as a button that ignored
+// the press.
 
 export default function LikeButton({
   patternId,
@@ -26,6 +31,7 @@ export default function LikeButton({
   const [liked, setLiked] = useState(initialLiked);
   const [busy, setBusy] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   const toggle = async () => {
     if (!session) {
@@ -39,6 +45,7 @@ export default function LikeButton({
     setLiked(!liked);
     setCount(count + (liked ? -1 : 1));
     setBusy(true);
+    setNote(null);
     try {
       const response = await fetch(
         communityApiUrl(`/api/community/patterns/${patternId}/like`),
@@ -47,6 +54,7 @@ export default function LikeButton({
       if (!response.ok) {
         setLiked(previous.liked);
         setCount(previous.count);
+        setNote(await readApiError(response, "Like not saved"));
         return;
       }
       const payload = (await response.json()) as { liked: boolean; count: number };
@@ -55,6 +63,7 @@ export default function LikeButton({
     } catch {
       setLiked(previous.liked);
       setCount(previous.count);
+      setNote("Network error.");
     } finally {
       setBusy(false);
     }
@@ -74,6 +83,11 @@ export default function LikeButton({
         <span aria-hidden="true">LIK</span>
         <span>{String(count).padStart(2, "0")}</span>
       </button>
+      {note && (
+        <span role="alert" className={styles.likeNote}>
+          {note}
+        </span>
+      )}
 
       {authOpen && (
         <AuthModal onClose={() => setAuthOpen(false)} onAuthed={() => router.refresh()} />

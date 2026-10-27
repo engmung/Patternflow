@@ -1,8 +1,12 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { livePresets } from "@/lib/presets";
-import { packInstallUrl, packZipPath, type PatternPack } from "@/lib/pattern/packs";
+import {
+  packInstallUrl,
+  packZipPath,
+  type PackPreview,
+  type PatternPack,
+} from "@/lib/pattern/packs";
 import { useDeviceHost } from "@/lib/community/deviceHost";
 import PatternCanvas from "./PatternCanvas";
 import styles from "./Community.module.css";
@@ -18,13 +22,21 @@ import styles from "./Community.module.css";
 //
 // Previews come from the JS presets, not the pack. The pack holds compiled
 // modules a browser cannot run; each one records the pattern number it was
-// built from (see make_pack.py) and that is what these look up. A number with
-// no matching preset renders nothing rather than a wrong pattern.
+// built from (see make_pack.py) and that is what packPreviews looks up. The
+// page does the looking on the server and passes the four this strip draws.
+// Importing the preset list here put all 48 patterns in the decks page's
+// first load.
 
 /** Same five-cell strip as DeckCard, so the two line up on the shelf. */
 const STRIP_CELLS = 5;
 
-export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
+export default function ShippedPackCard({
+  pack,
+  previews,
+}: {
+  pack: PatternPack;
+  previews: PackPreview[];
+}) {
   // The board has to be told an absolute address to fetch the pack from, and
   // the right one is wherever this page is being served from — the site and
   // the community are separate deployments that both carry /public.
@@ -47,14 +59,7 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
   // enough for all of them.
   const { deviceHost, host, changeDeviceHost } = useDeviceHost();
 
-  const shown = pack.order
-    .slice(0, STRIP_CELLS - 1)
-    .map((slug) => {
-      const num = pack.presets[slug];
-      const preset = num === undefined ? undefined : livePresets.find((p) => p.num === num);
-      return preset ? { slug, code: preset.code, title: preset.name } : null;
-    })
-    .filter((entry): entry is { slug: string; code: string; title: string } => entry !== null);
+  const shown = previews.slice(0, STRIP_CELLS - 1);
 
   const more = pack.patterns - shown.length;
   const blanks = Math.max(0, STRIP_CELLS - shown.length - (more > 0 ? 1 : 0));
@@ -112,27 +117,20 @@ export default function ShippedPackCard({ pack }: { pack: PatternPack }) {
         </a>
       </div>
 
-      <span className={styles.packHint}>
+      <label className={styles.packHint}>
         Device address:{" "}
         <input
           type="text"
+          className={styles.zipHostField}
           value={deviceHost}
           onChange={(event) => changeDeviceHost(event.target.value)}
           spellCheck={false}
           aria-label="Device address"
-          style={{
-            font: "inherit",
-            width: "16ch",
-            padding: "1px 6px",
-            border: "1px solid var(--pf-rule, #D9D1C0)",
-            background: "transparent",
-            color: "inherit",
-          }}
         />{" "}
         (Android can’t resolve <code>.local</code> — use the IP from the device’s NETWORK
         screen, hold K2.) Or download the .zip and drop it on your device’s Patterns page —
         same result.
-      </span>
+      </label>
     </div>
   );
 }

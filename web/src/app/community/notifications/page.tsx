@@ -10,13 +10,14 @@ import styles from "@/components/community/Community.module.css";
 // What happened to your things while you were away: comments on your work,
 // threads you joined, forks, and decks your patterns entered. Opening this
 // page marks everything read (the client fires that after render — never
-// during it, or a link prefetch would eat the unread state).
+// during it, or a link prefetch would eat the unread state), then refreshes
+// so the badge in the header drops to nothing.
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Alerts / Patternflow Community",
-  description: "Comments, forks and deck inclusions on your patterns and posts.",
+  description: "Comments, forks and deck inclusions on your patterns.",
 };
 
 export default async function CommunityNotificationsPage() {
@@ -26,7 +27,7 @@ export default async function CommunityNotificationsPage() {
   if (!session) {
     return (
       <div className={styles.empty}>
-        Sign in to see alerts about your patterns, posts and comments.
+        Sign in to see alerts about your patterns and comments.
       </div>
     );
   }

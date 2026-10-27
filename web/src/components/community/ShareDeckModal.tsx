@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { PUBLIC_DECKS_MAX, type CollectedPattern } from "@/lib/community/deck";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/community/validate";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import {
   VISIBILITY_HINTS,
   VISIBILITY_LABELS,
@@ -40,6 +42,16 @@ export default function ShareDeckModal({
   const [busy, setBusy] = useState(false);
   // One request per press, decided in the click's own tick (#455).
   const latch = useSubmitLatch();
+  // The card takes the focus first, so the hook sees the button that opened
+  // the window, and the title field takes it once the form is there. While
+  // the session is being checked there is no field yet.
+  const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const formShown = !isPending && Boolean(session);
+  useEffect(() => {
+    if (formShown) titleRef.current?.focus({ preventScroll: true });
+  }, [formShown]);
 
   const share = async () => {
     const trimmed = title.trim();
@@ -62,9 +74,13 @@ export default function ShareDeckModal({
           patternIds: deck.map((item) => item.patternId),
         }),
       });
-      const payload = (await response.json()) as { id?: string; error?: string };
-      if (!response.ok || !payload.id) {
-        setError(payload.error ?? "Sharing failed.");
+      if (!response.ok) {
+        setError(await readApiError(response, "Sharing failed"));
+        return;
+      }
+      const payload = (await response.json()) as { id?: string };
+      if (!payload.id) {
+        setError("Sharing failed.");
         return;
       }
       captureEvent("community_deck_shared", {
@@ -83,8 +99,13 @@ export default function ShareDeckModal({
   };
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
-      <div className={styles.modalCard} onClick={(event) => event.stopPropagation()}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
+      <div
+        ref={cardRef}
+        tabIndex={-1}
+        className={styles.modalCard}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className={styles.modalHeader}>
           <span>Share deck</span>
           <button type="button" onClick={onClose} aria-label="Close">
@@ -109,10 +130,10 @@ export default function ShareDeckModal({
             <label className={styles.field}>
               <span className={styles.fieldLabel}>Title</span>
               <input
+                ref={titleRef}
                 className={styles.textInput}
                 value={title}
                 maxLength={TITLE_MAX}
-                autoFocus
                 placeholder="What is this set — a mood, a place, a night?"
                 onChange={(event) => setTitle(event.target.value)}
               />

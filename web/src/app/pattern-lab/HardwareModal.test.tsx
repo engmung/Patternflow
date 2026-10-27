@@ -4,8 +4,9 @@
 // translated lives only in this modal's state, so it went with it.
 //
 // Esc goes the same way. This modal hears the Esc meant for the window on
-// top, Send or Publish, and closes that one alone. Publish hears the same
-// Esc itself and closes itself, which leaves this modal open all the same.
+// top, Send or Publish, and closes that one alone. Send and Publish hear the
+// same Esc themselves and close themselves, which leaves this modal open all
+// the same.
 //
 // The modal is mounted the way the lab mounts it, behind an open flag that
 // onClose clears, so a stray close really unmounts it. The pasted header is

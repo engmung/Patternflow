@@ -122,10 +122,6 @@ chapters use all of this.
 
 ![A pattern's detail page](docs/images/pattern-guide/10-pattern-detail.png)
 
-One more thing in the top nav — **Workshop** is where directions get discussed
-and decided. It's under heavy construction, so this guide leaves it alone for
-now.
-
 ---
 
 ## 3. Putting someone else's pattern on your device

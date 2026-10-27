@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { captureEvent } from "@/lib/posthogEvents";
 import { authClient } from "@/lib/community/auth-client";
-import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
+import { COMMUNITY_FETCH_INIT, communityApiUrl, readApiError } from "@/lib/community/apiBase";
 import { useSubmitLatch } from "@/lib/community/submitLatch";
 import { useDialog } from "@/lib/hooks/useDialog";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
 import AuthModal from "./AuthModal";
 import styles from "./Community.module.css";
 
@@ -56,6 +57,7 @@ export default function AddHeaderModal({
   // One request per press, decided in the click's own tick (#455).
   const latch = useSubmitLatch();
   const cardRef = useDialog<HTMLDivElement>(onClose);
+  const closeOnBackdrop = useBackdropClose(onClose);
 
   const moderating = mode === "moderate" || mode === "moderate-port";
 
@@ -91,9 +93,8 @@ export default function AddHeaderModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(call.body),
       });
-      const payload = (await response.json()) as { error?: string; hasCpp?: boolean };
       if (!response.ok) {
-        setError(payload.error ?? "Could not save the header.");
+        setError(await readApiError(response, "Could not save the header"));
         return;
       }
       captureEvent(
@@ -126,7 +127,7 @@ export default function AddHeaderModal({
             : "Add firmware header (.h)";
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
         ref={cardRef}
         tabIndex={-1}
@@ -152,7 +153,9 @@ export default function AddHeaderModal({
               <p className={styles.formNote}>
                 The author has no header for this pattern yet — if you ran it on your own board,
                 finish the job for them. Generate the port with <strong>To hardware</strong> in{" "}
-                <Link href="/pattern-lab">Pattern Lab</Link>, verify it on hardware, and paste it
+                <Link href="/pattern-lab" prefetch={false}>
+                  Pattern Lab
+                </Link>, verify it on hardware, and paste it
                 here. It goes live immediately, credited to you; the author can pin or replace it,
                 and the port carries the pattern&apos;s own licence — the work stays theirs.
               </p>
@@ -174,7 +177,9 @@ export default function AddHeaderModal({
               <p className={styles.formNote}>
                 The board runs C++, so a pattern needs a <code>.h</code> port before anyone can
                 flash it. Generate one with <strong>To hardware</strong> in{" "}
-                <Link href="/pattern-lab">Pattern Lab</Link>, build it on your own board, and paste
+                <Link href="/pattern-lab" prefetch={false}>
+                  Pattern Lab
+                </Link>, build it on your own board, and paste
                 the working header here. Your pattern then shows as <strong>hardware ready</strong>{" "}
                 and can be filtered for in the feed.
               </p>

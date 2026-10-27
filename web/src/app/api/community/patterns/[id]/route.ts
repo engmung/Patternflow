@@ -31,6 +31,7 @@ import { buildStoredPatternCode, lineageFrom } from "@/lib/community/license";
 import {
   CODE_MAX,
   COMMENT_MAX,
+  TITLE_ERROR,
   cleanCode,
   cleanCpp,
   cleanDescription,
@@ -165,7 +166,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   let title = pattern.title;
   if (raw.title !== undefined) {
     const next = cleanTitle(raw.title);
-    if (!next) return Response.json({ error: "Title is required (max 80 chars)." }, { status: 400 });
+    if (!next) return Response.json({ error: TITLE_ERROR }, { status: 400 });
     title = next;
   }
 

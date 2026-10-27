@@ -28,6 +28,30 @@ const SORTS = [
   { id: "decks", label: "In decks" },
 ] as const;
 
+/** The wall's address with `patch` laid over its query, a null dropping the
+ *  key. The tabs below and the wall's empty panels both link this way. */
+export function feedHref(
+  pathname: string,
+  params: { toString(): string },
+  patch: Record<string, string | null>,
+): string {
+  const next = new URLSearchParams(params.toString());
+  // Parameters from the paged feed: page and size from 22 July 2026
+  // (e146de6), view from the Large/Small card toggle on 25 July (5e5d50c).
+  // Infinite scroll retired all three on 2 August (c4a57f1). A bookmark
+  // saved in those days still carries them, so every link followed from it
+  // drops them.
+  next.delete("page");
+  next.delete("size");
+  next.delete("view");
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) next.delete(key);
+    else next.set(key, value);
+  }
+  const query = next.toString();
+  return query ? `${pathname}?${query}` : pathname;
+}
+
 export default function FeedControls({
   sort,
   hardwareOnly,
@@ -46,23 +70,7 @@ export default function FeedControls({
   const pathname = usePathname();
   const params = useSearchParams();
 
-  const hrefWith = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(params.toString());
-    // Parameters from the paged feed: page and size from 22 July 2026
-    // (e146de6), view from the Large/Small card toggle on 25 July (5e5d50c).
-    // Infinite scroll retired all three on 2 August (c4a57f1). A bookmark
-    // saved in those days still carries them, so every link followed from it
-    // drops them.
-    next.delete("page");
-    next.delete("size");
-    next.delete("view");
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === null) next.delete(key);
-      else next.set(key, value);
-    }
-    const query = next.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  };
+  const hrefWith = (patch: Record<string, string | null>) => feedHref(pathname, params, patch);
 
   return (
     <div className={styles.feedControls}>
