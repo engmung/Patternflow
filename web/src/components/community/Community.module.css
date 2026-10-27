@@ -1175,17 +1175,37 @@
   color: var(--pfc-led);
 }
 
+/* A button: it opens the deck panel, the keyboard's way to reorder. It keeps
+   the look of the label it was, and the whole height of the bar takes the
+   press. */
 .deckDockLabel {
+  appearance: none;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
   gap: 2px;
+  margin: 0;
+  border: 0;
+  background: none;
   font-family: var(--pf-mono, monospace);
   font-size: 10px;
   letter-spacing: 0.14em;
+  text-align: left;
   text-transform: uppercase;
   color: var(--pfc-led);
+  cursor: pointer;
   flex: none;
-  padding-left: 40px;
+  padding: 0 0 0 40px;
+}
+
+.deckDockLabel:hover b {
+  color: var(--pfc-led);
+}
+
+.deckDockLabel:focus-visible {
+  outline: 1px solid var(--pfc-led);
+  outline-offset: -4px;
 }
 
 /* The count that used to be a header chip. It belongs beside the thing it is

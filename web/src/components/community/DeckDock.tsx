@@ -12,6 +12,7 @@ import {
   deckItems,
   deckRemove,
   deckReorder,
+  openDeckPanel,
   type CollectedPattern,
   type DeckDragPayload,
 } from "@/lib/community/deck";
@@ -348,12 +349,22 @@ export default function DeckDock() {
         }}
         onDrop={(event) => void onDrop(event)}
       >
-        <span className={styles.deckDockLabel}>
-          Your deck
+        {/* The count is also the way into the deck panel. The slots move
+            under a pointer only, and the panel's ↑, ↓ and remove are how they
+            move from the keyboard. Above 900px this is the panel's only door:
+            the header chip is the phone's. */}
+        <button
+          type="button"
+          className={styles.deckDockLabel}
+          aria-haspopup="dialog"
+          title="Open the deck to reorder or remove patterns"
+          onClick={() => openDeckPanel()}
+        >
+          Your deck{" "}
           <b>
             {deck.length} / {DECK_MAX}
           </b>
-        </span>
+        </button>
 
         <div className={styles.deckDockSlots} ref={slotsRef}>
           {slots.map((item, index) =>
