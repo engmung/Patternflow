@@ -4,7 +4,7 @@
 
 import { desc, eq, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { comments, decks, patterns, postComments, posts, reports, user } from "../schema";
+import { comments, decks, patterns, reports, user } from "../schema";
 
 // ── Reports ──────────────────────────────────────────────────────────────────
 
@@ -65,20 +65,11 @@ export async function countOpenReports(): Promise<number> {
 }
 
 /** Ownership check for comment deletion, without loading the thread. */
-export async function getCommentStub(on: "pattern" | "post", id: string) {
-  const db = getDb();
-  if (on === "pattern") {
-    const rows = await db
-      .select({ id: comments.id, userId: comments.userId })
-      .from(comments)
-      .where(eq(comments.id, id))
-      .limit(1);
-    return rows[0] ?? null;
-  }
-  const rows = await db
-    .select({ id: postComments.id, userId: postComments.userId })
-    .from(postComments)
-    .where(eq(postComments.id, id))
+export async function getCommentStub(id: string) {
+  const rows = await getDb()
+    .select({ id: comments.id, userId: comments.userId })
+    .from(comments)
+    .where(eq(comments.id, id))
     .limit(1);
   return rows[0] ?? null;
 }
@@ -89,7 +80,7 @@ export async function getCommentStub(on: "pattern" | "post", id: string) {
  * this is a label in a moderation list, not a copy of the content.
  */
 export async function reportTarget(
-  type: "pattern" | "post" | "comment" | "deck",
+  type: "pattern" | "comment" | "deck",
   id: string,
 ): Promise<{ title: string; userId: string } | null> {
   const db = getDb();
@@ -106,14 +97,6 @@ export async function reportTarget(
       .select({ title: decks.title, userId: decks.userId })
       .from(decks)
       .where(eq(decks.id, id))
-      .limit(1);
-    return rows[0] ?? null;
-  }
-  if (type === "post") {
-    const rows = await db
-      .select({ title: posts.title, userId: posts.userId })
-      .from(posts)
-      .where(eq(posts.id, id))
       .limit(1);
     return rows[0] ?? null;
   }

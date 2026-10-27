@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PatternCard, { PatternCardItem } from "./PatternCard";
-import FeedControls from "./FeedControls";
+import FeedControls, { feedHref } from "./FeedControls";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import {
   FEED_SLOT_KEY,
@@ -209,6 +210,9 @@ export default function CommunityFeedClient({
   );
 }
 
+// How many cards a row holds, for sizing the next batch. The grid itself is
+// laid out by .feedGrid's auto-fill, which comes to the same count; this
+// starts at six only because nothing has been measured yet.
 function useResponsiveCardsPerRow(
   containerRef: React.RefObject<HTMLDivElement | null>,
   slot: number,
@@ -260,6 +264,8 @@ function FeedWall({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   const isMobile = useIsMobile();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
   // The zoom. Starts at the default for a hydration-stable first paint, then
   // adopts whatever this browser chose last time — a frame later, so the
@@ -516,11 +522,48 @@ function FeedWall({
           <span className={styles.emptyTitle}>Nothing matches “{searched}”.</span>
           <span className={styles.emptyBody}>
             Titles and handles are searched as typed. Start with @ to search handles only.
+            {sort === "liked" && " Only the patterns you liked were searched."}
             {hardwareOnly && " Only flashable patterns were searched — drop the filter to search all of them."}
           </span>
           <button type="button" className={styles.feedSearchClear} onClick={onClearSearch}>
             Clear search
           </button>
+        </div>
+      ) : total === 0 && sort === "liked" ? (
+        // "Liked" lists the viewer's own hearts, not the wall. The wall's
+        // empty panel said nobody had hung anything over a wall of thirty
+        // patterns, and sent people to Pattern Lab for a list a heart fills.
+        <div className={styles.emptyPanel}>
+          <span className={styles.emptyKicker}>Patterns · liked</span>
+          <span className={styles.emptyTitle}>
+            {!signedIn
+              ? "Sign in to see the patterns you liked."
+              : hardwareOnly
+                ? "None of the patterns you liked is flashable yet."
+                : "You haven't liked a pattern yet."}
+          </span>
+          <span className={styles.emptyBody}>
+            {signedIn && hardwareOnly
+              ? "Drop the filter to see every pattern you liked."
+              : "Press the heart on a pattern and it is kept here, on any device you sign in from."}
+          </span>
+          {signedIn && hardwareOnly ? (
+            <Link
+              className={styles.emptyCta}
+              href={feedHref(pathname, params, { hw: null })}
+              scroll={false}
+            >
+              Every pattern you liked →
+            </Link>
+          ) : (
+            <Link
+              className={styles.emptyCta}
+              href={feedHref(pathname, params, { sort: null })}
+              scroll={false}
+            >
+              Browse the wall →
+            </Link>
+          )}
         </div>
       ) : total === 0 ? (
         <div className={styles.emptyPanel}>
@@ -540,13 +583,18 @@ function FeedWall({
       ) : (
         <div ref={containerRef} className={styles.centeredFeedBody} data-stale={stale || undefined}>
           <div
-            className={styles.feedGrid}
+            className={`${styles.feedGrid} ${styles.feedWall}`}
             // Compact cards borrow the small view's furniture.
             data-view={compact ? "small" : "large"}
-            style={{
-              gridTemplateColumns: `repeat(${cardsPerRow}, minmax(0, 1fr))`,
-              gap: `${gap}px`,
-            }}
+            // Sizes, not a column count: the stylesheet fits the columns, so
+            // the server's markup is right before anything is measured. A
+            // phone's grid is set there too, and these are ignored.
+            style={
+              {
+                "--feed-slot": `${effectiveSlot}px`,
+                "--feed-gap": `${gap}px`,
+              } as React.CSSProperties
+            }
           >
             {items.map((item) => (
               // Static thumbnails on mobile: no hover means the live sandbox

@@ -10,10 +10,21 @@ export const CODE_MAX = 100_000; // ~100KB of pattern source
 export const CPP_MAX = 200_000; // headers carry baked LUT tables, so allow more
 export const COMMENT_MAX = 2000;
 
+export const TITLE_ERROR = `Title is required (one line, max ${TITLE_MAX} chars, no control characters).`;
+
+// The title is written into the licence header's `// Title:` line, and a
+// fork's `// Based on:` line repeats it (lib/pattern/share.ts). A line break
+// there closed the comment and the rest of the title ran as code. The other
+// C0 and C1 controls go too, and the bidi overrides and isolates, which make a
+// title read in an order it was not typed in. A zero-width joiner stays:
+// emoji are built with it.
+const TITLE_REFUSED = /[\u0000-\u001F\u007F-\u009F\u2028\u2029\u202A-\u202E\u2066-\u2069]/;
+
 export function cleanTitle(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const title = raw.trim();
   if (title.length === 0 || title.length > TITLE_MAX) return null;
+  if (TITLE_REFUSED.test(title)) return null;
   return title;
 }
 
@@ -68,24 +79,6 @@ export function cleanMadeOn(raw: unknown): string | null | undefined {
   // A day of slack so a timezone ahead of the server isn't rejected.
   if (parsed.getTime() > Date.now() + 86_400_000) return undefined;
   return value;
-}
-
-/**
- * Thread body. A thread in the workshop is a build log — what you tried, what
- * it measured, what broke — so it gets room a comment does not.
- *
- * Stored exactly as typed. It renders as a closed subset of markdown (see
- * PostBody), and NOTHING is stripped on the way in: the text somebody wrote is
- * the text that comes back out of the database, so changing what renders never
- * silently rewrites what was already posted.
- */
-export const POST_BODY_MAX = 20_000;
-
-export function cleanPostBody(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const body = raw.trim();
-  if (body.length === 0 || body.length > POST_BODY_MAX) return null;
-  return body;
 }
 
 export function cleanComment(raw: unknown): string | null {
@@ -145,7 +138,7 @@ export function cleanMadeHow(raw: unknown): string | null | undefined {
 
 // ── Reports ──────────────────────────────────────────────────────────────────
 
-export const REPORT_TARGET_TYPES = ["pattern", "post", "comment", "deck"] as const;
+export const REPORT_TARGET_TYPES = ["pattern", "comment", "deck"] as const;
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
 
 export function isReportTargetType(raw: unknown): raw is ReportTargetType {

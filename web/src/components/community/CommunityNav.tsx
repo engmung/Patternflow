@@ -26,20 +26,8 @@ const SECTIONS = [
     match: (path: string) =>
       path.startsWith("/community/decks") || path.startsWith("/community/d/"),
   },
-  {
-    href: "/community/workshop",
-    label: "Workshop",
-    // Threads live inside a territory, so a thread page is still the map.
-    match: (path: string) =>
-      path.startsWith("/community/workshop") || path.startsWith("/community/t/"),
-  },
-  {
-    href: "/community/atlas",
-    label: "Atlas",
-    // The other map: workshop charts the hardware's directions, this charts
-    // pattern-technique space — with a generation prompt on every point.
-    match: (path: string) => path.startsWith("/community/atlas"),
-  },
+  // The atlas left this list on 26 October 2026. It is an archive now, and
+  // the footer's Archive link is the way in.
 ];
 
 export default function CommunityNav({
@@ -84,14 +72,6 @@ export default function CommunityNav({
             title="Choose the patterns across the top of the community home page"
           >
             Marquee
-          </Link>
-          <Link
-            href="/community/territories"
-            data-active={pathname.startsWith("/community/territories")}
-            aria-current={pathname.startsWith("/community/territories") ? "page" : undefined}
-            title="Draw the directions the workshop is made of"
-          >
-            Territories
           </Link>
         </>
       )}

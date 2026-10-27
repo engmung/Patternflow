@@ -83,7 +83,7 @@
   cursor: default;
 }
 
-/* ── filter chips and the placing banner, over the map ── */
+/* ── filter chips, over the map ── */
 
 .mapTop {
   position: absolute;
@@ -164,134 +164,6 @@
   }
 }
 
-.mapWrap[data-placing="true"] .map {
-  cursor: crosshair;
-}
-
-/* ── "Add my pattern" picker ── */
-
-.pickerWrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.picker {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 6;
-  width: 396px;
-  max-height: 420px;
-  overflow-y: auto;
-  background: var(--pfc-panel);
-  border: 1px solid var(--pfc-edge);
-  padding: 4px;
-}
-
-/* You recognise your own work by looking at it — the picker is a contact
-   sheet of thumbnails, newest first, not a list of titles. */
-.pickerGrid {
-  display: grid;
-  /* minmax(0, …): a long title is cut by its caption, it does not widen the
-     column. With plain 1fr the grid grew past the picker and scrolled sideways. */
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  padding: 2px 4px 6px;
-}
-
-.pickerItem {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.pickerTile {
-  position: relative;
-  display: block;
-  width: 100%;
-  aspect-ratio: 1 / 2;
-  border: 1px solid var(--pfc-hair);
-  background: var(--pfc-well);
-  overflow: hidden;
-}
-
-.pickerItem:hover .pickerTile {
-  border-color: var(--pfc-led);
-}
-
-.pickerCaption {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--pf-mono, monospace);
-  font-size: 8.5px;
-  color: var(--pfc-ink-muted);
-}
-
-.pickerItem:hover .pickerCaption {
-  color: var(--pfc-ink);
-}
-
-/* Private patterns in the picker can only become research notes — the tag
-   says where the drop will land before anything is dropped. */
-.researchTag {
-  color: var(--pfc-led, #e8552e);
-  opacity: 0.85;
-}
-
-.pickerHead {
-  font-family: var(--pf-mono, monospace);
-  font-size: 9.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--pfc-ink-faint);
-  padding: 6px 10px 8px;
-}
-
-.pickerSearch {
-  width: calc(100% - 8px);
-  margin: 0 4px 6px;
-  background: var(--pfc-well);
-  border: 1px solid var(--pfc-hair);
-  border-radius: 0;
-  color: var(--pfc-ink);
-  font-family: var(--pf-sans, sans-serif);
-  font-size: 12px;
-  padding: 6px 8px;
-}
-
-.pickerSearch:focus {
-  outline: none;
-  border-color: var(--pfc-edge);
-}
-
-.placeBanner {
-  align-self: center;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: var(--pfc-led-wash);
-  border: 1px solid var(--pfc-led-edge);
-  color: var(--pfc-led);
-  font-size: 12.5px;
-}
-
-.placeBanner > button {
-  flex: none;
-}
-
-.bannerLink {
-  color: var(--pfc-ink);
-}
-
 /* ── pattern pins: live tiles on the map ── */
 
 .pin {
@@ -301,10 +173,6 @@
   align-items: center;
   gap: 3px;
   cursor: pointer;
-}
-
-.pin[data-draggable="true"] {
-  cursor: grab;
 }
 
 .pinTile {
@@ -376,33 +244,6 @@
   color: var(--pfc-led);
 }
 
-.moveHint {
-  margin: 14px 0 8px;
-  font-size: 12px;
-  color: var(--pfc-ink-faint);
-}
-
-.removeBtn {
-  composes: toolBtn;
-  color: var(--pfc-danger);
-  border-color: rgba(232, 107, 94, 0.4);
-}
-
-.removeBtn:hover {
-  color: var(--pfc-danger);
-  border-color: var(--pfc-danger);
-}
-
-/* Why a move, a link or a removal did not save. */
-.writeError {
-  margin: 0 0 14px;
-  padding: 8px 10px;
-  background: rgba(232, 107, 94, 0.1);
-  border: 1px solid rgba(232, 107, 94, 0.4);
-  color: var(--pfc-danger);
-  font-size: 13px;
-}
-
 .legendTile {
   width: 8px;
   height: 16px;
@@ -411,7 +252,7 @@
   flex: 0 0 auto;
 }
 
-/* ── lineage: made-from chip / owner select ── */
+/* ── lineage: the made-from chip ── */
 
 .fromChip {
   composes: toolBtn;
@@ -419,17 +260,6 @@
   letter-spacing: 0.02em;
   font-size: 12px;
   color: var(--pfc-ink);
-}
-
-.fromSelect {
-  width: 100%;
-  background: var(--pfc-well);
-  color: var(--pfc-ink);
-  border: 1px solid var(--pfc-hair);
-  border-radius: 0;
-  font-family: var(--pf-sans, sans-serif);
-  font-size: 12.5px;
-  padding: 7px 8px;
 }
 
 /* ── the player: sandboxed live run + knobs ── */
@@ -783,22 +613,6 @@
 /* ── narrow screens: stack map over panel ── */
 
 @media (max-width: 900px) {
-  /* Here the buttons sit on a row of their own and may wrap, so "Add my
-     pattern" can be at the left edge. The picker hangs from the toolbar's
-     right edge instead of the button, and is never wider than the toolbar. */
-  .toolbar {
-    position: relative;
-  }
-
-  .pickerWrap {
-    position: static;
-  }
-
-  .picker {
-    top: calc(100% - 8px);
-    width: min(396px, 100%);
-  }
-
   .body {
     flex-direction: column;
     height: auto;
@@ -806,7 +620,7 @@
   }
 
   /* At 390px the chips wrap to two rows, and over the map they hid 21 of its
-     83 labels. Here they stand above it, with the banner under them. */
+     83 labels. Here they stand above it. */
   .mapTop {
     position: static;
     padding: 12px 16px 8px;

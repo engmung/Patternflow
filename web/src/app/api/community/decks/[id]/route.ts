@@ -22,6 +22,7 @@ import { serializePerformance, validatePerformance } from "@/lib/pattern/pfst";
 import { deckPatterns, decks } from "@/lib/community/server/schema";
 import {
   COMMENT_MAX,
+  TITLE_ERROR,
   cleanDescription,
   cleanModerationReason,
   cleanTitle,
@@ -115,7 +116,7 @@ async function handlePatch(request: Request, context: { params: Promise<{ id: st
   let title = deck.title;
   if (raw.title !== undefined) {
     const next = cleanTitle(raw.title);
-    if (!next) return Response.json({ error: "Title is required (max 80 chars)." }, { status: 400 });
+    if (!next) return Response.json({ error: TITLE_ERROR }, { status: 400 });
     title = next;
   }
 

@@ -149,7 +149,9 @@
     --pfc-ink: #F4EFE6;
     --pfc-ink-2: #C6C0B4;
     --pfc-ink-muted: #9A9488;
-    --pfc-ink-faint: #6B6558;
+    /* Dates, counts and footer links. 4.56:1 on --pfc-well-2, the lightest
+       ground it sits on; #6B6558 was 3.18:1 there. */
+    --pfc-ink-faint: #847E70;
     --pfc-led: #E8552E;
     /* Text ON the accent: the ground, not white — orange/white is unreadable
        at the mono label sizes this palette leans on. */

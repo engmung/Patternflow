@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { COMMUNITY_FETCH_INIT, communityApiUrl } from "@/lib/community/apiBase";
 import PatternCanvas from "./PatternCanvas";
 import styles from "./Community.module.css";
 
 // The alerts list. Unread rows keep their marker for this visit — the
-// mark-read call fires once after mount and nothing re-renders, so what you
-// came to see stays highlighted until you leave.
+// mark-read call fires once after mount, and the refresh after it brings
+// every row back read, so the list remembers which ones were unread when
+// you arrived. What you came to see stays highlighted until you leave.
 
 export type NotificationView = {
   id: string;
@@ -25,9 +27,6 @@ export type NotificationView = {
 };
 
 function targetHref(item: NotificationView): string {
-  // A thread's real URL carries its territory code, which this row does not
-  // know — /community/t/[id] resolves it.
-  if (item.targetType === "post") return `/community/t/${item.targetId}`;
   if (item.targetType === "deck") return `/community/d/${item.targetId}`;
   return `/community/p/${item.targetId}`;
 }
@@ -65,23 +64,39 @@ function describe(item: NotificationView): string {
       return `made “${item.targetTitle}” private — it is off the wall until a moderator restores it`;
     case "restored":
       return `restored “${item.targetTitle}” — it is public again`;
-    case "territory":
-      // The snippet carries where ("A1 · Wired control — OSC"), because that
-      // is the reason this row exists: you are pinned there.
-      return `started “${item.targetTitle}” in ${item.snippet ?? "a territory you're pinned in"}`;
     default:
       return `did something with “${item.targetTitle}”`;
   }
 }
 
 export default function NotificationsList({ items }: { items: NotificationView[] }) {
+  const router = useRouter();
+  const [unreadOnArrival] = useState(
+    () => new Set(items.filter((item) => item.unread).map((item) => item.id)),
+  );
+  // Once per visit. The refresh hands this list new props, and a second
+  // mark-read would ask for a second refresh.
+  const marked = useRef(false);
+
   useEffect(() => {
-    // Fire-and-forget: the badge clears on the next server-rendered page.
+    // The header badge belongs to the community layout, and a layout is not
+    // rendered again when you move between the pages under it. Until 26
+    // October 2026 "Alerts 1" stayed on this page and on every page after it
+    // until a reload. Once the server has marked everything read, refresh:
+    // the layout counts again and the badge goes, on whichever page you are
+    // on by then. With nothing unread there is no badge to clear. A failed
+    // call leaves the badge as it was, which is what is true.
+    if (marked.current) return;
+    marked.current = true;
     void fetch(communityApiUrl("/api/community/notifications/read"), {
       method: "POST",
       ...COMMUNITY_FETCH_INIT,
-    }).catch(() => undefined);
-  }, []);
+    })
+      .then((response) => {
+        if (response.ok && unreadOnArrival.size > 0) router.refresh();
+      })
+      .catch(() => undefined);
+  }, [router, unreadOnArrival]);
 
   if (items.length === 0) {
     return (
@@ -92,7 +107,7 @@ export default function NotificationsList({ items }: { items: NotificationView[]
           Alerts arrive when someone comments on, forks, ports, or decks your work. Publish
           something and give them a reason.
         </span>
-        <Link href="/pattern-lab" className={styles.emptyCta}>
+        <Link href="/pattern-lab" prefetch={false} className={styles.emptyCta}>
           Make &amp; publish — Pattern Lab ↗
         </Link>
       </div>
@@ -106,11 +121,11 @@ export default function NotificationsList({ items }: { items: NotificationView[]
           <Link
             href={targetHref(item)}
             className={styles.notifyRow}
-            data-unread={item.unread}
+            data-unread={item.unread || unreadOnArrival.has(item.id)}
           >
             <span className={styles.notifyMark} aria-hidden="true" />
             {/* Which pattern it happened to, before the sentence saying what.
-                Only pattern alerts have one — a deck or a board post does not. */}
+                Only pattern alerts have one — a deck does not. */}
             {item.patternCode && (
               <span className={styles.notifyThumb}>
                 <PatternCanvas
@@ -124,9 +139,9 @@ export default function NotificationsList({ items }: { items: NotificationView[]
               <span className={styles.notifySentence}>
                 <strong>@{item.actor}</strong> {describe(item)}
               </span>
-              {/* deck and territory embed their snippet in the sentence — a
-                  second line would say the same thing twice. */}
-              {item.snippet && item.type !== "deck" && item.type !== "territory" && (
+              {/* deck embeds its snippet in the sentence — a second line would
+                  say the same thing twice. */}
+              {item.snippet && item.type !== "deck" && (
                 <span className={styles.notifySnippet}>{item.snippet}</span>
               )}
             </span>

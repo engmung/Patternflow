@@ -9,7 +9,7 @@ import { notifyDeckInclusion } from "@/lib/community/server/notify";
 import { countPublicDecksByUser, getPatternsForDeck, newId } from "@/lib/community/server/queries";
 import { rateLimit } from "@/lib/community/ratelimit";
 import { deckPatterns, decks } from "@/lib/community/server/schema";
-import { cleanDescription, cleanTitle } from "@/lib/community/validate";
+import { TITLE_ERROR, cleanDescription, cleanTitle } from "@/lib/community/validate";
 import { cleanVisibility } from "@/lib/community/visibility";
 
 // POST /api/community/decks — share the working deck as a deck other people
@@ -47,7 +47,7 @@ async function handlePost(request: Request) {
   if (raw instanceof Response) return raw;
 
   const title = cleanTitle(raw.title);
-  if (!title) return Response.json({ error: "Title is required (max 80 chars)." }, { status: 400 });
+  if (!title) return Response.json({ error: TITLE_ERROR }, { status: 400 });
 
   const description = cleanDescription(raw.description);
   if (description === undefined) {

@@ -8,7 +8,8 @@ import { PUBLIC_DECKS_MAX } from "@/lib/community/deck";
 import { toDeckCardItem } from "@/lib/community/server/serialize";
 import DeckCard from "@/components/community/DeckCard";
 import ShippedPackCard from "@/components/community/ShippedPackCard";
-import { SHIPPED_PACKS } from "@/lib/pattern/packs";
+import { SHIPPED_PACKS, packPreviews } from "@/lib/pattern/packs";
+import { livePresets } from "@/lib/presets";
 import styles from "@/components/community/Community.module.css";
 
 // The shelf. Decks are ordered sets somebody staked a public slot on — two per
@@ -85,8 +86,10 @@ export default async function CommunityDecksPage() {
         </div>
 
         <div className={styles.deckGrid}>
+          {/* The previews are looked up here, on the server, so the card
+              does not bring the whole preset list to the browser. */}
           {SHIPPED_PACKS.map((pack) => (
-            <ShippedPackCard key={pack.id} pack={pack} />
+            <ShippedPackCard key={pack.id} pack={pack} previews={packPreviews(pack, livePresets)} />
           ))}
         </div>
       </section>

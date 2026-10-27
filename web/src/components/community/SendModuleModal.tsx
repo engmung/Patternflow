@@ -8,6 +8,8 @@ import { useDeviceHost } from "@/lib/community/deviceHost";
 import { captureEvent } from "@/lib/posthogEvents";
 import { useModuleBuild } from "@/lib/community/useModuleBuild";
 import { useZipDownload } from "@/lib/community/zipDownload";
+import { useBackdropClose } from "@/lib/hooks/useBackdropClose";
+import { useDialog } from "@/lib/hooks/useDialog";
 import AuthModal from "./AuthModal";
 import { ZipInstallNote, ZipProgress } from "./ZipDownload";
 import styles from "./Community.module.css";
@@ -48,9 +50,13 @@ export default function SendModuleModal(
       }
   ),
 ) {
+  const cardRef = useDialog<HTMLDivElement>(props.onClose);
+  const closeOnBackdrop = useBackdropClose(props.onClose);
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={props.onClose}>
+    <div className={styles.modalOverlay} role="dialog" aria-modal="true" {...closeOnBackdrop}>
       <div
+        ref={cardRef}
+        tabIndex={-1}
         className={`${styles.modalCard} ${styles.modalCardWide}`}
         onClick={(event) => event.stopPropagation()}
       >
@@ -117,6 +123,8 @@ function PatternZipBody({ patternId, patternTitle }: { patternId: string; patter
         status={zip.status}
         error={zip.error}
         detail={zip.detail}
+        waited={zip.waited}
+        expectedS={zip.expectedS}
       />
 
       <p className={styles.formNote}>
@@ -206,7 +214,7 @@ function CodeBuildBody({ patternTitle, code }: { patternTitle: string; code: str
               ? `Waiting — ${build.queuePosition} in the queue…`
               : waited >= expectedS
                 ? "Building the module… (longer than usual)"
-                : "Building the module… (usually a second or two)"}
+                : `Building the module… (usually under ${expectedS} s)`}
             {waited > 0 && ` · ${waited} s`}
           </p>
         )}
@@ -247,23 +255,19 @@ function CodeBuildBody({ patternTitle, code }: { patternTitle: string; code: str
                 Download .zip instead
               </a>
             </div>
-            <p className={styles.formNote}>
+            <label className={styles.formNote}>
               Device address:{" "}
               <input
                 type="text"
+                className={styles.zipHostField}
                 value={deviceHost}
                 onChange={(event) => changeDeviceHost(event.target.value)}
                 spellCheck={false}
                 aria-label="Device address"
-                style={{
-                  font: "inherit",
-                  width: "16ch",
-                  padding: "1px 6px",
-                }}
               />{" "}
               — Android cannot resolve <code>.local</code>; use the IP from the
               device&rsquo;s NETWORK screen (hold K2).
-            </p>
+            </label>
           </>
         )}
       </div>

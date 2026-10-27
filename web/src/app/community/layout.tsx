@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { FIRMWARE_NOTICE_COOKIE, firmwareNoticeDismissed } from "@/lib/community/firmwareNotice";
 import { isAdminSession } from "@/lib/community/server/admin";
 import { getAuth } from "@/lib/community/server/auth";
 import { communityEnabled, communityHomeUrl } from "@/lib/community/server/db";
@@ -66,10 +67,19 @@ export default async function CommunityLayout({ children }: { children: React.Re
   const isAdmin = isAdminSession(session);
   const openReports = isAdmin ? await countOpenReports() : 0;
   // Read fresh on every page load — that is the whole notification system's
-  // idea of "delivery" on a server-rendered site.
-  const unread = session ? await countUnreadNotifications(session.user.id) : 0;
+  // idea of "delivery" on a server-rendered site. A layout is not rendered
+  // again when you move between the pages under it, so the alerts page asks
+  // for a refresh once it has marked everything read.
+  const unread = session
+    ? await countUnreadNotifications(session.user.id, { moderator: isAdmin })
+    : 0;
   const username =
     (session?.user as { username?: string } | undefined)?.username ?? null;
+  // Read here so the firmware notice is in the server's HTML exactly when it
+  // will stay on screen (FirmwareNotice.tsx).
+  const noticeDismissed = firmwareNoticeDismissed(
+    (await cookies()).get(FIRMWARE_NOTICE_COOKIE)?.value,
+  );
 
   return (
     <main className={styles.page}>
@@ -77,7 +87,7 @@ export default async function CommunityLayout({ children }: { children: React.Re
         {/* Above the header on purpose. A board owner needs to see this once;
             putting it below the nav would let it sit under the fold on the
             page they actually came for. */}
-        <FirmwareNotice />
+        <FirmwareNotice serverDismissed={noticeDismissed} />
         <header className={styles.pageHeader}>
           <div className={styles.brandBlock}>
             <Link href="/" prefetch={false} className={styles.brand}>
@@ -98,13 +108,14 @@ export default async function CommunityLayout({ children }: { children: React.Re
             {session ? (
               <Link
                 href="/pattern-lab"
+                prefetch={false}
                 className={styles.makeCta}
                 title="Open Pattern Lab — make a pattern and publish it here"
               >
                 Make<span className={styles.ctaRest}> &amp; publish — Pattern Lab</span> ↗
               </Link>
             ) : (
-              <Link href="/pattern-lab" title="Open Pattern Lab editor">
+              <Link href="/pattern-lab" prefetch={false} title="Open Pattern Lab editor">
                 Pattern Lab ↗
               </Link>
             )}
@@ -119,16 +130,32 @@ export default async function CommunityLayout({ children }: { children: React.Re
                 Alerts{unread > 0 ? ` ${unread}` : ""}
               </Link>
             )}
-            <AuthStatus />
+            {/* Three fields, not the whole user: what crosses to the browser
+                here lands in the page for anyone who saves it. */}
+            <AuthStatus
+              serverUser={
+                session
+                  ? {
+                      name: session.user.name,
+                      username: session.user.username,
+                      displayUsername: session.user.displayUsername,
+                    }
+                  : null
+              }
+            />
           </nav>
         </header>
 
         <div className={styles.pageBody}>{children}</div>
 
         <footer className={styles.pageFooter}>
-          <Link href="/terms">Terms &amp; Privacy</Link>
+          <Link href="/terms" prefetch={false}>Terms &amp; Privacy</Link>
           <span>·</span>
           <a href="mailto:contact@patternflow.work">Report something</a>
+          {/* The atlas, kept read-only since 26 October 2026. Nothing else
+              links to it. */}
+          <span>·</span>
+          <Link href="/community/atlas">Archive</Link>
         </footer>
 
         {/* The deck is assembled while browsing, so it stays on screen while

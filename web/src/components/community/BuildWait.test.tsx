@@ -74,7 +74,7 @@ describe("waiting on a build", () => {
     fireEvent.click(screen.getByTitle(/^Your deck \(1\//));
     fireEvent.click(screen.getByRole("button", { name: "Build 1 module" }));
     await wait(0);
-    expect(screen.getByText(/Building modules… \(usually a second or two\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Building modules… \(usually under 8 s\)/)).toBeInTheDocument();
 
     await wait(9000);
     expect(screen.getByText(/Building modules… \(longer than usual\) · 9 s/)).toBeInTheDocument();
@@ -90,11 +90,29 @@ describe("waiting on a build", () => {
     expect(fetchMock.mock.calls.length).toBe(asked);
   });
 
+  it("the deck panel promises a deck of three what the deck bar does", async () => {
+    window.localStorage.setItem(
+      "pf-deck",
+      JSON.stringify(
+        ["Wave", "Tide", "Drift"].map((title, i) => ({ patternId: `p${i}`, title, code: `// ${title}` })),
+      ),
+    );
+    render(<DeckPanel />);
+    await wait(0);
+
+    fireEvent.click(screen.getByTitle(/^Your deck \(3\//));
+    fireEvent.click(screen.getByRole("button", { name: "Build 3 modules" }));
+    await wait(0);
+    expect(screen.getByText(/Building modules… \(usually under 11 s\)/)).toBeInTheDocument();
+    await wait(11_000);
+    expect(screen.getByText(/Building modules… \(longer than usual\) · 11 s/)).toBeInTheDocument();
+  });
+
   it("the Send window stops after 13 seconds and offers to try again", async () => {
     render(<SendModuleModal patternTitle="Wave" code="// wave" onClose={() => {}} />);
     await wait(0);
     expect(posts()).toHaveLength(1);
-    expect(screen.getByText(/Building the module…/)).toBeInTheDocument();
+    expect(screen.getByText(/Building the module… \(usually under 8 s\)/)).toBeInTheDocument();
 
     await wait(14_000);
     expect(screen.queryByText(/Building the module…/)).not.toBeInTheDocument();

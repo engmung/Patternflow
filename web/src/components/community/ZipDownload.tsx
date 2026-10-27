@@ -5,6 +5,7 @@ import {
   buildingNote,
   includedSummary,
   skipReasonLabel,
+  ZIP_DEADLINE_MIN,
   type ZipKind,
   type ZipPhase,
   type ZipStatus,
@@ -25,12 +26,18 @@ export function ZipProgress({
   status,
   error,
   detail,
+  waited = 0,
+  expectedS = 0,
 }: {
   kind: ZipKind;
   phase: ZipPhase;
   status: ZipStatus | null;
   error: string | null;
   detail: string | null;
+  /** Whole seconds since the download was asked for (useZipDownload). */
+  waited?: number;
+  /** What this compile was told to expect, in seconds; 0 before it knows. */
+  expectedS?: number;
 }) {
   // Only a SETTLED answer describes a pack: "3 of 10 included" from the last
   // "building" poll is a pack that does not exist yet, and after a deadline
@@ -40,14 +47,34 @@ export function ZipProgress({
   const skipped = settled ? (status?.skipped ?? []) : [];
   const busy = phase === "checking" || phase === "building";
   if (!busy && !error && !summary && skipped.length === 0) return null;
+  // Past the promise the spinner alone looks like a hang, and on 26 October
+  // it kept "usually a few seconds" up for three minutes with the build
+  // server stopped. So it says what may be wrong, and how long it will wait.
+  const slow = phase === "building" && expectedS > 0 && waited >= expectedS;
 
   return (
     <div className={styles.zipStatus} aria-live="polite">
       {busy && (
         <p className={styles.buildStatusLine}>
           <span className={styles.buildSpinner} aria-hidden="true" />
-          {phase === "building" ? buildingNote(kind) : "Checking…"}
+          {phase === "building" ? (
+            <>
+              {buildingNote(kind, status)}
+              {slow
+                ? " (longer than usual)"
+                : expectedS > 0 && ` (usually under ${expectedS} s)`}
+              {waited > 0 && ` · ${waited} s`}
+            </>
+          ) : (
+            "Checking…"
+          )}
         </p>
+      )}
+      {slow && (
+        <span>
+          The build server may be busy, or stopped. This keeps checking for up to{" "}
+          {ZIP_DEADLINE_MIN} minutes.
+        </span>
       )}
       {error && <div className={styles.formError}>{error}</div>}
       {detail && <pre className={styles.buildLog}>{detail}</pre>}

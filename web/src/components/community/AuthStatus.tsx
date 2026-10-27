@@ -10,23 +10,35 @@ import styles from "./Community.module.css";
 
 // Header widget: signed-out → "Sign in" button; signed-in → username link
 // (own pattern list) + sign out.
+//
+// The browser asks for its own session after the page arrives, 0.6–0.9 s on
+// a phone. Until it has the answer the widget draws the user the layout read
+// on the server. Drawing "Sign in" while it waited put a signed-in reader's
+// header on two lines and then pulled it back to one, on every page.
 
-export default function AuthStatus() {
+export type HeaderUser = {
+  name: string;
+  username?: string | null;
+  displayUsername?: string | null;
+};
+
+export default function AuthStatus({ serverUser = null }: { serverUser?: HeaderUser | null }) {
   const router = useRouter();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const [authOpen, setAuthOpen] = useState(false);
+  // Only until the first answer. Better Auth marks every later refetch of a
+  // signed-out session pending as well, and by then the server's user may be
+  // the one who just signed out in another tab.
+  const [answered, setAnswered] = useState(!isPending);
+  if (!isPending && !answered) setAnswered(true);
 
-  const username =
-    (session?.user as { username?: string; displayUsername?: string } | undefined)?.username ?? null;
-  const displayName =
-    (session?.user as { displayUsername?: string } | undefined)?.displayUsername ??
-    username ??
-    session?.user.name ??
-    null;
+  const user: HeaderUser | null = answered ? (session?.user ?? null) : serverUser;
+  const username = user?.username ?? null;
+  const displayName = user?.displayUsername ?? username ?? user?.name ?? null;
 
   return (
     <>
-      {session ? (
+      {user ? (
         <div className={styles.headerNav}>
           <Link href={`/community/u/${username ?? ""}`} className={styles.userChip}>
             @{displayName}

@@ -5,7 +5,7 @@ import { useAutoGrow } from "@/lib/hooks/useAutoGrow";
 import PostBody from "./PostBody";
 import styles from "./Community.module.css";
 
-// The body field, wherever a post is written — new thread, or editing one.
+// The body field of a comment, a new one or one being edited.
 //
 // Markdown you cannot see is markdown you find out about after posting, so
 // Write/Preview is part of the field rather than a nicety bolted on later.
@@ -32,6 +32,11 @@ export default function BodyComposer({
   autoFocus?: boolean;
 }) {
   const [previewing, setPreviewing] = useState(false);
+  // Posting from Preview clears the text under it. Left there, the field was
+  // a preview of nothing with its tab greyed out and no textarea to write the
+  // next comment in. Adjusted during render, guarded, like AuthStatus's latch.
+  const hasText = value.trim().length > 0;
+  if (previewing && !hasText) setPreviewing(false);
   const ref = useAutoGrow<HTMLTextAreaElement>(previewing ? "" : value);
 
   return (
@@ -53,7 +58,7 @@ export default function BodyComposer({
           data-active={previewing}
           // Nothing to preview is worth saying out loud rather than showing an
           // empty box that looks like a broken renderer.
-          disabled={value.trim().length === 0}
+          disabled={!hasText}
           onClick={() => setPreviewing(true)}
         >
           Preview

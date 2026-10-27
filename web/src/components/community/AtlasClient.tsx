@@ -12,12 +12,14 @@
 // preference. The generation prompt itself is always English.
 //
 // Entry coordinates are taste hypotheses: drag in edit mode, export, bake the
-// JSON back into data.ts. Pin coordinates belong to their authors and save to
-// the database on drop.
+// JSON back into data.ts. Edit mode moves nothing on the server.
+//
+// Since 26 October 2026 the atlas is an archive, reached from the community's
+// footer. The pins stay where their authors left them, and the route refuses
+// the writes that used to place and move them.
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
 import {
   BLOBS,
   ENTRIES,
@@ -52,9 +54,6 @@ const LED = "#E8552E";
 const LANG_KEY = "pf-atlas-lang";
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 8;
-/** Drop a pattern within this many viewBox px of an entry and it inherits
- *  that entry's lineage — placing near a prompt IS pointing at it. */
-const LINK_RADIUS = 80;
 
 type Lang = "en" | "ko";
 /** Status chips, plus "all" and "new" — the latest batch, which cuts across
@@ -71,19 +70,15 @@ export type AtlasPinData = {
    *  against an entry — kept as data, revealed from the entry panel, never
    *  drawn as a tile. Failures are worth remembering where they happened. */
   kind: "pin" | "research";
-  /** Whether the pattern itself is public — a research note is allowed to be
-   *  private, and a private note can never be promoted to a map tile. */
-  isPublic: boolean;
   title: string;
   code: string;
-  userId: string;
   username: string | null;
   displayUsername: string | null;
 };
 
 const UI = {
   en: {
-    tagline: "Experimental — a map for exploring more patterns.",
+    archived: "Archived in October 2026. The pins stay where their authors left them, and no new ones go up.",
     edit: "Edit layout",
     editing: "Editing — drag points",
     copyLayout: "Copy layout",
@@ -109,10 +104,6 @@ const UI = {
     legendPin: "Pin — a published pattern, placed by its author",
     pinBy: "by",
     openPattern: "Open pattern ↗",
-    removePin: "Remove from the map",
-    moveHint: "Turn on [Edit layout] to drag this pin.",
-    placeBanner: (title: string) => `Placing “${title}” — click the map where it belongs`,
-    cancel: "Cancel",
     zoomHint: "wheel to zoom · drag to pan · double-click to reset",
     madeFrom: "Made from prompt",
     linkNone: "— none —",
@@ -120,20 +111,10 @@ const UI = {
     researchFrom: (n: number) => `Research attempts · ${n}`,
     researchBadge: "research note",
     researchHint: "Kept as data against this point — not drawn on the map.",
-    fileResearch: "File as research (hide the tile)",
-    promotePin: "Put on the map as a tile",
-    placeBannerResearch: (title: string) =>
-      `Filing “${title}” as research — drop it on the point it came from`,
-    privateTag: "private → research",
     knobs: "Knobs",
-    addPattern: "Add my pattern",
-    pickerHead: (n: number) => `Your patterns · newest first (${n})`,
-    pickerSearch: "Search by title…",
-    pickerSearchLabel: "Search your patterns",
-    noAnswer: "Not saved. The server did not answer.",
   },
   ko: {
-    tagline: "실험 기능 — 더 많은 패턴 탐구를 위한 지도.",
+    archived: "2026년 10월에 보관한 지도. 핀은 작성자가 놓은 자리에 그대로 있고, 새 핀은 더 올라가지 않는다.",
     edit: "배치 편집",
     editing: "편집 중 — 점을 끌기",
     copyLayout: "배치 복사",
@@ -159,10 +140,6 @@ const UI = {
     legendPin: "핀 — 작성자가 지도에 놓은 공개 패턴",
     pinBy: "by",
     openPattern: "패턴 열기 ↗",
-    removePin: "지도에서 내리기",
-    moveHint: "[배치 편집]을 켜면 이 핀을 끌 수 있다.",
-    placeBanner: (title: string) => `“${title}” 놓는 중 — 어울리는 자리를 클릭`,
-    cancel: "취소",
     zoomHint: "휠 확대 · 드래그 이동 · 더블클릭 리셋",
     madeFrom: "출신 프롬프트",
     linkNone: "— 없음 —",
@@ -170,34 +147,11 @@ const UI = {
     researchFrom: (n: number) => `연구 기록 · ${n}`,
     researchBadge: "연구 기록",
     researchHint: "이 포인트에 데이터로만 남음 — 지도에는 그려지지 않는다.",
-    fileResearch: "연구 기록으로 내리기 (타일 숨김)",
-    promotePin: "지도 타일로 올리기",
-    placeBannerResearch: (title: string) => `“${title}” 연구 기록 중 — 출신 포인트 위에 놓기`,
-    privateTag: "비공개 → 연구 기록",
     knobs: "노브",
-    addPattern: "내 패턴 올리기",
-    pickerHead: (n: number) => `내 패턴 · 최신순 (${n})`,
-    pickerSearch: "제목으로 검색…",
-    pickerSearchLabel: "내 패턴 찾기",
-    noAnswer: "저장되지 않았다. 서버가 답하지 않았다.",
   },
 } as const;
 
-export default function AtlasClient({
-  pins,
-  viewerId,
-  isAdmin,
-  myPatterns,
-}: {
-  pins: AtlasPinData[];
-  viewerId: string | null;
-  isAdmin: boolean;
-  /** The viewer's own patterns not yet on the map — the picker. Private ones
-   *  can only be filed as research notes, and the placement flow routes them
-   *  there. */
-  myPatterns: Array<{ id: string; title: string; code: string; isPublic: boolean }>;
-}) {
-  const router = useRouter();
+export default function AtlasClient({ pins }: { pins: AtlasPinData[] }) {
   // Reading straight from the store (rather than syncing state in an effect)
   // keeps the server's English markup and the browser's remembered choice
   // from fighting during hydration.
@@ -205,41 +159,17 @@ export default function AtlasClient({
   const [positions, setPositions] = useState<Record<string, [number, number]>>(
     () => Object.fromEntries(ENTRIES.map((e) => [e.id, [e.x, e.y] as [number, number]])),
   );
-  // Local pin positions override the server rows while dragging.
-  const [pinPositions, setPinPositions] = useState<Record<string, [number, number]>>({});
   const [selection, setSelection] = useState<Selection>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [editMode, setEditMode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [exported, setExported] = useState(false);
   const [view, setView] = useState({ k: 1, tx: 0, ty: 0 });
-  // "Add my pattern": pick from the toolbar, then click the map to drop.
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [placing, setPlacing] = useState<{
-    id: string;
-    title: string;
-    code: string;
-    isPublic: boolean;
-  } | null>(null);
-  // While placing: the entry the cursor would link to (nearest within radius).
-  const [placingNear, setPlacingNear] = useState<string | null>(null);
-  // The picker lists your own patterns newest first, as thumbnails — you
-  // recognise your work by looking at it, not by reading titles.
-  const [pickerQuery, setPickerQuery] = useState("");
-  // A write the server refused, with its reason (null when no answer came
-  // back), and what the panel showed then. Select something else and the
-  // message goes, so a refusal about one pin never sits under another.
-  const [writeError, setWriteError] = useState<{ text: string | null; at: Selection } | null>(
-    null,
-  );
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const draggingEntryRef = useRef<string | null>(null);
-  const draggingPinRef = useRef<string | null>(null);
   const panRef = useRef<{ px: number; py: number; tx: number; ty: number } | null>(null);
   const dragMovedRef = useRef(false);
-
-
 
   // Wheel zoom must preventDefault, which React's synthetic listener cannot —
   // attach a real non-passive listener.
@@ -272,11 +202,9 @@ export default function AtlasClient({
   const statusLabel = (s: AtlasStatusId) => (lang === "en" ? STATUSES[s].labelEn : STATUSES[s].label);
   const statusLegend = (s: AtlasStatusId) => (lang === "en" ? STATUSES[s].legendEn : STATUSES[s].legend);
 
-  const pinPos = (pin: AtlasPinData): [number, number] => pinPositions[pin.patternId] ?? [pin.x, pin.y];
   // Fall back to the data coords: hot reloads keep old state while ENTRIES
   // grows, and a missing id must never take the whole map down.
   const entryPos = (e: AtlasEntry): [number, number] => positions[e.id] ?? [e.x, e.y];
-  const canEditPin = (pin: AtlasPinData) => isAdmin || (viewerId !== null && viewerId === pin.userId);
 
   // Only exemplars are drawn on the map; research rows surface from the entry
   // panel. Both live in `pins`, so selecting either opens the same panel.
@@ -301,22 +229,7 @@ export default function AtlasClient({
     return [Math.round(x), Math.round(y)];
   };
 
-  /** Nearest entry within LINK_RADIUS (perceptual/viewBox distance), else null. */
-  const nearestEntry = ([x, y]: [number, number]): string | null => {
-    let best: string | null = null;
-    let bestDist = LINK_RADIUS;
-    for (const entry of ENTRIES) {
-      const [ex, ey] = entryPos(entry);
-      const dist = Math.hypot(((ex - x) / 100) * W, ((ey - y) / 100) * H);
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = entry.id;
-      }
-    }
-    return best;
-  };
-
-  /* ── pointer choreography: pan the world, drag entries, drag pins ── */
+  /* ── pointer choreography: pan the world, drag entries ── */
 
   const onBackgroundDown = (ev: React.PointerEvent) => {
     const svg = svgRef.current;
@@ -340,21 +253,6 @@ export default function AtlasClient({
       return;
     }
 
-    const pinId = draggingPinRef.current;
-    if (pinId) {
-      const coords = toDataCoords(ev.clientX, ev.clientY);
-      if (!coords) return;
-      dragMovedRef.current = true;
-      setPinPositions((prev) => ({ ...prev, [pinId]: coords }));
-      return;
-    }
-
-    // Placement mode: track which entry the cursor would inherit lineage from.
-    if (placing && !panRef.current) {
-      const coords = toDataCoords(ev.clientX, ev.clientY);
-      if (coords) setPlacingNear(nearestEntry(coords));
-    }
-
     const pan = panRef.current;
     if (pan) {
       const point = toViewBox(svg, ev.clientX, ev.clientY);
@@ -367,13 +265,7 @@ export default function AtlasClient({
   };
 
   const onMapPointerUp = () => {
-    const pinId = draggingPinRef.current;
-    if (pinId && dragMovedRef.current) {
-      const pin = pins.find((p) => p.patternId === pinId);
-      if (pin) void savePin(pin, pinPos(pin));
-    }
     draggingEntryRef.current = null;
-    draggingPinRef.current = null;
     panRef.current = null;
     window.setTimeout(() => {
       dragMovedRef.current = false;
@@ -382,102 +274,7 @@ export default function AtlasClient({
 
   const onMapClick = () => {
     if (dragMovedRef.current) return;
-    // In placement mode the background rect's pointerup does the drop
-    // (the click event carries no coordinates here).
-    if (placing) return;
     setSelection(null);
-  };
-
-  const onPlaceClick = (ev: React.PointerEvent) => {
-    if (!placing || dragMovedRef.current) return;
-    const coords = toDataCoords(ev.clientX, ev.clientY);
-    if (!coords) return;
-    void placePattern(placing, coords);
-  };
-
-  /* ── server writes ── */
-
-  /** One write to the atlas route. True when it saved; otherwise the panel
-   *  says why, in the server's words when it sent any. */
-  const writeAtlas = async (method: "POST" | "DELETE", body: Record<string, unknown>) => {
-    const at = selection;
-    setWriteError(null);
-    try {
-      const res = await fetch("/api/community/atlas", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return true;
-      const payload = (await res.json().catch(() => ({}))) as { error?: unknown };
-      setWriteError({ text: typeof payload.error === "string" ? payload.error : null, at });
-    } catch {
-      setWriteError({ text: null, at });
-    }
-    return false;
-  };
-
-  const forgetPinPosition = (patternId: string) =>
-    setPinPositions((prev) => {
-      const next = { ...prev };
-      delete next[patternId];
-      return next;
-    });
-
-  const savePin = async (pin: AtlasPinData, [x, y]: [number, number]) => {
-    const saved = await writeAtlas("POST", {
-      patternId: pin.patternId, x, y, entryId: pin.entryId, kind: pin.kind,
-    });
-    if (saved) {
-      router.refresh();
-      return;
-    }
-    // The drop did not stick: the tile goes back to where the server has it.
-    forgetPinPosition(pin.patternId);
-  };
-
-  const setPinLink = async (pin: AtlasPinData, entryId: string | null) => {
-    const [x, y] = pinPos(pin);
-    if (await writeAtlas("POST", { patternId: pin.patternId, x, y, entryId, kind: pin.kind })) {
-      router.refresh();
-    }
-  };
-
-  /** Demote a tile to a research note, or promote a note back to a tile. */
-  const setPinKind = async (pin: AtlasPinData, kind: "pin" | "research") => {
-    const [x, y] = pinPos(pin);
-    if (await writeAtlas("POST", { patternId: pin.patternId, x, y, entryId: pin.entryId, kind })) {
-      router.refresh();
-    }
-  };
-
-  const placePattern = async (pattern: NonNullable<typeof placing>, coords: [number, number]) => {
-    // Dropping NEAR a prompt point is pointing at it — the nearest entry
-    // within LINK_RADIUS becomes the lineage. Dropping in open sea links to
-    // nothing; the pin panel's select stays for corrections either way.
-    //
-    // A private pattern files as a research note, and a note without a point
-    // would be invisible everywhere — so that drop must land near an entry
-    // (the banner says so; a miss is a no-op, not an error).
-    const entryId = nearestEntry(coords);
-    const kind = pattern.isPublic ? "pin" : "research";
-    if (kind === "research" && !entryId) return;
-    const saved = await writeAtlas("POST", {
-      patternId: pattern.id, x: coords[0], y: coords[1], entryId, kind,
-    });
-    if (saved) {
-      setPlacing(null);
-      setPlacingNear(null);
-      setSelection({ kind: "pin", id: pattern.id });
-      router.refresh();
-    }
-  };
-
-  const removePin = async (patternId: string) => {
-    if (!(await writeAtlas("DELETE", { patternId }))) return;
-    setSelection(null);
-    forgetPinPosition(patternId);
-    router.refresh();
   };
 
   /* ── clipboard ── */
@@ -507,11 +304,6 @@ export default function AtlasClient({
     window.setTimeout(() => setExported(false), 1800);
   };
 
-  const query = pickerQuery.trim().toLowerCase();
-  const pickerList = myPatterns.filter(
-    (pattern) => query === "" || pattern.title.toLowerCase().includes(query),
-  );
-
   const newCount = ENTRIES.filter(isNewEntry).length;
   // A chip nobody can fill is a button that empties the map — statuses with no
   // entries stay off the bar until something moves into them.
@@ -529,76 +321,15 @@ export default function AtlasClient({
   const worldTransform = `translate(${view.tx} ${view.ty}) scale(${view.k})`;
   const inv = 1 / view.k;
 
-  const shownError =
-    writeError && writeError.at?.kind === selection?.kind && writeError.at?.id === selection?.id
-      ? writeError.text ?? t.noAnswer
-      : null;
-
   return (
     <div className={styles.atlas}>
       <div className={styles.toolbar}>
         <p className={styles.tagline}>
-          {t.tagline} <span className={styles.zoomHint}>{t.zoomHint}</span>
+          {t.archived} <span className={styles.zoomHint}>{t.zoomHint}</span>
         </p>
         {/* One block: when the row runs out, the buttons move under the
             tagline together instead of each squeezing into a column. */}
         <div className={styles.toolbarActions}>
-          {myPatterns.length > 0 && (
-            <span className={styles.pickerWrap}>
-              <button
-                type="button"
-                className={styles.toolBtn}
-                data-on={pickerOpen || Boolean(placing)}
-                onClick={() => setPickerOpen((v) => !v)}
-              >
-                {t.addPattern}
-              </button>
-              {pickerOpen && (
-                <div className={styles.picker}>
-                  <div className={styles.pickerHead}>{t.pickerHead(myPatterns.length)}</div>
-                  {myPatterns.length > 8 && (
-                    <input
-                      type="search"
-                      className={styles.pickerSearch}
-                      aria-label={t.pickerSearchLabel}
-                      placeholder={t.pickerSearch}
-                      value={pickerQuery}
-                      onChange={(ev) => setPickerQuery(ev.target.value)}
-                      autoFocus
-                    />
-                  )}
-                  <div className={styles.pickerGrid}>
-                    {pickerList.map((pattern) => (
-                      <button
-                        key={pattern.id}
-                        type="button"
-                        className={styles.pickerItem}
-                        title={pattern.title}
-                        onClick={() => {
-                          setPlacing(pattern);
-                          setPickerOpen(false);
-                        }}
-                      >
-                        <span className={styles.pickerTile}>
-                          <PatternCanvas
-                            code={pattern.code}
-                            title={pattern.title}
-                            className={styles.pinWell}
-                          />
-                        </span>
-                        <span className={styles.pickerCaption}>
-                          {pattern.title}
-                          {!pattern.isPublic && (
-                            <span className={styles.researchTag}> {t.privateTag}</span>
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </span>
-          )}
           <button type="button" className={styles.toolBtn} onClick={toggleLang}>
             {lang === "en" ? "한국어" : "English"}
           </button>
@@ -617,9 +348,7 @@ export default function AtlasClient({
       </div>
 
       <div className={styles.body}>
-        <div className={styles.mapWrap} data-placing={Boolean(placing)}>
-          {/* Chips and the placing banner share one column, so the banner sits
-              under the chips however many rows they wrap to. */}
+        <div className={styles.mapWrap}>
           <div className={styles.mapTop}>
             <div className={styles.chips}>
               {chipList.map(([key, label]) => (
@@ -635,29 +364,6 @@ export default function AtlasClient({
               ))}
             </div>
 
-            {placing && (
-              <div className={styles.placeBanner}>
-                <span>
-                  {placing.isPublic ? t.placeBanner(placing.title) : t.placeBannerResearch(placing.title)}
-                  {placingNear && ENTRY_BY_ID.has(placingNear) && (
-                    <span className={styles.bannerLink}>
-                      {" "}→ {entryName(ENTRY_BY_ID.get(placingNear)!)}
-                    </span>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  className={styles.toolBtn}
-                  onClick={() => {
-                    setPlacing(null);
-                    setPlacingNear(null);
-                    setWriteError(null);
-                  }}
-                >
-                  {t.cancel}
-                </button>
-              </div>
-            )}
           </div>
 
           <svg
@@ -677,11 +383,10 @@ export default function AtlasClient({
               </filter>
             </defs>
 
-            {/* Background catcher: pans the world; in placement mode, drops the pattern. */}
+            {/* Background catcher: pans the world. */}
             <rect
               x={0} y={0} width={VB_W} height={VB_H} fill="transparent"
               onPointerDown={onBackgroundDown}
-              onPointerUp={onPlaceClick}
             />
 
             <g transform={worldTransform}>
@@ -724,11 +429,10 @@ export default function AtlasClient({
                   const entry = ENTRY_BY_ID.get(pin.entryId);
                   if (!entry) return null;
                   const [ex, ey] = entryPos(entry);
-                  const [px, py] = pinPos(pin);
                   return (
                     <line
                       key={`thread-${pin.patternId}`}
-                      x1={sx(ex)} y1={sy(ey)} x2={sx(px)} y2={sy(py)}
+                      x1={sx(ex)} y1={sy(ey)} x2={sx(pin.x)} y2={sy(pin.y)}
                       stroke={FAMILIES[entry.f].color}
                       strokeOpacity={0.3}
                       strokeDasharray="4 4"
@@ -784,9 +488,6 @@ export default function AtlasClient({
                     }}
                   >
                     <circle r={14} className={styles.focusRing} />
-                    {placingNear === e.id && (
-                      <circle r={13} fill="none" stroke="#F4EFE6" strokeOpacity={0.8} strokeDasharray="3 3" />
-                    )}
                     {e.st === "active" && (
                       <circle r={11} fill="none" stroke={LED} className={styles.pulseRing} />
                     )}
@@ -813,13 +514,11 @@ export default function AtlasClient({
               })}
 
               {mapPins.map((pin) => {
-                const [px, py] = pinPos(pin);
                 const isSelected = selection?.kind === "pin" && selection.id === pin.patternId;
-                const draggable = editMode && canEditPin(pin);
                 return (
                   <g
                     key={pin.patternId}
-                    transform={`translate(${sx(px)} ${sy(py)}) scale(${inv})`}
+                    transform={`translate(${sx(pin.x)} ${sy(pin.y)}) scale(${inv})`}
                   >
                     <foreignObject x={-22} y={-44} width={44} height={102}>
                       <div
@@ -828,15 +527,7 @@ export default function AtlasClient({
                         aria-label={pin.title}
                         className={styles.pin}
                         data-selected={isSelected}
-                        data-draggable={draggable}
                         title={pin.title}
-                        onPointerDown={(ev) => {
-                          if (!draggable) return;
-                          ev.preventDefault();
-                          ev.stopPropagation();
-                          draggingPinRef.current = pin.patternId;
-                          dragMovedRef.current = false;
-                        }}
                         onClick={(ev) => {
                           ev.stopPropagation();
                           if (!dragMovedRef.current) setSelection({ kind: "pin", id: pin.patternId });
@@ -882,11 +573,6 @@ export default function AtlasClient({
         </div>
 
         <aside className={styles.panel}>
-          {shownError && (
-            <p role="alert" className={styles.writeError} ref={revealOnMount}>
-              {shownError}
-            </p>
-          )}
           {selectedPin ? (
             <>
               <h2 className={styles.panelTitle}>{selectedPin.title}</h2>
@@ -903,23 +589,7 @@ export default function AtlasClient({
 
               <section className={styles.sec}>
                 <div className={styles.secK}>{t.madeFrom}</div>
-                {canEditPin(selectedPin) ? (
-                  <select
-                    className={styles.fromSelect}
-                    aria-label={t.madeFrom}
-                    value={selectedPin.entryId ?? ""}
-                    onChange={(ev) => void setPinLink(selectedPin, ev.target.value || null)}
-                  >
-                    {/* A research note without a point would be invisible
-                        everywhere, so that one option disappears for them. */}
-                    {selectedPin.kind === "pin" && <option value="">{t.linkNone}</option>}
-                    {ENTRIES.map((entry) => (
-                      <option key={entry.id} value={entry.id}>
-                        {entryName(entry)}
-                      </option>
-                    ))}
-                  </select>
-                ) : selectedPin.entryId && ENTRY_BY_ID.has(selectedPin.entryId) ? (
+                {selectedPin.entryId && ENTRY_BY_ID.has(selectedPin.entryId) ? (
                   <button
                     type="button"
                     className={styles.fromChip}
@@ -946,44 +616,12 @@ export default function AtlasClient({
 
               <div className={styles.badges}>
                 <span className={styles.badge}>
-                  x {pinPos(selectedPin)[0]} · y {pinPos(selectedPin)[1]}
+                  x {selectedPin.x} · y {selectedPin.y}
                 </span>
               </div>
               <Link className={styles.openLink} href={`/community/p/${selectedPin.patternId}`}>
                 {t.openPattern}
               </Link>
-              {canEditPin(selectedPin) && (
-                <>
-                  {selectedPin.kind === "pin" && <p className={styles.moveHint}>{t.moveHint}</p>}
-                  {/* Demote needs a point to file against; promote needs the
-                      pattern to be public (a private tile would leak). */}
-                  {selectedPin.kind === "pin" && selectedPin.entryId && (
-                    <button
-                      type="button"
-                      className={styles.toolBtn}
-                      onClick={() => void setPinKind(selectedPin, "research")}
-                    >
-                      {t.fileResearch}
-                    </button>
-                  )}
-                  {selectedPin.kind === "research" && selectedPin.isPublic && (
-                    <button
-                      type="button"
-                      className={styles.toolBtn}
-                      onClick={() => void setPinKind(selectedPin, "pin")}
-                    >
-                      {t.promotePin}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.removeBtn}
-                    onClick={() => void removePin(selectedPin.patternId)}
-                  >
-                    {t.removePin}
-                  </button>
-                </>
-              )}
             </>
           ) : selectedEntry ? (
             <>
@@ -1267,14 +905,6 @@ function writeLang(next: Lang) {
     unsavedLang = next;
   }
   for (const listener of langListeners) listener();
-}
-
-/** Remove sits at the foot of a pin panel and the page scrolls to reach it,
- *  so a refusal at the panel's head can land above the window. Brought into
- *  view once, as it appears: a stable function, so React calls it on mount
- *  and not on every render. */
-function revealOnMount(node: HTMLElement | null) {
-  node?.scrollIntoView({ block: "nearest" });
 }
 
 function clamp(value: number, min: number, max: number) {

@@ -19,6 +19,7 @@ import { patterns } from "@/lib/community/server/schema";
 import { toCardItem } from "@/lib/community/server/serialize";
 import {
   CODE_MAX,
+  TITLE_ERROR,
   cleanCode,
   cleanCpp,
   cleanDescription,
@@ -129,7 +130,7 @@ async function handlePost(request: Request) {
   if (raw instanceof Response) return raw;
 
   const title = cleanTitle(raw.title);
-  if (!title) return Response.json({ error: "Title is required (max 80 chars)." }, { status: 400 });
+  if (!title) return Response.json({ error: TITLE_ERROR }, { status: 400 });
 
   const description = cleanDescription(raw.description);
   if (description === undefined) {

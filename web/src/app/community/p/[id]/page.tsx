@@ -40,9 +40,12 @@ export async function generateMetadata(props: RouteParams): Promise<Metadata> {
   if (!communityEnabled()) return {};
   const { id } = await props.params;
   const pattern = await getPatternOnce(id);
+  // A gone pattern takes community/not-found.tsx's title. The page itself
+  // 404s too, but the tab only reads what this function decides.
+  if (!pattern) notFound();
   // Metadata is what previews and crawlers read, so a private pattern's title
   // must not surface here — even the owner's tab goes generic.
-  if (!pattern || pattern.visibility === "private") return {};
+  if (pattern.visibility === "private") return {};
   return {
     title: `${pattern.title} / Patternflow Community`,
     description: pattern.description ?? `An LED matrix pattern by ${pattern.displayUsername ?? pattern.username}.`,
