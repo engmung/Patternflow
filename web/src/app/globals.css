@@ -1294,9 +1294,12 @@
   .journal-post-list li {
     border-bottom: 0;
   }
+  /* The date column is at least 120px and as wide as its date. At 120px a
+     two-digit Korean date (130px, "2026년 10월 29일") and a long English
+     one (159px, "SEPTEMBER 29, 2026") broke onto a second line. */
   .journal-post-list a {
     display: grid;
-    grid-template-columns: 1fr 120px 80px;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) 80px;
     gap: 24px;
     align-items: baseline;
     padding-right: 104px;
@@ -1346,6 +1349,7 @@
   }
   .journal-list-meta {
     text-align: right;
+    white-space: nowrap;
   }
   .journal-list-body .pf-row-d {
     max-width: none;
