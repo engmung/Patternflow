@@ -17,10 +17,10 @@ Play light patterns with your fingertips.
 
 <p align="center">
   <a href="https://www.instagram.com/p/DbD2z1VSG09/"><img src="./docs/media/hero-loop.webp" width="23%" alt="Patternflow: a hand turns a knob and the light reshapes" /></a>
-  <a href="https://youtu.be/BPMhTChY9vg"><img src="https://img.youtube.com/vi/OXt-yg_7qdk/maxresdefault.jpg" width="72%" alt="Patternflow, the film: what it is, how it's built, and why" /></a>
+  <a href="https://youtu.be/1tkV8-AgdpA"><img src="https://img.youtube.com/vi/1tkV8-AgdpA/maxresdefault.jpg" width="72%" alt="Patternflow, the film: what it is, how it's built, and why" /></a>
 </p>
 <p align="center">
-  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the reel: <b>400k+ views</b> on Instagram</a> &nbsp;·&nbsp; <a href="https://youtu.be/BPMhTChY9vg">▶ <b>the film</b>: the whole story, on YouTube</a></sub>
+  <sub><a href="https://www.instagram.com/p/DbD2z1VSG09/">▶ the reel: <b>400k+ views</b> on Instagram</a> &nbsp;·&nbsp; <a href="https://youtu.be/1tkV8-AgdpA">▶ <b>the film</b>: the whole story, on YouTube</a></sub>
 </p>
 
 > **Photosensitivity warning.** Patternflow displays rapidly changing light patterns that may trigger seizures in people with photosensitive epilepsy. Viewer discretion is advised. If you experience any discomfort, stop use immediately.

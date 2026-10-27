@@ -19,6 +19,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **The hero plays the new film, and a click on it opens the film on YouTube.** The home page embeds 1tkV8-AgdpA in place of OXt-yg_7qdk, and the whole frame is a link to the film in a new tab. The embed no longer hides itself on a fixed 89-second timer. The player says when the film ends.
 - **The community's workshop is gone.** The map of directions, its threads and the territory editor are removed with their API routes; the menu and the phone tabs keep Patterns, Decks and Atlas, and the old workshop addresses redirect to `/community`. Comments, alerts and reports keep their pattern and deck paths, and the workshop's tables and rows stay in the database.
 - **The community atlas is a read-only archive.** It is off the community menu and reached from the footer's Archive link, with a line at the top saying so. The pin picker and the pin editor are gone, and `/api/community/atlas` answers a write with a 405; the map, its pins and the prompts stay readable.
 - **A community member's display name is their own username.** Sign-up and `/api/auth/update-user` took any string as `displayUsername`, so a member could show as `@ada` on their cards and in the licence header of the next pattern they published. Only the capitals of the member's own username are accepted now, and a new username takes the display name with it.
@@ -190,6 +191,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Docs
 
+- **The README shows the new film.** Both links and the thumbnail point at 1tkV8-AgdpA.
 - **The Pattern Guide's two Lab screenshots show the current Lab.** `11-pattern-lab.png` and `13-color-ramp.png` still had the Gallery tab. They are retaken at 1920 × 1080 with the same scenes, the hsv short ramp included.
 - **The build service docs describe the worker that runs today.** `docs/SERVICES.md` and `web/.env.example` still said the worker compiles firmware with arduino-cli and offered `ARDUINO_CLI_PATH` and `BUILD_FQBN`, which nothing has read since whole-image builds ended on 12 August. `.env.example` now lists `PF_XTENSA_BIN`, `PF_TARGET_ABI` and `GITHUB_TOKEN`, and `src/lib/envExample.test.ts` fails when it, the code and the table in `web/ARCHITECTURE.md` disagree.
 - **The docs index, the repository map and the contributor guide describe the tree as it is.** `docs/README.md` lists the cleanup RFC and its log, the rename list in `docs/REPOSITORY.md` names all 30 files the site's absolute links reach (it had ten and the BOM), `CONTRIBUTING.md` names the four build kinds and `originId`, and `docs/EDITIONS.md` says `build.sh all` builds five compositions.

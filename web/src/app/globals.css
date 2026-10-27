@@ -426,11 +426,27 @@
     color: var(--cream);
     cursor: pointer;
     transition: background-color 0.15s ease;
+    z-index: 2;
   }
   .hero-video-toggle:hover { background: rgba(20, 20, 20, 0.85); }
   .hero-video-toggle:focus-visible {
     outline: 2px solid var(--pf-led);
     outline-offset: 2px;
+  }
+  /* The frame as a link to the film on YouTube. It lies over the poster and
+     the embed, so its focus ring shows on the video too, and under the toggle.
+     The frame isolates these layers from the rest of the page and clips its
+     edge, so the focus ring is drawn inside. */
+  .hero-video-link {
+    position: absolute;
+    inset: 0;
+    display: block;
+    cursor: pointer;
+    z-index: 1;
+  }
+  .hero-video-link:focus-visible {
+    outline: 2px solid var(--pf-led);
+    outline-offset: -2px;
   }
   /* At laptop height the column — wordmark, video, the two facts, the buttons —
      can be taller than the window with the full 80px above it, and the buttons'
