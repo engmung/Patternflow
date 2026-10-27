@@ -155,3 +155,49 @@ describe("journal language switch on a phone", () => {
     expect(position(".journal-panel .journal-lang-switch")).toBe("static");
   });
 });
+
+// Each row of the list under a post has its post number at the right, 64px
+// type, and the row kept 56px clear for it. On 27 October, from 761px up, the
+// end of 350 of the 370 dates on the 74 posts ran under the number, by up to
+// 18.7px; from 721px, where the number is 52px, 228 of them. The index's rows
+// keep 104px clear and none of their text meets the number.
+
+/** The stylesheet with every `@media` block taken out: the rules that hold at any width. */
+function withoutMedia(source: string) {
+  const bare = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  let out = "";
+  let from = 0;
+  for (let at = bare.indexOf("@media", from); at !== -1; at = bare.indexOf("@media", from)) {
+    out += bare.slice(from, at);
+    let depth = 0;
+    let i = bare.indexOf("{", at);
+    for (; i < bare.length; i++) {
+      if (bare[i] === "{") depth++;
+      if (bare[i] === "}" && --depth === 0) break;
+    }
+    from = i + 1;
+  }
+  return out + bare.slice(from);
+}
+
+describe("journal post numbers", () => {
+  const all = rules(withoutMedia(css));
+  const paddingRight = (selector: string) =>
+    all
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => {
+        const own = declaration(r.body, "padding-right");
+        if (own) return own;
+        const sides = declaration(r.body, "padding")?.split(/\s+/);
+        return sides && (sides[1] ?? sides[0]);
+      })
+      .filter(Boolean)
+      .at(-1);
+
+  it("keeps the list under a post as clear of the number as the index", () => {
+    const index = parseFloat(paddingRight(".journal-post-list a") ?? "");
+    const underPost = parseFloat(paddingRight(".journal-context-list .pf-row") ?? "");
+    expect(index, "the index row's padding-right").toBeGreaterThan(0);
+    expect(underPost).toBeGreaterThanOrEqual(index);
+  });
+});

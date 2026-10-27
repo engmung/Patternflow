@@ -1738,12 +1738,15 @@
     letter-spacing: normal;
     text-transform: none;
   }
+  /* 104px clear for the post number, as the index rows keep. At 56px the
+     end of a date ran under the 64px number: 350 of the 370 rows on the
+     74 posts, from 761px up. */
   .journal-context-list .pf-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 24px;
     align-items: baseline;
-    padding-right: 56px;
+    padding-right: 104px;
     border-top: 0;
     color: var(--ink-muted);
     text-decoration: none;
