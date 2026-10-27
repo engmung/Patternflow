@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
@@ -12,9 +12,42 @@ import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 // said as "around", because it is an estimate.
 const PEOPLE_WHO_MADE_ONE = 40;
 
-// One play of the video, from the start.
+// The film. The hero plays it muted with no controls, and a click on the frame
+// opens it on YouTube in a new tab, with sound.
+const FILM_ID = '1tkV8-AgdpA';
+const FILM_URL = `https://www.youtube.com/watch?v=${FILM_ID}`;
+
+// A message from the YouTube player that says the film has ended. The player
+// sends JSON strings, and says it twice: as a state change to 0, and as
+// playerState 0 in its regular report.
+function isEndedMessage(raw: unknown): boolean {
+  let data: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+  }
+  if (typeof data !== 'object' || data === null) return false;
+  const { event, info } = data as { event?: unknown; info?: unknown };
+  if (event === 'onStateChange') return info === 0;
+  if (event === 'infoDelivery' && typeof info === 'object' && info !== null) {
+    return (info as { playerState?: unknown }).playerState === 0;
+  }
+  return false;
+}
+
+// One play of the video, from the start. The film's length is not written
+// down here: the player says when it ends. It reports only to a page that has
+// said it is listening, so the embed is told that every 250 ms from load until
+// its first answer, as YouTube's own iframe API does. If it never answers, the
+// film plays to its end screen and the poster does not come back.
 function HeroEmbed({ onEnded }: { onEnded: () => void }) {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const heardRef = useRef(false);
+  const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Show the video after 3 seconds (allowing it to initialize and hide controls)
@@ -22,21 +55,45 @@ function HeroEmbed({ onEnded }: { onEnded: () => void }) {
       setIsVideoVisible(true);
     }, 3000);
 
-    // Hide the video and return to static image after the video ends (3s delay + 89s video duration = 92s)
-    const hideTimer = setTimeout(() => {
-      setIsVideoVisible(false);
-      onEnded();
-    }, 92000);
+    const onMessage = (e: MessageEvent) => {
+      if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
+      heardRef.current = true;
+      if (isEndedMessage(e.data)) {
+        setIsVideoVisible(false);
+        onEnded();
+      }
+    };
+    window.addEventListener('message', onMessage);
 
     return () => {
       clearTimeout(showTimer);
-      clearTimeout(hideTimer);
+      window.removeEventListener('message', onMessage);
+      if (pingRef.current) clearInterval(pingRef.current);
     };
   }, [onEnded]);
 
+  const listen = () => {
+    if (pingRef.current) clearInterval(pingRef.current);
+    let pings = 0;
+    const ping = () => {
+      if (heardRef.current || pings++ >= 40) {
+        if (pingRef.current) clearInterval(pingRef.current);
+        return;
+      }
+      frameRef.current?.contentWindow?.postMessage(
+        JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }),
+        'https://www.youtube.com',
+      );
+    };
+    ping();
+    pingRef.current = setInterval(ping, 250);
+  };
+
   return (
     <iframe
-      src="https://www.youtube.com/embed/OXt-yg_7qdk?autoplay=1&mute=1&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0"
+      ref={frameRef}
+      onLoad={listen}
+      src={`https://www.youtube.com/embed/${FILM_ID}?autoplay=1&mute=1&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0&enablejsapi=1`}
       title="Patternflow Demo Video"
       frameBorder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -59,7 +116,8 @@ function HeroEmbed({ onEnded }: { onEnded: () => void }) {
 // Mounted only while motion is welcome. Turning reduced motion off again
 // mounts a fresh one, which hides for its first three seconds like the first.
 // The embed takes no clicks, so the button over it is the one way to stop the
-// video before its 89 seconds are up (WCAG 2.2.2). Stop takes the embed away
+// video before it ends (WCAG 2.2.2). A click anywhere else on the frame goes
+// to the link over the embed. Stop takes the embed away
 // and the poster under it stays. Play mounts a fresh embed, which starts from
 // the top, and so does Play after the video has ended.
 function HeroVideo() {
@@ -121,7 +179,8 @@ export default function Hero() {
           border: '1px solid var(--pf-rule)',
           position: 'relative',
           paddingBottom: '56.25%',
-          height: 0
+          height: 0,
+          isolation: 'isolate'
         }}>
           {/* Static fallback and loading placeholder. The file is the 4032-wide
               camera original, 2.1 MB, drawn at 340px on a phone and 578px at
@@ -137,6 +196,20 @@ export default function Hero() {
             loading="eager"
             fetchPriority="high"
             style={{ objectFit: 'cover' }}
+          />
+          {/* The whole frame opens the film on YouTube, poster or video, and
+              with reduced motion too. It lies over the embed and under the
+              Stop button, which keeps its own click. */}
+          <a
+            className="hero-video-link"
+            href={FILM_URL}
+            target="_blank"
+            rel="noopener"
+            aria-label="Watch the film on YouTube"
+            onClick={() => captureEvent('youtube_film_clicked', {
+              surface: 'hero',
+              destination: 'youtube',
+            })}
           />
           {!reducedMotion && <HeroVideo />}
         </div>
