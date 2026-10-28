@@ -1887,6 +1887,13 @@
     .journal-article-header > p {
       font-size: 18px;
     }
+    /* A cover's caption breaks between words, as the post under it does.
+       At 360 the Korean caption under "패턴플로우란 무엇인가" broke inside
+       its last word and left 지 alone on a second line. */
+    .journal-hero-cover figcaption {
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
     /* Korean breaks between words, as English does. At 390, 2,640 of the
        4,458 line breaks in the 37 Korean posts fell inside a word. A word
        longer than the line still breaks rather than running off it.

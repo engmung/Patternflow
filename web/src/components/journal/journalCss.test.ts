@@ -504,3 +504,31 @@ describe("journal lists on a phone", () => {
     expect(parseFloat(value)).toBeLessThanOrEqual(1.5);
   });
 });
+
+// Below 721px a cover's caption broke Korean wherever its line ran out. The
+// captions in a post keep .journal-reading's keep-all, and the cover's sits
+// above it. On 28 October, at 360, the one Korean cover caption, under "패턴플로우란
+// 무엇인가", needed 24.5em in a 24em line and left 지 alone on a second line.
+
+describe("journal cover captions on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+  const caption = ".journal-hero-cover figcaption";
+
+  it("breaks a Korean caption only between words", () => {
+    expect(last(caption, "word-break")).toBe("keep-all");
+  });
+
+  it("still breaks a word too long for the line", () => {
+    expect(last(caption, "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+});
