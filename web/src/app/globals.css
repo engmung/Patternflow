@@ -1933,10 +1933,12 @@
       font-size: 11px;
       vertical-align: middle;
     }
+    /* 13px, as every other date and label in the journal. At 10.5px the
+       archive's 74 dates and reading times were the smallest text on it. */
     .journal-list-meta {
       display: inline-block;
       margin-top: 8px;
-      font-size: 10.5px;
+      font-size: var(--pf-fs-mono);
       line-height: 1;
       text-transform: uppercase;
       color: var(--ink-muted);

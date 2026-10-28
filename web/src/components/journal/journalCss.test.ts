@@ -349,3 +349,43 @@ describe("journal rules", () => {
     }
   });
 });
+
+// Below 721px the archive's dates and reading times were 10.5px, under the
+// 13px every other date, label and caption in the journal keeps. On 28
+// October that was all 74 of them on /journal and /journal/en at 360, 390 and
+// 430.
+
+describe("journal dates on a phone", () => {
+  const all = rules(css);
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const root = all.find((r) => r.selectors.includes(":root") && declaration(r.body, "--pf-fs-mono"));
+  /** "13px" or "var(--pf-fs-mono)" → 13. */
+  const px = (value: string) => {
+    const token = value.match(/^var\((--[\w-]+)\)$/)?.[1];
+    return parseFloat(token ? (declaration(root?.body ?? "", token) ?? "") : value);
+  };
+  /** The font-size the last rule for `selector` gives it on a phone, the phone's own rules first. */
+  const size = (selector: string) => {
+    const last = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, "font-size"))
+        .filter((v): v is string => Boolean(v))
+        .at(-1);
+    return last(phone) ?? last(desktop);
+  };
+
+  it.each([
+    ".journal-list-meta",
+    ".journal-context-list .journal-list-meta",
+    ".journal-featured-meta",
+    ".journal-dateline",
+    ".journal-md-figure figcaption",
+    ".journal-hero-cover figcaption",
+  ])("sets %s at 13px or more", (selector) => {
+    const value = size(selector);
+    expect(value, `no font-size for ${selector}`).toBeDefined();
+    expect(px(value!)).toBeGreaterThanOrEqual(13);
+  });
+});
