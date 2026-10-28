@@ -9,7 +9,6 @@ import RightPanel from './RightPanel';
 // the panel under them is the page's main landmark.
 
 vi.mock('./Hero', () => ({ default: () => <section>hero</section> }));
-vi.mock('./Milestones', () => ({ default: () => null }));
 vi.mock('./Sponsor', () => ({ default: () => null }));
 vi.mock('../layout/Footer', () => ({ default: () => null }));
 vi.mock('./BuildPanel', () => ({ default: () => <section>build panel</section> }));
