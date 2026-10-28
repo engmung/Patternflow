@@ -128,10 +128,13 @@ export function getAdjacentJournalPosts(slug: string, lang: JournalLang = "ko") 
   };
 }
 
+// The dates are written in Seoul (+09:00). Without a zone the day is the build
+// machine's, and a post written at 01:30 in Seoul is the day before in UTC.
 export function formatJournalDate(date: string, lang: JournalLang = "ko") {
   return new Intl.DateTimeFormat(lang === "ko" ? "ko-KR" : "en", {
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone: "Asia/Seoul",
   }).format(new Date(date));
 }

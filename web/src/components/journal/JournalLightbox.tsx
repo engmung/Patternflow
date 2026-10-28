@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type LightboxImage = {
   src: string;
@@ -8,8 +8,16 @@ type LightboxImage = {
   caption: string;
 };
 
+// focusVisible is in Chromium and Firefox but not yet in TypeScript's DOM types.
+function moveFocus(element: HTMLElement, ring: boolean) {
+  const options: FocusOptions & { focusVisible: boolean } = { preventScroll: true, focusVisible: ring };
+  element.focus(options);
+}
+
 export default function JournalLightbox() {
   const [image, setImage] = useState<LightboxImage | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
@@ -31,6 +39,7 @@ export default function JournalLightbox() {
       // always shows the full-resolution image, even on mobile where
       // Next Image's srcset may have selected a smaller variant.
       const originalSrc = target.getAttribute("src") || target.src;
+      openerRef.current = target;
       setImage({
         src: originalSrc,
         alt: target.alt,
@@ -47,18 +56,41 @@ export default function JournalLightbox() {
       return;
     }
 
+    // Chromium draws the focus ring wherever a script puts the focus, even
+    // after a mouse click. The ring waits for the first Tab.
+    let tabbed = false;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setImage(null);
+      } else if (event.key === "Tab") {
+        // The close button is the one thing in the window that takes the
+        // focus. A Tab that left it went to the links under the backdrop and
+        // scrolled the post away from the picture.
+        event.preventDefault();
+        const close = closeRef.current;
+        if (!close) return;
+        // focus() on the focused element changes nothing, ring included.
+        if (!tabbed) close.blur();
+        tabbed = true;
+        moveFocus(close, true);
       }
     };
 
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleKeyDown);
+    if (closeRef.current) moveFocus(closeRef.current, false);
 
     return () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", handleKeyDown);
+      // Back to the picture, so the next Tab carries on from there. An img
+      // takes the focus only with a tabindex.
+      const opener = openerRef.current;
+      if (opener?.isConnected) {
+        if (!opener.hasAttribute("tabindex")) opener.tabIndex = -1;
+        moveFocus(opener, tabbed);
+      }
     };
   }, [image]);
 
@@ -75,6 +107,7 @@ export default function JournalLightbox() {
       onClick={() => setImage(null)}
     >
       <button
+        ref={closeRef}
         className="journal-lightbox-close"
         type="button"
         aria-label="Close image"
