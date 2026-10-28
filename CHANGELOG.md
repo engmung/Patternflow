@@ -6,6 +6,16 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **Journal archive dates stay on one line on a desktop.** The index's date column was a fixed 120px, so above 720px 27 of the 37 Korean dates and 17 of the 37 English ones broke onto a second line. The column now grows to fit its date.
+- **Journal dates are the Seoul day a post was written, wherever the site is built.** The formatter used the build machine's time zone, so a UTC build printed the four posts written between midnight and 9 a.m. in Seoul a day early, 60 of the 520 dates across /journal.
+- **The journal's language switch and Archive label are readable.** The language a page is not in and the index's "Archive" label were #A69F90, 2.3:1 on the cream and 2.6:1 on the white panel, and axe flagged them on all 76 journal pages. They now use the journal's muted ink, 5.0:1 and 5.8:1.
+- **A journal post's language switch no longer sits over the text on a phone.** Below 721px it was fixed 22px from the right edge, inside the column of text, and at 390px the 74 posts scrolled 8,801 lines of text under it. It now starts in the same place and scrolls away with the page.
+- **Dates in the list under a journal post stay clear of the post numbers.** Its rows kept 56px for a 64px number, so above 760px the end of 350 of the 370 dates across the 74 posts ran under it. They now keep the index's 104px.
+- **The footers under a journal post and the journal index line up with the text above them.** As `<footer>`s they took the front page's 60px sides from 901px and none below, so the list under a post started 4px left of the post's text on a desktop and 64px left of it from 721 to 900px. Each now keeps its own panel's side padding; phones are unchanged.
+- **A journal post is one `<main>`, as the journal index is.** A screen reader's jump to the main content found nothing on a post, and axe flagged landmark-one-main on all 74 posts.
+- **A journal post's share card prints a date you can read.** The card printed the frontmatter timestamp, `2026-05-14T01:30:00+09:00`, on all 37 posts. It now prints the Seoul day the post page shows, in the card's English capitals: `MAY 14, 2026`.
+- **The journal's picture window keeps the focus.** Opening a picture left the focus on the post, so Tab went to the links under the backdrop and scrolled the post away from the picture. The focus now starts on Close and stays in the window, and closing it puts the focus back on the picture.
+- **The journal's stylesheet drops 61 lines that matched nothing.** No component or post used `.journal-list-number` or `.journal-figure` with its `-wide` and `-full`, the cover slots never held the `span` two rules styled, and two rules switched off a `::before` nothing switched on. Every journal page renders as before.
 - **The site nav links the shop.** Shop sits between Community and Instagram at the top right of the home page, boxed in ink like the hero's outline button, and opens shop.patternflow.work in a new tab. The Inside panel's last row of links carries it too.
 
 ## [3.12.0] - 2026-10-27

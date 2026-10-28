@@ -1081,6 +1081,9 @@
     align-items: flex-start;
     gap: 14px;
   }
+  /* The language a page is not in: 5.0:1 on the cream, 5.8:1 on the white
+     panel, and 3.2:1 from the current one in --ink. --ink-faint was 2.3:1
+     and 2.6:1. */
   .journal-lang-switch {
     position: fixed;
     top: 28px;
@@ -1092,7 +1095,7 @@
     font-size: var(--pf-fs-mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-faint);
+    color: var(--ink-muted);
   }
   .journal-lang-switch a {
     color: inherit;
@@ -1138,7 +1141,6 @@
   .journal-lockup,
   .journal-featured-meta,
   .journal-archive-label,
-  .journal-list-number,
   .journal-list-meta,
   .journal-index-footer,
   .journal-back-link,
@@ -1236,14 +1238,6 @@
       rgba(20, 20, 20, 0.035) 15px
     );
   }
-  .journal-index-thumb span {
-    position: relative;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-  }
   .journal-index-thumb img {
     position: relative;
     z-index: 1;
@@ -1262,17 +1256,6 @@
     border: 1px solid var(--rule);
     background: var(--cream-2);
   }
-  .journal-cover-slot::before {
-    content: none;
-  }
-  .journal-cover-slot span {
-    position: relative;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-muted);
-  }
   .journal-cover-slot img {
     position: relative;
     z-index: 1;
@@ -1285,7 +1268,7 @@
   }
   .journal-archive-label {
     margin-bottom: 16px;
-    color: var(--ink-faint);
+    color: var(--ink-muted);
   }
   .journal-post-list {
     list-style: none;
@@ -1294,9 +1277,12 @@
   .journal-post-list li {
     border-bottom: 0;
   }
+  /* The date column is at least 120px and as wide as its date. At 120px a
+     two-digit Korean date (130px, "2026년 10월 29일") and a long English
+     one (159px, "SEPTEMBER 29, 2026") broke onto a second line. */
   .journal-post-list a {
     display: grid;
-    grid-template-columns: 1fr 120px 80px;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, max-content) 80px;
     gap: 24px;
     align-items: baseline;
     padding-right: 104px;
@@ -1311,9 +1297,6 @@
   }
   .journal-post-list a .pf-ghost {
     right: 0;
-  }
-  .journal-list-number {
-    color: var(--ink-faint);
   }
   .journal-list-body {
     display: grid;
@@ -1346,6 +1329,7 @@
   }
   .journal-list-meta {
     text-align: right;
+    white-space: nowrap;
   }
   .journal-list-body .pf-row-d {
     max-width: none;
@@ -1357,9 +1341,16 @@
   .journal-post-list a.journal-anchor-post .journal-list-meta:last-child {
     color: var(--pf-led);
   }
+  /* Both journal footers are <footer>s, so the front page's footer rule
+     gave them 60px a side from 901px and 0 below it. Each now keeps its
+     own panel's side padding, and its text starts where the panel's does:
+     the list under a post started 4px left of the post's text from 901px
+     and 64px left of it from 721 to 900. */
   .journal-index-footer {
     margin-top: 32px;
     padding-top: 14px;
+    padding-left: 60px;
+    padding-right: 60px;
     border-top: 1px solid var(--pf-rule);
     display: flex;
     justify-content: flex-start;
@@ -1440,10 +1431,6 @@
     display: block;
     overflow: visible;
     text-align: center;
-  }
-  .journal-hero-cover .journal-cover-slot::before {
-    content: none;
-    display: none;
   }
   .journal-hero-cover .journal-cover-slot img {
     display: block;
@@ -1621,27 +1608,6 @@
     border: 0;
     background: var(--rule);
   }
-  .journal-figure {
-    margin: 36px 0;
-  }
-  .journal-figure-wide {
-    width: min(82vw, 1312px);
-    margin-left: 50%;
-    transform: translateX(-50%);
-  }
-  .journal-figure-full {
-    width: 100vw;
-    margin-left: 50%;
-    transform: translateX(-50%);
-  }
-  .journal-figure img,
-  .journal-figure video {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid var(--rule);
-    background: var(--cream-2);
-  }
   .journal-lightbox {
     position: fixed;
     inset: 0;
@@ -1690,13 +1656,6 @@
     text-transform: uppercase;
     cursor: pointer;
   }
-  .journal-figure figcaption {
-    margin-top: 10px;
-    font-family: var(--mono);
-    font-size: var(--pf-fs-mono);
-    letter-spacing: 0.06em;
-    color: var(--ink-muted);
-  }
   .journal-end-mark {
     margin-top: 80px;
     display: flex;
@@ -1718,6 +1677,9 @@
   .journal-article-footer {
     width: min(100%, 948px);
     margin: 34px auto 0;
+    /* .journal-article's side padding; see .journal-index-footer. */
+    padding-left: 64px;
+    padding-right: 64px;
     display: grid;
     gap: 18px;
     color: var(--ink-muted);
@@ -1731,12 +1693,15 @@
     letter-spacing: normal;
     text-transform: none;
   }
+  /* 104px clear for the post number, as the index rows keep. At 56px the
+     end of a date ran under the 64px number: 350 of the 370 rows on the
+     74 posts, from 761px up. */
   .journal-context-list .pf-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 24px;
     align-items: baseline;
-    padding-right: 56px;
+    padding-right: 104px;
     border-top: 0;
     color: var(--ink-muted);
     text-decoration: none;
@@ -1851,6 +1816,12 @@
       top: 18px;
       right: 22px;
     }
+    /* A post's switch scrolls away with the page. Fixed, it sat over the
+       right end of each line of text that scrolled under it: 8,801 lines
+       across the 74 posts at 390px. It starts in the same place. */
+    .journal-article .journal-lang-switch {
+      position: absolute;
+    }
     .journal-shell {
       padding: 36px 24px 96px;
     }
@@ -1870,6 +1841,12 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
+    }
+    /* On a phone both footers stay at the panel's edge, as they were. */
+    .journal-index-footer,
+    .journal-article-footer {
+      padding-left: 0;
+      padding-right: 0;
     }
     .journal-lockup {
       font-size: 50px;
@@ -1962,12 +1939,6 @@
       content: "·";
       margin-right: 12px;
       color: var(--pf-ink-muted);
-    }
-    .journal-figure-wide,
-    .journal-figure-full {
-      width: 100%;
-      margin-left: 0;
-      transform: none;
     }
     .journal-md-figure,
     .journal-md-figure:has(+ .journal-md-figure),

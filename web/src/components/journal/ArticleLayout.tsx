@@ -45,7 +45,7 @@ export default function ArticleLayout({
   const windowPosts = allPosts.slice(windowStart, windowStart + 5);
 
   return (
-    <>
+    <main>
       <article className="journal-article">
         <JournalLightbox />
         <LanguageSwitch lang={lang} slug={post.slug} />
@@ -123,7 +123,7 @@ export default function ArticleLayout({
           All writing
         </Link>
       </footer>
-    </>
+    </main>
   );
 }
 
