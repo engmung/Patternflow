@@ -1874,8 +1874,15 @@
     .journal-index-thumb {
       width: 100%;
     }
+    /* A title on two lines breaks between words, and its lines stand apart.
+       At 390, three of the four Korean titles on two lines broke inside a
+       word ("성공과 실 / 패"), and at 1.02 the glyphs of the two lines of
+       those and of 13 English titles were 0.8px apart. */
     .journal-article-header h1 {
       font-size: 42px;
+      line-height: 1.2;
+      word-break: keep-all;
+      overflow-wrap: break-word;
     }
     .journal-article-header > p {
       font-size: 18px;

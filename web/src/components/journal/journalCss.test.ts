@@ -413,3 +413,35 @@ describe("journal words on a phone", () => {
     expect(last(".journal-reading", "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
   });
 });
+
+// Below 721px a post's 42px title broke Korean wherever its line ran out, and
+// its lines stood 1.02 apart. On 28 October, at 390, three of the four Korean
+// titles on two lines broke inside a word ("성공과 실 / 패: 다음 단계"), and
+// the two lines of those four and of 13 English titles were 0.8px apart.
+
+describe("journal titles on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The value the last rule for `selector` gives `property` on a phone, the phone's own rules first. */
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+  const title = ".journal-article-header h1";
+
+  it("breaks a Korean title only between words", () => {
+    expect(last(title, "word-break")).toBe("keep-all");
+    expect(last(title, "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+
+  it("keeps a title's lines 1.2 to 1.4 apart", () => {
+    const value = Number(last(title, "line-height"));
+    expect(value).toBeGreaterThanOrEqual(1.2);
+    expect(value).toBeLessThanOrEqual(1.4);
+  });
+});
