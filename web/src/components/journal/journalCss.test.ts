@@ -565,3 +565,28 @@ describe("journal first post on a phone", () => {
     expect(value).toBeLessThanOrEqual(1.4);
   });
 });
+
+// Below 721px the headings in a post set their lines 1.15 apart. On 28 October
+// the five two-line headings in the 74 posts, all English and all 19px Inter,
+// had 1.9 to 2.9px between the letters of one line and the next at 360 and 390
+// ("The question — stop everything and / throw myself in?").
+
+describe("journal headings in a post on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+
+  it.each([".journal-reading h2", ".journal-reading h3"])("keeps the lines of %s 1.2 to 1.4 apart", (heading) => {
+    const value = Number(last(heading, "line-height"));
+    expect(value).toBeGreaterThanOrEqual(1.2);
+    expect(value).toBeLessThanOrEqual(1.4);
+  });
+});

@@ -1911,6 +1911,14 @@
       word-break: keep-all;
       overflow-wrap: break-word;
     }
+    /* The letters of a heading's two lines stand at least 0.2em apart, as a
+       title's do. At 1.15 the five two-line headings, all English at 19px,
+       were 1.9 to 2.9px apart at 390. The archive's titles keep 1.25. */
+    .journal-reading h1,
+    .journal-reading h2,
+    .journal-reading h3 {
+      line-height: 1.25;
+    }
     .journal-reading h1,
     .journal-reading h2 {
       font-size: 19px;
