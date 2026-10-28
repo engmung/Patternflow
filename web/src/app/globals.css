@@ -1831,9 +1831,15 @@
     .journal-index {
       width: 100%;
     }
+    /* The panel reaches into the shell's 24px gutter, so its text starts
+       24px from each edge of the screen. The gutter and the panel's own
+       padding added up to 48px, and 15px text got 17.6 characters a line
+       at 360. The masthead and both footers keep the gutter. */
     .journal-panel,
     .journal-article {
-      width: 100%;
+      width: auto;
+      margin-left: -24px;
+      margin-right: -24px;
       padding: 24px 24px 72px;
     }
     .journal-panel .journal-lang-switch {
@@ -1845,7 +1851,8 @@
       align-items: flex-start;
       gap: 12px;
     }
-    /* On a phone both footers stay at the panel's edge, as they were. */
+    /* On a phone both footers stay in the shell's gutter, 24px in, where
+       the panel's text starts. */
     .journal-index-footer,
     .journal-article-footer {
       padding-left: 0;

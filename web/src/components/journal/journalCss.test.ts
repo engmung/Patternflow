@@ -238,9 +238,53 @@ describe("journal footers", () => {
     expect(sides(desktop, footer)).toEqual(sides(desktop, panel));
   });
 
-  it("keeps both at the panel's edge on a phone", () => {
+  it("keeps both in the shell's gutter on a phone", () => {
     expect(sides(phone, ".journal-article-footer")).toEqual([0, 0]);
     expect(sides(phone, ".journal-index-footer")).toEqual([0, 0]);
+  });
+});
+
+// Below 721px the shell's 24px gutter and the panel's 24px padding added up.
+// On 28 October the text of a post and of the index started 48px from each
+// edge of the screen at 360, 390 and 430, which left 264px of a 360px phone
+// for 15px text: 17.6 characters a line.
+
+describe("journal text on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The last left value the phone rules give `selector` for `property` ("padding" or "margin"), in px. */
+  const left = (selector: string, property: string) => {
+    let value: string | undefined;
+    for (const r of phone.filter((r) => r.selectors.includes(selector))) {
+      const all = declaration(r.body, property)?.split(/\s+/);
+      if (all) value = all[3] ?? all[1] ?? all[0];
+      value = declaration(r.body, `${property}-left`) ?? value;
+    }
+    return parseFloat(value ?? "0");
+  };
+  const width = (selector: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, "width"))
+      .filter(Boolean)
+      .at(-1);
+  const gutter = left(".journal-shell", "padding");
+
+  it.each([".journal-panel", ".journal-article"])("starts the text in %s 16 to 24px from the edge", (panel) => {
+    const at = gutter + left(panel, "margin") + left(panel, "padding");
+    expect(at).toBeGreaterThanOrEqual(16);
+    expect(at).toBeLessThanOrEqual(24);
+  });
+
+  it.each([".journal-panel", ".journal-article"])("keeps %s on the screen", (panel) => {
+    const margin = left(panel, "margin");
+    expect(gutter + margin).toBeGreaterThanOrEqual(0);
+    if (margin < 0) expect(width(panel), "a 100% width pushed past the right edge").toBe("auto");
+  });
+
+  it("starts both footers where the text does", () => {
+    const text = gutter + left(".journal-article", "margin") + left(".journal-article", "padding");
+    expect(gutter + left(".journal-article-footer", "padding")).toBe(text);
+    expect(gutter + left(".journal-index-footer", "padding")).toBe(text);
   });
 });
 
