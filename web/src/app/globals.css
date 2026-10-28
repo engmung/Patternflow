@@ -1880,9 +1880,14 @@
     .journal-article-header > p {
       font-size: 18px;
     }
+    /* Korean breaks between words, as English does. At 390, 2,640 of the
+       4,458 line breaks in the 37 Korean posts fell inside a word. A word
+       longer than the line still breaks rather than running off it. */
     .journal-reading {
       font-size: 15px;
       line-height: 1.68;
+      word-break: keep-all;
+      overflow-wrap: break-word;
     }
     .journal-reading h1,
     .journal-reading h2 {

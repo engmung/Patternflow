@@ -389,3 +389,27 @@ describe("journal dates on a phone", () => {
     expect(px(value!)).toBeGreaterThanOrEqual(13);
   });
 });
+
+// Below 721px a post's text broke Korean words wherever a line ran out: on 28
+// October, 2,640 of the 4,458 line breaks in the 37 Korean posts at 390 (59%)
+// fell between two Hangul syllables of one word, and 59 to 60% at 360 and 430.
+// Breaking only at spaces leaves a long English word or address to
+// overflow-wrap.
+
+describe("journal words on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, property))
+      .filter(Boolean)
+      .at(-1);
+
+  it("breaks a post's Korean only between words", () => {
+    expect(last(".journal-reading", "word-break")).toBe("keep-all");
+  });
+
+  it("still breaks a word too long for the line", () => {
+    expect(last(".journal-reading", "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+});
