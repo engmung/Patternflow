@@ -1864,8 +1864,15 @@
     .journal-section-label {
       font-size: 25px;
     }
+    /* The archive's first post is always the newest, so its title changes
+       with each post. With each of the 74 titles put there, three of the
+       four Korean ones on two lines at 360 broke inside a word, and the
+       letters of three English ones on two lines were 2.2px apart. */
     .journal-featured h1 {
       font-size: 36px;
+      line-height: 1.2;
+      word-break: keep-all;
+      overflow-wrap: break-word;
     }
     .journal-featured {
       grid-template-columns: 1fr;
