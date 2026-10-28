@@ -5,37 +5,40 @@ import Image from 'next/image';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
+import { SHOP_URL } from "@/lib/shop";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 
 // How many people have made a Patternflow, by the nearest thing to a count
 // there is: the community's membership, which tracks it closely. Rounded and
 // said as "around", because it is an estimate.
-const PEOPLE_WHO_MADE_ONE = 40;
+const PEOPLE_WHO_MADE_ONE = 50;
 
 // The film. The hero plays it muted with no controls, and a click on the frame
 // opens it on YouTube in a new tab, with sound.
 const FILM_ID = '1tkV8-AgdpA';
 const FILM_URL = `https://www.youtube.com/watch?v=${FILM_ID}`;
 
-// A message from the YouTube player that says the film has ended. The player
-// sends JSON strings, and says it twice: as a state change to 0, and as
-// playerState 0 in its regular report.
-function isEndedMessage(raw: unknown): boolean {
+// The player's state in a message from the YouTube player, or null if the
+// message does not carry one. The player sends JSON strings, and says each
+// state twice: as a state change, and as playerState in its regular report.
+// 0 is ended, 1 is playing.
+function playerState(raw: unknown): number | null {
   let data: unknown = raw;
   if (typeof raw === 'string') {
     try {
       data = JSON.parse(raw);
     } catch {
-      return false;
+      return null;
     }
   }
-  if (typeof data !== 'object' || data === null) return false;
+  if (typeof data !== 'object' || data === null) return null;
   const { event, info } = data as { event?: unknown; info?: unknown };
-  if (event === 'onStateChange') return info === 0;
+  if (event === 'onStateChange' && typeof info === 'number') return info;
   if (event === 'infoDelivery' && typeof info === 'object' && info !== null) {
-    return (info as { playerState?: unknown }).playerState === 0;
+    const state = (info as { playerState?: unknown }).playerState;
+    if (typeof state === 'number') return state;
   }
-  return false;
+  return null;
 }
 
 // One play of the video, from the start. The film's length is not written
@@ -47,6 +50,7 @@ function HeroEmbed({ onEnded }: { onEnded: () => void }) {
   const [isVideoVisible, setIsVideoVisible] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const heardRef = useRef(false);
+  const captionsOffRef = useRef(false);
   const pingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -58,7 +62,18 @@ function HeroEmbed({ onEnded }: { onEnded: () => void }) {
     const onMessage = (e: MessageEvent) => {
       if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
       heardRef.current = true;
-      if (isEndedMessage(e.data)) {
+      const state = playerState(e.data);
+      // The film's caption track turns itself on, and cc_load_policy=0 does
+      // not stop it. The player loads captions when it starts playing, so
+      // they are unloaded then, once per play.
+      if (state === 1 && !captionsOffRef.current) {
+        captionsOffRef.current = true;
+        frameRef.current.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: 'unloadModule', args: ['captions'] }),
+          'https://www.youtube.com',
+        );
+      }
+      if (state === 0) {
         setIsVideoVisible(false);
         onEnded();
       }
@@ -93,7 +108,7 @@ function HeroEmbed({ onEnded }: { onEnded: () => void }) {
     <iframe
       ref={frameRef}
       onLoad={listen}
-      src={`https://www.youtube.com/embed/${FILM_ID}?autoplay=1&mute=1&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0&enablejsapi=1`}
+      src={`https://www.youtube.com/embed/${FILM_ID}?autoplay=1&mute=1&controls=0&modestbranding=1&disablekb=1&playsinline=1&rel=0&cc_load_policy=0&enablejsapi=1`}
       title="Patternflow Demo Video"
       frameBorder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -249,6 +264,29 @@ export default function Hero() {
           </a>
           <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
         </div>
+        {/* The nav's Shop box was too small to find. Under the two buttons, so
+            it does not compete with Get One. */}
+        <a
+          className="hero-shop"
+          href={SHOP_URL}
+          target="_blank"
+          rel="noopener"
+          onClick={() => captureEvent('shop_clicked', {
+            surface: 'hero',
+            destination: 'shop',
+          })}
+        >
+          {/* The Origin Grid poster, from the shop's own render. */}
+          <Image
+            className="hero-shop-poster"
+            src="/shop/origin_grid_poster.png"
+            alt=""
+            width={90}
+            height={120}
+          />
+          <span className="hero-shop-new">New</span>
+          <span>Poster <span aria-hidden="true">↗</span></span>
+        </a>
       </div>
     </section>
   );
