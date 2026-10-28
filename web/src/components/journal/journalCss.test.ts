@@ -478,3 +478,29 @@ describe("journal text size on a phone", () => {
     expect(perLine).toBeLessThanOrEqual(28);
   });
 });
+
+// Below 721px the items of a list in a post stood 0 apart, and the reset
+// leaves a list no marker and no indent. On 28 October the one list in the 74
+// posts, in "Why I write these" and its Korean twin, ran its three items on
+// as one block: 11 lines in Korean and 10 in English at 390.
+
+describe("journal lists on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The bottom margin the phone rules give `selector`, as written. */
+  const bottom = (selector: string) => {
+    let value: string | undefined;
+    for (const r of phone.filter((r) => r.selectors.includes(selector))) {
+      const all = declaration(r.body, "margin")?.split(/\s+/);
+      if (all) value = all[2] ?? all[0];
+      value = declaration(r.body, "margin-bottom") ?? value;
+    }
+    return value;
+  };
+
+  it("keeps a post's list items 0.8 to 1.5em apart", () => {
+    const value = bottom(".journal-reading li") ?? "0";
+    expect(value, "the bottom margin of .journal-reading li").toMatch(/^[\d.]+em$/);
+    expect(parseFloat(value)).toBeGreaterThanOrEqual(0.8);
+    expect(parseFloat(value)).toBeLessThanOrEqual(1.5);
+  });
+});

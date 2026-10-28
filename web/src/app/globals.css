@@ -1907,6 +1907,12 @@
     .journal-reading blockquote {
       font-size: 16px;
     }
+    /* A list's items stand as far apart as paragraphs. The reset leaves a
+       list no marker and no indent, and at 0 apart the three items of the
+       list in "Why I write these" ran on as one block of 11 lines at 390. */
+    .journal-reading li {
+      margin-bottom: 1.1em;
+    }
     .journal-post-list a {
       display: block;
       position: relative;
