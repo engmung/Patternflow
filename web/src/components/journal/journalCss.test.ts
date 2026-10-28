@@ -445,3 +445,36 @@ describe("journal titles on a phone", () => {
     expect(value).toBeLessThanOrEqual(1.4);
   });
 });
+
+// Below 721px a post's text was 15px, under the 16 to 18px a phone's body
+// text keeps. On 28 October that was every line of the 74 posts at 360, 390
+// and 430: 5,725 lines of the 37 Korean posts at 360.
+
+describe("journal text size on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, property))
+      .filter(Boolean)
+      .at(-1);
+  /** The phone's left value for `property` on `selector`, in px. */
+  const left = (selector: string, property: string) => {
+    const all = last(selector, property)?.split(/\s+/);
+    return parseFloat(last(selector, `${property}-left`) ?? all?.[3] ?? all?.[1] ?? all?.[0] ?? "0");
+  };
+  const size = parseFloat(last(".journal-reading", "font-size") ?? "0");
+  const side =
+    left(".journal-shell", "padding") + left(".journal-article", "margin") + left(".journal-article", "padding");
+
+  it("sets a post's text at 16 to 18px", () => {
+    expect(size).toBeGreaterThanOrEqual(16);
+    expect(size).toBeLessThanOrEqual(18);
+  });
+
+  it.each([360, 430])("keeps 18 to 28 characters a line at %ipx", (screen) => {
+    const perLine = (screen - 2 * side) / size;
+    expect(perLine).toBeGreaterThanOrEqual(18);
+    expect(perLine).toBeLessThanOrEqual(28);
+  });
+});
