@@ -1901,6 +1901,14 @@
       word-break: keep-all;
       overflow-wrap: break-word;
     }
+    /* A caption sits centred under its picture, so its lines share the
+       words, as a title's do. Filled line by line, 8 of the 41 English
+       captions on two lines or more at 360 ended on one word ("A PDM mic
+       wired onto the ESP32. It / works."). No caption gains a line. */
+    .journal-hero-cover figcaption,
+    .journal-md-figure figcaption {
+      text-wrap: balance;
+    }
     /* Korean breaks between words, as English does. At 390, 2,640 of the
        4,458 line breaks in the 37 Korean posts fell inside a word. A word
        longer than the line still breaks rather than running off it.

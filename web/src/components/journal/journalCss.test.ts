@@ -590,3 +590,26 @@ describe("journal headings in a post on a phone", () => {
     expect(value).toBeLessThanOrEqual(1.4);
   });
 });
+
+// Below 721px a figure's caption, centred under its picture, filled each line
+// and left what was over on the last one. On 28 October, of the multi-line
+// English captions in the 74 posts, 8 of 41 at 360, 6 of 40 at 390 and 7 of
+// 37 at 430 ended on one word ("A PDM mic wired onto the ESP32. It / works.").
+
+describe("journal captions on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+
+  it.each([".journal-md-figure figcaption", ".journal-hero-cover figcaption"])("balances the lines of %s", (caption) => {
+    expect(last(caption, "text-wrap")).toBe("balance");
+  });
+});
