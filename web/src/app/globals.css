@@ -1831,9 +1831,15 @@
     .journal-index {
       width: 100%;
     }
+    /* The panel reaches into the shell's 24px gutter, so its text starts
+       24px from each edge of the screen. The gutter and the panel's own
+       padding added up to 48px, and 15px text got 17.6 characters a line
+       at 360. The masthead and both footers keep the gutter. */
     .journal-panel,
     .journal-article {
-      width: 100%;
+      width: auto;
+      margin-left: -24px;
+      margin-right: -24px;
       padding: 24px 24px 72px;
     }
     .journal-panel .journal-lang-switch {
@@ -1845,7 +1851,8 @@
       align-items: flex-start;
       gap: 12px;
     }
-    /* On a phone both footers stay at the panel's edge, as they were. */
+    /* On a phone both footers stay in the shell's gutter, 24px in, where
+       the panel's text starts. */
     .journal-index-footer,
     .journal-article-footer {
       padding-left: 0;
@@ -1857,8 +1864,15 @@
     .journal-section-label {
       font-size: 25px;
     }
+    /* The archive's first post is always the newest, so its title changes
+       with each post. With each of the 74 titles put there, three of the
+       four Korean ones on two lines at 360 broke inside a word, and the
+       letters of three English ones on two lines were 2.2px apart. */
     .journal-featured h1 {
       font-size: 36px;
+      line-height: 1.2;
+      word-break: keep-all;
+      overflow-wrap: break-word;
     }
     .journal-featured {
       grid-template-columns: 1fr;
@@ -1867,15 +1881,51 @@
     .journal-index-thumb {
       width: 100%;
     }
+    /* A title on two lines breaks between words, and its lines stand apart.
+       At 390, three of the four Korean titles on two lines broke inside a
+       word ("성공과 실 / 패"), and at 1.02 the glyphs of the two lines of
+       those and of 13 English titles were 0.8px apart. */
     .journal-article-header h1 {
       font-size: 42px;
+      line-height: 1.2;
+      word-break: keep-all;
+      overflow-wrap: break-word;
     }
     .journal-article-header > p {
       font-size: 18px;
     }
+    /* A cover's caption breaks between words, as the post under it does.
+       At 360 the Korean caption under "패턴플로우란 무엇인가" broke inside
+       its last word and left 지 alone on a second line. */
+    .journal-hero-cover figcaption {
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    /* A caption sits centred under its picture, so its lines share the
+       words, as a title's do. Filled line by line, 8 of the 41 English
+       captions on two lines or more at 360 ended on one word ("A PDM mic
+       wired onto the ESP32. It / works."). No caption gains a line. */
+    .journal-hero-cover figcaption,
+    .journal-md-figure figcaption {
+      text-wrap: balance;
+    }
+    /* Korean breaks between words, as English does. At 390, 2,640 of the
+       4,458 line breaks in the 37 Korean posts fell inside a word. A word
+       longer than the line still breaks rather than running off it.
+       16px, not 15: a 360 phone still gets 19.5 characters a line. */
     .journal-reading {
-      font-size: 15px;
+      font-size: 16px;
       line-height: 1.68;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+    /* The letters of a heading's two lines stand at least 0.2em apart, as a
+       title's do. At 1.15 the five two-line headings, all English at 19px,
+       were 1.9 to 2.9px apart at 390. The archive's titles keep 1.25. */
+    .journal-reading h1,
+    .journal-reading h2,
+    .journal-reading h3 {
+      line-height: 1.25;
     }
     .journal-reading h1,
     .journal-reading h2 {
@@ -1886,6 +1936,12 @@
     }
     .journal-reading blockquote {
       font-size: 16px;
+    }
+    /* A list's items stand as far apart as paragraphs. The reset leaves a
+       list no marker and no indent, and at 0 apart the three items of the
+       list in "Why I write these" ran on as one block of 11 lines at 390. */
+    .journal-reading li {
+      margin-bottom: 1.1em;
     }
     .journal-post-list a {
       display: block;
@@ -1926,10 +1982,12 @@
       font-size: 11px;
       vertical-align: middle;
     }
+    /* 13px, as every other date and label in the journal. At 10.5px the
+       archive's 74 dates and reading times were the smallest text on it. */
     .journal-list-meta {
       display: inline-block;
       margin-top: 8px;
-      font-size: 10.5px;
+      font-size: var(--pf-fs-mono);
       line-height: 1;
       text-transform: uppercase;
       color: var(--ink-muted);
