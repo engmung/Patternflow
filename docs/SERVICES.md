@@ -31,6 +31,68 @@ RestartSec=3
 `sudo journalctl -u patternflow-community.service | grep -i "main process exited"`,
 OOM 킬은 `dmesg -T | grep -i "killed process"` 로 봅니다.
 
+#### 웹 서버도 격리한다 — `hardening.conf` (2026-10-29)
+
+이 날까지 웹 서버는 샌드박스 없이 `pi`로 돌았다. 앱에 원격 코드 실행이 하나
+뚫리면 `~/.ssh`와 R2 백업을 지울 수 있는 rclone 키까지 닿는 구조였다. 터널
+인증 파일은 같은 날 `~/.cloudflared/`에서 `/etc/cloudflared/`(root, 0600)로
+옮겼다. `/etc/systemd/system/patternflow-community.service.d/hardening.conf`:
+
+```ini
+[Service]
+ExecStart=
+ExecStart=/opt/node22/bin/node /home/pi/Patternflow/web/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+SuccessExitStatus=143
+TimeoutStopSec=20
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateTmp=yes
+PrivateDevices=yes
+PrivatePIDs=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/patternflow-data /home/pi/Patternflow/web/.next
+ReadOnlyPaths=-/home/pi/patternflow-data/variants
+InaccessiblePaths=-/home/pi/.ssh -/home/pi/.config -/home/pi/backups -/home/pi/.cloudflared -/run/user
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+UMask=0077
+```
+
+`PrivatePIDs`가 핵심이다. 워커와 04:00 백업, 배포 단계의 `npm ci`는 모두 같은
+`pi`로 돌고, 같은 uid끼리는 `/proc/<pid>/root`로 상대의 파일 시스템을 그대로
+걸어 들어갈 수 있다. `ProtectProc=invisible`은 다른 uid만 숨겨서 이걸 못 막는다.
+`ExecStart`에서 npm을 뺀 것도 이 설정 때문이다. 첫 프로세스가 네임스페이스의
+PID 1이 되는데, npm은 자식이 SIGTERM으로 죽으면 그 신호를 자기에게 다시 보내고
+PID 1은 핸들러 없는 신호를 버린다. 0.5초 뒤 npm이 exit 1로 끝나면 커널이 드레인
+중인 Next를 SIGKILL한다. Next가 PID 1이면 자기 핸들러로 드레인하고 143으로
+끝난다. `/run/user`는 읽기 전용이어도 그 안 소켓에 접속이 되기 때문에 막았다.
+`systemd --user`로 샌드박스 밖에서 실행하는 길이다.
+
+쓰기 경로는 둘이다. DB 디렉터리(WAL, 첨부, 산출물)와 `.next`(이미지 캐시,
+`/api/roadmap`의 ISR). `systemd-analyze security`가 9.2(UNSAFE)에서 1.8(OK)로
+내려갔다. 유닛 안에 `pi`로 들어가 확인했다. `.ssh`, rclone 설정, `backups`,
+`/run/user`는 읽히지 않고, 레포와 `.env.local`은 읽기 전용이고, sudo는 거부되고,
+워커 PID는 보이지 않는다. 재시작은 `Deactivated successfully`로 0.35초, 재부팅
+뒤에도 같다.
+
+막지 못하는 것도 있다. 앱은 DB와 `.env.local`을 읽어야 하니 비밀번호 해시와 세션
+시크릿은 그대로 읽힌다. `.next/server`가 쓰기 가능해서 서버 코드를 고쳐 다음
+배포까지 남길 수 있다. 워커에는 아직 `PrivatePIDs`가 없다. bwrap이 안에서
+`/proc`을 새로 마운트하기 때문에 따로 시험한 뒤에 넣는다.
+
 ### ② `patternflow-worker.service`
 - **역할**: 패턴 모듈 빌드 워커 (`scripts/build-worker.ts`)
 - **설명**: 빌드 대기열(`queued`)에서 잡을 하나씩 가져가 헤더마다 `firmware/toolchain/build_module.py`와 Xtensa 컴파일러로 ESP32-S3용 `.pfm` 모듈을 굽습니다. 펌웨어 이미지 통째 빌드는 2026-08-12(`4c13474`)에 끝났고, 그 뒤로 워커는 `arduino-cli`를 부르지 않습니다.
