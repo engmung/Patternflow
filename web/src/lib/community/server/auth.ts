@@ -82,15 +82,16 @@ function createAuth() {
     trustedOrigins: trustedOrigins(),
     // Better Auth throttles by default — but its default for the credential
     // endpoints is 3 tries per 10 seconds, which is a burst brake rather than
-    // a guess budget: left alone it allows about 26,000 attempts a day against
-    // one account, and the floor here is an 8-character password.
+    // a guess budget: left alone it allows about 26,000 attempts a day on
+    // each sign-in path, and the floor here is an 8-character password.
     //
     // The window goes to an hour, which turns the same rule into a budget: 10
-    // wrong passwords an hour per IP. A person who mistypes theirs twice never
-    // meets this; someone working a list gets 240 guesses a day instead of
-    // 26,000. `enabled` is forced on because the default only switches it on
-    // in production, and a staging box with real accounts on it is exactly
-    // where nobody is watching.
+    // wrong passwords an hour per IP on each path. There are two,
+    // /sign-in/username and /sign-in/email, and each counts on its own. A
+    // person who mistypes theirs twice never meets this; someone working a
+    // list gets 480 guesses a day instead of 52,000. `enabled` is forced on
+    // because the default only switches it on in production, and a staging
+    // box with real accounts on it is exactly where nobody is watching.
     rateLimit: {
       enabled: true,
       customRules: {
@@ -98,6 +99,20 @@ function createAuth() {
         "/sign-up/*": { window: 3600, max: 10 },
         "/change-password": { window: 3600, max: 10 },
         "/change-email": { window: 3600, max: 10 },
+      },
+    },
+    // The limits above count per IP, so the IP has to be the visitor's.
+    // Behind Cloudflare it is in CF-Connecting-IP, which Cloudflare sets at
+    // the edge. Better Auth's default reads X-Forwarded-For instead, which the
+    // client can start: Cloudflare appends to a chain the client sent, Better
+    // Auth will not pick an address out of two entries, and every such request
+    // lands in one shared bucket per path that anyone can fill. The production
+    // log showed that fallback on 2026-10-19. A host with no Cloudflare in
+    // front has to change this header, because there the client writes
+    // CF-Connecting-IP itself and gets a fresh bucket for every value it sends.
+    advanced: {
+      ipAddress: {
+        ipAddressHeaders: ["cf-connecting-ip"],
       },
     },
     emailAndPassword: {
