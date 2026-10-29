@@ -238,9 +238,53 @@ describe("journal footers", () => {
     expect(sides(desktop, footer)).toEqual(sides(desktop, panel));
   });
 
-  it("keeps both at the panel's edge on a phone", () => {
+  it("keeps both in the shell's gutter on a phone", () => {
     expect(sides(phone, ".journal-article-footer")).toEqual([0, 0]);
     expect(sides(phone, ".journal-index-footer")).toEqual([0, 0]);
+  });
+});
+
+// Below 721px the shell's 24px gutter and the panel's 24px padding added up.
+// On 28 October the text of a post and of the index started 48px from each
+// edge of the screen at 360, 390 and 430, which left 264px of a 360px phone
+// for 15px text: 17.6 characters a line.
+
+describe("journal text on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The last left value the phone rules give `selector` for `property` ("padding" or "margin"), in px. */
+  const left = (selector: string, property: string) => {
+    let value: string | undefined;
+    for (const r of phone.filter((r) => r.selectors.includes(selector))) {
+      const all = declaration(r.body, property)?.split(/\s+/);
+      if (all) value = all[3] ?? all[1] ?? all[0];
+      value = declaration(r.body, `${property}-left`) ?? value;
+    }
+    return parseFloat(value ?? "0");
+  };
+  const width = (selector: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, "width"))
+      .filter(Boolean)
+      .at(-1);
+  const gutter = left(".journal-shell", "padding");
+
+  it.each([".journal-panel", ".journal-article"])("starts the text in %s 16 to 24px from the edge", (panel) => {
+    const at = gutter + left(panel, "margin") + left(panel, "padding");
+    expect(at).toBeGreaterThanOrEqual(16);
+    expect(at).toBeLessThanOrEqual(24);
+  });
+
+  it.each([".journal-panel", ".journal-article"])("keeps %s on the screen", (panel) => {
+    const margin = left(panel, "margin");
+    expect(gutter + margin).toBeGreaterThanOrEqual(0);
+    if (margin < 0) expect(width(panel), "a 100% width pushed past the right edge").toBe("auto");
+  });
+
+  it("starts both footers where the text does", () => {
+    const text = gutter + left(".journal-article", "margin") + left(".journal-article", "padding");
+    expect(gutter + left(".journal-article-footer", "padding")).toBe(text);
+    expect(gutter + left(".journal-index-footer", "padding")).toBe(text);
   });
 });
 
@@ -303,5 +347,269 @@ describe("journal rules", () => {
         expect(on, selector).toBe(true);
       }
     }
+  });
+});
+
+// Below 721px the archive's dates and reading times were 10.5px, under the
+// 13px every other date, label and caption in the journal keeps. On 28
+// October that was all 74 of them on /journal and /journal/en at 360, 390 and
+// 430.
+
+describe("journal dates on a phone", () => {
+  const all = rules(css);
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const root = all.find((r) => r.selectors.includes(":root") && declaration(r.body, "--pf-fs-mono"));
+  /** "13px" or "var(--pf-fs-mono)" → 13. */
+  const px = (value: string) => {
+    const token = value.match(/^var\((--[\w-]+)\)$/)?.[1];
+    return parseFloat(token ? (declaration(root?.body ?? "", token) ?? "") : value);
+  };
+  /** The font-size the last rule for `selector` gives it on a phone, the phone's own rules first. */
+  const size = (selector: string) => {
+    const last = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, "font-size"))
+        .filter((v): v is string => Boolean(v))
+        .at(-1);
+    return last(phone) ?? last(desktop);
+  };
+
+  it.each([
+    ".journal-list-meta",
+    ".journal-context-list .journal-list-meta",
+    ".journal-featured-meta",
+    ".journal-dateline",
+    ".journal-md-figure figcaption",
+    ".journal-hero-cover figcaption",
+  ])("sets %s at 13px or more", (selector) => {
+    const value = size(selector);
+    expect(value, `no font-size for ${selector}`).toBeDefined();
+    expect(px(value!)).toBeGreaterThanOrEqual(13);
+  });
+});
+
+// Below 721px a post's text broke Korean words wherever a line ran out: on 28
+// October, 2,640 of the 4,458 line breaks in the 37 Korean posts at 390 (59%)
+// fell between two Hangul syllables of one word, and 59 to 60% at 360 and 430.
+// Breaking only at spaces leaves a long English word or address to
+// overflow-wrap.
+
+describe("journal words on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, property))
+      .filter(Boolean)
+      .at(-1);
+
+  it("breaks a post's Korean only between words", () => {
+    expect(last(".journal-reading", "word-break")).toBe("keep-all");
+  });
+
+  it("still breaks a word too long for the line", () => {
+    expect(last(".journal-reading", "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+});
+
+// Below 721px a post's 42px title broke Korean wherever its line ran out, and
+// its lines stood 1.02 apart. On 28 October, at 390, three of the four Korean
+// titles on two lines broke inside a word ("성공과 실 / 패: 다음 단계"), and
+// the two lines of those four and of 13 English titles were 0.8px apart.
+
+describe("journal titles on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The value the last rule for `selector` gives `property` on a phone, the phone's own rules first. */
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+  const title = ".journal-article-header h1";
+
+  it("breaks a Korean title only between words", () => {
+    expect(last(title, "word-break")).toBe("keep-all");
+    expect(last(title, "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+
+  it("keeps a title's lines 1.2 to 1.4 apart", () => {
+    const value = Number(last(title, "line-height"));
+    expect(value).toBeGreaterThanOrEqual(1.2);
+    expect(value).toBeLessThanOrEqual(1.4);
+  });
+});
+
+// Below 721px a post's text was 15px, under the 16 to 18px a phone's body
+// text keeps. On 28 October that was every line of the 74 posts at 360, 390
+// and 430: 5,725 lines of the 37 Korean posts at 360.
+
+describe("journal text size on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) =>
+    phone
+      .filter((r) => r.selectors.includes(selector))
+      .map((r) => declaration(r.body, property))
+      .filter(Boolean)
+      .at(-1);
+  /** The phone's left value for `property` on `selector`, in px. */
+  const left = (selector: string, property: string) => {
+    const all = last(selector, property)?.split(/\s+/);
+    return parseFloat(last(selector, `${property}-left`) ?? all?.[3] ?? all?.[1] ?? all?.[0] ?? "0");
+  };
+  const size = parseFloat(last(".journal-reading", "font-size") ?? "0");
+  const side =
+    left(".journal-shell", "padding") + left(".journal-article", "margin") + left(".journal-article", "padding");
+
+  it("sets a post's text at 16 to 18px", () => {
+    expect(size).toBeGreaterThanOrEqual(16);
+    expect(size).toBeLessThanOrEqual(18);
+  });
+
+  it.each([360, 430])("keeps 18 to 28 characters a line at %ipx", (screen) => {
+    const perLine = (screen - 2 * side) / size;
+    expect(perLine).toBeGreaterThanOrEqual(18);
+    expect(perLine).toBeLessThanOrEqual(28);
+  });
+});
+
+// Below 721px the items of a list in a post stood 0 apart, and the reset
+// leaves a list no marker and no indent. On 28 October the one list in the 74
+// posts, in "Why I write these" and its Korean twin, ran its three items on
+// as one block: 11 lines in Korean and 10 in English at 390.
+
+describe("journal lists on a phone", () => {
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  /** The bottom margin the phone rules give `selector`, as written. */
+  const bottom = (selector: string) => {
+    let value: string | undefined;
+    for (const r of phone.filter((r) => r.selectors.includes(selector))) {
+      const all = declaration(r.body, "margin")?.split(/\s+/);
+      if (all) value = all[2] ?? all[0];
+      value = declaration(r.body, "margin-bottom") ?? value;
+    }
+    return value;
+  };
+
+  it("keeps a post's list items 0.8 to 1.5em apart", () => {
+    const value = bottom(".journal-reading li") ?? "0";
+    expect(value, "the bottom margin of .journal-reading li").toMatch(/^[\d.]+em$/);
+    expect(parseFloat(value)).toBeGreaterThanOrEqual(0.8);
+    expect(parseFloat(value)).toBeLessThanOrEqual(1.5);
+  });
+});
+
+// Below 721px a cover's caption broke Korean wherever its line ran out. The
+// captions in a post keep .journal-reading's keep-all, and the cover's sits
+// above it. On 28 October, at 360, the one Korean cover caption, under "패턴플로우란
+// 무엇인가", needed 24.5em in a 24em line and left 지 alone on a second line.
+
+describe("journal cover captions on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+  const caption = ".journal-hero-cover figcaption";
+
+  it("breaks a Korean caption only between words", () => {
+    expect(last(caption, "word-break")).toBe("keep-all");
+  });
+
+  it("still breaks a word too long for the line", () => {
+    expect(last(caption, "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+});
+
+// Below 721px the archive's first post set its 36px title 1.06 apart and broke
+// Korean wherever the line ran out. No post sets `featured`, so the first post
+// is always the newest one. On 28 October, with each of the 74 titles put in
+// its place, three of the four Korean titles on two lines at 360 broke inside
+// a word ("성공과 실 / 패: 다음 단계"), and three English titles on two lines
+// had 2.2px between the letters of one line and the next.
+
+describe("journal first post on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+  const title = ".journal-featured h1";
+
+  it("breaks a Korean title only between words", () => {
+    expect(last(title, "word-break")).toBe("keep-all");
+    expect(last(title, "overflow-wrap")).toMatch(/^(break-word|anywhere)$/);
+  });
+
+  it("keeps a title's lines 1.2 to 1.4 apart", () => {
+    const value = Number(last(title, "line-height"));
+    expect(value).toBeGreaterThanOrEqual(1.2);
+    expect(value).toBeLessThanOrEqual(1.4);
+  });
+});
+
+// Below 721px the headings in a post set their lines 1.15 apart. On 28 October
+// the five two-line headings in the 74 posts, all English and all 19px Inter,
+// had 1.9 to 2.9px between the letters of one line and the next at 360 and 390
+// ("The question — stop everything and / throw myself in?").
+
+describe("journal headings in a post on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+
+  it.each([".journal-reading h2", ".journal-reading h3"])("keeps the lines of %s 1.2 to 1.4 apart", (heading) => {
+    const value = Number(last(heading, "line-height"));
+    expect(value).toBeGreaterThanOrEqual(1.2);
+    expect(value).toBeLessThanOrEqual(1.4);
+  });
+});
+
+// Below 721px a figure's caption, centred under its picture, filled each line
+// and left what was over on the last one. On 28 October, of the multi-line
+// English captions in the 74 posts, 8 of 41 at 360, 6 of 40 at 390 and 7 of
+// 37 at 430 ended on one word ("A PDM mic wired onto the ESP32. It / works.").
+
+describe("journal captions on a phone", () => {
+  const desktop = rules(withoutMedia(css));
+  const phone = mediaBlocks(css, "(max-width: 720px)").flatMap(rules);
+  const last = (selector: string, property: string) => {
+    const from = (list: ReturnType<typeof rules>) =>
+      list
+        .filter((r) => r.selectors.includes(selector))
+        .map((r) => declaration(r.body, property))
+        .filter(Boolean)
+        .at(-1);
+    return from(phone) ?? from(desktop);
+  };
+
+  it.each([".journal-md-figure figcaption", ".journal-hero-cover figcaption"])("balances the lines of %s", (caption) => {
+    expect(last(caption, "text-wrap")).toBe("balance");
   });
 });
