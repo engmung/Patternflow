@@ -288,11 +288,17 @@ def sweep(path: np.ndarray, profile: np.ndarray, hint=(0.0, 0.0, 1.0), start_nor
     return trimesh.Trimesh(verts, np.array(faces), process=False)
 
 
+# Every wire's centre line and radius, for clearance_of_paths.
+WIRE_PATHS: list = []
+
+
 def wire(points, radius: float, sag: float = 0.04) -> trimesh.Trimesh:
     """One loose wire through points."""
     sides = 8 if radius > 1 else 6
     ang = np.linspace(0, 2 * math.pi, sides + 1)[:-1]
-    return sweep(spline(points, sag), np.stack([np.cos(ang), np.sin(ang)], 1) * radius)
+    path = spline(points, sag)
+    WIRE_PATHS.append((path, radius))
+    return sweep(path, np.stack([np.cos(ang), np.sin(ang)], 1) * radius)
 
 
 RIBBON_WAYS, RIBBON_PITCH = 16, 1.27     # a HUB75 cable: 16 conductors at 0.05"
@@ -316,6 +322,38 @@ def ribbon_normals(path: np.ndarray, start_width, width, end_width, twist_over: 
     n = ((1 - f0) * (1 - f1))[:, None] * a + (f0 * (1 - f1))[:, None] * b + f1[:, None] * c
     n -= t * np.sum(n * t, axis=1, keepdims=True)
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+
+
+def clearance_of_paths(sheets: dict) -> list[str]:
+    """Every wire's centre line, every half millimetre, against the sheets (holes and
+    all: a wire may pass through a hole) and the ribbons: what it runs into."""
+    from scipy.spatial import cKDTree
+    hits = []
+    sheet_meshes = [(name, m) for name, pieces in sheets.items() for m, _ in pieces]
+    trees = [(cKDTree(path), path, nrm, bin_, tan) for path, nrm, bin_, tan in RIBBONS]
+    for k, (path, radius) in enumerate(WIRE_PATHS):
+        seg = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
+        at = np.arange(0, seg[-1], 0.5)
+        pts = np.array([np.interp(at, seg, path[:, j]) for j in range(3)]).T
+        for name, mesh in sheet_meshes:
+            lo, hi = mesh.bounds
+            near = np.all((pts > lo - radius) & (pts < hi + radius), axis=1)
+            if not near.any():
+                continue
+            origin, eu, ev = mesh.metadata["frame"]
+            rel = pts[near] - origin
+            w_ = rel @ mesh.metadata["ew"]
+            inside = (w_ > -0.5 * radius) & (w_ < SHEET + 0.5 * radius)
+            if inside.any() and shapely.contains_xy(mesh.metadata["poly"], (rel @ eu)[inside], (rel @ ev)[inside]).any():
+                hits.append(f"wire {k} (r {radius}) through {name} near {np.round(pts[near][inside][0], 1).tolist()}")
+        for r, (tree, rp, rn, rb, rt) in enumerate(trees):
+            _, idx = tree.query(pts)
+            rel = pts - rp[idx]
+            cut = ((np.abs(np.sum(rel * rn[idx], 1)) < RIBBON_WAYS * RIBBON_PITCH / 2 + radius)
+                   & (np.abs(np.sum(rel * rb[idx], 1)) < 0.52 + radius) & (np.abs(np.sum(rel * rt[idx], 1)) < 0.6))
+            if cut.any():
+                hits.append(f"wire {k} (r {radius}) through ribbon {r} near {np.round(pts[cut][0], 1).tolist()}")
+    return hits
 
 
 def clearance_to_sheets(pieces, sheets: dict) -> list[str]:
@@ -403,6 +441,7 @@ def bundle(points, radius: float, count: int, twist: float = 0.08, sag: float = 
     for c in range(count):
         th = seg * twist * 2 * math.pi + c * 2 * math.pi / count
         p = path + r * (np.cos(th)[:, None] * nrm + np.sin(th)[:, None] * bin_)
+        WIRE_PATHS.append((p, radius))
         wires.append(sweep(p, profile))
     ties = []
     if ties_every:
@@ -1049,6 +1088,7 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
 
     gear: dict[str, tuple[list, bool]] = {}
     RIBBONS.clear()
+    WIRE_PATHS.clear()
 
     # The Colorlight 5A-75B, component side to the back.
     cl = [(board_box(ca, cb, 0, 0, CL_W, CL_H, face_z, board_back), "pcb_green")]
@@ -1215,10 +1255,16 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
             w.append((mesh, mat))
         add(ties, "pla_black")
 
-    # The supply to the bus: +V and -V, 16 AWG, up from its terminal end.
+    # The supply to the bus: +V and -V, 16 AWG. Off its terminal end and
+    # straight back behind the supply, clear of the mains coming in at the
+    # front of the terminals; up through the gap behind the shelf; forward
+    # to the strips' screws.
+    gap_z = (shelf[0][2] + rail_a_back + S) / 2      # between the shelf's back and the back doubler
     for pole, k in (("+", "+V"), ("-", "-V")):
         t, sc = terminals[k], screws[pole][3 if pole == "+" else 0]
-        w.append((wire([t, t + (10, 2, -6), (t[0] + 8, sc[1] - 26, (t[2] + sc[2]) / 2), sc + (0, -10, 0), sc], 1.3, sag=0.03),
+        lane = 4.0 if pole == "+" else 13.0
+        w.append((wire([t, t + (4, 0, -2), (t[0] + lane, t[1], t[2] - 12), (t[0] + lane, t[1] + 6, gap_z),
+                        (t[0] + lane, shelf[1][1] + 8, gap_z), (sc[0], max(sc[1] - 8, shelf[1][1] + 6), (gap_z + sc[2]) / 2), sc], 1.3, sag=0.02),
                   "wire_red" if pole == "+" else "wire_black"))
     # The panels' plugs, and the card's 4-pin power input.
     # Each panel's power socket is beside its input header, toward the panel's
@@ -1234,12 +1280,12 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
     for h, (first, second) in enumerate(harnesses):
         fork = (screws["+"][h] + screws["-"][h]) / 2
         # straight back off the bus, below the panels, then out along the layer
-        split = np.array((fork[0] + (-40 if h == 0 else 20 if h == 1 else 5), strip_y + 4 + 5 * h, dc_z))
+        split = np.array((fork[0] + (-40, 40, -14)[h], strip_y + 4 + 5 * h, dc_z))
         pair([fork, fork + (0, 3, -8), split], 0.7, ties_every=40)
         for end in (first, second):
             if end == "spare":
-                tip = split + (14, -8, 5)          # live: capped, and tied back out of the way
-                pair([split, split + (8, -3, 0), tip], 0.7)
+                tip = split + (-12, 10, 5)         # live: capped, and tied back out of the way
+                pair([split, split + (-5, 4, 1), tip], 0.7)
                 w.append((box(tip[0] - 3, tip[0] + 3, tip[1] - 4, tip[1] + 4, tip[2] - 3, tip[2] + 3), "pla_black"))
                 continue
             if end == "card":
@@ -1253,11 +1299,16 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
             mid = np.array(((split[0] + over[0]) / 2, (split[1] + over[1]) / 2, dc_z))
             pair([split, mid, over, (dest[0], dest[1] + out * 3, (dc_z + dest[2]) / 2), dest], 0.7, ties_every=60)
     # The Pi's power: a 5 V to USB-C pigtail from the card's screw terminal.
+    # Its leads go into the side of the card's 5 V terminal block, the side
+    # the block overhangs the card's edge toward the Pi; the cable crosses
+    # the gap between the two boards, in front of the ribbons.
     term_x, term_y = on_tray(ca, cb, 76.25, 137.0)
+    term_side, _ = on_tray(ca, cb, 0.0, CL_TERM[3])
+    term_z = face_z - CL_TERM[4] / 2
     usb_x, usb_y = on_tray(pa, pb, 11.0, -1.0)
-    # It crosses the gap between the two boards, in front of the ribbons.
-    w.append((wire([(term_x, term_y, face_z - 10), (term_x - 8, term_y + 8, face_z - 5),
-                    ((term_x + usb_x) / 2, (term_y + usb_y) / 2, face_z - 5), (usb_x + 10, usb_y, face_z - 4),
+    near_z = face_z - 2.5                        # close over the boards, the Ethernet behind it
+    w.append((wire([(term_x, term_y, term_z), (term_side - 2, term_y, term_z), (term_side - 12, term_y + 6, near_z),
+                    ((term_side + usb_x) / 2, (term_y + usb_y) / 2, near_z), (usb_x + 10, usb_y, near_z),
                     (usb_x + 2, usb_y, face_z - 2)], 1.6, sag=0.04), "wire_black"))
 
     # The panels' own connectors on their backs: HUB75 in and out, and power.
@@ -1325,10 +1376,15 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
     # Ethernet: the Pi's jack, a loose loop down past the tray's edge and up
     # to the card's, in front of the ribbons, between them and the boards.
     jx, jy = on_tray(pa, pb, 76.0, 45.0)
-    rx_, ry_ = on_tray(ca, cb, 46.5, 147.0)
+    # The card's dual jack overhangs its edge toward the Pi; its first port.
+    jack_x, port_y = on_tray(ca, cb, 38.0, CL_RJ45[3])
+    jack_z = face_z - CL_RJ45[4] / 2
     eth_z = face_z - 7.5
+    plug = (box(jack_x - 13, jack_x + 4, port_y - 6.5, port_y + 6.5, jack_z - 5.5, jack_z + 5.5), "plastic_white")
+    w.append(plug)
     w.append((wire([(jx, jy - 2, eth_z), (jx + 4, ty0 - 10, eth_z), (jx + 36, ty0 - 34, eth_z),
-                    (rx_ - 22, ty0 - 16, eth_z), (rx_ - 20, ry_ - 12, eth_z), (rx_ - 4, ry_, eth_z)], 2.4, sag=0.05), "cable_blue"))
+                    (jack_x - 30, ty0 - 16, eth_z), (jack_x - 32, port_y - 14, eth_z), (jack_x - 26, port_y, jack_z),
+                    (jack_x - 12, port_y, jack_z)], 2.4, sag=0.05), "cable_blue"))
     # The knobs' I2C chain: STEMMA QT, four thin wires laced, from the Pi's
     # header down behind the tray, through the shelf's hole over the knobs,
     # then from encoder to encoder in loose loops.
@@ -1390,6 +1446,8 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
     sheets = {name: pieces for name, pieces in parts.items()}
     cuts = clearance_to_sheets(w, sheets)
     lines.append("wiring        clear of every sheet inside" if not cuts else f"wiring        CUTS {'; '.join(cuts)}")
+    runs_into = clearance_of_paths(sheets)
+    lines.append("wire paths    clear of every sheet and ribbon" if not runs_into else "wire paths    " + "\n              ".join(runs_into))
 
     return parts, gear, {"inside": lines}
 
