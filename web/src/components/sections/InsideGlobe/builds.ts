@@ -441,7 +441,10 @@ export const builds: Build[] = [
     maker: 'SimonePDA',
     date: '2026-09',
     description:
-      "An MQTT link, tested with SimonePDA: a knob turned on SimonePDA's Patternflow in Ajman changed the panel of the first build in Seoul. flowlocal, a box that gives a Patternflow a hotspot of its own, comes out of the same work and is to be published soon.",
+      "An MQTT link, tested with SimonePDA: a knob turned on SimonePDA's Patternflow in Ajman changed the panel of the first build in Seoul. flowlocal, a box that gives a Patternflow a hotspot of its own, comes out of the same work. Its source is on GitHub, with the Anbu setup.",
+    links: [
+      { href: 'https://github.com/engmung/patternflow-exhibition-2026/tree/main/firmware/flowlocal', label: 'flowlocal source on GitHub' },
+    ],
     images: [
       { src: '/journal/the-messy-desk/flowlocal.jpg', alt: 'A flowlocal built in Seoul, held open: a battery cell and a small screen above the boards' },
     ],
@@ -457,7 +460,10 @@ export const builds: Build[] = [
     maker: 'Seunghun LEE',
     date: '2026-10',
     description:
-      "Anbu (안부), an exhibition by visually impaired artists near Seoul Station. Patternflow was not the exhibit. It was a corner where visitors played the artists' paintings, illustrations and sculptures as patterns: one knob picks the work, the other three play it, and the sound follows the knobs. How it was set up, and the code it ran, will be written up soon.",
+      "Anbu (안부), an exhibition by visually impaired artists near Seoul Station. Patternflow was not the exhibit. It was a corner where visitors played the artists' paintings, illustrations and sculptures as patterns: one knob picks the work, the other three play it, and the sound follows the knobs. How it was set up, and the code it ran, are on GitHub.",
+    links: [
+      { href: 'https://github.com/engmung/patternflow-exhibition-2026', label: 'Setup and code on GitHub' },
+    ],
     images: [
       { src: '/builds/anbu/visitors.jpg', alt: "A visitor turning the knobs of a Patternflow lying flat on a white plinth, a painting on its panel and the artists' works on the wall behind" },
       { src: '/builds/anbu/demo.jpg', alt: 'A Patternflow lying flat beside a laptop running Ableton Live, an orange pixel picture of a creature in sunglasses on its panel' },
