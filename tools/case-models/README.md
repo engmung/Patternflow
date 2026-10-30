@@ -8,8 +8,9 @@ The 3D models the [/build](https://patternflow.work/build) page's preview shows,
 | Besoiobiy | `web/public/cases/besoiobiy-printed/model.glb` | `hardware/case/remixes/besoiobiy-printed/source/patternbox.stl` | `besoiobiy.py`, then `assemble.mjs` |
 | SimonePDA | `web/public/cases/simonepda-lasercut/model.glb` | `hardware/case/remixes/simonepda-lasercut/lasercut_layout.pdf` | `simonepda.py`, then `assemble.mjs` |
 | mbchars | `web/public/cases/mbchars-horizontal-desktop-printed/model.glb` | `hardware/case/remixes/mbchars-horizontal-desktop-printed/stl/` | `mbchars.py`, then `assemble.mjs` |
+| jof | `web/public/cases/jof-patternflood/model.glb` | `tools/case-models/source/jof-patternflood/dxf/` | `patternflood.py`, then `assemble.mjs` |
 
-Run `./build.sh` to make all four again (or `./build.sh <case>` for one). The models are committed; nothing here runs when the site builds. Every step is deterministic: the same files in give the same bytes out.
+Run `./build.sh` to make all five again (or `./build.sh <case>` for one). The models are committed; nothing here runs when the site builds. Every step is deterministic: the same files in give the same bytes out.
 
 | Model | Size | Loads |
 | :--- | ---: | :--- |
@@ -17,6 +18,7 @@ Run `./build.sh` to make all four again (or `./build.sh <case>` for one). The mo
 | `besoiobiy-printed/model.glb` | 345 KB | when its tab is hovered or picked |
 | `simonepda-lasercut/model.glb` | 332 KB | when its tab is hovered or picked |
 | `mbchars-horizontal-desktop-printed/model.glb` | 380 KB | when its tab is hovered or picked |
+| `jof-patternflood/model.glb` | 568 KB | when its tab is hovered or picked |
 
 The landing page's model before these, `web/public/3dforweb.glb` (a v3.0 device), was 1,155 KB and loaded with the page.
 
@@ -38,7 +40,7 @@ A case script makes the case's *shell*: one mesh per part, assembled, in the mod
 { "board": [dx, dy, dz], "led": [x, y, z], "ledTurn": degrees, "knobs": "official" | "shell", "knobBaseZ": z, "knobLook": material }
 ```
 
-`board` is added to where the official case has the board, the DevKit and the knobs; `led` is the panel node's translation, its z the LED face, and `ledTurn` turns the panel about its own middle (anticlockwise seen from the front), for a case that holds it on its side; `knobs` says whether the shell has its own `c1` … `c4` or takes the official ones (standing at `knobBaseZ`, in `knobLook`, black PLA unless it says otherwise). Everything but `board` and `knobs` can be left out. `assemble.mjs` then adds what every case has, from the files the guide uses and the knob's STL:
+`board` is added to where the official case has the board, the DevKit and the knobs (`null` for a build with no Patternflow board: then neither the board nor the DevKit is added); `led` is the panel node's translation, its z the LED face (or `"shell"`, when the shell draws its own `l` for other panels), and `ledTurn` turns the panel about its own middle (anticlockwise seen from the front), for a case that holds it on its side; `knobs` says whether the shell has its own `c1` … `c4` or takes the official ones (standing at `knobBaseZ`, in `knobLook`, black PLA unless it says otherwise). Everything but `board` and `knobs` can be left out. `assemble.mjs` then adds what every case has, from the files the guide uses and the knob's STL:
 
 - the LED panel, `source/led_panel.glb`: the node `l` of the landing page's old model, its name, transform, geometry and UVs unchanged. `extract_led.mjs` took it out; the old file is at `git show v3.11.0:web/public/3dforweb.glb`;
 - the v3.9 board, `web/public/guide/pcb-v39.glb`, and the DevKit, `web/public/guide/devkit.glb`, simplified with meshoptimizer — the preview shows them small, through a case;
@@ -140,3 +142,22 @@ A remix with 3D files (or a drawing exact enough to stand up) gets a model the s
 ## License
 
 The scripts are MIT, like the rest of `tools/`. The models they make are drawings of the cases, and take the cases' license: CC BY-SA 4.0, crediting each remix's author as its README names them.
+
+## jof: `patternflood.py`
+
+Patternflood is not a case for the v3 board: it is a birch box round a Raspberry Pi 5, a Colorlight card and four P2 panels in a 2 × 2, 256 mm square. Its model is an Onshape part studio; what this repository has of it is the cut files, `tools/case-models/source/jof-patternflood/dxf/`, one DXF per part, every part drawn as seen from outside the box. The script reads the outside of the box from them (the two sheets of the front, the four walls, the back cover), extrudes each outline by the 3.18 mm the files are compensated for, and stands it where it goes. It stops unless the box comes out at the 293 × 373 × 60.7 mm the build guide gives.
+
+- **Which way round each wall goes** is not in a DXF. The script tries every wall four ways (turned half round, and mirrored) and keeps the set whose fingers overlap the front and the neighbouring walls least (manifold3d). The finger pattern is symmetric, so 16 of the 256 sets fit equally (the files' kerf allowance, 328 mm³ in all); of those it keeps the one with no wall mirrored or turned, the way the files are drawn. That puts the right wall's mains inlet low, beside the supply, as built.
+- **The panel** is its own node `l`: one 256 mm square block 14.5 mm deep, centred on the front's window, its face against the back of the outer sheet (the inner sheet's window is as large). It is built in the frame the page's LED shader knows the official panel by (its face looks along −y in the node's own frame; the node is turned a quarter about x), and its UVs put a pattern's x left to right and row 0 at the top. Its entry in `caseModels.ts` has `ledGrid: [128, 128]`, so the page draws the patterns on 128 × 128 LEDs, as the device runs upstream's.
+- **The buttons** are four more nodes, `button_previous`, `button_select`, `button_next` and `button_sleep`, on the top wall's keyed holes in the order BUILD.md §7.3 fits them: a black bezel and a domed cap, `button_blue`, `button_orange` or `button_red`, sized by eye from the build photo.
+- **The knobs** are its own `c1` … `c4`: a plain 1" skirted knob, turned, on each of the front's four 7 mm encoder bores, 2.5 mm off the front on the jam nut.
+- **The knobs are named for what they are on the device**, k0 to k3 in reading order: through the page's mapping for the official board's wiring (`MESH_TO_KNOB`, then `LOGICAL_KNOB_TO_WEB_KNOB`) that makes top-left `c2`, top-right `c1`, bottom-left `c4` and bottom-right `c3`.
+- **Inside**, every sheet goes where the cut files put it: the side walls' mortises place the three panel braces (the middle one three sheets), rail C top and bottom and the shelf; rails B and A stack behind rail C; the back cover's doubler sits flush with rail A; the walls' doublers run back from the front's inner sheet. The tray hangs on the middle brace's screws, and the Colorlight card and the Pi sit on its nut pockets, which their hole patterns (from `enclosure.fs`) fit to 0.00 mm. The two knob ribs' x is by eye (`RIB_X`).
+- **The bought parts are drawn plainly** from the numbers Patternflood's repository records, not from vendor CAD: the Mean Well LRS-50-5 on the bottom wall's two screws, the IEC inlet in the right wall's cutout, the two boards, and an EC11 with its 4991 behind each knob. **The wiring is schematic**: mains, 5 V, the HUB75 ribbons, Ethernet, the I2C chain and the buttons' leads, on plausible routes.
+- **Roles:** the bought parts and the wiring are the entry's `gear` and the back cover with its doubler its `cover` (`caseModels.ts`), so the Build steps can show the sheets alone to cut and glue, and the inside with the cover off to wire (`buildPose.ts`).
+- **The etched art** is on the front, the back, the side walls and the top: art.py's decals (copied to `source/jof-patternflood/art/`), each a greyscale JPEG at a power-of-two size on its part's outer face (material `birch_art_<part>`, which `lib/looks.mjs` draws as birch), darker where the laser burned.
+- **The knobs' lights:** a paper ring behind each knob's twelve slits, and the slits themselves filled with light, in `knob_glow_k0` … `knob_glow_k3`. The page lights them (`knobLights` in the entry) while the device has power, in Obra's colours.
+- **The wiring** is splines through plausible routes, sagging a little where they run level: laced mains, twisted 5 V pairs with cable ties, four-colour STEMMA QT runs, the ribbons in easy bends; nothing passes behind the back doubler. The 5 V is wired as BUILD.md §8 has it: the supply to a bus of two barrier strips on the lower brace (`power_bus`), three harnesses off it to the four panels' plugs and the card's power input (and a spare, tied back), and the Pi's pigtail from the card's screw terminal. The panels' own HUB75 and power connectors are on their backs (`panel_connectors`).
+- **Left out:** nothing on the outside. `placement.json` is `{"board": null, "led": "shell", "knobs": "shell"}`, and the entry is `boardless`, so the page frames the whole device where it would frame the board.
+
+The sheets are `birch_face` and `birch_edge` (pale birch, edges burnt dark), the knobs `pla_black`.

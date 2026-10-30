@@ -1,9 +1,10 @@
-# The two remix scripts (besoiobiy.py, simonepda.py). Python 3.12 or newer:
+# The remix scripts (besoiobiy.py, simonepda.py, mbchars.py, patternflood.py). Python 3.12 or newer:
 # numpy, scipy and networkx at these versions need it.
 manifold3d==3.5.4
 mapbox_earcut==2.1.0
 networkx==3.7
 numpy==2.5.3
+pillow==11.3.0
 pymupdf==1.28.2
 scipy==1.18.1
 shapely==2.2.0

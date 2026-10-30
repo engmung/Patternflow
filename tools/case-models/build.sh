@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Makes every case model again: web/public/cases/<case>/model.glb.
 #
-#   tools/case-models/build.sh            # all four
+#   tools/case-models/build.sh            # all five
 #   tools/case-models/build.sh official   # one
 #
 # Needs `npm ci` here and the Python packages in requirements.txt (set PYTHON
@@ -16,7 +16,7 @@ if [[ -z "$PYTHON" ]]; then
 fi
 
 cases=("$@")
-if [[ ${#cases[@]} -eq 0 ]]; then cases=(official besoiobiy-printed simonepda-lasercut mbchars-horizontal-desktop-printed); fi
+if [[ ${#cases[@]} -eq 0 ]]; then cases=(official besoiobiy-printed simonepda-lasercut mbchars-horizontal-desktop-printed jof-patternflood); fi
 
 for id in "${cases[@]}"; do
   echo "== $id"
@@ -36,8 +36,12 @@ for id in "${cases[@]}"; do
       "$PYTHON" mbchars.py
       node assemble.mjs mbchars-horizontal-desktop-printed build/mbchars-horizontal-desktop-printed/shell.glb build/mbchars-horizontal-desktop-printed/placement.json
       ;;
+    jof-patternflood)
+      "$PYTHON" patternflood.py
+      node assemble.mjs jof-patternflood build/jof-patternflood/shell.glb build/jof-patternflood/placement.json
+      ;;
     *)
-      echo "unknown case: $id (official, besoiobiy-printed, simonepda-lasercut, mbchars-horizontal-desktop-printed)" >&2
+      echo "unknown case: $id (official, besoiobiy-printed, simonepda-lasercut, mbchars-horizontal-desktop-printed, jof-patternflood)" >&2
       exit 1
       ;;
   esac
