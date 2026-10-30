@@ -205,7 +205,7 @@ def box(x0, x1, y0, y1, z0, z1) -> trimesh.Trimesh:
 Z_FLOOR = [-math.inf]
 
 
-def spline(points, sag: float = 0.0, step: float = 5.0) -> np.ndarray:
+def spline(points, sag: float = 0.0, step: float = 5.0, floor: float | None = None) -> np.ndarray:
     """A wire's path: a centripetal Catmull-Rom curve through points, about step mm apart,
     each span sagging under its weight by sag times its length where it runs level, and
     kept in front of Z_FLOOR (a curve can overshoot its points at a bend)."""
@@ -233,15 +233,19 @@ def spline(points, sag: float = 0.0, step: float = 5.0) -> np.ndarray:
             out.append(c)
     out.append(P[-2])
     out = np.array(out)
-    out[:, 2] = np.maximum(out[:, 2], Z_FLOOR[0])
+    out[:, 2] = np.maximum(out[:, 2], Z_FLOOR[0] if floor is None else floor)
     return out
 
 
-def frames(path: np.ndarray, hint=(0.0, 0.0, 1.0)):
-    """Tangents and a parallel-transported normal and binormal along a path."""
+def frames(path: np.ndarray, hint=(0.0, 0.0, 1.0), start_normal=None):
+    """Tangents and a parallel-transported normal and binormal along a path; the
+    normal starts across hint, or along start_normal where that is given."""
     d = np.gradient(path, axis=0)
     t = d / np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
-    n = np.cross(t[0], hint)
+    if start_normal is not None:
+        n = np.asarray(start_normal, dtype=float) - t[0] * (np.asarray(start_normal, dtype=float) @ t[0])
+    else:
+        n = np.cross(t[0], hint)
     if np.linalg.norm(n) < 1e-6:
         n = np.cross(t[0], (1.0, 0.0, 0.0))
     n /= np.linalg.norm(n)
@@ -254,9 +258,15 @@ def frames(path: np.ndarray, hint=(0.0, 0.0, 1.0)):
     return t, normals, np.cross(t, normals)
 
 
-def sweep(path: np.ndarray, profile: np.ndarray, hint=(0.0, 0.0, 1.0)) -> trimesh.Trimesh:
-    """A profile (k x 2, in the path's normal and binormal) swept along a path, its ends capped."""
-    _, nrm, bin_ = frames(path, hint)
+def sweep(path: np.ndarray, profile: np.ndarray, hint=(0.0, 0.0, 1.0), start_normal=None, normals=None) -> trimesh.Trimesh:
+    """A profile (k x 2, in the path's normal and binormal) swept along a path, its ends capped;
+    the normals transported along it, or given (one per point, square to the path)."""
+    if normals is None:
+        _, nrm, bin_ = frames(path, hint, start_normal)
+    else:
+        t, _, _ = frames(path)
+        nrm = normals
+        bin_ = np.cross(t, nrm)
     k = len(profile)
     rings = path[:, None, :] + profile[None, :, 0, None] * nrm[:, None, :] + profile[None, :, 1, None] * bin_[:, None, :]
     verts = rings.reshape(-1, 3)
@@ -282,10 +292,41 @@ def wire(points, radius: float, sag: float = 0.04) -> trimesh.Trimesh:
     return sweep(spline(points, sag), np.stack([np.cos(ang), np.sin(ang)], 1) * radius)
 
 
-def ribbon(points, width: float = 20.0, thick: float = 1.0, sag: float = 0.03, hint=(0.0, 0.0, 1.0)) -> trimesh.Trimesh:
-    """A flat ribbon cable through points, lying across hint where it can."""
-    w, t = width / 2, thick / 2
-    return sweep(spline(points, sag), np.array([(-w, -t), (w, -t), (w, t), (-w, t)]), hint)
+RIBBON_WAYS, RIBBON_PITCH = 16, 1.27     # a HUB75 cable: 16 conductors at 0.05"
+
+
+def ribbon_normals(path: np.ndarray, start_width, width, twist_over: float = 0.35) -> np.ndarray:
+    """A ribbon's width along a path: start_width where it leaves its plug, turning
+    smoothly to width over the first twist_over of its length."""
+    t, _, _ = frames(path)
+    seg = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
+    f = np.clip(seg / (seg[-1] * twist_over), 0, 1)
+    f = f * f * (3 - 2 * f)
+    a, b = np.asarray(start_width, float), np.asarray(width, float)
+    if a @ b < 0:
+        b = -b                                      # the short way round
+    n = (1 - f)[:, None] * a + f[:, None] * b
+    n -= t * np.sum(n * t, axis=1, keepdims=True)
+    return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
+
+
+def ribbon(points, start_width, width, sag: float = 0.0, floor: float = -math.inf):
+    """A 16-way ribbon cable through points: its width along start_width at its first
+    plug, turning to width; a ridge over each conductor on both faces, and the
+    red stripe down pin 1's edge. Returns (mesh, material) pairs."""
+    path = spline(points, sag, step=6.0, floor=floor)
+    nrm = ribbon_normals(path, start_width, width)
+    half = RIBBON_WAYS * RIBBON_PITCH / 2
+    centres = -half + RIBBON_PITCH / 2 + RIBBON_PITCH * np.arange(RIBBON_WAYS)
+    top = [(-half, 0.3)]
+    for c in centres:
+        top += [(c, 0.52), (c + RIBBON_PITCH / 2, 0.3)]
+    profile = np.array(top + [(x, -y) for x, y in reversed(top)])
+    out = [(sweep(path, profile, normals=nrm), "ribbon_grey")]
+    # Pin 1's conductor, red: along the same frames, at the first ridge.
+    ang = np.linspace(0, 2 * math.pi, 7)[:-1]
+    out.append((sweep(path + nrm * centres[0], np.stack([np.cos(ang), np.sin(ang)], 1) * 0.55), "wire_red"))
+    return out
 
 
 def bundle(points, radius: float, count: int, twist: float = 0.08, sag: float = 0.04, ties_every: float = 0.0):
@@ -325,7 +366,7 @@ def art_texture(stem: str, dims: tuple[int, int]) -> bytes:
         srgb = 12.92 * lin if lin <= 0.0031308 else 1.055 * lin ** (1 / 2.4) - 0.055
         lut.append(round(255 * srgb))
     out = io.BytesIO()
-    alpha.point(lut).save(out, "JPEG", quality=75, optimize=True)
+    alpha.point(lut).save(out, "JPEG", quality=65, optimize=True)
     return out.getvalue()
 
 
@@ -1150,17 +1191,55 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
             conn.append((box(pxc + 22 - 6, pxc + 22 + 6, pyc - 4, pyc + 4, back_z - 6, back_z), "plastic_white"))
     gear["panel_connectors"] = (conn, False)
 
-    # The HUB75 ribbons: from headers on the card's upper edge up to the upper
-    # panels' inputs, and from its lower edge down to the lower ones, in easy
-    # bends, each folding onto the back of its panel between the braces.
-    ins = [np.array((cx + sx_ * 64 - 20, cy + sy_ * 64, zf - PANEL_DEPTH - 9.0)) for sy_ in (-1, 1) for sx_ in (-1, 1)]
-    for hub, pin in zip((4, 5, 0, 1), ins):          # lower-left, lower-right, upper-left, upper-right
+    # The HUB75 ribbons, on the ports BUILD.md §4 and the card's gateware use:
+    # upper left J5, upper right J8, lower left J4, lower right J1 (J2, J3, J6
+    # and J7 are free). On the card as it sits, J1 to J4 run along its upper
+    # edge and J5 to J8 its lower, so every ribbon crosses it; each takes its
+    # own layer between the headers and the back doubler, leaves its header
+    # lying along it, in an IDC plug, and ends in one on its panel's input.
+    plugs_idc = []
+    PLUG = (36.0, 10.5)                            # an IDC plug's length and width
+    ins = {(sx_, sy_): np.array((cx + sx_ * 64 - 20, cy + sy_ * 64, zf - PANEL_DEPTH - 8.5)) for sy_ in (-1, 1) for sx_ in (-1, 1)}
+    # Deepest last: the J5 ribbon crosses over the card's Ethernet jack.
+    ports = [((1, -1), 0), ((1, 1), 7), ((-1, -1), 3), ((-1, 1), 4)]   # J1, J8, J4, J5
+    for layer, (panel, hub) in enumerate(ports):
         top = np.array(hub_tops[hub])
-        away = 1 if pin[1] > top[1] else -1
-        low = max(top[2] - 3, back + 2)               # no deeper than the back doubler allows
-        route = [top, (top[0], top[1] + away * 5, low), (top[0] + (pin[0] - top[0]) * 0.25, top[1] + away * 26, low),
-                 (top[0] + (pin[0] - top[0]) * 0.7, pin[1] - away * 8, (top[2] + pin[2]) / 2), (pin[0], pin[1], pin[2] - 6), pin]
-        w.append((ribbon(route, sag=0.02), "ribbon_grey"))
+        hx, hy, ang = CL_HUBS[hub]
+        a = math.radians(ang)
+        axis = np.array((-math.sin(a), -math.cos(a), 0.0))   # the header's long axis, in the model
+        plug = trimesh.creation.box(extents=(PLUG[0], PLUG[1], 6.0))
+        plug.apply_transform(trimesh.transformations.rotation_matrix(math.atan2(axis[1], axis[0]), (0, 0, 1)))
+        plug.apply_translation(top + (0, 0, 0.0))
+        plugs_idc.append(plug)
+        start = top + (0, 0, -3.0)
+        pin = ins[panel]
+        # Four layers, a ribbon's thickness apart, between the plugs and the back doubler.
+        z_k = start[2] - 0.2 - 1.05 * layer
+        end = pin + (0, 0, -3.5)
+        # As a ribbon is run: up out of its plug, one easy bend to lie flat,
+        # straight across on the diagonal, one easy bend down onto the panel.
+        # Its width lies square to that line, so both bends are about it;
+        # the diagonals pass the Pi above or below it.
+        d = (pin - start)[:2] / np.linalg.norm((pin - start)[:2])
+        across = np.array((-d[1], d[0], 0.0))
+        # Out of the plug it runs square to its header (its width along it),
+        # toward its panel; then it curves onto the diagonal.
+        out_dir = np.array((-axis[1], axis[0]))
+        if out_dir @ d < 0:
+            out_dir = -out_dir
+        a = np.array((start[0] + out_dir[0] * 14, start[1] + out_dir[1] * 14, z_k))
+        c = np.array((pin[0] - d[0] * 16, pin[1] - d[1] * 16, z_k))
+        route = [start, (start[0] + out_dir[0] * 3, start[1] + out_dir[1] * 3, (start[2] + z_k) / 2), a,
+                 (a + c) / 2, c, (pin[0] - d[0] * 4, pin[1] - d[1] * 4, (z_k + end[2]) / 2), end]
+        # Its middle no deeper than half its thickness off the back doubler.
+        w.extend(ribbon(route, axis, across, floor=rail_a_back + S + 0.55))
+        # its plug on the panel's input, which stands 8.5 off the panel's back,
+        # turned to take the ribbon square
+        p2 = trimesh.creation.box(extents=(PLUG[0], PLUG[1], 6.0))
+        p2.apply_transform(trimesh.transformations.rotation_matrix(math.atan2(across[1], across[0]), (0, 0, 1)))
+        p2.apply_translation(pin + (0, 0, -0.5))
+        plugs_idc.append(p2)
+    add(plugs_idc, "pla_black")
     # Ethernet: the Pi's jack, a loose loop down past the tray's edge and up to the card's.
     jx, jy = on_tray(pa, pb, 76.0, 45.0)
     rx_, ry_ = on_tray(ca, cb, 46.5, 147.0)
