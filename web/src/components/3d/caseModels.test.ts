@@ -73,9 +73,12 @@ describe('case models', () => {
       const gltf = readGlb(file);
       const top = gltf.scenes[gltf.scene ?? 0].nodes.map((i) => gltf.nodes[i]);
       const byName = new Map(top.map((node) => [node.name, node]));
-      for (const name of [LED_NODE, ...KNOB_NODES, PCB_NODE, DEVKIT_NODE]) {
+      const board = [PCB_NODE, DEVKIT_NODE];
+      for (const name of [LED_NODE, ...KNOB_NODES, ...(model.boardless ? [] : board)]) {
         expect(byName.has(name), `${id}: no top-level node "${name}"`).toBe(true);
       }
+      // A build with no Patternflow board has none in its model either.
+      if (model.boardless) for (const name of board) expect(byName.has(name), `${id}: has "${name}"`).toBe(false);
       // The pattern shaders draw with the panel's UVs.
       const led = byName.get(LED_NODE)!;
       for (const prim of gltf.meshes[led.mesh!].primitives) {
@@ -107,6 +110,18 @@ describe('case models', () => {
       for (const name of model.loose ?? []) {
         expect(top.has(name), `${id}: loose names "${name}", which the file has no top-level node for`).toBe(true);
         expect(device.has(name), `${id}: "${name}" is the device, not a loose piece of its case`).toBe(false);
+      }
+    });
+
+    it('names as its bought parts, its cover and its knob lights only what is in the file', () => {
+      const gltf = readGlb(file);
+      const top = new Set(gltf.scenes[gltf.scene ?? 0].nodes.map((i) => gltf.nodes[i].name));
+      const materials = new Set((gltf.materials ?? []).map((m) => m.name));
+      for (const name of [...(model.gear ?? []), ...(model.cover ?? [])]) {
+        expect(top.has(name), `${id}: "${name}" is not a top-level node`).toBe(true);
+      }
+      for (const name of model.knobLights ?? []) {
+        expect(materials.has(name), `${id}: no material "${name}"`).toBe(true);
       }
     });
 

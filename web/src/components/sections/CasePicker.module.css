@@ -27,7 +27,13 @@
    piece. */
 .tabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* One equal column per case, however many there are; on a phone, where
+     five do not fit, each keeps room for its two lines and the row scrolls
+     sideways (CasePicker keeps the picked one in view). */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 1fr);
+  overflow-x: auto;
+  scrollbar-width: none;
   border: 1px solid var(--pf-rule);
 }
 

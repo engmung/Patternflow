@@ -42,16 +42,18 @@ float fractalNoise(vec2 p) {
 
 void main() {
   vec2 rotatedUV = vec2(vUv.y, 1.0 - vUv.x);
-  vec2 gridUV = rotatedUV * vec2(128.0, 64.0);
+  vec2 gridUV = rotatedUV * uGrid;
   vec2 px = floor(gridUV);
 
   float x = px.x;
-  float y = 63.0 - px.y;
+  float y = uGrid.y - 1.0 - px.y;
 
   // Firmware coordinates:
-  // u: -1..+1 across PANEL_RES_W, v: -0.5..+0.5 across PANEL_RES_H.
-  float u = (x - 64.0) / 64.0;
-  float v = (y - 32.0) / 64.0; 
+  // u: -1..+1 across PANEL_RES_W, v: -0.5..+0.5 across PANEL_RES_H
+  // (-1..+1 on a square panel: both are over half the width).
+  float half = uGrid.x / 2.0;
+  float u = (x - half) / half;
+  float v = (y - uGrid.y / 2.0) / half;
 
   // Parameters from Knobs
   float angle = uParam1 * 6.28318;

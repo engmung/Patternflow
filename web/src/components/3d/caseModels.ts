@@ -3,6 +3,7 @@ import { OFFICIAL_MODEL } from './cases/official';
 import { BESOIOBIY_MODEL } from './cases/besoiobiy-printed';
 import { SIMONEPDA_MODEL } from './cases/simonepda-lasercut';
 import { MBCHARS_MODEL } from './cases/mbchars-horizontal-desktop-printed';
+import { JOF_MODEL } from './cases/jof-patternflood';
 
 // The device the product preview shows, one model per case on the Build
 // panel's switch. Each model is a single GLB built by tools/case-models from
@@ -19,6 +20,7 @@ import { MBCHARS_MODEL } from './cases/mbchars-horizontal-desktop-printed';
 //               c4 bottom-right (K2, K1, K4, K3 on the device)
 //   pcb_v39     the v3.9 board; its children keep pcb-v39.glb's names
 //   devkit      the ESP32-S3 DevKit on its sockets ("module" is the ESP32)
+// (all but a build with no Patternflow board in it: see `boardless`)
 // Every other top-level node is a part of the case itself.
 
 export type Vec3 = [number, number, number];
@@ -55,6 +57,35 @@ export interface CaseModel {
    * board and the DevKit alike.
    */
   explode: Record<string, Vec3>;
+  /**
+   * A build with no Patternflow board in it, only the panel and the knobs:
+   * the file has no pcb_v39 or devkit, and the preview frames the whole
+   * device where it would frame the board.
+   */
+  boardless?: boolean;
+  /**
+   * The LED panel's grid when it is not Patternflow's 128 x 64: LEDs along
+   * the face's u (from its UVs, the way the official panel's run), then along
+   * its v. The page's patterns are drawn on that many.
+   */
+  ledGrid?: [number, number];
+  /**
+   * A demo of the case's own to run on its panel on the Build tab, in place
+   * of the Pattern tab's pattern: 'obra', Patternflood's (demos/obra.ts).
+   */
+  demo?: 'obra';
+  /**
+   * The bought parts and the wiring, by top-level node: shown once the
+   * device is wired, not with the parts to cut or glue (buildPose.ts).
+   */
+  gear?: string[];
+  /**
+   * The materials of the knobs' lights, k0 to k3: lit only while the device
+   * has power, in the colours its demo gives them (demos/obra.ts, lights).
+   */
+  knobLights?: [string, string, string, string];
+  /** The back cover's parts: off while the device is wired, so its inside shows. */
+  cover?: string[];
   /** When the case comes in more than one material: the first is the file's. */
   finishes?: CaseFinish[];
   /**
@@ -71,6 +102,7 @@ export const CASE_MODELS: Record<CaseId, CaseModel> = {
   'besoiobiy-printed': BESOIOBIY_MODEL,
   'simonepda-lasercut': SIMONEPDA_MODEL,
   'mbchars-horizontal-desktop-printed': MBCHARS_MODEL,
+  'jof-patternflood': JOF_MODEL,
 };
 
 /** Where the Draco decoder comes from: the same copy the guide's models use. */

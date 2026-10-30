@@ -91,3 +91,34 @@ describe('fitAcross', () => {
     expect((HORIZONTAL * REST_SCALE * fit) / DESKTOP).toBeCloseTo(0.72, 9);
   });
 });
+
+describe('a boardless build', () => {
+  it('cuts and glues its sheets, drawn apart then closing up, nothing bought among them', () => {
+    const cut = poseFor(1, 0.6, 12, false, true);
+    const glue = poseFor(2, 0.6, 12, false, true);
+    for (const pose of [cut, glue]) {
+      expect(pose.show).toEqual({ shell: true, knob: false, led: false, pcb: false, devkit: false, gear: false, cover: true });
+      expect(pose.lit).toBe(false);
+      expect(pose.board).toBe(false);
+      expect(pose.turn).toBeLessThan(0);
+    }
+    // The slider draws them apart: all the way on Cut, half as far on Glue.
+    expect(cut.spread).toBe(0.6);
+    expect(glue.spread).toBeCloseTo(0.27, 9);
+    expect(poseFor(1, 0, 12, false, true).spread).toBe(0);
+    expect(poseFor(1, 1, 12, false, true).scale).toBeLessThan(poseFor(1, 0, 12, false, true).scale);
+  });
+
+  it('is wired from the back, its cover off, and faces the front again once it is lit', () => {
+    const wire = poseFor(3, 0.6, 12, false, true);
+    expect(Math.cos(wire.turn)).toBeLessThan(-0.5);
+    expect(wire.show.cover).toBe(false);
+    expect(wire.show.gear).toBe(true);
+    expect(wire.spread).toBe(0);
+    const lit = poseFor(4, 0.6, 12, false, true);
+    expect(Math.cos(lit.turn)).toBeGreaterThan(0.5);
+    expect(lit.lit).toBe(true);
+    expect(lit).toEqual(poseFor(4, 0.6, 12));
+    expect(poseFor(0, 0.6, 12, false, true)).toEqual(poseFor(0, 0.6, 12));
+  });
+});

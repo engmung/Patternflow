@@ -5,7 +5,7 @@ import { SectionContent } from '@/lib/content';
 import { captureEvent } from '@/lib/posthogEvents';
 import { preloadCaseModel } from '@/components/3d/preloadCaseModel';
 import CasePicker from './CasePicker';
-import { BUILD_CASES, findCase, writeCaseToUrl, type CaseId } from './build-cases-data';
+import { BUILD_CASES, findCase, writeCaseToUrl, type BuildFact, type BuildStep, type CaseId } from './build-cases-data';
 import styles from './BuildPanel.module.css';
 
 interface BuildPanelProps {
@@ -17,8 +17,9 @@ interface BuildPanelProps {
 // cost → your time → machine time → waiting, so the two numbers the reader is
 // actually deciding on come first. Numbers follow the main path (custom PCB +
 // the official printed case, see BUILD_GUIDE.md: the BOM in §1 and the time
-// at the top). The case switch below changes step 01, not these.
-const FACTS = [
+// at the top). The case switch below changes step 01, not these, unless the
+// case is a build of its own (BuildCase.flow), which brings its own.
+const FACTS: BuildFact[] = [
   {
     // A range, not the floor. The breakdown below adds up to about $100, and
     // that is the well-sourced, nothing-goes-wrong build — the figure people
@@ -53,8 +54,8 @@ const FACTS = [
 ];
 
 // Step 01 is replaced by the chosen case's own (build-cases-data.ts); the
-// one written here is the official case's.
-const STEPS = [
+// one written here is the official case's. A build of its own replaces all four.
+const STEPS: BuildStep[] = [
   {
     id: 1,
     title: 'Print the case',
@@ -101,7 +102,9 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
   const buildCase = useAppStore((state) => state.buildCase);
   const setBuildCase = useAppStore((state) => state.setBuildCase);
   const selectedCase = findCase(buildCase) ?? BUILD_CASES[0];
-  const steps = STEPS.map((step) => (step.id === 1 ? { ...step, ...selectedCase.step } : step));
+  const flow = selectedCase.flow;
+  const facts = flow?.facts ?? FACTS;
+  const steps = (flow?.steps ?? STEPS).map((step) => (step.id === 1 ? { ...step, ...selectedCase.step } : step));
   const wasActive = useRef(isActive);
 
   const handleCaseSelect = (nextId: CaseId, interaction: 'click' | 'key') => {
@@ -231,14 +234,14 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
     <div className="panel-content pf-section-panel" id="build">
       <div className="panel-header">
         <h1 className="pf-h2">{content.title || 'Build your own.'}</h1>
-        <p className="pf-sub">{content.subtitle || 'Print, solder, assemble, flash.'}</p>
+        <p className="pf-sub">{flow?.subtitle ?? (content.subtitle || 'Print, solder, assemble, flash.')}</p>
       </div>
 
       <div className={`panel-body ${styles.buildPanel}`} ref={containerRef}>
         {/* Cost and time first: the reader decides whether to build at all
             before they care what the four steps are. */}
         <div className={styles.factsBand}>
-          {FACTS.map((fact) => (
+          {facts.map((fact) => (
             <div className={styles.factCard} key={fact.name}>
               <span className={styles.factValue}>{fact.value}</span>
               <span className={styles.factName}>{fact.name}</span>
@@ -298,7 +301,9 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
                           device apart in your own hand, which is the claim the
                           whole project makes. Events stop here so a drag does
                           not also re-trigger the row underneath. */}
-                      {step.id === 3 && isActive && (
+                      {/* Assemble on the main path; a build of its own draws its
+                          sheets apart while they are cut and glued. */}
+                      {isActive && (flow ? step.id === 1 || step.id === 2 : step.id === 3) && (
                         <span
                           className={styles.explodeControl}
                           onClick={(event) => event.stopPropagation()}
@@ -334,6 +339,46 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             MakerWorld for the official case, the remix's folder otherwise. The
             electronics routes (breadboard, older boards) live in the assembly
             map, which replaced the old build matrix here. */}
+        {/* A build of its own has its own guide, on its own repository, and
+            its own files; the PCB, the assembly map and the v3 guides are not
+            for it. Its case folder is first, as a remix's is above. */}
+        {flow ? (
+        <div className="pf-block">
+          <span className="pf-kicker">Start here</span>
+          <a
+            className={styles.guideCard}
+            href={flow.guide.href}
+            target="_blank"
+            rel="noreferrer"
+            onClick={() => captureEvent('build_case_link_opened', {
+              case_id: selectedCase.id,
+              target: 'guide',
+              surface: 'build_panel_start',
+            })}
+          >
+            <strong>{flow.guide.title}</strong>
+            <span>{flow.guide.desc}</span>
+          </a>
+          <div className={styles.quickLinks}>
+            {flow.links.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => captureEvent('build_case_link_opened', {
+                  case_id: selectedCase.id,
+                  target: link.target,
+                  surface: 'build_panel_start',
+                })}
+              >
+                <strong>{link.label}</strong>
+                <span>{link.target} ↗</span>
+              </a>
+            ))}
+          </div>
+        </div>
+        ) : (
         <div className="pf-block">
           <span className="pf-kicker">Start here</span>
           <Link
@@ -419,6 +464,7 @@ export default function BuildPanel({ content, isActive }: BuildPanelProps) {
             </a>
           </div>
         </div>
+        )}
         </div>
       </div>
     </div>

@@ -52,7 +52,9 @@ varying vec3 vObjN;
 varying vec3 vViewN;
 varying vec3 vViewPos;
 
-const vec2 LED_GRID = vec2(128.0, 64.0);
+// The panel's LEDs, along its long side and then across: 128 x 64 on a
+// Patternflow, 128 x 128 on a case with a square panel (caseModels.ts, ledGrid).
+uniform vec2 uGrid;
 // The emitter's radius in its cell.
 const float LED_R = 0.4;
 // The bloom's threshold (HeroScene), by luminance: an LED whose cell is past
@@ -87,7 +89,7 @@ vec3 ledPanel(vec3 col) {
   hue *= min(1.0, LED_HUE_MAX / max(max(hue.r, max(hue.g, hue.b)), 1e-5));
   vec3 led = mix(hue + white, col, hot);
 
-  vec2 g = vec2(vUv.y, 1.0 - vUv.x) * LED_GRID;
+  vec2 g = vec2(vUv.y, 1.0 - vUv.x) * uGrid;
   vec2 gw = fwidth(g);
   // LEDs per screen pixel, along the worse of the two directions.
   float fw = max(gw.x, gw.y);
@@ -103,6 +105,9 @@ vec3 ledPanel(vec3 col) {
   return body + led * shape;
 }
 `;
+
+/** The LED grid every pattern is drawn on unless a case's panel says otherwise. */
+export const LED_GRID: [number, number] = [128, 64];
 
 // Pattern type definition
 export interface PatternDef {

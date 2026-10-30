@@ -39,16 +39,45 @@ export interface Pose {
   lit: boolean;
 }
 
-const ALL: Record<PartRole, boolean> = { shell: true, knob: true, led: true, pcb: true, devkit: true };
-const CASE_ONLY: Record<PartRole, boolean> = { shell: true, knob: true, led: false, pcb: false, devkit: false };
-const BOARD_ONLY: Record<PartRole, boolean> = { shell: false, knob: false, led: false, pcb: true, devkit: true };
+const ALL: Record<PartRole, boolean> = { shell: true, knob: true, led: true, pcb: true, devkit: true, gear: true, cover: true };
+const CASE_ONLY: Record<PartRole, boolean> = { shell: true, knob: true, led: false, pcb: false, devkit: false, gear: false, cover: true };
+const BOARD_ONLY: Record<PartRole, boolean> = { shell: false, knob: false, led: false, pcb: true, devkit: true, gear: false, cover: false };
+// A boardless build's sheets, to cut and to glue: every sheet, nothing bought.
+const SHEETS: Record<PartRole, boolean> = { shell: true, knob: false, led: false, pcb: false, devkit: false, gear: false, cover: true };
+// ... and wired: everything but the back cover, which is off.
+const OPEN_BACK: Record<PartRole, boolean> = { shell: true, knob: true, led: true, pcb: false, devkit: false, gear: true, cover: false };
+
+/** Wiring's turn: the back of the device to the reader, at an angle. */
+const BACK_TURN = Math.PI - 0.55;
 
 /**
  * The pose for a Build step (0 is none: idle), the Assemble slider's spread
  * and the clock. `still` is a reader who has asked for less motion: idle
  * stands at the middle of its sway, facing them, and stays there.
+ * `boardless` is a build with no Patternflow board (CaseModel.boardless),
+ * whose steps are its own (BuildCase.flow): 01 every sheet cut, as far apart
+ * as the reader has dragged the slider, both layers of each laminate; 02 the
+ * same sheets closing up as they are glued, half as far; 03 wired, turned to
+ * show its back with the cover off; 04 lit.
  */
-export function poseFor(step: number, explode: number, t: number, still = false): Pose {
+export function poseFor(step: number, explode: number, t: number, still = false, boardless = false): Pose {
+  if (boardless && step >= 1 && step <= 3) {
+    if (step === 3) {
+      return { turn: BACK_TURN, scale: REST_SCALE, lift: 0, spread: 0, show: OPEN_BACK, loose: false, board: false, lit: false };
+    }
+    const spread = step === 1 ? explode : explode * 0.45;
+    return {
+      turn: -0.6,
+      // The view pulls back as the sheets separate, as on Assemble.
+      scale: THREE.MathUtils.lerp(0.1, 0.06, spread),
+      lift: 0,
+      spread,
+      show: SHEETS,
+      loose: true,
+      board: false,
+      lit: false,
+    };
+  }
   switch (step) {
     // 1. Print / cut the case: its parts and the knobs, drawn a little apart
     // so it reads as parts to make, nothing inside yet.

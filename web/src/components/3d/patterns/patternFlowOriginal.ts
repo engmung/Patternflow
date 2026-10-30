@@ -20,11 +20,11 @@ vec3 hsv2rgb(vec3 c) {
 
 void main() {
   vec2 rotatedUV = vec2(vUv.y, 1.0 - vUv.x);
-  vec2 gridUV = rotatedUV * vec2(128.0, 64.0);
+  vec2 gridUV = rotatedUV * uGrid;
   vec2 px = floor(gridUV);
   
   float x = px.x;
-  float y = 63.0 - px.y;
+  float y = uGrid.y - 1.0 - px.y;
   
   int mode = int(clamp(uParam3, 0.0, 4.0));
   float rows, cols, gap, tileSize, gridStep, gridCells;
@@ -43,8 +43,8 @@ void main() {
   
   float totalW = cols * tileSize + (cols + 1.0) * gap;
   float totalH = rows * tileSize + (rows + 1.0) * gap;
-  float offsetX = floor((128.0 - totalW) / 2.0);
-  float offsetY = floor((64.0 - totalH) / 2.0);
+  float offsetX = floor((uGrid.x - totalW) / 2.0);
+  float offsetY = floor((uGrid.y - totalH) / 2.0);
   
   x -= offsetX;
   y -= offsetY;
