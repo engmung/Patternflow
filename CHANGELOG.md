@@ -6,6 +6,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **Build map:** the Anbu and Ajman MQTT pins link to engmung/patternflow-exhibition-2026, the exhibition setup and the flowlocal source, now public.
 - **Journal text on a phone starts 24px from the screen's edge, not 48px.** The cream gutter and the white panel's padding added up, so 15px text got 17.6 characters a line at 360px. The panel now reaches the screen's edges, and the masthead, the text and both footers start on one 24px line. Pages from 721px up are unchanged.
 - **The journal archive's dates and reading times are 13px on a phone, not 10.5px.** They were the smallest text on /journal below 721px, under the 13px the journal's other dates and labels keep. No row's date wraps or meets its post number at 360px, and pages from 721px up are unchanged.
 - **Korean journal posts break lines between words on a phone.** Below 721px, 59% of the line breaks in the 37 Korean posts fell inside a word. They now break at spaces, a word longer than the line still wraps instead of overflowing, and English posts and pages from 721px up are unchanged.
