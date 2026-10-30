@@ -77,6 +77,7 @@ export const LOOKS = {
   wire_earth: { color: hex('#5aa02c'), roughness: 0.5 },
   wire_yellow: { color: hex('#e8c21c'), roughness: 0.5 },
   ribbon_grey: { color: hex('#9a9c9e'), roughness: 0.7 },
+  ribbon_red: { color: hex('#c0261d'), roughness: 0.6 },
   cable_blue: { color: hex('#3a6fc4'), roughness: 0.5 },
 };
 

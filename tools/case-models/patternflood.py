@@ -188,6 +188,9 @@ ENCODER_BOARD = 25.4        # the 4991, square
 # the shelf; their x is not in the cut files, so they are placed by eye:
 # one between the knob columns, one beside them.
 RIB_X = (-95.0, -50.0)
+# Each panel's power socket: beside its input header, this far toward the
+# panel's outer edge (in the gap between the braces).
+POWER_SOCKET_OUT = 14.0
 # Each knob's light: its 4991's NeoPixel behind a paper diffuser in the inner
 # sheet's pocket, showing through the twelve slits round the knob (13.1 to
 # 16.4 mm from its axis). The paper is a ring, one material per knob, k0 to k3,
@@ -295,27 +298,64 @@ def wire(points, radius: float, sag: float = 0.04) -> trimesh.Trimesh:
 RIBBON_WAYS, RIBBON_PITCH = 16, 1.27     # a HUB75 cable: 16 conductors at 0.05"
 
 
-def ribbon_normals(path: np.ndarray, start_width, width, twist_over: float = 0.35) -> np.ndarray:
-    """A ribbon's width along a path: start_width where it leaves its plug, turning
-    smoothly to width over the first twist_over of its length."""
+def ribbon_normals(path: np.ndarray, start_width, width, end_width, twist_over: float = 0.3) -> np.ndarray:
+    """A ribbon's width along a path: start_width in its first plug, turning to width
+    over the first twist_over of its length, and to end_width, its last plug's, over
+    the last."""
     t, _, _ = frames(path)
     seg = np.r_[0, np.cumsum(np.linalg.norm(np.diff(path, axis=0), axis=1))]
-    f = np.clip(seg / (seg[-1] * twist_over), 0, 1)
-    f = f * f * (3 - 2 * f)
-    a, b = np.asarray(start_width, float), np.asarray(width, float)
+    s_ = seg / seg[-1]
+    ease = lambda f: f * f * (3 - 2 * f)
+    a, b, c = (np.asarray(v, float) for v in (start_width, width, end_width))
     if a @ b < 0:
-        b = -b                                      # the short way round
-    n = (1 - f)[:, None] * a + f[:, None] * b
+        a = -a                                      # the short way round
+    if c @ b < 0:
+        c = -c
+    f0 = ease(np.clip(s_ / twist_over, 0, 1))
+    f1 = ease(np.clip((s_ - (1 - twist_over)) / twist_over, 0, 1))
+    n = ((1 - f0) * (1 - f1))[:, None] * a + (f0 * (1 - f1))[:, None] * b + f1[:, None] * c
     n -= t * np.sum(n * t, axis=1, keepdims=True)
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
 
 
-def ribbon(points, start_width, width, sag: float = 0.0, floor: float = -math.inf):
+# Every ribbon's path and frames, for clearance_to_ribbons.
+RIBBONS: list = []
+
+
+def clearance_to_ribbons(pieces, skip=("ribbon_grey", "ribbon_red")) -> list[str]:
+    """The pieces that cut into a ribbon: any vertex of theirs inside one's slab."""
+    from scipy.spatial import cKDTree
+    hits = []
+    for path, nrm, bin_, tan in RIBBONS:
+        tree = cKDTree(path)
+        for k, (mesh, mat) in enumerate(pieces):
+            if mat in skip:
+                continue
+            v = mesh.vertices
+            _, idx = tree.query(v)
+            rel = v - path[idx]
+            u = np.abs(np.sum(rel * nrm[idx], 1))
+            w_ = np.abs(np.sum(rel * bin_[idx], 1))
+            a_ = np.abs(np.sum(rel * tan[idx], 1))
+            if np.any((u < RIBBON_WAYS * RIBBON_PITCH / 2) & (w_ < 0.52) & (a_ < 0.6)):
+                hits.append(f"{mat}#{k}")
+    return hits
+
+
+def ribbon(points, start_width, width, end_width, sag: float = 0.0, floor: float = -math.inf):
     """A 16-way ribbon cable through points: its width along start_width at its first
     plug, turning to width; a ridge over each conductor on both faces, and the
     red stripe down pin 1's edge. Returns (mesh, material) pairs."""
     path = spline(points, sag, step=6.0, floor=floor)
-    nrm = ribbon_normals(path, start_width, width)
+    nrm = ribbon_normals(path, start_width, width, end_width)
+    # finely, for the clearance check
+    fine = np.linspace(0, len(path) - 1, max(2, int(np.sum(np.linalg.norm(np.diff(path, axis=0), axis=1)) / 0.5)))
+    fp = np.array([np.interp(fine, np.arange(len(path)), path[:, k]) for k in range(3)]).T
+    fn = np.array([np.interp(fine, np.arange(len(path)), nrm[:, k]) for k in range(3)]).T
+    ft, _, _ = frames(fp)
+    fn -= ft * np.sum(fn * ft, 1, keepdims=True)
+    fn /= np.linalg.norm(fn, axis=1, keepdims=True)
+    RIBBONS.append((fp, fn, np.cross(ft, fn), ft))
     half = RIBBON_WAYS * RIBBON_PITCH / 2
     centres = -half + RIBBON_PITCH / 2 + RIBBON_PITCH * np.arange(RIBBON_WAYS)
     top = [(-half, 0.3)]
@@ -325,7 +365,7 @@ def ribbon(points, start_width, width, sag: float = 0.0, floor: float = -math.in
     out = [(sweep(path, profile, normals=nrm), "ribbon_grey")]
     # Pin 1's conductor, red: along the same frames, at the first ridge.
     ang = np.linspace(0, 2 * math.pi, 7)[:-1]
-    out.append((sweep(path + nrm * centres[0], np.stack([np.cos(ang), np.sin(ang)], 1) * 0.55), "wire_red"))
+    out.append((sweep(path + nrm * centres[0], np.stack([np.cos(ang), np.sin(ang)], 1) * 0.55), "ribbon_red"))
     return out
 
 
@@ -985,6 +1025,7 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         return box(min(ux0, ux1), max(ux0, ux1), min(vy0, vy1), max(vy0, vy1), z0, z1)
 
     gear: dict[str, tuple[list, bool]] = {}
+    RIBBONS.clear()
 
     # The Colorlight 5A-75B, component side to the back.
     cl = [(board_box(ca, cb, 0, 0, CL_W, CL_H, face_z, board_back), "pcb_green")]
@@ -1157,28 +1198,44 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         w.append((wire([t, t + (10, 2, -6), (t[0] + 8, sc[1] - 26, (t[2] + sc[2]) / 2), sc + (0, -10, 0), sc], 1.3, sag=0.03),
                   "wire_red" if pole == "+" else "wire_black"))
     # The panels' plugs, and the card's 4-pin power input.
-    plugs = {(sx_, sy_): np.array((cx + sx_ * 64 + 22, cy + sy_ * 64, zf - PANEL_DEPTH - 3)) for sy_ in (-1, 1) for sx_ in (-1, 1)}
+    # Each panel's power socket is beside its input header, toward the panel's
+    # outer edge, in the gap between braces, clear of where its ribbon runs.
+    plugs = {(sx_, sy_): np.array((cx + sx_ * 64 + 22, cy + sy_ * (64 + POWER_SOCKET_OUT), zf - PANEL_DEPTH - 3))
+             for sy_ in (-1, 1) for sx_ in (-1, 1)}
+    # The 5 V pairs run in a layer of their own behind the ribbons, just in
+    # front of the back doubler.
+    dc_z = rail_a_back + S + 1.5
     card_x, card_y = on_tray(ca, cb, 87.5, 120.5)
     card_in = np.array((card_x, card_y, face_z - 7))
     harnesses = [((-1, -1), (-1, 1)), ((1, -1), (1, 1)), ("card", "spare")]
     for h, (first, second) in enumerate(harnesses):
         fork = (screws["+"][h] + screws["-"][h]) / 2
-        split = np.array((fork[0] + (-40 if h == 0 else 20 if h == 1 else 5), strip_y + 40 + 12 * h, back + 3))
-        pair([fork, fork + (0, 6, -8), split], 0.9, ties_every=40)
+        # straight back off the bus, below the panels, then out along the layer
+        split = np.array((fork[0] + (-40 if h == 0 else 20 if h == 1 else 5), strip_y + 4 + 5 * h, dc_z))
+        pair([fork, fork + (0, 3, -8), split], 0.7, ties_every=40)
         for end in (first, second):
             if end == "spare":
-                tip = split + (14, 12, 1)           # live: capped, and tied back out of the way
-                pair([split, split + (8, 4, 0), tip], 0.9)
+                tip = split + (14, -8, 1)          # live: capped, and tied back out of the way
+                pair([split, split + (8, -3, 0), tip], 0.7)
                 w.append((box(tip[0] - 3, tip[0] + 3, tip[1] - 4, tip[1] + 4, tip[2] - 3, tip[2] + 3), "pla_black"))
                 continue
-            dest = card_in if end == "card" else plugs[end]
-            mid = np.array(((split[0] + dest[0]) / 2, (split[1] + dest[1]) / 2, back + 3))
-            pair([split, mid, (dest[0], dest[1] + (8 if dest[1] < split[1] else -8), (back + dest[2]) / 2), dest], 0.9, ties_every=60)
+            if end == "card":
+                # up beside its ribbon, then in under it to the card's header
+                beside = np.array((card_in[0], card_in[1] - 26, dc_z))
+                pair([split, (split + beside) / 2, beside, (beside[0], beside[1] + 2, card_in[2]), card_in], 0.7)
+                continue
+            dest = plugs[end]
+            out = 1 if end[1] > 0 else -1
+            over = np.array((dest[0], dest[1] + out * 8, dc_z))
+            mid = np.array(((split[0] + over[0]) / 2, (split[1] + over[1]) / 2, dc_z))
+            pair([split, mid, over, (dest[0], dest[1] + out * 3, (dc_z + dest[2]) / 2), dest], 0.7, ties_every=60)
     # The Pi's power: a 5 V to USB-C pigtail from the card's screw terminal.
     term_x, term_y = on_tray(ca, cb, 76.25, 137.0)
     usb_x, usb_y = on_tray(pa, pb, 11.0, -1.0)
-    w.append((wire([(term_x, term_y, face_z - 10), (term_x - 6, term_y + 14, back + 4), ((term_x + usb_x) / 2, ty0 + th + 8, back + 3),
-                    (usb_x + 4, usb_y + 10, back + 4), (usb_x, usb_y + 2, face_z - 2)], 1.6, sag=0.06), "wire_black"))
+    # It crosses the gap between the two boards, in front of the ribbons.
+    w.append((wire([(term_x, term_y, face_z - 10), (term_x - 8, term_y + 8, face_z - 5),
+                    ((term_x + usb_x) / 2, (term_y + usb_y) / 2, face_z - 5), (usb_x + 10, usb_y, face_z - 4),
+                    (usb_x + 2, usb_y, face_z - 2)], 1.6, sag=0.04), "wire_black"))
 
     # The panels' own connectors on their backs: HUB75 in and out, and power.
     conn = []
@@ -1188,7 +1245,8 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
             back_z = zf - PANEL_DEPTH
             for hx in (-20, 20):                    # in, out
                 conn.append((box(pxc + hx - 4.5, pxc + hx + 4.5, pyc - 16.5, pyc + 16.5, back_z - 8.5, back_z), "pla_black"))
-            conn.append((box(pxc + 22 - 6, pxc + 22 + 6, pyc - 4, pyc + 4, back_z - 6, back_z), "plastic_white"))
+            pyp = pyc + sy_ * POWER_SOCKET_OUT
+            conn.append((box(pxc + 22 - 6, pxc + 22 + 6, pyp - 4, pyp + 4, back_z - 6, back_z), "plastic_white"))
     gear["panel_connectors"] = (conn, False)
 
     # The HUB75 ribbons: as built, each panel is cabled to the header at the
@@ -1216,7 +1274,7 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         plugs_idc.append(plug)
         start = top + (0, 0, -3.0)
         pin = ins[panel]
-        z_k = start[2] - 0.6                       # just behind the plugs' tops
+        z_k = start[2] + 0.5                       # level with the plugs' tops, the 5 V layer behind
         end = pin + (0, 0, -3.5)
         # As a ribbon is run: up out of its plug, one easy bend to lie flat,
         # straight across on the diagonal, one easy bend down onto the panel.
@@ -1234,19 +1292,20 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         route = [start, (start[0] + out_dir[0] * 3, start[1] + out_dir[1] * 3, (start[2] + z_k) / 2), a,
                  (a + c) / 2, c, (pin[0] - d[0] * 4, pin[1] - d[1] * 4, (z_k + end[2]) / 2), end]
         # Its middle no deeper than half its thickness off the back doubler.
-        w.extend(ribbon(route, axis, across, floor=rail_a_back + S + 0.55))
-        # its plug on the panel's input, which stands 8.5 off the panel's back,
-        # turned to take the ribbon square
-        p2 = trimesh.creation.box(extents=(PLUG[0], PLUG[1], 6.0))
-        p2.apply_transform(trimesh.transformations.rotation_matrix(math.atan2(across[1], across[0]), (0, 0, 1)))
+        # It lands square on its panel's input header, which runs up and down.
+        w.extend(ribbon(route, axis, across, (0.0, 1.0, 0.0), floor=z_k - 0.3))   # no sagging out of its layer
+        # its plug on that header, which stands 8.5 off the panel's back
+        p2 = trimesh.creation.box(extents=(PLUG[1], PLUG[0], 6.0))
         p2.apply_translation(pin + (0, 0, -0.5))
         plugs_idc.append(p2)
     add(plugs_idc, "pla_black")
-    # Ethernet: the Pi's jack, a loose loop down past the tray's edge and up to the card's.
+    # Ethernet: the Pi's jack, a loose loop down past the tray's edge and up
+    # to the card's, in front of the ribbons, between them and the boards.
     jx, jy = on_tray(pa, pb, 76.0, 45.0)
     rx_, ry_ = on_tray(ca, cb, 46.5, 147.0)
-    w.append((wire([(jx, jy - 2, face_z - 8), (jx + 4, ty0 - 8, face_z - 12), (jx + 30, ty0 - 24, back + 2),
-                    (rx_ - 28, ty0 - 14, back + 2), (rx_ - 22, ry_ - 10, back + 4), (rx_ - 4, ry_, face_z - 7)], 2.4, sag=0.08), "cable_blue"))
+    eth_z = face_z - 7.5
+    w.append((wire([(jx, jy - 2, eth_z), (jx + 4, ty0 - 10, eth_z), (jx + 36, ty0 - 34, eth_z),
+                    (rx_ - 22, ty0 - 16, eth_z), (rx_ - 20, ry_ - 12, eth_z), (rx_ - 4, ry_, eth_z)], 2.4, sag=0.05), "cable_blue"))
     # The knobs' I2C chain: STEMMA QT, four thin wires laced, from the Pi's
     # header down behind the tray, through the shelf's hole over the knobs,
     # then from encoder to encoder in loose loops.
@@ -1280,7 +1339,14 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
     for mesh, mat in zip(wires, ("wire_black", "wire_yellow", "wire_black", "wire_yellow")):
         w.append((mesh, mat))
     add(ties, "pla_black")
+    # A cable tie where a bundle passes under a ribbon would cut it: leave it off.
+    ties = [(m, mat) for m, mat in w if mat == "pla_black" and len(m.vertices) == 16 * 6]
+    cutting = set(clearance_to_ribbons(ties))
+    w = [(m, mat) for m, mat in w if not (mat == "pla_black" and len(m.vertices) == 16 * 6
+                                          and f"pla_black#{next(i for i, t in enumerate(ties) if t[0] is m)}" in cutting)]
     gear["wiring"] = (w, True)
+    hits = clearance_to_ribbons(w)
+    lines.append("ribbons       clear of every other wire" if not hits else f"ribbons       CUT INTO by {', '.join(hits)}")
 
     return parts, gear, {"inside": lines}
 
