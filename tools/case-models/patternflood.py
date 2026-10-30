@@ -1191,18 +1191,21 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
             conn.append((box(pxc + 22 - 6, pxc + 22 + 6, pyc - 4, pyc + 4, back_z - 6, back_z), "plastic_white"))
     gear["panel_connectors"] = (conn, False)
 
-    # The HUB75 ribbons, on the ports BUILD.md §4 and the card's gateware use:
-    # upper left J5, upper right J8, lower left J4, lower right J1 (J2, J3, J6
-    # and J7 are free). On the card as it sits, J1 to J4 run along its upper
-    # edge and J5 to J8 its lower, so every ribbon crosses it; each takes its
-    # own layer between the headers and the back doubler, leaves its header
-    # lying along it, in an IDC plug, and ends in one on its panel's input.
+    # The HUB75 ribbons: as built, each panel is cabled to the header at the
+    # card's corner nearest it, the four corners of its 2 x 4 block of
+    # headers, so the four are short and none crosses another. Each leaves
+    # its header lying along it, in an IDC plug, and ends in one on its
+    # panel's input.
     plugs_idc = []
     PLUG = (36.0, 10.5)                            # an IDC plug's length and width
     ins = {(sx_, sy_): np.array((cx + sx_ * 64 - 20, cy + sy_ * 64, zf - PANEL_DEPTH - 8.5)) for sy_ in (-1, 1) for sx_ in (-1, 1)}
-    # Deepest last: the J5 ribbon crosses over the card's Ethernet jack.
-    ports = [((1, -1), 0), ((1, 1), 7), ((-1, -1), 3), ((-1, 1), 4)]   # J1, J8, J4, J5
-    for layer, (panel, hub) in enumerate(ports):
+    corners = [0, 3, 4, 7]                          # the ends of the two rows of headers
+    ports, free = [], list(corners)
+    for panel in ((-1, 1), (1, 1), (-1, -1), (1, -1)):
+        near = min(free, key=lambda h: np.linalg.norm(np.array(hub_tops[h][:2]) - ins[panel][:2]))
+        free.remove(near)
+        ports.append((panel, near))
+    for panel, hub in ports:
         top = np.array(hub_tops[hub])
         hx, hy, ang = CL_HUBS[hub]
         a = math.radians(ang)
@@ -1213,8 +1216,7 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         plugs_idc.append(plug)
         start = top + (0, 0, -3.0)
         pin = ins[panel]
-        # Four layers, a ribbon's thickness apart, between the plugs and the back doubler.
-        z_k = start[2] - 0.2 - 1.05 * layer
+        z_k = start[2] - 0.6                       # just behind the plugs' tops
         end = pin + (0, 0, -3.5)
         # As a ribbon is run: up out of its plug, one easy bend to lie flat,
         # straight across on the diagonal, one easy bend down onto the panel.
