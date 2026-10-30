@@ -318,6 +318,27 @@ def ribbon_normals(path: np.ndarray, start_width, width, end_width, twist_over: 
     return n / np.maximum(np.linalg.norm(n, axis=1, keepdims=True), 1e-9)
 
 
+def clearance_to_sheets(pieces, sheets: dict) -> list[str]:
+    """The pieces that cut into a sheet of the box: any vertex inside a sheet, holes and all."""
+    hits = []
+    for name, sheet_pieces in sheets.items():
+        for mesh, _ in sheet_pieces:
+            origin, eu, ev = mesh.metadata["frame"]
+            ew, poly = mesh.metadata["ew"], mesh.metadata["poly"]
+            lo, hi = mesh.bounds
+            for k, (piece, mat) in enumerate(pieces):
+                v = piece.vertices
+                near = np.all((v > lo - 0.01) & (v < hi + 0.01), axis=1)
+                if not near.any():
+                    continue
+                rel = v[near] - origin
+                w_ = rel @ ew
+                inside = (w_ > 0.05) & (w_ < SHEET - 0.05)
+                if inside.any() and shapely.contains_xy(poly, (rel @ eu)[inside], (rel @ ev)[inside]).any():
+                    hits.append(f"{mat}#{k} in {name}")
+    return hits
+
+
 # Every ribbon's path and frames, for clearance_to_ribbons.
 RIBBONS: list = []
 
@@ -514,6 +535,8 @@ def part(poly: Polygon, origin, eu, ev, ew) -> tuple[trimesh.Trimesh, np.ndarray
     # Where its drawing lies, for the etched art's UVs.
     mesh.metadata["frame"] = tuple(np.asarray(v, dtype=float) for v in (origin, eu, ev))
     mesh.metadata["size"] = size(poly)
+    mesh.metadata["poly"] = poly
+    mesh.metadata["ew"] = np.asarray(ew, dtype=float)
     return mesh, np.asarray(ew, dtype=float)
 
 
@@ -1215,7 +1238,7 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
         pair([fork, fork + (0, 3, -8), split], 0.7, ties_every=40)
         for end in (first, second):
             if end == "spare":
-                tip = split + (14, -8, 1)          # live: capped, and tied back out of the way
+                tip = split + (14, -8, 5)          # live: capped, and tied back out of the way
                 pair([split, split + (8, -3, 0), tip], 0.7)
                 w.append((box(tip[0] - 3, tip[0] + 3, tip[1] - 4, tip[1] + 4, tip[2] - 3, tip[2] + 3), "pla_black"))
                 continue
@@ -1312,41 +1335,61 @@ def build_inside(dxf: Path, frames: dict, walls: dict, b: dict):
     qt = ("wire_black", "wire_red", "wire_blue", "wire_yellow")
     gx, gy = on_tray(pa, pb, 30.0, 52.5)
     knob_at = {k: np.array(v[:2]) for k, v in b["knobs"].items()}
-    chain_z = zf - S - ENCODER[1] - PCB - 2.5
+    # Each 4991 has a STEMMA QT socket either side; the chain goes in one and
+    # out the other, round the square as a big C: top left to top right,
+    # down the outside to bottom right, back along to bottom left. The hops
+    # across pass through the cable holes in the rib between the columns.
+    plug_z = zf - S - ENCODER[1] - PCB - 2.0
     hole_x = knob_at["c2"][0]
     hole = np.array((hole_x, (shelf[0][1] + shelf[1][1]) / 2, shelf[0][2] + 31.4))
-    conn = {k: np.array((v[0] + 9.5, v[1], chain_z)) for k, v in knob_at.items()}
+    left = {k: np.array((v[0] - 9.5, v[1], plug_z)) for k, v in knob_at.items()}
+    right = {k: np.array((v[0] + 9.5, v[1], plug_z)) for k, v in knob_at.items()}
+    rib_z = (dz1 - size(rib)[0]) + 29.1           # the rib's cable holes' middle, in depth
     runs = [[(gx, gy, face_z - 9), (gx + 6, ty0 - 12, back + 2), (hole_x + 6, hole[1] + 40, behind_shelf + 6), hole + (0, 6, 0), hole,
-             hole + (0, -10, 2), conn["c2"]]]
-    for a, c in (("c2", "c1"), ("c1", "c3"), ("c3", "c4")):  # k0, k1, k3, k2: round the square
-        pa_, pc_ = conn[a] - (19, 0, 0), conn[c] - (19, 0, 0)
-        mid = (pa_ + pc_) / 2 + (0, 0, -9)
-        runs.append([conn[a] if a == "c2" else pa_ + (19, 0, 0), mid, pc_])
+             hole + (-6, -10, 0), left["c2"]]]
+    for a, c, mid in (
+        (right["c2"], left["c1"], None),            # k0 to k1, through the rib
+        (right["c1"], right["c3"], (10.0, 0.0)),     # k1 down the outside to k3
+        (left["c3"], right["c4"], None),            # k3 to k2, through the rib
+    ):
+        if mid is None:
+            m = np.array(((a[0] + c[0]) / 2, (a[1] + c[1]) / 2, rib_z))
+        else:
+            m = np.array((max(a[0], c[0]) + mid[0], (a[1] + c[1]) / 2, plug_z - 4))
+        runs.append([a, (a + m) / 2 + (0, 0, -1), m, (c + m) / 2 + (0, 0, -1), c])
     for run in runs:
         wires, _ = bundle(run, 0.45, 4, twist=0.04, sag=0.06)
         for mesh, mat in zip(wires, qt):
             w.append((mesh, mat))
     # The buttons' leads: a pair from each, gathered along the top wall and
     # laced down to the Pi's header.
-    gather = np.array((-60.0, y1 - 2 * S - 22, back + 2))
+    # In front of the upper rails (the back cover's nuts), below the top
+    # wall, then down the left side to the header, clear of the ribbons.
+    rail_front = rails[1][1][2]
+    lead_z = rail_front + 8
+    gather = np.array((-60.0, rails[1][0][1] - 14, lead_z))
     for (bx, by, bz) in b["buttons"].values():
-        wires, _ = bundle([(bx, by - 2 * S - 3, bz), (bx, by - 2 * S - 12, bz - 6), ((bx + gather[0]) / 2, gather[1] + 4, back + 3), gather],
+        wires, _ = bundle([(bx, by - 2 * S - 3, bz), (bx, by - 2 * S - 12, (bz + lead_z) / 2), ((bx + gather[0]) / 2, gather[1] + 6, lead_z), gather],
                           0.5, 2, twist=0.08, sag=0.05)
         for mesh, mat in zip(wires, ("wire_black", "wire_yellow")):
             w.append((mesh, mat))
-    wires, ties = bundle([gather, (gather[0] - 30, gather[1] - 30, back + 2), (gx + 8, gy + 30, back + 1), (gx + 6, gy + 4, face_z - 9)],
+    wires, ties = bundle([gather, (-118.0, gather[1] - 8, lead_z), (-128.0, ty0 + th + 8, lead_z - 2), (gx + 6, gy + 4, face_z - 9)],
                          0.5, 4, twist=0.05, sag=0.04, ties_every=40)
     for mesh, mat in zip(wires, ("wire_black", "wire_yellow", "wire_black", "wire_yellow")):
         w.append((mesh, mat))
     add(ties, "pla_black")
-    # A cable tie where a bundle passes under a ribbon would cut it: leave it off.
+    # A cable tie where a bundle passes under a ribbon, or close along a sheet,
+    # would cut into it: leave that one off.
     ties = [(m, mat) for m, mat in w if mat == "pla_black" and len(m.vertices) == 16 * 6]
-    cutting = set(clearance_to_ribbons(ties))
-    w = [(m, mat) for m, mat in w if not (mat == "pla_black" and len(m.vertices) == 16 * 6
-                                          and f"pla_black#{next(i for i, t in enumerate(ties) if t[0] is m)}" in cutting)]
+    cutting = {h.split(" ")[0] for h in clearance_to_ribbons(ties) + clearance_to_sheets(ties, parts)}
+    drop = {id(ties[int(h.split("#")[1])][0]) for h in cutting}
+    w = [(m, mat) for m, mat in w if id(m) not in drop]
     gear["wiring"] = (w, True)
     hits = clearance_to_ribbons(w)
     lines.append("ribbons       clear of every other wire" if not hits else f"ribbons       CUT INTO by {', '.join(hits)}")
+    sheets = {name: pieces for name, pieces in parts.items()}
+    cuts = clearance_to_sheets(w, sheets)
+    lines.append("wiring        clear of every sheet inside" if not cuts else f"wiring        CUTS {'; '.join(cuts)}")
 
     return parts, gear, {"inside": lines}
 
