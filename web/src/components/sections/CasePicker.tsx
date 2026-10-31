@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
@@ -57,16 +57,6 @@ export default function CasePicker({
     if (next !== index) onSelect(cases[next].id, 'key');
     tabRefs.current[next]?.focus();
   };
-
-  // Where the row of tabs scrolls (a phone, five cases), the picked one is in
-  // view: a ?case= link to the last one opens with it showing. Only the row
-  // scrolls, never the page.
-  useEffect(() => {
-    const tab = tabRefs.current[index];
-    const row = tab?.parentElement;
-    if (!tab || !row || row.scrollWidth <= row.clientWidth) return;
-    row.scrollLeft = tab.offsetLeft - (row.clientWidth - tab.offsetWidth) / 2;
-  }, [index]);
 
   const photos = selected.photos.slice(0, STRIP);
   const footnote = selected.readme ? selected.modelNote : selected.guide;
