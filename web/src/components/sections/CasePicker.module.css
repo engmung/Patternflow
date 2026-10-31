@@ -22,24 +22,22 @@
   margin: 0;
 }
 
-/* ── The switch ── four cells over the card (two rows of two on a phone),
-   the selected one in ink, so the tab and the card it opened read as one
-   piece. */
+/* ── The switch ── one cell per case over the card, the selected one in
+   ink, so the tab and the card it opened read as one piece. */
 .tabs {
-  display: grid;
-  /* One equal column per case, however many there are; on a phone, where
-     five do not fit, each keeps room for its two lines and the row scrolls
-     sideways (CasePicker keeps the picked one in view). */
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(96px, 1fr);
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* One row while every case fits at 96px; a narrower panel wraps onto a
+     second row (three and two for five cases) rather than scrolling, so no
+     tab is ever out of sight. */
+  display: flex;
+  flex-wrap: wrap;
+  overflow: hidden;
   border: 1px solid var(--pf-rule);
 }
 
 .tab {
   appearance: none;
   display: grid;
+  flex: 1 1 96px;
   gap: 4px;
   /* Start, not centre: on a phone "Printed remix" wraps and "Printed" does
      not, and centred names would then sit at different heights. */
@@ -47,17 +45,18 @@
   min-height: 60px;
   padding: 10px 14px;
   border: 0;
+  /* Every cell draws its right and bottom rules and reaches 1px past the
+     row's edge, where the frame's own border clips the ones at the end of a
+     row and on the last row, wrapped or not. */
   border-right: 1px solid var(--pf-rule);
+  border-bottom: 1px solid var(--pf-rule);
+  margin: 0 -1px -1px 0;
   background: transparent;
   color: var(--pf-ink-muted);
   font: inherit;
   text-align: left;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
-}
-
-.tab:last-child {
-  border-right: 0;
 }
 
 .tab:hover {
@@ -396,21 +395,8 @@
 
 /* A phone: the label goes over its value, and the padding comes in. */
 @container (max-width: 420px) {
-  /* Four across, a name like "SimonePDA" no longer fits its cell. */
-  .tabs {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .tab {
     padding: 10px 10px;
-  }
-
-  .tab:nth-child(2n) {
-    border-right: 0;
-  }
-
-  .tab:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--pf-rule);
   }
 
   .photoMeta {
