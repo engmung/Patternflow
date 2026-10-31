@@ -18,8 +18,12 @@ import {
 // touches it: the preview works on a deep clone, with its own materials.
 // Geometry stays shared; nothing here changes a vertex.
 
-/** What a top-level node of a case model is, by its name (caseModels.ts). */
-export type PartRole = 'shell' | 'knob' | 'led' | 'pcb' | 'devkit';
+/**
+ * What a top-level node of a case model is, by its name (caseModels.ts):
+ * 'gear' and 'cover' are a case's bought parts and its back cover, where its
+ * model names them (CaseModel.gear, CaseModel.cover).
+ */
+export type PartRole = 'shell' | 'knob' | 'led' | 'pcb' | 'devkit' | 'gear' | 'cover';
 
 export interface CasePart {
   node: THREE.Object3D;
@@ -77,6 +81,8 @@ export interface PreparedCase {
   width: number;
   /** The board with the DevKit on it, assembled, in the model's frame. */
   board: THREE.Box3;
+  /** The knobs' lights' materials, k0 to k3 (CaseModel.knobLights), or none. */
+  knobLights: THREE.MeshStandardMaterial[];
   looks: OwnLook[];
   /** What this copy made for itself, to let go of when it is unmounted. */
   owned: { dispose(): void }[];
@@ -101,7 +107,9 @@ const RING_COLOR = 0xff3333;
  */
 const KNOB_HIT_RADIUS = 1.4;
 
-function roleOf(name: string): PartRole {
+function roleOf(name: string, model: CaseModel): PartRole {
+  if (model.gear?.includes(name)) return 'gear';
+  if (model.cover?.includes(name)) return 'cover';
   if (name === LED_NODE) return 'led';
   if ((KNOB_NODES as readonly string[]).includes(name)) return 'knob';
   if (name === PCB_NODE) return 'pcb';
@@ -184,7 +192,7 @@ export function prepareCase(scene: THREE.Object3D, model: CaseModel): PreparedCa
     const apart = model.explode[node.name];
     return {
       node,
-      role: roleOf(node.name),
+      role: roleOf(node.name, model),
       loose: model.loose?.includes(node.name) ?? false,
       home: node.position.clone(),
       homeScale: node.scale.clone(),
@@ -289,7 +297,12 @@ export function prepareCase(scene: THREE.Object3D, model: CaseModel): PreparedCa
     return [{ node, ring, tints, height: box.max.z }];
   });
 
-  return { model, root, parts, knobs, led, fitPosition, width, board, looks, owned };
+  const byName = new Map(looks.map((l) => [l.material.name, l.material]));
+  const knobLights = (model.knobLights ?? [])
+    .map((name) => byName.get(name))
+    .filter((m): m is THREE.MeshStandardMaterial => Boolean(m));
+
+  return { model, root, parts, knobs, led, fitPosition, width, board, knobLights, looks, owned };
 }
 
 /** The knob a pointer is on, if it is on one: the knob itself, its ring or its hit disc. */

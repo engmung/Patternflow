@@ -1,5 +1,6 @@
-// The four cases the Build panel lets a reader switch between: the official
-// printed case and the three community remixes in hardware/case/remixes/.
+// The five cases the Build panel lets a reader switch between: the official
+// printed case, the three community remixes in hardware/case/remixes/, and
+// Patternflood, a build of its own documented in its own repository.
 //
 // Every claim here is copied from a file in the repo, not written fresh — the
 // official case from hardware/case/README.md and BUILD_GUIDE.md §1, §4 and §6,
@@ -20,7 +21,12 @@ export const blob = (path: string) => `${REPO}/blob/main/${path}`;
 /** A folder on main. */
 export const tree = (path: string) => `${REPO}/tree/main/${path}`;
 
-export type CaseId = 'official' | 'besoiobiy-printed' | 'simonepda-lasercut' | 'mbchars-horizontal-desktop-printed';
+export type CaseId =
+  | 'official'
+  | 'besoiobiy-printed'
+  | 'simonepda-lasercut'
+  | 'mbchars-horizontal-desktop-printed'
+  | 'jof-patternflood';
 
 export interface CasePhoto {
   src: string;
@@ -38,12 +44,44 @@ export interface CaseLink {
   href: string;
 }
 
+/** One of the cost-and-time facts over the case switch. */
+export interface BuildFact {
+  value: string;
+  name: string;
+  detail: string;
+}
+
+/** One of the Build panel's four steps. */
+export interface BuildStep {
+  id: number;
+  title: string;
+  desc: string;
+}
+
+/**
+ * How a build that is not made the Patternflow way goes, for the parts of the
+ * Build panel that otherwise follow the main path (BuildPanel.tsx): its own
+ * facts, its four steps (step 01 is still the case's `step`), and its own
+ * guide and links under Start here. The preview acts its steps out
+ * (buildPose.ts): a boardless build has no soldering, so step 02 is the box
+ * going together.
+ */
+export interface BuildFlow {
+  /** The line under the panel's title, in place of content/build.md's cost and time. */
+  subtitle: string;
+  facts: BuildFact[];
+  steps: BuildStep[];
+  guide: { href: string; title: string; desc: string };
+  links: CaseLink[];
+}
+
 export interface BuildCase {
   id: CaseId;
   /** The two lines on the switch: who, then how. */
   tab: string;
   method: string;
-  kind: 'official' | 'remix';
+  /** 'variant': a build of its own, documented in its own repository, not in hardware/case/remixes/. */
+  kind: 'official' | 'remix' | 'variant';
   name: string;
   summary: string;
   author: { name: string; note?: string; href?: string };
@@ -75,12 +113,16 @@ export interface BuildCase {
   links: CaseLink[];
   /** Step 01 of the four steps, in this case's words. */
   step: { title: string; desc: string };
+  /** A build of its own, not the v3 board's: what replaces the main path's facts, steps and guide. */
+  flow?: BuildFlow;
 }
 
 const OFFICIAL = 'hardware/case';
 const BESOIOBIY = 'hardware/case/remixes/besoiobiy-printed';
 const SIMONE = 'hardware/case/remixes/simonepda-lasercut';
 const MBCHARS = 'hardware/case/remixes/mbchars-horizontal-desktop-printed';
+/** Patternflood's own repository: its build guide, cut files, model and software. */
+const PATTERNFLOOD = 'https://github.com/jof/patternflood';
 
 export const BUILD_CASES: BuildCase[] = [
   {
@@ -355,6 +397,142 @@ export const BUILD_CASES: BuildCase[] = [
     step: {
       title: 'Print the case',
       desc: 'Print the nine plates of the 3MF, about 24 hours, set the brass inserts, and join the three front sections with the joint bars.',
+    },
+  },
+  {
+    id: 'jof-patternflood',
+    tab: 'jof',
+    method: 'Laser-cut variant',
+    kind: 'variant',
+    name: 'Patternflood, jof’s birch box',
+    summary:
+      'A different instrument round the same idea: a 256 mm square of 128 × 128 pixels, four P2 panels in a 2 × 2, in a finger-jointed birch box 293 × 373 × 61 mm, etched front, back and sides with generated circuit-board art. The four knobs sit under the display on the left, each in a ring of light, with four push buttons along the top. A Raspberry Pi 5 renders and a Colorlight card drives the panels; it runs every Patternflow pattern, and the community’s.',
+    author: {
+      name: 'Jonathan Lassoff',
+      note: 'jof',
+      href: 'https://thejof.com/',
+    },
+    material: '3 mm Baltic birch ply, laser cut; the front and every wall two sheets, glued.',
+    fits: 'No Patternflow board: a Raspberry Pi 5 and a Colorlight 5A-75B card, driving four 128 × 128 mm P2 panels (Waveshare RGB-Matrix-P2-64x64-B) as one square.',
+    make: 'Six 12 × 24" sheets of birch on a 600 × 305 mm bed. The etched art is optional: about 4 to 4½ hours of scoring on the front, the walls and the back.',
+    parts: 'Its own parts list, not the BOM: the panels, the Pi, the card, a Mean Well LRS-50-5 and a mains inlet, four Adafruit 4991 encoder boards, four buttons, and M3 screws into nuts captive in the birch.',
+    verified: 'Built twice by its author; these files are Rev 2.7, finished and running on 2026-10-28.',
+    license: 'CC BY-SA 4.0',
+    caution:
+      'The braces are cut for the Waveshare P2-64x64-B’s screw posts and locating pins, and the window for four of them butted together. Other P2 panels put those elsewhere: measure yours first. The box also has mains wiring inside it.',
+    cautionHref: `${PATTERNFLOOD}/blob/main/docs/desktop/enclosure-lasercut.md#11-panel-mounting-there-is-no-standard`,
+    guide:
+      'It is not a case for the v3 board, so none of the build guide applies: Patternflood has its own, BUILD.md, from flashing the card to first power-up.',
+    readme: `${PATTERNFLOOD}/blob/main/README.md`,
+    modelNote:
+      'The 3D view is built from its cut files, every sheet where it goes and etched as cut; the bought parts are drawn plainly, and the wiring is schematic.',
+    photos: [
+      {
+        src: '/cases/jof-patternflood/front.jpg',
+        alt: 'Patternflood upright on the floor: the dark 2 × 2 LED panel in the etched birch front, four black knobs below it on the left',
+        width: 960,
+        height: 1280,
+      },
+      {
+        src: '/cases/jof-patternflood/inside.jpg',
+        alt: 'The box from behind with its back off: the Colorlight card and the Pi 5 on a birch tray across the middle, the HUB75 ribbons above, the supply and the encoders at the bottom',
+        width: 960,
+        height: 1280,
+      },
+      {
+        src: '/cases/jof-patternflood/back.jpg',
+        alt: 'The back cover, etched all over with circuit traces, with a title block and two QR codes',
+        width: 960,
+        height: 1280,
+      },
+      {
+        src: '/cases/jof-patternflood/top.jpg',
+        alt: 'The box at an angle, showing the four push buttons along its top wall',
+        width: 960,
+        height: 1280,
+      },
+    ],
+    credit: 'Photos by Jonathan Lassoff.',
+    links: [
+      { label: 'README and every file', target: 'jof/patternflood', href: PATTERNFLOOD },
+      { label: 'Nested on six 12 × 24" sheets', target: 'sheets/', href: `${PATTERNFLOOD}/tree/main/hardware/laser/sheets` },
+      { label: 'One DXF per part', target: 'hardware/laser/', href: `${PATTERNFLOOD}/tree/main/hardware/laser` },
+      { label: 'Its build guide', target: 'BUILD.md', href: `${PATTERNFLOOD}/blob/main/docs/desktop/BUILD.md` },
+      {
+        label: 'The model, public on Onshape',
+        target: 'Onshape',
+        href: 'https://cad.onshape.com/documents/8cfb8d4f799392c05f62f6ad/w/b5dfed0b24d2121a79e8b1a8/e/06ba580a80083894ed24609b',
+      },
+      { label: 'Software and gateware', target: 'firmware/', href: `${PATTERNFLOOD}/tree/main/firmware` },
+    ],
+    step: {
+      title: 'Cut the box',
+      desc: 'Cut the box from six sheets of 3 mm birch. The etched art is optional.',
+    },
+    // From Patternflood's own BUILD.md: its parts list (§1), the cut (§6),
+    // glue-up (§7), wiring (§8 and §9), flashing (§2 and §3) and first
+    // power-up (§10).
+    flow: {
+      subtitle: 'A laser-cut birch box with its own electronics, on mains.',
+      facts: [
+        {
+          value: '6 sheets',
+          name: 'Birch',
+          detail: '3 mm Baltic birch ply, 12 × 24", on a laser with a 600 × 305 mm bed.',
+        },
+        {
+          value: '128 × 128',
+          name: 'Pixels',
+          detail: 'Four P2 panels in a 2 × 2, a 256 mm square, driven by a Colorlight 5A-75B; a Raspberry Pi 5 renders.',
+        },
+        {
+          value: '~4½ hr',
+          name: 'Etching',
+          detail: 'Laser time for the optional circuit-board art on the front, walls and back, on an xTool P2. Cutting comes on top.',
+        },
+        {
+          value: 'Mains',
+          name: 'Power',
+          detail: 'A Mean Well LRS-50-5 inside, on a fused IEC inlet. Have someone check the wiring if mains is new to you.',
+        },
+      ],
+      steps: [
+        { id: 1, title: 'Cut the box', desc: '' },
+        {
+          id: 2,
+          title: 'Glue up the box',
+          desc: 'Laminate the front and the walls, two sheets each, then glue the finger-jointed box together.',
+        },
+        {
+          id: 3,
+          title: 'Wire it',
+          desc: 'Mains to the supply, the 5 V bus, then the panels, the card, the Pi, the knobs and the buttons.',
+        },
+        {
+          id: 4,
+          title: 'Flash and power on',
+          desc: 'Flash the Colorlight card’s gateware, write the Pi’s SD card, then switch on at the inlet.',
+        },
+      ],
+      guide: {
+        href: `${PATTERNFLOOD}/blob/main/docs/desktop/BUILD.md`,
+        title: 'Patternflood’s build guide →',
+        desc: 'Parts, flashing, cutting, glue-up, wiring and first power-up, with photos of every stage.',
+      },
+      links: [
+        { label: 'The cut files', target: 'hardware/laser/', href: `${PATTERNFLOOD}/tree/main/hardware/laser` },
+        {
+          label: 'The model',
+          target: 'Onshape',
+          href: 'https://cad.onshape.com/documents/8cfb8d4f799392c05f62f6ad/w/b5dfed0b24d2121a79e8b1a8/e/06ba580a80083894ed24609b',
+        },
+        { label: 'Software and gateware', target: 'jof/patternflood', href: PATTERNFLOOD },
+        {
+          label: 'Before you buy the panels',
+          target: 'Panel mounting',
+          href: `${PATTERNFLOOD}/blob/main/docs/desktop/enclosure-lasercut.md#11-panel-mounting-there-is-no-standard`,
+        },
+      ],
     },
   },
 ];

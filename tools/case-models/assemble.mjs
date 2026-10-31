@@ -13,9 +13,11 @@
 // placement.json says where that is:
 //
 //   {
-//     "board": [dx, dy, dz],   // added to the official case's board, DevKit and knobs
+//     "board": [dx, dy, dz],   // added to the official case's board, DevKit and knobs;
+//                              // null for a build with no Patternflow board in it
 //     "led": [x, y, z],        // the LED panel node's translation (z is its LED face);
-//                              // left out, it stays where the official case has it
+//                              // left out, it stays where the official case has it;
+//                              // "shell" when the shell has its own "l", for other panels
 //     "ledTurn": -90,          // optional: degrees about z, anticlockwise seen from
 //                              // the front, for a case that holds the panel on its side
 //     "knobs": "official",     // or "shell": the shell has its own c1..c4
@@ -132,17 +134,24 @@ const doc = new Document();
 doc.createScene('Scene');
 doc.createBuffer();
 const shellRoots = adopt(doc, shellDoc);
+// A build with its own electronics has no Patternflow board to place.
+const hasBoard = placement.board !== null;
 const board = placement.board ?? [0, 0, 0];
 
 // The LED panel: the old landing model's own node, moved where this case
-// holds it (on the official case it stays where it was).
-const ledRoots = adopt(doc, await io.read(path.join(HERE, 'source/led_panel.glb')));
-if (placement.led) ledRoots.l.setTranslation(placement.led);
-// Turned about its own origin, the middle of its LED face, so the turn keeps
-// it where `led` puts it; the pattern on it turns with it, as on the device.
-if (placement.ledTurn) {
-  const half = (placement.ledTurn * Math.PI) / 360;
-  ledRoots.l.setRotation(mulQuat([0, 0, Math.sin(half), Math.cos(half)], ledRoots.l.getRotation()));
+// holds it (on the official case it stays where it was). A case built round
+// other panels draws its own, with UVs the way this one has them.
+if (placement.led === 'shell') {
+  if (!shellRoots.l) throw new Error('placement says the shell has its own LED panel, but it has no "l"');
+} else {
+  const ledRoots = adopt(doc, await io.read(path.join(HERE, 'source/led_panel.glb')));
+  if (placement.led) ledRoots.l.setTranslation(placement.led);
+  // Turned about its own origin, the middle of its LED face, so the turn keeps
+  // it where `led` puts it; the pattern on it turns with it, as on the device.
+  if (placement.ledTurn) {
+    const half = (placement.ledTurn * Math.PI) / 360;
+    ledRoots.l.setRotation(mulQuat([0, 0, Math.sin(half), Math.cos(half)], ledRoots.l.getRotation()));
+  }
 }
 
 // The knobs: the official ones, on the encoder axes of the board as placed.
@@ -163,11 +172,13 @@ if (placement.knobs === 'official') {
 }
 
 // The board and the DevKit, simplified, where this case holds them.
-const pcb = adopt(doc, await readSimplified(path.join(GUIDE, 'pcb-v39.glb'), SIMPLIFY.pcb)).pcb_v39;
-pcb.setTranslation(add3(PCB_PLACEMENT.translation, board)).setRotation(PCB_PLACEMENT.rotation).setScale(PCB_PLACEMENT.scale);
-const kit = adopt(doc, await readSimplified(path.join(GUIDE, 'devkit.glb'), SIMPLIFY.devkit)).devkit;
-kit.setTranslation(add3(DEVKIT_SEAT.translation, board)).setRotation(DEVKIT_SEAT.rotation).setScale(DEVKIT_SEAT.scale);
-kit.listChildren().find((c) => c.getName() === 'board')?.setName('devkit_board');
+if (hasBoard) {
+  const pcb = adopt(doc, await readSimplified(path.join(GUIDE, 'pcb-v39.glb'), SIMPLIFY.pcb)).pcb_v39;
+  pcb.setTranslation(add3(PCB_PLACEMENT.translation, board)).setRotation(PCB_PLACEMENT.rotation).setScale(PCB_PLACEMENT.scale);
+  const kit = adopt(doc, await readSimplified(path.join(GUIDE, 'devkit.glb'), SIMPLIFY.devkit)).devkit;
+  kit.setTranslation(add3(DEVKIT_SEAT.translation, board)).setRotation(DEVKIT_SEAT.rotation).setScale(DEVKIT_SEAT.scale);
+  kit.listChildren().find((c) => c.getName() === 'board')?.setName('devkit_board');
+}
 
 // One look for every case's materials, by name (lib/looks.mjs).
 applyLooks(doc);

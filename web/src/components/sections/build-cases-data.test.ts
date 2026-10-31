@@ -81,6 +81,7 @@ describe('the case cards', () => {
       'besoiobiy-printed',
       'simonepda-lasercut',
       'mbchars-horizontal-desktop-printed',
+      'jof-patternflood',
     ]);
     expect(DEFAULT_CASE).toBe('official');
     expect(BUILD_CASES[0].kind).toBe('official');
@@ -93,13 +94,16 @@ describe('the case cards', () => {
   it.each(BUILD_CASES)('$id links only to paths and headings that exist on this tree', (item) => {
     const hrefs = [
       ...item.links.map((link) => link.href),
+      ...(item.flow?.links ?? []).map((link) => link.href),
+      item.flow?.guide.href,
       item.author.href,
       item.cautionHref,
       item.readme,
     ].filter(Boolean) as string[];
     expect(item.links.length).toBeGreaterThanOrEqual(3);
-    // The caution's "How to check" lands on the README section that says how.
-    expect(item.cautionHref).toMatch(GITHUB);
+    // The caution's "How to check" lands on the README section that says how
+    // (a variant's, in its own repository, which this tree cannot check).
+    if (item.kind !== 'variant') expect(item.cautionHref).toMatch(GITHUB);
     expect(item.cautionHref).toContain('#');
     for (const href of hrefs) {
       const match = href.match(GITHUB);
@@ -157,6 +161,15 @@ describe('the case cards', () => {
       expect(item.guide).toMatch(backing.card);
     },
   );
+
+  it('sends a build of its own to its own repository, not to a remix folder here', () => {
+    for (const item of BUILD_CASES.filter((c) => c.kind === 'variant')) {
+      const hrefs = [item.readme, item.cautionHref, ...item.links.map((l) => l.href), ...(item.flow?.links ?? []).map((l) => l.href)];
+      for (const href of hrefs) expect(href, `${item.id}`).not.toMatch(/engmung\/Patternflow/);
+      expect(item.flow, `${item.id} has no flow of its own`).toBeDefined();
+      expect(item.modelNote).toMatch(/^The 3D view /);
+    }
+  });
 
   it('sends the laser-cut reader to all three pages of the drawing, not one sheet', () => {
     const simone = findCase('simonepda-lasercut');

@@ -584,6 +584,28 @@ export const builds: Build[] = [
       { src: '/builds/dmitryleeo/studio.jpg', alt: 'The same Patternflow on its side between a mixer and a keyboard, a pixel-art platform game on the panel' },
     ],
   },
+  {
+    id: 'usa-jof-patternflood',
+    title: 'Patternflood',
+    category: 'builds',
+    slug: 'jof-patternflood-usa',
+    kind: 'build',
+    location: { lat: 37.7749, lng: -122.4194, label: 'San Francisco, USA' },
+    maker: 'jof',
+    date: '2026-10',
+    description:
+      'Four P2 panels in a 2 × 2, 128 × 128 pixels, in a finger-jointed birch box laser-cut and etched at Sequoia Fabrica, a community makerspace. A Raspberry Pi 5 and a Colorlight card stand in for the v3 board; it runs every Patternflow pattern and the community’s, alongside its own.',
+    links: [
+      { href: 'https://github.com/jof/patternflood', label: 'Patternflood on GitHub' },
+      { href: '/build?case=jof-patternflood', label: 'Build this one' },
+    ],
+    images: [
+      { src: '/cases/jof-patternflood/front.jpg', alt: 'Patternflood upright on the floor: the dark 2 × 2 LED panel in the etched birch front, four black knobs below it on the left' },
+      { src: '/cases/jof-patternflood/top.jpg', alt: 'Patternflood at an angle, its four push buttons along the top wall' },
+      { src: '/cases/jof-patternflood/inside.jpg', alt: 'Patternflood with its back off: the Colorlight card and the Pi 5 on a birch tray, the ribbons above, the supply and the encoders below' },
+      { src: '/cases/jof-patternflood/back.jpg', alt: 'The back cover, etched all over with circuit traces, a title block and two QR codes' },
+    ],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.

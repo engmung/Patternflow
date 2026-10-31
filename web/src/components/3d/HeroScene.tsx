@@ -22,10 +22,11 @@ import * as THREE from 'three';
 import { useGLTF, ContactShadows, Environment, Lightformer, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { ledPanel, ledVert } from './patterns/common';
+import { LED_GRID, ledPanel, ledVert } from './patterns/common';
 import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
+import { ObraDemo } from './demos/obra';
 import { LOGICAL_KNOB_TO_WEB_KNOB, knobUnitsPerTurn, webKnobRange } from '@/lib/pattern/controls';
 import { BUILD_CASES, findCase, stepCase, writeCaseToUrl, type CaseId } from '@/components/sections/build-cases-data';
 import { captureEvent } from '@/lib/posthogEvents';
@@ -61,10 +62,18 @@ ${ledPanel}
 
 void main() {
   vec2 rotatedUV = vec2(vUv.y, 1.0 - vUv.x);
-  vec2 gridUV = rotatedUV * vec2(128.0, 64.0);
+  vec2 gridUV = rotatedUV * uGrid;
+
+  // The code draws 128 x 64. On a panel with more rows it stands in the
+  // middle, letterboxed, as a 128 x 64 pattern does on that device.
+  vec2 cell = floor(gridUV) - vec2(0.0, floor((uGrid.y - 64.0) / 2.0));
+  if (cell.y < 0.0 || cell.y >= 64.0) {
+    gl_FragColor = vec4(ledPanel(vec3(0.0)), 1.0);
+    return;
+  }
 
   // Sample discrete pixels to enforce pixelation
-  vec2 pxUV = (floor(gridUV) + 0.5) / vec2(128.0, 64.0);
+  vec2 pxUV = (cell + 0.5) / vec2(128.0, 64.0);
   vec4 texColor = texture2D(uTex, pxUV);
 
   vec3 col = texColor.rgb;
@@ -76,6 +85,23 @@ void main() {
     col *= 0.8;
   }
 
+  gl_FragColor = vec4(ledPanel(col), 1.0);
+}
+`;
+
+// A case's own demo (CaseModel.demo), drawn by the CPU into a texture the size
+// of its panel, one texel per LED. The top ink runs hot, as the editor's
+// patterns' whites do, so it glows.
+const demoFragmentShader = `
+uniform sampler2D uTex;
+varying vec2 vUv;
+${ledPanel}
+
+void main() {
+  vec2 cell = floor(vec2(vUv.y, 1.0 - vUv.x) * uGrid);
+  vec3 col = texture2D(uTex, (cell + 0.5) / uGrid).rgb;
+  float luma = dot(col, vec3(0.299, 0.587, 0.114));
+  col *= luma > 0.75 ? 2.35 : 0.9;
   gl_FragColor = vec4(ledPanel(col), 1.0);
 }
 `;
@@ -96,6 +122,10 @@ const MESH_TO_KNOB: Record<string, KnobId> = {
   c3: 'c3',
   c4: 'c4',
 };
+
+/** A case's knob lights with a pattern that does not colour them, and how bright they shine (into the bloom). */
+const KNOB_LIGHT_IDLE: [number, number, number] = [0.55, 0.5, 0.42];
+const KNOB_LIGHT_GAIN = 6;
 
 /** Where the preview looks: OrbitControls' target, and where the device is centred. */
 const TARGET = new THREE.Vector3(0, 1.7, 0);
@@ -251,6 +281,7 @@ function ProductPreview({
       uParam3: { value: 0.29 },  // LOD fadeEnd
       uParam4: { value: defaults.uParam4 ?? 0.0 },
       uAspect: { value: 2.0 },
+      uGrid: { value: new THREE.Vector2(...LED_GRID) },
     },
     vertexShader: ledVert,
     fragmentShader: pattern.fragmentShader,
@@ -260,10 +291,25 @@ function ProductPreview({
   const customMat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
       uTex: { value: ledMatrix.texture },
+      uGrid: { value: new THREE.Vector2(...LED_GRID) },
     },
     vertexShader: ledVert,
     fragmentShader: customFragmentShader,
   }), [ledMatrix.texture]);
+
+  // Patternflood's Obra, for a case whose model names it (CaseModel.demo);
+  // it draws only while that case is lit on the Build tab.
+  const obra = useMemo(() => new ObraDemo(), []);
+  useEffect(() => () => obra.texture.dispose(), [obra]);
+  const demoMat = useMemo(() => new THREE.ShaderMaterial({
+    uniforms: {
+      uTex: { value: obra.texture },
+      uGrid: { value: new THREE.Vector2(...LED_GRID) },
+    },
+    vertexShader: ledVert,
+    fragmentShader: demoFragmentShader,
+  }), [obra]);
+  useEffect(() => () => demoMat.dispose(), [demoMat]);
 
   const blackMat = useMemo(() => new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.8 }), []);
 
@@ -390,10 +436,15 @@ function ProductPreview({
 
   useFrame((state, delta) => {
     const t = state.clock.getElapsedTime();
-    const { knobValues, buildStep, explode, activeKnobId } = useAppStore.getState();
+    const { knobValues, buildStep, explode, activeKnobId, homeTab } = useAppStore.getState();
+    // On the Build tab a case with a demo of its own shows that, not the
+    // pattern picked on the Pattern tab.
+    const caseDemo = homeTab === 'build' && deviceRef.current?.model.demo === 'obra';
 
     // The pattern on the panel.
-    if (activePatternId === 'custom') {
+    if (caseDemo) {
+      // Drawn below, once the step says the panel is lit.
+    } else if (activePatternId === 'custom') {
       ledMatrix.render(delta, t, knobValues, prevKnobValues.current);
       prevKnobValues.current = { ...knobValues };
     } else {
@@ -408,7 +459,7 @@ function ProductPreview({
     const device = deviceRef.current;
     if (!group || !device) return;
 
-    const pose = poseFor(buildStep, explode, t, still);
+    const pose = poseFor(buildStep, explode, t, still, device.model.boardless);
     // A model that has just arrived starts where the step has everything,
     // not assembled and easing out from there: a swap is a cut, not a move.
     const fresh = !device.root.userData.settled;
@@ -417,7 +468,22 @@ function ProductPreview({
     const kView = ease(0.05, delta);
 
     // The panel: the pattern while there is power, black while it is being built.
-    const ledTarget = !pose.lit ? blackMat : activePatternId === 'custom' ? customMat : ledMat;
+    if (caseDemo && pose.lit) obra.render(delta, knobValues, prevKnobValues.current);
+    if (caseDemo) prevKnobValues.current = { ...knobValues };
+    const ledTarget = !pose.lit ? blackMat : caseDemo ? demoMat : activePatternId === 'custom' ? customMat : ledMat;
+    // The knobs' lights, where the case has them: the demo's colours while
+    // it runs, a soft white with any other pattern, dark without power.
+    device.knobLights.forEach((m, k) => {
+      const c = !pose.lit ? null : caseDemo ? obra.lights()[k] : KNOB_LIGHT_IDLE;
+      if (c) m.emissive.setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+      else m.emissive.setRGB(0, 0, 0);
+      m.emissiveIntensity = KNOB_LIGHT_GAIN;
+    });
+    // Drawn on this case's panel's LEDs: 128 x 64, or as many as it has.
+    const [gridLong, gridAcross] = device.model.ledGrid ?? LED_GRID;
+    ledMat.uniforms.uGrid.value.set(gridLong, gridAcross);
+    customMat.uniforms.uGrid.value.set(gridLong, gridAcross);
+    demoMat.uniforms.uGrid.value.set(gridLong, gridAcross);
     for (const mesh of device.led) {
       if (mesh.material !== ledTarget) mesh.material = ledTarget;
     }
