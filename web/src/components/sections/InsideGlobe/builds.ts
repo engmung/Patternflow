@@ -612,7 +612,7 @@ export const builds: Build[] = [
     category: 'builds',
     slug: 'angryrobot-usa',
     kind: 'build',
-    location: { lat: 47.6062, lng: -122.3321, label: 'Near Seattle, USA' },
+    location: { lat: 47.3653, lng: -122.1031, label: 'Covington, USA' },
     maker: 'Angry Robot',
     date: '2026-11',
     description:
