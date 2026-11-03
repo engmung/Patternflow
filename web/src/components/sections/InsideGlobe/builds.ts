@@ -606,6 +606,23 @@ export const builds: Build[] = [
       { src: '/cases/jof-patternflood/back.jpg', alt: 'The back cover, etched all over with circuit traces, a title block and two QR codes' },
     ],
   },
+  {
+    id: 'usa-angryrobot',
+    title: 'Colours reversed',
+    category: 'builds',
+    slug: 'angryrobot-usa',
+    kind: 'build',
+    location: { lat: 47.3653, lng: -122.1031, label: 'Covington, USA' },
+    maker: 'Angry Robot',
+    date: '2026-11',
+    description:
+      'A first build. The case is black and the knobs are white, the other way round from the original.',
+    images: [
+      { src: '/builds/angryrobot/squares.jpg', alt: "Angry Robot's black Patternflow lit with a red and blue square pattern, four white knobs beside the panel" },
+      { src: '/builds/angryrobot/case.jpg', alt: 'The same Patternflow switched off on a counter: a black case with four white knobs' },
+      { src: '/builds/angryrobot/blue.jpg', alt: 'The same Patternflow showing a fine blue tile pattern' },
+    ],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.
