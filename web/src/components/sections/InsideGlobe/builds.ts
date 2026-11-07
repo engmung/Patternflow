@@ -623,6 +623,34 @@ export const builds: Build[] = [
       { src: '/builds/angryrobot/blue.jpg', alt: 'The same Patternflow showing a fine blue tile pattern' },
     ],
   },
+  {
+    id: 'milan-saladman',
+    title: 'On show at Devcon26',
+    category: 'in-use',
+    slug: 'saladman-italy',
+    kind: 'build',
+    location: { lat: 45.4642, lng: 9.19, label: 'Milan, Italy' },
+    maker: 'saladman',
+    date: '2026-11',
+    description:
+      'A Patternflow on the table at the Wokwi booth during Espressif’s Devcon26 in Milan, showing the conference’s name in light for the people stopping by.',
+    images: [
+      { src: '/builds/saladman/devcon26.jpg', alt: "saladman's Patternflow on the Wokwi booth table at Devcon26 in Milan, the panel reading DEVCON26 beside a laptop" },
+    ],
+  },
+  {
+    id: 'naples-rele-connect',
+    title: 'A media partner’s panel',
+    category: 'in-use',
+    slug: 'rele-connect-italy',
+    kind: 'build',
+    location: { lat: 40.8518, lng: 14.2681, label: 'Naples, Italy' },
+    maker: 'RELE',
+    date: '2026-11',
+    description:
+      'Patternflow sent to RELE in Naples, who take it on as a media partner. It has just arrived, and what it will light up is still to come.',
+    links: [{ href: 'https://www.instagram.com/rele_connect/', label: 'RELE on Instagram' }],
+  },
 ];
 
 // One order for the text list and the globe's previous/next controls.
