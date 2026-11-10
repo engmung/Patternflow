@@ -40,7 +40,8 @@ describe('Inside browsing', () => {
     expect(useAppStore.getState().selectedBuildId).toBeNull();
     expect(window.location.pathname).toBe('/inside');
     // "In use" holds the first sale and the showings, so MOTIFLOW (a project) is what the filter hides.
-    expect(list.getAllByRole('link')).toHaveLength(5);
+    // Milan and Naples are in use too, which makes seven.
+    expect(list.getAllByRole('link')).toHaveLength(7);
     expect(list.getByRole('link', { name: /The first sale/ })).toHaveAttribute('href', '/inside/seunghun-san-francisco');
     expect(list.getByRole('link', { name: /Played at Anbu/ })).toHaveAttribute('href', '/inside/seunghun-anbu-seoul');
     fireEvent.click(screen.getByRole('button', { name: 'Builds' }));
