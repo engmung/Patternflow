@@ -28,6 +28,12 @@ export type PatternInput = {
   knobRanges?: Array<[number, number]>;
   btnPressed: boolean[];
   btnHeld: boolean[];
+  // Local wall time, as the firmware's InputFrame carries it. The harness
+  // fills it from the browser clock when the caller leaves it out.
+  timeValid?: boolean;
+  hour?: number;
+  minute?: number;
+  second?: number;
 };
 
 export type PatternDisplay = {
@@ -733,6 +739,17 @@ export class PatternRuntime {
       this.params.knobRanges = input.knobRanges;
       this.params.btnPressed = input.btnPressed;
       this.params.btnHeld = input.btnHeld;
+
+      if (input.timeValid === undefined) {
+        const clock = new Date();
+        input = {
+          ...input,
+          timeValid: true,
+          hour: clock.getHours(),
+          minute: clock.getMinutes(),
+          second: clock.getSeconds(),
+        };
+      }
 
       this.module.update?.(dt, input, this.params);
       this.data.fill(0);

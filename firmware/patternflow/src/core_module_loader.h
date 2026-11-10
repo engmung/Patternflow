@@ -1137,9 +1137,10 @@ inline bool load(fs::FS& filesystem, const char* path) {
 
   lastRelocateUs = micros() - startedUs - lastReadUs;
 
-  // Descriptor version 1 (pre-absolute) and 2 (reads the appended
-  // absolute-param InputFrame fields) both run here — the host always fills
-  // the extended frame. Anything else is a layout we do not provide.
+  // Descriptor versions 1 (pre-absolute), 2 (reads the appended
+  // absolute-param InputFrame fields) and 3 (also reads the wall-time fields)
+  // all run here — the host always fills the extended frame. Anything else is
+  // a layout we do not provide.
   if (!active || active->abi_version < PF_ABI_VERSION ||
       active->abi_version > PF_ABI_MODULE_VERSION ||
       active->panel_w != PANEL_RES_W || active->panel_h != PANEL_RES_H ||

@@ -14,7 +14,9 @@
 //
 // It is also the first feature on the composeFrame hook: it draws on the
 // frame's way to the panel, with alpha, rather than over the panel after
-// the fact. Hooks: setup, onNetwork, loop, appendStatus, composeFrame, nav.
+// the fact. It also hands the time to patterns (fillInput: timeValid, hour,
+// minute, second). Hooks: setup, onNetwork, loop, fillInput, appendStatus,
+// composeFrame, nav.
 // Core edits: the POSIX-zone entry points in core_clock.h, and that hook.
 //
 // License: MIT
@@ -40,6 +42,15 @@ inline void onNetwork() {
 inline void loop(const PFFeatureFrame& frame) {
   PatternflowClockFace::noteFrame(frame);
   PatternflowClockFace::assertZone();
+}
+
+// Patterns read the time from their input frame; false until NTP has synced.
+inline void fillInput(InputFrame& input) {
+  input.timeValid = PatternflowClock::synced();
+  if (!input.timeValid) return;
+  input.hour = (uint8_t)PatternflowClock::hour();
+  input.minute = (uint8_t)PatternflowClock::minute();
+  input.second = (uint8_t)PatternflowClock::second();
 }
 
 inline void appendStatus(String& json) {
@@ -68,7 +79,7 @@ inline const PFFeature descriptor = {
     onNetwork,
     loop,
     nullptr,       // observeFrame
-    nullptr,       // fillInput
+    fillInput,
     nullptr,       // onUserInput
     nullptr,       // claimsPattern
     nullptr,       // takePattern

@@ -202,6 +202,13 @@ struct InputFrame {
   // — this struct is mirrored byte-for-byte by abi/pf_abi.h::PFInputFrame.
   bool paramAbsoluteActive[4];
   uint16_t paramAbsolute[4];
+
+  // Local wall time (abi/pf_abi.h). Zero here; the clock feature fills it
+  // through fillInput, so timeValid is false on builds without a clock.
+  bool timeValid;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
 };
 
 Button btn1, btn2, btn3, btn4;

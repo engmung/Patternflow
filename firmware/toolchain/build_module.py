@@ -247,9 +247,13 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
     # A delta-only source gains nothing from the newer host, so it stays at 1
     # and stays installable everywhere regardless of the target.
     module_abi = 2 if (source_absolute and target_abi == 2) else 1
+    # Reading the wall-time fields needs a host that fills them, whatever the
+    # target: such a module is stamped 3 and older hosts refuse it cleanly.
+    if re.search(r"\binput\s*(\.|->)\s*(timeValid|hour|minute|second)\b", source_text):
+        module_abi = 3
     # What this BUILD can do, which is what the device's registry reads —
     # a converted source built for the old host is honestly not absolute-ready.
-    absolute_ready = source_absolute and module_abi == 2
+    absolute_ready = source_absolute and module_abi >= 2
 
     cmd = [
         str(gxx),
