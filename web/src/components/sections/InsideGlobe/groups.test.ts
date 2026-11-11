@@ -109,7 +109,7 @@ describe('the count beside the list', () => {
     expect(named('Leeds, UK')).toBe('United Kingdom');
     expect(named('United Kingdom')).toBe('United Kingdom');
     expect(named('San Francisco, USA')).toBe('USA');
-    expect(countCountries(builds)).toBe(14);
+    expect(countCountries(builds)).toBe(15);
   });
 });
 
