@@ -68,14 +68,19 @@ typedef struct PFInputFrame {
   // Modules that DO read them must be built as PF_ABI_MODULE_VERSION 2.
   bool paramAbsoluteActive[4];
   uint16_t paramAbsolute[4];
-  // Local wall time. Appended — older modules never read these. Modules that
-  // DO read them must be built as PF_ABI_MODULE_VERSION 3. The host zeroes
-  // them; a build with the clock feature fills them once NTP has synced, so
-  // timeValid is false everywhere else and hour / minute / second are 0.
+  // Local wall time. Appended — older modules never read these. The host
+  // zeroes them; a build with the clock feature fills them once NTP has
+  // synced, so timeValid is false everywhere else and hour / minute / second
+  // are 0. They exist only in a build stamped 3: a module stamped 1 or 2
+  // installs on a v3.12.0 host, whose frame ends after paramAbsolute, so
+  // reading them there would read past the end. Below 3 that read is a
+  // build error instead.
+#if PF_ABI_MODULE_VERSION >= 3
   bool timeValid;
   uint8_t hour;
   uint8_t minute;
   uint8_t second;
+#endif
 } PFInputFrame;
 
 // Services the firmware provides to a loaded module.

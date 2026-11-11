@@ -28,8 +28,10 @@ export type PatternInput = {
   knobRanges?: Array<[number, number]>;
   btnPressed: boolean[];
   btnHeld: boolean[];
-  // Local wall time, as the firmware's InputFrame carries it. The harness
-  // fills it from the browser clock when the caller leaves it out.
+  // Local wall time, as the firmware's InputFrame carries it. Left out, the
+  // pattern gets what a board without the clock gives it: timeValid false
+  // and 0 in the other three. The lab passes the browser's clock
+  // (lib/lab/engine.ts).
   timeValid?: boolean;
   hour?: number;
   minute?: number;
@@ -740,16 +742,13 @@ export class PatternRuntime {
       this.params.btnPressed = input.btnPressed;
       this.params.btnHeld = input.btnHeld;
 
-      if (input.timeValid === undefined) {
-        const clock = new Date();
-        input = {
-          ...input,
-          timeValid: true,
-          hour: clock.getHours(),
-          minute: clock.getMinutes(),
-          second: clock.getSeconds(),
-        };
-      }
+      input = {
+        ...input,
+        timeValid: input.timeValid ?? false,
+        hour: input.hour ?? 0,
+        minute: input.minute ?? 0,
+        second: input.second ?? 0,
+      };
 
       this.module.update?.(dt, input, this.params);
       this.data.fill(0);

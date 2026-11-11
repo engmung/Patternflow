@@ -17,7 +17,7 @@
 # that it computes what libm computes. The hash makes an edit to it a
 # deliberate one; firmware/toolchain/check_libm.py is what holds the
 # promise, and has to pass before the hash is refreshed.
-1731957db6b230782107ac7045f6656057280c915ba3483a217c446dea8a0519  pf_abi.h
+71f6b5f6c1399251b7f5e3a259772534c2be5fd8df17420c35b46b220d537664  pf_abi.h
 0b225800b1211e52128c4de426be595d883384f4a39263a2562ce85773506d9b  pf_libm.h
 bfba1dcbd63f0ac8b311a10c5142d775a695ce0bdb12827d3593576902f7d000  pf_module.h
 3889111fff9b234ffc5781f33874fa86ece0367e05167807608ccd88b2883216  pf_params.h

@@ -45,12 +45,14 @@ inline void loop(const PFFeatureFrame& frame) {
 }
 
 // Patterns read the time from their input frame; false until NTP has synced.
+// The four fields come from one snapshot, so 12:59:59 never turns into 12:00.
 inline void fillInput(InputFrame& input) {
-  input.timeValid = PatternflowClock::synced();
-  if (!input.timeValid) return;
-  input.hour = (uint8_t)PatternflowClock::hour();
-  input.minute = (uint8_t)PatternflowClock::minute();
-  input.second = (uint8_t)PatternflowClock::second();
+  struct tm t;
+  if (!PatternflowClock::synced() || !PatternflowClock::localTime(&t)) return;
+  input.timeValid = true;
+  input.hour = (uint8_t)t.tm_hour;
+  input.minute = (uint8_t)t.tm_min;
+  input.second = (uint8_t)t.tm_sec;
 }
 
 inline void appendStatus(String& json) {

@@ -215,6 +215,12 @@ def check_host_symbols(pfm: Path, gxx: Path) -> set[str]:
     return undefined - host_symbol_table()
 
 
+def code_only(source: str) -> str:
+    """The source with its comments taken out, for the stamp's tests."""
+    source = re.sub(r"/\*.*?\*/", " ", source, flags=re.S)
+    return re.sub(r"//[^\n]*", "", source)
+
+
 def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
               build_dir: Path, out_dir: Path, opt: str = DEFAULT_OPT) -> tuple[str, bool, str]:
     slug = src_dir.name
@@ -249,7 +255,11 @@ def build_one(src_dir: Path, gxx: Path, compile_only: bool, abi: Path,
     module_abi = 2 if (source_absolute and target_abi == 2) else 1
     # Reading the wall-time fields needs a host that fills them, whatever the
     # target: such a module is stamped 3 and older hosts refuse it cleanly.
-    if re.search(r"\binput\s*(\.|->)\s*(timeValid|hour|minute|second)\b", source_text):
+    # The test is timeValid read off any frame, whatever the frame is called,
+    # in code and not in a comment. A source that reads hour, minute or second
+    # without it is stamped lower, and pf_abi.h has no such fields below 3, so
+    # it fails to build rather than reading past an older host's frame.
+    if re.search(r"(\.|->)\s*timeValid\b", code_only(source_text)):
         module_abi = 3
     # What this BUILD can do, which is what the device's registry reads —
     # a converted source built for the old host is honestly not absolute-ready.
