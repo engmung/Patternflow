@@ -27,7 +27,7 @@ import patterns from './patterns';
 import { useAppStore } from '@/store/useAppStore';
 import { LedMatrixTexture } from './LedMatrixTexture';
 import { ObraDemo } from './demos/obra';
-import { LOGICAL_KNOB_TO_WEB_KNOB, knobUnitsPerTurn, webKnobRange } from '@/lib/pattern/controls';
+import { LOGICAL_KNOB_RANGES, LOGICAL_KNOB_TO_WEB_KNOB, LOGICAL_KNOB_WRAP, holdKnobValue, knobUnitsPerTurn } from '@/lib/pattern/controls';
 import { BUILD_CASES, findCase, stepCase, writeCaseToUrl, type CaseId } from '@/components/sections/build-cases-data';
 import { captureEvent } from '@/lib/posthogEvents';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
@@ -263,11 +263,26 @@ function ProductPreview({
     [],
   );
 
+  // The knobs turn through the ranges of what is running: the editor's code
+  // declares its own (@knobs), a built-in pattern has the defaults.
+  const knobRanges = useCallback(
+    () => (useAppStore.getState().activePatternId === 'custom' ? ledMatrix.knobRanges : LOGICAL_KNOB_RANGES),
+    [ledMatrix],
+  );
+
   useEffect(() => {
     if (activePatternId === 'custom') {
       ledMatrix.loadCode(customJsCode);
     }
-  }, [customJsCode, activePatternId, ledMatrix]);
+    // A knob left outside the new ranges comes back into them, as the Lab
+    // clamps its knobs when a @knobs line changes.
+    const ranges = knobRanges();
+    const { knobValues, setKnobValue } = useAppStore.getState();
+    LOGICAL_KNOB_TO_WEB_KNOB.forEach((knobId, index) => {
+      const held = holdKnobValue(knobValues[knobId], ranges[index], LOGICAL_KNOB_WRAP[index]);
+      if (held !== knobValues[knobId]) setKnobValue(knobId, held);
+    });
+  }, [customJsCode, activePatternId, ledMatrix, knobRanges]);
 
   // The globe replaces this scene on the Inside tab; the next one starts clean.
   useEffect(() => () => useAppStore.getState().setCustomJsError(null), []);
@@ -341,14 +356,12 @@ function ProductPreview({
       // Sensitivity: the same rule as the physical encoder, the whole range
       // in a set number of turns (knobUnitsPerTurn).
       const knobName = d.knob;
+      const logicalIndex = LOGICAL_KNOB_TO_WEB_KNOB.indexOf(knobName);
+      const range = knobRanges()[logicalIndex];
       const currentVal = useAppStore.getState().knobValues[knobName];
-      const deltaVal = deltaAngle * (knobUnitsPerTurn(webKnobRange(knobName)) / (2 * Math.PI));
-
-      let newVal = currentVal + deltaVal;
-      if (knobName === 'c1') newVal = (newVal % 1.0 + 1.0) % 1.0; // Hue
-      if (knobName === 'c2') newVal = THREE.MathUtils.clamp(newVal, 0.1, 10.0); // Speed
-      if (knobName === 'c3') newVal = (newVal % 1.0 + 1.0) % 1.0; // Freq/Offset
-      if (knobName === 'c4') newVal = THREE.MathUtils.clamp(newVal, 0.0, 4.9); // Mode
+      const deltaVal = deltaAngle * (knobUnitsPerTurn(range) / (2 * Math.PI));
+      // Knob 1 and 4 wrap round, 2 and 3 stop at their ends, as on the device.
+      const newVal = holdKnobValue(currentVal + deltaVal, range, LOGICAL_KNOB_WRAP[logicalIndex]);
 
       useAppStore.getState().setKnobValue(knobName, newVal);
     };
@@ -374,7 +387,7 @@ function ProductPreview({
       handlePointerUp();
       document.body.style.cursor = '';
     };
-  }, []);
+  }, [knobRanges]);
 
   /**
    * The knob under the pointer, if the nearest thing there is a knob (or its

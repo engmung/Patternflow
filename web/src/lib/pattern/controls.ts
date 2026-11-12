@@ -1,4 +1,5 @@
 import { BUS_MAX, DETENTS_PER_TURN, TURNS_PER_FULL_RANGE } from "@/lib/shared/constants";
+import { parseKnobsAnnotation } from "./knobs";
 
 // Detents in one full turn of the physical encoder. One fact, one constant:
 // shared/constants.json owns it (see the note in harness.ts — the reference
@@ -132,6 +133,30 @@ export const LOGICAL_KNOB_DEFAULTS = [0, 2, 0, 0.06];
 
 export const LOGICAL_KNOB_WRAP = [true, false, false, true];
 
+/**
+ * The logical knobs' ranges for a pattern's code: what its `@knobs` line
+ * declares, and the default range for a slot the line leaves out. The Lab
+ * applies the same line (lib/lab/annotations); the 3D device on /pattern held
+ * every knob to the defaults, so a pattern declaring Speed=-10..10 could not
+ * be turned below 0.1 there.
+ */
+export function codeKnobRanges(code: string | null | undefined): Array<[number, number]> {
+  const entries = code ? parseKnobsAnnotation(code) : null;
+  return LOGICAL_KNOB_RANGES.map(([min, max], index): [number, number] => {
+    const entry = entries?.[index];
+    return entry ? [entry.min, entry.max] : [min, max];
+  });
+}
+
+/** A knob value held to its range: round the seam on a wrapping knob, clamped on the others. */
+export function holdKnobValue(value: number, range: readonly [number, number], wrap: boolean) {
+  const [min, max] = range;
+  const span = max - min;
+  if (!(span > 0)) return min;
+  if (wrap) return min + ((((value - min) % span) + span) % span);
+  return Math.min(max, Math.max(min, value));
+}
+
 /** Units-per-turn for each logical knob, given that pattern's declared ranges. */
 export function logicalKnobUnitsPerTurn(
   ranges: ReadonlyArray<readonly [number, number]> = LOGICAL_KNOB_RANGES,
@@ -159,10 +184,14 @@ export function wrapKnobDelta(delta: number, span = 1) {
   return delta;
 }
 
-export function getKnobValueDelta(knobId: KnobId, current: number, previous: number) {
+export function getKnobValueDelta(
+  knobId: KnobId,
+  current: number,
+  previous: number,
+  range: readonly [number, number] = webKnobRange(knobId),
+) {
   const delta = current - previous;
   if (!LOGICAL_KNOB_WRAP[LOGICAL_KNOB_TO_WEB_KNOB.indexOf(knobId)]) return delta;
-  const range = webKnobRange(knobId);
   return wrapKnobDelta(delta, range[1] - range[0]);
 }
 
