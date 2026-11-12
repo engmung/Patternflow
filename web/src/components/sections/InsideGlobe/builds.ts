@@ -428,7 +428,7 @@ export const builds: Build[] = [
     maker: 'Seunghun LEE',
     date: '2026-09',
     description:
-      'Sent to José Manuel Vargas, in Spain. One of three units built with what the first sale earned.',
+      'Sent to José Manuel Vargas, in Spain. One of three units built with what the first sale earned. It went on a promise to promote the crowdfunding campaign, and the promise was not kept. Since this one, no Patternflow goes free to an influencer.',
   },
   {
     id: 'uae-simonepda-mqtt',
