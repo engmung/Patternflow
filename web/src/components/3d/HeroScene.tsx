@@ -79,11 +79,11 @@ void main() {
   vec3 col = texColor.rgb;
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
 
-  if (luma > 0.75) {
-    col *= 2.35;
-  } else {
-    col *= 0.8;
-  }
+  // Bright cells run hot so whites glow. The gain climbs from 0.8 to 2.35
+  // between luma 0.6 and 0.9 instead of jumping at 0.75: a soft gradient
+  // across that line got a hard edge, and an iridescent field broke into
+  // bands. Below 0.6 and above 0.9 nothing changes.
+  col *= mix(0.8, 2.35, smoothstep(0.6, 0.9, luma));
 
   gl_FragColor = vec4(ledPanel(col), 1.0);
 }
