@@ -306,6 +306,7 @@ Last resort — half-resolution rendering: if the pattern is genuinely smooth/lo
 - If the JS reads input.knobNormalized[i] (e.g. generated layer-stack patterns), keep the raw knob state exactly as above and compute the normalized value from it each frame: (raw - min) / (max - min). Do NOT store the normalized value as the knob state itself.
 - Preserve knob meanings from the JS code (any comments naming the knobs) in KNOB_LABELS. Knobs the comments mark as unused get the label "-" and no update logic.
 - Encoder buttons map 1:1: JS input.btnPressed[i] / input.btnHeld[i] become C++ input.btnPressed[i] / input.btnHeld[i] (same bool[4] semantics — edge vs level). If the JS pattern resets, freezes, or triggers on a button, keep that — but guard resets so they cannot fight an absolute hold: if (input.btnPressed[i] && !input.paramAbsoluteActive[i] && !input.knobAudioActive[i]) { ... }. Never consume long-press; that gesture is reserved for the firmware mode switcher.
+- Wall time maps 1:1: JS input.timeValid / input.hour / input.minute / input.second become C++ input.timeValid / input.hour / input.minute / input.second (bool, then uint8_t). Keep the JS fallback for timeValid == false — the board only knows the time once NTP has synced.
 
 Pattern Lab knob ranges and current values:
 ${rangeLines}

@@ -4,8 +4,13 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+### Firmware
+
+- **Patterns can read the time on a clock build.** The input frame ends with `timeValid`, `hour`, `minute` and `second`, and the clock feature fills them once NTP has synced. Every other build gives a pattern `timeValid` false and 0 in the other three. A module that reads `timeValid` is stamped ABI 3, and v3.12.0 refuses to install it. Modules that do not read the fields stay at 1 or 2 and install as before ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
+
 ### Web
 
+- **Pattern Lab previews the time from the browser's clock.** The guide and the virtual panel give a pattern `timeValid` false, as a board without the clock does ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
 - **Build map:** the Anbu and Ajman MQTT pins link to engmung/patternflow-exhibition-2026, the exhibition setup and the flowlocal source, now public.
 - **Journal text on a phone starts 24px from the screen's edge, not 48px.** The cream gutter and the white panel's padding added up, so 15px text got 17.6 characters a line at 360px. The panel now reaches the screen's edges, and the masthead, the text and both footers start on one 24px line. Pages from 721px up are unchanged.
 - **The journal archive's dates and reading times are 13px on a phone, not 10.5px.** They were the smallest text on /journal below 721px, under the 13px the journal's other dates and labels keep. No row's date wraps or meets its post number at 360px, and pages from 721px up are unchanged.

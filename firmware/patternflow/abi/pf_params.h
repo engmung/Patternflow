@@ -33,7 +33,7 @@
 // builds, -D from build_module.py when it targets the older host. This
 // default is what the firmware itself, which always has the fields, gets.
 #ifndef PF_ABI_MODULE_VERSION
-#define PF_ABI_MODULE_VERSION 2
+#define PF_ABI_MODULE_VERSION 3
 #endif
 
 // PF_ABI_MODULE_VERSION >= 2 means "this build's host has the absolute
