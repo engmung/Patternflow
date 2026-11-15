@@ -63,13 +63,25 @@ const UNMEASURED = { width: 24.7, height: 32.6, depth: 5.6 };
 
 /** The cases on the shelf face a little to the reader's left, as the device does at rest. */
 const SHELF_TURN = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -0.32);
+/**
+ * Except a case that lies the long way across: turned, its far end runs off
+ * into the board and it reads as standing crooked. It faces straight out.
+ */
+const FACING_FRONT = new THREE.Quaternion();
+const turnOf = (id: CaseId) => (id === 'mbchars-horizontal-desktop-printed' ? FACING_FRONT : SHELF_TURN);
+/**
+ * The case whose panel runs while the shelf is only looked at. The others
+ * hold a still frame of theirs until a pointer or the focus is on them.
+ */
+const RUNNING_AT_REST: CaseId = 'official';
+/** A press that moved more than this many pixels turned the view; it picks nothing. */
+const DRAG_PIXELS = 4;
 /** How much a case under the pointer grows, and how far it rises, in world units. */
 const HOVER_GROW = 0.06;
 const HOVER_RISE = 0.05;
 const HOVER_SECONDS = 0.16;
 
 const BOARD_COLOUR = '#e9e2d2';
-const SIDE_THICKNESS = 0.6;   // of a board's own thickness
 
 interface Motion {
   /** 0 on the shelf, 1 on the stage. */
@@ -152,8 +164,12 @@ export default function CaseShelf({
   /** How tall the view is where the device stands, in world units, and where its middle is. */
   viewHeight: number;
   centreY: number;
-  /** Lights a light model's panel and knobs as its full model's would be: on the shelf, or on the stage. */
-  paint: (light: PreparedLight, onStage: boolean) => void;
+  /**
+   * Lights a light model's panel and knobs as its full model's would be: on
+   * the shelf, or on the stage. `running`: its panel moves this frame, or
+   * holds where it was.
+   */
+  paint: (light: PreparedLight, onStage: boolean, running: boolean) => void;
   finishOf: (id: CaseId) => CaseFinish | undefined;
   /**
    * Each case's name: a button over the canvas (HeroScene), kept on the front
@@ -175,7 +191,6 @@ export default function CaseShelf({
   const rack = useRef(open ? 1 : 0);
 
   const boardRefs = useRef<(THREE.Mesh | null)[]>([]);
-  const sideRefs = useRef<(THREE.Mesh | null)[]>([]);
   const boardMaterial = useMemo(
     () => new THREE.MeshStandardMaterial({ color: BOARD_COLOUR, roughness: 0.82, metalness: 0 }),
     [],
@@ -247,6 +262,7 @@ export default function CaseShelf({
     boardMaterial.opacity = rackShare;
     boardMaterial.transparent = rackShare < 1;
     boardMaterial.depthWrite = rackShare >= 1;
+    // Two boards and nothing holding them: each floats, as a shelf on a wall does.
     plan.boards.forEach((board, index) => {
       const mesh = boardRefs.current[index];
       if (!mesh) return;
@@ -254,20 +270,6 @@ export default function CaseShelf({
       mesh.position.set(0, board.y - board.thickness / 2, 0);
       mesh.scale.set(board.width, board.thickness, board.depth);
     });
-    // The two sides, from under the bottom board to the top of the top one.
-    const [topBoard] = plan.boards;
-    const bottomBoard = plan.boards[plan.boards.length - 1];
-    if (topBoard && bottomBoard) {
-      const sideWidth = bottomBoard.thickness * SIDE_THICKNESS;
-      const low = bottomBoard.y - bottomBoard.thickness;
-      const high = topBoard.y;
-      sideRefs.current.forEach((mesh, index) => {
-        if (!mesh) return;
-        mesh.visible = rackShare > 0.01 && plan.boards.length > 1;
-        mesh.position.set((index === 0 ? -1 : 1) * (topBoard.width / 2 + sideWidth / 2), (low + high) / 2, 0);
-        mesh.scale.set(sideWidth, high - low, topBoard.depth);
-      });
-    }
 
     let arrived = false;
     let demoShown = false;
@@ -312,14 +314,15 @@ export default function CaseShelf({
       // On the shelf: standing on its board by the middle of its underside.
       const lift = glide(m.hover);
       const shelfScale = plan.scale * glide(m.here) * (1 + HOVER_GROW * lift);
-      scratch.offset.copy(light.foot).multiplyScalar(shelfScale).applyQuaternion(SHELF_TURN);
+      const shelfTurn = turnOf(id);
+      scratch.offset.copy(light.foot).multiplyScalar(shelfScale).applyQuaternion(shelfTurn);
       scratch.shelfAt.set(slot.x, slot.y + HOVER_RISE * lift, 0).sub(scratch.offset);
 
       // On the stage: where the preview's group has the device this frame,
       // centred as the full model is (fitPosition).
       let stageScale = shelfScale;
       scratch.stageAt.copy(scratch.shelfAt);
-      scratch.stageTurn.copy(SHELF_TURN);
+      scratch.stageTurn.copy(shelfTurn);
       if (group) {
         stageScale = group.scale.x;
         scratch.stageTurn.copy(group.quaternion);
@@ -330,14 +333,17 @@ export default function CaseShelf({
       const share = glide(m.fly);
       const root = light.root;
       root.position.lerpVectors(scratch.shelfAt, scratch.stageAt, share);
-      root.quaternion.slerpQuaternions(SHELF_TURN, scratch.stageTurn, share);
+      root.quaternion.slerpQuaternions(shelfTurn, scratch.stageTurn, share);
       root.scale.setScalar(THREE.MathUtils.lerp(shelfScale, stageScale, share));
       root.visible = m.fade > 0.01 && root.scale.x > 1e-4;
       if (!root.visible) continue;
 
+      // Off the shelf, or on its way, a case runs; on it, the one at rest
+      // does and the one under the pointer.
+      const running = !open || share > 0 || id === RUNNING_AT_REST || hot;
       paintLight(light, finishOf(id), m.fade);
-      paint(light, share > 0.5);
-      if (light.model.demo) demoShown = true;
+      paint(light, share > 0.5, running);
+      if (light.model.demo && running) demoShown = true;
     }
 
     const h = handoff.current;
@@ -362,6 +368,8 @@ export default function CaseShelf({
           },
           onClick: (e: ThreeEvent<MouseEvent>) => {
             e.stopPropagation();
+            // A drag that started and ended on a case was the view turning.
+            if (e.delta > DRAG_PIXELS) return;
             document.body.style.cursor = '';
             hovered.current = null;
             onPick(id);
@@ -375,18 +383,6 @@ export default function CaseShelf({
         <mesh
           key={`board-${index}`}
           ref={(mesh) => { boardRefs.current[index] = mesh; }}
-          material={boardMaterial}
-          visible={false}
-          castShadow
-          receiveShadow
-        >
-          <boxGeometry args={[1, 1, 1]} />
-        </mesh>
-      ))}
-      {[0, 1].map((index) => (
-        <mesh
-          key={`side-${index}`}
-          ref={(mesh) => { sideRefs.current[index] = mesh; }}
           material={boardMaterial}
           visible={false}
           castShadow

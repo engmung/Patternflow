@@ -32,7 +32,7 @@ import { LOGICAL_KNOB_TO_WEB_KNOB, knobUnitsPerTurn, webKnobRange } from '@/lib/
 import { BUILD_CASES, findCase, stepCase, writeCaseToUrl, type CaseId } from '@/components/sections/build-cases-data';
 import { captureEvent } from '@/lib/posthogEvents';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
-import { CASE_MODELS, DRACO_DECODER, type CaseFinish } from './caseModels';
+import { CASE_MODELS, DRACO_DECODER, type CaseFinish, type CaseModel } from './caseModels';
 import { preloadCaseModel } from './preloadCaseModel';
 import {
   FRAME_CENTRE,
@@ -163,6 +163,22 @@ const REST_VIEW_HEIGHT =
  * on its stands, 11% more, and two thirds wider).
  */
 const BOARD_SPAN = 3.1;
+
+/** A light model's own copies of the panel's materials, and the clock its pattern runs on. */
+interface LightPanelSet {
+  pattern: THREE.ShaderMaterial;
+  custom: THREE.ShaderMaterial;
+  demo: THREE.ShaderMaterial;
+  /** Seconds into its pattern. */
+  clock: number;
+  /** Whether the clock moves: said by the shelf each frame the case is drawn. */
+  running: boolean;
+}
+/** Where a case's pattern holds before it has run: a few seconds in, a different moment for each. */
+const STILL_FRAME_AT = 5;
+const STILL_FRAME_STEP = 11.3;
+/** How far into Obra the first frame drawn is, for a demo that holds still before it has run. */
+const OBRA_STILL_SECONDS = 0.1;
 
 /** A per-frame easing factor (as at 60 fps) made independent of the frame rate. */
 const ease = (perFrame: number, dt: number) => 1 - Math.pow(1 - perFrame, Math.min(dt, 0.5) * 60);
@@ -338,6 +354,7 @@ function ProductPreview({
   // Patternflood's Obra, for a case whose model names it (CaseModel.demo);
   // it draws only while that case is lit on the Build tab.
   const obra = useMemo(() => new ObraDemo(), []);
+  const obraDrawn = useRef(false);
   useEffect(() => () => obra.texture.dispose(), [obra]);
   const demoMat = useMemo(() => new THREE.ShaderMaterial({
     uniforms: {
@@ -354,35 +371,48 @@ function ProductPreview({
   // The light models' panels show what a full model's would: the pattern, the
   // editor's code or the case's own demo. The three materials above carry one
   // grid between them, the staged device's, and the shelf has every case on
-  // it at once, so each grid there is gets its own copies. They read the same
-  // textures, and the frame loop hands them the same clock and knobs.
+  // it at once, so each case gets its own copies, on its own grid. They read
+  // the same textures and the same knobs. Each runs on a clock of its own,
+  // which moves only while its case is running (CaseShelf.tsx): on the shelf,
+  // the official case and the one under the pointer; the rest hold a frame,
+  // each a different one, and go on from it when they run again.
   const lightPanels = useMemo(() => {
-    const byGrid = new Map<string, { pattern: THREE.ShaderMaterial; custom: THREE.ShaderMaterial; demo: THREE.ShaderMaterial }>();
+    const byCase = new Map<CaseId, LightPanelSet>();
     return {
-      byGrid,
-      of(grid: readonly [number, number]) {
-        const key = grid.join('x');
-        let set = byGrid.get(key);
+      byCase,
+      of(model: CaseModel) {
+        let set = byCase.get(model.id);
         if (!set) {
-          set = { pattern: ledMat.clone(), custom: customMat.clone(), demo: demoMat.clone() };
-          for (const m of Object.values(set)) m.uniforms.uGrid.value = new THREE.Vector2(grid[0], grid[1]);
-          byGrid.set(key, set);
+          const grid = model.ledGrid ?? LED_GRID;
+          set = {
+            pattern: ledMat.clone(),
+            custom: customMat.clone(),
+            demo: demoMat.clone(),
+            clock: STILL_FRAME_AT + byCase.size * STILL_FRAME_STEP,
+            running: false,
+          };
+          for (const m of [set.pattern, set.custom, set.demo]) m.uniforms.uGrid.value = new THREE.Vector2(grid[0], grid[1]);
+          byCase.set(model.id, set);
         }
         return set;
       },
     };
   }, [ledMat, customMat, demoMat]);
   useEffect(
-    () => () => lightPanels.byGrid.forEach((set) => Object.values(set).forEach((m) => m.dispose())),
+    () => () => lightPanels.byCase.forEach((set) => [set.pattern, set.custom, set.demo].forEach((m) => m.dispose())),
     [lightPanels],
   );
 
   // Lights a light model as its full model would be lit: every case on the
   // shelf has power, and one on the stage has it when the step does.
-  const paintLight = useCallback((light: PreparedLight, onStage: boolean) => {
+  const paintLight = useCallback((light: PreparedLight, onStage: boolean, running: boolean) => {
     const lit = onStage ? stageLit.current : true;
     const demo = useAppStore.getState().homeTab === 'build' && light.model.demo === 'obra';
-    const panels = lightPanels.of(light.model.ledGrid ?? LED_GRID);
+    const panels = lightPanels.of(light.model);
+    panels.running = running;
+    // On the stage it is the full model's stand-in, on the full model's clock,
+    // so the one fades over the other showing the same frame.
+    if (onStage) panels.clock = ledMat.uniforms.uTime.value;
     const target = !lit ? blackMat : demo ? panels.demo : activePatternId === 'custom' ? panels.custom : panels.pattern;
     for (const mesh of light.led) {
       if (mesh.material !== target) mesh.material = target;
@@ -393,7 +423,7 @@ function ProductPreview({
       else m.emissive.setRGB(0, 0, 0);
       m.emissiveIntensity = KNOB_LIGHT_GAIN;
     });
-  }, [lightPanels, blackMat, activePatternId, obra]);
+  }, [lightPanels, blackMat, activePatternId, obra, ledMat]);
 
   // --- Knob Interaction Logic ---
   const drag = useRef<{ rig: KnobRig; knob: KnobId; cx: number; cy: number; lastAngle: number } | null>(null);
@@ -539,11 +569,12 @@ function ProductPreview({
       ledMat.uniforms.uParam4.value = knobValues[LOGICAL_KNOB_TO_WEB_KNOB[3]]; // Freq/Offset
     }
 
-    // The light models' panels run on the same clock and the same knobs.
-    lightPanels.byGrid.forEach((set) => {
+    // The light models' panels run on the same knobs, each on its own clock.
+    lightPanels.byCase.forEach((set) => {
+      if (set.running) set.clock += Math.min(Math.max(delta, 0), 0.1);
       const to = set.pattern.uniforms;
       const from = ledMat.uniforms;
-      to.uTime.value = from.uTime.value;
+      to.uTime.value = set.clock;
       to.uSpeed.value = from.uSpeed.value;
       to.uParam1.value = from.uParam1.value;
       to.uParam3.value = from.uParam3.value;
@@ -556,7 +587,14 @@ function ProductPreview({
     const pose = poseFor(buildStep, explode, t, still, CASE_MODELS[staged].boardless);
     stageLit.current = pose.lit;
     // The case's own demo, drawn once a frame for whichever is showing it.
-    if ((caseDemo && pose.lit) || lightDemo) obra.render(delta, knobValues, prevKnobValues.current);
+    if ((caseDemo && pose.lit) || lightDemo) {
+      obra.render(delta, knobValues, prevKnobValues.current);
+      obraDrawn.current = true;
+    } else if (homeTab === 'build' && !obraDrawn.current) {
+      // Held still on the shelf, a demo still shows a frame of itself, not a blank panel.
+      obra.render(OBRA_STILL_SECONDS, knobValues, knobValues);
+      obraDrawn.current = true;
+    }
     if (caseDemo || lightDemo) prevKnobValues.current = { ...knobValues };
 
     // The full model is drawn once it is the staged case's and that case's
@@ -702,19 +740,41 @@ function ProductPreview({
 }
 
 /**
- * While the shelf is open the camera goes back to where the page opened it
- * and stays: the shelf is laid out for that view (shelfLayout.ts), and a view
- * someone had turned round the device would show it from behind.
+ * As the shelf opens the camera goes back to where the page opened it: the
+ * shelf is laid out for that view (shelfLayout.ts), and a view someone had
+ * turned round the device would show it from behind. From there the shelf can
+ * be turned and tilted a little (SHELF_ORBIT); a hand on the view stops the
+ * way back.
  */
 function ShelfCamera({ open, controls }: { open: boolean; controls: RefObject<OrbitControlsImpl | null> }) {
+  const homing = useRef(open);
+  useEffect(() => {
+    if (open) homing.current = true;
+  }, [open]);
+  useEffect(() => {
+    const c = controls.current;
+    if (!c) return;
+    const stop = () => { homing.current = false; };
+    c.addEventListener('start', stop);
+    return () => c.removeEventListener('start', stop);
+  }, [controls]);
   useFrame((state, delta) => {
-    if (!open || state.camera.position.distanceToSquared(CAMERA_REST) < 1e-6) return;
+    if (!open || !homing.current) return;
     state.camera.position.lerp(CAMERA_REST, ease(0.14, delta));
-    if (state.camera.position.distanceToSquared(CAMERA_REST) < 1e-4) state.camera.position.copy(CAMERA_REST);
+    if (state.camera.position.distanceToSquared(CAMERA_REST) < 1e-4) {
+      state.camera.position.copy(CAMERA_REST);
+      homing.current = false;
+    }
     controls.current?.update();
   });
   return null;
 }
+
+/**
+ * How far the shelf turns under a drag, either side of straight on, and how
+ * far it tilts, as OrbitControls' polar angle (the camera at rest is 1.17).
+ */
+const SHELF_ORBIT = { azimuth: 0.6, polarMin: 0.85, polarMax: 1.45 };
 
 const caseName = (id: CaseId) => BUILD_CASES.find((c) => c.id === id)?.tab ?? id;
 
@@ -973,13 +1033,18 @@ export default function HeroScene({ tab }: { tab?: HomeTabType }) {
             </Suspense>
           </ModelGuard>
         )}
-        {/* The shelf is looked at from where the page opened: no turning it, no zooming in. */}
+        {/* The shelf turns and tilts a little under a drag, and never round
+            to its back; no zooming into it, so the wheel scrolls the page. */}
         <OrbitControls
           ref={controlsRef}
           target={[0, 1.7, 0]}
           enablePan={false}
           enableZoom={!shelfOpen}
-          enableRotate={!isDraggingKnob && !shelfOpen}
+          enableRotate={!isDraggingKnob}
+          minAzimuthAngle={shelfOpen ? -SHELF_ORBIT.azimuth : -Infinity}
+          maxAzimuthAngle={shelfOpen ? SHELF_ORBIT.azimuth : Infinity}
+          minPolarAngle={shelfOpen ? SHELF_ORBIT.polarMin : 0}
+          maxPolarAngle={shelfOpen ? SHELF_ORBIT.polarMax : Math.PI}
         />
         <ContactShadows position={[0, -2.5, 0]} opacity={0.35} scale={20} blur={2.5} far={6} color="#1a1814" />
 
