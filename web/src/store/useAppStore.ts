@@ -52,6 +52,11 @@ interface AppState {
   // product, so the case a reader picked stays the one they look at.
   buildCase: CaseId;
   setBuildCase: (id: CaseId) => void;
+  // The Build tab's 3D view opens on the shelf: every case standing on it,
+  // small, to pick from. Picking one (there, on the panel's switch, by its
+  // address) takes the view to that case, and All cases brings the shelf back.
+  buildShelf: boolean;
+  setBuildShelf: (open: boolean) => void;
   // For a case that comes in more than one finish (caseModels.ts: finishes),
   // which one the preview shows. Kept per case, so going back to it keeps the
   // reader's pick; a case without an entry shows its first finish.
@@ -129,7 +134,10 @@ export function draw(display, params, globalTime) {
   explode: 1,
   setExplode: (val) => set({ explode: val }),
   buildCase: 'official',
-  setBuildCase: (id) => set({ buildCase: id }),
+  // Naming a case is asking to see it, so the shelf steps aside.
+  setBuildCase: (id) => set({ buildCase: id, buildShelf: false }),
+  buildShelf: true,
+  setBuildShelf: (open) => set({ buildShelf: open }),
   caseFinish: {},
   setCaseFinish: (id, finish) =>
     set((state) => ({ caseFinish: { ...state.caseFinish, [id]: finish } })),

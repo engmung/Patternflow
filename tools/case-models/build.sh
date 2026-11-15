@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Makes every case model again: web/public/cases/<case>/model.glb.
+# Makes every case model again: web/public/cases/<case>/model.glb and, from
+# it, the light model beside it, light.glb.
 #
 #   tools/case-models/build.sh            # all five
 #   tools/case-models/build.sh official   # one
@@ -45,4 +46,6 @@ for id in "${cases[@]}"; do
       exit 1
       ;;
   esac
+  # The light model is made from the full one, so it follows it.
+  node light.mjs "$id"
 done

@@ -90,7 +90,7 @@ export default function ViewerPanel({ initialTab = 'hero' }: { initialTab?: Home
         {/* Keyed by scene: one that failed is tried again only after the other has been shown. */}
         {webgl ? (
           <SceneGuard key={shownScene}>
-            {shownScene === 'globe' ? <GlobeViewer /> : <HeroScene />}
+            {shownScene === 'globe' ? <GlobeViewer /> : <HeroScene tab={homeTab} />}
           </SceneGuard>
         ) : (
           <ViewerOff />
