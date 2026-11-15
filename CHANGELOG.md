@@ -10,6 +10,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **The Origin QR codes open the home page.** They point at `/r/c/1` and the numbers after it, which answered 404. Any address under `/r/c` now goes to `/`.
 - **Pattern Lab previews the time from the browser's clock.** The guide and the virtual panel give a pattern `timeValid` false, as a board without the clock does ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
 - **The home page's nav is a row of its own on a phone.** Below 901px Guide, Journal, Community, Shop and Instagram were 11px words in the corner over the wordmark, 18px tall to a finger. They are the hero's first row now, 12px words in entries 44px tall, from the column's left edge to its right. Get One is where it was on a 375×667 screen, and pages from 901px up are unchanged.
 - **Build, Pattern and Inside start 24px from a phone's edge, not 46px.** The panel's own 22px came on top of the page's 24px, so a 390px phone had a 298px column. It has 342px now, on the hero's and the journal's gutter. On a 375px phone the Inside list's count goes under its heading, where each used to break in two beside the other.
