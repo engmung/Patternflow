@@ -494,8 +494,8 @@
   /* At laptop height the column — wordmark, video, the two facts, the buttons —
      can be taller than the window with the full 80px above it, and the buttons'
      note falls below the fold. Take the difference from the top. The nav is out
-     of flow, top-right, and goes up 8px with it, so the Shop box keeps clear
-     of the wordmark's f and l. */
+     of flow, top-right, and goes up 8px with it, so the Instagram mark keeps
+     clear of the wordmark's f and l. */
   @media (min-width: 901px) and (max-height: 860px) {
     .hero { padding-top: 48px; }
     .hero .hero-top-links { top: 16px; }
@@ -511,19 +511,28 @@
     .hero-cta { width: 100%; }
   }
   @media (max-width: 900px) {
+    /* Its first child is the nav, a 44px row in the flow (the rules are at
+       the end of this file), so nothing is kept clear over the wordmark and
+       there is no gap between the row and the copy. */
     .hero {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      padding: 36px 0 60px;
-      gap: 24px;
+      padding: 0 0 60px;
+      gap: 0;
       min-height: auto;
     }
 
-    .hero-copy h1 { font-size: 50px; margin-bottom: 12px; }
-    .hero-copy .kicker { font-size: 20px; margin-bottom: 8px; }
-    .hero-spec { font-size: 14.5px; margin: 0 0 20px; }
-    .hero-copy p.lede { font-size: 17.5px; margin-bottom: 12px; }
+    /* 10 and 14, not 12 and 20: the nav row put the wordmark 8px lower, and
+       these give the 8px back, so Get One is still on the first screen of a
+       667px-tall phone. */
+    .hero-copy h1 { font-size: 50px; margin-bottom: 10px; }
+    /* Each of these is two lines on a phone, and the second was a word or
+       two: "them.", "we make.", "so far." Balanced, the two lines share the
+       words, and the kicker breaks between its two sentences. */
+    .hero-copy .kicker { font-size: 20px; margin-bottom: 8px; text-wrap: balance; }
+    .hero-spec { font-size: 14.5px; margin: 0 0 14px; text-wrap: balance; }
+    .hero-copy p.lede { font-size: 17.5px; margin-bottom: 12px; text-wrap: balance; }
     /* Single column — keep the note directly under Get One rather than letting
        it fall to the bottom of the stack. */
     .hero-cta-row { gap: 8px; grid-template-columns: 1fr; margin-top: 20px; }
@@ -911,9 +920,19 @@
     color: var(--ink-muted);
   }
   footer em { font-style: italic; font-weight: 400; }
-  /* Same reasoning as .sponsor above — matches .hero dropping to a 0 gutter. */
+  /* Same reasoning as .sponsor above — matches .hero dropping to a 0 gutter.
+     Terms & Privacy is the footer's one link, and it shows that only under a
+     pointer. A phone has none, so here it carries its line all the time, and
+     12px above and below for a finger. */
   @media (max-width: 900px) {
     footer { padding-left: 0; padding-right: 0; }
+    footer .foot-row a {
+      display: inline-block;
+      padding: 12px 0;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
   }
   @media (max-width: 640px) {
     footer { padding: 30px 0 34px; }
@@ -960,22 +979,6 @@
     height: 28px;
     fill: currentColor;
     display: block;
-  }
-  /* The shop: an outline box in ink, filled on hover like Build it — GitHub.
-     The accent stays for live signals. The negative margin puts its word on
-     the same line as Guide, Journal and Community, which sit 2px off the
-     bottom. */
-  .hero-top-links .shop-link {
-    color: var(--ink);
-    border: 1px solid var(--ink);
-    padding: 4px 9px 3px;
-    margin-bottom: -2px;
-    transition: background-color 0.15s ease, color 0.15s ease;
-  }
-  .hero-top-links .shop-link:hover {
-    background: var(--ink);
-    color: var(--cream);
-    text-decoration: none;
   }
 
   /* Business */
@@ -2073,7 +2076,9 @@
       font-weight: 500;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: var(--ink-muted);
+      /* Ink, not muted: on a phone this bar is the one way to Build, Pattern
+         and Inside, and in the grey of a caption it read as a footer. */
+      color: var(--ink);
       cursor: pointer;
       transition: color 0.2s ease, background-color 0.2s ease;
     }
@@ -2083,6 +2088,12 @@
     .mobile-bottom-nav .mb-tab.active {
       color: var(--cream);
       background: var(--ink);
+    }
+    /* The open tab's ✕: a second tap on it closes the section. */
+    .mobile-bottom-nav .mb-close {
+      margin-right: 8px;
+      font-size: 11px;
+      letter-spacing: 0;
     }
     /* Hero (closed): keep the footer clear of the parked nav at the bottom. */
     .content-panel {
@@ -2094,32 +2105,68 @@
       padding-bottom: 40px;
     }
 
-    /* Force mobile override for top header links by placing it at the end of the file */
+    /* The site's pages are the hero's first row on a phone: in the flow above
+       the wordmark, from the column's left edge to its right, Instagram last.
+       They were 11px words in the corner over the wordmark, 18px tall to a
+       finger. Each entry is 44px tall now and the words are 12px. The 6px at
+       each side of an entry is finger room too, and the row's negative margin
+       puts the first and last word back on the column's edges. These rules
+       are at the end of the file so that they follow the desktop ones. */
     .hero-top-links {
-      position: absolute !important;
-      top: 14px !important;
-      right: -8px !important;
-      font-size: 11px !important;
-      gap: 12px !important;
+      position: static;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0;
+      margin: 0 -6px;
+      /* The copy under it stops at 580px, and so does the row on a tablet:
+         580px and the 6px it reaches out at each side. */
+      max-width: 592px;
+      font-size: 12px;
+    }
+    .hero-top-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 0 6px;
     }
     .hero-top-links .instagram-link svg {
-      width: 20px !important;
-      height: 20px !important;
+      width: 22px;
+      height: 22px;
     }
-    /* Shorter on a phone, where the nav sits right over the wordmark. Its
-       word still lines up with the others, now with no margin to do it. */
-    .hero-top-links .shop-link {
-      padding: 2px 6px 1px;
-      margin-bottom: 0;
+    /* One gutter. A tab's panel had 22px of its own inside .deck-content's
+       24px (40px inside it from 761px up), so Build, Pattern and Inside began
+       46px from a phone's edge and the hero and the journal 24px. At 390px
+       that was a 298px column, and it is 342px now. */
+    .pf-section-panel {
+      padding-left: 0;
+      padding-right: 0;
     }
   }
 
 
-  /* Five entries need about 270px. Below 340px the gaps close up so the row
-     still starts inside the screen at 280px, a folded phone's width. */
+  /* Someone who has asked their system for less motion gets the home view's
+     panels and bars in place at once. The globe, the device and the hero's
+     video already hold still for them (useReducedMotion). These are the moves
+     the stylesheet makes: the page rising 10px as it loads, a tab's panel
+     rising 16px, the 3D view dropping in on a phone and the section bar
+     riding up under it. */
+  @media (prefers-reduced-motion: reduce) {
+    .deck-content { animation: none; }
+    .panel-wrapper { transition: none; transform: none; }
+    .viewer-panel.is-open { animation: none; }
+    .mobile-bottom-nav { transition: none; }
+  }
+
+  /* Five entries need about 290px at 12px. Below 340px the words go back to
+     11px, set closer, with 3px at each side, and the row fits a 280px screen,
+     a folded phone's width. */
   @media (max-width: 340px) {
     .hero-top-links {
-      gap: 8px !important;
+      margin: 0 -3px;
+      font-size: 11px;
       letter-spacing: 0.04em;
+    }
+    .hero-top-links a {
+      padding: 0 3px;
     }
   }

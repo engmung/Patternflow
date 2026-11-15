@@ -125,3 +125,105 @@
     height: 44px;
   }
 }
+
+/* The shelf's cases by name: a button each, on the front edge of the board
+   its case stands on (CaseShelf.tsx moves them there every frame, so they
+   start at the frame's corner and are placed by a transform). The kicker type
+   on the page's ground, so a name reads over the board; the one a pointer or
+   the focus is on goes to ink. They leave with the shelf. */
+
+.shelfTags {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.shelfTag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 5px 8px 4px;
+  border: 0;
+  background: var(--cream);
+  color: #6B655A;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0s 0.25s, color 0.15s ease, background-color 0.15s ease;
+}
+
+/* Only once it has been placed: before the first frame every name is in the
+   frame's corner, one on another, and a pointer resting there would be
+   taken for one on the top one's case. And only while its board is up: on
+   the way back from a case the boards wait for that case to be half way
+   home, and the names wait with them. */
+.shelfTags[data-on='1'] .shelfTag[data-placed='1'][data-up='1'] {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.25s ease 0.1s, visibility 0s, color 0.15s ease, background-color 0.15s ease;
+}
+
+.shelfTag[data-hot='1'],
+.shelfTag:hover {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.shelfTag:focus-visible {
+  outline: 2px solid var(--pf-led);
+  outline-offset: 2px;
+}
+
+/* Back to the shelf from a case, in the frame's top left corner: an outline
+   in ink that fills under the pointer, as the hero's Build it does. */
+
+.allCases {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 11;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--ink);
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.allCases:hover {
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.allCases:focus-visible {
+  outline: 2px solid var(--pf-led);
+  outline-offset: 2px;
+}
+
+/* On a phone the top of the frame is the case's name and the hint under it,
+   so the button goes to the bottom left corner, beside the finish switch and
+   nearer a thumb, 44px tall. */
+@media (max-width: 900px) {
+  .allCases {
+    top: auto;
+    bottom: 10px;
+    left: 10px;
+    min-height: 44px;
+  }
+}

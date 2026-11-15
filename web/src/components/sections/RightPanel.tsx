@@ -186,7 +186,10 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
       </main>
 
       {/* Mobile-only bottom nav. Tapping a section drops the 3D viewer down from
-          the top; tapping the active one again returns to the full-screen hero. */}
+          the top; tapping the active one again returns to the full-screen hero.
+          Nothing on the bar said so, and the hero is where the phone's links
+          to Guide, Journal and Community are. The open tab carries the ✕ the
+          desktop column's does, drawn only. */}
       <nav className={`mobile-bottom-nav ${activeTab !== 'hero' ? 'is-open' : ''}`} aria-label="Sections">
         {(['build', 'pattern', 'inside'] as const).map((tab) => (
           <button
@@ -195,6 +198,7 @@ export default function RightPanel({ initialTab = 'hero', buildContent, patternC
             aria-pressed={activeTab === tab}
             onClick={() => handleTabClick(tab)}
           >
+            {activeTab === tab && <span className="mb-close" aria-hidden="true">✕</span>}
             {tab === 'build' ? 'Build' : tab === 'pattern' ? 'Pattern' : 'Inside'}
           </button>
         ))}

@@ -16,9 +16,10 @@ function InstagramIcon() {
 // Global nav, so it carries what someone needs from anywhere. Community is a
 // whole platform on its own host and was only reachable from inside the Pattern
 // panel; Contact moved to the Inside panel's join band, next to the other ways
-// of reaching us. The shop opened at shop.patternflow.work in October 2026 and
-// had no link from the site. It is the one entry drawn as a box, the hero's
-// outline button at the nav's size, and it opens in a new tab as Get One does.
+// of reaching us. The shop opened at shop.patternflow.work in October 2026 as
+// an experiment. It was a box here and a poster under the hero's buttons until
+// November, and sold next to nothing, so it is a word like the other three
+// now. It opens in a new tab as Get One does.
 export default function HeroJournalLink() {
   return (
     <nav className="hero-top-links" aria-label="Patternflow pages">
@@ -29,7 +30,6 @@ export default function HeroJournalLink() {
         href={SHOP_URL}
         target="_blank"
         rel="noopener"
-        className="shop-link"
         onClick={() => captureEvent('shop_clicked', {
           surface: 'site_nav',
           destination: 'shop',
