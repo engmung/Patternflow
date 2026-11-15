@@ -429,7 +429,8 @@
 
 /* One row needs about 575px: 261 for the arrows and both buttons, and the
    name cell around "01 / 42 Wave Saw on the device", the widest name. A
-   phone's column is 296px at 390, and there the name cell came out 36px wide
+   phone's column was 296px at 390 (342px since November 2026, when the
+   panel's own side padding went), and there the name cell came out 36px wide
    and showed "01" and nothing else. Below that width the name takes the top
    row alone and the four buttons share the row under it, in their old order,
    so Tab still goes left to right. The total goes, since "All 42" is the
