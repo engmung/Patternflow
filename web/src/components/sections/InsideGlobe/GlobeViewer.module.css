@@ -309,8 +309,12 @@
   .hintPointer {
     display: none;
   }
+  /* In a frame this short the prompt lies across the arcs over the globe, so
+     it stands on a strip of the ground's colour. */
   .hintTouch {
     display: inline;
+    padding: 3px 8px;
+    background: var(--pf-cream);
   }
   .kicker {
     padding: 2px 8px;

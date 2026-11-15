@@ -4,8 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import HeroJournalLink from './HeroJournalLink';
 
-// The site's nav, top right of the hero on a desktop and on a phone. The shop
-// is on its own host and opens in a new tab, as Get One does.
+// The site's nav, top right of the hero on a desktop and the hero's first row
+// on a phone. The shop is on its own host and opens in a new tab, as Get One
+// does. It is an experiment, so it is drawn as the other words are: no box,
+// which is to say no class of its own.
 
 vi.mock('next/link', () => ({
   default: ({
@@ -35,7 +37,14 @@ describe('HeroJournalLink', () => {
     expect(shop.getAttribute('href')).toBe('https://shop.patternflow.work');
     expect(shop.getAttribute('target')).toBe('_blank');
     expect(shop.getAttribute('rel')).toBe('noopener');
-    expect(shop.className).toBe('shop-link');
+  });
+
+  it('draws the shop as it draws the pages', () => {
+    render(<HeroJournalLink />);
+    const words = ['Guide', 'Journal', 'Community', 'Shop'].map((name) =>
+      within(nav()).getByRole('link', { name }),
+    );
+    expect(words.map((a) => a.className)).toEqual(['', '', '', '']);
   });
 
   it('puts the shop after the pages and before Instagram', () => {
@@ -52,6 +61,6 @@ describe('HeroJournalLink', () => {
 
   it('sends the shop link from the server', () => {
     const html = renderToString(<HeroJournalLink />);
-    expect(html).toContain('<a href="https://shop.patternflow.work" target="_blank" rel="noopener" class="shop-link">Shop</a>');
+    expect(html).toContain('<a href="https://shop.patternflow.work" target="_blank" rel="noopener">Shop</a>');
   });
 });

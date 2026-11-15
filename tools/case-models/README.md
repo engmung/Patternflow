@@ -12,13 +12,17 @@ The 3D models the [/build](https://patternflow.work/build) page's preview shows,
 
 Run `./build.sh` to make all five again (or `./build.sh <case>` for one). The models are committed; nothing here runs when the site builds. Every step is deterministic: the same files in give the same bytes out.
 
-| Model | Size | Loads |
-| :--- | ---: | :--- |
-| `official/model.glb` | 317 KB | with the page (the guide uses it too) |
-| `besoiobiy-printed/model.glb` | 345 KB | when its tab is hovered or picked |
-| `simonepda-lasercut/model.glb` | 332 KB | when its tab is hovered or picked |
-| `mbchars-horizontal-desktop-printed/model.glb` | 380 KB | when its tab is hovered or picked |
-| `jof-patternflood/model.glb` | 563 KB | when its tab is hovered or picked |
+Each case has two models. `model.glb` is the full one, every part its own node, which the preview takes apart. `light.glb` is made from it by `light.mjs` (below): the same device standing assembled, small enough that all five load with the tab.
+
+| Case | `model.glb` | `light.glb` |
+| :--- | ---: | ---: |
+| `official` | 317 KB | 14 KB |
+| `besoiobiy-printed` | 345 KB | 30 KB |
+| `simonepda-lasercut` | 332 KB | 33 KB |
+| `mbchars-horizontal-desktop-printed` | 380 KB | 22 KB |
+| `jof-patternflood` | 563 KB | 55 KB |
+
+The five light models load with the Build or Pattern tab, 154 KB between them. A full model loads when its case is first shown by itself, or when a pointer is on it on the way.
 
 The landing page's model before these, `web/public/3dforweb.glb` (a v3.0 device), was 1,155 KB and loaded with the page.
 
@@ -123,11 +127,33 @@ Then it checks the result: 410.28 × 176.16 × 42 mm against the README's "appro
 
 Into the model frame it is a half turn about y, 10 mm to the unit, the outline centred and the front face set where the official case's are. The panel lies the long way across here, a quarter turn from the other three, so `ledTurn` turns it a quarter turn clockwise, which puts the top of the pattern at the top as the author mounts the panel (its arrows point up in the rear photo). The board is centred on the encoder holes and bears on the inside of the control section's 3 mm front, as in the official case; the panel's face is flush with the front, on tabs 17.8 mm behind it. Each part is one node: `outer_frame`, `inner_frame`, `rear_display_cover`, `rear_control_cover` and the four `joint_bar_*` in `pla_white`; `control_section`, `usb_retainer`, `stand_left` and `stand_right` in `pla_orange`, the orange of the author's 3MF. Normals as on Besoiobiy's case (`crease_shaded`, imported from `besoiobiy.py`).
 
+## The light models: `light.mjs`
+
+`light.glb` is a case as two nodes: `l`, the lit face of the LED panel with its UVs, and `body`, everything else, one primitive per material. The Build tab opens on a shelf of all five. A picked case's light model then stands where the device stands until its full model has arrived, so the page draws a case before it has fetched 317 KB of it or the Draco decoder.
+
+`node light.mjs` makes all five from their full models (`node light.mjs <case>` for one), and `build.sh` runs it after `assemble.mjs`.
+
+- It leaves out what nobody sees while the case is closed, by node name (`CASES` in the script): the board and the DevKit, mbchars' joint bars, Patternflood's braces and wiring, SimonePDA's loose feet. SimonePDA's case is clear, so its board and DevKit stay, cut down to 260 triangles each.
+- It cuts each part that stays to a budget with meshoptimizer: 900 triangles for a part of the shell, 96 for a knob.
+- It drops the normals and welds vertices by position. The page works the normals out again from the faces (`toCreasedNormals` in `web/src/components/3d/lightCase.ts`), with an edge wherever two faces meet at more than 36°.
+- It keeps the LED panel's lit face as it is, the triangles whose UVs are the LED grid, and gives them the one normal the pattern's shader takes for an LED (`ledPanel` in `patterns/common.ts`).
+- It writes the full model's box into the scene's `extras`, so a light model is centred exactly where its full model is, dropped parts or not.
+- It writes with `EXT_meshopt_compression`, whose decoder is built into three's loader. Nothing else is fetched before a light model draws.
+
+| Case | Triangles, full | Triangles, light |
+| :--- | ---: | ---: |
+| `official` | 104,377 | 2,900 |
+| `besoiobiy-printed` | 107,154 | 7,946 |
+| `simonepda-lasercut` | 103,320 | 3,640 |
+| `mbchars-horizontal-desktop-printed` | 125,806 | 5,222 |
+| `jof-patternflood` | 110,956 | 10,551 |
+
 ## How the preview uses a model
 
 `web/src/components/3d/HeroScene.tsx` with `heroCase.ts` draws whichever model the Build panel's case switch is on.
 
-- **Loading.** Only the official model is preloaded with the page. A remix's model loads when it is picked, or when its tab is hovered (`preloadCaseModel.ts`). The current case stays on screen until the new model has arrived. A model that fails to load is caught, and the official case stays up.
+- **Loading.** No full model loads with the page. A case's full model loads when the case is first shown by itself, or when a pointer is on it on the shelf, on its tab or on the arrow that leads to it (`preloadCaseModel.ts`). Until it has arrived the case's light model stands in its place. The full one then takes over in the same place, at the same size and turn, and the light one fades out over it (`CaseShelf.tsx`). A model that fails to load is caught, and the official case stays up.
+- **The shelf.** The Build tab's view opens on all five light models standing on two boards, at one scale (`shelfLayout.ts`). A case picked there, by its model or by the name under it, goes from its place on the shelf to where the device stands, and All cases takes it back.
 - **Its own copy.** The preview works on a deep clone of drei's cached scene, with its own copy of each material, so it never changes the cached scene, which the guide may be given too. It finds the parts by the node names above; every other top-level node is treated as a piece of the case.
 - **Placement.** The model is measured once when it arrives and centred on the preview's orbit target. Every case is drawn at the same scale: the LED panel is the same part in each (and the knobs, except Besoiobiy's own caps), so it is the same size on screen, and what differs is the case round it (up to 4% across the front's diagonal among the three that stand upright; Besoiobiy's case is 8% wider than the official one). mbchars' case lies the long way and is two thirds wider than the official one: on a view too narrow for it, a desktop's tall one, it is drawn smaller, by as little as keeps it within 72% of the view's width, clear of the arrows (`fitAcross` in `buildPose.ts`). On a phone all four fit at the one scale, and on a desktop the other three do. A script does not need to match the official case's origin, only the frame's axes and units.
 - **The Build steps** use what `web/src/components/3d/cases/<case>.ts` gives: step 1 shows the case pieces and knobs at 40% of their explode vectors; step 2 shows the board and DevKit, framed on their box; step 3 moves every top-level node by its explode vector times the panel's slider.
@@ -137,7 +163,7 @@ Into the model frame it is a half turn about y, 10 mm to the unit, the outline c
 
 ## Adding a case
 
-A remix with 3D files (or a drawing exact enough to stand up) gets a model the same way: a script in this folder that writes a shell and a `placement.json` in the frame above, a line in `build.sh`, an entry in `web/src/components/3d/cases/`, and the case's card in `web/src/components/sections/build-cases-data.ts`.
+A remix with 3D files (or a drawing exact enough to stand up) gets a model the same way: a script in this folder that writes a shell and a `placement.json` in the frame above, a line in `build.sh`, a line in `light.mjs`'s `CASES` saying which of its nodes the light model leaves out, an entry in `web/src/components/3d/cases/`, and the case's card in `web/src/components/sections/build-cases-data.ts`.
 
 ## License
 

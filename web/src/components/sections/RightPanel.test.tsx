@@ -72,6 +72,21 @@ describe('RightPanel', () => {
     expect(build).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('draws the same ✕ on the phone bar\'s open tab, and on no other', () => {
+    renderAt('/build', 'build');
+    const [, phone] = screen.getAllByRole('navigation', { name: 'Sections' });
+    const build = within(phone).getByRole('button', { name: 'Build' });
+    expect(build).toHaveTextContent('✕');
+    expect(build.querySelector('[aria-hidden="true"]')).toHaveTextContent('✕');
+    for (const name of ['Pattern', 'Inside']) {
+      expect(within(phone).getByRole('button', { name })).not.toHaveTextContent('✕');
+    }
+
+    fireEvent.click(build);
+    expect(within(phone).getByRole('button', { name: 'Build' })).not.toHaveTextContent('✕');
+    expect(window.location.pathname).toBe('/');
+  });
+
   it('moves pressed with a click, and a second click on the open tab closes it', () => {
     renderAt('/', 'hero');
     const [desktop, phone] = screen.getAllByRole('navigation', { name: 'Sections' });

@@ -105,6 +105,14 @@ export const CASE_MODELS: Record<CaseId, CaseModel> = {
   'jof-patternflood': JOF_MODEL,
 };
 
+/**
+ * A case's light model, beside its full one: the same device standing
+ * assembled, 14 to 55 KB where the full one is 317 to 563 (tools/case-models,
+ * light.mjs). The Build tab's shelf is made of these, and each stands in for
+ * its full model until that has arrived (lightCase.ts).
+ */
+export const lightUrl = (model: CaseModel) => model.url.replace(/model\.glb$/, 'light.glb');
+
 /** Where the Draco decoder comes from: the same copy the guide's models use. */
 export const DRACO_DECODER = 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
 

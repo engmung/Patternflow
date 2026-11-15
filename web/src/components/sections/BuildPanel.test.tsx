@@ -56,7 +56,7 @@ beforeEach(() => {
   );
   // The store outlives a render the way it outlives a panel on the page, so
   // each test starts from a fresh page's.
-  useAppStore.setState({ buildStep: 0, explode: 1, buildCase: 'official', caseFinish: {} });
+  useAppStore.setState({ buildStep: 0, explode: 1, buildCase: 'official', caseFinish: {}, buildShelf: true });
   window.history.replaceState(null, '', '/build');
   capture.mockClear();
   preload.mockClear();
@@ -381,6 +381,90 @@ describe('the case switch', () => {
     fireEvent.keyDown(tab(/Besoiobiy/), { key: 'Home' });
     expect(tab(/Official/)).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+// The 3D view beside the panel opens on a shelf of every case (CaseShelf.tsx)
+// and shows one case by itself once one has been asked for. The panel is one
+// of the places that asks: its switch, a ?case= address, and a step, which is
+// acted out on a device.
+describe('the shelf beside the panel', () => {
+  const shelf = () => useAppStore.getState().buildShelf;
+
+  it('is open on a bare /build, and stays open while nothing is asked for', () => {
+    render(<BuildPanel content={content} isActive />);
+    expect(shelf()).toBe(true);
+    expect(useAppStore.getState().buildStep).toBe(0);
+  });
+
+  it('steps aside for a case picked on the switch, the official one included', () => {
+    render(<BuildPanel content={content} isActive />);
+    fireEvent.click(tab(/Besoiobiy/));
+    expect(shelf()).toBe(false);
+
+    act(() => useAppStore.getState().setBuildShelf(true));
+    fireEvent.click(tab(/Official/));
+    expect(shelf()).toBe(false);
+    expect(useAppStore.getState().buildCase).toBe('official');
+  });
+
+  it('steps aside for a case the address names', () => {
+    window.history.replaceState(null, '', '/build?case=jof-patternflood');
+    render(<BuildPanel content={content} isActive />);
+    expect(shelf()).toBe(false);
+    expect(useAppStore.getState().buildCase).toBe('jof-patternflood');
+  });
+
+  it('steps aside for a step under the pointer, and for one that is clicked', () => {
+    render(<BuildPanel content={content} isActive />);
+    const step = screen.getByRole('button', { name: /Solder the PCB/ });
+    fireEvent.mouseEnter(step);
+    expect(shelf()).toBe(false);
+    expect(useAppStore.getState().buildStep).toBe(2);
+
+    act(() => useAppStore.getState().setBuildShelf(true));
+    fireEvent.click(screen.getByRole('button', { name: /Print the case/ }));
+    expect(shelf()).toBe(false);
+  });
+
+  it('comes back when it is asked for, with the picked case kept', () => {
+    render(<BuildPanel content={content} isActive />);
+    fireEvent.click(tab(/SimonePDA/));
+    act(() => useAppStore.getState().setBuildShelf(true));
+    expect(shelf()).toBe(true);
+    expect(useAppStore.getState().buildCase).toBe('simonepda-lasercut');
+    expect(tab(/SimonePDA/)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  describe('on a phone', () => {
+    const frames: FrameRequestCallback[] = [];
+    beforeEach(() => {
+      frames.length = 0;
+      vi.stubGlobal('innerWidth', 390);
+      vi.stubGlobal('requestAnimationFrame', (run: FrameRequestCallback) => frames.push(run));
+      vi.stubGlobal('cancelAnimationFrame', () => {});
+    });
+    const runFrames = () => act(() => frames.splice(0).forEach((run) => run(0)));
+
+    // A phone has no hover, so the panel opens the first step for it. With
+    // the shelf up that took a case picked there apart as it arrived.
+    it('does not open the first step while the shelf is up, or when a case is picked from it', () => {
+      render(<BuildPanel content={content} isActive />);
+      runFrames();
+      expect(useAppStore.getState().buildStep).toBe(0);
+
+      act(() => useAppStore.getState().setBuildCase('simonepda-lasercut'));
+      runFrames();
+      expect(shelf()).toBe(false);
+      expect(useAppStore.getState().buildStep).toBe(0);
+    });
+
+    it('still opens the first step on an address that names a case', () => {
+      window.history.replaceState(null, '', '/build?case=besoiobiy-printed');
+      render(<BuildPanel content={content} isActive />);
+      runFrames();
+      expect(useAppStore.getState().buildStep).toBe(1);
+    });
   });
 });
 

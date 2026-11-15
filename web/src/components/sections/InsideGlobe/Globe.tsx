@@ -19,6 +19,20 @@ import { builds, latLngToVec3, originOf } from './builds';
 import type { BuildGroup } from './groups';
 import type { FanObstacle } from './groups';
 import { GROUP_ANGLE_DEG, angularDistance, fanAngle, fanChordPx, fanLean, fanRadiusPx, groupBuilds } from './groups';
+import {
+  DRIFT_SPEED,
+  TURN_EASE,
+  clamp,
+  dotRadius,
+  dragSpeed,
+  easeShare,
+  grownShare,
+  grownVertices,
+  releaseSpin,
+  stepDrift,
+  trackSpin,
+  wrapAngle,
+} from './globeMotion';
 import landData from './land.json';
 import { useReducedMotion } from '@/lib/hooks/useReducedMotion';
 
@@ -279,21 +293,32 @@ function collaborationArcs(entries: Build[]): number[][] {
 
 // The links themselves. Collaboration branches are drawn fainter than the web, so
 // they read as something hanging off it rather than another strand of it.
-function LinkLines({ arcs, opacity }: { arcs: number[][]; opacity: number }) {
+//
+// `grown` is the share of each link drawn so far (GlobeScene keeps it): the
+// links grow out of their first pin when the map is first seen, and again
+// when a filter changes them.
+function LinkLines({ arcs, opacity, grown }: { arcs: number[][]; opacity: number; grown: RefObject<number> }) {
   const geometry = useMemo(() => {
     const points: number[] = [];
-    for (const arc of arcs) {
-      // Expand the polyline into discrete segments, so one lineSegments draws
-      // every link in a single call.
-      for (let k = 0; k < arc.length - 3; k += 3) {
-        points.push(arc[k], arc[k + 1], arc[k + 2]);
-        points.push(arc[k + 3], arc[k + 4], arc[k + 5]);
+    // Expand the polylines into discrete segments, so one lineSegments draws
+    // every link in a single call. Every link's first segment, then every
+    // link's second, and so on: a prefix of the buffer is then the same share
+    // of every link, and growing them is a draw range, with nothing uploaded.
+    for (let k = 0; k < ARC_SAMPLES; k += 1) {
+      for (const arc of arcs) {
+        const at = k * 3;
+        points.push(arc[at], arc[at + 1], arc[at + 2]);
+        points.push(arc[at + 3], arc[at + 4], arc[at + 5]);
       }
     }
     const nextGeometry = new BufferGeometry();
     nextGeometry.setAttribute('position', new Float32BufferAttribute(points, 3));
     return nextGeometry;
   }, [arcs]);
+
+  useFrame(() => {
+    geometry.setDrawRange(0, grownVertices(arcs.length, ARC_SAMPLES, grown.current));
+  });
 
   return (
     <lineSegments geometry={geometry}>
@@ -304,14 +329,14 @@ function LinkLines({ arcs, opacity }: { arcs: number[][]; opacity: number }) {
 
 const DOTS_PER_LINK = 2;
 const DOT_SPEED = 0.13;    // arc lengths per second
-// World units, against a globe of radius 1.25. Real geometry, unlike the point
-// sprites this replaced — a PointsMaterial `size` is a pixel scale, not a world
-// size, so its 0.026 was only about 2px across on screen. Matched to that here.
-const DOT_RADIUS = 0.005;
+// The dots are real geometry, unlike the point sprites they replaced — a
+// PointsMaterial `size` is a pixel scale, not a world size, so its 0.026 was
+// only about 2px across on screen. Their radius (globeMotion.ts) is matched
+// to that, and held to a size a small screen can still draw.
 
 // Scratch objects for the per-frame instance matrices (one globe on screen).
 const _dotPos = new Vector3();
-const _dotScale = new Vector3(DOT_RADIUS, DOT_RADIUS, DOT_RADIUS);
+const _dotScale = new Vector3();
 const _dotQuat = new Quaternion();
 const _dotMatrix = new Matrix4();
 
@@ -323,9 +348,26 @@ const _dotMatrix = new Matrix4();
 // flat to the screen, which is invisible at rest but unmistakable once a pin is
 // picked and the globe dollies in. Being round, they need no orientation — the
 // rotation is left at identity and the scale is uniform.
-function LinkDots({ arcs, opacity, still }: { arcs: number[][]; opacity: number; still: boolean }) {
+//
+// A dot waits for its link: while the links are growing (`grown`, as for
+// LinkLines) a dot is drawn only once the line has reached it.
+function LinkDots({
+  arcs,
+  opacity,
+  still,
+  grown,
+}: {
+  arcs: number[][];
+  opacity: number;
+  still: boolean;
+  grown: RefObject<number>;
+}) {
   const meshRef = useRef<InstancedMesh>(null);
   const count = arcs.length * DOTS_PER_LINK;
+  // The seconds the dots have run for, counted here. The canvas's own clock
+  // goes back to zero whenever the frame loop is stopped and started again
+  // (Globe, below, stops it off screen), and the dots would jump back with it.
+  const seconds = useRef(0);
 
   const phases = useMemo(() => {
     const nextPhases = new Float32Array(count);
@@ -340,10 +382,16 @@ function LinkDots({ arcs, opacity, still }: { arcs: number[][]; opacity: number;
     return nextPhases;
   }, [arcs, count]);
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const mesh = meshRef.current;
     if (!mesh) return;
-    const time = still ? 0 : state.clock.elapsedTime;
+    if (!still) seconds.current += Math.min(Math.max(delta, 0), MAX_FRAME);
+    const time = still ? 0 : seconds.current;
+    // The globe's scale on screen, at its centre: the camera sits on +z
+    // looking at the origin (GlobeScene).
+    const pxPerUnit = state.size.height / 2 / (state.camera.position.z * TAN_HALF_VFOV);
+    const radius = dotRadius(pxPerUnit);
+    const reach = grown.current;
 
     let d = 0;
     for (const arc of arcs) {
@@ -364,6 +412,7 @@ function LinkDots({ arcs, opacity, still }: { arcs: number[][]; opacity: number;
           arc[a0 + 2] + (arc[a1 + 2] - arc[a0 + 2]) * f,
         );
 
+        _dotScale.setScalar(t <= reach ? radius : 0);
         _dotMatrix.compose(_dotPos, _dotQuat, _dotScale);
         mesh.setMatrixAt(d, _dotMatrix);
       }
@@ -408,10 +457,6 @@ const FAN_EASE = 13;
 
 // A ring pin's own axis before it is turned to face out of the globe.
 const PIN_UP = new Vector3(0, 0, 1);
-
-// Frame-rate independent easing: the share of the remaining distance to cover
-// in a frame of `delta` seconds.
-const easeShare = (rate: number, delta: number) => 1 - Math.exp(-rate * delta);
 
 const smoothstep = (value: number, from: number, to: number) => {
   const t = Math.min(1, Math.max(0, (value - from) / (to - from)));
@@ -964,8 +1009,10 @@ const TAN_HALF_VFOV = Math.tan((VFOV_DEG * Math.PI) / 180 / 2);
 const FIT_RADIUS = 1.35;       // globe radius including markers
 const FIT_FRACTION = 0.7;      // share of the limiting dimension to occupy
 const FOCUS_DOLLY = 0.62;      // zoom-in factor when a build is selected
-const DRAG_SPEED = 0.006;      // radians per pixel of drag
-const DRIFT_SPEED = 0.18;      // radians per second, idle; none with less motion
+// The longest frame the motion will step by, in seconds. A tab that was in
+// the background comes back with one frame minutes long. (And none is ever
+// stepped backwards, should a clock be set back under the page.)
+const MAX_FRAME = 0.1;
 
 // The globe leans a degree or two towards the pointer - enough to feel that
 // it has noticed, not enough to move a pin out from under it. Mouse only, and
@@ -987,12 +1034,6 @@ const _yawQ = new Quaternion();
 const _pitchQ = new Quaternion();
 const _leanQ = new Quaternion();
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-// The equivalent angle in (-π, π], so easing towards a heading always takes the
-// short way round instead of unwinding the long way.
-const wrapAngle = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
-
 // The yaw and pitch that bring a place round to face the camera. Yaw first
 // swings it into the plane facing front, then pitch lifts it to the middle —
 // which, for a point on a sphere, works out as its own latitude.
@@ -1012,6 +1053,8 @@ type OpenGroup = { id: string; sticky: boolean; during: string | null };
 interface SceneProps extends GlobeProps {
   openGroup: OpenGroup | null;
   onOpenGroup: (next: OpenGroup | null) => void;
+  // The first frame has been drawn: there is a globe to fade in.
+  onDrawn: () => void;
 }
 
 function GlobeScene({
@@ -1020,6 +1063,7 @@ function GlobeScene({
   onSelectBuild,
   openGroup,
   onOpenGroup,
+  onDrawn,
 }: SceneProps) {
   const web = useMemo(() => webArcs(entries), [entries]);
   const collaborations = useMemo(() => collaborationArcs(entries), [entries]);
@@ -1046,6 +1090,16 @@ function GlobeScene({
   const yaw = useRef(0);
   const pitch = useRef(INITIAL_PITCH);
   const drift = useRef(DRIFT_SPEED);
+  // A drag, as the frame loop sees it: where the yaw was a frame ago, how
+  // fast the hand is turning it, and how far a pixel of drag turns it now.
+  const yawSeen = useRef(0);
+  const spin = useRef(0);
+  const turnPerPx = useRef(dragSpeed(0));
+  // The links drawing on: which entries they are for, how long they have
+  // been growing, and the share of each drawn (LinkLines and LinkDots read it).
+  const grow = useRef({ of: entries, seconds: 0 });
+  const grown = useRef(reducedMotion ? 1 : 0);
+  const drawn = useRef(false);
   const lean = useRef({ x: 0, y: 0 });
   // Where a group that was tapped open is being brought round to.
   const focus = useRef<{ yaw: number; pitch: number } | null>(null);
@@ -1101,9 +1155,21 @@ function GlobeScene({
     ? hoverId
     : null;
 
-  useFrame((state, delta) => {
+  useFrame((state, rawDelta) => {
     const world = worldRef.current;
     if (!world) return;
+    const delta = Math.min(Math.max(rawDelta, 0), MAX_FRAME);
+
+    if (!drawn.current) {
+      drawn.current = true;
+      onDrawn();
+    }
+
+    // A filter that changes the entries changes the links, and they grow out
+    // again. Someone who has asked for less motion gets them whole.
+    if (grow.current.of !== entries) grow.current = { of: entries, seconds: 0 };
+    grow.current.seconds += delta;
+    grown.current = reducedMotion ? 1 : grownShare(grow.current.seconds);
 
     if (!heldOpen) focus.current = null;
     // The globe holds still under a pointer that is on a pin, and while a
@@ -1111,20 +1177,27 @@ function GlobeScene({
     // no use. It picks its drift back up gradually, the way it would if it
     // had weight. Someone who has asked for less motion gets no drift at
     // all: the globe turns when they drag it, and stays where they leave it.
+    //
+    // A drag is followed here, a frame at a time, so that letting go can
+    // hand the drift the speed the hand left it with: a flick keeps the
+    // globe turning, and it runs down into the idle drift.
     const held = !!selected || !!heldOpen || !!hoveredId || dragging.current;
-    if (reducedMotion) drift.current = 0;
-    else drift.current += ((held ? 0 : DRIFT_SPEED) - drift.current) * easeShare(held ? 9 : 2.5, delta);
+    if (dragging.current) spin.current = trackSpin(spin.current, yaw.current - yawSeen.current, delta);
+    drift.current = stepDrift(drift.current, held, reducedMotion, delta);
 
+    // The share of the way a picked place comes round in this frame, and the
+    // camera with it. The same turn at 30, 60 and 120 Hz (globeMotion.ts).
+    const turn = easeShare(TURN_EASE, delta);
     if (selected) {
       // Ease the picked location around to face the camera.
       const target = headingTo(selected.location.lat, selected.location.lng);
-      yaw.current += wrapAngle(target.yaw - yaw.current) * 0.08;
-      pitch.current += (target.pitch - pitch.current) * 0.08;
+      yaw.current += wrapAngle(target.yaw - yaw.current) * turn;
+      pitch.current += (target.pitch - pitch.current) * turn;
     } else if (focus.current) {
       const dYaw = wrapAngle(focus.current.yaw - yaw.current);
       const dPitch = clamp(focus.current.pitch, -MAX_PITCH, MAX_PITCH) - pitch.current;
-      yaw.current += dYaw * 0.08;
-      pitch.current += dPitch * 0.08;
+      yaw.current += dYaw * turn;
+      pitch.current += dPitch * turn;
       if (Math.abs(dYaw) + Math.abs(dPitch) < 0.002) focus.current = null;
     } else if (!dragging.current) {
       // Idle drift, carrying on around whatever axis the globe was left
@@ -1162,9 +1235,15 @@ function GlobeScene({
     const limit = Math.min(1, aspect);
     const desired = clamp(FIT_RADIUS / (FIT_FRACTION * TAN_HALF_VFOV * limit), 3.4, 8.5);
     const targetDist = selected ? desired * FOCUS_DOLLY : desired;
-    distRef.current += (targetDist - distRef.current) * 0.08;
+    distRef.current += (targetDist - distRef.current) * turn;
     state.camera.position.set(0, 0, distRef.current);
     state.camera.lookAt(0, 0, 0);
+
+    // What the next drag event will need: the globe's radius on screen, so
+    // the map stays under the finger, and the yaw this frame ended on.
+    const radiusPx = (GLOBE_RADIUS * state.size.height) / 2 / (distRef.current * TAN_HALF_VFOV);
+    turnPerPx.current = dragSpeed(radiusPx);
+    yawSeen.current = yaw.current;
   });
 
   // Drag to rotate (disabled while a build is focused). A near-still press is
@@ -1183,27 +1262,50 @@ function GlobeScene({
     dragging.current = true;
     moved.current = 0;
     focus.current = null;
+    spin.current = 0;
+
+    // The drag follows the one pointer that began it, by where that pointer
+    // is. It used to add up each event's movementX, which a touch does not
+    // always carry (it reads 0 in some browsers, and the globe would not
+    // turn under a finger), and a second finger's events turned it too.
+    const { pointerId } = event.nativeEvent;
+    let lastX = event.nativeEvent.clientX;
+    let lastY = event.nativeEvent.clientY;
 
     const onMove = (move: PointerEvent) => {
-      const dx = move.movementX || 0;
-      const dy = move.movementY || 0;
+      if (move.pointerId !== pointerId) return;
+      const dx = move.clientX - lastX;
+      const dy = move.clientY - lastY;
+      lastX = move.clientX;
+      lastY = move.clientY;
       moved.current += Math.abs(dx) + Math.abs(dy);
       // Sideways spins without limit; up and down stops short of the pole, so
       // the horizon stays level and north stays up no matter how far you drag.
-      yaw.current += dx * DRAG_SPEED;
-      pitch.current = clamp(pitch.current + dy * DRAG_SPEED, -MAX_PITCH, MAX_PITCH);
+      yaw.current += dx * turnPerPx.current;
+      pitch.current = clamp(pitch.current + dy * turnPerPx.current, -MAX_PITCH, MAX_PITCH);
     };
-    const onUp = () => {
+    // A touch the browser takes back (a call, a system gesture) ends the drag
+    // as letting go does. Without it the globe stayed held and never drifted
+    // again.
+    const onUp = (up: PointerEvent) => {
+      if (up.pointerId !== pointerId) return;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       dragging.current = false;
       if (moved.current < 6) {
-        onOpenGroup(null);
-        onSelectBuild?.(null);
+        if (up.type === 'pointerup') {
+          onOpenGroup(null);
+          onSelectBuild?.(null);
+        }
+      } else {
+        drift.current = releaseSpin(spin.current);
       }
+      spin.current = 0;
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   };
 
   const hover = (buildId: string, over: boolean) => {
@@ -1235,10 +1337,10 @@ function GlobeScene({
       <ContinentShell />
       <ContinentOutlines />
       <GlobeWireframe />
-      <LinkLines arcs={web} opacity={0.45} />
-      <LinkLines arcs={collaborations} opacity={0.22} />
-      <LinkDots arcs={web} opacity={0.9} still={reducedMotion} />
-      <LinkDots arcs={collaborations} opacity={0.5} still={reducedMotion} />
+      <LinkLines arcs={web} opacity={0.45} grown={grown} />
+      <LinkLines arcs={collaborations} opacity={0.22} grown={grown} />
+      <LinkDots arcs={web} opacity={0.9} still={reducedMotion} grown={grown} />
+      <LinkDots arcs={collaborations} opacity={0.5} still={reducedMotion} grown={grown} />
       {groups.map((group) => {
         if (group.members.length === 1) {
           const build = group.members[0];
@@ -1284,10 +1386,33 @@ function GlobeScene({
   );
 }
 
+// Whether an element is on screen. On a phone the 3D view is not drawn at all
+// until a tab opens it (display: none, globals.css), and an observer reports
+// that as off screen too. True where there is no observer to ask.
+function useOnScreen(ref: RefObject<Element | null>): boolean {
+  const [onScreen, setOnScreen] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setOnScreen(entry.isIntersecting));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+  return onScreen;
+}
+
 export default function Globe(props: GlobeProps) {
   // Held out here, beside the canvas, because a click that misses everything
   // in the scene is reported to the canvas and has to close the group too.
   const [openGroup, setOpenGroup] = useState<OpenGroup | null>(null);
+  // The frame loop runs only while the globe is on screen. It ran always: a
+  // phone on the home page, where the 3D view is hidden until a tab opens,
+  // drew the globe 60 times a second into a canvas of no size.
+  const holderRef = useRef<HTMLDivElement>(null);
+  const onScreen = useOnScreen(holderRef);
+  // The globe fades in over its first frame, where it used to appear at once.
+  const [drawn, setDrawn] = useState(false);
+  const reducedMotion = useReducedMotion();
   // A selection made anywhere - a pin, the list, the address bar - takes over
   // from a group that was merely standing open, so it does not spring back
   // open when that selection is cleared.
@@ -1299,22 +1424,39 @@ export default function Globe(props: GlobeProps) {
   }
 
   return (
-    <Canvas
-      flat
-      camera={{ position: [0, 0, 5], fov: VFOV_DEG }}
-      gl={{ alpha: true, antialias: true }}
-      dpr={[1, 2]}
-      // Suppress native touch scroll/zoom on the canvas so a drag rotates the
-      // globe instead of also scrolling the page behind it. OrbitControls does
-      // this automatically in the Build/Pattern viewer; this globe rolls its own
-      // drag handler, so it must opt in explicitly.
-      style={{ touchAction: 'none' }}
-      onPointerMissed={() => {
-        setOpenGroup(null);
-        props.onSelectBuild?.(null);
+    <div
+      ref={holderRef}
+      data-globe={drawn ? 'drawn' : 'waiting'}
+      style={{
+        width: '100%',
+        height: '100%',
+        opacity: drawn ? 1 : 0,
+        transition: reducedMotion ? 'none' : 'opacity 0.5s ease',
       }}
     >
-      <GlobeScene {...props} openGroup={openGroup} onOpenGroup={setOpenGroup} />
-    </Canvas>
+      <Canvas
+        flat
+        frameloop={onScreen ? 'always' : 'never'}
+        camera={{ position: [0, 0, 5], fov: VFOV_DEG }}
+        gl={{ alpha: true, antialias: true }}
+        dpr={[1, 2]}
+        // Suppress native touch scroll/zoom on the canvas so a drag rotates the
+        // globe instead of also scrolling the page behind it. OrbitControls does
+        // this automatically in the Build/Pattern viewer; this globe rolls its own
+        // drag handler, so it must opt in explicitly.
+        style={{ touchAction: 'none' }}
+        onPointerMissed={() => {
+          setOpenGroup(null);
+          props.onSelectBuild?.(null);
+        }}
+      >
+        <GlobeScene
+          {...props}
+          openGroup={openGroup}
+          onOpenGroup={setOpenGroup}
+          onDrawn={() => setDrawn(true)}
+        />
+      </Canvas>
+    </div>
   );
 }
