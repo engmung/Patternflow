@@ -90,6 +90,10 @@ const nextConfig: NextConfig = {
       // to the guide's Flash chapter, where the button and the steps are. Only
       // the exact path: /flash/manifest.json and /flash/bin/* are untouched.
       { source: "/flash", destination: "/guide/play#flash", permanent: false },
+      // The QR codes printed for Origin point at /r/c/1 and the numbers after
+      // it, and no page here ever answered them. The print cannot change, so
+      // anything under /r/c goes to the home page.
+      { source: "/r/c/:rest*", destination: "/", permanent: false },
       // The community's workshop came down on 26 October 2026: the map of
       // directions, its threads, and the moderators' territory editor. Its
       // rows stay in the database. A link to any of it, from an old alert, a
