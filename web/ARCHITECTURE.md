@@ -38,6 +38,7 @@ The `web/` app is the Patternflow site at [patternflow.work](https://patternflow
 HomeView (src/components/HomeView.tsx)
 ├── ViewerPanel (components/3d/)         ← sticky 3D panel
 │   ├── HeroScene.tsx                    ← Canvas, the picked case's GLB (public/cases/<id>/model.glb), LED ShaderMaterial
+│   ├── CaseShelf.tsx + shelfLayout.ts   ← the Build tab's shelf: every case's light model (public/cases/<id>/light.glb) on two boards; a picked one stands in for its full model until that arrives
 │   ├── caseModels.ts + cases/           ← one model per case on the Build panel's switch: URL, node names, exploded view, finishes. The GLBs are built by tools/case-models
 │   ├── LedMatrixTexture.ts              ← renders JS patterns into a texture for the 3D LED mesh
 │   └── patterns/                        ← GLSL pattern ports (common.ts = shared vertex shader + registry)

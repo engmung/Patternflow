@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUILD_CASES } from '@/components/sections/build-cases-data';
-import { CASE_MODELS, DEVKIT_NODE, KNOB_NODES, LED_NODE, PCB_NODE } from './caseModels';
+import { CASE_MODELS, DEVKIT_NODE, KNOB_NODES, LED_NODE, PCB_NODE, lightUrl } from './caseModels';
 
 // The case models against the files in public/: every case on the Build
 // panel's switch has one, each has the parts the preview finds by name
@@ -29,7 +29,7 @@ interface GltfNode {
 
 interface Gltf {
   scene?: number;
-  scenes: { nodes: number[] }[];
+  scenes: { nodes: number[]; extras?: { box?: { min: number[]; max: number[] } } }[];
   nodes: GltfNode[];
   meshes: { primitives: { attributes: Record<string, number>; material?: number }[] }[];
   materials?: { name?: string; pbrMetallicRoughness?: { baseColorFactor?: number[]; roughnessFactor?: number } }[];
@@ -161,6 +161,91 @@ describe('case models', () => {
       } else {
         expect(bytes).toBeLessThanOrEqual(REMIX_BUDGET);
       }
+    });
+  });
+});
+
+// Every case has a light model beside its full one (tools/case-models,
+// light.mjs): the device standing assembled, small enough that the Build tab
+// opens on a shelf of all five, and each stands in for its full model until
+// that has arrived. The page needs each to be there, to be light, to draw
+// without the Draco decoder, to carry the panel's lit face under the name the
+// preview finds it by, and to say where its full model's box is, so the two
+// stand in the same place.
+
+/** A light model: the official case's is 14 KB and jof's box, the largest, 55. */
+const LIGHT_BUDGET = 60_000;
+/** All five, which load together with the tab. Less than the smallest full model alone. */
+const SHELF_BUDGET = 200_000;
+
+describe('the light models', () => {
+  const lights = models.map(({ id, model }) => {
+    const file = path.join(PUBLIC, lightUrl(model));
+    return { id, model, file, bytes: fs.existsSync(file) ? fs.statSync(file).size : 0 };
+  });
+
+  it('are beside the full models, one for every case', () => {
+    for (const { id, model, file } of lights) {
+      expect(lightUrl(model), id).toBe(`/cases/${id}/light.glb`);
+      expect(fs.existsSync(file), `${id}: ${file}`).toBe(true);
+    }
+  });
+
+  it('are light: each under 60 KB, and all five under the smallest full model', () => {
+    for (const { id, bytes } of lights) expect(bytes, id).toBeLessThan(LIGHT_BUDGET);
+    const all = lights.reduce((sum, light) => sum + light.bytes, 0);
+    expect(all).toBeLessThan(SHELF_BUDGET);
+    const smallestFull = Math.min(...models.map(({ model }) => fs.statSync(path.join(PUBLIC, model.url)).size));
+    expect(all).toBeLessThan(smallestFull);
+  });
+
+  describe.each(lights)('$id', ({ id, model, file }) => {
+    const gltf = readGlb(file);
+    const scene = gltf.scenes[gltf.scene ?? 0];
+    const top = scene.nodes.map((index) => gltf.nodes[index]);
+
+    it('is the lit face of the panel and a body, and nothing else', () => {
+      expect(top.map((node) => node.name)).toEqual([LED_NODE, 'body']);
+    });
+
+    it('draws without the Draco decoder', () => {
+      expect(gltf.extensionsRequired ?? []).not.toContain('KHR_draco_mesh_compression');
+      expect(gltf.extensionsRequired).toContain('EXT_meshopt_compression');
+    });
+
+    it('carries the pattern: the lit face has UVs, and the normal the shader takes for an LED', () => {
+      const led = top.find((node) => node.name === LED_NODE)!;
+      for (const primitive of gltf.meshes[led.mesh!].primitives) {
+        expect(Object.keys(primitive.attributes).sort()).toEqual(['NORMAL', 'POSITION', 'TEXCOORD_0']);
+      }
+    });
+
+    it('leaves the body its positions alone: the page works out the normals', () => {
+      const body = top.find((node) => node.name === 'body')!;
+      for (const primitive of gltf.meshes[body.mesh!].primitives) {
+        expect(Object.keys(primitive.attributes)).toEqual(['POSITION']);
+      }
+    });
+
+    it('keeps the names of the materials a finish recolours, and of the knobs\' lights', () => {
+      const names = new Set((gltf.materials ?? []).map((material) => material.name));
+      for (const finish of model.finishes ?? []) {
+        for (const name of Object.keys(finish.looks ?? {})) expect(names, `${id}: ${finish.id}`).toContain(name);
+      }
+      for (const name of model.knobLights ?? []) expect(names, id).toContain(name);
+    });
+
+    it('says where its full model\'s box is', () => {
+      const box = scene.extras?.box;
+      expect(box, `${id}: scene extras`).toBeDefined();
+      expect(box!.min).toHaveLength(3);
+      expect(box!.max).toHaveLength(3);
+      // A device, in model units of 10 mm: 20 to 45 across and 15 to 40 tall.
+      const size = box!.max.map((value, axis) => value - box!.min[axis]);
+      expect(size[0]).toBeGreaterThan(20);
+      expect(size[0]).toBeLessThan(45);
+      expect(size[1]).toBeGreaterThan(15);
+      expect(size[1]).toBeLessThan(40);
     });
   });
 });

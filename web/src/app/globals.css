@@ -2144,6 +2144,19 @@
   }
 
 
+  /* Someone who has asked their system for less motion gets the home view's
+     panels and bars in place at once. The globe, the device and the hero's
+     video already hold still for them (useReducedMotion). These are the moves
+     the stylesheet makes: the page rising 10px as it loads, a tab's panel
+     rising 16px, the 3D view dropping in on a phone and the section bar
+     riding up under it. */
+  @media (prefers-reduced-motion: reduce) {
+    .deck-content { animation: none; }
+    .panel-wrapper { transition: none; transform: none; }
+    .viewer-panel.is-open { animation: none; }
+    .mobile-bottom-nav { transition: none; }
+  }
+
   /* Five entries need about 290px at 12px. Below 340px the words go back to
      11px, set closer, with 3px at each side, and the row fits a 280px screen,
      a folded phone's width. */

@@ -97,6 +97,32 @@ describe('the home view on a phone', () => {
   });
 });
 
+// The globe, the device and the hero's video hold still for someone who has
+// asked for less motion. The stylesheet's own moves did not: the page rose
+// 10px as it loaded, a tab's panel 16px, and on a phone the 3D view dropped
+// in and the section bar rode up under it.
+describe('the home view with less motion', () => {
+  const start = css.indexOf('@media (prefers-reduced-motion: reduce)');
+  const end = css.indexOf('\n  }\n', start);
+  const still = rules(css.slice(start, end));
+  const body = (selector: string) => still.find((r) => r.selectors.includes(selector))?.body ?? '';
+
+  it('has a block for it', () => {
+    expect(start).toBeGreaterThan(-1);
+  });
+
+  it('puts the page and a tab panel in place at once', () => {
+    expect(declaration(body('.deck-content'), 'animation')).toBe('none');
+    expect(declaration(body('.panel-wrapper'), 'transition')).toBe('none');
+    expect(declaration(body('.panel-wrapper'), 'transform')).toBe('none');
+  });
+
+  it('does not slide the 3D view or the section bar on a phone', () => {
+    expect(declaration(body('.viewer-panel.is-open'), 'animation')).toBe('none');
+    expect(declaration(body('.mobile-bottom-nav'), 'transition')).toBe('none');
+  });
+});
+
 describe('the shop on the home view', () => {
   it('has no box in the nav and no poster in the hero', () => {
     expect(css).not.toContain('.shop-link');
