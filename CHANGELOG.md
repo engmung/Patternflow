@@ -10,6 +10,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ### Web
 
+- **Next is on 16.4.6.** `next` and `eslint-config-next` 16.4.6 in `web/package.json`, `@next/mdx` 16.4.6 in `web/package-lock.json`. 16.4.1 was in the range of two advisories about `use cache` results leaking across root params, GHSA-mfr8-8qww-v76h and GHSA-vc7v-qv4w-wrv8, and `next build` stopped on them after generating the pages. The build now runs through.
 - **The Origin QR codes open the home page.** They point at `/r/c/1` and the numbers after it, which answered 404. Any address under `/r/c` now goes to `/`.
 - **Pattern Lab previews the time from the browser's clock.** The guide and the virtual panel give a pattern `timeValid` false, as a board without the clock does ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
 - **The home page's nav is a row of its own on a phone.** Below 901px Guide, Journal, Community, Shop and Instagram were 11px words in the corner over the wordmark, 18px tall to a finger. They are the hero's first row now, 12px words in entries 44px tall, from the column's left edge to its right. Get One is where it was on a 375×667 screen, and pages from 901px up are unchanged.
