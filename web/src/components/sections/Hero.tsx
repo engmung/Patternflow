@@ -5,7 +5,6 @@ import Image from 'next/image';
 import HeroJournalLink from "@/components/journal/HeroJournalLink";
 import { captureEvent } from "@/lib/posthogEvents";
 import { CROWD_SUPPLY_URL } from "@/lib/crowdSupply";
-import { SHOP_URL } from "@/lib/shop";
 import { useReducedMotion } from "@/lib/hooks/useReducedMotion";
 
 // How many people have made a Patternflow, by the nearest thing to a count
@@ -264,29 +263,6 @@ export default function Hero() {
           </a>
           <p className="hero-cta-note">Crowd Supply · ships worldwide</p>
         </div>
-        {/* The nav's Shop box was too small to find. Under the two buttons, so
-            it does not compete with Get One. */}
-        <a
-          className="hero-shop"
-          href={SHOP_URL}
-          target="_blank"
-          rel="noopener"
-          onClick={() => captureEvent('shop_clicked', {
-            surface: 'hero',
-            destination: 'shop',
-          })}
-        >
-          {/* The Origin Grid poster, from the shop's own render. */}
-          <Image
-            className="hero-shop-poster"
-            src="/shop/origin_grid_poster.png"
-            alt=""
-            width={90}
-            height={120}
-          />
-          <span className="hero-shop-new">New</span>
-          <span>Poster <span aria-hidden="true">↗</span></span>
-        </a>
       </div>
     </section>
   );
