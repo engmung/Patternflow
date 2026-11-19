@@ -48,6 +48,10 @@ All notable changes to Patternflow will be documented in this file, newest first
 - **The journal's stylesheet drops 61 lines that matched nothing.** No component or post used `.journal-list-number` or `.journal-figure` with its `-wide` and `-full`, the cover slots never held the `span` two rules styled, and two rules switched off a `::before` nothing switched on. Every journal page renders as before.
 - **The site nav links the shop.** Shop sits between Community and Instagram at the top right of the home page, boxed in ink like the hero's outline button, and opens shop.patternflow.work in a new tab. The Inside panel's last row of links carries it too.
 
+### Docs
+
+- **Whether the firmware should move to Rust has an answer: not now.** [`docs/investigations/2026-11-firmware-in-rust.md`](docs/investigations/2026-11-firmware-in-rust.md) sorts the 104 firmware bugs the tree records and finds that Rust would have stopped eight. It names the route for each part of the firmware on esp-hal and on the esp-idf crates. The one Rust HUB75 crate for the S3 shows 8 bits at about 15 Hz where this firmware shows 300, and the S3 still needs Espressif's fork of the compiler. The bugs are listed in `2026-11-firmware-bugs-by-class.csv` beside it.
+
 ### Tools
 
 - **`tools/case-models/light.mjs` makes each case's light model from its full one.** It leaves out what nobody sees while the case is closed, cuts what stays to a triangle budget with meshoptimizer, keeps the LED panel's lit face and the material names, and writes with meshopt compression. `build.sh` runs it after `assemble.mjs`.

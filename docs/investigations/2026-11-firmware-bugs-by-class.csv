@@ -1,0 +1,105 @@
+id,class,bug,recorded_at,rust
+M1,memory,Input frame never initialised,CHANGELOG 3.8.0; firmware/patternflow/patternflow.ino header (1),stopped: a struct cannot be built with fields missing
+M2,memory,UPDATE card and pattern flipped one DMA buffer from two tasks,CHANGELOG 3.9.5,conditional: only if the display has one owner; a static mut compiles
+M3,memory,Plain POST to a multipart route read a null upload,CHANGELOG 3.10.5; firmware/patternflow/src/webserver/VENDORED.md (Fix 5),stopped: an Option has to be matched
+M4,memory,Stack array sized from the multipart boundary,CHANGELOG 3.10.5; firmware/patternflow/src/webserver/VENDORED.md (Fix 5),stopped: no variable-length stack arrays
+M5,memory,ELF offset plus size wrapped in 32 bits,CHANGELOG 3.10.0; firmware/toolchain/tests/module_elf_test.cpp,stopped: slice indexing is checked
+M6,memory,ELF name read past its string table,CHANGELOG 3.10.0; firmware/toolchain/tests/module_elf_test.cpp,stopped: slice indexing is checked
+M7,memory,Load error read a symbol name after freeing the image,CHANGELOG 3.10.0; firmware/patternflow/src/core_module_loader.h,stopped: the name borrows the image
+M8,memory,patterns[-1] reachable by a stray notify (never fired),firmware/patternflow/pattern_registry.h,conditional: a panic in place of a wild read
+M9,memory,Blit shifts a uint32 by 36 above depth 10 (never fired),CHANGELOG 3.10.1; firmware/patternflow/src/hub75/VENDORED.md,conditional: a constant shift is rejected; a variable one is not
+M10,memory,HUB75 config left line_decoder unset,CHANGELOG 3.12.0,conditional: only if the driver is rewritten
+M11,memory,api->alloc() stopped zeroing,CHANGELOG 3.10.0,no: raw memory handed across the C ABI
+M12,memory,String relocation zeroed literal pointers,firmware/patternflow/src/core_module_loader.h,no: relocation writes are unsafe either way
+M13,memory,Module constructors ran before the host API was set,CHANGELOG 3.10.5,no: call order into loaded code
+M14,memory,NimBLE freed a static callback object,firmware/patternflow/features/ble/core_ble_improv.h,no: ownership across a C library
+T1,type,Feature loop never dispatched,CHANGELOG 3.7.1; firmware/patternflow/patternflow.ino header (2),conditional: a dead_code warning; an error only if warnings are denied
+T2,type,addNetwork overwrote its own arguments,CHANGELOG 3.7.0; firmware/patternflow/src/core_wifi.h,stopped: the borrow checker rejects the call
+T3,type,Inserted poll() became a brace-less loop's whole body,CHANGELOG 3.10.1; firmware/patternflow/src/webserver/VENDORED.md,stopped: braces are required
+T4,type,NVS write result ignored,CHANGELOG 3.10.1; docs/investigations/2026-08-core2-heap-and-the-5s-stall.md,conditional: must_use flags the dropped Result; the order still compiles
+T5,type,Empty String meant both a blank line and nothing read,CHANGELOG 3.10.5; firmware/patternflow/src/webserver/VENDORED.md,conditional: Option is the habit; nothing forces it
+T6,type,Show length in deciseconds shown as seconds,CHANGELOG 3.6.3,conditional: only with a Duration or a newtype
+T7,type,Name cut through a UTF-8 character,CHANGELOG 3.10.5,conditional: a panic in place of mojibake
+R1,resource,Two 32 KB static framebuffers boot-looped the device,CHANGELOG 3.0.0; firmware/patternflow/src/core_mem.h,no
+R2,resource,Calibration tables in DRAM truncated pages,CHANGELOG 3.3.0,no
+R3,resource,Static registry pools cost 7.3 KB,firmware/patternflow/pattern_registry.h,no
+R4,resource,34 presets compiled in left about 1 KB,CHANGELOG 3.4.0,no
+R5,resource,Arduino core 3.x left 71 KB less internal RAM,CHANGELOG 3.5.0,no
+R6,resource,Boot restore left 1112 bytes free,docs/investigations/2026-08-core2-heap-and-the-5s-stall.md,no
+R7,resource,Remembered pattern caused a reboot loop,firmware/patternflow/patternflow.ino,no
+R8,resource,Parallel page loads locked the device beside a resident module,firmware/patternflow/src/core_patterns_http.h,no
+R9,resource,Module data kept internal left 2.7 KB,CHANGELOG 3.9.5,no
+R10,resource,Reserve acted as a veto and ignored the requested size,CHANGELOG 3.10.0; docs/investigations/2026-09-firmware-runtime.md,no
+R11,resource,Network task stack had 944 bytes left,firmware/patternflow/src/core_net_task.h,no
+R12,resource,Force-close after upload left sockets in TIME_WAIT,firmware/patternflow/src/core_patterns_http.h,no
+R13,resource,timedRead spin starved the idle task,CHANGELOG 3.9.5; firmware/patternflow/src/webserver/VENDORED.md (Fix 2),no
+R14,resource,Mic ring backlog spun a task on the Wi-Fi core,firmware/patternflow/features/audio_in/core_audio_pdm.h,no
+R15,resource,Audio websocket task could wedge the render loop,firmware/patternflow/features/audio/core_audio_ws.h,no
+R16,resource,Frame-preview polling captured the render loop,CHANGELOG 3.6.3,no
+R17,resource,Lane motion as MIDI and OSC filled the send buffers,CHANGELOG 3.9.5,no
+H1,hardware,Macronix flash misread on core 2.0.17,CHANGELOG 3.12.0,no
+H2,hardware,FFat.format reported success without reading back,CHANGELOG 3.10.2,no
+H3,hardware,Core WebServer waited 5 s for a full buffer,CHANGELOG 3.5.1,no
+H4,hardware,16 MHz panel clock desensitised the Wi-Fi radio,CHANGELOG 3.6.3; docs/investigations/2026-08-the-panel-clock-and-the-wifi-radio.md,no
+H5,hardware,13 dBm cap made hotspot pages take 4 to 9 s,CHANGELOG 3.10.5,no
+H6,hardware,Stale instruction cache after a module load,firmware/patternflow/src/core_module_loader.h,no
+H7,hardware,Bluetooth coexistence abort,firmware/patternflow/features/ble/core_ble_improv.h,no
+H8,hardware,Hotspot channel and a Samsung captive check,firmware/patternflow/src/core_hotspot.h,no
+H9,hardware,softAP socket gap,docs/investigations/2026-08-the-wifi-portal-a-samsung-never-drew.md,no
+H10,hardware,Wi-Fi whine in the microphone band,firmware/patternflow/features/audio_in/core_audio_in_map.h,no
+L1,logic,OE window arithmetic had 26 inversions,CHANGELOG 3.10.1,no
+L2,logic,OE chain misread gave purple fringes,CHANGELOG 3.10.3,no
+L3,logic,Dark greys dropped bits instead of rounding,CHANGELOG 3.10.1,no
+L4,logic,hsvToRgb truncated,CHANGELOG 3.10.1,no
+L5,logic,cellHash added the seed to gx,CHANGELOG 3.10.1,no
+L6,logic,Hann window used the N-1 denominator,CHANGELOG 3.10.1,no
+L7,logic,Mic backlog spliced old audio in,CHANGELOG 3.10.1,no
+L8,logic,Test tones drove the knobs,CHANGELOG 3.11.0,no
+L9,logic,One-field audio POST ignored,CHANGELOG 3.11.0,no
+L10,logic,Audio left transmit power at 17 dBm,CHANGELOG 3.11.0,no
+L11,logic,MIDI stuck note,CHANGELOG 3.10.1,no
+L12,logic,Bus click remainder gave 830 clicks for 100,CHANGELOG 3.10.1,no
+L13,logic,dN accepted without a hold or a bound,CHANGELOG 3.10.1,no
+L14,logic,Stale thumbnail,CHANGELOG 3.10.1,no
+L15,logic,Unbounded dt,CHANGELOG 3.10.1,no
+L16,logic,Lanes stopped after 24.9 days,CHANGELOG 3.10.5,no: a 64-bit clock would
+L17,logic,Unbounded wait on the loop,CHANGELOG 3.10.5; firmware/patternflow/src/core_loop_sync.h,no
+L18,logic,Unescaped JSON,CHANGELOG 3.10.5,no: a serializer would
+L19,logic,Stale request arguments,firmware/patternflow/src/webserver/VENDORED.md,no
+L20,logic,Stray letters on the panel,CHANGELOG 3.10.5,no
+L21,logic,Deck order lost (console JavaScript),CHANGELOG 3.10.5,no
+L22,logic,Services waited for the station,CHANGELOG 3.10.5,no
+L23,logic,Hotspot always setting,CHANGELOG 3.10.5,no
+L24,logic,MQTT lagged behind its own snapshot,CHANGELOG 3.10.5,no
+L25,logic,Short body sent with the full Content-Length,CHANGELOG 3.9.5,no
+L26,logic,Name drawn sideways,CHANGELOG 3.9.5,no
+L27,logic,Client count wrong,CHANGELOG 3.7.1,no
+L28,logic,File picker worked once (console JavaScript),CHANGELOG 3.7.1,no
+L29,logic,-Infinity became NaN (console JavaScript),CHANGELOG 3.7.1,no
+L30,logic,/audio page needed a secure context,CHANGELOG 3.8.0,no
+L31,logic,Remote picks not saved,CHANGELOG 3.7.0,no
+L32,logic,Core named features on the screen,CHANGELOG 3.7.0; firmware/patternflow/patternflow.ino header (3),no
+L33,logic,Hidden-entry counter and the Black preset,CHANGELOG 3.7.0,no
+L34,logic,MQTT connect blocked,CHANGELOG 3.4.0,no
+L35,logic,Subscriber jump,CHANGELOG 3.4.0,no
+L36,logic,Encoder resync,CHANGELOG 3.3.0; firmware/patternflow/src/core_encoders.h,no
+L37,logic,Detents counted as 20 against 24,CHANGELOG 3.3.0 and 3.12.0,no
+L38,logic,ASCII name guard,CHANGELOG 3.2.0; firmware/patternflow/src/core_module_loader.h,no
+L39,logic,Upload not verified,CHANGELOG 3.2.0,no
+L40,logic,Torn frame with no pattern,CHANGELOG 3.2.0; firmware/patternflow/patternflow.ino,no
+L41,logic,Auto-format wiped the library,CHANGELOG 3.2.0; firmware/patternflow/pattern_registry.h,no
+L42,logic,Wi-Fi connect blocked,firmware/patternflow/src/core_wifi.h,no
+L43,logic,Zip paths with backslashes (site JavaScript),CHANGELOG 3.4.0,no
+L44,logic,Audio page overwrote the mapping (console JavaScript),CHANGELOG 3.11.0,no
+L45,logic,Reload inside the upload handler crashed mid-batch (cause not stated),firmware/patternflow/src/core_patterns_http.h,no
+L46,logic,mDNS started once,firmware/patternflow/src/core_names.h,no
+B1,build,Wi-Fi credentials in release images,CHANGELOG 3.4.0,no
+B2,build,Flasher image without the loader,CHANGELOG 3.2.0,no
+B3,build,Flasher image without the power clamp,CHANGELOG 3.4.9,no
+B4,build,Audio v0.4.0 reported itself as v0.3.1,CHANGELOG 3.9.0,no
+B5,build,Site built modules at ABI 1,CHANGELOG 3.6.3,no
+B6,build,Host symbol table lacked coshf,CHANGELOG 3.5.2,no
+B7,build,cp949 console crash in a tool,CHANGELOG 3.2.0,no
+B8,build,Library finder against __has_include,firmware/patternflow/platformio.ini,no
+B9,build,Patch-script damage,firmware/toolchain/check_sources.py,no
+B10,build,pioarduino shadowed the toolchain,docs/investigations/2026-08-core2-heap-and-the-5s-stall.md,no
