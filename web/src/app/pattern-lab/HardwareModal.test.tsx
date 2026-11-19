@@ -27,6 +27,7 @@ vi.mock("@/lib/community/auth-client", () => ({
 }));
 
 const HEADER = "#pragma once\nnamespace Lab { void draw() {} }\n";
+const NAMED_HEADER = '#pragma once\nnamespace Lab {\n  const char* NAME = "Wave";\n  void draw() {}\n}\n';
 const CODE = "export function draw(display) { display.setPixel(0, 0, 255, 0, 0); }";
 
 /** What a model sends back for one layer of a stack. */
@@ -213,8 +214,44 @@ describe("HardwareModal", () => {
 
       fireEvent.click(screen.getByText("Copy .h"));
       expect(await screen.findByText("Copied ✓")).toBeTruthy();
-      const name = useLabStore.getState().layers[0].name;
-      expect(writeText).toHaveBeenCalledWith(header.replace('"Wave"', `"${name}"`));
+      expect(writeText).toHaveBeenCalledWith(header);
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  // The lab stamped its name on every pasted header. Unnamed, that name was
+  // a layer's, and a header that said NAME = "Wave" reached the board as
+  // "Code 1".
+  it("keeps the header's own NAME while the piece has no name", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      useLabStore.getState().setName("");
+      render(<Lab />);
+      fireEvent.change(screen.getByPlaceholderText(/Paste the \.h the model gives you/), {
+        target: { value: NAMED_HEADER },
+      });
+      fireEvent.click(screen.getByText("Copy .h"));
+      expect(await screen.findByText("Copied ✓")).toBeTruthy();
+      expect(writeText).toHaveBeenCalledWith(NAMED_HEADER.trim());
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+    }
+  });
+
+  it("stamps the piece's name over the header's NAME", async () => {
+    const writeText = vi.fn<(text: string) => Promise<void>>(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      useLabStore.getState().setName("Felt Dots");
+      render(<Lab />);
+      fireEvent.change(screen.getByPlaceholderText(/Paste the \.h the model gives you/), {
+        target: { value: NAMED_HEADER },
+      });
+      fireEvent.click(screen.getByText("Copy .h"));
+      expect(await screen.findByText("Copied ✓")).toBeTruthy();
+      expect(writeText).toHaveBeenCalledWith(NAMED_HEADER.trim().replace('"Wave"', '"Felt Dots"'));
     } finally {
       delete (navigator as { clipboard?: unknown }).clipboard;
     }

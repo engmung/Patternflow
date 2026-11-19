@@ -88,3 +88,17 @@ export function applyKnobEntries(
     }),
   };
 }
+
+// ── // Pattern: in the lab ──────────────────────────────────────────────────
+// A pattern written by hand opens with `// Pattern: <name>`, as the presets
+// and the template do. The lab had no use for the line, so a pasted pattern
+// stayed "Code 1", and To hardware stamped that over the NAME of the .h and
+// through it the .pfm. Now the line names a piece that has no name yet.
+
+const PATTERN_NAME_RE = /^[ \t]*\/\/[ \t]*Pattern:[ \t]*(\S[^\r\n]*)$/m;
+
+/** The name on the code's `// Pattern:` line, or null. */
+export function patternNameFromCode(code: string): string | null {
+  const name = code.match(PATTERN_NAME_RE)?.[1]?.trim();
+  return name ? name.slice(0, 60) : null;
+}

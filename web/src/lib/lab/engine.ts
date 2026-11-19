@@ -237,6 +237,16 @@ export class LabEngine {
     );
     this.prevKnobs = [...knobs];
 
+    // The lab shows a board that knows the time, from the browser's clock.
+    // Anywhere else the runtime gives a board without the clock.
+    const clock = new Date();
+    const wallTime = {
+      timeValid: true,
+      hour: clock.getHours(),
+      minute: clock.getMinutes(),
+      second: clock.getSeconds(),
+    };
+
     // Pass 1 — advance every visible code layer's runtime, mask layers
     // included: a code mask animates like any other pattern.
     for (let index = layers.length - 1; index >= 0; index--) {
@@ -258,13 +268,16 @@ export class LabEngine {
       const result = runtime.renderFrame(
         dt,
         time,
-        createIdleInput(knobDeltas, {
-          knobValues: knobs,
-          knobNormalized,
-          knobRanges: ranges,
-          btnPressed: isActive ? btnPressed : undefined,
-          btnHeld: isActive ? btnHeld : undefined,
-        }),
+        {
+          ...createIdleInput(knobDeltas, {
+            knobValues: knobs,
+            knobNormalized,
+            knobRanges: ranges,
+            btnPressed: isActive ? btnPressed : undefined,
+            btnHeld: isActive ? btnHeld : undefined,
+          }),
+          ...wallTime,
+        },
       );
       this.errors.set(layer.id, result.ok ? null : result.error ?? "Runtime error.");
     }

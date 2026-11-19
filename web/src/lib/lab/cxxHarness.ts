@@ -52,6 +52,10 @@ struct InputFrame {
   float knobAudioValue[4];
   bool paramAbsoluteActive[4];
   uint16_t paramAbsolute[4];
+  bool timeValid;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
 };
 `,
   "src/core_canvas.h": `#pragma once

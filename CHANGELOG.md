@@ -4,8 +4,14 @@ All notable changes to Patternflow will be documented in this file, newest first
 
 ## [Unreleased]
 
+### Firmware
+
+- **Patterns can read the time on a clock build.** The input frame ends with `timeValid`, `hour`, `minute` and `second`, and the clock feature fills them once NTP has synced. Every other build gives a pattern `timeValid` false and 0 in the other three. A module that reads `timeValid` is stamped ABI 3, and v3.12.0 refuses to install it. Modules that do not read the fields stay at 1 or 2 and install as before ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
+
 ### Web
 
+- **The Origin QR codes open the home page.** They point at `/r/c/1` and the numbers after it, which answered 404. Any address under `/r/c` now goes to `/`.
+- **Pattern Lab previews the time from the browser's clock.** The guide and the virtual panel give a pattern `timeValid` false, as a board without the clock does ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
 - **The home page's nav is a row of its own on a phone.** Below 901px Guide, Journal, Community, Shop and Instagram were 11px words in the corner over the wordmark, 18px tall to a finger. They are the hero's first row now, 12px words in entries 44px tall, from the column's left edge to its right. Get One is where it was on a 375×667 screen, and pages from 901px up are unchanged.
 - **Build, Pattern and Inside start 24px from a phone's edge, not 46px.** The panel's own 22px came on top of the page's 24px, so a 390px phone had a 298px column. It has 342px now, on the hero's and the journal's gutter. On a 375px phone the Inside list's count goes under its heading, where each used to break in two beside the other.
 - **The shop is one word in the nav.** It was a box in the nav and a poster with a New tab under the hero's buttons, and it sold next to nothing. The poster is gone from the home page and Shop is drawn as Guide, Journal and Community are. The Inside panel's last row still links it.
@@ -13,6 +19,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 - **The hero's two-line texts share their words on a phone.** Each left a word or two alone on its second line, "them." under 44 characters. They balance their lines below 901px, and the kicker breaks between its two sentences.
 - **Small links take a finger on a phone.** Terms & Privacy in the footer was 17px tall and looked like the text around it without a pointer over it. Below 901px it is underlined and 46px tall, and the three links at the foot of the Inside panel are 44px tall, up from 20px.
 - **The Build tab's 3D view opens on a shelf of all five cases.** It opened on the official case alone, with arrows to the others. The cases now stand on two boards at one scale, each with its name under it, and its panel lit. Picking one, by the case, by its name or with the keyboard, takes it from the shelf to where the device stands, and All cases brings the shelf back. A case named by the panel's switch, the arrows or a `/build?case=` address is shown by itself as before.
+- **The shelf's boards float, and it turns under a drag.** The two side posts are gone, a drag turns and tilts the shelf a little, and only the official case's panel runs until a pointer is on another. mbchars, lying the long way, faces straight out.
 - **Each case has a light model that shows before its full one.** `light.glb` is the device standing assembled, 14 to 55 KB where the full model is 317 to 563 KB and needs the Draco decoder. The light one stands where the device stands until the full one has arrived, which is then drawn in the same place at the same size and turn while the light one fades out over it. The Build tab fetches 154 KB for its 3D view where it fetched 568 KB.
 - **The home page no longer fetches the device.** The official case's model and the Draco decoder, 568 KB, loaded with every tab of the home view, the hero's globe included. A full model is now fetched when its case is first shown by itself.
 - **The globe turns at one speed on every screen.** A picked place came round by 8% of what was left each frame: 0.46 s to 90% at 60 Hz, 0.23 s on a 120 Hz phone, 0.92 s at 30 Hz. It is 0.46 s at any rate, and so is the camera closing in.

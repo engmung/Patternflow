@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getKnobValueDelta, LOGICAL_KNOB_RANGES, LOGICAL_KNOB_TO_WEB_KNOB, normalizeKnob, toEncoderDelta } from '@/lib/pattern/controls';
+import { codeKnobRanges, getKnobValueDelta, LOGICAL_KNOB_TO_WEB_KNOB, normalizeKnob, toEncoderDelta } from '@/lib/pattern/controls';
 import { compilePatternCode, describePatternError, type PatternModule, type PatternParams } from '@/lib/pattern/harness';
 
 type WebKnobValues = Record<'c1' | 'c2' | 'c3' | 'c4', number>;
@@ -8,8 +8,8 @@ function getLogicalKnobValues(knobValues: WebKnobValues) {
   return LOGICAL_KNOB_TO_WEB_KNOB.map((knobId) => knobValues[knobId]);
 }
 
-function getLogicalKnobNormalized(logicalKnobValues: number[]) {
-  return logicalKnobValues.map((value, index) => normalizeKnob(value, LOGICAL_KNOB_RANGES[index]));
+function getLogicalKnobNormalized(logicalKnobValues: number[], ranges: ReadonlyArray<readonly [number, number]>) {
+  return logicalKnobValues.map((value, index) => normalizeKnob(value, ranges[index]));
 }
 
 export class LedMatrixTexture {
@@ -24,6 +24,8 @@ export class LedMatrixTexture {
   // can quote its line.
   private source: string | null = null;
   private error: string | null = null;
+  /** The running pattern's knob ranges, from its `@knobs` line (codeKnobRanges). */
+  public knobRanges: Array<[number, number]> = codeKnobRanges(null);
   
   // Create a display wrapper to match ESP32 API structure
   private displayApi = {
@@ -101,6 +103,7 @@ export class LedMatrixTexture {
       this.userModule = userModule;
       this.userParams = userParams;
       this.source = code;
+      this.knobRanges = codeKnobRanges(code);
       this.setError(null);
 
       // Clear the screen
@@ -123,13 +126,13 @@ export class LedMatrixTexture {
       const input = {
         knobDeltas: LOGICAL_KNOB_TO_WEB_KNOB.map((knobId, logicalIndex) =>
           toEncoderDelta(
-            LOGICAL_KNOB_RANGES[logicalIndex],
-            getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId]),
+            this.knobRanges[logicalIndex],
+            getKnobValueDelta(knobId, knobValues[knobId], prevKnobValues[knobId], this.knobRanges[logicalIndex]),
           )
         ),
         knobValues: logicalKnobValues,
-        knobNormalized: getLogicalKnobNormalized(logicalKnobValues),
-        knobRanges: LOGICAL_KNOB_RANGES,
+        knobNormalized: getLogicalKnobNormalized(logicalKnobValues, this.knobRanges),
+        knobRanges: this.knobRanges,
         btnPressed: [false, false, false, false],
         btnHeld: [false, false, false, false]
       };

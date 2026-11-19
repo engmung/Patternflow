@@ -12,6 +12,8 @@ import { DEFAULT_RAMP_STATE, cloneRampState, type CodeLayer } from "@/lib/lab/ty
 import { knobTargetToDelta } from "./harness";
 import {
   ENCODER_CLICKS_PER_TURN,
+  codeKnobRanges,
+  holdKnobValue,
   LOGICAL_KNOB_RANGES,
   LOGICAL_KNOB_TO_WEB_KNOB,
   LOGICAL_KNOB_WRAP,
@@ -308,5 +310,42 @@ describe("a wrapping knob on a range other than 0..1", () => {
       frame = at(detent * knobDetentStep(HUE), detent * knobDetentStep(ranges[3]));
     }
     expect(Array.from(frame.subarray(0, 2))).toEqual([DETENTS_PER_TURN * 5, DETENTS_PER_TURN * 5]);
+  });
+});
+
+describe("the 3D device's knobs on a pattern's own ranges", () => {
+  const code = "// @knobs Rings=0..1, Speed=-10..10, -, Palette=0..360\nexport function draw() {}";
+
+  it("takes each range the @knobs line declares and the default for the rest", () => {
+    expect(codeKnobRanges(code)).toEqual([[0, 1], [-10, 10], LOGICAL_KNOB_RANGES[2], [0, 360]]);
+  });
+
+  it("falls back to the defaults without a line", () => {
+    expect(codeKnobRanges("export function draw() {}")).toEqual(LOGICAL_KNOB_RANGES);
+    expect(codeKnobRanges(null)).toEqual(LOGICAL_KNOB_RANGES);
+  });
+
+  it("turns Speed below zero when the pattern declares it", () => {
+    const speed = codeKnobRanges(code)[1];
+    expect(holdKnobValue(-9.5, speed, LOGICAL_KNOB_WRAP[1])).toBe(-9.5);
+    expect(holdKnobValue(-12, speed, LOGICAL_KNOB_WRAP[1])).toBe(-10);
+    expect(holdKnobValue(-3, LOGICAL_KNOB_RANGES[1], LOGICAL_KNOB_WRAP[1])).toBe(0.1);
+  });
+
+  it("wraps knobs 1 and 4 round their own range", () => {
+    expect(holdKnobValue(1.25, [0, 1], true)).toBeCloseTo(0.25);
+    expect(holdKnobValue(-0.25, [0, 1], true)).toBeCloseTo(0.75);
+    expect(holdKnobValue(370, [0, 360], true)).toBeCloseTo(10);
+    expect(holdKnobValue(-5, [10, 20], true)).toBeCloseTo(15);
+  });
+
+  it("turns the defaults exactly as the old fixed rules did", () => {
+    for (const v of [-0.3, 0.2, 1.7]) expect(holdKnobValue(v, [0, 1], true)).toBeCloseTo(((v % 1) + 1) % 1);
+    expect(holdKnobValue(11, LOGICAL_KNOB_RANGES[1], false)).toBe(10);
+    expect(holdKnobValue(5.2, LOGICAL_KNOB_RANGES[2], false)).toBe(4.9);
+  });
+
+  it("reads a wrapping knob's step across the seam of its own range", () => {
+    expect(getKnobValueDelta("c1", 5, 355, [0, 360])).toBeCloseTo(10);
   });
 });

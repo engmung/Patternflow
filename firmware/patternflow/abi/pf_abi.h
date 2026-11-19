@@ -22,6 +22,9 @@
 //                           see garbage in paramAbsoluteActive[]. The old
 //                           loader's exact-match check (`!= 1`) is what turns
 //                           that silent corruption into a clean refusal.
+//                           Raised to 3 when the wall-time fields were
+//                           appended; a v2 host refuses a v3 module the
+//                           same clean way.
 //
 // The loader accepts descriptor versions PF_ABI_VERSION..PF_ABI_MODULE_VERSION.
 // Only ever APPEND fields to these structs; reordering or resizing existing
@@ -38,7 +41,7 @@
 // build_module.py stamps it 1 and it keeps installing on pre-absolute
 // firmware. Only converted patterns claim 2 and accept being refused there.
 #ifndef PF_ABI_MODULE_VERSION
-#define PF_ABI_MODULE_VERSION 2
+#define PF_ABI_MODULE_VERSION 3
 #endif
 
 // Mirrors src/core_encoders.h::InputFrame exactly. Both sides are built with
@@ -65,6 +68,19 @@ typedef struct PFInputFrame {
   // Modules that DO read them must be built as PF_ABI_MODULE_VERSION 2.
   bool paramAbsoluteActive[4];
   uint16_t paramAbsolute[4];
+  // Local wall time. Appended — older modules never read these. The host
+  // zeroes them; a build with the clock feature fills them once NTP has
+  // synced, so timeValid is false everywhere else and hour / minute / second
+  // are 0. They exist only in a build stamped 3: a module stamped 1 or 2
+  // installs on a v3.12.0 host, whose frame ends after paramAbsolute, so
+  // reading them there would read past the end. Below 3 that read is a
+  // build error instead.
+#if PF_ABI_MODULE_VERSION >= 3
+  bool timeValid;
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+#endif
 } PFInputFrame;
 
 // Services the firmware provides to a loaded module.

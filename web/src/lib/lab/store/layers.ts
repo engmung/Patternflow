@@ -4,7 +4,7 @@
 
 import { matrixesEqual, matchMatrixAnnotation, parseMatrixAnnotation, type MatrixSize } from "@/lib/pattern/matrix";
 import { parseRampAnnotation, stripRampAnnotation } from "@/lib/pattern/ramp";
-import { applyKnobEntries, matchKnobsAnnotation, parseKnobsAnnotation } from "../annotations";
+import { applyKnobEntries, matchKnobsAnnotation, parseKnobsAnnotation, patternNameFromCode } from "../annotations";
 import { cloneRampState, createPixelLayer, isCodeLayer, layerId, nextLayerName, type LabProject, type Layer } from "../types";
 import type { LabStore } from "../store";
 import type { SliceSet, SliceGet } from "./kinds";
@@ -42,6 +42,9 @@ export function createLayersSlice(set: SliceSet, get: SliceGet): LayersSlice {
         name ?? nextLayerName(state.layers, "Code"),
       );
       const nextMatrix = matrix && !matrixesEqual(matrix, state.matrix) ? matrix : state.matrix;
+      // An unnamed piece takes the name on the code's `// Pattern:` line. A
+      // caller's name (a community title) is a layer name and leaves it alone.
+      const lineName = name === undefined && !state.name.trim() ? patternNameFromCode(code) : null;
       let layers: Layer[] = [layer, ...state.layers];
       if (nextMatrix !== state.matrix) layers = resizePixelLayers(layers, nextMatrix);
       const knobState = knobEntries
@@ -59,6 +62,7 @@ export function createLayersSlice(set: SliceSet, get: SliceGet): LayersSlice {
           ? { knobs: knobState.knobs, ranges: knobState.ranges, knobLabels: knobState.labels }
           : {}),
         ...(forkOf !== undefined ? { forkOf } : {}),
+        ...(lineName ? { name: lineName } : {}),
       });
     },
 
@@ -171,6 +175,17 @@ export function createLayersSlice(set: SliceSet, get: SliceGet): LayersSlice {
         }
       }
 
+      // A changed `// Pattern:` line names the piece while it has no name, or
+      // while its name is still the one the old line gave. Typing the line out
+      // then follows it past the first letter. A name typed into the field stays.
+      let namePatch: Partial<LabProject> = {};
+      const lineBefore = patternNameFromCode(layer.code);
+      const lineAfter = patternNameFromCode(code);
+      if (lineAfter && lineAfter !== lineBefore) {
+        const current = state.name.trim();
+        if (!current || current === lineBefore) namePatch = { name: lineAfter };
+      }
+
       // The editor holds the @matrix line while it has focus (applyMatrixLine
       // takes it from there), so the frame changes once and not at each
       // keystroke on the way from 128x64 to 96x64.
@@ -185,7 +200,7 @@ export function createLayersSlice(set: SliceSet, get: SliceGet): LayersSlice {
         matrixAnnotationRaw: hold ? entry.matrixAnnotationRaw : matrixRaw,
       }));
       if (matrix) layers = resizePixelLayers(layers, matrix);
-      set({ layers, ...knobPatch, ...(matrix ? { matrix } : {}) });
+      set({ layers, ...knobPatch, ...namePatch, ...(matrix ? { matrix } : {}) });
     },
 
     applyMatrixLine: (id) => {

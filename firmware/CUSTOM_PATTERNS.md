@@ -187,6 +187,12 @@ Build and flash with the bundled toolchain — `./firmware/bundles/build.sh flas
 
 Four knobs corresponding to the four physical encoders. Their labels (Speed, Hue, Density, etc.) are defined by the pattern itself — you, or the AI, decide what each one controls. The labels you set in JS carry through to the C++ namespace and become the on-device readout.
 
+### The time
+
+A pattern can show the time. The input frame carries `input.timeValid`, `input.hour`, `input.minute` and `input.second`, with the same names in JS and C++. Only a build with the clock feature fills them, once NTP has synced. Every other board gives `timeValid` false and 0 in the other three, and so do the guide and the virtual panel. A pattern that reads the time needs something to show without it. The Lab previews with your browser's clock.
+
+Read `timeValid` before the other three. A module whose source reads it is stamped ABI 3, and firmware from before the fields refuses to install it. A source that reads `hour`, `minute` or `second` without it does not build.
+
 ### 3D preview
 
 The preview renders the panel as it would appear on hardware, including aspect ratio (128 × 64) and brightness curve. It's a strong approximation, not a perfect match — colors on the physical HUB75 panel are slightly more saturated, and dark values look darker because the panel has no backlight bleed. Don't fine-tune to pixel-perfect in the preview; tune until it's *close*, flash, then make final adjustments on the device.

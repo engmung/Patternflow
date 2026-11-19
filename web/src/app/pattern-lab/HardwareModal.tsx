@@ -56,6 +56,9 @@ export default function HardwareModal({
   // Seeded from the lab's pattern name so the .h NAME, the .pfm slug and the
   // Director's opening pattern cue all agree without retyping.
   const [name, setName] = useState(() => labPatternName(useLabStore.getState()));
+  // An unnamed piece has only a layer's name to offer. Stamped over a pasted
+  // header that names itself, that put "Code 1" on the board.
+  const [pieceNamed] = useState(() => useLabStore.getState().name.trim() !== "");
   const [copied, flashCopied] = useResettingState<{ key: string; ok: boolean } | null>(null, 1200);
   const [stage, setStage] = useState<Stage>("convert");
 
@@ -151,14 +154,17 @@ export default function HardwareModal({
 
   // Single path: the model writes NAME itself, so stamp the lab's name back
   // on (the scaffold path already carries it — buildHExport bakes it in).
+  // An unnamed piece leaves the header's own NAME as it is.
   const assembled = useMemo(
     () =>
       stacked
         ? assembleH(exportData.scaffold, pastes)
         : singleHeader === null
           ? ""
-          : enforcePatternName(singleHeader, name),
-    [stacked, exportData.scaffold, pastes, singleHeader, name],
+          : pieceNamed
+            ? enforcePatternName(singleHeader, name)
+            : singleHeader,
+    [stacked, exportData.scaffold, pastes, singleHeader, name, pieceNamed],
   );
 
   // Text and pixel layers go into the scaffold as the pixels they show, so
