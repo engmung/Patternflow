@@ -407,49 +407,6 @@
     border-color: var(--ink);
     text-decoration: none;
   }
-  /* The shop, at the column's width under the buttons. An outline in ink that
-     fills on hover, like Build it, in the wordmark's face. */
-  .hero-shop {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin-top: 88px;
-    padding: 0 20px 0 0;
-    border: 1px solid var(--ink);
-    color: var(--ink);
-    font-family: var(--pretendard);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    text-decoration: none;
-    transition: background-color 0.15s ease, color 0.15s ease;
-  }
-  .hero-shop:hover {
-    background: var(--ink);
-    color: var(--cream);
-    text-decoration: none;
-  }
-  .hero-shop-poster {
-    display: block;
-    flex: none;
-    width: 90px;
-    height: 120px;
-  }
-  /* A tab on the box's top edge, outside it, in the site's orange. */
-  .hero-shop-new {
-    position: absolute;
-    bottom: 100%;
-    left: -1px;
-    font-family: var(--mono);
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    background: var(--pf-led);
-    color: #fff;
-    padding: 6px 12px 5px;
-  }
   /* Stop and Play for the hero video, in its bottom-right corner. Dark with a
      light rule, so it shows on the poster and on the video. 40px square, for a
      finger on a phone. The focus ring stays inside the frame, which clips
