@@ -10,6 +10,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 - **`INVERT_ENCODER 1` inverts the knobs again.** The interrupt handler and `getClicks()` each turned the count round, so a build with it set turned the right way round twice. Only `getClicks()` does now, where the per-knob setting on `/knobs` already was. A panel built with it set and corrected by hand on `/knobs` needs its knobs set back.
 - **SELECT drops a half-turned step when the knob turns back.** The comment said it did. Two detents one way and then one the other counted as one, so the first move back took five.
 - **The power clamp holds while the brightness is being set.** Turning the brightness knob wrote the new level to the panel without telling the clamp, which then thought its own lower level was still there and left the panel above its budget until the picture changed.
+- **A thumbnail is painted without dividing.** 24,576 integer divisions became two lookups a pixel: 1,073 to 524 µs.
 
 ### Web
 
