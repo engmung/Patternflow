@@ -1969,6 +1969,10 @@ void loop() {
     bool selectFeatureOwnsBrowse = PFFeatures::handleSelectInput(input);
     int selectSteps = 0;
     if (!selectFeatureOwnsBrowse && input.knobDeltas[3] != 0) {
+      if ((selectAccum > 0 && input.knobDeltas[3] < 0) ||
+          (selectAccum < 0 && input.knobDeltas[3] > 0)) {
+        selectAccum = 0;
+      }
       selectAccum += input.knobDeltas[3];
       selectSteps = selectAccum / SELECT_DETENTS_PER_STEP;   // truncates toward zero
       selectAccum -= selectSteps * SELECT_DETENTS_PER_STEP;
