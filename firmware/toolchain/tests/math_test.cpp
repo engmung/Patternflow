@@ -106,13 +106,18 @@ void rampRef(const PFColor::ColorStop* stops, int count, double t, double out[3]
 const int SAMPLES = 200001;
 
 void sweepTrig() {
-  double sinErr = 0.0, cosErr = 0.0, odd = 0.0;
+  double sinErr = 0.0, cosErr = 0.0, odd = 0.0, scDiff = 0.0;
   for (int i = 0; i < SAMPLES; i++) {
     const double t = -4.0 * M_PI + (8.0 * M_PI) * (double)i / (double)(SAMPLES - 1);
     const float x = (float)t;
-    sinErr = maxd(sinErr, std::fabs((double)PFMath::fastSin(x) - std::sin((double)x)));
-    cosErr = maxd(cosErr, std::fabs((double)PFMath::fastCos(x) - std::cos((double)x)));
-    odd = maxd(odd, std::fabs((double)PFMath::fastSin(x) + (double)PFMath::fastSin(-x)));
+    const float fs = PFMath::fastSin(x);
+    const float fc = PFMath::fastCos(x);
+    float ps = 0.0f, pc = 0.0f;
+    PFMath::fastSinCos(x, ps, pc);
+    sinErr = maxd(sinErr, std::fabs((double)fs - std::sin((double)x)));
+    cosErr = maxd(cosErr, std::fabs((double)fc - std::cos((double)x)));
+    odd = maxd(odd, std::fabs((double)fs + (double)PFMath::fastSin(-x)));
+    scDiff = maxd(scDiff, maxd(std::fabs((double)ps - (double)fs), std::fabs((double)pc - (double)fc)));
   }
   std::printf("\ncore_math.h - trigonometry\n");
   // 2*pi/1024 = 6.136e-3 is the theoretical bound for a truncated lookup, and
@@ -120,10 +125,14 @@ void sweepTrig() {
   // is 1.565 of an LSB.
   pin("fastSin max abs err", sinErr, 0.00610, 0.00615, "");
   pin("fastCos max abs err", cosErr, 0.00611, 0.00616, "");
-  // Not exactly zero, though truncation toward zero is symmetric and the mask
-  // maps -i and +i to entries that hold exact negatives of each other. The
-  // residue is buildSinLUT calling sinf() independently for the two entries.
-  pin("fastSin oddness |f(x)+f(-x)|", odd, 0.0, 1e-06, "");
+  // Exactly zero since 2026-11. Truncation toward zero is symmetric and the
+  // mask maps -i and +i to entries that are negatives of each other, and
+  // buildSinLUT now fills three quarters of the table from the first, so they
+  // are exact negatives. Until then it called sinf() for each entry on its own
+  // and this row read 4.1e-7.
+  pin("fastSin oddness |f(x)+f(-x)|", odd, 0.0, 0.0, "");
+  // fastSinCos is fastSin and fastCos of one index, so no difference at all.
+  pin("fastSinCos vs fastSin/Cos", scDiff, 0.0, 0.0, "");
 }
 
 void sweepAtan2() {
@@ -159,7 +168,7 @@ void sweepLength() {
 }
 
 void sweepFractAndMod() {
-  double fractErr = 0.0, modErr = 0.0;
+  double fractErr = 0.0, modErr = 0.0, constModErr = 0.0;
   bool inRange = true;
   for (int i = 0; i < SAMPLES; i++) {
     const float x = (float)(-1000.0 + 2000.0 * (double)i / (double)(SAMPLES - 1));
@@ -175,22 +184,60 @@ void sweepFractAndMod() {
                                       std::fmod((double)x, (double)mods[m])));
     }
   }
-  // These three are the contract any faster floor/mod must keep. On the S3 both
-  // floorf() and the division inside jsMod compile to windowed libgcc/libm calls,
-  // so both are live optimization targets; whatever replaces them has to land
-  // back inside these bands or it has changed what patterns draw.
+  // A divisor written as a literal takes the other path through jsMod: a
+  // multiply by the reciprocal, and for anything but a power of two a
+  // correction when that put the quotient on the wrong side of a whole number.
+  // The sweep above passes its divisors in a variable and never reaches it.
+  // Whole multiples are where the correction works, so they are in here.
+  double twoPiModErr = 0.0, pow2ModErr = 0.0;
+  for (int i = 0; i <= 20000; i++) {
+    const float x = (float)(-1000.0 + 2000.0 * (double)i / 20000.0);
+    pow2ModErr = maxd(pow2ModErr, std::fabs((double)PFMath::jsMod(x, 1.0f) - std::fmod((double)x, 1.0)));
+    pow2ModErr = maxd(pow2ModErr, std::fabs((double)PFMath::jsMod(x, 2.0f) - std::fmod((double)x, 2.0)));
+    pow2ModErr = maxd(pow2ModErr, std::fabs((double)PFMath::jsMod(x, -4.0f) - std::fmod((double)x, -4.0)));
+    pow2ModErr = maxd(pow2ModErr, std::fabs((double)PFMath::jsMod(x, 0.25f) - std::fmod((double)x, 0.25)));
+    constModErr = maxd(constModErr, std::fabs((double)PFMath::jsMod(x, 3.0f) - std::fmod((double)x, 3.0)));
+    constModErr = maxd(constModErr, std::fabs((double)PFMath::jsMod(x, -3.0f) - std::fmod((double)x, -3.0)));
+    constModErr = maxd(constModErr, std::fabs((double)PFMath::jsMod(x, 6.0f) - std::fmod((double)x, 6.0)));
+    twoPiModErr = maxd(twoPiModErr, std::fabs((double)PFMath::jsMod(x, PFMath::TWO_PI_F) -
+                                              std::fmod((double)x, (double)PFMath::TWO_PI_F)));
+  }
+  const float nanVal = std::nanf("");
+  const bool nanSafe = (PFMath::clamp01(nanVal) == 0.0f) &&
+                       (PFMath::clamp(nanVal, -2.0f, 3.0f) == -2.0f) &&
+                       (PFMath::fastSqrt(nanVal) == 0.0f) &&
+                       (PFMath::fastSqrt(-1.0f) == 0.0f) &&
+                       (PFMath::fastInvSqrt(nanVal) == 0.0f) &&
+                       (PFMath::fastInvSqrt(0.0f) == 0.0f) &&
+                       (PFMath::fastPow(nanVal, 2.0f) == 0.0f) &&
+                       (PFMath::fastExp2(nanVal) == 0.0f);
+  // These are the contract any faster floor/mod must keep: whatever replaces
+  // them has to land back inside these bands or it has changed what patterns
+  // draw. On the S3 floorf() compiles to a windowed libm call, and so did the
+  // division inside jsMod until its divisor could be a compile-time constant.
   pin("fract in [0,1) over +/-1000", inRange ? 1.0 : 0.0, 1.0, 1.0, "bool");
   pin("fract vs floor max err", fractErr, 0.0, 1e-07, "");
   pin("jsMod vs fmod max err", modErr, 0.0, 1e-05, "");
+  // By a power of two the reciprocal is exact and the result is the same
+  // float fmod returns.
+  pin("jsMod(power of two) vs fmod", pow2ModErr, 0.0, 0.0, "");
+  pin("jsMod(const) vs fmod max err", constModErr, 0.0, 1e-05, "");
+  pin("jsMod(2pi) vs fmod max err", twoPiModErr, 0.0, 5e-05, "");
+  pin("NaN/non-pos safety guards", nanSafe ? 1.0 : 0.0, 1.0, 1.0, "bool");
 }
 
 void sweepPow() {
-  double logErr = 0.0, expRel = 0.0, powRel = 0.0;
+  double logErr = 0.0, expRel = 0.0, powRel = 0.0, invSqrtRel = 0.0, sqrtRel = 0.0;
   for (int i = 0; i < SAMPLES; i++) {
     const double e = -40.0 + 80.0 * (double)i / (double)(SAMPLES - 1);
     const float x = (float)std::pow(2.0, e);
-    if (x > 0.0f && std::isfinite(x))
+    if (x > 0.0f && std::isfinite(x)) {
       logErr = maxd(logErr, std::fabs((double)PFMath::fastLog2(x) - std::log2((double)x)));
+      const double wantInv = 1.0 / std::sqrt((double)x);
+      invSqrtRel = maxd(invSqrtRel, std::fabs((double)PFMath::fastInvSqrt(x) - wantInv) / wantInv);
+      const double wantSqrt = std::sqrt((double)x);
+      sqrtRel = maxd(sqrtRel, std::fabs((double)PFMath::fastSqrt(x) - wantSqrt) / wantSqrt);
+    }
   }
   for (int i = 0; i < SAMPLES; i++) {
     const double p = -30.0 + 60.0 * (double)i / (double)(SAMPLES - 1);
@@ -205,14 +252,20 @@ void sweepPow() {
       powRel = maxd(powRel, std::fabs((double)PFMath::fastPow((float)x, (float)p) - want) / want);
     }
   }
-  std::printf("\ncore_math.h - logarithms and powers\n");
-  // core_math.h:81 says fastPow is "~0.1% typical error". Max over this grid is
-  // 0.054%, so the comment is honest. Both halves carry a division, which is a
-  // __divsf3 call on this target - the standing proposal is to replace them with
-  // divide-free minimax polynomials, and these bands are what it must beat.
-  pin("fastLog2 max abs err", logErr, 1.50e-4, 1.53e-4, "log2");
-  pin("fastExp2 max rel err", expRel * 100.0, 0.00695, 0.00700, "%");
-  pin("fastPow max rel err", powRel * 100.0, 0.0535, 0.0538, "%");
+  std::printf("\ncore_math.h - logarithms, powers, roots\n");
+  // Re-pinned 2026-11-22. Both halves of fastPow carried a division, a
+  // __divsf3 call on this target, and the standing proposal was to replace
+  // them with divide-free minimax polynomials. They are that now: degree 5
+  // for log2 about 1, degree 4 for exp2. What these rows read before and after:
+  //   fastLog2  1.52e-4  -> 1.73e-5 log2
+  //   fastExp2  0.00698% -> 0.00040%
+  //   fastPow   0.0537%  -> 0.00566%
+  // fastInvSqrt and fastSqrt are new with the same change.
+  pin("fastLog2 max abs err", logErr, 1.55e-5, 1.85e-5, "log2");
+  pin("fastExp2 max rel err", expRel * 100.0, 0.00033, 0.00045, "%");
+  pin("fastPow max rel err", powRel * 100.0, 0.0053, 0.0061, "%");
+  pin("fastInvSqrt max rel err", invSqrtRel * 100.0, 0.00040, 0.00055, "%");
+  pin("fastSqrt max rel err", sqrtRel * 100.0, 0.00040, 0.00055, "%");
 }
 
 void sweepColor() {
