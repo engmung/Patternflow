@@ -7,7 +7,7 @@ copied into the sketch rather than installed through the Arduino Library Manager
 
 ## Why it is vendored
 
-Two additions.
+Three additions.
 
 ### 1. `blitRGB888()` — paints a whole frame in a single call
 
@@ -146,6 +146,8 @@ table's declaration, and the two were left as they are.
 
 #### The blit must stay slower than the scan
 
+Since 2026-11-22 the blit waits for the swap ([section 3](#3-waitforflip--the-blit-waits-for-the-swap)), and this rate is no longer what keeps a frame whole. It is what the driver falls back on if the wait ever stops hearing from the DMA, and it is why the wait costs a slow pattern nothing, so it stays written down.
+
 `flipDMABuffer()` returns before the swap takes effect.
 `flip_dma_output_buffer()` (`platforms/esp32s3/gdma_lcd_parallel16.cpp`) only
 rewrites the `next` pointer of each chain's last descriptor - upstream's wait
@@ -203,6 +205,50 @@ wrapper. It has to live in the driver because `dma_bus` is `protected`.
 Caller's side of the contract: the restart resumes at descriptor chain A while
 `back_buffer_id` is wherever it was left, so blank BOTH buffers before resuming
 or one stale frame can show. `../core_sleep.h` does that.
+
+### 3. `waitForFlip()` — the blit waits for the swap
+
+`flipDMABuffer()` returns before the swap takes effect, and until November 2026
+what kept the next blit off a buffer still on the panel was the rate described
+under [The blit must stay slower than the scan](#the-blit-must-stay-slower-than-the-scan).
+That holds for one configuration. A pixel clock under 14.8 MHz crosses it, and
+so does a blit that starts on another core the moment a frame is ready.
+
+**2026-11-22.** The DMA now says where it is. Upstream set `suc_eof` on the
+last descriptor of each chain and left the callback's registration commented
+out. Here `suc_eof` is on descriptor 0 and the callback is registered
+(`platforms/esp32s3/gdma_lcd_parallel16.cpp`), so the GDMA raises one interrupt
+a pass, 300 a second, as it finishes the first descriptor of a chain, and names
+that descriptor. `flip_dma_output_buffer()` records which chain it asked for.
+`wait_for_flip()` returns once the two are the same, which is when the retired
+buffer is free to write. It blocks on a semaphore the interrupt gives, for 20 ms
+at the most.
+
+Descriptor 0 and not the last, because with `suc_eof` on the last one the
+interrupt comes a whole pass after the DMA entered the chain. Measured on Origin:
+9.96 ms a frame waiting on the last descriptor, three refreshes, and 6.65 ms
+waiting on the first, two.
+
+A semaphore and not a task notification. The first version woke the waiter with
+`vTaskNotifyGiveFromISR`, and a task's one notification value is shared with
+anything else that notifies it. NimBLE blocks its callers that way.
+
+`PFCanvas::present()` calls it before every blit, on whichever core is blitting.
+A frame that took longer than a refresh to draw does not wait at all. One that
+took less waits for the pass to end, so a fast pattern's frame is a whole number
+of refreshes: Origin is 6.67 ms, two of them, where the same build without the
+wait measured 4.1 ms.
+
+What it does not cover. The screens that draw on the back buffer themselves,
+SELECT's text and the info cards, still start without waiting. They redraw a few
+times a second, long after the swap.
+
+If the interrupt stops coming, eight waits in a row time out and
+`wait_for_flip()` returns at once from then on, until the DMA is next started.
+That is the driver as it was before the wait, held up by the rate again.
+`PFCanvas::flipMisses` counts blits that began without hearing of the swap. It
+read 0 through every run on the bench board: a survey of sixteen patterns, 150
+seconds of mode changes at random with 24 sleeps, and 49 module loads.
 
 ## The plane encoding holds ten planes, and the config permits twelve
 
