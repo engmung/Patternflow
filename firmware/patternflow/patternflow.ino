@@ -1620,6 +1620,7 @@ void loop() {
       if (b != (int)currentBrightness) {
         currentBrightness = (uint8_t)b;
         dma_display->setBrightness8(currentBrightness);
+        appliedBrightness = currentBrightness;
         brightnessIdleAtMs = now;
         brightnessDirty = true;
       }

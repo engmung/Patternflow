@@ -9,6 +9,7 @@ All notable changes to Patternflow will be documented in this file, newest first
 - **Patterns can read the time on a clock build.** The input frame ends with `timeValid`, `hour`, `minute` and `second`, and the clock feature fills them once NTP has synced. Every other build gives a pattern `timeValid` false and 0 in the other three. A module that reads `timeValid` is stamped ABI 3, and v3.12.0 refuses to install it. Modules that do not read the fields stay at 1 or 2 and install as before ([#540](https://github.com/engmung/Patternflow/pull/540) by [@didusee](https://github.com/didusee)).
 - **`INVERT_ENCODER 1` inverts the knobs again.** The interrupt handler and `getClicks()` each turned the count round, so a build with it set turned the right way round twice. Only `getClicks()` does now, where the per-knob setting on `/knobs` already was. A panel built with it set and corrected by hand on `/knobs` needs its knobs set back.
 - **SELECT drops a half-turned step when the knob turns back.** The comment said it did. Two detents one way and then one the other counted as one, so the first move back took five.
+- **The power clamp holds while the brightness is being set.** Turning the brightness knob wrote the new level to the panel without telling the clamp, which then thought its own lower level was still there and left the panel above its budget until the picture changed.
 
 ### Web
 
