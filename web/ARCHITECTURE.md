@@ -62,7 +62,7 @@ Mirrors the firmware; the same JS runs in the browser, in the community's sandbo
 - **`src/lib/pattern/controls.ts`** — knob-scale constants shared with the firmware.
 - **`src/lib/pattern/share.ts`** — licence header + attribution footer. The community bakes them into the stored code when a pattern is published or its details are edited (`src/lib/community/license.ts`), so the pattern page shows them, and a download wraps the code it hands out (`src/lib/community/download.ts`). The Live Editor and the Lab never add them while you write.
 - **`src/lib/pattern/packs.ts`** — the Basics pack that ships with the firmware (`public/packs/`, built by `firmware/toolchain/make_pack.py`).
-- **`src/lib/ai/variantPrompt.ts`** — the prompt the Lab's Copy prompt puts on the clipboard, for whatever AI chat you paste it into. The site calls no AI itself. The Lab's Gemini gallery, which did, came out on 23 October 2026.
+- **`src/lib/ai/variantPrompt.ts`** — the prompt the Lab's Copy prompt puts on the clipboard, for whatever AI chat you paste it into. The landing page's Copy creation prompt is the same one, built here without the parts its preview lacks (`components/sections/variantPrompt.ts`). The site calls no AI itself. The Lab's Gemini gallery, which did, came out on 23 October 2026.
 
 ## Pattern Lab (`src/app/pattern-lab/` + `src/lib/lab/`)
 
